@@ -1,0 +1,36 @@
+{
+  "model": {
+    "type": "minecraft:condition",
+    "property": "minecraft:has_component",
+    "component": "minecraft:lodestone_tracker",
+    "on_false": {
+      "type": "minecraft:model",
+      "model": "minecraft:item/compass_16"
+    },
+    "on_true": {
+      "type": "minecraft:range_dispatch",
+      "property": "minecraft:compass",
+      "target": "lodestone",
+      "scale": 16.0,
+      "entries": [
+        { "threshold": 0.0, "model": { "type": "minecraft:model", "model": "minecraft:item/compass_16" } },
+        { "threshold": 0.5, "model": { "type": "minecraft:model", "model": "minecraft:item/compass_18" } },
+        { "threshold": 1.5, "model": { "type": "minecraft:model", "model": "minecraft:item/compass_20" } },
+        { "threshold": 2.5, "model": { "type": "minecraft:model", "model": "minecraft:item/compass_22" } },
+        { "threshold": 3.5, "model": { "type": "minecraft:model", "model": "minecraft:item/compass_24" } },
+        { "threshold": 4.5, "model": { "type": "minecraft:model", "model": "minecraft:item/compass_26" } },
+        { "threshold": 5.5, "model": { "type": "minecraft:model", "model": "minecraft:item/compass_28" } },
+        { "threshold": 6.5, "model": { "type": "minecraft:model", "model": "minecraft:item/compass_30" } },
+        { "threshold": 7.5, "model": { "type": "minecraft:model", "model": "minecraft:item/compass_00" } },
+        { "threshold": 8.5, "model": { "type": "minecraft:model", "model": "minecraft:item/compass_02" } },
+        { "threshold": 9.5, "model": { "type": "minecraft:model", "model": "minecraft:item/compass_04" } },
+        { "threshold": 10.5, "model": { "type": "minecraft:model", "model": "minecraft:item/compass_06" } },
+        { "threshold": 11.5, "model": { "type": "minecraft:model", "model": "minecraft:item/compass_08" } },
+        { "threshold": 12.5, "model": { "type": "minecraft:model", "model": "minecraft:item/compass_10" } },
+        { "threshold": 13.5, "model": { "type": "minecraft:model", "model": "minecraft:item/compass_12" } },
+        { "threshold": 14.5, "model": { "type": "minecraft:model", "model": "minecraft:item/compass_14" } },
+        { "threshold": 15.5, "model": { "type": "minecraft:model", "model": "minecraft:item/compass_16" } }
+      ]
+    }
+  }
+}

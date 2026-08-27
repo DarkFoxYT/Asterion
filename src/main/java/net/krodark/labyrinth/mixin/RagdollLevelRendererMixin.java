@@ -1,0 +1,19 @@
+package net.krodark.labyrinth.mixin;
+
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.krodark.labyrinth.client.ragdoll.RagdollRenderer;
+import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.state.level.LevelRenderState;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+@Mixin(LevelRenderer.class)
+abstract class RagdollLevelRendererMixin {
+    @Inject(method = "submitEntities", at = @At("TAIL"))
+    private void labyrinth$submitRagdolls(PoseStack poses, LevelRenderState state, SubmitNodeCollector output, CallbackInfo ci) {
+        RagdollRenderer.submit(poses, state, output);
+    }
+}

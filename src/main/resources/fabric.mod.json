@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "labyrinth",
+  "version": "${version}",
+  "name": "Labyrinth",
+  "description": "Minautor",
+  "authors": [],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "icon": "assets/labyrinth/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "fabric-datagen": [
+      "net.krodark.labyrinth.client.LabyrinthDataGenerator"
+    ],
+    "client": [
+      "net.krodark.labyrinth.client.LabyrinthClient"
+    ],
+    "main": [
+      "net.krodark.labyrinth.Labyrinth"
+    ]
+  },
+  "mixins": [
+    "labyrinth.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "imguimc": ">=2.0.5",
+    "minecraft": "${minecraft_version}",
+    "amnetic": "*"
+  }
+}

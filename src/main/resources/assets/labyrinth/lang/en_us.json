@@ -1,0 +1,12 @@
+{
+  "itemGroup.labyrinth.labyrinth": "Labyrinth",
+  "item.labyrinth.antikythera_mechanism": "Antikythera Mechanism",
+  "block.labyrinth.ancient_bricks": "Ancient Bricks",
+  "block.labyrinth.ancient_stone": "Ancient Stone",
+  "tooltip.labyrinth.antikythera_mechanism.dormant": "Dormant. Use it to reveal the distant breach.",
+  "tooltip.labyrinth.antikythera_mechanism.bound": "Its celestial rings point toward the breach.",
+  "message.labyrinth.mechanism_awakened": "The mechanism awakens. Something impossibly distant answers.",
+  "message.labyrinth.mechanism_points": "The mechanism continues to point toward the breach.",
+  "transition.labyrinth.descending": "DESCENDING INTO THE LABYRINTH",
+  "entity.labyrinth.minotaur": "Minotaur"
+}
