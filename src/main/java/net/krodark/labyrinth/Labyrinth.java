@@ -47,6 +47,7 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import net.krodark.labyrinth.worldgen.UnderwaterRuinFeature;
+import net.krodark.labyrinth.worldgen.MazeChunkGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,6 +115,8 @@ public class Labyrinth implements ModInitializer {
     public static final Feature<NoneFeatureConfiguration> UNDERWATER_RUIN_FEATURE = Registry.register(
             BuiltInRegistries.FEATURE, id("underwater_ruin"),
             new UnderwaterRuinFeature(NoneFeatureConfiguration.CODEC));
+    public static final com.mojang.serialization.MapCodec<MazeChunkGenerator> MAZE_CHUNK_GENERATOR =
+            Registry.register(BuiltInRegistries.CHUNK_GENERATOR, id("maze"), MazeChunkGenerator.CODEC);
     private static final ResourceKey<PlacedFeature> UNDERWATER_RUIN_PLACED = ResourceKey.create(
             Registries.PLACED_FEATURE, id("underwater_ruin"));
 

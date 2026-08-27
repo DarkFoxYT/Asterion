@@ -46,13 +46,6 @@ public final class HeldItemDynamicLights {
             clear();
             return;
         }
-        // Labyrinth's dust is a later post-world pass than Amnetic's deferred
-        // lights. Use real Minecraft block light in that dimension instead of
-        // stacking a point-light overlay that the fog will wash out.
-        if (client.level.dimension().equals(Labyrinth.LABYRINTH_LEVEL)) {
-            clear();
-            return;
-        }
 
         Set<Object> currentLights = CURRENT_LIGHTS;
         currentLights.clear();
@@ -107,8 +100,7 @@ public final class HeldItemDynamicLights {
     }
 
     public static void renderFrame(Minecraft client, float partialTick) {
-        if (client.level == null || client.player == null
-                || client.level.dimension().equals(Labyrinth.LABYRINTH_LEVEL)) return;
+        if (client.level == null || client.player == null) return;
         float partial = Mth.clamp(partialTick, 0.0F, 1.0F);
         long now = System.nanoTime();
         float frameSeconds = lastRenderNs == 0L ? 1.0F / 60.0F
@@ -177,9 +169,15 @@ public final class HeldItemDynamicLights {
                 ? (float) (0.972D + Math.sin(phase) * 0.018D
                         + Math.sin(phase * 2.37D) * 0.007D + Math.sin(phase * 0.41D) * 0.006D)
                 : 1.0F;
-        boolean softShadow = castsShadow || style.radius >= 6.5F;
+        boolean inLabyrinth = owner.level().dimension().equals(Labyrinth.LABYRINTH_LEVEL);
+        // Vanilla level light supplies the real illumination in the maze.
+        // Amnetic contributes only a restrained, smoothly moving color halo.
+        float visualIntensity = style.intensity * flicker * (inLabyrinth ? 0.46F : 1.0F);
+        float visualRadius = style.radius * (0.992F + flicker * 0.008F)
+                * (inLabyrinth ? 0.72F : 1.0F);
+        boolean softShadow = !inLabyrinth && (castsShadow || style.radius >= 6.5F);
         LedAmneticLight.updateItemGlowLight(key, position, style.red, style.green, style.blue,
-                style.intensity * flicker, style.radius * (0.992F + flicker * 0.008F), softShadow);
+                visualIntensity, visualRadius, softShadow);
     }
 
     private static HeldLightKey heldKey(UUID playerId, InteractionHand hand) {

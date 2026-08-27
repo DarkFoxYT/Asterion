@@ -1,7 +1,7 @@
 {
   "type": "labyrinth:labyrinth",
   "generator": {
-    "type": "minecraft:flat",
+    "type": "labyrinth:maze",
     "settings": {
       "biome": "minecraft:the_void",
       "features": false,

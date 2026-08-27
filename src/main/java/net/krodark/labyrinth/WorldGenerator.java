@@ -28,6 +28,7 @@ import net.minecraft.world.level.block.entity.BarrelBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.phys.Vec3;
@@ -59,10 +60,8 @@ public final class WorldGenerator {
             Registries.LOOT_TABLE, Labyrinth.id("chests/maze_supply_barrel"));
     // Small render-safety buffer in nearest-first order. These are generated across separate
     // ticks, avoiding one giant stall while still satisfying the vanilla receiving-world screen.
-    private static final int[][] PRELOAD_OFFSETS = {
-            {0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1},
-            {1, 1}, {-1, 1}, {1, -1}, {-1, -1}
-    };
+    private static final int[][] PRELOAD_OFFSETS = {{0, 0}};
+    private static final int[][] PREWARM_OFFSETS = {{0, 0}};
     private static final Map<Long, Integer> GATEWAY_SURFACE_Y = new ConcurrentHashMap<>();
     private static final Map<MazeKey, MazeTopology> MAZE_TOPOLOGIES = new ConcurrentHashMap<>();
     private static final Map<UUID, PendingTransition> PENDING_TRANSITIONS = new HashMap<>();
@@ -77,41 +76,46 @@ public final class WorldGenerator {
     private static final PriorityQueue<RestoringBlock> RESTORING_BLOCKS = new PriorityQueue<>(
             Comparator.comparingLong(RestoringBlock::dueTick));
     private static final Map<BlockKey, Block> PLAYER_PLACED_BLOCKS = new HashMap<>();
+    private static long prewarmSeed = Long.MIN_VALUE;
+    private static int prewarmIndex;
 
     private WorldGenerator() {
     }
 
     public static void onChunkLoad(ServerLevel level, LevelChunk chunk, boolean newlyGenerated) {
         if (level.dimension().equals(Labyrinth.LABYRINTH_LEVEL)) {
-            ChunkPos pos = chunk.getPos();
-            BlockPos marker = new BlockPos(pos.getMinBlockX(), 1, pos.getMinBlockZ());
-            boolean generatedNow = !chunk.getBlockState(marker).is(Blocks.BEDROCK);
-            if (generatedNow) buildMazeChunk(level, chunk, marker);
-            if (generatedNow) MazeNbtStructures.markCopperClean(chunk);
+            // Never construct terrain from a load callback: clients may already be receiving this
+            // chunk. New worlds use MazeChunkGenerator; old incomplete chunks remain untouched
+            // rather than causing the visible unload/rebuild behavior this pipeline replaces.
+            if (newlyGenerated) MazeNbtStructures.markCopperClean(chunk);
             else MazeNbtStructures.cleanLegacyCopper(chunk,
                     BOSS_FLOOR_Y - LabyrinthConfig.INSTANCE.floorThickness,
                     FLOOR_Y + LabyrinthConfig.INSTANCE.wallHeight);
         }
     }
 
+    public static void onChunkGenerate(ServerLevel level, LevelChunk chunk) {
+        if (!level.dimension().equals(Labyrinth.LABYRINTH_LEVEL)) return;
+        ChunkPos pos = chunk.getPos();
+        BlockPos marker = new BlockPos(pos.getMinBlockX(), 1, pos.getMinBlockZ());
+        if (!chunk.getBlockState(marker).is(Blocks.BEDROCK)) buildMazeChunk(level, chunk, marker);
+        MazeNbtStructures.markCopperClean(chunk);
+    }
+
     public static void tickServer(MinecraftServer server) {
         DeadSunEventSystem.tick(server);
         tickDecayingBlocks(server);
         tickRestoringBlocks(server);
-        server.getPlayerList().getPlayers().forEach(WorldGenerator::tickPlayer);
-        tickPhasingEntities(server);
         ServerLevel maze = server.getLevel(Labyrinth.LABYRINTH_LEVEL);
         if (maze != null) {
-            // Dense fog hides the shorter horizon. A tight dimension-local cap prevents large
-            // client settings (the supplied log used 32) from queuing thousands of maze chunks.
-            maze.getChunkSource().setViewDistance(5);
-            maze.getChunkSource().setSimulationDistance(3);
             tickMazeEntities(maze);
             // Do not force-load an unrelated multi-chunk NBT landmark while a player is in the
             // loading handshake; its bounded queue resumes as soon as the handoff completes.
             if (ENABLE_MAZE_NBT_STRUCTURES && PENDING_TRANSITIONS.isEmpty())
                 MazeNbtStructures.tick(maze);
         }
+        server.getPlayerList().getPlayers().forEach(WorldGenerator::tickPlayer);
+        tickPhasingEntities(server);
         // These are stale-entry safeguards, not gameplay logic. Running the map scans once per
         // second removes needless UUID/entity lookups from every server tick.
         if ((server.overworld().getGameTime() % 20L) == 0L) {
@@ -128,6 +132,27 @@ public final class WorldGenerator {
             });
             LAST_PORTAL_SYNC.keySet().removeIf(id -> server.getPlayerList().getPlayer(id) == null);
         }
+    }
+
+    private static void generateNextPrewarmChunk(ServerLevel maze) {
+        if (prewarmIndex >= PREWARM_OFFSETS.length) return;
+        ChunkPos center = ChunkPos.containing(sharedMazeArrival());
+        int[] offset = PREWARM_OFFSETS[prewarmIndex++];
+        maze.getChunk(center.x() + offset[0], center.z() + offset[1]);
+    }
+
+    private static int[][] createSpiralOffsets(int radius) {
+        int diameter = radius * 2 + 1;
+        int[][] offsets = new int[diameter * diameter][2];
+        int index = 0;
+        offsets[index++] = new int[]{0, 0};
+        for (int ring = 1; ring <= radius; ring++) {
+            for (int x = -ring; x <= ring; x++) offsets[index++] = new int[]{x, -ring};
+            for (int z = -ring + 1; z <= ring; z++) offsets[index++] = new int[]{ring, z};
+            for (int x = ring - 1; x >= -ring; x--) offsets[index++] = new int[]{x, ring};
+            for (int z = ring - 1; z > -ring; z--) offsets[index++] = new int[]{-ring, z};
+        }
+        return offsets;
     }
 
     public static void trackPlayerPlacement(ServerLevel level, BlockPos pos, BlockState state) {
@@ -526,6 +551,8 @@ public final class WorldGenerator {
         DECAYING_BLOCKS.clear();
         RESTORING_BLOCKS.clear();
         MAZE_TOPOLOGIES.clear();
+        prewarmSeed = Long.MIN_VALUE;
+        prewarmIndex = 0;
         summonedPortal = null;
         MazeNbtStructures.clearRuntimeState();
     }
@@ -617,10 +644,16 @@ public final class WorldGenerator {
     }
 
     private static void beginTransition(ServerPlayer player, ServerLevel maze) {
+        if (prewarmSeed != maze.getSeed()) {
+            prewarmSeed = maze.getSeed();
+            prewarmIndex = 0;
+        }
         BlockPos destination = sharedMazeArrival();
         PendingTransition pending = new PendingTransition(maze, destination,
                 player.isInvulnerable(), player.isNoGravity(), player.noPhysics);
         PENDING_TRANSITIONS.put(player.getUUID(), pending);
+        Labyrinth.LOGGER.info("Preparing Labyrinth transition for {} ({} buffered chunks)",
+                player.getScoreboardName(), PREWARM_OFFSETS.length - prewarmIndex);
         // Keep a minimal render-safe region resident while its chunks are filled incrementally.
         maze.getChunkSource().addTicketWithRadius(TicketType.PORTAL, pending.destinationChunk, 1);
         player.setInvulnerable(true);
@@ -638,6 +671,17 @@ public final class WorldGenerator {
             // Let the body visibly phase through terrain before the dimension tears it away.
             if (!pending.teleported && pending.ticks < 6)
                 player.setPos(player.getX(), player.getY() - (0.10D + pending.ticks * 0.012D), player.getZ());
+            // Finish the complete visible destination buffer before changing dimensions. The
+            // player sees the intentional black transition instead of suffering rollback while
+            // fresh maze chunks compete with gameplay ticks.
+            if (!pending.teleported && prewarmIndex < PREWARM_OFFSETS.length) {
+                generateNextPrewarmChunk(pending.maze);
+                if (prewarmIndex % 12 == 0 || prewarmIndex == PREWARM_OFFSETS.length)
+                    Labyrinth.LOGGER.info("Labyrinth transition buffer: {}/{} chunks",
+                            prewarmIndex, PREWARM_OFFSETS.length);
+                pending.ticks++;
+                return;
+            }
             // One synchronous maze chunk per tick keeps the server responsive during generation.
             if (pending.preloadIndex < PRELOAD_OFFSETS.length) {
                 int[] offset = PRELOAD_OFFSETS[pending.preloadIndex++];
@@ -654,6 +698,7 @@ public final class WorldGenerator {
                 player.setDeltaMovement(Vec3.ZERO);
                 player.resetFallDistance();
                 pending.teleported = true;
+                Labyrinth.LOGGER.info("Teleported {} into the Labyrinth", player.getScoreboardName());
             }
             if (pending.teleported && !pending.clientReady) {
                 player.setPos(pending.destination.getX() + 0.5D,
@@ -661,7 +706,7 @@ public final class WorldGenerator {
             }
             pending.ticks++;
             if (pending.teleported && pending.clientReady) finishTransition(player, pending);
-            else if (pending.ticks >= 240) {
+            else if (pending.ticks >= 400) {
                 Labyrinth.LOGGER.warn("Transition ready acknowledgement timed out for {}; releasing safely",
                         player.getScoreboardName());
                 finishTransition(player, pending);
@@ -763,17 +808,20 @@ public final class WorldGenerator {
     }
 
     private static void buildMazeChunk(ServerLevel level, LevelChunk chunk, BlockPos marker) {
+        generateMazeChunk(chunk, level.getSeed());
+    }
+
+    /** Called by the actual chunk generator, before Minecraft exposes the chunk to clients. */
+    public static void generateMazeChunk(ChunkAccess chunk, long seed) {
         LabyrinthConfig config = LabyrinthConfig.INSTANCE;
         int radius = config.mazeRadiusCells;
         int cell = config.cellSize;
         int thickness = config.wallThickness;
         int limit = radius * cell;
-        long seed = level.getSeed();
         MazeTopology topology = topology(seed, radius, config.mazeLoopChance, config.mazeLandmarkChance);
-        MazeNbtStructures.Layout structures = ENABLE_MAZE_NBT_STRUCTURES
-                ? MazeNbtStructures.layout(level, radius, cell, topology::canReserveStructure)
-                : MazeNbtStructures.emptyLayout();
+        MazeNbtStructures.Layout structures = MazeNbtStructures.emptyLayout();
         ChunkPos chunkPos = chunk.getPos();
+        BlockPos marker = new BlockPos(chunkPos.getMinBlockX(), 1, chunkPos.getMinBlockZ());
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         int startX = Math.max(chunkPos.getMinBlockX(), -limit);
         int endX = Math.min(chunkPos.getMaxBlockX(), limit - 1);
@@ -819,10 +867,11 @@ public final class WorldGenerator {
             if (!section.hasOnlyAir()) section.recalcBlockCounts();
         Heightmap.primeHeightmaps(chunk, EnumSet.allOf(Heightmap.Types.class));
         chunk.markUnsaved();
-        structures.onChunkBuilt(chunk);
+        if (ENABLE_MAZE_NBT_STRUCTURES && chunk instanceof LevelChunk levelChunk)
+            structures.onChunkBuilt(levelChunk);
     }
 
-    private static void placeFloorColumn(LevelChunk chunk, BlockPos.MutableBlockPos p, long seed,
+    private static void placeFloorColumn(ChunkAccess chunk, BlockPos.MutableBlockPos p, long seed,
                                          int x, int z, int topY, int depth, MazeTopology topology,
                                          int cell, int radius) {
         for (int layer = 0; layer < depth; layer++) {
@@ -832,7 +881,7 @@ public final class WorldGenerator {
     }
 
     /** Palette-buffer write used only while constructing a new empty maze chunk. */
-    private static void bufferedSet(LevelChunk chunk, int x, int y, int z, BlockState state) {
+    private static void bufferedSet(ChunkAccess chunk, int x, int y, int z, BlockState state) {
         LevelChunkSection section = chunk.getSection(chunk.getSectionIndex(y));
         section.setBlockState(x & 15, y & 15, z & 15, state, false);
     }
@@ -881,7 +930,7 @@ public final class WorldGenerator {
                 && topology.open(gx, gz - 1, gx, gz) && topology.arch(gx, gz - 1, gx, gz);
     }
 
-    private static void placeDecorationColumn(LevelChunk chunk, BlockPos.MutableBlockPos p,
+    private static void placeDecorationColumn(ChunkAccess chunk, BlockPos.MutableBlockPos p,
                                               MazeTopology topology, MazeNbtStructures.Layout structures,
                                               long seed, int x, int z,
                                               int cell, int thickness, int radius, int wallHeight) {
@@ -912,7 +961,8 @@ public final class WorldGenerator {
         if (lx == center + 1 && lz == center - 1 && Math.floorMod(supply, 311) == 0) {
             BlockPos barrelPos = new BlockPos(x, FLOOR_Y + 1, z);
             chunk.setBlockState(barrelPos, Blocks.BARREL.defaultBlockState(), 0);
-            if (chunk.getBlockEntity(barrelPos) instanceof BarrelBlockEntity barrel) {
+            if (chunk instanceof LevelChunk levelChunk
+                    && levelChunk.getBlockEntity(barrelPos) instanceof BarrelBlockEntity barrel) {
                 barrel.setLootTable(MAZE_BARREL_LOOT);
                 barrel.setLootTableSeed(supply);
                 barrel.setChanged();
