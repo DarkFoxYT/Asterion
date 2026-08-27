@@ -18,9 +18,6 @@ fabricApi {
 }
 
 repositories {
-    // Add repositories to retrieve artifacts from in here.
-    // You should only use this when depending on other mods because
-    // Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
     exclusiveContent {
         forRepository { maven { url = "https://maven.ryanhcode.dev/releases" } }
         filter { includeGroup("foundry.imguimc") }
@@ -28,43 +25,39 @@ repositories {
 }
 
 dependencies {
-    // To change the versions see the gradle.properties file
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-    // Client-side generation controls. Kept external so other mods share one ImGui runtime.
     compileOnly "foundry.imguimc:imguimc-fabric-26.1:${project.imguimc_version}"
     compileOnly "io.github.spair:imgui-java-binding:${project.imgui_version}"
     localRuntime "foundry.imguimc:imguimc-fabric-26.1:${project.imguimc_version}"
 
-    // Amnetic supplies the dimension post-processing pipeline. Keep it external so the
-    // library remains a normal Fabric mod, but include the local build in development runs.
     compileOnly files("../Amnetic/build/libs/amnetic-1.0-SNAPSHOT.jar")
     localRuntime files("../Amnetic/build/libs/amnetic-1.0-SNAPSHOT.jar")
+
 }
 
+def resourceProperties = [
+        version          : version,
+        minecraft_version: minecraft_version,
+        loader_version   : loader_version
+]
+
 processResources {
-    inputs.property "version", project.version
-    inputs.property "minecraft_version", project.minecraft_version
-    inputs.property "loader_version", project.loader_version
-    filteringCharset "UTF-8"
+    inputs.properties resourceProperties
+    filteringCharset = "UTF-8"
 
     filesMatching("fabric.mod.json") {
-        expand "version": project.version,
-                "minecraft_version": project.minecraft_version,
-                "loader_version": project.loader_version
+        expand resourceProperties
     }
 }
 
 def targetJavaVersion = 25
 tasks.withType(JavaCompile).configureEach {
-    // ensure that the encoding is set to UTF-8, no matter what the system default is
-    // this fixes some edge cases with special characters not displaying correctly
-    // see http://yodaconditions.net/blog/fix-for-java-file-encoding-problems-with-gradle.html
-    // If Javadoc is generated, this must be specified in that task too.
     it.options.encoding = "UTF-8"
+    it.options.compilerArgs.addAll(["-Xlint:deprecation", "-Xlint:unchecked"])
     if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
         it.options.release.set(targetJavaVersion)
     }
@@ -75,9 +68,6 @@ java {
     if (JavaVersion.current() < javaVersion) {
         toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
     }
-    // Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
-    // if it is present.
-    // If you remove this line, sources will not be generated.
     withSourcesJar()
 }
 
@@ -87,7 +77,6 @@ jar {
     }
 }
 
-// configure the maven publication
 publishing {
     publications {
         create("mavenJava", MavenPublication) {
@@ -96,13 +85,6 @@ publishing {
         }
     }
 
-    // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
-    repositories {
-        // Add repositories to publish to here.
-        // Notice: This block does NOT have the same function as the block in the top level.
-        // The repositories here will be used for publishing your artifact, not for
-        // retrieving dependencies.
-    }
 }
 
 tasks.register("rebuildStructureTemplates", JavaExec) {

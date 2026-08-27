@@ -8,7 +8,6 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.Random;
 
-/** Camera-facing, multi-layer fractal lightning adapted from the supplied Amalgam renderer. */
 public final class BetterLightningRenderer {
     private BetterLightningRenderer() {
     }
@@ -23,7 +22,6 @@ public final class BetterLightningRenderer {
         double roughness = Mth.clamp(0.48D + distance * 0.0022D, 0.48D, 0.84D);
         Vec3[] spine = BoltBuilder.buildMainPath(start, end, subdivisions, roughness, random);
         BoltBuilder.Branch[] branches = BoltBuilder.buildBranches(spine, branchCount, random);
-        // The channel grows subtly with length, but remains much slimmer than the old fixed-width bolt.
         float distanceWidth = (float) Mth.clamp(0.042D + Math.sqrt(distance) * 0.0052D, 0.045D, 0.115D);
         float width = distanceWidth * (0.66F + charge * 0.34F);
         LabyrinthConfig config = LabyrinthConfig.INSTANCE;
@@ -100,7 +98,6 @@ public final class BetterLightningRenderer {
     }
 
     private static float taper(float progress) {
-        // Fine terminals with a readable middle, instead of swelling into the target's head/body.
         return 0.34F + (float) Math.sin(progress * Math.PI) * 0.66F;
     }
 

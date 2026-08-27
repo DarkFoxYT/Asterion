@@ -6,7 +6,6 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
-/** Bounded physical impulse delivered by a ragdoll to another entity. */
 public record RagdollEntityImpactPayload(int entityId, float x, float y, float z)
         implements CustomPacketPayload {
     public static final Type<RagdollEntityImpactPayload> TYPE = new Type<>(
@@ -20,5 +19,4 @@ public record RagdollEntityImpactPayload(int entityId, float x, float y, float z
 
     @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
 }
-
 

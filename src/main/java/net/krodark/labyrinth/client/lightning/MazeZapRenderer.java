@@ -6,10 +6,12 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.krodark.labyrinth.Labyrinth;
 import net.krodark.labyrinth.LabyrinthConfig;
+import net.krodark.labyrinth.client.ragdoll.DismembermentEngine;
 import net.krodark.labyrinth.network.MazeZapPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
@@ -39,11 +41,14 @@ public final class MazeZapRenderer {
                 }
                 Entity target = client.level.getEntity(strike.entityId);
                 if (target == null) continue;
-                Vec3 start = strike.source.subtract(camera);
-                Vec3 end = bodyCenter(target).subtract(camera);
+                Vec3 body = bodyCenter(target);
                 float charge = Math.min(1.0F, (strike.expiresAt - now + 1) / 4.0F);
-                BetterLightningRenderer.draw(context.bufferSource().getBuffer(RenderTypes.lightning()),
-                        context.poseStack().last(), Vec3.ZERO, start, end, charge, now / 2L);
+                var lightning = context.bufferSource().getBuffer(RenderTypes.lightning());
+                if (now - strike.createdAt <= 10L) {
+                    BetterLightningRenderer.draw(lightning, context.poseStack().last(), Vec3.ZERO,
+                            strike.source.subtract(camera), body.subtract(camera), charge, now / 2L);
+                }
+                strike.drawBodyArcs(lightning, context.poseStack().last(), camera, target, body, charge, now);
             }
         });
     }
@@ -56,7 +61,8 @@ public final class MazeZapRenderer {
             strike.removeLights();
             return true;
         });
-        STRIKES.add(new Strike(payload.targetEntityId(), payload.source(), now + payload.durationTicks()));
+        STRIKES.add(new Strike(payload.targetEntityId(), payload.source(), payload.impulse(),
+                now + payload.durationTicks()));
     }
 
     private static void tick(Minecraft client) {
@@ -75,26 +81,60 @@ public final class MazeZapRenderer {
                 iterator.remove();
                 continue;
             }
+            strike.applyElectrification(client, target);
             strike.updateLights(bodyCenter(target), now);
         }
     }
 
     private static Vec3 bodyCenter(Entity target) {
-        // Chest/torso center rather than eye position, including correctly scaled entities.
         return target.position().add(0.0D, target.getBbHeight() * 0.52D, 0.0D);
     }
 
     private static final class Strike {
         private final int entityId;
         private final Vec3 source;
+        private final Vec3 impulse;
+        private final long createdAt;
         private final long expiresAt;
+        private boolean applied;
         private Light bodyLight;
         private Light channelLight;
 
-        private Strike(int entityId, Vec3 source, long expiresAt) {
+        private Strike(int entityId, Vec3 source, Vec3 impulse, long expiresAt) {
             this.entityId = entityId;
             this.source = source;
+            this.impulse = impulse;
             this.expiresAt = expiresAt;
+            Minecraft client = Minecraft.getInstance();
+            this.createdAt = client.level == null ? 0L : client.level.getGameTime();
+        }
+
+        private void applyElectrification(Minecraft client, Entity target) {
+            if (applied || !(target instanceof LivingEntity living)) return;
+            applied = true;
+            DismembermentEngine.INSTANCE.electrify(client, living, source, impulse,
+                    (int) Math.max(1L, expiresAt - createdAt));
+        }
+
+        private void drawBodyArcs(com.mojang.blaze3d.vertex.VertexConsumer out,
+                                  com.mojang.blaze3d.vertex.PoseStack.Pose pose,
+                                  Vec3 camera, Entity target, Vec3 body, float charge, long now) {
+            double radius = Math.max(0.34D, target.getBbWidth() * 0.62D);
+            double height = Math.max(0.7D, target.getBbHeight() * 0.72D);
+            long phaseTick = now / 3L;
+            for (int arc = 0; arc < 3; arc++) {
+                double phase = phaseTick * 1.73D + entityId * 0.91D + arc * 2.094D;
+                Vec3 start = body.add(Math.cos(phase) * radius,
+                        Math.sin(phase * 1.37D) * height * 0.48D,
+                        Math.sin(phase) * radius);
+                double endPhase = phase + 1.05D + Math.sin(phase * 0.61D) * 0.32D;
+                Vec3 end = body.add(Math.cos(endPhase) * radius * 0.86D,
+                        Math.sin(endPhase * 1.21D) * height * 0.52D,
+                        Math.sin(endPhase) * radius * 0.86D);
+                BetterLightningRenderer.draw(out, pose, Vec3.ZERO, start.subtract(camera),
+                        end.subtract(camera), charge * 0.72F,
+                        phaseTick * 31L + entityId * 7L + arc * 101L);
+            }
         }
 
         private void updateLights(Vec3 body, long now) {

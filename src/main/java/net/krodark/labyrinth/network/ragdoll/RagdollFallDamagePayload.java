@@ -6,7 +6,6 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
-/** Self-only fall damage calculated from the physical ragdoll landing. */
 public record RagdollFallDamagePayload(float damage) implements CustomPacketPayload {
     public static final Type<RagdollFallDamagePayload> TYPE = new Type<>(
             Identifier.fromNamespaceAndPath("labyrinth", "ragdoll_fall_damage"));
@@ -15,5 +14,4 @@ public record RagdollFallDamagePayload(float damage) implements CustomPacketPayl
                     RagdollFallDamagePayload::new);
     @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
 }
-
 

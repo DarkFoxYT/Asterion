@@ -7,7 +7,6 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 
-/** Server-authored impulse that can force the local player into a physical tumble. */
 public record RagdollImpulsePayload(Vec3 source, Vec3 impulse, float force)
         implements CustomPacketPayload {
     public static final Type<RagdollImpulsePayload> TYPE = new Type<>(
@@ -37,5 +36,4 @@ public record RagdollImpulsePayload(Vec3 source, Vec3 impulse, float force)
 
     @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
 }
-
 

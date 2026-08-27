@@ -40,6 +40,11 @@
           "type": "minecraft:item",
           "name": "minecraft:echo_shard",
           "weight": 1
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:nautilus_shell",
+          "weight": 2
         }
       ],
       "rolls": {
@@ -52,13 +57,8 @@
       "bonus_rolls": 0.0,
       "entries": [
         {
-          "type": "minecraft:empty",
-          "weight": 88
-        },
-        {
           "type": "minecraft:item",
-          "name": "labyrinth:antikythera_mechanism",
-          "weight": 12
+          "name": "labyrinth:antikythera_blueprint"
         }
       ],
       "rolls": 1.0

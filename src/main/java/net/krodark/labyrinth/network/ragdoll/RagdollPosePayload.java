@@ -8,7 +8,6 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
-/** Bounded cross-loader-safe rigid body snapshot relayed by the server. */
 public record RagdollPosePayload(int entityId, int sequence, List<Part> parts)
         implements CustomPacketPayload {
     public static final Type<RagdollPosePayload> TYPE = new Type<>(
@@ -46,5 +45,4 @@ public record RagdollPosePayload(int entityId, int sequence, List<Part> parts)
         }
     }
 }
-
 

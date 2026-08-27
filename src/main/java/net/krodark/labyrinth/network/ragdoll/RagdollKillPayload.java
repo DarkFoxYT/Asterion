@@ -15,4 +15,3 @@ public record RagdollKillPayload(int entityId) implements CustomPacketPayload {
     @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
 }
 
-

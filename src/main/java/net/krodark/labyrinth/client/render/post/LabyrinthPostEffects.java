@@ -16,7 +16,6 @@ import org.joml.Vector4f;
 
 import java.util.List;
 
-/** Registers dimension-specific post effects through Amnetic's post pipeline. */
 public final class LabyrinthPostEffects {
     private LabyrinthPostEffects() {
     }
@@ -31,9 +30,8 @@ public final class LabyrinthPostEffects {
                 .uniform("LabyrinthStrength", () -> LabyrinthConfig.INSTANCE.deadSunStrength)
                 .uniformRaw("WorldData", LabyrinthPostEffects::worldData)
                 .uniformVec4("DeadSunData", LabyrinthPostEffects::deadSunData)
-                .uniformVec4("DeadSunTuning", () -> new Vector4f(LabyrinthConfig.INSTANCE.deadSunBrightness,
-                        LabyrinthConfig.INSTANCE.shaderAnimationSpeed, LabyrinthConfig.INSTANCE.deadSunCorona,
-                        LabyrinthConfig.INSTANCE.deadSunDensity))
+                .uniformVec4("DeadSunTuning", LabyrinthPostEffects::deadSunTuning)
+                .uniform("EclipseData", DeadSunClientEvents::eclipseStrength)
                 .uniform("DeadSunOpacity", () -> LabyrinthConfig.INSTANCE.deadSunOpacity)
                 .uniformVec3("DeadSunCoreColor", () -> new Vector3f(LabyrinthConfig.INSTANCE.deadSunCoreR,
                         LabyrinthConfig.INSTANCE.deadSunCoreG, LabyrinthConfig.INSTANCE.deadSunCoreB))
@@ -47,12 +45,9 @@ public final class LabyrinthPostEffects {
                 .fade(24, 16)
                 .uniform("DustTime", LabyrinthPostEffects::renderTime)
                 .uniform("LabyrinthStrength", () -> LabyrinthConfig.INSTANCE.dustyAirStrength)
-                .uniformVec3("AtmosphereSettings", () -> new Vector3f(LabyrinthConfig.INSTANCE.dustDensity,
-                        LabyrinthConfig.INSTANCE.fogStrength, LabyrinthConfig.INSTANCE.shaderAnimationSpeed))
-                .uniformVec3("DustColor", () -> new Vector3f(LabyrinthConfig.INSTANCE.dustR,
-                        LabyrinthConfig.INSTANCE.dustG, LabyrinthConfig.INSTANCE.dustB))
-                .uniformVec3("FogColor", () -> new Vector3f(LabyrinthConfig.INSTANCE.fogR,
-                        LabyrinthConfig.INSTANCE.fogG, LabyrinthConfig.INSTANCE.fogB))
+                .uniformVec3("AtmosphereSettings", LabyrinthPostEffects::atmosphereSettings)
+                .uniformVec3("DustColor", LabyrinthPostEffects::dustColor)
+                .uniformVec3("FogColor", LabyrinthPostEffects::fogColor)
                 .uniformRaw("WorldData", LabyrinthPostEffects::worldData));
     }
 
@@ -62,7 +57,6 @@ public final class LabyrinthPostEffects {
     }
 
     private static double renderTime() {
-        // A monotonic high-resolution clock avoids tick-boundary resets and partial-tick jitter.
         return (System.nanoTime() * 0.000000001 % 100000.0) * 20.0;
     }
 
@@ -71,7 +65,54 @@ public final class LabyrinthPostEffects {
         Vec3 shake = DeadSunClientEvents.sunOffset();
         return new Vector4f(config.deadSunX + (float) shake.x,
                 config.deadSunHeight + (float) shake.y,
-                config.deadSunZ + (float) shake.z, config.deadSunSize);
+                config.deadSunZ + (float) shake.z, config.deadSunSize * mix(1.0F, 1.08F, eclipse()));
+    }
+
+    private static Vector4f deadSunTuning() {
+        LabyrinthConfig config = LabyrinthConfig.INSTANCE;
+        float eclipse = eclipse();
+        return new Vector4f(
+                config.deadSunBrightness * mix(1.0F, 0.58F, eclipse),
+                config.shaderAnimationSpeed * mix(1.0F, 0.72F, eclipse),
+                config.deadSunCorona * mix(1.0F, 2.15F, eclipse),
+                config.deadSunDensity * mix(1.0F, 1.55F, eclipse));
+    }
+
+    private static Vector3f atmosphereSettings() {
+        LabyrinthConfig config = LabyrinthConfig.INSTANCE;
+        float eclipse = eclipse();
+        return new Vector3f(
+                config.dustDensity * mix(1.0F, 2.20F, eclipse),
+                config.fogStrength * mix(1.0F, 1.85F, eclipse),
+                // Never alter the time domain during an Eclipse. Multiplying an accumulated
+                // clock by a changing speed makes the entire noise field visibly jump.
+                config.shaderAnimationSpeed);
+    }
+
+    private static Vector3f dustColor() {
+        LabyrinthConfig config = LabyrinthConfig.INSTANCE;
+        float eclipse = eclipse();
+        return new Vector3f(
+                mix(config.dustR, 0.15F, eclipse),
+                mix(config.dustG, 0.018F, eclipse),
+                mix(config.dustB, 0.012F, eclipse));
+    }
+
+    private static Vector3f fogColor() {
+        LabyrinthConfig config = LabyrinthConfig.INSTANCE;
+        float eclipse = eclipse();
+        return new Vector3f(
+                mix(config.fogR, 0.018F, eclipse),
+                mix(config.fogG, 0.003F, eclipse),
+                mix(config.fogB, 0.002F, eclipse));
+    }
+
+    private static float eclipse() {
+        return Math.max(0.0F, Math.min(1.0F, DeadSunClientEvents.eclipseStrength()));
+    }
+
+    private static float mix(float from, float to, float amount) {
+        return from + (to - from) * amount;
     }
 
     private static List<UniformValue> worldData() {

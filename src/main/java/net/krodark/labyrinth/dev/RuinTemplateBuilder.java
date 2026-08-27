@@ -9,10 +9,6 @@ import net.minecraft.nbt.IntTag;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/**
- * Editable source for the vanilla structure-template NBT.
- * Run ./gradlew rebuildStructureTemplates after changing this blueprint.
- */
 public final class RuinTemplateBuilder {
     private static final int SIZE = 11;
     private static final ListTag BLOCKS = new ListTag();
@@ -29,7 +25,6 @@ public final class RuinTemplateBuilder {
         root.put("palette", palette());
         root.put("entities", new ListTag());
 
-        // Broken circular foundation.
         for (int x = 0; x < SIZE; x++) for (int z = 0; z < SIZE; z++) {
             int dx = x - 5;
             int dz = z - 5;
@@ -37,7 +32,6 @@ public final class RuinTemplateBuilder {
             if (r2 <= 27 && !(r2 > 20 && ((x * 7 + z * 11) & 3) == 0)) add(x, 0, z, r2 % 5 == 0 ? 1 : 0);
         }
 
-        // A fractured dome with a deliberate entrance on its north face.
         for (int y = 1; y <= 5; y++) for (int x = 0; x < SIZE; x++) for (int z = 0; z < SIZE; z++) {
             int dx = x - 5;
             int dz = z - 5;
@@ -47,7 +41,6 @@ public final class RuinTemplateBuilder {
                 add(x, y, z, ((x + z + y) & 3) == 0 ? 1 : 0);
         }
 
-        // Decorative supports, dark prismarine ribs, light and the loot barrel.
         for (int y = 1; y <= 5; y++) {
             add(2, y, 2, y == 3 ? 3 : 2);
             add(8, y, 2, y == 3 ? 3 : 2);

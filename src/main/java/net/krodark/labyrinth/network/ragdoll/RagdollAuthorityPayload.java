@@ -7,7 +7,6 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 
-/** Server-accepted player ragdoll root and velocity for gentle reconciliation. */
 public record RagdollAuthorityPayload(Vec3 position, Vec3 velocity, long serverTick)
         implements CustomPacketPayload {
     public static final Type<RagdollAuthorityPayload> TYPE = new Type<>(
@@ -35,5 +34,4 @@ public record RagdollAuthorityPayload(Vec3 position, Vec3 velocity, long serverT
 
     @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
 }
-
 

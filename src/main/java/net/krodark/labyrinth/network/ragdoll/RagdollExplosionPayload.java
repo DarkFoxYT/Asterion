@@ -7,7 +7,6 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 
-/** One scene-wide physical blast event for already active ragdolls. */
 public record RagdollExplosionPayload(Vec3 center, float radius) implements CustomPacketPayload {
     public static final Type<RagdollExplosionPayload> TYPE = new Type<>(
             Identifier.fromNamespaceAndPath(Labyrinth.MOD_ID, "ragdoll_explosion"));
@@ -28,5 +27,4 @@ public record RagdollExplosionPayload(Vec3 center, float radius) implements Cust
 
     @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
 }
-
 

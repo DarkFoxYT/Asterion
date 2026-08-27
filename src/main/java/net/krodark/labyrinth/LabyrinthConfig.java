@@ -11,7 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public final class LabyrinthConfig {
-    private static final int CURRENT_VERSION = 9;
+    private static final int CURRENT_VERSION = 10;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("labyrinth.json");
     public static LabyrinthConfig INSTANCE = load();
@@ -29,6 +29,16 @@ public final class LabyrinthConfig {
     public int mazeLandmarkChance = 28;
     public int playerBlockDecayTicks = 400;
     public int wallZapDelayTicks = 60;
+    public int minotaurStalkDistance = 40;
+    public int minotaurApproachDistance = 24;
+    public int minotaurGazeMinTicks = 140;
+    public int minotaurGazeMaxTicks = 200;
+    public int minotaurWindupMinTicks = 60;
+    public int minotaurWindupMaxTicks = 100;
+    public int minotaurEscapeTicks = 2_400;
+    public int minotaurEscapeDistance = 32;
+    public int minotaurDamageMin = 50;
+    public int minotaurDamageMax = 70;
     public boolean deadSunEnabled = true;
     public boolean dustyAirEnabled = true;
     public float deadSunStrength = 0.661f;
@@ -113,6 +123,19 @@ public final class LabyrinthConfig {
                     config.deadSunCoronaR = 1.0f; config.deadSunCoronaG = 0.025f; config.deadSunCoronaB = 0.012f;
                     changed = true;
                 }
+                if (!json.has("configVersion") || config.configVersion < 10) {
+                    config.minotaurStalkDistance = 40;
+                    config.minotaurApproachDistance = 24;
+                    config.minotaurGazeMinTicks = 140;
+                    config.minotaurGazeMaxTicks = 200;
+                    config.minotaurWindupMinTicks = 60;
+                    config.minotaurWindupMaxTicks = 100;
+                    config.minotaurEscapeTicks = 2_400;
+                    config.minotaurEscapeDistance = 32;
+                    config.minotaurDamageMin = 50;
+                    config.minotaurDamageMax = 70;
+                    changed = true;
+                }
                 if (changed) {
                     config.configVersion = CURRENT_VERSION;
                     config.save();
@@ -141,6 +164,16 @@ public final class LabyrinthConfig {
         mazeLandmarkChance = Math.max(12, Math.min(96, mazeLandmarkChance));
         playerBlockDecayTicks = Math.max(40, Math.min(3_600, playerBlockDecayTicks));
         wallZapDelayTicks = Math.max(20, Math.min(200, wallZapDelayTicks));
+        minotaurStalkDistance = Math.max(28, Math.min(56, minotaurStalkDistance));
+        minotaurApproachDistance = Math.max(14, Math.min(minotaurStalkDistance - 6, minotaurApproachDistance));
+        minotaurGazeMinTicks = Math.max(60, Math.min(300, minotaurGazeMinTicks));
+        minotaurGazeMaxTicks = Math.max(minotaurGazeMinTicks, Math.min(400, minotaurGazeMaxTicks));
+        minotaurWindupMinTicks = Math.max(40, Math.min(120, minotaurWindupMinTicks));
+        minotaurWindupMaxTicks = Math.max(minotaurWindupMinTicks, Math.min(160, minotaurWindupMaxTicks));
+        minotaurEscapeTicks = Math.max(1_200, Math.min(4_800, minotaurEscapeTicks));
+        minotaurEscapeDistance = Math.max(20, Math.min(56, minotaurEscapeDistance));
+        minotaurDamageMin = Math.max(20, Math.min(100, minotaurDamageMin));
+        minotaurDamageMax = Math.max(minotaurDamageMin, Math.min(140, minotaurDamageMax));
         deadSunStrength = Math.max(0.0f, Math.min(2.0f, deadSunStrength));
         dustyAirStrength = Math.max(0.0f, Math.min(2.0f, dustyAirStrength));
         deadSunHeight = Math.max(100.0f, Math.min(240.0f, deadSunHeight));

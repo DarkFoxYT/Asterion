@@ -1,0 +1,27 @@
+{
+  "spacing_cells": 18,
+  "padding_blocks": 5,
+  "chance": 0.48,
+  "templates": [
+    {
+      "template": "minecraft:village/plains/houses/plains_small_house_1",
+      "weight": 4
+    },
+    {
+      "template": "minecraft:village/plains/houses/plains_small_house_2",
+      "weight": 4
+    },
+    {
+      "template": "minecraft:village/plains/houses/plains_tannery_1",
+      "weight": 2
+    },
+    {
+      "template": "minecraft:village/taiga/houses/taiga_small_house_1",
+      "weight": 3
+    },
+    {
+      "template": "minecraft:village/desert/houses/desert_temple_1",
+      "weight": 1
+    }
+  ]
+}

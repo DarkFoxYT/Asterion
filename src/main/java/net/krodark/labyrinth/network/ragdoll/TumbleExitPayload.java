@@ -5,7 +5,6 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
-/** Authoritative position and coherent velocity for a locally simulated player tumble. */
 public record TumbleExitPayload(double x, double y, double z, double vx, double vy, double vz)
         implements CustomPacketPayload {
     public static final Type<TumbleExitPayload> TYPE =
@@ -25,5 +24,4 @@ public record TumbleExitPayload(double x, double y, double z, double vx, double 
 
     @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
 }
-
 

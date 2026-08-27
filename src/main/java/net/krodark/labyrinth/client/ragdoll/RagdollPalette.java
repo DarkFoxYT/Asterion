@@ -6,7 +6,6 @@ import net.minecraft.world.entity.Entity;
 
 import java.util.Locale;
 
-/** Stable biological/material palettes selected from an entity's registered family. */
 final class RagdollPalette {
     private RagdollPalette() { }
 
@@ -15,16 +14,11 @@ final class RagdollPalette {
         String path = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).getPath()
                 .toLowerCase(Locale.ROOT);
 
-        // End creatures use a saturated, dark violet fluid.
         if (containsAny(path, "ender_dragon", "enderman", "endermite", "shulker")) return 0x6E2499;
-        // Hot/nether creatures read as glowing ichor without being rendered full-bright.
         if (containsAny(path, "blaze", "magma_cube", "strider", "ghast", "zoglin")) return 0xF06412;
-        // Sculk tissue has its own cold cyan-black fluid.
         if (containsAny(path, "warden", "sculk")) return 0x07505A;
         if (containsAny(path, "slime")) return 0x46A84D;
-        // Undead flesh is old, dark and olive rather than fresh red.
         if (containsAny(path, "zombie", "drowned", "husk", "zombified_piglin")) return 0x42582A;
-        // Skeleton impacts produce visible bone-marrow/dust colored residue.
         if (containsAny(path, "skeleton", "stray", "bogged")) return 0xA3977B;
         if (containsAny(path, "wither")) return 0x241B2C;
         if (containsAny(path, "spider", "silverfish", "bee")) return 0x59611D;
@@ -56,5 +50,4 @@ final class RagdollPalette {
         return false;
     }
 }
-
 

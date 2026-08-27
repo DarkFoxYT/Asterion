@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-/** Builds deterministic fractal paths for the Dead Sun's maze ward. */
 public final class BoltBuilder {
     private BoltBuilder() {
     }

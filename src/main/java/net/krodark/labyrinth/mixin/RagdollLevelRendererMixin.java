@@ -2,6 +2,8 @@ package net.krodark.labyrinth.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.krodark.labyrinth.client.ragdoll.RagdollRenderer;
+import net.krodark.labyrinth.client.light.HeldItemDynamicLights;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
@@ -15,5 +17,9 @@ abstract class RagdollLevelRendererMixin {
     @Inject(method = "submitEntities", at = @At("TAIL"))
     private void labyrinth$submitRagdolls(PoseStack poses, LevelRenderState state, SubmitNodeCollector output, CallbackInfo ci) {
         RagdollRenderer.submit(poses, state, output);
+        Minecraft client = Minecraft.getInstance();
+        if (client.gameRenderer != null)
+            HeldItemDynamicLights.renderFrame(client,
+                    client.getDeltaTracker().getGameTimeDeltaPartialTick(true));
     }
 }

@@ -1,6 +1,5 @@
 package net.krodark.labyrinth.client.ragdoll;
 
-/** Live values edited by Dear ImGui. Deliberately mutable: the simulation samples them per tick. */
 public final class RagdollConfig {
     public boolean enabled = false;
     public boolean youtubeMode = true;
@@ -53,12 +52,8 @@ public final class RagdollConfig {
     public int ragdollConstraintIterations = 9;
     public boolean ragdollSelfCollision = true;
     public boolean ragdollDebug = false;
-    /** Multiplier for material-specific world bounce. */
     public float ragdollRestitution = 1.18f;
-    /** Air velocity retained per tick; high values keep impacts feeling weighty. */
     public float ragdollAirRetention = 0.994f;
-    /** Scales material-aware contact friction. The solver normalizes this across
-     * its substeps, so ordinary terrain has useful traction without ground glue. */
     public float ragdollGroundFriction = 0.85f;
     public float playerBuoyancy = 1.0f;
     public float playerJointTightness = 0.68f;
@@ -76,16 +71,15 @@ public final class RagdollConfig {
     public float green = 0.005f;
     public float blue = 0.008f;
 
-    /** Restores every live setting, including settings added in future builds. */
     public void resetDefaults() {
         RagdollConfig defaults = new RagdollConfig();
         try {
-            for (java.lang.reflect.Field field : RagdollConfig.class.getFields())
+            for (java.lang.reflect.Field field : RagdollConfig.class.getFields()) {
                 field.set(this, field.get(defaults));
+            }
         } catch (IllegalAccessException impossible) {
             throw new IllegalStateException("Unable to reset blood-engine defaults", impossible);
         }
     }
 }
-
 

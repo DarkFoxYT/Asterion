@@ -5,7 +5,6 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
-/** Server-validated impact against a fragile world block. */
 public record RagdollBlockImpactPayload(int x, int y, int z, float energy,
                                         float directionX, float directionY, float directionZ)
         implements CustomPacketPayload {
@@ -26,5 +25,4 @@ public record RagdollBlockImpactPayload(int x, int y, int z, float energy,
 
     @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
 }
-
 

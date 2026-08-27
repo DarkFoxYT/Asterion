@@ -1,5 +1,6 @@
 package net.krodark.labyrinth.client.ragdoll;
 
+import net.krodark.labyrinth.Labyrinth;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.EntityRenderer;
@@ -56,16 +57,12 @@ import java.util.Set;
 import net.minecraft.util.RandomSource;
 import net.minecraft.util.Mth;
 
-/** Bounded client-side rigid bodies with block collision and positional ragdoll constraints. */
 public final class DismembermentEngine {
     public static final DismembermentEngine INSTANCE = new DismembermentEngine();
-    /** Temporary presentation switch: retain the cape implementation but do
-     * not create or simulate it as part of a ragdoll. */
     private static final boolean RAGDOLL_CAPE_ENABLED = false;
     private final List<RigidBodyPiece> pieces = new ArrayList<>();
     private final Map<Integer, Set<Integer>> detached = new HashMap<>();
     private final Set<Integer> ragdolled = new HashSet<>();
-    /** Bodies currently driven by another client's server-relayed snapshots. */
     private final Set<Integer> remoteDriven = new HashSet<>();
     private final Map<Integer, Integer> remotePoseSequences = new HashMap<>();
     private final Map<Integer, Integer> remotePoseTicks = new HashMap<>();
@@ -80,20 +77,18 @@ public final class DismembermentEngine {
     private final Map<Integer, Integer> rigidSoundAges = new HashMap<>();
     private final Map<Integer, Integer> tumbleStartedAt = new HashMap<>();
     private final Map<Integer, Integer> ragdollStartedAt = new HashMap<>();
+    private final Map<Integer, Integer> electrifiedUntil = new HashMap<>();
     private final Map<Integer, WailingState> wailing = new HashMap<>();
     private final Map<Integer, Integer> playerFracturedLegs = new HashMap<>();
     private final Set<Integer> appliedFracturePoses = new HashSet<>();
-    private final List<ThatExplosionFromA_momentAgoWhichTheRagdollShouldProbablyRemember> recentExplosions = new ArrayList<>();
+    private final List<RecentExplosion> recentExplosions = new ArrayList<>();
     private RigidBodyPiece grabbed;
     private double grabDistance;
     private Vec3 smoothedGrabTarget;
     private int traumaDecayTicker;
     private int lastFallDamageTick = -1000;
     private long lastAuthorityTick = Long.MIN_VALUE;
-    /** Tick-local O(1) parent lookup used by iterative joint solving. */
     private Map<Long, RigidBodyPiece> solverIndex;
-    // Reused physics-frame workspaces. These used to allocate several maps,
-    // sets and lists every client tick and again for every collision substep.
     private final Map<RigidBodyPiece, Vec3> tickIncomingVelocities = new IdentityHashMap<>();
     private final Set<RigidBodyPiece> tickCollidedParts = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
     private final Set<Integer> tickSupportedIslands = new HashSet<>();
@@ -108,12 +103,13 @@ public final class DismembermentEngine {
     private DismembermentEngine() { }
 
     public boolean impact(Entity entity, int region, Vec3 point, Vec3 direction, double force) {
+        if (!inLabyrinth(entity)) return false;
         return impact(entity, region, point, direction, force, false);
     }
 
-    /** Routes a real Minecraft damage impulse into the articulated proxy. */
     public void externalDamage(Entity entity, Vec3 sourcePosition, Vec3 impulse,
                                float severity, boolean radial) {
+        if (!inLabyrinth(entity)) return;
         if (entity == null || !ragdolled.contains(entity.getId())) return;
         Vec3 boundedImpulse = impulse.length() > 2.4 ? impulse.normalize().scale(2.4) : impulse;
         if (radial) {
@@ -147,19 +143,23 @@ public final class DismembermentEngine {
         wakeGroup(entity.getId());
     }
 
-    /** Applies a single server-authored explosion to every nearby active rigid
-     * assembly. The local player is excluded because its precise vanilla
-     * exposure/knockback arrives through RagdollImpulsePayload. */
     public void applyExplosion(Minecraft client, Vec3 center, float radius) {
-        if (client.level == null || center == null || !Float.isFinite(radius) || radius <= 0.0f) return;
+        if (client.level == null || !client.level.dimension().equals(Labyrinth.LABYRINTH_LEVEL)) {
+            return;
+        }
+        if (center == null || !Float.isFinite(radius) || radius <= 0.0f) {
+            return;
+        }
         recentExplosions.removeIf(blast -> traumaDecayTicker - blast.createdTick > 6);
-        recentExplosions.add(new ThatExplosionFromA_momentAgoWhichTheRagdollShouldProbablyRemember(
+        recentExplosions.add(new RecentExplosion(
                 center, radius, traumaDecayTicker));
         int localPlayerId = client.player == null ? Integer.MIN_VALUE : client.player.getId();
         Map<Integer, List<RigidBodyPiece>> assemblies = new HashMap<>();
-        for (RigidBodyPiece part : pieces)
-            if (part.entityId != localPlayerId)
+        for (RigidBodyPiece part : pieces) {
+            if (part.entityId != localPlayerId) {
                 assemblies.computeIfAbsent(part.entityId, ignored -> new ArrayList<>()).add(part);
+            }
+        }
         for (Map.Entry<Integer, List<RigidBodyPiece>> entry : assemblies.entrySet()) {
             applyExplosionToAssembly(client, entry.getKey(), entry.getValue(), center, radius);
         }
@@ -191,8 +191,6 @@ public final class DismembermentEngine {
             Vec3 direction = RagdollMath.safeNormalize(part.position.subtract(center), new Vec3(0, 1, 0));
             Vec3 impulse = direction.scale(speedChange * part.mass()
                     * (isAttachmentRegion(part.region) ? 0.56 : 1.0));
-            // Applying the impulse on the blast-facing surface produces real
-            // angular momentum instead of inventing random spin.
             Vec3 applicationPoint = part.position.subtract(direction.scale(part.radius() * 0.68));
             part.applyImpulse(applicationPoint, impulse);
             part.sleeping = false;
@@ -202,7 +200,8 @@ public final class DismembermentEngine {
     }
 
     public boolean impact(Entity entity, int region, Vec3 point, Vec3 direction, double force, boolean cutting) {
-        if (isExcludedFromSixRegionRagdoll(entity)) return false;
+        if (!inLabyrinth(entity)) return false;
+        if (isRagdollExcluded(entity)) return false;
         RagdollConfig config = RagdollRuntime.INSTANCE.config;
         if (!config.dismemberment || ragdolled.contains(entity.getId())) return false;
         long traumaKey = ((long) entity.getId() << 32) ^ (region & 0xffffffffL);
@@ -211,8 +210,6 @@ public final class DismembermentEngine {
         regionalTrauma.put(traumaKey, accumulated);
         if (accumulated < config.dismemberForce) return false;
         Set<Integer> regions = detached.computeIfAbsent(entity.getId(), ignored -> new HashSet<>());
-        // A detached limb is survivable. Full ragdoll/death requires much higher
-        // head/torso trauma, so ordinary large punches do not instantly kill.
         boolean catastrophic = (region == 0 || region == 1)
                 || force >= config.dismemberForce * 3.0f;
         Identifier texture = resolveTexture(entity);
@@ -223,13 +220,10 @@ public final class DismembermentEngine {
         return false;
     }
 
-    /** Converts the current animated model into a constrained six-region ragdoll. */
     public boolean ragdoll(Entity entity, int impactRegion, Vec3 point, Vec3 direction,
                            double force, boolean requestServerKill) {
-        if (isExcludedFromSixRegionRagdoll(entity) || ragdolled.contains(entity.getId())) return false;
-        // A mob may already have one or more detached pieces. Reusing that
-        // partial set creates overlapping roots and duplicated-looking limbs.
-        // Promote it atomically into one fresh, authoritative assembly.
+        if (!inLabyrinth(entity)) return false;
+        if (isRagdollExcluded(entity) || ragdolled.contains(entity.getId())) return false;
         pieces.removeIf(piece -> piece.entityId == entity.getId());
         detached.remove(entity.getId());
         detachedModelPaths.remove(entity.getId());
@@ -250,7 +244,7 @@ public final class DismembermentEngine {
         if (!(entity instanceof Player player && minecraft.player == player)) {
             List<RigidBodyPiece> assembly = pieces.stream()
                     .filter(part -> part.entityId == entity.getId()).toList();
-            for (ThatExplosionFromA_momentAgoWhichTheRagdollShouldProbablyRemember blast : recentExplosions)
+            for (RecentExplosion blast : recentExplosions)
                 if (traumaDecayTicker - blast.createdTick <= 6)
                     applyExplosionToAssembly(minecraft, entity.getId(), assembly,
                             blast.center, blast.radius);
@@ -279,8 +273,6 @@ public final class DismembermentEngine {
 
     private void spawn(Entity entity, int region, int parentRegion, Vec3 impact, Vec3 direction,
                        double force, boolean separated, Identifier texture) {
-        // One semantic region may have exactly one physical owner. This guard
-        // closes every repeated packet/hit path, including cape and death races.
         if (find(entity.getId(), region) != null) return;
         AABB box = entity.getBoundingBox();
         double width = box.getXsize(), height = box.getYsize(), depth = box.getZsize();
@@ -308,9 +300,6 @@ public final class DismembermentEngine {
                     break;
                 }
         if (duplicateModelPart) {
-            // Generic models sometimes select the same large cube for several
-            // semantic regions. A conservative region-sized proxy is cleaner
-            // than rendering that source cube repeatedly in one location.
             geometry = new BodyGeometry(fallbackOffset, fallbackHalf,
                     resolveFaceUvs(entity, region), null, new Quaternionf());
         }
@@ -325,9 +314,6 @@ public final class DismembermentEngine {
                 RagdollMath.unit(RagdollMath.mix(seed + 7)) - 0.5);
         Vec3 velocity = entity.getDeltaMovement().add(direction.scale(0.12 * force))
                 .add(lateral.scale(separated && !(entity instanceof Player) ? 0.32 : 0.0));
-        // A connected ragdoll begins as one coherent articulated body. Giving
-        // every limb a different launch/spin makes the first solver frame fold
-        // the body inward before the sockets have settled.
         Vec3 spin = separated && !(entity instanceof Player)
                 ? lateral.add(0.2, 0.1, -0.15).scale(0.22 + force * 0.045) : Vec3.ZERO;
         float jointLength = (float) Math.max(0.12, offset.length());
@@ -343,9 +329,6 @@ public final class DismembermentEngine {
         snapshotEquipment(piece, entity);
         RigidBodyPiece parent = parentRegion < 0 ? null : find(entity.getId(), parentRegion);
         if (parent != null) {
-            // The model-part pose origin is the authored shoulder/hip/neck
-            // pivot. Use it directly for players instead of guessing the joint
-            // from the nearest cube surfaces, which offset arm pivots inward.
             Vec3 socket = geometry.jointOffset != null
                     ? box.getCenter().add(geometry.jointOffset)
                     : surfacePointTowards(piece, parent.position).lerp(
@@ -411,8 +394,6 @@ public final class DismembermentEngine {
                 || !player.isModelPartShown(net.minecraft.world.entity.player.PlayerModelPart.CAPE)) return;
         RigidBodyPiece torso = find(entity.getId(), 1);
         if (torso == null || find(entity.getId(), 6) != null) return;
-        // Vanilla cape is 10x16x1 model pixels. Hinge it at the shoulders,
-        // rather than attaching the top of the cape to the torso's lower edge.
         double playerScale = Math.max(.55, Math.min(2.4, torso.halfExtents.x / .225));
         Vec3 half = new Vec3(.28125 * playerScale, .45 * playerScale, .028 * playerScale);
         Vec3 parentAnchor = new Vec3(0, -torso.halfExtents.y * .82,
@@ -441,8 +422,6 @@ public final class DismembermentEngine {
         if (torso == null) return;
         Identifier texture = Identifier.withDefaultNamespace("textures/entity/equipment/wings/elytra.png");
         double scale = Math.max(0.55, Math.min(2.4, torso.halfExtents.x / 0.225));
-        // Vanilla elytra wings are approximately 10x20 model pixels. The old
-        // panels were substantially undersized and looked like shoulder fins.
         Vec3 half = new Vec3(0.3125 * scale, 0.625 * scale, 0.026 * scale);
         for (int region : new int[] {7, 8}) {
             if (find(entity.getId(), region) != null) continue;
@@ -466,9 +445,6 @@ public final class DismembermentEngine {
             wing.velocity = torso.velocityAt(worldAnchor(torso, parentAnchor));
             configureJointMotor(wing);
             pieces.add(wing);
-            // Keep the authored elytra UV island intact. Splitting this cuboid
-            // as if it were a rectangular cape remapped unrelated wing UVs
-            // onto each half and produced the scrambled/fried appearance.
         }
     }
 
@@ -528,11 +504,6 @@ public final class DismembermentEngine {
         }
     }
 
-    /** AvatarRenderer applies fall-flight pitch and steering outside the player
-     * model hierarchy. Model-part capture therefore cannot see it. Recreate
-     * that exact outer transform once, around the vanilla player origin, for
-     * the complete anatomical/wing assembly so transition positions match the
-     * final rendered flight frame without any per-piece approximation. */
     @SuppressWarnings({"rawtypes", "unchecked"})
     private void applyPlayerGlobalFlightPose(Entity entity) {
         if (!(entity instanceof Player player) || !player.isFallFlying()) return;
@@ -548,8 +519,6 @@ public final class DismembermentEngine {
             Quaternionf base = new Quaternionf().rotationY(baseYaw);
             Quaternionf flight = new Quaternionf().rotationX(flightPitch);
             if (state.shouldApplyFlyingYRot) flight.rotateY(state.flyingYRot);
-            // Convert the renderer's post-yaw local transform into one world-
-            // space delta which can be pre-multiplied onto every rigid piece.
             Quaternionf worldDelta = new Quaternionf(base).mul(flight)
                     .mul(new Quaternionf(base).conjugate()).normalize();
             Vec3 pivot = player.position();
@@ -566,8 +535,6 @@ public final class DismembermentEngine {
                 piece.previousOrientation.set(piece.orientation);
             }
         } catch (RuntimeException ignored) {
-            // The already captured limb/elytra pose remains coherent even if a
-            // third-party renderer does not expose an AvatarRenderState.
         }
     }
 
@@ -576,16 +543,11 @@ public final class DismembermentEngine {
         if (stack.is(Items.ELYTRA)) return true;
         Identifier itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
         if (itemId.getPath().contains("elytra")) return true;
-        // Also accepts modded elytra items that use the vanilla equipment asset
-        // without naming the item itself "elytra".
         Equippable equippable = stack.get(DataComponents.EQUIPPABLE);
         return equippable != null && equippable.assetId().isPresent()
                 && equippable.assetId().get().identifier().getPath().contains("elytra");
     }
 
-    /** Keeps equipment-backed physical pieces synchronized while a player is
-     * already ragdolled. This covers inventory changes without recreating the
-     * anatomical body or leaving invisible stale wing colliders behind. */
     private void synchronizePlayerAttachments(ClientLevel level) {
         for (int entityId : new HashSet<>(ragdolled)) {
             Entity entity = level.getEntity(entityId);
@@ -623,8 +585,6 @@ public final class DismembermentEngine {
                     rightHanded ? player.getMainHandItem() : player.getOffhandItem());
             synchronizeHeldItemGrip(player, 3, 31,
                     rightHanded ? player.getOffhandItem() : player.getMainHandItem());
-            // Equipment can change while tumbling. Update anatomical inertia
-            // in-place instead of rebuilding the body and duplicating limbs.
             for (RigidBodyPiece piece : pieces)
                 if (piece.entityId == entityId && isAnatomicalRegion(piece.region)) {
                     piece.partMass = partMass(player, piece.region);
@@ -681,9 +641,6 @@ public final class DismembermentEngine {
                 : path.contains("gun") || path.contains("rifle") || path.contains("shotgun") ? 0.17
                 : path.contains("sword") || path.contains("katana") ? 0.135
                 : stack.getItem() instanceof BlockItem ? 0.12 : 0.065;
-        // Stacks become meaningfully heavier without making 64 items sixty-four
-        // times more massive than the player. Durability is a useful fallback
-        // size proxy for modded tools whose names do not expose a category.
         double stackLoad = 1.0 + Math.sqrt(Math.max(0, stack.getCount() - 1)) * 0.16;
         double modelLoad = 1.0 + Math.min(0.28, stack.getMaxDamage() / 5000.0);
         return Mth.clamp(shape * material * stackLoad * modelLoad, 0.035, 0.62);
@@ -772,10 +729,7 @@ public final class DismembermentEngine {
         return body.position.add(world.x, world.y, world.z);
     }
 
-    /** Scaled equivalents of Sable Ragdolls' strong neck and soft limb motors. */
     private static void configureJointMotor(RigidBodyPiece child) {
-        // Keep the neck controlled, but let limbs retain enough relative spin
-        // to tumble instead of being pulled immediately back into the bind pose.
         child.jointType = child.parentRegion < 0 ? RigidBodyPiece.JointType.ROOT
                 : child.region == 9 || child.region == 10 || child.region == 11 || child.region == 12
                 ? RigidBodyPiece.JointType.HINGE
@@ -798,9 +752,6 @@ public final class DismembermentEngine {
                 : isLimbRegion(child.region) ? 0.036f : 0.028f);
         child.angularLimit = switch (child.region) {
             case 0 -> child.playerBody ? radians(48, 58, 38) : radians(54, 62, 46);
-            // Minecraft has one rigid box per complete arm/leg, so these are
-            // shoulder/hip cones rather than elbow/knee limits. Broader cones
-            // let the limbs hang and settle instead of returning to a star pose.
             case 2, 3 -> child.playerBody ? radians(165, 145, 160) : radians(142, 112, 126);
             case 4, 5 -> child.playerBody ? radians(152, 118, 132) : radians(132, 92, 112);
             case 9, 10 -> radians(148, 13, 16);
@@ -857,7 +808,6 @@ public final class DismembermentEngine {
         return body.position.add(world.x, world.y, world.z);
     }
 
-    /** Extracts shape, placement and UVs from the mob's real model cube hierarchy. */
     private BodyGeometry resolveGeometry(Entity entity, int region, Vec3 fallbackOffset, Vec3 fallbackHalf) {
         BodyGeometry cached = renderedPoseCache.getOrDefault(entity.getId(), Map.of()).get(region);
         if (cached != null) return cached;
@@ -874,9 +824,6 @@ public final class DismembermentEngine {
             if (!(renderer instanceof LivingEntityRenderer living))
                 return new BodyGeometry(fallbackOffset, fallbackHalf, resolveFaceUvs(entity, region), null, new Quaternionf());
             EntityModel model = living.getModel();
-            // Capture the pose for this exact entity now. Depending on the last
-            // entity rendered reused stale shared-model transforms and made the
-            // new ragdoll pop out of its pre-ragdoll arm/leg pose.
             if (applyAnimation) {
                 EntityRenderState liveState = renderer.createRenderState(entity, 1.0f);
                 model.setupAnim(liveState);
@@ -900,10 +847,6 @@ public final class DismembermentEngine {
             double wantedY = switch (region) { case 0 -> 0.08; case 1 -> 0.36; case 2, 3 -> 0.38; default -> 0.82; };
             double wantedZ = 0.5;
             ModelCube selected = null;
-            // Humanoid overlay parts (hat, jacket, sleeves and trousers) are
-            // intentionally larger than the actual body. Selecting one as a
-            // collider starts several rigid bodies mutually embedded and makes
-            // contact resolution fight the joints. Prefer the exact base part.
             if (model instanceof HumanoidModel humanoid) {
                 ModelPart basePart = switch (region) {
                     case 0 -> humanoid.head;
@@ -938,13 +881,7 @@ public final class DismembermentEngine {
                     resolveFaceUvs(entity, region), null, new Quaternionf());
             float[] b = selected.bounds;
             AABB box = entity.getBoundingBox();
-            // Player height collapses while swimming/fall-flying. Scaling the
-            // model from that temporary AABB was the source of tiny elytra
-            // ragdolls. Player width stays stable and provides a pose-independent
-            // scale; generic entities retain their model-span based scaling.
             boolean playerGeometry = entity instanceof Player && model instanceof HumanoidModel;
-            // Restore more of the authored player scale. The old factor made
-            // the complete physical body noticeably shorter than the model.
             double scale = playerGeometry ? box.getXsize() / 0.60 * 0.96 : box.getYsize() / spanY;
             double modelCx = (minX + maxX) * 0.5, modelCy = (minY + maxY) * 0.5;
             double modelCz = (minZ + maxZ) * 0.5;
@@ -954,23 +891,12 @@ public final class DismembermentEngine {
             Vec3 jointOffset;
             Vector3f pivot = selected.pose.pose().transformPosition(new Vector3f());
             if (playerGeometry) {
-                // Humanoid model origin is at the player feet, with model Y
-                // increasing downward and the standing soles at Y=1.5.
-                // Give the shoulder cubes a small authored clearance from the
-                // torso. The left arm sits a fraction lower as well, avoiding
-                // the mirrored, rigid T-pose look and leaving clean room for
-                // rotation without letting either cube enter the chest.
                 Vec3 modelCenterClearance = switch (region) {
-                    // Vanilla's player root flips model X, so these authored
-                    // signs are opposite their final on-screen direction.
                     case 2 -> new Vec3(0.060, 0.0, 0.0);
                     case 3 -> new Vec3(-0.060, -0.018, 0.0);
                     case 4, 5 -> new Vec3(0.0, -0.032, 0.0);
                     default -> Vec3.ZERO;
                 };
-                // The socket is intentionally higher than the model-center
-                // adjustment. This gives gravity a useful lever arm around the
-                // shoulder instead of allowing an arm to balance in a T pose.
                 Vec3 jointPivotClearance = switch (region) {
                     case 2 -> new Vec3(0.050, 0.055, 0.0);
                     case 3 -> new Vec3(-0.050, 0.055, 0.0);
@@ -1027,8 +953,6 @@ public final class DismembermentEngine {
             return new BodyGeometry(offset, half, uvFaces(source), overlayUvs,
                     orientation, selected.path, jointOffset);
         } catch (RuntimeException ignored) {
-            // Never stretch the complete entity atlas over a limb. Even mobs
-            // with unusual render states can normally expose a real model cube.
             return new BodyGeometry(fallbackOffset, fallbackHalf,
                     resolveFaceUvs(entity, region), null, new Quaternionf());
         }
@@ -1058,7 +982,6 @@ public final class DismembermentEngine {
         }
     }
 
-    /** Captures the exact model-space pose after vanilla has rendered this entity. */
     public void captureRenderedPose(int entityId) {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null || ragdolled.contains(entityId)) return;
@@ -1082,10 +1005,6 @@ public final class DismembermentEngine {
                 case 4, 5 -> new Vec3(width * 0.18, height * 0.24, depth * 0.20);
                 default -> new Vec3(width * 0.38, height * 0.22, depth * 0.28);
             };
-            // This hook runs after vanilla submitted the model, so all crouch,
-            // sitting, swimming, sleeping, arm and leg transforms are already
-            // present. Re-running setupAnim here discarded portions of that
-            // exact rendered pose on several player renderers.
             BodyGeometry geometry = calculateGeometry(entity, region, fallbackOffset, fallbackHalf,
                     false, pose.values().stream().map(BodyGeometry::modelPath)
                             .filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet()));
@@ -1178,9 +1097,6 @@ public final class DismembermentEngine {
             }
             if (assigned[0] && assigned[1] && assigned[2] && assigned[3]) result[face] = ordered;
         }
-        // Custom and mirrored mob models do not always expose their vertices in
-        // vanilla cube-corner order. Fill an unmatched side from the closest
-        // real polygon UV rectangle instead of using the whole texture atlas.
         float[] smallest = null;
         float smallestArea = Float.POSITIVE_INFINITY;
         for (ModelPart.Polygon polygon : cube.polygons) {
@@ -1215,9 +1131,6 @@ public final class DismembermentEngine {
             if (!cape.isEmpty()) return flipCapeVertical(
                     uvFaces(cape.getRandomCube(RandomSource.create(0xCA9EL))));
         } catch (RuntimeException ignored) { }
-        // Vanilla 10x16x1 cape cuboid in its 64x32 skin texture. Keeping each
-        // thin edge in its own strip prevents the front image appearing on all
-        // six faces of the rigid plate.
         return flipCapeVertical(new float[][] {
                 uvRect(0, 1, 1, 17, 64, 32),
                 uvRect(11, 1, 12, 17, 64, 32),
@@ -1228,8 +1141,6 @@ public final class DismembermentEngine {
         });
     }
 
-    /** The cape model's authored Y axis is opposite the rigid box's local Y.
-     * Reverse each quad row without mirroring left/right. */
     private static float[][] flipCapeVertical(float[][] source) {
         float[][] result = new float[source.length][];
         for (int face = 0; face < source.length; face++) {
@@ -1266,18 +1177,12 @@ public final class DismembermentEngine {
         return Identifier.withDefaultNamespace("textures/block/red_concrete.png");
     }
 
-    /** The six-region solver is deliberately not applied to the dragon. Its
-     * renderer is a long multi-joint hierarchy with separately animated neck,
-     * tail and wings; reducing it to humanoid regions duplicates giant cubes
-     * and stretches unrelated UV islands. Keep the precise native model and
-     * let the generic wound layer provide end-colored impact effects instead. */
-    private static boolean isExcludedFromSixRegionRagdoll(Entity entity) {
+    private static boolean isRagdollExcluded(Entity entity) {
         if (entity == null) return true;
         String path = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).getPath();
         return path.equals("ender_dragon");
     }
 
-    /** Selects and spring-drags the exact body part under the POV ray. */
     public boolean handleRightClick(Minecraft client, boolean down, boolean pressed) {
         if (!down) {
             grabbed = null;
@@ -1324,15 +1229,18 @@ public final class DismembermentEngine {
         return true;
     }
 
-    /** Sable-style player tumble toggle. The local player remains the network
-     * authority while its visible body is replaced by this constrained assembly. */
     public void togglePlayerTumble(Minecraft client) {
-        if (client.player == null || client.level == null) return;
+        if (client.level == null || client.player == null
+                || !client.level.dimension().equals(Labyrinth.LABYRINTH_LEVEL)) {
+            return;
+        }
         int entityId = client.player.getId();
         if (playerTumbles.contains(entityId)) {
+            if (isElectrified(entityId)) return;
             RagdollConfig config = RagdollRuntime.INSTANCE.config;
             int elapsed = traumaDecayTicker - tumbleStartedAt.getOrDefault(entityId, traumaDecayTicker);
-            if (!config.ragdollManualExit || elapsed < config.ragdollMinExitTicks) return;
+            if (!config.ragdollManualExit || elapsed < config.ragdollMinExitTicks
+                    || !hasGroundContact(entityId)) return;
             Vec3 exit = findSafeTumbleExit(client, entityId);
             Vec3 exitVelocity = ragdollVelocity(entityId);
             removeRagdoll(entityId);
@@ -1340,8 +1248,6 @@ public final class DismembermentEngine {
                 if (ClientPlayNetworking.canSend(TumbleExitPayload.TYPE))
                     ClientPlayNetworking.send(new TumbleExitPayload(exit.x, exit.y, exit.z,
                             exitVelocity.x, exitVelocity.y, exitVelocity.z));
-                // Match the accepted server destination immediately so there is
-                // no one-frame flash at the pre-tumble position.
                 client.player.setPos(exit.x, exit.y, exit.z);
             }
             client.player.setDeltaMovement(exitVelocity);
@@ -1355,21 +1261,17 @@ public final class DismembermentEngine {
             playerTumbles.add(entityId);
             tumbleStartedAt.put(entityId, traumaDecayTicker);
             for (RigidBodyPiece part : pieces) if (part.entityId == entityId) {
-                // A tumble begins as one coherent body, not six independently
-                // kicked pieces. Impacts can add relative motion afterwards.
                 part.velocity = launch;
                 part.angularVelocity = Vec3.ZERO;
                 part.bounces = 0;
             }
-            // Preserve the player's exact incoming velocity. Rotation begins
-            // only from real contacts or explicit tumble controls.
             applyFracturePose(entityId);
         }
     }
 
-    /** Enters (never exits) a tumble and applies only the supplied physical impact. */
     public void forcePlayerTumble(Minecraft client, Vec3 sourcePosition, Vec3 impulse, float force) {
-        if (client.player == null || client.level == null) return;
+        if (client.player == null || client.level == null
+                || !client.level.dimension().equals(Labyrinth.LABYRINTH_LEVEL)) return;
         int entityId = client.player.getId();
         if (!playerTumbles.contains(entityId)) togglePlayerTumble(client);
         applyFracturePose(entityId);
@@ -1377,8 +1279,24 @@ public final class DismembermentEngine {
             externalDamage(client.player, sourcePosition, impulse, Math.max(0.1f, force), true);
     }
 
-    /** Corrects only material client/server divergence. Normal latency-sized
-     * differences stay untouched so authority sync cannot create visible jitter. */
+    public void electrify(Minecraft client, LivingEntity entity, Vec3 sourcePosition,
+                          Vec3 impulse, int durationTicks) {
+        if (client.level == null || entity == null || !inLabyrinth(entity)) return;
+        int entityId = entity.getId();
+        electrifiedUntil.merge(entityId, traumaDecayTicker + Math.max(1, durationTicks), Math::max);
+        if (client.player == entity) {
+            forcePlayerTumble(client, sourcePosition, impulse, 1.45F);
+        } else if (!ragdolled.contains(entityId)) {
+            Vec3 direction = impulse.lengthSqr() > 1.0E-8D ? impulse.normalize() : new Vec3(0, -1, 0);
+            ragdoll(entity, 1, entity.getBoundingBox().getCenter(), direction, 1.15D, false);
+        }
+        if (ragdolled.contains(entityId)) applyWailing(entityId, 0.012F, durationTicks, 3);
+    }
+
+    public boolean isElectrified(int entityId) {
+        return electrifiedUntil.getOrDefault(entityId, Integer.MIN_VALUE) > traumaDecayTicker;
+    }
+
     public void reconcilePlayerAuthority(Minecraft client, Vec3 position, Vec3 velocity,
                                          long serverTick) {
         if (client.player == null || serverTick <= lastAuthorityTick
@@ -1400,8 +1318,6 @@ public final class DismembermentEngine {
             torso.velocity = torso.velocity.lerp(velocity, 0.08);
     }
 
-    /** Keeps injury state across manual H toggles while applying its visible
-     * deformation only to the current physical assembly. */
     public void setPlayerFracture(Minecraft client, int region) {
         if (client.player == null) return;
         int entityId = client.player.getId();
@@ -1439,7 +1355,6 @@ public final class DismembermentEngine {
         wakeGroup(entityId);
     }
 
-    /** Applies Sable's torso-torque tumble control without injecting translation. */
     public void applyPlayerTumbleInput(Minecraft client, float strafe, float forward) {
         if (client.player == null || !playerTumbles.contains(client.player.getId())) return;
         RigidBodyPiece torso = find(client.player.getId(), 1);
@@ -1459,13 +1374,7 @@ public final class DismembermentEngine {
         RigidBodyPiece torso = find(client.player.getId(), 1);
         Vec3 trackingPosition = findSafeTumbleExit(client, client.player.getId());
         if (trackingPosition != null) {
-            // Chunk streaming, terrain submission and several vanilla culling
-            // paths follow the logical player, not the overridden camera. Keep
-            // that invisible authority beside the physical body.
             client.player.setPos(trackingPosition.x, trackingPosition.y, trackingPosition.z);
-            // Keep the authoritative player position on the physical body each
-            // tick as well, so hits, chunk tracking and block-impact validation
-            // do not lag a fast-moving ragdoll by two simulation frames.
             if (torso != null && ClientPlayNetworking.canSend(TumbleExitPayload.TYPE))
                 ClientPlayNetworking.send(new TumbleExitPayload(
                         trackingPosition.x, trackingPosition.y, trackingPosition.z,
@@ -1485,7 +1394,6 @@ public final class DismembermentEngine {
         return Math.max(0, traumaDecayTicker - ragdollStartedAt.getOrDefault(entityId, traumaDecayTicker));
     }
 
-    /** Current world-space wound attachment on an articulated limb. */
     RigidWoundPose woundPose(int entityId, int region, Vec3 uvw, Vec3 modelNormal) {
         RigidBodyPiece body = find(entityId, region);
         if (body == null) return null;
@@ -1509,8 +1417,6 @@ public final class DismembermentEngine {
 
     record RigidWoundPose(Vec3 position, Vec3 normal, Vec3 velocity) { }
 
-    /** Projects a network-authored hit onto the closest current rigid limb and
-     * returns the exact model-space coordinates used by wound rendering. */
     WoundProjection projectWound(int entityId, Vec3 worldPoint, Vec3 worldNormal) {
         RigidBodyPiece closest = null;
         Vec3 closestLocal = null;
@@ -1553,8 +1459,13 @@ public final class DismembermentEngine {
     record WoundProjection(int region, Vec3 modelPosition, Vec3 modelNormal) { }
 
     public void releaseRagdoll(int entityId) {
+        if (isElectrified(entityId)) return;
         Minecraft client = Minecraft.getInstance();
         if (client.player != null && client.player.getId() == entityId && playerTumbles.contains(entityId)) {
+            // Player-controlled recovery is locked while airborne. A real
+            // upward support contact must persist for two solver ticks, so
+            // brushing a wall or ceiling cannot count as landing.
+            if (!hasGroundContact(entityId)) return;
             Vec3 exit = findSafeTumbleExit(client, entityId);
             Vec3 exitVelocity = ragdollVelocity(entityId);
             removeRagdoll(entityId);
@@ -1566,6 +1477,22 @@ public final class DismembermentEngine {
             }
             client.player.setDeltaMovement(exitVelocity);
         } else removeRagdoll(entityId);
+    }
+
+    public boolean hasGroundContact(int entityId) {
+        for (RigidBodyPiece part : pieces) {
+            if (part.entityId == entityId && part.playerBody && isAnatomicalRegion(part.region)
+                    && part.region != 0 && part.supportTicks >= 2) return true;
+        }
+        return false;
+    }
+
+    public Vec3 ragdollHandPosition(int entityId, boolean rightArm) {
+        RigidBodyPiece arm = find(entityId, rightArm ? 2 : 3);
+        if (arm == null) return null;
+        Vector3f localHand = new Vector3f(0.0F, (float) -arm.halfExtents.y, 0.0F);
+        arm.orientation.transform(localHand);
+        return arm.position.add(localHand.x, localHand.y, localHand.z);
     }
 
     public void applyWailing(int entityId, float stiffness, int durationTicks, int intervalTicks) {
@@ -1584,16 +1511,13 @@ public final class DismembermentEngine {
         return target == null ? null : target.previous.lerp(target.position, Mth.clamp(partialTick, 0, 1));
     }
 
-    public Vec3 playerTumbleCameraAnchorPosition(int entityId, float partialTick) {
+    public Vec3 tumbleCameraAnchor(int entityId, float partialTick) {
         if (!playerTumbles.contains(entityId)) return null;
         RigidBodyPiece torso = find(entityId, 1);
         return torso == null ? null : torso.previous.lerp(torso.position,
                 Mth.clamp(partialTick, 0, 1));
     }
 
-    /** Keeps the camera's near plane outside the local ragdoll. The head is
-     * intentionally ignored because first-person view is anchored inside it
-     * and its mesh is already hidden. */
     public Vec3 pushCameraOutsideRagdoll(int entityId, Vec3 camera) {
         Vec3 result = camera;
         for (int iteration = 0; iteration < 4; iteration++) {
@@ -1617,8 +1541,6 @@ public final class DismembermentEngine {
         double halfHeight = client.player.getBoundingBox().getYsize() * 0.5;
         Vec3 base = new Vec3(torso.position.x, torso.position.y - halfHeight + 0.08, torso.position.z);
         AABB playerBox = client.player.getBoundingBox();
-        // Search upward from the physical torso. This stands the player on top
-        // of a floor instead of teleporting its feet into the contact surface.
         for (int step = 0; step <= 28; step++) {
             Vec3 candidate = base.add(0, step * 0.075, 0);
             AABB destination = playerBox.move(candidate.subtract(client.player.position())).deflate(0.001);
@@ -1648,12 +1570,16 @@ public final class DismembermentEngine {
         remotePoseTicks.remove(entityId);
     }
 
-    /** Applies a validated snapshot relayed by the server. Local simulation is
-     * retained between packets, while positional/orientation error is blended
-     * out so ordinary latency does not visibly snap a limb. */
     public void applyRemotePose(Minecraft client, RagdollPosePayload payload) {
-        if (client.level == null || payload.parts().isEmpty()) return;
-        if (client.player != null && payload.entityId() == client.player.getId()) return;
+        if (client.level == null || !client.level.dimension().equals(Labyrinth.LABYRINTH_LEVEL)) {
+            return;
+        }
+        if (payload.parts().isEmpty()) {
+            return;
+        }
+        if (client.player != null && payload.entityId() == client.player.getId()) {
+            return;
+        }
         Integer previousSequence = remotePoseSequences.get(payload.entityId());
         if (previousSequence != null
                 && Integer.compareUnsigned(payload.sequence(), previousSequence) <= 0) return;
@@ -1669,10 +1595,6 @@ public final class DismembermentEngine {
             RigidBodyPiece part = find(payload.entityId(), snapshot.region());
             if (part == null) continue;
             Vec3 transmittedVelocity = new Vec3(snapshot.vx(), snapshot.vy(), snapshot.vz());
-            // Packets are intentionally limited to every two simulation ticks.
-            // Predict about one tick forward so a fast body does not visibly
-            // trail its authoritative pose, then converge harder as error or
-            // speed grows. Quiet bodies remain softly interpolated.
             double speed = transmittedVelocity.length();
             Vec3 target = new Vec3(snapshot.x(), snapshot.y(), snapshot.z())
                     .add(transmittedVelocity.scale(Mth.clamp(0.65 + speed * 0.18, 0.65, 1.15)));
@@ -1691,7 +1613,7 @@ public final class DismembermentEngine {
         }
     }
 
-    private void politelyTellTheServerWhereEveryRagdollLimbWentWithoutYellingTooManyPacketsAtIt() {
+    private void sendPoseSnapshots() {
         if ((traumaDecayTicker & 1) != 0 || !ClientPlayNetworking.canSend(RagdollPosePayload.TYPE)) return;
         for (int entityId : ragdolled) {
             if (remoteDriven.contains(entityId)) continue;
@@ -1711,6 +1633,12 @@ public final class DismembermentEngine {
     }
 
     public void tick(ClientLevel level, Entity collisionContext) {
+        if (!level.dimension().equals(Labyrinth.LABYRINTH_LEVEL)) { clear(); return; }
+        electrifiedUntil.entrySet().removeIf(entry -> {
+            if (entry.getValue() > traumaDecayTicker) return false;
+            if (collisionContext.getId() != entry.getKey()) removeRagdoll(entry.getKey());
+            return true;
+        });
         tickWailing();
         remotePoseTicks.entrySet().removeIf(entry -> {
             if (traumaDecayTicker - entry.getValue() <= 60) return false;
@@ -1755,9 +1683,6 @@ public final class DismembermentEngine {
         solverIndex = tickSolverIndex;
         for (RigidBodyPiece part : pieces) solverIndex.put(pieceKey(part.entityId, part.region), part);
 
-        // Two global substeps mirror the stable ordering used by mature rigid-
-        // body engines: integrate, contacts, constraints, then repeat. The old
-        // per-part integration let an entire tick of joint error accumulate.
         boolean hasPlayerRagdoll = false;
         for (RigidBodyPiece part : active) {
             if (part.playerBody) {
@@ -1768,9 +1693,6 @@ public final class DismembermentEngine {
         final int configuredSubsteps = 4;
         final int globalSubsteps = hasPlayerRagdoll ? configuredSubsteps : Math.max(1, configuredSubsteps - 1);
         final double angularDamping = Math.sqrt(0.996);
-        // Keep only a conservative fraction of the previous frame's impulses.
-        // This is Rapier-style warm starting: resting joints converge quickly
-        // without preserving enough stale impulse to launch a newly hit body.
         for (RigidBodyPiece part : active)
             part.jointImpulse = part.jointImpulse.scale(part.playerBody ? 0.08 : 0.16);
         for (int globalStep = 0; globalStep < globalSubsteps; globalStep++) {
@@ -1778,8 +1700,6 @@ public final class DismembermentEngine {
             for (RigidBodyPiece part : active) {
                 if (part.sleeping) {
                     if (!supportedAnatomicalIslands.contains(part.entityId)) {
-                        // A quiet island in mid-air must never remain asleep;
-                        // sleeping skips integration, including gravity.
                         wakeGroup(part.entityId);
                     } else if (!resolveEntityCollisions(level, part)) {
                         continue;
@@ -1802,9 +1722,6 @@ public final class DismembermentEngine {
                 part.velocity = part.velocity.scale(linearDamping)
                         .add(0, verticalAcceleration / globalSubsteps, 0);
                 if (inWater) {
-                    // FluidState supplies the actual downhill/current vector.
-                    // Approach it gradually so connected pieces travel with a
-                    // river without a current stretching their sockets apart.
                     Vec3 flow = fluid.getFlow(level, BlockPos.containing(part.position));
                     Vec3 targetFlow = flow.scale(part.playerBody ? 0.31 : 0.38);
                     part.velocity = part.velocity.add(targetFlow.subtract(
@@ -1830,10 +1747,6 @@ public final class DismembermentEngine {
                 double smallestHalfExtent = Math.max(0.025,
                         Math.min(part.halfExtents.x, Math.min(part.halfExtents.y, part.halfExtents.z)));
                 double safeStep = Math.min(0.12, smallestHalfExtent * 0.55);
-                // Thin cape/elytra panels need more sweep samples than body
-                // cubes. The former cap could move a fast panel farther than
-                // its complete thickness in one sample and tunnel through a
-                // fence, slab or wall edge.
                 int ccdSteps = Math.min(isAttachmentRegion(part.region) ? 32 : 24, Math.max(1,
                         (int) Math.ceil(frameMotion.length() / safeStep)));
                 boolean collided = false;
@@ -1846,14 +1759,8 @@ public final class DismembermentEngine {
                         (float) (part.angularVelocity.x / globalSubsteps),
                         (float) (part.angularVelocity.y / globalSubsteps),
                         (float) (part.angularVelocity.z / globalSubsteps));
-                // angularVelocity is world-space, so pre-multiply the delta.
-                // Post-multiplication treats it as local-space and can produce
-                // unexplained corkscrews as the body changes orientation.
                 part.orientation.set(delta.mul(part.orientation)).normalize();
                 if (!isWorldClear(level, part, part.position)) {
-                    // A resting box must translate around its contact as it
-                    // rotates. Rolling the orientation back made limbs appear
-                    // weightless whenever their far edge touched the floor.
                     boolean rolledClear = part.playerBody && isAnatomicalRegion(part.region)
                             && resolveWorldPenetration(level, part)
                             && isWorldClear(level, part, part.position);
@@ -1876,9 +1783,6 @@ public final class DismembermentEngine {
                 if (!(part.playerBody && isClothRegion(part.region)))
                     resolveWorldPenetration(level, part);
                 if (part.playerBody) {
-                    // Sequential joint impulses may otherwise add energy while
-                    // correcting several limbs at once. They may redistribute
-                    // motion, but never create an unexplained speed burst.
                     double inheritedSpeed = incomingVelocities.getOrDefault(part, Vec3.ZERO).length();
                     double allowedSpeed = Math.max(0.12, inheritedSpeed + 0.075);
                     if (part.velocity.length() > allowedSpeed)
@@ -1893,33 +1797,17 @@ public final class DismembermentEngine {
                 if (part.angularVelocity.length() > angularLimit)
                     part.angularVelocity = part.angularVelocity.normalize().scale(angularLimit);
             }
-            // Final position projection makes socket separation impossible even
-            // when terrain or an entity displaced one member after soft solving.
             for (int iteration = 0; iteration < 3; iteration++) enforceJointInvariant(level, active);
-            // Joint projection is allowed to move a neighbouring limb. Reconcile
-            // terrain once more so the frame never ends with a part inside the
-            // floor and needing a visible correction on the following tick.
             for (RigidBodyPiece part : active)
                 if (!(part.playerBody && isClothRegion(part.region)))
                     resolveWorldPenetration(level, part);
-            // Physics contacts may temporarily displace one member while the
-            // iterative solver converges. End every visible substep with exact
-            // anatomical socket alignment so neither mob nor player limbs can
-            // trail behind their authored model pivots.
             enforceExactAnatomicalSockets(active);
-            // Exact socket closure can place a neighbouring limb a fraction
-            // inside terrain. Resolve that last contact by translating the
-            // complete anatomical island, preserving every socket instead of
-            // making terrain and joints undo one another on alternating ticks.
-            stabilizePlayerAttachmentsAgainstWorld(level, active);
-            stabilizePlayerAttachmentsAgainstOwner(level, active);
-            resolveAnatomicalIslandWorldPenetration(level, active);
+            resolveAttachmentWorldCollisions(level, active);
+            resolveAttachmentBodyCollisions(level, active);
+            resolveIslandPenetration(level, active);
         }
 
-        // Remove only the tiny common-mode velocity of an already grounded
-        // player island. Joint-relative motion is preserved, so limbs remain
-        // loose while terrain corrections can no longer lift the whole body.
-        pleaseStopTheGroundedPlayerFromSlowlyWanderingAwayForNoGoodReason(
+        applyGroundedDrag(
                 level, active, incomingVelocities);
 
         for (int i = pieces.size() - 1; i >= 0; i--) {
@@ -1933,9 +1821,6 @@ public final class DismembermentEngine {
                 part.supportMissTicks = 0;
                 part.supportTicks = Math.min(1200, part.supportTicks + 1);
                 supported = true;
-                // Resting gravity and joint corrections must not continually
-                // manufacture pitch/roll. Keep tangential movement so a body
-                // can still slide naturally across the floor.
                 if (Math.abs(part.velocity.y) < 0.09)
                     part.velocity = new Vec3(part.velocity.x, 0, part.velocity.z);
                 if (!part.playerBody && part.angularVelocity.lengthSqr() < 0.030)
@@ -1986,8 +1871,6 @@ public final class DismembermentEngine {
                     part.lastArmorImpactAge = part.age;
                 }
                 part.contusion = Math.min(1.0f, part.contusion + bluntSeverity * 0.34f);
-                // Axis collision callbacks may be split across substeps; this
-                // guarantees one visible contusion for the combined hard impact.
                 if (part.age - part.lastBruiseAge >= 5)
                     addRigidBruise(part, RagdollMath.safeNormalize(incomingVelocity.scale(-1),
                             new Vec3(0, 1, 0)), part.position, bluntSeverity);
@@ -2015,13 +1898,10 @@ public final class DismembermentEngine {
             part.contacts.values().removeIf(contact -> part.age - contact.lastAge > 2);
         }
         updateSleepingIslands();
-        politelyTellTheServerWhereEveryRagdollLimbWentWithoutYellingTooManyPacketsAtIt();
+        sendPoseSnapshots();
         solverIndex = null;
     }
 
-    /** One restrained contact sound represents a whole articulated landing.
-     * This is evaluated after all CCD axes, avoiding six overlapping sounds
-     * from one part touching a block corner in the same tick. */
     private void emitRigidContactSound(ClientLevel level, RigidBodyPiece part, Vec3 incoming) {
         RagdollConfig config = RagdollRuntime.INSTANCE.config;
         if (!config.rigidBodySounds || config.rigidBodySoundVolume <= 0.001f) return;
@@ -2072,8 +1952,6 @@ public final class DismembermentEngine {
             float maximumChar = part.playerBody ? 0.38f : 1.0f;
             part.charAmount = Math.min(maximumChar, part.charAmount + (part.playerBody ? 0.0014f : 0.0042f));
             part.sleeping = false;
-            // One torso voices the whole articulated body. Playing this per
-            // limb made six identical fire sounds stack at the same position.
             if (part.region == 1 && (part.burningTicks == 1 || part.burningTicks % 34 == 0)) {
                 long soundPhase = RagdollMath.mix(part.entityId * 811L + part.burningTicks * 31L);
                 float pitch = 0.82f + (float) RagdollMath.unit(soundPhase) * 0.28f;
@@ -2136,15 +2014,9 @@ public final class DismembermentEngine {
         return (float) Mth.clamp(armorMassForRegion(player, part.region) * 4.2, 0.0, 0.78);
     }
 
-    /** Converts uniform gravity/buoyancy into the pendulum torque created by a
-     * socket reaction. Exact positional socket closure otherwise cancels the
-     * limb's linear fall without giving it the equivalent angular motion. */
     private void applyJointGravityTorque(RigidBodyPiece part, double verticalAcceleration,
                                          int substeps) {
         if (!part.anchoredJoint || part.parentRegion < 0 || part == grabbed) return;
-        // Once another anatomical part carries the island, the neck no longer
-        // needs the anti-headstand torque. Continuing to apply it while lying
-        // down was the source of the alternating ±0.001 residual velocities.
         if (part.region == 0 && hasNonHeadSupport(part.entityId)) return;
         if (part.region != 0 && part.supportTicks > 0 && part.velocity.lengthSqr() < 0.035) return;
         RigidBodyPiece parent = find(part.entityId, part.parentRegion);
@@ -2163,9 +2035,6 @@ public final class DismembermentEngine {
         }
     }
 
-    /** A grip is kinematically attached, so transfer its weight to the arm at
-     * the shoulder explicitly. This makes a netherite tool pull an arm down
-     * more than a torch while preserving an exact hand socket. */
     private void applyHeldItemLoad(RigidBodyPiece grip, int substeps) {
         if (!isGripRegion(grip.region) || grip.parentRegion < 0) return;
         RigidBodyPiece arm = find(grip.entityId, grip.parentRegion);
@@ -2228,17 +2097,11 @@ public final class DismembermentEngine {
         return collided;
     }
 
-    /** Shares a player's terrain impulse through the articulated island. A
-     * contact on one foot no longer leaves the torso moving through it until
-     * the joints snap the assembly back on the following solver iteration. */
     private Vec3 applyWorldCollisionResponse(RigidBodyPiece contacted, Vec3 response, Vec3 normal) {
         if (!contacted.playerBody || isAttachmentRegion(contacted.region)
                 || !ragdolled.contains(contacted.entityId)) return response;
         double impactSpeed = Math.max(0.0, -contacted.velocity.dot(normal));
         if (normal.y > 0.65 && impactSpeed < 0.28) {
-            // Resting support is local to the touching part. Broadcasting every
-            // tiny gravity cancellation through the island several times per
-            // substep accumulated into an artificial upward player velocity.
             double normalSpeed = response.dot(normal);
             return normalSpeed > 0.0 ? response.subtract(normal.scale(normalSpeed)) : response;
         }
@@ -2256,8 +2119,6 @@ public final class DismembermentEngine {
         return response;
     }
 
-    /** Conservative binary sweep to the actual voxel boundary. It removes the
-     * CCD-step-sized hover gap that made a resting body fall and readjust again. */
     private static Vec3 furthestClear(ClientLevel level, RigidBodyPiece part, Vec3 clear, Vec3 blocked) {
         Vec3 low = clear;
         Vec3 high = blocked;
@@ -2277,19 +2138,12 @@ public final class DismembermentEngine {
         String path = BuiltInRegistries.BLOCK.getKey(block).getPath();
         SurfacePhysics surface = surfacePhysics(path, block.getFriction());
         double impactSpeed = Math.max(0.0, -part.velocity.dot(normal));
-        // A neighbouring axis sweep can still overlap the corner we just left.
-        // Never reflect a velocity that is already separating from that face.
         if (impactSpeed <= 1.0e-6) return part.velocity;
         double bounceActivation = Mth.clamp((impactSpeed - 0.09) / 0.70, 0.0, 1.0);
         double surfaceRestitution = surface.restitution;
-        // Resting contacts get almost no restitution, while real falls retain a
-        // modest amount of energy. This gives visible bounce without micro-jitter.
         RagdollConfig config = RagdollRuntime.INSTANCE.config;
         double restitution = manifold.stableSteps >= 2 ? 0.0
                 : surfaceRestitution * config.ragdollRestitution * bounceActivation;
-        // Apply a bounded portion of the material traction at each contact. The
-        // stable-contact multiplier remains substep-safe while no longer making
-        // ordinary terrain behave like ice.
         double frictionScale = Mth.clamp(config.ragdollGroundFriction, 0.0f, 1.0f);
         double friction = surface.friction * frictionScale
                 * (manifold.stableSteps >= 4 ? 0.42 : 0.16);
@@ -2342,17 +2196,12 @@ public final class DismembermentEngine {
             return new SurfacePhysics(0.065, 0.42, 1.22);
         if (path.contains("dirt") || path.contains("grass") || path.contains("moss"))
             return new SurfacePhysics(0.035, 0.55, 0.76);
-        // Support modded blocks automatically. Minecraft's value is velocity
-        // retention (higher is more slippery), so invert it into traction.
         double nativeTraction = Mth.clamp((1.0 - blockFriction) * 1.05, 0.025, 0.75);
         return new SurfacePhysics(0.055, nativeTraction, 1.0);
     }
 
     private record SurfacePhysics(double restitution, double friction, double trauma) { }
 
-    /** Returns the minimum-translation normal of the actual rotated body versus
-     * voxel shape contact. This handles slabs, stairs, fences and limb corners
-     * more cleanly than responding with the axis currently being swept. */
     private static Vec3 worldContactNormal(ClientLevel level, RigidBodyPiece part,
                                            Vec3 center, Vec3 fallback) {
         AABB broad = boundsAt(part, center).inflate(0.001);
@@ -2363,8 +2212,6 @@ public final class DismembermentEngine {
                 if (contact != null && (shallowest == null || contact.depth < shallowest.depth))
                     shallowest = contact;
             }
-        // obbContact points from the body toward the solid; collision response
-        // needs the surface normal pointing out of the solid.
         Vec3 normal = shallowest == null ? fallback : shallowest.normal.scale(-1);
         return normal.lengthSqr() < 1.0e-10 ? fallback : normal.normalize();
     }
@@ -2383,9 +2230,6 @@ public final class DismembermentEngine {
         double normalSpeed = Math.abs(part.velocity.dot(normal));
         float energy = (float) (0.5 * part.mass() * normalSpeed * normalSpeed);
         if (part.playerBody && ragdolled.contains(part.entityId)) {
-            // Block breaking represents the moving player's complete momentum,
-            // not only the tiny mass assigned to whichever hand/wing happened
-            // to touch the voxel first.
             double islandEnergy = 0.0;
             for (RigidBodyPiece piece : pieces) if (piece.entityId == part.entityId) {
                 double speedIntoSurface = Math.max(0.0, -piece.velocity.dot(normal));
@@ -2406,9 +2250,6 @@ public final class DismembermentEngine {
                 (float) travelDirection.x, (float) travelDirection.y, (float) travelDirection.z));
     }
 
-    /** Sends a bounded fragile-block penetration request while the torso is
-     * still approaching the obstacle. This gives the authoritative server time
-     * to remove a leaf/glass chain before the local OBB reaches its first face. */
     private void emitPredictiveBlockBreak(ClientLevel level, RigidBodyPiece torso) {
         Player localPlayer = Minecraft.getInstance().player;
         if (localPlayer == null) return;
@@ -2437,8 +2278,6 @@ public final class DismembermentEngine {
 
     private static void applyCollisionTorque(RigidBodyPiece part, Vec3 normal, Vec3 incomingVelocity) {
         double normalSpeed = -incomingVelocity.dot(normal);
-        // Gravity revisits a support contact every substep. It is not a new
-        // impact and must not add another torque impulse to a settled limb.
         double groundTorqueThreshold = part.playerBody ? 0.24 : 0.105;
         double torqueThreshold = normal.y > 0.65 ? groundTorqueThreshold
                 : part.playerBody ? 0.10 : 0.035;
@@ -2447,12 +2286,7 @@ public final class DismembermentEngine {
         float bruiseSeverity = (float) Mth.clamp(
                 (normalSpeed + tangentVelocity.length() * 0.32 - 0.13) / 1.35, 0.0, 1.0);
         if (bruiseSeverity > 0.025f && part.age - part.lastBruiseAge >= 5)
-            // The solver normal points away from terrain. The body contact face
-            // and its outward mesh normal point back toward the terrain.
             addRigidBruise(part, normal.scale(-1), null, Math.max(0.10f, bruiseSeverity));
-        // Use the real support point on the contacted OBB face. A seeded random
-        // lever made resting bodies manufacture spin every time a contact was
-        // revisited, which presented as twitching and spontaneous launches.
         Vec3 towardContact = normal.scale(-1);
         Vec3[] bodyAxes = axes(part);
         Vec3 lever = bodyAxes[0].scale(Math.copySign(part.halfExtents.x,
@@ -2487,10 +2321,6 @@ public final class DismembermentEngine {
         part.sleeping = false;
     }
 
-    /** A two-box leg has no knee or ankle and can otherwise balance forever in
-     * a mathematically perfect vertical pose. Convert the sustained ground load
-     * into a tiny deterministic outward hip torque, allowing gravity to buckle
-     * the stance without inventing linear or random launch velocity. */
     private void applyLoadedHipBuckling(RigidBodyPiece leg) {
         if (leg.supportTicks > 14 || leg.angularVelocity.lengthSqr() > 0.0225) return;
         RigidBodyPiece torso = find(leg.entityId, 1);
@@ -2560,8 +2390,6 @@ public final class DismembermentEngine {
                     deepest.depth + 0.0007));
             meaningfulCorrection |= correction.lengthSqr() > 0.004 * 0.004;
             part.position = part.position.add(correction);
-            // Move both interpolation endpoints by the depenetration amount;
-            // this is a contact correction, not visible body motion.
             part.previous = part.previous.add(correction);
             double inwardSpeed = part.velocity.dot(outward);
             if (inwardSpeed < 0) {
@@ -2573,7 +2401,6 @@ public final class DismembermentEngine {
             corrected = true;
         }
         if (!part.playerBody && !isWorldClear(level, part, part.position)) {
-            // Only genuinely deep/invalid placements use the coarse recovery.
             Vec3 origin = part.position;
             for (int step = 1; step <= 48; step++) {
                 Vec3 candidate = origin.add(0, step * 0.025, 0);
@@ -2587,13 +2414,11 @@ public final class DismembermentEngine {
                 break;
             }
         }
-        // Sub-millimetre manifold maintenance is not a new collision and must
-        // not wake an otherwise settled articulated island every solver pass.
         if (meaningfulCorrection) part.sleeping = false;
         return corrected;
     }
 
-    private void pleaseStopTheGroundedPlayerFromSlowlyWanderingAwayForNoGoodReason(
+    private void applyGroundedDrag(
             ClientLevel level, List<RigidBodyPiece> active,
             Map<RigidBodyPiece, Vec3> incomingVelocities) {
         Set<Integer> ids = tickGroundedPlayerIslands;
@@ -2621,18 +2446,11 @@ public final class DismembermentEngine {
             boolean settledContact = maximumIncoming <= 0.34;
             double removeY = settledContact && Math.abs(common.y) < 0.16 ? common.y : 0.0;
             Vec3 horizontal = new Vec3(common.x, 0, common.z);
-            // Island-level rolling resistance prevents the joints from passing
-            // momentum between limbs forever. It samples the real supporting
-            // block, keeping ice slippery while normal ground settles promptly.
             double frictionScale = Mth.clamp(RagdollRuntime.INSTANCE.config.ragdollGroundFriction,
                     0.0f, 1.0f);
             double horizontalRetention = settledContact
                     ? Mth.clamp(0.985 - supportedTraction * frictionScale * 0.24, 0.74, 0.982)
                     : 0.992;
-            // Below this island-level speed there is no meaningful player
-            // momentum left: it is numerical noise from contacts and joints.
-            // Clear it as a common mode, rather than adding friction to each
-            // loose limb and making the pose feel stiff.
             double groundedDriftDeadZone = settledContact ? 0.026 : 0.008;
             Vec3 removeHorizontal = horizontal.lengthSqr()
                     < groundedDriftDeadZone * groundedDriftDeadZone
@@ -2665,7 +2483,7 @@ public final class DismembermentEngine {
         return traction;
     }
 
-    private void resolveAnatomicalIslandWorldPenetration(ClientLevel level,
+    private void resolveIslandPenetration(ClientLevel level,
                                                           List<RigidBodyPiece> active) {
         Set<Integer> anatomicalIslands = tickAnatomicalIslands;
         anatomicalIslands.clear();
@@ -2701,10 +2519,7 @@ public final class DismembermentEngine {
         }
     }
 
-    /** Keep cape and elytra hinges exact while resolving terrain by rotating
-     * the panel around its socket. Translating a panel out of a block and then
-     * snapping it back to the hinge was the source of their rapid twitching. */
-    private void stabilizePlayerAttachmentsAgainstWorld(ClientLevel level,
+    private void resolveAttachmentWorldCollisions(ClientLevel level,
                                                           List<RigidBodyPiece> active) {
         for (RigidBodyPiece attachment : active) {
             if (!attachment.playerBody || !isClothRegion(attachment.region)
@@ -2751,17 +2566,11 @@ public final class DismembermentEngine {
         }
     }
 
-    /** One-way cape/elytra collision against their owner. Only the attachment
-     * rotates around its exact hinge; no correction or impulse is ever applied
-     * to the torso, limbs, or authoritative player velocity. */
-    private void stabilizePlayerAttachmentsAgainstOwner(ClientLevel level,
+    private void resolveAttachmentBodyCollisions(ClientLevel level,
                                                           List<RigidBodyPiece> active) {
         for (RigidBodyPiece attachment : active) {
             if (!attachment.playerBody || !isClothRegion(attachment.region)
                     || !attachment.anchoredJoint || attachment.parentRegion < 0) continue;
-            // Elytra is purely hinged cloth relative to its owner. World
-            // collision remains active, but player-body collision is disabled
-            // completely so a wing can never inject motion into the ragdoll.
             if (attachment.region == 7 || attachment.region == 8
                     || attachment.region == 14 || attachment.region == 15) continue;
             RigidBodyPiece parent = find(attachment.entityId, attachment.parentRegion);
@@ -2824,8 +2633,6 @@ public final class DismembermentEngine {
             if (body.entityId != attachment.entityId || !isAnatomicalRegion(body.region)) continue;
             ObbContact contact = obbContact(attachment, body);
             if (contact == null) continue;
-            // The hinge is authored just inside the back/shoulder surface. Keep
-            // that shallow seam overlap while rejecting deeper panel clipping.
             double seamSlop = body.region == attachment.parentRegion
                     ? Math.max(0.018, attachment.halfExtents.z * 1.45) : 0.004;
             double depth = contact.depth - seamSlop;
@@ -2875,9 +2682,6 @@ public final class DismembermentEngine {
             Vec3 correction = normal.scale(correctionDistance);
             boolean articulated = ragdolled.contains(part.entityId);
             if (articulated) {
-                // Move part of the entire island with the contact. A collision
-                // applied solely to a hand or head visibly stretches the socket
-                // until the next constraint pass.
                 Vec3 sharedCorrection = correction.scale(0.38);
                 for (RigidBodyPiece islandPart : pieces) if (islandPart.entityId == part.entityId) {
                     Vec3 candidate = islandPart.position.add(sharedCorrection);
@@ -2947,11 +2751,7 @@ public final class DismembermentEngine {
                 center.x + hx, center.y + hy, center.z + hz);
     }
 
-    /** Narrow-phase block test: broad-phase AABBs only select voxel boxes; the
-     * actual decision uses the part's oriented dimensions, eliminating hover gaps. */
     private static boolean isWorldClear(ClientLevel level, RigidBodyPiece part, Vec3 center) {
-        // Held-item proxies carry mass and orientation only. Their visual model
-        // must not catch terrain or push the hand through an invisible box.
         if (isGripRegion(part.region)) return true;
         AABB broad = boundsAt(part, center).deflate(0.00035);
         for (var shape : level.getBlockCollisions(null, broad))
@@ -2979,8 +2779,6 @@ public final class DismembermentEngine {
                 b.position, collisionHalfExtents(b), axes(b));
     }
 
-    /** A small physical skin keeps the player head from catching block edges;
-     * the visual cube remains full-size and aligned with the neck socket. */
     private static Vec3 collisionHalfExtents(RigidBodyPiece part) {
         if (part.playerBody && part.region == 0)
             return new Vec3(part.halfExtents.x * 0.82, part.halfExtents.y * 0.80,
@@ -2988,7 +2786,6 @@ public final class DismembermentEngine {
         return part.halfExtents;
     }
 
-    /** Full 15-axis separating-axis test for two oriented boxes. */
     private static ObbContact satContact(Vec3 centerA, Vec3 halfA, Vec3[] axesA,
                                          Vec3 centerB, Vec3 halfB, Vec3[] axesB) {
         Vec3 delta = centerB.subtract(centerA);
@@ -3034,8 +2831,6 @@ public final class DismembermentEngine {
                     : child.position.subtract(parent.position);
             double length = Math.max(1.0e-5, delta.length());
             double distanceError = child.anchoredJoint ? length : length - child.jointLength;
-            // Soft XPBD-style correction. Capping the correction prevents one
-            // collision frame from injecting the familiar ragdoll vibration.
             double maxCorrection = Math.max(0.018, Math.min(child.radius(), parent.radius()) * 0.20);
             double correctionLength = Mth.clamp(distanceError * (child.anchoredJoint ? 0.82 : 0.42),
                     -maxCorrection, maxCorrection);
@@ -3054,9 +2849,6 @@ public final class DismembermentEngine {
                 else parent.velocity = parent.velocity.scale(0.72);
             }
 
-            // A ball socket can satisfy its anchors while a long limb folds into
-            // the torso. Preserve a conservative fraction of the bind-pose
-            // centre separation as a deep-fold guard, not as a rigid pose lock.
             Vec3 centerDelta = child.position.subtract(parent.position);
             double centerDistance = centerDelta.length();
             double restCenterDistance = Math.max(child.jointLength, child.jointRestOffset.length());
@@ -3080,10 +2872,6 @@ public final class DismembermentEngine {
                 if (!attachment && isWorldClear(level, parent, unfoldedParent))
                     parent.position = unfoldedParent;
             }
-            // Sequential impulse socket constraint. Unlike center-only damping,
-            // impulses act at the real anchors, so linear error correctly turns
-            // the limbs according to their box inertia instead of making the
-            // whole doll rigid or allowing the sockets to pull apart.
             if (child.anchoredJoint)
                 solveSocketImpulse(child, parent, distanceError,
                         child.playerBody ? 0.17 : globalConstraintBias());
@@ -3106,8 +2894,6 @@ public final class DismembermentEngine {
                 child.angularVelocity = child.angularVelocity.normalize().scale(maximumJointSpin);
             if (Math.abs(distanceError) > 0.008 || Math.abs(separatingSpeed) > 0.018) {
                 child.sleeping = false;
-                // Cloth is one-way coupled: cape/elytra motion follows its
-                // socket but must never keep the anatomical island awake.
                 if (!isClothRegion(child.region)) parent.sleeping = false;
             }
         }
@@ -3144,8 +2930,6 @@ public final class DismembermentEngine {
             double velocityError = relativeVelocity.dot(axis);
             double positionalBias = Mth.clamp(error.dot(axis) * biasFactor, -0.12, 0.12);
             double lambda = -(velocityError + positionalBias) / effectiveMass;
-            // Per-iteration impulse limit prevents deep terrain contacts from
-            // turning an anatomical constraint into an explosive spring.
             double impulseLimit = child.playerBody ? 0.060 : 0.078;
             lambda = Mth.clamp(lambda, -impulseLimit, impulseLimit);
             Vec3 impulse = axis.scale(lambda);
@@ -3173,13 +2957,9 @@ public final class DismembermentEngine {
     }
 
     private static double globalConstraintBias() {
-        // Two global substeps and multiple solver iterations require a small
-        // Baumgarte term; the hard invariant remains the final safety net.
         return 0.13;
     }
 
-    /** Hard post-contact socket projection. Soft constraints provide natural
-     * motion; this invariant provides the non-negotiable anatomical connection. */
     private void enforceJointInvariant(ClientLevel level, List<RigidBodyPiece> active) {
         for (RigidBodyPiece child : active) {
             if (!child.anchoredJoint || child.parentRegion < 0) continue;
@@ -3209,8 +2989,6 @@ public final class DismembermentEngine {
                     && isWorldClear(level, parent, parent.position.add(error))) {
                 parent.position = parent.position.add(error);
             } else {
-                // In an impossible tight gap, damping is more physical than
-                // alternately forcing a limb into terrain and ejecting it.
                 child.velocity = child.velocity.scale(0.72);
                 if (!attachment) parent.velocity = parent.velocity.scale(0.72);
                 continue;
@@ -3228,10 +3006,6 @@ public final class DismembermentEngine {
         }
     }
 
-    /** Exact render-frame socket closure for every anatomical ragdoll. Limbs
-     * retain angular physics, but their authored model pivot is kinematically
-     * identical to the matching parent socket. Matching anchor velocity keeps
-     * the constraint closed on the following integration step as well. */
     private void enforceExactAnatomicalSockets(List<RigidBodyPiece> active) {
         for (RigidBodyPiece child : active) {
             if (!isAnatomicalRegion(child.region) || !child.anchoredJoint
@@ -3258,19 +3032,11 @@ public final class DismembermentEngine {
         }
     }
 
-    /** Rotates a hinged limb away from torso/head penetration without moving its
-     * shoulder/hip socket. This is a one-sided angular contact, so it cannot
-     * push the whole player or recreate the old inward-curl impulse loop. */
     private void keepPlayerLimbOutsideCore(RigidBodyPiece limb, Vec3 socket) {
         for (int pass = 0; pass < 2; pass++) {
             Vec3 outward = null;
             double penetration = 0.0;
             if (limb.region == 2 || limb.region == 3) {
-                // Shoulder boxes are expected to overlap the torso slightly at
-                // their socket. Treating that authored overlap as penetration
-                // pushed both arms outward every substep until they formed a T.
-                // Probe the distal half instead, which still prevents a hand or
-                // forearm from folding through the torso/head.
                 Vec3 awayFromSocket = RagdollMath.safeNormalize(limb.position.subtract(socket),
                         transformedAxis(limb, new Vec3(0, 1, 0)));
                 Vec3 probe = limb.position.add(awayFromSocket.scale(limb.halfExtents.y * 0.58));
@@ -3322,7 +3088,6 @@ public final class DismembermentEngine {
         return new Vec3(axis.x, axis.y, axis.z);
     }
 
-    /** Minimum translation required to move a point out of an oriented box. */
     private static PointEscape pointEscape(RigidBodyPiece box, Vec3 point, double inset) {
         Vector3f local = new Vector3f((float) (point.x - box.position.x),
                 (float) (point.y - box.position.y), (float) (point.z - box.position.z));
@@ -3349,8 +3114,6 @@ public final class DismembermentEngine {
 
     private record PointEscape(Vec3 outward, double depth) { }
 
-    /** Local-space angular motor with anatomical limits. It mirrors Sable's
-     * motorized generic constraints without depending on its NeoForge pipeline. */
     private void solveAngularMotor(ClientLevel level, RigidBodyPiece child,
                                    RigidBodyPiece parent, double childWeight) {
         if (!child.anchoredJoint) return;
@@ -3365,9 +3128,6 @@ public final class DismembermentEngine {
         double errorZ = motorError(angles.z, child.angularLimit.z);
         double limitViolation = Math.sqrt(errorX * errorX + errorY * errorY + errorZ * errorZ);
 
-        // Project a violated joint cone back to its nearest legal orientation.
-        // The socket position alone cannot stop a limb folding through its torso;
-        // a rigid-body joint needs both its linear lock and angular limits.
         if (limitViolation > 1.0e-4 && child != grabbed) {
             float legalX = (float) Mth.clamp(angles.x,
                     -child.angularLimit.x, child.angularLimit.x);
@@ -3391,9 +3151,6 @@ public final class DismembermentEngine {
             child.orientation.slerp(legalWorld, projection).normalize();
             if (!isWorldClear(level, child, child.position)) child.orientation.set(original);
             else {
-                // Remove the violating relative spin when projection did work.
-                // Retaining it immediately drives the joint outside the cone
-                // again and looks like the constraint is generating force.
                 double arrest = child.playerBody
                         ? isAnatomicalRegion(child.region) ? 0.34 : 0.56
                         : isLimbRegion(child.region)
@@ -3402,20 +3159,10 @@ public final class DismembermentEngine {
                 child.angularVelocity = child.angularVelocity.lerp(parent.angularVelocity, arrest);
             }
         }
-        // Projection is safe to repeat as the contact/joint solver converges;
-        // the velocity motor must only inject one impulse per game tick.
         if (!applyVelocityMotor || child.angularStiffness <= 0.0f) return;
         child.lastMotorAge = child.age;
-        // Inside the joint cone there is only a gentle bind-pose recovery; at a
-        // limit the motor becomes progressively firmer instead of hard snapping.
-        // Arms and legs should retain their current physical pose inside the
-        // anatomical cone. Continually pulling them toward the captured bind
-        // rotation made both arms curl inward after every contact.
         boolean fracturedLeg = child.playerBody
                 && playerFracturedLegs.getOrDefault(child.entityId, -1) == child.region;
-        // A fractured pose is gently maintained in the air, but once either
-        // side of the hip is supported the motor yields to the floor. A motor
-        // pushing against an immovable contact was a persistent jitter source.
         boolean jointGrounded = fracturedLeg
                 && (child.supportTicks > 0 || parent.supportTicks > 0);
         double bindRecovery = fracturedLeg ? jointGrounded ? 0.0 : 0.018
@@ -3454,10 +3201,6 @@ public final class DismembermentEngine {
     }
 
     private void solveSelfCollisions(ClientLevel level, List<RigidBodyPiece> active) {
-        // Sweep-and-prune discards bodies that cannot overlap on X before the
-        // comparatively expensive oriented-box SAT. This changes the previous
-        // all-pairs hot path from quadratic across the entire corpse history to
-        // local overlap clusters only.
         List<RigidBodyPiece> candidates = selfCollisionCandidates;
         Map<RigidBodyPiece, AABB> bounds = selfCollisionBounds;
         candidates.clear();
@@ -3477,23 +3220,12 @@ public final class DismembermentEngine {
             boolean playerAnatomy = sameRagdoll && a.playerBody && b.playerBody
                     && isAnatomicalRegion(a.region) && isAnatomicalRegion(b.region);
             if (a.sleeping && b.sleeping) continue;
-            // World collision still drives cape/wing motion. Owner-body OBB
-            // contacts fought the exact hinge projection and caused twitching.
             if (clothContact) continue;
             if (!RagdollRuntime.INSTANCE.config.ragdollSelfCollision) continue;
-            // Collision filtering is essential for articulated bodies: socket
-            // neighbours are intentionally touching. Cape and wing panels still
-            // collide with non-parent limbs even when anatomical self-collision
-            // is disabled, so cloth cannot pass cleanly through the whole body.
-            // Parent and child colliders intentionally meet at the socket.
-            // Resolving that authored overlap as a collision makes the contact
-            // solver and joint solver pull in opposite directions.
             if (sameRagdoll && directlyConnected) continue;
             if (!aBounds.intersects(bBounds)) continue;
             ObbContact contact = obbContact(a, b);
             if (contact == null) continue;
-            // Non-neighbouring parts keep a small contact skin so an arm cannot
-            // pass through the opposite leg without producing resting jitter.
             double socketSlop = playerAnatomy ? 0.018 : 0.0035;
             if (contact.depth <= socketSlop) continue;
             Vec3 normal = contact.normal;
@@ -3501,8 +3233,6 @@ public final class DismembermentEngine {
             double inverseB = b == grabbed ? 0.0 : b.inverseMass();
             double inverseSum = inverseA + inverseB;
             if (inverseSum < 1.0e-8) continue;
-            // Positional slop prevents resting contacts from alternately
-            // separating and re-penetrating on consecutive solver iterations.
             double correctionMagnitude = sameRagdoll
                     ? playerAnatomy
                     ? Math.min(0.006, Math.max(0, contact.depth - socketSlop) * 0.05)
@@ -3516,25 +3246,16 @@ public final class DismembermentEngine {
             Vec3 relativeVelocity = b.velocity.subtract(a.velocity);
             double closing = relativeVelocity.dot(normal);
             if (closing < 0) {
-                // Self contacts are perfectly inelastic and only cancel a
-                // fraction of inward velocity. Restitution and Coulomb friction
-                // between limbs feed energy back into their socket constraints.
                 double impulseMagnitude = sameRagdoll
                         ? -closing / inverseSum * (playerAnatomy ? 0.012 : 0.10)
                         : -(1.0 + 0.08) * closing / inverseSum;
                 Vec3 normalImpulse = normal.scale(impulseMagnitude);
-                // Same-island contact already has a normal impulse and angular
-                // joint response. Applying the approximate environment torque
-                // here as well double-counted energy and crumpled the silhouette.
                 if (!sameRagdoll) {
                     applyCollisionTorque(a, normal.scale(-1), a.velocity.subtract(b.velocity));
                     applyCollisionTorque(b, normal, b.velocity.subtract(a.velocity));
                 }
                 if (inverseA > 0) a.velocity = a.velocity.subtract(normalImpulse.scale(inverseA));
                 if (inverseB > 0) b.velocity = b.velocity.add(normalImpulse.scale(inverseB));
-                // Internal tangential friction is deliberately absent: the
-                // joints provide anatomical damping. Friction remains for
-                // collisions between separate ragdolls.
                 Vec3 tangent = relativeVelocity.subtract(normal.scale(closing));
                 if (!sameRagdoll && tangent.lengthSqr() > 1.0e-8) {
                     tangent = tangent.normalize();
@@ -3562,8 +3283,6 @@ public final class DismembermentEngine {
         for (RigidBodyPiece piece : pieces) if (piece.entityId == entityId) piece.sleeping = false;
     }
 
-    /** Sleep a constrained body as one island. Individual sleeping limbs let a
-     * still-awake neighbour repeatedly pull them through a socket and add energy. */
     private void updateSleepingIslands() {
         Map<Integer, List<RigidBodyPiece>> islands = new HashMap<>();
         for (RigidBodyPiece piece : pieces)
@@ -3582,16 +3301,9 @@ public final class DismembermentEngine {
                     .allMatch(part -> part.contacts.values().stream()
                             .anyMatch(contact -> contact.stableSteps >= 6));
             boolean settledPose = supportedIsland;
-            // Do not freeze a horizontally suspended limb merely because its
-            // velocities are momentarily small. An unsupported body segment
-            // may sleep only when it hangs mostly below its joint, where its
-            // gravitational torque is naturally close to zero.
             for (RigidBodyPiece part : island) {
                 if (!settledPose || isAttachmentRegion(part.region) || part.parentRegion < 0
                         || part.supportTicks >= 2 || !part.anchoredJoint) continue;
-                // A head hanging naturally from a supported torso is a valid
-                // resting side pose. Requiring the head itself to be directly
-                // supported kept the complete island awake forever.
                 if (part.region == 0) continue;
                 RigidBodyPiece parent = find(part.entityId, part.parentRegion);
                 if (parent == null) continue;
@@ -3604,9 +3316,6 @@ public final class DismembermentEngine {
             double linearSleep = groundedPlayer ? 0.0022 : 0.00055;
             double angularSleep = groundedPlayer ? 0.0016 : 0.00025;
             for (RigidBodyPiece part : island) {
-                // A cape is allowed to finish its own small swing after the
-                // body settles. Its velocity is not evidence that the body is
-                // still moving, and grips are driven render/weight proxies.
                 if (isAttachmentRegion(part.region)) continue;
                 quiet &= part.velocity.lengthSqr() < linearSleep
                         && part.angularVelocity.lengthSqr() < angularSleep;
@@ -3647,7 +3356,6 @@ public final class DismembermentEngine {
 
     public boolean isRagdolled(int entityId) { return ragdolled.contains(entityId); }
 
-    /** Immutable live telemetry consumed by the optional ImGui diagnostics. */
     public RagdollDebugFrame debugFrame(Player player) {
         if (player == null) return new RagdollDebugFrame(0.0, List.of());
         List<RagdollDebugPart> result = new ArrayList<>();
@@ -3700,7 +3408,6 @@ public final class DismembermentEngine {
                                    String jointType, int contactCount, Vec3 contactNormal,
                                    double kineticEnergy, double energyDelta,
                                    double constraintError, float physicsBlend) { }
-    /** Small render-only compression used for high-energy blunt deformation. */
     public float deformation(int entityId, int region) {
         if (!RagdollRuntime.INSTANCE.config.modelDeformation) return 0.0f;
         long key = ((long) entityId << 32) ^ (region & 0xffffffffL);
@@ -3721,10 +3428,13 @@ public final class DismembermentEngine {
         ragdolled.remove(entityId);
         rigidSoundAges.remove(entityId);
         regionalTrauma.keySet().removeIf(key -> (int) (key >> 32) == entityId);
-        // Physics corpses outlive the removed server entity and expire on their own age budget.
     }
 
-    public void clear() { pieces.clear(); detached.clear(); detachedModelPaths.clear(); renderedPoseCache.clear(); ragdolled.clear(); remoteDriven.clear(); remotePoseSequences.clear(); remotePoseTicks.clear(); playerTumbles.clear(); playerFracturedLegs.clear(); appliedFracturePoses.clear(); tumbleStartedAt.clear(); ragdollStartedAt.clear(); wailing.clear(); recentExplosions.clear(); regionalTrauma.clear(); islandSleepTicks.clear(); blockImpactAges.clear(); entityImpactAges.clear(); rigidSoundAges.clear(); grabbed = null; smoothedGrabTarget = null; solverIndex = null; lastAuthorityTick = Long.MIN_VALUE; }
+    public void clear() { pieces.clear(); detached.clear(); detachedModelPaths.clear(); renderedPoseCache.clear(); ragdolled.clear(); remoteDriven.clear(); remotePoseSequences.clear(); remotePoseTicks.clear(); playerTumbles.clear(); playerFracturedLegs.clear(); appliedFracturePoses.clear(); tumbleStartedAt.clear(); ragdollStartedAt.clear(); electrifiedUntil.clear(); wailing.clear(); recentExplosions.clear(); regionalTrauma.clear(); islandSleepTicks.clear(); blockImpactAges.clear(); entityImpactAges.clear(); rigidSoundAges.clear(); grabbed = null; smoothedGrabTarget = null; solverIndex = null; lastAuthorityTick = Long.MIN_VALUE; }
+
+    private static boolean inLabyrinth(Entity entity) {
+        return entity != null && entity.level().dimension().equals(Labyrinth.LABYRINTH_LEVEL);
+    }
 
     private void tickWailing() {
         wailing.entrySet().removeIf(entry -> {
@@ -3732,8 +3442,6 @@ public final class DismembermentEngine {
             if (traumaDecayTicker >= state.endTick) return true;
             if (traumaDecayTicker < state.nextTick) return false;
             state.nextTick = traumaDecayTicker + state.intervalTicks;
-            // Wailing is audio/state feedback, not a source of random torque.
-            // The previous seeded impulses made a resting body "freestyle".
             for (RigidBodyPiece part : pieces) if (part.entityId == entry.getKey()) part.sleeping = false;
             return false;
         });
@@ -3752,6 +3460,6 @@ public final class DismembermentEngine {
         }
     }
 
-    private record ThatExplosionFromA_momentAgoWhichTheRagdollShouldProbablyRemember(
+    private record RecentExplosion(
             Vec3 center, float radius, int createdTick) { }
 }

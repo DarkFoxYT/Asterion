@@ -53,13 +53,12 @@ public final class AntikytheraMechanismItem extends CompassItem {
         LodestoneTracker current = stack.get(DataComponents.LODESTONE_TRACKER);
         if (current == null || current.tracked() || current.target().isEmpty()
                 || !current.target().get().equals(expected)) {
-            // This is a supernatural target, not a vanilla lodestone. Disabling validation keeps the
-            // needle locked without loading the impossibly distant gateway chunk every inventory tick.
             stack.set(DataComponents.LODESTONE_TRACKER, new LodestoneTracker(Optional.of(expected), false));
         }
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public void appendHoverText(ItemStack stack, TooltipContext context, TooltipDisplay display,
                                 Consumer<Component> tooltip, TooltipFlag flag) {
         tooltip.accept(Component.translatable(stack.get(DataComponents.LODESTONE_TRACKER) == null

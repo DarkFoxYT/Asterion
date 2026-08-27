@@ -15,7 +15,6 @@ import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConf
 import net.minecraft.world.level.levelgen.structure.templatesystem.LiquidSettings;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
 
-/** Places the editable vanilla structure template in deep Overworld ocean terrain. */
 public final class UnderwaterRuinFeature extends Feature<NoneFeatureConfiguration> {
     public static final BlockPos TEMPLATE_CENTER = new BlockPos(5, 0, 5);
 

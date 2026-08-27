@@ -4,7 +4,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-/** Numerical helpers kept allocation-light because they execute for every fluid node. */
 final class RagdollMath {
     private RagdollMath() { }
 
@@ -21,7 +20,6 @@ final class RagdollMath {
         return tangentPart.scale(Math.max(0.0, 1.0 - friction)).subtract(normalPart.scale(restitution));
     }
 
-    /** Stable tangent basis for every one of Minecraft's six block faces. */
     static Basis faceBasis(Direction face, float rotation) {
         Vec3 normal = face.getUnitVec3();
         Vec3 seed = Math.abs(normal.y) > 0.9 ? new Vec3(1, 0, 0) : new Vec3(0, 1, 0);
@@ -33,7 +31,6 @@ final class RagdollMath {
                 bitangent.scale(cosine).subtract(tangent.scale(sine)), normal);
     }
 
-    /** Approximates the outward surface normal where a ray entered an entity AABB. */
     static Vec3 nearestSurfaceNormal(AABB box, Vec3 point, Vec3 fallback) {
         double[] distances = {
                 Math.abs(point.x - box.minX), Math.abs(point.x - box.maxX),
@@ -50,7 +47,6 @@ final class RagdollMath {
         return result.dot(fallback) > 0.95 ? fallback.scale(-1) : result;
     }
 
-    /** SplitMix64: deterministic, fast, and visually free of obvious grid correlation. */
     static long mix(long state) {
         state += 0x9E3779B97F4A7C15L;
         state = (state ^ (state >>> 30)) * 0xBF58476D1CE4E5B9L;
@@ -92,5 +88,4 @@ final class RagdollMath {
 
     record Basis(Vec3 tangent, Vec3 bitangent, Vec3 normal) { }
 }
-
 

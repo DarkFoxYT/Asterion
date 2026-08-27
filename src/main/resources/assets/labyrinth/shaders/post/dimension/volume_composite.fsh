@@ -27,7 +27,16 @@ vec3 filmicCurve(vec3 color) {
 void main() {
     vec4 scene = texture(SceneSampler, texCoord);
     vec4 volume = texture(VolumeSampler, texCoord);
-    vec3 atmospheric = scene.rgb * volume.a + volume.rgb;
+    // The scene already contains Minecraft's authoritative block-light map.
+    // Dense dust still obscures distant/dark geometry, but nearby luminous
+    // surfaces retain enough transmission for a carried level-15 torch to
+    // visibly carve through the fog.
+    float sceneLuminance = dot(scene.rgb, vec3(0.2126, 0.7152, 0.0722));
+    float sceneChroma = max(scene.r, max(scene.g, scene.b)) - min(scene.r, min(scene.g, scene.b));
+    float localBlockLight = clamp(smoothstep(0.10, 0.72, sceneLuminance)
+            * (0.72 + sceneChroma * 0.55), 0.0, 1.0);
+    float protectedTransmission = mix(volume.a, mix(volume.a, 1.0, 0.58), localBlockLight);
+    vec3 atmospheric = scene.rgb * protectedTransmission + volume.rgb * (1.0 - localBlockLight * 0.28);
 
     float luminance = dot(atmospheric, vec3(0.2126, 0.7152, 0.0722));
     vec3 shadowTint = vec3(0.90, 0.94, 1.02);

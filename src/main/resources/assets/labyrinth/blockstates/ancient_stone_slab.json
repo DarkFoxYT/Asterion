@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "type=bottom": {
+      "model": "labyrinth:block/ancient_stone_slab"
+    },
+    "type=double": {
+      "model": "labyrinth:block/ancient_stone"
+    },
+    "type=top": {
+      "model": "labyrinth:block/ancient_stone_slab_top"
+    }
+  }
+}

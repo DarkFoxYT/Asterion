@@ -42,7 +42,7 @@ public abstract class CameraMixin {
         Vec3 head = DismembermentEngine.INSTANCE.playerTumbleCameraPosition(minecraft.player.getId(), partial);
         if (head == null) { labyrinth$smoothedRagdollCamera = null; return; }
         Vec3 desired = head.add(position().subtract(minecraft.player.getEyePosition(partial)));
-        Vec3 torso = DismembermentEngine.INSTANCE.playerTumbleCameraAnchorPosition(minecraft.player.getId(), partial);
+        Vec3 torso = DismembermentEngine.INSTANCE.tumbleCameraAnchor(minecraft.player.getId(), partial);
         Vec3 anchor = minecraft.options.getCameraType().isFirstPerson() && torso != null ? torso : head;
         if (labyrinth$smoothedRagdollCamera == null || labyrinth$smoothedRagdollCamera.distanceToSqr(desired) > 6.25)
             labyrinth$smoothedRagdollCamera = desired;

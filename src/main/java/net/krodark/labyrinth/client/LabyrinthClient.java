@@ -9,18 +9,22 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.krodark.labyrinth.LabyrinthConfig;
 import net.krodark.labyrinth.client.render.post.LabyrinthPostEffects;
+import net.krodark.labyrinth.client.render.portal.LabyrinthPortalRenderer;
 import net.krodark.labyrinth.client.lightning.MazeZapRenderer;
 import net.krodark.labyrinth.client.render.entity.MinotaurPlaceholderRenderer;
 import net.krodark.labyrinth.network.DimensionTransitionPayload;
+import net.krodark.labyrinth.network.GatewayPortalPayload;
 import net.krodark.labyrinth.network.MazeZapPayload;
 import net.krodark.labyrinth.network.DeadSunEventPayload;
 import net.krodark.labyrinth.client.event.DeadSunClientEvents;
+import net.krodark.labyrinth.client.light.HeldItemDynamicLights;
+import net.krodark.labyrinth.client.light.LedAmneticLight;
 import net.krodark.labyrinth.client.ragdoll.DismembermentEngine;
 import net.krodark.labyrinth.client.ragdoll.RagdollClientController;
 import net.krodark.labyrinth.network.ragdoll.*;
 import net.krodark.labyrinth.Labyrinth;
-import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.entity.EntityRenderers;
 import org.lwjgl.glfw.GLFW;
 
 public class LabyrinthClient implements ClientModInitializer {
@@ -30,13 +34,17 @@ public class LabyrinthClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         LabyrinthPostEffects.register();
+        LabyrinthPortalRenderer.register();
         DimensionTransitionOverlay.register();
+        EclipseOverlay.register();
         MazeZapRenderer.register();
         RagdollClientController.initialize();
-        EntityRendererRegistry.register(Labyrinth.MINOTAUR, MinotaurPlaceholderRenderer::new);
+        EntityRenderers.register(Labyrinth.MINOTAUR, MinotaurPlaceholderRenderer::new);
         ClientPlayNetworking.registerGlobalReceiver(DimensionTransitionPayload.TYPE, (payload, context) ->
                 context.client().execute(() ->
                         DimensionTransitionOverlay.begin(payload.fadeInTicks(), payload.holdTicks())));
+        ClientPlayNetworking.registerGlobalReceiver(GatewayPortalPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> LabyrinthPortalRenderer.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(MazeZapPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> MazeZapRenderer.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(DeadSunEventPayload.TYPE, (payload, context) ->
@@ -59,6 +67,8 @@ public class LabyrinthClient implements ClientModInitializer {
     private void tick(Minecraft client) {
         DimensionTransitionOverlay.tick(client);
         DeadSunClientEvents.tick(client);
+        HeldItemDynamicLights.tick(client);
+        LedAmneticLight.tickCleanup(client);
         boolean down = GLFW.glfwGetKey(client.getWindow().handle(), GLFW.GLFW_KEY_F8) == GLFW.GLFW_PRESS;
         if (down && !keyWasDown) {
             inspector.open().set(true);
@@ -82,6 +92,10 @@ public class LabyrinthClient implements ClientModInitializer {
                 }
                 if (ImGui.beginTabItem("Shaders")) {
                     renderShaders(c);
+                    ImGui.endTabItem();
+                }
+                if (ImGui.beginTabItem("Minotaur")) {
+                    renderMinotaur(c);
                     ImGui.endTabItem();
                 }
                 ImGui.endTabBar();
@@ -130,6 +144,40 @@ public class LabyrinthClient implements ClientModInitializer {
         ImGui.spacing();
         ImGui.textWrapped("Changes affect newly generated chunks. Existing maze blocks are not replaced.");
         if (ImGui.button("Save settings")) c.save();
+    }
+
+    private static void renderMinotaur(LabyrinthConfig c) {
+        int[] stalkDistance = {c.minotaurStalkDistance};
+        int[] approachDistance = {c.minotaurApproachDistance};
+        int[] gazeMin = {c.minotaurGazeMinTicks / 20};
+        int[] gazeMax = {c.minotaurGazeMaxTicks / 20};
+        int[] windupMin = {c.minotaurWindupMinTicks / 20};
+        int[] windupMax = {c.minotaurWindupMaxTicks / 20};
+        int[] escapeTime = {c.minotaurEscapeTicks / 20};
+        int[] escapeDistance = {c.minotaurEscapeDistance};
+        int[] damageMin = {c.minotaurDamageMin};
+        int[] damageMax = {c.minotaurDamageMax};
+
+        ImGui.text("Eclipse hunting phase");
+        ImGui.separator();
+        if (ImGui.sliderInt("Stalking distance", stalkDistance, 28, 56)) c.minotaurStalkDistance = stalkDistance[0];
+        if (ImGui.sliderInt("Approach trigger distance", approachDistance, 14, 40)) c.minotaurApproachDistance = approachDistance[0];
+        if (ImGui.sliderInt("Minimum gaze (seconds)", gazeMin, 3, 15)) c.minotaurGazeMinTicks = gazeMin[0] * 20;
+        if (ImGui.sliderInt("Maximum gaze (seconds)", gazeMax, 4, 20)) c.minotaurGazeMaxTicks = gazeMax[0] * 20;
+
+        ImGui.spacing();
+        ImGui.text("Chase phase");
+        ImGui.separator();
+        if (ImGui.sliderInt("Charge warning min (seconds)", windupMin, 2, 6)) c.minotaurWindupMinTicks = windupMin[0] * 20;
+        if (ImGui.sliderInt("Charge warning max (seconds)", windupMax, 3, 8)) c.minotaurWindupMaxTicks = windupMax[0] * 20;
+        if (ImGui.sliderInt("Escape time (seconds)", escapeTime, 60, 240)) c.minotaurEscapeTicks = escapeTime[0] * 20;
+        if (ImGui.sliderInt("Safe escape distance", escapeDistance, 20, 56)) c.minotaurEscapeDistance = escapeDistance[0];
+        if (ImGui.sliderInt("Damage threshold min", damageMin, 20, 100)) c.minotaurDamageMin = damageMin[0];
+        if (ImGui.sliderInt("Damage threshold max", damageMax, 30, 140)) c.minotaurDamageMax = damageMax[0];
+
+        ImGui.spacing();
+        ImGui.textWrapped("Boss mode is reserved and remains disabled until its attack design is finalized.");
+        if (ImGui.button("Save Minotaur settings")) c.save();
     }
 
     private static void renderShaders(LabyrinthConfig c) {

@@ -21,7 +21,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Draws only ordinary entity-textured rigid parts; no wounds, fluids, or gore geometry. */
 public final class RagdollRenderer {
     private RagdollRenderer() { }
 

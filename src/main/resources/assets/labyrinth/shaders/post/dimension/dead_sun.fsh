@@ -14,6 +14,7 @@ layout(std140) uniform DeadSunTuning { vec4 Tuning; };
 layout(std140) uniform DeadSunOpacity { float Opacity; };
 layout(std140) uniform DeadSunCoreColor { vec3 CoreTint; };
 layout(std140) uniform DeadSunCoronaColor { vec3 CoronaTint; };
+layout(std140) uniform EclipseData { float Eclipse; };
 layout(std140) uniform Intensity { float Value; };
 layout(std140) uniform LabyrinthStrength { float EffectStrength; };
 
@@ -82,6 +83,7 @@ float remnantDensity(vec3 p) {
 }
 
 void main() {
+    float eclipse = clamp(Eclipse, 0.0, 1.0);
     vec3 direction = worldRay(texCoord);
     vec3 toSun = Sun.xyz - CameraPos;
     float centerDistance = length(toSun);
@@ -111,21 +113,30 @@ void main() {
         // Small collapsed core grounds the hollow remnant without turning it into a solid sun.
         float impact = length(cross(direction, toSun)) / max(Sun.w, 0.001);
         float core = 1.0 - smoothstep(0.10, 0.19, impact);
-        accumulated += CoreTint * core * 0.22;
-        alpha = max(alpha, core * 0.52);
+        float eclipseDisc = 1.0 - smoothstep(mix(0.12, 0.32, eclipse), mix(0.20, 0.41, eclipse), impact);
+        accumulated += CoreTint * core * 0.22 * (1.0 - eclipse * 0.88);
+        accumulated *= 1.0 - eclipseDisc * eclipse * 0.98;
+        alpha = max(alpha, max(core * 0.52, eclipseDisc * eclipse * 0.98));
     }
 
     float sinAngle = length(cross(direction, normalize(toSun)));
     float angularRadius = Sun.w / max(centerDistance, Sun.w + 0.001);
     float radial = sinAngle / max(angularRadius, 0.00001);
+    // Emissive corona pixels do not intersect the sphere itself, so they need their own
+    // scene-depth gate. Without it the Eclipse ring remains visible through maze walls.
+    float sunVisibility = step(centerDistance - Sun.w * 1.20, geometryDistance);
     float halo = exp(-max(radial - 0.82, 0.0) * (6.5 / max(Tuning.z, 0.08)));
     halo *= 1.0 - smoothstep(1.75 + Tuning.z * 0.3, 2.05 + Tuning.z * 0.3, radial);
-    halo *= geometryDistance > centerDistance - Sun.w ? 1.0 : 0.0;
+    halo *= sunVisibility;
+
+    float eclipseRing = exp(-abs(radial - mix(0.20, 0.42, eclipse)) * 18.0)
+            * eclipse * sunVisibility;
 
     float pulse = 0.82 + 0.18 * sin(Time * 0.020 * max(Tuning.y, 0.05));
     float strength = clamp(Value * EffectStrength, 0.0, 1.0);
     float opacity = clamp(Opacity, 0.0, 1.0);
     float emission = min(Tuning.x, 4.0) * 0.34 * pulse;
-    vec3 color = (accumulated + CoronaTint * halo * 0.055) * emission * opacity * strength;
+    vec3 color = (accumulated + CoronaTint * (halo * 0.055 + eclipseRing * 0.20))
+            * emission * opacity * strength;
     fragColor = vec4(color, clamp(alpha * opacity * strength, 0.0, 1.0));
 }
