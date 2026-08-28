@@ -11,7 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public final class AsterionConfig {
-    private static final int CURRENT_VERSION = 19;
+    private static final int CURRENT_VERSION = 20;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("asterion.json");
     public static AsterionConfig INSTANCE = load();
@@ -24,29 +24,29 @@ public final class AsterionConfig {
     public int cellSize = 13;
     public int wallThickness = 2;
     public int wallHeight = 30;
-    public int floorThickness = 10;
+    public int floorThickness = 4;
     public int mazeLoopChance = 36;
     public int mazeLandmarkChance = 28;
-    public int playerBlockDecayTicks = 200;
+    public int playerBlockDecayTicks = 400;
     public int wallZapDelayTicks = 60;
-    public int minotaurStalkDistance = 40;
-    public int minotaurApproachDistance = 24;
+    public int minotaurStalkDistance = 43;
+    public int minotaurApproachDistance = 20;
     public int minotaurGazeMinTicks = 140;
-    public int minotaurGazeMaxTicks = 200;
+    public int minotaurGazeMaxTicks = 320;
     public int minotaurWindupMinTicks = 60;
-    public int minotaurWindupMaxTicks = 100;
-    public int minotaurEscapeTicks = 2_400;
+    public int minotaurWindupMaxTicks = 120;
+    public int minotaurEscapeTicks = 2_620;
     public int minotaurEscapeDistance = 32;
     public int minotaurDamageMin = 50;
     public int minotaurDamageMax = 70;
     public float minotaurScale = 2.0f;
-    public float minotaurPathfindingMultiplier = 32.0f;
-    public int minotaurRepathTicks = 2;
-    public int minotaurStuckRecoveryTicks = 24;
+    public float minotaurPathfindingMultiplier = 64.0f;
+    public int minotaurRepathTicks = 20;
+    public int minotaurStuckRecoveryTicks = 100;
     public boolean minotaurUnkillable = true;
     public float minotaurHorizontalFov = 105.0f;
     public float minotaurVerticalFov = 70.0f;
-    public int minotaurBossPillarCount = 8;
+    public int minotaurBossPillarCount = 6;
     public boolean cinematicsEnabled = true;
     /** 0 low, 1 medium, 2 high. */
     public int cinematicQuality = 2;
@@ -54,7 +54,7 @@ public final class AsterionConfig {
     public int dynamicLightQuality = 2;
     public boolean ragdollEquipment = true;
     /** true uses repeated presses; false uses a continuous hold for forced ragdoll recovery. */
-    public boolean ragdollMashRecovery = false;
+    public boolean ragdollMashRecovery = true;
     public boolean enhancedLightning = true;
     public boolean deadSunEnabled = true;
     public boolean dustyAirEnabled = true;
@@ -212,6 +212,13 @@ public final class AsterionConfig {
                     config.wallThickness = 2;
                     changed = true;
                 }
+                if (!json.has("configVersion") || config.configVersion < 20) {
+                    // Version 20 promotes the authored development look to the shipped visual
+                    // profile. These values are client-rendered, so migrating them together keeps
+                    // every player looking at the same Dead Sun, dust, and fog composition.
+                    applyCanonicalSkyProfile(config);
+                    changed = true;
+                }
                 if (changed) {
                     config.configVersion = CURRENT_VERSION;
                     config.save();
@@ -223,6 +230,36 @@ public final class AsterionConfig {
         AsterionConfig config = new AsterionConfig();
         config.save();
         return config;
+    }
+
+    private static void applyCanonicalSkyProfile(AsterionConfig config) {
+        config.deadSunEnabled = true;
+        config.dustyAirEnabled = true;
+        config.deadSunStrength = 0.82f;
+        config.dustyAirStrength = 1.0f;
+        config.deadSunHeight = 240.0f;
+        config.deadSunSize = 48.0f;
+        config.deadSunBrightness = 4.0f;
+        config.shaderAnimationSpeed = 1.0f;
+        config.dustDensity = 1.499f;
+        config.fogStrength = 1.508f;
+        config.deadSunX = 0.0f;
+        config.deadSunZ = 0.0f;
+        config.deadSunCorona = 1.80f;
+        config.deadSunDensity = 3.0f;
+        config.deadSunOpacity = 1.0f;
+        config.deadSunCoreR = 1.0f;
+        config.deadSunCoreG = 0.012f;
+        config.deadSunCoreB = 0.006f;
+        config.deadSunCoronaR = 1.0f;
+        config.deadSunCoronaG = 0.085f;
+        config.deadSunCoronaB = 0.008f;
+        config.dustR = 0.2607004f;
+        config.dustG = 0.07607989f;
+        config.dustB = 0.07607989f;
+        config.fogR = 0.15294118f;
+        config.fogG = 0.1364837f;
+        config.fogB = 0.049780853f;
     }
 
     public void sanitize() {

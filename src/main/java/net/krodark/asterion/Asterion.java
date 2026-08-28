@@ -26,6 +26,7 @@ import net.krodark.asterion.network.BossEncounterResetPayload;
 import net.krodark.asterion.network.DazePayload;
 import net.krodark.asterion.network.ragdoll.*;
 import net.krodark.asterion.entity.MinotaurEntity;
+import net.krodark.asterion.block.ShortGrassBlock;
 import net.krodark.asterion.event.DeadSunEventSystem;
 import net.krodark.asterion.game.light.DynamicBlockLights;
 import net.krodark.asterion.command.PortalCommands;
@@ -83,7 +84,7 @@ public class Asterion implements ModInitializer {
     public static final Block ANCIENT_STONE = registerBlock("ancient_stone", MapColor.TERRACOTTA_BROWN, Block::new);
     public static final Block MOSSY_ANCIENT_STONE = registerBlock("mossy_ancient_stone", MapColor.TERRACOTTA_GREEN, Block::new);
     public static final Block SHORT_GRASS = registerBlock("short_grass", MapColor.PLANT,
-            properties -> new TallGrassBlock(properties.noCollision().replaceable().instabreak()
+            properties -> new ShortGrassBlock(properties.noCollision().replaceable().instabreak()
                     .sound(SoundType.GRASS).offsetType(BlockBehaviour.OffsetType.XZ)));
     public static final Block ANCIENT_STONE_SLAB = registerBlock("ancient_stone_slab", MapColor.TERRACOTTA_BROWN, SlabBlock::new);
     public static final Block ANCIENT_STONE_STAIRS = registerBlock("ancient_stone_stairs", MapColor.TERRACOTTA_BROWN,
