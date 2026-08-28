@@ -54,6 +54,12 @@ public final class AsterionModMenu implements ModMenuApi {
             addRenderableWidget(CycleButton.onOffBuilder(config.deadSunEnabled).create(
                     right, y, 150, 20, Component.literal("Dead Sun shader"),
                     (button, value) -> config.deadSunEnabled = value));
+            y += 24;
+            addRenderableWidget(CycleButton.<Boolean>builder(value -> Component.literal(
+                            value ? "Mash" : "Hold"), config.ragdollMashRecovery)
+                    .withValues(false, true).create(left, y, 150, 20,
+                            Component.literal("Ragdoll recovery"),
+                            (button, value) -> config.ragdollMashRecovery = value));
             y += 38;
             addRenderableWidget(Button.builder(Component.literal("Save and return"), button -> {
                 config.save();

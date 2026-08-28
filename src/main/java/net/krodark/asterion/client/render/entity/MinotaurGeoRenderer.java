@@ -8,6 +8,7 @@ import com.geckolib.constant.DataTickets;
 import com.geckolib.constant.dataticket.DataTicket;
 import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.Asterion;
+import net.krodark.asterion.client.light.LedAmneticLight;
 import net.krodark.asterion.entity.MinotaurEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -29,6 +30,10 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
     private static final DataTicket<Float> GRAB_WEIGHT = DataTickets.create("asterion_minotaur_grab_weight", Float.class);
     private static final DataTicket<Float> GRAB_YAW = DataTickets.create("asterion_minotaur_grab_yaw", Float.class);
     private static final DataTicket<Float> GRAB_PITCH = DataTickets.create("asterion_minotaur_grab_pitch", Float.class);
+    private static final DataTicket<Float> GRAB_EXTENSION = DataTickets.create("asterion_minotaur_grab_extension", Float.class);
+    private static final DataTicket<Integer> GRAB_ARM = DataTickets.create("asterion_minotaur_grab_arm", Integer.class);
+    private static final DataTicket<Float> IDLE_PHASE = DataTickets.create("asterion_minotaur_idle_phase", Float.class);
+    private static final DataTicket<Float> IDLE_WEIGHT = DataTickets.create("asterion_minotaur_idle_weight", Float.class);
     private final Map<UUID, LookPose> lookPoses = new HashMap<>();
     private final Map<UUID, GrabPose> grabPoses = new HashMap<>();
 
@@ -39,6 +44,12 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
             @Override
             protected net.minecraft.resources.Identifier getTextureResource(EntityRenderState state) {
                 return Asterion.id("textures/entity/minotaur_eyes.png");
+            }
+
+            @Override
+            protected net.minecraft.client.renderer.rendertype.RenderType getRenderType(EntityRenderState state) {
+                return state.isInvisible ? null
+                        : LedAmneticLight.bloomRenderLayer(getTextureResource(state));
             }
 
             @Override
@@ -86,17 +97,26 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         float blend = 1.0F - (float)Math.pow(0.72D, frameTicks);
         pose.yaw += Mth.wrapDegrees(targetYaw - pose.yaw) * blend;
         pose.pitch += (targetPitch - pose.pitch) * blend;
+        float desiredIdle = minotaur.animationState() == MinotaurEntity.AnimationState.IDLE
+                && !minotaur.isPerformingGrab() ? 1.0F : 0.0F;
+        pose.idleWeight += (desiredIdle - pose.idleWeight)
+                * (1.0F - (float)Math.pow(0.82D, frameTicks));
         state.addGeckolibData(LOOK_YAW, pose.yaw * Mth.DEG_TO_RAD);
         state.addGeckolibData(LOOK_PITCH, pose.pitch * Mth.DEG_TO_RAD);
+        state.addGeckolibData(IDLE_PHASE, (minotaur.tickCount + partialTick) * 0.055F);
+        state.addGeckolibData(IDLE_WEIGHT, pose.idleWeight);
 
         GrabPose grab = grabPoses.computeIfAbsent(minotaur.getUUID(), ignored -> new GrabPose());
         int grabTicks = minotaur.grabAttackTicks();
         float desiredGrab = 0.0F;
         float grabYaw = 0.0F;
         float grabPitch = 0.0F;
-        if (minotaur.isPerformingGrab()) {
+        float grabExtension = 0.65F;
+        int liveArm = minotaur.reachArmSide();
+        if (liveArm != 0) grab.arm = liveArm;
+        if (minotaur.isPerformingGrab() && liveArm != 0) {
             desiredGrab = grabTicks < 11 ? smoother(grabTicks / 11.0F)
-                    : grabTicks < 29 ? 1.0F : 1.0F - smoother((grabTicks - 29) / 11.0F);
+                    : grabTicks < 49 ? 1.0F : 1.0F - smoother((grabTicks - 49) / 12.0F);
             Entity targetEntity = minotaur.level().getEntity(minotaur.grabTargetEntityId());
             if (targetEntity != null) {
                 Vec3 shoulderCenter = minotaur.position().add(0.0D, minotaur.getBbHeight() * 0.68D, 0.0D);
@@ -105,23 +125,28 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
                 double horizontal = Math.max(0.001D, Math.sqrt(delta.x * delta.x + delta.z * delta.z));
                 float worldYaw = (float)(Mth.atan2(delta.z, delta.x) * Mth.RAD_TO_DEG) - 90.0F;
                 float bodyYaw = Mth.rotLerp(partialTick, minotaur.yBodyRotO, minotaur.yBodyRot);
-                grabYaw = Mth.clamp(Mth.wrapDegrees(worldYaw - bodyYaw), -38.0F, 38.0F) * Mth.DEG_TO_RAD;
+                grabYaw = Mth.clamp(Mth.wrapDegrees(worldYaw - bodyYaw), -78.0F, 78.0F) * Mth.DEG_TO_RAD;
                 grabPitch = Mth.clamp((float)-(Mth.atan2(delta.y, horizontal) * Mth.RAD_TO_DEG),
-                        -28.0F, 34.0F) * Mth.DEG_TO_RAD;
+                        -62.0F, 48.0F) * Mth.DEG_TO_RAD;
+                grabExtension = Mth.clamp((float)(delta.length() / (minotaur.getBbHeight() * 0.72D)),
+                        0.42F, 1.0F);
             }
         }
         float grabBlend = 1.0F - (float)Math.pow(0.58D, frameTicks);
         grab.weight += (desiredGrab - grab.weight) * grabBlend;
         grab.yaw += (grabYaw - grab.yaw) * grabBlend;
         grab.pitch += (grabPitch - grab.pitch) * grabBlend;
+        grab.extension += (grabExtension - grab.extension) * grabBlend;
         state.addGeckolibData(GRAB_WEIGHT, grab.weight);
         state.addGeckolibData(GRAB_YAW, grab.yaw);
         state.addGeckolibData(GRAB_PITCH, grab.pitch);
+        state.addGeckolibData(GRAB_EXTENSION, grab.extension);
+        state.addGeckolibData(GRAB_ARM, grab.arm);
         float damage = minotaur.bossDamageFraction();
-        if (minotaur.isExtremeBoss() || damage > 0.0F) {
-            int greenBlue = Mth.floor(Mth.lerp(damage, 40.0F, 7.0F));
-            state.addGeckolibData(EYE_TINT, 0xFFFF0000 | greenBlue << 8 | greenBlue);
-        } else state.addGeckolibData(EYE_TINT, 0xFFFFFFFF);
+        if (minotaur.isExtremeBoss()) {
+            int red = Mth.floor(Mth.lerp(damage, 205.0F, 255.0F));
+            state.addGeckolibData(EYE_TINT, 0xFF000000 | red << 16 | 0xFFFF);
+        } else state.addGeckolibData(EYE_TINT, 0xFFD8FFFF);
     }
 
     @Override
@@ -133,30 +158,55 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         rotateBone(bones, "neck", -yaw * 0.32F, -pitch * 0.31F);
         rotateBone(bones, "head", -yaw * 0.50F, -pitch * 0.55F);
 
+        // Low-amplitude procedural breathing and weight shifting layers over the authored idle.
+        // Its render-side weight eases in and out, so attacks and locomotion blend instead of
+        // snapping between completely rigid poses.
+        float idle = pass.getOrDefaultGeckolibData(IDLE_WEIGHT, 0.0F);
+        if (idle > 0.001F) {
+            float phase = pass.getOrDefaultGeckolibData(IDLE_PHASE, 0.0F);
+            float breath = Mth.sin(phase) * idle;
+            float shift = Mth.sin(phase * 0.47F + 1.1F) * idle;
+            rotateBone3(bones, "body", breath * 0.025F, shift * 0.032F, shift * 0.018F);
+            rotateBone3(bones, "neck", -breath * 0.018F, -shift * 0.020F, 0.0F);
+            rotateBone3(bones, "head", breath * 0.012F, shift * 0.026F, -shift * 0.009F);
+            rotateBone3(bones, "leftshoulder", -breath * 0.018F, 0.0F, shift * 0.012F);
+            rotateBone3(bones, "rightshoulder", -breath * 0.018F, 0.0F, -shift * 0.012F);
+        }
+
         float grab = pass.getOrDefaultGeckolibData(GRAB_WEIGHT, 0.0F);
         if (grab > 0.001F) {
             float targetYaw = pass.getOrDefaultGeckolibData(GRAB_YAW, 0.0F);
             float targetPitch = pass.getOrDefaultGeckolibData(GRAB_PITCH, 0.0F);
-            // Symmetric two-arm reach layered over the authored grab. Shoulders follow the target,
-            // upper arms close the wide resting silhouette, elbows bend inward, and hands cup the
-            // player's torso. Every link is eased from live render data, preventing snapping.
-            rotateBone3(bones, "leftshoulder", targetPitch * 0.18F * grab,
-                    -targetYaw * 0.58F * grab, -0.16F * grab);
-            rotateBone3(bones, "rightshoulder", targetPitch * 0.18F * grab,
-                    -targetYaw * 0.58F * grab, 0.16F * grab);
-            rotateBone3(bones, "leftarm", (-0.92F + targetPitch * 0.52F) * grab,
-                    (-0.28F - targetYaw * 0.36F) * grab, -0.72F * grab);
-            rotateBone3(bones, "rightarm", (-0.92F + targetPitch * 0.52F) * grab,
-                    (0.28F - targetYaw * 0.36F) * grab, 0.72F * grab);
-            rotateBone3(bones, "lowerleftarm", -0.62F * grab,
-                    (-0.18F - targetYaw * 0.16F) * grab, 0.46F * grab);
-            rotateBone3(bones, "lowerrightarm", -0.62F * grab,
-                    (0.18F - targetYaw * 0.16F) * grab, -0.46F * grab);
-            rotateBone3(bones, "lefthand", -0.16F * grab, -0.32F * grab, 0.24F * grab);
-            rotateBone3(bones, "righthand", -0.16F * grab, 0.32F * grab, -0.24F * grab);
+            float extension = pass.getOrDefaultGeckolibData(GRAB_EXTENSION, 0.65F);
+            int arm = pass.getOrDefaultGeckolibData(GRAB_ARM, 1);
+            // One full three-bone chain tracks the player. The elbow straightens with target
+            // distance and the hand gets its own correction, fixing the previously static
+            // righthand while keeping the unused arm free for authored attack motion.
+            applyArmReach(bones, arm, targetYaw, targetPitch, extension, grab);
             rotateBone3(bones, "body", targetPitch * 0.12F * grab,
                     -targetYaw * 0.18F * grab, 0.0F);
         }
+    }
+
+    private static void applyArmReach(BoneSnapshots bones, int side, float yaw, float pitch,
+                                      float extension, float weight) {
+        boolean right = side >= 0;
+        float sign = right ? 1.0F : -1.0F;
+        String shoulder = right ? "rightshoulder" : "leftshoulder";
+        String upperArm = right ? "rightarm" : "leftarm";
+        String lowerArm = right ? "lowerrightarm" : "lowerleftarm";
+        String hand = right ? "righthand" : "lefthand";
+        float elbowBend = Mth.lerp(extension, 0.92F, 0.24F);
+
+        rotateBone3(bones, shoulder, pitch * 0.22F * weight,
+                -yaw * 0.54F * weight, sign * 0.13F * weight);
+        rotateBone3(bones, upperArm, (-0.82F + pitch * 0.78F) * weight,
+                (sign * 0.24F - yaw * 0.62F) * weight, sign * 0.82F * weight);
+        rotateBone3(bones, lowerArm, -elbowBend * weight,
+                (sign * 0.13F - yaw * 0.24F) * weight,
+                -sign * (0.34F + (1.0F - extension) * 0.22F) * weight);
+        rotateBone3(bones, hand, (-0.28F + pitch * 0.26F) * weight,
+                (sign * 0.38F - yaw * 0.18F) * weight, -sign * 0.28F * weight);
     }
 
     private static void rotateBone(BoneSnapshots bones, String name, float yaw, float pitch) {
@@ -177,11 +227,15 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
     private static final class LookPose {
         private float yaw;
         private float pitch;
+        private float idleWeight;
     }
 
     private static final class GrabPose {
         private float weight;
         private float yaw;
         private float pitch;
+        private float extension = 0.65F;
+        private int arm = 1;
     }
+
 }

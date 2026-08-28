@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "": [
+      {"model":"asterion:block/mossy_ancient_stone_1","weight":1},
+      {"model":"asterion:block/mossy_ancient_stone_2","weight":1},
+      {"model":"asterion:block/mossy_ancient_stone_3","weight":1},
+      {"model":"asterion:block/mossy_ancient_stone_4","weight":1},
+      {"model":"asterion:block/mossy_ancient_stone_5","weight":1},
+      {"model":"asterion:block/mossy_ancient_stone_6","weight":1},
+      {"model":"asterion:block/mossy_ancient_stone_7","weight":1}
+    ]
+  }
+}

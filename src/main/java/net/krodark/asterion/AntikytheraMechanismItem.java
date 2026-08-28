@@ -17,6 +17,7 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.LodestoneTracker;
 import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -32,6 +33,19 @@ public final class AntikytheraMechanismItem extends CompassItem {
             return InteractionResult.SUCCESS;
         }
         ItemStack stack = player.getItemInHand(hand);
+        if (level.dimension().equals(Asterion.ASTERION_LEVEL)) {
+            Vec3 look = player.getLookAngle();
+            Vec3 direction = new Vec3(look.x, 0.0D, look.z);
+            if (direction.lengthSqr() < 1.0E-6D) direction = new Vec3(0.0D, 0.0D, 1.0D);
+            direction = direction.normalize();
+            // A deliberately remote target behaves like a locked bearing instead of bending
+            // toward a nearby waypoint as the player walks through the maze.
+            BlockPos bearing = BlockPos.containing(player.position().add(direction.scale(1_000_000.0D)));
+            stack.set(DataComponents.LODESTONE_TRACKER, new LodestoneTracker(
+                    Optional.of(GlobalPos.of(Asterion.ASTERION_LEVEL, bearing)), false));
+            serverPlayer.sendSystemMessage(Component.translatable("message.asterion.mechanism_bearing_locked"));
+            return InteractionResult.SUCCESS;
+        }
         boolean wasDormant = stack.get(DataComponents.LODESTONE_TRACKER) == null;
         bindToGateway(stack, serverLevel);
         if (wasDormant) {
@@ -44,7 +58,7 @@ public final class AntikytheraMechanismItem extends CompassItem {
 
     @Override
     public void inventoryTick(ItemStack stack, ServerLevel level, Entity entity, EquipmentSlot slot) {
-        bindToGateway(stack, level);
+        if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) bindToGateway(stack, level);
     }
 
     private static void bindToGateway(ItemStack stack, ServerLevel level) {
@@ -64,5 +78,6 @@ public final class AntikytheraMechanismItem extends CompassItem {
         tooltip.accept(Component.translatable(stack.get(DataComponents.LODESTONE_TRACKER) == null
                 ? "tooltip.asterion.antikythera_mechanism.dormant"
                 : "tooltip.asterion.antikythera_mechanism.bound"));
+        tooltip.accept(Component.translatable("tooltip.asterion.antikythera_mechanism.maze_bearing"));
     }
 }

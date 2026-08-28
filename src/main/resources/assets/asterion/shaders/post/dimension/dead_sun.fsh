@@ -16,7 +16,6 @@ layout(std140) uniform DeadSunCoreColor { vec3 CoreTint; };
 layout(std140) uniform DeadSunCoronaColor { vec3 CoronaTint; };
 layout(std140) uniform EclipseData { float Eclipse; };
 layout(std140) uniform EntryRadiance { float Radiance; };
-layout(std140) uniform BossDamage { float Damage; };
 layout(std140) uniform Intensity { float Value; };
 layout(std140) uniform AsterionStrength { float EffectStrength; };
 
@@ -40,41 +39,6 @@ float noise3(vec3 p) {
     float x01 = mix(hash31(cell + vec3(0, 0, 1)), hash31(cell + vec3(1, 0, 1)), f.x);
     float x11 = mix(hash31(cell + vec3(0, 1, 1)), hash31(cell + vec3(1)), f.x);
     return mix(mix(x00, x10, f.y), mix(x01, x11, f.y), f.z);
-}
-
-float wrappedAngle(float angle) {
-    return atan(sin(angle), cos(angle));
-}
-
-// A stable radial fracture. Damage only reveals additional indexed cracks; time is deliberately
-// absent from the geometry so a fissure can never slide, disappear, or re-roll between frames.
-float fractureRay(vec2 plane, float index, float damage, out float current) {
-    float radius = length(plane);
-    float angle = atan(plane.y, plane.x);
-    float seed = hash31(vec3(index * 7.31, index * 13.17, 41.0));
-    float revealAt = 0.025 + index * 0.069;
-    float reveal = smoothstep(revealAt, revealAt + 0.065, damage);
-    float heading = seed * 6.2831853;
-    float bend = sin(radius * (5.5 + seed * 5.0) + seed * 19.0) * (0.055 + seed * 0.09);
-    bend += (noise3(vec3(radius * 5.0, index * 2.7, 9.0)) - 0.5) * 0.12;
-    float angularDistance = abs(wrappedAngle(angle - heading - bend)) * max(radius, 0.10);
-    float reach = mix(0.48, 1.62, reveal);
-    float radialMask = smoothstep(0.08, 0.20, radius)
-            * (1.0 - smoothstep(reach - 0.16, reach, radius));
-    float width = mix(0.010, 0.022, seed) * mix(0.72, 1.0, reveal);
-    float line = (1.0 - smoothstep(width, width * 2.8, angularDistance)) * radialMask * reveal;
-
-    // Two short forks per primary line, anchored to it instead of generating unrelated noise.
-    float forkStart = 0.28 + seed * 0.38;
-    float forkAngle = heading + bend + mix(-0.62, 0.62,
-            hash31(vec3(index, 77.0, 3.0)));
-    float forkDistance = abs(wrappedAngle(angle - forkAngle)) * max(radius - forkStart, 0.0);
-    float forkMask = smoothstep(forkStart, forkStart + 0.08, radius)
-            * (1.0 - smoothstep(forkStart + 0.34, forkStart + 0.54, radius));
-    line = max(line, (1.0 - smoothstep(width * 0.72, width * 2.15, forkDistance))
-            * forkMask * reveal);
-    current = line * (0.55 + 0.45 * sin(Time * 0.075 + radius * 31.0 + index * 2.1));
-    return line;
 }
 
 vec3 worldRay(vec2 uv) {
@@ -196,41 +160,31 @@ void main() {
     float strength = clamp(Value * EffectStrength, 0.0, 1.0);
     float opacity = clamp(Opacity, 0.0, 1.0);
     float emission = min(Tuning.x, 5.0) * 0.48 * pulse * mix(1.0, 1.75, eclipse);
-    float radianceHalo = exp(-max(radial - 0.52, 0.0) * 1.85) * Radiance * sunVisibility;
-    vec3 radianceColor = vec3(1.0, 0.025, 0.018) * radianceHalo * (1.15 + 0.25 * sin(Time * 0.18));
-    // Damage permanently reveals an indexed orb-fracture network. Geometry is static and only
-    // the contained current moves, giving the impression that the Dead Sun is breaking apart
-    // rather than repainting itself with animated noise.
-    vec3 sunDirection = normalize(toSun);
-    vec3 crackAxis = normalize(cross(sunDirection,
-            abs(sunDirection.y) < 0.92 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
-    vec3 crackAxisY = normalize(cross(sunDirection, crackAxis));
-    vec2 sunPlane = vec2(dot(direction, crackAxis), dot(direction, crackAxisY))
-            / max(angularRadius, 0.00001);
-    float cracks = 0.0;
-    float current = 0.0;
-    for (int fractureIndex = 0; fractureIndex < 14; ++fractureIndex) {
-        float movingCurrent;
-        float line = fractureRay(sunPlane, float(fractureIndex), clamp(Damage, 0.0, 1.0),
-                movingCurrent);
-        cracks = max(cracks, line);
-        current = max(current, movingCurrent);
+    // Entry radiance is a short world-space volume, not a screen-space bloom multiplier. The
+    // integration ends at the sampled scene depth, so maze roofs and walls occlude every ray.
+    float radianceScatter = 0.0;
+    if (Radiance > 0.001) {
+        float rayEnd = min(geometryDistance, centerDistance + Sun.w * 8.0);
+        float stepLength = rayEnd / 8.0;
+        for (int sampleIndex = 0; sampleIndex < 8; sampleIndex++) {
+            float travel = (float(sampleIndex) + 0.5) * stepLength;
+            vec3 samplePosition = CameraPos + direction * travel;
+            vec3 sampleToSun = Sun.xyz - samplePosition;
+            float sampleDistance = max(length(sampleToSun), 0.001);
+            float sunDistance = sampleDistance / max(Sun.w, 0.001);
+            float forwardScatter = pow(max(dot(direction, sampleToSun / sampleDistance), 0.0), 7.0);
+            float density = exp(-max(sunDistance - 0.70, 0.0) * 0.34);
+            radianceScatter += density * (0.10 + forwardScatter * 0.90)
+                    * stepLength / max(Sun.w * 8.0, 0.001);
+        }
+        radianceScatter *= Radiance * (0.92 + 0.08 * sin(Time * 0.11));
     }
-    // The portion beyond the orb reads as a fracture in the surrounding sky. It remains fully
-    // depth-occluded by roofs/walls and grows only in late fight damage tiers.
-    float outsideOrb = smoothstep(0.92, 1.03, radial);
-    float skyFracture = cracks * outsideOrb * smoothstep(0.42, 0.74, Damage);
-    cracks *= sunVisibility * eclipseTransmission;
-    current *= sunVisibility * eclipseTransmission;
+    vec3 radianceColor = mix(vec3(0.72, 0.012, 0.006), vec3(1.0, 0.19, 0.045),
+            clamp(radial * 0.20, 0.0, 1.0)) * radianceScatter;
     vec3 color = (accumulated + activeCoronaTint
             * (halo * mix(0.085, 0.14, eclipse) + eclipseRing * mix(0.20, 0.72, eclipse)))
             * emission * opacity * strength * eclipseTransmission;
-    color *= 1.0 - cracks * 0.94;
-    color += vec3(1.0, 0.008, 0.004) * current * (0.70 + Damage * 1.45)
-            * opacity * strength;
-    color += vec3(0.95, 0.006, 0.003) * skyFracture * (0.35 + current)
-            * opacity * strength * eclipseTransmission;
     color += radianceColor * opacity * strength;
-    alpha = max(alpha, skyFracture * 0.72);
+    alpha = max(alpha, clamp(radianceScatter * 0.52, 0.0, 0.68));
     fragColor = vec4(color, clamp(alpha * opacity * strength, 0.0, 1.0));
 }

@@ -8,6 +8,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.entity.LivingEntity;
 import net.krodark.asterion.entity.MinotaurEntity;
 import net.krodark.asterion.client.DazeOverlay;
+import net.krodark.asterion.client.BossFinaleOverlay;
 import org.lwjgl.glfw.GLFW;
 
 public final class RagdollClientController {
@@ -17,7 +18,7 @@ public final class RagdollClientController {
     private static int scanTicker;
     private static CameraType cameraBeforeTumble;
     private static boolean thirdPersonLocked;
-    private static int automaticFallRagdollSuppressionTicks;
+    private static LivingEntity observedLocalPlayer;
 
     private RagdollClientController() {
     }
@@ -27,15 +28,44 @@ public final class RagdollClientController {
     }
 
     private static void tick(Minecraft client) {
-        if (automaticFallRagdollSuppressionTicks > 0) automaticFallRagdollSuppressionTicks--;
         var engine = DismembermentEngine.INSTANCE;
         if (client.level == null || client.player == null
-                || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) {
+                || (!client.level.dimension().equals(Asterion.ASTERION_LEVEL)
+                && !BossFinaleOverlay.isActive())) {
             restoreCamera(client);
             engine.clear();
             tumbleWasDown = false;
             shiftWasDown = false;
             rightWasDown = false;
+            observedLocalPlayer = null;
+            return;
+        }
+
+        // Respawn replaces the local-player entity. Explicitly release both the dead body's
+        // ragdoll and any recycled entity id before normal input/camera processing resumes.
+        if (observedLocalPlayer != client.player) {
+            if (observedLocalPlayer != null) engine.releaseRagdoll(observedLocalPlayer.getId());
+            engine.releaseRagdoll(client.player.getId());
+            DazeOverlay.cancel();
+            restoreCamera(client);
+            tumbleWasDown = false;
+            shiftWasDown = false;
+            rightWasDown = false;
+            observedLocalPlayer = client.player;
+        }
+
+        // Void recovery must remain an ordinary first-person fall. Drop any manual or combat
+        // tumble before the rescue teleport and ignore new tumble input while below the world.
+        boolean fallingIntoVoid = client.player.getY() <= client.level.getMinY() + 12.0D;
+        if (fallingIntoVoid) {
+            if (engine.isPlayerTumbling(client.player.getId()))
+                engine.releaseRagdoll(client.player.getId());
+            DazeOverlay.cancel();
+            restoreCamera(client);
+            tumbleWasDown = false;
+            shiftWasDown = false;
+            rightWasDown = false;
+            engine.tick(client.level, client.player);
             return;
         }
 
@@ -46,12 +76,6 @@ public final class RagdollClientController {
             engine.togglePlayerTumble(client);
         }
         tumbleWasDown = tumble;
-
-        if (input && automaticFallRagdollSuppressionTicks <= 0
-                && client.player.fallDistance >= 6.0f && client.player.getDeltaMovement().y < -0.42
-                && !engine.isPlayerTumbling(client.player.getId())) {
-            engine.forcePlayerTumble(client, client.player.getBoundingBox().getCenter().add(0, 2, 0), Vec3.ZERO, .55f);
-        }
 
         boolean shift = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
                 || GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
@@ -88,11 +112,8 @@ public final class RagdollClientController {
         syncRagdollCamera(client, engine);
     }
 
-    /** The maze's high-wall ward forcibly returns players to a corridor, but that traversal is
-     * corrective rather than a combat impact and should not trigger the generic fall ragdoll. */
+    /** Kept as a compatibility hook for older packets. Ordinary falls never start ragdolls. */
     public static void suppressAutomaticFallRagdoll(int ticks) {
-        automaticFallRagdollSuppressionTicks = Math.max(automaticFallRagdollSuppressionTicks,
-                Math.max(1, ticks));
     }
 
     private static float axis(long window, int negative, int positive) {

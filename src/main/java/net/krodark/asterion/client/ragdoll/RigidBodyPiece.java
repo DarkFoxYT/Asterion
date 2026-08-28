@@ -23,6 +23,7 @@ final class RigidBodyPiece {
     ItemStack chestEquipment = ItemStack.EMPTY;
     ItemStack legEquipment = ItemStack.EMPTY;
     ItemStack footEquipment = ItemStack.EMPTY;
+    ItemStack heldItem = ItemStack.EMPTY;
     float[][] faceUvs;
     float[][] overlayFaceUvs;
     final Quaternionf orientation = new Quaternionf();

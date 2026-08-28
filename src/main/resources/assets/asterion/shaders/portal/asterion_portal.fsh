@@ -12,8 +12,28 @@ void main() {
     float viewAmount = clamp(length(view), 0.0, 1.6);
     // Compress the far side and expand the near side to make the flat surface read as a window.
     vec2 centered = vUv - 0.5;
+    float squareDistance = max(abs(centered.x), abs(centered.y)) * 2.0;
+    float haloLayer = step(0.5, vEffect.w);
+    if (haloLayer > 0.5) {
+        // Square dust wake using the same oxblood/dirty-ochre palette as the volume shader.
+        // This layer performs no texture or relief samples.
+        float ring = smoothstep(0.62, 0.76, squareDistance)
+                * (1.0 - smoothstep(0.84, 0.98, squareDistance));
+        float gridPhase = (centered.x + centered.y) * 18.0 - vEffect.z * 0.38;
+        float cadence = 0.72 + 0.28 * sin(gridPhase);
+        float breath = 0.87 + 0.13 * sin(vEffect.z * 0.67);
+        vec3 dustTint = vec3(0.2607004, 0.07607989, 0.07607989);
+        vec3 fogTint = vec3(0.15294118, 0.1364837, 0.049780853);
+        vec3 haloColor = mix(fogTint, dustTint, 0.58 + cadence * 0.22) * (1.18 + cadence);
+        FragColor = vec4(haloColor, ring * cadence * breath * vPortal.w * 0.58);
+        return;
+    }
     float perspective = 1.0 + dot(centered, normalize(view + vec2(0.0001))) * viewAmount * 0.12;
     vec2 uv = centered / perspective + 0.5;
+    // Only the square central shaft moves; the rectilinear maze remains stable.
+    float abyss = 1.0 - smoothstep(0.12, 0.43, squareDistance);
+    uv += vec2(sin(centered.y * 28.0 - vEffect.z * 0.48),
+            cos(centered.x * 28.0 + vEffect.z * 0.42)) * 0.0045 * abyss;
     const float layers = 20.0;
     vec2 stepUv = view * 0.105 / layers;
     float depth = 0.0;
@@ -43,6 +63,14 @@ void main() {
     float reliefLight = 0.72 + max(dot(normal, normalize(vec3(-0.45,0.55,0.8))), 0.0) * 0.38;
     float cavity = mix(0.68, 1.08, sampledHeight);
     vec3 color = image.rgb * reliefLight * cavity;
-    float edge = smoothstep(0.0, 0.018, min(min(vUv.x, vUv.y), min(1.0-vUv.x, 1.0-vUv.y)));
-    FragColor = vec4(color, image.a * edge * vPortal.w);
+    float aperture = 1.0 - smoothstep(0.91, 1.0, squareDistance);
+    float innerVignette = mix(0.72 + 0.28 * (1.0 - squareDistance), 1.0, sampledHeight);
+    float pitRim = smoothstep(0.18, 0.28, squareDistance)
+            * (1.0 - smoothstep(0.34, 0.47, squareDistance));
+    vec3 dustTint = vec3(0.2607004, 0.07607989, 0.07607989);
+    vec3 fogTint = vec3(0.15294118, 0.1364837, 0.049780853);
+    vec3 riftColor = mix(color * innerVignette,
+            mix(fogTint, dustTint, 0.68) + color * 0.32, pitRim * 0.54);
+    float coreAlpha = image.a * aperture;
+    FragColor = vec4(riftColor, coreAlpha * vPortal.w);
 }

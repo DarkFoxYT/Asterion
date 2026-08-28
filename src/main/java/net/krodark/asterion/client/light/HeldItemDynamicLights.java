@@ -37,6 +37,7 @@ public final class HeldItemDynamicLights {
     private static final LightStyle REDSTONE_LIGHT = new LightStyle(1.0F, 0.055F, 0.025F, 1.45F, 5.0F, false);
     private static final LightStyle SEA_LIGHT = new LightStyle(0.36F, 0.82F, 1.0F, 2.55F, 8.0F, false);
     private static long lastRenderNs;
+    private static long nextRenderUpdateNs;
 
     private HeldItemDynamicLights() {
     }
@@ -106,11 +107,15 @@ public final class HeldItemDynamicLights {
 
     public static void renderFrame(Minecraft client, float partialTick) {
         if (client.level == null || client.player == null) return;
+        long now = System.nanoTime();
+        int quality = AsterionConfig.INSTANCE.dynamicLightQuality;
+        long interval = quality == 0 ? 50_000_000L : quality == 1 ? 25_000_000L : 12_000_000L;
+        if (now < nextRenderUpdateNs) return;
+        nextRenderUpdateNs = now + interval;
         float partial = Mth.clamp(partialTick, 0.0F, 1.0F);
         double range = AsterionConfig.INSTANCE.dynamicLightQuality == 0 ? 24.0D
                 : AsterionConfig.INSTANCE.dynamicLightQuality == 1 ? 40.0D : 56.0D;
         double rangeSquared = range * range;
-        long now = System.nanoTime();
         float frameSeconds = lastRenderNs == 0L ? 1.0F / 60.0F
                 : Mth.clamp((now - lastRenderNs) / 1_000_000_000.0F, 0.0F, 0.1F);
         lastRenderNs = now;
@@ -239,6 +244,7 @@ public final class HeldItemDynamicLights {
         DROPPED_KEYS.clear();
         NEARBY_ITEMS.clear();
         lastRenderNs = 0L;
+        nextRenderUpdateNs = 0L;
     }
 
     private record HeldLightKey(UUID playerId, InteractionHand hand) {

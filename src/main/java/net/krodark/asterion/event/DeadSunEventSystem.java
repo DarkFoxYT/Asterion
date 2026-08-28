@@ -6,6 +6,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.server.permissions.Permissions;
 import com.mojang.brigadier.Command;
 import net.krodark.asterion.Asterion;
+import net.krodark.asterion.WorldGenerator;
 import net.krodark.asterion.network.DeadSunEventPayload;
 import net.krodark.asterion.network.MazeShiftPayload;
 import net.krodark.asterion.network.DeadSunStrikePayload;
@@ -20,6 +21,9 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.entity.item.FallingBlockEntity;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.world.phys.AABB;
 
 import java.util.LinkedHashMap;
@@ -52,6 +56,9 @@ public final class DeadSunEventSystem {
             @Override public int minDurationTicks() { return 70; }
             @Override public int maxDurationTicks() { return 135; }
             @Override public float intensity(RandomSource random) { return 0.62F + random.nextFloat() * 0.38F; }
+            @Override public void onTick(ServerLevel level, int elapsedTicks) {
+                if (elapsedTicks > 8 && elapsedTicks % 7 == 0) tickRumbleDebris(level);
+            }
         });
         register(new Definition() {
             @Override public Identifier id() { return SHIFTING; }
@@ -244,7 +251,7 @@ public final class DeadSunEventSystem {
 
     public static boolean trigger(ServerLevel level, Identifier eventId) {
         Definition definition = DEFINITIONS.get(eventId);
-        if (definition == null) return false;
+        if (definition == null || WorldGenerator.isBossEncounterActive(level)) return false;
         SchedulerState state = STATES.computeIfAbsent(level.getServer(), ignored -> new SchedulerState());
         if (definition.id().equals(SHIFTING) && isEclipseActive(level)) return false;
         if (state.active != null) state.active.definition.onEnd(level);
@@ -257,6 +264,16 @@ public final class DeadSunEventSystem {
         if (level == null) return;
         SchedulerState state = STATES.computeIfAbsent(server, ignored -> new SchedulerState());
         long now = level.getGameTime();
+
+        // The arena is a deliberately authored encounter. Ambient rumbles, wall shifts,
+        // barrages, and especially Eclipse hunters must never overlap its reads or cinematics.
+        if (WorldGenerator.isBossEncounterActive(level)) {
+            if (state.active != null) stop(level);
+            finishWallShift(level);
+            PENDING_STRIKES.clear();
+            state.nextEventTick = Math.max(state.nextEventTick, now + MIN_INTERVAL);
+            return;
+        }
 
         if (state.active != null) {
             if (state.active.definition.id().equals(ECLIPSE)
@@ -389,6 +406,40 @@ public final class DeadSunEventSystem {
                     && ServerPlayNetworking.canSend(viewer, MazeShiftPayload.TYPE))
                 ServerPlayNetworking.send(viewer, payload);
         });
+    }
+
+    /** Loose high masonry and dust sell the quake without opening holes at player height. */
+    private static void tickRumbleDebris(ServerLevel level) {
+        RandomSource random = level.getRandom();
+        for (var player : level.players()) {
+            if (!player.isAlive() || player.isSpectator()) continue;
+            BlockPos origin = player.blockPosition();
+            for (int attempt = 0; attempt < 10; attempt++) {
+                int x = origin.getX() + random.nextIntBetweenInclusive(-13, 13);
+                int z = origin.getZ() + random.nextIntBetweenInclusive(-13, 13);
+                // Only shed the upper wall cap. The maze remains thick and navigable below it.
+                int y = 49 + Math.max(8, net.krodark.asterion.AsterionConfig.INSTANCE.wallHeight - 1
+                        - random.nextInt(3));
+                BlockPos wall = new BlockPos(x, y, z);
+                BlockState state = level.getBlockState(wall);
+                if (!isMazeWall(state) || !level.getBlockState(wall.below()).isCollisionShapeFullBlock(level, wall.below()))
+                    continue;
+                level.sendParticles(new BlockParticleOption(ParticleTypes.FALLING_DUST, state),
+                        x + 0.5D, y + 0.25D, z + 0.5D,
+                        9, 0.42D, 0.2D, 0.42D, 0.025D);
+                level.sendParticles(ParticleTypes.LARGE_SMOKE, x + 0.5D, y + 0.4D, z + 0.5D,
+                        3, 0.35D, 0.18D, 0.35D, 0.012D);
+                if (random.nextFloat() < 0.32F && level.getBlockState(wall.above()).isAir()) {
+                    FallingBlockEntity rubble = FallingBlockEntity.fall(level, wall, state);
+                    rubble.time = 1;
+                    rubble.dropItem = false;
+                }
+                if (random.nextFloat() < 0.45F)
+                    level.playSound(null, wall, SoundEvents.DEEPSLATE_HIT, SoundSource.BLOCKS,
+                            0.65F, 0.62F + random.nextFloat() * 0.18F);
+                break;
+            }
+        }
     }
 
     private static BlockPos findWallNear(ServerLevel level, BlockPos origin) {

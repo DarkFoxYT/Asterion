@@ -10,6 +10,9 @@ import net.minecraft.world.phys.Vec3;
 public record BossTelegraphPayload(Vec3 center, Vec3 direction, float radius,
                                    int durationTicks, int kind) implements CustomPacketPayload {
     public static final int HALF_ARENA_SWEEP = 0;
+    public static final int TARGET_CIRCLE = 1;
+    public static final int CHARGE_LANE = 2;
+    public static final int FRONT_CONE = 3;
     public static final Type<BossTelegraphPayload> TYPE = new Type<>(Asterion.id("boss_telegraph"));
     public static final StreamCodec<RegistryFriendlyByteBuf, BossTelegraphPayload> CODEC =
             CustomPacketPayload.codec(BossTelegraphPayload::write, BossTelegraphPayload::read);

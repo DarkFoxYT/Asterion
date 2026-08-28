@@ -1,5 +1,7 @@
 package net.krodark.asterion;
 
+import net.minecraft.core.BlockPos;
+
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.biome.v1.BiomeModifications;
 import net.fabricmc.fabric.api.biome.v1.BiomeSelectors;
@@ -7,6 +9,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.krodark.asterion.network.DimensionTransitionPayload;
@@ -40,12 +43,18 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.sounds.SoundEvent;
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
+import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
+import net.krodark.asterion.block.RuneBlock;
+import net.krodark.asterion.block.RuneBlockEntity;
+import net.krodark.asterion.block.RuneDoorBlock;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SlabBlock;
 import net.minecraft.world.level.block.StairBlock;
+import net.minecraft.world.level.block.TallGrassBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.WallBlock;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.tags.BiomeTags;
@@ -71,10 +80,20 @@ public class Asterion implements ModInitializer {
             properties -> new StairBlock(ANCIENT_BRICKS.defaultBlockState(), properties) { });
     public static final Block ANCIENT_BRICK_WALL = registerBlock("ancient_brick_wall", MapColor.COLOR_BROWN, WallBlock::new);
     public static final Block ANCIENT_STONE = registerBlock("ancient_stone", MapColor.TERRACOTTA_BROWN, Block::new);
+    public static final Block MOSSY_ANCIENT_STONE = registerBlock("mossy_ancient_stone", MapColor.TERRACOTTA_GREEN, Block::new);
+    public static final Block SHORT_GRASS = registerBlock("short_grass", MapColor.PLANT,
+            properties -> new TallGrassBlock(properties.noCollision().replaceable().instabreak()
+                    .sound(SoundType.GRASS).offsetType(BlockBehaviour.OffsetType.XZ)));
     public static final Block ANCIENT_STONE_SLAB = registerBlock("ancient_stone_slab", MapColor.TERRACOTTA_BROWN, SlabBlock::new);
     public static final Block ANCIENT_STONE_STAIRS = registerBlock("ancient_stone_stairs", MapColor.TERRACOTTA_BROWN,
             properties -> new StairBlock(ANCIENT_STONE.defaultBlockState(), properties) { });
     public static final Block ANCIENT_STONE_WALL = registerBlock("ancient_stone_wall", MapColor.TERRACOTTA_BROWN, WallBlock::new);
+    public static final RuneBlock[] RUNE_BLOCKS = registerRuneBlocks();
+    public static final RuneDoorBlock RUNE_ZONE_DOOR = (RuneDoorBlock)registerBlock("rune_zone_door",
+            MapColor.COLOR_BLACK, RuneDoorBlock::new);
+    public static final BlockEntityType<RuneBlockEntity> RUNE_BLOCK_ENTITY = Registry.register(
+            BuiltInRegistries.BLOCK_ENTITY_TYPE, id("rune"),
+            FabricBlockEntityTypeBuilder.create(RuneBlockEntity::new, RUNE_BLOCKS).build());
     private static final ResourceKey<EntityType<?>> MINOTAUR_KEY = ResourceKey.create(
             Registries.ENTITY_TYPE, id("minotaur"));
     public static final EntityType<MinotaurEntity> MINOTAUR = Registry.register(
@@ -117,9 +136,13 @@ public class Asterion implements ModInitializer {
                         output.accept(ANCIENT_BRICK_STAIRS);
                         output.accept(ANCIENT_BRICK_WALL);
                         output.accept(ANCIENT_STONE);
+                        output.accept(MOSSY_ANCIENT_STONE);
+                        output.accept(SHORT_GRASS);
                         output.accept(ANCIENT_STONE_SLAB);
                         output.accept(ANCIENT_STONE_STAIRS);
                         output.accept(ANCIENT_STONE_WALL);
+                        for (RuneBlock rune : RUNE_BLOCKS) output.accept(rune);
+                        output.accept(RUNE_ZONE_DOOR);
                     })
                     .build()
     );
@@ -175,6 +198,13 @@ public class Asterion implements ModInitializer {
         BiomeModifications.addFeature(BiomeSelectors.tag(BiomeTags.IS_OCEAN),
                 GenerationStep.Decoration.SURFACE_STRUCTURES, UNDERWATER_RUIN_PLACED);
         ServerTickEvents.END_SERVER_TICK.register(WorldGenerator::tickServer);
+        ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
+            if (oldPlayer.level().dimension().equals(ASTERION_LEVEL)) {
+                BlockPos deathPosition = oldPlayer.blockPosition().immutable();
+                WorldGenerator.resetBossEncounterAfterDeath(oldPlayer);
+                WorldGenerator.respawnAtRune(newPlayer, deathPosition);
+            }
+        });
         ServerLifecycleEvents.SERVER_STOPPING.register(WorldGenerator::clearRuntimeState);
         LOGGER.info("The Antikythera Mechanism stirs beneath the sea");
     }
@@ -200,5 +230,15 @@ public class Asterion implements ModInitializer {
         Registry.register(BuiltInRegistries.ITEM, itemKey,
                 new BlockItem(block, new Item.Properties().setId(itemKey).useBlockDescriptionPrefix()));
         return block;
+    }
+
+    private static RuneBlock[] registerRuneBlocks() {
+        RuneBlock[] runes = new RuneBlock[GreekRune.values().length];
+        for (int index = 0; index < runes.length; index++) {
+            final int runeIndex = index;
+            runes[index] = (RuneBlock)registerBlock("rune_" + (index + 1), MapColor.COLOR_BROWN,
+                    properties -> new RuneBlock(runeIndex, properties.noOcclusion()));
+        }
+        return runes;
     }
 }

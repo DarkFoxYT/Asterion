@@ -40,5 +40,14 @@ void main() {
     float skyVisibility = smoothstep(0.9975, 0.9999, sceneDepth);
     vec3 color = darkScene * (1.0 - sun.a) + sun.rgb
             + bloom * mix(0.86, 1.08, eclipse) * bloomTransmission * skyVisibility;
+    // World-space fracture bolts are submitted with the shared lightning renderer before this
+    // post pass. Preserve their red-hot current over the Sun volume; no crack geometry is
+    // authored here, this only prevents the volumetric composite from painting over it.
+    float sceneLuma = max(scene.r, max(scene.g, scene.b));
+    float redCurrent = scene.r - max(scene.g * 1.35, scene.b * 1.05);
+    float whiteCore = sceneLuma - 0.72;
+    float renderedCurrent = smoothstep(0.08, 0.62, max(redCurrent, whiteCore));
+    color = mix(color, scene.rgb * 1.85 + vec3(0.32, 0.015, 0.01),
+            renderedCurrent * sun.a * 0.94);
     fragColor = vec4(color, scene.a);
 }

@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": { "type": "minecraft:uniform", "min": 2.0, "max": 4.0 },
+      "entries": [
+        { "type": "minecraft:item", "name": "minecraft:bread", "weight": 7, "functions": [{ "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 1.0, "max": 3.0 } }] },
+        { "type": "minecraft:item", "name": "minecraft:baked_potato", "weight": 6, "functions": [{ "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 1.0, "max": 4.0 } }] },
+        { "type": "minecraft:item", "name": "minecraft:cooked_beef", "weight": 3, "functions": [{ "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 1.0, "max": 2.0 } }] },
+        { "type": "minecraft:item", "name": "minecraft:stone_sword", "weight": 3, "functions": [{ "function": "minecraft:set_damage", "damage": { "type": "minecraft:uniform", "min": 0.18, "max": 0.48 } }] },
+        { "type": "minecraft:item", "name": "minecraft:leather_chestplate", "weight": 2, "functions": [{ "function": "minecraft:set_damage", "damage": { "type": "minecraft:uniform", "min": 0.2, "max": 0.5 } }] },
+        { "type": "minecraft:item", "name": "minecraft:arrow", "weight": 4, "functions": [{ "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 3.0, "max": 8.0 } }] }
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [{ "type": "minecraft:item", "name": "minecraft:resin_clump", "functions": [{ "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 2.0, "max": 4.0 } }] }]
+    }
+  ],
+  "random_sequence": "asterion:chests/safe_rune_near"
+}

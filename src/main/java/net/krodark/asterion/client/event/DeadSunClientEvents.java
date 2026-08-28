@@ -21,7 +21,9 @@ import java.util.Map;
 public final class DeadSunClientEvents {
     private static final Map<Identifier, Factory> FACTORIES = new HashMap<>();
     private static ActiveEffect active;
-    private static ActiveEffect outro;
+    private static Sample outroStart;
+    private static long outroStartTick;
+    private static int outroDuration;
     private static DeadSunEventPayload pending;
     private static Identifier activeId;
     private static long activeSeed;
@@ -86,7 +88,7 @@ public final class DeadSunClientEvents {
         double now = client.level.getGameTime();
         if (pending.intensity() <= 0.0001F) {
             Sample current = active == null ? Sample.NONE : active.sample(now);
-            if (!isEmpty(current)) outro = new FadingEffect(current, client.level.getGameTime(), 60);
+            if (!isEmpty(current)) beginOutro(current, client.level.getGameTime(), 60);
             active = null;
             activeId = null;
             pending = null;
@@ -95,7 +97,7 @@ public final class DeadSunClientEvents {
         boolean newEvent = activeId == null || !activeId.equals(pending.eventId()) || activeSeed != pending.seed();
         if (newEvent && active != null) {
             Sample current = active.sample(now);
-            if (!isEmpty(current)) outro = new FadingEffect(current, client.level.getGameTime(), 32);
+            if (!isEmpty(current)) beginOutro(current, client.level.getGameTime(), 32);
         }
         activeId = pending.eventId();
         activeSeed = pending.seed();
@@ -110,13 +112,16 @@ public final class DeadSunClientEvents {
     public static void tick(Minecraft client) {
         if (client.level == null) {
             active = null;
-            outro = null;
+            clearOutro();
             LOCAL_RUMBLES.clear();
             STRIKE_WARNINGS.clear();
             wardDarknessTicks = 0;
             return;
         }
-        if (!client.level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
+        if (!client.level.dimension().equals(Asterion.ASTERION_LEVEL)) {
+            clearTransientEffects();
+            return;
+        }
         if (pending != null) {
             Factory factory = FACTORIES.get(pending.eventId());
             if (factory != null) applyPending(client, factory);
@@ -127,19 +132,21 @@ public final class DeadSunClientEvents {
         LOCAL_RUMBLES.removeIf(rumble -> client.level.getGameTime() > rumble.startTick + rumble.duration);
         if (active != null && client.level.getGameTime() > active.endTick()) {
             Sample ending = active.sample(active.endTick());
-            if (!isEmpty(ending)) outro = new FadingEffect(ending, client.level.getGameTime(), 40);
+            if (!isEmpty(ending)) beginOutro(ending, client.level.getGameTime(), 40);
             active = null;
             activeId = null;
         }
-        if (outro != null && client.level.getGameTime() > outro.endTick()) outro = null;
+        if (outroStart != null && client.level.getGameTime() > outroStartTick + outroDuration)
+            clearOutro();
     }
 
     public static Sample sample(float partialTick) {
         Minecraft client = Minecraft.getInstance();
-        if (client.level == null) return Sample.NONE;
+        if (client.level == null || !client.level.dimension().equals(Asterion.ASTERION_LEVEL))
+            return Sample.NONE;
         double now = client.level.getGameTime() + partialTick;
         Sample base = active == null ? Sample.NONE : active.sample(now);
-        if (outro != null) base = combine(base, outro.sample(now));
+        if (outroStart != null) base = combine(base, sampleOutro(now));
         if (client.player == null || LOCAL_RUMBLES.isEmpty()) return base;
         Vec3 offset = base.cameraOffset;
         float yaw = base.yawDegrees, pitch = base.pitchDegrees;
@@ -156,6 +163,17 @@ public final class DeadSunClientEvents {
             pitch += (float) (RumbleEffect.noise(rumble.seed + 23, elapsed * 0.81D) * 0.7D * envelope);
         }
         return new Sample(offset, yaw, pitch, base.sunOffset, base.eclipseStrength);
+    }
+
+    public static void clearTransientEffects() {
+        active = null;
+        activeId = null;
+        clearOutro();
+        pending = null;
+        LOCAL_RUMBLES.clear();
+        STRIKE_WARNINGS.clear();
+        wardDarknessTicks = 0;
+        eclipseIntroTicks = 0;
     }
 
     private static void tickStrikeWarnings(Minecraft client) {
@@ -250,27 +268,24 @@ public final class DeadSunClientEvents {
                 && Math.abs(sample.pitchDegrees) <= 0.0001F;
     }
 
-    private static final class FadingEffect implements ActiveEffect {
-        private final Sample start;
-        private final long startTick;
-        private final int duration;
+    private static void beginOutro(Sample start, long startTick, int duration) {
+        outroStart = start;
+        outroStartTick = startTick;
+        outroDuration = Math.max(1, duration);
+    }
 
-        private FadingEffect(Sample start, long startTick, int duration) {
-            this.start = start;
-            this.startTick = startTick;
-            this.duration = Math.max(1, duration);
-        }
+    private static Sample sampleOutro(double gameTick) {
+        float progress = (float)Mth.clamp((gameTick - outroStartTick) / outroDuration, 0.0D, 1.0D);
+        float remaining = 1.0F - progress * progress * (3.0F - 2.0F * progress);
+        return new Sample(outroStart.cameraOffset.scale(remaining),
+                outroStart.yawDegrees * remaining, outroStart.pitchDegrees * remaining,
+                outroStart.sunOffset.scale(remaining), outroStart.eclipseStrength * remaining);
+    }
 
-        @Override public long endTick() { return startTick + duration; }
-
-        @Override
-        public Sample sample(double gameTick) {
-            float progress = (float)Mth.clamp((gameTick - startTick) / duration, 0.0D, 1.0D);
-            float remaining = 1.0F - progress * progress * (3.0F - 2.0F * progress);
-            return new Sample(start.cameraOffset.scale(remaining), start.yawDegrees * remaining,
-                    start.pitchDegrees * remaining, start.sunOffset.scale(remaining),
-                    start.eclipseStrength * remaining);
-        }
+    private static void clearOutro() {
+        outroStart = null;
+        outroStartTick = 0L;
+        outroDuration = 0;
     }
 
     private static final class RumbleEffect implements ActiveEffect {

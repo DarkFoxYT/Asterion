@@ -28,15 +28,6 @@ public abstract class CameraMixin {
     @Shadow public abstract float yRot();
 
     @Inject(method = "update", at = @At("TAIL"))
-    private void asterion$applyDeadSunRumble(DeltaTracker tracker, CallbackInfo callbackInfo) {
-        DeadSunClientEvents.Sample sample = DeadSunClientEvents.sample(
-                tracker.getGameTimeDeltaPartialTick(false));
-        if (sample == DeadSunClientEvents.Sample.NONE) return;
-        setPosition(position().add(sample.cameraOffset()));
-        setRotation(yRot() + sample.yawDegrees(), xRot() + sample.pitchDegrees());
-    }
-
-    @Inject(method = "update", at = @At("TAIL"))
     private void asterion$followRagdollHead(DeltaTracker tracker, CallbackInfo ci) {
         Minecraft minecraft = Minecraft.getInstance();
         float partial = tracker.getGameTimeDeltaPartialTick(true);
@@ -68,6 +59,13 @@ public abstract class CameraMixin {
         if (finale != null) {
             setPosition(finale.position());
             setRotation(finale.yaw(), finale.pitch());
+        }
+        // Apply quake last so detached cinematic rails retain the same physical ground/roof
+        // impacts as gameplay instead of overwriting the shake with their keyframed pose.
+        DeadSunClientEvents.Sample sample = DeadSunClientEvents.sample(partial);
+        if (sample != DeadSunClientEvents.Sample.NONE) {
+            setPosition(position().add(sample.cameraOffset()));
+            setRotation(yRot() + sample.yawDegrees(), xRot() + sample.pitchDegrees());
         }
     }
 

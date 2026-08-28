@@ -1,27 +1,15 @@
 {
-  "spacing_cells": 18,
-  "padding_blocks": 5,
-  "chance": 0.48,
+  "spacing_cells": 22,
+  "padding_blocks": 4,
+  "chance": 0.32,
   "templates": [
     {
-      "template": "minecraft:village/plains/houses/plains_small_house_1",
-      "weight": 4
-    },
-    {
-      "template": "minecraft:village/plains/houses/plains_small_house_2",
-      "weight": 4
-    },
-    {
-      "template": "minecraft:village/plains/houses/plains_tannery_1",
-      "weight": 2
-    },
-    {
-      "template": "minecraft:village/taiga/houses/taiga_small_house_1",
+      "template": "asterion:safe_room",
       "weight": 3
     },
     {
-      "template": "minecraft:village/desert/houses/desert_temple_1",
-      "weight": 1
+      "template": "asterion:rune_gate",
+      "weight": 2
     }
   ]
 }

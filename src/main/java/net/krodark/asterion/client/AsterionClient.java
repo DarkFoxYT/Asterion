@@ -11,12 +11,14 @@ import net.krodark.asterion.client.lightning.MazeZapRenderer;
 import net.krodark.asterion.client.ragdoll.DismembermentEngine;
 import net.krodark.asterion.client.ragdoll.RagdollClientController;
 import net.krodark.asterion.client.render.entity.MinotaurGeoRenderer;
+import net.krodark.asterion.client.render.block.RuneGeoRenderer;
 import net.krodark.asterion.client.render.portal.AsterionPortalRenderer;
 import net.krodark.asterion.client.render.post.AsterionPostEffects;
 import net.krodark.asterion.network.*;
 import net.krodark.asterion.network.ragdoll.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.EntityRenderers;
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderers;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 
 /** Client bootstrap. Runtime debug UI was removed; supported controls live in Mod Menu. */
@@ -32,6 +34,7 @@ public final class AsterionClient implements ClientModInitializer {
         DazeOverlay.register();
         RagdollClientController.initialize();
         EntityRenderers.register(Asterion.MINOTAUR, MinotaurGeoRenderer::new);
+        BlockEntityRenderers.register(Asterion.RUNE_BLOCK_ENTITY, RuneGeoRenderer::new);
         ClientPlayNetworking.registerGlobalReceiver(DimensionTransitionPayload.TYPE, (payload, context) ->
                 context.client().execute(() ->
                         DimensionTransitionOverlay.begin(payload.fadeInTicks(), payload.holdTicks())));

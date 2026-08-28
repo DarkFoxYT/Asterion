@@ -2,21 +2,35 @@ package net.krodark.asterion.client.ragdoll;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.math.Axis;
+import net.krodark.asterion.client.light.HeldItemDynamicLights;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.model.HumanoidModel;
+import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.client.model.geom.builders.CubeDeformation;
+import net.minecraft.client.model.geom.builders.LayerDefinition;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
+import net.minecraft.client.renderer.entity.state.HumanoidRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.DyedItemColor;
+import net.minecraft.world.item.equipment.Equippable;
+import net.minecraft.core.component.DataComponents;
 import net.krodark.asterion.AsterionConfig;
+import net.krodark.asterion.client.DeadSunEntryCinematic;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.player.PlayerModelPart;
 import net.minecraft.world.phys.Vec3;
@@ -29,13 +43,7 @@ import java.util.List;
 import java.util.Map;
 
 public final class RagdollRenderer {
-    private static final Identifier ARMOR_PLATE_TEXTURE = Identifier.parse(
-            "minecraft:textures/block/white_concrete.png");
-    private static final float[][] FULL_UVS = {
-            {0, 0, 1, 0, 1, 1, 0, 1}, {0, 0, 1, 0, 1, 1, 0, 1},
-            {0, 0, 1, 0, 1, 1, 0, 1}, {0, 0, 1, 0, 1, 1, 0, 1},
-            {0, 0, 1, 0, 1, 1, 0, 1}, {0, 0, 1, 0, 1, 1, 0, 1}
-    };
+    private static final float[][][] HUMANOID_ARMOR_UVS = createHumanoidArmorUvs();
     private RagdollRenderer() { }
 
     public static void submit(PoseStack poses, LevelRenderState state, SubmitNodeCollector collector) {
@@ -50,6 +58,7 @@ public final class RagdollRenderer {
             else bodies.add(piece);
         }
         if (client.player != null && client.options.getCameraType().isFirstPerson()
+                && !DeadSunEntryCinematic.isActive()
                 && DismembermentEngine.INSTANCE.isPlayerTumbling(client.player.getId()))
             bodies.removeIf(p -> p.entityId == client.player.getId() && p.region == 0);
         if (bodies.isEmpty() && grips.isEmpty()) return;
@@ -61,10 +70,13 @@ public final class RagdollRenderer {
                 RenderTypes.entityTranslucent(texture, false),
                 (pose, vertices) -> parts.forEach(part -> renderBody(pose, vertices, part))));
         if (AsterionConfig.INSTANCE.ragdollEquipment) {
-            List<RigidBodyPiece> armored = bodies.stream().filter(RagdollRenderer::hasArmor).toList();
-            if (!armored.isEmpty()) collector.submitCustomGeometry(poses,
-                    RenderTypes.entityTranslucent(ARMOR_PLATE_TEXTURE, false),
-                    (pose, vertices) -> armored.forEach(part -> renderArmor(pose, vertices, part)));
+            Map<Identifier, List<ArmorDraw>> armorByTexture = new HashMap<>();
+            for (RigidBodyPiece body : bodies)
+                for (ArmorDraw draw : armorDraws(body))
+                    armorByTexture.computeIfAbsent(draw.texture, ignored -> new ArrayList<>()).add(draw);
+            armorByTexture.forEach((texture, draws) -> collector.submitCustomGeometry(poses,
+                    RenderTypes.armorCutoutNoCull(texture),
+                    (pose, vertices) -> draws.forEach(draw -> renderEquipmentBox(pose, vertices, draw))));
             for (RigidBodyPiece grip : grips) submitHeldItem(poses, collector, grip);
         }
         poses.popPose();
@@ -73,10 +85,19 @@ public final class RagdollRenderer {
     private static void submitHeldItem(PoseStack poses, SubmitNodeCollector collector,
                                        RigidBodyPiece grip) {
         Minecraft client = Minecraft.getInstance();
-        if (client.level == null || !(client.level.getEntity(grip.entityId) instanceof Player player)) return;
+        if (client.level == null) return;
+        LivingEntity living = client.level.getEntity(grip.entityId) instanceof LivingEntity found ? found : null;
         boolean physicalRight = grip.region == 30;
-        boolean mainHand = physicalRight == (player.getMainArm() == HumanoidArm.RIGHT);
-        ItemStack stack = mainHand ? player.getMainHandItem() : player.getOffhandItem();
+        HumanoidArm physicalArm = physicalRight ? HumanoidArm.RIGHT : HumanoidArm.LEFT;
+        ItemStack stack = grip.heldItem;
+        if (living != null) {
+            boolean mainHand = physicalArm == living.getMainArm();
+            ItemStack current = mainHand ? living.getMainHandItem() : living.getOffhandItem();
+            if (!current.isEmpty()) {
+                stack = current;
+                grip.heldItem = current.copy();
+            }
+        }
         if (stack.isEmpty()) return;
         float partial = Mth.clamp(client.getDeltaTracker().getGameTimeDeltaPartialTick(true), 0.0F, 1.0F);
         Vec3 center = grip.previous.lerp(grip.position, partial);
@@ -90,9 +111,15 @@ public final class RagdollRenderer {
         ItemStackRenderState itemState = new ItemStackRenderState();
         ItemDisplayContext context = physicalRight ? ItemDisplayContext.THIRD_PERSON_RIGHT_HAND
                 : ItemDisplayContext.THIRD_PERSON_LEFT_HAND;
-        client.getItemModelResolver().updateForLiving(itemState, stack, context, player);
-        itemState.submit(poses, collector, sampleLight(center), OverlayTexture.NO_OVERLAY,
-                player.getId() * 31 + grip.region);
+        if (living != null) client.getItemModelResolver().updateForLiving(itemState, stack, context, living);
+        else client.getItemModelResolver().updateForTopItem(itemState, stack, context, client.level, null, grip.entityId);
+        if (itemState.isEmpty()) { poses.popPose(); return; }
+        if (living != null) HeldItemDynamicLights.updateRagdollHand(living, physicalArm, stack, center);
+        poses.mulPose(Axis.XP.rotationDegrees(-90.0F));
+        poses.mulPose(Axis.YP.rotationDegrees(180.0F));
+        // In 26.1 the final submit argument is an ARGB outline color, not a model seed.
+        // Passing the entity id here tinted otherwise-correct item models blue.
+        itemState.submit(poses, collector, sampleLight(center), OverlayTexture.NO_OVERLAY, 0);
         poses.popPose();
     }
 
@@ -108,41 +135,80 @@ public final class RagdollRenderer {
         }
     }
 
-    private static boolean hasArmor(RigidBodyPiece body) {
-        return !armorFor(body).isEmpty() && DismembermentEngine.isAnatomicalRegion(body.region);
+    private static List<ArmorDraw> armorDraws(RigidBodyPiece body) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (!DismembermentEngine.isAnatomicalRegion(body.region) || minecraft.level == null) return List.of();
+        LivingEntity living = minecraft.level.getEntity(body.entityId) instanceof LivingEntity found ? found : null;
+        ItemStack head = living == null ? body.headEquipment : living.getItemBySlot(EquipmentSlot.HEAD);
+        ItemStack chest = living == null ? body.chestEquipment : living.getItemBySlot(EquipmentSlot.CHEST);
+        ItemStack legs = living == null ? body.legEquipment : living.getItemBySlot(EquipmentSlot.LEGS);
+        ItemStack feet = living == null ? body.footEquipment : living.getItemBySlot(EquipmentSlot.FEET);
+        List<ArmorDraw> draws = new ArrayList<>(4);
+        switch (DismembermentEngine.semanticRegion(body.region)) {
+            case 0 -> addArmorSlot(draws, body, head, false);
+            case 1 -> { if (rendersAsBodyArmor(chest)) addArmorSlot(draws, body, chest, false); addArmorSlot(draws, body, legs, true); }
+            case 2, 3 -> { if (rendersAsBodyArmor(chest)) addArmorSlot(draws, body, chest, false); }
+            case 4, 5 -> { addArmorSlot(draws, body, legs, true); addArmorSlot(draws, body, feet, false); }
+            default -> { }
+        }
+        return draws;
     }
 
-    private static ItemStack armorFor(RigidBodyPiece body) {
-        if (body.region == 0) return body.headEquipment;
-        if (body.region == 1 || body.region == 2 || body.region == 3
-                || body.region == 9 || body.region == 10) return body.chestEquipment;
-        if (body.region == 11 || body.region == 12) return body.footEquipment;
-        if (body.region == 4 || body.region == 5) return body.legEquipment;
-        return ItemStack.EMPTY;
+    private static boolean rendersAsBodyArmor(ItemStack stack) {
+        if (stack.isEmpty()) return true;
+        Equippable equippable = stack.get(DataComponents.EQUIPPABLE);
+        return equippable == null || equippable.assetId().isEmpty()
+                || !equippable.assetId().get().identifier().getPath().contains("elytra");
     }
 
-    private static void renderArmor(PoseStack.Pose pose, VertexConsumer out, RigidBodyPiece body) {
-        float partial = Mth.clamp(Minecraft.getInstance().getDeltaTracker()
-                .getGameTimeDeltaPartialTick(true), 0.0F, 1.0F);
-        Vec3 center = body.previous.lerp(body.position, partial);
-        Quaternionf rotation = new Quaternionf(body.previousOrientation).slerp(body.orientation, partial);
-        double plate = body.region == 0 ? 0.055D : 0.038D;
-        drawBox(pose, out, body, center, rotation, body.halfExtents.add(plate, plate, plate),
-                FULL_UVS, armorColor(armorFor(body)));
+    private static void addArmorSlot(List<ArmorDraw> draws, RigidBodyPiece body, ItemStack armor, boolean leggings) {
+        Identifier texture = armorTexture(armor, leggings);
+        if (texture == null) return;
+        double dilation = leggings ? 0.03125 : 0.0625;
+        Vec3 shell = body.halfExtents.add(dilation, dilation, dilation);
+        float[][] uvs = HUMANOID_ARMOR_UVS[Mth.clamp(DismembermentEngine.semanticRegion(body.region), 0, 5)];
+        draws.add(new ArmorDraw(body, texture, shell, armorLayerColor(armor, texture), uvs));
+        Identifier overlay = armorOverlayTexture(texture);
+        if (overlay != null) draws.add(new ArmorDraw(body, overlay, shell.add(.0008, .0008, .0008), 0xFFFFFFFF, uvs));
     }
 
-    private static int armorColor(ItemStack stack) {
-        String path = BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath();
-        if (path.contains("netherite")) return 0xFF342D3B;
-        if (path.contains("diamond")) return 0xFF45D6D0;
-        if (path.contains("gold")) return 0xFFFFC83D;
-        if (path.contains("iron")) return 0xFFD8D8D8;
-        if (path.contains("chain")) return 0xFF8F969E;
-        if (path.contains("copper")) return 0xFFC46A42;
-        if (path.contains("turtle")) return 0xFF4F9C72;
-        if (path.contains("leather")) return 0xFF8A4F32;
-        return 0xFF9CA4AD;
+    private static Identifier armorTexture(ItemStack stack, boolean leggings) {
+        if (stack.isEmpty()) return null;
+        Equippable equippable = stack.get(DataComponents.EQUIPPABLE);
+        if (equippable == null || equippable.assetId().isEmpty()) return null;
+        Identifier asset = equippable.assetId().get().identifier();
+        return Identifier.fromNamespaceAndPath(asset.getNamespace(), "textures/entity/equipment/"
+                + (leggings ? "humanoid_leggings/" : "humanoid/") + asset.getPath() + ".png");
     }
+
+    private static int armorLayerColor(ItemStack stack, Identifier texture) {
+        return texture.getPath().endsWith("/leather.png") ? DyedItemColor.getOrDefault(stack, -6265536) : 0xFFFFFFFF;
+    }
+
+    private static Identifier armorOverlayTexture(Identifier texture) {
+        if (!texture.getPath().endsWith("/leather.png")) return null;
+        return Identifier.fromNamespaceAndPath(texture.getNamespace(),
+                texture.getPath().substring(0, texture.getPath().length() - "leather.png".length()) + "leather_overlay.png");
+    }
+
+    private static float[][][] createHumanoidArmorUvs() {
+        HumanoidModel<HumanoidRenderState> model = new HumanoidModel<>(LayerDefinition.create(
+                HumanoidModel.createMesh(CubeDeformation.NONE, 0), 64, 32).bakeRoot());
+        ModelPart[] parts = {model.head, model.body, model.rightArm, model.leftArm, model.rightLeg, model.leftLeg};
+        float[][][] result = new float[parts.length][][];
+        for (int region = 0; region < parts.length; region++)
+            result[region] = DismembermentEngine.uvFaces(parts[region].getRandomCube(RandomSource.create(0xA6E0L + region)));
+        return result;
+    }
+
+    private static void renderEquipmentBox(PoseStack.Pose pose, VertexConsumer out, ArmorDraw draw) {
+        float partial = Mth.clamp(Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(true), 0, 1);
+        Vec3 center = draw.body.previous.lerp(draw.body.position, partial);
+        Quaternionf rotation = new Quaternionf(draw.body.previousOrientation).slerp(draw.body.orientation, partial);
+        drawBox(pose, out, draw.body, center, rotation, draw.half, draw.uvs, draw.color);
+    }
+
+    private record ArmorDraw(RigidBodyPiece body, Identifier texture, Vec3 half, int color, float[][] uvs) { }
 
     private static void drawBox(PoseStack.Pose pose, VertexConsumer out, RigidBodyPiece body,
                                 Vec3 center, Quaternionf rotation, Vec3 half, float[][] uvs) {

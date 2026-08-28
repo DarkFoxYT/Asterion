@@ -13,6 +13,7 @@ import java.util.Set;
 /** Budgeted Amnetic point lights shared by LEDs and small emissive props. */
 final class LedAmneticPointLights {
     private static final Map<Object, Light> LIGHTS = new LinkedHashMap<>(128, 0.75F, true);
+    private static final Map<Object, LedAmneticLight.LedPointLightSample> BUFFERED = new LinkedHashMap<>();
 
     private LedAmneticPointLights() {
     }
@@ -22,6 +23,17 @@ final class LedAmneticPointLights {
         boolean shadows = quality >= 2 && sample.castsShadow();
         float godray = quality >= 2 && sample.radius() >= 6.5F ? 0.24F : 0.0F;
         Light light = LIGHTS.computeIfAbsent(key, ignored -> createLight(sample));
+        LedAmneticLight.LedPointLightSample previous = BUFFERED.put(key, sample);
+        if (previous != null && previous.position().distanceToSqr(sample.position()) < 0.0009D
+                && Math.abs(previous.strength() - sample.strength()) < 0.006F
+                && Math.abs(previous.radius() - sample.radius()) < 0.006F
+                && Math.abs(previous.red() - sample.red()) < 0.003F
+                && Math.abs(previous.green() - sample.green()) < 0.003F
+                && Math.abs(previous.blue() - sample.blue()) < 0.003F
+                && previous.castsShadow() == sample.castsShadow()) {
+            trimToBudget(key);
+            return;
+        }
         light.setPosition(sample.position())
                 .setColor(sample.red(), sample.green(), sample.blue())
                 .setIntensity(Math.abs(sample.strength()))
@@ -41,6 +53,7 @@ final class LedAmneticPointLights {
             Map.Entry<Object, Light> entry = iterator.next();
             if (!activeKeys.contains(entry.getKey())) {
                 entry.getValue().remove();
+                BUFFERED.remove(entry.getKey());
                 iterator.remove();
             }
         }
@@ -48,6 +61,7 @@ final class LedAmneticPointLights {
 
     static void remove(Object key) {
         Light light = LIGHTS.remove(key);
+        BUFFERED.remove(key);
         if (light != null) {
             light.remove();
         }
@@ -56,6 +70,7 @@ final class LedAmneticPointLights {
     static void clear() {
         LIGHTS.values().forEach(Light::remove);
         LIGHTS.clear();
+        BUFFERED.clear();
     }
 
     private static Light createLight(LedAmneticLight.LedPointLightSample sample) {
@@ -91,6 +106,7 @@ final class LedAmneticPointLights {
                     continue;
                 }
                 entry.getValue().remove();
+                BUFFERED.remove(entry.getKey());
                 iterator.remove();
                 break;
             }

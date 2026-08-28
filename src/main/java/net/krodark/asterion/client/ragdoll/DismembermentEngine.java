@@ -604,6 +604,7 @@ public final class DismembermentEngine {
         if (existing != null) {
             existing.partMass = heldItemWeight(stack);
             existing.halfExtents = heldItemExtents(stack);
+            existing.heldItem = stack.copy();
             return;
         }
         RigidBodyPiece arm = find(player.getId(), armRegion);
@@ -623,6 +624,7 @@ public final class DismembermentEngine {
         grip.jointRestOffset = new Vec3(gripRest.x, gripRest.y, gripRest.z);
         grip.anchoredJoint = true;
         grip.jointRestOrientation.identity();
+        grip.heldItem = stack.copy();
         configureJointMotor(grip);
         pieces.add(grip);
     }
@@ -1288,7 +1290,10 @@ public final class DismembermentEngine {
         int entityId = entity.getId();
         electrifiedUntil.merge(entityId, traumaDecayTicker + Math.max(1, durationTicks), Math::max);
         if (client.player == entity) {
-            forcePlayerTumble(client, sourcePosition, impulse, 1.45F);
+            // Wards and scripted Sun pulls use the same electrical renderer as combat, but they
+            // are not automatic knockdowns. Preserve an existing tumble without creating one.
+            if (playerTumbles.contains(entityId))
+                externalDamage(client.player, sourcePosition, impulse, 0.65F, true);
         } else if (!ragdolled.contains(entityId)) {
             Vec3 direction = impulse.lengthSqr() > 1.0E-8D ? impulse.normalize() : new Vec3(0, -1, 0);
             ragdoll(entity, 1, entity.getBoundingBox().getCenter(), direction, 1.15D, false);

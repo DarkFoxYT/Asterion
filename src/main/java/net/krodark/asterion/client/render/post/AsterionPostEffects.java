@@ -9,11 +9,9 @@ import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.client.event.DeadSunClientEvents;
 import net.krodark.asterion.client.DeadSunEntryCinematic;
 import net.krodark.asterion.client.BossFinaleOverlay;
-import net.krodark.asterion.entity.MinotaurEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.UniformValue;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.AABB;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -38,7 +36,6 @@ public final class AsterionPostEffects {
                 .uniform("EclipseData", DeadSunClientEvents::eclipseStrength)
                 .uniform("WorldDarkness", DeadSunClientEvents::darknessStrength)
                 .uniform("EntryRadiance", AsterionPostEffects::radiance)
-                .uniform("BossDamage", AsterionPostEffects::bossDamage)
                 .uniform("DeadSunOpacity", () -> AsterionConfig.INSTANCE.deadSunOpacity)
                 .uniformVec3("DeadSunCoreColor", () -> new Vector3f(AsterionConfig.INSTANCE.deadSunCoreR,
                         AsterionConfig.INSTANCE.deadSunCoreG, AsterionConfig.INSTANCE.deadSunCoreB))
@@ -91,10 +88,10 @@ public final class AsterionPostEffects {
         float eclipse = eclipse();
         return new Vector4f(
                 config.deadSunBrightness * mix(1.0F, 0.95F, eclipse)
-                        * mix(1.0F, 5.0F, radiance()),
+                        * mix(1.0F, 1.18F, radiance()),
                 config.shaderAnimationSpeed * mix(1.0F, 0.72F, eclipse),
                 config.deadSunCorona * mix(1.0F, 2.15F, eclipse)
-                        * mix(1.0F, 4.2F, radiance()),
+                        * mix(1.0F, 1.22F, radiance()),
                 config.deadSunDensity * mix(1.0F, 1.55F, eclipse));
     }
 
@@ -138,16 +135,6 @@ public final class AsterionPostEffects {
     private static float radiance() {
         return Math.max(DeadSunEntryCinematic.radianceStrength(),
                 BossFinaleOverlay.sunDetonationStrength());
-    }
-
-    private static float bossDamage() {
-        Minecraft client = Minecraft.getInstance();
-        if (client.level == null || client.player == null) return 0.0F;
-        float damage = 0.0F;
-        AABB search = client.player.getBoundingBox().inflate(256.0D);
-        for (MinotaurEntity minotaur : client.level.getEntitiesOfClass(MinotaurEntity.class, search))
-            damage = Math.max(damage, minotaur.bossDamageFraction());
-        return Math.max(damage, BossFinaleOverlay.sunDetonationStrength());
     }
 
     private static float mix(float from, float to, float amount) {

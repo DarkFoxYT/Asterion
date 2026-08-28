@@ -108,3 +108,19 @@ tasks.register("rebuildStructureTemplates", JavaExec) {
     mainClass = "net.krodark.asterion.dev.RuinTemplateBuilder"
     args file("src/main/resources/data/asterion/structure/underwater_ruin.nbt").absolutePath
 }
+
+tasks.register("rebuildSafeRoomTemplate", JavaExec) {
+    group = "asterion"
+    dependsOn compileJava
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = "net.krodark.asterion.dev.SafeRoomTemplateBuilder"
+    args file("src/main/resources/data/asterion/structure/safe_room.nbt").absolutePath
+}
+
+tasks.register("rebuildRuneGateTemplate", JavaExec) {
+    group = "asterion"
+    dependsOn compileJava
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = "net.krodark.asterion.dev.RuneGateTemplateBuilder"
+    args file("src/main/resources/data/asterion/structure/rune_gate.nbt").absolutePath
+}

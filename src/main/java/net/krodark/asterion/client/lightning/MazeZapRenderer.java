@@ -6,15 +6,21 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
+import net.krodark.asterion.client.BossFinaleOverlay;
+import net.krodark.asterion.client.DeadSunEntryCinematic;
+import net.krodark.asterion.client.event.DeadSunClientEvents;
 import net.krodark.asterion.client.ragdoll.DismembermentEngine;
+import net.krodark.asterion.entity.MinotaurEntity;
 import net.krodark.asterion.network.MazeZapPayload;
 import net.krodark.asterion.network.DeadSunStrikePayload;
 import net.krodark.asterion.network.BossTelegraphPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -55,6 +61,7 @@ public final class MazeZapRenderer {
                 strike.drawBodyArcs(lightning, context.poseStack().last(), camera, target, body, charge, now);
             }
             var lightning = context.bufferSource().getBuffer(RenderTypes.lightning());
+            drawDeadSunFractures(client, lightning, context.poseStack().last(), camera, now);
             for (GroundStrike strike : GROUND_STRIKES) {
                 if (now < strike.startsAt || now > strike.expiresAt) continue;
                 float life = 1.0F - (now - strike.startsAt) / (float)Math.max(1L, strike.expiresAt - strike.startsAt);
@@ -78,19 +85,46 @@ public final class MazeZapRenderer {
                 if (now > telegraph.expiresAt) continue;
                 float pulse = 0.55F + 0.25F * (float)Math.sin(now * 0.55D);
                 Vec3 forward = new Vec3(telegraph.direction.x, 0.0D, telegraph.direction.z).normalize();
+                if (forward.lengthSqr() < 0.01D) forward = new Vec3(0.0D, 0.0D, 1.0D);
                 double baseAngle = Math.atan2(forward.z, forward.x);
-                int rays = AsterionConfig.INSTANCE.cinematicQuality >= 2 ? 15 : 9;
+                if (telegraph.kind == BossTelegraphPayload.CHARGE_LANE) {
+                    Vec3 right = new Vec3(-forward.z, 0.0D, forward.x);
+                    for (int side = -1; side <= 1; side += 2) {
+                        Vec3 a = telegraph.center.add(right.scale(side * 2.25D)).add(0, 0.08D, 0);
+                        Vec3 b = a.add(forward.scale(telegraph.radius));
+                        BetterLightningRenderer.draw(lightning, context.poseStack().last(), Vec3.ZERO,
+                                a.subtract(camera), b.subtract(camera), pulse,
+                                telegraph.seed + side * 977L);
+                    }
+                    for (int rung = 2; rung <= 8; rung += 2) {
+                        Vec3 middle = telegraph.center.add(forward.scale(telegraph.radius * rung / 8.0D))
+                                .add(0, 0.075D, 0);
+                        BetterLightningRenderer.draw(lightning, context.poseStack().last(), Vec3.ZERO,
+                                middle.add(right.scale(-2.25D)).subtract(camera),
+                                middle.add(right.scale(2.25D)).subtract(camera), pulse * 0.72F,
+                                telegraph.seed + rung * 313L);
+                    }
+                    continue;
+                }
+                double arc = telegraph.kind == BossTelegraphPayload.TARGET_CIRCLE
+                        ? Mth.TWO_PI : telegraph.kind == BossTelegraphPayload.FRONT_CONE
+                        ? Math.toRadians(125.0D) : Math.PI;
+                double startAngle = telegraph.kind == BossTelegraphPayload.TARGET_CIRCLE
+                        ? 0.0D : baseAngle - arc * 0.5D;
+                int segments = telegraph.kind == BossTelegraphPayload.TARGET_CIRCLE ? 24 : 18;
+                int rays = telegraph.kind == BossTelegraphPayload.TARGET_CIRCLE ? 8
+                        : AsterionConfig.INSTANCE.cinematicQuality >= 2 ? 13 : 8;
                 for (int ray = 0; ray < rays; ray++) {
-                    double angle = baseAngle - Math.PI * 0.5D + Math.PI * ray / (rays - 1.0D);
+                    double angle = startAngle + arc * ray / Math.max(1.0D, rays - 1.0D);
                     Vec3 end = telegraph.center.add(Math.cos(angle) * telegraph.radius, 0.07D,
                             Math.sin(angle) * telegraph.radius);
                     BetterLightningRenderer.draw(lightning, context.poseStack().last(), Vec3.ZERO,
                             telegraph.center.add(0, 0.07D, 0).subtract(camera), end.subtract(camera),
-                            pulse, telegraph.seed + ray * 977L);
+                            pulse * 0.78F, telegraph.seed + ray * 977L);
                 }
-                for (int segment = 0; segment < 18; segment++) {
-                    double a0 = baseAngle - Math.PI * 0.5D + Math.PI * segment / 18.0D;
-                    double a1 = baseAngle - Math.PI * 0.5D + Math.PI * (segment + 1) / 18.0D;
+                for (int segment = 0; segment < segments; segment++) {
+                    double a0 = startAngle + arc * segment / segments;
+                    double a1 = startAngle + arc * (segment + 1) / segments;
                     Vec3 a = telegraph.center.add(Math.cos(a0) * telegraph.radius, 0.08D,
                             Math.sin(a0) * telegraph.radius);
                     Vec3 b = telegraph.center.add(Math.cos(a1) * telegraph.radius, 0.08D,
@@ -125,7 +159,7 @@ public final class MazeZapRenderer {
     public static void receiveTelegraph(BossTelegraphPayload payload) {
         Minecraft client = Minecraft.getInstance();
         long now = client.level == null ? 0L : client.level.getGameTime();
-        TELEGRAPHS.add(new Telegraph(payload.center(), payload.direction(), payload.radius(),
+        TELEGRAPHS.add(new Telegraph(payload.center(), payload.direction(), payload.radius(), payload.kind(),
                 now + Math.max(1, payload.durationTicks()), now * 7919L + TELEGRAPHS.size()));
     }
 
@@ -156,10 +190,66 @@ public final class MazeZapRenderer {
 
     private record GroundStrike(net.minecraft.core.BlockPos target, long seed,
                                 long startsAt, long expiresAt) { }
-    private record Telegraph(Vec3 center, Vec3 direction, float radius, long expiresAt, long seed) { }
+    private record Telegraph(Vec3 center, Vec3 direction, float radius, int kind,
+                             long expiresAt, long seed) { }
 
     private static Vec3 bodyCenter(Entity target) {
         return target.position().add(0.0D, target.getBbHeight() * 0.52D, 0.0D);
+    }
+
+    /** Real world-space fracture current. The post shader owns only the Sun volume; every crack
+     * is built through the shared branched-lightning renderer and accumulates with boss damage. */
+    private static void drawDeadSunFractures(Minecraft client,
+                                              com.mojang.blaze3d.vertex.VertexConsumer out,
+                                              com.mojang.blaze3d.vertex.PoseStack.Pose pose,
+                                              Vec3 camera, long now) {
+        if (client.player == null || client.level == null) return;
+        float damage = Math.max(BossFinaleOverlay.sunDetonationStrength(),
+                DeadSunEntryCinematic.isActive() ? 0.42F : 0.0F);
+        AABB search = client.player.getBoundingBox().inflate(320.0D);
+        for (MinotaurEntity minotaur : client.level.getEntitiesOfClass(MinotaurEntity.class, search))
+            if (minotaur.isExtremeBoss()) damage = Math.max(damage, minotaur.bossDamageFraction());
+        int fractures = Mth.clamp(Mth.floor(damage * 20.0F), 0, 20);
+        if (fractures <= 0) return;
+        AsterionConfig config = AsterionConfig.INSTANCE;
+        Vec3 shake = DeadSunClientEvents.sunOffset();
+        Vec3 center = new Vec3(config.deadSunX, config.deadSunHeight, config.deadSunZ).add(shake);
+        Vec3 towardCamera = camera.subtract(center).normalize();
+        Vec3 right = towardCamera.cross(Math.abs(towardCamera.y) > 0.92D
+                ? new Vec3(1.0D, 0.0D, 0.0D) : new Vec3(0.0D, 1.0D, 0.0D)).normalize();
+        Vec3 up = right.cross(towardCamera).normalize();
+        double radius = config.deadSunSize
+                * (1.0D + BossFinaleOverlay.sunDetonationStrength() * 2.6D);
+        for (int index = 0; index < fractures; index++) {
+            long seed = 0x5DEECE66DL + index * 0x9E3779B97F4A7C15L;
+            double angle = index * 2.399963229728653D + (seed & 255L) * 0.0017D;
+            double innerRadius = radius * (0.06D + (index % 3) * 0.045D);
+            double outerRadius = radius * (0.48D + 0.42D * ((index * 37L & 255L) / 255.0D));
+            Vec3 start = sunFacePoint(center, right, up, towardCamera, radius, angle, innerRadius);
+            Vec3 end = sunFacePoint(center, right, up, towardCamera, radius,
+                    angle + Math.sin(index * 1.73D) * 0.22D, outerRadius);
+            float strength = Mth.clamp((damage * 16.0F - index) * 0.34F, 0.28F, 1.0F);
+            BetterLightningRenderer.draw(out, pose, Vec3.ZERO, start.subtract(camera),
+                    end.subtract(camera), Math.min(1.0F, strength * 1.35F), seed + now / 3L);
+            // Each major fault gets a short independently jittering branch. The geometry remains
+            // entirely in the shared renderer and grows denser as phase-two damage accumulates.
+            if (index < fractures - 2) {
+                Vec3 branchStart = start.lerp(end, 0.48D + (index % 3) * 0.09D);
+                Vec3 branchEnd = sunFacePoint(center, right, up, towardCamera, radius,
+                        angle + (index % 2 == 0 ? 0.38D : -0.34D), outerRadius * 0.78D);
+                BetterLightningRenderer.draw(out, pose, Vec3.ZERO, branchStart.subtract(camera),
+                        branchEnd.subtract(camera), Math.min(1.0F, strength * 1.18F),
+                        seed ^ 0xD1B54A32D192ED03L ^ now / 2L);
+            }
+        }
+    }
+
+    private static Vec3 sunFacePoint(Vec3 center, Vec3 right, Vec3 up, Vec3 towardCamera,
+                                     double sphereRadius, double angle, double discRadius) {
+        double radial = Math.min(sphereRadius * 0.96D, discRadius);
+        double depth = Math.sqrt(Math.max(0.0D, sphereRadius * sphereRadius - radial * radial));
+        return center.add(right.scale(Math.cos(angle) * radial))
+                .add(up.scale(Math.sin(angle) * radial)).add(towardCamera.scale(depth));
     }
 
     private static final class Strike {

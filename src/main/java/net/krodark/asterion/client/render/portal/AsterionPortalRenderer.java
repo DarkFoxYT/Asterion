@@ -5,10 +5,13 @@ import com.meekdev.amnetic.client.instanced.InstancePhase;
 import com.meekdev.amnetic.client.instanced.InstancedMesh;
 import com.meekdev.amnetic.client.instanced.MeshData;
 import com.meekdev.amnetic.client.instanced.RenderState;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.network.GatewayPortalPayload;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
@@ -28,12 +31,12 @@ import org.joml.Vector4fc;
  */
 public final class AsterionPortalRenderer {
     private static final Identifier CORE_ID = Asterion.id("gateway/portal_core");
+    private static final Identifier HALO_ID = Asterion.id("gateway/portal_halo");
     private static final Identifier SHADER = Asterion.id("portal/asterion_portal");
-    /** Replace this resource with the final 2048x2048 portal artwork. */
-    private static final Identifier PORTAL_IMAGE = Asterion.id("textures/portal/asterion_portal.png");
+    private static final Identifier PORTAL_IMAGE = Asterion.id("textures/portal/asterion_portal_square.png");
     private static final InstanceLayout LAYOUT = InstanceLayout.builder()
             .mat4(1).vec4(5).vec4(6).build();
-    private static final float CORE_RADIUS = 2.48F;
+    private static final float CORE_RADIUS = 2.62F;
     private static final double WAKE_DISTANCE = 52.0D;
     private static final double DRAW_DISTANCE = 112.0D;
     private static final long OPEN_NANOS = 1_050_000_000L;
@@ -50,6 +53,39 @@ public final class AsterionPortalRenderer {
 
     public static void register() {
         registerLayer(CORE_ID, false);
+        registerLayer(HALO_ID, true);
+        ClientTickEvents.END_CLIENT_TICK.register(AsterionPortalRenderer::tickAtmosphere);
+    }
+
+    private static void tickAtmosphere(Minecraft client) {
+        if (client.level == null || client.level != portalWorld || gateway == null
+                || surfaceY == Integer.MIN_VALUE || client.player == null
+                || !client.level.dimension().equals(Level.OVERWORLD)) return;
+        double playerDx = client.player.getX() - (gateway.getX() + 0.5D);
+        double playerDz = client.player.getZ() - (gateway.getZ() + 0.5D);
+        if (playerDx * playerDx + playerDz * playerDz > 36.0D * 36.0D
+                || (client.level.getGameTime() % 3L) != 0L) return;
+        double perimeter = (client.level.getGameTime() * 0.075D
+                + (visualSeed & 255L) * 0.013D) % 8.0D;
+        int side = Mth.floor(perimeter / 2.0D);
+        double along = perimeter % 2.0D - 1.0D;
+        double edge = 2.22D;
+        double offsetX = switch (side) {
+            case 0 -> along * edge;
+            case 1 -> edge;
+            case 2 -> -along * edge;
+            default -> -edge;
+        };
+        double offsetZ = switch (side) {
+            case 0 -> -edge;
+            case 1 -> along * edge;
+            case 2 -> edge;
+            default -> -along * edge;
+        };
+        client.level.addParticle(ParticleTypes.ASH,
+                gateway.getX() + 0.5D + offsetX, surfaceY + 0.08D,
+                gateway.getZ() + 0.5D + offsetZ,
+                -offsetX * 0.003D, 0.014D, -offsetZ * 0.003D);
     }
 
     public static void receive(GatewayPortalPayload payload) {
@@ -124,14 +160,17 @@ public final class AsterionPortalRenderer {
                     float pulse = 1.0F + (float) Math.sin(now * 0.0000000024D) * 0.006F;
                     float radius = CORE_RADIUS * pulse;
                     float openingScale = 0.08F + 0.92F * (1.0F - (float) Math.pow(1.0F - reveal, 3.0D));
-                    Matrix4f transform = ctx.worldToModel(cx, cy, cz)
-                            .scale(radius * openingScale, 1.0F, radius * openingScale);
+                    float layerScale = halo ? 1.28F : 1.0F;
+                    Matrix4f transform = ctx.worldToModel(cx, cy + (halo ? 0.006D : 0.0D), cz)
+                            .scale(radius * openingScale * layerScale, 1.0F,
+                                    radius * openingScale * layerScale);
                     double cameraHeight = Math.max(1.25D, Math.abs(camera.y - cy));
                     float viewX = (float) Mth.clamp(dx / cameraHeight, -1.6D, 1.6D);
                     float viewZ = (float) Mth.clamp(dz / cameraHeight, -1.6D, 1.6D);
+                    float flowTime = (now % 240_000_000_000L) * 0.000000001F;
                     batch.add(new PortalInstance(transform,
                             new Vector4f((float) cx, (float) cy, (float) cz, reveal),
-                            new Vector4f(viewX, viewZ, reveal, radius)));
+                            new Vector4f(viewX, viewZ, flowTime, halo ? 1.0F : 0.0F)));
                 })
                 .register(id);
     }

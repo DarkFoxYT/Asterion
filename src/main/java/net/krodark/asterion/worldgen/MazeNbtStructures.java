@@ -4,6 +4,10 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.krodark.asterion.Asterion;
+import net.krodark.asterion.GreekRune;
+import net.krodark.asterion.block.RuneBlock;
+import net.krodark.asterion.block.RuneBlockEntity;
+import net.krodark.asterion.block.RuneDoorBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
@@ -51,6 +55,33 @@ public final class MazeNbtStructures {
         Layout layout;
         synchronized (LAYOUTS) { layout = LAYOUTS.get(level); }
         if (layout != null) layout.placeNext(level);
+    }
+
+    /** Returns a checkpoint only when its lodestone belongs to a successfully placed NBT
+     * sanctuary. Player-placed lodestones can therefore never masquerade as safe rooms. */
+    public static BlockPos safeCheckpointNear(ServerLevel level, BlockPos position, double radius) {
+        Layout layout;
+        synchronized (LAYOUTS) { layout = LAYOUTS.get(level); }
+        return layout == null ? null : layout.safeCheckpointNear(level, position, radius);
+    }
+
+    public static BlockPos nearestSafeCheckpoint(ServerLevel level, BlockPos position) {
+        Layout layout;
+        synchronized (LAYOUTS) { layout = LAYOUTS.get(level); }
+        return layout == null ? null : layout.nearestSafeCheckpoint(level, position);
+    }
+
+    /** Nearest placed sanctuary regardless of whether its rune checkpoint has been activated. */
+    public static BlockPos nearestSafeHouse(ServerLevel level, BlockPos position) {
+        Layout layout;
+        synchronized (LAYOUTS) { layout = LAYOUTS.get(level); }
+        return layout == null ? null : layout.nearestSafeHouse(position);
+    }
+
+    public static boolean isSafeCheckpoint(ServerLevel level, BlockPos checkpoint) {
+        Layout layout;
+        synchronized (LAYOUTS) { layout = LAYOUTS.get(level); }
+        return layout != null && layout.isSafeCheckpoint(level, checkpoint);
     }
 
     /** Removes legacy copper once per maze chunk, including old generated decorations. */
@@ -208,6 +239,7 @@ public final class MazeNbtStructures {
         private final Map<Long, List<Placement>> anchorsByChunk = new HashMap<>();
         private final ArrayDeque<Placement> pending = new ArrayDeque<>();
         private final Set<BlockPos> queued = new HashSet<>();
+        private final Map<BlockPos, BlockPos> safeCheckpoints = new HashMap<>();
 
         private Layout(List<Placement> placements) {
             this.placements = placements;
@@ -238,7 +270,6 @@ public final class MazeNbtStructures {
             Placement placement = pending.pollFirst();
             if (placement == null) return;
             BlockPos marker = new BlockPos(placement.origin.getX(), 3, placement.origin.getZ());
-            if (level.getBlockState(marker).is(Blocks.REINFORCED_DEEPSLATE)) return;
             // Landmarks must not synchronously generate their entire footprint. Normal player
             // streaming loads those chunks; placement runs only once the complete area is ready.
             boolean footprintLoaded = placement.box.intersectingChunks().allMatch(
@@ -247,11 +278,157 @@ public final class MazeNbtStructures {
                 pending.addLast(placement);
                 return;
             }
+            if (level.getBlockState(marker).is(Blocks.REINFORCED_DEEPSLATE)) {
+                // Configuration is deliberately idempotent. Running it for already-placed rooms
+                // upgrades old placeholder runes and keeps their ring answer tied to world position.
+                configureSafeRoom(level, placement);
+                cacheSafeCheckpoint(level, placement);
+                return;
+            }
             boolean placed = placement.template.placeInWorld(level, placement.origin, placement.origin,
                     placement.settings, RandomSource.create(placement.seed), 2);
-            if (placed) sanitize(level, placement.box);
+            if (placed) {
+                sanitize(level, placement.box);
+                configureSafeRoom(level, placement);
+                cacheSafeCheckpoint(level, placement);
+            }
             else Asterion.LOGGER.warn("Failed to place maze NBT template {} at {}", placement.id, placement.origin);
             level.setBlock(marker, Blocks.REINFORCED_DEEPSLATE.defaultBlockState(), 2);
+        }
+
+        private void cacheSafeCheckpoint(ServerLevel level, Placement placement) {
+            if (!isSafeRoom(placement.id) || safeCheckpoints.containsKey(placement.origin)) return;
+            BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+            for (int y = placement.box.minY(); y <= placement.box.maxY(); y++)
+                for (int x = placement.box.minX(); x <= placement.box.maxX(); x++)
+                    for (int z = placement.box.minZ(); z <= placement.box.maxZ(); z++) {
+                        cursor.set(x, y, z);
+                        if (!level.getBlockState(cursor).is(Blocks.LODESTONE)) continue;
+                        safeCheckpoints.put(placement.origin, cursor.above().immutable());
+                        return;
+                    }
+        }
+
+        /** Converts the three template placeholders into the local ring and its two believable
+         * neighbours. The gate facing the Dead Sun remains locked; the approach sides stay open. */
+        private void configureSafeRoom(ServerLevel level, Placement placement) {
+            boolean safeRoom = isSafeRoom(placement.id);
+            List<BlockPos> plaques = new ArrayList<>();
+            List<BlockPos> gates = new ArrayList<>();
+            boolean roomSolved = false;
+            double centerX = (placement.box.minX() + placement.box.maxX()) * 0.5D;
+            double centerZ = (placement.box.minZ() + placement.box.maxZ()) * 0.5D;
+            for (int y = placement.box.minY(); y <= placement.box.maxY(); y++)
+                for (int x = placement.box.minX(); x <= placement.box.maxX(); x++)
+                    for (int z = placement.box.minZ(); z <= placement.box.maxZ(); z++) {
+                        BlockPos pos = new BlockPos(x, y, z);
+                        var state = level.getBlockState(pos);
+                        if (state.getBlock() instanceof RuneBlock) {
+                            plaques.add(pos);
+                            if (level.getBlockEntity(pos) instanceof RuneBlockEntity rune && rune.isSolved())
+                                roomSolved = true;
+                        }
+                        if (state.is(Asterion.RUNE_ZONE_DOOR)) gates.add(pos);
+            }
+            for (BlockPos pos : gates) {
+                var state = level.getBlockState(pos);
+                // Standalone rune gatehouses remain sealed until their own puzzle is solved.
+                // Safe rooms are gate-free, but old saves containing gates are upgraded open.
+                level.setBlock(pos, state.setValue(RuneDoorBlock.OPEN, roomSolved || safeRoom), 2);
+            }
+            plaques.sort(java.util.Comparator.comparingLong(BlockPos::asLong));
+            // Every NBT landmark may use rune_1 as an authoring placeholder. Resolve all sockets
+            // from the landmark's maze layer and seed, not just sockets in the built-in sanctuary.
+            int expected = GreekRune.forRadius(centerX, centerZ).ordinal();
+            int[] choices = expected == 0 ? new int[]{0, 1, 2}
+                    : expected == Asterion.RUNE_BLOCKS.length - 1
+                    ? new int[]{expected - 2, expected - 1, expected}
+                    : new int[]{expected - 1, expected, expected + 1};
+            int rotation = Math.floorMod((int)placement.seed, choices.length);
+            for (int i = 0; i < plaques.size(); i++) {
+                BlockPos pos = plaques.get(i);
+                var old = level.getBlockState(pos);
+                int choice = choices[(i + rotation) % choices.length];
+                var replacement = Asterion.RUNE_BLOCKS[choice].defaultBlockState()
+                        .setValue(RuneBlock.FACING, old.getValue(RuneBlock.FACING));
+                boolean wasSolved = level.getBlockEntity(pos) instanceof RuneBlockEntity rune && rune.isSolved();
+                if (!old.equals(replacement)) level.setBlock(pos, replacement, 3);
+                if (wasSolved && level.getBlockEntity(pos) instanceof RuneBlockEntity rune)
+                    rune.markSolved(0xFFFF9A3D);
+            }
+            if (safeRoom && plaques.size() == 3) {
+                Asterion.LOGGER.debug("Configured safe-room runes at {} as {}, {}, {} (answer {})",
+                        placement.origin, choices[rotation] + 1, choices[(rotation + 1) % 3] + 1,
+                        choices[(rotation + 2) % 3] + 1, expected + 1);
+            } else if (safeRoom) {
+                Asterion.LOGGER.warn("Safe room at {} has {} rune sockets; expected exactly 3",
+                        placement.origin, plaques.size());
+            }
+        }
+
+        private BlockPos safeCheckpointNear(ServerLevel level, BlockPos position, double radius) {
+            double radiusSquared = radius * radius;
+            BlockPos best = null;
+            double bestDistance = Double.MAX_VALUE;
+            for (BlockPos checkpoint : safeCheckpoints.values()) {
+                if (!isActivated(level, checkpoint)) continue;
+                double distance = checkpoint.distSqr(position);
+                if (distance <= radiusSquared && distance < bestDistance) {
+                    best = checkpoint;
+                    bestDistance = distance;
+                }
+            }
+            return best;
+        }
+
+        private BlockPos nearestSafeCheckpoint(ServerLevel level, BlockPos position) {
+            BlockPos best = null;
+            double bestDistance = Double.MAX_VALUE;
+            for (BlockPos checkpoint : safeCheckpoints.values()) {
+                if (!isActivated(level, checkpoint)) continue;
+                double distance = checkpoint.distSqr(position);
+                if (distance < bestDistance) {
+                    best = checkpoint;
+                    bestDistance = distance;
+                }
+            }
+            return best;
+        }
+
+        private BlockPos nearestSafeHouse(BlockPos position) {
+            BlockPos best = null;
+            double bestDistance = Double.MAX_VALUE;
+            for (BlockPos checkpoint : safeCheckpoints.values()) {
+                double distance = checkpoint.distSqr(position);
+                if (distance < bestDistance) {
+                    best = checkpoint;
+                    bestDistance = distance;
+                }
+            }
+            return best;
+        }
+
+        private boolean isSafeCheckpoint(ServerLevel level, BlockPos checkpoint) {
+            if (!level.getBlockState(checkpoint.below()).is(Blocks.LODESTONE) || !isActivated(level, checkpoint)) return false;
+            for (Placement placement : placements) {
+                if (!isSafeRoom(placement.id) || !placement.box.isInside(checkpoint.below())) continue;
+                BlockPos marker = new BlockPos(placement.origin.getX(), 3, placement.origin.getZ());
+                if (level.getBlockState(marker).is(Blocks.REINFORCED_DEEPSLATE)) {
+                    safeCheckpoints.put(placement.origin, checkpoint.immutable());
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static boolean isActivated(ServerLevel level, BlockPos checkpoint) {
+            for (BlockPos pos : BlockPos.betweenClosed(checkpoint.offset(-10, -4, -10), checkpoint.offset(10, 6, 10)))
+                if (level.getBlockEntity(pos) instanceof RuneBlockEntity rune && rune.isSolved()) return true;
+            return false;
+        }
+
+        private static boolean isSafeRoom(Identifier id) {
+            return id.getPath().contains("safe_room") || id.getPath().contains("sanctuary");
         }
     }
 

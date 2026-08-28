@@ -11,7 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public final class AsterionConfig {
-    private static final int CURRENT_VERSION = 17;
+    private static final int CURRENT_VERSION = 19;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("asterion.json");
     public static AsterionConfig INSTANCE = load();
@@ -22,7 +22,7 @@ public final class AsterionConfig {
     public int gatewayDistance = 5_000;
     public int mazeRadiusCells = 80;
     public int cellSize = 13;
-    public int wallThickness = 4;
+    public int wallThickness = 2;
     public int wallHeight = 30;
     public int floorThickness = 10;
     public int mazeLoopChance = 36;
@@ -53,6 +53,8 @@ public final class AsterionConfig {
     /** 0 low, 1 medium, 2 high. */
     public int dynamicLightQuality = 2;
     public boolean ragdollEquipment = true;
+    /** true uses repeated presses; false uses a continuous hold for forced ragdoll recovery. */
+    public boolean ragdollMashRecovery = false;
     public boolean enhancedLightning = true;
     public boolean deadSunEnabled = true;
     public boolean dustyAirEnabled = true;
@@ -200,6 +202,14 @@ public final class AsterionConfig {
                     config.dynamicLightQuality = 2;
                     config.ragdollEquipment = true;
                     config.enhancedLightning = true;
+                    changed = true;
+                }
+                if (!json.has("configVersion") || config.configVersion < 18) {
+                    config.ragdollMashRecovery = false;
+                    changed = true;
+                }
+                if (!json.has("configVersion") || config.configVersion < 19) {
+                    config.wallThickness = 2;
                     changed = true;
                 }
                 if (changed) {
