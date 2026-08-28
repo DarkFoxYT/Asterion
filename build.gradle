@@ -19,8 +19,8 @@ fabricApi {
 
 repositories {
     ivy {
-        name = "LocalAmnetic"
-        url = uri("../Amnetic/build/libs")
+        name = "BundledAmnetic"
+        url = uri("libs")
         patternLayout { artifact "[artifact]-[revision].[ext]" }
         metadataSources { artifact() }
     }
@@ -45,8 +45,8 @@ dependencies {
 
     implementation "com.terraformersmc:modmenu:${project.modmenu_version}"
 
-    // Compile against Amnetic and package it as a Fabric nested jar so distributing Asterion's
-    // output does not require users to install a second loose mod jar.
+    // The pinned Amnetic build is committed with this project: no sibling checkout, local Maven
+    // publication, or machine-specific path is needed. Loom nests it in the distributable JAR.
     implementation "net.krodark:amnetic:1.0-SNAPSHOT"
     include "net.krodark:amnetic:1.0-SNAPSHOT"
 
