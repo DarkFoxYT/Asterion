@@ -1,1 +1,4 @@
-{"elements":[]}
+{
+  "textures": {"particle": "asterion:block/ancient_stone"},
+  "elements": []
+}
