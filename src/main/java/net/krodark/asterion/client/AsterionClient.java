@@ -62,6 +62,11 @@ public final class AsterionClient implements ClientModInitializer {
                 }));
         ClientPlayNetworking.registerGlobalReceiver(BossTelegraphPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> MazeZapRenderer.receiveTelegraph(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(BossEncounterResetPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> {
+                    MazeZapRenderer.clearTransientCombatEffects();
+                    MazeObjectiveOverlay.armAfterBossWipe();
+                }));
         ClientPlayNetworking.registerGlobalReceiver(DazePayload.TYPE, (payload, context) ->
                 context.client().execute(() -> DazeOverlay.begin(payload)));
         ClientPlayNetworking.registerGlobalReceiver(RagdollImpulsePayload.TYPE, (payload, context) ->

@@ -163,6 +163,13 @@ public final class MazeZapRenderer {
                 now + Math.max(1, payload.durationTicks()), now * 7919L + TELEGRAPHS.size()));
     }
 
+    public static void clearTransientCombatEffects() {
+        STRIKES.forEach(Strike::removeLights);
+        STRIKES.clear();
+        GROUND_STRIKES.clear();
+        TELEGRAPHS.clear();
+    }
+
     private static void tick(Minecraft client) {
         if (client.level == null || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) {
             STRIKES.forEach(Strike::removeLights);

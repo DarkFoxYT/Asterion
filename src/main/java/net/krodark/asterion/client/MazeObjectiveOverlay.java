@@ -41,6 +41,16 @@ public final class MazeObjectiveOverlay {
         pitObjective = false;
     }
 
+    public static void armAfterBossWipe() {
+        armed = false;
+        sawTumble = false;
+        visible = true;
+        waitTicks = 0;
+        visibleTicks = 0;
+        completionTicks = 0;
+        pitObjective = false;
+    }
+
     public static void tick(Minecraft client) {
         if (client.level == null || client.player == null
                 || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) {

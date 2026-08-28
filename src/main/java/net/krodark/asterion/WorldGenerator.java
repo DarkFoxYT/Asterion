@@ -224,13 +224,13 @@ public final class WorldGenerator {
     /** Rewinds an unfinished center encounter when an entrant dies in its pit. The persistent
      * victory flag is deliberately untouched, while transient boss/arena state is rebuilt so
      * walking back into the pit starts the complete interception sequence again. */
-    public static void resetBossEncounterAfterDeath(ServerPlayer deadPlayer) {
+    public static boolean resetBossEncounterAfterDeath(ServerPlayer deadPlayer) {
         if (!(deadPlayer.level() instanceof ServerLevel maze)
                 || !maze.dimension().equals(Asterion.ASTERION_LEVEL)
-                || AsterionWorldState.get(maze).minotaurDefeated()) return;
+                || AsterionWorldState.get(maze).minotaurDefeated()) return false;
         boolean pitDeath = isInsideBossArena(deadPlayer.position())
                 || (BOSS_ENTRANTS.contains(deadPlayer.getUUID()) && isBossEncounterActive(maze));
-        if (!pitDeath) return;
+        if (!pitDeath) return false;
 
         for (Entity entity : maze.getAllEntities()) {
             if (entity instanceof MinotaurEntity minotaur
@@ -239,16 +239,27 @@ public final class WorldGenerator {
         }
         BOSS_ENTRANTS.clear();
         bossFinale = null;
-
-        // The arena shell is already present. Re-queue its authored pillars, roof, and ritual
-        // details incrementally instead of synchronously rewriting the whole center on respawn.
-        bossArenaPrepared = true;
-        bossArenaBuild = new BossArenaBuild(AsterionConfig.INSTANCE.minotaurBossPillarCount);
-        queueBossRoomGrowth(bossArenaBuild);
+        clearBossArenaTransientState(maze);
+        rebuildBossArena(maze);
         ELECTRIFIED.remove(deadPlayer.getUUID());
         WARD_FALL_PROTECTION.remove(deadPlayer.getUUID());
         Asterion.LOGGER.info("Reset unfinished Minotaur encounter after {} died in the central pit",
                 deadPlayer.getGameProfile().name());
+        return true;
+    }
+
+    private static void clearBossArenaTransientState(ServerLevel level) {
+        int outer = PIT_HALF_WIDTH + PIT_WALL_THICKNESS + 2;
+        AABB arena = new AABB(-outer, BOSS_FLOOR_Y - 20, -outer,
+                outer + 1, DIMENSION_CEILING_Y + 1, outer + 1);
+        for (Entity entity : level.getAllEntities()) {
+            if (entity instanceof FallingBlockEntity && arena.intersects(entity.getBoundingBox()))
+                entity.discard();
+        }
+        DECAYING_BLOCKS.removeIf(entry -> entry.dimension.equals(level.dimension())
+                && arena.contains(Vec3.atCenterOf(entry.pos)));
+        RESTORING_BLOCKS.removeIf(entry -> entry.dimension.equals(level.dimension())
+                && arena.contains(Vec3.atCenterOf(entry.pos)));
     }
 
     public static boolean isNearSafeRune(ServerLevel level, BlockPos center) {
@@ -1012,6 +1023,10 @@ public final class WorldGenerator {
 
     private static void prepareAndSealBossArena(ServerLevel level) {
         if (bossArenaPrepared) return;
+        rebuildBossArena(level);
+    }
+
+    private static void rebuildBossArena(ServerLevel level) {
         bossArenaPrepared = true;
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         int outer = PIT_HALF_WIDTH + PIT_WALL_THICKNESS;
@@ -1262,6 +1277,22 @@ public final class WorldGenerator {
                         : Blocks.DEEPSLATE_TILES.defaultBlockState(), 2);
             }
         }
+    }
+
+    /** Clears only isolated knee-high debris; tall masonry remains a real charge collision. */
+    public static int clearLowBossChargeObstacle(ServerLevel level, AABB impact) {
+        int cleared = 0;
+        for (int x = Mth.floor(impact.minX); x <= Mth.floor(impact.maxX); x++)
+            for (int z = Mth.floor(impact.minZ); z <= Mth.floor(impact.maxZ); z++)
+                for (int y = BOSS_FLOOR_Y + 1; y <= BOSS_FLOOR_Y + 4; y++) {
+                BlockPos pos = new BlockPos(x, y, z);
+                BlockState state = level.getBlockState(pos);
+                if (!(state.is(Blocks.COBBLED_DEEPSLATE) || state.is(Blocks.TUFF)
+                        || state.is(Blocks.COBBLESTONE) || state.is(Blocks.GRAVEL))) continue;
+                level.destroyBlock(pos, false);
+                cleared++;
+            }
+        return cleared;
     }
 
     public static void collapseBossRoofRing(ServerLevel level, Vec3 origin, int radius) {

@@ -22,6 +22,7 @@ import net.krodark.asterion.network.DeadSunEventPayload;
 import net.krodark.asterion.network.MazeShiftPayload;
 import net.krodark.asterion.network.DeadSunStrikePayload;
 import net.krodark.asterion.network.BossTelegraphPayload;
+import net.krodark.asterion.network.BossEncounterResetPayload;
 import net.krodark.asterion.network.DazePayload;
 import net.krodark.asterion.network.ragdoll.*;
 import net.krodark.asterion.entity.MinotaurEntity;
@@ -167,6 +168,7 @@ public class Asterion implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(MazeShiftPayload.TYPE, MazeShiftPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(DeadSunStrikePayload.TYPE, DeadSunStrikePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(BossTelegraphPayload.TYPE, BossTelegraphPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(BossEncounterResetPayload.TYPE, BossEncounterResetPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(DazePayload.TYPE, DazePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RagdollImpulsePayload.TYPE, RagdollImpulsePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RagdollPosePayload.TYPE, RagdollPosePayload.CODEC);
@@ -201,8 +203,12 @@ public class Asterion implements ModInitializer {
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
             if (oldPlayer.level().dimension().equals(ASTERION_LEVEL)) {
                 BlockPos deathPosition = oldPlayer.blockPosition().immutable();
-                WorldGenerator.resetBossEncounterAfterDeath(oldPlayer);
+                boolean bossWipe = WorldGenerator.resetBossEncounterAfterDeath(oldPlayer);
                 WorldGenerator.respawnAtRune(newPlayer, deathPosition);
+                if (bossWipe && net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(
+                        newPlayer, BossEncounterResetPayload.TYPE))
+                    net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(
+                            newPlayer, BossEncounterResetPayload.INSTANCE);
             }
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(WorldGenerator::clearRuntimeState);

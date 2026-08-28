@@ -51,9 +51,12 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /** Purpose-built maze predator controller: Eclipse hunting, committed chase, and center boss combat. */
@@ -136,6 +139,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private BossStage bossStage = BossStage.PILLARS;
     private int collapseTicks;
     private int riposteTicks;
+    private int bossStunTicks;
     private UUID grabbedPlayer;
     private GrabThrowStyle grabThrowStyle = GrabThrowStyle.ARENA;
     private int bossPressureHits;
@@ -143,6 +147,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private int cornerPressureTicks;
     private int hitReactionCooldown;
     private boolean bossWasAirborne;
+    private final Set<BlockPos> bossFireBlocks = new HashSet<>();
     private StalkMode stalkMode = StalkMode.SHADOWING;
     private Vec3 lastKnownPlayerPosition;
     private Vec3 stalkingDestination;
@@ -167,7 +172,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     /** Deliberate sub-phases keep the hunt readable: trail, watch, then flank for an ambush. */
     private enum StalkMode { PATROLLING, SHADOWING, OBSERVING, FLANKING, INTERCEPTING, VANISHING }
     private enum BossAttack { NONE, CLEAVE, CHARGE, SLAM, LEAP, SWORD_COMBO, SPIN_COMBO, GRAB,
-        RED_LIGHTNING_CHARGE, PAWING, STAMPEDE, BACK_KICK, ARENA_SWEEP, RUBBLE_THROW, WALL_SHOVE }
+        RED_LIGHTNING_CHARGE, PAWING, STAMPEDE, BACK_KICK, ARENA_SWEEP, RUBBLE_THROW, WALL_SHOVE,
+        FIRE_RINGS }
     private enum BossStage { PILLARS, COLLAPSE, EXTREME, DEFEATED }
     private enum GrabThrowStyle { ARENA, SKY }
     public enum AnimationState { IDLE, WALK, WARNING, CHASE, ATTACK, VERTICAL_ATTACK, SWORD, SPIN, LEAP }
@@ -1165,7 +1171,18 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         trackedPlayerVelocity = trackedPlayerVelocity.lerp(
                 new Vec3(player.getDeltaMovement().x, 0.0D, player.getDeltaMovement().z), 0.24D);
         syncBossBars(level);
-        if (bossStage == BossStage.EXTREME && phaseTicks % 160 == 0) increaseRage(1);
+        if (bossStunTicks > 0) {
+            bossStunTicks--;
+            riposteTicks = Math.max(riposteTicks, bossStunTicks + 1);
+            setAggressive(false);
+            getNavigation().stop();
+            setDeltaMovement(getDeltaMovement().multiply(0.08D, 1.0D, 0.08D));
+            if ((bossStunTicks & 5) == 0)
+                level.sendParticles(ParticleTypes.CRIT, getX(), getY() + getBbHeight() * 0.72D,
+                        getZ(), 5, 0.7D, 0.35D, 0.7D, 0.05D);
+            return;
+        }
+        if (bossStage == BossStage.EXTREME && phaseTicks % 240 == 0) increaseRage(1);
         if (riposteTicks > 0) riposteTicks--;
         if (bossPressureWindowTicks > 0) bossPressureWindowTicks--;
         if (hitReactionCooldown <= 0) bossPressureHits = 0;
@@ -1382,7 +1399,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         return BossAttack.NONE;
     }
 
-    /** Phase two is selected by combat context instead of a random attack table. */
+    /** Context builds the pool, randomness supplies variety, and the previous move is excluded. */
     private BossAttack chooseExtremeAttack(ServerPlayer player, double distance) {
         double playerSpeed = player.getDeltaMovement().horizontalDistance();
         double arenaRadius = Math.sqrt(player.getX() * player.getX() + player.getZ() * player.getZ());
@@ -1391,38 +1408,33 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         Vec3 horizontalToPlayer = new Vec3(toPlayer.x, 0.0D, toPlayer.z);
         double facingDot = horizontalToPlayer.lengthSqr() < 0.01D ? 1.0D
                 : horizontalToPlayer.normalize().dot(new Vec3(forward.x, 0.0D, forward.z).normalize());
-        BossAttack choice = BossAttack.CLEAVE;
+        List<BossAttack> choices = new ArrayList<>();
         if (distance < 4.8D && facingDot < -0.28D && attackReady(BossAttack.BACK_KICK))
-            choice = BossAttack.BACK_KICK;
-        else if (arenaRadius > 24.0D && distance < 6.0D && attackReady(BossAttack.WALL_SHOVE))
-            choice = BossAttack.WALL_SHOVE;
-        else if (distance > 18.0D && attackReady(BossAttack.STAMPEDE))
-            choice = BossAttack.STAMPEDE;
-        else if (distance > 12.0D && attackReady(BossAttack.RUBBLE_THROW)
+            choices.add(BossAttack.BACK_KICK);
+        if (arenaRadius > 24.0D && distance < 6.0D && attackReady(BossAttack.WALL_SHOVE))
+            choices.add(BossAttack.WALL_SHOVE);
+        if (distance > 18.0D && attackReady(BossAttack.STAMPEDE)) choices.add(BossAttack.STAMPEDE);
+        if (distance > 12.0D && attackReady(BossAttack.RUBBLE_THROW)
                 && trackedPlayerVelocity.horizontalDistanceSqr() < 0.035D)
-            choice = BossAttack.RUBBLE_THROW;
-        else if (distance > 12.0D && attackReady(BossAttack.LEAP))
-            choice = BossAttack.LEAP;
-        else if (rage() >= 7 && distance >= 7.0D && distance <= 18.0D
+            choices.add(BossAttack.RUBBLE_THROW);
+        if (distance > 12.0D && attackReady(BossAttack.LEAP)) choices.add(BossAttack.LEAP);
+        if (rage() >= 7 && distance >= 7.0D && distance <= 18.0D
                 && attackReady(BossAttack.RED_LIGHTNING_CHARGE))
-            choice = BossAttack.RED_LIGHTNING_CHARGE;
-        else if ((distance < 3.7D && playerSpeed < 0.16D
+            choices.add(BossAttack.RED_LIGHTNING_CHARGE);
+        if ((distance < 3.7D && playerSpeed < 0.16D
                 || player.getY() > getY() + 1.8D && canArmReach(player))
                 && attackReady(BossAttack.GRAB))
-            choice = BossAttack.GRAB;
-        else if (distance < 7.0D && playerSpeed > 0.24D && attackReady(BossAttack.SPIN_COMBO)
-                && random.nextFloat() < 0.32F)
-            choice = BossAttack.SPIN_COMBO;
-        else if (distance < 6.2D && attackReady(BossAttack.CLEAVE))
-            choice = BossAttack.CLEAVE;
-        else if (distance < 9.0D && attackReady(BossAttack.SLAM))
-            choice = BossAttack.SLAM;
-        else if (distance < 24.0D && attackReady(BossAttack.ARENA_SWEEP))
-            choice = BossAttack.ARENA_SWEEP;
-        else if (attackReady(BossAttack.CHARGE)) choice = BossAttack.CHARGE;
-        if (choice == lastBossAttack || !attackReady(choice))
-            choice = attackReady(BossAttack.CLEAVE) ? BossAttack.CLEAVE : BossAttack.SLAM;
-        return choice;
+            choices.add(BossAttack.GRAB);
+        if (distance < 7.0D && playerSpeed > 0.24D && attackReady(BossAttack.SPIN_COMBO))
+            choices.add(BossAttack.SPIN_COMBO);
+        if (distance < 8.0D && attackReady(BossAttack.CLEAVE)) choices.add(BossAttack.CLEAVE);
+        if (distance < 11.0D && attackReady(BossAttack.SLAM)) choices.add(BossAttack.SLAM);
+        if (distance < 24.0D && attackReady(BossAttack.ARENA_SWEEP)) choices.add(BossAttack.ARENA_SWEEP);
+        if (distance >= 7.0D && attackReady(BossAttack.FIRE_RINGS)) choices.add(BossAttack.FIRE_RINGS);
+        if (distance >= 9.0D && attackReady(BossAttack.CHARGE)) choices.add(BossAttack.CHARGE);
+        choices.removeIf(attack -> attack == lastBossAttack);
+        if (choices.isEmpty()) return attackReady(BossAttack.CLEAVE) ? BossAttack.CLEAVE : BossAttack.SLAM;
+        return choices.get(random.nextInt(choices.size()));
     }
 
     private boolean attackReady(BossAttack attack) {
@@ -1437,7 +1449,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         getNavigation().stop();
         bossAttackLockouts[attack.ordinal()] = switch (attack) {
             case GRAB -> 240;
-            case ARENA_SWEEP, STAMPEDE, RED_LIGHTNING_CHARGE -> 190;
+            case ARENA_SWEEP, STAMPEDE, RED_LIGHTNING_CHARGE, FIRE_RINGS -> 190;
             case LEAP, RUBBLE_THROW, WALL_SHOVE -> 145;
             case SPIN_COMBO, SWORD_COMBO -> 125;
             case CHARGE, SLAM -> 95;
@@ -1571,6 +1583,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                                 5, 0.65D, 0.12D, 0.65D, 0.025D);
                     AABB impact = getBoundingBox().expandTowards(bossChargeDirection.scale(1.8D))
                             .inflate(0.35D, 0.25D, 0.35D);
+                    WorldGenerator.clearLowBossChargeObstacle(level, impact);
                     if (bossStage == BossStage.PILLARS && WorldGenerator.breakBossPillar(level, impact)) {
                         increaseRage(1);
                         applyBossCollisionDamage(level, true);
@@ -1579,6 +1592,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                         level.sendParticles(ParticleTypes.EXPLOSION, getX(), getY() + 1.0D, getZ(),
                                 8, 1.0D, 1.4D, 1.0D, 0.04D);
                         riposteTicks = 24;
+                        bossStunTicks = 52;
                         finishBossAttack(46);
                         return;
                     }
@@ -1590,20 +1604,23 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                         WorldGenerator.scarBossArena(level, position(), 4);
                         playSound(SoundEvents.RAVAGER_ATTACK, 2.5F, 0.42F);
                         riposteTicks = 28;
+                        bossStunTicks = 58;
                         finishBossAttack(44);
                         return;
                     }
                     if (horizontalCollision) {
+                        if (WorldGenerator.clearLowBossChargeObstacle(level, impact) > 0) return;
                         applyBossCollisionDamage(level, false);
                         recoverFromArenaImpact();
                         setDeltaMovement(bossChargeDirection.scale(-0.24D).add(0.0D, 0.16D, 0.0D));
                         riposteTicks = 30;
+                        bossStunTicks = 58;
                         finishBossAttack(44);
                         return;
                     }
                     if (attackCooldown <= 0 && getBoundingBox().inflate(0.8D).intersects(player.getBoundingBox())) {
-                        player.hurtServer(level, damageSources().mobAttack(this), 18.0F);
-                        ragdollPlayer(player, bossChargeDirection.scale(2.8D).add(0, 0.55D, 0), 1.35F);
+                        if (player.hurtServer(level, damageSources().mobAttack(this), 18.0F))
+                            ragdollPlayer(player, bossChargeDirection.scale(2.8D).add(0, 0.55D, 0), 1.35F);
                         attackCooldown = 18;
                     }
                 }
@@ -1616,6 +1633,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             case ARENA_SWEEP -> tickArenaSweep(level);
             case RUBBLE_THROW -> tickRubbleThrow(level, player);
             case WALL_SHOVE -> tickWallShove(level, player);
+            case FIRE_RINGS -> tickFireRings(level);
             case LEAP -> tickLeapAttack(level, player);
             case SWORD_COMBO -> {
                 if (bossAttackTicks == 14 || bossAttackTicks == 27)
@@ -1684,6 +1702,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             setDeltaMovement(bossChargeDirection.x * speed, getDeltaMovement().y,
                     bossChargeDirection.z * speed);
             AABB impact = getBoundingBox().expandTowards(bossChargeDirection.scale(2.5D)).inflate(0.7D);
+            WorldGenerator.clearLowBossChargeObstacle(level, impact);
             int smashed = WorldGenerator.breakBossArenaWallAround(level, impact, this);
             if (smashed > 0) {
                 applyBossCollisionDamage(level, false);
@@ -1692,12 +1711,13 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 level.sendParticles(ParticleTypes.EXPLOSION, getX(), getY() + 0.8D, getZ(),
                         5, 1.1D, 0.8D, 1.1D, 0.08D);
                 riposteTicks = 34;
+                bossStunTicks = 62;
                 finishBossAttack(58);
                 return;
             }
             if (attackCooldown <= 0 && impact.intersects(player.getBoundingBox())) {
-                player.hurtServer(level, damageSources().mobAttack(this), 22.0F);
-                ragdollPlayer(player, bossChargeDirection.scale(3.7D).add(0.0D, 0.65D, 0.0D), 1.75F);
+                if (player.hurtServer(level, damageSources().mobAttack(this), 22.0F))
+                    ragdollPlayer(player, bossChargeDirection.scale(3.7D).add(0.0D, 0.65D, 0.0D), 1.75F);
                 attackCooldown = 30;
             }
             if ((bossAttackTicks & 1) == 0)
@@ -1717,8 +1737,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 Vec3 delta = victim.position().subtract(position());
                 Vec3 horizontal = new Vec3(delta.x, 0.0D, delta.z);
                 if (horizontal.lengthSqr() < 0.01D || horizontal.normalize().dot(rear) < 0.30D) continue;
-                victim.hurtServer(level, damageSources().mobAttack(this), 16.0F);
-                ragdollPlayer(victim, rear.scale(2.9D).add(0.0D, 1.0D, 0.0D), 1.45F);
+                if (victim.hurtServer(level, damageSources().mobAttack(this), 16.0F))
+                    ragdollPlayer(victim, rear.scale(2.9D).add(0.0D, 1.0D, 0.0D), 1.45F);
             }
             playSound(SoundEvents.RAVAGER_ATTACK, 2.7F, 0.66F);
         }
@@ -1742,14 +1762,59 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 Vec3 horizontal = new Vec3(delta.x, 0.0D, delta.z);
                 if (horizontal.length() > 31.0D || horizontal.lengthSqr() < 0.01D
                         || horizontal.normalize().dot(bossChargeDirection) < 0.0D) continue;
-                victim.hurtServer(level, damageSources().mobAttack(this), 17.0F);
+                boolean damaged = victim.hurtServer(level, damageSources().mobAttack(this), 17.0F);
                 Vec3 tangent = new Vec3(-bossChargeDirection.z, 0.0D, bossChargeDirection.x);
-                ragdollPlayer(victim, tangent.scale(3.0D).add(0.0D, 0.7D, 0.0D), 1.55F);
+                if (damaged) ragdollPlayer(victim, tangent.scale(3.0D).add(0.0D, 0.7D, 0.0D), 1.55F);
             }
             WorldGenerator.scarBossArena(level, position().add(bossChargeDirection.scale(12.0D)), 12);
             playSound(SoundEvents.GENERIC_EXPLODE.value(), 4.0F, 0.52F);
         }
         if (bossAttackTicks >= 52) finishBossAttack(58);
+    }
+
+    private void tickFireRings(ServerLevel level) {
+        setDeltaMovement(getDeltaMovement().multiply(0.05D, 1.0D, 0.05D));
+        if (bossAttackTicks == 1) {
+            clearBossFire(level);
+            playRoar(3.2F, 0.62F, 0.75F);
+        }
+        if (bossAttackTicks >= 18 && bossAttackTicks <= 78 && bossAttackTicks % 4 == 2)
+            igniteBossRing(level, 2 + (bossAttackTicks - 18) / 4);
+        if (bossAttackTicks >= 108) {
+            clearBossFire(level);
+            riposteTicks = 34;
+            finishBossAttack(62);
+        }
+    }
+
+    private void igniteBossRing(ServerLevel level, int radius) {
+        BlockPos center = blockPosition();
+        int floorY = Mth.floor(getY()) - 1;
+        for (int x = -radius; x <= radius; x++) for (int z = -radius; z <= radius; z++) {
+            double distance = Math.sqrt(x * x + z * z);
+            if (Math.abs(distance - radius) > 0.55D) continue;
+            BlockPos fire = new BlockPos(center.getX() + x, floorY + 1, center.getZ() + z);
+            if (level.getBlockState(fire).isAir() && level.getBlockState(fire.below()).isFaceSturdy(
+                    level, fire.below(), Direction.UP)) {
+                level.setBlock(fire, Blocks.FIRE.defaultBlockState(), 2);
+                bossFireBlocks.add(fire);
+            }
+        }
+        for (ServerPlayer victim : level.players()) {
+            double horizontal = victim.position().subtract(position()).horizontalDistance();
+            if (Math.abs(horizontal - radius) <= 0.9D && victim.getY() <= floorY + 1.35D) {
+                if (victim.hurtServer(level, damageSources().mobAttack(this), 4.0F))
+                    victim.igniteForSeconds(2.0F);
+            }
+        }
+        level.sendParticles(ParticleTypes.FLAME, getX(), floorY + 1.12D, getZ(),
+                Math.max(12, radius * 3), radius * 0.65D, 0.04D, radius * 0.65D, 0.02D);
+    }
+
+    private void clearBossFire(ServerLevel level) {
+        for (BlockPos pos : bossFireBlocks)
+            if (level.getBlockState(pos).is(Blocks.FIRE)) level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2);
+        bossFireBlocks.clear();
     }
 
     private void tickRubbleThrow(ServerLevel level, ServerPlayer player) {
@@ -1790,8 +1855,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             Vec3 outward = new Vec3(player.getX(), 0.0D, player.getZ());
             if (outward.lengthSqr() < 0.01D) outward = player.position().subtract(position());
             outward = new Vec3(outward.x, 0.0D, outward.z).normalize();
-            player.hurtServer(level, damageSources().mobAttack(this), 12.0F);
-            ragdollPlayer(player, outward.scale(3.4D).add(0.0D, 0.35D, 0.0D), 1.65F);
+            if (player.hurtServer(level, damageSources().mobAttack(this), 12.0F))
+                ragdollPlayer(player, outward.scale(3.4D).add(0.0D, 0.35D, 0.0D), 1.65F);
             playSound(SoundEvents.RAVAGER_ATTACK, 3.0F, 0.44F);
         }
         if (bossAttackTicks == 24 && distanceTo(player) < 10.0D) {
@@ -1817,6 +1882,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                     bossChargeDirection.z * speed);
             AABB impact = getBoundingBox().expandTowards(bossChargeDirection.scale(2.2D))
                     .inflate(0.55D, 0.35D, 0.55D);
+            WorldGenerator.clearLowBossChargeObstacle(level, impact);
             int smashed = WorldGenerator.breakBossArenaWallAround(level, impact, this);
             if (smashed > 0) {
                 recoverFromArenaImpact();
@@ -2007,7 +2073,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             updateChaseSpeed();
             // The Dead Sun visibly restores him for phase two; its current is what keeps the
             // second health pool alive, while phase one was governed entirely by the pillars.
-            setHealth(getMaxHealth());
+            setHealth(getMaxHealth() * 0.70F);
             playRoar(4.5F, 1.12F, 1.45F);
             level.sendParticles(ParticleTypes.FLAME, getX(), getY() + getBbHeight() * 0.45D, getZ(),
                     80, 1.4D, 2.2D, 1.4D, 0.08D);
@@ -2056,8 +2122,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 3, 2.0D, 0.4D, 2.0D, 0.05D);
         for (ServerPlayer victim : level.getEntitiesOfClass(ServerPlayer.class, getBoundingBox().inflate(7.5D))) {
             Vec3 away = victim.position().subtract(position());
-            victim.hurtServer(level, damageSources().mobAttack(this), 18.0F);
-            ragdollPlayer(victim, new Vec3(away.x, 0, away.z).normalize().scale(1.9D).add(0, 1.15D, 0), 1.4F);
+            if (victim.hurtServer(level, damageSources().mobAttack(this), 18.0F))
+                ragdollPlayer(victim, new Vec3(away.x, 0, away.z).normalize().scale(1.9D).add(0, 1.15D, 0), 1.4F);
         }
         for (ServerPlayer viewer : level.players())
             if (ServerPlayNetworking.canSend(viewer, RagdollExplosionPayload.TYPE))
@@ -2073,8 +2139,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             Vec3 horizontal = new Vec3(delta.x, 0, delta.z);
             if (horizontal.lengthSqr() < 0.01D || horizontal.normalize()
                     .dot(new Vec3(facing.x, 0, facing.z).normalize()) < 0.10D) continue;
-            victim.hurtServer(level, damageSources().mobAttack(this), damage);
-            ragdollPlayer(victim, horizontal.normalize().scale(force).add(0, 0.4D, 0), 1.2F);
+            if (victim.hurtServer(level, damageSources().mobAttack(this), damage))
+                ragdollPlayer(victim, horizontal.normalize().scale(force).add(0, 0.4D, 0), 1.2F);
         }
         level.sendParticles(ParticleTypes.SWEEP_ATTACK, getX() + facing.x * 2.0D,
                 getY() + getBbHeight() * 0.5D, getZ() + facing.z * 2.0D,
@@ -2085,8 +2151,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         WorldGenerator.scarBossArena(level, position(), 5);
         for (ServerPlayer victim : level.getEntitiesOfClass(ServerPlayer.class, getBoundingBox().inflate(6.5D))) {
             Vec3 away = victim.position().subtract(position());
-            victim.hurtServer(level, damageSources().mobAttack(this), 13.0F);
-            ragdollPlayer(victim, new Vec3(away.x, 0, away.z).normalize().scale(2.1D).add(0, 0.45D, 0), 1.3F);
+            if (victim.hurtServer(level, damageSources().mobAttack(this), 13.0F))
+                ragdollPlayer(victim, new Vec3(away.x, 0, away.z).normalize().scale(2.1D).add(0, 0.45D, 0), 1.3F);
         }
         level.sendParticles(ParticleTypes.SWEEP_ATTACK, getX(), getY() + getBbHeight() * 0.48D, getZ(),
                 10, 2.8D, 0.7D, 2.8D, 0.0D);
@@ -2171,6 +2237,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     private void finishBossAttack(int cooldown) {
+        if (bossAttack == BossAttack.FIRE_RINGS && level() instanceof ServerLevel level)
+            clearBossFire(level);
         if (bossAttack == BossAttack.GRAB) {
             grabbedPlayer = null;
             getEntityData().set(DATA_GRAB_TARGET_ID, -1);
@@ -2180,7 +2248,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         setBossAttack(BossAttack.NONE);
         // Rage changes movement and pressure, not animation readability. Every committed attack
         // gets a real recovery window so the fight cannot collapse into an input-locking chain.
-        bossAttackCooldown = Math.max(34, cooldown + 14 - rage() / 3);
+        int minimumRecovery = bossStage == BossStage.EXTREME ? 44 : 34;
+        bossAttackCooldown = Math.max(minimumRecovery, cooldown + 14 - rage() / 3);
         bossAttackTicks = 0;
         getEntityData().set(DATA_BOSS_ATTACK_TICKS, 0);
     }
@@ -2622,8 +2691,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 playSound(SoundEvents.RAVAGER_HURT, 1.45F, 0.48F);
                 return true;
             }
-            float spamResistance = 1.0F / (1.0F + Math.max(0, bossPressureHits - 2) * 0.24F);
-            float dealt = Math.max(0.75F, amount * (exposed ? 1.65F : 0.62F) * spamResistance);
+            float spamResistance = 1.0F / (1.0F + Math.max(0, bossPressureHits - 3) * 0.16F);
+            float dealt = Math.max(0.9F, amount * (exposed ? 1.8F : 0.72F) * spamResistance);
             float remaining = getHealth() - dealt;
             if (bossStage != BossStage.EXTREME) remaining = Math.max(80.0F, remaining);
             setHealth(Math.max(1.0F, remaining));
