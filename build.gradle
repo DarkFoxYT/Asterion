@@ -18,10 +18,22 @@ fabricApi {
 }
 
 repositories {
-    exclusiveContent {
-        forRepository { maven { url = "https://maven.ryanhcode.dev/releases" } }
-        filter { includeGroup("foundry.imguimc") }
+    ivy {
+        name = "LocalAmnetic"
+        url = uri("../Amnetic/build/libs")
+        patternLayout { artifact "[artifact]-[revision].[ext]" }
+        metadataSources { artifact() }
     }
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "GeckoLib"
+                url = "https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/"
+            }
+        }
+        filter { includeGroupAndSubgroups "com.geckolib" }
+    }
+    maven { name = "Terraformers"; url = "https://maven.terraformersmc.com/releases/" }
 }
 
 dependencies {
@@ -29,13 +41,14 @@ dependencies {
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    implementation "com.geckolib:geckolib-fabric-${project.minecraft_version}:${project.geckolib_version}"
 
-    compileOnly "foundry.imguimc:imguimc-fabric-26.1:${project.imguimc_version}"
-    compileOnly "io.github.spair:imgui-java-binding:${project.imgui_version}"
-    localRuntime "foundry.imguimc:imguimc-fabric-26.1:${project.imguimc_version}"
+    implementation "com.terraformersmc:modmenu:${project.modmenu_version}"
 
-    compileOnly files("../Amnetic/build/libs/amnetic-1.0-SNAPSHOT.jar")
-    localRuntime files("../Amnetic/build/libs/amnetic-1.0-SNAPSHOT.jar")
+    // Compile against Amnetic and package it as a Fabric nested jar so distributing Asterion's
+    // output does not require users to install a second loose mod jar.
+    implementation "net.krodark:amnetic:1.0-SNAPSHOT"
+    include "net.krodark:amnetic:1.0-SNAPSHOT"
 
 }
 
@@ -88,10 +101,10 @@ publishing {
 }
 
 tasks.register("rebuildStructureTemplates", JavaExec) {
-    group = "labyrinth"
+    group = "asterion"
     description = "Rebuilds editable structure blueprints into vanilla structure-template NBT files."
     dependsOn compileJava
     classpath = sourceSets.main.runtimeClasspath
-    mainClass = "net.krodark.labyrinth.dev.RuinTemplateBuilder"
-    args file("src/main/resources/data/labyrinth/structure/underwater_ruin.nbt").absolutePath
+    mainClass = "net.krodark.asterion.dev.RuinTemplateBuilder"
+    args file("src/main/resources/data/asterion/structure/underwater_ruin.nbt").absolutePath
 }

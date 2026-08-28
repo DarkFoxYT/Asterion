@@ -1,33 +1,36 @@
 {
   "schemaVersion": 1,
-  "id": "labyrinth",
+  "id": "asterion",
   "version": "${version}",
-  "name": "Labyrinth",
-  "description": "Minautor",
+  "name": "Asterion",
+  "description": "Minotaur",
   "authors": [],
   "contact": {},
   "license": "All-Rights-Reserved",
-  "icon": "assets/labyrinth/icon.png",
+  "icon": "assets/asterion/icon.png",
   "environment": "*",
   "entrypoints": {
     "fabric-datagen": [
-      "net.krodark.labyrinth.client.LabyrinthDataGenerator"
+      "net.krodark.asterion.client.AsterionDataGenerator"
     ],
     "client": [
-      "net.krodark.labyrinth.client.LabyrinthClient"
+      "net.krodark.asterion.client.AsterionClient"
     ],
     "main": [
-      "net.krodark.labyrinth.Labyrinth"
+      "net.krodark.asterion.Asterion"
+    ],
+    "modmenu": [
+      "net.krodark.asterion.client.AsterionModMenu"
     ]
   },
   "mixins": [
-    "labyrinth.mixins.json"
+    "asterion.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=${loader_version}",
     "fabric-api": "*",
-    "imguimc": ">=2.0.5",
     "minecraft": "${minecraft_version}",
-    "amnetic": "*"
+    "amnetic": "*",
+    "geckolib": ">=5.5.2"
   }
 }

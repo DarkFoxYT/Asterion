@@ -2,7 +2,7 @@
 
 The underwater ruin is a standard Minecraft structure-template NBT at:
 
-`src/main/resources/data/labyrinth/structure/underwater_ruin.nbt`
+`src/main/resources/data/asterion/structure/underwater_ruin.nbt`
 
 Its editable blueprint is `RuinTemplateBuilder.java`. Change its palette or block-placement loops, then rebuild it with:
 
@@ -11,34 +11,34 @@ Its editable blueprint is `RuinTemplateBuilder.java`. Change its palette or bloc
 ```
 
 Run `./gradlew build` afterward. The NBT is used by the registered
-`labyrinth:underwater_ruin` jigsaw structure and by the legacy placed-feature path.
+`asterion:underwater_ruin` jigsaw structure and by the legacy placed-feature path.
 The registered structure is generated on ocean floors, rotates naturally, uses
-`data/labyrinth/loot_table/chests/underwater_ruin.json` for its barrel, and can be found with:
+`data/asterion/loot_table/chests/underwater_ruin.json` for its barrel, and can be found with:
 
 ```mcfunction
-/locate structure labyrinth:underwater_ruin
+/locate structure asterion:underwater_ruin
 ```
 
 It is also appended to Minecraft's `#minecraft:ocean_ruin` structure tag so standard
 ocean-ruin discovery systems can recognize it.
 
-For fast testing, temporarily set `underwaterRuinChance` to `1` in `config/labyrinth.json` or through the F8 ImGui panel, then explore newly generated ocean chunks. Restore the value afterward; existing chunks are not regenerated.
+For fast testing, temporarily set `underwaterRuinChance` to `1` in `config/asterion.json` or through the F8 ImGui panel, then explore newly generated ocean chunks. Restore the value afterward; existing chunks are not regenerated.
 
 ## Maze NBT landmarks
 
 Maze landmarks are ordinary Minecraft structure-template NBT files, not Java block-placement code.
 Their data-driven catalog is:
 
-`src/main/resources/data/labyrinth/maze_structures.json`
+`src/main/resources/data/asterion/maze_structures.json`
 
 Each entry only needs a template resource ID and a weight. Resource IDs may point to a vanilla
 template (for example `minecraft:village/taiga/houses/taiga_small_house_1`) or to a custom file such
-as `src/main/resources/data/labyrinth/structure/maze/sanctuary.nbt`, referenced as
-`labyrinth:maze/sanctuary`.
+as `src/main/resources/data/asterion/structure/maze/sanctuary.nbt`, referenced as
+`asterion:maze/sanctuary`.
 
 ```json
 {
-  "template": "labyrinth:maze/sanctuary",
+  "template": "asterion:maze/sanctuary",
   "weight": 3
 }
 ```
@@ -50,5 +50,5 @@ the corresponding maze walls/decorations, protects the entrance-to-center soluti
 affected chunks, and then places the template. Jigsaw markers, structure helper blocks, and copper are
 cleaned from the final landmark automatically.
 
-Structure-layout changes affect newly generated maze chunks. Use a fresh Labyrinth dimension when
+Structure-layout changes affect newly generated maze chunks. Use a fresh Asterion dimension when
 testing footprint changes, because already-generated maze walls cannot be safely rerouted afterward.

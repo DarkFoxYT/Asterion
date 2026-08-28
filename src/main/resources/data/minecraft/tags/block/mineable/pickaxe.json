@@ -1,13 +1,13 @@
 {
   "replace": false,
   "values": [
-    "labyrinth:ancient_bricks",
-    "labyrinth:ancient_brick_slab",
-    "labyrinth:ancient_brick_stairs",
-    "labyrinth:ancient_brick_wall",
-    "labyrinth:ancient_stone",
-    "labyrinth:ancient_stone_slab",
-    "labyrinth:ancient_stone_stairs",
-    "labyrinth:ancient_stone_wall"
+    "asterion:ancient_bricks",
+    "asterion:ancient_brick_slab",
+    "asterion:ancient_brick_stairs",
+    "asterion:ancient_brick_wall",
+    "asterion:ancient_stone",
+    "asterion:ancient_stone_slab",
+    "asterion:ancient_stone_stairs",
+    "asterion:ancient_stone_wall"
   ]
 }

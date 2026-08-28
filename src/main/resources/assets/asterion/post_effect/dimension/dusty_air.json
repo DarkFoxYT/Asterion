@@ -1,0 +1,48 @@
+{
+  "targets": {
+    "volume_raw": {},
+    "volume_clean": {},
+    "composited_scene": {}
+  },
+  "passes": [
+    {
+      "vertex_shader": "asterion:post/dimension/volumetric",
+      "fragment_shader": "asterion:post/dimension/volume_integrate",
+      "inputs": [
+        { "sampler_name": "Depth", "target": "minecraft:main", "use_depth_buffer": true }
+      ],
+      "output": "volume_raw"
+    },
+    {
+      "vertex_shader": "asterion:post/dimension/volumetric",
+      "fragment_shader": "asterion:post/dimension/volume_denoise",
+      "inputs": [
+        { "sampler_name": "Volume", "target": "volume_raw", "bilinear": true },
+        { "sampler_name": "Depth", "target": "minecraft:main", "use_depth_buffer": true }
+      ],
+      "output": "volume_clean"
+    },
+    {
+      "vertex_shader": "asterion:post/dimension/volumetric",
+      "fragment_shader": "asterion:post/dimension/volume_composite",
+      "inputs": [
+        { "sampler_name": "Scene", "target": "minecraft:main", "bilinear": true },
+        { "sampler_name": "Volume", "target": "volume_clean", "bilinear": true }
+      ],
+      "output": "composited_scene"
+    },
+    {
+      "vertex_shader": "minecraft:core/screenquad",
+      "fragment_shader": "minecraft:post/blit",
+      "inputs": [
+        { "sampler_name": "In", "target": "composited_scene", "bilinear": true }
+      ],
+      "output": "minecraft:main",
+      "uniforms": {
+        "BlitConfig": [
+          { "name": "ColorModulate", "type": "vec4", "value": [1.0, 1.0, 1.0, 1.0] }
+        ]
+      }
+    }
+  ]
+}

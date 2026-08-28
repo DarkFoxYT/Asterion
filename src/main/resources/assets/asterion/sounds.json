@@ -1,0 +1,13 @@
+{
+  "minotaur_roar": {
+    "subtitle": "subtitles.asterion.minotaur_roar",
+    "sounds": [
+      {
+        "name": "asterion:roar_minator",
+        "type": "file",
+        "volume": 1.0,
+        "pitch": 1.0
+      }
+    ]
+  }
+}

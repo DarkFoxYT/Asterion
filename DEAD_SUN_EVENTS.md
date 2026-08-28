@@ -8,7 +8,7 @@ Register a `DeadSunEventSystem.Definition` during mod initialization. A definiti
 
 ```java
 DeadSunEventSystem.register(new DeadSunEventSystem.Definition() {
-    public Identifier id() { return Labyrinth.id("your_event"); }
+    public Identifier id() { return Asterion.id("your_event"); }
     public int weight() { return 4; }
     public int minDurationTicks() { return 80; }
     public int maxDurationTicks() { return 160; }
@@ -31,11 +31,11 @@ DeadSunEventSystem.register(new DeadSunEventSystem.Definition() {
 Events can also be started by encounters or bosses with:
 
 ```java
-DeadSunEventSystem.trigger(level, Labyrinth.id("your_event"));
+DeadSunEventSystem.trigger(level, Asterion.id("your_event"));
 ```
 
 ## Add its client effect
 
 Register the same ID with `DeadSunClientEvents.register`. Its factory receives the shared seed, synchronized start tick, duration, and intensity and returns an `ActiveEffect`. This can provide camera and Sun offsets or drive another renderer. Unknown IDs are ignored safely, and players entering midway receive the correct elapsed phase.
 
-The included `labyrinth:rumble` implementation is the reference example.
+The included `asterion:rumble` implementation is the reference example.

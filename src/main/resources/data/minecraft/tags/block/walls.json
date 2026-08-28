@@ -1,7 +1,9 @@
 {
   "replace": false,
   "values": [
-    "labyrinth:ancient_brick_wall",
-    "labyrinth:ancient_stone_wall"
+    "asterion:ancient_brick_wall",
+    "asterion:ancient_brick_stairs",
+    "asterion:ancient_stone_wall",
+    "asterion:ancient_stone_wall"
   ]
 }

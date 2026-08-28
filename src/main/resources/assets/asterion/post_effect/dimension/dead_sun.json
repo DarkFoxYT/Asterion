@@ -1,0 +1,48 @@
+{
+  "targets": {
+    "dead_sun_raw": { "clear_color": [0.0, 0.0, 0.0, 0.0] },
+    "dead_sun_bloom_h": { "clear_color": [0.0, 0.0, 0.0, 0.0] },
+    "dead_sun_bloom_v": { "clear_color": [0.0, 0.0, 0.0, 0.0] },
+    "dead_sun_scene": {}
+  },
+  "passes": [
+    {
+      "vertex_shader": "asterion:post/dimension/volumetric",
+      "fragment_shader": "asterion:post/dimension/dead_sun",
+      "inputs": [{ "sampler_name": "Depth", "target": "minecraft:main", "use_depth_buffer": true }],
+      "output": "dead_sun_raw"
+    },
+    {
+      "vertex_shader": "minecraft:core/screenquad",
+      "fragment_shader": "asterion:post/dimension/dead_sun_bloom",
+      "inputs": [{ "sampler_name": "In", "target": "dead_sun_raw", "bilinear": true }],
+      "output": "dead_sun_bloom_h",
+      "uniforms": { "BlurDirection": [{ "name": "Direction", "type": "vec2", "value": [1.0, 0.0] }] }
+    },
+    {
+      "vertex_shader": "minecraft:core/screenquad",
+      "fragment_shader": "asterion:post/dimension/dead_sun_bloom",
+      "inputs": [{ "sampler_name": "In", "target": "dead_sun_bloom_h", "bilinear": true }],
+      "output": "dead_sun_bloom_v",
+      "uniforms": { "BlurDirection": [{ "name": "Direction", "type": "vec2", "value": [0.0, 1.0] }] }
+    },
+    {
+      "vertex_shader": "minecraft:core/screenquad",
+      "fragment_shader": "asterion:post/dimension/dead_sun_composite",
+      "inputs": [
+        { "sampler_name": "Scene", "target": "minecraft:main", "bilinear": true },
+        { "sampler_name": "Depth", "target": "minecraft:main", "use_depth_buffer": true },
+        { "sampler_name": "Sun", "target": "dead_sun_raw", "bilinear": true },
+        { "sampler_name": "Bloom", "target": "dead_sun_bloom_v", "bilinear": true }
+      ],
+      "output": "dead_sun_scene"
+    },
+    {
+      "vertex_shader": "minecraft:core/screenquad",
+      "fragment_shader": "minecraft:post/blit",
+      "inputs": [{ "sampler_name": "In", "target": "dead_sun_scene", "bilinear": true }],
+      "output": "minecraft:main",
+      "uniforms": { "BlitConfig": [{ "name": "ColorModulate", "type": "vec4", "value": [1.0, 1.0, 1.0, 1.0] }] }
+    }
+  ]
+}

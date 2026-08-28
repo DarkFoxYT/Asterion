@@ -1,0 +1,13 @@
+{
+  "type": "asterion:asterion",
+  "generator": {
+    "type": "asterion:maze",
+    "settings": {
+      "biome": "minecraft:the_void",
+      "features": false,
+      "lakes": false,
+      "layers": [],
+      "structure_overrides": []
+    }
+  }
+}
