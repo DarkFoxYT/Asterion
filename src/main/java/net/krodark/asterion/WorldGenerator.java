@@ -95,10 +95,12 @@ public final class WorldGenerator {
     private static final Map<UUID, Integer> ABOVE_WALL_TICKS = new HashMap<>();
     private static final Map<UUID, Integer> WARD_FALL_PROTECTION = new HashMap<>();
     private static final Map<UUID, ElectrifiedState> ELECTRIFIED = new HashMap<>();
+    private static final Map<UUID, Long> ROAMER_REVEAL_TICKS = new HashMap<>();
     private static final Set<UUID> BOSS_ENTRANTS = new HashSet<>();
     private static boolean bossArenaPrepared;
     private static BossArenaBuild bossArenaBuild;
     private static BossFinale bossFinale;
+    private static long activeMazeTerrainSeed;
     private static final PriorityQueue<DecayingBlock> DECAYING_BLOCKS = new PriorityQueue<>(
             Comparator.comparingLong(DecayingBlock::dueTick));
     private static final PriorityQueue<RestoringBlock> RESTORING_BLOCKS = new PriorityQueue<>(
@@ -210,7 +212,7 @@ public final class WorldGenerator {
         if (checkpoint == null) {
             // A fresh player may die before discovering a sanctuary. Give that player a stable,
             // deterministic maze entry instead of falling back to the overworld spawn.
-            checkpoint = randomMazeArrival(maze, player.getUUID(), 0L).atY(FLOOR_Y + 1);
+            checkpoint = randomMazeArrival(maze, player.getUUID(), 0L);
             prepareMazeArrival(maze, checkpoint);
         }
         maze.getChunkAt(checkpoint);
@@ -793,9 +795,29 @@ public final class WorldGenerator {
             zapIntoBossPit(maze, player);
         }
 
-        if (minotaurs.isEmpty() && !DeadSunEventSystem.isEclipseActive(maze)
-                && !WorldGenerator.isApproachingCenter(players.get(0).position()))
-            MinotaurEntity.spawnRoamer(maze, players.get(0));
+        if (minotaurs.isEmpty() && !DeadSunEventSystem.isEclipseActive(maze)) {
+            ServerPlayer candidate = players.stream()
+                    .filter(player -> !WorldGenerator.isApproachingCenter(player.position()))
+                    .min(Comparator.comparingLong(player -> roamerRevealTick(maze, player))).orElse(null);
+            if (candidate != null && maze.getGameTime() >= roamerRevealTick(maze, candidate)) {
+                MinotaurEntity spawned = MinotaurEntity.spawnRoamer(maze, candidate);
+                // A failed hidden-position search is normal in a newly loading or unusually open
+                // area. Wait again instead of retrying every tick and making spawn timing obvious.
+                ROAMER_REVEAL_TICKS.put(candidate.getUUID(), maze.getGameTime()
+                        + (spawned == null ? 20L * 18L : 20L * 150L));
+            }
+        }
+        ROAMER_REVEAL_TICKS.keySet().removeIf(id -> maze.getPlayerByUUID(id) == null);
+    }
+
+    private static long roamerRevealTick(ServerLevel level, ServerPlayer player) {
+        return ROAMER_REVEAL_TICKS.computeIfAbsent(player.getUUID(), id -> {
+            long roll = mix(level.getSeed() ^ id.getMostSignificantBits()
+                    ^ Long.rotateLeft(id.getLeastSignificantBits(), 17) ^ level.getGameTime());
+            // Forty-five seconds to two-and-a-half minutes is long enough for the maze to feel
+            // empty before the player notices that it never was.
+            return level.getGameTime() + 20L * (45L + Math.floorMod(roll, 106L));
+        });
     }
 
     private static void tickCenterInvitation(ServerLevel level, List<ServerPlayer> players) {
@@ -1440,6 +1462,7 @@ public final class WorldGenerator {
             phase.entity.setDeltaMovement(phase.originalVelocity);
         }
         ELECTRIFIED.clear();
+        ROAMER_REVEAL_TICKS.clear();
         BOSS_ENTRANTS.clear();
         bossArenaPrepared = false;
         bossArenaBuild = null;
@@ -1487,7 +1510,8 @@ public final class WorldGenerator {
             entity.resetFallDistance();
             if (protection <= 1) {
                 WARD_FALL_PROTECTION.remove(entity.getUUID());
-            } else if (entity.onGround() && entity.getY() < FLOOR_Y + 4.0D) {
+            } else if (entity.onGround() && entity.getY() < mazeFloorY(((ServerLevel)entity.level()).getSeed(),
+                    entity.getBlockX(), entity.getBlockZ(), AsterionConfig.INSTANCE.cellSize) + 4.0D) {
                 // Keep a short landing grace so a client ragdoll contact packet cannot race the
                 // server's ordinary on-ground detection and deal delayed impact damage.
                 WARD_FALL_PROTECTION.put(entity.getUUID(), Math.min(40, protection - 1));
@@ -1499,7 +1523,8 @@ public final class WorldGenerator {
         int mazeLimit = config.mazeRadiusCells * config.cellSize;
         boolean exemptPlayer = entity instanceof ServerPlayer player && (player.isCreative() || player.isSpectator());
         boolean aboveMaze = Math.abs(entity.getX()) < mazeLimit && Math.abs(entity.getZ()) < mazeLimit
-                && entity.getY() > FLOOR_Y + config.wallHeight + 0.25D;
+                && entity.getY() > mazeFloorY(((ServerLevel)entity.level()).getSeed(), entity.getBlockX(), entity.getBlockZ(),
+                        config.cellSize) + config.wallHeight + 0.25D;
         if (exemptPlayer || !aboveMaze) {
             ABOVE_WALL_TICKS.remove(entity.getUUID());
             return;
@@ -1542,8 +1567,10 @@ public final class WorldGenerator {
         int gx = Math.floorDiv(Mth.floor(x) + limit, config.cellSize);
         int gz = Math.floorDiv(Mth.floor(z) + limit, config.cellSize);
         int center = config.wallThickness + (config.cellSize - config.wallThickness) / 2;
-        return new Vec3(-limit + gx * config.cellSize + center + 0.5D,
-                FLOOR_Y + 1.0D, -limit + gz * config.cellSize + center + 0.5D);
+        double corridorX = -limit + gx * config.cellSize + center + 0.5D;
+        double corridorZ = -limit + gz * config.cellSize + center + 0.5D;
+        return new Vec3(corridorX, mazeFloorY(activeMazeTerrainSeed, Mth.floor(corridorX),
+                Mth.floor(corridorZ), config.cellSize) + 1.0D, corridorZ);
     }
 
     public static boolean isApproachingCenter(Vec3 position) {
@@ -1689,7 +1716,8 @@ public final class WorldGenerator {
             for (int side = -lateral; side <= lateral; side++) for (int y = 0; y < vertical; y++) {
                 int sx = alongX ? x : x + side;
                 int sz = alongX ? z + side : z;
-                BlockState state = level.getBlockState(cursor.set(sx, FLOOR_Y + 1 + y, sz));
+                int floorY = mazeFloorY(level.getSeed(), sx, sz, config.cellSize);
+                BlockState state = level.getBlockState(cursor.set(sx, floorY + 1 + y, sz));
                 if (!state.isAir() && !state.is(Blocks.COBWEB)) return false;
             }
         }
@@ -1699,8 +1727,10 @@ public final class WorldGenerator {
     private static Vec3 cellCenter(int gx, int gz, AsterionConfig config) {
         int limit = config.mazeRadiusCells * config.cellSize;
         int center = config.wallThickness + (config.cellSize - config.wallThickness) / 2;
-        return new Vec3(-limit + gx * config.cellSize + center + 0.5D,
-                FLOOR_Y + 1.0D, -limit + gz * config.cellSize + center + 0.5D);
+        double x = -limit + gx * config.cellSize + center + 0.5D;
+        double z = -limit + gz * config.cellSize + center + 0.5D;
+        return new Vec3(x, mazeFloorY(activeMazeTerrainSeed, Mth.floor(x), Mth.floor(z),
+                config.cellSize) + 1.0D, z);
     }
 
     private static long cellKey(int x, int z) {
@@ -1861,8 +1891,9 @@ public final class WorldGenerator {
 
         int corridorCenter = config.wallThickness
                 + (config.cellSize - config.wallThickness) / 2;
-        return new BlockPos(-limit + gx * config.cellSize + corridorCenter,
-                FLOOR_Y + 12, -limit + gz * config.cellSize + corridorCenter);
+        int x = -limit + gx * config.cellSize + corridorCenter;
+        int z = -limit + gz * config.cellSize + corridorCenter;
+        return new BlockPos(x, mazeFloorY(maze.getSeed(), x, z, config.cellSize) + 1, z);
     }
 
     private static int skyfallY() {
@@ -1874,14 +1905,16 @@ public final class WorldGenerator {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         AsterionConfig config = AsterionConfig.INSTANCE;
         for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
+            int floorY = mazeFloorY(maze.getSeed(), arrival.getX() + dx, arrival.getZ() + dz,
+                    config.cellSize);
             for (int depth = 0; depth < config.floorThickness; depth++)
-                maze.setBlock(p.set(arrival.getX() + dx, FLOOR_Y - depth, arrival.getZ() + dz),
+                maze.setBlock(p.set(arrival.getX() + dx, floorY - depth, arrival.getZ() + dz),
                         Asterion.ANCIENT_STONE.defaultBlockState(), 2);
             // Only clear the occupied corridor volume. Clearing a column all the way to the old
             // skyfall height performed thousands of needless block updates during handoff.
-            int clearTop = Math.abs(dx) <= 1 && Math.abs(dz) <= 1 ? FLOOR_Y + 15 : FLOOR_Y + 5;
-            for (int y = 1; y <= clearTop - FLOOR_Y; y++)
-                maze.setBlock(p.set(arrival.getX() + dx, FLOOR_Y + y, arrival.getZ() + dz),
+            int clearHeight = Math.abs(dx) <= 1 && Math.abs(dz) <= 1 ? 15 : 5;
+            for (int y = 1; y <= clearHeight; y++)
+                maze.setBlock(p.set(arrival.getX() + dx, floorY + y, arrival.getZ() + dz),
                         Blocks.AIR.defaultBlockState(), 2);
         }
     }
@@ -1892,6 +1925,7 @@ public final class WorldGenerator {
 
     /** Called by the actual chunk generator, before Minecraft exposes the chunk to clients. */
     public static void generateMazeChunk(ChunkAccess chunk, long seed) {
+        activeMazeTerrainSeed = seed;
         AsterionConfig config = AsterionConfig.INSTANCE;
         int radius = config.mazeRadiusCells;
         int cell = config.cellSize;
@@ -1918,7 +1952,8 @@ public final class WorldGenerator {
                     continue;
                 }
 
-                placeFloorColumn(chunk, p, seed, x, z, FLOOR_Y, config.floorThickness,
+                int floorY = mazeFloorY(seed, x, z, cell);
+                placeFloorColumn(chunk, p, seed, x, z, floorY, config.floorThickness,
                         topology, cell, radius);
 
                 if (isPitShaftWall(x, z)) {
@@ -1932,20 +1967,20 @@ public final class WorldGenerator {
                         x, z, cell, thickness, radius);
                 if (wall) {
                     for (int y = 1; y <= config.wallHeight; y++)
-                        bufferedSet(chunk, x, FLOOR_Y + y, z,
+                        bufferedSet(chunk, x, floorY + y, z,
                                 patternedWall(seed, x, y, z, biome, cell, radius));
-                    placeBiomeWallDetail(chunk, seed, x, z, cell, thickness, config.wallHeight, biome);
+                    placeBiomeWallDetail(chunk, seed, x, z, cell, thickness, config.wallHeight, biome, floorY);
                 } else {
                     if (isArchOpening(topology, x, z, cell, thickness, radius)) {
                         int archY = Math.max(9, config.wallHeight / 3);
                         for (int y = archY; y <= archY + 2; y++)
-                            bufferedSet(chunk, x, FLOOR_Y + y, z,
+                            bufferedSet(chunk, x, floorY + y, z,
                                     patternedWall(seed, x, y, z, biome, cell, radius));
                     }
                     if (placeMazeMotifColumn(chunk, seed, x, z, cell, thickness,
-                            config.wallHeight, biome, radius)) continue;
+                            config.wallHeight, biome, radius, floorY)) continue;
                     placeDecorationColumn(chunk, p, topology, structures, seed, x, z, cell,
-                            thickness, radius, config.wallHeight, biome);
+                            thickness, radius, config.wallHeight, biome, floorY);
                 }
             }
         }
@@ -1966,6 +2001,23 @@ public final class WorldGenerator {
             bufferedSet(chunk, x, topY - layer, z,
                     patternedFloor(seed, x, z, layer, topology, cell, radius).defaultBlockState());
         }
+    }
+
+    /** Broad deterministic terraces shared by chunk generation, spawning, and wall protection.
+     * The field changes by at most one block at a time, producing walkable natural steps without
+     * adding path-blocking cliffs. The boss approach remains level for scripted movement. */
+    private static int mazeFloorY(long seed, int x, int z, int cell) {
+        double centerDistance = Math.max(Math.abs(x), Math.abs(z));
+        double flatRadius = cell * 7.0D;
+        if (centerDistance <= flatRadius) return FLOOR_Y;
+        double blend = Mth.clamp((centerDistance - flatRadius) / (cell * 5.0D), 0.0D, 1.0D);
+        double phaseX = ((seed >>> 16) & 1023L) * 0.013D;
+        double phaseZ = ((seed >>> 36) & 1023L) * 0.011D;
+        double height = 2.65D
+                + Math.sin(x / (cell * 8.5D) + phaseX) * 1.45D
+                + Math.cos(z / (cell * 10.5D) + phaseZ) * 1.20D
+                + Math.sin((x - z) / (cell * 6.5D) + phaseX * 0.37D) * 0.80D;
+        return FLOOR_Y + Mth.clamp(Mth.floor(height * blend + 0.5D), 0, 6);
     }
 
     /** Palette-buffer write used only while constructing a new empty maze chunk. */
@@ -2044,14 +2096,14 @@ public final class WorldGenerator {
                                               MazeTopology topology, MazeNbtStructures.Layout structures,
                                               long seed, int x, int z,
                                               int cell, int thickness, int radius, int wallHeight,
-                                              MazeBiome biome) {
+                                              MazeBiome biome, int floorY) {
         if (isCenterArena(x, z, cell)) {
             int offset = cell * 2;
             boolean arenaPillar = Math.abs(Math.abs(x) - offset) <= 1
                     && Math.abs(Math.abs(z) - offset) <= 1;
             if (arenaPillar) {
                 for (int y = 1; y <= wallHeight; y++)
-                    bufferedSet(chunk, x, FLOOR_Y + y, z, Asterion.ANCIENT_BRICKS.defaultBlockState());
+                    bufferedSet(chunk, x, floorY + y, z, Asterion.ANCIENT_BRICKS.defaultBlockState());
             }
             return;
         }
@@ -2068,12 +2120,12 @@ public final class WorldGenerator {
         int innerA = thickness + 2;
         int innerB = cell - 3;
 
-        placeBiomeFloorDetail(chunk, seed, x, z, lx, lz, center, thickness, wallHeight, biome);
+        placeBiomeFloorDetail(chunk, seed, x, z, lx, lz, center, thickness, wallHeight, biome, floorY);
 
         long supply = mix(seed ^ (long) gx * 0xC2B2AE3D27D4EB4FL
                 ^ (long) gz * 0x165667B19E3779F9L);
         if (lx == center + 1 && lz == center - 1 && Math.floorMod(supply, 311) == 0) {
-            int barrelY = FLOOR_Y + 3;
+            int barrelY = floorY + 3;
             BlockPos barrelPos = new BlockPos(x, barrelY, z);
             BlockState barrelState = Blocks.BARREL.defaultBlockState();
             chunk.setBlockState(barrelPos, barrelState, 0);
@@ -2086,7 +2138,7 @@ public final class WorldGenerator {
             for (int y = barrelY + 1; y <= DIMENSION_CEILING_Y; y++)
                 bufferedSet(chunk, x, y, z, Blocks.IRON_CHAIN.defaultBlockState());
             if (Math.floorMod(supply >>> 17, 3) == 0)
-                bufferedSet(chunk, x + 1, FLOOR_Y + 1, z, Blocks.COBWEB.defaultBlockState());
+                bufferedSet(chunk, x + 1, floorY + 1, z, Blocks.COBWEB.defaultBlockState());
         }
 
         if (topology.hasTrait(topologyX, topologyZ, MazeTopology.PILLAR_HALL)
@@ -2095,27 +2147,27 @@ public final class WorldGenerator {
             for (int y = 1; y <= height; y++) {
                 Block block = y == 1 || y == height ? Blocks.CHISELED_DEEPSLATE
                         : y % 5 == 0 ? Blocks.POLISHED_BASALT : Blocks.POLISHED_DEEPSLATE;
-                bufferedSet(chunk, x, FLOOR_Y + y, z, block.defaultBlockState());
+                bufferedSet(chunk, x, floorY + y, z, block.defaultBlockState());
             }
         }
 
         if (topology.hasTrait(topologyX, topologyZ, MazeTopology.DEAD_END_ALTAR) && lx == center && lz == center) {
-            bufferedSet(chunk, x, FLOOR_Y + 1, z, Blocks.CHISELED_TUFF_BRICKS.defaultBlockState());
-            bufferedSet(chunk, x, FLOOR_Y + 2, z, Blocks.POLISHED_BASALT.defaultBlockState());
-            bufferedSet(chunk, x, FLOOR_Y + 3, z, Blocks.SOUL_LANTERN.defaultBlockState());
+            bufferedSet(chunk, x, floorY + 1, z, Blocks.CHISELED_TUFF_BRICKS.defaultBlockState());
+            bufferedSet(chunk, x, floorY + 2, z, Blocks.POLISHED_BASALT.defaultBlockState());
+            bufferedSet(chunk, x, floorY + 3, z, Blocks.SOUL_LANTERN.defaultBlockState());
         }
 
         if (topology.hasTrait(topologyX, topologyZ, MazeTopology.SAFE_RUNE)) {
             int dx = Math.abs(lx - center), dz = Math.abs(lz - center);
             if (dx <= 2 && dz <= 2)
-                bufferedSet(chunk, x, FLOOR_Y, z, ((dx + dz) & 1) == 0
+                bufferedSet(chunk, x, floorY, z, ((dx + dz) & 1) == 0
                         ? Blocks.POLISHED_TUFF.defaultBlockState()
                         : Blocks.CHISELED_TUFF_BRICKS.defaultBlockState());
             if (lx == center && lz == center) {
-                bufferedSet(chunk, x, FLOOR_Y + 1, z, Blocks.LODESTONE.defaultBlockState());
-                bufferedSet(chunk, x, FLOOR_Y + 2, z, Blocks.SOUL_LANTERN.defaultBlockState());
+                bufferedSet(chunk, x, floorY + 1, z, Blocks.LODESTONE.defaultBlockState());
+                bufferedSet(chunk, x, floorY + 2, z, Blocks.SOUL_LANTERN.defaultBlockState());
             } else if (dx == 2 && dz == 2)
-                bufferedSet(chunk, x, FLOOR_Y + 1, z, Blocks.CRYING_OBSIDIAN.defaultBlockState());
+                bufferedSet(chunk, x, floorY + 1, z, Blocks.CRYING_OBSIDIAN.defaultBlockState());
             int signedDx = lx - center;
             int signedDz = lz - center;
             if (Math.abs(signedDx) == 2 && signedDz == 0) {
@@ -2123,7 +2175,7 @@ public final class WorldGenerator {
                 float distanceRatio = distanceCells / (float)Math.max(1, radius);
                 ResourceKey<LootTable> loot = distanceRatio >= 0.68F ? SAFE_RUNE_FAR_LOOT
                         : distanceRatio >= 0.36F ? SAFE_RUNE_MID_LOOT : SAFE_RUNE_NEAR_LOOT;
-                BlockPos barrelPos = new BlockPos(x, FLOOR_Y + 1, z);
+                BlockPos barrelPos = new BlockPos(x, floorY + 1, z);
                 placeLootBarrel(chunk, barrelPos, loot,
                         mix(seed ^ ((long)x << 32) ^ z ^ 0xA0761D6478BD642FL));
             }
@@ -2136,28 +2188,28 @@ public final class WorldGenerator {
             int rz = thickness + 1 + (int) Math.floorMod(rubble >>> 12, span);
             if (lx == rx && lz == rz) {
                 Block rubbleBlock = (rubble & 1) == 0 ? Blocks.COBBLED_DEEPSLATE : Blocks.TUFF;
-                bufferedSet(chunk, x, FLOOR_Y + 1, z, rubbleBlock.defaultBlockState());
+                bufferedSet(chunk, x, floorY + 1, z, rubbleBlock.defaultBlockState());
                 if ((rubble & 7) == 0)
-                    bufferedSet(chunk, x, FLOOR_Y + 2, z, Blocks.COBBLED_DEEPSLATE.defaultBlockState());
+                    bufferedSet(chunk, x, floorY + 2, z, Blocks.COBBLED_DEEPSLATE.defaultBlockState());
             }
         }
 
         if (topology.hasTrait(topologyX, topologyZ, MazeTopology.PLAZA)) {
             int distance = Math.max(Math.abs(lx - center), Math.abs(lz - center));
             if (distance == 2 && (lx == center || lz == center))
-                bufferedSet(chunk, x, FLOOR_Y + 1, z, Blocks.POLISHED_TUFF.defaultBlockState());
+                bufferedSet(chunk, x, floorY + 1, z, Blocks.POLISHED_TUFF.defaultBlockState());
             if (lx == center && lz == center) {
-                bufferedSet(chunk, x, FLOOR_Y + 1, z, Blocks.CHISELED_TUFF_BRICKS.defaultBlockState());
-                bufferedSet(chunk, x, FLOOR_Y + 2, z, Blocks.SOUL_LANTERN.defaultBlockState());
+                bufferedSet(chunk, x, floorY + 1, z, Blocks.CHISELED_TUFF_BRICKS.defaultBlockState());
+                bufferedSet(chunk, x, floorY + 2, z, Blocks.SOUL_LANTERN.defaultBlockState());
             }
         }
 
         if (topology.hasTrait(topologyX, topologyZ, MazeTopology.GARDEN)) {
             int dx = Math.abs(lx - center), dz = Math.abs(lz - center);
             if (dx == 2 && dz == 2)
-                bufferedSet(chunk, x, FLOOR_Y + 1, z, Blocks.AZALEA.defaultBlockState());
+                bufferedSet(chunk, x, floorY + 1, z, Blocks.AZALEA.defaultBlockState());
             else if ((dx == 3 && dz == 2) || (dx == 2 && dz == 3))
-                bufferedSet(chunk, x, FLOOR_Y + 1, z, Blocks.MOSS_CARPET.defaultBlockState());
+                bufferedSet(chunk, x, floorY + 1, z, Blocks.MOSS_CARPET.defaultBlockState());
         }
     }
 
@@ -2267,7 +2319,7 @@ public final class WorldGenerator {
      * central cross cut through it, keeping cardinal exits and Minotaur navigation connected. */
     private static boolean placeMazeMotifColumn(ChunkAccess chunk, long seed, int x, int z,
                                                 int cell, int thickness, int wallHeight,
-                                                MazeBiome biome, int radius) {
+                                                MazeBiome biome, int radius, int floorY) {
         int limit = AsterionConfig.INSTANCE.mazeRadiusCells * cell;
         int gx = Math.floorDiv(x + limit, cell);
         int gz = Math.floorDiv(z + limit, cell);
@@ -2307,14 +2359,14 @@ public final class WorldGenerator {
         if (!shaped) return false;
         int motifHeight = Math.min(wallHeight, 11 + (int)Math.floorMod(cellRoll >>> 17, 7L));
         for (int y = 1; y <= motifHeight; y++)
-            bufferedSet(chunk, x, FLOOR_Y + y, z,
+            bufferedSet(chunk, x, floorY + y, z,
                     patternedWall(seed ^ cellRoll, x, y, z, biome, cell, radius));
         return true;
     }
 
     private static void placeBiomeWallDetail(ChunkAccess chunk, long seed, int x, int z,
                                              int cell, int thickness, int wallHeight,
-                                             MazeBiome biome) {
+                                             MazeBiome biome, int floorY) {
         long detail = mix(seed ^ ((long)x << 32) ^ (z & 0xFFFFFFFFL) ^ 0xE7037ED1A0B428DBL);
         int limit = AsterionConfig.INSTANCE.mazeRadiusCells * cell;
         int lx = Math.floorMod(x + limit, cell);
@@ -2325,20 +2377,20 @@ public final class WorldGenerator {
             BlockState beam = Blocks.POLISHED_BASALT.defaultBlockState().setValue(
                     RotatedPillarBlock.AXIS, wallAlongZ ? net.minecraft.core.Direction.Axis.Z
                             : net.minecraft.core.Direction.Axis.X);
-            int beamY = FLOOR_Y + 3 + (int)Math.floorMod(detail >>> 12, Math.max(2, wallHeight - 5));
+            int beamY = floorY + 3 + (int)Math.floorMod(detail >>> 12, Math.max(2, wallHeight - 5));
             bufferedSet(chunk, x, beamY, z, beam);
         }
         if (biome == MazeBiome.OVERGROWN && Math.floorMod(detail, 29) == 0) {
-            int crownY = FLOOR_Y + wallHeight;
+            int crownY = floorY + wallHeight;
             bufferedSet(chunk, x, crownY, z, Blocks.AZALEA_LEAVES.defaultBlockState());
-            if ((detail & 1L) == 0L && crownY > FLOOR_Y + 4)
+            if ((detail & 1L) == 0L && crownY > floorY + 4)
                 bufferedSet(chunk, x, crownY - 1, z, Blocks.FLOWERING_AZALEA_LEAVES.defaultBlockState());
         }
     }
 
     private static void placeBiomeFloorDetail(ChunkAccess chunk, long seed, int x, int z,
                                               int lx, int lz, int center, int thickness,
-                                              int wallHeight, MazeBiome biome) {
+                                              int wallHeight, MazeBiome biome, int floorY) {
         long detail = mix(seed ^ (long)x * 0xDB4F0B9175AE2165L ^ (long)z * 0xBBE0563303A4615FL);
         boolean corridorInterior = lx >= thickness + 1 && lz >= thickness + 1;
         if (!corridorInterior) return;
@@ -2354,7 +2406,7 @@ public final class WorldGenerator {
             boolean leafBridge = canopyCell && (alongX ? Math.abs(lz - center) <= 1
                     : Math.abs(lx - center) <= 1);
             if (leafBridge) {
-                int roofY = FLOOR_Y + wallHeight - 2;
+                int roofY = floorY + wallHeight - 2;
                 BlockState leaves = Math.floorMod(detail, 7) == 0
                         ? Blocks.FLOWERING_AZALEA_LEAVES.defaultBlockState()
                         : Blocks.AZALEA_LEAVES.defaultBlockState();
@@ -2367,17 +2419,17 @@ public final class WorldGenerator {
                 }
             }
             if (Math.floorMod(detail, 19) == 0)
-                bufferedSet(chunk, x, FLOOR_Y + 1, z, Blocks.MOSS_CARPET.defaultBlockState());
+                bufferedSet(chunk, x, floorY + 1, z, Blocks.MOSS_CARPET.defaultBlockState());
             else if (Math.floorMod(detail, 113) == 0 && Math.abs(lx - center) > 1 && Math.abs(lz - center) > 1)
-                bufferedSet(chunk, x, FLOOR_Y + 1, z, Blocks.AZALEA.defaultBlockState());
+                bufferedSet(chunk, x, floorY + 1, z, Blocks.AZALEA.defaultBlockState());
         } else if (biome == MazeBiome.WITHERED && Math.floorMod(detail, 127) == 0) {
-            bufferedSet(chunk, x, FLOOR_Y + 1, z, Blocks.BONE_BLOCK.defaultBlockState());
+            bufferedSet(chunk, x, floorY + 1, z, Blocks.BONE_BLOCK.defaultBlockState());
         } else if (biome == MazeBiome.SCORCHED && Math.floorMod(detail, 97) == 0) {
-            bufferedSet(chunk, x, FLOOR_Y, z, Blocks.SOUL_SOIL.defaultBlockState());
-            bufferedSet(chunk, x, FLOOR_Y + 1, z, Blocks.SOUL_FIRE.defaultBlockState());
+            bufferedSet(chunk, x, floorY, z, Blocks.SOUL_SOIL.defaultBlockState());
+            bufferedSet(chunk, x, floorY + 1, z, Blocks.SOUL_FIRE.defaultBlockState());
         } else if (biome == MazeBiome.COLLAPSED && Math.floorMod(detail, 53) == 0
                 && Math.abs(lx - center) > 2 && Math.abs(lz - center) > 2) {
-            bufferedSet(chunk, x, FLOOR_Y + 1, z, ((detail >>> 8) & 1L) == 0L
+            bufferedSet(chunk, x, floorY + 1, z, ((detail >>> 8) & 1L) == 0L
                     ? Blocks.COBBLED_DEEPSLATE_SLAB.defaultBlockState()
                     : Blocks.TUFF_SLAB.defaultBlockState());
         }

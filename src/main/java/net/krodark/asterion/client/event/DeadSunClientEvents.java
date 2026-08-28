@@ -88,9 +88,12 @@ public final class DeadSunClientEvents {
         double now = client.level.getGameTime();
         if (pending.intensity() <= 0.0001F) {
             Sample current = active == null ? Sample.NONE : active.sample(now);
-            if (!isEmpty(current)) beginOutro(current, client.level.getGameTime(), 60);
+            if (!isEmpty(current)) beginOutro(current, client.level.getGameTime(), 40);
+            else clearOutro();
             active = null;
             activeId = null;
+            activeSeed = 0L;
+            eclipseIntroTicks = 0;
             pending = null;
             return;
         }

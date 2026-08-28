@@ -103,11 +103,14 @@ public final class DeadSunEventSystem {
             }
 
             @Override public void onTick(ServerLevel level, int elapsedTicks) {
-                // Let the fog settle before the silhouette begins appearing.
-                if (elapsedTicks < 60 || (elapsedTicks % 20) != 0) return;
+                // Let the fog settle, then reveal the hunter on a private schedule for each
+                // player. The event no longer teaches a predictable "three seconds, then spawn"
+                // rhythm, and late joiners receive their own suspense window.
+                if ((elapsedTicks % 20) != 0) return;
                 java.util.List<MinotaurEntity> hunters = new java.util.ArrayList<>(eclipseMinotaurs(level));
                 for (var player : level.players()) {
                     if (!player.isAlive() || player.isCreative() || player.isSpectator()) continue;
+                    if (!hunterRevealReady(level, player.getUUID(), elapsedTicks)) continue;
                     MinotaurEntity assignedHunter = hunters.stream()
                             .filter(minotaur -> minotaur.isAssignedTo(player)).findFirst().orElse(null);
                     if (assignedHunter != null && assignedHunter.isRoaming())
@@ -201,11 +204,7 @@ public final class DeadSunEventSystem {
         if (state == null || state.active == null) return false;
         ActiveEvent event = state.active;
         event.definition.onEnd(level);
-        DeadSunEventPayload stopPayload = new DeadSunEventPayload(event.definition.id(), event.seed, 1, 1, 0.0F);
-        level.players().forEach(player -> {
-            if (ServerPlayNetworking.canSend(player, DeadSunEventPayload.TYPE))
-                ServerPlayNetworking.send(player, stopPayload);
-        });
+        syncStopped(level, event.definition.id(), event.seed);
         state.active = null;
         state.nextEventTick = scheduleNext(level.getRandom(), level.getGameTime());
         return true;
@@ -242,6 +241,21 @@ public final class DeadSunEventSystem {
     private static void releaseHunterClaim(ServerLevel level, UUID playerId) {
         SchedulerState state = STATES.get(level.getServer());
         if (state != null && state.active != null) state.active.hunterPlayers.remove(playerId);
+    }
+
+    private static boolean hunterRevealReady(ServerLevel level, UUID playerId, int elapsedTicks) {
+        SchedulerState state = STATES.get(level.getServer());
+        if (state == null || state.active == null) return false;
+        int reveal = state.active.hunterRevealTicks.computeIfAbsent(playerId, id -> {
+            long mixed = state.active.seed ^ id.getMostSignificantBits()
+                    ^ Long.rotateLeft(id.getLeastSignificantBits(), 29);
+            mixed ^= mixed >>> 30;
+            mixed *= 0xbf58476d1ce4e5b9L;
+            mixed ^= mixed >>> 27;
+            // The thickening fog gets time to become normal before anything moves inside it.
+            return 20 * (12 + (int)Math.floorMod(mixed, 34L));
+        });
+        return elapsedTicks >= reveal;
     }
 
     public static void register(Definition definition) {
@@ -287,12 +301,18 @@ public final class DeadSunEventSystem {
             if ((state.active.elapsed % 100) == 0) syncAllPlayers(level, state.active);
             state.active.definition.onTick(level, state.active.elapsed++);
             if (state.active.elapsed >= state.active.durationTicks) {
-                state.active.definition.onEnd(level);
+                ActiveEvent finished = state.active;
+                finished.definition.onEnd(level);
+                syncStopped(level, finished.definition.id(), finished.seed);
                 state.active = null;
                 state.nextEventTick = scheduleNext(level.getRandom(), now);
             }
             return;
         }
+
+        // An explicit idle heartbeat repairs clients that missed an event-end packet during a
+        // dimension handoff, lag spike, or disconnect. It is intentionally sparse and tiny.
+        if ((now % 20L) == 0L) syncStopped(level, ECLIPSE, 0L);
 
         if (level.players().isEmpty()) {
             state.nextEventTick = -1L;
@@ -346,6 +366,14 @@ public final class DeadSunEventSystem {
                 event.durationTicks, event.elapsed, event.intensity);
         level.players().forEach(player -> {
             event.notifiedPlayers.add(player.getUUID());
+            if (ServerPlayNetworking.canSend(player, DeadSunEventPayload.TYPE))
+                ServerPlayNetworking.send(player, payload);
+        });
+    }
+
+    private static void syncStopped(ServerLevel level, Identifier eventId, long seed) {
+        DeadSunEventPayload payload = new DeadSunEventPayload(eventId, seed, 1, 1, 0.0F);
+        level.players().forEach(player -> {
             if (ServerPlayNetworking.canSend(player, DeadSunEventPayload.TYPE))
                 ServerPlayNetworking.send(player, payload);
         });
@@ -613,6 +641,7 @@ public final class DeadSunEventSystem {
         private final float intensity;
         private final Set<UUID> notifiedPlayers = new HashSet<>();
         private final Set<UUID> hunterPlayers = new HashSet<>();
+        private final Map<UUID, Integer> hunterRevealTicks = new LinkedHashMap<>();
         private int elapsed;
 
         private ActiveEvent(Definition definition, int durationTicks, long seed, float intensity) {
