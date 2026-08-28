@@ -11,7 +11,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import org.lwjgl.glfw.GLFW;
 
-/** Short hold-to-brace recovery shown only for forced combat ragdolls. */
 public final class DazeOverlay {
     private static int remaining;
     private static int duration;

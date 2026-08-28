@@ -21,14 +21,6 @@ import org.joml.Matrix4fc;
 import org.joml.Vector4f;
 import org.joml.Vector4fc;
 
-
-/**
- * Camera-aware view into the Asterion at the generated overworld gateway.
- *
- * <p>The server supplies the actual generated maze topology around the shared arrival. The client
- * turns it into a height/albedo texture and the shader relief-maps it from the real camera, providing
- * a stable top-down view with view-dependent parallax.</p>
- */
 public final class AsterionPortalRenderer {
     private static final Identifier CORE_ID = Asterion.id("gateway/portal_core");
     private static final Identifier HALO_ID = Asterion.id("gateway/portal_halo");

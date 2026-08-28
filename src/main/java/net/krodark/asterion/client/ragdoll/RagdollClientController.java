@@ -41,8 +41,6 @@ public final class RagdollClientController {
             return;
         }
 
-        // Respawn replaces the local-player entity. Explicitly release both the dead body's
-        // ragdoll and any recycled entity id before normal input/camera processing resumes.
         if (observedLocalPlayer != client.player) {
             if (observedLocalPlayer != null) engine.releaseRagdoll(observedLocalPlayer.getId());
             engine.releaseRagdoll(client.player.getId());
@@ -54,8 +52,6 @@ public final class RagdollClientController {
             observedLocalPlayer = client.player;
         }
 
-        // Void recovery must remain an ordinary first-person fall. Drop any manual or combat
-        // tumble before the rescue teleport and ignore new tumble input while below the world.
         boolean fallingIntoVoid = client.player.getY() <= client.level.getMinY() + 12.0D;
         if (fallingIntoVoid) {
             if (engine.isPlayerTumbling(client.player.getId()))
@@ -112,7 +108,6 @@ public final class RagdollClientController {
         syncRagdollCamera(client, engine);
     }
 
-    /** Kept as a compatibility hook for older packets. Ordinary falls never start ragdolls. */
     public static void suppressAutomaticFallRagdoll(int ticks) {
     }
 

@@ -23,7 +23,6 @@ import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import org.jspecify.annotations.Nullable;
 
-/** Persistent activation/tint state for a rune, plus the 0..100 glow fade used by its renderer. */
 public final class RuneBlockEntity extends BlockEntity implements GeoBlockEntity {
     private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
     private boolean activated;

@@ -219,7 +219,6 @@ public final class DeadSunClientEvents {
         return sample(partial).eclipseStrength;
     }
 
-    /** Environmental darkness shared by the Eclipse and the above-wall ward punishment. */
     public static float darknessStrength() {
         float eclipse = eclipseStrength();
         if (wardDarknessTicks <= 0 || wardDarknessDuration <= 0) return eclipse;

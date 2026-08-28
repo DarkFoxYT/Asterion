@@ -6,7 +6,6 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
-/** Localized rumble produced by one physical maze-wall shift. */
 public record MazeShiftPayload(BlockPos center, float radius, float intensity,
                                int durationTicks) implements CustomPacketPayload {
     public static final Type<MazeShiftPayload> TYPE = new Type<>(Asterion.id("maze_shift"));

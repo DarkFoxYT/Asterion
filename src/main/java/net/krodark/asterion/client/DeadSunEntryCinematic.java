@@ -7,7 +7,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
-/** A short, fully client-authored arrival shot. It never moves or teleports the player. */
 public final class DeadSunEntryCinematic {
     private static final int END_TICKS = 190;
     private static final int CINEMATIC_RENDER_DISTANCE = 12;
@@ -22,10 +21,6 @@ public final class DeadSunEntryCinematic {
 
     private DeadSunEntryCinematic() { }
 
-    /**
-     * Raises view distance before the black arrival veil opens. The detached camera travels four
-     * chunks away from the body, so relying on the gameplay setting would expose its chunk edge.
-     */
     public static void prepareForArrival(Minecraft client) {
         if (!AsterionConfig.INSTANCE.cinematicsEnabled) return;
         int current = client.options.renderDistance().get();
@@ -50,8 +45,6 @@ public final class DeadSunEntryCinematic {
         client.smartCull = false;
         client.options.setCameraType(CameraType.FIRST_PERSON);
         CinematicHud.begin(client);
-        // Drop any graph asynchronously derived from the player-side camera before the detached
-        // rail starts. LevelRenderer will rebuild its view area from the cinematic Camera position.
         client.levelRenderer.getSectionOcclusionGraph().invalidate();
         ticks = 0;
         active = true;
@@ -65,11 +58,7 @@ public final class DeadSunEntryCinematic {
             return;
         }
         CinematicHud.maintain(client);
-        // Use Minecraft's native switch instead of redirecting LevelRenderer bytecode. This is
-        // compatible with Sodium, which replaces the same terrain-culling method.
         client.smartCull = false;
-        // Lock both key mappings and the underlying view angles. Raw mouse movement can still
-        // arrive during the shot, but is discarded here instead of accumulating into a snap.
         client.options.keyUp.setDown(false);
         client.options.keyDown.setDown(false);
         client.options.keyLeft.setDown(false);
@@ -120,10 +109,6 @@ public final class DeadSunEntryCinematic {
         Vec3 sun = new Vec3(config.deadSunX, config.deadSunHeight, config.deadSunZ);
         Vec3 towardSun = sun.subtract(basePosition);
         double heading = Mth.atan2(towardSun.z, towardSun.x);
-        // The whole rail stays above the authored roof height. Arrival keeps a dedicated chunk
-        // envelope around this rail, so low gameplay render distances never expose maze edges.
-        // Stay behind the falling player relative to the Sun, keeping the ragdoll as foreground
-        // silhouette while the Dead Sun remains the distant anchor of the shot.
         double angle = heading + Mth.lerp(progress, 2.58D, 3.62D);
         double radius = Mth.lerp(progress, 62.0D, 48.0D);
         double height = 118.0D + Math.sin(progress * Math.PI) * 20.0D;
@@ -132,9 +117,6 @@ public final class DeadSunEntryCinematic {
         float returnWeight = smoother(Mth.clamp((linear - 0.78F) / 0.22F, 0.0F, 1.0F));
         Vec3 position = railPosition.lerp(basePosition, returnWeight);
         Vec3 localMaze = new Vec3(basePosition.x, 68.0D, basePosition.z);
-        // Establish the square maze, ease onto the Dead Sun, then hold the celestial target.
-        // The small downward offset keeps its full corona in frame instead of centering the disc
-        // so tightly that the player sees nothing but its surface.
         float sunFocus = smoother(Mth.clamp((linear - 0.08F) / 0.34F, 0.0F, 1.0F));
         Vec3 focus = localMaze.lerp(sun.add(0.0D, -config.deadSunSize * 0.16D, 0.0D),
                 Mth.lerp(sunFocus, 0.60D, 0.94D));

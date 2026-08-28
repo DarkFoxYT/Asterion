@@ -48,12 +48,9 @@ public final class AsterionConfig {
     public float minotaurVerticalFov = 70.0f;
     public int minotaurBossPillarCount = 6;
     public boolean cinematicsEnabled = true;
-    /** 0 low, 1 medium, 2 high. */
     public int cinematicQuality = 2;
-    /** 0 low, 1 medium, 2 high. */
     public int dynamicLightQuality = 2;
     public boolean ragdollEquipment = true;
-    /** true uses repeated presses; false uses a continuous hold for forced ragdoll recovery. */
     public boolean ragdollMashRecovery = true;
     public boolean enhancedLightning = true;
     public boolean deadSunEnabled = true;
@@ -213,9 +210,6 @@ public final class AsterionConfig {
                     changed = true;
                 }
                 if (!json.has("configVersion") || config.configVersion < 20) {
-                    // Version 20 promotes the authored development look to the shipped visual
-                    // profile. These values are client-rendered, so migrating them together keeps
-                    // every player looking at the same Dead Sun, dust, and fog composition.
                     applyCanonicalSkyProfile(config);
                     changed = true;
                 }
@@ -223,6 +217,7 @@ public final class AsterionConfig {
                     config.configVersion = CURRENT_VERSION;
                     config.save();
                 }
+                applyCanonicalSkyProfile(config);
                 return config;
             }
         } catch (Exception ignored) {

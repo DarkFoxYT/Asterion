@@ -45,8 +45,6 @@ dependencies {
 
     implementation "com.terraformersmc:modmenu:${project.modmenu_version}"
 
-    // The pinned Amnetic build is committed with this project: no sibling checkout, local Maven
-    // publication, or machine-specific path is needed. Loom nests it in the distributable JAR.
     implementation "net.krodark:amnetic:1.0-SNAPSHOT"
     include "net.krodark:amnetic:1.0-SNAPSHOT"
 

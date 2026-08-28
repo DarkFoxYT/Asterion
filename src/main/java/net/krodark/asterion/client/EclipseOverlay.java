@@ -8,7 +8,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 
-/** A short event title only; the Eclipse visuals live in the world shaders. */
 public final class EclipseOverlay {
     private static final Component TITLE = Component.translatable("event.asterion.eclipse.title");
 

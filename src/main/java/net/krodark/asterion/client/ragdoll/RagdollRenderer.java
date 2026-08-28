@@ -105,8 +105,6 @@ public final class RagdollRenderer {
         poses.pushPose();
         poses.translate(center.x, center.y, center.z);
         poses.mulPose(rotation);
-        // The grip is a real physics body, so the rendered item follows collisions and angular
-        // inertia instead of being reconstructed from the hidden standing player model.
         poses.scale(0.86F, 0.86F, 0.86F);
         ItemStackRenderState itemState = new ItemStackRenderState();
         ItemDisplayContext context = physicalRight ? ItemDisplayContext.THIRD_PERSON_RIGHT_HAND
@@ -117,8 +115,6 @@ public final class RagdollRenderer {
         if (living != null) HeldItemDynamicLights.updateRagdollHand(living, physicalArm, stack, center);
         poses.mulPose(Axis.XP.rotationDegrees(-90.0F));
         poses.mulPose(Axis.YP.rotationDegrees(180.0F));
-        // In 26.1 the final submit argument is an ARGB outline color, not a model seed.
-        // Passing the entity id here tinted otherwise-correct item models blue.
         itemState.submit(poses, collector, sampleLight(center), OverlayTexture.NO_OVERLAY, 0);
         poses.popPose();
     }

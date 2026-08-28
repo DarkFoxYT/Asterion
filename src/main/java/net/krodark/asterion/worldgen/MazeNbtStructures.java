@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.GreekRune;
+import net.krodark.asterion.WorldGenerator;
 import net.krodark.asterion.block.RuneBlock;
 import net.krodark.asterion.block.RuneBlockEntity;
 import net.krodark.asterion.block.RuneDoorBlock;
@@ -31,7 +32,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.WeakHashMap;
 
-/** Data-driven NBT landmarks whose measured footprints are reserved by the maze. */
 public final class MazeNbtStructures {
     private static final Identifier CATALOG = Asterion.id("maze_structures.json");
     private static final Map<ServerLevel, Layout> LAYOUTS = new WeakHashMap<>();
@@ -39,7 +39,6 @@ public final class MazeNbtStructures {
 
     private MazeNbtStructures() { }
 
-    /** Reservation-free layout used while optional NBT landmark generation is disabled. */
     public static Layout emptyLayout() {
         return EMPTY_LAYOUT;
     }
@@ -57,8 +56,6 @@ public final class MazeNbtStructures {
         if (layout != null) layout.placeNext(level);
     }
 
-    /** Returns a checkpoint only when its lodestone belongs to a successfully placed NBT
-     * sanctuary. Player-placed lodestones can therefore never masquerade as safe rooms. */
     public static BlockPos safeCheckpointNear(ServerLevel level, BlockPos position, double radius) {
         Layout layout;
         synchronized (LAYOUTS) { layout = LAYOUTS.get(level); }
@@ -71,7 +68,6 @@ public final class MazeNbtStructures {
         return layout == null ? null : layout.nearestSafeCheckpoint(level, position);
     }
 
-    /** Nearest placed sanctuary regardless of whether its rune checkpoint has been activated. */
     public static BlockPos nearestSafeHouse(ServerLevel level, BlockPos position) {
         Layout layout;
         synchronized (LAYOUTS) { layout = LAYOUTS.get(level); }
@@ -84,7 +80,6 @@ public final class MazeNbtStructures {
         return layout != null && layout.isSafeCheckpoint(level, checkpoint);
     }
 
-    /** Removes legacy copper once per maze chunk, including old generated decorations. */
     public static void cleanLegacyCopper(LevelChunk chunk, int minY, int maxY) {
         BlockPos marker = new BlockPos(chunk.getPos().getMinBlockX(), 2, chunk.getPos().getMinBlockZ());
         if (chunk.getBlockState(marker).is(Blocks.REINFORCED_DEEPSLATE)) return;
@@ -150,7 +145,7 @@ public final class MazeNbtStructures {
                 int centerZ = -limit + cellZ * cell + cell / 2;
                 int originX = centerX - (relative.minX() + relative.maxX()) / 2;
                 int originZ = centerZ - (relative.minZ() + relative.maxZ()) / 2;
-                int originY = 49 - relative.minY();
+                int originY = WorldGenerator.mazeFloorHeight(seed, centerX, centerZ) + 1 - relative.minY();
                 BlockPos origin = new BlockPos(originX, originY, originZ);
                 BoundingBox box = relative.moved(originX, originY, originZ);
                 BoundingBox reserved = box.inflatedBy(catalog.padding, 0, catalog.padding);
@@ -270,8 +265,6 @@ public final class MazeNbtStructures {
             Placement placement = pending.pollFirst();
             if (placement == null) return;
             BlockPos marker = new BlockPos(placement.origin.getX(), 3, placement.origin.getZ());
-            // Landmarks must not synchronously generate their entire footprint. Normal player
-            // streaming loads those chunks; placement runs only once the complete area is ready.
             boolean footprintLoaded = placement.box.intersectingChunks().allMatch(
                     chunk -> level.getChunkSource().hasChunk(chunk.x(), chunk.z()));
             if (!footprintLoaded) {
@@ -279,8 +272,6 @@ public final class MazeNbtStructures {
                 return;
             }
             if (level.getBlockState(marker).is(Blocks.REINFORCED_DEEPSLATE)) {
-                // Configuration is deliberately idempotent. Running it for already-placed rooms
-                // upgrades old placeholder runes and keeps their ring answer tied to world position.
                 configureSafeRoom(level, placement);
                 cacheSafeCheckpoint(level, placement);
                 return;
@@ -309,8 +300,6 @@ public final class MazeNbtStructures {
                     }
         }
 
-        /** Converts the three template placeholders into the local ring and its two believable
-         * neighbours. The gate facing the Dead Sun remains locked; the approach sides stay open. */
         private void configureSafeRoom(ServerLevel level, Placement placement) {
             boolean safeRoom = isSafeRoom(placement.id);
             List<BlockPos> plaques = new ArrayList<>();
@@ -332,20 +321,21 @@ public final class MazeNbtStructures {
             }
             for (BlockPos pos : gates) {
                 var state = level.getBlockState(pos);
-                // Standalone rune gatehouses remain sealed until their own puzzle is solved.
-                // Safe rooms are gate-free, but old saves containing gates are upgraded open.
                 level.setBlock(pos, state.setValue(RuneDoorBlock.OPEN, roomSolved || safeRoom), 2);
             }
             plaques.sort(java.util.Comparator.comparingLong(BlockPos::asLong));
-            // Every NBT landmark may use rune_1 as an authoring placeholder. Resolve all sockets
-            // from the landmark's maze layer and seed, not just sockets in the built-in sanctuary.
+            if (plaques.size() > 3) {
+                for (int i = 3; i < plaques.size(); i++)
+                    level.setBlock(plaques.get(i), Blocks.AIR.defaultBlockState(), 3);
+                plaques = new ArrayList<>(plaques.subList(0, 3));
+            }
             int expected = GreekRune.forRadius(centerX, centerZ).ordinal();
             int[] choices = expected == 0 ? new int[]{0, 1, 2}
                     : expected == Asterion.RUNE_BLOCKS.length - 1
                     ? new int[]{expected - 2, expected - 1, expected}
                     : new int[]{expected - 1, expected, expected + 1};
             int rotation = Math.floorMod((int)placement.seed, choices.length);
-            for (int i = 0; i < plaques.size(); i++) {
+            for (int i = 0; i < Math.min(3, plaques.size()); i++) {
                 BlockPos pos = plaques.get(i);
                 var old = level.getBlockState(pos);
                 int choice = choices[(i + rotation) % choices.length];

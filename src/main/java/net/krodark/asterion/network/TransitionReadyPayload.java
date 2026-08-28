@@ -5,7 +5,6 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
-/** Client acknowledgement sent only after the destination loaded and the blackout fully faded. */
 public record TransitionReadyPayload() implements CustomPacketPayload {
     public static final TransitionReadyPayload INSTANCE = new TransitionReadyPayload();
     public static final Type<TransitionReadyPayload> TYPE = new Type<>(Asterion.id("transition_ready"));

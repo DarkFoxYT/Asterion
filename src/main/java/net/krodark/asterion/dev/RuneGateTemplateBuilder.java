@@ -9,7 +9,6 @@ import net.minecraft.nbt.NbtIo;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Reproducible standalone rune gatehouse, deliberately separate from checkpoint sanctuaries. */
 public final class RuneGateTemplateBuilder {
     private static final ListTag BLOCKS = new ListTag();
     private RuneGateTemplateBuilder() { }

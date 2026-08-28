@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-/** Budgeted Amnetic point lights shared by LEDs and small emissive props. */
 final class LedAmneticPointLights {
     private static final Map<Object, Light> LIGHTS = new LinkedHashMap<>(128, 0.75F, true);
     private static final Map<Object, LedAmneticLight.LedPointLightSample> BUFFERED = new LinkedHashMap<>();

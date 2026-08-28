@@ -2,7 +2,6 @@ package net.krodark.asterion.client;
 
 import net.minecraft.client.Minecraft;
 
-/** Owns vanilla HUD suppression without losing the player's prior F1 preference. */
 public final class CinematicHud {
     private static boolean hidden;
     private static boolean previousHideGui;

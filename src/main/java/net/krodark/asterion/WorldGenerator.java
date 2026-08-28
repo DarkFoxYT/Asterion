@@ -62,15 +62,10 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class WorldGenerator {
-    // Temporary stability switch: NBT landmarks stay completely out of chunk generation until
-    // their placement pipeline is re-enabled after profiling. The procedural maze remains intact.
     private static final boolean ENABLE_MAZE_NBT_STRUCTURES = true;
     private static final int FLOOR_Y = 48;
     private static final int BOSS_FLOOR_Y = 36;
-    // Matches data/asterion/dimension_type/asterion.json (min_y 0, height 128).
     private static final int DIMENSION_CEILING_Y = 127;
-    // A 69-block-wide circular opening: large enough to dominate the center while still leaving
-    // a broad fighting/walking ring before the surrounding maze begins.
     private static final int PIT_HALF_WIDTH = 34;
     private static final int PIT_WALL_THICKNESS = 6;
     private static final int SKYFALL_CLEARANCE = 42;
@@ -82,8 +77,6 @@ public final class WorldGenerator {
             Registries.LOOT_TABLE, Asterion.id("chests/safe_rune_mid"));
     private static final ResourceKey<LootTable> SAFE_RUNE_FAR_LOOT = ResourceKey.create(
             Registries.LOOT_TABLE, Asterion.id("chests/safe_rune_far"));
-    // Small render-safety buffer in nearest-first order. These are generated across separate
-    // ticks, avoiding one giant stall while still satisfying the vanilla receiving-world screen.
     private static final int[][] PRELOAD_OFFSETS = {{0, 0}};
     private static final int[][] PREWARM_OFFSETS = {{0, 0}};
     private static final Map<Long, Integer> GATEWAY_SURFACE_Y = new ConcurrentHashMap<>();
@@ -113,25 +106,28 @@ public final class WorldGenerator {
     }
 
     public static void onChunkLoad(ServerLevel level, LevelChunk chunk, boolean newlyGenerated) {
-        if (level.dimension().equals(Asterion.ASTERION_LEVEL)) {
-            // Never construct terrain from a load callback: clients may already be receiving this
-            // chunk. New worlds use MazeChunkGenerator; old incomplete chunks remain untouched
-            // rather than causing the visible unload/rebuild behavior this pipeline replaces.
-            if (newlyGenerated) MazeNbtStructures.markCopperClean(chunk);
-            else MazeNbtStructures.cleanLegacyCopper(chunk,
+        if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) {
+            return;
+        }
+
+        if (newlyGenerated) {
+            MazeNbtStructures.markCopperClean(chunk);
+        } else {
+            MazeNbtStructures.cleanLegacyCopper(chunk,
                     BOSS_FLOOR_Y - AsterionConfig.INSTANCE.floorThickness,
                     FLOOR_Y + AsterionConfig.INSTANCE.wallHeight);
-            if (ENABLE_MAZE_NBT_STRUCTURES) {
-                AsterionConfig config = AsterionConfig.INSTANCE;
-                MazeNbtStructures.Layout layout = MazeNbtStructures.layout(level,
-                        config.mazeRadiusCells, config.cellSize,
-                        (minX, minZ, maxX, maxZ) -> {
-                            int center = config.mazeRadiusCells;
-                            return maxX < center - 6 || minX > center + 6
-                                    || maxZ < center - 6 || minZ > center + 6;
-                        });
-                layout.onChunkBuilt(chunk);
-            }
+        }
+
+        if (ENABLE_MAZE_NBT_STRUCTURES) {
+            AsterionConfig config = AsterionConfig.INSTANCE;
+            MazeNbtStructures.Layout layout = MazeNbtStructures.layout(level,
+                    config.mazeRadiusCells, config.cellSize,
+                    (minX, minZ, maxX, maxZ) -> {
+                        int center = config.mazeRadiusCells;
+                        return maxX < center - 6 || minX > center + 6
+                                || maxZ < center - 6 || minZ > center + 6;
+                    });
+            layout.onChunkBuilt(chunk);
         }
     }
 
@@ -149,35 +145,43 @@ public final class WorldGenerator {
         tickRestoringBlocks(server);
         ServerLevel maze = server.getLevel(Asterion.ASTERION_LEVEL);
         if (maze != null) {
-            tickBossFinale(maze);
-            tickBossArenaGrowth(maze);
-            tickMinotaurDirector(maze);
-            tickMazeEntities(maze);
-            // Do not force-load an unrelated multi-chunk NBT landmark while a player is in the
-            // loading handshake; its bounded queue resumes as soon as the handoff completes.
-            if (ENABLE_MAZE_NBT_STRUCTURES && PENDING_TRANSITIONS.isEmpty())
-                MazeNbtStructures.tick(maze);
+            tickMaze(maze);
         }
         server.getPlayerList().getPlayers().forEach(WorldGenerator::tickPlayer);
-        if ((server.overworld().getGameTime() % 10L) == 0L && maze != null)
+        if ((server.overworld().getGameTime() % 10L) == 0L && maze != null) {
             maze.players().forEach(WorldGenerator::tickRuneCheckpoint);
-        tickPhasingEntities(server);
-        // These are stale-entry safeguards, not gameplay logic. Running the map scans once per
-        // second removes needless UUID/entity lookups from every server tick.
-        if ((server.overworld().getGameTime() % 20L) == 0L) {
-            ABOVE_WALL_TICKS.keySet().removeIf(id -> maze == null || maze.getEntityInAnyDimension(id) == null);
-            WARD_FALL_PROTECTION.keySet().removeIf(id -> maze == null || maze.getEntityInAnyDimension(id) == null);
-            ELECTRIFIED.entrySet().removeIf(entry -> maze == null
-                    || maze.getEntityInAnyDimension(entry.getKey()) == null);
-            PENDING_TRANSITIONS.entrySet().removeIf(entry -> {
-                if (server.getPlayerList().getPlayer(entry.getKey()) != null) return false;
-                PendingTransition pending = entry.getValue();
-                pending.maze.getChunkSource().removeTicketWithRadius(
-                        TicketType.PORTAL, pending.destinationChunk, 1);
-                return true;
-            });
-            LAST_PORTAL_SYNC.keySet().removeIf(id -> server.getPlayerList().getPlayer(id) == null);
         }
+        tickPhasingEntities(server);
+        if ((server.overworld().getGameTime() % 20L) == 0L) {
+            cleanupStaleState(server, maze);
+        }
+    }
+
+    private static void tickMaze(ServerLevel maze) {
+        tickBossFinale(maze);
+        tickBossArenaGrowth(maze);
+        tickBossArenaDebris(maze);
+        tickMinotaurDirector(maze);
+        tickMazeEntities(maze);
+        if (ENABLE_MAZE_NBT_STRUCTURES && PENDING_TRANSITIONS.isEmpty()) {
+            MazeNbtStructures.tick(maze);
+        }
+    }
+
+    private static void cleanupStaleState(MinecraftServer server, ServerLevel maze) {
+        ABOVE_WALL_TICKS.keySet().removeIf(id -> maze == null || maze.getEntityInAnyDimension(id) == null);
+        WARD_FALL_PROTECTION.keySet().removeIf(id -> maze == null || maze.getEntityInAnyDimension(id) == null);
+        ELECTRIFIED.keySet().removeIf(id -> maze == null || maze.getEntityInAnyDimension(id) == null);
+        PENDING_TRANSITIONS.entrySet().removeIf(entry -> {
+            if (server.getPlayerList().getPlayer(entry.getKey()) != null) {
+                return false;
+            }
+            PendingTransition pending = entry.getValue();
+            pending.maze.getChunkSource().removeTicketWithRadius(
+                    TicketType.PORTAL, pending.destinationChunk, 1);
+            return true;
+        });
+        LAST_PORTAL_SYNC.keySet().removeIf(id -> server.getPlayerList().getPlayer(id) == null);
     }
 
     private static void tickRuneCheckpoint(ServerPlayer player) {
@@ -210,8 +214,6 @@ public final class WorldGenerator {
         if (checkpoint == null)
             checkpoint = MazeNbtStructures.nearestSafeHouse(maze, deathPosition);
         if (checkpoint == null) {
-            // A fresh player may die before discovering a sanctuary. Give that player a stable,
-            // deterministic maze entry instead of falling back to the overworld spawn.
             checkpoint = randomMazeArrival(maze, player.getUUID(), 0L);
             prepareMazeArrival(maze, checkpoint);
         }
@@ -223,9 +225,6 @@ public final class WorldGenerator {
         WARD_FALL_PROTECTION.put(player.getUUID(), 100);
     }
 
-    /** Rewinds an unfinished center encounter when an entrant dies in its pit. The persistent
-     * victory flag is deliberately untouched, while transient boss/arena state is rebuilt so
-     * walking back into the pit starts the complete interception sequence again. */
     public static boolean resetBossEncounterAfterDeath(ServerPlayer deadPlayer) {
         if (!(deadPlayer.level() instanceof ServerLevel maze)
                 || !maze.dimension().equals(Asterion.ASTERION_LEVEL)
@@ -268,7 +267,6 @@ public final class WorldGenerator {
         return MazeNbtStructures.safeCheckpointNear(level, center, 9.0D) != null;
     }
 
-    /** Completes one sanctuary puzzle: bind its checkpoint and release every cell of its gate. */
     public static void solveRuneRoom(ServerLevel level, BlockPos runePos, ServerPlayer player, int color) {
         BlockPos checkpoint = null;
         int opened = 0;
@@ -294,7 +292,6 @@ public final class WorldGenerator {
         player.sendOverlayMessage(Component.translatable("message.asterion.rune_correct"));
     }
 
-    /** A wrong plaque rejects and disorients the player without damaging the room or checkpoint. */
     public static void failRuneRoom(ServerLevel level, BlockPos runePos, ServerPlayer player) {
         level.playSound(null, runePos, SoundEvents.SCULK_SHRIEKER_SHRIEK,
                 SoundSource.BLOCKS, 1.25F, 0.72F);
@@ -357,7 +354,6 @@ public final class WorldGenerator {
                 level.getGameTime() + 100L));
     }
 
-    /** The active gateway and its supporting well cannot be mined out from under the renderer. */
     public static boolean isActivePortalProtected(ServerLevel level, BlockPos pos) {
         SummonedPortal portal = summonedPortal;
         if (portal == null || !portal.dimension.equals(level.dimension())) return false;
@@ -367,7 +363,6 @@ public final class WorldGenerator {
                 && pos.getY() >= portal.surfaceY - 3 && pos.getY() <= portal.surfaceY + 1;
     }
 
-    /** Removes only blocks tracked as player-placed, allowing the Minotaur to counter pillaring without eating the maze. */
     public static int breakPlayerBlocksAround(ServerLevel level, AABB bounds) {
         int broken = 0;
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
@@ -385,15 +380,10 @@ public final class WorldGenerator {
         return broken;
     }
 
-    /**
-     * Temporarily breaches generated maze masonry in the Minotaur's immediate body path.
-     * Every exact block state is restored by the normal maze repair queue after five seconds.
-     */
     public static int breakMazeWallAround(ServerLevel level, AABB bounds, Entity breaker) {
         return breakTemporaryMasonry(level, bounds, breaker, FLOOR_Y + 1, 96);
     }
 
-    /** Temporarily opens the arena lock ring when a committed charge or slam reaches it. */
     public static int breakBossArenaWallAround(ServerLevel level, AABB bounds, Entity breaker) {
         return breakTemporaryMasonry(level, bounds, breaker, BOSS_FLOOR_Y + 1, 144);
     }
@@ -424,8 +414,6 @@ public final class WorldGenerator {
                             || state.is(Blocks.POLISHED_BASALT);
                     if (!mazeMasonry || isActivePortalProtected(level, cursor)) continue;
                     trackMazeBreak(level, cursor, state);
-                    // One batched visual/sound is emitted by the Minotaur. Avoid hundreds of
-                    // individual block-break updates while retaining normal client block sync.
                     level.setBlock(cursor, Blocks.AIR.defaultBlockState(), 2);
                     broken++;
                 }
@@ -485,7 +473,6 @@ public final class WorldGenerator {
                 (int) Math.round(Math.sin(angle) * distance));
     }
 
-    /** Replaces the current command-spawned portal and reveals it to nearby players immediately. */
     public static void summonPortal(ServerLevel level, BlockPos center, int surfaceY) {
         int riftY = surfaceY - 1;
         buildSummonedWell(level, center.getX(), surfaceY, center.getZ());
@@ -557,7 +544,6 @@ public final class WorldGenerator {
     }
 
     private static BlockState gatewayRimState(int dx, int dz, int edgeDistance) {
-        // Rectilinear dark masonry matches the maze and leaves the dust shader palette to the rift.
         if (edgeDistance >= 3 && Math.floorMod(dx * 3 + dz * 5, 5) == 0)
             return Blocks.CRACKED_DEEPSLATE_TILES.defaultBlockState();
         if (Math.floorMod(dx - dz, 3) == 0) return Blocks.CHISELED_DEEPSLATE.defaultBlockState();
@@ -605,7 +591,6 @@ public final class WorldGenerator {
         }
     }
 
-    /** Returns a falling player to the closest loaded solid surface before void damage can begin. */
     private static boolean rescueFromMazeVoid(ServerPlayer player) {
         ServerLevel maze = player.level();
         if (player.getY() >= maze.getMinY() + 4) return false;
@@ -773,8 +758,6 @@ public final class WorldGenerator {
             if (entity instanceof MinotaurEntity minotaur && minotaur.isAlive() && !minotaur.isRemoved())
                 minotaurs.add(minotaur);
 
-        // The Minotaur is a singular presence. Keep the active boss if one exists, otherwise the
-        // oldest loaded roamer, and remove accidental duplicates from old saves/event overlap.
         if (minotaurs.size() > 1) {
             MinotaurEntity keeper = minotaurs.stream()
                     .filter(entity -> entity.behaviorPhase() == MinotaurEntity.BehaviorPhase.BOSS)
@@ -801,8 +784,6 @@ public final class WorldGenerator {
                     .min(Comparator.comparingLong(player -> roamerRevealTick(maze, player))).orElse(null);
             if (candidate != null && maze.getGameTime() >= roamerRevealTick(maze, candidate)) {
                 MinotaurEntity spawned = MinotaurEntity.spawnRoamer(maze, candidate);
-                // A failed hidden-position search is normal in a newly loading or unusually open
-                // area. Wait again instead of retrying every tick and making spawn timing obvious.
                 ROAMER_REVEAL_TICKS.put(candidate.getUUID(), maze.getGameTime()
                         + (spawned == null ? 20L * 18L : 20L * 150L));
             }
@@ -814,8 +795,6 @@ public final class WorldGenerator {
         return ROAMER_REVEAL_TICKS.computeIfAbsent(player.getUUID(), id -> {
             long roll = mix(level.getSeed() ^ id.getMostSignificantBits()
                     ^ Long.rotateLeft(id.getLeastSignificantBits(), 17) ^ level.getGameTime());
-            // Forty-five seconds to two-and-a-half minutes is long enough for the maze to feel
-            // empty before the player notices that it never was.
             return level.getGameTime() + 20L * (45L + Math.floorMod(roll, 106L));
         });
     }
@@ -886,6 +865,9 @@ public final class WorldGenerator {
             int surface = overworld.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
                     spawn.getX(), spawn.getZ());
             for (ServerPlayer player : new ArrayList<>(maze.players())) {
+                player.addItem(new net.minecraft.world.item.ItemStack(Asterion.MINOTAUR_SIGIL));
+                player.addItem(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.ECHO_SHARD, 8));
+                player.giveExperiencePoints(750);
                 double arrivalY = surface + 18.0D;
                 player.teleportTo(overworld, spawn.getX() + 0.5D, arrivalY, spawn.getZ() + 0.5D,
                         Set.of(), player.getYRot(), 0.0F, true);
@@ -997,14 +979,10 @@ public final class WorldGenerator {
                 radius * 0.45D, 0.12D);
     }
 
-    /** A bounded outward fracture wave: it tears real blocks from the arena and nearby maze,
-     * converts a few into settling rubble, and leaves the rest as permanent blast damage. */
     private static void crumbleFinaleMazeRing(ServerLevel level, int finaleTicks) {
         double progress = Mth.clamp((finaleTicks - 28) / 194.0D, 0.0D, 1.0D);
         double mazeCorner = AsterionConfig.INSTANCE.mazeRadiusCells
                 * AsterionConfig.INSTANCE.cellSize * Math.sqrt(2.0D);
-        // Accelerating wave crosses the complete generated maze footprint by detonation time.
-        // Only resident chunks are touched, keeping the finale bounded and server-safe.
         double radius = 4.0D + Math.pow(progress, 1.58D) * mazeCorner;
         int fragments = 0;
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
@@ -1062,12 +1040,9 @@ public final class WorldGenerator {
                 for (int y = BOSS_FLOOR_Y + 1; y <= FLOOR_Y; y++)
                     level.setBlock(pos.set(x, y, z), Blocks.AIR.defaultBlockState(), 2);
             } else if (distance <= outer) {
-                // A complete four-block-thick lock ring: no corridor or shifted opening can
-                // remain connected to the arena once the Dead Sun starts the fight.
                 for (int y = BOSS_FLOOR_Y + 1; y <= FLOOR_Y + 8; y++)
                     level.setBlock(pos.set(x, y, z), Asterion.ANCIENT_BRICKS.defaultBlockState(), 2);
             } else {
-                // Repairs square center pits authored by older builds into the new circular room.
                 for (int depth = 0; depth < AsterionConfig.INSTANCE.floorThickness; depth++)
                     level.setBlock(pos.set(x, FLOOR_Y - depth, z), bossFloorState(x, z, depth), 2);
                 for (int y = FLOOR_Y + 1; y <= FLOOR_Y + 8; y++)
@@ -1097,7 +1072,6 @@ public final class WorldGenerator {
             int cz = Mth.floor(Math.sin(angle) * pillarRadius);
             build.pillars.add(new BossPillar(cx, cz));
         }
-        // Pillars grow a complete layer at a time before the ceiling knits across them.
         for (BossPillar pillar : build.pillars) {
             int top = bossRoofY(pillar.x, pillar.z);
             for (int y = BOSS_FLOOR_Y + 1; y <= top; y++) {
@@ -1111,8 +1085,6 @@ public final class WorldGenerator {
             }
             }
         }
-        // Low ritual plinths, chained-looking lantern points, and broken radial markers give the
-        // enlarged floor landmarks without obstructing combat navigation.
         int[] detailRadii = {10, 22, 29};
         for (int radius : detailRadii) for (int index = 0; index < 12; index++) {
             double angle = Mth.TWO_PI * index / 12.0D + radius * 0.07D;
@@ -1123,8 +1095,6 @@ public final class WorldGenerator {
             if ((index & 2) == 0) build.growth.add(new BuildBlock(
                     new BlockPos(x, BOSS_FLOOR_Y + 2, z), Blocks.SOUL_LANTERN.defaultBlockState()));
         }
-        // A stepped stone vault replaces the old flat plate. Concentric rings rise toward the
-        // center and use structural ribs, so the room has a readable silhouette from the floor.
         for (int radius = PIT_HALF_WIDTH; radius >= 0; radius--)
             for (int x = -radius; x <= radius; x++) for (int z = -radius; z <= radius; z++) {
                 int radial = Mth.floor(Math.sqrt(x * x + z * z));
@@ -1136,8 +1106,6 @@ public final class WorldGenerator {
                         : rib ? Blocks.POLISHED_DEEPSLATE.defaultBlockState()
                         : Asterion.ANCIENT_BRICKS.defaultBlockState();
                 build.growth.add(new BuildBlock(new BlockPos(x, y, z), roof));
-                // Two-block ribs make the vault feel load-bearing without making the entire
-                // ceiling a thick featureless slab.
                 if (rib) build.growth.add(new BuildBlock(new BlockPos(x, y - 1, z), roof));
             }
     }
@@ -1175,7 +1143,6 @@ public final class WorldGenerator {
         return (int)bossArenaBuild.pillars.stream().filter(pillar -> !pillar.broken).count();
     }
 
-    /** Returns true when a boss charge actually collides with and destroys an intact pillar. */
     public static boolean breakBossPillar(ServerLevel level, AABB impact) {
         BossArenaBuild build = bossArenaBuild;
         if (build == null || !build.ready) return false;
@@ -1235,8 +1202,6 @@ public final class WorldGenerator {
         return best;
     }
 
-    /** Setup point opposite the player from the nearest intact pillar, used instead of repeatedly
-     * pathing face-first into its collision volume. */
     public static Vec3 bossPillarSetupPosition(Vec3 player) {
         BossArenaBuild build = bossArenaBuild;
         if (build == null) return bossArenaCenter();
@@ -1301,7 +1266,6 @@ public final class WorldGenerator {
         }
     }
 
-    /** Clears only isolated knee-high debris; tall masonry remains a real charge collision. */
     public static int clearLowBossChargeObstacle(ServerLevel level, AABB impact) {
         int cleared = 0;
         for (int x = Mth.floor(impact.minX); x <= Mth.floor(impact.maxX); x++)
@@ -1315,6 +1279,36 @@ public final class WorldGenerator {
                 cleared++;
             }
         return cleared;
+    }
+
+    private static void tickBossArenaDebris(ServerLevel level) {
+        if (!bossArenaPrepared || (level.getGameTime() % 10L) != 0L) return;
+        int diameter = PIT_HALF_WIDTH * 2 + 1;
+        long phase = level.getGameTime() / 10L;
+        for (int sample = 0; sample < 96; sample++) {
+            long roll = mix(level.getSeed() ^ phase * 0x9E3779B97F4A7C15L
+                    ^ sample * 0xD1B54A32D192ED03L);
+            int x = (int)Math.floorMod(roll, diameter) - PIT_HALF_WIDTH;
+            int z = (int)Math.floorMod(roll >>> 24, diameter) - PIT_HALF_WIDTH;
+            if (x * x + z * z > PIT_HALF_WIDTH * PIT_HALF_WIDTH) continue;
+            for (int y = BOSS_FLOOR_Y + 1; y <= BOSS_FLOOR_Y + 4; y++) {
+                BlockPos pos = new BlockPos(x, y, z);
+                BlockState state = level.getBlockState(pos);
+                if (!(state.is(Blocks.COBBLED_DEEPSLATE) || state.is(Blocks.TUFF)
+                        || state.is(Blocks.COBBLESTONE) || state.is(Blocks.GRAVEL))) continue;
+                if (!level.getEntities((Entity)null, new AABB(pos), Entity::isAlive).isEmpty()) continue;
+                level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2);
+                if ((sample & 7) == 0)
+                    level.sendParticles(ParticleTypes.ASH, x + 0.5D, y + 0.35D, z + 0.5D,
+                            3, 0.25D, 0.18D, 0.25D, 0.01D);
+                break;
+            }
+        }
+        int outer = PIT_HALF_WIDTH + PIT_WALL_THICKNESS;
+        AABB arena = new AABB(-outer, BOSS_FLOOR_Y, -outer,
+                outer + 1, DIMENSION_CEILING_Y, outer + 1);
+        for (FallingBlockEntity rubble : level.getEntitiesOfClass(FallingBlockEntity.class, arena))
+            if (rubble.time > 100) rubble.discard();
     }
 
     public static void collapseBossRoofRing(ServerLevel level, Vec3 origin, int radius) {
@@ -1333,8 +1327,6 @@ public final class WorldGenerator {
                 if (state.isAir()) continue;
                 if (spawned < 24 && Math.floorMod(x * 31 + z * 17 + y * 11, 3) == 0) {
                     FallingBlockEntity rubble = FallingBlockEntity.fall(level, cursor.immutable(), state);
-                    // Detached ceiling slabs fall inward onto the boss. A tiny lateral drift
-                    // reads as structural collapse while preserving the clear sky-to-ground arc.
                     Vec3 inward = new Vec3(origin.x - (x + 0.5D), 0.0D, origin.z - (z + 0.5D));
                     if (inward.lengthSqr() < 0.01D) inward = new Vec3(0.15D, 0.0D, -0.1D);
                     inward = inward.normalize();
@@ -1350,8 +1342,6 @@ public final class WorldGenerator {
                 Math.max(1, radius * 0.45D), 0.045D);
     }
 
-    /** Builds a dense, irregular pile around the stunned Minotaur. Lightning is forbidden until
-     * this returns true, keeping the visual cause-and-effect of the transition intact. */
     public static boolean buryBossInRubble(ServerLevel level, Vec3 origin) {
         BlockPos center = BlockPos.containing(origin);
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
@@ -1413,14 +1403,10 @@ public final class WorldGenerator {
         Vec3 horizontal = new Vec3(towardCenter.x, 0.0D, towardCenter.z);
         if (horizontal.lengthSqr() < 0.01D) horizontal = new Vec3(0.12D, 0.0D, 0.08D);
         horizontal = horizontal.normalize();
-        // The ward catches the entrant sideways and carries them across the lip. A shallow
-        // downward component lets gravity finish the descent without firing the player like a
-        // projectile directly into the floor at the near edge of the pit.
         if (!level.noCollision(player)) {
             Vec3 clearLip = bossArenaCenter().subtract(horizontal.scale(PIT_HALF_WIDTH - 7.0D));
             player.teleportTo(clearLip.x, Math.max(FLOOR_Y + 0.8D, player.getY()), clearLip.z);
         }
-        // Controlled pull: enough to clear the lip, never enough to cross into the far wall.
         Vec3 impulse = new Vec3(horizontal.x * 1.22D, -0.18D, horizontal.z * 1.22D);
         MazeZapPayload payload = new MazeZapPayload(player.getId(), source, impulse, 48);
         if (ServerPlayNetworking.canSend(player, MazeZapPayload.TYPE)) ServerPlayNetworking.send(player, payload);
@@ -1512,8 +1498,6 @@ public final class WorldGenerator {
                 WARD_FALL_PROTECTION.remove(entity.getUUID());
             } else if (entity.onGround() && entity.getY() < mazeFloorY(((ServerLevel)entity.level()).getSeed(),
                     entity.getBlockX(), entity.getBlockZ(), AsterionConfig.INSTANCE.cellSize) + 4.0D) {
-                // Keep a short landing grace so a client ragdoll contact packet cannot race the
-                // server's ordinary on-ground detection and deal delayed impact damage.
                 WARD_FALL_PROTECTION.put(entity.getUUID(), Math.min(40, protection - 1));
             } else {
                 WARD_FALL_PROTECTION.put(entity.getUUID(), protection - 1);
@@ -1540,7 +1524,7 @@ public final class WorldGenerator {
         if (inward.horizontalDistanceSqr() < 0.01D)
             inward = new Vec3(-entity.getX(), 0.0D, -entity.getZ());
         inward = new Vec3(inward.x, 0.0D, inward.z).normalize();
-        Vec3 launch = new Vec3(inward.x * 2.15D, -1.25D, inward.z * 2.15D);
+        Vec3 launch = new Vec3(inward.x * 3.10D, -1.60D, inward.z * 3.10D);
         MazeZapPayload payload = new MazeZapPayload(entity.getId(), source, launch, chargeTicks);
         Set<ServerPlayer> viewers = new HashSet<>(PlayerLookup.tracking(entity));
         if (entity instanceof ServerPlayer player) viewers.add(player);
@@ -1551,8 +1535,6 @@ public final class WorldGenerator {
         ServerLevel level = (ServerLevel) entity.level();
         entity.hurtServer(level, entity.damageSources().lightningBolt(), 2.0F);
 
-        // The ward uses ordinary authoritative knockback. Its client payload suppresses the
-        // generic high-fall ragdoll, reserving ragdolls for real combat and scripted impacts.
         entity.setDeltaMovement(launch);
         entity.hurtMarked = true;
         entity.resetFallDistance();
@@ -1578,27 +1560,22 @@ public final class WorldGenerator {
         return Math.max(Math.abs(position.x), Math.abs(position.z)) <= trigger;
     }
 
-    /** Shared server/client completion test for the maze objective and boss threshold. */
     public static boolean hasReachedMazeCenter(Vec3 position) {
-        // Stay clear of the masonry lock ring before the room is sealed around the entrant.
         double radius = PIT_HALF_WIDTH - 2.0D;
         return position.x * position.x + position.z * position.z <= radius * radius
                 && position.y > BOSS_FLOOR_Y + 1.0D;
     }
 
-    /** Crossing any side of the complete center lock-ring advances the objective to the pit. */
     public static boolean hasEnteredCenterPerimeter(Vec3 position) {
         double radius = PIT_HALF_WIDTH + PIT_WALL_THICKNESS + 4.0D;
         return position.x * position.x + position.z * position.z <= radius * radius
                 && position.y > BOSS_FLOOR_Y + 1.0D;
     }
 
-    /** The rune required by the player's current square radius layer. */
     public static GreekRune runeForMazePosition(Vec3 position) {
         return GreekRune.forRadius(position.x, position.z);
     }
 
-    /** True from the instant the center fight begins through its destruction finale. */
     public static boolean isBossEncounterActive(ServerLevel level) {
         if (bossFinale != null) return true;
         AABB centerSearch = new AABB(-128.0D, level.getMinY(), -128.0D,
@@ -1619,7 +1596,6 @@ public final class WorldGenerator {
         return new Vec3(0.5D, BOSS_FLOOR_Y + 1.0D, 0.5D);
     }
 
-    /** A point on the upper fighting ring from which the Minotaur visibly enters the pit. */
     public static Vec3 bossArenaApproach(Vec3 from) {
         double ax = Math.abs(from.x), az = Math.abs(from.z);
         double rim = PIT_HALF_WIDTH + PIT_WALL_THICKNESS + 2.5D;
@@ -1627,18 +1603,12 @@ public final class WorldGenerator {
         return new Vec3(0.5D, FLOOR_Y + 1.0D, Math.copySign(rim, from.z == 0 ? 1 : from.z));
     }
 
-    /**
-     * Returns the next cell-center waypoint on a block-verified maze route. This deliberately
-     * checks the live world instead of only the generated topology, so permanent Shifting walls,
-     * opened shortcuts, and player obstruction are all respected.
-     */
     public static Vec3 nextMazeWaypoint(ServerLevel level, Vec3 from, Vec3 target,
                                         double bodyWidth, double bodyHeight, int maxVisitedCells) {
         List<Vec3> route = mazeRoute(level, from, target, bodyWidth, bodyHeight, maxVisitedCells);
         return route.isEmpty() ? null : route.get(0);
     }
 
-    /** Full block-verified cell route, primarily exposed for opt-in Minotaur diagnostics. */
     public static List<Vec3> mazeRoute(ServerLevel level, Vec3 from, Vec3 target,
                                        double bodyWidth, double bodyHeight, int maxVisitedCells) {
         AsterionConfig config = AsterionConfig.INSTANCE;
@@ -1685,8 +1655,6 @@ public final class WorldGenerator {
                     java.util.Collections.reverse(route);
                     return route;
                 }
-                // A* keeps long-distance stalking and chase replans focused toward the useful
-                // frontier instead of flood-filling thousands of unrelated maze cells.
                 open.add(new RouteNode(next,
                         nextCost + mazeHeuristic(nx, nz, targetX, targetZ) * 10.0D));
             }
@@ -1737,7 +1705,6 @@ public final class WorldGenerator {
         return ((long) x << 32) ^ (z & 0xFFFFFFFFL);
     }
 
-    /** Runtime events must never close the authored route leading into the center objective. */
     public static boolean isCenterAccessProtected(BlockPos pos) {
         AsterionConfig config = AsterionConfig.INSTANCE;
         int centerSafeRadius = config.cellSize * 5;
@@ -1766,7 +1733,6 @@ public final class WorldGenerator {
         PENDING_TRANSITIONS.put(player.getUUID(), pending);
         Asterion.LOGGER.info("Preparing Asterion transition for {} ({} buffered chunks)",
                 player.getScoreboardName(), PREWARM_OFFSETS.length - prewarmIndex);
-        // Keep a minimal render-safe region resident while its chunks are filled incrementally.
         maze.getChunkSource().addTicketWithRadius(TicketType.PORTAL, pending.destinationChunk, 1);
         player.setInvulnerable(true);
         player.setNoGravity(true);
@@ -1780,12 +1746,8 @@ public final class WorldGenerator {
         try {
             player.setDeltaMovement(Vec3.ZERO);
             player.resetFallDistance();
-            // Let the body visibly phase through terrain before the dimension tears it away.
             if (!pending.teleported && pending.ticks < 6)
                 player.setPos(player.getX(), player.getY() - (0.10D + pending.ticks * 0.012D), player.getZ());
-            // Finish the complete visible destination buffer before changing dimensions. The
-            // player sees the intentional black transition instead of suffering rollback while
-            // fresh maze chunks compete with gameplay ticks.
             if (!pending.teleported && prewarmIndex < PREWARM_OFFSETS.length) {
                 generateNextPrewarmChunk(pending.maze, pending.destination);
                 if (prewarmIndex % 12 == 0 || prewarmIndex == PREWARM_OFFSETS.length)
@@ -1794,7 +1756,6 @@ public final class WorldGenerator {
                 pending.ticks++;
                 return;
             }
-            // One synchronous maze chunk per tick keeps the server responsive during generation.
             if (pending.preloadIndex < PRELOAD_OFFSETS.length) {
                 int[] offset = PRELOAD_OFFSETS[pending.preloadIndex++];
                 pending.maze.getChunk((pending.destination.getX() >> 4) + offset[0],
@@ -1835,8 +1796,6 @@ public final class WorldGenerator {
                 && player.level().dimension().equals(Asterion.ASTERION_LEVEL))
             pending.clientReady = true;
         if (pending != null && pending.clientReady) {
-            // Every player in the dimension hears the same arrival omen at their own position;
-            // this avoids the normal distance attenuation silencing remote maze explorers.
             for (ServerPlayer listener : pending.maze.players())
                 if (ServerPlayNetworking.canSend(listener, EntryOmenPayload.TYPE))
                     ServerPlayNetworking.send(listener, EntryOmenPayload.INSTANCE);
@@ -1850,8 +1809,6 @@ public final class WorldGenerator {
         player.setNoGravity(pending.hadNoGravity);
         player.noPhysics = pending.wasNoPhysics;
         if (pending.teleported && player.level().dimension().equals(Asterion.ASTERION_LEVEL)) {
-            // Release the body from above the maze only after the landing buffer/client handshake.
-            // The detached arrival camera can now see the physical ragdoll descend in foreground.
             Vec3 fallVelocity = new Vec3(0.08D, -0.38D, -0.05D);
             player.setDeltaMovement(fallVelocity);
             player.hurtMarked = true;
@@ -1871,7 +1828,6 @@ public final class WorldGenerator {
         return entity != null && WARD_FALL_PROTECTION.containsKey(entity.getUUID());
     }
 
-    /** Selects a corridor cell well inside the sealed maze, independently for each arrival. */
     private static BlockPos randomMazeArrival(ServerLevel maze, UUID entrant, long salt) {
         AsterionConfig config = AsterionConfig.INSTANCE;
         int radius = config.mazeRadiusCells;
@@ -1884,7 +1840,6 @@ public final class WorldGenerator {
         int gx = margin + (int) Math.floorMod(roll, usable);
         int gz = margin + (int) Math.floorMod(roll >>> 24, usable);
 
-        // Do not drop entrants into the open boss pit at the center.
         int centerCell = size / 2;
         if (Math.abs(gx - centerCell) <= 2 && Math.abs(gz - centerCell) <= 2)
             gx = Math.min(size - margin - 1, gx + 4);
@@ -1910,8 +1865,6 @@ public final class WorldGenerator {
             for (int depth = 0; depth < config.floorThickness; depth++)
                 maze.setBlock(p.set(arrival.getX() + dx, floorY - depth, arrival.getZ() + dz),
                         Asterion.ANCIENT_STONE.defaultBlockState(), 2);
-            // Only clear the occupied corridor volume. Clearing a column all the way to the old
-            // skyfall height performed thousands of needless block updates during handoff.
             int clearHeight = Math.abs(dx) <= 1 && Math.abs(dz) <= 1 ? 15 : 5;
             for (int y = 1; y <= clearHeight; y++)
                 maze.setBlock(p.set(arrival.getX() + dx, floorY + y, arrival.getZ() + dz),
@@ -1923,7 +1876,6 @@ public final class WorldGenerator {
         generateMazeChunk(chunk, level.getSeed());
     }
 
-    /** Called by the actual chunk generator, before Minecraft exposes the chunk to clients. */
     public static void generateMazeChunk(ChunkAccess chunk, long seed) {
         activeMazeTerrainSeed = seed;
         AsterionConfig config = AsterionConfig.INSTANCE;
@@ -1936,8 +1888,6 @@ public final class WorldGenerator {
         ChunkPos chunkPos = chunk.getPos();
         BlockPos marker = new BlockPos(chunkPos.getMinBlockX(), 1, chunkPos.getMinBlockZ());
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
-        // Maze terrain is unbounded. The cached topology is used as a deterministic tile so every
-        // chunk, at any coordinate, receives connected corridors instead of falling into void.
         int startX = chunkPos.getMinBlockX();
         int endX = chunkPos.getMaxBlockX();
         int startZ = chunkPos.getMinBlockZ();
@@ -1971,6 +1921,9 @@ public final class WorldGenerator {
                                 patternedWall(seed, x, y, z, biome, cell, radius));
                     placeBiomeWallDetail(chunk, seed, x, z, cell, thickness, config.wallHeight, biome, floorY);
                 } else {
+                    if (needsElevationSlab(seed, x, z, cell, floorY))
+                        bufferedSet(chunk, x, floorY + 1, z,
+                                Asterion.ANCIENT_STONE_SLAB.defaultBlockState());
                     if (isArchOpening(topology, x, z, cell, thickness, radius)) {
                         int archY = Math.max(9, config.wallHeight / 3);
                         for (int y = archY; y <= archY + 2; y++)
@@ -2003,9 +1956,6 @@ public final class WorldGenerator {
         }
     }
 
-    /** Broad deterministic terraces shared by chunk generation, spawning, and wall protection.
-     * The field changes by at most one block at a time, producing walkable natural steps without
-     * adding path-blocking cliffs. The boss approach remains level for scripted movement. */
     private static int mazeFloorY(long seed, int x, int z, int cell) {
         double centerDistance = Math.max(Math.abs(x), Math.abs(z));
         double flatRadius = cell * 7.0D;
@@ -2020,7 +1970,17 @@ public final class WorldGenerator {
         return FLOOR_Y + Mth.clamp(Mth.floor(height * blend + 0.5D), 0, 6);
     }
 
-    /** Palette-buffer write used only while constructing a new empty maze chunk. */
+    public static int mazeFloorHeight(long seed, int x, int z) {
+        return mazeFloorY(seed, x, z, AsterionConfig.INSTANCE.cellSize);
+    }
+
+    private static boolean needsElevationSlab(long seed, int x, int z, int cell, int floorY) {
+        return mazeFloorY(seed, x + 1, z, cell) > floorY
+                || mazeFloorY(seed, x - 1, z, cell) > floorY
+                || mazeFloorY(seed, x, z + 1, cell) > floorY
+                || mazeFloorY(seed, x, z - 1, cell) > floorY;
+    }
+
     private static void bufferedSet(ChunkAccess chunk, int x, int y, int z, BlockState state) {
         LevelChunkSection section = chunk.getSection(chunk.getSectionIndex(y));
         section.setBlockState(x & 15, y & 15, z & 15, state, false);
@@ -2058,9 +2018,6 @@ public final class WorldGenerator {
         return false;
     }
 
-    /** Biome-specific secondary passages change the graph while only removing walls, so the
-     * original guaranteed route can never be disconnected. The boundary hash is shared by every
-     * block across its thickness, producing a complete doorway rather than pinholes. */
     private static boolean biomeOpensWall(long seed, MazeBiome biome, int ax, int az,
                                           int bx, int bz, boolean northSouthBoundary) {
         if (biome == MazeBiome.ANCIENT) return false;
@@ -2129,12 +2086,7 @@ public final class WorldGenerator {
             BlockPos barrelPos = new BlockPos(x, barrelY, z);
             BlockState barrelState = Blocks.BARREL.defaultBlockState();
             chunk.setBlockState(barrelPos, barrelState, 0);
-            // Chunk generation often runs on a ProtoChunk, before getBlockEntity can lazily
-            // create containers. Attach the barrel entity explicitly so every generated barrel
-            // retains its loot table when the chunk is promoted and saved.
             placeLootBarrel(chunk, barrelPos, MAZE_BARREL_LOOT, supply);
-            // The barrel hangs low enough to open, but its chain disappears into the unreachable
-            // ceiling so it feels suspended from the full height of the dimension.
             for (int y = barrelY + 1; y <= DIMENSION_CEILING_Y; y++)
                 bufferedSet(chunk, x, y, z, Blocks.IRON_CHAIN.defaultBlockState());
             if (Math.floorMod(supply >>> 17, 3) == 0)
@@ -2226,7 +2178,6 @@ public final class WorldGenerator {
     private static BlockState patternedWall(long seed, int x, int y, int z, MazeBiome biome,
                                             int cell, int radius) {
         if (isCenterArena(x, z, cell)) return Asterion.ANCIENT_BRICKS.defaultBlockState();
-        // Materials form architectural patches instead of television-static block noise.
         long detail = mix(seed ^ (long)Math.floorDiv(x, 3) * 0x9E3779B97F4A7C15L
                 ^ (long)Math.floorDiv(z, 3) * 0xD1B54A32D192ED03L
                 ^ Math.floorDiv(y, 4) * 0x94D049BB133111EBL);
@@ -2264,7 +2215,7 @@ public final class WorldGenerator {
         MazeBiome biome = mazeBiomeAt(seed, x, z, cell);
         long biomeDetail = mix(seed ^ (long)x * 0x632BE59BD9B4E019L ^ (long)z * 0x8CB92BA72F3D8DD7L);
         if (biome == MazeBiome.OVERGROWN && Math.floorMod(biomeDetail, 9) < 2)
-            return Blocks.MOSSY_STONE_BRICKS;
+            return Asterion.ANCIENT_MOSS;
         if (biome == MazeBiome.WITHERED && Math.floorMod(biomeDetail, 13) == 0)
             return Blocks.SOUL_SOIL;
         if (biome == MazeBiome.SCORCHED && Math.floorMod(biomeDetail, 11) == 0)
@@ -2289,8 +2240,6 @@ public final class WorldGenerator {
         long region = mix(seed ^ (long)regionX * 0x9E3779B97F4A7C15L
                 ^ (long)regionZ * 0xD1B54A32D192ED03L);
         if (Math.max(Math.abs(x), Math.abs(z)) < cell * 7) return MazeBiome.ANCIENT;
-        // Ancient architecture remains dominant. A full cell-wide neutral band around each
-        // region edge prevents hard material seams and lets one style decay before another begins.
         int localX = Math.floorMod(x, regionSize);
         int localZ = Math.floorMod(z, regionSize);
         int transition = cell + cell / 2;
@@ -2315,8 +2264,6 @@ public final class WorldGenerator {
         return edge >= neutralBand && edge < neutralBand + cell * 2;
     }
 
-    /** Builds aligned architectural motifs inside otherwise open cells. Every motif has a wide
-     * central cross cut through it, keeping cardinal exits and Minotaur navigation connected. */
     private static boolean placeMazeMotifColumn(ChunkAccess chunk, long seed, int x, int z,
                                                 int cell, int thickness, int wallHeight,
                                                 MazeBiome biome, int radius, int floorY) {
@@ -2343,16 +2290,12 @@ public final class WorldGenerator {
                     default -> 0;
                 };
         boolean shaped = switch (motif) {
-            // Broken circular arcs.
             case 0 -> {
                 double ring = Math.sqrt(dx * dx + dz * dz);
                 yield ring >= 3.2D && ring <= 4.35D;
             }
-            // Mirrored diagonal ribs.
             case 1 -> Math.abs(Math.abs(dx) - Math.abs(dz)) <= 1;
-            // Rounded-square loop with four broad cardinal entrances.
             case 2 -> Math.max(Math.abs(dx), Math.abs(dz)) == 4;
-            // Sideways staggered baffles, alternating by quadrant.
             default -> (Math.abs(dz) == 3 && Integer.signum(dx) == Integer.signum(dz))
                     || (Math.abs(dx) == 4 && Integer.signum(dx) != Integer.signum(dz));
         };
@@ -2420,6 +2363,13 @@ public final class WorldGenerator {
             }
             if (Math.floorMod(detail, 19) == 0)
                 bufferedSet(chunk, x, floorY + 1, z, Blocks.MOSS_CARPET.defaultBlockState());
+            else if (Math.floorMod(detail, 43) == 0)
+                bufferedSet(chunk, x, floorY + 1, z, Blocks.LEAF_LITTER.defaultBlockState());
+            else if (Math.floorMod(detail, 71) == 0)
+                bufferedSet(chunk, x, floorY + 1, z, Blocks.WILDFLOWERS.defaultBlockState());
+            else if (Math.floorMod(detail, 137) == 0
+                    && Math.abs(lx - center) > 2 && Math.abs(lz - center) > 2)
+                bufferedSet(chunk, x, floorY + 1, z, Blocks.BUSH.defaultBlockState());
             else if (Math.floorMod(detail, 113) == 0 && Math.abs(lx - center) > 1 && Math.abs(lz - center) > 1)
                 bufferedSet(chunk, x, floorY + 1, z, Blocks.AZALEA.defaultBlockState());
         } else if (biome == MazeBiome.WITHERED && Math.floorMod(detail, 127) == 0) {
@@ -2570,6 +2520,7 @@ public final class WorldGenerator {
             int routeCount = carvePrimaryRoute(visited, route);
             growBranches(visited, route, routeCount);
             addRoomsAndLoops(loopChance);
+            shapeDistrictLandmarks();
             assignLandmarks(landmarkChance);
             markReachableFromCenter();
             int entrance = index(size / 2, size - 1);
@@ -2614,7 +2565,9 @@ public final class WorldGenerator {
 
             while (z > center) {
                 long choice = mix(seed ^ (long) segment++ * 0x9E3779B97F4A7C15L);
-                int northRun = 4 + (int) Math.floorMod(choice, 10);
+                // The solution alternates deliberate long corridors with lateral dog-legs. The
+                // shorter cap prevents a single obvious sightline running down the middle.
+                int northRun = 3 + (int) Math.floorMod(choice, 6);
                 for (int i = 0; i < northRun && z > center; i++) {
                     int next = index(x, --z);
                     carve(current, next, 0, true);
@@ -2628,7 +2581,12 @@ public final class WorldGenerator {
                 int spread = Math.max(4, remaining / 2);
                 int desired = center + (int) Math.floorMod(choice >>> 16, spread * 2 + 1) - spread;
                 desired = Mth.clamp(desired, 3, size - 4);
-                int maxHorizontal = 5 + (int) Math.floorMod(choice >>> 32, 11);
+                if (Math.abs(desired - x) < 3) {
+                    int side = ((choice >>> 28) & 1L) == 0L ? -1 : 1;
+                    desired = Mth.clamp(x + side * (3 + (int)Math.floorMod(choice >>> 36, 5)),
+                            3, size - 4);
+                }
+                int maxHorizontal = 4 + (int) Math.floorMod(choice >>> 32, 7);
                 desired = Mth.clamp(desired, x - maxHorizontal, x + maxHorizontal);
                 while (x != desired) {
                     int direction = desired > x ? 1 : 3;
@@ -2724,10 +2682,35 @@ public final class WorldGenerator {
             }
         }
 
+        /** Opens occasional two-by-two districts after the spanning maze is complete. These
+         * spaces break the grid rhythm without touching the guaranteed entrance solution. */
+        private void shapeDistrictLandmarks() {
+            int center = size / 2;
+            for (int z = 3; z < size - 4; z += 3) for (int x = 3; x < size - 4; x += 3) {
+                long roll = mix(seed ^ (long)x * 0xD1342543DE82EF95L
+                        ^ (long)z * 0x94D049BB133111EBL);
+                byte district = Math.floorMod(roll, 59) == 0 ? PLAZA
+                        : Math.floorMod(roll >>> 9, 79) == 0 ? GARDEN : 0;
+                if (district == 0 || Math.abs(x - center) < 7 && Math.abs(z - center) < 7) continue;
+                boolean clear = true;
+                for (int dz = 0; dz <= 1 && clear; dz++) for (int dx = 0; dx <= 1; dx++) {
+                    int cell = index(x + dx, z + dz);
+                    if (solutionOpenings[cell] != 0 || traits[cell] != 0) { clear = false; break; }
+                }
+                if (!clear) continue;
+                carve(index(x, z), index(x + 1, z), 1, false);
+                carve(index(x, z), index(x, z + 1), 2, false);
+                carve(index(x + 1, z), index(x + 1, z + 1), 2, false);
+                carve(index(x, z + 1), index(x + 1, z + 1), 1, false);
+                for (int dz = 0; dz <= 1; dz++) for (int dx = 0; dx <= 1; dx++)
+                    traits[index(x + dx, z + dz)] |= district;
+            }
+        }
+
         private void assignLandmarks(int landmarkChance) {
             for (int z = 1; z < size - 1; z++) for (int x = 1; x < size - 1; x++) {
                 int cell = index(x, z);
-                if ((traits[cell] & ROOM) != 0 || solutionOpenings[cell] != 0) continue;
+                if ((traits[cell] & (ROOM | PLAZA | GARDEN)) != 0 || solutionOpenings[cell] != 0) continue;
                 long roll = mix(seed ^ (long) cell * 0x9E3779B97F4A7C15L);
                 int degree = Integer.bitCount(openings[cell] & 15);
                 if (degree == 1 && Math.floorMod(roll, 17) == 0) traits[cell] |= SAFE_RUNE;
@@ -2746,6 +2729,7 @@ public final class WorldGenerator {
             for (int z = minZ; z <= maxZ; z++) for (int x = minX; x <= maxX; x++) {
                 int cell = index(x, z);
                 if (solutionOpenings[cell] != 0) return false;
+                if ((traits[cell] & (ROOM | PLAZA | GARDEN | SAFE_RUNE)) != 0) return false;
                 connected |= (openings[cell] & 15) != 0;
             }
             return connected;
@@ -2803,8 +2787,6 @@ public final class WorldGenerator {
             int tbx = Math.floorMod(bx, size), tbz = Math.floorMod(bz, size);
             if (Math.abs(tax - tbx) + Math.abs(taz - tbz) == 1)
                 return open(tax, taz, tbx, tbz);
-            // Adjacent topology tiles meet here. Deterministic gateways prevent each repeated
-            // region from becoming a sealed island while preserving strong maze boundaries.
             long seam = mix(seed ^ (long) Math.min(ax, bx) * 0x9E3779B97F4A7C15L
                     ^ (long) Math.min(az, bz) * 0xD1B54A32D192ED03L);
             return Math.floorMod(seam, 11) == 0;

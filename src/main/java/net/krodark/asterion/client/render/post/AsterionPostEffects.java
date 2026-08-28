@@ -70,9 +70,6 @@ public final class AsterionPostEffects {
         Vec3 camera = AmneticCamera.position();
         double dx = camera.x - config.deadSunX;
         double dz = camera.z - config.deadSunZ;
-        // Preserve a readable angular silhouette across the infinite maze. The Sun remains
-        // anchored above the center, but its shader sphere grows gradually with horizontal
-        // distance so it never collapses into an invisible sub-pixel dot.
         float distanceScale = 1.0F + Math.min(7.0F,
                 (float) Math.sqrt(dx * dx + dz * dz) / 1200.0F);
         return new Vector4f(config.deadSunX + (float) shake.x,
@@ -101,8 +98,6 @@ public final class AsterionPostEffects {
         return new Vector3f(
                 config.dustDensity * mix(1.0F, 2.20F, eclipse),
                 config.fogStrength * mix(1.0F, 1.85F, eclipse),
-                // Never alter the time domain during an Eclipse. Multiplying an accumulated
-                // clock by a changing speed makes the entire noise field visibly jump.
                 config.shaderAnimationSpeed);
     }
 

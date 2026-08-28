@@ -83,6 +83,7 @@ public class Asterion implements ModInitializer {
     public static final Block ANCIENT_BRICK_WALL = registerBlock("ancient_brick_wall", MapColor.COLOR_BROWN, WallBlock::new);
     public static final Block ANCIENT_STONE = registerBlock("ancient_stone", MapColor.TERRACOTTA_BROWN, Block::new);
     public static final Block MOSSY_ANCIENT_STONE = registerBlock("mossy_ancient_stone", MapColor.TERRACOTTA_GREEN, Block::new);
+    public static final Block ANCIENT_MOSS = registerBlock("ancient_moss", MapColor.TERRACOTTA_GREEN, Block::new);
     public static final Block SHORT_GRASS = registerBlock("short_grass", MapColor.PLANT,
             properties -> new ShortGrassBlock(properties.noCollision().replaceable().instabreak()
                     .sound(SoundType.GRASS).offsetType(BlockBehaviour.OffsetType.XZ)));
@@ -122,6 +123,11 @@ public class Asterion implements ModInitializer {
             BLUEPRINT_KEY,
             new AntikytheraBlueprintItem(new Item.Properties().setId(BLUEPRINT_KEY).stacksTo(1).rarity(Rarity.RARE))
     );
+    private static final ResourceKey<Item> MINOTAUR_SIGIL_KEY = ResourceKey.create(
+            Registries.ITEM, id("minotaur_sigil"));
+    public static final Item MINOTAUR_SIGIL = Registry.register(
+            BuiltInRegistries.ITEM, MINOTAUR_SIGIL_KEY,
+            new Item(new Item.Properties().setId(MINOTAUR_SIGIL_KEY).stacksTo(1).rarity(Rarity.EPIC)));
     private static final ResourceKey<CreativeModeTab> ITEM_GROUP_KEY = ResourceKey.create(
             Registries.CREATIVE_MODE_TAB, id("asterion"));
     public static final CreativeModeTab ITEM_GROUP = Registry.register(
@@ -133,12 +139,14 @@ public class Asterion implements ModInitializer {
                     .displayItems((parameters, output) -> {
                         output.accept(ANTIKYTHERA_MECHANISM);
                         output.accept(ANTIKYTHERA_BLUEPRINT);
+                        output.accept(MINOTAUR_SIGIL);
                         output.accept(ANCIENT_BRICKS);
                         output.accept(ANCIENT_BRICK_SLAB);
                         output.accept(ANCIENT_BRICK_STAIRS);
                         output.accept(ANCIENT_BRICK_WALL);
                         output.accept(ANCIENT_STONE);
                         output.accept(MOSSY_ANCIENT_STONE);
+                        output.accept(ANCIENT_MOSS);
                         output.accept(SHORT_GRASS);
                         output.accept(ANCIENT_STONE_SLAB);
                         output.accept(ANCIENT_STONE_STAIRS);

@@ -23,7 +23,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
-/** Updates lights carried by players and ragdolls. */
 public final class HeldItemDynamicLights {
     private static final Set<Object> ACTIVE_LIGHTS = new HashSet<>();
     private static final Set<Object> CURRENT_LIGHTS = new HashSet<>();
@@ -172,7 +171,6 @@ public final class HeldItemDynamicLights {
 
     private static void updateAt(Object key, net.minecraft.world.entity.Entity owner, Vec3 position,
                                  LightStyle style, boolean castsShadow) {
-        // Layered sine waves avoid visible random jumps between frames.
         double time = owner.level().getGameTime()
                 + Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(true);
         double phase = time * 0.22D + owner.getId() * 0.73D
@@ -183,8 +181,6 @@ public final class HeldItemDynamicLights {
                         + Math.sin(phase * 2.37D) * 0.007D + Math.sin(phase * 0.41D) * 0.006D)
                 : 1.0F;
         boolean inAsterion = owner.level().dimension().equals(Asterion.ASTERION_LEVEL);
-        // Vanilla level light supplies the real illumination in the maze.
-        // Amnetic contributes only a restrained, smoothly moving color halo.
         float visualIntensity = style.intensity * flicker * (inAsterion ? 0.46F : 1.0F);
         float visualRadius = style.radius * (0.992F + flicker * 0.008F)
                 * (inAsterion ? 0.72F : 1.0F);

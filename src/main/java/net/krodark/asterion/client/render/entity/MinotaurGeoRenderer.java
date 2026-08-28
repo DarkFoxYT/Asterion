@@ -34,6 +34,8 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
     private static final DataTicket<Integer> GRAB_ARM = DataTickets.create("asterion_minotaur_grab_arm", Integer.class);
     private static final DataTicket<Float> IDLE_PHASE = DataTickets.create("asterion_minotaur_idle_phase", Float.class);
     private static final DataTicket<Float> IDLE_WEIGHT = DataTickets.create("asterion_minotaur_idle_weight", Float.class);
+    private static final DataTicket<Float> HORN_WEIGHT = DataTickets.create("asterion_minotaur_horn_weight", Float.class);
+    private static final DataTicket<Integer> ATTACK_TICKS = DataTickets.create("asterion_minotaur_attack_ticks", Integer.class);
     private final Map<UUID, LookPose> lookPoses = new HashMap<>();
     private final Map<UUID, GrabPose> grabPoses = new HashMap<>();
 
@@ -92,19 +94,20 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         }
 
         LookPose pose = lookPoses.computeIfAbsent(minotaur.getUUID(), ignored -> new LookPose());
-        // Exponential smoothing is stable at any frame rate and prevents wrap-around snapping.
         float frameTicks = Math.max(0.05F, Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaTicks());
         float blend = 1.0F - (float)Math.pow(0.72D, frameTicks);
         pose.yaw += Mth.wrapDegrees(targetYaw - pose.yaw) * blend;
         pose.pitch += (targetPitch - pose.pitch) * blend;
         float desiredIdle = minotaur.animationState() == MinotaurEntity.AnimationState.IDLE
-                && !minotaur.isPerformingGrab() ? 1.0F : 0.0F;
+                && !minotaur.isPerformingReach() ? 1.0F : 0.0F;
         pose.idleWeight += (desiredIdle - pose.idleWeight)
                 * (1.0F - (float)Math.pow(0.82D, frameTicks));
         state.addGeckolibData(LOOK_YAW, pose.yaw * Mth.DEG_TO_RAD);
         state.addGeckolibData(LOOK_PITCH, pose.pitch * Mth.DEG_TO_RAD);
         state.addGeckolibData(IDLE_PHASE, (minotaur.tickCount + partialTick) * 0.055F);
         state.addGeckolibData(IDLE_WEIGHT, pose.idleWeight);
+        state.addGeckolibData(HORN_WEIGHT, minotaur.isHornRamming() ? 1.0F : 0.0F);
+        state.addGeckolibData(ATTACK_TICKS, minotaur.bossAttackAnimationTicks());
 
         GrabPose grab = grabPoses.computeIfAbsent(minotaur.getUUID(), ignored -> new GrabPose());
         int grabTicks = minotaur.grabAttackTicks();
@@ -114,9 +117,12 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         float grabExtension = 0.65F;
         int liveArm = minotaur.reachArmSide();
         if (liveArm != 0) grab.arm = liveArm;
-        if (minotaur.isPerformingGrab() && liveArm != 0) {
-            desiredGrab = grabTicks < 11 ? smoother(grabTicks / 11.0F)
-                    : grabTicks < 49 ? 1.0F : 1.0F - smoother((grabTicks - 49) / 12.0F);
+        if (minotaur.isPerformingReach() && liveArm != 0) {
+            desiredGrab = minotaur.isPerformingGrab()
+                    ? grabTicks < 11 ? smoother(grabTicks / 11.0F)
+                    : grabTicks < 49 ? 1.0F : 1.0F - smoother((grabTicks - 49) / 12.0F)
+                    : grabTicks < 12 ? smoother(grabTicks / 12.0F)
+                    : grabTicks < 43 ? 1.0F : 1.0F - smoother((grabTicks - 43) / 6.0F);
             Entity targetEntity = minotaur.level().getEntity(minotaur.grabTargetEntityId());
             if (targetEntity != null) {
                 Vec3 shoulderCenter = minotaur.position().add(0.0D, minotaur.getBbHeight() * 0.68D, 0.0D);
@@ -153,14 +159,10 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
     public void adjustModelBonesForRender(RenderPassInfo<EntityRenderState> pass, BoneSnapshots bones) {
         float yaw = pass.getOrDefaultGeckolibData(LOOK_YAW, 0.0F);
         float pitch = pass.getOrDefaultGeckolibData(LOOK_PITCH, 0.0F);
-        // Bedrock/Gecko model axes face opposite the world-space look convention used above.
         rotateBone(bones, "body", -yaw * 0.18F, -pitch * 0.14F);
         rotateBone(bones, "neck", -yaw * 0.32F, -pitch * 0.31F);
         rotateBone(bones, "head", -yaw * 0.50F, -pitch * 0.55F);
 
-        // Low-amplitude procedural breathing and weight shifting layers over the authored idle.
-        // Its render-side weight eases in and out, so attacks and locomotion blend instead of
-        // snapping between completely rigid poses.
         float idle = pass.getOrDefaultGeckolibData(IDLE_WEIGHT, 0.0F);
         if (idle > 0.001F) {
             float phase = pass.getOrDefaultGeckolibData(IDLE_PHASE, 0.0F);
@@ -179,12 +181,21 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
             float targetPitch = pass.getOrDefaultGeckolibData(GRAB_PITCH, 0.0F);
             float extension = pass.getOrDefaultGeckolibData(GRAB_EXTENSION, 0.65F);
             int arm = pass.getOrDefaultGeckolibData(GRAB_ARM, 1);
-            // One full three-bone chain tracks the player. The elbow straightens with target
-            // distance and the hand gets its own correction, fixing the previously static
-            // righthand while keeping the unused arm free for authored attack motion.
             applyArmReach(bones, arm, targetYaw, targetPitch, extension, grab);
             rotateBone3(bones, "body", targetPitch * 0.12F * grab,
                     -targetYaw * 0.18F * grab, 0.0F);
+        }
+
+        float horn = pass.getOrDefaultGeckolibData(HORN_WEIGHT, 0.0F);
+        if (horn > 0.001F) {
+            int ticks = pass.getOrDefaultGeckolibData(ATTACK_TICKS, 0);
+            float lowered = ticks <= 28 ? smoother(ticks / 28.0F) : 1.0F;
+            float runBob = ticks > 28 ? Mth.sin((ticks - 28) * 0.52F) * 0.035F : 0.0F;
+            rotateBone3(bones, "body", (0.18F + lowered * 0.24F + runBob) * horn, 0.0F, 0.0F);
+            rotateBone3(bones, "neck", (0.24F + lowered * 0.31F - runBob) * horn, 0.0F, 0.0F);
+            rotateBone3(bones, "head", (0.20F + lowered * 0.36F) * horn, 0.0F, 0.0F);
+            rotateBone3(bones, "lefthorn", -0.08F * lowered * horn, 0.0F, -0.06F * horn);
+            rotateBone3(bones, "righthorn", -0.08F * lowered * horn, 0.0F, 0.06F * horn);
         }
     }
 

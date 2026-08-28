@@ -204,8 +204,6 @@ public final class MazeZapRenderer {
         return target.position().add(0.0D, target.getBbHeight() * 0.52D, 0.0D);
     }
 
-    /** Real world-space fracture current. The post shader owns only the Sun volume; every crack
-     * is built through the shared branched-lightning renderer and accumulates with boss damage. */
     private static void drawDeadSunFractures(Minecraft client,
                                               com.mojang.blaze3d.vertex.VertexConsumer out,
                                               com.mojang.blaze3d.vertex.PoseStack.Pose pose,
@@ -238,8 +236,6 @@ public final class MazeZapRenderer {
             float strength = Mth.clamp((damage * 16.0F - index) * 0.34F, 0.28F, 1.0F);
             BetterLightningRenderer.draw(out, pose, Vec3.ZERO, start.subtract(camera),
                     end.subtract(camera), Math.min(1.0F, strength * 1.35F), seed + now / 3L);
-            // Each major fault gets a short independently jittering branch. The geometry remains
-            // entirely in the shared renderer and grows denser as phase-two damage accumulates.
             if (index < fractures - 2) {
                 Vec3 branchStart = start.lerp(end, 0.48D + (index % 3) * 0.09D);
                 Vec3 branchEnd = sunFacePoint(center, right, up, towardCamera, radius,

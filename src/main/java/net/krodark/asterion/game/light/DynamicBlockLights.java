@@ -19,7 +19,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LightBlock;
 
-/** Provides real block light for carried and dropped light sources. */
 public final class DynamicBlockLights {
     private static final Map<ResourceKey<Level>, Set<BlockPos>> PLACED = new HashMap<>();
     private static int updateTicker;
@@ -33,8 +32,6 @@ public final class DynamicBlockLights {
     }
 
     private static void tick(MinecraftServer server) {
-        // Vanilla light-engine updates are substantially more expensive than the
-        // smooth client light. Ten updates per second still track movement well.
         int quality = AsterionConfig.INSTANCE.dynamicLightQuality;
         int interval = quality == 0 ? 6 : quality == 1 ? 4 : 2;
         if (++updateTicker % interval != 0) return;

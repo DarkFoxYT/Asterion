@@ -1290,8 +1290,6 @@ public final class DismembermentEngine {
         int entityId = entity.getId();
         electrifiedUntil.merge(entityId, traumaDecayTicker + Math.max(1, durationTicks), Math::max);
         if (client.player == entity) {
-            // Wards and scripted Sun pulls use the same electrical renderer as combat, but they
-            // are not automatic knockdowns. Preserve an existing tumble without creating one.
             if (playerTumbles.contains(entityId))
                 externalDamage(client.player, sourcePosition, impulse, 0.65F, true);
         } else if (!ragdolled.contains(entityId)) {
@@ -1470,9 +1468,6 @@ public final class DismembermentEngine {
         if (isElectrified(entityId)) return;
         Minecraft client = Minecraft.getInstance();
         if (client.player != null && client.player.getId() == entityId && playerTumbles.contains(entityId)) {
-            // Player-controlled recovery is locked while airborne. A real
-            // upward support contact must persist for two solver ticks, so
-            // brushing a wall or ceiling cannot count as landing.
             if (!hasGroundContact(entityId)) return;
             Vec3 exit = findSafeTumbleExit(client, entityId);
             Vec3 exitVelocity = ragdollVelocity(entityId);

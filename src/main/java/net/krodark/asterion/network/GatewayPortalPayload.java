@@ -6,7 +6,6 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
-/** Authoritative gateway placement for the client-only dimensional surface. */
 public record GatewayPortalPayload(boolean active, BlockPos center, int surfaceY, long visualSeed)
         implements CustomPacketPayload {
     public static final Type<GatewayPortalPayload> TYPE = new Type<>(Asterion.id("gateway_portal"));

@@ -12,7 +12,6 @@ import net.minecraft.world.level.StructureManager;
 
 import java.util.concurrent.CompletableFuture;
 
-/** Native asynchronous chunk generator for the deterministic procedural maze. */
 public final class MazeChunkGenerator extends FlatLevelSource {
     public static final MapCodec<MazeChunkGenerator> CODEC = FlatLevelGeneratorSettings.CODEC
             .fieldOf("settings")

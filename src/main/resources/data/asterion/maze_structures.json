@@ -1,11 +1,11 @@
 {
-  "spacing_cells": 22,
+  "spacing_cells": 12,
   "padding_blocks": 4,
-  "chance": 0.32,
+  "chance": 0.68,
   "templates": [
     {
       "template": "asterion:safe_room",
-      "weight": 3
+      "weight": 5
     },
     {
       "template": "asterion:rune_gate",

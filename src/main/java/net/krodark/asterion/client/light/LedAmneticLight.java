@@ -9,7 +9,6 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 
-/** Amnetic point lights used only by emissive laser-gun bones. */
 public final class LedAmneticLight {
     private static final Map<Object, Long> UPDATED = new HashMap<>();
 
@@ -68,5 +67,4 @@ public final class LedAmneticLight {
         }
     }
 }
-
 

@@ -38,8 +38,6 @@ public final class AntikytheraMechanismItem extends CompassItem {
             Vec3 direction = new Vec3(look.x, 0.0D, look.z);
             if (direction.lengthSqr() < 1.0E-6D) direction = new Vec3(0.0D, 0.0D, 1.0D);
             direction = direction.normalize();
-            // A deliberately remote target behaves like a locked bearing instead of bending
-            // toward a nearby waypoint as the player walks through the maze.
             BlockPos bearing = BlockPos.containing(player.position().add(direction.scale(1_000_000.0D)));
             stack.set(DataComponents.LODESTONE_TRACKER, new LodestoneTracker(
                     Optional.of(GlobalPos.of(Asterion.ASTERION_LEVEL, bearing)), false));

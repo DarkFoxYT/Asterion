@@ -9,7 +9,6 @@ import net.minecraft.nbt.NbtIo;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Reproducible authored sanctuary used by the deferred maze NBT placement pipeline. */
 public final class SafeRoomTemplateBuilder {
     private static final int SIZE = 15;
     private static final ListTag BLOCKS = new ListTag();
@@ -29,17 +28,13 @@ public final class SafeRoomTemplateBuilder {
             boolean arch=(Math.abs(x-7)<=1&&(z<2||z>=SIZE-2)
                     ||Math.abs(z-7)<=1&&(x<2||x>=SIZE-2))&&y<=4;
             boolean rune=(x==4||x==7||x==10)&&z==2&&y==3;
-            // Two-block masonry shell with four permanently open, tall approach arches.
             if(edge&&arch) add(x,y,z,7);
             else if(edge) add(x,y,z,(x*3+z*5+y)%9==0?1:0);
-            // Three distinct authored sockets make the template correct on its own. During world
-            // placement these are replaced with the local ring answer and its two decoys.
             else if(rune) add(x,y,z, x == 4 ? 8 : x == 7 ? 10 : 11);
             else add(x,y,z,7);
         }
         for(int x=0;x<SIZE;x++) for(int z=0;z<SIZE;z++)
             if((x+z)%4!=0 || x<2 || z<2 || x>=SIZE-2 || z>=SIZE-2) add(x,8,z,(x*z)%11==0?2:0);
-        // Central checkpoint altar, symmetric supplies, and four heavy inner buttresses.
         add(7,1,7,3); add(7,2,7,4);
         addBarrel(4,1,7); addBarrel(10,1,7);
         for(int[] p:new int[][]{{2,1,2},{12,1,2},{2,1,12},{12,1,12}})

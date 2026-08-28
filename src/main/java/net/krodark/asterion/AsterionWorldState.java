@@ -11,7 +11,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-/** Persistent progression that survives leaving the maze and restarting the world. */
 public final class AsterionWorldState extends SavedData {
     private static final Codec<AsterionWorldState> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.BOOL.optionalFieldOf("minotaur_defeated", false)

@@ -10,7 +10,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 
-/** Clean arrival objective: introduced after the landing tumble, then retained top-left. */
 public final class MazeObjectiveOverlay {
     private static final Component INTRO = Component.translatable("objective.asterion.new");
     private static final Component REACH_CENTER = Component.translatable("objective.asterion.reach_center");

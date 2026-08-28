@@ -6,7 +6,6 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
-/** Starts the local ragdoll recovery challenge after a heavy boss impact. */
 public record DazePayload(int durationTicks, int requiredPresses) implements CustomPacketPayload {
     public static final Type<DazePayload> TYPE = new Type<>(Asterion.id("daze"));
     public static final StreamCodec<RegistryFriendlyByteBuf, DazePayload> CODEC = StreamCodec.composite(

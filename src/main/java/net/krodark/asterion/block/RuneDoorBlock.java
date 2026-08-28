@@ -10,7 +10,6 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-/** One cell of the sanctuary's portcullis. Opening preserves the frame but removes collision. */
 public final class RuneDoorBlock extends Block {
     public static final BooleanProperty OPEN = BooleanProperty.create("open");
 

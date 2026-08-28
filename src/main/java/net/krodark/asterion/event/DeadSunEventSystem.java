@@ -72,8 +72,6 @@ public final class DeadSunEventSystem {
                 tickWallShift(level);
             }
             @Override public void onEnd(ServerLevel level) {
-                // The topology change is permanent. If an admin stops the event early or starts
-                // an Eclipse, finish the remaining layers immediately instead of undoing them.
                 finishWallShift(level);
             }
         });
@@ -99,13 +97,9 @@ public final class DeadSunEventSystem {
             @Override public float intensity(RandomSource random) { return 0.82F + random.nextFloat() * 0.18F; }
 
             @Override public void onStart(ServerLevel level, long seed, int durationTicks, float intensity) {
-                // The Eclipse is communicated entirely through the world; no chat or title announcement.
             }
 
             @Override public void onTick(ServerLevel level, int elapsedTicks) {
-                // Let the fog settle, then reveal the hunter on a private schedule for each
-                // player. The event no longer teaches a predictable "three seconds, then spawn"
-                // rhythm, and late joiners receive their own suspense window.
                 if ((elapsedTicks % 20) != 0) return;
                 java.util.List<MinotaurEntity> hunters = new java.util.ArrayList<>(eclipseMinotaurs(level));
                 for (var player : level.players()) {
@@ -222,7 +216,6 @@ public final class DeadSunEventSystem {
         STATES.remove(server);
     }
 
-    /** Called by a successfully escaped or repelled hunter. */
     public static void finishEclipse(ServerLevel level) {
         if (isEclipseActive(level)) stop(level);
     }
@@ -252,7 +245,6 @@ public final class DeadSunEventSystem {
             mixed ^= mixed >>> 30;
             mixed *= 0xbf58476d1ce4e5b9L;
             mixed ^= mixed >>> 27;
-            // The thickening fog gets time to become normal before anything moves inside it.
             return 20 * (12 + (int)Math.floorMod(mixed, 34L));
         });
         return elapsedTicks >= reveal;
@@ -279,8 +271,6 @@ public final class DeadSunEventSystem {
         SchedulerState state = STATES.computeIfAbsent(server, ignored -> new SchedulerState());
         long now = level.getGameTime();
 
-        // The arena is a deliberately authored encounter. Ambient rumbles, wall shifts,
-        // barrages, and especially Eclipse hunters must never overlap its reads or cinematics.
         if (WorldGenerator.isBossEncounterActive(level)) {
             if (state.active != null) stop(level);
             finishWallShift(level);
@@ -310,8 +300,6 @@ public final class DeadSunEventSystem {
             return;
         }
 
-        // An explicit idle heartbeat repairs clients that missed an event-end packet during a
-        // dimension handoff, lag spike, or disconnect. It is intentionally sparse and tiny.
         if ((now % 20L) == 0L) syncStopped(level, ECLIPSE, 0L);
 
         if (level.players().isEmpty()) {
@@ -385,8 +373,6 @@ public final class DeadSunEventSystem {
                 .filter(player -> player.isAlive() && !player.isSpectator()).toList();
         if (candidates.isEmpty()) return;
         Set<BlockPos> usedPassages = new HashSet<>();
-        // Rewrite a broad loaded region rather than toggling a single doorway. Twelve independent
-        // transfers are enough to make the local maze genuinely unfamiliar without stalling ticks.
         for (int shift = 0; shift < 12; shift++) {
             var player = candidates.get(shift % candidates.size());
             BlockPos origin = player.blockPosition().offset(
@@ -401,8 +387,6 @@ public final class DeadSunEventSystem {
     }
 
     private static void tickWallShift(ServerLevel level) {
-        // Move one complete horizontal layer per tick. This keeps the motion readable while a
-        // full thirty-block-tall wall completes in roughly a second and a half.
         WallLayer layer = SHIFT_ANIMATION.pollFirst();
         if (layer == null) return;
         applyWallLayer(level, layer);
@@ -436,7 +420,6 @@ public final class DeadSunEventSystem {
         });
     }
 
-    /** Loose high masonry and dust sell the quake without opening holes at player height. */
     private static void tickRumbleDebris(ServerLevel level) {
         RandomSource random = level.getRandom();
         for (var player : level.players()) {
@@ -445,7 +428,6 @@ public final class DeadSunEventSystem {
             for (int attempt = 0; attempt < 10; attempt++) {
                 int x = origin.getX() + random.nextIntBetweenInclusive(-13, 13);
                 int z = origin.getZ() + random.nextIntBetweenInclusive(-13, 13);
-                // Only shed the upper wall cap. The maze remains thick and navigable below it.
                 int y = 49 + Math.max(8, net.krodark.asterion.AsterionConfig.INSTANCE.wallHeight - 1
                         - random.nextInt(3));
                 BlockPos wall = new BlockPos(x, y, z);
@@ -523,8 +505,6 @@ public final class DeadSunEventSystem {
         boolean lineX = isMazeWall(level.getBlockState(source.east()))
                 && isMazeWall(level.getBlockState(source.west()));
         int probe = corridorWidth / 2 + 1;
-        // A north/south-running corridor has side walls to its east and west, so its closing wall
-        // must run east/west (X). This probe keeps all 9x4 barriers correctly rotated.
         boolean barrierAlongX = isMazeWall(level.getBlockState(destination.east(probe)))
                 || isMazeWall(level.getBlockState(destination.west(probe)));
         int half = corridorWidth / 2;
@@ -532,8 +512,6 @@ public final class DeadSunEventSystem {
         for (int dy = 0; dy < height; dy++) {
             List<BlockPos> remove = new ArrayList<>();
             List<Placement> place = new ArrayList<>();
-            // Scan far enough on both sides of the sampled wall block to cut through the full
-            // configured four-block thickness, regardless of which depth was sampled.
             for (int lateral = -1; lateral <= 1; lateral++)
                 for (int depth = -net.krodark.asterion.AsterionConfig.INSTANCE.wallThickness + 1;
                      depth < net.krodark.asterion.AsterionConfig.INSTANCE.wallThickness; depth++) {
@@ -541,9 +519,6 @@ public final class DeadSunEventSystem {
                             : source.offset(depth, dy, lateral);
                     if (isMazeWall(level.getBlockState(pos))) remove.add(pos.immutable());
                 }
-            // Span the complete nine-block corridor interior and use the maze's full configured
-            // four-block thickness. The endpoints touch its existing side walls, so the new
-            // barrier grows directly out of the masonry instead of appearing as a thin panel.
             for (int lateral = -half; lateral <= half; lateral++)
                 for (int depth = -1;
                      depth < net.krodark.asterion.AsterionConfig.INSTANCE.wallThickness - 1; depth++) {

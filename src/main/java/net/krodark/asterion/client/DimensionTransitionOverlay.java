@@ -64,8 +64,6 @@ public final class DimensionTransitionOverlay {
         int radius = DeadSunEntryCinematic.requiredChunkRadius();
         for (int dx = -radius; dx <= radius; dx++)
             for (int dz = -radius; dz <= radius; dz++) {
-                // Vanilla streams a circular view footprint; never wait for corner chunks that
-                // it intentionally omits from the square bounding box.
                 if (dx * dx + dz * dz > radius * radius) continue;
                 if (!client.level.hasChunk(centerX + dx, centerZ + dz)) return false;
             }
@@ -93,8 +91,6 @@ public final class DimensionTransitionOverlay {
         return active;
     }
 
-    /** Never expose vanilla's terrain screen for this dimension, including the few frames after
-     * our ready packet is sent while Minecraft is still dismissing its own receiving screen. */
     public static boolean shouldReplaceLoadingScreen() {
         Minecraft client = Minecraft.getInstance();
         return active || client.level != null

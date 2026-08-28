@@ -15,7 +15,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
-/** Renders the base model once, then re-renders only the glow bone with tint and Amnetic bloom. */
 public final class RuneGeoRenderer extends GeoBlockRenderer<RuneBlockEntity, BlockEntityRenderState> {
     private static final DataTicket<Integer> GLOW_COLOR = DataTickets.create("asterion_rune_glow_color", Integer.class);
     private static final DataTicket<Float> GLOW_PERCENT = DataTickets.create("asterion_rune_glow_percent", Float.class);

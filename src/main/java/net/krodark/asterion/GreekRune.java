@@ -2,7 +2,6 @@ package net.krodark.asterion;
 
 import net.minecraft.util.Mth;
 
-/** Canonical outside-to-center rune progression for the Labyrinth's 24 concentric layers. */
 public enum GreekRune {
     ALPHA("Alpha", "Α"),
     BETA("Beta", "Β"),
@@ -42,7 +41,6 @@ public enum GreekRune {
     public String glyph() { return glyph; }
     public int layer() { return ordinal(); }
 
-    /** Alpha is the outermost map layer; Omega is the innermost boss layer. */
     public static GreekRune forRadius(double x, double z) {
         AsterionConfig config = AsterionConfig.INSTANCE;
         double outerRadius = config.mazeRadiusCells * (double)config.cellSize;

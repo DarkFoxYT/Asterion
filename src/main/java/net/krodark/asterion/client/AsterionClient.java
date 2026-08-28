@@ -21,7 +21,6 @@ import net.minecraft.client.renderer.entity.EntityRenderers;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderers;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 
-/** Client bootstrap. Runtime debug UI was removed; supported controls live in Mod Menu. */
 public final class AsterionClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {

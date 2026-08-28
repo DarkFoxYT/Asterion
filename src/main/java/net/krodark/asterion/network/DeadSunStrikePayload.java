@@ -6,7 +6,6 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
-/** Client telegraph for an imminent, small-area Dead Sun lightning strike. */
 public record DeadSunStrikePayload(BlockPos target, int warningTicks, float radius,
                                    long seed) implements CustomPacketPayload {
     public static final Type<DeadSunStrikePayload> TYPE = new Type<>(Asterion.id("dead_sun_strike"));

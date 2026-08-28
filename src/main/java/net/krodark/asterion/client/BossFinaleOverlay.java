@@ -10,8 +10,8 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
-/** Dead Sun detonation, blackout, destination load cover, and controlled fade back to play. */
 public final class BossFinaleOverlay {
+    private static final int CINEMATIC_RENDER_DISTANCE = 12;
     private static boolean active;
     private static boolean overworldReady;
     private static int ticks;
@@ -19,6 +19,8 @@ public final class BossFinaleOverlay {
     private static float returnYaw;
     private static float returnPitch;
     private static CameraType previousCamera;
+    private static Boolean previousSmartCull;
+    private static Integer previousRenderDistance;
 
     private BossFinaleOverlay() { }
 
@@ -33,8 +35,14 @@ public final class BossFinaleOverlay {
             returnPitch = client.player.getXRot();
         }
         previousCamera = client.options.getCameraType();
+        previousSmartCull = client.smartCull;
+        previousRenderDistance = client.options.renderDistance().get();
+        client.smartCull = false;
+        if (previousRenderDistance < CINEMATIC_RENDER_DISTANCE)
+            client.options.renderDistance().set(CINEMATIC_RENDER_DISTANCE);
         client.options.setCameraType(CameraType.FIRST_PERSON);
         CinematicHud.begin(client);
+        if (client.level != null) client.levelRenderer.getSectionOcclusionGraph().invalidate();
         active = true;
         overworldReady = false;
         ticks = 0;
@@ -43,7 +51,12 @@ public final class BossFinaleOverlay {
 
     public static void tick(Minecraft client) {
         if (!active) return;
+        if (client.player == null || client.level == null) {
+            finish(client);
+            return;
+        }
         CinematicHud.maintain(client);
+        client.smartCull = false;
         ticks++;
         if (!overworldReady && client.player != null && client.level != null
                 && client.level.dimension().equals(Asterion.ASTERION_LEVEL)) {
@@ -61,6 +74,7 @@ public final class BossFinaleOverlay {
                 client.options.setCameraType(CameraType.FIRST_PERSON);
             if (ticks >= 205) client.player.setDeltaMovement(Vec3.ZERO);
         }
+        if (ticks >= 216) client.options.hideGui = false;
         if (ticks > 305 && client.player != null && client.level != null
                 && client.level.dimension().equals(Level.OVERWORLD)
                 && client.level.hasChunk(client.player.getBlockX() >> 4, client.player.getBlockZ() >> 4)
@@ -70,7 +84,6 @@ public final class BossFinaleOverlay {
         }
     }
 
-    /** Drives the world-space Dead Sun expansion before the screen is consumed by the flash. */
     public static float sunDetonationStrength() {
         if (!active || overworldReady) return 0.0F;
         return smoother(Mth.clamp((ticks - 18.0F) / 208.0F, 0.0F, 1.0F));
@@ -78,8 +91,6 @@ public final class BossFinaleOverlay {
 
     public static boolean isActive() { return active; }
 
-    /** Exterior crane shot: high enough to clear the arena roof, centered on the Dead Sun, and
-     * never blended through the player's body or surrounding walls. */
     public static CameraPose cameraPose(Vec3 basePosition, float partialTick) {
         if (!active || overworldReady || ticks >= 265) return null;
         float progress = smoother(Mth.clamp((ticks + partialTick) / 255.0F, 0.0F, 1.0F));
@@ -119,6 +130,13 @@ public final class BossFinaleOverlay {
         ticks = 0;
         if (previousCamera != null) client.options.setCameraType(previousCamera);
         previousCamera = null;
+        if (previousSmartCull != null) client.smartCull = previousSmartCull;
+        previousSmartCull = null;
+        if (previousRenderDistance != null
+                && !client.options.renderDistance().get().equals(previousRenderDistance))
+            client.options.renderDistance().set(previousRenderDistance);
+        previousRenderDistance = null;
+        if (client.level != null) client.levelRenderer.getSectionOcclusionGraph().invalidate();
         CinematicHud.end(client);
         DeadSunClientEvents.clearTransientEffects();
     }

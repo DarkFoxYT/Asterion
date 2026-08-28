@@ -6,7 +6,6 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.world.phys.Vec3;
 
-/** A short-lived, world-space boss danger zone rendered by every nearby client. */
 public record BossTelegraphPayload(Vec3 center, Vec3 direction, float radius,
                                    int durationTicks, int kind) implements CustomPacketPayload {
     public static final int HALF_ARENA_SWEEP = 0;

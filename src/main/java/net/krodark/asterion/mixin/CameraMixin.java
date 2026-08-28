@@ -60,8 +60,6 @@ public abstract class CameraMixin {
             setPosition(finale.position());
             setRotation(finale.yaw(), finale.pitch());
         }
-        // Apply quake last so detached cinematic rails retain the same physical ground/roof
-        // impacts as gameplay instead of overwriting the shake with their keyframed pose.
         DeadSunClientEvents.Sample sample = DeadSunClientEvents.sample(partial);
         if (sample != DeadSunClientEvents.Sample.NONE) {
             setPosition(position().add(sample.cameraOffset()));
