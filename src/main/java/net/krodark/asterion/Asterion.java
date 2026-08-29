@@ -26,6 +26,7 @@ import net.krodark.asterion.network.BossEncounterResetPayload;
 import net.krodark.asterion.network.DazePayload;
 import net.krodark.asterion.network.ragdoll.*;
 import net.krodark.asterion.entity.MinotaurEntity;
+import net.krodark.asterion.entity.BombadierBeetleEntity;
 import net.krodark.asterion.block.ShortGrassBlock;
 import net.krodark.asterion.event.DeadSunEventSystem;
 import net.krodark.asterion.game.light.DynamicBlockLights;
@@ -45,6 +46,8 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.sounds.SoundEvent;
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
+import net.fabricmc.fabric.api.particle.v1.FabricParticleTypes;
+import net.minecraft.core.particles.SimpleParticleType;
 import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
 import net.krodark.asterion.block.RuneBlock;
 import net.krodark.asterion.block.RuneBlockEntity;
@@ -108,6 +111,17 @@ public class Asterion implements ModInitializer {
                     .eyeHeight(2.35F * AsterionConfig.INSTANCE.minotaurScale)
                     .clientTrackingRange(16).build(MINOTAUR_KEY)
     );
+    private static final ResourceKey<EntityType<?>> BOMBARDIER_BEETLE_KEY = ResourceKey.create(
+            Registries.ENTITY_TYPE, id("bombadier_beetle"));
+    public static final EntityType<BombadierBeetleEntity> BOMBARDIER_BEETLE = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            BOMBARDIER_BEETLE_KEY,
+            EntityType.Builder.of(BombadierBeetleEntity::new, MobCategory.CREATURE)
+                    .sized(0.8F, 0.45F).eyeHeight(0.3F).clientTrackingRange(10)
+                    .fireImmune().build(BOMBARDIER_BEETLE_KEY)
+    );
+    public static final SimpleParticleType BOMBARDIER_STENCH = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, id("bombardier_stench"), FabricParticleTypes.simple());
 
     private static final ResourceKey<Item> MECHANISM_KEY = ResourceKey.create(
             Registries.ITEM, id("antikythera_mechanism"));
@@ -198,6 +212,7 @@ public class Asterion implements ModInitializer {
         DynamicBlockLights.initialize();
         PortalCommands.register();
         FabricDefaultAttributeRegistry.register(MINOTAUR, MinotaurEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(BOMBARDIER_BEETLE, BombadierBeetleEntity.createAttributes());
         ServerChunkEvents.CHUNK_LOAD.register(WorldGenerator::onChunkLoad);
         PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, blockEntity) ->
                 !(level instanceof net.minecraft.server.level.ServerLevel serverLevel)

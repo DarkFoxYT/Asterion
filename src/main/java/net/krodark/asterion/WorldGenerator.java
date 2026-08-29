@@ -17,6 +17,7 @@ import net.krodark.asterion.entity.MinotaurEntity;
 import net.krodark.asterion.worldgen.MazeNbtStructures;
 import net.krodark.asterion.block.RuneDoorBlock;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -41,6 +42,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.entity.BarrelBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.CampfireBlock;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.ChunkAccess;
@@ -1097,6 +1099,13 @@ public final class WorldGenerator {
             if ((index & 2) == 0) build.growth.add(new BuildBlock(
                     new BlockPos(x, BOSS_FLOOR_Y + 2, z), Blocks.SOUL_LANTERN.defaultBlockState()));
         }
+        for (Direction direction : Direction.Plane.HORIZONTAL) {
+            BlockPos brazier = new BlockPos(direction.getStepX() * 16, BOSS_FLOOR_Y + 1,
+                    direction.getStepZ() * 16);
+            build.growth.add(new BuildBlock(brazier.below(), Blocks.CHISELED_DEEPSLATE.defaultBlockState()));
+            build.growth.add(new BuildBlock(brazier, Blocks.SOUL_CAMPFIRE.defaultBlockState()
+                    .setValue(CampfireBlock.LIT, true)));
+        }
         for (int radius = PIT_HALF_WIDTH; radius >= 0; radius--)
             for (int x = -radius; x <= radius; x++) for (int z = -radius; z <= radius; z++) {
                 int radial = Mth.floor(Math.sqrt(x * x + z * z));
@@ -1143,6 +1152,17 @@ public final class WorldGenerator {
     public static int bossPillarsRemaining() {
         if (bossArenaBuild == null) return AsterionConfig.INSTANCE.minotaurBossPillarCount;
         return (int)bossArenaBuild.pillars.stream().filter(pillar -> !pillar.broken).count();
+    }
+
+    public static int activeBossBraziers(ServerLevel level) {
+        int active = 0;
+        for (Direction direction : Direction.Plane.HORIZONTAL) {
+            BlockPos pos = new BlockPos(direction.getStepX() * 16, BOSS_FLOOR_Y + 1,
+                    direction.getStepZ() * 16);
+            BlockState state = level.getBlockState(pos);
+            if (state.is(Blocks.SOUL_CAMPFIRE) && state.getValue(CampfireBlock.LIT)) active++;
+        }
+        return active;
     }
 
     public static boolean breakBossPillar(ServerLevel level, AABB impact) {

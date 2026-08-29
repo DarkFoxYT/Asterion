@@ -132,6 +132,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private Vec3 grabbedReachDirection = Vec3.ZERO;
     private double grabbedReachLength;
     private int inaccessibleTicks;
+    private int sanctuaryGateTicks;
     private int repelDamage;
     private int repelThreshold;
     private int bossAttackTicks;
@@ -148,6 +149,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private Vec3 bossChargeDirection = Vec3.ZERO;
     private boolean bossChargeTargetsPillar;
     private Vec3 bossLeapTarget = Vec3.ZERO;
+    private Vec3 greekFireAim = Vec3.ZERO;
     private Vec3 collapseAnchor = Vec3.ZERO;
     private BossStage bossStage = BossStage.PILLARS;
     private int collapseTicks;
@@ -206,7 +208,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private enum BossAttack { NONE, CLEAVE, CHARGE, SLAM, LEAP, SWORD_COMBO, SPIN_COMBO, GRAB,
         RED_LIGHTNING_CHARGE, PAWING, STAMPEDE, BACK_KICK, ARENA_SWEEP, RUBBLE_THROW, WALL_SHOVE,
         FIRE_RINGS, CHAIN_GRAPPLE,
-        PUNCH_COMBO, HORN_RAM, RAGDOLL_STOMP, ARROW_RETURN }
+        PUNCH_COMBO, HORN_RAM, RAGDOLL_STOMP, ARROW_RETURN, GREEK_FIRE_LASER }
     private enum BossStage { PILLARS, COLLAPSE, EXTREME, DEFEATED }
     private enum CombatRange { CLOSE, MEDIUM, FAR }
     private enum GrabThrowStyle { ARENA, SKY }
@@ -330,7 +332,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         setAggressive(false);
         setRage(Math.max(rage(), random.nextIntBetweenInclusive(3, 5)));
         rageCalmTicks = 360;
-        gazeTriggerTicks = random.nextIntBetweenInclusive(10, 24);
+        gazeTriggerTicks = random.nextIntBetweenInclusive(140, 200);
         previousPosition = position();
         previousTargetDistance = distanceTo(player);
         lastKnownPlayerPosition = player.position();
@@ -467,7 +469,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         }
         tickStalking(level, player, discovered, distance);
         if (discovered) {
-            gazeTicks += Math.max(1, Mth.ceil(lookExposure * 3.0F));
+            gazeTicks++;
             getLookControl().setLookAt(player, 6.0F, 6.0F);
             if (gazeTicks >= 12) beginWarning();
         } else gazeTicks = Math.max(0, gazeTicks - 1);
@@ -505,7 +507,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         }
 
         if (observed) {
-            gazeTicks += Math.max(1, Mth.ceil(lookExposure * 3.0F));
+            gazeTicks++;
             getLookControl().setLookAt(player, 8.0F, 8.0F);
             if (!wasObserved && sightingCooldown == 0) {
                 sightings++;
@@ -693,9 +695,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private void beginWarning(boolean urgent) {
         if (behaviorPhase() == BehaviorPhase.WARNING || behaviorPhase() == BehaviorPhase.CHASING) return;
         setBehaviorPhase(BehaviorPhase.WARNING);
-        warningTicks = urgent ? random.nextIntBetweenInclusive(22, 34)
-                : random.nextIntBetweenInclusive(AsterionConfig.INSTANCE.minotaurWindupMinTicks,
-                        AsterionConfig.INSTANCE.minotaurWindupMaxTicks);
+        warningTicks = urgent ? random.nextIntBetweenInclusive(60, 80)
+                : random.nextIntBetweenInclusive(60, 100);
         getNavigation().stop();
         setDeltaMovement(Vec3.ZERO);
         playSound(SoundEvents.GOAT_PREPARE_RAM, 2.6F, 0.42F);
@@ -718,6 +719,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         chaseTicks = 0;
         chaseLostSightTicks = 0;
         escapeDistanceTicks = 0;
+        sanctuaryGateTicks = 0;
         stuckTicks = 0;
         chaseRoute.clear();
         chaseRouteAnchor = null;
@@ -757,10 +759,15 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             if (!hasLineOfSight(player) && random.nextInt(3) == 0)
                 playRoar(0.82F, 0.48F + random.nextFloat() * 0.08F, 0.24F);
         }
-        if (phaseTicks % 10 == 0 && WorldGenerator.isNearSafeRune(level, player.blockPosition())) {
-            beginRetreat(true);
+        boolean sealedSanctuary = WorldGenerator.isNearSafeRune(level, player.blockPosition())
+                && hasClosedIronBarrierNear(player);
+        if (sealedSanctuary) {
+            sanctuaryGateTicks++;
+            getNavigation().stop();
+            if (sanctuaryGateTicks == 1) playRoar(4.2F, 0.72F, 1.05F);
+            if (sanctuaryGateTicks >= 80) beginRetreat(true);
             return;
-        }
+        } else sanctuaryGateTicks = 0;
         if (corridorChargeTicks > 0) {
             tickCorridorCharge(level, player);
             return;
@@ -832,16 +839,10 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             vehicle.hurtServer(level, damageSources().mobAttack(this), 40.0F);
         }
 
-        if (chaseTicks >= 1400 || (chaseTicks >= 420 && chaseLostSightTicks >= 170)) {
-            beginHunting(player);
-            relocateTicks = random.nextIntBetweenInclusive(35, 70);
-            return;
-        }
-
         if (chaseTicks >= AsterionConfig.INSTANCE.minotaurEscapeTicks
                 && distance >= AsterionConfig.INSTANCE.minotaurEscapeDistance) {
             escapeDistanceTicks++;
-            if (escapeDistanceTicks >= 200) beginRetreat(true);
+            if (escapeDistanceTicks >= 60) beginRetreat(true);
         } else escapeDistanceTicks = Math.max(0, escapeDistanceTicks - 2);
         playHeavySteps();
     }
@@ -1499,6 +1500,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             case MEDIUM -> {
                 addReady(choices, BossAttack.CHARGE, BossAttack.LEAP, BossAttack.CHAIN_GRAPPLE,
                         BossAttack.FIRE_RINGS, BossAttack.ARENA_SWEEP, BossAttack.SLAM);
+                if (level() instanceof ServerLevel level && WorldGenerator.activeBossBraziers(level) > 2)
+                    addReady(choices, BossAttack.GREEK_FIRE_LASER);
                 if (rage() >= 7) addReady(choices, BossAttack.RED_LIGHTNING_CHARGE);
             }
             case FAR -> addReady(choices, BossAttack.RUBBLE_THROW, BossAttack.STAMPEDE,
@@ -1552,6 +1555,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 case BACK_KICK -> facing < -0.18D ? 7.0D : -5.0D;
                 case ARENA_SWEEP -> arenaRadius > 20.0D ? 4.5D : 1.0D;
                 case FIRE_RINGS -> distance > 5.5D && distance < 14.0D ? 3.6D : 0.0D;
+                case GREEK_FIRE_LASER -> distance > 7.0D && distance < 20.0D ? 6.2D : -4.0D;
                 case CHARGE, STAMPEDE, PAWING, RED_LIGHTNING_CHARGE -> distance > 9.0D ? 3.5D : -2.0D;
                 case RAGDOLL_STOMP -> RagdollServerNetworking.isRagdolled(player) ? 12.0D : -20.0D;
                 case ARROW_RETURN -> storedArrows > 0 ? 10.0D : -20.0D;
@@ -1610,6 +1614,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             case GRAB -> 240;
             case RAGDOLL_STOMP -> 210;
             case ARROW_RETURN -> 180;
+            case GREEK_FIRE_LASER -> 220;
             case ARENA_SWEEP, STAMPEDE, HORN_RAM, RED_LIGHTNING_CHARGE, FIRE_RINGS -> 190;
             case LEAP, RUBBLE_THROW, WALL_SHOVE, CHAIN_GRAPPLE -> 145;
             case SPIN_COMBO, SWORD_COMBO, PUNCH_COMBO -> 125;
@@ -1686,6 +1691,10 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 sendBossTelegraph(level, position(), player.position().subtract(position()),
                         5.0F, 18, BossTelegraphPayload.FRONT_CONE);
             playSound(SoundEvents.CHAIN_PLACE, 2.6F, 0.58F);
+        } else if (attack == BossAttack.GREEK_FIRE_LASER) {
+            greekFireAim = player.getEyePosition().subtract(getEyePosition()).normalize();
+            setGlowingTag(true);
+            playSound(SoundEvents.BEACON_POWER_SELECT, 3.0F, 0.42F);
         } else if (attack == BossAttack.PUNCH_COMBO) {
             punchComboTarget = player.getUUID();
             punchComboFromChain = false;
@@ -1887,6 +1896,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             case PUNCH_COMBO -> tickPunchCombo(level, player);
             case RAGDOLL_STOMP -> tickRagdollStomp(level, player);
             case ARROW_RETURN -> tickArrowReturn(level, player);
+            case GREEK_FIRE_LASER -> tickGreekFireLaser(level, player);
             case LEAP -> tickLeapAttack(level, player);
             case SWORD_COMBO -> {
                 if (bossAttackTicks == 14 || bossAttackTicks == 27)
@@ -2258,6 +2268,28 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             return;
         }
         if (bossAttackTicks >= 180) finishBossAttack(48);
+    }
+
+    private void tickGreekFireLaser(ServerLevel level, ServerPlayer player) {
+        setDeltaMovement(getDeltaMovement().multiply(0.04D, 1.0D, 0.04D));
+        Vec3 origin = getEyePosition().add(0.0D, -0.25D, 0.0D);
+        Vec3 desired = player.getEyePosition().subtract(origin).normalize();
+        greekFireAim = greekFireAim.lerp(desired, bossAttackTicks < 24 ? 0.08D : 0.025D).normalize();
+        if (bossAttackTicks >= 24 && bossAttackTicks <= 92) {
+            for (int step = 1; step <= 48; step++) {
+                Vec3 point = origin.add(greekFireAim.scale(step * 0.62D));
+                level.sendParticles(step % 3 == 0 ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.FLAME,
+                        point.x, point.y, point.z, 1, 0.025D, 0.025D, 0.025D, 0.0D);
+            }
+            Vec3 toPlayer = player.getEyePosition().subtract(origin);
+            double along = Mth.clamp(toPlayer.dot(greekFireAim), 0.0D, 30.0D);
+            double miss = player.getEyePosition().distanceTo(origin.add(greekFireAim.scale(along)));
+            if (miss <= 1.15D && bossAttackTicks % 10 == 0) {
+                player.hurtServer(level, damageSources().magic(), 5.0F);
+                player.igniteForSeconds(2.0F);
+            }
+        }
+        if (bossAttackTicks >= 108) finishBossAttack(66);
     }
 
     private void tickPunchCombo(ServerLevel level, ServerPlayer fallback) {
@@ -2949,6 +2981,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             getEntityData().set(DATA_GRAB_TARGET_ID, -1);
             clearLockedReach();
         }
+        if (bossAttack == BossAttack.GREEK_FIRE_LASER) setGlowingTag(false);
         if (bossAttack == BossAttack.PUNCH_COMBO) {
             punchComboTarget = null;
             punchComboFromChain = false;
@@ -3673,6 +3706,10 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
     public boolean isPunchingCombo() {
         return bossAttackState() == BossAttack.PUNCH_COMBO;
+    }
+
+    public boolean isGreekFireLaserActive() {
+        return bossAttackState() == BossAttack.GREEK_FIRE_LASER;
     }
 
     public int bossAttackAnimationTicks() {

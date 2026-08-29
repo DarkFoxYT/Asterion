@@ -32,10 +32,10 @@ public final class AsterionConfig {
     public int minotaurStalkDistance = 43;
     public int minotaurApproachDistance = 20;
     public int minotaurGazeMinTicks = 140;
-    public int minotaurGazeMaxTicks = 320;
+    public int minotaurGazeMaxTicks = 200;
     public int minotaurWindupMinTicks = 60;
-    public int minotaurWindupMaxTicks = 120;
-    public int minotaurEscapeTicks = 2_620;
+    public int minotaurWindupMaxTicks = 100;
+    public int minotaurEscapeTicks = 2_400;
     public int minotaurEscapeDistance = 32;
     public int minotaurDamageMin = 50;
     public int minotaurDamageMax = 70;

@@ -63,5 +63,6 @@
   "event.asterion.dead_sun_barrage.begins": "The Dead Sun marks the ground around you...",
   "event.asterion.dead_sun_barrage.ends": "The Dead Sun's lightning subsides.",
   "entity.asterion.minotaur": "Minotaur",
+  "entity.asterion.bombadier_beetle": "Bombardier Beetle",
   "subtitles.asterion.minotaur_roar": "Minotaur roars"
 }

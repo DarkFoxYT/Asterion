@@ -113,6 +113,8 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         state.addGeckolibData(HORN_WEIGHT, minotaur.isSpineCharging() ? 1.0F : 0.0F);
         state.addGeckolibData(RAGE_WEIGHT, minotaur.rage() / 12.0F);
         state.addGeckolibData(ATTACK_TICKS, minotaur.bossAttackAnimationTicks());
+        if (minotaur.isGreekFireLaserActive())
+            state.addGeckolibData(DataTickets.RENDER_COLOR, 0x8856FF74);
 
         GrabPose grab = grabPoses.computeIfAbsent(minotaur.getUUID(), ignored -> new GrabPose());
         int grabTicks = minotaur.grabAttackTicks();
