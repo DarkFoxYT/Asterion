@@ -7,6 +7,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.ScheduledTickAccess;
 import net.minecraft.world.level.block.BaseEntityBlock;
@@ -92,6 +93,23 @@ public final class LabyrinthVineBlock extends BaseEntityBlock {
     }
 
     @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
+
+    @Override
+    public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
+        if (!state.getValue(END) || random.nextInt(18) != 0) return;
+
+        Direction facing = state.getValue(FACING);
+        double x = pos.getX() + 0.5D + facing.getStepX() * 0.34D
+                + (random.nextDouble() - 0.5D) * 0.5D;
+        double y = pos.getY() + 0.5D + facing.getStepY() * 0.34D
+                + (random.nextDouble() - 0.5D) * 0.5D;
+        double z = pos.getZ() + 0.5D + facing.getStepZ() * 0.34D
+                + (random.nextDouble() - 0.5D) * 0.5D;
+        level.addParticle(Asterion.FIREFLY, x, y, z,
+                (random.nextDouble() - 0.5D) * 0.018D,
+                (random.nextDouble() - 0.35D) * 0.014D,
+                (random.nextDouble() - 0.5D) * 0.018D);
+    }
 
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
