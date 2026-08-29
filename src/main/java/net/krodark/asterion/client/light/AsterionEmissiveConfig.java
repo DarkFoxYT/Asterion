@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import net.fabricmc.loader.api.FabricLoader;
 import net.krodark.asterion.Asterion;
+import net.krodark.asterion.AsterionConfig;
 import net.minecraft.util.Mth;
 
 /** Persistent client-side grading for Asterion's emissive masks and flame particles. */
@@ -49,12 +50,15 @@ public final class AsterionEmissiveConfig {
 
     public static void apply() {
         BloomSettings bloom = Bloom.settings();
+        int quality = AsterionConfig.INSTANCE.cinematicQuality;
+        int qualityLevelCap = quality == 0 ? 3 : quality == 1 ? 5 : 8;
+        float qualityIntensity = quality == 0 ? 0.65F : quality == 1 ? 0.82F : 1.0F;
         bloom.enabled(values.enabled)
                 .all(false)
                 .occlude(true)
                 .threshold(values.threshold)
-                .intensity(values.intensity)
-                .levels(values.levels)
+                .intensity(values.intensity * qualityIntensity)
+                .levels(Math.min(values.levels, qualityLevelCap))
                 .scale(values.scale)
                 .knee(values.knee);
     }

@@ -24,12 +24,13 @@ public final class AsterionPostEffects {
 
     public static void register() {
         PostEffects.register(Asterion.id("dimension/dead_sun"), config -> config
-                .when(() -> isInsideAsterion() && AsterionConfig.INSTANCE.deadSunEnabled)
+                .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.deadSunEnabled)
                 .phase(RenderPhase.POST_WORLD)
                 .priority(10)
                 .fade(32, 16)
                 .uniform("DustTime", AsterionPostEffects::renderTime)
                 .uniform("AsterionStrength", () -> AsterionConfig.INSTANCE.deadSunStrength)
+                .uniform("AsterionQuality", AsterionPostEffects::effectQuality)
                 .uniformRaw("WorldData", AsterionPostEffects::worldData)
                 .uniformVec4("DeadSunData", AsterionPostEffects::deadSunData)
                 .uniformVec4("DeadSunTuning", AsterionPostEffects::deadSunTuning)
@@ -43,12 +44,13 @@ public final class AsterionPostEffects {
                         AsterionConfig.INSTANCE.deadSunCoronaG, AsterionConfig.INSTANCE.deadSunCoronaB)));
 
         PostEffects.register(Asterion.id("dimension/dusty_air"), config -> config
-                .when(() -> isInsideAsterion() && AsterionConfig.INSTANCE.dustyAirEnabled)
+                .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.dustyAirEnabled)
                 .phase(RenderPhase.POST_WORLD)
                 .priority(20)
                 .fade(24, 16)
                 .uniform("DustTime", AsterionPostEffects::renderTime)
                 .uniform("AsterionStrength", () -> AsterionConfig.INSTANCE.dustyAirStrength)
+                .uniform("AsterionQuality", AsterionPostEffects::effectQuality)
                 .uniformVec3("AtmosphereSettings", AsterionPostEffects::atmosphereSettings)
                 .uniformVec3("DustColor", AsterionPostEffects::dustColor)
                 .uniformVec3("FogColor", AsterionPostEffects::fogColor)
@@ -59,6 +61,14 @@ public final class AsterionPostEffects {
     private static boolean isInsideAsterion() {
         Minecraft client = Minecraft.getInstance();
         return client.level != null && client.level.dimension().equals(Asterion.ASTERION_LEVEL);
+    }
+
+    private static boolean isPostProcessingReady() {
+        return isInsideAsterion() && AmneticCamera.isReady();
+    }
+
+    private static double effectQuality() {
+        return AsterionConfig.INSTANCE.cinematicQuality;
     }
 
     private static double renderTime() {

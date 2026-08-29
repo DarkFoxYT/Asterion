@@ -18,26 +18,27 @@ layout(std140) uniform EclipseData { float Eclipse; };
 layout(std140) uniform EntryRadiance { float Radiance; };
 layout(std140) uniform Intensity { float Value; };
 layout(std140) uniform AsterionStrength { float EffectStrength; };
+layout(std140) uniform AsterionQuality { float Quality; };
 
 #define CameraPos CameraData.xyz
 
 in vec2 texCoord;
 out vec4 fragColor;
 
-float hash31(vec3 p) {
+float asterionSunHash31(vec3 p) {
     p = fract(p * 0.1031);
     p += dot(p, p.yzx + 33.33);
     return fract((p.x + p.y) * p.z);
 }
 
-float noise3(vec3 p) {
+float asterionSunNoise3(vec3 p) {
     vec3 cell = floor(p);
     vec3 f = fract(p);
     f = f * f * (3.0 - 2.0 * f);
-    float x00 = mix(hash31(cell), hash31(cell + vec3(1, 0, 0)), f.x);
-    float x10 = mix(hash31(cell + vec3(0, 1, 0)), hash31(cell + vec3(1, 1, 0)), f.x);
-    float x01 = mix(hash31(cell + vec3(0, 0, 1)), hash31(cell + vec3(1, 0, 1)), f.x);
-    float x11 = mix(hash31(cell + vec3(0, 1, 1)), hash31(cell + vec3(1)), f.x);
+    float x00 = mix(asterionSunHash31(cell), asterionSunHash31(cell + vec3(1, 0, 0)), f.x);
+    float x10 = mix(asterionSunHash31(cell + vec3(0, 1, 0)), asterionSunHash31(cell + vec3(1, 1, 0)), f.x);
+    float x01 = mix(asterionSunHash31(cell + vec3(0, 0, 1)), asterionSunHash31(cell + vec3(1, 0, 1)), f.x);
+    float x11 = mix(asterionSunHash31(cell + vec3(0, 1, 1)), asterionSunHash31(cell + vec3(1)), f.x);
     return mix(mix(x00, x10, f.y), mix(x01, x11, f.y), f.z);
 }
 
@@ -76,8 +77,8 @@ float remnantDensity(vec3 p) {
     float equatorialRing = exp(-ringDistance * 9.0);
 
     // Static sphere-space detail: visually close to the reference, but never swims with the camera.
-    float broad = noise3(p * 4.2 + vec3(8.0, -3.0, 13.0));
-    float filament = noise3(p * 11.5 + vec3(-5.0, 17.0, 2.0));
+    float broad = asterionSunNoise3(p * 4.2 + vec3(8.0, -3.0, 13.0));
+    float filament = asterionSunNoise3(p * 11.5 + vec3(-5.0, 17.0, 2.0));
     float structure = smoothstep(0.34, 0.78, broad * 0.68 + filament * 0.32);
     float outerFade = 1.0 - smoothstep(0.92, 1.0, radius);
     return (shell * 0.78 + equatorialRing * 0.48) * structure * outerFade * Tuning.w;
@@ -89,8 +90,8 @@ void main() {
     // displacement small preserves the solid black center while giving its silhouette life.
     float glitchRow = floor(texCoord.y * OutSize.y * 0.12);
     float glitchFrame = floor(Time * 0.22);
-    float rowNoise = hash31(vec3(glitchRow, glitchFrame, 19.0));
-    float fineNoise = noise3(vec3(texCoord * vec2(18.0, 9.0), Time * 0.060));
+    float rowNoise = asterionSunHash31(vec3(glitchRow, glitchFrame, 19.0));
+    float fineNoise = asterionSunNoise3(vec3(texCoord * vec2(18.0, 9.0), Time * 0.060));
     float rowSlip = step(0.94, rowNoise) * (rowNoise - 0.94) * 0.22;
     float eclipseJitter = eclipse * ((fineNoise - 0.5) * 0.010 + rowSlip);
     vec3 eclipseCore = vec3(1.0, 0.003, 0.008);
@@ -111,8 +112,10 @@ void main() {
 
     if (intersects) {
         float endHit = min(farHit, geometryDistance);
-        float stepLength = (endHit - nearHit) / 16.0;
+        int sampleCount = Quality < 0.5 ? 6 : (Quality < 1.5 ? 10 : 16);
+        float stepLength = (endHit - nearHit) / float(sampleCount);
         for (int i = 0; i < 16; ++i) {
+            if (i >= sampleCount) break;
             float distanceAlongRay = nearHit + (float(i) + 0.5) * stepLength;
             vec3 local = (CameraPos + direction * distanceAlongRay - Sun.xyz) / Sun.w;
             float density = clamp(remnantDensity(local) * stepLength / max(Sun.w, 0.001) * 0.72, 0.0, 0.42);
@@ -165,8 +168,10 @@ void main() {
     float radianceScatter = 0.0;
     if (Radiance > 0.001) {
         float rayEnd = min(geometryDistance, centerDistance + Sun.w * 8.0);
-        float stepLength = rayEnd / 8.0;
+        int radianceSamples = Quality < 0.5 ? 3 : (Quality < 1.5 ? 5 : 8);
+        float stepLength = rayEnd / float(radianceSamples);
         for (int sampleIndex = 0; sampleIndex < 8; sampleIndex++) {
+            if (sampleIndex >= radianceSamples) break;
             float travel = (float(sampleIndex) + 0.5) * stepLength;
             vec3 samplePosition = CameraPos + direction * travel;
             vec3 sampleToSun = Sun.xyz - samplePosition;

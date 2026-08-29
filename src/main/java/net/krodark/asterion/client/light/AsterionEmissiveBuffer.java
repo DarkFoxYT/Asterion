@@ -1,6 +1,7 @@
 package net.krodark.asterion.client.light;
 
 import com.meekdev.amnetic.client.gbuffer.internal.GBufferTargets;
+import com.meekdev.amnetic.client.compute.ComputeCapabilities;
 import com.mojang.blaze3d.opengl.GlTexture;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -60,14 +61,17 @@ public final class AsterionEmissiveBuffer {
             depthTexture = main.getDepthTexture();
             depthTextureView = main.getDepthTextureView();
             int id = 0;
-            try {
-                int previous = GBufferTargets.INSTANCE.bind();
-                if (previous >= 0) {
-                    GBufferTargets.INSTANCE.restore(previous);
-                    id = GBufferTargets.INSTANCE.emissiveGlId();
+            if (computeLightingAvailable()) {
+                try {
+                    int previous = GBufferTargets.INSTANCE.bind();
+                    if (previous >= 0) {
+                        GBufferTargets.INSTANCE.restore(previous);
+                        id = GBufferTargets.INSTANCE.emissiveGlId();
+                    }
+                } catch (Throwable unsupportedTarget) {
+                    // macOS is limited to OpenGL 4.1 and many Chromebook/Linux drivers
+                    // expose no compute shader support. They use the main target below.
                 }
-            } catch (Throwable unsupportedTarget) {
-                // A full-bright main-target pass is the portable fallback.
             }
             if (id != 0 && (id != wrappedId || width != wrappedWidth || height != wrappedHeight)) {
                 colorTexture = new RenderAttachmentAlias(id, width, height);
@@ -94,6 +98,15 @@ public final class AsterionEmissiveBuffer {
             wrappedId = 0;
             wrappedWidth = width;
             wrappedHeight = height;
+        }
+
+        private static boolean computeLightingAvailable() {
+            try {
+                ComputeCapabilities.probeOnce();
+                return ComputeCapabilities.isComputeAvailable();
+            } catch (Throwable unsupportedGpuOrBackend) {
+                return false;
+            }
         }
 
         @Override

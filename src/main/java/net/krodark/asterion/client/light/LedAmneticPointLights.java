@@ -3,6 +3,7 @@ package net.krodark.asterion.client.light;
 import com.meekdev.amnetic.client.light.FalloffCurve;
 import com.meekdev.amnetic.client.light.Light;
 import com.meekdev.amnetic.client.light.Lights;
+import com.meekdev.amnetic.client.compute.ComputeCapabilities;
 import net.krodark.asterion.AsterionConfig;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -19,7 +20,7 @@ final class LedAmneticPointLights {
 
     static void update(Object key, LedAmneticLight.LedPointLightSample sample) {
         AsterionConfig config = AsterionConfig.INSTANCE;
-        if (!config.dynamicLightsEnabled) {
+        if (!config.dynamicLightsEnabled || !computeLightingAvailable()) {
             remove(key);
             return;
         }
@@ -49,6 +50,15 @@ final class LedAmneticPointLights {
                 .godrayShadows(shadows)
                 .setEnabled(true);
         trimToBudget(key);
+    }
+
+    private static boolean computeLightingAvailable() {
+        try {
+            ComputeCapabilities.probeOnce();
+            return ComputeCapabilities.isComputeAvailable();
+        } catch (Throwable unsupportedGpuOrBackend) {
+            return false;
+        }
     }
 
     static void remove(Object key) {

@@ -3,6 +3,7 @@ package net.krodark.asterion.client;
 import com.terraformersmc.modmenu.api.ConfigScreenFactory;
 import com.terraformersmc.modmenu.api.ModMenuApi;
 import net.krodark.asterion.AsterionConfig;
+import net.krodark.asterion.client.light.AsterionEmissiveConfig;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.StringWidget;
@@ -90,6 +91,7 @@ public final class AsterionModMenu implements ModMenuApi {
             y += 24;
             addRenderableWidget(Button.builder(Component.literal("Save and return"), button -> {
                 config.save();
+                AsterionEmissiveConfig.apply();
                 minecraft.setScreen(parent);
             }).bounds(width / 2 - 100, y, 200, 20).build());
         }
@@ -97,6 +99,7 @@ public final class AsterionModMenu implements ModMenuApi {
         @Override
         public void onClose() {
             AsterionConfig.INSTANCE.save();
+            AsterionEmissiveConfig.apply();
             minecraft.setScreen(parent);
         }
     }

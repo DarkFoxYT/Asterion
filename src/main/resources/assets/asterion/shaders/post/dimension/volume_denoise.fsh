@@ -8,6 +8,8 @@ layout(std140) uniform SamplerInfo {
     vec2 InSize;
 };
 
+layout(std140) uniform AsterionQuality { float Quality; };
+
 in vec2 texCoord;
 out vec4 fragColor;
 
@@ -22,6 +24,7 @@ void main() {
     );
 
     for (int i = 0; i < 4; ++i) {
+        if (Quality < 0.5 && i >= 2) break;
         vec2 uv = clamp(texCoord + offsets[i] * pixel * 1.25, vec2(0.0), vec2(1.0));
         float sampleDepth = texture(DepthSampler, uv).r;
         float depthWeight = exp(-abs(sampleDepth - centerDepth) * 180.0);

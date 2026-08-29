@@ -48,6 +48,11 @@ dependencies {
     implementation "net.krodark:amnetic:1.0-SNAPSHOT"
     include "net.krodark:amnetic:1.0-SNAPSHOT"
 
+    // Amnetic already bundles x64 Linux plus Intel/Apple-Silicon macOS natives.
+    // Ship the missing Linux ARM64 Assimp native used by ARM Chromebooks as well.
+    runtimeOnly "org.lwjgl:lwjgl-assimp:3.4.1:natives-linux-arm64"
+    include "org.lwjgl:lwjgl-assimp:3.4.1:natives-linux-arm64"
+
 }
 
 def resourceProperties = [
