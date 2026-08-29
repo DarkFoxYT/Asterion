@@ -1,8 +1,7 @@
 {
-  "multipart": [{
-    "apply": [
-      {"model": "asterion:block/ancient_leaves", "weight": 3},
-      {"model": "asterion:block/ancient_leaves_variant", "weight": 1}
-    ]
-  }]
+  "variants": {
+    "": {
+      "model": "asterion:block/ancient_leaves"
+    }
+  }
 }

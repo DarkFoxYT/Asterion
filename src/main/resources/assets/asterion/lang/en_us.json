@@ -75,5 +75,6 @@
   "entity.asterion.minotaur": "Minotaur",
   "entity.asterion.bombadier_beetle": "Bombardier Beetle",
   "subtitles.asterion.minotaur_roar": "Minotaur roars",
-  "effect.asterion.resolve": "Resolve"
+  "effect.asterion.resolve": "Resolve",
+  "hud.asterion.ragdoll_get_up": "SHIFT  —  GET UP"
 }

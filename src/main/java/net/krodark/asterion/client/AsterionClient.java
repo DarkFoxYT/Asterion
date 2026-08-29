@@ -40,6 +40,7 @@ public final class AsterionClient implements ClientModInitializer {
         MazeObjectiveOverlay.register();
         MazeZapRenderer.register();
         DazeOverlay.register();
+        RagdollGetUpOverlay.register();
         RagdollClientController.initialize();
         EntityRenderers.register(Asterion.MINOTAUR, MinotaurGeoRenderer::new);
         EntityRenderers.register(Asterion.BOMBARDIER_BEETLE, BombadierBeetleGeoRenderer::new);

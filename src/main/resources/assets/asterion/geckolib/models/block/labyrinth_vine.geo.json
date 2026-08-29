@@ -116,7 +116,7 @@
 						{
 							"origin": [-4, 0, -4],
 							"size": [8, 7, 8],
-							"inflate": 0.05,
+							"inflate": -0.2,
 							"uv": {
 								"north": {"uv": [51, 16], "uv_size": [8, 7]},
 								"east": {"uv": [18, 51], "uv_size": [8, 7]},

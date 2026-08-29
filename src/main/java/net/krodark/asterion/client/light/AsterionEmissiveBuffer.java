@@ -14,6 +14,7 @@ import net.minecraft.client.renderer.rendertype.AmneticRenderTypeAccess;
 import net.minecraft.client.renderer.rendertype.OutputTarget;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.resources.Identifier;
 
 /** Routes selected glowing geometry into Amnetic's dedicated emissive attachment. */
@@ -26,21 +27,29 @@ public final class AsterionEmissiveBuffer {
     private AsterionEmissiveBuffer() {}
 
     public static RenderType renderType(Identifier texture) {
-        return TYPES.computeIfAbsent(texture, id -> AmneticRenderTypeAccess.create(
-                "asterion_emissive/" + id,
-                RenderSetup.builder(RenderPipelines.ENTITY_TRANSLUCENT_EMISSIVE)
-                        .withTexture("Sampler0", id)
-                        .useLightmap()
-                        .useOverlay()
-                        .setOutputTarget(OUTPUT)
-                        .createRenderSetup()));
+        return TYPES.computeIfAbsent(texture, id -> {
+            try {
+                return AmneticRenderTypeAccess.create("asterion_emissive/" + id,
+                        RenderSetup.builder(RenderPipelines.ENTITY_TRANSLUCENT_EMISSIVE)
+                                .withTexture("Sampler0", id)
+                                .useLightmap()
+                                .useOverlay()
+                                .setOutputTarget(OUTPUT)
+                                .createRenderSetup());
+            } catch (Throwable unsupportedRenderer) {
+                // Keep emissive geometry visible even when Amnetic's renderer accessor is
+                // unavailable (unsupported GPU/backend, compatibility renderer, etc.).
+                return RenderTypes.entityTranslucentEmissive(id);
+            }
+        });
     }
 
-    private static void markPopulated() {
+    private static boolean markPopulated() {
         int previous = GBufferTargets.INSTANCE.bind();
-        if (previous < 0) return;
+        if (previous < 0) return false;
         try {
             GBufferTargets.INSTANCE.setPopulated(true);
+            return true;
         } finally {
             GBufferTargets.INSTANCE.restore(previous);
         }
@@ -57,14 +66,18 @@ public final class AsterionEmissiveBuffer {
 
         private RenderTarget refresh() {
             RenderTarget main = Minecraft.getInstance().getMainRenderTarget();
-            int previous = GBufferTargets.INSTANCE.bind();
-            if (previous >= 0) GBufferTargets.INSTANCE.restore(previous);
-
-            int id = GBufferTargets.INSTANCE.emissiveGlId();
             width = main.width;
             height = main.height;
             depthTexture = main.getDepthTexture();
             depthTextureView = main.getDepthTextureView();
+            int id = 0;
+            try {
+                int previous = GBufferTargets.INSTANCE.bind();
+                if (previous >= 0) GBufferTargets.INSTANCE.restore(previous);
+                id = GBufferTargets.INSTANCE.emissiveGlId();
+            } catch (Throwable unsupportedTarget) {
+                // A full-bright main-target pass is the portable fallback.
+            }
             if (id != 0 && (id != wrappedId || width != wrappedWidth || height != wrappedHeight)) {
                 colorTexture = new RenderAttachmentAlias(id, width, height);
                 colorTextureView = RenderSystem.getDevice().createTextureView(colorTexture);
@@ -72,8 +85,22 @@ public final class AsterionEmissiveBuffer {
                 wrappedWidth = width;
                 wrappedHeight = height;
             }
-            if (id != 0) markPopulated();
+            if (id != 0) {
+                try {
+                    if (!markPopulated()) useMainTarget(main);
+                } catch (Throwable unsupportedTarget) {
+                    useMainTarget(main);
+                }
+            } else useMainTarget(main);
             return this;
+        }
+
+        private void useMainTarget(RenderTarget main) {
+            colorTexture = main.getColorTexture();
+            colorTextureView = main.getColorTextureView();
+            wrappedId = 0;
+            wrappedWidth = width;
+            wrappedHeight = height;
         }
 
         @Override
