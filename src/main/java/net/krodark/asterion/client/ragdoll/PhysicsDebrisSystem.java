@@ -33,14 +33,30 @@ import java.util.Random;
 public final class PhysicsDebrisSystem {
     private static final DebrisGeoRenderer RENDERER = new DebrisGeoRenderer();
     private static final List<Piece> PIECES = new ArrayList<>();
-    private static final Vec3 DEBRIS_1_HALF = new Vec3(1.50, 2.375, 1.00);
-    private static final Vec3 DEBRIS_1_CENTER = new Vec3(5.0 / 16.0, 32.0 / 16.0, -2.0 / 16.0);
-    private static final Vec3 DEBRIS_2_HALF = new Vec3(0.50, 1.00, 0.25);
-    private static final Vec3 DEBRIS_2_CENTER = new Vec3(0.0, 1.0, 0.0);
+    private static final VariantProfile[] PROFILES = {
+            null,
+            new VariantProfile(new Vec3(1.50, 2.375, 0.75), new Vec3(5.0 / 16.0, 2.0, -6.0 / 16.0),
+                    1.00F, 1.00, 0.995, 0.12, 0.42, 0.46, 3, 0.82F, false, false, 110, 230),
+            new VariantProfile(new Vec3(0.50, 1.00, 0.25), new Vec3(0.0, 1.0, 0.0),
+                    0.62F, 0.96, 0.992, 0.16, 0.34, 0.40, 3, 1.08F, false, false, 120, 250),
+            new VariantProfile(new Vec3(0.50, 0.50, 0.25), new Vec3(0.0, 0.50, 0.0),
+                    0.46F, 0.91, 0.988, 0.20, 0.28, 0.34, 4, 1.25F, false, false, 125, 270),
+            new VariantProfile(new Vec3(0.50, 0.50, 0.25), new Vec3(0.0, 0.50, 0.0),
+                    0.34F, 0.86, 0.984, 0.24, 0.22, 0.30, 4, 1.42F, false, false, 135, 285),
+            new VariantProfile(new Vec3(0.25, 0.25, 0.25), new Vec3(0.25, 0.75, 0.0),
+                    0.20F, 0.76, 0.978, 0.29, 0.16, 0.25, 5, 1.72F, false, true, 150, 310),
+            new VariantProfile(new Vec3(0.25, 0.25, 0.25), new Vec3(0.0, 0.25, 0.0),
+                    0.09F, 0.62, 0.970, 0.36, 0.055, Double.POSITIVE_INFINITY,
+                    Integer.MAX_VALUE, 2.15F, true, true, 220, 420)
+    };
     private static ClientLevel trackedLevel;
     private static long lastAmbientTick = Long.MIN_VALUE;
 
     private PhysicsDebrisSystem() { }
+
+    private static VariantProfile profile(int variant) {
+        return PROFILES[Mth.clamp(variant, 1, 6)];
+    }
 
     public static void clear() {
         PIECES.clear();
@@ -80,6 +96,7 @@ public final class PhysicsDebrisSystem {
             trackedLevel = client.level;
         }
         int substeps = Mth.clamp(2 + AsterionConfig.INSTANCE.ragdollPhysicsQuality, 2, 4);
+        List<Piece> fracturedChildren = new ArrayList<>();
         Iterator<Piece> iterator = PIECES.iterator();
         while (iterator.hasNext()) {
             Piece piece = iterator.next();
@@ -88,13 +105,17 @@ public final class PhysicsDebrisSystem {
             piece.age++;
             boolean shattered = false;
             for (int step = 0; step < substeps && !shattered; step++)
-                shattered = simulateStep(client.level, piece, 1.0 / substeps);
+                shattered = simulateStep(client.level, piece, 1.0 / substeps, fracturedChildren);
             if (shattered || piece.age > piece.lifetime
                     || (client.player != null && piece.position.distanceToSqr(client.player.position()) > 128 * 128)) {
-                if (!shattered && piece.age <= piece.lifetime) burst(client.level, piece, new Vec3(0, 1, 0), 0.25);
+                if (!shattered && !piece.unbreakable() && piece.age <= piece.lifetime)
+                    burst(client.level, piece, new Vec3(0, 1, 0), 0.25);
                 iterator.remove();
             }
         }
+        // Never truncate a fracture family: debris 1 always resolves into the complete 2–6 set.
+        // Normal ceiling spawning still respects the quality cap on following ticks.
+        PIECES.addAll(fracturedChildren);
     }
 
     public static void submit(PoseStack poses, LevelRenderState state, SubmitNodeCollector collector) {
@@ -136,17 +157,17 @@ public final class PhysicsDebrisSystem {
                 break;
             }
         }
-        int variant = random.nextFloat() < 0.56F ? 2 : 1;
-        float scale = variant == 2
-                ? 0.28F + random.nextFloat() * random.nextFloat() * 0.38F
-                : 0.10F + random.nextFloat() * random.nextFloat() * 0.24F;
-        Vec3 half = (variant == 2 ? DEBRIS_2_HALF : DEBRIS_1_HALF).scale(scale * 0.88);
+        int variant = randomVariant(random);
+        float scale = randomScale(variant, random);
+        Vec3 half = profile(variant).halfExtents.scale(scale * 0.88);
         double y = ceiling == null
                 ? center.y + 5.0 + random.nextDouble() * 5.0
                 : ceiling.getY() - half.y - 0.035;
         Piece piece = new Piece(new Vec3(x, y, z), variant, scale, random);
-        double drift = variant == 2 ? 1.45 : 1.0;
-        double fall = variant == 2 ? 0.72 : 1.0;
+        VariantProfile profile = profile(variant);
+        double lightness = 1.0D - profile.massFactor;
+        double drift = 1.0D + lightness * 1.05D;
+        double fall = 0.72D + profile.massFactor * 0.28D;
         piece.velocity = new Vec3((random.nextDouble() - 0.5) * (0.10 + intensity * 0.12) * drift,
                 (-0.035 - random.nextDouble() * (0.09 + intensity * 0.12)) * fall,
                 (random.nextDouble() - 0.5) * (0.10 + intensity * 0.12) * drift);
@@ -160,7 +181,30 @@ public final class PhysicsDebrisSystem {
         if (ceiling != null) ceilingDust(level, ceiling, random, intensity);
     }
 
-    private static boolean simulateStep(ClientLevel level, Piece piece, double dt) {
+    private static int randomVariant(Random random) {
+        float roll = random.nextFloat();
+        if (roll < 0.24F) return 1;
+        if (roll < 0.44F) return 2;
+        if (roll < 0.62F) return 3;
+        if (roll < 0.78F) return 4;
+        if (roll < 0.91F) return 5;
+        return 6;
+    }
+
+    private static float randomScale(int variant, Random random) {
+        float shaped = random.nextFloat() * random.nextFloat();
+        return switch (variant) {
+            case 1 -> 0.10F + shaped * 0.22F;
+            case 2 -> 0.26F + shaped * 0.34F;
+            case 3 -> 0.32F + shaped * 0.42F;
+            case 4 -> 0.34F + shaped * 0.44F;
+            case 5 -> 0.42F + shaped * 0.44F;
+            default -> 0.48F + shaped * 0.46F;
+        };
+    }
+
+    private static boolean simulateStep(ClientLevel level, Piece piece, double dt,
+                                        List<Piece> fracturedChildren) {
         piece.velocity = piece.velocity.add(0, -0.055 * piece.gravityFactor() * dt, 0)
                 .scale(Math.pow(piece.airRetention(), dt));
         if (piece.velocity.y < -2.8) piece.velocity = new Vec3(piece.velocity.x, -2.8, piece.velocity.z);
@@ -181,16 +225,83 @@ public final class PhysicsDebrisSystem {
             if (normal == null) continue;
             double impactSpeed = Math.max(0.0, -piece.velocity.dot(normal));
             piece.impacts++;
-            if (impactSpeed > (0.30 + piece.scale * 0.65) * piece.massFactor()
-                    || piece.impacts >= (piece.variant == 2 ? 2 : 3)) {
-                burst(level, piece, normal, impactSpeed);
+            if (!piece.unbreakable() && (impactSpeed > piece.breakSpeed()
+                    || piece.impacts >= piece.maxImpacts())) {
+                if (piece.variant == 1)
+                    splitPrimaryDebris(level, piece, normal, impactSpeed, fracturedChildren);
+                else
+                    burst(level, piece, normal, impactSpeed);
                 return true;
             }
-            piece.velocity = RagdollMath.reflect(piece.velocity, normal, 0.22, 0.34);
-            Vec3 torque = normal.cross(piece.velocity).scale(0.28);
+            piece.velocity = RagdollMath.reflect(piece.velocity, normal,
+                    piece.restitution(), piece.friction());
+            if (piece.rolling() && normal.y > 0.55D) applyRollingContact(piece, normal);
+            Vec3 torque = normal.cross(piece.velocity).scale(0.28 * piece.spinMultiplier());
             piece.angularVelocity.add((float) torque.x, (float) torque.y, (float) torque.z);
         }
         return false;
+    }
+
+    private static void applyRollingContact(Piece piece, Vec3 normal) {
+        Vec3 tangentVelocity = piece.velocity.subtract(normal.scale(piece.velocity.dot(normal)));
+        if (tangentVelocity.lengthSqr() < 1.0e-6D) {
+            piece.angularVelocity.mul(0.94F);
+            return;
+        }
+        double radius = Math.max(0.035D, Math.min(piece.halfExtents().x, piece.halfExtents().z));
+        Vec3 rollingAxis = normal.cross(tangentVelocity).scale(1.0D / radius);
+        float blend = piece.variant == 6 ? 0.52F : 0.30F;
+        Vector3f target = new Vector3f((float) rollingAxis.x, (float) rollingAxis.y,
+                (float) rollingAxis.z).mul(piece.spinMultiplier());
+        piece.angularVelocity.lerp(target, blend);
+        double outwardSpeed = Math.max(0.0D, piece.velocity.dot(normal));
+        double rollingRetention = piece.variant == 6 ? 0.975D : 0.925D;
+        piece.velocity = tangentVelocity.scale(rollingRetention)
+                .add(normal.scale(outwardSpeed * (piece.variant == 6 ? 0.18D : 0.34D)));
+    }
+
+    /** Debris 1 is the intact wall cluster. Its terminal impact produces one of every authored
+     * child mesh while preserving the parent's center-of-mass velocity. */
+    private static void splitPrimaryDebris(ClientLevel level, Piece parent, Vec3 normal,
+                                           double impactSpeed, List<Piece> output) {
+        burst(level, parent, normal, impactSpeed);
+        Random random = new Random(parent.seed ^ parent.age * 0x9E3779B97F4A7C15L);
+        RagdollMath.Basis basis = RagdollMath.directionBasis(normal);
+        List<Piece> children = new ArrayList<>(5);
+        double[] scales = {0.0D, 0.0D, 1.16D, 1.34D, 1.30D, 1.54D, 1.48D};
+        for (int variant = 2; variant <= 6; variant++) {
+            double angle = (variant - 2) * Mth.TWO_PI / 5.0D + 0.24D;
+            Vec3 radial = basis.tangent().scale(Math.cos(angle))
+                    .add(basis.bitangent().scale(Math.sin(angle)));
+            float childScale = (float) (parent.scale * scales[variant]);
+            Vec3 childPosition = parent.position.add(normal.scale(0.055D + (variant - 2) * 0.012D))
+                    .add(radial.scale(parent.scale * (0.34D + (variant - 2) * 0.055D)));
+            Piece child = new Piece(childPosition, variant, childScale, random);
+            child.orientation.set(parent.orientation).rotateXYZ(
+                    (random.nextFloat() - 0.5F) * 0.24F,
+                    (random.nextFloat() - 0.5F) * 0.24F,
+                    (random.nextFloat() - 0.5F) * 0.24F).normalize();
+            child.previousOrientation.set(child.orientation);
+            child.velocity = parent.velocity.add(normal.scale(0.055D + impactSpeed * 0.10D))
+                    .add(radial.scale(0.07D + impactSpeed * (0.055D + variant * 0.006D)));
+            if (!isWorldClear(level, child, child.position)) {
+                child.position = parent.position.add(normal.scale(0.04D));
+                child.orientation.set(parent.orientation);
+                child.previousOrientation.set(child.orientation);
+            }
+            child.previousPosition = child.position;
+            children.add(child);
+        }
+
+        double totalMass = 0.0D;
+        Vec3 relativeMomentum = Vec3.ZERO;
+        for (Piece child : children) {
+            totalMass += child.mass();
+            relativeMomentum = relativeMomentum.add(child.velocity.subtract(parent.velocity).scale(child.mass()));
+        }
+        Vec3 correction = totalMass <= 1.0e-8D ? Vec3.ZERO : relativeMomentum.scale(1.0D / totalMass);
+        for (Piece child : children) child.velocity = child.velocity.subtract(correction);
+        output.addAll(children);
     }
 
     private static Vec3 move(ClientLevel level, Piece piece, Vec3 delta) {
@@ -337,7 +448,8 @@ public final class PhysicsDebrisSystem {
         level.playLocalSound(piece.position.x, piece.position.y, piece.position.z,
                 SoundEvents.DEEPSLATE_BREAK, SoundSource.BLOCKS,
                 Mth.clamp((0.18F + piece.scale * 0.85F) * piece.massFactor(), 0.14F, 0.65F),
-                (piece.variant == 2 ? 0.92F : 0.72F) + random.nextFloat() * 0.24F, false);
+                0.72F + (1.0F - piece.massFactor()) * 0.44F
+                        + random.nextFloat() * 0.20F, false);
     }
 
     private static AABB boundsAt(Piece piece, Vec3 center) {
@@ -431,41 +543,83 @@ public final class PhysicsDebrisSystem {
         private Piece(Vec3 position, int variant, float scale, Random random) {
             this.position = position;
             this.previousPosition = position;
-            this.variant = variant;
-            this.visual = new DebrisPhysicsObject(variant);
+            this.variant = Mth.clamp(variant, 1, 6);
+            this.visual = new DebrisPhysicsObject(this.variant);
             this.scale = scale;
             this.seed = random.nextLong();
-            this.lifetime = 100 + random.nextInt(121);
+            VariantProfile profile = profile(this.variant);
+            this.lifetime = profile.minimumLifetime
+                    + random.nextInt(profile.maximumLifetime - profile.minimumLifetime + 1);
             this.orientation = new Quaternionf().rotationXYZ(random.nextFloat() * Mth.TWO_PI,
                     random.nextFloat() * Mth.TWO_PI, random.nextFloat() * Mth.TWO_PI);
             this.previousOrientation = new Quaternionf(orientation);
             this.angularVelocity = new Vector3f((random.nextFloat() - 0.5F) * 0.42F,
                     (random.nextFloat() - 0.5F) * 0.42F,
-                    (random.nextFloat() - 0.5F) * 0.42F);
-            if (variant == 2) this.angularVelocity.mul(1.42F);
+                    (random.nextFloat() - 0.5F) * 0.42F).mul(profile.spinMultiplier);
         }
 
         private Vec3 halfExtents() {
-            return (variant == 2 ? DEBRIS_2_HALF : DEBRIS_1_HALF).scale(scale * 0.88);
+            return profile(variant).halfExtents.scale(scale * 0.88);
         }
 
         private Vec3 modelCenter() {
-            return variant == 2 ? DEBRIS_2_CENTER : DEBRIS_1_CENTER;
+            return profile(variant).modelCenter;
         }
 
         private double gravityFactor() {
-            return variant == 2 ? 0.73 : 1.0;
+            return profile(variant).gravityFactor;
         }
 
         private double airRetention() {
-            return variant == 2 ? 0.982 : 0.994;
+            return profile(variant).airRetention;
         }
 
         private float massFactor() {
-            return variant == 2 ? 0.58F : 1.0F;
+            return profile(variant).massFactor;
+        }
+
+        private double mass() {
+            Vec3 half = profile(variant).halfExtents;
+            double modelVolume = half.x * half.y * half.z * 8.0D;
+            return Math.max(1.0e-5D, massFactor() * modelVolume * scale * scale * scale);
+        }
+
+        private double restitution() {
+            return profile(variant).restitution;
+        }
+
+        private double friction() {
+            return profile(variant).friction;
+        }
+
+        private double breakSpeed() {
+            VariantProfile profile = profile(variant);
+            return profile.breakSpeed + scale * 0.52D * Math.sqrt(profile.massFactor);
+        }
+
+        private int maxImpacts() {
+            return profile(variant).maximumImpacts;
+        }
+
+        private float spinMultiplier() {
+            return profile(variant).spinMultiplier;
+        }
+
+        private boolean unbreakable() {
+            return profile(variant).unbreakable;
+        }
+
+        private boolean rolling() {
+            return profile(variant).rolling;
         }
     }
 
+    private record VariantProfile(Vec3 halfExtents, Vec3 modelCenter, float massFactor,
+                                  double gravityFactor, double airRetention,
+                                  double restitution, double friction, double breakSpeed,
+                                  int maximumImpacts, float spinMultiplier,
+                                  boolean unbreakable, boolean rolling,
+                                  int minimumLifetime, int maximumLifetime) { }
     private record Collision(Vec3 normal, double depth) { }
     private record DustSource(Vec3 position, Vec3 normal, Vec3 tangent) { }
 }

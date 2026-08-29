@@ -63,6 +63,8 @@ import net.krodark.asterion.block.DirectionalGateBlock;
 import net.krodark.asterion.block.WinchBlock;
 import net.krodark.asterion.block.LabyrinthVineBlock;
 import net.krodark.asterion.block.LabyrinthVineBlockEntity;
+import net.krodark.asterion.block.SkeletonBlock;
+import net.krodark.asterion.block.SkeletonBlockEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.ChainBlock;
@@ -140,6 +142,10 @@ public class Asterion implements ModInitializer {
             properties -> new LabyrinthVineBlock(properties.noOcclusion().strength(0.4F)
                     .sound(SoundType.VINE).lightLevel(state ->
                             state.getValue(LabyrinthVineBlock.END) ? 12 : 0)));
+    public static final SkeletonBlock SKELETON = (SkeletonBlock)registerBlock(
+            "skeleton", MapColor.COLOR_LIGHT_GRAY,
+            properties -> new SkeletonBlock(properties.noOcclusion().strength(0.45F)
+                    .sound(SoundType.BONE_BLOCK)));
     public static final RuneBlock[] RUNE_BLOCKS = registerRuneBlocks();
     public static final RuneDoorBlock RUNE_ZONE_DOOR = (RuneDoorBlock)registerBlock("rune_zone_door",
             MapColor.COLOR_BLACK, RuneDoorBlock::new);
@@ -149,6 +155,9 @@ public class Asterion implements ModInitializer {
     public static final BlockEntityType<LabyrinthVineBlockEntity> LABYRINTH_VINE_BLOCK_ENTITY = Registry.register(
             BuiltInRegistries.BLOCK_ENTITY_TYPE, id("labyrinth_vine"),
             FabricBlockEntityTypeBuilder.create(LabyrinthVineBlockEntity::new, LABYRINTH_VINE).build());
+    public static final BlockEntityType<SkeletonBlockEntity> SKELETON_BLOCK_ENTITY = Registry.register(
+            BuiltInRegistries.BLOCK_ENTITY_TYPE, id("skeleton"),
+            FabricBlockEntityTypeBuilder.create(SkeletonBlockEntity::new, SKELETON).build());
     private static final ResourceKey<EntityType<?>> MINOTAUR_KEY = ResourceKey.create(
             Registries.ENTITY_TYPE, id("minotaur"));
     public static final EntityType<MinotaurEntity> MINOTAUR = Registry.register(
@@ -232,6 +241,7 @@ public class Asterion implements ModInitializer {
                         output.accept(MAZESTEEL_GATE);
                         output.accept(WINCH);
                         output.accept(LABYRINTH_VINE);
+                        output.accept(SKELETON);
                         for (RuneBlock rune : RUNE_BLOCKS) output.accept(rune);
                         output.accept(RUNE_ZONE_DOOR);
                     })

@@ -21,6 +21,7 @@ import net.krodark.asterion.client.particle.FlyingInsectParticle;
 import net.krodark.asterion.client.particle.AncientWallDustParticle;
 import net.krodark.asterion.client.render.block.RuneGeoRenderer;
 import net.krodark.asterion.client.render.block.LabyrinthVineGeoRenderer;
+import net.krodark.asterion.client.render.block.SkeletonGeoRenderer;
 import net.krodark.asterion.client.render.portal.AsterionPortalRenderer;
 import net.krodark.asterion.client.render.post.AsterionPostEffects;
 import net.krodark.asterion.network.*;
@@ -69,6 +70,7 @@ public final class AsterionClient implements ClientModInitializer {
                                 velocityX, velocityY, velocityZ, sprites, random));
         BlockEntityRenderers.register(Asterion.RUNE_BLOCK_ENTITY, RuneGeoRenderer::new);
         BlockEntityRenderers.register(Asterion.LABYRINTH_VINE_BLOCK_ENTITY, LabyrinthVineGeoRenderer::new);
+        BlockEntityRenderers.register(Asterion.SKELETON_BLOCK_ENTITY, SkeletonGeoRenderer::new);
         ClientPlayNetworking.registerGlobalReceiver(DimensionTransitionPayload.TYPE, (payload, context) ->
                 context.client().execute(() ->
                         DimensionTransitionOverlay.begin(payload.fadeInTicks(), payload.holdTicks())));
