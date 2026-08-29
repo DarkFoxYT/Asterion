@@ -9,7 +9,7 @@ import com.geckolib.constant.DataTickets;
 import com.geckolib.constant.dataticket.DataTicket;
 import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.Asterion;
-import net.krodark.asterion.client.light.LedAmneticLight;
+import net.krodark.asterion.client.light.AsterionEmissiveBuffer;
 import net.krodark.asterion.entity.MinotaurEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -59,7 +59,7 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
             }
 
             @Override protected RenderType getRenderType(EntityRenderState state, Identifier texture) {
-                return state.isInvisible ? null : LedAmneticLight.bloomRenderLayer(texture);
+                return state.isInvisible ? null : AsterionEmissiveBuffer.renderType(texture);
             }
 
             @Override protected void renderBone(RenderPassInfo<EntityRenderState> pass,

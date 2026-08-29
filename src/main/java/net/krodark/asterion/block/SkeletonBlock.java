@@ -67,15 +67,19 @@ public final class SkeletonBlock extends BaseEntityBlock {
         if (random.nextInt(3) != 0) return;
 
         Direction facing = state.getValue(FACING);
-        double forward = (random.nextDouble() - 0.5D) * 1.55D;
-        double sideways = (random.nextDouble() - 0.5D) * 0.72D;
+        double forward = (random.nextDouble() - 0.5D) * 1.7D;
+        // Spawn beside the bones instead of inside their collision/model volume.
+        double sideways = (random.nextBoolean() ? 1.0D : -1.0D) * (0.58D + random.nextDouble() * 0.22D);
         double x = pos.getX() + 0.5D + facing.getStepX() * forward - facing.getStepZ() * sideways;
-        double y = pos.getY() + 0.18D + random.nextDouble() * 0.52D;
+        double y = pos.getY() + 0.32D + random.nextDouble() * 0.48D;
         double z = pos.getZ() + 0.5D + facing.getStepZ() * forward + facing.getStepX() * sideways;
-        double speed = 0.012D + random.nextDouble() * 0.014D;
-        double angle = random.nextDouble() * Math.PI * 2.0D;
+        double outwardX = -facing.getStepZ() * Math.signum(sideways);
+        double outwardZ = facing.getStepX() * Math.signum(sideways);
+        double drift = (random.nextDouble() - 0.5D) * 0.012D;
         level.addParticle(Asterion.FLY, x, y, z,
-                Math.cos(angle) * speed, (random.nextDouble() - 0.5D) * 0.012D, Math.sin(angle) * speed);
+                outwardX * 0.026D + facing.getStepX() * drift,
+                0.012D + random.nextDouble() * 0.012D,
+                outwardZ * 0.026D + facing.getStepZ() * drift);
     }
 
     @Override public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {

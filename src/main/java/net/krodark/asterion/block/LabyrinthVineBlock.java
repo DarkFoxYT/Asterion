@@ -48,15 +48,32 @@ public final class LabyrinthVineBlock extends BaseEntityBlock {
     protected BlockState updateShape(BlockState state, LevelReader level, ScheduledTickAccess scheduledTicks,
                                      BlockPos pos, Direction direction, BlockPos neighborPos,
                                      BlockState neighborState, RandomSource random) {
-        if (direction == state.getValue(FACING))
-            return state.setValue(END, !neighborState.is(Asterion.LABYRINTH_VINE));
-        // Let an exposed tip turn a corner when the player continues it from another face.
-        // Ignore the segment behind this tip. Without this check the newly placed endpoint
-        // mistakes its support for a forward continuation, causing alternating missing bulbs.
-        if (state.getValue(END) && direction != state.getValue(FACING).getOpposite()
-                && neighborState.is(Asterion.LABYRINTH_VINE))
-            return state.setValue(FACING, direction).setValue(END, false);
-        return state;
+        Direction supportDirection = state.getValue(FACING).getOpposite();
+        if (direction == supportDirection && !canSurvive(state, level, pos))
+            return net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
+
+        // A neighbor is a child only when it points away from this segment. This lets a
+        // chain turn corners without rewriting the parent's attachment direction.
+        boolean hasChild = false;
+        for (Direction candidate : Direction.values()) {
+            BlockState adjacent = candidate == direction ? neighborState
+                    : level.getBlockState(pos.relative(candidate));
+            if (adjacent.is(Asterion.LABYRINTH_VINE)
+                    && adjacent.getValue(FACING) == candidate) {
+                hasChild = true;
+                break;
+            }
+        }
+        return state.setValue(END, !hasChild);
+    }
+
+    @Override
+    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+        Direction growthDirection = state.getValue(FACING);
+        BlockPos supportPos = pos.relative(growthDirection.getOpposite());
+        BlockState support = level.getBlockState(supportPos);
+        return support.is(Asterion.LABYRINTH_VINE)
+                || Block.canSupportCenter(level, supportPos, growthDirection);
     }
 
     @Override

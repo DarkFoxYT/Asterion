@@ -1,16 +1,21 @@
 package net.krodark.asterion.client.render.block;
 
 import com.geckolib.renderer.GeoBlockRenderer;
+import com.geckolib.renderer.base.BoneSnapshots;
 import com.geckolib.renderer.base.RenderPassInfo;
 import com.geckolib.renderer.layer.builtin.CustomBoneTextureGeoLayer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.block.LabyrinthVineBlockEntity;
+import net.krodark.asterion.client.light.AsterionEmissiveBuffer;
 import net.krodark.asterion.client.light.LedAmneticLight;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderType;
+import com.geckolib.constant.DataTickets;
+import com.geckolib.cache.model.GeoBone;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 
@@ -28,8 +33,28 @@ public final class LabyrinthVineGeoRenderer
                 return state.getOrDefaultGeckolibData(LabyrinthVineGeoModel.END, true);
             }
             @Override protected RenderType getRenderType(BlockEntityRenderState state, Identifier texture) {
-                return LedAmneticLight.bloomRenderLayer(texture);
+                return AsterionEmissiveBuffer.renderType(texture);
             }
+
+            @Override
+            protected void renderBone(RenderPassInfo<BlockEntityRenderState> pass, GeoBone bone,
+                                      SubmitNodeCollector renderTasks) {
+                int original = pass.renderState().getOrDefaultGeckolibData(
+                        DataTickets.RENDER_COLOR, 0xFFFFFFFF);
+                pass.renderState().addGeckolibData(DataTickets.RENDER_COLOR, 0xFFFF6A20);
+                super.renderBone(pass, bone, renderTasks);
+                pass.renderState().addGeckolibData(DataTickets.RENDER_COLOR, original);
+            }
+        });
+    }
+
+    @Override
+    public void adjustModelBonesForRender(RenderPassInfo<BlockEntityRenderState> pass,
+                                          BoneSnapshots snapshots) {
+        if (pass.getOrDefaultGeckolibData(LabyrinthVineGeoModel.END, true)) return;
+        snapshots.ifPresent("head", snapshot -> {
+            snapshot.skipRender(true);
+            snapshot.skipChildrenRender(true);
         });
     }
 
