@@ -67,21 +67,28 @@ public final class BombardierGasFireParticle extends SingleQuadParticle {
     }
 
     private void updateLight() {
-        float remaining = 1.0F - progress();
+        float progress = progress();
+        float remaining = 1.0F - progress;
+        float green = progress < 0.45F
+                ? Mth.lerp(progress / 0.45F, 0.42F, 0.08F) : 0.08F;
         LedAmneticLight.updateItemGlowLight(this, new Vec3(x, y, z),
-                1.0F, 0.12F, 0.018F,
+                1.0F, green, 0.018F,
                 0.18F + remaining * 6.25F, 3.2F + remaining * 4.3F, false);
     }
 
     private void updateAppearance() {
         float progress = progress();
-        if (progress < 0.38F) {
-            float blend = progress / 0.38F;
-            setColor(Mth.lerp(blend, 1.0F, 0.58F), Mth.lerp(blend, 0.11F, 0.025F),
-                    Mth.lerp(blend, 0.015F, 0.008F));
+        if (progress < 0.18F) {
+            float blend = progress / 0.18F;
+            setColor(1.0F, Mth.lerp(blend, 0.86F, 0.36F),
+                    Mth.lerp(blend, 0.22F, 0.025F));
+        } else if (progress < 0.52F) {
+            float blend = (progress - 0.18F) / 0.34F;
+            setColor(Mth.lerp(blend, 1.0F, 0.68F), Mth.lerp(blend, 0.36F, 0.045F),
+                    Mth.lerp(blend, 0.025F, 0.008F));
         } else {
-            float blend = (progress - 0.38F) / 0.62F;
-            setColor(Mth.lerp(blend, 0.58F, 0.025F), Mth.lerp(blend, 0.025F, 0.024F),
+            float blend = (progress - 0.52F) / 0.48F;
+            setColor(Mth.lerp(blend, 0.68F, 0.025F), Mth.lerp(blend, 0.045F, 0.024F),
                     Mth.lerp(blend, 0.008F, 0.022F));
         }
         setAlpha(progress < 0.78F ? 0.88F : 0.88F * (1.0F - progress) / 0.22F);

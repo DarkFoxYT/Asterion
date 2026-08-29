@@ -13,9 +13,11 @@ import net.minecraft.util.Mth;
 public final class DimensionTransitionOverlay {
     private static final Component DESCENDING = Component.translatable("transition.asterion.descending");
     private static final int REQUIRED_STABLE_TICKS = 8;
-    private static final int FADE_OUT_TICKS = 5;
+    private static final int FADE_OUT_TICKS = 12;
     private static int stableTicks;
     private static int fadeOutProgress;
+    private static int fadeInTicks;
+    private static int holdTicks;
     private static boolean active;
     private static boolean fadingOut;
     private static boolean readySent;
@@ -30,6 +32,8 @@ public final class DimensionTransitionOverlay {
 
     public static void begin(int requestedFadeIn, int requestedHold) {
         DeadSunEntryCinematic.prepareForArrival(Minecraft.getInstance());
+        fadeInTicks = Math.max(1, requestedFadeIn);
+        holdTicks = Math.max(0, requestedHold);
         stableTicks = 0;
         fadeOutProgress = 0;
         fadingOut = false;
@@ -51,7 +55,7 @@ public final class DimensionTransitionOverlay {
 
         boolean ready = destinationChunksReady(client);
         stableTicks = ready ? stableTicks + 1 : 0;
-        if (stableTicks >= REQUIRED_STABLE_TICKS) {
+        if (stableTicks >= REQUIRED_STABLE_TICKS && totalTicks >= fadeInTicks + holdTicks) {
             fadingOut = true;
         }
     }
@@ -107,9 +111,9 @@ public final class DimensionTransitionOverlay {
         if (!active) return;
         int alpha = fadingOut
                 ? Math.max(0, 255 - Math.round(fadeOutProgress / (float) FADE_OUT_TICKS * 255.0F))
-                : 255;
+                : Math.round(smoother(Mth.clamp(totalTicks / (float) fadeInTicks, 0.0F, 1.0F)) * 255.0F);
         graphics.fill(0, 0, graphics.guiWidth(), graphics.guiHeight(), alpha << 24);
-        if (!fadingOut || alpha > 90) renderDescent(graphics, alpha);
+        if (alpha > 90 && (!fadingOut || alpha > 120)) renderDescent(graphics, alpha);
     }
 
     private static void renderDescent(GuiGraphicsExtractor graphics, int alpha) {
@@ -151,5 +155,9 @@ public final class DimensionTransitionOverlay {
         value ^= value >>> 27;
         value *= 0x94D049BB133111EBL;
         return value ^ value >>> 31;
+    }
+
+    private static float smoother(float value) {
+        return value * value * value * (value * (value * 6.0F - 15.0F) + 10.0F);
     }
 }

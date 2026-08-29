@@ -49,12 +49,18 @@ import net.minecraft.sounds.SoundEvent;
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.fabricmc.fabric.api.particle.v1.FabricParticleTypes;
 import net.minecraft.core.particles.SimpleParticleType;
+import net.minecraft.core.particles.ParticleTypes;
 import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
 import net.krodark.asterion.block.RuneBlock;
 import net.krodark.asterion.block.RuneBlockEntity;
 import net.krodark.asterion.block.RuneDoorBlock;
+import net.krodark.asterion.block.DirectionalGateBlock;
+import net.krodark.asterion.block.WinchBlock;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.ChainBlock;
+import net.minecraft.world.level.block.LeavesBlock;
+import net.minecraft.world.level.block.UntintedParticleLeavesBlock;
 import net.minecraft.world.level.block.SlabBlock;
 import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.TallGrassBlock;
@@ -90,6 +96,10 @@ public class Asterion implements ModInitializer {
     public static final Block ANCIENT_STONE = registerBlock("ancient_stone", MapColor.TERRACOTTA_BROWN, Block::new);
     public static final Block MOSSY_ANCIENT_STONE = registerBlock("mossy_ancient_stone", MapColor.TERRACOTTA_GREEN, Block::new);
     public static final Block ANCIENT_MOSS = registerBlock("ancient_moss", MapColor.TERRACOTTA_GREEN, Block::new);
+    public static final LeavesBlock ANCIENT_LEAVES = (LeavesBlock)registerBlock(
+            "ancient_leaves", MapColor.TERRACOTTA_BROWN,
+            properties -> new UntintedParticleLeavesBlock(0.01F, ParticleTypes.PALE_OAK_LEAVES,
+                    properties.strength(0.2F).randomTicks().sound(SoundType.AZALEA_LEAVES).noOcclusion()));
     public static final Block SHORT_GRASS = registerBlock("short_grass", MapColor.PLANT,
             properties -> new ShortGrassBlock(properties.noCollision().replaceable().instabreak()
                     .sound(SoundType.GRASS).offsetType(BlockBehaviour.OffsetType.XZ)));
@@ -98,6 +108,14 @@ public class Asterion implements ModInitializer {
             properties -> new StairBlock(ANCIENT_STONE.defaultBlockState(), properties) { });
     public static final Block ANCIENT_STONE_WALL = registerBlock("ancient_stone_wall", MapColor.TERRACOTTA_BROWN, WallBlock::new);
     public static final Block MAZESTEEL_BLOCK = registerBlock("mazesteel_block", MapColor.METAL, Block::new);
+    public static final ChainBlock MAZESTEEL_CHAIN = (ChainBlock)registerBlock(
+            "mazesteel_chain", MapColor.METAL,
+            properties -> new ChainBlock(properties.noOcclusion().sound(SoundType.CHAIN)));
+    public static final DirectionalGateBlock MAZESTEEL_GATE = (DirectionalGateBlock)registerBlock(
+            "mazesteel_gate", MapColor.METAL,
+            properties -> new DirectionalGateBlock(properties.noOcclusion()));
+    public static final WinchBlock WINCH = (WinchBlock)registerBlock(
+            "winch", MapColor.METAL, properties -> new WinchBlock(properties.noOcclusion()));
     public static final RuneBlock[] RUNE_BLOCKS = registerRuneBlocks();
     public static final RuneDoorBlock RUNE_ZONE_DOOR = (RuneDoorBlock)registerBlock("rune_zone_door",
             MapColor.COLOR_BLACK, RuneDoorBlock::new);
@@ -167,11 +185,15 @@ public class Asterion implements ModInitializer {
                         output.accept(ANCIENT_STONE);
                         output.accept(MOSSY_ANCIENT_STONE);
                         output.accept(ANCIENT_MOSS);
+                        output.accept(ANCIENT_LEAVES);
                         output.accept(SHORT_GRASS);
                         output.accept(ANCIENT_STONE_SLAB);
                         output.accept(ANCIENT_STONE_STAIRS);
                         output.accept(ANCIENT_STONE_WALL);
                         output.accept(MAZESTEEL_BLOCK);
+                        output.accept(MAZESTEEL_CHAIN);
+                        output.accept(MAZESTEEL_GATE);
+                        output.accept(WINCH);
                         for (RuneBlock rune : RUNE_BLOCKS) output.accept(rune);
                         output.accept(RUNE_ZONE_DOOR);
                     })

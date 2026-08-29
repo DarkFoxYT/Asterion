@@ -1,0 +1,5 @@
+{"variants":{
+  "axis=x":{"model":"asterion:block/mazesteel_chain","x":90,"y":90},
+  "axis=y":{"model":"asterion:block/mazesteel_chain"},
+  "axis=z":{"model":"asterion:block/mazesteel_chain","x":90}
+}}

@@ -73,6 +73,8 @@ public final class WorldGenerator {
     private static final int PIT_HALF_WIDTH = 34;
     private static final int PIT_WALL_THICKNESS = 6;
     private static final int SKYFALL_CLEARANCE = 42;
+    private static final int PORTAL_FADE_IN_TICKS = 16;
+    private static final int PORTAL_BLACK_HOLD_TICKS = 4;
     private static final ResourceKey<LootTable> MAZE_BARREL_LOOT = ResourceKey.create(
             Registries.LOOT_TABLE, Asterion.id("chests/maze_supply_barrel"));
     private static final ResourceKey<LootTable> SAFE_RUNE_NEAR_LOOT = ResourceKey.create(
@@ -1920,7 +1922,8 @@ public final class WorldGenerator {
         player.noPhysics = true;
         player.setDeltaMovement(Vec3.ZERO);
         if (ServerPlayNetworking.canSend(player, DimensionTransitionPayload.TYPE))
-            ServerPlayNetworking.send(player, new DimensionTransitionPayload(4, 0));
+            ServerPlayNetworking.send(player, new DimensionTransitionPayload(
+                    PORTAL_FADE_IN_TICKS, PORTAL_BLACK_HOLD_TICKS));
     }
 
     private static void tickTransition(ServerPlayer player, PendingTransition pending) {
@@ -1941,6 +1944,11 @@ public final class WorldGenerator {
                 int[] offset = PRELOAD_OFFSETS[pending.preloadIndex++];
                 pending.maze.getChunk((pending.destination.getX() >> 4) + offset[0],
                         (pending.destination.getZ() >> 4) + offset[1]);
+            }
+            if (!pending.teleported
+                    && pending.ticks < PORTAL_FADE_IN_TICKS + PORTAL_BLACK_HOLD_TICKS) {
+                pending.ticks++;
+                return;
             }
             if (!pending.teleported && pending.preloadIndex >= PRELOAD_OFFSETS.length) {
                 prepareMazeArrival(pending.maze, pending.destination);
@@ -2274,7 +2282,7 @@ public final class WorldGenerator {
             chunk.setBlockState(barrelPos, barrelState, 0);
             placeLootBarrel(chunk, barrelPos, MAZE_BARREL_LOOT, supply);
             for (int y = barrelY + 1; y <= DIMENSION_CEILING_Y; y++)
-                bufferedSet(chunk, x, y, z, Blocks.IRON_CHAIN.defaultBlockState());
+                bufferedSet(chunk, x, y, z, Asterion.MAZESTEEL_CHAIN.defaultBlockState());
             if (Math.floorMod(supply >>> 17, 3) == 0)
                 bufferedSet(chunk, x + 1, floorY + 1, z, Blocks.COBWEB.defaultBlockState());
         }
@@ -2510,9 +2518,11 @@ public final class WorldGenerator {
         }
         if (biome == MazeBiome.OVERGROWN && Math.floorMod(detail, 29) == 0) {
             int crownY = floorY + wallHeight;
-            bufferedSet(chunk, x, crownY, z, Blocks.AZALEA_LEAVES.defaultBlockState());
+            bufferedSet(chunk, x, crownY, z, Asterion.ANCIENT_LEAVES.defaultBlockState()
+                    .setValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT, true));
             if ((detail & 1L) == 0L && crownY > floorY + 4)
-                bufferedSet(chunk, x, crownY - 1, z, Blocks.FLOWERING_AZALEA_LEAVES.defaultBlockState());
+                bufferedSet(chunk, x, crownY - 1, z, Asterion.ANCIENT_LEAVES.defaultBlockState()
+                        .setValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT, true));
         }
     }
 
@@ -2535,9 +2545,8 @@ public final class WorldGenerator {
                     : Math.abs(lx - center) <= 1);
             if (leafBridge) {
                 int roofY = floorY + wallHeight - 2;
-                BlockState leaves = Math.floorMod(detail, 7) == 0
-                        ? Blocks.FLOWERING_AZALEA_LEAVES.defaultBlockState()
-                        : Blocks.AZALEA_LEAVES.defaultBlockState();
+                BlockState leaves = Asterion.ANCIENT_LEAVES.defaultBlockState()
+                        .setValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT, true);
                 bufferedSet(chunk, x, roofY, z, leaves);
                 if (Math.floorMod(detail, 17) == 0) {
                     int length = 3 + (int)Math.floorMod(detail >>> 14, 7L);

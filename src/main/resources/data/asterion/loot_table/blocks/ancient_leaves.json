@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:block",
+  "pools": [{
+    "rolls": 1,
+    "entries": [{"type": "minecraft:item", "name": "asterion:ancient_leaves"}],
+    "conditions": [{"condition": "minecraft:survives_explosion"}]
+  }]
+}

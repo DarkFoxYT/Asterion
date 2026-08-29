@@ -1,0 +1,14 @@
+{"variants":{
+  "facing=north,open=false":{"model":"asterion:block/mazesteel_gate"},
+  "facing=north,open=true":{"model":"minecraft:block/air"},
+  "facing=east,open=false":{"model":"asterion:block/mazesteel_gate","y":90},
+  "facing=east,open=true":{"model":"minecraft:block/air"},
+  "facing=south,open=false":{"model":"asterion:block/mazesteel_gate","y":180},
+  "facing=south,open=true":{"model":"minecraft:block/air"},
+  "facing=west,open=false":{"model":"asterion:block/mazesteel_gate","y":270},
+  "facing=west,open=true":{"model":"minecraft:block/air"},
+  "facing=up,open=false":{"model":"asterion:block/mazesteel_gate","x":90},
+  "facing=up,open=true":{"model":"minecraft:block/air"},
+  "facing=down,open=false":{"model":"asterion:block/mazesteel_gate","x":270},
+  "facing=down,open=true":{"model":"minecraft:block/air"}
+}}

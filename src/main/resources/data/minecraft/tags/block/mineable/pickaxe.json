@@ -10,6 +10,9 @@
     "asterion:ancient_stone_slab",
     "asterion:ancient_stone_stairs",
     "asterion:ancient_stone_wall",
-    "asterion:mazesteel_block"
+    "asterion:mazesteel_block",
+    "asterion:mazesteel_chain",
+    "asterion:mazesteel_gate",
+    "asterion:winch"
   ]
 }

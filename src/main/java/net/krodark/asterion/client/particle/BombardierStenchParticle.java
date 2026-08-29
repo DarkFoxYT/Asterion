@@ -75,13 +75,16 @@ public final class BombardierStenchParticle extends SingleQuadParticle {
 
         if (burning) {
             float progress = age / (float)Math.max(1, lifetime);
-            if (progress < 0.45F) {
-                float blend = progress / 0.45F;
-                setColor(lerp(1.0F, 0.48F, blend), lerp(0.10F, 0.018F, blend),
-                        lerp(0.015F, 0.008F, blend));
+            if (progress < 0.18F) {
+                float blend = progress / 0.18F;
+                setColor(1.0F, lerp(0.82F, 0.34F, blend), lerp(0.20F, 0.025F, blend));
+            } else if (progress < 0.52F) {
+                float blend = (progress - 0.18F) / 0.34F;
+                setColor(lerp(1.0F, 0.68F, blend), lerp(0.34F, 0.045F, blend),
+                        lerp(0.025F, 0.008F, blend));
             } else {
-                float blend = (progress - 0.45F) / 0.55F;
-                setColor(lerp(0.48F, 0.025F, blend), lerp(0.018F, 0.024F, blend),
+                float blend = (progress - 0.52F) / 0.48F;
+                setColor(lerp(0.68F, 0.025F, blend), lerp(0.045F, 0.024F, blend),
                         lerp(0.008F, 0.022F, blend));
             }
             setAlpha(progress < 0.78F ? 0.92F : 0.92F * (1.0F - progress) / 0.22F);
@@ -129,7 +132,7 @@ public final class BombardierStenchParticle extends SingleQuadParticle {
         xd *= 0.45D;
         yd = Math.max(0.012D, yd * 0.55D);
         zd *= 0.45D;
-        setColor(1.0F, 0.10F, 0.015F);
+        setColor(1.0F, 0.82F, 0.20F);
         setAlpha(0.92F);
     }
 
