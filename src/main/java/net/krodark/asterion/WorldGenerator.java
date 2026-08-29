@@ -11,6 +11,7 @@ import net.krodark.asterion.network.MazeZapPayload;
 import net.krodark.asterion.network.DeadSunStrikePayload;
 import net.krodark.asterion.network.ragdoll.RagdollImpulsePayload;
 import net.krodark.asterion.network.ragdoll.RagdollExplosionPayload;
+import net.krodark.asterion.network.ragdoll.RagdollServerNetworking;
 import net.krodark.asterion.event.DeadSunEventSystem;
 import net.krodark.asterion.entity.MinotaurEntity;
 import net.krodark.asterion.worldgen.MazeNbtStructures;
@@ -608,6 +609,7 @@ public final class WorldGenerator {
         player.setDeltaMovement(0.0D, -0.12D, 0.0D);
         player.resetFallDistance();
         player.hurtMarked = true;
+        RagdollServerNetworking.forceAuthority(player, player.getDeltaMovement());
         WARD_FALL_PROTECTION.put(player.getUUID(), 20 * 45);
         return true;
     }
@@ -1291,7 +1293,7 @@ public final class WorldGenerator {
             int x = (int)Math.floorMod(roll, diameter) - PIT_HALF_WIDTH;
             int z = (int)Math.floorMod(roll >>> 24, diameter) - PIT_HALF_WIDTH;
             if (x * x + z * z > PIT_HALF_WIDTH * PIT_HALF_WIDTH) continue;
-            for (int y = BOSS_FLOOR_Y + 1; y <= BOSS_FLOOR_Y + 4; y++) {
+            for (int y = BOSS_FLOOR_Y + 1; y <= BOSS_FLOOR_Y + 8; y++) {
                 BlockPos pos = new BlockPos(x, y, z);
                 BlockState state = level.getBlockState(pos);
                 if (!(state.is(Blocks.COBBLED_DEEPSLATE) || state.is(Blocks.TUFF)
@@ -1308,7 +1310,7 @@ public final class WorldGenerator {
         AABB arena = new AABB(-outer, BOSS_FLOOR_Y, -outer,
                 outer + 1, DIMENSION_CEILING_Y, outer + 1);
         for (FallingBlockEntity rubble : level.getEntitiesOfClass(FallingBlockEntity.class, arena))
-            if (rubble.time > 100) rubble.discard();
+            if (rubble.time > 72) rubble.discard();
     }
 
     public static void collapseBossRoofRing(ServerLevel level, Vec3 origin, int radius) {

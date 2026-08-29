@@ -9,6 +9,7 @@
   ],
   "client": [
     "CameraMixin",
+    "FallingBlockRendererMixin",
     "LevelLoadingScreenMixin",
     "RagdollEntityRendererMixin",
     "RagdollLivingEntityRendererMixin",

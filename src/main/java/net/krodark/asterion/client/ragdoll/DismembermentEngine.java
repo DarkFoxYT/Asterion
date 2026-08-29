@@ -1311,7 +1311,15 @@ public final class DismembermentEngine {
         int entityId = client.player.getId();
         Vec3 positionalError = position.subtract(client.player.position());
         double errorLength = positionalError.length();
-        if (errorLength > 0.45) {
+        if (errorLength > 4.0D) {
+            for (RigidBodyPiece part : pieces) if (part.entityId == entityId) {
+                part.position = part.position.add(positionalError);
+                part.previous = part.previous.add(positionalError);
+                part.velocity = velocity;
+                part.sleeping = false;
+            }
+            client.player.setPos(position.x, position.y, position.z);
+        } else if (errorLength > 0.45D) {
             Vec3 correction = positionalError.scale(Math.min(0.22, 0.18 / errorLength));
             for (RigidBodyPiece part : pieces) if (part.entityId == entityId) {
                 part.position = part.position.add(correction);

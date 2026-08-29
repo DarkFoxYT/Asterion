@@ -11,9 +11,11 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 public final class RagdollServerNetworking {
     private static final Map<String, Long> LAST_POSE = new HashMap<>();
+    private static final Map<UUID, Long> ACTIVE_RAGDOLLS = new HashMap<>();
 
     private RagdollServerNetworking() {
     }
@@ -91,6 +93,7 @@ public final class RagdollServerNetworking {
         }
         player.setDeltaMovement(velocity);
         player.resetFallDistance();
+        ACTIVE_RAGDOLLS.remove(player.getUUID());
         if (ServerPlayNetworking.canSend(player, RagdollAuthorityPayload.TYPE)) {
             ServerPlayNetworking.send(player, new RagdollAuthorityPayload(player.position(), velocity,
                     player.level().getGameTime()));
@@ -102,6 +105,7 @@ public final class RagdollServerNetworking {
             return;
         }
         long now = sender.level().getGameTime();
+        if (payload.entityId() == sender.getId()) markRagdolled(sender, 16);
         if (LAST_POSE.size() > 256) {
             LAST_POSE.entrySet().removeIf(entry -> now - entry.getValue() > 200);
         }
@@ -130,5 +134,28 @@ public final class RagdollServerNetworking {
 
     private static boolean finite(Vec3 value) {
         return Double.isFinite(value.x) && Double.isFinite(value.y) && Double.isFinite(value.z);
+    }
+
+    public static void markRagdolled(ServerPlayer player, int ticks) {
+        ACTIVE_RAGDOLLS.put(player.getUUID(), player.level().getGameTime() + Math.max(1, ticks));
+        if (ACTIVE_RAGDOLLS.size() > 256) {
+            long now = player.level().getGameTime();
+            ACTIVE_RAGDOLLS.entrySet().removeIf(entry -> entry.getValue() < now);
+        }
+    }
+
+    public static boolean isRagdolled(ServerPlayer player) {
+        long expires = ACTIVE_RAGDOLLS.getOrDefault(player.getUUID(), Long.MIN_VALUE);
+        if (expires < player.level().getGameTime()) {
+            ACTIVE_RAGDOLLS.remove(player.getUUID());
+            return false;
+        }
+        return true;
+    }
+
+    public static void forceAuthority(ServerPlayer player, Vec3 velocity) {
+        if (ServerPlayNetworking.canSend(player, RagdollAuthorityPayload.TYPE))
+            ServerPlayNetworking.send(player, new RagdollAuthorityPayload(player.position(), velocity,
+                    player.level().getGameTime()));
     }
 }

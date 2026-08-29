@@ -35,6 +35,7 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
     private static final DataTicket<Float> IDLE_PHASE = DataTickets.create("asterion_minotaur_idle_phase", Float.class);
     private static final DataTicket<Float> IDLE_WEIGHT = DataTickets.create("asterion_minotaur_idle_weight", Float.class);
     private static final DataTicket<Float> HORN_WEIGHT = DataTickets.create("asterion_minotaur_horn_weight", Float.class);
+    private static final DataTicket<Float> RAGE_WEIGHT = DataTickets.create("asterion_minotaur_rage_weight", Float.class);
     private static final DataTicket<Integer> ATTACK_TICKS = DataTickets.create("asterion_minotaur_attack_ticks", Integer.class);
     private final Map<UUID, LookPose> lookPoses = new HashMap<>();
     private final Map<UUID, GrabPose> grabPoses = new HashMap<>();
@@ -45,7 +46,10 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         withRenderLayer(new AutoGlowingGeoLayer<>(this) {
             @Override
             protected net.minecraft.resources.Identifier getTextureResource(EntityRenderState state) {
-                return Asterion.id("textures/entity/minotaur_eyes.png");
+                float rage = state.getOrDefaultGeckolibData(RAGE_WEIGHT, 0.0F);
+                return Asterion.id(rage > 0.001F
+                        ? "textures/entity/minotaur_eyes_rage.png"
+                        : "textures/entity/minotaur_eyes.png");
             }
 
             @Override
@@ -106,7 +110,8 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         state.addGeckolibData(LOOK_PITCH, pose.pitch * Mth.DEG_TO_RAD);
         state.addGeckolibData(IDLE_PHASE, (minotaur.tickCount + partialTick) * 0.055F);
         state.addGeckolibData(IDLE_WEIGHT, pose.idleWeight);
-        state.addGeckolibData(HORN_WEIGHT, minotaur.isHornRamming() ? 1.0F : 0.0F);
+        state.addGeckolibData(HORN_WEIGHT, minotaur.isSpineCharging() ? 1.0F : 0.0F);
+        state.addGeckolibData(RAGE_WEIGHT, minotaur.rage() / 12.0F);
         state.addGeckolibData(ATTACK_TICKS, minotaur.bossAttackAnimationTicks());
 
         GrabPose grab = grabPoses.computeIfAbsent(minotaur.getUUID(), ignored -> new GrabPose());
@@ -138,7 +143,7 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
                         0.42F, 1.0F);
             }
         }
-        float grabBlend = 1.0F - (float)Math.pow(0.58D, frameTicks);
+        float grabBlend = 1.0F - (float)Math.pow(0.38D, frameTicks);
         grab.weight += (desiredGrab - grab.weight) * grabBlend;
         grab.yaw += (grabYaw - grab.yaw) * grabBlend;
         grab.pitch += (grabPitch - grab.pitch) * grabBlend;
@@ -148,8 +153,12 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         state.addGeckolibData(GRAB_PITCH, grab.pitch);
         state.addGeckolibData(GRAB_EXTENSION, grab.extension);
         state.addGeckolibData(GRAB_ARM, grab.arm);
-        float damage = minotaur.bossDamageFraction();
-        if (minotaur.isExtremeBoss()) {
+        float rage = minotaur.rage() / 12.0F;
+        if (rage > 0.001F) {
+            int alpha = Mth.floor(Mth.lerp(rage, 42.0F, 255.0F));
+            state.addGeckolibData(EYE_TINT, alpha << 24 | 0xFFFFFF);
+        } else if (minotaur.isExtremeBoss()) {
+            float damage = minotaur.bossDamageFraction();
             int red = Mth.floor(Mth.lerp(damage, 205.0F, 255.0F));
             state.addGeckolibData(EYE_TINT, 0xFF000000 | red << 16 | 0xFFFF);
         } else state.addGeckolibData(EYE_TINT, 0xFFD8FFFF);
@@ -175,6 +184,19 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
             rotateBone3(bones, "rightshoulder", -breath * 0.018F, 0.0F, -shift * 0.012F);
         }
 
+        float rage = pass.getOrDefaultGeckolibData(RAGE_WEIGHT, 0.0F);
+        if (rage > 0.001F) {
+            float phase = pass.getOrDefaultGeckolibData(IDLE_PHASE, 0.0F);
+            float pulse = Mth.sin(phase * (2.2F + rage * 1.8F));
+            rotateBone3(bones, "body", -0.035F * rage + pulse * 0.012F * rage,
+                    pulse * 0.018F * rage, 0.0F);
+            rotateBone3(bones, "leftshoulder", -0.10F * rage, 0.0F,
+                    -0.055F * rage + pulse * 0.018F * rage);
+            rotateBone3(bones, "rightshoulder", -0.10F * rage, 0.0F,
+                    0.055F * rage - pulse * 0.018F * rage);
+            rotateBone3(bones, "head", 0.025F * rage, pulse * 0.012F * rage, 0.0F);
+        }
+
         float grab = pass.getOrDefaultGeckolibData(GRAB_WEIGHT, 0.0F);
         if (grab > 0.001F) {
             float targetYaw = pass.getOrDefaultGeckolibData(GRAB_YAW, 0.0F);
@@ -191,9 +213,13 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
             int ticks = pass.getOrDefaultGeckolibData(ATTACK_TICKS, 0);
             float lowered = ticks <= 28 ? smoother(ticks / 28.0F) : 1.0F;
             float runBob = ticks > 28 ? Mth.sin((ticks - 28) * 0.52F) * 0.035F : 0.0F;
-            rotateBone3(bones, "body", (0.18F + lowered * 0.24F + runBob) * horn, 0.0F, 0.0F);
-            rotateBone3(bones, "neck", (0.24F + lowered * 0.31F - runBob) * horn, 0.0F, 0.0F);
-            rotateBone3(bones, "head", (0.20F + lowered * 0.36F) * horn, 0.0F, 0.0F);
+            rotateBone3(bones, "lowerbody", -(0.08F + lowered * 0.13F - runBob * 0.4F) * horn,
+                    0.0F, 0.0F);
+            rotateBone3(bones, "body", -(0.18F + lowered * 0.27F + runBob) * horn, 0.0F, 0.0F);
+            rotateBone3(bones, "neck", -(0.25F + lowered * 0.36F - runBob) * horn, 0.0F, 0.0F);
+            rotateBone3(bones, "head", -(0.24F + lowered * 0.43F) * horn, 0.0F, 0.0F);
+            translateBone(bones, "neck", 0.0F, -0.35F * lowered * horn, -0.85F * lowered * horn);
+            translateBone(bones, "head", 0.0F, -0.55F * lowered * horn, -1.65F * lowered * horn);
             rotateBone3(bones, "lefthorn", -0.08F * lowered * horn, 0.0F, -0.06F * horn);
             rotateBone3(bones, "righthorn", -0.08F * lowered * horn, 0.0F, 0.06F * horn);
         }
@@ -207,15 +233,15 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         String upperArm = right ? "rightarm" : "leftarm";
         String lowerArm = right ? "lowerrightarm" : "lowerleftarm";
         String hand = right ? "righthand" : "lefthand";
-        float elbowBend = Mth.lerp(extension, 0.92F, 0.24F);
+        float elbowBend = Mth.lerp(extension, 0.78F, 0.16F);
 
         rotateBone3(bones, shoulder, pitch * 0.22F * weight,
                 -yaw * 0.54F * weight, sign * 0.13F * weight);
-        rotateBone3(bones, upperArm, (-0.82F + pitch * 0.78F) * weight,
-                (sign * 0.24F - yaw * 0.62F) * weight, sign * 0.82F * weight);
+        rotateBone3(bones, upperArm, (-0.72F + pitch * 0.72F) * weight,
+                (sign * 0.20F - yaw * 0.58F) * weight, sign * 0.68F * weight);
         rotateBone3(bones, lowerArm, -elbowBend * weight,
                 (sign * 0.13F - yaw * 0.24F) * weight,
-                -sign * (0.34F + (1.0F - extension) * 0.22F) * weight);
+                -sign * (0.28F + (1.0F - extension) * 0.18F) * weight);
         rotateBone3(bones, hand, (-0.28F + pitch * 0.26F) * weight,
                 (sign * 0.38F - yaw * 0.18F) * weight, -sign * 0.28F * weight);
     }
@@ -228,6 +254,11 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
     private static void rotateBone3(BoneSnapshots bones, String name, float pitch, float yaw, float roll) {
         bones.ifPresent(name, snapshot -> snapshot.setRotation(snapshot.getRotX() + pitch,
                 snapshot.getRotY() + yaw, snapshot.getRotZ() + roll));
+    }
+
+    private static void translateBone(BoneSnapshots bones, String name, float x, float y, float z) {
+        bones.ifPresent(name, snapshot -> snapshot.setTranslation(snapshot.getTranslateX() + x,
+                snapshot.getTranslateY() + y, snapshot.getTranslateZ() + z));
     }
 
     private static float smoother(float value) {
