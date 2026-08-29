@@ -8,6 +8,7 @@
     "PrimaryLevelDataMixin"
   ],
   "client": [
+    "AsterionFogRendererMixin",
     "CameraMixin",
     "FallingBlockRendererMixin",
     "LevelLoadingScreenMixin",

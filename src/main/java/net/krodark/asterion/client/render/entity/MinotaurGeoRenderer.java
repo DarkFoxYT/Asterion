@@ -2,6 +2,7 @@ package net.krodark.asterion.client.render.entity;
 
 import com.geckolib.renderer.GeoEntityRenderer;
 import com.geckolib.renderer.layer.builtin.AutoGlowingGeoLayer;
+import com.geckolib.renderer.layer.builtin.CustomBoneTextureGeoLayer;
 import com.geckolib.renderer.base.BoneSnapshots;
 import com.geckolib.renderer.base.RenderPassInfo;
 import com.geckolib.constant.DataTickets;
@@ -12,8 +13,10 @@ import net.krodark.asterion.client.light.LedAmneticLight;
 import net.krodark.asterion.entity.MinotaurEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.Entity;
@@ -67,6 +70,18 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
                         pass.getOrDefaultGeckolibData(EYE_TINT, 0xFFFFFFFF));
                 super.submitRenderTask(pass, renderTasks);
                 pass.renderState().addGeckolibData(DataTickets.RENDER_COLOR, original);
+            }
+        });
+        withRenderLayer(new CustomBoneTextureGeoLayer<>(this, "glow",
+                Asterion.id("textures/entity/minotaur.png")) {
+            @Override
+            protected Identifier getTextureResource(EntityRenderState state) {
+                return MinotaurGeoRenderer.this.getTextureLocation(state);
+            }
+
+            @Override
+            protected RenderType getRenderType(EntityRenderState state, Identifier texture) {
+                return state.isInvisible ? null : LedAmneticLight.bloomRenderLayer(texture);
             }
         });
         this.shadowRadius = 1.9F;

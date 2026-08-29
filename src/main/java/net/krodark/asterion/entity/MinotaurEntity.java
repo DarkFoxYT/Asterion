@@ -110,6 +110,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private int escapeDistanceTicks;
     private int stuckTicks;
     private int lowSnagTicks;
+    private int bossObstacleTicks;
     private int relocateTicks;
     private int shadowRelocateCooldown;
     private int shadowArrivalTicks;
@@ -399,6 +400,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         tickHeavyLanding(level);
         avoidWallHugging(level);
         tickLowObstacleRecovery(level);
+        tickBossObstacleTraversal(level);
         if (sightingCooldown > 0) sightingCooldown--;
         if (paranoiaCooldown > 0) paranoiaCooldown--;
         if (attackCooldown > 0) attackCooldown--;
@@ -1630,7 +1632,9 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         AABB body = getBoundingBox().deflate(0.16D, 0.10D, 0.16D).move(0.0D, 0.08D, 0.0D);
         double laneLength = Math.max(0.0D, distance - player.getBbWidth() * 0.55D);
         AABB sweptLane = body.expandTowards(direction.scale(laneLength)).inflate(0.10D, 0.0D, 0.10D);
-        return level().noCollision(this, sweptLane);
+        return level().noCollision(this, sweptLane)
+                || level() instanceof ServerLevel serverLevel
+                && WorldGenerator.isBreakableBossPath(serverLevel, sweptLane);
     }
 
     private boolean attackReady(BossAttack attack) {
@@ -1854,11 +1858,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                         playSound(SoundEvents.RAVAGER_STEP, 2.35F,
                                 0.32F + bossAttackTicks / (float)Math.max(1, windupTicks) * 0.10F);
                     }
-                    if (bossAttackTicks == windupTicks && !bossChargeTargetsPillar
-                            && !hasClearChargeLane(player)) {
-                        finishBossAttack(18);
-                        return;
-                    }
+                    // A committed boss charge is allowed to smash a newly placed obstruction.
+                    // The run phase clears the swept body volume before collision is resolved.
                 } else {
                     int runTicks = bossAttackTicks - windupTicks;
                     double acceleration = smootherStep(Mth.clamp(runTicks / 34.0D, 0.0D, 1.0D));
@@ -3163,6 +3164,60 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             level.sendParticles(ParticleTypes.DUST_PLUME, sweep.getCenter().x, getY() + 0.5D,
                     sweep.getCenter().z, Math.min(16, broken * 2), 0.55D, 0.45D, 0.55D, 0.04D);
             playSound(SoundEvents.RAVAGER_STEP, 1.5F, 0.52F);
+        }
+    }
+
+    private void tickBossObstacleTraversal(ServerLevel level) {
+        AttributeInstance stepHeight = getAttribute(Attributes.STEP_HEIGHT);
+        boolean activeBoss = behaviorPhase() == BehaviorPhase.BOSS
+                && bossStage != BossStage.DEFEATED;
+        if (stepHeight != null && Math.abs(stepHeight.getBaseValue() - (activeBoss ? 4.0D : 3.0D)) > 0.01D)
+            stepHeight.setBaseValue(activeBoss ? 4.0D : 3.0D);
+        if (!activeBoss || bossStunTicks > 0) {
+            bossObstacleTicks = 0;
+            return;
+        }
+
+        bossObstacleTicks = horizontalCollision
+                ? Math.min(20, bossObstacleTicks + 1) : Math.max(0, bossObstacleTicks - 2);
+        if (bossObstacleTicks == 0) return;
+
+        Vec3 forward = getDeltaMovement();
+        forward = new Vec3(forward.x, 0.0D, forward.z);
+        if (forward.lengthSqr() < 0.01D && getTarget() != null) {
+            Vec3 towardTarget = getTarget().position().subtract(position());
+            forward = new Vec3(towardTarget.x, 0.0D, towardTarget.z);
+        }
+        if (forward.lengthSqr() < 0.01D)
+            forward = Vec3.directionFromRotation(0.0F, yBodyRot);
+        forward = forward.normalize();
+
+        AABB sweep = getBoundingBox().expandTowards(forward.scale(1.65D))
+                .inflate(0.38D, 0.18D, 0.38D);
+        int broken = WorldGenerator.breakBossPathObstacle(level, sweep, this, 72);
+        if (broken > 0) {
+            bossObstacleTicks = 0;
+            Vec3 motion = getDeltaMovement();
+            double retainedSpeed = Math.max(0.30D,
+                    Math.sqrt(motion.x * motion.x + motion.z * motion.z));
+            setDeltaMovement(forward.x * retainedSpeed, motion.y, forward.z * retainedSpeed);
+            hurtMarked = true;
+            level.sendParticles(ParticleTypes.DUST_PLUME, sweep.getCenter().x,
+                    getY() + Math.min(2.0D, getBbHeight() * 0.42D), sweep.getCenter().z,
+                    Math.min(30, 5 + broken), 0.9D, 1.2D, 0.9D, 0.055D);
+            if ((tickCount & 3) == 0)
+                playSound(SoundEvents.RAVAGER_ATTACK, 1.9F, 0.48F);
+            return;
+        }
+
+        // Four-block terrain or protected encounter geometry is vaulted instead of becoming a
+        // permanent navigation snag. Normal one-to-four block ledges are handled by STEP_HEIGHT;
+        // this impulse is the recovery for awkward collision shapes and path-node edge cases.
+        if (bossObstacleTicks >= 3 && onGround()) {
+            setDeltaMovement(forward.x * 0.42D, 0.92D, forward.z * 0.42D);
+            hurtMarked = true;
+            armHeavyJump();
+            bossObstacleTicks = 0;
         }
     }
 

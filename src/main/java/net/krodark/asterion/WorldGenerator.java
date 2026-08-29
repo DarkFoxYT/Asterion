@@ -446,6 +446,64 @@ public final class WorldGenerator {
         return breakTemporaryMasonry(level, bounds, breaker, BOSS_FLOOR_Y + 1, 144);
     }
 
+    /** Whether every collision in a prospective boss lane can be destroyed during the run. */
+    public static boolean isBreakableBossPath(ServerLevel level, AABB bounds) {
+        boolean foundCollision = false;
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int x = Mth.floor(bounds.minX); x <= Mth.floor(bounds.maxX); x++)
+            for (int y = Math.max(BOSS_FLOOR_Y + 1, Mth.floor(bounds.minY));
+                 y <= Mth.floor(bounds.maxY); y++)
+                for (int z = Mth.floor(bounds.minZ); z <= Mth.floor(bounds.maxZ); z++) {
+                    cursor.set(x, y, z);
+                    BlockState state = level.getBlockState(cursor);
+                    if (state.getCollisionShape(level, cursor).isEmpty()) continue;
+                    foundCollision = true;
+                    if (!canBossBreakPathBlock(level, cursor, state)) return false;
+                }
+        return foundCollision;
+    }
+
+    /** Clears player construction, rubble, and incidental structure from the boss's body volume. */
+    public static int breakBossPathObstacle(ServerLevel level, AABB bounds,
+                                            Entity breaker, int budget) {
+        if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return 0;
+        int broken = 0;
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int x = Mth.floor(bounds.minX); x <= Mth.floor(bounds.maxX); x++)
+            for (int y = Math.max(BOSS_FLOOR_Y + 1, Mth.floor(bounds.minY));
+                 y <= Mth.floor(bounds.maxY); y++)
+                for (int z = Mth.floor(bounds.minZ); z <= Mth.floor(bounds.maxZ); z++) {
+                    if (broken >= budget) return broken;
+                    cursor.set(x, y, z);
+                    BlockState state = level.getBlockState(cursor);
+                    if (state.getCollisionShape(level, cursor).isEmpty()
+                            || !canBossBreakPathBlock(level, cursor, state)) continue;
+                    trackMazeBreak(level, cursor, state);
+                    level.destroyBlock(cursor, false, breaker, 512);
+                    broken++;
+                }
+        return broken;
+    }
+
+    private static boolean canBossBreakPathBlock(ServerLevel level, BlockPos pos, BlockState state) {
+        if (state.isAir() || state.hasBlockEntity() || isActivePortalProtected(level, pos)
+                || state.getDestroySpeed(level, pos) < 0.0F) return false;
+
+        // Preserve the arena shell and active phase-one pillars. Everything incidental inside the
+        // playable ring may be smashed, including player blocks and generated rubble.
+        double radiusSquared = (pos.getX() + 0.5D) * (pos.getX() + 0.5D)
+                + (pos.getZ() + 0.5D) * (pos.getZ() + 0.5D);
+        double protectedRadius = PIT_HALF_WIDTH - 1.5D;
+        if (radiusSquared >= protectedRadius * protectedRadius) return false;
+        BossArenaBuild build = bossArenaBuild;
+        if (build != null) for (BossPillar pillar : build.pillars) {
+            if (!pillar.broken && Math.abs(pos.getX() - pillar.x) <= 2
+                    && Math.abs(pos.getZ() - pillar.z) <= 2
+                    && pos.getY() <= BOSS_FLOOR_Y + 18) return false;
+        }
+        return true;
+    }
+
     private static int breakTemporaryMasonry(ServerLevel level, AABB bounds, Entity breaker,
                                                int minimumY, int budget) {
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return 0;
