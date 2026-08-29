@@ -48,6 +48,7 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.storage.LevelData;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.AABB;
@@ -60,6 +61,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.List;
+import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.UUID;
@@ -75,6 +77,8 @@ public final class WorldGenerator {
     private static final int SKYFALL_CLEARANCE = 42;
     private static final int PORTAL_FADE_IN_TICKS = 16;
     private static final int PORTAL_BLACK_HOLD_TICKS = 4;
+    private static final int GATEWAY_PORTAL_DEPTH = 9;
+    private static final int SUMMONED_PORTAL_DEPTH = 8;
     private static final ResourceKey<LootTable> MAZE_BARREL_LOOT = ResourceKey.create(
             Registries.LOOT_TABLE, Asterion.id("chests/maze_supply_barrel"));
     private static final ResourceKey<LootTable> SAFE_RUNE_NEAR_LOOT = ResourceKey.create(
@@ -88,6 +92,7 @@ public final class WorldGenerator {
     private static final Map<Long, Integer> GATEWAY_SURFACE_Y = new ConcurrentHashMap<>();
     private static final Map<MazeKey, MazeTopology> MAZE_TOPOLOGIES = new ConcurrentHashMap<>();
     private static final Map<UUID, PendingTransition> PENDING_TRANSITIONS = new HashMap<>();
+    private static final Map<UUID, Optional<ServerPlayer.RespawnConfig>> PRE_MAZE_RESPAWNS = new HashMap<>();
     private static final Map<UUID, Long> LAST_PORTAL_SYNC = new HashMap<>();
     private static final Map<UUID, PhasingEntity> PHASING_ENTITIES = new HashMap<>();
     private static SummonedPortal summonedPortal;
@@ -225,7 +230,21 @@ public final class WorldGenerator {
     public static void respawnAtRune(ServerPlayer player, BlockPos deathPosition) {
         ServerLevel maze = player.level().getServer().getLevel(Asterion.ASTERION_LEVEL);
         if (maze == null) return;
-        BlockPos checkpoint = AsterionWorldState.get(maze).runeCheckpoint(player.getUUID());
+        BlockPos checkpoint = findRespawnCheckpoint(maze, player.getUUID(), deathPosition);
+        maze.getChunkAt(checkpoint);
+        if (player.level() == maze && player.position().distanceToSqr(Vec3.atBottomCenterOf(checkpoint)) <= 9.0D) {
+            player.setPos(checkpoint.getX() + 0.5D, checkpoint.getY() + 0.1D, checkpoint.getZ() + 0.5D);
+        } else {
+            player.teleportTo(maze, checkpoint.getX() + 0.5D, checkpoint.getY() + 0.1D,
+                    checkpoint.getZ() + 0.5D, Set.of(), player.getYRot(), 0.0F, true);
+        }
+        player.setDeltaMovement(Vec3.ZERO);
+        player.resetFallDistance();
+        WARD_FALL_PROTECTION.put(player.getUUID(), 100);
+    }
+
+    private static BlockPos findRespawnCheckpoint(ServerLevel maze, UUID playerId, BlockPos deathPosition) {
+        BlockPos checkpoint = AsterionWorldState.get(maze).runeCheckpoint(playerId);
         if (checkpoint != null) {
             maze.getChunkAt(checkpoint);
             // The checkpoint is persisted independently from the runtime NBT-room cache.  After a
@@ -236,15 +255,29 @@ public final class WorldGenerator {
         if (checkpoint == null)
             checkpoint = MazeNbtStructures.nearestSafeHouse(maze, deathPosition);
         if (checkpoint == null) {
-            checkpoint = randomMazeArrival(maze, player.getUUID(), 0L);
+            checkpoint = randomMazeArrival(maze, playerId, 0L);
             prepareMazeArrival(maze, checkpoint);
         }
+        return checkpoint;
+    }
+
+    /** Installs a one-use forced rune spawn after a real labyrinth death. This lets vanilla
+     * create the replacement player in Asterion directly instead of loading the Overworld first. */
+    public static void prepareRapidRespawn(ServerPlayer player) {
+        if (!player.level().dimension().equals(Asterion.ASTERION_LEVEL)) return;
+        ServerLevel maze = player.level();
+        BlockPos checkpoint = findRespawnCheckpoint(maze, player.getUUID(), player.blockPosition());
         maze.getChunkAt(checkpoint);
-        player.teleportTo(maze, checkpoint.getX() + 0.5D, checkpoint.getY(), checkpoint.getZ() + 0.5D,
-                Set.of(), player.getYRot(), 0.0F, true);
-        player.setDeltaMovement(Vec3.ZERO);
-        player.resetFallDistance();
-        WARD_FALL_PROTECTION.put(player.getUUID(), 100);
+        PRE_MAZE_RESPAWNS.put(player.getUUID(), Optional.ofNullable(player.getRespawnConfig()));
+        LevelData.RespawnData data = LevelData.RespawnData.of(
+                Asterion.ASTERION_LEVEL, checkpoint, player.getYRot(), 0.0F);
+        player.setRespawnPosition(new ServerPlayer.RespawnConfig(data, true), false);
+    }
+
+    /** Restores the bed/world spawn that was temporarily replaced for the direct rune respawn. */
+    public static void finishRapidRespawn(ServerPlayer player) {
+        Optional<ServerPlayer.RespawnConfig> previous = PRE_MAZE_RESPAWNS.remove(player.getUUID());
+        if (previous != null) player.setRespawnPosition(previous.orElse(null), false);
     }
 
     private static boolean isSafeRespawnPosition(ServerLevel level, BlockPos feet) {
@@ -393,8 +426,9 @@ public final class WorldGenerator {
         if (portal == null || !portal.dimension.equals(level.dimension())) return false;
         int dx = Math.abs(pos.getX() - portal.center.getX());
         int dz = Math.abs(pos.getZ() - portal.center.getZ());
-        return dx <= 3 && dz <= 3
-                && pos.getY() >= portal.surfaceY - 3 && pos.getY() <= portal.surfaceY + 1;
+        return dx <= 5 && dz <= 5
+                && pos.getY() >= portal.surfaceY - 3
+                && pos.getY() <= portal.surfaceY + SUMMONED_PORTAL_DEPTH + 3;
     }
 
     public static int breakPlayerBlocksAround(ServerLevel level, AABB bounds) {
@@ -593,8 +627,8 @@ public final class WorldGenerator {
     }
 
     public static void summonPortal(ServerLevel level, BlockPos center, int surfaceY) {
-        int riftY = surfaceY - 1;
-        buildSummonedWell(level, center.getX(), surfaceY, center.getZ());
+        int riftY = surfaceY - SUMMONED_PORTAL_DEPTH;
+        buildSummonedWell(level, center.getX(), surfaceY, center.getZ(), riftY);
         long visualSeed = mix(level.getSeed() ^ center.asLong() ^ level.getGameTime()
                 ^ 0xA0761D6478BD642FL);
         summonedPortal = new SummonedPortal(level.dimension(), center.immutable(), riftY, visualSeed);
@@ -610,19 +644,34 @@ public final class WorldGenerator {
         });
     }
 
-    private static void buildSummonedWell(ServerLevel level, int centerX, int surfaceY, int centerZ) {
+    private static void buildSummonedWell(ServerLevel level, int centerX, int surfaceY, int centerZ, int portalY) {
+        clearAboveGateway(level, centerX, surfaceY, centerZ, 5);
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-        for (int dx = -3; dx <= 3; dx++) for (int dz = -3; dz <= 3; dz++) {
+        for (int dx = -5; dx <= 5; dx++) for (int dz = -5; dz <= 5; dz++) {
             int edge = Math.max(Math.abs(dx), Math.abs(dz));
+            if (edge > 5 || Math.abs(dx) + Math.abs(dz) > 8) continue;
             int x = centerX + dx;
             int z = centerZ + dz;
             if (edge <= 2) {
-                level.setBlock(cursor.set(x, surfaceY - 1, z), Blocks.AIR.defaultBlockState(), 2);
-                level.setBlock(cursor.set(x, surfaceY - 2, z), Blocks.AIR.defaultBlockState(), 2);
-                level.setBlock(cursor.set(x, surfaceY - 3, z), Asterion.ANCIENT_STONE.defaultBlockState(), 2);
+                for (int y = portalY - 2; y <= surfaceY + 2; y++)
+                    level.setBlock(cursor.set(x, y, z), Blocks.AIR.defaultBlockState(), 2);
+                level.setBlock(cursor.set(x, portalY - 3, z),
+                        gatewayRimState(dx, dz, Math.max(3, edge)), 2);
             } else if (edge == 3) {
+                for (int y = portalY - 3; y < surfaceY; y++) {
+                    int depth = surfaceY - y;
+                    BlockState lining = depth % 3 == 0
+                            ? Blocks.CHISELED_DEEPSLATE.defaultBlockState()
+                            : gatewayRimState(dx, dz, edge);
+                    level.setBlock(cursor.set(x, y, z), lining, 2);
+                }
+                level.setBlock(cursor.set(x, surfaceY, z),
+                        ((Math.abs(dx) == 3 && dz == 0) || (Math.abs(dz) == 3 && dx == 0))
+                                ? Asterion.ANCIENT_BRICK_SLAB.defaultBlockState()
+                                : Asterion.ANCIENT_BRICK_WALL.defaultBlockState(), 2);
+            } else {
                 level.setBlock(cursor.set(x, surfaceY - 1, z), gatewayRimState(dx, dz, edge), 2);
-                if ((Math.abs(dx) == 3 && dz == 0) || (Math.abs(dz) == 3 && dx == 0)) {
+                if (Math.abs(dx) == 4 && Math.abs(dz) == 4) {
                     level.setBlock(cursor.set(x, surfaceY, z), Blocks.CHISELED_DEEPSLATE.defaultBlockState(), 2);
                     level.setBlock(cursor.set(x, surfaceY + 1, z), Blocks.SOUL_LANTERN.defaultBlockState(), 2);
                 }
@@ -635,20 +684,27 @@ public final class WorldGenerator {
         int z = horizontalTarget.getZ();
         level.getChunk(x >> 4, z >> 4);
         int y = level.getHeight(Heightmap.Types.WORLD_SURFACE, x, z);
-        GATEWAY_SURFACE_Y.put(level.getSeed(), y);
+        int portalY = y - GATEWAY_PORTAL_DEPTH;
+        GATEWAY_SURFACE_Y.put(level.getSeed(), portalY);
+        clearAboveGateway(level, x, y, z, 6);
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         for (int dx = -6; dx <= 6; dx++) for (int dz = -6; dz <= 6; dz++) {
             int edge = Math.max(Math.abs(dx), Math.abs(dz));
+            if (Math.abs(dx) + Math.abs(dz) > 10) continue;
             if (edge >= 3 && edge <= 6)
-                level.setBlock(p.set(x + dx, y, z + dz), gatewayRimState(dx, dz, edge), 2);
+                level.setBlock(p.set(x + dx, y - 1, z + dz), gatewayRimState(dx, dz, edge), 2);
             if (edge == 3) {
-                level.setBlock(p.set(x + dx, y + 1, z + dz), Asterion.ANCIENT_BRICKS.defaultBlockState(), 2);
-                if ((Math.abs(dx) == 3 && dz == 0) || (Math.abs(dz) == 3 && dx == 0))
-                    level.setBlock(p.set(x + dx, y + 2, z + dz), Asterion.ANCIENT_STONE_WALL.defaultBlockState(), 2);
+                level.setBlock(p.set(x + dx, y, z + dz),
+                        ((Math.abs(dx) == 3 && dz == 0) || (Math.abs(dz) == 3 && dx == 0))
+                                ? Asterion.ANCIENT_BRICK_SLAB.defaultBlockState()
+                                : Asterion.ANCIENT_STONE_WALL.defaultBlockState(), 2);
+            } else if (Math.abs(dx) == 5 && Math.abs(dz) == 5) {
+                level.setBlock(p.set(x + dx, y, z + dz), Blocks.CHISELED_DEEPSLATE.defaultBlockState(), 2);
+                level.setBlock(p.set(x + dx, y + 1, z + dz), Blocks.SOUL_LANTERN.defaultBlockState(), 2);
             }
         }
         int shaftBottom = level.getMinY() + 5;
-        for (int shaftY = y; shaftY >= shaftBottom; shaftY--) for (int dx = -3; dx <= 3; dx++) for (int dz = -3; dz <= 3; dz++) {
+        for (int shaftY = y - 1; shaftY >= shaftBottom; shaftY--) for (int dx = -3; dx <= 3; dx++) for (int dz = -3; dz <= 3; dz++) {
             int edge = Math.max(Math.abs(dx), Math.abs(dz));
             if (edge <= 2)
                 level.setBlock(p.set(x + dx, shaftY, z + dz), Blocks.AIR.defaultBlockState(), 2);
@@ -662,6 +718,20 @@ public final class WorldGenerator {
         for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++)
             level.setBlock(p.set(x + dx, shaftBottom - 1, z + dz), Asterion.ANCIENT_STONE.defaultBlockState(), 2);
         level.setBlock(p.set(x, shaftBottom, z), Blocks.SOUL_LANTERN.defaultBlockState(), 2);
+    }
+
+    /** Clears trees, leaves, terrain overhangs, and player blocks from the complete well footprint. */
+    private static void clearAboveGateway(ServerLevel level, int centerX, int surfaceY, int centerZ, int radius) {
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
+            int top = Math.max(surfaceY, level.getHeight(Heightmap.Types.WORLD_SURFACE,
+                    centerX + dx, centerZ + dz));
+            for (int y = surfaceY; y <= top; y++) {
+                cursor.set(centerX + dx, y, centerZ + dz);
+                if (!level.getBlockState(cursor).isAir())
+                    level.setBlock(cursor, Blocks.AIR.defaultBlockState(), 2);
+            }
+        }
     }
 
     private static BlockState gatewayRimState(int dx, int dz, int edgeDistance) {
@@ -1594,6 +1664,7 @@ public final class WorldGenerator {
         bossArenaBuild = null;
         bossFinale = null;
         PENDING_TRANSITIONS.clear();
+        PRE_MAZE_RESPAWNS.clear();
         PHASING_ENTITIES.clear();
         ABOVE_WALL_TICKS.clear();
         WARD_FALL_PROTECTION.clear();

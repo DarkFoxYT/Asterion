@@ -8,6 +8,15 @@ import com.geckolib.util.GeckoLibUtil;
 /** A render-only GeckoLib object owned by the client debris simulation. */
 final class DebrisPhysicsObject implements GeoAnimatable {
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
+    private final int variant;
+
+    DebrisPhysicsObject(int variant) {
+        this.variant = variant;
+    }
+
+    int variant() {
+        return variant;
+    }
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {

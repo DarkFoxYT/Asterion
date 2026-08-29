@@ -7,6 +7,8 @@ import net.krodark.asterion.client.ragdoll.DismembermentEngine;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.renderer.culling.Frustum;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
@@ -17,6 +19,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.joml.Matrix4f;
 
 @Mixin(Camera.class)
 public abstract class CameraMixin {
@@ -65,6 +68,25 @@ public abstract class CameraMixin {
             setPosition(position().add(sample.cameraOffset()));
             setRotation(yRot() + sample.yawDegrees(), xRot() + sample.pitchDegrees());
         }
+        if (shot != null || finale != null) asterion$rebuildCinematicFrustum(minecraft);
+    }
+
+    /** Camera.update creates its culling frustum before this tail injection moves the camera.
+     * Rebuild it from the actual cutscene pose so terrain visibility follows the shot, not the
+     * frozen player body's facing direction. The slightly wider culling FOV avoids edge pop-in
+     * during fast orbit shots without rendering beyond the configured cinematic distance. */
+    @Unique private void asterion$rebuildCinematicFrustum(Minecraft minecraft) {
+        int width = Math.max(1, minecraft.getWindow().getWidth());
+        int height = Math.max(1, minecraft.getWindow().getHeight());
+        float cullingFov = Math.max(110.0F, minecraft.options.fov().get().floatValue());
+        float farPlane = Math.max(256.0F, minecraft.options.getEffectiveRenderDistance() * 64.0F);
+        Matrix4f view = ((Camera)(Object)this).getViewRotationMatrix(new Matrix4f());
+        Matrix4f projection = new Matrix4f().perspective(cullingFov * Mth.DEG_TO_RAD,
+                width / (float)height, 0.05F, farPlane);
+        Frustum corrected = new Frustum(view, projection);
+        Vec3 cameraPosition = position();
+        corrected.prepare(cameraPosition.x, cameraPosition.y, cameraPosition.z);
+        ((Camera)(Object)this).getCullFrustum().set(corrected);
     }
 
     @Unique private static Vec3 asterion$clipCamera(Minecraft minecraft, Vec3 anchor, Vec3 desired) {

@@ -214,7 +214,8 @@ public final class MazeZapRenderer {
         AABB search = client.player.getBoundingBox().inflate(320.0D);
         for (MinotaurEntity minotaur : client.level.getEntitiesOfClass(MinotaurEntity.class, search))
             if (minotaur.isExtremeBoss()) damage = Math.max(damage, minotaur.bossDamageFraction());
-        int fractures = Mth.clamp(Mth.floor(damage * 20.0F), 0, 20);
+        int fractureBudget = 12 + AsterionConfig.INSTANCE.cinematicQuality * 8;
+        int fractures = Mth.clamp(Mth.floor(damage * fractureBudget), 0, fractureBudget);
         if (fractures <= 0) return;
         AsterionConfig config = AsterionConfig.INSTANCE;
         Vec3 shake = DeadSunClientEvents.sunOffset();
@@ -243,6 +244,31 @@ public final class MazeZapRenderer {
                 BetterLightningRenderer.draw(out, pose, Vec3.ZERO, branchStart.subtract(camera),
                         branchEnd.subtract(camera), Math.min(1.0F, strength * 1.18F),
                         seed ^ 0xD1B54A32D192ED03L ^ now / 2L);
+            }
+        }
+        float finale = BossFinaleOverlay.sunDetonationStrength();
+        if (finale > 0.12F) {
+            int skyRifts = 3 + AsterionConfig.INSTANCE.cinematicQuality * 2
+                    + Mth.floor(finale * 3.0F);
+            for (int index = 0; index < skyRifts; index++) {
+                long seed = 0x94D049BB133111EBL ^ index * 0xD1B54A32D192ED03L;
+                double angle = index * 2.399963229728653D + Math.sin(index * 7.13D) * 0.34D;
+                Vec3 start = sunFacePoint(center, right, up, towardCamera, radius,
+                        angle, radius * (0.78D + (index % 3) * 0.07D));
+                double reach = radius * (1.28D + finale * (0.72D + (index % 4) * 0.18D));
+                Vec3 end = center.add(right.scale(Math.cos(angle + 0.11D) * reach))
+                        .add(up.scale(Math.sin(angle + 0.11D) * reach))
+                        .add(towardCamera.scale(radius * 0.12D));
+                BetterLightningRenderer.draw(out, pose, Vec3.ZERO, start.subtract(camera),
+                        end.subtract(camera), 0.46F + finale * 0.54F, seed + now / 2L);
+                if ((index & 1) == 0) {
+                    Vec3 split = start.lerp(end, 0.48D);
+                    Vec3 branch = split.add(right.scale(Math.cos(angle + 1.7D) * radius * 0.42D))
+                            .add(up.scale(Math.sin(angle + 1.7D) * radius * 0.42D));
+                    BetterLightningRenderer.draw(out, pose, Vec3.ZERO, split.subtract(camera),
+                            branch.subtract(camera), 0.34F + finale * 0.42F,
+                            seed ^ 0x632BE59BD9B4E019L ^ now / 3L);
+                }
             }
         }
     }

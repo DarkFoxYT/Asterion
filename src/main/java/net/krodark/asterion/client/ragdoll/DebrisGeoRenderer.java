@@ -11,6 +11,12 @@ final class DebrisGeoRenderer extends GeoObjectRenderer<DebrisPhysicsObject, Voi
     }
 
     @Override
+    public void addRenderData(DebrisPhysicsObject debris, Void relatedObject,
+                              GeoRenderState renderState, float partialTick) {
+        renderState.addGeckolibData(DebrisGeoModel.VARIANT, debris.variant());
+    }
+
+    @Override
     public void adjustRenderPose(RenderPassInfo<GeoRenderState> renderPassInfo) {
         // The physics system supplies an exact world-space origin and rotation.
     }

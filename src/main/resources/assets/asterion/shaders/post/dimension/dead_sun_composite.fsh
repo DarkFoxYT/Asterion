@@ -6,6 +6,7 @@ uniform sampler2D SunSampler;
 uniform sampler2D BloomSampler;
 layout(std140) uniform EclipseData { float Eclipse; };
 layout(std140) uniform WorldDarkness { float Darkness; };
+layout(std140) uniform FinaleProgress { float Finale; };
 
 layout(std140) uniform SamplerInfo {
     vec2 OutSize;
@@ -22,11 +23,14 @@ void main() {
     vec3 bloom = texture(BloomSampler, texCoord).rgb;
     float eclipse = clamp(Eclipse, 0.0, 1.0);
     float darkness = clamp(Darkness, 0.0, 1.0);
+    float finale = clamp(Finale, 0.0, 1.0);
     // Pull down both exposure and saturation so the whole rendered world—not only fog and the
     // sun—visibly falls into shadow during the Eclipse while retaining enough detail to navigate.
-    vec3 darkScene = scene.rgb * mix(1.0, 0.30, darkness);
+    vec3 darkScene = scene.rgb * mix(1.0, 0.30, darkness) * mix(1.0, 0.18, finale);
     float luminance = dot(darkScene, vec3(0.2126, 0.7152, 0.0722));
-    darkScene = mix(darkScene, vec3(luminance), darkness * 0.42);
+    darkScene = mix(darkScene, vec3(luminance), max(darkness * 0.42, finale * 0.68));
+    darkScene += vec3(0.075, 0.0015, 0.002) * finale
+            * (0.72 + 0.28 * sin(texCoord.y * 90.0 + finale * 31.0));
     // Keep the world dark, but allow the Eclipse's pink-red corona to remain aggressively
     // emissive and bloom against it. Normal Dead Sun bloom is also slightly stronger.
     // Bloom is intentionally excluded from the opaque Eclipse silhouette. Otherwise the blur
@@ -39,7 +43,8 @@ void main() {
     // A soft threshold avoids a harsh one-pixel seam along walls and the ground horizon.
     float skyVisibility = smoothstep(0.9975, 0.9999, sceneDepth);
     vec3 color = darkScene * (1.0 - sun.a) + sun.rgb
-            + bloom * mix(0.86, 1.08, eclipse) * bloomTransmission * skyVisibility;
+            + bloom * mix(0.86, 1.08, eclipse) * mix(1.0, 0.58, finale)
+            * bloomTransmission * skyVisibility;
     // World-space fracture bolts are submitted with the shared lightning renderer before this
     // post pass. Preserve their red-hot current over the Sun volume; no crack geometry is
     // authored here, this only prevents the volumetric composite from painting over it.

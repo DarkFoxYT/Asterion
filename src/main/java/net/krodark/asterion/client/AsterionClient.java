@@ -18,6 +18,7 @@ import net.krodark.asterion.client.particle.BombardierStenchParticle;
 import net.krodark.asterion.client.particle.BombardierGasFireParticle;
 import net.krodark.asterion.client.particle.AsterionEmissiveParticles;
 import net.krodark.asterion.client.particle.FlyingInsectParticle;
+import net.krodark.asterion.client.particle.AncientWallDustParticle;
 import net.krodark.asterion.client.render.block.RuneGeoRenderer;
 import net.krodark.asterion.client.render.block.LabyrinthVineGeoRenderer;
 import net.krodark.asterion.client.render.portal.AsterionPortalRenderer;
@@ -61,6 +62,10 @@ public final class AsterionClient implements ClientModInitializer {
         ParticleProviderRegistry.getInstance().register(Asterion.FIREFLY, sprites ->
                 (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
                         FlyingInsectParticle.createFirefly(level, x, y, z,
+                                velocityX, velocityY, velocityZ, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.ANCIENT_WALL_DUST, sprites ->
+                (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
+                        AncientWallDustParticle.create(level, x, y, z,
                                 velocityX, velocityY, velocityZ, sprites, random));
         BlockEntityRenderers.register(Asterion.RUNE_BLOCK_ENTITY, RuneGeoRenderer::new);
         BlockEntityRenderers.register(Asterion.LABYRINTH_VINE_BLOCK_ENTITY, LabyrinthVineGeoRenderer::new);

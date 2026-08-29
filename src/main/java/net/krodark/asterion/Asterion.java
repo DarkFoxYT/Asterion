@@ -177,6 +177,8 @@ public class Asterion implements ModInitializer {
             BuiltInRegistries.PARTICLE_TYPE, id("fly"), FabricParticleTypes.simple());
     public static final SimpleParticleType FIREFLY = Registry.register(
             BuiltInRegistries.PARTICLE_TYPE, id("firefly"), FabricParticleTypes.simple());
+    public static final SimpleParticleType ANCIENT_WALL_DUST = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, id("ancient_wall_dust"), FabricParticleTypes.simple());
 
     private static final ResourceKey<Item> MECHANISM_KEY = ResourceKey.create(
             Registries.ITEM, id("antikythera_mechanism"));
@@ -302,11 +304,16 @@ public class Asterion implements ModInitializer {
         ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, baseDamageTaken,
                                                          damageTaken, blocked) ->
                 ResolveSystem.recordAttack(entity, source, damageTaken));
+        ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
+            if (entity instanceof net.minecraft.server.level.ServerPlayer player)
+                WorldGenerator.prepareRapidRespawn(player);
+        });
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 WorldGenerator.playerConnected(handler.getPlayer()));
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
             if (oldPlayer.level().dimension().equals(ASTERION_LEVEL)) {
                 BlockPos deathPosition = oldPlayer.blockPosition().immutable();
+                WorldGenerator.finishRapidRespawn(newPlayer);
                 boolean bossWipe = WorldGenerator.resetBossEncounterAfterDeath(oldPlayer);
                 WorldGenerator.respawnAtRune(newPlayer, deathPosition);
                 if (bossWipe && net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(

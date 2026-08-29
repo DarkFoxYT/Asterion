@@ -37,6 +37,7 @@ public final class AsterionPostEffects {
                 .uniform("EclipseData", DeadSunClientEvents::eclipseStrength)
                 .uniform("WorldDarkness", DeadSunClientEvents::darknessStrength)
                 .uniform("EntryRadiance", AsterionPostEffects::radiance)
+                .uniform("FinaleProgress", BossFinaleOverlay::sunDetonationStrength)
                 .uniform("DeadSunOpacity", () -> AsterionConfig.INSTANCE.deadSunOpacity)
                 .uniformVec3("DeadSunCoreColor", () -> new Vector3f(AsterionConfig.INSTANCE.deadSunCoreR,
                         AsterionConfig.INSTANCE.deadSunCoreG, AsterionConfig.INSTANCE.deadSunCoreB))
@@ -94,13 +95,17 @@ public final class AsterionPostEffects {
     private static Vector4f deadSunTuning() {
         AsterionConfig config = AsterionConfig.INSTANCE;
         float eclipse = eclipse();
+        float finale = BossFinaleOverlay.sunDetonationStrength();
         return new Vector4f(
                 config.deadSunBrightness * mix(1.0F, 0.95F, eclipse)
-                        * mix(1.0F, 1.18F, radiance()),
+                        * mix(1.0F, 1.18F, DeadSunEntryCinematic.radianceStrength())
+                        * mix(1.0F, 0.52F, finale),
                 config.shaderAnimationSpeed * mix(1.0F, 0.72F, eclipse),
                 config.deadSunCorona * mix(1.0F, 2.15F, eclipse)
-                        * mix(1.0F, 1.22F, radiance()),
-                config.deadSunDensity * mix(1.0F, 1.55F, eclipse));
+                        * mix(1.0F, 1.22F, DeadSunEntryCinematic.radianceStrength())
+                        * mix(1.0F, 2.35F, finale),
+                config.deadSunDensity * mix(1.0F, 1.55F, eclipse)
+                        * mix(1.0F, 1.65F, finale));
     }
 
     private static Vector3f atmosphereSettings() {

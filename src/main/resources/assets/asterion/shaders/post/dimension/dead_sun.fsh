@@ -16,6 +16,7 @@ layout(std140) uniform DeadSunCoreColor { vec3 CoreTint; };
 layout(std140) uniform DeadSunCoronaColor { vec3 CoronaTint; };
 layout(std140) uniform EclipseData { float Eclipse; };
 layout(std140) uniform EntryRadiance { float Radiance; };
+layout(std140) uniform FinaleProgress { float Finale; };
 layout(std140) uniform Intensity { float Value; };
 layout(std140) uniform AsterionStrength { float EffectStrength; };
 layout(std140) uniform AsterionQuality { float Quality; };
@@ -98,6 +99,11 @@ void main() {
     vec3 eclipseCorona = vec3(1.0, 0.018, 0.055);
     vec3 activeCoreTint = mix(CoreTint, eclipseCore, eclipse);
     vec3 activeCoronaTint = mix(CoronaTint, eclipseCorona, eclipse);
+    float finale = clamp(Finale, 0.0, 1.0);
+    // During the collapse, heat drains out of the body of the Dead Sun while its outer fault
+    // line spreads. This reads as a dying blood-red star instead of a uniformly brighter orb.
+    activeCoreTint = mix(activeCoreTint, vec3(0.14, 0.0004, 0.0012), finale);
+    activeCoronaTint = mix(activeCoronaTint, vec3(0.52, 0.003, 0.009), finale);
     vec3 direction = worldRay(texCoord);
     vec3 toSun = Sun.xyz - CameraPos;
     float centerDistance = length(toSun);
@@ -159,7 +165,9 @@ void main() {
     // Never let the procedural black mask punch through closer terrain or the arena floor.
     alpha = max(alpha, finalEclipseDisc * eclipse * sunVisibility);
 
-    float pulse = 0.82 + 0.18 * sin(Time * 0.020 * max(Tuning.y, 0.05));
+    float collapsePulse = sin(Time * mix(0.020, 0.095, finale));
+    float pulse = mix(0.82 + 0.18 * collapsePulse,
+            0.62 + 0.38 * max(collapsePulse, -0.35), finale);
     float strength = clamp(Value * EffectStrength, 0.0, 1.0);
     float opacity = clamp(Opacity, 0.0, 1.0);
     float emission = min(Tuning.x, 5.0) * 0.48 * pulse * mix(1.0, 1.75, eclipse);
