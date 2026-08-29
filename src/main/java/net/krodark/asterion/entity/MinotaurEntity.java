@@ -564,7 +564,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             enterStalkMode(nextStalkMode());
         }
 
-        if (observed && stalkMode == StalkMode.OBSERVING && gazeTicks > 5 && random.nextInt(90) == 0) {
+        if (observed && stalkMode == StalkMode.OBSERVING && gazeTicks > 5 && random.nextInt(55) == 0) {
             playSound(SoundEvents.RAVAGER_STUNNED, 1.45F, 0.48F);
             enterStalkMode(StalkMode.VANISHING);
         }
@@ -3112,7 +3112,11 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         double dot = player.getViewVector(1.0F).normalize().dot(towardMe);
         double peripheral = distance < 26.0D ? 0.82D : 0.91D;
         double focused = distance < 26.0D ? 0.97D : 0.992D;
-        return (float)Mth.clamp((dot - peripheral) / (focused - peripheral), 0.0D, 1.0D);
+        double angularExposure = Mth.clamp((dot - peripheral) / (focused - peripheral), 0.0D, 1.0D);
+        Vec3 midpoint = player.getEyePosition().lerp(getEyePosition(), 0.62D);
+        double dust = Math.max(WorldGenerator.volumetricDustDensity(midpoint, level().getGameTime()),
+                WorldGenerator.volumetricDustDensity(position(), level().getGameTime()));
+        return (float)(angularExposure * Mth.lerp(Mth.clamp(dust, 0.0D, 1.0D), 1.0D, 0.34D));
     }
 
     private boolean isPlayerLookingAtMe(ServerPlayer player, double distance) {
@@ -3242,7 +3246,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         lastKnownPlayerPosition = player.position();
         shadowArrivalTicks = 30;
         shadowRelocateCooldown = behaviorPhase() == BehaviorPhase.HUNTING
-                ? random.nextIntBetweenInclusive(360, 620)
+                ? random.nextIntBetweenInclusive(180, 320)
                 : random.nextIntBetweenInclusive(560, 900);
         enterStalkMode(random.nextBoolean() ? StalkMode.SHADOWING : StalkMode.FLANKING);
         return true;
@@ -3272,12 +3276,13 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             if (valid) {
                 double candidateDistance = candidate.distanceTo(player.position());
                 double distanceScore = 18.0D - Math.abs(candidateDistance - 42.0D);
-                double score = hallway + distanceScore;
+                double dust = WorldGenerator.volumetricDustDensity(candidate, level().getGameTime());
+                double score = hallway + distanceScore + dust * 15.0D;
                 if (score > bestScore) {
                     best = candidate;
                     bestScore = score;
                 }
-                if (hallway >= 52.0D && candidateDistance >= 34.0D) return candidate;
+                if (hallway >= 52.0D && candidateDistance >= 34.0D && dust >= 0.48D) return candidate;
             }
         }
         setPos(original.x, original.y, original.z);

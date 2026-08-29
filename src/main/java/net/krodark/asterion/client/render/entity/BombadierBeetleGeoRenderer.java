@@ -36,17 +36,17 @@ public final class BombadierBeetleGeoRenderer extends GeoEntityRenderer<Bombadie
     public void addRenderData(BombadierBeetleEntity beetle, Void relatedObject,
                               EntityRenderState state, float partialTick) {
         Direction surface = beetle.attachedSurface();
-        float targetPitch = switch (surface) {
-            case NORTH -> Mth.HALF_PI;
-            case SOUTH -> -Mth.HALF_PI;
-            case UP -> Mth.PI;
-            default -> 0.0F;
-        };
-        float targetRoll = switch (surface) {
-            case EAST -> Mth.HALF_PI;
-            case WEST -> -Mth.HALF_PI;
-            default -> 0.0F;
-        };
+        float targetPitch = surface == Direction.UP ? Mth.PI : 0.0F;
+        float targetRoll = 0.0F;
+        if (surface.getAxis().isHorizontal()) {
+            // Convert the world-space wall normal into the beetle's yaw-relative frame. The old
+            // cardinal mapping failed whenever the beetle turned around on the same wall.
+            float yaw = beetle.getYRot();
+            var forward = net.minecraft.world.phys.Vec3.directionFromRotation(0.0F, yaw);
+            var localRight = new net.minecraft.world.phys.Vec3(-forward.z, 0.0D, forward.x);
+            double wallOnRight = surface.getUnitVec3().dot(localRight);
+            targetRoll = wallOnRight >= 0.0D ? -Mth.HALF_PI : Mth.HALF_PI;
+        }
         SurfacePose pose = surfacePoses.computeIfAbsent(beetle.getUUID(), ignored -> new SurfacePose());
         float frameTicks = Math.max(0.05F,
                 Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaTicks());

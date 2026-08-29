@@ -13,6 +13,7 @@ import net.krodark.asterion.client.ragdoll.RagdollClientController;
 import net.krodark.asterion.client.render.entity.MinotaurGeoRenderer;
 import net.krodark.asterion.client.render.entity.BombadierBeetleGeoRenderer;
 import net.krodark.asterion.client.particle.BombardierStenchParticle;
+import net.krodark.asterion.client.particle.BombardierGasFireParticle;
 import net.krodark.asterion.client.render.block.RuneGeoRenderer;
 import net.krodark.asterion.client.render.portal.AsterionPortalRenderer;
 import net.krodark.asterion.client.render.post.AsterionPostEffects;
@@ -40,6 +41,10 @@ public final class AsterionClient implements ClientModInitializer {
         ParticleProviderRegistry.getInstance().register(Asterion.BOMBARDIER_STENCH, sprites ->
                 (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
                         BombardierStenchParticle.create(level, x, y, z,
+                                velocityX, velocityY, velocityZ, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.BOMBARDIER_GAS_FIRE, sprites ->
+                (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
+                        BombardierGasFireParticle.create(level, x, y, z,
                                 velocityX, velocityY, velocityZ, sprites, random));
         BlockEntityRenderers.register(Asterion.RUNE_BLOCK_ENTITY, RuneGeoRenderer::new);
         ClientPlayNetworking.registerGlobalReceiver(DimensionTransitionPayload.TYPE, (payload, context) ->

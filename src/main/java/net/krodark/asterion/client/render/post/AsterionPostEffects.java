@@ -52,6 +52,7 @@ public final class AsterionPostEffects {
                 .uniformVec3("AtmosphereSettings", AsterionPostEffects::atmosphereSettings)
                 .uniformVec3("DustColor", AsterionPostEffects::dustColor)
                 .uniformVec3("FogColor", AsterionPostEffects::fogColor)
+                .uniform("EclipseData", DeadSunClientEvents::eclipseStrength)
                 .uniformRaw("WorldData", AsterionPostEffects::worldData));
     }
 
@@ -96,8 +97,8 @@ public final class AsterionPostEffects {
         AsterionConfig config = AsterionConfig.INSTANCE;
         float eclipse = darkness();
         return new Vector3f(
-                config.dustDensity * mix(1.0F, 2.20F, eclipse),
-                config.fogStrength * mix(1.0F, 1.85F, eclipse),
+                config.dustDensity * mix(1.0F, 2.80F, eclipse),
+                config.fogStrength * mix(1.0F, 2.25F, eclipse),
                 config.shaderAnimationSpeed);
     }
 

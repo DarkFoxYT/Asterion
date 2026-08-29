@@ -35,6 +35,10 @@ layout(std140) uniform FogColor {
     vec3 FogTint;
 };
 
+layout(std140) uniform EclipseData {
+    float Eclipse;
+};
+
 in vec2 texCoord;
 out vec4 fragColor;
 
@@ -96,7 +100,10 @@ void main() {
     for (int i = 0; i < 10; ++i) {
         float distanceAlongRay = (float(i) + 0.5) * stepLength;
         vec3 sampleWorld = CameraPos + direction * distanceAlongRay;
-        float density = densityAt(sampleWorld) * Settings.x;
+        float stalkingBand = smoothstep(12.0, 30.0, distanceAlongRay)
+                * (1.0 - smoothstep(58.0, 92.0, distanceAlongRay));
+        float density = densityAt(sampleWorld) * Settings.x
+                * mix(1.0, 1.34, stalkingBand * clamp(Eclipse, 0.0, 1.0));
         float extinction = density * stepLength * 0.019 * Settings.y;
         float visibility = exp(-opticalDepth);
         opticalDepth += extinction;

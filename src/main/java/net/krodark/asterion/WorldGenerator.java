@@ -1612,6 +1612,42 @@ public final class WorldGenerator {
         return Math.max(Math.abs(position.x), Math.abs(position.z)) <= trigger;
     }
 
+    public static double volumetricDustDensity(Vec3 point, long gameTime) {
+        double speed = AsterionConfig.INSTANCE.shaderAnimationSpeed;
+        Vec3 wind = new Vec3(gameTime * 0.006D, gameTime * 0.0015D, -gameTime * 0.004D).scale(speed);
+        double banks = volumeNoise(point.add(wind).multiply(0.032D, 0.052D, 0.032D));
+        double wisps = volumeNoise(point.subtract(wind.scale(1.4D)).multiply(0.080D, 0.024D, 0.080D)
+                .add(17.0D, 3.0D, -9.0D));
+        double circulation = Math.sin(Math.atan2(point.z, point.x) * 4.0D
+                + Math.sqrt(point.x * point.x + point.z * point.z) * 0.034D
+                - gameTime * 0.012D * speed) * 0.045D;
+        double lowAir = 1.0D - Mth.clamp((point.y - 28.0D) / 84.0D, 0.0D, 1.0D);
+        double t = Mth.clamp((banks * 0.64D + wisps * 0.36D + circulation - 0.26D) / 0.46D,
+                0.0D, 1.0D);
+        return t * t * (3.0D - 2.0D * t) * Mth.lerp(lowAir, 0.70D, 1.14D);
+    }
+
+    private static double volumeNoise(Vec3 point) {
+        int x = Mth.floor(point.x), y = Mth.floor(point.y), z = Mth.floor(point.z);
+        double fx = point.x - x, fy = point.y - y, fz = point.z - z;
+        fx = fx * fx * (3.0D - 2.0D * fx);
+        fy = fy * fy * (3.0D - 2.0D * fy);
+        fz = fz * fz * (3.0D - 2.0D * fz);
+        double x00 = Mth.lerp(fx, volumeHash(x, y, z), volumeHash(x + 1, y, z));
+        double x10 = Mth.lerp(fx, volumeHash(x, y + 1, z), volumeHash(x + 1, y + 1, z));
+        double x01 = Mth.lerp(fx, volumeHash(x, y, z + 1), volumeHash(x + 1, y, z + 1));
+        double x11 = Mth.lerp(fx, volumeHash(x, y + 1, z + 1), volumeHash(x + 1, y + 1, z + 1));
+        return Mth.lerp(fz, Mth.lerp(fy, x00, x10), Mth.lerp(fy, x01, x11));
+    }
+
+    private static double volumeHash(int x, int y, int z) {
+        long value = x * 0x632BE59BD9B4E019L ^ y * 0x9E3779B97F4A7C15L ^ z * 0x94D049BB133111EBL;
+        value ^= value >>> 30;
+        value *= 0xBF58476D1CE4E5B9L;
+        value ^= value >>> 27;
+        return (value >>> 11) * 0x1.0p-53;
+    }
+
     public static boolean hasReachedMazeCenter(Vec3 position) {
         double radius = PIT_HALF_WIDTH - 2.0D;
         return position.x * position.x + position.z * position.z <= radius * radius
