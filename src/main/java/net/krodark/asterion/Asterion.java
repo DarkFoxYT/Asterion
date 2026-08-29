@@ -12,6 +12,7 @@ import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.krodark.asterion.network.DimensionTransitionPayload;
 import net.krodark.asterion.network.EntryOmenPayload;
 import net.krodark.asterion.network.BossFinalePayload;
@@ -63,11 +64,13 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.tags.BiomeTags;
+import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import net.krodark.asterion.worldgen.UnderwaterRuinFeature;
+import net.krodark.asterion.worldgen.AncientMossPatchFeature;
 import net.krodark.asterion.worldgen.MazeChunkGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -173,10 +176,15 @@ public class Asterion implements ModInitializer {
     public static final Feature<NoneFeatureConfiguration> UNDERWATER_RUIN_FEATURE = Registry.register(
             BuiltInRegistries.FEATURE, id("underwater_ruin"),
             new UnderwaterRuinFeature(NoneFeatureConfiguration.CODEC));
+    public static final Feature<NoneFeatureConfiguration> ANCIENT_MOSS_PATCH_FEATURE = Registry.register(
+            BuiltInRegistries.FEATURE, id("ancient_moss_patch"),
+            new AncientMossPatchFeature(NoneFeatureConfiguration.CODEC));
     public static final com.mojang.serialization.MapCodec<MazeChunkGenerator> MAZE_CHUNK_GENERATOR =
             Registry.register(BuiltInRegistries.CHUNK_GENERATOR, id("maze"), MazeChunkGenerator.CODEC);
     private static final ResourceKey<PlacedFeature> UNDERWATER_RUIN_PLACED = ResourceKey.create(
             Registries.PLACED_FEATURE, id("underwater_ruin"));
+    private static final ResourceKey<PlacedFeature> ANCIENT_MOSS_PATCH_PLACED = ResourceKey.create(
+            Registries.PLACED_FEATURE, id("ancient_moss_patch"));
 
     @Override
     public void onInitialize() {
@@ -223,7 +231,13 @@ public class Asterion implements ModInitializer {
         });
         BiomeModifications.addFeature(BiomeSelectors.tag(BiomeTags.IS_OCEAN),
                 GenerationStep.Decoration.SURFACE_STRUCTURES, UNDERWATER_RUIN_PLACED);
+        BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),
+                GenerationStep.Decoration.VEGETAL_DECORATION, ANCIENT_MOSS_PATCH_PLACED);
+        BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID),
+                MobCategory.CREATURE, BOMBARDIER_BEETLE, 12, 1, 3);
         ServerTickEvents.END_SERVER_TICK.register(WorldGenerator::tickServer);
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
+                WorldGenerator.playerConnected(handler.getPlayer()));
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
             if (oldPlayer.level().dimension().equals(ASTERION_LEVEL)) {
                 BlockPos deathPosition = oldPlayer.blockPosition().immutable();

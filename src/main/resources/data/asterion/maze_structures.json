@@ -1,15 +1,19 @@
 {
-  "spacing_cells": 12,
-  "padding_blocks": 4,
-  "chance": 0.68,
+  "spacing_cells": 8,
+  "padding_blocks": 5,
+  "chance": 0.9,
   "templates": [
     {
+      "template": "asterion:vanilla_dungeon",
+      "weight": 12
+    },
+    {
       "template": "asterion:safe_room",
-      "weight": 5
+      "weight": 3
     },
     {
       "template": "asterion:rune_gate",
-      "weight": 2
+      "weight": 1
     }
   ]
 }

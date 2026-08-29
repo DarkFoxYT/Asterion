@@ -1,13 +1,96 @@
 package net.krodark.asterion.client.render.entity;
 
 import com.geckolib.renderer.GeoEntityRenderer;
+import com.geckolib.renderer.base.BoneSnapshots;
+import com.geckolib.renderer.base.RenderPassInfo;
+import com.geckolib.constant.DataTickets;
+import com.geckolib.constant.dataticket.DataTicket;
 import net.krodark.asterion.entity.BombadierBeetleEntity;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.core.Direction;
+import net.minecraft.util.Mth;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 public final class BombadierBeetleGeoRenderer extends GeoEntityRenderer<BombadierBeetleEntity, EntityRenderState> {
+    private static final DataTicket<Float> SURFACE_PITCH = DataTickets.create(
+            "asterion_beetle_surface_pitch", Float.class);
+    private static final DataTicket<Float> SURFACE_ROLL = DataTickets.create(
+            "asterion_beetle_surface_roll", Float.class);
+    private static final DataTicket<Float> SPRAY_PHASE = DataTickets.create(
+            "asterion_beetle_spray_phase", Float.class);
+    private static final DataTicket<Float> SPRAY_WEIGHT = DataTickets.create(
+            "asterion_beetle_spray_weight", Float.class);
+    private final Map<UUID, SurfacePose> surfacePoses = new HashMap<>();
+
     public BombadierBeetleGeoRenderer(EntityRendererProvider.Context context) {
         super(context, new BombadierBeetleGeoModel());
         this.shadowRadius = 0.35F;
+    }
+
+    @Override
+    public void addRenderData(BombadierBeetleEntity beetle, Void relatedObject,
+                              EntityRenderState state, float partialTick) {
+        Direction surface = beetle.attachedSurface();
+        float targetPitch = switch (surface) {
+            case NORTH -> Mth.HALF_PI;
+            case SOUTH -> -Mth.HALF_PI;
+            case UP -> Mth.PI;
+            default -> 0.0F;
+        };
+        float targetRoll = switch (surface) {
+            case EAST -> Mth.HALF_PI;
+            case WEST -> -Mth.HALF_PI;
+            default -> 0.0F;
+        };
+        SurfacePose pose = surfacePoses.computeIfAbsent(beetle.getUUID(), ignored -> new SurfacePose());
+        float frameTicks = Math.max(0.05F,
+                Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaTicks());
+        float blend = 1.0F - (float)Math.pow(0.58D, frameTicks);
+        pose.pitch += wrapRadians(targetPitch - pose.pitch) * blend;
+        pose.roll += wrapRadians(targetRoll - pose.roll) * blend;
+        float desiredSprayWeight = beetle.defenceState() == BombadierBeetleEntity.DefenceState.FLEEING
+                ? 1.0F : 0.0F;
+        float sprayBlend = 1.0F - (float)Math.pow(0.76D, frameTicks);
+        pose.sprayWeight += (desiredSprayWeight - pose.sprayWeight) * sprayBlend;
+        state.addGeckolibData(SURFACE_PITCH, pose.pitch);
+        state.addGeckolibData(SURFACE_ROLL, pose.roll);
+        state.addGeckolibData(SPRAY_PHASE, (beetle.tickCount + partialTick) * 0.34F);
+        state.addGeckolibData(SPRAY_WEIGHT, pose.sprayWeight);
+    }
+
+    @Override
+    public void adjustModelBonesForRender(RenderPassInfo<EntityRenderState> pass, BoneSnapshots bones) {
+        float pitch = pass.getOrDefaultGeckolibData(SURFACE_PITCH, 0.0F);
+        float roll = pass.getOrDefaultGeckolibData(SURFACE_ROLL, 0.0F);
+        bones.ifPresent("full", snapshot -> snapshot.setRotation(
+                snapshot.getRotX() + pitch, snapshot.getRotY(), snapshot.getRotZ() + roll));
+
+        float sprayWeight = pass.getOrDefaultGeckolibData(SPRAY_WEIGHT, 0.0F);
+        if (sprayWeight > 0.001F) {
+            float phase = pass.getOrDefaultGeckolibData(SPRAY_PHASE, 0.0F);
+            float lift = Mth.sin(phase) * 0.12F * sprayWeight;
+            float tilt = Mth.sin(phase + Mth.HALF_PI) * 0.026F * sprayWeight;
+            bones.ifPresent("shell", snapshot -> {
+                snapshot.setTranslation(snapshot.getTranslateX(),
+                        snapshot.getTranslateY() + lift, snapshot.getTranslateZ());
+                snapshot.setRotation(snapshot.getRotX() + tilt,
+                        snapshot.getRotY(), snapshot.getRotZ());
+            });
+        }
+    }
+
+    private static final class SurfacePose {
+        private float pitch;
+        private float roll;
+        private float sprayWeight;
+    }
+
+    private static float wrapRadians(float angle) {
+        return (float)Math.atan2(Math.sin(angle), Math.cos(angle));
     }
 }

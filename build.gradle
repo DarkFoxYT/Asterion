@@ -122,3 +122,12 @@ tasks.register("rebuildRuneGateTemplate", JavaExec) {
     mainClass = "net.krodark.asterion.dev.RuneGateTemplateBuilder"
     args file("src/main/resources/data/asterion/structure/rune_gate.nbt").absolutePath
 }
+
+tasks.register("rebuildVanillaDungeonTemplate", JavaExec) {
+    group = "asterion"
+    description = "Rebuilds the common vanilla-style dungeon maze test template."
+    dependsOn compileJava
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = "net.krodark.asterion.dev.VanillaDungeonTemplateBuilder"
+    args file("src/main/resources/data/asterion/structure/vanilla_dungeon.nbt").absolutePath
+}

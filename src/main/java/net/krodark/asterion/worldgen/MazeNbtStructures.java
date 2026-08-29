@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.krodark.asterion.Asterion;
+import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.GreekRune;
 import net.krodark.asterion.WorldGenerator;
 import net.krodark.asterion.block.RuneBlock;
@@ -31,16 +32,23 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class MazeNbtStructures {
     private static final Identifier CATALOG = Asterion.id("maze_structures.json");
     private static final Map<ServerLevel, Layout> LAYOUTS = new WeakHashMap<>();
+    private static final Map<Long, Layout> GENERATION_LAYOUTS = new ConcurrentHashMap<>();
     private static final Layout EMPTY_LAYOUT = new Layout(List.of());
 
     private MazeNbtStructures() { }
 
     public static Layout emptyLayout() {
         return EMPTY_LAYOUT;
+    }
+
+    /** Returns the immutable reservation plan used by async chunk generation. */
+    public static Layout generationLayout(long terrainSeed) {
+        return GENERATION_LAYOUTS.getOrDefault(terrainSeed, EMPTY_LAYOUT);
     }
 
     public static Layout layout(ServerLevel level, int radiusCells, int cellSize, ReservationFilter filter) {
@@ -107,6 +115,7 @@ public final class MazeNbtStructures {
 
     public static void clearRuntimeState() {
         synchronized (LAYOUTS) { LAYOUTS.clear(); }
+        GENERATION_LAYOUTS.clear();
     }
 
     private static Layout createLayout(ServerLevel level, int radius, int cell, ReservationFilter filter) {
@@ -127,7 +136,8 @@ public final class MazeNbtStructures {
         int spacing = Math.max(6, catalog.spacingCells);
         int margin = Math.max(5, spacing / 2);
         List<Placement> placements = new ArrayList<>();
-        long seed = level.getSeed();
+        long seed = level.getChunkSource().randomState()
+                .getOrCreateRandomFactory(Asterion.id("maze_layout")).at(0, 0, 0).nextLong();
         for (int baseZ = margin; baseZ < size - margin; baseZ += spacing) {
             for (int baseX = margin; baseX < size - margin; baseX += spacing) {
                 long roll = mix(seed ^ (long) baseX * 0x9E3779B97F4A7C15L
@@ -145,7 +155,9 @@ public final class MazeNbtStructures {
                 int centerZ = -limit + cellZ * cell + cell / 2;
                 int originX = centerX - (relative.minX() + relative.maxX()) / 2;
                 int originZ = centerZ - (relative.minZ() + relative.maxZ()) / 2;
-                int originY = WorldGenerator.mazeFloorHeight(seed, centerX, centerZ) + 1 - relative.minY();
+                // NBT templates use y=0 as their floor. Replacing the maze floor here keeps
+                // rooms level with their approaches instead of leaving every landmark on a step.
+                int originY = WorldGenerator.mazeFloorHeight(seed, centerX, centerZ) - relative.minY();
                 BlockPos origin = new BlockPos(originX, originY, originZ);
                 BoundingBox box = relative.moved(originX, originY, originZ);
                 BoundingBox reserved = box.inflatedBy(catalog.padding, 0, catalog.padding);
@@ -160,7 +172,9 @@ public final class MazeNbtStructures {
             }
         }
         Asterion.LOGGER.info("Reserved {} size-aware NBT landmarks in the Asterion", placements.size());
-        return new Layout(placements);
+        Layout layout = new Layout(placements);
+        GENERATION_LAYOUTS.put(seed, layout);
+        return layout;
     }
 
     private static Catalog readCatalog(ServerLevel level) {
@@ -234,6 +248,7 @@ public final class MazeNbtStructures {
         private final Map<Long, List<Placement>> anchorsByChunk = new HashMap<>();
         private final ArrayDeque<Placement> pending = new ArrayDeque<>();
         private final Set<BlockPos> queued = new HashSet<>();
+        private final Set<Long> generatedChunks = ConcurrentHashMap.newKeySet();
         private final Map<BlockPos, BlockPos> safeCheckpoints = new HashMap<>();
 
         private Layout(List<Placement> placements) {
@@ -250,9 +265,17 @@ public final class MazeNbtStructures {
             List<Placement> local = reservationsByChunk.get(ChunkPos.pack(x >> 4, z >> 4));
             if (local == null) return false;
             for (Placement placement : local)
-                if (x >= placement.reserved.minX() && x <= placement.reserved.maxX()
-                        && z >= placement.reserved.minZ() && z <= placement.reserved.maxZ()) return true;
+                if (insideXZ(placement.box, x, z) || isApproach(placement, x, z)) return true;
             return false;
+        }
+
+        public int floorY(int x, int z, int fallback) {
+            List<Placement> local = reservationsByChunk.get(ChunkPos.pack(x >> 4, z >> 4));
+            if (local == null) return fallback;
+            for (Placement placement : local)
+                if (insideXZ(placement.box, x, z) || isApproach(placement, x, z))
+                    return placement.box.minY();
+            return fallback;
         }
 
         public void onChunkBuilt(LevelChunk chunk) {
@@ -261,30 +284,118 @@ public final class MazeNbtStructures {
             for (Placement placement : local) if (queued.add(placement.origin)) pending.addLast(placement);
         }
 
+        public void markTerrainGenerated(ChunkPos chunk) {
+            long key = chunk.pack();
+            if (reservationsByChunk.containsKey(key)) generatedChunks.add(key);
+        }
+
+        private static boolean insideXZ(BoundingBox box, int x, int z) {
+            return x >= box.minX() && x <= box.maxX() && z >= box.minZ() && z <= box.maxZ();
+        }
+
+        private static boolean isApproach(Placement placement, int x, int z) {
+            int centerX = (placement.box.minX() + placement.box.maxX()) / 2;
+            int centerZ = (placement.box.minZ() + placement.box.maxZ()) / 2;
+            int halfWidth = 1;
+            boolean eastWest = Math.abs(z - centerZ) <= halfWidth
+                    && x >= placement.reserved.minX() && x <= placement.reserved.maxX()
+                    && (x < placement.box.minX() || x > placement.box.maxX());
+            boolean northSouth = Math.abs(x - centerX) <= halfWidth
+                    && z >= placement.reserved.minZ() && z <= placement.reserved.maxZ()
+                    && (z < placement.box.minZ() || z > placement.box.maxZ());
+            return eastWest || northSouth;
+        }
+
         private void placeNext(ServerLevel level) {
             Placement placement = pending.pollFirst();
             if (placement == null) return;
             BlockPos marker = new BlockPos(placement.origin.getX(), 3, placement.origin.getZ());
-            boolean footprintLoaded = placement.box.intersectingChunks().allMatch(
+            boolean footprintLoaded = placement.reserved.intersectingChunks().allMatch(
                     chunk -> level.getChunkSource().hasChunk(chunk.x(), chunk.z()));
             if (!footprintLoaded) {
                 pending.addLast(placement);
                 return;
             }
             if (level.getBlockState(marker).is(Blocks.REINFORCED_DEEPSLATE)) {
+                carveAccessibilityBridges(level, placement);
                 configureSafeRoom(level, placement);
                 cacheSafeCheckpoint(level, placement);
                 return;
             }
+            boolean generatedAroundStructure = placement.reserved.intersectingChunks()
+                    .allMatch(chunk -> generatedChunks.contains(chunk.pack()));
+            if (!generatedAroundStructure) preparePlacementArea(level, placement);
             boolean placed = placement.template.placeInWorld(level, placement.origin, placement.origin,
                     placement.settings, RandomSource.create(placement.seed), 2);
             if (placed) {
                 sanitize(level, placement.box);
+                carveAccessibilityBridges(level, placement);
                 configureSafeRoom(level, placement);
                 cacheSafeCheckpoint(level, placement);
             }
             else Asterion.LOGGER.warn("Failed to place maze NBT template {} at {}", placement.id, placement.origin);
             level.setBlock(marker, Blocks.REINFORCED_DEEPSLATE.defaultBlockState(), 2);
+        }
+
+        /**
+         * NBT landmarks may use any footprint and rotation, so their authored doorway does not
+         * necessarily line up with the procedural grid.  Four short, bounded bridges guarantee
+         * that the room joins the spanning maze without clearing cross-shaped paths across chunks.
+         */
+        private static void carveAccessibilityBridges(ServerLevel level, Placement placement) {
+            int floorY = placement.box.minY();
+            int centerX = (placement.box.minX() + placement.box.maxX()) / 2;
+            int centerZ = (placement.box.minZ() + placement.box.maxZ()) / 2;
+            carveBridge(level, placement.reserved.minX(), placement.box.minX() + 1,
+                    centerZ, true, floorY);
+            carveBridge(level, placement.box.maxX() - 1, placement.reserved.maxX(),
+                    centerZ, true, floorY);
+            carveBridge(level, placement.reserved.minZ(), placement.box.minZ() + 1,
+                    centerX, false, floorY);
+            carveBridge(level, placement.box.maxZ() - 1, placement.reserved.maxZ(),
+                    centerX, false, floorY);
+        }
+
+        private static void carveBridge(ServerLevel level, int start, int end, int fixed,
+                                        boolean alongX, int floorY) {
+            BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+            for (int distance = start; distance <= end; distance++) {
+                for (int lateral = -1; lateral <= 1; lateral++) {
+                    int x = alongX ? distance : fixed + lateral;
+                    int z = alongX ? fixed + lateral : distance;
+                    cursor.set(x, floorY, z);
+                    if (!level.getBlockState(cursor).isCollisionShapeFullBlock(level, cursor))
+                        level.setBlock(cursor, Asterion.ANCIENT_STONE.defaultBlockState(), 2);
+                    for (int y = 1; y <= 5; y++) {
+                        cursor.set(x, floorY + y, z);
+                        if (!level.getBlockState(cursor).isAir())
+                            level.setBlock(cursor, Blocks.AIR.defaultBlockState(), 2);
+                    }
+                }
+            }
+        }
+
+        /** Compatibility cleanup for chunks made before the reservation plan was available. */
+        private static void preparePlacementArea(ServerLevel level, Placement placement) {
+            int floorY = placement.box.minY();
+            int top = placement.box.minY() + AsterionConfig.INSTANCE.wallHeight;
+            int floorDepth = AsterionConfig.INSTANCE.floorThickness;
+            BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+            for (int x = placement.reserved.minX(); x <= placement.reserved.maxX(); x++)
+                for (int z = placement.reserved.minZ(); z <= placement.reserved.maxZ(); z++) {
+                    boolean footprint = insideXZ(placement.box, x, z);
+                    if (!footprint && !isApproach(placement, x, z)) continue;
+                    if (!footprint) for (int depth = 0; depth < floorDepth; depth++) {
+                        cursor.set(x, floorY - depth, z);
+                        if (!level.getBlockState(cursor).is(Asterion.ANCIENT_STONE))
+                            level.setBlock(cursor, Asterion.ANCIENT_STONE.defaultBlockState(), 2);
+                    }
+                    for (int y = floorY + 1; y <= top; y++) {
+                        cursor.set(x, y, z);
+                        if (!level.getBlockState(cursor).isAir())
+                            level.setBlock(cursor, Blocks.AIR.defaultBlockState(), 2);
+                    }
+                }
         }
 
         private void cacheSafeCheckpoint(ServerLevel level, Placement placement) {

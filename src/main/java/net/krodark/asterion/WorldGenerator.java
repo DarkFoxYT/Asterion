@@ -122,14 +122,7 @@ public final class WorldGenerator {
         }
 
         if (ENABLE_MAZE_NBT_STRUCTURES) {
-            AsterionConfig config = AsterionConfig.INSTANCE;
-            MazeNbtStructures.Layout layout = MazeNbtStructures.layout(level,
-                    config.mazeRadiusCells, config.cellSize,
-                    (minX, minZ, maxX, maxZ) -> {
-                        int center = config.mazeRadiusCells;
-                        return maxX < center - 6 || minX > center + 6
-                                || maxZ < center - 6 || minZ > center + 6;
-                    });
+            MazeNbtStructures.Layout layout = mazeStructureLayout(level);
             layout.onChunkBuilt(chunk);
         }
     }
@@ -143,6 +136,7 @@ public final class WorldGenerator {
     }
 
     public static void tickServer(MinecraftServer server) {
+        restoreSavedPortal(server);
         DeadSunEventSystem.tick(server);
         tickDecayingBlocks(server);
         tickRestoringBlocks(server);
@@ -160,7 +154,16 @@ public final class WorldGenerator {
         }
     }
 
+    private static void restoreSavedPortal(MinecraftServer server) {
+        if (summonedPortal != null) return;
+        AsterionWorldState.SavedPortal saved = AsterionWorldState.get(server.overworld()).summonedPortal();
+        if (saved != null)
+            summonedPortal = new SummonedPortal(saved.dimension(), saved.center(),
+                    saved.surfaceY(), saved.visualSeed());
+    }
+
     private static void tickMaze(ServerLevel maze) {
+        if (ENABLE_MAZE_NBT_STRUCTURES) mazeStructureLayout(maze);
         tickBossFinale(maze);
         tickBossArenaGrowth(maze);
         tickBossArenaDebris(maze);
@@ -169,6 +172,16 @@ public final class WorldGenerator {
         if (ENABLE_MAZE_NBT_STRUCTURES && PENDING_TRANSITIONS.isEmpty()) {
             MazeNbtStructures.tick(maze);
         }
+    }
+
+    private static MazeNbtStructures.Layout mazeStructureLayout(ServerLevel level) {
+        AsterionConfig config = AsterionConfig.INSTANCE;
+        return MazeNbtStructures.layout(level, config.mazeRadiusCells, config.cellSize,
+                (minX, minZ, maxX, maxZ) -> {
+                    int center = config.mazeRadiusCells;
+                    return maxX < center - 6 || minX > center + 6
+                            || maxZ < center - 6 || minZ > center + 6;
+                });
     }
 
     private static void cleanupStaleState(MinecraftServer server, ServerLevel maze) {
@@ -212,7 +225,10 @@ public final class WorldGenerator {
         BlockPos checkpoint = AsterionWorldState.get(maze).runeCheckpoint(player.getUUID());
         if (checkpoint != null) {
             maze.getChunkAt(checkpoint);
-            if (!MazeNbtStructures.isSafeCheckpoint(maze, checkpoint)) checkpoint = null;
+            // The checkpoint is persisted independently from the runtime NBT-room cache.  After a
+            // restart that cache may not have inspected the room yet, so rejecting the saved point
+            // here silently sent players to a random cell instead of their activated rune.
+            if (!isSafeRespawnPosition(maze, checkpoint)) checkpoint = null;
         }
         if (checkpoint == null)
             checkpoint = MazeNbtStructures.nearestSafeHouse(maze, deathPosition);
@@ -226,6 +242,18 @@ public final class WorldGenerator {
         player.setDeltaMovement(Vec3.ZERO);
         player.resetFallDistance();
         WARD_FALL_PROTECTION.put(player.getUUID(), 100);
+    }
+
+    private static boolean isSafeRespawnPosition(ServerLevel level, BlockPos feet) {
+        BlockPos floor = feet.below();
+        return level.getBlockState(floor).isCollisionShapeFullBlock(level, floor)
+                && level.getBlockState(feet).getCollisionShape(level, feet).isEmpty()
+                && level.getBlockState(feet.above()).getCollisionShape(level, feet.above()).isEmpty();
+    }
+
+    /** Forces transient client portal state to be sent again after joining or reconnecting. */
+    public static void playerConnected(ServerPlayer player) {
+        LAST_PORTAL_SYNC.remove(player.getUUID());
     }
 
     public static boolean resetBossEncounterAfterDeath(ServerPlayer deadPlayer) {
@@ -482,6 +510,8 @@ public final class WorldGenerator {
         long visualSeed = mix(level.getSeed() ^ center.asLong() ^ level.getGameTime()
                 ^ 0xA0761D6478BD642FL);
         summonedPortal = new SummonedPortal(level.dimension(), center.immutable(), riftY, visualSeed);
+        AsterionWorldState.get(level).setSummonedPortal(
+                level.dimension(), center.immutable(), riftY, visualSeed);
         GatewayPortalPayload payload = portalPayload(level.getServer(), center, riftY, visualSeed);
         level.players().forEach(player -> {
             if (player.distanceToSqr(Vec3.atCenterOf(center)) <= 144.0D * 144.0D
@@ -1906,7 +1936,8 @@ public final class WorldGenerator {
         int thickness = config.wallThickness;
         int limit = radius * cell;
         MazeTopology topology = topology(seed, radius, config.mazeLoopChance, config.mazeLandmarkChance);
-        MazeNbtStructures.Layout structures = MazeNbtStructures.emptyLayout();
+        MazeNbtStructures.Layout structures = ENABLE_MAZE_NBT_STRUCTURES
+                ? MazeNbtStructures.generationLayout(seed) : MazeNbtStructures.emptyLayout();
         ChunkPos chunkPos = chunk.getPos();
         BlockPos marker = new BlockPos(chunkPos.getMinBlockX(), 1, chunkPos.getMinBlockZ());
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
@@ -1924,7 +1955,7 @@ public final class WorldGenerator {
                     continue;
                 }
 
-                int floorY = mazeFloorY(seed, x, z, cell);
+                int floorY = structures.floorY(x, z, mazeFloorY(seed, x, z, cell));
                 placeFloorColumn(chunk, p, seed, x, z, floorY, config.floorThickness,
                         topology, cell, radius);
 
@@ -1943,6 +1974,9 @@ public final class WorldGenerator {
                                 patternedWall(seed, x, y, z, biome, cell, radius));
                     placeBiomeWallDetail(chunk, seed, x, z, cell, thickness, config.wallHeight, biome, floorY);
                 } else {
+                    // Reserved footprints and their approaches are already shaped during normal
+                    // chunk generation, so NBT placement never needs to rebuild the chunk later.
+                    if (structures.reserved(x, z)) continue;
                     if (needsElevationSlab(seed, x, z, cell, floorY))
                         bufferedSet(chunk, x, floorY + 1, z,
                                 Asterion.ANCIENT_STONE_SLAB.defaultBlockState());
@@ -1965,6 +1999,7 @@ public final class WorldGenerator {
             if (!section.hasOnlyAir()) section.recalcBlockCounts();
         Heightmap.primeHeightmaps(chunk, EnumSet.allOf(Heightmap.Types.class));
         chunk.markUnsaved();
+        if (ENABLE_MAZE_NBT_STRUCTURES) structures.markTerrainGenerated(chunkPos);
         if (ENABLE_MAZE_NBT_STRUCTURES && chunk instanceof LevelChunk levelChunk)
             structures.onChunkBuilt(levelChunk);
     }
@@ -2182,8 +2217,6 @@ public final class WorldGenerator {
             int dx = Math.abs(lx - center), dz = Math.abs(lz - center);
             if (dx == 2 && dz == 2)
                 bufferedSet(chunk, x, floorY + 1, z, Blocks.AZALEA.defaultBlockState());
-            else if ((dx == 3 && dz == 2) || (dx == 2 && dz == 3))
-                bufferedSet(chunk, x, floorY + 1, z, Blocks.MOSS_CARPET.defaultBlockState());
         }
     }
 
@@ -2236,8 +2269,6 @@ public final class WorldGenerator {
         }
         MazeBiome biome = mazeBiomeAt(seed, x, z, cell);
         long biomeDetail = mix(seed ^ (long)x * 0x632BE59BD9B4E019L ^ (long)z * 0x8CB92BA72F3D8DD7L);
-        if (biome == MazeBiome.OVERGROWN && Math.floorMod(biomeDetail, 9) < 2)
-            return Asterion.ANCIENT_MOSS;
         if (biome == MazeBiome.WITHERED && Math.floorMod(biomeDetail, 13) == 0)
             return Blocks.SOUL_SOIL;
         if (biome == MazeBiome.SCORCHED && Math.floorMod(biomeDetail, 11) == 0)
@@ -2383,9 +2414,7 @@ public final class WorldGenerator {
                     bufferedSet(chunk, x, roofY - length, z, Blocks.CAVE_VINES.defaultBlockState());
                 }
             }
-            if (Math.floorMod(detail, 19) == 0)
-                bufferedSet(chunk, x, floorY + 1, z, Blocks.MOSS_CARPET.defaultBlockState());
-            else if (Math.floorMod(detail, 43) == 0)
+            if (Math.floorMod(detail, 43) == 0)
                 bufferedSet(chunk, x, floorY + 1, z, Blocks.LEAF_LITTER.defaultBlockState());
             else if (Math.floorMod(detail, 71) == 0)
                 bufferedSet(chunk, x, floorY + 1, z, Blocks.WILDFLOWERS.defaultBlockState());

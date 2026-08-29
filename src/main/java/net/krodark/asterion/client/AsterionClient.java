@@ -12,6 +12,7 @@ import net.krodark.asterion.client.ragdoll.DismembermentEngine;
 import net.krodark.asterion.client.ragdoll.RagdollClientController;
 import net.krodark.asterion.client.render.entity.MinotaurGeoRenderer;
 import net.krodark.asterion.client.render.entity.BombadierBeetleGeoRenderer;
+import net.krodark.asterion.client.particle.BombardierStenchParticle;
 import net.krodark.asterion.client.render.block.RuneGeoRenderer;
 import net.krodark.asterion.client.render.portal.AsterionPortalRenderer;
 import net.krodark.asterion.client.render.post.AsterionPostEffects;
@@ -22,8 +23,6 @@ import net.minecraft.client.renderer.entity.EntityRenderers;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderers;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.fabricmc.fabric.api.client.particle.v1.ParticleProviderRegistry;
-import net.minecraft.client.particle.CampfireSmokeParticle;
-import net.minecraft.client.particle.SingleQuadParticle;
 
 public final class AsterionClient implements ClientModInitializer {
     @Override
@@ -38,15 +37,10 @@ public final class AsterionClient implements ClientModInitializer {
         RagdollClientController.initialize();
         EntityRenderers.register(Asterion.MINOTAUR, MinotaurGeoRenderer::new);
         EntityRenderers.register(Asterion.BOMBARDIER_BEETLE, BombadierBeetleGeoRenderer::new);
-        ParticleProviderRegistry.getInstance().register(Asterion.BOMBARDIER_STENCH, sprites -> {
-            CampfireSmokeParticle.CosyProvider vanillaSmoke = new CampfireSmokeParticle.CosyProvider(sprites);
-            return (type, level, x, y, z, velocityX, velocityY, velocityZ, random) -> {
-                var particle = vanillaSmoke.createParticle(type, level, x, y, z,
-                        velocityX, velocityY, velocityZ, random);
-                if (particle instanceof SingleQuadParticle quad) quad.setColor(0.46F, 0.62F, 0.19F);
-                return particle;
-            };
-        });
+        ParticleProviderRegistry.getInstance().register(Asterion.BOMBARDIER_STENCH, sprites ->
+                (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
+                        BombardierStenchParticle.create(level, x, y, z,
+                                velocityX, velocityY, velocityZ, sprites, random));
         BlockEntityRenderers.register(Asterion.RUNE_BLOCK_ENTITY, RuneGeoRenderer::new);
         ClientPlayNetworking.registerGlobalReceiver(DimensionTransitionPayload.TYPE, (payload, context) ->
                 context.client().execute(() ->

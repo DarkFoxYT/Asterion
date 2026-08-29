@@ -245,7 +245,9 @@ public final class DeadSunEventSystem {
             mixed ^= mixed >>> 30;
             mixed *= 0xbf58476d1ce4e5b9L;
             mixed ^= mixed >>> 27;
-            return 20 * (12 + (int)Math.floorMod(mixed, 34L));
+            // The eclipse should become dangerous promptly; the longer delay made a substantial
+            // portion of short encounters look as though the hunter never activated.
+            return 20 * (3 + (int)Math.floorMod(mixed, 5L));
         });
         return elapsedTicks >= reveal;
     }
