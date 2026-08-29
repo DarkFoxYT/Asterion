@@ -5,7 +5,6 @@ import java.util.Iterator;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 
@@ -56,7 +55,7 @@ public final class LedAmneticLight {
     }
 
     public static RenderType bloomRenderLayer(Identifier texture) {
-        return RenderTypes.entityTranslucentEmissive(texture);
+        return AsterionEmissiveBuffer.renderType(texture);
     }
 
     public record LedPointLightSample(Vec3 position, float red, float green, float blue,

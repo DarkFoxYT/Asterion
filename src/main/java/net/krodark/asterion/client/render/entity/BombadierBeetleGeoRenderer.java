@@ -45,7 +45,8 @@ public final class BombadierBeetleGeoRenderer extends GeoEntityRenderer<Bombadie
             var forward = net.minecraft.world.phys.Vec3.directionFromRotation(0.0F, yaw);
             var localRight = new net.minecraft.world.phys.Vec3(-forward.z, 0.0D, forward.x);
             double wallOnRight = surface.getUnitVec3().dot(localRight);
-            targetRoll = wallOnRight >= 0.0D ? Mth.HALF_PI : -Mth.HALF_PI;
+            // Anatomical +X is the beetle's left side: local up must point away from the wall.
+            targetRoll = wallOnRight >= 0.0D ? -Mth.HALF_PI : Mth.HALF_PI;
             var motion = beetle.getDeltaMovement();
             double horizontalMotion = Math.sqrt(motion.x * motion.x + motion.z * motion.z);
             if (motion.lengthSqr() > 0.002D)

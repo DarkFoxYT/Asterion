@@ -24,6 +24,9 @@ public final class BombardierGasFireParticle extends SingleQuadParticle {
         this.hasPhysics = false;
         this.lifetime = 24 + random.nextInt(12);
         this.quadSize = 0.62F + random.nextFloat() * 0.42F;
+        BombardierStenchParticle.igniteNearby(level, x, y, z, 2.25D);
+        AsterionEmissiveParticles.spawnBeetleFire(x, y, z,
+                velocityX, velocityY, velocityZ);
         setSpriteFromAge(sprites);
         updateAppearance();
         updateLight();
@@ -66,20 +69,20 @@ public final class BombardierGasFireParticle extends SingleQuadParticle {
     private void updateLight() {
         float remaining = 1.0F - progress();
         LedAmneticLight.updateItemGlowLight(this, new Vec3(x, y, z),
-                1.0F, 0.23F, 0.035F,
-                0.12F + remaining * 2.35F, 2.2F + remaining * 2.4F, false);
+                1.0F, 0.12F, 0.018F,
+                0.18F + remaining * 6.25F, 3.2F + remaining * 4.3F, false);
     }
 
     private void updateAppearance() {
         float progress = progress();
         if (progress < 0.38F) {
             float blend = progress / 0.38F;
-            setColor(Mth.lerp(blend, 1.0F, 0.92F), Mth.lerp(blend, 0.72F, 0.16F),
-                    Mth.lerp(blend, 0.12F, 0.025F));
+            setColor(Mth.lerp(blend, 1.0F, 0.58F), Mth.lerp(blend, 0.11F, 0.025F),
+                    Mth.lerp(blend, 0.015F, 0.008F));
         } else {
             float blend = (progress - 0.38F) / 0.62F;
-            setColor(Mth.lerp(blend, 0.92F, 0.035F), Mth.lerp(blend, 0.16F, 0.032F),
-                    Mth.lerp(blend, 0.025F, 0.028F));
+            setColor(Mth.lerp(blend, 0.58F, 0.025F), Mth.lerp(blend, 0.025F, 0.024F),
+                    Mth.lerp(blend, 0.008F, 0.022F));
         }
         setAlpha(progress < 0.78F ? 0.88F : 0.88F * (1.0F - progress) / 0.22F);
     }

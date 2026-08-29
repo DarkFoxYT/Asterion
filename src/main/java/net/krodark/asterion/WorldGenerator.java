@@ -412,6 +412,32 @@ public final class WorldGenerator {
         return broken;
     }
 
+    /** Removes isolated knee-high snags that a large predator should step through. Gates,
+     * containers, runes, portals, and anything taller than one block remain protected. */
+    public static int breakLowMazeSnags(ServerLevel level, AABB bounds, Entity breaker) {
+        int broken = 0;
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int x = Mth.floor(bounds.minX); x <= Mth.floor(bounds.maxX); x++)
+            for (int y = Mth.floor(bounds.minY); y <= Mth.floor(bounds.maxY); y++)
+                for (int z = Mth.floor(bounds.minZ); z <= Mth.floor(bounds.maxZ); z++) {
+                    if (broken >= 8) return broken;
+                    cursor.set(x, y, z);
+                    BlockState state = level.getBlockState(cursor);
+                    if (state.isAir() || state.is(Asterion.RUNE_ZONE_DOOR)
+                            || state.is(Blocks.IRON_DOOR) || state.is(Blocks.IRON_BARS)
+                            || state.is(Blocks.LODESTONE) || state.hasBlockEntity()
+                            || isActivePortalProtected(level, cursor)
+                            || state.getDestroySpeed(level, cursor) < 0.0F
+                            || !level.getBlockState(cursor.above()).isAir()) continue;
+                    var shape = state.getCollisionShape(level, cursor);
+                    if (shape.isEmpty() || shape.max(Direction.Axis.Y) > 1.01D) continue;
+                    trackMazeBreak(level, cursor, state);
+                    level.setBlock(cursor, Blocks.AIR.defaultBlockState(), 2);
+                    broken++;
+                }
+        return broken;
+    }
+
     public static int breakMazeWallAround(ServerLevel level, AABB bounds, Entity breaker) {
         return breakTemporaryMasonry(level, bounds, breaker, FLOOR_Y + 1, 96);
     }
@@ -432,6 +458,7 @@ public final class WorldGenerator {
                     cursor.set(x, y, z);
                     BlockState state = level.getBlockState(cursor);
                     boolean mazeMasonry = state.is(Asterion.ANCIENT_BRICKS)
+                            || state.is(Asterion.MAZESTEEL_BLOCK)
                             || state.is(Asterion.ANCIENT_STONE)
                             || state.is(Asterion.ANCIENT_BRICK_WALL)
                             || state.is(Asterion.ANCIENT_STONE_WALL)
@@ -2283,6 +2310,8 @@ public final class WorldGenerator {
         if (biome != MazeBiome.ANCIENT && isBiomeBlendBand(x, z, cell)
                 && Math.floorMod(detail, 4) != 0)
             biome = MazeBiome.ANCIENT;
+        if (Math.floorMod(detail, 29) == 0)
+            return Asterion.MAZESTEEL_BLOCK.defaultBlockState();
         return switch (biome) {
             case OVERGROWN -> Math.floorMod(detail, 9) < 3
                     ? Blocks.MOSSY_STONE_BRICKS.defaultBlockState()
@@ -2326,6 +2355,7 @@ public final class WorldGenerator {
         long patch = mix(seed ^ (long) Math.floorDiv(x, 5) * 0x9E3779B97F4A7C15L
                 ^ (long) Math.floorDiv(z, 5) * 0xD1B54A32D192ED03L);
         long detail = mix(patch ^ (long) x * 341873128712L ^ (long) z * 132897987541L);
+        if (Math.floorMod(detail, 37) == 0) return Asterion.MAZESTEEL_BLOCK;
         if (Math.floorMod(detail, 17) == 0) return Asterion.ANCIENT_BRICKS;
         return Asterion.ANCIENT_STONE;
     }

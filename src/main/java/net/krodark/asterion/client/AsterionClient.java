@@ -7,6 +7,7 @@ import net.krodark.asterion.Asterion;
 import net.krodark.asterion.client.event.DeadSunClientEvents;
 import net.krodark.asterion.client.light.HeldItemDynamicLights;
 import net.krodark.asterion.client.light.LedAmneticLight;
+import net.krodark.asterion.client.light.AsterionEmissiveConfig;
 import net.krodark.asterion.client.lightning.MazeZapRenderer;
 import net.krodark.asterion.client.ragdoll.DismembermentEngine;
 import net.krodark.asterion.client.ragdoll.RagdollClientController;
@@ -14,6 +15,7 @@ import net.krodark.asterion.client.render.entity.MinotaurGeoRenderer;
 import net.krodark.asterion.client.render.entity.BombadierBeetleGeoRenderer;
 import net.krodark.asterion.client.particle.BombardierStenchParticle;
 import net.krodark.asterion.client.particle.BombardierGasFireParticle;
+import net.krodark.asterion.client.particle.AsterionEmissiveParticles;
 import net.krodark.asterion.client.render.block.RuneGeoRenderer;
 import net.krodark.asterion.client.render.portal.AsterionPortalRenderer;
 import net.krodark.asterion.client.render.post.AsterionPostEffects;
@@ -28,6 +30,8 @@ import net.fabricmc.fabric.api.client.particle.v1.ParticleProviderRegistry;
 public final class AsterionClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
+        AsterionEmissiveConfig.load();
+        AsterionEmissiveParticles.initialize();
         AsterionPostEffects.register();
         AsterionPortalRenderer.register();
         DimensionTransitionOverlay.register();

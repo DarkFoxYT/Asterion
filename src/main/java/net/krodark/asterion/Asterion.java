@@ -97,6 +97,7 @@ public class Asterion implements ModInitializer {
     public static final Block ANCIENT_STONE_STAIRS = registerBlock("ancient_stone_stairs", MapColor.TERRACOTTA_BROWN,
             properties -> new StairBlock(ANCIENT_STONE.defaultBlockState(), properties) { });
     public static final Block ANCIENT_STONE_WALL = registerBlock("ancient_stone_wall", MapColor.TERRACOTTA_BROWN, WallBlock::new);
+    public static final Block MAZESTEEL_BLOCK = registerBlock("mazesteel_block", MapColor.METAL, Block::new);
     public static final RuneBlock[] RUNE_BLOCKS = registerRuneBlocks();
     public static final RuneDoorBlock RUNE_ZONE_DOOR = (RuneDoorBlock)registerBlock("rune_zone_door",
             MapColor.COLOR_BLACK, RuneDoorBlock::new);
@@ -170,6 +171,7 @@ public class Asterion implements ModInitializer {
                         output.accept(ANCIENT_STONE_SLAB);
                         output.accept(ANCIENT_STONE_STAIRS);
                         output.accept(ANCIENT_STONE_WALL);
+                        output.accept(MAZESTEEL_BLOCK);
                         for (RuneBlock rune : RUNE_BLOCKS) output.accept(rune);
                         output.accept(RUNE_ZONE_DOOR);
                     })

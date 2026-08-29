@@ -109,6 +109,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private int pursuitDetectionTicks;
     private int escapeDistanceTicks;
     private int stuckTicks;
+    private int lowSnagTicks;
     private int relocateTicks;
     private int shadowRelocateCooldown;
     private int shadowArrivalTicks;
@@ -397,6 +398,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         breakEntanglingCobwebs(level);
         tickHeavyLanding(level);
         avoidWallHugging(level);
+        tickLowObstacleRecovery(level);
         if (sightingCooldown > 0) sightingCooldown--;
         if (paranoiaCooldown > 0) paranoiaCooldown--;
         if (attackCooldown > 0) attackCooldown--;
@@ -404,7 +406,9 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if (corridorChargeCooldown > 0) corridorChargeCooldown--;
         if (rageCalmTicks > 0) rageCalmTicks--;
         else if (rage() > 0 && (tickCount % 160) == 0) {
-            int floor = behaviorPhase() == BehaviorPhase.BOSS && bossStage == BossStage.EXTREME ? 4 : 0;
+            int floor = DeadSunEventSystem.isEclipseActive(level)
+                    && (behaviorPhase() == BehaviorPhase.HUNTING || behaviorPhase() == BehaviorPhase.CHASING)
+                    ? 12 : behaviorPhase() == BehaviorPhase.BOSS && bossStage == BossStage.EXTREME ? 4 : 0;
             if (behaviorPhase() != BehaviorPhase.CHASING && rage() > floor) setRage(rage() - 1);
         }
         if (failedStalkingTicks > 0) failedStalkingTicks--;
@@ -3136,6 +3140,32 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         setDeltaMovement(motion.add(correction));
     }
 
+    private void tickLowObstacleRecovery(ServerLevel level) {
+        BehaviorPhase phase = behaviorPhase();
+        if (phase != BehaviorPhase.ROAMING && phase != BehaviorPhase.HUNTING
+                && phase != BehaviorPhase.CHASING) {
+            lowSnagTicks = 0;
+            return;
+        }
+        lowSnagTicks = horizontalCollision ? lowSnagTicks + 1 : Math.max(0, lowSnagTicks - 2);
+        if (lowSnagTicks < 3) return;
+        Vec3 motion = getDeltaMovement();
+        Vec3 forward = new Vec3(motion.x, 0.0D, motion.z);
+        if (forward.lengthSqr() < 0.01D) forward = Vec3.directionFromRotation(0.0F, yBodyRot);
+        AABB sweep = getBoundingBox().expandTowards(forward.normalize().scale(1.45D))
+                .inflate(0.20D, 0.10D, 0.20D);
+        int broken = WorldGenerator.breakPlayerBlocksAround(level, sweep);
+        broken += WorldGenerator.breakLowMazeSnags(level, sweep, this);
+        if (broken > 0) {
+            lowSnagTicks = 0;
+            getNavigation().stop();
+            awarenessRepathTicks = 0;
+            level.sendParticles(ParticleTypes.DUST_PLUME, sweep.getCenter().x, getY() + 0.5D,
+                    sweep.getCenter().z, Math.min(16, broken * 2), 0.55D, 0.45D, 0.55D, 0.04D);
+            playSound(SoundEvents.RAVAGER_STEP, 1.5F, 0.52F);
+        }
+    }
+
     private float playerLookExposure(ServerPlayer player, double distance) {
         if (distance > 58.0D || !player.hasLineOfSight(this)) return 0.0F;
         Vec3 towardMe = getEyePosition().subtract(player.getEyePosition()).normalize();
@@ -3228,7 +3258,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         double bestHallway = -1.0D;
         for (int attempt = 0; attempt < 28; attempt++) {
             double angle = behind + (random.nextDouble() - 0.5D) * 1.5D;
-            double distance = preferred - 7.0D + random.nextDouble() * 12.0D;
+            double distance = 14.0D + random.nextDouble() * 8.0D;
             Vec3 candidate = WorldGenerator.nearestMazeCorridor(
                     player.getX() + Math.cos(angle) * distance,
                     player.getZ() + Math.sin(angle) * distance);
@@ -3296,13 +3326,16 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         Vec3 original = position();
         Vec3 view = player.getViewVector(1.0F);
         double facing = Math.atan2(view.z, view.x);
+        boolean emergencyLeash = distanceTo(player) > 58.0D;
         Vec3 best = null;
         double bestScore = Double.NEGATIVE_INFINITY;
         for (int attempt = 0; attempt < 24; attempt++) {
             boolean behind = attempt < 15;
             double offset = behind ? Math.PI : (random.nextBoolean() ? Math.PI * 0.5D : -Math.PI * 0.5D);
             double angle = facing + offset + (random.nextDouble() - 0.5D) * (behind ? 1.25D : 0.72D);
-            double distance = 28.0D + random.nextDouble() * 20.0D;
+            double distance = emergencyLeash
+                    ? 18.0D + random.nextDouble() * 10.0D
+                    : 28.0D + random.nextDouble() * 20.0D;
             Vec3 candidate = WorldGenerator.nearestMazeCorridor(
                     player.getX() + Math.cos(angle) * distance,
                     player.getZ() + Math.sin(angle) * distance);

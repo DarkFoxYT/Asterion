@@ -47,7 +47,7 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
             @Override
             protected net.minecraft.resources.Identifier getTextureResource(EntityRenderState state) {
                 float rage = state.getOrDefaultGeckolibData(RAGE_WEIGHT, 0.0F);
-                return Asterion.id(rage > 0.001F
+                return Asterion.id(rage > 0.18F
                         ? "textures/entity/minotaur_eyes_rage.png"
                         : "textures/entity/minotaur_eyes.png");
             }
@@ -157,8 +157,14 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         state.addGeckolibData(GRAB_ARM, grab.arm);
         float rage = minotaur.rage() / 12.0F;
         if (rage > 0.001F) {
-            int alpha = Mth.floor(Mth.lerp(rage, 42.0F, 255.0F));
-            state.addGeckolibData(EYE_TINT, alpha << 24 | 0xFFFFFF);
+            // Calm cyan hardens through furnace-orange into a saturated, fully enraged red.
+            float pulse = 0.88F + 0.12F * Mth.sin((minotaur.tickCount + partialTick)
+                    * (0.18F + rage * 0.38F));
+            int red = 255;
+            int green = Mth.floor(Mth.lerp(rage, 190.0F, 18.0F) * pulse);
+            int blue = Mth.floor(Mth.lerp(rage, 92.0F, 6.0F) * pulse);
+            int alpha = Mth.floor(Mth.lerp(rage, 185.0F, 255.0F));
+            state.addGeckolibData(EYE_TINT, alpha << 24 | red << 16 | green << 8 | blue);
         } else if (minotaur.isExtremeBoss()) {
             float damage = minotaur.bossDamageFraction();
             int red = Mth.floor(Mth.lerp(damage, 205.0F, 255.0F));
