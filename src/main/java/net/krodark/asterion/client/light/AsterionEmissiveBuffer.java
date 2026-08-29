@@ -44,17 +44,6 @@ public final class AsterionEmissiveBuffer {
         });
     }
 
-    private static boolean markPopulated() {
-        int previous = GBufferTargets.INSTANCE.bind();
-        if (previous < 0) return false;
-        try {
-            GBufferTargets.INSTANCE.setPopulated(true);
-            return true;
-        } finally {
-            GBufferTargets.INSTANCE.restore(previous);
-        }
-    }
-
     private static final class EmissiveTarget extends RenderTarget {
         private int wrappedId;
         private int wrappedWidth;
@@ -73,8 +62,10 @@ public final class AsterionEmissiveBuffer {
             int id = 0;
             try {
                 int previous = GBufferTargets.INSTANCE.bind();
-                if (previous >= 0) GBufferTargets.INSTANCE.restore(previous);
-                id = GBufferTargets.INSTANCE.emissiveGlId();
+                if (previous >= 0) {
+                    GBufferTargets.INSTANCE.restore(previous);
+                    id = GBufferTargets.INSTANCE.emissiveGlId();
+                }
             } catch (Throwable unsupportedTarget) {
                 // A full-bright main-target pass is the portable fallback.
             }
@@ -87,7 +78,9 @@ public final class AsterionEmissiveBuffer {
             }
             if (id != 0) {
                 try {
-                    if (!markPopulated()) useMainTarget(main);
+                    // The target is now known-good and will receive this bone's draw call.
+                    // Mark it without rebinding the framebuffer a second time.
+                    GBufferTargets.INSTANCE.setPopulated(true);
                 } catch (Throwable unsupportedTarget) {
                     useMainTarget(main);
                 }

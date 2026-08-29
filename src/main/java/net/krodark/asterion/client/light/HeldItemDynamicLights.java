@@ -5,6 +5,7 @@ import net.krodark.asterion.AsterionConfig;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -19,6 +20,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
@@ -30,11 +32,13 @@ public final class HeldItemDynamicLights {
     private static final Map<UUID, Vec3> DROPPED_POSITIONS = new HashMap<>();
     private static final Map<UUID, HeldLightKey[]> HELD_KEYS = new HashMap<>();
     private static final Map<UUID, DroppedLightKey> DROPPED_KEYS = new HashMap<>();
+    private static final Map<Item, LightStyle> BLOCK_LIGHT_STYLES = new IdentityHashMap<>();
     private static final List<ItemEntity> NEARBY_ITEMS = new ArrayList<>();
     private static final LightStyle SOUL_LIGHT = new LightStyle(0.14F, 0.58F, 1.0F, 2.55F, 8.25F, true);
     private static final LightStyle WARM_LIGHT = new LightStyle(1.0F, 0.42F, 0.105F, 3.15F, 9.25F, true);
     private static final LightStyle REDSTONE_LIGHT = new LightStyle(1.0F, 0.055F, 0.025F, 1.45F, 5.0F, false);
     private static final LightStyle SEA_LIGHT = new LightStyle(0.36F, 0.82F, 1.0F, 2.55F, 8.0F, false);
+    private static final LightStyle NO_LIGHT = new LightStyle(0.0F, 0.0F, 0.0F, 0.0F, 0.0F, false);
     private static long lastRenderNs;
     private static long nextRenderUpdateNs;
 
@@ -42,14 +46,15 @@ public final class HeldItemDynamicLights {
     }
 
     public static void tick(Minecraft client) {
-        if (client.level == null || client.player == null) {
+        AsterionConfig config = AsterionConfig.INSTANCE;
+        if (!config.dynamicLightsEnabled || client.level == null || client.player == null) {
             clear();
             return;
         }
-        int quality = AsterionConfig.INSTANCE.dynamicLightQuality;
+        int quality = config.dynamicLightQuality;
         int scanInterval = quality == 0 ? 6 : quality == 1 ? 3 : 1;
         if (client.level.getGameTime() % scanInterval != 0L) return;
-        double range = quality == 0 ? 24.0D : quality == 1 ? 40.0D : 56.0D;
+        double range = lightRange(config, quality);
         double rangeSquared = range * range;
 
         Set<Object> currentLights = CURRENT_LIGHTS;
@@ -63,13 +68,15 @@ public final class HeldItemDynamicLights {
             trackHand(player, InteractionHand.OFF_HAND, currentLights);
         }
         NEARBY_ITEMS.clear();
-        NEARBY_ITEMS.addAll(client.level.getEntitiesOfClass(ItemEntity.class,
-                client.player.getBoundingBox().inflate(range), ItemEntity::isAlive));
-        for (ItemEntity item : NEARBY_ITEMS) {
-            if (styleFor(item.getItem()) != null) {
-                UUID id = item.getUUID();
-                CURRENT_DROPPED_IDS.add(id);
-                currentLights.add(droppedKey(id));
+        if (config.droppedItemLights) {
+            NEARBY_ITEMS.addAll(client.level.getEntitiesOfClass(ItemEntity.class,
+                    client.player.getBoundingBox().inflate(range), ItemEntity::isAlive));
+            for (ItemEntity item : NEARBY_ITEMS) {
+                if (styleFor(item.getItem()) != null) {
+                    UUID id = item.getUUID();
+                    CURRENT_DROPPED_IDS.add(id);
+                    currentLights.add(droppedKey(id));
+                }
             }
         }
 
@@ -105,15 +112,15 @@ public final class HeldItemDynamicLights {
     }
 
     public static void renderFrame(Minecraft client, float partialTick) {
-        if (client.level == null || client.player == null) return;
+        AsterionConfig config = AsterionConfig.INSTANCE;
+        if (!config.dynamicLightsEnabled || client.level == null || client.player == null) return;
         long now = System.nanoTime();
-        int quality = AsterionConfig.INSTANCE.dynamicLightQuality;
+        int quality = config.dynamicLightQuality;
         long interval = quality == 0 ? 50_000_000L : quality == 1 ? 25_000_000L : 12_000_000L;
         if (now < nextRenderUpdateNs) return;
         nextRenderUpdateNs = now + interval;
         float partial = Mth.clamp(partialTick, 0.0F, 1.0F);
-        double range = AsterionConfig.INSTANCE.dynamicLightQuality == 0 ? 24.0D
-                : AsterionConfig.INSTANCE.dynamicLightQuality == 1 ? 40.0D : 56.0D;
+        double range = lightRange(config, quality);
         double rangeSquared = range * range;
         float frameSeconds = lastRenderNs == 0L ? 1.0F / 60.0F
                 : Mth.clamp((now - lastRenderNs) / 1_000_000_000.0F, 0.0F, 0.1F);
@@ -220,14 +227,21 @@ public final class HeldItemDynamicLights {
             return SEA_LIGHT;
         }
         if (stack.getItem() instanceof BlockItem blockItem) {
-            int emission = blockItem.getBlock().defaultBlockState().getLightEmission();
-            if (emission > 0) {
+            LightStyle cached = BLOCK_LIGHT_STYLES.computeIfAbsent(stack.getItem(), ignored -> {
+                int emission = blockItem.getBlock().defaultBlockState().getLightEmission();
+                if (emission <= 0) return NO_LIGHT;
                 float power = emission / 15.0F;
                 return new LightStyle(1.0F, 0.72F, 0.42F,
                         0.85F + power * 1.45F, 3.0F + power * 4.25F, false);
-            }
+            });
+            return cached == NO_LIGHT ? null : cached;
         }
         return null;
+    }
+
+    private static double lightRange(AsterionConfig config, int quality) {
+        double base = quality == 0 ? 24.0D : quality == 1 ? 40.0D : 56.0D;
+        return base * config.dynamicLightRangePercent / 100.0D;
     }
 
     public static void clear() {

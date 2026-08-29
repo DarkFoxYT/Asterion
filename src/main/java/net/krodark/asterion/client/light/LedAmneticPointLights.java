@@ -8,7 +8,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
+import net.minecraft.world.phys.Vec3;
 
 final class LedAmneticPointLights {
     private static final Map<Object, Light> LIGHTS = new LinkedHashMap<>(128, 0.75F, true);
@@ -18,7 +18,12 @@ final class LedAmneticPointLights {
     }
 
     static void update(Object key, LedAmneticLight.LedPointLightSample sample) {
-        int quality = AsterionConfig.INSTANCE.dynamicLightQuality;
+        AsterionConfig config = AsterionConfig.INSTANCE;
+        if (!config.dynamicLightsEnabled) {
+            remove(key);
+            return;
+        }
+        int quality = config.dynamicLightQuality;
         boolean shadows = quality >= 2 && sample.castsShadow();
         float godray = quality >= 2 && sample.radius() >= 6.5F ? 0.24F : 0.0F;
         Light light = LIGHTS.computeIfAbsent(key, ignored -> createLight(sample));
@@ -46,18 +51,6 @@ final class LedAmneticPointLights {
         trimToBudget(key);
     }
 
-    static void retainOnly(Set<?> activeKeys) {
-        Iterator<Map.Entry<Object, Light>> iterator = LIGHTS.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<Object, Light> entry = iterator.next();
-            if (!activeKeys.contains(entry.getKey())) {
-                entry.getValue().remove();
-                BUFFERED.remove(entry.getKey());
-                iterator.remove();
-            }
-        }
-    }
-
     static void remove(Object key) {
         Light light = LIGHTS.remove(key);
         BUFFERED.remove(key);
@@ -70,6 +63,24 @@ final class LedAmneticPointLights {
         LIGHTS.values().forEach(Light::remove);
         LIGHTS.clear();
         BUFFERED.clear();
+    }
+
+    static Vec3 nearestAttractor(Vec3 origin, double maxDistance) {
+        double maxDistanceSquared = maxDistance * maxDistance;
+        double bestScore = Double.POSITIVE_INFINITY;
+        Vec3 best = null;
+        for (LedAmneticLight.LedPointLightSample sample : BUFFERED.values()) {
+            if (sample.strength() <= 0.05F || sample.radius() <= 0.25F) continue;
+            double distanceSquared = origin.distanceToSqr(sample.position());
+            double reach = Math.min(maxDistance, Math.max(2.5D, sample.radius() * 1.65D));
+            if (distanceSquared > maxDistanceSquared || distanceSquared > reach * reach) continue;
+            double score = distanceSquared / Math.max(0.15D, sample.strength());
+            if (score < bestScore) {
+                bestScore = score;
+                best = sample.position();
+            }
+        }
+        return best;
     }
 
     private static Light createLight(LedAmneticLight.LedPointLightSample sample) {
@@ -95,8 +106,10 @@ final class LedAmneticPointLights {
     }
 
     private static void trimToBudget(Object protectedKey) {
-        int quality = AsterionConfig.INSTANCE.dynamicLightQuality;
-        int budget = quality == 0 ? 24 : quality == 1 ? 56 : 96;
+        AsterionConfig config = AsterionConfig.INSTANCE;
+        int quality = config.dynamicLightQuality;
+        int qualityBudget = quality == 0 ? 24 : quality == 1 ? 56 : 96;
+        int budget = Math.min(qualityBudget, config.maxDynamicLights);
         while (LIGHTS.size() > budget) {
             Iterator<Map.Entry<Object, Light>> iterator = LIGHTS.entrySet().iterator();
             while (iterator.hasNext()) {

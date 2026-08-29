@@ -11,7 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public final class AsterionConfig {
-    private static final int CURRENT_VERSION = 20;
+    private static final int CURRENT_VERSION = 21;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("asterion.json");
     public static AsterionConfig INSTANCE = load();
@@ -49,7 +49,13 @@ public final class AsterionConfig {
     public int minotaurBossPillarCount = 6;
     public boolean cinematicsEnabled = true;
     public int cinematicQuality = 2;
+    public int ambientParticleQuality = 2;
+    public int ragdollPhysicsQuality = 2;
+    public boolean dynamicLightsEnabled = true;
     public int dynamicLightQuality = 2;
+    public boolean droppedItemLights = true;
+    public int dynamicLightRangePercent = 100;
+    public int maxDynamicLights = 96;
     public boolean ragdollEquipment = true;
     public boolean ragdollMashRecovery = true;
     public boolean enhancedLightning = true;
@@ -213,11 +219,20 @@ public final class AsterionConfig {
                     applyCanonicalSkyProfile(config);
                     changed = true;
                 }
+                if (!json.has("configVersion") || config.configVersion < 21) {
+                    config.ambientParticleQuality = 2;
+                    config.ragdollPhysicsQuality = 2;
+                    config.dynamicLightsEnabled = true;
+                    config.droppedItemLights = true;
+                    config.dynamicLightRangePercent = 100;
+                    config.maxDynamicLights = 96;
+                    changed = true;
+                }
                 if (changed) {
                     config.configVersion = CURRENT_VERSION;
                     config.save();
                 }
-                applyCanonicalSkyProfile(config);
+                config.sanitize();
                 return config;
             }
         } catch (Exception ignored) {
@@ -290,7 +305,11 @@ public final class AsterionConfig {
         minotaurVerticalFov = Math.max(25.0f, Math.min(120.0f, minotaurVerticalFov));
         minotaurBossPillarCount = Math.max(4, Math.min(16, minotaurBossPillarCount));
         cinematicQuality = Math.max(0, Math.min(2, cinematicQuality));
+        ambientParticleQuality = Math.max(0, Math.min(2, ambientParticleQuality));
+        ragdollPhysicsQuality = Math.max(0, Math.min(2, ragdollPhysicsQuality));
         dynamicLightQuality = Math.max(0, Math.min(2, dynamicLightQuality));
+        dynamicLightRangePercent = Math.max(25, Math.min(100, dynamicLightRangePercent));
+        maxDynamicLights = Math.max(8, Math.min(256, maxDynamicLights));
         deadSunStrength = Math.max(0.0f, Math.min(2.0f, deadSunStrength));
         dustyAirStrength = Math.max(0.0f, Math.min(2.0f, dustyAirStrength));
         deadSunHeight = Math.max(100.0f, Math.min(240.0f, deadSunHeight));

@@ -4,7 +4,6 @@ import com.geckolib.renderer.GeoBlockRenderer;
 import com.geckolib.renderer.base.RenderPassInfo;
 import com.geckolib.renderer.layer.builtin.CustomBoneTextureGeoLayer;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.renderer.SubmitNodeCollector;
 import com.mojang.math.Axis;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.block.LabyrinthVineBlockEntity;
@@ -18,15 +17,13 @@ import net.minecraft.world.phys.Vec3;
 public final class LabyrinthVineGeoRenderer
         extends GeoBlockRenderer<LabyrinthVineBlockEntity, BlockEntityRenderState> {
     private static final Identifier TEXTURE = Asterion.id("textures/block/labyrinth_vine.png");
+    private static final String EMISSIVE_BONE = "glow";
 
     public LabyrinthVineGeoRenderer(BlockEntityRendererProvider.Context context) {
         super(context, new LabyrinthVineGeoModel());
-        withRenderLayer(new CustomBoneTextureGeoLayer<>(this, "glow", TEXTURE) {
-            // Keep the complete glow cube in the normal model pass, then draw bloom over it.
-            // GeckoLib's default implementation replaces the base bone, which can make the
-            // cube disappear entirely if an emissive render target is unavailable.
-            @Override public void preRender(RenderPassInfo<BlockEntityRenderState> pass,
-                                            SubmitNodeCollector renderTasks) { }
+        // Only the authored `glow` bone is redirected into Amnetic. The parent `head`
+        // remains in GeckoLib's ordinary model pass and never touches the emissive target.
+        withRenderLayer(new CustomBoneTextureGeoLayer<>(this, EMISSIVE_BONE, TEXTURE) {
             @Override public boolean shouldRenderBone(BlockEntityRenderState state) {
                 return state.getOrDefaultGeckolibData(LabyrinthVineGeoModel.END, true);
             }

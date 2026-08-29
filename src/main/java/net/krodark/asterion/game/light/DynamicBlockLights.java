@@ -21,6 +21,8 @@ import net.minecraft.world.level.block.LightBlock;
 
 public final class DynamicBlockLights {
     private static final Map<ResourceKey<Level>, Set<BlockPos>> PLACED = new HashMap<>();
+    private static final Map<ResourceKey<Level>, Map<BlockPos, Integer>> WANTED = new HashMap<>();
+    private static final Map<ResourceKey<Level>, Set<Integer>> SEEN_ITEMS = new HashMap<>();
     private static int updateTicker;
 
     private DynamicBlockLights() {
@@ -32,24 +34,33 @@ public final class DynamicBlockLights {
     }
 
     private static void tick(MinecraftServer server) {
-        int quality = AsterionConfig.INSTANCE.dynamicLightQuality;
+        AsterionConfig config = AsterionConfig.INSTANCE;
+        if (!config.dynamicLightsEnabled) {
+            if (!PLACED.isEmpty()) clear(server);
+            return;
+        }
+        int quality = config.dynamicLightQuality;
         int interval = quality == 0 ? 6 : quality == 1 ? 4 : 2;
         if (++updateTicker % interval != 0) return;
-        double itemRange = quality == 0 ? 28.0D : quality == 1 ? 46.0D : 64.0D;
+        double baseRange = quality == 0 ? 28.0D : quality == 1 ? 46.0D : 64.0D;
+        double itemRange = baseRange * config.dynamicLightRangePercent / 100.0D;
         for (ServerLevel level : server.getAllLevels()) {
-            Map<BlockPos, Integer> wanted = new HashMap<>();
-            Set<Integer> seenItems = new HashSet<>();
+            Map<BlockPos, Integer> wanted = WANTED.computeIfAbsent(level.dimension(), ignored -> new HashMap<>());
+            Set<Integer> seenItems = SEEN_ITEMS.computeIfAbsent(level.dimension(), ignored -> new HashSet<>());
+            wanted.clear();
+            seenItems.clear();
             level.players().forEach(player -> {
                 add(level, wanted, player.getMainHandItem(), BlockPos.containing(
                         player.getX(), player.getY() + 1.2D, player.getZ()));
                 add(level, wanted, player.getOffhandItem(), BlockPos.containing(
                         player.getX(), player.getY() + 1.2D, player.getZ()));
-                level.getEntitiesOfClass(ItemEntity.class,
-                                player.getBoundingBox().inflate(itemRange), ItemEntity::isAlive)
-                        .forEach(item -> {
-                            if (seenItems.add(item.getId())) add(level, wanted, item.getItem(), BlockPos.containing(
-                                    item.getX(), item.getY() + 0.55D, item.getZ()));
-                        });
+                if (config.droppedItemLights)
+                    level.getEntitiesOfClass(ItemEntity.class,
+                                    player.getBoundingBox().inflate(itemRange), ItemEntity::isAlive)
+                            .forEach(item -> {
+                                if (seenItems.add(item.getId())) add(level, wanted, item.getItem(), BlockPos.containing(
+                                        item.getX(), item.getY() + 0.55D, item.getZ()));
+                            });
             });
             update(level, wanted);
         }
@@ -65,15 +76,25 @@ public final class DynamicBlockLights {
 
     private static BlockPos findLightPosition(ServerLevel level, BlockPos preferred) {
         Set<BlockPos> owned = PLACED.getOrDefault(level.dimension(), Set.of());
-        BlockPos[] candidates = {preferred, preferred.above(), preferred.below(), preferred.north(),
-                preferred.south(), preferred.east(), preferred.west()};
-        for (BlockPos candidate : candidates) {
-            if (!level.isLoaded(candidate)) continue;
-            var state = level.getBlockState(candidate);
-            if (state.isAir() || (owned.contains(candidate) && state.is(Blocks.LIGHT)))
-                return candidate.immutable();
-        }
-        return null;
+        BlockPos found = usableLightPosition(level, owned, preferred);
+        if (found != null) return found;
+        found = usableLightPosition(level, owned, preferred.above());
+        if (found != null) return found;
+        found = usableLightPosition(level, owned, preferred.below());
+        if (found != null) return found;
+        found = usableLightPosition(level, owned, preferred.north());
+        if (found != null) return found;
+        found = usableLightPosition(level, owned, preferred.south());
+        if (found != null) return found;
+        found = usableLightPosition(level, owned, preferred.east());
+        return found != null ? found : usableLightPosition(level, owned, preferred.west());
+    }
+
+    private static BlockPos usableLightPosition(ServerLevel level, Set<BlockPos> owned, BlockPos candidate) {
+        if (!level.isLoaded(candidate)) return null;
+        var state = level.getBlockState(candidate);
+        return state.isAir() || (owned.contains(candidate) && state.is(Blocks.LIGHT))
+                ? candidate.immutable() : null;
     }
 
     private static void update(ServerLevel level, Map<BlockPos, Integer> wanted) {
@@ -124,6 +145,8 @@ public final class DynamicBlockLights {
             }
         }
         PLACED.clear();
+        WANTED.clear();
+        SEEN_ITEMS.clear();
         updateTicker = 0;
     }
 }

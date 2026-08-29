@@ -101,6 +101,9 @@ public final class DismembermentEngine {
     private final Map<Long, RigidBodyPiece> tickSolverIndex = new HashMap<>();
     private final List<RigidBodyPiece> selfCollisionCandidates = new ArrayList<>();
     private final Map<RigidBodyPiece, AABB> selfCollisionBounds = new IdentityHashMap<>();
+    private final Set<Integer> tickIgnitedEntities = new HashSet<>();
+    private final Set<Integer> tickSubmergedEntities = new HashSet<>();
+    private final Set<Integer> tickCrematedEntities = new HashSet<>();
 
     private DismembermentEngine() { }
 
@@ -1704,7 +1707,11 @@ public final class DismembermentEngine {
                 break;
             }
         }
-        final int configuredSubsteps = 4;
+        final int configuredSubsteps = switch (net.krodark.asterion.AsterionConfig.INSTANCE.ragdollPhysicsQuality) {
+            case 0 -> 2;
+            case 1 -> 3;
+            default -> 4;
+        };
         final int globalSubsteps = hasPlayerRagdoll ? configuredSubsteps : Math.max(1, configuredSubsteps - 1);
         final double angularDamping = Math.sqrt(0.996);
         for (RigidBodyPiece part : active)
@@ -1940,8 +1947,12 @@ public final class DismembermentEngine {
     }
 
     private void updateEnvironmentalEffects(ClientLevel level) {
-        Set<Integer> ignited = new HashSet<>();
-        Set<Integer> submerged = new HashSet<>();
+        Set<Integer> ignited = tickIgnitedEntities;
+        Set<Integer> submerged = tickSubmergedEntities;
+        Set<Integer> cremated = tickCrematedEntities;
+        ignited.clear();
+        submerged.clear();
+        cremated.clear();
         for (RigidBodyPiece part : pieces) {
             BlockPos position = BlockPos.containing(part.position);
             if (level.getFluidState(position).is(FluidTags.WATER)) submerged.add(part.entityId);
@@ -1950,7 +1961,6 @@ public final class DismembermentEngine {
                     || level.getFluidState(position).is(FluidTags.LAVA)
                     || level.getBlockState(position).is(BlockTags.FIRE)) ignited.add(part.entityId);
         }
-        Set<Integer> cremated = new HashSet<>();
         for (RigidBodyPiece part : pieces) {
             if (submerged.contains(part.entityId)) {
                 part.burningTicks = 0;
@@ -1997,7 +2007,7 @@ public final class DismembermentEngine {
         for (int entityId : cremated) {
             Vec3 center = Vec3.ZERO;
             int bodyParts = 0;
-            for (RigidBodyPiece part : List.copyOf(pieces)) if (part.entityId == entityId) {
+            for (RigidBodyPiece part : pieces) if (part.entityId == entityId) {
                 center = center.add(part.position);
                 bodyParts++;
                 RagdollRuntime.INSTANCE.emitAshCloud(part.position, part.velocity, 28);

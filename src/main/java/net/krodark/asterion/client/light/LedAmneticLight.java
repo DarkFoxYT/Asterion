@@ -45,7 +45,6 @@ public final class LedAmneticLight {
                 iterator.remove();
             }
         }
-        LedAmneticPointLights.retainOnly(UPDATED.keySet());
     }
 
     public static void removeItemGlowLight(Object key) {
@@ -56,6 +55,11 @@ public final class LedAmneticLight {
 
     public static RenderType bloomRenderLayer(Identifier texture) {
         return AsterionEmissiveBuffer.renderType(texture);
+    }
+
+    /** Returns the strongest useful nearby live light for light-seeking ambient creatures. */
+    public static Vec3 nearestAttractor(Vec3 origin, double maxDistance) {
+        return origin == null ? null : LedAmneticPointLights.nearestAttractor(origin, maxDistance);
     }
 
     public record LedPointLightSample(Vec3 position, float red, float green, float blue,

@@ -39,9 +39,9 @@ public final class LabyrinthVineBlock extends BaseEntityBlock {
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
         Direction direction = context.getClickedFace();
-        boolean end = !context.getLevel().getBlockState(context.getClickedPos().relative(direction))
-                .is(Asterion.LABYRINTH_VINE);
-        return defaultBlockState().setValue(FACING, direction).setValue(END, end);
+        // A freshly extended segment is always the new exposed tip. Neighbor updates will
+        // convert the previous tip to a middle segment after this block enters the world.
+        return defaultBlockState().setValue(FACING, direction).setValue(END, true);
     }
 
     @Override
@@ -51,7 +51,10 @@ public final class LabyrinthVineBlock extends BaseEntityBlock {
         if (direction == state.getValue(FACING))
             return state.setValue(END, !neighborState.is(Asterion.LABYRINTH_VINE));
         // Let an exposed tip turn a corner when the player continues it from another face.
-        if (state.getValue(END) && neighborState.is(Asterion.LABYRINTH_VINE))
+        // Ignore the segment behind this tip. Without this check the newly placed endpoint
+        // mistakes its support for a forward continuation, causing alternating missing bulbs.
+        if (state.getValue(END) && direction != state.getValue(FACING).getOpposite()
+                && neighborState.is(Asterion.LABYRINTH_VINE))
             return state.setValue(FACING, direction).setValue(END, false);
         return state;
     }

@@ -7,6 +7,7 @@ import com.meekdev.amnetic.client.instanced.MeshData;
 import com.meekdev.amnetic.client.instanced.RenderState;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.krodark.asterion.Asterion;
+import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.network.GatewayPortalPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -55,8 +56,13 @@ public final class AsterionPortalRenderer {
                 || !client.level.dimension().equals(Level.OVERWORLD)) return;
         double playerDx = client.player.getX() - (gateway.getX() + 0.5D);
         double playerDz = client.player.getZ() - (gateway.getZ() + 0.5D);
+        int particleInterval = switch (AsterionConfig.INSTANCE.ambientParticleQuality) {
+            case 0 -> 9;
+            case 1 -> 6;
+            default -> 3;
+        };
         if (playerDx * playerDx + playerDz * playerDz > 36.0D * 36.0D
-                || (client.level.getGameTime() % 3L) != 0L) return;
+                || (client.level.getGameTime() % particleInterval) != 0L) return;
         double perimeter = (client.level.getGameTime() * 0.075D
                 + (visualSeed & 255L) * 0.013D) % 8.0D;
         int side = Mth.floor(perimeter / 2.0D);

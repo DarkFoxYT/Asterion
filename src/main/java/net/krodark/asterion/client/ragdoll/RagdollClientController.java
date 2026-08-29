@@ -1,6 +1,7 @@
 package net.krodark.asterion.client.ragdoll;
 
 import net.krodark.asterion.Asterion;
+import net.krodark.asterion.AsterionConfig;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.CameraType;
@@ -91,9 +92,12 @@ public final class RagdollClientController {
                 axis(window, GLFW.GLFW_KEY_A, GLFW.GLFW_KEY_D),
                 axis(window, GLFW.GLFW_KEY_S, GLFW.GLFW_KEY_W));
 
-        if (++scanTicker % 5 == 0) {
+        int ragdollQuality = AsterionConfig.INSTANCE.ragdollPhysicsQuality;
+        int scanInterval = ragdollQuality == 0 ? 10 : ragdollQuality == 1 ? 7 : 5;
+        double scanRange = ragdollQuality == 0 ? 40.0D : ragdollQuality == 1 ? 52.0D : 64.0D;
+        if (++scanTicker % scanInterval == 0) {
             for (LivingEntity entity : client.level.getEntitiesOfClass(LivingEntity.class,
-                    client.player.getBoundingBox().inflate(64.0),
+                    client.player.getBoundingBox().inflate(scanRange),
                     entity -> !entity.isAlive() && !(entity instanceof MinotaurEntity)
                             && !(entity instanceof BombadierBeetleEntity))) {
                 if (!engine.isRagdolled(entity.getId())) {
