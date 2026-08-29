@@ -10,6 +10,7 @@ import net.krodark.asterion.client.light.LedAmneticLight;
 import net.krodark.asterion.client.light.AsterionEmissiveConfig;
 import net.krodark.asterion.client.lightning.MazeZapRenderer;
 import net.krodark.asterion.client.ragdoll.DismembermentEngine;
+import net.krodark.asterion.client.ragdoll.PhysicsDebrisSystem;
 import net.krodark.asterion.client.ragdoll.RagdollClientController;
 import net.krodark.asterion.client.render.entity.MinotaurGeoRenderer;
 import net.krodark.asterion.client.render.entity.BombadierBeetleGeoRenderer;
@@ -117,6 +118,7 @@ public final class AsterionClient implements ClientModInitializer {
         BossFinaleOverlay.tick(client);
         MazeObjectiveOverlay.tick(client);
         DeadSunClientEvents.tick(client);
+        PhysicsDebrisSystem.tick(client);
         DazeOverlay.tick(client);
         HeldItemDynamicLights.tick(client);
         LedAmneticLight.tickCleanup(client);

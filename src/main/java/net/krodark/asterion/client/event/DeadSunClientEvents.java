@@ -2,6 +2,7 @@ package net.krodark.asterion.client.event;
 
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.event.DeadSunEventSystem;
+import net.krodark.asterion.client.ragdoll.PhysicsDebrisSystem;
 import net.krodark.asterion.network.DeadSunEventPayload;
 import net.krodark.asterion.network.MazeShiftPayload;
 import net.krodark.asterion.network.DeadSunStrikePayload;
@@ -67,6 +68,8 @@ public final class DeadSunClientEvents {
         LOCAL_RUMBLES.add(new LocalRumble(Vec3.atCenterOf(payload.center()), client.level.getGameTime(),
                 Math.max(1, payload.durationTicks()), payload.radius(), payload.intensity(),
                 payload.center().asLong()));
+        PhysicsDebrisSystem.spawnRumble(Vec3.atCenterOf(payload.center()), payload.radius(),
+                payload.intensity(), payload.center().asLong());
     }
 
     public static void receiveStrike(DeadSunStrikePayload payload) {
@@ -109,6 +112,9 @@ public final class DeadSunClientEvents {
                 pending.eventId(), pending.elapsedTicks(), pending.durationTicks());
         active = factory.create(pending.seed(), client.level.getGameTime() - pending.elapsedTicks(),
                 pending.durationTicks(), pending.intensity());
+        if (newEvent && activeId.equals(DeadSunEventSystem.RUMBLE) && client.player != null)
+            PhysicsDebrisSystem.spawnRumble(client.player.position().add(0, 4, 0), 14.0F,
+                    pending.intensity(), pending.seed());
         pending = null;
     }
 
@@ -132,6 +138,9 @@ public final class DeadSunClientEvents {
         if (isEclipseActive()) eclipseIntroTicks++;
         if (wardDarknessTicks > 0) wardDarknessTicks--;
         tickStrikeWarnings(client);
+        if (activeId != null && activeId.equals(DeadSunEventSystem.RUMBLE)
+                && active instanceof RumbleEffect rumble)
+            PhysicsDebrisSystem.spawnAmbientRumble(client, rumble.intensity, activeSeed);
         LOCAL_RUMBLES.removeIf(rumble -> client.level.getGameTime() > rumble.startTick + rumble.duration);
         if (active != null && client.level.getGameTime() > active.endTick()) {
             Sample ending = active.sample(active.endTick());

@@ -2,6 +2,7 @@ package net.krodark.asterion.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.krodark.asterion.client.ragdoll.RagdollRenderer;
+import net.krodark.asterion.client.ragdoll.PhysicsDebrisSystem;
 import net.krodark.asterion.client.light.HeldItemDynamicLights;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
@@ -17,6 +18,7 @@ abstract class RagdollLevelRendererMixin {
     @Inject(method = "submitEntities", at = @At("TAIL"))
     private void asterion$submitRagdolls(PoseStack poses, LevelRenderState state, SubmitNodeCollector output, CallbackInfo ci) {
         RagdollRenderer.submit(poses, state, output);
+        PhysicsDebrisSystem.submit(poses, state, output);
         Minecraft client = Minecraft.getInstance();
         if (client.gameRenderer != null)
             HeldItemDynamicLights.renderFrame(client,
