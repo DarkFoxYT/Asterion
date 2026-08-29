@@ -5,23 +5,27 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.SingleQuadParticle;
 import net.minecraft.client.particle.SpriteSet;
+import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.phys.Vec3;
 
-/** A short-lived ignition-front flame backed by an Amnetic point light. */
 public final class BombardierGasFireParticle extends SingleQuadParticle {
+    private final SpriteSet sprites;
     private BombardierGasFireParticle(ClientLevel level, double x, double y, double z,
                                       double velocityX, double velocityY, double velocityZ,
                                       SpriteSet sprites, RandomSource random) {
         super(level, x, y, z, velocityX, velocityY, velocityZ, sprites.first());
+        this.sprites = sprites;
         this.xd = velocityX;
         this.yd = velocityY + 0.018D + random.nextDouble() * 0.018D;
         this.zd = velocityZ;
         this.friction = 0.94F;
         this.gravity = -0.0015F;
         this.hasPhysics = false;
-        this.lifetime = 14 + random.nextInt(9);
-        this.quadSize = 0.48F + random.nextFloat() * 0.34F;
-        setColor(1.0F, 0.42F, 0.08F);
+        this.lifetime = 24 + random.nextInt(12);
+        this.quadSize = 0.62F + random.nextFloat() * 0.42F;
+        setSpriteFromAge(sprites);
+        updateAppearance();
         updateLight();
     }
 
@@ -35,7 +39,12 @@ public final class BombardierGasFireParticle extends SingleQuadParticle {
     @Override
     public void tick() {
         super.tick();
-        if (isAlive()) updateLight();
+        if (isAlive()) {
+            quadSize += 0.006F;
+            setSpriteFromAge(sprites);
+            updateAppearance();
+            updateLight();
+        }
     }
 
     @Override
@@ -51,12 +60,31 @@ public final class BombardierGasFireParticle extends SingleQuadParticle {
 
     @Override
     protected Layer getLayer() {
-        return Layer.OPAQUE;
+        return Layer.TRANSLUCENT;
     }
 
     private void updateLight() {
-        float life = 1.0F - age / (float)Math.max(1, lifetime);
-        LedAmneticLight.updateItemGlowLight(this, new net.minecraft.world.phys.Vec3(x, y, z),
-                1.0F, 0.23F, 0.035F, 1.35F + life * 1.2F, 3.4F + life * 1.2F, false);
+        float remaining = 1.0F - progress();
+        LedAmneticLight.updateItemGlowLight(this, new Vec3(x, y, z),
+                1.0F, 0.23F, 0.035F,
+                0.12F + remaining * 2.35F, 2.2F + remaining * 2.4F, false);
+    }
+
+    private void updateAppearance() {
+        float progress = progress();
+        if (progress < 0.38F) {
+            float blend = progress / 0.38F;
+            setColor(Mth.lerp(blend, 1.0F, 0.92F), Mth.lerp(blend, 0.72F, 0.16F),
+                    Mth.lerp(blend, 0.12F, 0.025F));
+        } else {
+            float blend = (progress - 0.38F) / 0.62F;
+            setColor(Mth.lerp(blend, 0.92F, 0.035F), Mth.lerp(blend, 0.16F, 0.032F),
+                    Mth.lerp(blend, 0.025F, 0.028F));
+        }
+        setAlpha(progress < 0.78F ? 0.88F : 0.88F * (1.0F - progress) / 0.22F);
+    }
+
+    private float progress() {
+        return Mth.clamp(age / (float)Math.max(1, lifetime), 0.0F, 1.0F);
     }
 }

@@ -14,6 +14,7 @@ import net.krodark.asterion.network.ragdoll.RagdollExplosionPayload;
 import net.krodark.asterion.network.ragdoll.RagdollServerNetworking;
 import net.krodark.asterion.event.DeadSunEventSystem;
 import net.krodark.asterion.entity.MinotaurEntity;
+import net.krodark.asterion.entity.BombadierBeetleEntity;
 import net.krodark.asterion.worldgen.MazeNbtStructures;
 import net.krodark.asterion.block.RuneDoorBlock;
 import net.minecraft.core.BlockPos;
@@ -1543,6 +1544,13 @@ public final class WorldGenerator {
     }
 
     private static void tickMazeWard(LivingEntity entity) {
+        if (entity instanceof BombadierBeetleEntity beetle) {
+            ABOVE_WALL_TICKS.remove(entity.getUUID());
+            WARD_FALL_PROTECTION.remove(entity.getUUID());
+            ElectrifiedState oldState = ELECTRIFIED.remove(entity.getUUID());
+            if (oldState != null) beetle.setNoAi(oldState.wasNoAi);
+            return;
+        }
         Integer protection = WARD_FALL_PROTECTION.get(entity.getUUID());
         if (protection != null) {
             entity.resetFallDistance();

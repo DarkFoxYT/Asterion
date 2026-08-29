@@ -42,7 +42,6 @@ import java.util.UUID;
 
 import net.krodark.asterion.Asterion;
 
-/** A timid maze beetle whose defensive smoke trail becomes its weapon. */
 public final class BombadierBeetleEntity extends PathfinderMob implements GeoEntity {
     private static final int FLEE_TICKS = 100;
     private static final int IGNITION_SPREAD_TICKS = 24;
@@ -79,6 +78,7 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
     private int wallApproachTicks;
     private int calmPatrolCooldown = 30;
     private Vec3 lastCalmPatrol;
+    private Vec3 lastCalmPatrolDirection;
 
     public BombadierBeetleEntity(EntityType<? extends BombadierBeetleEntity> type, Level level) {
         super(type, level);
@@ -232,28 +232,49 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
     }
 
     private void tickCalmPatrol() {
-        if (calmPatrolCooldown-- > 0 || !navigation.isDone()) return;
+        if (navigation.isStuck()) {
+            navigation.stop();
+            calmPatrolCooldown = 0;
+        }
+        if (!navigation.isDone()) return;
+        if (calmPatrolCooldown-- > 0) return;
+
+        PatrolRoute route = chooseCalmPatrolRoute();
+        if (route != null) {
+            navigation.moveTo(route.path(), 0.82D);
+            Vec3 direction = route.target().subtract(position()).multiply(1.0D, 0.0D, 1.0D);
+            if (direction.lengthSqr() > 0.01D) {
+                lastCalmPatrolDirection = direction.normalize();
+            }
+            lastCalmPatrol = route.target();
+        }
+        calmPatrolCooldown = 24 + random.nextInt(36);
+    }
+
+    private PatrolRoute chooseCalmPatrolRoute() {
         Path bestPath = null;
         Vec3 bestTarget = null;
         double bestScore = -Double.MAX_VALUE;
-        for (int attempt = 0; attempt < 6; attempt++) {
-            Vec3 target = DefaultRandomPos.getPos(this, 12, 4);
+        Vec3 origin = position();
+
+        for (int attempt = 0; attempt < 10; attempt++) {
+            Vec3 target = DefaultRandomPos.getPos(this, 14, 5);
             if (target == null) continue;
             Path path = navigation.createPath(BlockPos.containing(target), 0);
             if (path == null || !path.canReach()) continue;
-            double score = target.distanceToSqr(position()) - path.getNodeCount() * 0.3D;
+            Vec3 direction = target.subtract(origin).multiply(1.0D, 0.0D, 1.0D);
+            double score = target.distanceToSqr(origin) - path.getNodeCount() * 0.24D;
             if (lastCalmPatrol != null && target.distanceToSqr(lastCalmPatrol) < 16.0D) score -= 30.0D;
+            if (lastCalmPatrolDirection != null && direction.lengthSqr() > 0.01D)
+                score += direction.normalize().dot(lastCalmPatrolDirection) * 18.0D;
             if (score > bestScore) {
                 bestScore = score;
                 bestPath = path;
                 bestTarget = target;
             }
         }
-        if (bestPath != null) {
-            navigation.moveTo(bestPath, 0.82D);
-            lastCalmPatrol = bestTarget;
-        }
-        calmPatrolCooldown = 45 + random.nextInt(75);
+
+        return bestPath == null ? null : new PatrolRoute(bestPath, bestTarget);
     }
 
     private void tickBurningGas(ServerLevel level) {
@@ -270,10 +291,6 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
         }
     }
 
-    /**
-     * Chooses alternating escape waypoints that are actually reachable through the maze. Candidate
-     * paths are biased away from the threat and scored against immediately revisiting the last turn.
-     */
     private void chooseMazeAwarePanicPath() {
         Vec3 origin = position();
         Vec3 away = threatPosition == null ? getLookAngle().multiply(1.0D, 0.0D, 1.0D)
@@ -323,7 +340,6 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
         nextPanicTurn = 10 + random.nextInt(8);
     }
 
-    /** Runs on the tangent plane of a contacted wall instead of applying spider-style upward motion. */
     private boolean tickSurfaceLocomotion(boolean frantic) {
         Direction surface = attachedSurface();
         if (surface == Direction.DOWN && horizontalCollision) {
@@ -342,7 +358,12 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
             if (corner != null && corner != surface) {
                 attachToWall(corner);
                 surface = corner;
-            } else targetWallLateralMotion = -targetWallLateralMotion;
+            } else {
+                targetWallLateralMotion = Math.copySign(0.16D,
+                        Math.abs(wallLateralMotion) < 0.01D ? wallRunSide : wallLateralMotion);
+                targetWallVerticalMotion = 0.98D;
+                wallHeadingTicks = 18;
+            }
         }
 
         if (!touchingSurface(surface)) {
@@ -351,7 +372,6 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
                 attachToWall(replacement);
                 surface = replacement;
             } else {
-                // Leave an exhausted edge gently; never launch away from the supporting wall.
                 setDeltaMovement(getDeltaMovement().scale(0.42D));
                 setAttachedSurface(Direction.DOWN);
                 setNoGravity(false);
@@ -367,7 +387,7 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
             chooseWallHeading(frantic);
         }
 
-        double steering = frantic ? 0.20D : 0.12D;
+        double steering = frantic ? 0.085D : 0.055D;
         wallLateralMotion = Mth.lerp(steering, wallLateralMotion, targetWallLateralMotion);
         wallVerticalMotion = Mth.lerp(steering, wallVerticalMotion, targetWallVerticalMotion);
 
@@ -380,27 +400,27 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
         if (tangent.lengthSqr() < 0.04D) tangent = sideways.scale(wallRunSide);
         tangent = tangent.normalize();
         double speed = frantic ? 0.32D : 0.15D;
-        // The normal component is adhesion only; collision resolution keeps the body flush to the wall.
         setDeltaMovement(tangent.scale(speed).add(normal.scale(0.105D)));
-        setYRot((float)(Mth.atan2(tangent.z, tangent.x) * Mth.RAD_TO_DEG) - 90.0F);
-        setYBodyRot(getYRot());
+        float desiredYaw = (float)(Mth.atan2(tangent.z, tangent.x) * Mth.RAD_TO_DEG) - 90.0F;
+        float smoothYaw = Mth.rotLerp(frantic ? 0.20F : 0.12F, getYRot(), desiredYaw);
+        setYRot(smoothYaw);
+        setYBodyRot(Mth.rotLerp(0.28F, yBodyRot, smoothYaw));
         return true;
     }
 
     private void chooseWallHeading(boolean frantic) {
-        double lateralMagnitude = 0.28D + random.nextDouble() * 0.82D;
-        if (random.nextFloat() < 0.58F) wallRunSide = -wallRunSide;
-        targetWallLateralMotion = wallRunSide * lateralMagnitude;
-        float verticalChoice = random.nextFloat();
-        targetWallVerticalMotion = verticalChoice < 0.16F
-                ? -(0.20D + random.nextDouble() * 0.42D)
-                : verticalChoice < 0.43F
-                ? random.nextDouble() * 0.28D
-                : 0.30D + random.nextDouble() * 0.78D;
-        wallHeadingTicks = (frantic ? 9 : 18) + random.nextInt(frantic ? 14 : 22);
+        int alongWallDirection = Math.abs(wallLateralMotion) < 0.01D
+                ? wallRunSide : wallLateralMotion < 0.0D ? -1 : 1;
+        double currentAngle = Math.atan2(wallVerticalMotion, Math.abs(wallLateralMotion));
+        double maximumTurn = frantic ? 0.78D : 0.52D;
+        double targetAngle = Mth.clamp(currentAngle
+                + (random.nextDouble() * 2.0D - 1.0D) * maximumTurn, -1.34D, 1.34D);
+        targetWallLateralMotion = alongWallDirection * Math.cos(targetAngle);
+        targetWallVerticalMotion = Math.sin(targetAngle);
+        wallRunSide = alongWallDirection;
+        wallHeadingTicks = (frantic ? 30 : 48) + random.nextInt(frantic ? 28 : 42);
     }
 
-    /** Occasionally cuts directly toward a nearby wall so wall-running is an intentional escape route. */
     private boolean tickWallApproach() {
         if (wallApproachTicks <= 0 && defenceTicks % 22 == 3 && random.nextFloat() < 0.7F) {
             wallApproachDirection = findNearbyWall();
@@ -442,9 +462,16 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
     private void attachToWall(Direction wall) {
         setAttachedSurface(wall);
         setNoGravity(true);
-        wallRunSide = random.nextBoolean() ? 1 : -1;
-        wallLateralMotion = wallRunSide * 0.45D;
-        wallVerticalMotion = 0.72D;
+        Vec3 wallSideways = wall.getAxis() == Direction.Axis.X
+                ? new Vec3(0.0D, 0.0D, 1.0D) : new Vec3(1.0D, 0.0D, 0.0D);
+        Vec3 incoming = getDeltaMovement();
+        wallLateralMotion = incoming.dot(wallSideways);
+        wallVerticalMotion = incoming.y;
+        if (wallLateralMotion * wallLateralMotion + wallVerticalMotion * wallVerticalMotion < 0.04D) {
+            wallLateralMotion = random.nextBoolean() ? 0.72D : -0.72D;
+            wallVerticalMotion = 0.42D;
+        }
+        wallRunSide = wallLateralMotion < 0.0D ? -1 : 1;
         chooseWallHeading(defenceState() == DefenceState.FLEEING);
         wallApproachDirection = null;
         wallApproachTicks = 0;
@@ -549,6 +576,9 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
     }
 
     public enum DefenceState { CALM, FLEEING, IGNITING }
+
+    private record PatrolRoute(Path path, Vec3 target) {
+    }
 
     private static final class BurningGas {
         private final Vec3 position;

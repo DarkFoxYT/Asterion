@@ -45,14 +45,20 @@ public final class BombadierBeetleGeoRenderer extends GeoEntityRenderer<Bombadie
             var forward = net.minecraft.world.phys.Vec3.directionFromRotation(0.0F, yaw);
             var localRight = new net.minecraft.world.phys.Vec3(-forward.z, 0.0D, forward.x);
             double wallOnRight = surface.getUnitVec3().dot(localRight);
-            targetRoll = wallOnRight >= 0.0D ? -Mth.HALF_PI : Mth.HALF_PI;
+            targetRoll = wallOnRight >= 0.0D ? Mth.HALF_PI : -Mth.HALF_PI;
+            var motion = beetle.getDeltaMovement();
+            double horizontalMotion = Math.sqrt(motion.x * motion.x + motion.z * motion.z);
+            if (motion.lengthSqr() > 0.002D)
+                targetPitch = Mth.clamp((float)Math.atan2(motion.y, horizontalMotion),
+                        -1.48F, 1.48F);
         }
         SurfacePose pose = surfacePoses.computeIfAbsent(beetle.getUUID(), ignored -> new SurfacePose());
         float frameTicks = Math.max(0.05F,
                 Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaTicks());
-        float blend = 1.0F - (float)Math.pow(0.58D, frameTicks);
-        pose.pitch += wrapRadians(targetPitch - pose.pitch) * blend;
-        pose.roll += wrapRadians(targetRoll - pose.roll) * blend;
+        float pitchBlend = 1.0F - (float)Math.pow(0.80D, frameTicks);
+        float rollBlend = 1.0F - (float)Math.pow(0.84D, frameTicks);
+        pose.pitch += wrapRadians(targetPitch - pose.pitch) * pitchBlend;
+        pose.roll += wrapRadians(targetRoll - pose.roll) * rollBlend;
         float desiredSprayWeight = beetle.defenceState() == BombadierBeetleEntity.DefenceState.FLEEING
                 ? 1.0F : 0.0F;
         float sprayBlend = 1.0F - (float)Math.pow(0.76D, frameTicks);

@@ -271,12 +271,18 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         minotaur.setYRot(player.getYRot() + 180.0F);
         minotaur.setPersistenceRequired();
         minotaur.beginHunting(player);
-        return level.addFreshEntity(minotaur) ? minotaur : null;
+        if (!level.addFreshEntity(minotaur)) return null;
+        minotaur.emitShadowArrival(level);
+        return minotaur;
     }
 
     public static MinotaurEntity spawnRoamer(ServerLevel level, ServerPlayer player) {
         MinotaurEntity existing = existingMinotaur(level);
-        if (existing != null) return existing;
+        if (existing != null) {
+            if (existing.behaviorPhase() != BehaviorPhase.BOSS && existing.distanceTo(player) > 72.0D)
+                existing.beginRoaming(player);
+            return existing;
+        }
         MinotaurEntity minotaur = Asterion.MINOTAUR.create(level, EntitySpawnReason.EVENT);
         if (minotaur == null) return null;
         Vec3 spawn = minotaur.findHiddenSpawnPosition(player);
@@ -284,7 +290,9 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         minotaur.setPos(spawn.x, spawn.y, spawn.z);
         minotaur.setPersistenceRequired();
         minotaur.beginRoaming(player);
-        return level.addFreshEntity(minotaur) ? minotaur : null;
+        if (!level.addFreshEntity(minotaur)) return null;
+        minotaur.emitShadowArrival(level);
+        return minotaur;
     }
 
     private static MinotaurEntity existingMinotaur(ServerLevel level) {
@@ -330,14 +338,14 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         setBehaviorPhase(BehaviorPhase.HUNTING);
         setTarget(null);
         setAggressive(false);
-        setRage(Math.max(rage(), random.nextIntBetweenInclusive(3, 5)));
+        setRage(12);
         rageCalmTicks = 360;
         gazeTriggerTicks = random.nextIntBetweenInclusive(140, 200);
         previousPosition = position();
         previousTargetDistance = distanceTo(player);
         lastKnownPlayerPosition = player.position();
         pursuitDetectionTicks = 0;
-        shadowRelocateCooldown = random.nextIntBetweenInclusive(100, 220);
+        shadowRelocateCooldown = 0;
         hallwayMomentum = 0.0F;
         hallwayTarget = 0.0F;
         updateChaseSpeed();
@@ -461,6 +469,10 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         float lookExposure = playerLookExposure(player, distance);
         boolean discovered = lookExposure > 0.12F;
         boolean directSight = canAcquirePlayerForChase(player, distance);
+        if (discovered && distance <= 52.0D && stalkingHallwaySpan() >= 34.0D) {
+            beginWarning(false);
+            return;
+        }
         pursuitDetectionTicks = directSight ? Math.min(24, pursuitDetectionTicks + 2)
                 : Math.max(0, pursuitDetectionTicks - 1);
         if (pursuitDetectionTicks >= 6) {
@@ -514,7 +526,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 if ((sightings & 1) == 0) increaseRage(1);
                 sightingCooldown = 50;
                 playSound(SoundEvents.GOAT_AMBIENT, 1.8F, 0.45F + random.nextFloat() * 0.08F);
-                if (sightings > 3 || random.nextInt(6) == 0) {
+                if (sightings > 3 || random.nextInt(rage() >= 12 ? 3 : 6) == 0) {
                     beginWarning();
                     return;
                 }
@@ -554,8 +566,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                         3, 0.85D, 0.30D, 0.85D, 0.018D);
         }
 
-        if (!observed && shadowRelocateCooldown <= 0 && (distance > 64.0D || distance < 26.0D)
-                && phaseTicks % 20 == 0 && random.nextInt(3) == 0
+        if (!observed && shadowRelocateCooldown <= 0 && (distance > 58.0D || distance < 26.0D)
+                && phaseTicks % 20 == 0 && (distance > 58.0D || random.nextInt(3) == 0)
                 && tryShadowRelocation(level, player)) return;
 
         if (observed && stalkMode != StalkMode.OBSERVING && stalkMode != StalkMode.VANISHING)
@@ -597,6 +609,24 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         }
         if (stalkingDestination == null) stalkingDestination = lastKnownPlayerPosition;
         followStalkingRoute(level);
+        if (distance > 48.0D && phaseTicks % 40 == 0 && getNavigation().isDone()) {
+            Vec3 toward = player.position().subtract(position());
+            Vec3 direction = new Vec3(toward.x, 0.0D, toward.z);
+            if (direction.lengthSqr() > 0.01D) {
+                AABB breach = getBoundingBox().expandTowards(direction.normalize().scale(1.7D))
+                        .inflate(0.35D, 0.55D, 0.35D);
+                int broken = WorldGenerator.breakPlayerBlocksAround(level, breach);
+                if (broken == 0 && failedStalkingTicks > 0)
+                    broken = WorldGenerator.breakMazeWallAround(level, breach, this);
+                if (broken > 0) {
+                    playSound(SoundEvents.RAVAGER_ATTACK, 1.6F, 0.54F);
+                    level.sendParticles(ParticleTypes.DUST_PLUME, breach.getCenter().x,
+                            getY() + 1.0D, breach.getCenter().z, Math.min(18, broken * 2),
+                            0.65D, 0.8D, 0.65D, 0.04D);
+                    awarenessRepathTicks = 0;
+                }
+            }
+        }
     }
 
     private StalkMode nextStalkMode() {
@@ -3173,7 +3203,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                     player.getX() + Math.cos(angle) * distance,
                     player.getZ() + Math.sin(angle) * distance);
             BlockPos feet = BlockPos.containing(corridor);
-            if (!level().hasChunk(feet.getX() >> 4, feet.getZ() >> 4)) continue;
+            if (!loadCandidateChunk(feet)) continue;
             setPos(corridor.x, corridor.y, corridor.z);
             boolean floor = level().getBlockState(feet.below()).isFaceSturdy(level(), feet.below(), Direction.UP);
             if (!floor || !level().noCollision(this)) continue;
@@ -3197,22 +3227,24 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         Vec3 best = null;
         double bestHallway = -1.0D;
         for (int attempt = 0; attempt < 28; attempt++) {
-            double angle = behind + (random.nextDouble() - 0.5D) * 2.5D;
-            double distance = preferred + random.nextDouble() * 14.0D;
+            double angle = behind + (random.nextDouble() - 0.5D) * 1.5D;
+            double distance = preferred - 7.0D + random.nextDouble() * 12.0D;
             Vec3 candidate = WorldGenerator.nearestMazeCorridor(
                     player.getX() + Math.cos(angle) * distance,
                     player.getZ() + Math.sin(angle) * distance);
             BlockPos feet = BlockPos.containing(candidate);
-            if (!level().hasChunk(feet.getX() >> 4, feet.getZ() >> 4)) continue;
+            if (!loadCandidateChunk(feet)) continue;
             setPos(candidate.x, candidate.y, candidate.z);
             boolean valid = isConnectedHiddenSpawn(player, candidate, feet);
             double hallway = valid ? stalkingHallwaySpan() : -1.0D;
             setPos(original.x, original.y, original.z);
-            if (valid && hallway > bestHallway) {
+            double dust = valid ? WorldGenerator.volumetricDustDensity(candidate, level().getGameTime()) : 0.0D;
+            double score = hallway + dust * 12.0D;
+            if (valid && score > bestHallway) {
                 best = candidate;
-                bestHallway = hallway;
+                bestHallway = score;
             }
-            if (valid && hallway >= 48.0D) return candidate;
+            if (valid && hallway >= 48.0D && dust >= 0.40D) return candidate;
         }
         setPos(original.x, original.y, original.z);
         return best;
@@ -3247,9 +3279,17 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         shadowArrivalTicks = 30;
         shadowRelocateCooldown = behaviorPhase() == BehaviorPhase.HUNTING
                 ? random.nextIntBetweenInclusive(180, 320)
-                : random.nextIntBetweenInclusive(560, 900);
+                : random.nextIntBetweenInclusive(160, 280);
         enterStalkMode(random.nextBoolean() ? StalkMode.SHADOWING : StalkMode.FLANKING);
         return true;
+    }
+
+    private void emitShadowArrival(ServerLevel level) {
+        level.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + getBbHeight() * 0.42D,
+                getZ(), 22, 1.05D, 1.35D, 1.05D, 0.018D);
+        level.sendParticles(ParticleTypes.DUST_PLUME, getX(), getY() + 0.18D,
+                getZ(), 28, 1.25D, 0.35D, 1.25D, 0.035D);
+        playSound(SoundEvents.RAVAGER_STEP, 0.82F, 0.40F);
     }
 
     private Vec3 findShadowRelocation(ServerPlayer player) {
@@ -3267,7 +3307,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                     player.getX() + Math.cos(angle) * distance,
                     player.getZ() + Math.sin(angle) * distance);
             BlockPos feet = BlockPos.containing(candidate);
-            if (!level().hasChunk(feet.getX() >> 4, feet.getZ() >> 4)) continue;
+            if (!loadCandidateChunk(feet)) continue;
             setPos(candidate.x, candidate.y, candidate.z);
             boolean valid = !WorldGenerator.isApproachingCenter(candidate)
                     && isConnectedHiddenSpawn(player, candidate, feet);
@@ -3307,7 +3347,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             Vec3 candidate = WorldGenerator.nearestMazeCorridor(
                     Math.cos(angle) * distance, Math.sin(angle) * distance);
             BlockPos feet = BlockPos.containing(candidate);
-            if (!level().hasChunk(feet.getX() >> 4, feet.getZ() >> 4)) continue;
+            if (!loadCandidateChunk(feet)) continue;
             setPos(candidate.x, candidate.y, candidate.z);
             boolean valid = isConnectedHiddenSpawn(player, candidate, feet);
             setPos(original.x, original.y, original.z);
@@ -3315,6 +3355,12 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         }
         setPos(original.x, original.y, original.z);
         return null;
+    }
+
+    private boolean loadCandidateChunk(BlockPos position) {
+        if (!(level() instanceof ServerLevel serverLevel)) return false;
+        serverLevel.getChunkAt(position);
+        return true;
     }
 
     private boolean isConnectedHiddenSpawn(ServerPlayer player, Vec3 candidate, BlockPos feet) {
