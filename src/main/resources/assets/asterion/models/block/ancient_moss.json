@@ -1,1 +1,6 @@
-{"parent":"asterion:block/mossy_ancient_stone_1"}
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "asterion:block/ancient_moss"
+  }
+}

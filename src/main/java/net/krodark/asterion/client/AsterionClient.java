@@ -17,6 +17,7 @@ import net.krodark.asterion.client.particle.BombardierStenchParticle;
 import net.krodark.asterion.client.particle.BombardierGasFireParticle;
 import net.krodark.asterion.client.particle.AsterionEmissiveParticles;
 import net.krodark.asterion.client.render.block.RuneGeoRenderer;
+import net.krodark.asterion.client.render.block.LabyrinthVineGeoRenderer;
 import net.krodark.asterion.client.render.portal.AsterionPortalRenderer;
 import net.krodark.asterion.client.render.post.AsterionPostEffects;
 import net.krodark.asterion.network.*;
@@ -51,6 +52,7 @@ public final class AsterionClient implements ClientModInitializer {
                         BombardierGasFireParticle.create(level, x, y, z,
                                 velocityX, velocityY, velocityZ, sprites, random));
         BlockEntityRenderers.register(Asterion.RUNE_BLOCK_ENTITY, RuneGeoRenderer::new);
+        BlockEntityRenderers.register(Asterion.LABYRINTH_VINE_BLOCK_ENTITY, LabyrinthVineGeoRenderer::new);
         ClientPlayNetworking.registerGlobalReceiver(DimensionTransitionPayload.TYPE, (payload, context) ->
                 context.client().execute(() ->
                         DimensionTransitionOverlay.begin(payload.fadeInTicks(), payload.holdTicks())));

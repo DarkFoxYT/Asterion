@@ -75,18 +75,8 @@ public final class BombardierStenchParticle extends SingleQuadParticle {
 
         if (burning) {
             float progress = age / (float)Math.max(1, lifetime);
-            if (progress < 0.18F) {
-                float blend = progress / 0.18F;
-                setColor(1.0F, lerp(0.82F, 0.34F, blend), lerp(0.20F, 0.025F, blend));
-            } else if (progress < 0.52F) {
-                float blend = (progress - 0.18F) / 0.34F;
-                setColor(lerp(1.0F, 0.68F, blend), lerp(0.34F, 0.045F, blend),
-                        lerp(0.025F, 0.008F, blend));
-            } else {
-                float blend = (progress - 0.52F) / 0.48F;
-                setColor(lerp(0.68F, 0.025F, blend), lerp(0.045F, 0.024F, blend),
-                        lerp(0.008F, 0.022F, blend));
-            }
+            float[] color = fireGradient(progress);
+            setColor(color[0], color[1], color[2]);
             setAlpha(progress < 0.78F ? 0.92F : 0.92F * (1.0F - progress) / 0.22F);
             return;
         }
@@ -132,12 +122,28 @@ public final class BombardierStenchParticle extends SingleQuadParticle {
         xd *= 0.45D;
         yd = Math.max(0.012D, yd * 0.55D);
         zd *= 0.45D;
-        setColor(1.0F, 0.82F, 0.20F);
+        setColor(0.12F, 0.42F, 1.0F);
         setAlpha(0.92F);
     }
 
     private static float lerp(float start, float end, float amount) {
         return start + (end - start) * amount;
+    }
+
+    private static float[] fireGradient(float progress) {
+        if (progress < 0.10F) return blend(0.12F, 0.42F, 1.0F, 1.0F, 1.0F, 1.0F, progress / 0.10F);
+        if (progress < 0.22F) return blend(1.0F, 1.0F, 1.0F, 1.0F, 0.92F, 0.16F,
+                (progress - 0.10F) / 0.12F);
+        if (progress < 0.42F) return blend(1.0F, 0.92F, 0.16F, 1.0F, 0.36F, 0.018F,
+                (progress - 0.22F) / 0.20F);
+        if (progress < 0.64F) return blend(1.0F, 0.36F, 0.018F, 0.70F, 0.025F, 0.006F,
+                (progress - 0.42F) / 0.22F);
+        return blend(0.70F, 0.025F, 0.006F, 0.025F, 0.024F, 0.022F,
+                (progress - 0.64F) / 0.36F);
+    }
+
+    private static float[] blend(float r0, float g0, float b0, float r1, float g1, float b1, float amount) {
+        return new float[] {lerp(r0, r1, amount), lerp(g0, g1, amount), lerp(b0, b1, amount)};
     }
 
     private static float randomSize(RandomSource random) {

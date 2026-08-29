@@ -71,9 +71,9 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
     private int wallHeadingTicks;
     private int wallRunSide = 1;
     private double wallLateralMotion;
-    private double wallVerticalMotion = 0.7D;
+    private double wallVerticalMotion = 1.0D;
     private double targetWallLateralMotion;
-    private double targetWallVerticalMotion = 0.7D;
+    private double targetWallVerticalMotion = 1.0D;
     private Direction wallApproachDirection;
     private int wallApproachTicks;
     private int calmPatrolCooldown = 30;

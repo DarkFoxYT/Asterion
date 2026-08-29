@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "asterion:ancient_planks",
+    "asterion:ancient_plank_slab",
+    "asterion:ancient_plank_stairs",
+    "asterion:ancient_plank_fence"
+  ]
+}

@@ -69,32 +69,36 @@ public final class BombardierGasFireParticle extends SingleQuadParticle {
     private void updateLight() {
         float progress = progress();
         float remaining = 1.0F - progress;
-        float green = progress < 0.45F
-                ? Mth.lerp(progress / 0.45F, 0.42F, 0.08F) : 0.08F;
+        float[] color = fireGradient(progress);
         LedAmneticLight.updateItemGlowLight(this, new Vec3(x, y, z),
-                1.0F, green, 0.018F,
-                0.18F + remaining * 6.25F, 3.2F + remaining * 4.3F, false);
+                color[0], color[1], color[2],
+                1.0F + remaining * 6.25F, 3.2F + remaining * 4.3F, false);
     }
 
     private void updateAppearance() {
         float progress = progress();
-        if (progress < 0.18F) {
-            float blend = progress / 0.18F;
-            setColor(1.0F, Mth.lerp(blend, 0.86F, 0.36F),
-                    Mth.lerp(blend, 0.22F, 0.025F));
-        } else if (progress < 0.52F) {
-            float blend = (progress - 0.18F) / 0.34F;
-            setColor(Mth.lerp(blend, 1.0F, 0.68F), Mth.lerp(blend, 0.36F, 0.045F),
-                    Mth.lerp(blend, 0.025F, 0.008F));
-        } else {
-            float blend = (progress - 0.52F) / 0.48F;
-            setColor(Mth.lerp(blend, 0.68F, 0.025F), Mth.lerp(blend, 0.045F, 0.024F),
-                    Mth.lerp(blend, 0.008F, 0.022F));
-        }
+        float[] color = fireGradient(progress);
+        setColor(color[0], color[1], color[2]);
         setAlpha(progress < 0.78F ? 0.88F : 0.88F * (1.0F - progress) / 0.22F);
     }
 
     private float progress() {
         return Mth.clamp(age / (float)Math.max(1, lifetime), 0.0F, 1.0F);
+    }
+
+    private static float[] fireGradient(float progress) {
+        if (progress < 0.10F) return blend(0.12F, 0.42F, 1.0F, 1.0F, 1.0F, 1.0F, progress / 0.10F);
+        if (progress < 0.22F) return blend(1.0F, 1.0F, 1.0F, 1.0F, 0.92F, 0.16F,
+                (progress - 0.10F) / 0.12F);
+        if (progress < 0.42F) return blend(1.0F, 0.92F, 0.16F, 1.0F, 0.36F, 0.018F,
+                (progress - 0.22F) / 0.20F);
+        if (progress < 0.64F) return blend(1.0F, 0.36F, 0.018F, 0.70F, 0.025F, 0.006F,
+                (progress - 0.42F) / 0.22F);
+        return blend(0.70F, 0.025F, 0.006F, 0.025F, 0.024F, 0.022F,
+                (progress - 0.64F) / 0.36F);
+    }
+
+    private static float[] blend(float r0, float g0, float b0, float r1, float g1, float b1, float amount) {
+        return new float[] {Mth.lerp(amount, r0, r1), Mth.lerp(amount, g0, g1), Mth.lerp(amount, b0, b1)};
     }
 }

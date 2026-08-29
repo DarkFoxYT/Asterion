@@ -7,10 +7,15 @@
   "block.asterion.ancient_brick_slab": "Ancient Brick Slab",
   "block.asterion.ancient_brick_stairs": "Ancient Brick Stairs",
   "block.asterion.ancient_brick_wall": "Ancient Brick Wall",
+  "block.asterion.ancient_planks": "Ancient Planks",
+  "block.asterion.ancient_plank_slab": "Ancient Plank Slab",
+  "block.asterion.ancient_plank_stairs": "Ancient Plank Stairs",
+  "block.asterion.ancient_plank_fence": "Ancient Plank Fence",
   "block.asterion.ancient_stone": "Ancient Stone",
   "block.asterion.mossy_ancient_stone": "Mossy Ancient Stone",
   "block.asterion.ancient_moss": "Ancient Moss",
   "block.asterion.ancient_leaves": "Ancient Leaves",
+  "block.asterion.labyrinth_vine": "Labyrinth Vine",
   "block.asterion.short_grass": "Short Grass",
   "block.asterion.ancient_stone_slab": "Ancient Stone Slab",
   "block.asterion.ancient_stone_stairs": "Ancient Stone Stairs",
@@ -69,5 +74,6 @@
   "event.asterion.dead_sun_barrage.ends": "The Dead Sun's lightning subsides.",
   "entity.asterion.minotaur": "Minotaur",
   "entity.asterion.bombadier_beetle": "Bombardier Beetle",
-  "subtitles.asterion.minotaur_roar": "Minotaur roars"
+  "subtitles.asterion.minotaur_roar": "Minotaur roars",
+  "effect.asterion.resolve": "Resolve"
 }

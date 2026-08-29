@@ -10,6 +10,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -30,9 +31,12 @@ import net.krodark.asterion.entity.MinotaurEntity;
 import net.krodark.asterion.entity.BombadierBeetleEntity;
 import net.krodark.asterion.block.ShortGrassBlock;
 import net.krodark.asterion.event.DeadSunEventSystem;
+import net.krodark.asterion.effect.ResolveEffect;
+import net.krodark.asterion.effect.ResolveSystem;
 import net.krodark.asterion.game.light.DynamicBlockLights;
 import net.krodark.asterion.command.PortalCommands;
 import net.minecraft.core.Registry;
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -45,6 +49,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.effect.MobEffect;
 import net.minecraft.sounds.SoundEvent;
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.fabricmc.fabric.api.particle.v1.FabricParticleTypes;
@@ -56,9 +61,12 @@ import net.krodark.asterion.block.RuneBlockEntity;
 import net.krodark.asterion.block.RuneDoorBlock;
 import net.krodark.asterion.block.DirectionalGateBlock;
 import net.krodark.asterion.block.WinchBlock;
+import net.krodark.asterion.block.LabyrinthVineBlock;
+import net.krodark.asterion.block.LabyrinthVineBlockEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.ChainBlock;
+import net.minecraft.world.level.block.FenceBlock;
 import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.UntintedParticleLeavesBlock;
 import net.minecraft.world.level.block.SlabBlock;
@@ -87,12 +95,23 @@ public class Asterion implements ModInitializer {
     public static final ResourceKey<Level> ASTERION_LEVEL = ResourceKey.create(
             Registries.DIMENSION, id("asterion_dimension"));
     public static final SoundEvent MINOTAUR_ROAR = registerSound("minotaur_roar");
+    public static final Holder.Reference<MobEffect> RESOLVE = Registry.registerForHolder(
+            BuiltInRegistries.MOB_EFFECT, id("resolve"), new ResolveEffect());
 
     public static final Block ANCIENT_BRICKS = registerBlock("ancient_bricks", MapColor.COLOR_BROWN, Block::new);
     public static final Block ANCIENT_BRICK_SLAB = registerBlock("ancient_brick_slab", MapColor.COLOR_BROWN, SlabBlock::new);
     public static final Block ANCIENT_BRICK_STAIRS = registerBlock("ancient_brick_stairs", MapColor.COLOR_BROWN,
             properties -> new StairBlock(ANCIENT_BRICKS.defaultBlockState(), properties) { });
     public static final Block ANCIENT_BRICK_WALL = registerBlock("ancient_brick_wall", MapColor.COLOR_BROWN, WallBlock::new);
+    public static final Block ANCIENT_PLANKS = registerBlock("ancient_planks", MapColor.COLOR_BROWN,
+            properties -> new Block(properties.strength(2.0F, 3.0F).sound(SoundType.WOOD)));
+    public static final Block ANCIENT_PLANK_SLAB = registerBlock("ancient_plank_slab", MapColor.COLOR_BROWN,
+            properties -> new SlabBlock(properties.strength(2.0F, 3.0F).sound(SoundType.WOOD)));
+    public static final Block ANCIENT_PLANK_STAIRS = registerBlock("ancient_plank_stairs", MapColor.COLOR_BROWN,
+            properties -> new StairBlock(ANCIENT_PLANKS.defaultBlockState(),
+                    properties.strength(2.0F, 3.0F).sound(SoundType.WOOD)) { });
+    public static final Block ANCIENT_PLANK_FENCE = registerBlock("ancient_plank_fence", MapColor.COLOR_BROWN,
+            properties -> new FenceBlock(properties.strength(2.0F, 3.0F).sound(SoundType.WOOD)));
     public static final Block ANCIENT_STONE = registerBlock("ancient_stone", MapColor.TERRACOTTA_BROWN, Block::new);
     public static final Block MOSSY_ANCIENT_STONE = registerBlock("mossy_ancient_stone", MapColor.TERRACOTTA_GREEN, Block::new);
     public static final Block ANCIENT_MOSS = registerBlock("ancient_moss", MapColor.TERRACOTTA_GREEN, Block::new);
@@ -116,12 +135,20 @@ public class Asterion implements ModInitializer {
             properties -> new DirectionalGateBlock(properties.noOcclusion()));
     public static final WinchBlock WINCH = (WinchBlock)registerBlock(
             "winch", MapColor.METAL, properties -> new WinchBlock(properties.noOcclusion()));
+    public static final LabyrinthVineBlock LABYRINTH_VINE = (LabyrinthVineBlock)registerBlock(
+            "labyrinth_vine", MapColor.COLOR_BROWN,
+            properties -> new LabyrinthVineBlock(properties.noOcclusion().strength(0.4F)
+                    .sound(SoundType.VINE).lightLevel(state ->
+                            state.getValue(LabyrinthVineBlock.END) ? 12 : 0)));
     public static final RuneBlock[] RUNE_BLOCKS = registerRuneBlocks();
     public static final RuneDoorBlock RUNE_ZONE_DOOR = (RuneDoorBlock)registerBlock("rune_zone_door",
             MapColor.COLOR_BLACK, RuneDoorBlock::new);
     public static final BlockEntityType<RuneBlockEntity> RUNE_BLOCK_ENTITY = Registry.register(
             BuiltInRegistries.BLOCK_ENTITY_TYPE, id("rune"),
             FabricBlockEntityTypeBuilder.create(RuneBlockEntity::new, RUNE_BLOCKS).build());
+    public static final BlockEntityType<LabyrinthVineBlockEntity> LABYRINTH_VINE_BLOCK_ENTITY = Registry.register(
+            BuiltInRegistries.BLOCK_ENTITY_TYPE, id("labyrinth_vine"),
+            FabricBlockEntityTypeBuilder.create(LabyrinthVineBlockEntity::new, LABYRINTH_VINE).build());
     private static final ResourceKey<EntityType<?>> MINOTAUR_KEY = ResourceKey.create(
             Registries.ENTITY_TYPE, id("minotaur"));
     public static final EntityType<MinotaurEntity> MINOTAUR = Registry.register(
@@ -182,6 +209,10 @@ public class Asterion implements ModInitializer {
                         output.accept(ANCIENT_BRICK_SLAB);
                         output.accept(ANCIENT_BRICK_STAIRS);
                         output.accept(ANCIENT_BRICK_WALL);
+                        output.accept(ANCIENT_PLANKS);
+                        output.accept(ANCIENT_PLANK_SLAB);
+                        output.accept(ANCIENT_PLANK_STAIRS);
+                        output.accept(ANCIENT_PLANK_FENCE);
                         output.accept(ANCIENT_STONE);
                         output.accept(MOSSY_ANCIENT_STONE);
                         output.accept(ANCIENT_MOSS);
@@ -194,6 +225,7 @@ public class Asterion implements ModInitializer {
                         output.accept(MAZESTEEL_CHAIN);
                         output.accept(MAZESTEEL_GATE);
                         output.accept(WINCH);
+                        output.accept(LABYRINTH_VINE);
                         for (RuneBlock rune : RUNE_BLOCKS) output.accept(rune);
                         output.accept(RUNE_ZONE_DOOR);
                     })
@@ -262,6 +294,10 @@ public class Asterion implements ModInitializer {
         BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID),
                 MobCategory.CREATURE, BOMBARDIER_BEETLE, 12, 1, 3);
         ServerTickEvents.END_SERVER_TICK.register(WorldGenerator::tickServer);
+        ServerTickEvents.END_SERVER_TICK.register(ResolveSystem::tick);
+        ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, baseDamageTaken,
+                                                         damageTaken, blocked) ->
+                ResolveSystem.recordAttack(entity, source, damageTaken));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 WorldGenerator.playerConnected(handler.getPlayer()));
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
@@ -276,6 +312,7 @@ public class Asterion implements ModInitializer {
             }
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(WorldGenerator::clearRuntimeState);
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> ResolveSystem.clear());
         LOGGER.info("The Antikythera Mechanism stirs beneath the sea");
     }
 

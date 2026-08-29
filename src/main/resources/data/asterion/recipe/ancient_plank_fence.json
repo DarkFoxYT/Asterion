@@ -1,0 +1,1 @@
+{"type":"minecraft:crafting_shaped","category":"building","key":{"#":"asterion:ancient_planks","S":"minecraft:stick"},"pattern":["#S#","#S#"],"result":{"count":3,"id":"asterion:ancient_plank_fence"}}
