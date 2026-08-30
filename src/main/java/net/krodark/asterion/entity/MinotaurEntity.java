@@ -2200,7 +2200,10 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             for (int index = 0; index < count; index++) {
                 double offset = (index - (count - 1) * 0.5D) * 0.34D;
                 Vec3 origin = getEyePosition().add(right.scale(offset)).add(0.0D, -0.35D, 0.0D);
-                Arrow arrow = new Arrow(level, this, new ItemStack(Items.ARROW), ItemStack.EMPTY);
+                // 26.1 requires server-owned arrows to retain the weapon that fired them;
+                // an empty stack now throws "Invalid weapon firing an arrow" in AbstractArrow.
+                Arrow arrow = new Arrow(level, this, new ItemStack(Items.ARROW),
+                        new ItemStack(Items.CROSSBOW));
                 arrow.setPos(origin);
                 arrow.setBaseDamage(4.0D + rage() * 0.12D);
                 arrow.setCritArrow(rage() >= 8);

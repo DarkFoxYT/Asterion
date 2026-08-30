@@ -51,8 +51,12 @@ public final class AncientLeavesClusterFeature extends Feature<NoneFeatureConfig
         for (int distance = 1; distance <= maxDistance; distance++) {
             for (Direction towardWall : directions) {
                 BlockPos wall = center.relative(towardWall, distance);
-                if (OvergrowthFeatureSupport.isMazeWall(level.getBlockState(wall)))
-                    return new WallAttachment(wall, towardWall.getOpposite());
+                Direction outward = towardWall.getOpposite();
+                // A placed feature may inspect nearby masonry, but it must not select an
+                // attachment whose first leaf lies outside the currently writable region.
+                if (OvergrowthFeatureSupport.isMazeWall(level.getBlockState(wall))
+                        && level.ensureCanWrite(wall.relative(outward)))
+                    return new WallAttachment(wall, outward);
             }
         }
         return null;
@@ -74,6 +78,7 @@ public final class AncientLeavesClusterFeature extends Feature<NoneFeatureConfig
                     if (shape > 1.08D) continue;
                     BlockPos pos = wall.anchor.relative(tangent, across).above(dy)
                             .relative(wall.outward, outward);
+                    if (!level.ensureCanWrite(pos)) continue;
                     BlockPos backing = pos.relative(wall.outward.getOpposite());
                     if (!OvergrowthFeatureSupport.enabled(level, pos, "leaf_clusters")
                             || !OvergrowthFeatureSupport.isOpen(level, pos)
@@ -118,7 +123,8 @@ public final class AncientLeavesClusterFeature extends Feature<NoneFeatureConfig
 
     private static int placeRootedLeaf(WorldGenLevel level, BlockPos pos, Direction outward,
                                        BlockState leaves) {
-        if (!OvergrowthFeatureSupport.enabled(level, pos, "leaf_clusters")
+        if (!level.ensureCanWrite(pos)
+                || !OvergrowthFeatureSupport.enabled(level, pos, "leaf_clusters")
                 || !OvergrowthFeatureSupport.isOpen(level, pos)
                 || !OvergrowthFeatureSupport.isMazeWall(
                         level.getBlockState(pos.relative(outward.getOpposite())))) return 0;
