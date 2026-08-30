@@ -62,11 +62,11 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
         // Crimson trees should frame the enormous ring walls, not compete with them.
         int diameter = bonsai ? 1 + random.nextInt(2) : 3 + random.nextInt(4);
         int wallHeight = AsterionConfig.INSTANCE.wallHeight;
-        int height = bonsai ? 10 + random.nextInt(7)
+        int height = bonsai ? 8 + random.nextInt(6)
                 : Math.max(22, wallHeight - 3 + random.nextInt(9));
         Direction lean = wall.towardWall;
         Direction tangent = lean.getClockWise();
-        int leanDistance = bonsai ? 1 + random.nextInt(3) : 5 + random.nextInt(7);
+        int leanDistance = bonsai ? 1 + random.nextInt(2) : 5 + random.nextInt(7);
 
         BlockPos[] spine = new BlockPos[height + 1];
         for (int rise = 0; rise <= height; rise++) {
@@ -78,7 +78,8 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
                     .relative(lean, forward).relative(tangent, sway), 3);
             spine[rise] = center;
             int layerDiameter = progress < 0.72D ? diameter
-                    : Math.max(2, (int)Math.ceil(diameter * (1.0D - (progress - 0.72D) * 1.8D)));
+                    : Math.max(bonsai ? 1 : 2,
+                            (int)Math.ceil(diameter * (1.0D - (progress - 0.72D) * 1.8D)));
             placeVerticalDisk(level, center, layerDiameter);
         }
 
@@ -86,7 +87,11 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
         growCrown(level, spine, diameter, random, seed, bounds, bonsai);
         BlockPos apex = spine[height].above();
         setShattered(level, apex, Direction.UP);
-        if (bonsai) placeTaintedCanopy(level, spine[height - 2], 2 + random.nextInt(3), random);
+        if (bonsai) {
+            int apexRadius = 4 + random.nextInt(2);
+            placeTaintedCanopy(level, bounds.clamp(spine[height - 2], apexRadius),
+                    apexRadius, random);
+        }
 
         // Preserve a clear maze road through the massive base instead of creating a plug.
         carveRoad(level, base, tangent, diameter + 5);
@@ -95,11 +100,11 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
     private static void growButtressRoots(WorldGenLevel level, BlockPos base, int diameter,
                                           RandomSource random, long seed, TreeBounds bounds,
                                           boolean bonsai) {
-        int roots = bonsai ? 3 + random.nextInt(3) : 7 + random.nextInt(4);
+        int roots = bonsai ? 2 + random.nextInt(3) : 7 + random.nextInt(4);
         for (int root = 0; root < roots; root++) {
             double angle = Math.PI * 2.0D * root / roots
                     + signedUnit(mix(seed ^ root * 0xA24BAED4963EE407L)) * 0.34D;
-            int length = bonsai ? 3 + random.nextInt(4) : 9 + random.nextInt(8);
+            int length = bonsai ? 2 + random.nextInt(4) : 9 + random.nextInt(8);
             BlockPos end = bounds.clamp(base.offset(Mth.floor(Math.cos(angle) * length),
                     -1 - random.nextInt(3), Mth.floor(Math.sin(angle) * length)), 1);
             placeTaperedLimb(level, base.above(), end,
@@ -109,33 +114,39 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
 
     private static void growCrown(WorldGenLevel level, BlockPos[] spine, int diameter,
                                   RandomSource random, long seed, TreeBounds bounds, boolean bonsai) {
-        int branches = (bonsai ? 4 : 7) + random.nextInt(bonsai ? 3 : 5);
+        int branches = (bonsai ? 3 : 7) + random.nextInt(bonsai ? 3 : 5);
         for (int branch = 0; branch < branches; branch++) {
             int startIndex = spine.length * (48 + random.nextInt(39)) / 100;
             BlockPos start = spine[Math.min(spine.length - 1, startIndex)];
             double angle = Math.PI * 2.0D * branch / branches
                     + signedUnit(mix(seed ^ branch * 0x8CB92BA72F3D8DD7L)) * 0.46D;
-            int reach = bonsai ? 4 + random.nextInt(5) : 11 + random.nextInt(10);
+            int reach = bonsai ? 3 + random.nextInt(4) : 11 + random.nextInt(10);
             int lift = bonsai ? 1 + random.nextInt(4) - (branch % 4 == 0 ? 1 : 0)
                     : 3 + random.nextInt(9) - (branch % 4 == 0 ? 5 : 0);
+            int canopyRadius = bonsai ? 3 + random.nextInt(3) : 0;
             BlockPos end = bounds.clamp(start.offset(Mth.floor(Math.cos(angle) * reach), lift,
-                    Mth.floor(Math.sin(angle) * reach)), 1);
+                    Mth.floor(Math.sin(angle) * reach)), bonsai ? canopyRadius + 1 : 1);
             LimbTip tip = placeTaperedLimb(level, start, end,
-                    Math.max(2, Math.min(4, diameter - 1)), true);
+                    bonsai ? 1 : Math.max(2, Math.min(4, diameter - 1)), true);
             setShattered(level, tip.position, tip.direction);
-            if (bonsai) placeTaintedCanopy(level, tip.position,
-                    2 + random.nextInt(3), random);
+            if (bonsai) placeTaintedCanopy(level, bounds.clamp(tip.position, canopyRadius),
+                    canopyRadius, random);
 
             // Large branches fork once, giving a mangrove silhouette without leaf blobs.
             if ((branch & 1) == 0) {
                 double forkAngle = angle + (branch % 4 == 0 ? 0.58D : -0.58D);
-                int forkReach = bonsai ? 3 + random.nextInt(3) : 6 + random.nextInt(7);
+                int forkReach = bonsai ? 2 + random.nextInt(3) : 6 + random.nextInt(7);
+                int forkCanopyRadius = bonsai ? 3 + random.nextInt(2) : 0;
                 BlockPos forkEnd = bounds.clamp(end.offset(Mth.floor(Math.cos(forkAngle) * forkReach),
-                        2 + random.nextInt(5), Mth.floor(Math.sin(forkAngle) * forkReach)), 1);
-                LimbTip forkTip = placeTaperedLimb(level, tip.position, forkEnd, 2, true);
+                        bonsai ? 1 + random.nextInt(3) : 2 + random.nextInt(5),
+                        Mth.floor(Math.sin(forkAngle) * forkReach)),
+                        bonsai ? forkCanopyRadius + 1 : 1);
+                LimbTip forkTip = placeTaperedLimb(level, tip.position, forkEnd,
+                        bonsai ? 1 : 2, true);
                 setShattered(level, forkTip.position, forkTip.direction);
                 if (bonsai && random.nextFloat() < 0.72F)
-                    placeTaintedCanopy(level, forkTip.position, 2 + random.nextInt(2), random);
+                    placeTaintedCanopy(level, bounds.clamp(forkTip.position, forkCanopyRadius),
+                            forkCanopyRadius, random);
             }
         }
     }
@@ -153,7 +164,7 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
                     double shape = dx * dx / (double)(radius * radius)
                             + dz * dz / (double)(radius * radius)
                             + dy * dy / (double)(verticalRadius * verticalRadius);
-                    double fray = random.nextDouble() * 0.24D;
+                    double fray = random.nextDouble() * 0.12D;
                     if (shape > 1.0D - fray) continue;
                     BlockState state = level.getBlockState(pos);
                     if (!state.isAir() && !state.is(Asterion.ANCIENT_LEAVES)
