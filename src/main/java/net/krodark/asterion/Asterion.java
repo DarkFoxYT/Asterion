@@ -25,6 +25,7 @@ import net.krodark.asterion.network.MazeShiftPayload;
 import net.krodark.asterion.network.DeadSunStrikePayload;
 import net.krodark.asterion.network.BossTelegraphPayload;
 import net.krodark.asterion.network.BossEncounterResetPayload;
+import net.krodark.asterion.network.BiomeAtmospherePayload;
 import net.krodark.asterion.network.DazePayload;
 import net.krodark.asterion.network.ragdoll.*;
 import net.krodark.asterion.entity.MinotaurEntity;
@@ -65,14 +66,18 @@ import net.krodark.asterion.block.LabyrinthVineBlock;
 import net.krodark.asterion.block.LabyrinthVineBlockEntity;
 import net.krodark.asterion.block.SkeletonBlock;
 import net.krodark.asterion.block.SkeletonBlockEntity;
+import net.krodark.asterion.block.ShatteredDeadWoodBlock;
+import net.krodark.asterion.block.ShatteredDeadWoodBlockEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.ChainBlock;
+import net.minecraft.world.level.block.CarpetBlock;
 import net.minecraft.world.level.block.FenceBlock;
 import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.UntintedParticleLeavesBlock;
 import net.minecraft.world.level.block.SlabBlock;
 import net.minecraft.world.level.block.StairBlock;
+import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.TallGrassBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.WallBlock;
@@ -87,6 +92,14 @@ import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConf
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import net.krodark.asterion.worldgen.UnderwaterRuinFeature;
 import net.krodark.asterion.worldgen.AncientMossPatchFeature;
+import net.krodark.asterion.worldgen.AncientLeavesClusterFeature;
+import net.krodark.asterion.worldgen.OvergrowthBridgeFeature;
+import net.krodark.asterion.worldgen.OvergrowthBridgeChainFeature;
+import net.krodark.asterion.worldgen.OvergrowthRestSiteFeature;
+import net.krodark.asterion.worldgen.GiantDeadTreeFeature;
+import net.krodark.asterion.worldgen.AncientGroundVineFeature;
+import net.krodark.asterion.worldgen.AncientHangingVineFeature;
+import net.krodark.asterion.worldgen.MazeBiomes;
 import net.krodark.asterion.worldgen.MazeChunkGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,6 +114,8 @@ public class Asterion implements ModInitializer {
             BuiltInRegistries.MOB_EFFECT, id("resolve"), new ResolveEffect());
 
     public static final Block ANCIENT_BRICKS = registerBlock("ancient_bricks", MapColor.COLOR_BROWN, Block::new);
+    public static final Block ANCIENT_MOSSY_BRICKS = registerBlock(
+            "ancient_mossy_bricks", MapColor.TERRACOTTA_GREEN, Block::new);
     public static final Block ANCIENT_BRICK_SLAB = registerBlock("ancient_brick_slab", MapColor.COLOR_BROWN, SlabBlock::new);
     public static final Block ANCIENT_BRICK_STAIRS = registerBlock("ancient_brick_stairs", MapColor.COLOR_BROWN,
             properties -> new StairBlock(ANCIENT_BRICKS.defaultBlockState(), properties) { });
@@ -114,13 +129,23 @@ public class Asterion implements ModInitializer {
                     properties.strength(2.0F, 3.0F).sound(SoundType.WOOD)) { });
     public static final Block ANCIENT_PLANK_FENCE = registerBlock("ancient_plank_fence", MapColor.COLOR_BROWN,
             properties -> new FenceBlock(properties.strength(2.0F, 3.0F).sound(SoundType.WOOD)));
+    public static final Block DEAD_WOOD = registerBlock("dead_wood", MapColor.COLOR_BROWN,
+            properties -> new RotatedPillarBlock(properties.strength(3.2F, 5.0F).sound(SoundType.WOOD)));
+    public static final ShatteredDeadWoodBlock SHATTERED_DEAD_WOOD = (ShatteredDeadWoodBlock)registerBlock(
+            "shattered_dead_wood", MapColor.COLOR_BROWN,
+            properties -> new ShatteredDeadWoodBlock(properties.noOcclusion()
+                    .strength(3.2F, 5.0F).sound(SoundType.WOOD)));
     public static final Block ANCIENT_STONE = registerBlock("ancient_stone", MapColor.TERRACOTTA_BROWN, Block::new);
     public static final Block MOSSY_ANCIENT_STONE = registerBlock("mossy_ancient_stone", MapColor.TERRACOTTA_GREEN, Block::new);
     public static final Block ANCIENT_MOSS = registerBlock("ancient_moss", MapColor.TERRACOTTA_GREEN, Block::new);
+    public static final Block ANCIENT_MOSS_CARPET = registerBlock(
+            "ancient_moss_carpet", MapColor.TERRACOTTA_GREEN,
+            properties -> new CarpetBlock(properties.noCollision().strength(0.1F)
+                    .sound(SoundType.MOSS_CARPET)));
     public static final LeavesBlock ANCIENT_LEAVES = (LeavesBlock)registerBlock(
             "ancient_leaves", MapColor.TERRACOTTA_BROWN,
             properties -> new UntintedParticleLeavesBlock(0.01F, ParticleTypes.PALE_OAK_LEAVES,
-                    properties.strength(0.2F).randomTicks().sound(SoundType.AZALEA_LEAVES).noOcclusion()));
+                    properties.strength(0.2F).randomTicks().sound(SoundType.GRASS).noOcclusion()));
     public static final Block SHORT_GRASS = registerBlock("short_grass", MapColor.PLANT,
             properties -> new ShortGrassBlock(properties.noCollision().replaceable().instabreak()
                     .sound(SoundType.GRASS).offsetType(BlockBehaviour.OffsetType.XZ)));
@@ -136,7 +161,7 @@ public class Asterion implements ModInitializer {
             "mazesteel_gate", MapColor.METAL,
             properties -> new DirectionalGateBlock(properties.noOcclusion()));
     public static final WinchBlock WINCH = (WinchBlock)registerBlock(
-            "winch", MapColor.METAL, properties -> new WinchBlock(properties.noOcclusion()));
+            "winch", MapColor.METAL, WinchBlock::new);
     public static final LabyrinthVineBlock LABYRINTH_VINE = (LabyrinthVineBlock)registerBlock(
             "labyrinth_vine", MapColor.COLOR_BROWN,
             properties -> new LabyrinthVineBlock(properties.noOcclusion().strength(0.4F)
@@ -158,6 +183,10 @@ public class Asterion implements ModInitializer {
     public static final BlockEntityType<SkeletonBlockEntity> SKELETON_BLOCK_ENTITY = Registry.register(
             BuiltInRegistries.BLOCK_ENTITY_TYPE, id("skeleton"),
             FabricBlockEntityTypeBuilder.create(SkeletonBlockEntity::new, SKELETON).build());
+    public static final BlockEntityType<ShatteredDeadWoodBlockEntity> SHATTERED_DEAD_WOOD_BLOCK_ENTITY =
+            Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, id("shattered_dead_wood"),
+                    FabricBlockEntityTypeBuilder.create(ShatteredDeadWoodBlockEntity::new,
+                            SHATTERED_DEAD_WOOD).build());
     private static final ResourceKey<EntityType<?>> MINOTAUR_KEY = ResourceKey.create(
             Registries.ENTITY_TYPE, id("minotaur"));
     public static final EntityType<MinotaurEntity> MINOTAUR = Registry.register(
@@ -188,6 +217,8 @@ public class Asterion implements ModInitializer {
             BuiltInRegistries.PARTICLE_TYPE, id("firefly"), FabricParticleTypes.simple());
     public static final SimpleParticleType ANCIENT_WALL_DUST = Registry.register(
             BuiltInRegistries.PARTICLE_TYPE, id("ancient_wall_dust"), FabricParticleTypes.simple());
+    public static final SimpleParticleType RUMBLE_SMOKE = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, id("rumble_smoke"), FabricParticleTypes.simple());
 
     private static final ResourceKey<Item> MECHANISM_KEY = ResourceKey.create(
             Registries.ITEM, id("antikythera_mechanism"));
@@ -221,6 +252,7 @@ public class Asterion implements ModInitializer {
                         output.accept(ANTIKYTHERA_BLUEPRINT);
                         output.accept(MINOTAUR_SIGIL);
                         output.accept(ANCIENT_BRICKS);
+                        output.accept(ANCIENT_MOSSY_BRICKS);
                         output.accept(ANCIENT_BRICK_SLAB);
                         output.accept(ANCIENT_BRICK_STAIRS);
                         output.accept(ANCIENT_BRICK_WALL);
@@ -228,9 +260,12 @@ public class Asterion implements ModInitializer {
                         output.accept(ANCIENT_PLANK_SLAB);
                         output.accept(ANCIENT_PLANK_STAIRS);
                         output.accept(ANCIENT_PLANK_FENCE);
+                        output.accept(DEAD_WOOD);
+                        output.accept(SHATTERED_DEAD_WOOD);
                         output.accept(ANCIENT_STONE);
                         output.accept(MOSSY_ANCIENT_STONE);
                         output.accept(ANCIENT_MOSS);
+                        output.accept(ANCIENT_MOSS_CARPET);
                         output.accept(ANCIENT_LEAVES);
                         output.accept(SHORT_GRASS);
                         output.accept(ANCIENT_STONE_SLAB);
@@ -253,12 +288,47 @@ public class Asterion implements ModInitializer {
     public static final Feature<NoneFeatureConfiguration> ANCIENT_MOSS_PATCH_FEATURE = Registry.register(
             BuiltInRegistries.FEATURE, id("ancient_moss_patch"),
             new AncientMossPatchFeature(NoneFeatureConfiguration.CODEC));
+    public static final Feature<NoneFeatureConfiguration> ANCIENT_LEAVES_CLUSTER_FEATURE = Registry.register(
+            BuiltInRegistries.FEATURE, id("ancient_leaves_cluster"),
+            new AncientLeavesClusterFeature(NoneFeatureConfiguration.CODEC));
+    public static final Feature<NoneFeatureConfiguration> OVERGROWTH_BRIDGE_FEATURE = Registry.register(
+            BuiltInRegistries.FEATURE, id("overgrowth_bridge"),
+            new OvergrowthBridgeFeature(NoneFeatureConfiguration.CODEC));
+    public static final Feature<NoneFeatureConfiguration> OVERGROWTH_BRIDGE_CHAIN_FEATURE = Registry.register(
+            BuiltInRegistries.FEATURE, id("overgrowth_bridge_chains"),
+            new OvergrowthBridgeChainFeature(NoneFeatureConfiguration.CODEC));
+    public static final Feature<NoneFeatureConfiguration> OVERGROWTH_REST_SITE_FEATURE = Registry.register(
+            BuiltInRegistries.FEATURE, id("overgrowth_rest_site"),
+            new OvergrowthRestSiteFeature(NoneFeatureConfiguration.CODEC));
+    public static final Feature<NoneFeatureConfiguration> GIANT_DEAD_TREE_FEATURE = Registry.register(
+            BuiltInRegistries.FEATURE, id("giant_dead_tree"),
+            new GiantDeadTreeFeature(NoneFeatureConfiguration.CODEC));
+    public static final Feature<NoneFeatureConfiguration> ANCIENT_GROUND_VINE_FEATURE = Registry.register(
+            BuiltInRegistries.FEATURE, id("ancient_ground_vines"),
+            new AncientGroundVineFeature(NoneFeatureConfiguration.CODEC));
+    public static final Feature<NoneFeatureConfiguration> ANCIENT_HANGING_VINE_FEATURE = Registry.register(
+            BuiltInRegistries.FEATURE, id("ancient_hanging_vines"),
+            new AncientHangingVineFeature(NoneFeatureConfiguration.CODEC));
     public static final com.mojang.serialization.MapCodec<MazeChunkGenerator> MAZE_CHUNK_GENERATOR =
             Registry.register(BuiltInRegistries.CHUNK_GENERATOR, id("maze"), MazeChunkGenerator.CODEC);
     private static final ResourceKey<PlacedFeature> UNDERWATER_RUIN_PLACED = ResourceKey.create(
             Registries.PLACED_FEATURE, id("underwater_ruin"));
     private static final ResourceKey<PlacedFeature> ANCIENT_MOSS_PATCH_PLACED = ResourceKey.create(
             Registries.PLACED_FEATURE, id("ancient_moss_patch"));
+    private static final ResourceKey<PlacedFeature> ANCIENT_LEAVES_CLUSTER_PLACED = ResourceKey.create(
+            Registries.PLACED_FEATURE, id("ancient_leaves_cluster"));
+    private static final ResourceKey<PlacedFeature> OVERGROWTH_BRIDGE_PLACED = ResourceKey.create(
+            Registries.PLACED_FEATURE, id("overgrowth_bridge"));
+    private static final ResourceKey<PlacedFeature> OVERGROWTH_BRIDGE_CHAIN_PLACED = ResourceKey.create(
+            Registries.PLACED_FEATURE, id("overgrowth_bridge_chains"));
+    private static final ResourceKey<PlacedFeature> OVERGROWTH_REST_SITE_PLACED = ResourceKey.create(
+            Registries.PLACED_FEATURE, id("overgrowth_rest_site"));
+    private static final ResourceKey<PlacedFeature> GIANT_DEAD_TREE_PLACED = ResourceKey.create(
+            Registries.PLACED_FEATURE, id("giant_dead_tree"));
+    private static final ResourceKey<PlacedFeature> ANCIENT_GROUND_VINE_PLACED = ResourceKey.create(
+            Registries.PLACED_FEATURE, id("ancient_ground_vines"));
+    private static final ResourceKey<PlacedFeature> ANCIENT_HANGING_VINE_PLACED = ResourceKey.create(
+            Registries.PLACED_FEATURE, id("ancient_hanging_vines"));
 
     @Override
     public void onInitialize() {
@@ -275,6 +345,7 @@ public class Asterion implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(BossTelegraphPayload.TYPE, BossTelegraphPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(BossEncounterResetPayload.TYPE, BossEncounterResetPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(DazePayload.TYPE, DazePayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(BiomeAtmospherePayload.TYPE, BiomeAtmospherePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RagdollImpulsePayload.TYPE, RagdollImpulsePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RagdollPosePayload.TYPE, RagdollPosePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RagdollAuthorityPayload.TYPE, RagdollAuthorityPayload.CODEC);
@@ -307,6 +378,21 @@ public class Asterion implements ModInitializer {
                 GenerationStep.Decoration.SURFACE_STRUCTURES, UNDERWATER_RUIN_PLACED);
         BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),
                 GenerationStep.Decoration.VEGETAL_DECORATION, ANCIENT_MOSS_PATCH_PLACED);
+        BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),
+                GenerationStep.Decoration.VEGETAL_DECORATION, GIANT_DEAD_TREE_PLACED);
+        // Ordering matters: supports are generated before the chains and vines that use them.
+        BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),
+                GenerationStep.Decoration.VEGETAL_DECORATION, ANCIENT_LEAVES_CLUSTER_PLACED);
+        BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),
+                GenerationStep.Decoration.VEGETAL_DECORATION, OVERGROWTH_BRIDGE_PLACED);
+        BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),
+                GenerationStep.Decoration.VEGETAL_DECORATION, OVERGROWTH_REST_SITE_PLACED);
+        BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),
+                GenerationStep.Decoration.VEGETAL_DECORATION, OVERGROWTH_BRIDGE_CHAIN_PLACED);
+        BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),
+                GenerationStep.Decoration.VEGETAL_DECORATION, ANCIENT_GROUND_VINE_PLACED);
+        BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),
+                GenerationStep.Decoration.VEGETAL_DECORATION, ANCIENT_HANGING_VINE_PLACED);
         BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID),
                 MobCategory.CREATURE, BOMBARDIER_BEETLE, 12, 1, 3);
         ServerTickEvents.END_SERVER_TICK.register(WorldGenerator::tickServer);
@@ -333,6 +419,10 @@ public class Asterion implements ModInitializer {
             }
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(WorldGenerator::clearRuntimeState);
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            var maze = server.getLevel(ASTERION_LEVEL);
+            if (maze != null) MazeBiomes.load(maze);
+        });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> ResolveSystem.clear());
         LOGGER.info("The Antikythera Mechanism stirs beneath the sea");
     }

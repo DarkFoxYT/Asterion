@@ -19,6 +19,9 @@ import org.joml.Vector4f;
 import java.util.List;
 
 public final class AsterionPostEffects {
+    private static boolean overgrowthTarget;
+    private static float overgrowthBlend;
+
     private AsterionPostEffects() {
     }
 
@@ -112,27 +115,51 @@ public final class AsterionPostEffects {
         AsterionConfig config = AsterionConfig.INSTANCE;
         float eclipse = darkness();
         return new Vector3f(
-                config.dustDensity * mix(1.0F, 2.80F, eclipse),
-                config.fogStrength * mix(1.0F, 2.25F, eclipse),
+                config.dustDensity * mix(1.0F, 0.82F, overgrowthBlend)
+                        * mix(1.0F, 2.80F, eclipse),
+                config.fogStrength * mix(1.0F, 0.90F, overgrowthBlend)
+                        * mix(1.0F, 2.25F, eclipse),
                 config.shaderAnimationSpeed);
     }
 
     private static Vector3f dustColor() {
         AsterionConfig config = AsterionConfig.INSTANCE;
         float eclipse = darkness();
+        // Bright ember-orange shafts, kept luminous rather than muddy brown.
+        // Pale-Garden-like stone and lichen tint: cool, soft and readable without changing
+        // Minecraft's biome tinting itself.
+        float red = mix(config.dustR, 0.43F, overgrowthBlend);
+        float green = mix(config.dustG, 0.46F, overgrowthBlend);
+        float blue = mix(config.dustB, 0.40F, overgrowthBlend);
         return new Vector3f(
-                mix(config.dustR, 0.15F, eclipse),
-                mix(config.dustG, 0.018F, eclipse),
-                mix(config.dustB, 0.012F, eclipse));
+                mix(red, 0.15F, eclipse),
+                mix(green, 0.018F, eclipse),
+                mix(blue, 0.012F, eclipse));
     }
 
     private static Vector3f fogColor() {
         AsterionConfig config = AsterionConfig.INSTANCE;
         float eclipse = darkness();
+        float red = mix(config.fogR, 0.20F, overgrowthBlend);
+        float green = mix(config.fogG, 0.235F, overgrowthBlend);
+        float blue = mix(config.fogB, 0.205F, overgrowthBlend);
         return new Vector3f(
-                mix(config.fogR, 0.018F, eclipse),
-                mix(config.fogG, 0.003F, eclipse),
-                mix(config.fogB, 0.002F, eclipse));
+                mix(red, 0.018F, eclipse),
+                mix(green, 0.003F, eclipse),
+                mix(blue, 0.002F, eclipse));
+    }
+
+    public static void setOvergrowth(boolean overgrowth) {
+        overgrowthTarget = overgrowth;
+    }
+
+    public static void tickBiomeAtmosphere(Minecraft client) {
+        if (client.level == null || !client.level.dimension().equals(Asterion.ASTERION_LEVEL))
+            overgrowthTarget = false;
+        float target = overgrowthTarget ? 1.0F : 0.0F;
+        // About two seconds of easing at 20 TPS prevents a visible biome seam.
+        overgrowthBlend += (target - overgrowthBlend) * 0.026F;
+        if (Math.abs(target - overgrowthBlend) < 0.001F) overgrowthBlend = target;
     }
 
     private static float eclipse() {

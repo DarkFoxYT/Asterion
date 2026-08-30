@@ -10,10 +10,17 @@ import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
+
 /** A long-lived, independently wandering insect with a four-frame wing loop. */
 public final class FlyingInsectParticle extends SingleQuadParticle {
     private static final int FRAMES = 4;
     private static final int TICKS_PER_FRAME = 2;
+    private static final Set<FlyingInsectParticle> ACTIVE_FIREFLIES =
+            Collections.newSetFromMap(new IdentityHashMap<>());
+    private static int nextLightSlot;
     private final SpriteSet sprites;
     private final boolean firefly;
     private float heading;
@@ -24,6 +31,8 @@ public final class FlyingInsectParticle extends SingleQuadParticle {
     private int lightScanTicks;
     private Vec3 lightTarget;
     private final float phase;
+    private final int lightSlot;
+    private boolean ownsDynamicLight;
 
     private FlyingInsectParticle(ClientLevel level, double x, double y, double z,
                                  double velocityX, double velocityY, double velocityZ,
@@ -31,6 +40,8 @@ public final class FlyingInsectParticle extends SingleQuadParticle {
         super(level, x, y, z, velocityX, velocityY, velocityZ, sprites.first());
         this.sprites = sprites;
         this.firefly = firefly;
+        this.lightSlot = firefly ? nextLightSlot++ : -1;
+        if (firefly) ACTIVE_FIREFLIES.add(this);
         this.phase = random.nextFloat() * Mth.TWO_PI;
         this.heading = horizontalHeading(velocityX, velocityZ, random);
         this.targetHeading = heading;
@@ -166,17 +177,33 @@ public final class FlyingInsectParticle extends SingleQuadParticle {
         float pulse = 0.62F + 0.38F * Mth.sin(age * 0.17F + phase) * Mth.sin(age * 0.17F + phase);
         setColor(1.0F, 0.94F, 0.72F);
         AsterionConfig config = AsterionConfig.INSTANCE;
-        if (config.dynamicLightsEnabled)
+        int activeCount = Math.max(1, ACTIVE_FIREFLIES.size());
+        int lightBudget = Mth.clamp(14 - activeCount / 12, 4, 14);
+        int lightStride = Math.max(1, (activeCount + lightBudget - 1) / lightBudget);
+        boolean ownsAmneticLight = Math.floorMod(lightSlot, lightStride) == 0;
+        float loadScale = Mth.clamp((float)Math.sqrt(lightBudget / (double)activeCount), 0.28F, 1.0F);
+        if (config.dynamicLightsEnabled && ownsAmneticLight) {
             LedAmneticLight.updateItemGlowLight(this, new Vec3(x, y, z),
-                    1.0F, 0.68F, 0.12F, 0.8F + pulse * 1.25F, 2.2F + pulse * 1.6F, false);
+                    1.0F, 0.68F, 0.12F,
+                    (0.8F + pulse * 1.25F) * loadScale,
+                    (2.2F + pulse * 1.6F) * (0.55F + loadScale * 0.45F), false);
+            ownsDynamicLight = true;
+        } else if (ownsDynamicLight) {
+            LedAmneticLight.removeItemGlowLight(this);
+            ownsDynamicLight = false;
+        }
         int coreInterval = config.ambientParticleQuality == 0 ? 4
                 : config.ambientParticleQuality == 1 ? 2 : 1;
+        coreInterval *= Math.min(4, lightStride);
         if (age % coreInterval == 0)
             AsterionEmissiveParticles.spawnFireflyCore(x, y, z, xd, yd, zd, pulse);
     }
 
     @Override public void remove() {
-        if (firefly) LedAmneticLight.removeItemGlowLight(this);
+        if (firefly) {
+            ACTIVE_FIREFLIES.remove(this);
+            if (ownsDynamicLight) LedAmneticLight.removeItemGlowLight(this);
+        }
         super.remove();
     }
 

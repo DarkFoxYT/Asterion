@@ -113,8 +113,6 @@ public final class PhysicsDebrisSystem {
                 iterator.remove();
             }
         }
-        // Never truncate a fracture family: debris 1 always resolves into the complete 2–6 set.
-        // Normal ceiling spawning still respects the quality cap on following ticks.
         PIECES.addAll(fracturedChildren);
     }
 
@@ -177,24 +175,25 @@ public final class PhysicsDebrisSystem {
             piece.previousPosition = piece.position;
         }
         if (!isWorldClear(level, piece, piece.position)) return;
+        spawnDebrisSmoke(level, piece.position, random, variant == 1 ? 8 : 4);
         PIECES.add(piece);
         if (ceiling != null) ceilingDust(level, ceiling, random, intensity);
     }
 
     private static int randomVariant(Random random) {
         float roll = random.nextFloat();
-        if (roll < 0.24F) return 1;
-        if (roll < 0.44F) return 2;
-        if (roll < 0.62F) return 3;
-        if (roll < 0.78F) return 4;
-        if (roll < 0.91F) return 5;
+        if (roll < 0.055F) return 1;
+        if (roll < 0.29F) return 2;
+        if (roll < 0.51F) return 3;
+        if (roll < 0.70F) return 4;
+        if (roll < 0.87F) return 5;
         return 6;
     }
 
     private static float randomScale(int variant, Random random) {
         float shaped = random.nextFloat() * random.nextFloat();
         return switch (variant) {
-            case 1 -> 0.10F + shaped * 0.22F;
+            case 1 -> 0.92F + random.nextFloat() * 0.16F;
             case 2 -> 0.26F + shaped * 0.34F;
             case 3 -> 0.32F + shaped * 0.42F;
             case 4 -> 0.34F + shaped * 0.44F;
@@ -225,8 +224,14 @@ public final class PhysicsDebrisSystem {
             if (normal == null) continue;
             double impactSpeed = Math.max(0.0, -piece.velocity.dot(normal));
             piece.impacts++;
-            if (!piece.unbreakable() && (impactSpeed > piece.breakSpeed()
-                    || piece.impacts >= piece.maxImpacts())) {
+            boolean shouldBreak = !piece.unbreakable() && (impactSpeed > piece.breakSpeed()
+                    || piece.impacts >= piece.maxImpacts());
+            boolean floorContact = normal.y > 0.55D;
+            if (shouldBreak && piece.consumeSurfaceSurvival(floorContact)) {
+                piece.impacts = Math.max(0, piece.impacts - 2);
+                shouldBreak = false;
+            }
+            if (shouldBreak) {
                 if (piece.variant == 1)
                     splitPrimaryDebris(level, piece, normal, impactSpeed, fracturedChildren);
                 else
@@ -260,8 +265,7 @@ public final class PhysicsDebrisSystem {
                 .add(normal.scale(outwardSpeed * (piece.variant == 6 ? 0.18D : 0.34D)));
     }
 
-    /** Debris 1 is the intact wall cluster. Its terminal impact produces one of every authored
-     * child mesh while preserving the parent's center-of-mass velocity. */
+    /** The intact wall cluster breaks into a different surviving subset on every impact. */
     private static void splitPrimaryDebris(ClientLevel level, Piece parent, Vec3 normal,
                                            double impactSpeed, List<Piece> output) {
         burst(level, parent, normal, impactSpeed);
@@ -269,7 +273,11 @@ public final class PhysicsDebrisSystem {
         RagdollMath.Basis basis = RagdollMath.directionBasis(normal);
         List<Piece> children = new ArrayList<>(5);
         double[] scales = {0.0D, 0.0D, 1.16D, 1.34D, 1.30D, 1.54D, 1.48D};
+        int wanted = 2 + random.nextInt(4);
+        int accepted = 0;
         for (int variant = 2; variant <= 6; variant++) {
+            int remaining = 7 - variant;
+            if (accepted >= wanted || (random.nextFloat() > 0.66F && accepted + remaining > wanted)) continue;
             double angle = (variant - 2) * Mth.TWO_PI / 5.0D + 0.24D;
             Vec3 radial = basis.tangent().scale(Math.cos(angle))
                     .add(basis.bitangent().scale(Math.sin(angle)));
@@ -291,6 +299,7 @@ public final class PhysicsDebrisSystem {
             }
             child.previousPosition = child.position;
             children.add(child);
+            accepted++;
         }
 
         double totalMass = 0.0D;
@@ -347,6 +356,16 @@ public final class PhysicsDebrisSystem {
                 ceiling.getZ() + random.nextDouble(),
                 (random.nextDouble() - 0.5) * 0.035, -0.015 - random.nextDouble() * 0.055,
                 (random.nextDouble() - 0.5) * 0.035);
+    }
+
+    private static void spawnDebrisSmoke(ClientLevel level, Vec3 position, Random random, int count) {
+        for (int i = 0; i < count; i++) level.addParticle(Asterion.RUMBLE_SMOKE,
+                position.x + (random.nextDouble() - 0.5D) * 0.75D,
+                position.y + (random.nextDouble() - 0.5D) * 0.45D,
+                position.z + (random.nextDouble() - 0.5D) * 0.75D,
+                (random.nextDouble() - 0.5D) * 0.025D,
+                0.004D + random.nextDouble() * 0.018D,
+                (random.nextDouble() - 0.5D) * 0.025D);
     }
 
     private static void spawnAncientWallDust(ClientLevel level, Vec3 center, float radius,
@@ -539,6 +558,8 @@ public final class PhysicsDebrisSystem {
         private Vec3 velocity = Vec3.ZERO;
         private int age;
         private int impacts;
+        private int floorSurvivals;
+        private int wallSurvivals;
 
         private Piece(Vec3 position, int variant, float scale, Random random) {
             this.position = position;
@@ -556,6 +577,15 @@ public final class PhysicsDebrisSystem {
             this.angularVelocity = new Vector3f((random.nextFloat() - 0.5F) * 0.42F,
                     (random.nextFloat() - 0.5F) * 0.42F,
                     (random.nextFloat() - 0.5F) * 0.42F).mul(profile.spinMultiplier);
+            this.floorSurvivals = random.nextFloat() < (this.variant == 1 ? 0.72F : 0.42F)
+                    ? 1 + random.nextInt(this.variant == 1 ? 3 : 2) : 0;
+            this.wallSurvivals = random.nextFloat() < 0.58F ? 1 + random.nextInt(2) : 0;
+        }
+
+        private boolean consumeSurfaceSurvival(boolean floor) {
+            if (floor && floorSurvivals > 0) { floorSurvivals--; return true; }
+            if (!floor && wallSurvivals > 0) { wallSurvivals--; return true; }
+            return false;
         }
 
         private Vec3 halfExtents() {

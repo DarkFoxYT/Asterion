@@ -4,6 +4,8 @@
     "asterion:ancient_planks",
     "asterion:ancient_plank_slab",
     "asterion:ancient_plank_stairs",
-    "asterion:ancient_plank_fence"
+    "asterion:ancient_plank_fence",
+    "asterion:dead_wood",
+    "asterion:shattered_dead_wood"
   ]
 }

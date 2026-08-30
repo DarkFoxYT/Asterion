@@ -1,0 +1,35 @@
+{
+  "region_size_cells": 12,
+  "ancient_center_radius_cells": 7,
+  "transition_width_cells": 2.0,
+  "blend_width_cells": 4.0,
+  "biomes": [
+    {
+      "id": "ancient",
+      "weight": 60,
+      "wall_opening_divisor": 0,
+      "motif_chance": 13,
+      "features": []
+    },
+    {
+      "id": "overgrowth",
+      "weight": 40,
+      "wall_opening_divisor": 9,
+      "motif_chance": 3,
+      "features": [
+        "mossy_walls",
+        "leaf_crowns",
+        "canopy",
+        "floor_plants",
+        "moss_patches",
+        "leaf_clusters",
+        "bridges",
+        "bridge_chains",
+        "rest_sites",
+        "giant_dead_trees",
+        "ground_vines",
+        "hanging_vines"
+      ]
+    }
+  ]
+}

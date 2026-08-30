@@ -18,8 +18,6 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.redstone.Orientation;
-import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -161,16 +159,4 @@ public final class WinchBlock extends Block {
         builder.add(FACING, POWERED);
     }
 
-    @Override
-    protected VoxelShape getShape(BlockState state, net.minecraft.world.level.BlockGetter level, BlockPos pos,
-                                   CollisionContext context) {
-        return switch (state.getValue(FACING)) {
-            case UP -> box(2, 0, 2, 14, 10, 14);
-            case DOWN -> box(2, 6, 2, 14, 16, 14);
-            case EAST -> box(0, 2, 2, 10, 14, 14);
-            case WEST -> box(6, 2, 2, 16, 14, 14);
-            case SOUTH -> box(2, 2, 0, 14, 14, 10);
-            case NORTH -> box(2, 2, 6, 14, 14, 16);
-        };
-    }
 }

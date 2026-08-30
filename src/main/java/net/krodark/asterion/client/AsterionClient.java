@@ -19,9 +19,11 @@ import net.krodark.asterion.client.particle.BombardierGasFireParticle;
 import net.krodark.asterion.client.particle.AsterionEmissiveParticles;
 import net.krodark.asterion.client.particle.FlyingInsectParticle;
 import net.krodark.asterion.client.particle.AncientWallDustParticle;
+import net.krodark.asterion.client.particle.RumbleSmokeParticle;
 import net.krodark.asterion.client.render.block.RuneGeoRenderer;
 import net.krodark.asterion.client.render.block.LabyrinthVineGeoRenderer;
 import net.krodark.asterion.client.render.block.SkeletonGeoRenderer;
+import net.krodark.asterion.client.render.block.ShatteredDeadWoodGeoRenderer;
 import net.krodark.asterion.client.render.portal.AsterionPortalRenderer;
 import net.krodark.asterion.client.render.post.AsterionPostEffects;
 import net.krodark.asterion.network.*;
@@ -68,9 +70,15 @@ public final class AsterionClient implements ClientModInitializer {
                 (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
                         AncientWallDustParticle.create(level, x, y, z,
                                 velocityX, velocityY, velocityZ, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.RUMBLE_SMOKE, sprites ->
+                (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
+                        RumbleSmokeParticle.create(level, x, y, z,
+                                velocityX, velocityY, velocityZ, sprites, random));
         BlockEntityRenderers.register(Asterion.RUNE_BLOCK_ENTITY, RuneGeoRenderer::new);
         BlockEntityRenderers.register(Asterion.LABYRINTH_VINE_BLOCK_ENTITY, LabyrinthVineGeoRenderer::new);
         BlockEntityRenderers.register(Asterion.SKELETON_BLOCK_ENTITY, SkeletonGeoRenderer::new);
+        BlockEntityRenderers.register(Asterion.SHATTERED_DEAD_WOOD_BLOCK_ENTITY,
+                ShatteredDeadWoodGeoRenderer::new);
         ClientPlayNetworking.registerGlobalReceiver(DimensionTransitionPayload.TYPE, (payload, context) ->
                 context.client().execute(() ->
                         DimensionTransitionOverlay.begin(payload.fadeInTicks(), payload.holdTicks())));
@@ -105,6 +113,8 @@ public final class AsterionClient implements ClientModInitializer {
                 }));
         ClientPlayNetworking.registerGlobalReceiver(DazePayload.TYPE, (payload, context) ->
                 context.client().execute(() -> DazeOverlay.begin(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(BiomeAtmospherePayload.TYPE, (payload, context) ->
+                context.client().execute(() -> AsterionPostEffects.setOvergrowth(payload.overgrowth())));
         ClientPlayNetworking.registerGlobalReceiver(RagdollImpulsePayload.TYPE, (payload, context) ->
                 context.client().execute(() -> DismembermentEngine.INSTANCE.forcePlayerTumble(
                         context.client(), payload.source(), payload.impulse(), payload.force())));
@@ -129,5 +139,6 @@ public final class AsterionClient implements ClientModInitializer {
         DazeOverlay.tick(client);
         HeldItemDynamicLights.tick(client);
         LedAmneticLight.tickCleanup(client);
+        AsterionPostEffects.tickBiomeAtmosphere(client);
     }
 }

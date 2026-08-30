@@ -36,7 +36,9 @@ public final class LedAmneticLight {
             LedAmneticPointLights.clear();
             return;
         }
-        long stale = client.level.getGameTime() - 1L;
+        // Block-entity renderers can be briefly culled when the camera crosses their
+        // bounds. A short grace period keeps static bulb lights from blinking nearby.
+        long stale = client.level.getGameTime() - 40L;
         Iterator<Map.Entry<Object, Long>> iterator = UPDATED.entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry<Object, Long> entry = iterator.next();

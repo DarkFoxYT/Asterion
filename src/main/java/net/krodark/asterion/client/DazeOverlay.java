@@ -9,6 +9,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
+import net.minecraft.core.particles.ParticleTypes;
 import org.lwjgl.glfw.GLFW;
 
 public final class DazeOverlay {
@@ -40,6 +41,7 @@ public final class DazeOverlay {
             return;
         }
         remaining--;
+        spawnStunOrbit(client);
         boolean down = client.screen == null && GLFW.glfwGetKey(client.getWindow().handle(),
                 GLFW.GLFW_KEY_SPACE) == GLFW.GLFW_PRESS;
         boolean mash = AsterionConfig.INSTANCE.ragdollMashRecovery;
@@ -60,6 +62,21 @@ public final class DazeOverlay {
             remaining = 0;
         }
         spaceWasDown = down;
+    }
+
+    private static void spawnStunOrbit(Minecraft client) {
+        if ((client.player.tickCount & 1) != 0) return;
+        double time = (duration - remaining) * 0.24D;
+        int stars = duration >= 100 ? 4 : 3;
+        for (int i = 0; i < stars; i++) {
+            double angle = time + i * Mth.TWO_PI / stars;
+            double radius = duration >= 100 ? 0.62D : 0.48D;
+            double x = client.player.getX() + Math.cos(angle) * radius;
+            double y = client.player.getEyeY() + 0.34D + Math.sin(time * 0.65D + i) * 0.08D;
+            double z = client.player.getZ() + Math.sin(angle) * radius;
+            client.level.addParticle(i % 2 == 0 ? ParticleTypes.WAX_ON : ParticleTypes.ELECTRIC_SPARK,
+                    x, y, z, -Math.sin(angle) * 0.025D, 0.006D, Math.cos(angle) * 0.025D);
+        }
     }
 
     public static boolean isActive() { return remaining > 0; }

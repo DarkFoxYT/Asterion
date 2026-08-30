@@ -9,6 +9,7 @@ import net.krodark.asterion.network.MazeShiftPayload;
 import net.krodark.asterion.network.GatewayPortalPayload;
 import net.krodark.asterion.network.MazeZapPayload;
 import net.krodark.asterion.network.DeadSunStrikePayload;
+import net.krodark.asterion.network.BiomeAtmospherePayload;
 import net.krodark.asterion.network.ragdoll.RagdollImpulsePayload;
 import net.krodark.asterion.network.ragdoll.RagdollExplosionPayload;
 import net.krodark.asterion.network.ragdoll.RagdollServerNetworking;
@@ -16,7 +17,9 @@ import net.krodark.asterion.event.DeadSunEventSystem;
 import net.krodark.asterion.entity.MinotaurEntity;
 import net.krodark.asterion.entity.BombadierBeetleEntity;
 import net.krodark.asterion.worldgen.MazeNbtStructures;
+import net.krodark.asterion.worldgen.MazeBiomes;
 import net.krodark.asterion.block.RuneDoorBlock;
+import net.krodark.asterion.block.LabyrinthVineBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
@@ -40,7 +43,6 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.entity.BarrelBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.CampfireBlock;
@@ -94,6 +96,7 @@ public final class WorldGenerator {
     private static final Map<UUID, PendingTransition> PENDING_TRANSITIONS = new HashMap<>();
     private static final Map<UUID, Optional<ServerPlayer.RespawnConfig>> PRE_MAZE_RESPAWNS = new HashMap<>();
     private static final Map<UUID, Long> LAST_PORTAL_SYNC = new HashMap<>();
+    private static final Map<UUID, Boolean> LAST_BIOME_ATMOSPHERE = new HashMap<>();
     private static final Map<UUID, PhasingEntity> PHASING_ENTITIES = new HashMap<>();
     private static SummonedPortal summonedPortal;
     private static final Map<UUID, Integer> ABOVE_WALL_TICKS = new HashMap<>();
@@ -183,6 +186,7 @@ public final class WorldGenerator {
     }
 
     private static MazeNbtStructures.Layout mazeStructureLayout(ServerLevel level) {
+        MazeBiomes.load(level);
         AsterionConfig config = AsterionConfig.INSTANCE;
         return MazeNbtStructures.layout(level, config.mazeRadiusCells, config.cellSize,
                 (minX, minZ, maxX, maxZ) -> {
@@ -206,6 +210,7 @@ public final class WorldGenerator {
             return true;
         });
         LAST_PORTAL_SYNC.keySet().removeIf(id -> server.getPlayerList().getPlayer(id) == null);
+        LAST_BIOME_ATMOSPHERE.keySet().removeIf(id -> server.getPlayerList().getPlayer(id) == null);
     }
 
     private static void tickRuneCheckpoint(ServerPlayer player) {
@@ -552,6 +557,8 @@ public final class WorldGenerator {
                     cursor.set(x, y, z);
                     BlockState state = level.getBlockState(cursor);
                     boolean mazeMasonry = state.is(Asterion.ANCIENT_BRICKS)
+                            || state.is(Asterion.ANCIENT_MOSSY_BRICKS)
+                            || state.is(Asterion.MOSSY_ANCIENT_STONE)
                             || state.is(Asterion.MAZESTEEL_BLOCK)
                             || state.is(Asterion.ANCIENT_STONE)
                             || state.is(Asterion.ANCIENT_BRICK_WALL)
@@ -743,6 +750,7 @@ public final class WorldGenerator {
     }
 
     public static void tickPlayer(ServerPlayer player) {
+        syncBiomeAtmosphere(player);
         PendingTransition pending = PENDING_TRANSITIONS.get(player.getUUID());
         if (pending != null) {
             tickTransition(player, pending);
@@ -779,6 +787,19 @@ public final class WorldGenerator {
             tickMazeWard(player);
         } else {
             ABOVE_WALL_TICKS.remove(player.getUUID());
+        }
+    }
+
+    private static void syncBiomeAtmosphere(ServerPlayer player) {
+        boolean overgrowth = player.level().dimension().equals(Asterion.ASTERION_LEVEL)
+                && mazeBiomeAt(activeMazeTerrainSeed, player.getBlockX(), player.getBlockZ(),
+                        AsterionConfig.INSTANCE.cellSize).kind() == MazeBiomes.Kind.OVERGROWTH;
+        Boolean previous = LAST_BIOME_ATMOSPHERE.get(player.getUUID());
+        boolean refresh = player.level().getGameTime() % 100L == 0L;
+        if ((previous == null || previous != overgrowth || refresh)
+                && ServerPlayNetworking.canSend(player, BiomeAtmospherePayload.TYPE)) {
+            ServerPlayNetworking.send(player, new BiomeAtmospherePayload(overgrowth));
+            LAST_BIOME_ATMOSPHERE.put(player.getUUID(), overgrowth);
         }
     }
 
@@ -946,9 +967,18 @@ public final class WorldGenerator {
         if (players.isEmpty()) return;
         tickCenterInvitation(maze, players);
         List<MinotaurEntity> minotaurs = new ArrayList<>();
-        for (Entity entity : maze.getAllEntities())
-            if (entity instanceof MinotaurEntity minotaur && minotaur.isAlive() && !minotaur.isRemoved())
-                minotaurs.add(minotaur);
+        for (Entity entity : maze.getAllEntities()) {
+            if (!(entity instanceof MinotaurEntity minotaur)
+                    || !minotaur.isAlive() || minotaur.isRemoved()) continue;
+            // Overgrowth is a sanctuary. The central boss remains valid because its
+            // arena is Ancient; roaming/stalking Minotaurs are never retained here.
+            if (minotaur.behaviorPhase() != MinotaurEntity.BehaviorPhase.BOSS
+                    && isOvergrowthBiomeAt(minotaur.getX(), minotaur.getZ())) {
+                minotaur.discard();
+                continue;
+            }
+            minotaurs.add(minotaur);
+        }
 
         if (minotaurs.size() > 1) {
             MinotaurEntity keeper = minotaurs.stream()
@@ -973,6 +1003,8 @@ public final class WorldGenerator {
         if (minotaurs.isEmpty() && !DeadSunEventSystem.isEclipseActive(maze)) {
             ServerPlayer candidate = players.stream()
                     .filter(player -> !WorldGenerator.isApproachingCenter(player.position()))
+                    .filter(player -> !WorldGenerator.isOvergrowthBiomeAt(
+                            player.getX(), player.getZ()))
                     .min(Comparator.comparingLong(player -> roamerRevealTick(maze, player))).orElse(null);
             if (candidate != null && maze.getGameTime() >= roamerRevealTick(maze, candidate)) {
                 MinotaurEntity spawned = MinotaurEntity.spawnRoamer(maze, candidate);
@@ -1669,6 +1701,7 @@ public final class WorldGenerator {
         ABOVE_WALL_TICKS.clear();
         WARD_FALL_PROTECTION.clear();
         LAST_PORTAL_SYNC.clear();
+        LAST_BIOME_ATMOSPHERE.clear();
         GATEWAY_SURFACE_Y.clear();
         PLAYER_PLACED_BLOCKS.clear();
         DECAYING_BLOCKS.clear();
@@ -1678,6 +1711,7 @@ public final class WorldGenerator {
         prewarmIndex = 0;
         summonedPortal = null;
         MazeNbtStructures.clearRuntimeState();
+        MazeBiomes.reset();
     }
 
     private static void electrify(LivingEntity entity, int durationTicks) {
@@ -2173,14 +2207,14 @@ public final class WorldGenerator {
                     continue;
                 }
 
-                MazeBiome biome = mazeBiomeAt(seed, x, z, cell);
+                MazeBiomes.Biome biome = mazeBiomeAt(seed, x, z, cell);
                 boolean wall = isWall(topology, structures, seed, biome,
                         x, z, cell, thickness, radius);
                 if (wall) {
                     for (int y = 1; y <= config.wallHeight; y++)
                         bufferedSet(chunk, x, floorY + y, z,
                                 patternedWall(seed, x, y, z, biome, cell, radius));
-                    placeBiomeWallDetail(chunk, seed, x, z, cell, thickness, config.wallHeight, biome, floorY);
+                    placeBiomeWallDetail(chunk, seed, x, z, config.wallHeight, biome, floorY);
                 } else {
                     // Reserved footprints and their approaches are already shaped during normal
                     // chunk generation, so NBT placement never needs to rebuild the chunk later.
@@ -2239,6 +2273,20 @@ public final class WorldGenerator {
         return mazeFloorY(seed, x, z, AsterionConfig.INSTANCE.cellSize);
     }
 
+    public static long mazeTerrainSeed() {
+        return activeMazeTerrainSeed;
+    }
+
+    public static boolean mazeBiomeHasFeature(int x, int z, String feature) {
+        return mazeBiomeAt(activeMazeTerrainSeed, x, z, AsterionConfig.INSTANCE.cellSize)
+                .hasFeature(feature);
+    }
+
+    public static boolean isOvergrowthBiomeAt(double x, double z) {
+        return mazeBiomeAt(activeMazeTerrainSeed, Mth.floor(x), Mth.floor(z),
+                AsterionConfig.INSTANCE.cellSize).kind() == MazeBiomes.Kind.OVERGROWTH;
+    }
+
     private static boolean needsElevationSlab(long seed, int x, int z, int cell, int floorY) {
         return mazeFloorY(seed, x + 1, z, cell) > floorY
                 || mazeFloorY(seed, x - 1, z, cell) > floorY
@@ -2266,7 +2314,7 @@ public final class WorldGenerator {
     }
 
     private static boolean isWall(MazeTopology topology, MazeNbtStructures.Layout structures,
-                                  long seed, MazeBiome biome, int x, int z,
+                                  long seed, MazeBiomes.Biome biome, int x, int z,
                                   int size, int thickness, int radius) {
         int limit = radius * size;
         if (isCenterArena(x, z, size)) return false;
@@ -2283,16 +2331,10 @@ public final class WorldGenerator {
         return false;
     }
 
-    private static boolean biomeOpensWall(long seed, MazeBiome biome, int ax, int az,
+    private static boolean biomeOpensWall(long seed, MazeBiomes.Biome biome, int ax, int az,
                                           int bx, int bz, boolean northSouthBoundary) {
-        if (biome == MazeBiome.ANCIENT) return false;
-        int divisor = switch (biome) {
-            case OVERGROWN -> 9;
-            case WITHERED -> 17;
-            case SCORCHED -> 7;
-            case COLLAPSED -> 5;
-            default -> Integer.MAX_VALUE;
-        };
+        int divisor = biome.wallOpeningDivisor();
+        if (divisor <= 0) return false;
         long edge = mix(seed ^ (long)Math.min(ax, bx) * 0x9E3779B97F4A7C15L
                 ^ (long)Math.min(az, bz) * 0xD1B54A32D192ED03L
                 ^ (northSouthBoundary ? 0xA24BAED4963EE407L : 0x9FB21C651E98DF25L));
@@ -2318,7 +2360,7 @@ public final class WorldGenerator {
                                               MazeTopology topology, MazeNbtStructures.Layout structures,
                                               long seed, int x, int z,
                                               int cell, int thickness, int radius, int wallHeight,
-                                              MazeBiome biome, int floorY) {
+                                              MazeBiomes.Biome biome, int floorY) {
         if (isCenterArena(x, z, cell)) {
             int offset = cell * 2;
             boolean arenaPillar = Math.abs(Math.abs(x) - offset) <= 1
@@ -2343,6 +2385,9 @@ public final class WorldGenerator {
         int innerB = cell - 3;
 
         placeBiomeFloorDetail(chunk, seed, x, z, lx, lz, center, thickness, wallHeight, biome, floorY);
+        // Overgrowth owns a fully Asterion-native decoration palette. Generic landmarks
+        // below intentionally remain Ancient-only because many of them use vanilla blocks.
+        if (biome.kind() == MazeBiomes.Kind.OVERGROWTH) return;
 
         long supply = mix(seed ^ (long) gx * 0xC2B2AE3D27D4EB4FL
                 ^ (long) gz * 0x165667B19E3779F9L);
@@ -2421,11 +2466,6 @@ public final class WorldGenerator {
             }
         }
 
-        if (topology.hasTrait(topologyX, topologyZ, MazeTopology.GARDEN)) {
-            int dx = Math.abs(lx - center), dz = Math.abs(lz - center);
-            if (dx == 2 && dz == 2)
-                bufferedSet(chunk, x, floorY + 1, z, Blocks.AZALEA.defaultBlockState());
-        }
     }
 
     private static void placeLootBarrel(ChunkAccess chunk, BlockPos pos,
@@ -2438,37 +2478,26 @@ public final class WorldGenerator {
         chunk.setBlockEntity(barrel);
     }
 
-    private static BlockState patternedWall(long seed, int x, int y, int z, MazeBiome biome,
+    private static BlockState patternedWall(long seed, int x, int y, int z, MazeBiomes.Biome biome,
                                             int cell, int radius) {
         if (isCenterArena(x, z, cell)) return Asterion.ANCIENT_BRICKS.defaultBlockState();
-        long detail = mix(seed ^ (long)Math.floorDiv(x, 3) * 0x9E3779B97F4A7C15L
-                ^ (long)Math.floorDiv(z, 3) * 0xD1B54A32D192ED03L
-                ^ Math.floorDiv(y, 4) * 0x94D049BB133111EBL);
-        if (biome != MazeBiome.ANCIENT && isBiomeBlendBand(x, z, cell)
-                && Math.floorMod(detail, 4) != 0)
-            biome = MazeBiome.ANCIENT;
-        if (Math.floorMod(detail, 29) == 0)
-            return Asterion.MAZESTEEL_BLOCK.defaultBlockState();
-        return switch (biome) {
-            case OVERGROWN -> Math.floorMod(detail, 9) < 3
-                    ? Blocks.MOSSY_STONE_BRICKS.defaultBlockState()
-                    : Math.floorMod(detail, 17) == 0 ? Blocks.CRACKED_STONE_BRICKS.defaultBlockState()
-                    : Asterion.ANCIENT_BRICKS.defaultBlockState();
-            case WITHERED -> Math.floorMod(detail, 13) == 0
-                    ? Blocks.BONE_BLOCK.defaultBlockState()
-                    : Math.floorMod(detail, 7) == 0 ? Blocks.TUFF_BRICKS.defaultBlockState()
-                    : Asterion.ANCIENT_STONE.defaultBlockState();
-            case SCORCHED -> Math.floorMod(detail, 8) < 2
-                    ? Blocks.POLISHED_BLACKSTONE_BRICKS.defaultBlockState()
-                    : Math.floorMod(detail, 19) == 0 ? Blocks.CRACKED_POLISHED_BLACKSTONE_BRICKS.defaultBlockState()
-                    : Asterion.ANCIENT_BRICKS.defaultBlockState();
-            case COLLAPSED -> Math.floorMod(detail, 11) == 0
-                    ? Blocks.CRACKED_DEEPSLATE_BRICKS.defaultBlockState()
-                    : Math.floorMod(detail, 6) == 0 ? Blocks.COBBLED_DEEPSLATE.defaultBlockState()
-                    : Asterion.ANCIENT_STONE.defaultBlockState();
-            default -> Math.floorMod(detail, 23) == 0
-                    ? Asterion.ANCIENT_STONE.defaultBlockState() : Asterion.ANCIENT_BRICKS.defaultBlockState();
-        };
+        // Interpolated, low-frequency fields produce broad organic regions instead of
+        // floorDiv-aligned cubes. A small second octave softens transitions at their edges.
+        double broad = wallNoise(seed ^ 0x9E3779B97F4A7C15L, x, y, z, 18.0D);
+        double secondary = wallNoise(seed ^ 0xD1B54A32D192ED03L, x, y, z, 9.0D);
+        double erosion = broad * 0.78D + secondary * 0.22D;
+        double biomeBlend = biome.kind() == MazeBiomes.Kind.OVERGROWTH
+                ? overgrowthBlendAt(x, z, cell) : 0.0D;
+
+        if (biomeBlend > 0.0D && biome.hasFeature("mossy_walls")) {
+            double moss = wallNoise(seed ^ 0xA24BAED4963EE407L, x, y, z, 15.0D) * 0.82D
+                    + secondary * 0.18D;
+            double threshold = 0.62D + (1.0D - biomeBlend) * 0.28D;
+            if (moss > threshold + 0.12D) return Asterion.MOSSY_ANCIENT_STONE.defaultBlockState();
+            if (moss > threshold) return Asterion.ANCIENT_MOSSY_BRICKS.defaultBlockState();
+        }
+        if (erosion > 0.70D) return Asterion.ANCIENT_STONE.defaultBlockState();
+        return Asterion.ANCIENT_BRICKS.defaultBlockState();
     }
 
     private static Block patternedFloor(long seed, int x, int z, int depth, MazeTopology topology,
@@ -2477,14 +2506,6 @@ public final class WorldGenerator {
             int foundation = x * 31 ^ z * 17 ^ depth * 13 ^ (int) seed;
             return (foundation & 3) == 0 ? Asterion.ANCIENT_STONE : Asterion.ANCIENT_BRICKS;
         }
-        MazeBiome biome = mazeBiomeAt(seed, x, z, cell);
-        long biomeDetail = mix(seed ^ (long)x * 0x632BE59BD9B4E019L ^ (long)z * 0x8CB92BA72F3D8DD7L);
-        if (biome == MazeBiome.WITHERED && Math.floorMod(biomeDetail, 13) == 0)
-            return Blocks.SOUL_SOIL;
-        if (biome == MazeBiome.SCORCHED && Math.floorMod(biomeDetail, 11) == 0)
-            return Blocks.POLISHED_BLACKSTONE_BRICKS;
-        if (biome == MazeBiome.COLLAPSED && Math.floorMod(biomeDetail, 8) == 0)
-            return Blocks.CRACKED_DEEPSLATE_TILES;
         if (topology != null && topology.onSolutionTrail(x, z, cell, radius)) {
             long trail = mix(seed ^ (long) x * 31L ^ z);
             return (trail & 7) == 0 ? Asterion.ANCIENT_BRICKS : Asterion.ANCIENT_STONE;
@@ -2497,40 +2518,42 @@ public final class WorldGenerator {
         return Asterion.ANCIENT_STONE;
     }
 
-    private static MazeBiome mazeBiomeAt(long seed, int x, int z, int cell) {
-        int regionSize = cell * 12;
+    private static MazeBiomes.Biome mazeBiomeAt(long seed, int x, int z, int cell) {
+        MazeBiomes.Catalog catalog = MazeBiomes.current();
+        int regionSize = cell * catalog.regionSizeCells();
         int regionX = Math.floorDiv(x, regionSize);
         int regionZ = Math.floorDiv(z, regionSize);
         long region = mix(seed ^ (long)regionX * 0x9E3779B97F4A7C15L
                 ^ (long)regionZ * 0xD1B54A32D192ED03L);
-        if (Math.max(Math.abs(x), Math.abs(z)) < cell * 7) return MazeBiome.ANCIENT;
+        if (Math.max(Math.abs(x), Math.abs(z)) < cell * catalog.ancientCenterRadiusCells())
+            return catalog.ancient();
         int localX = Math.floorMod(x, regionSize);
         int localZ = Math.floorMod(z, regionSize);
-        int transition = cell + cell / 2;
+        int transition = Math.max(1, Math.round(cell * catalog.transitionWidthCells()));
         if (localX < transition || localZ < transition
                 || localX >= regionSize - transition || localZ >= regionSize - transition)
-            return MazeBiome.ANCIENT;
-        int roll = (int)Math.floorMod(region, 100L);
-        if (roll < 60) return MazeBiome.ANCIENT;
-        if (roll < 70) return MazeBiome.OVERGROWN;
-        if (roll < 80) return MazeBiome.WITHERED;
-        if (roll < 90) return MazeBiome.SCORCHED;
-        return MazeBiome.COLLAPSED;
+            return catalog.ancient();
+        return catalog.select(region);
     }
 
-    private static boolean isBiomeBlendBand(int x, int z, int cell) {
-        int regionSize = cell * 12;
+    private static double overgrowthBlendAt(int x, int z, int cell) {
+        MazeBiomes.Catalog catalog = MazeBiomes.current();
+        int regionSize = cell * catalog.regionSizeCells();
         int localX = Math.floorMod(x, regionSize);
         int localZ = Math.floorMod(z, regionSize);
         int edge = Math.min(Math.min(localX, regionSize - 1 - localX),
                 Math.min(localZ, regionSize - 1 - localZ));
-        int neutralBand = cell + cell / 2;
-        return edge >= neutralBand && edge < neutralBand + cell * 2;
+        int neutralBand = Math.max(1, Math.round(cell * catalog.transitionWidthCells()));
+        int blendWidth = Math.max(0, Math.round(cell * catalog.blendWidthCells()));
+        if (edge <= neutralBand) return 0.0D;
+        if (blendWidth == 0 || edge >= neutralBand + blendWidth) return 1.0D;
+        double amount = (edge - neutralBand) / (double)blendWidth;
+        return amount * amount * (3.0D - 2.0D * amount);
     }
 
     private static boolean placeMazeMotifColumn(ChunkAccess chunk, long seed, int x, int z,
                                                 int cell, int thickness, int wallHeight,
-                                                MazeBiome biome, int radius, int floorY) {
+                                                MazeBiomes.Biome biome, int radius, int floorY) {
         int limit = AsterionConfig.INSTANCE.mazeRadiusCells * cell;
         int gx = Math.floorDiv(x + limit, cell);
         int gz = Math.floorDiv(z + limit, cell);
@@ -2542,17 +2565,11 @@ public final class WorldGenerator {
         if (Math.abs(dx) <= clearHalfWidth || Math.abs(dz) <= clearHalfWidth) return false;
         long cellRoll = mix(seed ^ (long)gx * 0xD6E8FEB86659FD93L
                 ^ (long)gz * 0xA5A3564E27F8862BL);
-        int chance = biome == MazeBiome.ANCIENT ? 13 : 3;
+        int chance = biome.motifChance();
         if (Math.floorMod(cellRoll, chance) != 0) return false;
 
-        int motif = biome == MazeBiome.ANCIENT ? (int)Math.floorMod(cellRoll >>> 9, 4L)
-                : switch (biome) {
-                    case OVERGROWN -> 0;
-                    case WITHERED -> 1;
-                    case SCORCHED -> 2;
-                    case COLLAPSED -> 3;
-                    default -> 0;
-                };
+        int motif = biome.kind() == MazeBiomes.Kind.ANCIENT
+                ? (int)Math.floorMod(cellRoll >>> 9, 4L) : 0;
         boolean shaped = switch (motif) {
             case 0 -> {
                 double ring = Math.sqrt(dx * dx + dz * dz);
@@ -2572,84 +2589,80 @@ public final class WorldGenerator {
     }
 
     private static void placeBiomeWallDetail(ChunkAccess chunk, long seed, int x, int z,
-                                             int cell, int thickness, int wallHeight,
-                                             MazeBiome biome, int floorY) {
-        long detail = mix(seed ^ ((long)x << 32) ^ (z & 0xFFFFFFFFL) ^ 0xE7037ED1A0B428DBL);
-        int limit = AsterionConfig.INSTANCE.mazeRadiusCells * cell;
-        int lx = Math.floorMod(x + limit, cell);
-        int lz = Math.floorMod(z + limit, cell);
-        if ((biome == MazeBiome.COLLAPSED || biome == MazeBiome.WITHERED)
-                && Math.floorMod(detail, 41) == 0) {
-            boolean wallAlongZ = lx < thickness;
-            BlockState beam = Blocks.POLISHED_BASALT.defaultBlockState().setValue(
-                    RotatedPillarBlock.AXIS, wallAlongZ ? net.minecraft.core.Direction.Axis.Z
-                            : net.minecraft.core.Direction.Axis.X);
-            int beamY = floorY + 3 + (int)Math.floorMod(detail >>> 12, Math.max(2, wallHeight - 5));
-            bufferedSet(chunk, x, beamY, z, beam);
-        }
-        if (biome == MazeBiome.OVERGROWN && Math.floorMod(detail, 29) == 0) {
+                                             int wallHeight,
+                                             MazeBiomes.Biome biome, int floorY) {
+        if (biome.hasFeature("leaf_crowns")) {
+            BlockState leaves = Asterion.ANCIENT_LEAVES.defaultBlockState()
+                    .setValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT, true);
+            // Guaranteed eye-level foliage uses broad 3D fields, producing continuous
+            // organic wall growth instead of relying entirely on decoration attempts.
+            for (int rise = 4; rise <= wallHeight - 3; rise++) {
+                double wallGrowth = wallNoise(seed ^ 0xC6BC279692B5CC83L,
+                        x, floorY + rise, z, 7.5D) * 0.72D
+                        + wallNoise(seed ^ 0x4F1BBCDCBFA54001L,
+                        x, floorY + rise, z, 16.0D) * 0.28D;
+                if (wallGrowth > 0.69D)
+                    bufferedSet(chunk, x, floorY + rise, z, leaves);
+            }
+            double crown = wallNoise(seed ^ 0xE7037ED1A0B428DBL, x, 0, z, 5.8D)
+                    * 0.72D + wallNoise(seed ^ 0x8EBC6AF09C88C6E3L, x, 0, z, 12.0D) * 0.28D;
+            if (crown < 0.55D) return;
             int crownY = floorY + wallHeight;
-            bufferedSet(chunk, x, crownY, z, Asterion.ANCIENT_LEAVES.defaultBlockState()
-                    .setValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT, true));
-            if ((detail & 1L) == 0L && crownY > floorY + 4)
-                bufferedSet(chunk, x, crownY - 1, z, Asterion.ANCIENT_LEAVES.defaultBlockState()
-                        .setValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT, true));
+            bufferedSet(chunk, x, crownY, z, leaves);
+            if (crown > 0.70D && crownY > floorY + 4)
+                bufferedSet(chunk, x, crownY - 1, z, leaves);
         }
     }
 
     private static void placeBiomeFloorDetail(ChunkAccess chunk, long seed, int x, int z,
                                               int lx, int lz, int center, int thickness,
-                                              int wallHeight, MazeBiome biome, int floorY) {
+                                              int wallHeight, MazeBiomes.Biome biome, int floorY) {
         long detail = mix(seed ^ (long)x * 0xDB4F0B9175AE2165L ^ (long)z * 0xBBE0563303A4615FL);
         boolean corridorInterior = lx >= thickness + 1 && lz >= thickness + 1;
         if (!corridorInterior) return;
-        if (biome == MazeBiome.OVERGROWN) {
-            int cell = AsterionConfig.INSTANCE.cellSize;
-            int limit = AsterionConfig.INSTANCE.mazeRadiusCells * cell;
-            int gx = Math.floorDiv(x + limit, cell);
-            int gz = Math.floorDiv(z + limit, cell);
-            long canopy = mix(seed ^ (long)gx * 0xC13FA9A902A6328FL
-                    ^ (long)gz * 0x91E10DA5C79E7B1DL);
-            boolean canopyCell = Math.floorMod(canopy, 3) == 0;
-            boolean alongX = (canopy & 4L) == 0L;
-            boolean leafBridge = canopyCell && (alongX ? Math.abs(lz - center) <= 1
-                    : Math.abs(lx - center) <= 1);
-            if (leafBridge) {
-                int roofY = floorY + wallHeight - 2;
-                BlockState leaves = Asterion.ANCIENT_LEAVES.defaultBlockState()
-                        .setValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT, true);
-                bufferedSet(chunk, x, roofY, z, leaves);
-                if (Math.floorMod(detail, 17) == 0) {
-                    int length = 3 + (int)Math.floorMod(detail >>> 14, 7L);
-                    for (int drop = 1; drop < length; drop++)
-                        bufferedSet(chunk, x, roofY - drop, z, Blocks.CAVE_VINES_PLANT.defaultBlockState());
-                    bufferedSet(chunk, x, roofY - length, z, Blocks.CAVE_VINES.defaultBlockState());
-                }
-            }
-            if (Math.floorMod(detail, 43) == 0)
-                bufferedSet(chunk, x, floorY + 1, z, Blocks.LEAF_LITTER.defaultBlockState());
-            else if (Math.floorMod(detail, 71) == 0)
-                bufferedSet(chunk, x, floorY + 1, z, Blocks.WILDFLOWERS.defaultBlockState());
-            else if (Math.floorMod(detail, 137) == 0
-                    && Math.abs(lx - center) > 2 && Math.abs(lz - center) > 2)
-                bufferedSet(chunk, x, floorY + 1, z, Blocks.BUSH.defaultBlockState());
-            else if (Math.floorMod(detail, 113) == 0 && Math.abs(lx - center) > 1 && Math.abs(lz - center) > 1)
-                bufferedSet(chunk, x, floorY + 1, z, Blocks.AZALEA.defaultBlockState());
-        } else if (biome == MazeBiome.WITHERED && Math.floorMod(detail, 127) == 0) {
-            bufferedSet(chunk, x, floorY + 1, z, Blocks.BONE_BLOCK.defaultBlockState());
-        } else if (biome == MazeBiome.SCORCHED && Math.floorMod(detail, 97) == 0) {
-            bufferedSet(chunk, x, floorY, z, Blocks.SOUL_SOIL.defaultBlockState());
-            bufferedSet(chunk, x, floorY + 1, z, Blocks.SOUL_FIRE.defaultBlockState());
-        } else if (biome == MazeBiome.COLLAPSED && Math.floorMod(detail, 53) == 0
-                && Math.abs(lx - center) > 2 && Math.abs(lz - center) > 2) {
-            bufferedSet(chunk, x, floorY + 1, z, ((detail >>> 8) & 1L) == 0L
-                    ? Blocks.COBBLED_DEEPSLATE_SLAB.defaultBlockState()
-                    : Blocks.TUFF_SLAB.defaultBlockState());
+        if (biome.kind() == MazeBiomes.Kind.OVERGROWTH) {
+            // Keep the walking plane quiet; the visual weight now lives on walls and
+            // authored structures instead of floating roof strips and floor clutter.
+            if (biome.hasFeature("floor_plants") && Math.floorMod(detail, 47) == 0)
+                bufferedSet(chunk, x, floorY + 1, z, Asterion.ANCIENT_MOSS_CARPET.defaultBlockState());
+            else if (biome.hasFeature("floor_plants") && Math.floorMod(detail, 83) == 0)
+                bufferedSet(chunk, x, floorY + 1, z, Asterion.SHORT_GRASS.defaultBlockState());
         }
     }
 
-    private enum MazeBiome {
-        ANCIENT, OVERGROWN, WITHERED, SCORCHED, COLLAPSED
+    private static double wallNoise(long seed, int x, int y, int z, double scale) {
+        double sampleX = x / scale;
+        double sampleY = y / scale;
+        double sampleZ = z / scale;
+        int x0 = Mth.floor(sampleX), y0 = Mth.floor(sampleY), z0 = Mth.floor(sampleZ);
+        double tx = smoothNoiseStep(sampleX - x0);
+        double ty = smoothNoiseStep(sampleY - y0);
+        double tz = smoothNoiseStep(sampleZ - z0);
+        double c000 = noiseCorner(seed, x0, y0, z0);
+        double c100 = noiseCorner(seed, x0 + 1, y0, z0);
+        double c010 = noiseCorner(seed, x0, y0 + 1, z0);
+        double c110 = noiseCorner(seed, x0 + 1, y0 + 1, z0);
+        double c001 = noiseCorner(seed, x0, y0, z0 + 1);
+        double c101 = noiseCorner(seed, x0 + 1, y0, z0 + 1);
+        double c011 = noiseCorner(seed, x0, y0 + 1, z0 + 1);
+        double c111 = noiseCorner(seed, x0 + 1, y0 + 1, z0 + 1);
+        double x00 = lerpNoise(tx, c000, c100), x10 = lerpNoise(tx, c010, c110);
+        double x01 = lerpNoise(tx, c001, c101), x11 = lerpNoise(tx, c011, c111);
+        return lerpNoise(tz, lerpNoise(ty, x00, x10), lerpNoise(ty, x01, x11));
+    }
+
+    private static double noiseCorner(long seed, int x, int y, int z) {
+        long value = mix(seed ^ (long)x * 0x9E3779B97F4A7C15L
+                ^ (long)y * 0x94D049BB133111EBL ^ (long)z * 0xD1B54A32D192ED03L);
+        return (value >>> 11) * 0x1.0p-53;
+    }
+
+    private static double smoothNoiseStep(double value) {
+        return value * value * value * (value * (value * 6.0D - 15.0D) + 10.0D);
+    }
+
+    private static double lerpNoise(double amount, double first, double second) {
+        return first + (second - first) * amount;
     }
 
     private static float unitFloat(long value) {

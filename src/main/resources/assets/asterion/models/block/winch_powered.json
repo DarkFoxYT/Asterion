@@ -1,12 +1,12 @@
 {
-  "textures":{"particle":"asterion:block/mazesteel_gate","metal":"asterion:block/mazesteel_gate","stone":"asterion:block/ancient_bricks","signal":"asterion:block/ancient_moss"},
-  "elements":[
-    {"from":[2,2,14],"to":[14,14,16],"faces":{"north":{"texture":"#stone"},"south":{"texture":"#stone"},"east":{"texture":"#stone"},"west":{"texture":"#stone"},"up":{"texture":"#stone"},"down":{"texture":"#stone"}}},
-    {"from":[2,2,7],"to":[4,14,14],"faces":{"north":{"texture":"#metal"},"south":{"texture":"#metal"},"east":{"texture":"#metal"},"west":{"texture":"#metal"},"up":{"texture":"#metal"},"down":{"texture":"#metal"}}},
-    {"from":[12,2,7],"to":[14,14,14],"faces":{"north":{"texture":"#metal"},"south":{"texture":"#metal"},"east":{"texture":"#metal"},"west":{"texture":"#metal"},"up":{"texture":"#metal"},"down":{"texture":"#metal"}}},
-    {"from":[4,5,8],"to":[12,11,13],"faces":{"north":{"texture":"#metal"},"south":{"texture":"#metal"},"east":{"texture":"#metal"},"west":{"texture":"#metal"},"up":{"texture":"#metal"},"down":{"texture":"#metal"}}},
-    {"from":[1,7,9],"to":[15,9,11],"faces":{"north":{"texture":"#metal"},"south":{"texture":"#metal"},"east":{"texture":"#metal"},"west":{"texture":"#metal"},"up":{"texture":"#metal"},"down":{"texture":"#metal"}}},
-    {"from":[7,0,8],"to":[9,5,10],"faces":{"north":{"texture":"#metal"},"south":{"texture":"#metal"},"east":{"texture":"#metal"},"west":{"texture":"#metal"},"up":{"texture":"#metal"},"down":{"texture":"#metal"}}},
-    {"from":[6,6,5.5],"to":[10,10,8],"faces":{"north":{"texture":"#signal"},"south":{"texture":"#signal"},"east":{"texture":"#signal"},"west":{"texture":"#signal"},"up":{"texture":"#signal"},"down":{"texture":"#signal"}}}
-  ]
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "particle": "asterion:block/winch/winch_side",
+    "down": "asterion:block/winch/winch_side",
+    "up": "asterion:block/winch/winch_side",
+    "north": "asterion:block/winch/winch_front",
+    "south": "asterion:block/winch/winch_front",
+    "west": "asterion:block/winch/winch_front",
+    "east": "asterion:block/winch/winch_front"
+  }
 }
