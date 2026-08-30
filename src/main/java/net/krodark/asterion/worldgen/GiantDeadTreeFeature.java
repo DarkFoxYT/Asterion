@@ -49,14 +49,15 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
             WallAttachment wall = findWall(level, floor.above(4),
                     AsterionConfig.INSTANCE.cellSize);
             if (wall == null) continue;
-            grow(level, floor, wall, random, regionRoll);
+            grow(level, floor, wall, random, regionRoll,
+                    new TreeBounds(minX, minX + 15, minZ, minZ + 15));
             return true;
         }
         return false;
     }
 
     private static void grow(WorldGenLevel level, BlockPos base, WallAttachment wall,
-                             RandomSource random, long seed) {
+                             RandomSource random, long seed, TreeBounds bounds) {
         int diameter = 3 + random.nextInt(4);
         int wallHeight = AsterionConfig.INSTANCE.wallHeight;
         int height = Math.max(22, wallHeight - 3 + random.nextInt(9));
@@ -70,15 +71,16 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
             int forward = Mth.floor(Math.pow(progress, 1.42D) * leanDistance + 0.5D);
             int sway = Mth.floor(Math.sin(progress * Math.PI * 2.2D
                     + ((seed >>> 12) & 255L) * 0.017D) * (0.7D + progress * 1.3D));
-            BlockPos center = base.above(rise).relative(lean, forward).relative(tangent, sway);
+            BlockPos center = bounds.clamp(base.above(rise)
+                    .relative(lean, forward).relative(tangent, sway), 3);
             spine[rise] = center;
             int layerDiameter = progress < 0.72D ? diameter
                     : Math.max(2, (int)Math.ceil(diameter * (1.0D - (progress - 0.72D) * 1.8D)));
             placeVerticalDisk(level, center, layerDiameter);
         }
 
-        growButtressRoots(level, base, diameter, random, seed);
-        growCrown(level, spine, diameter, random, seed);
+        growButtressRoots(level, base, diameter, random, seed, bounds);
+        growCrown(level, spine, diameter, random, seed, bounds);
         BlockPos apex = spine[height].above();
         setShattered(level, apex, Direction.UP);
 
@@ -87,21 +89,21 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
     }
 
     private static void growButtressRoots(WorldGenLevel level, BlockPos base, int diameter,
-                                          RandomSource random, long seed) {
+                                          RandomSource random, long seed, TreeBounds bounds) {
         int roots = 7 + random.nextInt(4);
         for (int root = 0; root < roots; root++) {
             double angle = Math.PI * 2.0D * root / roots
                     + signedUnit(mix(seed ^ root * 0xA24BAED4963EE407L)) * 0.34D;
             int length = 9 + random.nextInt(8);
-            BlockPos end = base.offset(Mth.floor(Math.cos(angle) * length),
-                    -1 - random.nextInt(3), Mth.floor(Math.sin(angle) * length));
+            BlockPos end = bounds.clamp(base.offset(Mth.floor(Math.cos(angle) * length),
+                    -1 - random.nextInt(3), Mth.floor(Math.sin(angle) * length)), 1);
             placeTaperedLimb(level, base.above(), end,
                     Math.max(2, Math.min(4, diameter - 1)), false);
         }
     }
 
     private static void growCrown(WorldGenLevel level, BlockPos[] spine, int diameter,
-                                  RandomSource random, long seed) {
+                                  RandomSource random, long seed, TreeBounds bounds) {
         int branches = 7 + random.nextInt(5);
         for (int branch = 0; branch < branches; branch++) {
             int startIndex = spine.length * (48 + random.nextInt(39)) / 100;
@@ -110,8 +112,8 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
                     + signedUnit(mix(seed ^ branch * 0x8CB92BA72F3D8DD7L)) * 0.46D;
             int reach = 11 + random.nextInt(10);
             int lift = 3 + random.nextInt(9) - (branch % 4 == 0 ? 5 : 0);
-            BlockPos end = start.offset(Mth.floor(Math.cos(angle) * reach), lift,
-                    Mth.floor(Math.sin(angle) * reach));
+            BlockPos end = bounds.clamp(start.offset(Mth.floor(Math.cos(angle) * reach), lift,
+                    Mth.floor(Math.sin(angle) * reach)), 1);
             LimbTip tip = placeTaperedLimb(level, start, end,
                     Math.max(2, Math.min(4, diameter - 1)), true);
             setShattered(level, tip.position, tip.direction);
@@ -120,8 +122,8 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
             if ((branch & 1) == 0) {
                 double forkAngle = angle + (branch % 4 == 0 ? 0.58D : -0.58D);
                 int forkReach = 6 + random.nextInt(7);
-                BlockPos forkEnd = end.offset(Mth.floor(Math.cos(forkAngle) * forkReach),
-                        2 + random.nextInt(5), Mth.floor(Math.sin(forkAngle) * forkReach));
+                BlockPos forkEnd = bounds.clamp(end.offset(Mth.floor(Math.cos(forkAngle) * forkReach),
+                        2 + random.nextInt(5), Mth.floor(Math.sin(forkAngle) * forkReach)), 1);
                 LimbTip forkTip = placeTaperedLimb(level, tip.position, forkEnd, 2, true);
                 setShattered(level, forkTip.position, forkTip.direction);
             }
@@ -190,6 +192,7 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
             for (int across = -1; across <= 1; across++) {
                 for (int rise = 1; rise <= 4; rise++) {
                     BlockPos pos = base.relative(road, along).relative(side, across).above(rise);
+                    if (!level.ensureCanWrite(pos)) continue;
                     BlockState state = level.getBlockState(pos);
                     if (state.is(Asterion.DEAD_WOOD) || state.is(Asterion.SHATTERED_DEAD_WOOD))
                         level.setBlock(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
@@ -199,13 +202,14 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
     }
 
     private static void setWood(WorldGenLevel level, BlockPos pos, Direction.Axis axis) {
-        if (!canReplace(level, pos)) return;
+        if (!level.ensureCanWrite(pos) || !canReplace(level, pos)) return;
         level.setBlock(pos, Asterion.DEAD_WOOD.defaultBlockState()
                 .setValue(RotatedPillarBlock.AXIS, axis), 2);
     }
 
     private static void setShattered(WorldGenLevel level, BlockPos pos, Direction facing) {
-        if (!canReplace(level, pos) && !level.getBlockState(pos).is(Asterion.DEAD_WOOD)) return;
+        if (!level.ensureCanWrite(pos)
+                || (!canReplace(level, pos) && !level.getBlockState(pos).is(Asterion.DEAD_WOOD))) return;
         level.setBlock(pos, Asterion.SHATTERED_DEAD_WOOD.defaultBlockState()
                 .setValue(ShatteredDeadWoodBlock.FACING, facing), 2);
     }
@@ -256,4 +260,10 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
 
     private record WallAttachment(BlockPos wall, Direction towardWall) { }
     private record LimbTip(BlockPos position, Direction direction) { }
+    private record TreeBounds(int minX, int maxX, int minZ, int maxZ) {
+        private BlockPos clamp(BlockPos pos, int margin) {
+            return new BlockPos(Mth.clamp(pos.getX(), minX + margin, maxX - margin),
+                    pos.getY(), Mth.clamp(pos.getZ(), minZ + margin, maxZ - margin));
+        }
+    }
 }

@@ -7,9 +7,12 @@ import com.geckolib.renderer.base.GeoRenderState;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.block.LabyrinthVineBlockEntity;
 import net.minecraft.resources.Identifier;
+import net.minecraft.core.Direction;
 
 public final class LabyrinthVineGeoModel extends GeoModel<LabyrinthVineBlockEntity> {
     public static final DataTicket<Boolean> END = DataTickets.create("asterion_labyrinth_vine_end", Boolean.class);
+    public static final DataTicket<Direction> FACING = DataTickets.create(
+            "asterion_labyrinth_vine_facing", Direction.class);
     private static final Identifier MODEL = Asterion.id("block/labyrinth_vine");
     private static final Identifier TEXTURE = Asterion.id("textures/block/labyrinth_vine.png");
     private static final Identifier ANIMATION = Asterion.id("block/labyrinth_vine");

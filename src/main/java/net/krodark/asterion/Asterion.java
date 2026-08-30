@@ -96,6 +96,7 @@ import net.krodark.asterion.worldgen.AncientLeavesClusterFeature;
 import net.krodark.asterion.worldgen.OvergrowthBridgeFeature;
 import net.krodark.asterion.worldgen.OvergrowthBridgeChainFeature;
 import net.krodark.asterion.worldgen.OvergrowthRestSiteFeature;
+import net.krodark.asterion.worldgen.OvergrowthPuddleFeature;
 import net.krodark.asterion.worldgen.GiantDeadTreeFeature;
 import net.krodark.asterion.worldgen.AncientGroundVineFeature;
 import net.krodark.asterion.worldgen.AncientHangingVineFeature;
@@ -165,8 +166,7 @@ public class Asterion implements ModInitializer {
     public static final LabyrinthVineBlock LABYRINTH_VINE = (LabyrinthVineBlock)registerBlock(
             "labyrinth_vine", MapColor.COLOR_BROWN,
             properties -> new LabyrinthVineBlock(properties.noOcclusion().strength(0.4F)
-                    .sound(SoundType.VINE).lightLevel(state ->
-                            state.getValue(LabyrinthVineBlock.END) ? 12 : 0)));
+                    .sound(SoundType.VINE).lightLevel(state -> 0)));
     public static final SkeletonBlock SKELETON = (SkeletonBlock)registerBlock(
             "skeleton", MapColor.COLOR_LIGHT_GRAY,
             properties -> new SkeletonBlock(properties.noOcclusion().strength(0.45F)
@@ -300,6 +300,9 @@ public class Asterion implements ModInitializer {
     public static final Feature<NoneFeatureConfiguration> OVERGROWTH_REST_SITE_FEATURE = Registry.register(
             BuiltInRegistries.FEATURE, id("overgrowth_rest_site"),
             new OvergrowthRestSiteFeature(NoneFeatureConfiguration.CODEC));
+    public static final Feature<NoneFeatureConfiguration> OVERGROWTH_PUDDLE_FEATURE = Registry.register(
+            BuiltInRegistries.FEATURE, id("overgrowth_puddle"),
+            new OvergrowthPuddleFeature(NoneFeatureConfiguration.CODEC));
     public static final Feature<NoneFeatureConfiguration> GIANT_DEAD_TREE_FEATURE = Registry.register(
             BuiltInRegistries.FEATURE, id("giant_dead_tree"),
             new GiantDeadTreeFeature(NoneFeatureConfiguration.CODEC));
@@ -323,6 +326,8 @@ public class Asterion implements ModInitializer {
             Registries.PLACED_FEATURE, id("overgrowth_bridge_chains"));
     private static final ResourceKey<PlacedFeature> OVERGROWTH_REST_SITE_PLACED = ResourceKey.create(
             Registries.PLACED_FEATURE, id("overgrowth_rest_site"));
+    private static final ResourceKey<PlacedFeature> OVERGROWTH_PUDDLE_PLACED = ResourceKey.create(
+            Registries.PLACED_FEATURE, id("overgrowth_puddle"));
     private static final ResourceKey<PlacedFeature> GIANT_DEAD_TREE_PLACED = ResourceKey.create(
             Registries.PLACED_FEATURE, id("giant_dead_tree"));
     private static final ResourceKey<PlacedFeature> ANCIENT_GROUND_VINE_PLACED = ResourceKey.create(
@@ -387,6 +392,8 @@ public class Asterion implements ModInitializer {
                 GenerationStep.Decoration.VEGETAL_DECORATION, OVERGROWTH_BRIDGE_PLACED);
         BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),
                 GenerationStep.Decoration.VEGETAL_DECORATION, OVERGROWTH_REST_SITE_PLACED);
+        BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),
+                GenerationStep.Decoration.VEGETAL_DECORATION, OVERGROWTH_PUDDLE_PLACED);
         BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),
                 GenerationStep.Decoration.VEGETAL_DECORATION, OVERGROWTH_BRIDGE_CHAIN_PLACED);
         BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),

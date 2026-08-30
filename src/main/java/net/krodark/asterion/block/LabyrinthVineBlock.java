@@ -25,7 +25,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
-/** A six-direction chain-vine whose exposed growth tip becomes a luminous bone bulb. */
+/** A six-direction chain-vine whose exposed growth tip attracts fireflies. */
 public final class LabyrinthVineBlock extends BaseEntityBlock {
     public static final EnumProperty<Direction> FACING = BlockStateProperties.FACING;
     public static final BooleanProperty END = BooleanProperty.create("end");
@@ -96,7 +96,7 @@ public final class LabyrinthVineBlock extends BaseEntityBlock {
 
     @Override
     public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
-        if (!state.getValue(END) || random.nextInt(18) != 0) return;
+        if (!state.getValue(END) || random.nextInt(20) != 0) return;
 
         Direction facing = state.getValue(FACING);
         double x = pos.getX() + 0.5D + facing.getStepX() * 0.34D

@@ -26,6 +26,7 @@
         "bridges",
         "bridge_chains",
         "rest_sites",
+        "puddles",
         "giant_dead_trees",
         "ground_vines",
         "hanging_vines"
