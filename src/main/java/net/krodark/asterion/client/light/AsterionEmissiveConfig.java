@@ -2,6 +2,7 @@ package net.krodark.asterion.client.light;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import com.meekdev.amnetic.client.bloom.Bloom;
 import com.meekdev.amnetic.client.bloom.BloomSettings;
 import java.io.IOException;
@@ -28,9 +29,16 @@ public final class AsterionEmissiveConfig {
             return;
         }
         try {
-            Values loaded = GSON.fromJson(Files.readString(PATH), Values.class);
+            JsonObject json = GSON.fromJson(Files.readString(PATH), JsonObject.class);
+            Values loaded = GSON.fromJson(json, Values.class);
             values = loaded == null ? new Values() : loaded;
+            boolean legacy = json != null && !json.has("version");
+            if (legacy) migrateLegacy();
+            boolean upgradeEyes = legacy || values.version < 3;
+            // Upgrade the shipped eye setting once, preserving deliberately customized strengths.
+            if (upgradeEyes && values.minotaurEyeStrength == 0.85F) values.minotaurEyeStrength = 1.0F;
             sanitize();
+            if (upgradeEyes) save();
         } catch (Exception exception) {
             Asterion.LOGGER.warn("Unable to load Asterion emissive config {}", PATH, exception);
             values = new Values();
@@ -51,7 +59,7 @@ public final class AsterionEmissiveConfig {
     public static void apply() {
         BloomSettings bloom = Bloom.settings();
         int quality = AsterionConfig.INSTANCE.cinematicQuality;
-        int qualityLevelCap = quality == 0 ? 3 : quality == 1 ? 5 : 8;
+        int qualityLevelCap = quality == 0 ? 2 : 3;
         float qualityIntensity = quality == 0 ? 0.65F : quality == 1 ? 0.82F : 1.0F;
         bloom.enabled(values.enabled)
                 .all(false)
@@ -71,24 +79,46 @@ public final class AsterionEmissiveConfig {
         return values.beetleFireStrength;
     }
 
+    public static float vineGlowStrength() { return values.vineGlowStrength; }
+
+    private static void migrateLegacy() {
+        // Replace the old shipped defaults once; retain custom choices within the new safe ranges.
+        if (values.threshold == 0.035F) values.threshold = 1.1F;
+        if (values.intensity == 4.8F) values.intensity = 0.16F;
+        if (values.levels == 7) values.levels = 2;
+        if (values.scale == 0.55F) values.scale = 0.75F;
+        if (values.knee == 0.72F) values.knee = 0.25F;
+        if (values.minotaurEyeStrength == 4.75F) values.minotaurEyeStrength = 0.85F;
+        if (values.vineGlowStrength == 2.25F) values.vineGlowStrength = 0.65F;
+        if (values.beetleFireStrength == 6.5F) values.beetleFireStrength = 2.0F;
+    }
+
+    private static float finiteClamp(float value, float min, float max, float fallback) {
+        return Float.isFinite(value) ? Mth.clamp(value, min, max) : fallback;
+    }
+
     private static void sanitize() {
-        values.threshold = Mth.clamp(values.threshold, 0.0001F, 2.0F);
-        values.intensity = Mth.clamp(values.intensity, 0.0F, 10.0F);
-        values.levels = Mth.clamp(values.levels, 2, 8);
-        values.scale = Mth.clamp(values.scale, 0.05F, 1.0F);
-        values.knee = Mth.clamp(values.knee, 0.0F, 1.0F);
-        values.minotaurEyeStrength = Mth.clamp(values.minotaurEyeStrength, 0.5F, 10.0F);
-        values.beetleFireStrength = Mth.clamp(values.beetleFireStrength, 0.5F, 12.0F);
+        values.version = 3;
+        values.threshold = finiteClamp(values.threshold, 0.0F, 2.0F, 1.1F);
+        values.intensity = finiteClamp(values.intensity, 0.0F, 0.5F, 0.16F);
+        values.levels = Mth.clamp(values.levels, 2, 3);
+        values.scale = finiteClamp(values.scale, 0.5F, 1.0F, 0.75F);
+        values.knee = finiteClamp(values.knee, 0.0F, 1.0F, 0.25F);
+        values.minotaurEyeStrength = finiteClamp(values.minotaurEyeStrength, 0.0F, 1.0F, 1.0F);
+        values.beetleFireStrength = finiteClamp(values.beetleFireStrength, 0.0F, 3.0F, 2.0F);
+        values.vineGlowStrength = finiteClamp(values.vineGlowStrength, 0.0F, 1.0F, 0.65F);
     }
 
     private static final class Values {
+        private int version = 3;
         private boolean enabled = true;
-        private float threshold = 0.035F;
-        private float intensity = 4.8F;
-        private int levels = 7;
-        private float scale = 0.55F;
-        private float knee = 0.72F;
-        private float minotaurEyeStrength = 4.75F;
-        private float beetleFireStrength = 6.5F;
+        private float threshold = 1.1F;
+        private float intensity = 0.16F;
+        private int levels = 2;
+        private float scale = 0.75F;
+        private float knee = 0.25F;
+        private float minotaurEyeStrength = 1.0F;
+        private float beetleFireStrength = 2.0F;
+        private float vineGlowStrength = 0.65F;
     }
 }

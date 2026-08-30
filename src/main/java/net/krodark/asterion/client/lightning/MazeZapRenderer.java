@@ -38,7 +38,7 @@ public final class MazeZapRenderer {
         ClientTickEvents.END_CLIENT_TICK.register(MazeZapRenderer::tick);
         LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(context -> {
             Minecraft client = Minecraft.getInstance();
-            if (client.level == null || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
+            if (client.level == null) return;
             Vec3 camera = context.levelState().cameraRenderState.pos;
             long now = client.level.getGameTime();
             Iterator<Strike> iterator = STRIKES.iterator();
@@ -170,8 +170,10 @@ public final class MazeZapRenderer {
         TELEGRAPHS.clear();
     }
 
+    private static net.minecraft.client.multiplayer.ClientLevel trackedLevel;
     private static void tick(Minecraft client) {
-        if (client.level == null || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) {
+        if (trackedLevel != client.level) { clearTransientCombatEffects(); trackedLevel = client.level; }
+        if (client.level == null) {
             STRIKES.forEach(Strike::removeLights);
             STRIKES.clear();
             GROUND_STRIKES.clear();

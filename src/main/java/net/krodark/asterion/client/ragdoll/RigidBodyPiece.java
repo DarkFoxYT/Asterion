@@ -60,7 +60,6 @@ final class RigidBodyPiece {
     float charAmount;
     int supportTicks;
     int supportMissTicks;
-    final List<RigidBruise> bruises = new ArrayList<>();
     final Map<Long, PersistentContact> contacts = new LinkedHashMap<>();
 
     enum JointType { ROOT, CONE_TWIST, HINGE, CLOTH, GRIP }

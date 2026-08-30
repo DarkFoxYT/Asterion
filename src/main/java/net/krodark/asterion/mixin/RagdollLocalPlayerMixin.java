@@ -14,6 +14,8 @@ abstract class RagdollLocalPlayerMixin {
     @Inject(method = "move", at = @At("HEAD"), cancellable = true)
     private void asterion$freezeVanillaBody(MoverType type, Vec3 movement, CallbackInfo ci) {
         LocalPlayer self = (LocalPlayer)(Object)this;
-        if (DismembermentEngine.INSTANCE.isPlayerTumbling(self.getId())) ci.cancel();
+        if (DismembermentEngine.INSTANCE.isPlayerTumbling(self.getId())
+                || net.krodark.asterion.entity.MinotaurEntity.isHeld(self)
+                || net.krodark.asterion.client.CinematicControls.locked()) ci.cancel();
     }
 }

@@ -1,0 +1,19 @@
+Asterion + Amnetic
+
+Copy this combined jar into your Minecraft mods folder:
+  Asterion-1.0.jar
+
+Amnetic is already integrated inside Asterion, along with its bb4j parser.
+Remove any separately installed old Amnetic jar to avoid selecting an incompatible
+snapshot. This bundled snapshot was built from upstream Amnetic commit de756b6.
+Older snapshots with the same version string do not necessarily provide its APIs.
+
+Use Minecraft 26.1.2, Java 25, Fabric Loader 0.19.3+, Fabric API and
+GeckoLib 5.5.2+. Mod Menu is optional. Asterion supplies the bb4j parser
+library missing from this Amnetic snapshot, plus the Linux ARM64 Assimp native.
+
+Upstream Amnetic prints a warning when bundled; it does not prevent loading.
+Its source and jar have not been patched to hide that warning.
+
+Restart Minecraft after replacing the jar. Resource reload cannot update Java code.
+The Minotaur eyes and vine tips keep Asterion's sharp, low-brightness emissive pass.

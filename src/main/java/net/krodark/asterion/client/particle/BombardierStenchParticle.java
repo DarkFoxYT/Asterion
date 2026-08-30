@@ -2,21 +2,17 @@ package net.krodark.asterion.client.particle;
 
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.Particle;
-import net.minecraft.client.particle.SingleQuadParticle;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 
-import java.util.HashSet;
+import java.util.Collections;
+import java.util.WeakHashMap;
 import java.util.Set;
 
-/** Campfire-style smoke that billows between randomly selected, player-sized diameters. */
-public final class BombardierStenchParticle extends SingleQuadParticle {
-    private static final Set<BombardierStenchParticle> ACTIVE = new HashSet<>();
-    private static final float RED = 0x78 / 255.0F;
-    private static final float GREEN = 0x7A / 255.0F;
-    private static final float BLUE = 0x4C / 255.0F;
-    private final SpriteSet sprites;
+/** Animated custom gas, with an emissive burn phase when the beetle ignites its trail. */
+public final class BombardierStenchParticle extends AnimatedEmissiveParticle {
+    private static final Set<BombardierStenchParticle> ACTIVE = Collections.newSetFromMap(new WeakHashMap<>());
     private float targetSize;
     private int sizeChangeTicks;
     private boolean burning;
@@ -24,8 +20,7 @@ public final class BombardierStenchParticle extends SingleQuadParticle {
     private BombardierStenchParticle(ClientLevel level, double x, double y, double z,
                                      double velocityX, double velocityY, double velocityZ,
                                      SpriteSet sprites, RandomSource random) {
-        super(level, x, y, z, velocityX, velocityY, velocityZ, sprites.first());
-        this.sprites = sprites;
+        super(level, x, y, z, velocityX, velocityY, velocityZ, sprites);
         this.xd = velocityX;
         this.yd = velocityY + random.nextFloat() * 0.012F;
         this.zd = velocityZ;
@@ -33,11 +28,11 @@ public final class BombardierStenchParticle extends SingleQuadParticle {
         this.friction = 0.985F;
         this.hasPhysics = false;
         this.lifetime = 90 + random.nextInt(50);
-        this.quadSize = 1.8F;
+        this.quadSize = 0.9F;
         this.targetSize = randomSize(random);
         this.sizeChangeTicks = 7 + random.nextInt(11);
-        setColor(RED, GREEN, BLUE);
-        setAlpha(0.9F);
+        setColor(0.35F, 1.0F, 0.20F);
+        setAlpha(0.72F);
         setSpriteFromAge(sprites);
         ACTIVE.add(this);
     }
@@ -51,6 +46,7 @@ public final class BombardierStenchParticle extends SingleQuadParticle {
 
     @Override
     public void tick() {
+        markTicked();
         xo = x;
         yo = y;
         zo = z;
@@ -75,25 +71,14 @@ public final class BombardierStenchParticle extends SingleQuadParticle {
 
         if (burning) {
             float progress = age / (float)Math.max(1, lifetime);
-            float[] color = fireGradient(progress);
-            setColor(color[0], color[1], color[2]);
+            BombardierGasFireParticle.applyFireColor(this, progress);
             setAlpha(progress < 0.78F ? 0.92F : 0.92F * (1.0F - progress) / 0.22F);
             return;
         }
 
         int fadeTicks = 28;
         if (age > lifetime - fadeTicks)
-            setAlpha(0.9F * (lifetime - age) / fadeTicks);
-    }
-
-    @Override
-    protected Layer getLayer() {
-        return Layer.TRANSLUCENT;
-    }
-
-    @Override
-    protected int getLightCoords(float partialTick) {
-        return burning ? 0xF000F0 : super.getLightCoords(partialTick);
+            setAlpha(0.72F * (lifetime - age) / fadeTicks);
     }
 
     @Override
@@ -104,8 +89,8 @@ public final class BombardierStenchParticle extends SingleQuadParticle {
 
     public static void igniteNearby(ClientLevel level, double x, double y, double z, double radius) {
         double radiusSquared = radius * radius;
-        for (BombardierStenchParticle smoke : Set.copyOf(ACTIVE)) {
-            if (smoke.level != level || smoke.removed) continue;
+        for (BombardierStenchParticle smoke : ACTIVE) {
+            if (smoke.level != level || smoke.removed || smoke.burning) continue;
             double dx = smoke.x - x;
             double dy = smoke.y - y;
             double dz = smoke.z - z;
@@ -113,40 +98,24 @@ public final class BombardierStenchParticle extends SingleQuadParticle {
         }
     }
 
+    @Override
+    protected boolean isEmissive() { return burning; }
+
     private void ignite() {
         if (burning) return;
         burning = true;
         age = 0;
         lifetime = 28 + random.nextInt(10);
-        targetSize = Math.max(quadSize, 1.45F + random.nextFloat() * 0.9F);
+        targetSize = Math.max(quadSize, 1.0F + random.nextFloat() * 0.4F);
         xd *= 0.45D;
         yd = Math.max(0.012D, yd * 0.55D);
         zd *= 0.45D;
         setColor(0.12F, 0.42F, 1.0F);
         setAlpha(0.92F);
-    }
-
-    private static float lerp(float start, float end, float amount) {
-        return start + (end - start) * amount;
-    }
-
-    private static float[] fireGradient(float progress) {
-        if (progress < 0.10F) return blend(0.12F, 0.42F, 1.0F, 1.0F, 1.0F, 1.0F, progress / 0.10F);
-        if (progress < 0.22F) return blend(1.0F, 1.0F, 1.0F, 1.0F, 0.92F, 0.16F,
-                (progress - 0.10F) / 0.12F);
-        if (progress < 0.42F) return blend(1.0F, 0.92F, 0.16F, 1.0F, 0.36F, 0.018F,
-                (progress - 0.22F) / 0.20F);
-        if (progress < 0.64F) return blend(1.0F, 0.36F, 0.018F, 0.70F, 0.025F, 0.006F,
-                (progress - 0.42F) / 0.22F);
-        return blend(0.70F, 0.025F, 0.006F, 0.025F, 0.024F, 0.022F,
-                (progress - 0.64F) / 0.36F);
-    }
-
-    private static float[] blend(float r0, float g0, float b0, float r1, float g1, float b1, float amount) {
-        return new float[] {lerp(r0, r1, amount), lerp(g0, g1, amount), lerp(b0, b1, amount)};
+        setSpriteFromAge(sprites);
     }
 
     private static float randomSize(RandomSource random) {
-        return 1.15F + random.nextFloat() * 1.45F;
+        return 0.8F + random.nextFloat() * 0.55F;
     }
 }

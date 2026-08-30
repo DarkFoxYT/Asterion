@@ -112,6 +112,10 @@ public final class AsterionPortalRenderer {
     }
 
     private static void registerLayer(Identifier id, boolean halo) {
+        // Each layer owns its staging values; batch.add packs them before they are reused.
+        Matrix4f transform = new Matrix4f();
+        Vector4f portal = new Vector4f(), effect = new Vector4f();
+        PortalInstance submission = new PortalInstance(transform, portal, effect);
         InstancedMesh.<PortalInstance>builder(LAYOUT, (instance, packer) -> packer
                         .putMat4(instance.transform())
                         .putVec4(instance.portal())
@@ -126,6 +130,8 @@ public final class AsterionPortalRenderer {
                         .blend(RenderState.BlendMode.ALPHA)
                         .backfaceCulling(false)
                         .build())
+                // Explicit capture keeps BOTH layers emissive even below the scene bloom threshold.
+                // The portal shader is already fullbright; bloom is only its optional soft fringe.
                 .emissive(halo ? 1.85F : 1.35F)
                 .onRender((ctx, batch) -> {
                     ClientLevel world = ctx.world();
@@ -159,16 +165,20 @@ public final class AsterionPortalRenderer {
                     float radius = CORE_RADIUS * pulse;
                     float openingScale = 0.08F + 0.92F * (1.0F - (float) Math.pow(1.0F - reveal, 3.0D));
                     float layerScale = halo ? 1.28F : 1.0F;
-                    Matrix4f transform = ctx.worldToModel(cx, cy + (halo ? 0.006D : 0.0D), cz)
+                    // Test before allocating transforms/uniform vectors; cover the square's corners.
+                    float boundsRadius = radius * openingScale * layerScale * 1.414214F + 0.02F;
+                    if (!batch.visible(cx, cy, cz, boundsRadius)) return;
+                    transform.translation((float)(cx - camera.x),
+                                    (float)(cy + (halo ? 0.006D : 0.0D) - camera.y), (float)(cz - camera.z))
                             .scale(radius * openingScale * layerScale, 1.0F,
                                     radius * openingScale * layerScale);
                     double cameraHeight = Math.max(1.25D, Math.abs(camera.y - cy));
                     float viewX = (float) Mth.clamp(dx / cameraHeight, -1.6D, 1.6D);
                     float viewZ = (float) Mth.clamp(dz / cameraHeight, -1.6D, 1.6D);
                     float flowTime = (now % 240_000_000_000L) * 0.000000001F;
-                    batch.add(new PortalInstance(transform,
-                            new Vector4f((float) cx, (float) cy, (float) cz, reveal),
-                            new Vector4f(viewX, viewZ, flowTime, halo ? 1.0F : 0.0F)));
+                    portal.set((float) cx, (float) cy, (float) cz, reveal);
+                    effect.set(viewX, viewZ, flowTime, halo ? 1.0F : 0.0F);
+                    batch.add(submission);
                 })
                 .register(id);
     }

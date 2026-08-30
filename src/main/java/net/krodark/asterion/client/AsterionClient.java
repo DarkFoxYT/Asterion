@@ -17,6 +17,8 @@ import net.krodark.asterion.client.render.entity.BombadierBeetleGeoRenderer;
 import net.krodark.asterion.client.render.entity.ScarletCentipedeGeoRenderer;
 import net.krodark.asterion.client.particle.BombardierStenchParticle;
 import net.krodark.asterion.client.particle.BombardierGasFireParticle;
+import net.krodark.asterion.client.particle.GreekFireParticle;
+import net.krodark.asterion.client.particle.AnimatedEmissiveParticle;
 import net.krodark.asterion.client.particle.AsterionEmissiveParticles;
 import net.krodark.asterion.client.particle.FlyingInsectParticle;
 import net.krodark.asterion.client.particle.AncientWallDustParticle;
@@ -41,18 +43,36 @@ public final class AsterionClient implements ClientModInitializer {
     public void onInitializeClient() {
         AsterionEmissiveConfig.load();
         AsterionEmissiveParticles.initialize();
+        AnimatedEmissiveParticle.initialize();
         AsterionPostEffects.register();
         AsterionPortalRenderer.register();
         DimensionTransitionOverlay.register();
         BossFinaleOverlay.register();
+        BossEntranceCinematic.register();
         MazeObjectiveOverlay.register();
         MazeZapRenderer.register();
         DazeOverlay.register();
         RagdollGetUpOverlay.register();
         RagdollClientController.initialize();
+        CentipedeInteractionClient.initialize();
         EntityRenderers.register(Asterion.MINOTAUR, MinotaurGeoRenderer::new);
         EntityRenderers.register(Asterion.BOMBARDIER_BEETLE, BombadierBeetleGeoRenderer::new);
         EntityRenderers.register(Asterion.SCARLET_CENTIPEDE, ScarletCentipedeGeoRenderer::new);
+        ParticleProviderRegistry.getInstance().register(Asterion.GREEK_FIRE, sprites ->
+                (type, level, x, y, z, vx, vy, vz, random) ->
+                        GreekFireParticle.create(level, x, y, z, vx, vy, vz, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.BRAZIER_FIRE, sprites ->
+                (type, level, x, y, z, vx, vy, vz, random) ->
+                        GreekFireParticle.createBrazier(level, x, y, z, vx, vy, vz, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.LAMENTER_TEAR, sprites ->
+                (type, level, x, y, z, vx, vy, vz, random) ->
+                        new net.krodark.asterion.client.particle.LamenterTearParticle(level, x, y, z, vx, vz, sprites));
+        ParticleProviderRegistry.getInstance().register(Asterion.DOOR_SMOKE, sprites ->
+                (type, level, x, y, z, vx, vy, vz, random) ->
+                        new net.krodark.asterion.client.particle.DoorSmokeParticle(level, x, y, z, vx, vy, vz, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.DOOR_DUST, sprites ->
+                (type, level, x, y, z, vx, vy, vz, random) ->
+                        new net.krodark.asterion.client.particle.DoorDustParticle(level, x, y, z, vx, vy, vz, sprites, random));
         ParticleProviderRegistry.getInstance().register(Asterion.BOMBARDIER_STENCH, sprites ->
                 (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
                         BombardierStenchParticle.create(level, x, y, z,
@@ -82,6 +102,10 @@ public final class AsterionClient implements ClientModInitializer {
                         RumbleSmokeParticle.create(level, x, y, z,
                                 velocityX, velocityY, velocityZ, sprites, random));
         BlockEntityRenderers.register(Asterion.RUNE_BLOCK_ENTITY, RuneGeoRenderer::new);
+        BlockEntityRenderers.register(Asterion.MINOTAUR_DOOR_BLOCK_ENTITY,
+                net.krodark.asterion.client.render.block.MinotaurDoorRenderer::new);
+        BlockEntityRenderers.register(net.krodark.asterion.block.RespawnObelisks.BLOCK_ENTITY,
+                net.krodark.asterion.client.render.block.SanctuaryRenderer::new);
         BlockEntityRenderers.register(Asterion.LABYRINTH_VINE_BLOCK_ENTITY, LabyrinthVineGeoRenderer::new);
         BlockEntityRenderers.register(Asterion.SKELETON_BLOCK_ENTITY, SkeletonGeoRenderer::new);
         BlockEntityRenderers.register(Asterion.SHATTERED_DEAD_WOOD_BLOCK_ENTITY,
@@ -94,6 +118,8 @@ public final class AsterionClient implements ClientModInitializer {
                         SimpleSoundInstance.forUI(Asterion.MINOTAUR_ROAR, 0.72F, 4.0F))));
         ClientPlayNetworking.registerGlobalReceiver(BossFinalePayload.TYPE, (payload, context) ->
                 context.client().execute(BossFinaleOverlay::begin));
+        ClientPlayNetworking.registerGlobalReceiver(BossEntrancePayload.TYPE, (payload, context) ->
+                context.client().execute(() -> BossEntranceCinematic.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(GatewayPortalPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> AsterionPortalRenderer.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(MazeZapPayload.TYPE, (payload, context) ->
@@ -106,6 +132,10 @@ public final class AsterionClient implements ClientModInitializer {
                 context.client().execute(() -> DeadSunClientEvents.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(MazeShiftPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> DeadSunClientEvents.receiveShift(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(net.krodark.asterion.network.ArenaDebrisPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> PhysicsDebrisSystem.spawnArenaDebris(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(DoorBreakPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> PhysicsDebrisSystem.spawnDoors(payload)));
         ClientPlayNetworking.registerGlobalReceiver(DeadSunStrikePayload.TYPE, (payload, context) ->
                 context.client().execute(() -> {
                     DeadSunClientEvents.receiveStrike(payload);
@@ -117,6 +147,8 @@ public final class AsterionClient implements ClientModInitializer {
                 context.client().execute(() -> {
                     MazeZapRenderer.clearTransientCombatEffects();
                     MazeObjectiveOverlay.armAfterBossWipe();
+                    BossEntranceCinematic.finish(context.client());
+                    PhysicsDebrisSystem.clear();
                 }));
         ClientPlayNetworking.registerGlobalReceiver(DazePayload.TYPE, (payload, context) ->
                 context.client().execute(() -> DazeOverlay.begin(payload)));
@@ -126,8 +158,10 @@ public final class AsterionClient implements ClientModInitializer {
                 context.client().execute(() -> DismembermentEngine.INSTANCE.forcePlayerTumble(
                         context.client(), payload.source(), payload.impulse(), payload.force())));
         ClientPlayNetworking.registerGlobalReceiver(RagdollExplosionPayload.TYPE, (payload, context) ->
-                context.client().execute(() -> DismembermentEngine.INSTANCE.applyExplosion(
-                        context.client(), payload.center(), payload.radius())));
+                context.client().execute(() -> {
+                    DismembermentEngine.INSTANCE.applyExplosion(context.client(), payload.center(), payload.radius());
+                    PhysicsDebrisSystem.throwDoors(payload.center(), payload.radius());
+                }));
         ClientPlayNetworking.registerGlobalReceiver(RagdollAuthorityPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> DismembermentEngine.INSTANCE.reconcilePlayerAuthority(
                         context.client(), payload.position(), payload.velocity(), payload.serverTick())));
@@ -140,6 +174,8 @@ public final class AsterionClient implements ClientModInitializer {
         DimensionTransitionOverlay.tick(client);
         DeadSunEntryCinematic.tick(client);
         BossFinaleOverlay.tick(client);
+        BossEntranceCinematic.tick(client);
+        CinematicControls.tick(client);
         MazeObjectiveOverlay.tick(client);
         DeadSunClientEvents.tick(client);
         PhysicsDebrisSystem.tick(client);

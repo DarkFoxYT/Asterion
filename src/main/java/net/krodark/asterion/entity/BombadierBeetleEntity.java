@@ -189,8 +189,8 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
             defenceTicks = 0;
             setDefenceState(DefenceState.IGNITING);
             Vec3 rear = rearPosition();
-            level.sendParticles(ParticleTypes.FLAME, rear.x, rear.y, rear.z,
-                    18, 0.22D, 0.15D, 0.22D, 0.035D);
+            level.sendParticles(Asterion.BOMBARDIER_GAS_FIRE, rear.x, rear.y, rear.z,
+                    6, 0.22D, 0.15D, 0.22D, 0.035D);
             level.sendParticles(ParticleTypes.LAVA, rear.x, rear.y, rear.z,
                     5, 0.16D, 0.08D, 0.16D, 0.02D);
             playSound(SoundEvents.FIRECHARGE_USE, 0.9F, 1.45F + random.nextFloat() * 0.2F);
@@ -201,8 +201,8 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
         navigation.stop();
         holdToAttachedSurface();
         Vec3 rear = rearPosition();
-        level.sendParticles(ParticleTypes.FLAME, rear.x, rear.y, rear.z,
-                3, 0.16D, 0.10D, 0.16D, 0.015D);
+        level.sendParticles(Asterion.BOMBARDIER_GAS_FIRE, rear.x, rear.y, rear.z,
+                1, 0.16D, 0.10D, 0.16D, 0.015D);
         if ((defenceTicks & 1) == 0)
             level.sendParticles(ParticleTypes.LAVA, rear.x, rear.y, rear.z,
                     2, 0.18D, 0.12D, 0.18D, 0.20D);
@@ -212,7 +212,7 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
             int current = smokeTrail.size() * defenceTicks / IGNITION_SPREAD_TICKS;
             for (int offset = previous; offset < current; offset++) {
                 int index = smokeTrail.size() - 1 - offset;
-                if (index >= 0) igniteSmokeAt(level, smokeTrail.get(index), (index & 1) == 0);
+                if (index >= 0) igniteSmokeAt(level, smokeTrail.get(index));
             }
             if (current > previous && defenceTicks % 4 == 0)
                 playSound(SoundEvents.FIRECHARGE_USE, 0.34F, 1.65F + random.nextFloat() * 0.25F);
@@ -512,17 +512,13 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
         setDeltaMovement(normal.scale(0.095D));
     }
 
-    private void igniteSmokeAt(ServerLevel level, Vec3 point, boolean luminous) {
+    private void igniteSmokeAt(ServerLevel level, Vec3 point) {
         burningGas.add(new BurningGas(point));
-        level.sendParticles(ParticleTypes.FLAME, point.x, point.y, point.z,
-                5, 0.22D, 0.18D, 0.22D, 0.025D);
-        if (luminous)
-            level.sendParticles(Asterion.BOMBARDIER_GAS_FIRE, point.x, point.y, point.z,
-                    1, 0.08D, 0.05D, 0.08D, 0.012D);
-        level.sendParticles(ParticleTypes.LAVA, point.x, point.y, point.z,
-                2, 0.18D, 0.12D, 0.18D, 0.20D);
-        level.sendParticles(ParticleTypes.SMALL_FLAME, point.x, point.y, point.z,
-                2, 0.12D, 0.10D, 0.12D, 0.01D);
+        level.sendParticles(Asterion.BOMBARDIER_GAS_FIRE, point.x, point.y, point.z,
+                1, 0.08D, 0.05D, 0.08D, 0.012D);
+        if (random.nextInt(4) == 0)
+            level.sendParticles(ParticleTypes.LAVA, point.x, point.y, point.z,
+                    1, 0.18D, 0.12D, 0.18D, 0.20D);
         AABB fireCloud = new AABB(point, point).inflate(1.05D);
         for (LivingEntity victim : level.getEntitiesOfClass(LivingEntity.class, fireCloud,
                 entity -> entity != this && entity.isAlive())) {

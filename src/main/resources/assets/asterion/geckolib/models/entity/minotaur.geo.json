@@ -158,9 +158,9 @@
 					"pivot": [0, 80, -3],
 					"cubes": [
 						{
-							"origin": [-10, 83, -14],
-							"size": [20, 19, 20],
-							"inflate": -0.35,
+							"origin": [-10, 83, -16.25],
+							"size": [20, 19, 22.25],
+							"inflate": 0.02,
 							"uv": {
 								"north": {"uv": [142, 143], "uv_size": [20, 19]},
 								"east": {"uv": [104, 144], "uv_size": [20, 19]},
@@ -375,6 +375,7 @@
 					"name": "lefthand",
 					"parent": "lowerleftarm",
 					"pivot": [41.5, 72.75, 0.5],
+					"locators": {"left_player_grip": [55, 77, -9]},
 					"cubes": [
 						{
 							"origin": [44.5, 75.75, -5.5],
@@ -482,6 +483,7 @@
 					"name": "righthand",
 					"parent": "lowerrightarm",
 					"pivot": [-41.5, 72.75, 0.5],
+					"locators": {"right_player_grip": [-55, 77, -9]},
 					"cubes": [
 						{
 							"origin": [-65.5, 75.75, -5.5],

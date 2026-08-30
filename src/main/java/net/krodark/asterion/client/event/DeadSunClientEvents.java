@@ -64,6 +64,19 @@ public final class DeadSunClientEvents {
         applyPending(client, factory);
     }
 
+    private static long lastImpactTick = Long.MIN_VALUE;
+
+    public static void impact(Vec3 center, float radius, float strength, int duration) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null) return;
+        long tick = client.level.getGameTime();
+        if (lastImpactTick != Long.MIN_VALUE && tick >= lastImpactTick && tick - lastImpactTick < 3) return;
+        lastImpactTick = tick;
+        if (LOCAL_RUMBLES.size() >= 16) LOCAL_RUMBLES.removeFirst();
+        LOCAL_RUMBLES.add(new LocalRumble(center, client.level.getGameTime(), duration, radius, strength,
+                Double.doubleToLongBits(center.x + center.z)));
+    }
+
     public static void receiveShift(MazeShiftPayload payload) {
         Minecraft client = Minecraft.getInstance();
         if (client.level == null || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
@@ -165,7 +178,8 @@ public final class DeadSunClientEvents {
         Vec3 offset = base.cameraOffset;
         float yaw = base.yawDegrees, pitch = base.pitchDegrees;
         for (LocalRumble rumble : LOCAL_RUMBLES) {
-            double distance = client.player.position().distanceTo(rumble.center);
+            double distance = (net.krodark.asterion.client.BossEntranceCinematic.isActive()
+                    ? client.gameRenderer.getMainCamera().position() : client.player.position()).distanceTo(rumble.center);
             double proximity = 1.0D - Mth.clamp(distance / Math.max(1.0F, rumble.radius), 0.0D, 1.0D);
             double elapsed = now - rumble.startTick;
             double life = Mth.clamp(elapsed / rumble.duration, 0.0D, 1.0D);

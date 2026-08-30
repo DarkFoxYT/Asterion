@@ -435,6 +435,8 @@ public final class MazeNbtStructures {
                 level.setBlock(pos, state.setValue(RuneDoorBlock.OPEN, roomSolved || safeRoom), 2);
             }
             plaques.sort(java.util.Comparator.comparingLong(BlockPos::asLong));
+            if (!plaques.isEmpty())
+                net.krodark.asterion.block.RespawnObelisks.ensureRoomFixtures(level, plaques.getFirst());
             if (plaques.size() > 3) {
                 for (int i = 3; i < plaques.size(); i++)
                     level.setBlock(plaques.get(i), Blocks.AIR.defaultBlockState(), 3);

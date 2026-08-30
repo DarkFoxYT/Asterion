@@ -28,7 +28,9 @@ public final class AsterionWorldState extends SavedData {
             Codec.LONG.optionalFieldOf("summoned_portal_seed", 0L)
                     .forGetter(state -> state.summonedPortalSeed),
             Codec.STRING.optionalFieldOf("summoned_portal_dimension", "minecraft:overworld")
-                    .forGetter(state -> state.summonedPortalDimension)
+                    .forGetter(state -> state.summonedPortalDimension),
+            Codec.INT.optionalFieldOf("boss_arena_revision", 0).forGetter(state -> state.bossArenaRevision),
+            Codec.BOOL.optionalFieldOf("arena_lamenters_installed", false).forGetter(state -> state.arenaLamentersInstalled)
     ).apply(instance, AsterionWorldState::new));
     private static final SavedDataType<AsterionWorldState> TYPE = new SavedDataType<>(
             Asterion.id("world_state"), AsterionWorldState::new, CODEC, DataFixTypes.LEVEL);
@@ -39,19 +41,24 @@ public final class AsterionWorldState extends SavedData {
     private int summonedPortalY;
     private long summonedPortalSeed;
     private String summonedPortalDimension;
+    private int bossArenaRevision;
+    private boolean arenaLamentersInstalled;
 
     public AsterionWorldState() {
-        this(false, Map.of(), Long.MIN_VALUE, 0, 0L, "minecraft:overworld");
+        this(false, Map.of(), Long.MIN_VALUE, 0, 0L, "minecraft:overworld", 0, false);
     }
     private AsterionWorldState(boolean minotaurDefeated, Map<String, Long> runeCheckpoints,
                                long summonedPortalCenter, int summonedPortalY,
-                               long summonedPortalSeed, String summonedPortalDimension) {
+                               long summonedPortalSeed, String summonedPortalDimension, int bossArenaRevision,
+                               boolean arenaLamentersInstalled) {
         this.minotaurDefeated = minotaurDefeated;
         this.runeCheckpoints = new HashMap<>(runeCheckpoints);
         this.summonedPortalCenter = summonedPortalCenter;
         this.summonedPortalY = summonedPortalY;
         this.summonedPortalSeed = summonedPortalSeed;
         this.summonedPortalDimension = summonedPortalDimension;
+        this.bossArenaRevision = bossArenaRevision;
+        this.arenaLamentersInstalled = arenaLamentersInstalled;
     }
 
     public static AsterionWorldState get(ServerLevel level) {
@@ -59,6 +66,11 @@ public final class AsterionWorldState extends SavedData {
     }
 
     public boolean minotaurDefeated() { return minotaurDefeated; }
+
+    public int bossArenaRevision() { return bossArenaRevision; }
+    public void setBossArenaRevision(int revision) { bossArenaRevision = revision; setDirty(); }
+    public boolean arenaLamentersInstalled() { return arenaLamentersInstalled; }
+    public void markArenaLamentersInstalled() { arenaLamentersInstalled = true; setDirty(); }
 
     public net.minecraft.core.BlockPos runeCheckpoint(UUID playerId) {
         Long packed = runeCheckpoints.get(playerId.toString());

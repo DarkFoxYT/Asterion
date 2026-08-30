@@ -18,17 +18,18 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 /** A modeled gate panel controlled by a physically connected {@link WinchBlock}. */
-public final class DirectionalGateBlock extends Block {
+public final class DirectionalGateBlock extends Block implements net.minecraft.world.level.block.SimpleWaterloggedBlock {
     public static final EnumProperty<AttachFace> FACE = BlockStateProperties.ATTACH_FACE;
     public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty OPEN = BlockStateProperties.OPEN;
+    public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
 
     public DirectionalGateBlock(Properties properties) {
         super(properties);
         registerDefaultState(stateDefinition.any()
                 .setValue(FACE, AttachFace.WALL)
                 .setValue(FACING, Direction.NORTH)
-                .setValue(OPEN, false));
+                .setValue(OPEN, false).setValue(WATERLOGGED, false));
     }
 
     @Override
@@ -38,7 +39,9 @@ public final class DirectionalGateBlock extends Block {
                 : clickedFace == Direction.DOWN ? AttachFace.CEILING : AttachFace.WALL;
         Direction facing = clickedFace.getAxis().isHorizontal()
                 ? clickedFace : context.getHorizontalDirection().getOpposite();
-        return defaultBlockState().setValue(FACE, face).setValue(FACING, facing);
+        return defaultBlockState().setValue(FACE, face).setValue(FACING, facing)
+                .setValue(WATERLOGGED, context.getLevel().getFluidState(context.getClickedPos())
+                        .getType() == net.minecraft.world.level.material.Fluids.WATER);
     }
 
     @Override
@@ -53,7 +56,22 @@ public final class DirectionalGateBlock extends Block {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACE, FACING, OPEN);
+        builder.add(FACE, FACING, OPEN, WATERLOGGED);
+    }
+
+    @Override
+    protected net.minecraft.world.level.material.FluidState getFluidState(BlockState state) {
+        return state.getValue(WATERLOGGED) ? net.minecraft.world.level.material.Fluids.WATER.getSource(false)
+                : super.getFluidState(state);
+    }
+
+    @Override
+    protected BlockState updateShape(BlockState state, net.minecraft.world.level.LevelReader level,
+            net.minecraft.world.level.ScheduledTickAccess ticks, BlockPos pos, Direction direction,
+            BlockPos neighborPos, BlockState neighborState, net.minecraft.util.RandomSource random) {
+        if (state.getValue(WATERLOGGED)) ticks.scheduleTick(pos, net.minecraft.world.level.material.Fluids.WATER,
+                net.minecraft.world.level.material.Fluids.WATER.getTickDelay(level));
+        return super.updateShape(state, level, ticks, pos, direction, neighborPos, neighborState, random);
     }
 
     @Override
@@ -74,5 +92,11 @@ public final class DirectionalGateBlock extends Block {
     @Override
     protected VoxelShape getOcclusionShape(BlockState state) {
         return Shapes.empty();
+    }
+    @Override protected float getDestroyProgress(BlockState state, net.minecraft.world.entity.player.Player player,
+                                                 BlockGetter level, BlockPos pos) {
+        if (!player.isCreative() && player.level().dimension().equals(net.krodark.asterion.Asterion.ASTERION_LEVEL)
+                && net.krodark.asterion.worldgen.MinotaurArenaEntrances.isGate(pos)) return 0;
+        return super.getDestroyProgress(state, player, level, pos);
     }
 }

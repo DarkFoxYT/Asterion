@@ -1,22 +1,18 @@
 package net.krodark.asterion.client.render.entity;
 
 import com.geckolib.renderer.GeoEntityRenderer;
-import com.geckolib.renderer.layer.builtin.CustomBoneTextureGeoLayer;
-import com.geckolib.cache.model.GeoBone;
 import com.geckolib.renderer.base.BoneSnapshots;
 import com.geckolib.renderer.base.RenderPassInfo;
 import com.geckolib.constant.DataTickets;
 import com.geckolib.constant.dataticket.DataTicket;
 import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.Asterion;
-import net.krodark.asterion.client.light.AsterionEmissiveBuffer;
+import net.krodark.asterion.client.light.AsterionEmissiveBoneLayer;
+import net.krodark.asterion.client.light.AsterionEmissiveConfig;
 import net.krodark.asterion.entity.MinotaurEntity;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
-import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.Entity;
@@ -35,41 +31,35 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
     private static final DataTicket<Float> GRAB_PITCH = DataTickets.create("asterion_minotaur_grab_pitch", Float.class);
     private static final DataTicket<Float> GRAB_EXTENSION = DataTickets.create("asterion_minotaur_grab_extension", Float.class);
     private static final DataTicket<Integer> GRAB_ARM = DataTickets.create("asterion_minotaur_grab_arm", Integer.class);
+    private static final DataTicket<Integer> HELD_PLAYER = DataTickets.create("asterion_minotaur_held_player", Integer.class);
     private static final DataTicket<Float> IDLE_PHASE = DataTickets.create("asterion_minotaur_idle_phase", Float.class);
     private static final DataTicket<Float> IDLE_WEIGHT = DataTickets.create("asterion_minotaur_idle_weight", Float.class);
     private static final DataTicket<Float> HORN_WEIGHT = DataTickets.create("asterion_minotaur_horn_weight", Float.class);
     private static final DataTicket<Float> RAGE_WEIGHT = DataTickets.create("asterion_minotaur_rage_weight", Float.class);
     private static final DataTicket<Integer> ATTACK_TICKS = DataTickets.create("asterion_minotaur_attack_ticks", Integer.class);
+    private static final DataTicket<Float> DOOR_ENTRY = DataTickets.create("asterion_minotaur_door_entry", Float.class);
     private final Map<UUID, LookPose> lookPoses = new HashMap<>();
     private final Map<UUID, GrabPose> grabPoses = new HashMap<>();
 
     public MinotaurGeoRenderer(EntityRendererProvider.Context context) {
         super(context, new MinotaurGeoModel());
         withScale(1.0F);
-        // Keep the emissive draw restricted to the authored eye geometry. Rendering the eye
-        // mask as a whole-model glow pass can touch unrelated UVs; this sends only `glow`
-        // through Amnetic's emissive attachment.
-        withRenderLayer(new CustomBoneTextureGeoLayer<>(this, "glow",
-                Asterion.id("textures/entity/minotaur_eyes.png")) {
-            @Override protected Identifier getTextureResource(EntityRenderState state) {
-                float rage = state.getOrDefaultGeckolibData(RAGE_WEIGHT, 0.0F);
-                return Asterion.id(rage > 0.18F
-                        ? "textures/entity/minotaur_eyes_rage.png"
-                        : "textures/entity/minotaur_eyes.png");
+        // The eye mask sits just outside the head surface, retaining depth occlusion by real geometry.
+        withRenderLayer(new AsterionEmissiveBoneLayer<>(this, "glow",
+                // The current 512px atlas contains the glow bone's isolated eye islands.
+                // The legacy 256px eye masks address a different UV layout and sample empty texels.
+                Asterion.id("textures/entity/minotaur.png")) {
+
+            @Override public boolean shouldRenderBone(EntityRenderState state) {
+                return !state.isInvisible;
             }
 
-            @Override protected RenderType getRenderType(EntityRenderState state, Identifier texture) {
-                return state.isInvisible ? null : AsterionEmissiveBuffer.renderType(texture);
+            @Override protected float surfaceBrightness(EntityRenderState state) {
+                return state.getOrDefaultGeckolibData(DOOR_ENTRY, -1F) >= 0 ? 1F : AsterionEmissiveConfig.minotaurEyeStrength();
             }
 
-            @Override protected void renderBone(RenderPassInfo<EntityRenderState> pass,
-                                                GeoBone bone, SubmitNodeCollector renderTasks) {
-                int original = pass.renderState().getOrDefaultGeckolibData(
-                        DataTickets.RENDER_COLOR, 0xFFFFFFFF);
-                pass.renderState().addGeckolibData(DataTickets.RENDER_COLOR,
-                        pass.getOrDefaultGeckolibData(EYE_TINT, 0xFFFFFFFF));
-                super.renderBone(pass, bone, renderTasks);
-                pass.renderState().addGeckolibData(DataTickets.RENDER_COLOR, original);
+            @Override protected int emissiveColor(EntityRenderState state) {
+                return state.getOrDefaultGeckolibData(EYE_TINT, 0xFFFFFFFF);
             }
         });
         this.shadowRadius = 1.9F;
@@ -116,6 +106,7 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         state.addGeckolibData(HORN_WEIGHT, minotaur.isSpineCharging() ? 1.0F : 0.0F);
         state.addGeckolibData(RAGE_WEIGHT, minotaur.rage() / 12.0F);
         state.addGeckolibData(ATTACK_TICKS, minotaur.bossAttackAnimationTicks());
+        state.addGeckolibData(DOOR_ENTRY, minotaur.doorEntryTicks() > 0 ? minotaur.doorEntryTicks() - 1 + partialTick : -1F);
         if (minotaur.isGreekFireLaserActive())
             state.addGeckolibData(DataTickets.RENDER_COLOR, 0x8856FF74);
 
@@ -158,8 +149,11 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         state.addGeckolibData(GRAB_PITCH, grab.pitch);
         state.addGeckolibData(GRAB_EXTENSION, grab.extension);
         state.addGeckolibData(GRAB_ARM, grab.arm);
+        state.addGeckolibData(HELD_PLAYER, minotaur.heldPlayerId());
         float rage = minotaur.rage() / 12.0F;
-        if (rage > 0.001F) {
+        if (minotaur.doorEntryTicks() > 0) {
+            state.addGeckolibData(EYE_TINT, 0xFFD8FFFF);
+        } else if (rage > 0.001F) {
             // Calm cyan hardens through furnace-orange into a saturated, fully enraged red.
             float pulse = 0.88F + 0.12F * Mth.sin((minotaur.tickCount + partialTick)
                     * (0.18F + rage * 0.38F));
@@ -177,6 +171,10 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
 
     @Override
     public void adjustModelBonesForRender(RenderPassInfo<EntityRenderState> pass, BoneSnapshots bones) {
+        int held = pass.getOrDefaultGeckolibData(HELD_PLAYER, -1);
+        if (held >= 0) pass.addLocatorPositionListener(
+                pass.getOrDefaultGeckolibData(GRAB_ARM, 1) >= 0 ? "right_player_grip" : "left_player_grip",
+                (world, model, local) -> MinotaurHandAttachment.capture(held, world));
         float yaw = pass.getOrDefaultGeckolibData(LOOK_YAW, 0.0F);
         float pitch = pass.getOrDefaultGeckolibData(LOOK_PITCH, 0.0F);
         rotateBone(bones, "body", -yaw * 0.18F, -pitch * 0.14F);
@@ -233,6 +231,17 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
             translateBone(bones, "head", 0.0F, -0.55F * lowered * horn, -1.65F * lowered * horn);
             rotateBone3(bones, "lefthorn", -0.08F * lowered * horn, 0.0F, -0.06F * horn);
             rotateBone3(bones, "righthorn", -0.08F * lowered * horn, 0.0F, 0.06F * horn);
+        }
+        float entry = pass.getOrDefaultGeckolibData(DOOR_ENTRY, -1F);
+        if (entry >= 0 && entry < 82) {
+            float shove = net.krodark.asterion.block.MinotaurDoorMotion.breachAngle(Math.min(entry, 59)) * 2F;
+            float windup = smoother((entry - 54) / 8F) * (1F - smoother((entry - 72) / 10F));
+            float kick = smoother((entry - 63) / 7F) * (1F - smoother((entry - 72) / 10F));
+            rotateBone3(bones, "body", shove * .18F - kick * .2F, 0, .08F * kick);
+            rotateBone3(bones, "rightleg", .48F * windup * (1 - kick) - 1.4F * kick, 0, .08F * kick);
+            rotateBone3(bones, "lowerrightleg", -.8F * windup * (1 - kick) + .25F * kick, 0, 0);
+            rotateBone3(bones, "leftleg", .12F * kick, 0, -.06F * kick);
+            rotateBone3(bones, "leftarm", -.2F * shove, 0, -.18F * kick);
         }
     }
 

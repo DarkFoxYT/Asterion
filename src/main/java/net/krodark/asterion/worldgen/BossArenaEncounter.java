@@ -1,0 +1,247 @@
+package net.krodark.asterion.worldgen;
+
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.krodark.asterion.Asterion;
+import net.krodark.asterion.block.MinotaurDoorBlock;
+import net.krodark.asterion.block.MinotaurDoorBlockEntity;
+import net.krodark.asterion.entity.MinotaurEntity;
+import net.krodark.asterion.network.BossEntrancePayload;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.phys.Vec3;
+
+import java.util.*;
+
+/** Owns arena sealing and player safety separately from the boss's combat AI. */
+public final class BossArenaEncounter {
+    public static final int INTRO_TICKS = 120;
+    private static Encounter active;
+    private BossArenaEncounter() { }
+
+    public static void initialize(ServerLevel level) {
+        clear();
+        MinotaurArenaEntrances.setGates(level, 0, null);
+        restoreDoors(level);
+    }
+
+    public static void begin(ServerLevel level, ServerPlayer trigger, MinotaurEntity boss, Direction entry) {
+        if (entry != MinotaurArenaEntrances.PLAYER_ENTRANCE) return;
+        if (active != null) { admit(level, trigger, entry); return; }
+        active = new Encounter(level, boss.getUUID(), entry.getOpposite(), level.getGameTime());
+        admit(level, trigger, entry);
+        // Include the nearby party before anything closes; never pull players from elsewhere in the maze.
+        for (ServerPlayer player : List.copyOf(level.players())) {
+            if (player != trigger && eligible(player) && player.position().horizontalDistance() < 60
+                    && player.getY() >= 35 && player.getY() < 61) admit(level, player, entry);
+        }
+        for (Direction facing : MinotaurArenaEntrances.DOORS) if (facing != active.bossDoor) {
+            moveFromClosure(level, facing);
+            if (level.getBlockEntity(MinotaurArenaEntrances.door(facing)) instanceof MinotaurDoorBlockEntity door)
+                door.closeForEncounter();
+        }
+    }
+
+    private static boolean eligible(ServerPlayer player) { return player.isAlive() && !player.isSpectator() && !player.isCreative(); }
+
+    private static void admit(ServerLevel level, ServerPlayer player, Direction entry) {
+        if (active == null || !active.participants.add(player.getUUID())) return;
+        Vec3 safe = safePosition(level, player, entry, active.participants.size() - 1);
+        Vec3 focus = Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(active.bossDoor)).add(0, 2.5, 0);
+        Vec3 delta = focus.subtract(safe.add(0, player.getEyeHeight(), 0));
+        float yaw = (float)Math.toDegrees(Math.atan2(-delta.x, delta.z));
+        player.stopRiding();
+        player.teleportTo(level, safe.x, safe.y, safe.z, Set.of(), yaw, 0, true);
+        player.setDeltaMovement(Vec3.ZERO);
+        player.resetFallDistance();
+        int elapsed = (int)(level.getGameTime() - active.start);
+        if (elapsed < INTRO_TICKS) {
+            active.locks.put(player.getUUID(), new Lock(player, safe, yaw, player.isInvulnerable(), player.isNoGravity()));
+            player.setInvulnerable(true);
+            player.setNoGravity(true);
+            if (ServerPlayNetworking.canSend(player, BossEntrancePayload.TYPE))
+                ServerPlayNetworking.send(player, new BossEntrancePayload(active.bossDoor, elapsed, INTRO_TICKS));
+        }
+    }
+
+    private static Vec3 safePosition(ServerLevel level, ServerPlayer player, Direction entry, int slot) {
+        for (int attempt = 0; attempt < 60; attempt++) {
+            int index = slot + attempt;
+            int side = index % 5 - 2;
+            double radius = 25 - (index / 5 % 12) * 1.4;
+            Vec3 candidate = Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(entry))
+                    .subtract(entry.getUnitVec3().scale(34 - radius))
+                    .add(entry.getClockWise().getUnitVec3().scale(side * 1.25));
+            var bounds = player.getBoundingBox().move(candidate.subtract(player.position()));
+            if (level.noCollision(player, bounds)
+                    && !level.getBlockState(BlockPos.containing(candidate).below()).getCollisionShape(level, BlockPos.containing(candidate).below()).isEmpty())
+                return candidate;
+        }
+        return new Vec3(.5, 37, .5);
+    }
+
+    public static void tick(ServerLevel level) {
+        if (active == null || active.level != level) return;
+        var entity = level.getEntity(active.boss);
+        if (!(entity instanceof MinotaurEntity boss) || !boss.isAlive()) { finish(level); return; }
+        int elapsed = (int)(level.getGameTime() - active.start);
+        tickArenaCreatures(level, elapsed);
+        // A late party member in an entrance corridor is admitted safely, never trapped behind a gate.
+        for (ServerPlayer player : List.copyOf(level.players())) if (eligible(player) && !active.participants.contains(player.getUUID())) {
+            Direction entrance = MinotaurArenaEntrances.corridorAt(player.position());
+            if (entrance != null) admit(level, player, entrance);
+        }
+        Iterator<Lock> locks = active.locks.values().iterator();
+        while (locks.hasNext()) {
+            Lock lock = locks.next();
+            ServerPlayer player = lock.player;
+            if (elapsed >= INTRO_TICKS || player.isRemoved() || !player.isAlive() || player.level() != level) {
+                release(lock); locks.remove(); continue;
+            }
+            player.setPos(lock.position);
+            player.setYRot(lock.yaw); player.setXRot(0);
+            player.setDeltaMovement(Vec3.ZERO);
+            player.resetFallDistance();
+        }
+        active.participants.removeIf(id -> {
+            ServerPlayer player = level.getServer().getPlayerList().getPlayer(id);
+            return player == null || player.level() != level;
+        });
+        int height = MinotaurArenaEntrances.gateHeight();
+        int closedRows = Math.clamp((elapsed - 8) / 2, 0, height);
+        for (Direction facing : MinotaurArenaEntrances.DOORS) {
+            int rows = facing == active.bossDoor ? Math.clamp((elapsed - 100) / 2, 0, height) : closedRows;
+            if (facing == active.bossDoor && (boss.doorEntryTicks() > 0
+                    || boss.getBoundingBox().intersects(MinotaurArenaEntrances.gateBounds(facing).inflate(.2)))) continue;
+            if (rows == active.closedRows.getOrDefault(facing, 0)) continue;
+            moveFromClosure(level, facing);
+            MinotaurArenaEntrances.setGate(level, facing, rows);
+            active.closedRows.put(facing, rows);
+            level.playSound(null, MinotaurArenaEntrances.gate(facing),
+                    rows == height ? SoundEvents.ANVIL_LAND : SoundEvents.CHAIN_HIT, SoundSource.BLOCKS, 1.4F, .6F);
+        }
+        if (elapsed >= INTRO_TICKS && !active.restored && active.closedRows.getOrDefault(active.bossDoor, 0) == height) {
+            restoreDoors(level);
+            active.restored = true;
+        }
+        boolean anyonePresent = level.players().stream().anyMatch(p -> p.isAlive() && active.participants.contains(p.getUUID()));
+        if (!anyonePresent) { boss.discard(); finish(level); }
+    }
+
+    public static boolean blocksCentipedeSpawn(ServerLevel level, Vec3 position) {
+        return isSealed(level) && position.horizontalDistanceSqr() < 46 * 46 && position.y >= 35 && position.y <= 62;
+    }
+
+    private static void tickArenaCreatures(ServerLevel level, int elapsed) {
+        if (elapsed % 20 != 0) return;
+        var arena = new net.minecraft.world.phys.AABB(-44, 35, -44, 44, 62, 44);
+        // Leave ridden/named centipedes alone; suppress wild arena interference, not player mounts.
+        for (var centipede : level.getEntitiesOfClass(net.krodark.asterion.entity.ScarletCentipedeEntity.class, arena))
+            if (!centipede.isVehicle() && !centipede.hasCustomName()) centipede.discard();
+        if (elapsed < INTRO_TICKS + 40 || (elapsed - INTRO_TICKS - 40) % 300 != 0) return;
+        int existing = level.getEntitiesOfClass(net.krodark.asterion.entity.BombadierBeetleEntity.class, arena).size();
+        int remaining = Math.min(2, 4 - existing);
+        for (int attempt = 0; attempt < 24 && remaining > 0; attempt++) {
+            double angle = level.getRandom().nextDouble() * Math.PI * 2;
+            Vec3 pos = new Vec3(Math.cos(angle) * 20 + .5, 37, Math.sin(angle) * 20 + .5);
+            if (level.players().stream().anyMatch(player -> player.position().distanceToSqr(pos) < 8 * 8)) continue;
+            var beetle = Asterion.BOMBARDIER_BEETLE.create(level, net.minecraft.world.entity.EntitySpawnReason.EVENT);
+            if (beetle == null) break;
+            beetle.setPos(pos);
+            BlockPos floor = BlockPos.containing(pos).below();
+            if (!level.noCollision(beetle) || level.getBlockState(floor).getCollisionShape(level, floor).isEmpty()) continue;
+            beetle.addTag("asterion_arena_beetle");
+            if (level.addFreshEntity(beetle)) {
+                active.beetles.add(beetle.getUUID()); remaining--;
+                level.sendParticles(Asterion.DOOR_DUST, pos.x, pos.y + .2, pos.z, 12, .5, .15, .5, .025);
+            }
+        }
+    }
+
+    private static void moveFromClosure(ServerLevel level, Direction facing) {
+        var gate = MinotaurArenaEntrances.gateBounds(facing).inflate(.3);
+        var door = MinotaurArenaEntrances.doorBounds(facing).inflate(.3);
+        for (ServerPlayer player : List.copyOf(level.players())) if (!player.isSpectator()
+                && (player.getBoundingBox().intersects(gate) || player.getBoundingBox().intersects(door))) {
+            Vec3 safe = safePosition(level, player, facing, 0);
+            player.stopRiding();
+            player.teleportTo(level, safe.x, safe.y, safe.z, Set.of(), player.getYRot(), player.getXRot(), true);
+            player.setDeltaMovement(Vec3.ZERO);
+            player.resetFallDistance();
+        }
+    }
+
+    public static boolean isMovementLocked(ServerPlayer player) {
+        return active != null && player.level() == active.level && active.locks.containsKey(player.getUUID());
+    }
+
+    public static boolean isSealed(ServerLevel level) { return active != null && active.level == level; }
+
+    public static boolean sealsDoor(net.minecraft.world.level.Level level, BlockPos root, Direction facing) {
+        return level instanceof ServerLevel server && isSealed(server) && root.equals(MinotaurArenaEntrances.door(facing));
+    }
+
+    private static void restoreDoors(ServerLevel level) {
+        for (Direction facing : MinotaurArenaEntrances.DOORS) {
+            BlockPos root = MinotaurArenaEntrances.door(facing);
+            if (level.getBlockEntity(root) instanceof MinotaurDoorBlockEntity) continue;
+            moveFromClosure(level, facing);
+            MinotaurDoorBlock.place(level, root, facing);
+            level.sendParticles(Asterion.DOOR_DUST, root.getX() + .5, root.getY() + 1, root.getZ() + .5, 48, 2.8, 1, .25, .03);
+            level.playSound(null, root, SoundEvents.ANVIL_USE, SoundSource.BLOCKS, 1.4F, .6F);
+        }
+    }
+
+    public static void finish(ServerLevel level) {
+        ArenaDebris.clear(level);
+        clear();
+        net.krodark.asterion.WorldGenerator.clearBossEntryTracking();
+        MinotaurArenaEntrances.setGates(level, 0, null);
+        restoreDoors(level);
+    }
+
+    public static void clear() {
+        if (active != null) {
+            for (Lock lock : active.locks.values()) release(lock);
+            for (UUID id : active.beetles) {
+                var beetle = active.level.getEntity(id);
+                if (beetle != null) beetle.discard();
+            }
+        }
+        active = null;
+    }
+
+    public static void releasePlayer(ServerPlayer player) {
+        if (active == null) return;
+        Lock lock = active.locks.remove(player.getUUID());
+        if (lock != null) release(lock);
+        active.participants.remove(player.getUUID());
+    }
+
+    private static void release(Lock lock) {
+        lock.player.setInvulnerable(lock.wasInvulnerable);
+        lock.player.setNoGravity(lock.hadNoGravity);
+        lock.player.setDeltaMovement(Vec3.ZERO);
+        if (!lock.player.isRemoved() && ServerPlayNetworking.canSend(lock.player, BossEntrancePayload.TYPE))
+            ServerPlayNetworking.send(lock.player, new BossEntrancePayload(Direction.NORTH, 0, 0));
+    }
+
+    private record Lock(ServerPlayer player, Vec3 position, float yaw, boolean wasInvulnerable, boolean hadNoGravity) { }
+    private static final class Encounter {
+        final ServerLevel level;
+        final UUID boss;
+        final Direction bossDoor;
+        final long start;
+        final Set<UUID> beetles = new HashSet<>();
+        final Set<UUID> participants = new LinkedHashSet<>();
+        final Map<UUID, Lock> locks = new HashMap<>();
+        final Map<Direction, Integer> closedRows = new EnumMap<>(Direction.class);
+        boolean restored;
+        Encounter(ServerLevel level, UUID boss, Direction door, long start) {
+            this.level = level; this.boss = boss; this.bossDoor = door; this.start = start;
+        }
+    }
+}

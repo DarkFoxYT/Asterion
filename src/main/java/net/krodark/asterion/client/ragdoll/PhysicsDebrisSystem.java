@@ -3,6 +3,8 @@ package net.krodark.asterion.client.ragdoll;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
+import net.krodark.asterion.block.MinotaurDoorMotion;
+import net.krodark.asterion.network.DoorBreakPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
@@ -47,21 +49,112 @@ public final class PhysicsDebrisSystem {
                     0.20F, 0.76, 0.978, 0.29, 0.16, 0.25, 5, 1.72F, false, true, 150, 310),
             new VariantProfile(new Vec3(0.25, 0.25, 0.25), new Vec3(0.0, 0.25, 0.0),
                     0.09F, 0.62, 0.970, 0.36, 0.055, Double.POSITIVE_INFINITY,
-                    Integer.MAX_VALUE, 2.15F, true, true, 220, 420)
+                    Integer.MAX_VALUE, 2.15F, true, true, 220, 420),
+            // Full authored door leaf: dense, low bounce, strong floor drag, long-lived and intact.
+            new VariantProfile(new Vec3(1.75, 2.5, .25), new Vec3(.6 / 16.0, 2.5, 0),
+                    8F, 1.35, .996, .14, .62, Double.POSITIVE_INFINITY,
+                    Integer.MAX_VALUE, .3F, true, false, 900, 1100)
     };
+    private static final List<DoorCloud> DOOR_CLOUDS = new ArrayList<>();
+    private static final int MAX_PIECES = 128;
     private static ClientLevel trackedLevel;
     private static long lastAmbientTick = Long.MIN_VALUE;
+    private static long lastImpactSoundTick = Long.MIN_VALUE;
 
     private PhysicsDebrisSystem() { }
 
     private static VariantProfile profile(int variant) {
-        return PROFILES[Mth.clamp(variant, 1, 6)];
+        return PROFILES[Mth.clamp(variant, 1, 7)];
     }
 
     public static void clear() {
         PIECES.clear();
+        DOOR_CLOUDS.clear();
         trackedLevel = null;
         lastAmbientTick = Long.MIN_VALUE;
+        lastImpactSoundTick = Long.MIN_VALUE;
+    }
+
+    public static void spawnDoors(DoorBreakPayload payload) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null || client.player == null || !payload.facing().getAxis().isHorizontal()
+                || client.player.distanceToSqr(Vec3.atCenterOf(payload.root())) > 96 * 96) return;
+        if (trackedLevel != client.level) { clear(); trackedLevel = client.level; }
+        while (PIECES.stream().filter(p -> p.variant == 7).count() > 10) {
+            var oldest = PIECES.stream().filter(p -> p.variant == 7).findFirst().orElseThrow();
+            PIECES.remove(oldest);
+        }
+        Random random = new Random(payload.seed());
+        float angle = Float.isFinite(payload.angle()) ? Mth.clamp(payload.angle(), 0, MinotaurDoorMotion.OPEN_ANGLE) : 0;
+        Vec3 inward = payload.facing().getOpposite().getUnitVec3();
+        if (DOOR_CLOUDS.size() >= 4) DOOR_CLOUDS.removeFirst();
+        DoorCloud cloud = new DoorCloud(Vec3.atBottomCenterOf(payload.root()), inward, random);
+        DOOR_CLOUDS.add(cloud);
+        cloud.emit(client.level, 160);
+        for (int side : new int[] {-1, 1}) {
+            Piece door = new Piece(MinotaurDoorMotion.leafCenter(payload.root(), payload.facing(), side, angle), 7, 1, random);
+            float yaw = MinotaurDoorMotion.yaw(payload.facing()) + side * angle;
+            door.orientation.rotationY(yaw);
+            door.previousOrientation.set(door.orientation);
+            // A kick supplies linear momentum and off-center torque; the leaves keep rotating freely.
+            Vec3 across = payload.facing().getClockWise().getUnitVec3();
+            door.velocity = inward.scale(1.25 + random.nextDouble() * .22)
+                    .add(across.scale(side * .10)).add(0, .48 + random.nextDouble() * .10, 0);
+            Vec3 spin = across.scale(.12 + random.nextDouble() * .035).add(inward.scale(side * .055));
+            door.angularVelocity.set((float)spin.x, side * .10F, (float)spin.z);
+            PIECES.add(door);
+            doorDust(client.level, door, 52, .18);
+        }
+    }
+
+    public static void spawnArenaDebris(net.krodark.asterion.network.ArenaDebrisPayload payload) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null || client.player == null) return;
+        if (trackedLevel != client.level) { clear(); trackedLevel = client.level; }
+        Random random = new Random(payload.seed());
+        int fragmentIndex = 0;
+        for (var fragment : payload.fragments()) {
+            Vec3 pos = fragment.position(), velocity = fragment.velocity();
+            if (!Double.isFinite(pos.lengthSqr()) || !Double.isFinite(velocity.lengthSqr())
+                    || pos.distanceToSqr(client.player.position()) > 96 * 96) continue;
+            int variant = 2 + random.nextInt(3);
+            Piece piece = new Piece(pos, variant, .55F + random.nextFloat() * .4F, random);
+            piece.velocity = velocity.lengthSqr() > 9 ? velocity.normalize().scale(3) : velocity;
+            piece.angularVelocity.mul(.55F);
+            piece.arenaRubble = true;
+            if ((fragmentIndex++ & 1) == 0) {
+                piece.blockVisual = (random.nextBoolean() ? net.minecraft.world.level.block.Blocks.COBBLED_DEEPSLATE
+                        : net.minecraft.world.level.block.Blocks.TUFF).defaultBlockState();
+                piece.angularVelocity.mul(2.8F);
+            }
+            if (!isWorldClear(client.level, piece, pos)) continue;
+            PIECES.add(piece);
+            spawnDebrisSmoke(client.level, pos, random, 3);
+        }
+        trimDebris();
+    }
+
+    private static void trimDebris() {
+        for (Iterator<Piece> it = PIECES.iterator(); PIECES.size() > MAX_PIECES && it.hasNext();)
+            if (it.next().variant != 7) it.remove();
+    }
+
+    private static final class DoorCloud {
+        final Vec3 root, inward;
+        final Random random;
+        int age;
+        DoorCloud(Vec3 root, Vec3 inward, Random random) { this.root = root; this.inward = inward; this.random = random; }
+        void emit(ClientLevel level, int count) {
+            Vec3 across = new Vec3(inward.z, 0, -inward.x);
+            for (int i = 0; i < count; i++) {
+                double side = (random.nextDouble() - .5) * 10;
+                // Dense lower billows and frame plumes; a thinner center lets the eye glow read through.
+                double height = Math.abs(side) > 2.2 ? random.nextDouble() * 4.8 : random.nextDouble() * 2.4;
+                Vec3 pos = root.add(across.scale(side)).add(inward.scale(.4 + random.nextDouble() * 9.5)).add(0, height, 0);
+                Vec3 drift = inward.scale(.12 + random.nextDouble() * .20).add(across.scale(side * .014));
+                level.addParticle(Asterion.DOOR_SMOKE, true, false, pos.x, pos.y, pos.z, drift.x, .025 + random.nextDouble() * .07, drift.z);
+            }
+        }
     }
 
     public static void spawnRumble(Vec3 center, float radius, float intensity, long seed) {
@@ -87,14 +180,16 @@ public final class PhysicsDebrisSystem {
     }
 
     public static void tick(Minecraft client) {
-        if (client.level == null || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) {
+        if (client.level == null) {
             clear();
             return;
         }
         if (trackedLevel != client.level) {
-            PIECES.clear();
+            clear();
             trackedLevel = client.level;
         }
+        DOOR_CLOUDS.removeIf(cloud -> ++cloud.age > 42);
+        for (DoorCloud cloud : DOOR_CLOUDS) cloud.emit(client.level, cloud.age < 16 ? 8 : 4);
         int substeps = Mth.clamp(2 + AsterionConfig.INSTANCE.ragdollPhysicsQuality, 2, 4);
         List<Piece> fracturedChildren = new ArrayList<>();
         Iterator<Piece> iterator = PIECES.iterator();
@@ -104,8 +199,10 @@ public final class PhysicsDebrisSystem {
             piece.previousOrientation.set(piece.orientation);
             piece.age++;
             boolean shattered = false;
-            for (int step = 0; step < substeps && !shattered; step++)
-                shattered = simulateStep(client.level, piece, 1.0 / substeps, fracturedChildren);
+            // Settled doors only recheck support twice a second, with no repeated substeps.
+            if (!piece.sleeping || piece.age % 10 == 0)
+                for (int step = 0; step < substeps && !shattered && (step == 0 || !piece.sleeping); step++)
+                    shattered = simulateStep(client.level, piece, 1.0 / substeps, fracturedChildren);
             if (shattered || piece.age > piece.lifetime
                     || (client.player != null && piece.position.distanceToSqr(client.player.position()) > 128 * 128)) {
                 if (!shattered && !piece.unbreakable() && piece.age <= piece.lifetime)
@@ -114,6 +211,7 @@ public final class PhysicsDebrisSystem {
             }
         }
         PIECES.addAll(fracturedChildren);
+        trimDebris();
     }
 
     public static void submit(PoseStack poses, LevelRenderState state, SubmitNodeCollector collector) {
@@ -129,6 +227,19 @@ public final class PhysicsDebrisSystem {
             poses.translate(position.x - camera.x, position.y - camera.y, position.z - camera.z);
             poses.mulPose(rotation);
             poses.scale(piece.scale, piece.scale, piece.scale);
+            if (piece.blockVisual != null) {
+                poses.translate(-.5, -.5, -.5);
+                var block = new net.minecraft.client.renderer.block.MovingBlockRenderState();
+                block.blockPos = BlockPos.containing(position);
+                block.randomSeedPos = block.blockPos;
+                block.blockState = piece.blockVisual;
+                block.biome = client.level.getBiome(block.blockPos);
+                block.cardinalLighting = client.level.cardinalLighting();
+                block.lightEngine = client.level.getLightEngine();
+                collector.submitMovingBlock(poses, block);
+                poses.popPose();
+                continue;
+            }
             Vec3 modelCenter = piece.modelCenter();
             poses.translate(-modelCenter.x, -modelCenter.y, -modelCenter.z);
             int light = LevelRenderer.getLightCoords(client.level, BlockPos.containing(position));
@@ -204,6 +315,14 @@ public final class PhysicsDebrisSystem {
 
     private static boolean simulateStep(ClientLevel level, Piece piece, double dt,
                                         List<Piece> fracturedChildren) {
+        if (piece.sleeping) {
+            if (!isWorldClear(level, piece, piece.position.add(0, -.04, 0))) return false;
+            piece.sleeping = false;
+        }
+        if (piece.variant == 7 || piece.arenaRubble) {
+            simulateDoorStep(level, piece, dt);
+            return piece.shattered;
+        }
         piece.velocity = piece.velocity.add(0, -0.055 * piece.gravityFactor() * dt, 0)
                 .scale(Math.pow(piece.airRetention(), dt));
         if (piece.velocity.y < -2.8) piece.velocity = new Vec3(piece.velocity.x, -2.8, piece.velocity.z);
@@ -245,6 +364,109 @@ public final class PhysicsDebrisSystem {
             piece.angularVelocity.add((float) torque.x, (float) torque.y, (float) torque.z);
         }
         return false;
+    }
+
+    private static void simulateDoorStep(ClientLevel level, Piece door, double dt) {
+        // Sweep both translation and rotation. Contact impulses use the plank's box inertia,
+        // so a corner striking the floor changes its spin instead of forcing a canned flat pose.
+        if (door.velocity.lengthSqr() > 3.2 * 3.2) door.velocity = door.velocity.normalize().scale(3.2);
+        if (door.angularVelocity.lengthSquared() > 1) door.angularVelocity.normalize();
+        int sweeps = Mth.clamp((int)Math.ceil((door.velocity.length()
+                + door.angularVelocity.length() * door.halfExtents().length()) * dt / .16), 1, 16);
+        double h = dt / sweeps;
+        boolean supported = false;
+        double strongestImpact = 0;
+        for (int sweep = 0; sweep < sweeps; sweep++) {
+            door.velocity = door.velocity.add(0, -.055 * door.gravityFactor() * h, 0)
+                    .scale(Math.pow(door.airRetention(), h));
+            door.angularVelocity.mul((float)Math.pow(.996, h));
+            door.position = door.position.add(door.velocity.scale(h));
+            door.orientation.premul(new Quaternionf().rotationXYZ(door.angularVelocity.x * (float)h,
+                    door.angularVelocity.y * (float)h, door.angularVelocity.z * (float)h)).normalize();
+            for (int iteration = 0; iteration < 6; iteration++) {
+                Collision contact = collisionAt(level, door, door.position);
+                if (contact == null) break;
+                Vec3 normal = contact.normal.scale(-1);
+                Vec3 point = contact.point;
+                door.position = door.position.add(normal.scale(contact.depth + .0006));
+                Vec3 lever = point.subtract(door.position);
+                double speed = door.velocityAt(point).dot(normal);
+                strongestImpact = Math.max(strongestImpact, -speed);
+                if (door.blockVisual != null && door.age > 3 && speed < -.32) {
+                    burst(level, door, normal, -speed);
+                    door.shattered = true;
+                    return;
+                }
+                supported |= normal.y > .55;
+                if (speed >= 0) continue;
+                double bounce = speed < -.18 ? door.restitution() : 0;
+                double impulse = -(1 + bounce) * speed / door.effectiveInverseMass(lever, normal);
+                door.applyImpulse(lever, normal.scale(impulse));
+                Vec3 atContact = door.velocityAt(point);
+                Vec3 tangent = atContact.subtract(normal.scale(atContact.dot(normal)));
+                double sliding = tangent.length();
+                if (sliding > 1.0e-6) {
+                    tangent = tangent.scale(1 / sliding);
+                    double friction = Math.min(door.friction() * impulse,
+                            sliding / door.effectiveInverseMass(lever, tangent));
+                    door.applyImpulse(lever, tangent.scale(-friction));
+                }
+            }
+        }
+        if (supported) door.angularVelocity.mul((float)Math.pow(.92, dt));
+        boolean slow = door.velocity.horizontalDistanceSqr() < .0025 && Math.abs(door.velocity.y) < .09
+                && door.angularVelocity.lengthSquared() < .004;
+        // Tiny separation after contact resolution must not keep a resting plank awake forever.
+        if (slow && !supported) supported = !isWorldClear(level, door, door.position.add(0, -.035, 0));
+        boolean quiet = slow && supported;
+        door.restingTime = quiet ? door.restingTime + dt : 0;
+        if (door.restingTime > 12) {
+            door.sleeping = true;
+            door.velocity = Vec3.ZERO;
+            door.angularVelocity.zero();
+        }
+        if ((strongestImpact > .18 || supported && door.velocity.horizontalDistanceSqr() > .015)
+                && door.age - door.lastDustTick >= (strongestImpact > .18 ? 5 : 9)) {
+            doorDust(level, door, strongestImpact > .18 ? (door.variant == 7 ? 48 : 8) : 4, Math.min(.24, strongestImpact * .16));
+            door.lastDustTick = door.age;
+            if (strongestImpact > .35) net.krodark.asterion.client.event.DeadSunClientEvents.impact(
+                    door.position, 28, (float)Math.min(door.variant == 7 ? 1.3 : .3, strongestImpact * .8), 14);
+            if (strongestImpact > .18 && (lastImpactSoundTick == Long.MIN_VALUE || level.getGameTime() - lastImpactSoundTick >= 2)) {
+                lastImpactSoundTick = level.getGameTime();
+                level.playLocalSound(door.position.x, door.position.y, door.position.z,
+                        door.variant == 7 ? SoundEvents.ANVIL_LAND : SoundEvents.STONE_HIT,
+                        SoundSource.BLOCKS, door.variant == 7 ? 1.6F : .8F, .5F, false);
+            }
+        }
+    }
+
+    /** Existing boss/explosion packets can knock settled leaves loose again. */
+    public static void throwDoors(Vec3 center, float radius) {
+        if (!Float.isFinite(radius) || radius <= 0) return;
+        double reach = Math.min(32, radius * 2.0 + 3);
+        for (Piece door : PIECES) {
+            if (door.variant != 7 && !door.arenaRubble) continue;
+            Vec3 offset = door.position.subtract(center);
+            double distance = offset.length();
+            if (distance >= reach) continue;
+            Vec3 away = distance > .01 ? offset.scale(1 / distance) : new Vec3(0, 1, 0);
+            double strength = (1 - distance / reach) * Math.min(1.5, radius * .22);
+            door.velocity = door.velocity.add(away.scale(strength)).add(0, strength * .55, 0);
+            door.angularVelocity.add((float)(away.z * .14), .08F, (float)(-away.x * .14));
+            door.sleeping = false;
+            door.restingTime = 0;
+        }
+    }
+
+    private static void doorDust(ClientLevel level, Piece door, int count, double speed) {
+        AABB bounds = boundsAt(door, door.position);
+        for (int i = 0; i < count; i++) {
+            double x = bounds.minX + level.getRandom().nextDouble() * bounds.getXsize();
+            double z = bounds.minZ + level.getRandom().nextDouble() * bounds.getZsize();
+            level.addParticle(Asterion.DOOR_DUST, x, bounds.minY + .09, z,
+                    (level.getRandom().nextDouble() - .5) * speed, .012 + level.getRandom().nextDouble() * speed * .3,
+                    (level.getRandom().nextDouble() - .5) * speed);
+        }
     }
 
     private static void applyRollingContact(Piece piece, Vec3 normal) {
@@ -444,6 +666,7 @@ public final class PhysicsDebrisSystem {
         BlockPos hitPos = BlockPos.containing(piece.position.subtract(normal.scale(0.12)));
         BlockState hitState = level.getBlockState(hitPos);
         if (hitState.isAir()) hitState = level.getBlockState(hitPos.below());
+        if (piece.blockVisual != null) hitState = piece.blockVisual;
         if (hitState.isAir()) return;
         Random random = new Random(piece.seed ^ piece.age * 131L);
         BlockParticleOption fragments = new BlockParticleOption(ParticleTypes.BLOCK, hitState);
@@ -496,7 +719,13 @@ public final class PhysicsDebrisSystem {
                         axes(piece), box.getCenter(),
                         new Vec3(box.getXsize() * 0.5, box.getYsize() * 0.5, box.getZsize() * 0.5),
                         WORLD_AXES);
-                if (collision != null && (deepest == null || collision.depth > deepest.depth)) deepest = collision;
+                if (collision != null && (deepest == null || collision.depth > deepest.depth)) {
+                    if (piece.variant != 7 && !piece.arenaRubble) { deepest = collision; continue; }
+                    Vec3 point = supportPoint(piece, center, collision.normal);
+                    point = new Vec3(Mth.clamp(point.x, box.minX, box.maxX), Mth.clamp(point.y, box.minY, box.maxY),
+                            Mth.clamp(point.z, box.minZ, box.maxZ));
+                    deepest = new Collision(collision.normal, collision.depth, point);
+                }
             }
         }
         return deepest;
@@ -505,6 +734,18 @@ public final class PhysicsDebrisSystem {
     private static final Vec3[] WORLD_AXES = {
             new Vec3(1, 0, 0), new Vec3(0, 1, 0), new Vec3(0, 0, 1)
     };
+
+    private static Vec3 supportPoint(Piece piece, Vec3 center, Vec3 direction) {
+        Vec3 half = piece.halfExtents();
+        Vec3[] axes = axes(piece);
+        double[] extents = {half.x, half.y, half.z};
+        Vec3 point = center;
+        for (int i = 0; i < 3; i++) {
+            double dot = axes[i].dot(direction);
+            if (Math.abs(dot) > .001) point = point.add(axes[i].scale(Math.signum(dot) * extents[i]));
+        }
+        return point;
+    }
 
     private static Vec3[] axes(Piece piece) {
         Vector3f x = piece.orientation.transform(new Vector3f(1, 0, 0));
@@ -535,7 +776,7 @@ public final class PhysicsDebrisSystem {
                 bestAxis = delta.dot(axis) < 0 ? axis.scale(-1) : axis;
             }
         }
-        return bestAxis == null ? null : new Collision(bestAxis, bestDepth);
+        return bestAxis == null ? null : new Collision(bestAxis, bestDepth, null);
     }
 
     private static double projectionRadius(Vec3 half, Vec3[] axes, Vec3 direction) {
@@ -560,11 +801,16 @@ public final class PhysicsDebrisSystem {
         private int impacts;
         private int floorSurvivals;
         private int wallSurvivals;
+        private int lastDustTick = -20;
+        private boolean sleeping;
+        private boolean arenaRubble, shattered;
+        private BlockState blockVisual;
+        private double restingTime;
 
         private Piece(Vec3 position, int variant, float scale, Random random) {
             this.position = position;
             this.previousPosition = position;
-            this.variant = Mth.clamp(variant, 1, 6);
+            this.variant = Mth.clamp(variant, 1, 7);
             this.visual = new DebrisPhysicsObject(this.variant);
             this.scale = scale;
             this.seed = random.nextLong();
@@ -589,7 +835,8 @@ public final class PhysicsDebrisSystem {
         }
 
         private Vec3 halfExtents() {
-            return profile(variant).halfExtents.scale(scale * 0.88);
+            return blockVisual != null ? new Vec3(.5, .5, .5).scale(scale)
+                    : profile(variant).halfExtents.scale(scale * (variant == 7 ? 1.0 : .88));
         }
 
         private Vec3 modelCenter() {
@@ -612,6 +859,33 @@ public final class PhysicsDebrisSystem {
             Vec3 half = profile(variant).halfExtents;
             double modelVolume = half.x * half.y * half.z * 8.0D;
             return Math.max(1.0e-5D, massFactor() * modelVolume * scale * scale * scale);
+        }
+
+        private Vec3 inverseInertia(Vec3 torque) {
+            Vector3f local = new Vector3f((float)torque.x, (float)torque.y, (float)torque.z);
+            new Quaternionf(orientation).conjugate().transform(local);
+            Vec3 half = halfExtents();
+            double m = mass() / 3;
+            local.set((float)(local.x / (m * (half.y * half.y + half.z * half.z))),
+                    (float)(local.y / (m * (half.x * half.x + half.z * half.z))),
+                    (float)(local.z / (m * (half.x * half.x + half.y * half.y))));
+            orientation.transform(local);
+            return new Vec3(local.x, local.y, local.z);
+        }
+
+        private Vec3 velocityAt(Vec3 point) {
+            Vec3 spin = new Vec3(angularVelocity.x, angularVelocity.y, angularVelocity.z);
+            return velocity.add(spin.cross(point.subtract(position)));
+        }
+
+        private double effectiveInverseMass(Vec3 lever, Vec3 direction) {
+            return 1 / mass() + direction.dot(inverseInertia(lever.cross(direction)).cross(lever));
+        }
+
+        private void applyImpulse(Vec3 lever, Vec3 impulse) {
+            velocity = velocity.add(impulse.scale(1 / mass()));
+            Vec3 spin = inverseInertia(lever.cross(impulse));
+            angularVelocity.add((float)spin.x, (float)spin.y, (float)spin.z);
         }
 
         private double restitution() {
@@ -650,6 +924,6 @@ public final class PhysicsDebrisSystem {
                                   int maximumImpacts, float spinMultiplier,
                                   boolean unbreakable, boolean rolling,
                                   int minimumLifetime, int maximumLifetime) { }
-    private record Collision(Vec3 normal, double depth) { }
+    private record Collision(Vec3 normal, double depth, Vec3 point) { }
     private record DustSource(Vec3 position, Vec3 normal, Vec3 tangent) { }
 }

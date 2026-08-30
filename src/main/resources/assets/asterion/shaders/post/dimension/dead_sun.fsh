@@ -86,6 +86,19 @@ float remnantDensity(vec3 p) {
 }
 
 void main() {
+    // Exactly transparent output: avoid procedural noise/ray work behind opaque nearby terrain.
+    if (clamp(Value * EffectStrength, 0.0, 1.0) == 0.0 || clamp(Opacity, 0.0, 1.0) == 0.0) {
+        fragColor = vec4(0.0);
+        return;
+    }
+    vec3 toSun = Sun.xyz - CameraPos;
+    float centerDistance = length(toSun);
+    float depth = texture(DepthSampler, texCoord).r;
+    float geometryDistance = depth >= 0.9999 ? 100000.0 : length(reconstructWorld(depth) - CameraPos);
+    if (Radiance <= 0.001 && geometryDistance < centerDistance - Sun.w * 1.20) {
+        fragColor = vec4(0.0);
+        return;
+    }
     float eclipse = clamp(Eclipse, 0.0, 1.0);
     // A mostly-stable, low-frequency edge fault with sparse horizontal slips. Keeping the
     // displacement small preserves the solid black center while giving its silhouette life.
@@ -105,10 +118,6 @@ void main() {
     activeCoreTint = mix(activeCoreTint, vec3(0.14, 0.0004, 0.0012), finale);
     activeCoronaTint = mix(activeCoronaTint, vec3(0.52, 0.003, 0.009), finale);
     vec3 direction = worldRay(texCoord);
-    vec3 toSun = Sun.xyz - CameraPos;
-    float centerDistance = length(toSun);
-    float depth = texture(DepthSampler, texCoord).r;
-    float geometryDistance = depth >= 0.9999 ? 100000.0 : length(reconstructWorld(depth) - CameraPos);
 
     float nearHit;
     float farHit;

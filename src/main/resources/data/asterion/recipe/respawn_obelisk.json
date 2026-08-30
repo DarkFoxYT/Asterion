@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " G ",
+    "GSG",
+    "SSS"
+  ],
+  "key": {
+    "G": "minecraft:gold_ingot",
+    "S": "asterion:ancient_stone"
+  },
+  "result": {
+    "id": "asterion:respawn_obelisk",
+    "count": 1
+  }
+}

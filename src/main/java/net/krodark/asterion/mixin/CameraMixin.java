@@ -3,6 +3,7 @@ package net.krodark.asterion.mixin;
 import net.krodark.asterion.client.event.DeadSunClientEvents;
 import net.krodark.asterion.client.DeadSunEntryCinematic;
 import net.krodark.asterion.client.BossFinaleOverlay;
+import net.krodark.asterion.client.BossEntranceCinematic;
 import net.krodark.asterion.client.ragdoll.DismembermentEngine;
 import net.krodark.asterion.client.render.entity.SurfaceOrientation;
 import net.krodark.asterion.entity.ScarletCentipedeEntity;
@@ -45,6 +46,10 @@ public abstract class CameraMixin {
     private void asterion$followRagdollHead(DeltaTracker tracker, CallbackInfo ci) {
         Minecraft minecraft = Minecraft.getInstance();
         float partial = tracker.getGameTimeDeltaPartialTick(true);
+        if (minecraft.player != null) {
+            Vec3 handFeet = net.krodark.asterion.client.render.entity.MinotaurHandAttachment.feet(minecraft.player);
+            if (handFeet != null) setPosition(position().add(handFeet.subtract(minecraft.player.getPosition(partial))));
+        }
         if (minecraft.player == null) asterion$smoothedRagdollCamera = null;
         else {
             Vec3 head = DismembermentEngine.INSTANCE.playerTumbleCameraPosition(minecraft.player.getId(), partial);
@@ -74,14 +79,19 @@ public abstract class CameraMixin {
             setPosition(finale.position());
             setRotation(finale.yaw(), finale.pitch());
         }
+        BossEntranceCinematic.CameraPose entrance = BossEntranceCinematic.cameraPose(position(), partial);
+        if (entrance != null) {
+            setPosition(entrance.position());
+            setRotation(entrance.yaw(), entrance.pitch());
+        }
         DeadSunClientEvents.Sample sample = DeadSunClientEvents.sample(partial);
         if (sample != DeadSunClientEvents.Sample.NONE) {
             setPosition(position().add(sample.cameraOffset()));
             setRotation(yRot() + sample.yawDegrees(), xRot() + sample.pitchDegrees());
         }
-        if (shot == null && finale == null && minecraft.player != null
+        if (shot == null && finale == null && entrance == null && minecraft.player != null
                 && minecraft.player.getVehicle() instanceof ScarletCentipedeEntity centipede) {
-            Quaternionf target = SurfaceOrientation.cameraTilt(centipede.attachmentNormal());
+            Quaternionf target = SurfaceOrientation.cameraTilt(centipede.passengerNormal(minecraft.player, partial));
             float frameTicks = Math.max(0.05F, tracker.getGameTimeDeltaTicks());
             asterion$centipedeTilt.slerp(target,
                     1.0F - (float)Math.pow(0.70D, frameTicks)).normalize();
@@ -89,7 +99,7 @@ public abstract class CameraMixin {
             Vec3 vanillaEye = minecraft.player.getEyePosition(partial);
             Vector3f smoothUp = new Vector3f(0.0F, 1.0F, 0.0F).rotate(asterion$centipedeTilt);
             Vec3 surfaceUp = new Vec3(smoothUp.x, smoothUp.y, smoothUp.z);
-            Vec3 surfaceEye = minecraft.player.getPosition(partial)
+            Vec3 surfaceEye = centipede.passengerPosition(minecraft.player, partial)
                     .add(surfaceUp.scale(minecraft.player.getEyeHeight()));
             Vector3f cameraOffset = new Vector3f((float)(position().x - vanillaEye.x),
                     (float)(position().y - vanillaEye.y), (float)(position().z - vanillaEye.z));
@@ -105,7 +115,7 @@ public abstract class CameraMixin {
             matrixPropertiesDirty |= 3;
             asterion$rebuildCinematicFrustum(minecraft);
         } else asterion$centipedeTilt.identity();
-        if (shot != null || finale != null) asterion$rebuildCinematicFrustum(minecraft);
+        if (shot != null || finale != null || entrance != null) asterion$rebuildCinematicFrustum(minecraft);
     }
 
     /** Camera.update creates its culling frustum before this tail injection moves the camera.

@@ -1,0 +1,8 @@
+{
+  "version": "1.0-SNAPSHOT",
+  "sourceCommit": "de756b6",
+  "minecraft": "26.1.2",
+  "amneticSha256": "82b6772c183a4d34fb5be41c92abe8ba2b6a4c9bd1b00d298b18d63570e8766c",
+  "bb4jSha256": "c2242d567a3246ce68fe115f4214127e0d3986a99d6dde1a7a52aae0059fe888",
+  "installation": "Amnetic and its bb4j parser library nested inside Asterion"
+}

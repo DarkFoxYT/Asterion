@@ -1917,7 +1917,6 @@ public final class DismembermentEngine {
                 pieces.remove(i);
                 solverIndex.remove(pieceKey(part.entityId, part.region));
             }
-            part.bruises.removeIf(bruise -> part.age - bruise.createdAge() > 4800);
             part.contacts.values().removeIf(contact -> part.age - contact.lastAge > 2);
         }
         updateSleepingIslands();
@@ -2390,8 +2389,6 @@ public final class DismembermentEngine {
                 Mth.clamp(local.y, -part.halfExtents.y * 0.82, part.halfExtents.y * 0.82),
                 Math.copySign(part.halfExtents.z, localNormal.z));
         int seed = (int) RagdollMath.mix(part.entityId * 92821L + part.region * 68917L + part.age * 101L);
-        part.bruises.add(new RigidBruise(local, localNormal, severity, seed, part.age));
-        while (part.bruises.size() > 12) part.bruises.removeFirst();
         part.contusion = Math.min(1.0f, part.contusion + severity * 0.22f);
         part.lastBruiseAge = part.age;
     }

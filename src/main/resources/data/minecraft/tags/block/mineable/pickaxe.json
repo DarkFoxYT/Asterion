@@ -1,6 +1,12 @@
 {
   "replace": false,
   "values": [
+    "asterion:respawn_altar",
+    "asterion:respawn_obelisk",
+    "asterion:slick_catacomb_stone",
+    "asterion:sluice_lock",
+    "asterion:greek_brazier",
+    "asterion:lamenter",
     "asterion:mossy_ancient_stone",
     "asterion:ancient_mossy_bricks",
     "asterion:ancient_bricks",

@@ -72,6 +72,7 @@
       },
       "bonus_rolls": 0.0,
       "entries": [
+        { "type": "minecraft:item", "name": "asterion:minotaur_key", "weight": 2 },
         {
           "type": "minecraft:item",
           "name": "minecraft:cobweb",

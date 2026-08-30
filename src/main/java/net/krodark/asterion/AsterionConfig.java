@@ -2,9 +2,13 @@ package net.krodark.asterion;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import net.fabricmc.loader.api.FabricLoader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -12,6 +16,7 @@ import java.nio.file.Path;
 
 public final class AsterionConfig {
     private static final int CURRENT_VERSION = 21;
+    private static final Logger LOGGER = LoggerFactory.getLogger("asterion.config");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("asterion.json");
     public static AsterionConfig INSTANCE = load();
@@ -88,193 +93,137 @@ public final class AsterionConfig {
     public float fogB = 0.049780853f;
 
     private static AsterionConfig load() {
-        try {
-            if (Files.exists(FILE)) {
-                JsonObject json = JsonParser.parseString(Files.readString(FILE)).getAsJsonObject();
-                AsterionConfig config = GSON.fromJson(json, AsterionConfig.class);
-                boolean changed = false;
-                if (!json.has("configVersion") || config.configVersion < 2) {
-                    config.mazeRadiusCells = 80;
-                    config.cellSize = 13;
-                    config.wallThickness = 4;
-                    config.wallHeight = 30;
-                    changed = true;
-                }
-                if (!json.has("configVersion") || config.configVersion < 3) {
-                    config.floorThickness = 4;
-                    config.mazeLoopChance = 36;
-                    config.mazeLandmarkChance = 28;
-                    changed = true;
-                }
-                if (!json.has("configVersion") || config.configVersion < 5) {
-                    config.deadSunHeight = 148.0f;
-                    config.deadSunSize = 24.0f;
-                    config.deadSunBrightness = 1.65f;
-                    config.shaderAnimationSpeed = 0.55f;
-                    config.dustDensity = 1.0f;
-                    config.fogStrength = 1.0f;
-                    config.deadSunX = 0.0f;
-                    config.deadSunZ = 0.0f;
-                    config.deadSunCorona = 1.0f;
-                    config.deadSunDensity = 1.0f;
-                    config.deadSunOpacity = 1.0f;
-                    config.deadSunCoreR = 1.0f; config.deadSunCoreG = 0.38f; config.deadSunCoreB = 0.08f;
-                    config.deadSunCoronaR = 1.0f; config.deadSunCoronaG = 0.16f; config.deadSunCoronaB = 0.025f;
-                    config.dustR = 0.39f; config.dustG = 0.285f; config.dustB = 0.175f;
-                    config.fogR = 0.050f; config.fogG = 0.041f; config.fogB = 0.034f;
-                    changed = true;
-                }
-                if (!json.has("configVersion") || config.configVersion < 6) {
-                    config.deadSunDensity = 1.0f;
-                    config.deadSunOpacity = 1.0f;
-                    changed = true;
-                }
-                if (!json.has("configVersion") || config.configVersion < 7) {
-                    config.gatewayDistance = 5_000;
-                    changed = true;
-                }
-                if (!json.has("configVersion") || config.configVersion < 8) {
-                    config.playerBlockDecayTicks = 400;
-                    config.wallZapDelayTicks = 60;
-                    changed = true;
-                }
-                if (!json.has("configVersion") || config.configVersion < 9) {
-                    config.deadSunCoreR = 1.0f; config.deadSunCoreG = 0.055f; config.deadSunCoreB = 0.025f;
-                    config.deadSunCoronaR = 1.0f; config.deadSunCoronaG = 0.025f; config.deadSunCoronaB = 0.012f;
-                    changed = true;
-                }
-                if (!json.has("configVersion") || config.configVersion < 10) {
-                    config.minotaurStalkDistance = 40;
-                    config.minotaurApproachDistance = 24;
-                    config.minotaurGazeMinTicks = 140;
-                    config.minotaurGazeMaxTicks = 200;
-                    config.minotaurWindupMinTicks = 60;
-                    config.minotaurWindupMaxTicks = 100;
-                    config.minotaurEscapeTicks = 2_400;
-                    config.minotaurEscapeDistance = 32;
-                    config.minotaurDamageMin = 50;
-                    config.minotaurDamageMax = 70;
-                    changed = true;
-                }
-                if (!json.has("configVersion") || config.configVersion < 11) {
-                    config.deadSunStrength = 0.82f;
-                    config.deadSunSize = 68.0f;
-                    config.deadSunCorona = 1.80f;
-                    config.dustR = 0.30f; config.dustG = 0.36f; config.dustB = 0.32f;
-                    config.fogR = 0.18f; config.fogG = 0.23f; config.fogB = 0.20f;
-                    changed = true;
-                }
-                if (!json.has("configVersion") || config.configVersion < 12) {
-                    config.dustR = 0.2607004f;
-                    config.dustG = 0.07607989f;
-                    config.dustB = 0.07607989f;
-                    config.fogR = 0.15294118f;
-                    config.fogG = 0.1364837f;
-                    config.fogB = 0.049780853f;
-                    changed = true;
-                }
-                if (!json.has("configVersion") || config.configVersion < 13) {
-                    config.minotaurScale = 2.0f;
-                    config.minotaurPathfindingMultiplier = 32.0f;
-                    config.minotaurRepathTicks = 2;
-                    config.minotaurStuckRecoveryTicks = 24;
-                    config.minotaurUnkillable = true;
-                    changed = true;
-                }
-                if (!json.has("configVersion") || config.configVersion < 14) {
-                    config.deadSunCoreR = 1.0f;
-                    config.deadSunCoreG = 0.012f;
-                    config.deadSunCoreB = 0.006f;
-                    config.deadSunCoronaR = 1.0f;
-                    config.deadSunCoronaG = 0.085f;
-                    config.deadSunCoronaB = 0.008f;
-                    changed = true;
-                }
-                if (!json.has("configVersion") || config.configVersion < 15) {
-                    config.minotaurHorizontalFov = 105.0f;
-                    config.minotaurVerticalFov = 70.0f;
-                    changed = true;
-                }
-                if (!json.has("configVersion") || config.configVersion < 16) {
-                    config.minotaurBossPillarCount = 8;
-                    changed = true;
-                }
-                if (!json.has("configVersion") || config.configVersion < 17) {
-                    config.cinematicsEnabled = true;
-                    config.cinematicQuality = 2;
-                    config.dynamicLightQuality = 2;
-                    config.ragdollEquipment = true;
-                    config.enhancedLightning = true;
-                    changed = true;
-                }
-                if (!json.has("configVersion") || config.configVersion < 18) {
-                    config.ragdollMashRecovery = false;
-                    changed = true;
-                }
-                if (!json.has("configVersion") || config.configVersion < 19) {
-                    config.wallThickness = 2;
-                    changed = true;
-                }
-                if (!json.has("configVersion") || config.configVersion < 20) {
-                    applyCanonicalSkyProfile(config);
-                    changed = true;
-                }
-                if (!json.has("configVersion") || config.configVersion < 21) {
-                    config.ambientParticleQuality = 2;
-                    config.ragdollPhysicsQuality = 2;
-                    config.dynamicLightsEnabled = true;
-                    config.droppedItemLights = true;
-                    config.dynamicLightRangePercent = 100;
-                    config.maxDynamicLights = 96;
-                    changed = true;
-                }
-                if (changed) {
-                    config.configVersion = CURRENT_VERSION;
-                    config.save();
-                }
-                config.sanitize();
-                return config;
-            }
-        } catch (Exception ignored) {
+        if (Files.notExists(FILE)) {
+            AsterionConfig config = new AsterionConfig();
+            config.save();
+            return config;
         }
-        AsterionConfig config = new AsterionConfig();
-        config.save();
-        return config;
+
+        try {
+            JsonElement contents = JsonParser.parseString(Files.readString(FILE));
+            if (!contents.isJsonObject()) {
+                throw new JsonParseException("Expected a JSON object");
+            }
+            JsonObject json = contents.getAsJsonObject();
+            AsterionConfig config = GSON.fromJson(json, AsterionConfig.class);
+            int version = json.has("configVersion") && !json.get("configVersion").isJsonNull()
+                    ? config.configVersion : 0;
+            config.migrate(version);
+            config.sanitize();
+            if (version < CURRENT_VERSION) config.save();
+            return config;
+        } catch (IOException | JsonParseException exception) {
+            LOGGER.warn("Could not load {}: {}. Using defaults; the file was left unchanged.",
+                    FILE, exception.getMessage());
+            AsterionConfig config = new AsterionConfig();
+            config.sanitize();
+            return config;
+        }
     }
 
-    private static void applyCanonicalSkyProfile(AsterionConfig config) {
-        config.deadSunEnabled = true;
-        config.dustyAirEnabled = true;
-        config.deadSunStrength = 0.82f;
-        config.dustyAirStrength = 1.0f;
-        config.deadSunHeight = 240.0f;
-        config.deadSunSize = 48.0f;
-        config.deadSunBrightness = 4.0f;
-        config.shaderAnimationSpeed = 1.0f;
-        config.dustDensity = 1.499f;
-        config.fogStrength = 1.508f;
-        config.deadSunX = 0.0f;
-        config.deadSunZ = 0.0f;
-        config.deadSunCorona = 1.80f;
-        config.deadSunDensity = 3.0f;
-        config.deadSunOpacity = 1.0f;
-        config.deadSunCoreR = 1.0f;
-        config.deadSunCoreG = 0.012f;
-        config.deadSunCoreB = 0.006f;
-        config.deadSunCoronaR = 1.0f;
-        config.deadSunCoronaG = 0.085f;
-        config.deadSunCoronaB = 0.008f;
-        config.dustR = 0.2607004f;
-        config.dustG = 0.07607989f;
-        config.dustB = 0.07607989f;
-        config.fogR = 0.15294118f;
-        config.fogG = 0.1364837f;
-        config.fogB = 0.049780853f;
+    private void migrate(int version) {
+        if (version < 2) {
+            mazeRadiusCells = 80;
+            cellSize = 13;
+            wallHeight = 30;
+        }
+        if (version < 3) {
+            floorThickness = 4;
+            mazeLoopChance = 36;
+            mazeLandmarkChance = 28;
+        }
+        if (version < 7) {
+            gatewayDistance = 5_000;
+        }
+        if (version < 8) {
+            playerBlockDecayTicks = 400;
+            wallZapDelayTicks = 60;
+        }
+        if (version < 10) {
+            minotaurStalkDistance = 40;
+            minotaurApproachDistance = 24;
+            minotaurGazeMinTicks = 140;
+            minotaurGazeMaxTicks = 200;
+            minotaurWindupMinTicks = 60;
+            minotaurWindupMaxTicks = 100;
+            minotaurEscapeTicks = 2_400;
+            minotaurEscapeDistance = 32;
+            minotaurDamageMin = 50;
+            minotaurDamageMax = 70;
+        }
+        if (version < 13) {
+            minotaurScale = 2.0f;
+            minotaurPathfindingMultiplier = 32.0f;
+            minotaurRepathTicks = 2;
+            minotaurStuckRecoveryTicks = 24;
+            minotaurUnkillable = true;
+        }
+        if (version < 15) {
+            minotaurHorizontalFov = 105.0f;
+            minotaurVerticalFov = 70.0f;
+        }
+        if (version < 16) {
+            minotaurBossPillarCount = 8;
+        }
+        if (version < 17) {
+            cinematicsEnabled = true;
+            cinematicQuality = 2;
+            dynamicLightQuality = 2;
+            ragdollEquipment = true;
+            enhancedLightning = true;
+        }
+        if (version < 18) {
+            ragdollMashRecovery = false;
+        }
+        if (version < 19) {
+            wallThickness = 2;
+        }
+        if (version < 20) {
+            applySkyDefaults();
+        }
+        if (version < 21) {
+            ambientParticleQuality = 2;
+            ragdollPhysicsQuality = 2;
+            dynamicLightsEnabled = true;
+            droppedItemLights = true;
+            dynamicLightRangePercent = 100;
+            maxDynamicLights = 96;
+        }
+    }
+
+    private void applySkyDefaults() {
+        deadSunEnabled = true;
+        dustyAirEnabled = true;
+        deadSunStrength = 0.82f;
+        dustyAirStrength = 1.0f;
+        deadSunHeight = 240.0f;
+        deadSunSize = 48.0f;
+        deadSunBrightness = 4.0f;
+        shaderAnimationSpeed = 1.0f;
+        dustDensity = 1.499f;
+        fogStrength = 1.508f;
+        deadSunX = 0.0f;
+        deadSunZ = 0.0f;
+        deadSunCorona = 1.80f;
+        deadSunDensity = 3.0f;
+        deadSunOpacity = 1.0f;
+        deadSunCoreR = 1.0f;
+        deadSunCoreG = 0.012f;
+        deadSunCoreB = 0.006f;
+        deadSunCoronaR = 1.0f;
+        deadSunCoronaG = 0.085f;
+        deadSunCoronaB = 0.008f;
+        dustR = 0.2607004f;
+        dustG = 0.07607989f;
+        dustB = 0.07607989f;
+        fogR = 0.15294118f;
+        fogG = 0.1364837f;
+        fogB = 0.049780853f;
     }
 
     public void sanitize() {
         underwaterRuinChance = Math.max(1, underwaterRuinChance);
-        mechanismChance = Math.max(0.0f, Math.min(1.0f, mechanismChance));
+        mechanismChance = clamp(mechanismChance, 0.0f, 1.0f);
         gatewayDistance = Math.max(1_000, gatewayDistance);
         configVersion = CURRENT_VERSION;
         mazeRadiusCells = Math.max(16, Math.min(160, mazeRadiusCells));
@@ -297,12 +246,12 @@ public final class AsterionConfig {
         minotaurEscapeDistance = Math.max(20, Math.min(56, minotaurEscapeDistance));
         minotaurDamageMin = Math.max(20, Math.min(100, minotaurDamageMin));
         minotaurDamageMax = Math.max(minotaurDamageMin, Math.min(140, minotaurDamageMax));
-        minotaurScale = Math.max(0.75f, Math.min(4.0f, minotaurScale));
-        minotaurPathfindingMultiplier = Math.max(2.0f, Math.min(64.0f, minotaurPathfindingMultiplier));
+        minotaurScale = clamp(minotaurScale, 0.75f, 4.0f);
+        minotaurPathfindingMultiplier = clamp(minotaurPathfindingMultiplier, 2.0f, 64.0f);
         minotaurRepathTicks = Math.max(1, Math.min(20, minotaurRepathTicks));
         minotaurStuckRecoveryTicks = Math.max(8, Math.min(100, minotaurStuckRecoveryTicks));
-        minotaurHorizontalFov = Math.max(35.0f, Math.min(170.0f, minotaurHorizontalFov));
-        minotaurVerticalFov = Math.max(25.0f, Math.min(120.0f, minotaurVerticalFov));
+        minotaurHorizontalFov = clamp(minotaurHorizontalFov, 35.0f, 170.0f);
+        minotaurVerticalFov = clamp(minotaurVerticalFov, 25.0f, 120.0f);
         minotaurBossPillarCount = Math.max(4, Math.min(16, minotaurBossPillarCount));
         cinematicQuality = Math.max(0, Math.min(2, cinematicQuality));
         ambientParticleQuality = Math.max(0, Math.min(2, ambientParticleQuality));
@@ -310,27 +259,35 @@ public final class AsterionConfig {
         dynamicLightQuality = Math.max(0, Math.min(2, dynamicLightQuality));
         dynamicLightRangePercent = Math.max(25, Math.min(100, dynamicLightRangePercent));
         maxDynamicLights = Math.max(8, Math.min(256, maxDynamicLights));
-        deadSunStrength = Math.max(0.0f, Math.min(2.0f, deadSunStrength));
-        dustyAirStrength = Math.max(0.0f, Math.min(2.0f, dustyAirStrength));
-        deadSunHeight = Math.max(100.0f, Math.min(240.0f, deadSunHeight));
-        deadSunSize = Math.max(8.0f, Math.min(48.0f, deadSunSize));
-        deadSunBrightness = Math.max(0.25f, Math.min(4.0f, deadSunBrightness));
-        shaderAnimationSpeed = Math.max(0.0f, Math.min(2.0f, shaderAnimationSpeed));
-        dustDensity = Math.max(0.0f, Math.min(2.5f, dustDensity));
-        fogStrength = Math.max(0.0f, Math.min(2.5f, fogStrength));
-        deadSunX = Math.max(-1024.0f, Math.min(1024.0f, deadSunX));
-        deadSunZ = Math.max(-1024.0f, Math.min(1024.0f, deadSunZ));
-        deadSunCorona = Math.max(0.0f, Math.min(3.0f, deadSunCorona));
-        deadSunDensity = Math.max(0.1f, Math.min(3.0f, deadSunDensity));
-        deadSunOpacity = Math.max(0.0f, Math.min(1.0f, deadSunOpacity));
-        deadSunCoreR = clampColor(deadSunCoreR); deadSunCoreG = clampColor(deadSunCoreG); deadSunCoreB = clampColor(deadSunCoreB);
-        deadSunCoronaR = clampColor(deadSunCoronaR); deadSunCoronaG = clampColor(deadSunCoronaG); deadSunCoronaB = clampColor(deadSunCoronaB);
-        dustR = clampColor(dustR); dustG = clampColor(dustG); dustB = clampColor(dustB);
-        fogR = clampColor(fogR); fogG = clampColor(fogG); fogB = clampColor(fogB);
+        deadSunStrength = clamp(deadSunStrength, 0.0f, 2.0f);
+        dustyAirStrength = clamp(dustyAirStrength, 0.0f, 2.0f);
+        deadSunHeight = clamp(deadSunHeight, 100.0f, 240.0f);
+        deadSunSize = clamp(deadSunSize, 8.0f, 48.0f);
+        deadSunBrightness = clamp(deadSunBrightness, 0.25f, 4.0f);
+        shaderAnimationSpeed = clamp(shaderAnimationSpeed, 0.0f, 2.0f);
+        dustDensity = clamp(dustDensity, 0.0f, 2.5f);
+        fogStrength = clamp(fogStrength, 0.0f, 2.5f);
+        deadSunX = clamp(deadSunX, -1024.0f, 1024.0f);
+        deadSunZ = clamp(deadSunZ, -1024.0f, 1024.0f);
+        deadSunCorona = clamp(deadSunCorona, 0.0f, 3.0f);
+        deadSunDensity = clamp(deadSunDensity, 0.1f, 3.0f);
+        deadSunOpacity = clamp(deadSunOpacity, 0.0f, 1.0f);
+        deadSunCoreR = clamp(deadSunCoreR, 0.0f, 1.0f);
+        deadSunCoreG = clamp(deadSunCoreG, 0.0f, 1.0f);
+        deadSunCoreB = clamp(deadSunCoreB, 0.0f, 1.0f);
+        deadSunCoronaR = clamp(deadSunCoronaR, 0.0f, 1.0f);
+        deadSunCoronaG = clamp(deadSunCoronaG, 0.0f, 1.0f);
+        deadSunCoronaB = clamp(deadSunCoronaB, 0.0f, 1.0f);
+        dustR = clamp(dustR, 0.0f, 1.0f);
+        dustG = clamp(dustG, 0.0f, 1.0f);
+        dustB = clamp(dustB, 0.0f, 1.0f);
+        fogR = clamp(fogR, 0.0f, 1.0f);
+        fogG = clamp(fogG, 0.0f, 1.0f);
+        fogB = clamp(fogB, 0.0f, 1.0f);
     }
 
-    private static float clampColor(float value) {
-        return Math.max(0.0f, Math.min(1.0f, value));
+    private static float clamp(float value, float min, float max) {
+        return Float.isNaN(value) ? min : Math.clamp(value, min, max);
     }
 
     public void save() {
@@ -339,7 +296,7 @@ public final class AsterionConfig {
             Files.createDirectories(FILE.getParent());
             Files.writeString(FILE, GSON.toJson(this));
         } catch (IOException e) {
-            Asterion.LOGGER.warn("Could not save Asterion config", e);
+            LOGGER.warn("Could not save Asterion config", e);
         }
     }
 }

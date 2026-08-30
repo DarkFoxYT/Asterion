@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:block/orientable",
+  "textures": {
+    "front": "asterion:block/lamenter",
+    "side": "asterion:block/ancient_stone",
+    "top": "asterion:block/ancient_stone",
+    "particle": "asterion:block/ancient_stone"
+  }
+}

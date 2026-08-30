@@ -16,11 +16,19 @@ import java.util.UUID;
 public final class RagdollServerNetworking {
     private static final Map<String, Long> LAST_POSE = new HashMap<>();
     private static final Map<UUID, Long> ACTIVE_RAGDOLLS = new HashMap<>();
+    private static final Map<UUID, Integer> SCRIPTED_THROW_DAMAGE = new HashMap<>();
+
+    public static void suppressThrowFallDamage(ServerPlayer player, int ticks) {
+        int now = player.level().getServer().getTickCount();
+        SCRIPTED_THROW_DAMAGE.entrySet().removeIf(entry -> entry.getValue() < now);
+        SCRIPTED_THROW_DAMAGE.put(player.getUUID(), now + ticks);
+    }
 
     private RagdollServerNetworking() {
     }
 
     public static void initialize() {
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPED.register(server -> SCRIPTED_THROW_DAMAGE.clear());
         ServerPlayNetworking.registerGlobalReceiver(RagdollFallDamagePayload.TYPE, (payload, context) ->
                 context.server().execute(() -> applyFallDamage(context.player(), payload.damage())));
         ServerPlayNetworking.registerGlobalReceiver(TumbleExitPayload.TYPE, (payload, context) ->
@@ -62,6 +70,8 @@ public final class RagdollServerNetworking {
     }
 
     private static void applyFallDamage(ServerPlayer player, float damage) {
+        if (SCRIPTED_THROW_DAMAGE.getOrDefault(player.getUUID(), -1) >= player.level().getServer().getTickCount()) return;
+        if (MinotaurEntity.controlsPlayer(player)) return;
         if (WorldGenerator.hasFallProtection(player) || !Float.isFinite(damage) || damage < .5f) {
             return;
         }
@@ -69,6 +79,7 @@ public final class RagdollServerNetworking {
     }
 
     private static void exitTumble(ServerPlayer player, TumbleExitPayload payload) {
+        if (MinotaurEntity.controlsPlayer(player)) return;
         if (WorldGenerator.isElectrified(player)) return;
         Vec3 target = new Vec3(payload.x(), payload.y(), payload.z());
         boolean invalidPosition = !finite(target) || player.position().distanceToSqr(target) > 1024;

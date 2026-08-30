@@ -10,7 +10,6 @@ base {
     archivesName = project.archives_base_name
 }
 
-
 fabricApi {
     configureDataGeneration {
         client = true
@@ -19,9 +18,12 @@ fabricApi {
 
 repositories {
     ivy {
-        name = "BundledAmnetic"
+        name = "LocalRendererDependencies"
         url = uri("libs")
-        patternLayout { artifact "[artifact]-[revision].[ext]" }
+        patternLayout {
+            artifact "[artifact]-[revision].[ext]"
+            artifact "[artifact].[ext]"
+        }
         metadataSources { artifact() }
     }
     exclusiveContent {
@@ -45,11 +47,15 @@ dependencies {
 
     implementation "com.terraformersmc:modmenu:${project.modmenu_version}"
 
-    implementation "net.krodark:amnetic:1.0-SNAPSHOT"
-    include "net.krodark:amnetic:1.0-SNAPSHOT"
+    // Keep the pinned renderer and its parser in the distributed mod jar.
+    implementation "com.meekdev:amnetic:${project.amnetic_version}"
+    include "com.meekdev:amnetic:${project.amnetic_version}"
 
-    // Amnetic already bundles x64 Linux plus Intel/Apple-Silicon macOS natives.
-    // Ship the missing Linux ARM64 Assimp native used by ARM Chromebooks as well.
+    // Amnetic references bb4j but does not bundle it.
+    implementation "asterion.bundled:bb4j:0.0.0-c2242d5"
+    include "asterion.bundled:bb4j:0.0.0-c2242d5"
+
+    // Linux ARM64 is the only supported desktop native missing from Amnetic's jar.
     runtimeOnly "org.lwjgl:lwjgl-assimp:3.4.1:natives-linux-arm64"
     include "org.lwjgl:lwjgl-assimp:3.4.1:natives-linux-arm64"
 
@@ -72,11 +78,9 @@ processResources {
 
 def targetJavaVersion = 25
 tasks.withType(JavaCompile).configureEach {
-    it.options.encoding = "UTF-8"
-    it.options.compilerArgs.addAll(["-Xlint:deprecation", "-Xlint:unchecked"])
-    if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
-        it.options.release.set(targetJavaVersion)
-    }
+    options.encoding = "UTF-8"
+    options.compilerArgs.addAll(["-Xlint:deprecation", "-Xlint:unchecked"])
+    options.release.set(targetJavaVersion)
 }
 
 java {
@@ -112,6 +116,68 @@ tasks.register("rebuildStructureTemplates", JavaExec) {
     args file("src/main/resources/data/asterion/structure/underwater_ruin.nbt").absolutePath
 }
 
+tasks.register("prepareLamenterGameTest") {
+    def metadata = layout.buildDirectory.file("lamenter-testmod/fabric.mod.json")
+    outputs.file(metadata)
+    doLast {
+        def target = metadata.get().asFile
+        target.parentFile.mkdirs()
+        target.text = groovy.json.JsonOutput.toJson([
+                schemaVersion: 1, id: "asterion_lamenter_test", version: "1.0.0", environment: "client",
+                entrypoints: ["fabric-client-gametest": ["net.krodark.asterion.dev.verification.LamenterGameTest"]]])
+    }
+}
+
+loom {
+    mods {
+        asterion { sourceSet sourceSets.main }
+    }
+    runs {
+        renderPerformanceTest {
+            client()
+            name = "Renderer performance integration test"
+            vmArg "-Dfabric.client.gametest"
+            vmArg "-Dfabric.client.gametest.modid=asterion_renderer_test"
+            vmArg "-Dfabric.addMods=${layout.buildDirectory.dir('renderer-testmod').get().asFile.absolutePath}"
+            runDir "build/renderer-gametest"
+            ideConfigGenerated = false
+        }
+        lamenterTest {
+            client()
+            name = "Lamenter integration test"
+            vmArg "-Dfabric.client.gametest"
+            vmArg "-Dfabric.client.gametest.modid=asterion_lamenter_test"
+            vmArg "-Dfabric.addMods=${layout.buildDirectory.dir('lamenter-testmod').get().asFile.absolutePath}"
+            runDir "build/lamenter-gametest"
+            ideConfigGenerated = false
+        }
+        doorTest {
+            client()
+            name = "Door integration test"
+            vmArg "-Dfabric.client.gametest"
+            vmArg "-Dfabric.client.gametest.modid=asterion"
+            runDir "build/door-gametest"
+            ideConfigGenerated = false
+        }
+    }
+}
+
+tasks.matching { it.name == "runLamenterTest" }.configureEach { dependsOn "prepareLamenterGameTest" }
+
+tasks.register("prepareRendererGameTest") {
+    def metadata = layout.buildDirectory.file("renderer-testmod/fabric.mod.json")
+    outputs.file(metadata)
+    doLast {
+        def target = metadata.get().asFile
+        target.parentFile.mkdirs()
+        target.text = groovy.json.JsonOutput.toJson([
+                schemaVersion: 1, id: "asterion_renderer_test", version: "1.0.0", environment: "client",
+                entrypoints: ["fabric-client-gametest": ["net.krodark.asterion.dev.verification.RenderPerformanceGameTest",
+                        "net.krodark.asterion.dev.verification.PortalEmissionGameTest"]]])
+    }
+}
+tasks.matching { it.name == "runRenderPerformanceTest" }.configureEach { dependsOn "prepareRendererGameTest" }
+
 tasks.register("rebuildSafeRoomTemplate", JavaExec) {
     group = "asterion"
     dependsOn compileJava
@@ -135,4 +201,71 @@ tasks.register("rebuildVanillaDungeonTemplate", JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     mainClass = "net.krodark.asterion.dev.VanillaDungeonTemplateBuilder"
     args file("src/main/resources/data/asterion/structure/vanilla_dungeon.nbt").absolutePath
+}
+
+tasks.register("rebuildCatacombTemplates", JavaExec) {
+    group = "asterion"
+    description = "Builds the editable underwater catacomb jigsaw rooms."
+    dependsOn compileJava
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = "net.krodark.asterion.dev.CatacombTemplateBuilder"
+    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+    args file("src/main/resources/data/asterion/structure/catacombs").absolutePath
+}
+
+def regressionSuites = [
+        configRegression: [
+                entryPoint: "ConfigRegression",
+                summary: "Checks config migration, invalid-file preservation and numeric bounds."
+        ],
+        centipedeRegression: [
+                entryPoint: "CentipedeRegression",
+                summary: "Checks centipede world frames, link invariants, collision sweeps and model origins."
+        ],
+        catacombRegression: [
+                entryPoint: "CatacombRegression",
+                summary: "Checks flooded gallery connectivity and editable catacomb template contracts."
+        ],
+        amneticRegression: [
+                entryPoint: "AmneticRegression",
+                summary: "Checks the pinned Amnetic API, instance visibility and parser dependency.",
+                nativeAccess: true
+        ],
+        emissiveRegression: [
+                entryPoint: "EmissiveRegression",
+                summary: "Checks cached emissive geometry and full-bright rendering in a hidden OpenGL window.",
+                nativeAccess: true
+        ],
+        renderPerformanceRegression: [
+                entryPoint: "RenderPerformanceRegression",
+                summary: "Checks ordered GPU culling and original/optimized shader pixel parity.",
+                nativeAccess: true
+        ]
+]
+
+regressionSuites.each { taskName, suite ->
+    tasks.register(taskName, JavaExec) {
+        group = "verification"
+        description = suite.summary
+        dependsOn tasks.named("classes")
+        classpath = sourceSets.main.runtimeClasspath
+        mainClass = "net.krodark.asterion.dev.verification.${suite.entryPoint}"
+        workingDir = project.projectDir
+        javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(targetJavaVersion) }
+        if (suite.nativeAccess) jvmArgs '--enable-native-access=ALL-UNNAMED'
+    }
+}
+
+// Keep GPU checks opt-in so ordinary builds also work on headless machines.
+tasks.named("check") {
+    dependsOn "configRegression", "centipedeRegression", "catacombRegression", "amneticRegression"
+}
+
+tasks.register("modDistribution", Sync) {
+    group = "distribution"
+    description = "Stages the combined Asterion mod jar and installation notes."
+    dependsOn tasks.named("jar")
+    into layout.buildDirectory.dir("distribution")
+    from(tasks.named("jar"))
+    from("docs/INSTALL-MODS.txt")
 }

@@ -173,6 +173,23 @@ public class Asterion implements ModInitializer {
             properties -> new StairBlock(ANCIENT_STONE.defaultBlockState(), properties) { });
     public static final Block ANCIENT_STONE_WALL = registerBlock("ancient_stone_wall", MapColor.TERRACOTTA_BROWN, WallBlock::new);
     public static final Block MAZESTEEL_BLOCK = registerBlock("mazesteel_block", MapColor.METAL, Block::new);
+    public static final Block SLICK_CATACOMB_STONE = registerBlock("slick_catacomb_stone", MapColor.TERRACOTTA_CYAN,
+            properties -> new Block(properties.friction(0.985F)));
+    public static final Block SLUICE_LOCK = registerBlock("sluice_lock", MapColor.METAL,
+            net.krodark.asterion.block.SluiceLockBlock::new);
+    public static final Block GREEK_BRAZIER = registerBlock("greek_brazier", MapColor.COLOR_GREEN,
+            properties -> new net.krodark.asterion.block.GreekBrazierBlock(properties.noOcclusion()
+                    .lightLevel(state -> state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT) ? 12 : 0)));
+    public static final Block LAMENTER = registerBlock("lamenter", MapColor.TERRACOTTA_BROWN,
+            net.krodark.asterion.block.LamenterBlock::new);
+    public static final BlockEntityType<net.krodark.asterion.block.LamenterBlockEntity> LAMENTER_BLOCK_ENTITY = Registry.register(
+            BuiltInRegistries.BLOCK_ENTITY_TYPE, id("lamenter"), FabricBlockEntityTypeBuilder.create(
+                    net.krodark.asterion.block.LamenterBlockEntity::new, LAMENTER).build());
+    public static final Block MINOTAUR_DOOR = registerBlock("minotaur_door", MapColor.COLOR_BROWN,
+            properties -> new net.krodark.asterion.block.MinotaurDoorBlock(properties.noOcclusion().strength(8F, 1200F).noLootTable()));
+    public static final BlockEntityType<net.krodark.asterion.block.MinotaurDoorBlockEntity> MINOTAUR_DOOR_BLOCK_ENTITY = Registry.register(
+            BuiltInRegistries.BLOCK_ENTITY_TYPE, id("minotaur_door"), FabricBlockEntityTypeBuilder.create(
+                    net.krodark.asterion.block.MinotaurDoorBlockEntity::new, MINOTAUR_DOOR).build());
     public static final ChainBlock MAZESTEEL_CHAIN = (ChainBlock)registerBlock(
             "mazesteel_chain", MapColor.METAL,
             properties -> new ChainBlock(properties.noOcclusion().sound(SoundType.CHAIN)));
@@ -205,16 +222,16 @@ public class Asterion implements ModInitializer {
             Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, id("shattered_dead_wood"),
                     FabricBlockEntityTypeBuilder.create(ShatteredDeadWoodBlockEntity::new,
                             SHATTERED_DEAD_WOOD).build());
-    private static final ResourceKey<EntityType<?>> MINOTAUR_KEY = ResourceKey.create(
+    private static final ResourceKey<EntityType<?>> MINOTAUR_ENTITY_KEY = ResourceKey.create(
             Registries.ENTITY_TYPE, id("minotaur"));
     public static final EntityType<MinotaurEntity> MINOTAUR = Registry.register(
             BuiltInRegistries.ENTITY_TYPE,
-            MINOTAUR_KEY,
+            MINOTAUR_ENTITY_KEY,
             EntityType.Builder.of(MinotaurEntity::new, MobCategory.MONSTER)
                     .sized(1.25F * AsterionConfig.INSTANCE.minotaurScale,
                             2.75F * AsterionConfig.INSTANCE.minotaurScale)
                     .eyeHeight(2.35F * AsterionConfig.INSTANCE.minotaurScale)
-                    .clientTrackingRange(16).build(MINOTAUR_KEY)
+                    .clientTrackingRange(16).build(MINOTAUR_ENTITY_KEY)
     );
     private static final ResourceKey<EntityType<?>> BOMBARDIER_BEETLE_KEY = ResourceKey.create(
             Registries.ENTITY_TYPE, id("bombadier_beetle"));
@@ -231,7 +248,7 @@ public class Asterion implements ModInitializer {
             BuiltInRegistries.ENTITY_TYPE,
             SCARLET_CENTIPEDE_KEY,
             EntityType.Builder.of(ScarletCentipedeEntity::new, MobCategory.CREATURE)
-                    .sized(2.1F, 0.82F).eyeHeight(0.62F).clientTrackingRange(12)
+                    .sized(2.1F, 0.82F).eyeHeight(0.62F).clientTrackingRange(48)
                     .build(SCARLET_CENTIPEDE_KEY)
     );
     private static final ResourceKey<Item> SCARLET_CENTIPEDE_SPAWN_EGG_KEY = ResourceKey.create(
@@ -246,6 +263,16 @@ public class Asterion implements ModInitializer {
             BuiltInRegistries.PARTICLE_TYPE, id("bombardier_stench"), FabricParticleTypes.simple());
     public static final SimpleParticleType BOMBARDIER_GAS_FIRE = Registry.register(
             BuiltInRegistries.PARTICLE_TYPE, id("bombardier_gas_fire"), FabricParticleTypes.simple());
+    public static final SimpleParticleType GREEK_FIRE = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, id("greek_fire"), FabricParticleTypes.simple());
+    public static final SimpleParticleType BRAZIER_FIRE = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, id("brazier_fire"), FabricParticleTypes.simple());
+    public static final SimpleParticleType LAMENTER_TEAR = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, id("lamenter_tear"), FabricParticleTypes.simple());
+    public static final SimpleParticleType DOOR_SMOKE = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, id("door_smoke"), FabricParticleTypes.simple());
+    public static final SimpleParticleType DOOR_DUST = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, id("door_dust"), FabricParticleTypes.simple());
     public static final SimpleParticleType FLY = Registry.register(
             BuiltInRegistries.PARTICLE_TYPE, id("fly"), FabricParticleTypes.simple());
     public static final SimpleParticleType FIREFLY = Registry.register(
@@ -273,6 +300,9 @@ public class Asterion implements ModInitializer {
     );
     private static final ResourceKey<Item> MINOTAUR_SIGIL_KEY = ResourceKey.create(
             Registries.ITEM, id("minotaur_sigil"));
+    private static final ResourceKey<Item> MINOTAUR_KEY_ID = ResourceKey.create(Registries.ITEM, id("minotaur_key"));
+    public static final Item MINOTAUR_KEY = Registry.register(BuiltInRegistries.ITEM, MINOTAUR_KEY_ID,
+            new Item(new Item.Properties().setId(MINOTAUR_KEY_ID).stacksTo(1).rarity(Rarity.UNCOMMON)));
     public static final Item MINOTAUR_SIGIL = Registry.register(
             BuiltInRegistries.ITEM, MINOTAUR_SIGIL_KEY,
             new Item(new Item.Properties().setId(MINOTAUR_SIGIL_KEY).stacksTo(1).rarity(Rarity.EPIC)));
@@ -290,6 +320,9 @@ public class Asterion implements ModInitializer {
                             .saturationModifier(0.55F).build())));
     private static final ResourceKey<CreativeModeTab> ITEM_GROUP_KEY = ResourceKey.create(
             Registries.CREATIVE_MODE_TAB, id("asterion"));
+    private static final ResourceKey<Item> GRAPPLING_HOOK_KEY = ResourceKey.create(Registries.ITEM, id("catacomb_grappling_hook"));
+    public static final Item CATACOMB_GRAPPLING_HOOK = Registry.register(BuiltInRegistries.ITEM, GRAPPLING_HOOK_KEY,
+            new CatacombGrapplingHookItem(new Item.Properties().setId(GRAPPLING_HOOK_KEY).stacksTo(1).rarity(Rarity.UNCOMMON)));
     public static final CreativeModeTab ITEM_GROUP = Registry.register(
             BuiltInRegistries.CREATIVE_MODE_TAB,
             ITEM_GROUP_KEY,
@@ -298,6 +331,11 @@ public class Asterion implements ModInitializer {
                     .icon(() -> new ItemStack(ANTIKYTHERA_MECHANISM))
                     .displayItems((parameters, output) -> {
                         output.accept(ANTIKYTHERA_MECHANISM);
+                        output.accept(CATACOMB_GRAPPLING_HOOK);
+                        output.accept(SLICK_CATACOMB_STONE);
+                        output.accept(SLUICE_LOCK);
+                        output.accept(GREEK_BRAZIER);
+                        output.accept(LAMENTER);
                         output.accept(ANTIKYTHERA_BLUEPRINT);
                         output.accept(MINOTAUR_SIGIL);
                         output.accept(SCARLET_CENTIPEDE_SPAWN_EGG);
@@ -329,16 +367,24 @@ public class Asterion implements ModInitializer {
                         output.accept(MAZESTEEL_CHAIN);
                         output.accept(MAZESTEEL_GATE);
                         output.accept(WINCH);
+                        output.accept(net.krodark.asterion.block.RespawnObelisks.ALTAR);
+                        output.accept(net.krodark.asterion.block.RespawnObelisks.OBELISK);
+                        output.accept(net.krodark.asterion.block.RespawnObelisks.CHARGED_RUNE);
                         output.accept(LABYRINTH_VINE);
                         output.accept(SKELETON);
                         for (RuneBlock rune : RUNE_BLOCKS) output.accept(rune);
                         output.accept(RUNE_ZONE_DOOR);
+                        output.accept(MINOTAUR_DOOR);
+                        output.accept(MINOTAUR_KEY);
                     })
                     .build()
     );
     public static final Feature<NoneFeatureConfiguration> UNDERWATER_RUIN_FEATURE = Registry.register(
             BuiltInRegistries.FEATURE, id("underwater_ruin"),
             new UnderwaterRuinFeature(NoneFeatureConfiguration.CODEC));
+    public static final Feature<NoneFeatureConfiguration> CATACOMBS_FEATURE = Registry.register(
+            BuiltInRegistries.FEATURE, id("catacombs"),
+            new net.krodark.asterion.worldgen.CatacombFeature(NoneFeatureConfiguration.CODEC));
     public static final Feature<NoneFeatureConfiguration> ANCIENT_MOSS_PATCH_FEATURE = Registry.register(
             BuiltInRegistries.FEATURE, id("ancient_moss_patch"),
             new AncientMossPatchFeature(NoneFeatureConfiguration.CODEC));
@@ -396,15 +442,23 @@ public class Asterion implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        net.krodark.asterion.block.RespawnObelisks.initialize();
         AsterionConfig.INSTANCE.sanitize();
         PayloadTypeRegistry.clientboundPlay().register(DimensionTransitionPayload.TYPE, DimensionTransitionPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(EntryOmenPayload.TYPE, EntryOmenPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(BossFinalePayload.TYPE, BossFinalePayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.BossEntrancePayload.TYPE,
+                net.krodark.asterion.network.BossEntrancePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(GatewayPortalPayload.TYPE, GatewayPortalPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(TransitionReadyPayload.TYPE, TransitionReadyPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(MazeZapPayload.TYPE, MazeZapPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(DeadSunEventPayload.TYPE, DeadSunEventPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(MazeShiftPayload.TYPE, MazeShiftPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.ArenaDebrisPayload.TYPE, net.krodark.asterion.network.ArenaDebrisPayload.CODEC);
+        ServerTickEvents.END_SERVER_TICK.register(net.krodark.asterion.worldgen.ArenaDebris::flush);
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> net.krodark.asterion.worldgen.ArenaDebris.clear());
+        PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.DoorBreakPayload.TYPE,
+                net.krodark.asterion.network.DoorBreakPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(DeadSunStrikePayload.TYPE, DeadSunStrikePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(BossTelegraphPayload.TYPE, BossTelegraphPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(BossEncounterResetPayload.TYPE, BossEncounterResetPayload.CODEC);
@@ -422,12 +476,15 @@ public class Asterion implements ModInitializer {
         PayloadTypeRegistry.serverboundPlay().register(RagdollArmorImpactPayload.TYPE, RagdollArmorImpactPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RagdollPosePayload.TYPE, RagdollPosePayload.CODEC);
         RagdollServerNetworking.initialize();
+        net.krodark.asterion.network.CentipedeNetworking.initialize();
         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(
                 TransitionReadyPayload.TYPE, (payload, context) -> context.server().execute(() ->
                         WorldGenerator.markTransitionReady(context.player())));
         DeadSunEventSystem.registerCommands();
+        net.krodark.asterion.event.CatacombFloodState.registerCommands();
         DynamicBlockLights.initialize();
         PortalCommands.register();
+        net.krodark.asterion.command.MinotaurDebugCommands.register();
         FabricDefaultAttributeRegistry.register(MINOTAUR, MinotaurEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(BOMBARDIER_BEETLE, BombadierBeetleEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(SCARLET_CENTIPEDE, ScarletCentipedeEntity.createAttributes());
@@ -441,6 +498,11 @@ public class Asterion implements ModInitializer {
         });
         BiomeModifications.addFeature(BiomeSelectors.tag(BiomeTags.IS_OCEAN),
                 GenerationStep.Decoration.SURFACE_STRUCTURES, UNDERWATER_RUIN_PLACED);
+        BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),
+                // FlatLevelSource drops the two structure-decoration steps; keep this jigsaw
+                // feature in the underground decoration step so it runs in the maze dimension.
+                GenerationStep.Decoration.UNDERGROUND_DECORATION,
+                ResourceKey.create(Registries.PLACED_FEATURE, id("catacombs")));
         BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),
                 GenerationStep.Decoration.VEGETAL_DECORATION, ANCIENT_MOSS_PATCH_PLACED);
         BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),
@@ -467,6 +529,11 @@ public class Asterion implements ModInitializer {
         BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID),
                 MobCategory.CREATURE, SCARLET_CENTIPEDE, 5, 1, 1);
         ServerTickEvents.END_SERVER_TICK.register(WorldGenerator::tickServer);
+        ServerTickEvents.END_SERVER_TICK.register(CatacombGrapplingHookItem::tick);
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+            CatacombGrapplingHookItem.clear();
+            net.krodark.asterion.worldgen.CatacombArena.clear();
+        });
         ServerTickEvents.END_SERVER_TICK.register(ResolveSystem::tick);
         ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, baseDamageTaken,
                                                          damageTaken, blocked) ->
@@ -492,7 +559,12 @@ public class Asterion implements ModInitializer {
         ServerLifecycleEvents.SERVER_STOPPING.register(WorldGenerator::clearRuntimeState);
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             var maze = server.getLevel(ASTERION_LEVEL);
-            if (maze != null) MazeBiomes.load(maze);
+            if (maze != null) {
+                MazeBiomes.load(maze);
+                WorldGenerator.prepareBossArenaBeforePlayers(maze);
+                if (!AsterionWorldState.get(maze).minotaurDefeated())
+                    net.krodark.asterion.worldgen.BossArenaEncounter.initialize(maze);
+            }
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> ResolveSystem.clear());
         LOGGER.info("The Antikythera Mechanism stirs beneath the sea");

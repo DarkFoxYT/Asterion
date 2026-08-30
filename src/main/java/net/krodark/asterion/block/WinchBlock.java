@@ -84,6 +84,9 @@ public final class WinchBlock extends Block {
 
         Direction direction = state.getValue(FACING);
         List<BlockPos> candidates = gates.stream()
+                // Arena gates belong to the encounter, including when idle; nearby winches must not trap entrants.
+                .filter(gatePos -> !level.dimension().equals(Asterion.ASTERION_LEVEL)
+                        || !net.krodark.asterion.worldgen.MinotaurArenaEntrances.isGate(gatePos))
                 .filter(gatePos -> level.getBlockState(gatePos).getValue(DirectionalGateBlock.OPEN) != powered)
                 .toList();
         if (candidates.isEmpty()) return;

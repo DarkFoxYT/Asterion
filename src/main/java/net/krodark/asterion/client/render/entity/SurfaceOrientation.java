@@ -40,6 +40,25 @@ public final class SurfaceOrientation {
         return baseYaw.conjugate().mul(desiredWorld).normalize();
     }
 
+    /** The same two-stage local-frame solve used by the Bombardier Beetle renderer. */
+    public static Quaternionf beetleSurfaceRotation(Vec3 normal, Vec3 forward, float renderYaw) {
+        Vec3 surfaceUp = normal.scale(-1.0D);
+        Quaternionf baseYaw = new Quaternionf().rotationY((180.0F - renderYaw) * Mth.DEG_TO_RAD);
+        Vector3f localUp = new Quaternionf(baseYaw).conjugate().transform(vec(surfaceUp)).normalize();
+        Vector3f localForward = new Quaternionf(baseYaw).conjugate().transform(vec(forward));
+        localForward.sub(new Vector3f(localUp).mul(localForward.dot(localUp)));
+        if (localForward.lengthSquared() < 1.0E-6F)
+            localForward = new Vector3f(0.0F, 0.0F, -1.0F);
+        else localForward.normalize();
+
+        Quaternionf alignUp = new Quaternionf().rotationTo(new Vector3f(0.0F, 1.0F, 0.0F), localUp);
+        Vector3f alignedForward = alignUp.transform(new Vector3f(0.0F, 0.0F, -1.0F)).normalize();
+        float dot = Mth.clamp(alignedForward.dot(localForward), -1.0F, 1.0F);
+        float turn = (float)Math.atan2(
+                localUp.dot(new Vector3f(alignedForward).cross(localForward)), dot);
+        return new Quaternionf().rotationAxis(turn, localUp).mul(alignUp).normalize();
+    }
+
     public static Quaternionf cameraTilt(Direction surface) {
         return cameraTilt(surface.getUnitVec3());
     }

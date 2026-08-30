@@ -47,10 +47,18 @@ public final class RuneBlockEntity extends BlockEntity implements GeoBlockEntity
         if (!(level instanceof ServerLevel serverLevel) || !(player instanceof ServerPlayer serverPlayer)) return false;
         int color = activationColor(stack);
         if (color == 0 || solved) return false;
-        activated = true;
-        glowColor = color;
         int index = getBlockState().getBlock() instanceof RuneBlock block ? block.runeIndex() : 0;
         boolean correct = index == GreekRune.forRadius(worldPosition.getX(), worldPosition.getZ()).ordinal();
+        if (correct) {
+            RespawnObelisks.ensureRoomFixtures(serverLevel, worldPosition);
+            if (RespawnObelisks.nearestUnchargedAltar(serverLevel, worldPosition) == null) {
+                serverPlayer.sendOverlayMessage(net.minecraft.network.chat.Component.translatable(
+                        "message.asterion.altar_required"));
+                return false;
+            }
+        }
+        activated = true;
+        glowColor = color;
         if (!player.getAbilities().instabuild) stack.shrink(1);
         if (correct) {
             solved = true;

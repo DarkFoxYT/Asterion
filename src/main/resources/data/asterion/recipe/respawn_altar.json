@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "GGG",
+    " S ",
+    "SSS"
+  ],
+  "key": {
+    "G": "minecraft:gold_ingot",
+    "S": "asterion:ancient_stone"
+  },
+  "result": {
+    "id": "asterion:respawn_altar",
+    "count": 1
+  }
+}

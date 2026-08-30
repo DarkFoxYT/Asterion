@@ -1,0 +1,6 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "asterion:item/charged_respawn_rune"
+  }
+}

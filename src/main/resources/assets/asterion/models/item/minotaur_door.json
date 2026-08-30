@@ -1,0 +1,8 @@
+{
+  "textures":{"door":"asterion:block/minotaur_door","particle":"asterion:block/minotaur_door"},
+  "elements":[
+    {"from":[1,0,7],"to":[8,10,8.25],"faces":{"north":{"uv":[0,0,3.5,5],"texture":"#door"},"south":{"uv":[3.5625,0,7.0625,5],"texture":"#door"},"east":{"uv":[7.125,0,7.75,5],"texture":"#door"},"west":{"uv":[7.125,0,7.75,5],"texture":"#door"},"up":{"uv":[8.5,0,12,0.625],"texture":"#door"}}},
+    {"from":[8,0,7],"to":[15,10,8.25],"faces":{"north":{"uv":[0,5.0625,3.5,10.0625],"texture":"#door"},"south":{"uv":[3.5625,5.0625,7.0625,10.0625],"texture":"#door"},"east":{"uv":[7.8125,0,8.4375,5],"texture":"#door"},"west":{"uv":[7.8125,0,8.4375,5],"texture":"#door"},"up":{"uv":[8.5,1.375,12,2],"texture":"#door"}}}
+  ],
+  "display":{"gui":{"rotation":[15,160,0],"translation":[0,2,0],"scale":[1,1,1]},"ground":{"translation":[0,3,0],"scale":[0.5,0.5,0.5]},"fixed":{"translation":[0,3,0]},"thirdperson_righthand":{"rotation":[0,0,0],"translation":[0,3,1],"scale":[0.5,0.5,0.5]},"firstperson_righthand":{"rotation":[0,160,0],"translation":[0,2,0],"scale":[0.6,0.6,0.6]}}
+}

@@ -1,0 +1,6 @@
+[23:04:48] [main/WARN]: Could not load build\config-regression-11515503145655326901\config\asterion.json: java.io.EOFException: End of input at line 1 column 8 path $.broken. Using defaults; the file was left unchanged.
+[23:04:48] [main/WARN]: Could not load build\config-regression-11515503145655326901\config\asterion.json: Expected a JSON object. Using defaults; the file was left unchanged.
+[23:04:48] [main/WARN]: Could not load build\config-regression-11515503145655326901\config\asterion.json: Expected a JSON object. Using defaults; the file was left unchanged.
+[23:04:48] [main/WARN]: Could not load build\config-regression-11515503145655326901\config\asterion.json: Expected a JSON object. Using defaults; the file was left unchanged.
+[23:04:48] [main/WARN]: Could not load build\config-regression-11515503145655326901\config\asterion.json: java.lang.NumberFormatException: For input string: "oops". Using defaults; the file was left unchanged.
+[23:04:48] [main/WARN]: Could not load build\config-regression-11515503145655326901\config\asterion.json: build\config-regression-11515503145655326901\config\asterion.json. Using defaults; the file was left unchanged.
