@@ -2,6 +2,9 @@ package net.krodark.asterion.client.particle;
 
 import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.client.light.LedAmneticLight;
+import net.krodark.asterion.client.event.DeadSunClientEvents;
+import net.krodark.asterion.client.render.post.AsterionPostEffects;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.SingleQuadParticle;
@@ -59,7 +62,7 @@ public final class FlyingInsectParticle extends SingleQuadParticle {
         this.quadSize = firefly ? 0.105F : 0.085F;
         setAlpha(1.0F);
         setSprite(sprites.get(0, FRAMES));
-        if (firefly) updateGlow();
+        if (firefly) updateGlow(isEnraged());
     }
 
     public static Particle createFly(ClientLevel level, double x, double y, double z,
@@ -89,6 +92,7 @@ public final class FlyingInsectParticle extends SingleQuadParticle {
 
         if (--turnTicks <= 0) chooseTurn();
         if (!firefly) steerTowardLight();
+        else if (isEnraged()) steerTowardPlayer();
         float turn = Mth.wrapDegrees((targetHeading - heading) * Mth.RAD_TO_DEG) * Mth.DEG_TO_RAD;
         heading += Mth.clamp(turn, -0.13F, 0.13F);
         float bob = Mth.sin(age * 0.31F + phase) * 0.006F;
@@ -112,7 +116,15 @@ public final class FlyingInsectParticle extends SingleQuadParticle {
         setSprite(sprites.get((age / TICKS_PER_FRAME) % FRAMES, FRAMES));
         int fadeTicks = 30;
         if (age > lifetime - fadeTicks) setAlpha((lifetime - age) / (float)fadeTicks);
-        if (firefly) updateGlow();
+        boolean enraged = isEnraged();
+        if (firefly && enraged) {
+            var player = Minecraft.getInstance().player;
+            if (player != null && player.getEyePosition().distanceToSqr(new Vec3(x, y, z)) < 0.42D) {
+                remove();
+                return;
+            }
+        }
+        if (firefly) updateGlow(enraged);
     }
 
     private void chooseTurn() {
@@ -148,6 +160,17 @@ public final class FlyingInsectParticle extends SingleQuadParticle {
         turnTicks = Math.max(turnTicks, 5);
     }
 
+    private void steerTowardPlayer() {
+        var player = Minecraft.getInstance().player;
+        if (player == null) return;
+        Vec3 target = player.getEyePosition().add(0.0D, -0.3D, 0.0D);
+        double dx = target.x - x, dy = target.y - y, dz = target.z - z;
+        if (dx * dx + dz * dz > 1.0E-5D) targetHeading = (float)Math.atan2(dz, dx);
+        targetVertical = Mth.clamp((float)dy * 0.045F, -0.055F, 0.055F);
+        speed = Mth.lerp(0.26F, speed, 0.072F);
+        turnTicks = Math.max(turnTicks, 4);
+    }
+
     private void avoidNearbyBlock() {
         Vec3 forward = new Vec3(xd, yd, zd);
         if (forward.lengthSqr() < 1.0E-7D) return;
@@ -173,9 +196,9 @@ public final class FlyingInsectParticle extends SingleQuadParticle {
         turnTicks = 7 + random.nextInt(9);
     }
 
-    private void updateGlow() {
+    private void updateGlow(boolean enraged) {
         float pulse = 0.62F + 0.38F * Mth.sin(age * 0.17F + phase) * Mth.sin(age * 0.17F + phase);
-        setColor(1.0F, 0.94F, 0.72F);
+        setColor(1.0F, enraged ? 0.045F : 0.94F, enraged ? 0.025F : 0.72F);
         AsterionConfig config = AsterionConfig.INSTANCE;
         int activeCount = Math.max(1, ACTIVE_FIREFLIES.size());
         int lightBudget = Mth.clamp(14 - activeCount / 12, 4, 14);
@@ -184,7 +207,7 @@ public final class FlyingInsectParticle extends SingleQuadParticle {
         float loadScale = Mth.clamp((float)Math.sqrt(lightBudget / (double)activeCount), 0.28F, 1.0F);
         if (config.dynamicLightsEnabled && ownsAmneticLight) {
             LedAmneticLight.updateItemGlowLight(this, new Vec3(x, y, z),
-                    1.0F, 0.68F, 0.12F,
+                    1.0F, enraged ? 0.025F : 0.68F, enraged ? 0.015F : 0.12F,
                     (0.8F + pulse * 1.25F) * loadScale,
                     (2.2F + pulse * 1.6F) * (0.55F + loadScale * 0.45F), false);
             ownsDynamicLight = true;
@@ -195,8 +218,13 @@ public final class FlyingInsectParticle extends SingleQuadParticle {
         int coreInterval = config.ambientParticleQuality == 0 ? 4
                 : config.ambientParticleQuality == 1 ? 2 : 1;
         coreInterval *= Math.min(4, lightStride);
-        if (age % coreInterval == 0)
+        if (!enraged && age % coreInterval == 0)
             AsterionEmissiveParticles.spawnFireflyCore(x, y, z, xd, yd, zd, pulse);
+    }
+
+    private static boolean isEnraged() {
+        return DeadSunClientEvents.isCrimsonFireflyEventActive()
+                && AsterionPostEffects.isCrimsonBiome();
     }
 
     @Override public void remove() {

@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:block/cross",
+  "render_type": "minecraft:cutout",
+  "ambientocclusion": false,
+  "textures": {
+    "cross": "asterion:block/tainted_heart",
+    "particle": "asterion:block/tainted_heart"
+  }
+}

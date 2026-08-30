@@ -2,11 +2,11 @@
   "parent": "minecraft:block/cube",
   "textures": {
     "particle": "asterion:block/winch/winch_side",
-    "down": "asterion:block/winch/winch_side",
-    "up": "asterion:block/winch/winch_side",
+    "down": "asterion:block/winch/winch_front",
+    "up": "asterion:block/winch/winch_front",
     "north": "asterion:block/winch/winch_front",
     "south": "asterion:block/winch/winch_front",
-    "west": "asterion:block/winch/winch_front",
-    "east": "asterion:block/winch/winch_front"
+    "west": "asterion:block/winch/winch_side",
+    "east": "asterion:block/winch/winch_side"
   }
 }

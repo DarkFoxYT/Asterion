@@ -96,7 +96,7 @@ public final class WorldGenerator {
     private static final Map<UUID, PendingTransition> PENDING_TRANSITIONS = new HashMap<>();
     private static final Map<UUID, Optional<ServerPlayer.RespawnConfig>> PRE_MAZE_RESPAWNS = new HashMap<>();
     private static final Map<UUID, Long> LAST_PORTAL_SYNC = new HashMap<>();
-    private static final Map<UUID, Boolean> LAST_BIOME_ATMOSPHERE = new HashMap<>();
+    private static final Map<UUID, Integer> LAST_BIOME_ATMOSPHERE = new HashMap<>();
     private static final Map<UUID, PhasingEntity> PHASING_ENTITIES = new HashMap<>();
     private static SummonedPortal summonedPortal;
     private static final Map<UUID, Integer> ABOVE_WALL_TICKS = new HashMap<>();
@@ -791,15 +791,19 @@ public final class WorldGenerator {
     }
 
     private static void syncBiomeAtmosphere(ServerPlayer player) {
-        boolean overgrowth = player.level().dimension().equals(Asterion.ASTERION_LEVEL)
-                && mazeBiomeAt(activeMazeTerrainSeed, player.getBlockX(), player.getBlockZ(),
-                        AsterionConfig.INSTANCE.cellSize).kind() == MazeBiomes.Kind.OVERGROWTH;
-        Boolean previous = LAST_BIOME_ATMOSPHERE.get(player.getUUID());
+        int biome = 0;
+        if (player.level().dimension().equals(Asterion.ASTERION_LEVEL)) {
+            MazeBiomes.Kind kind = mazeBiomeAt(activeMazeTerrainSeed, player.getBlockX(),
+                    player.getBlockZ(), AsterionConfig.INSTANCE.cellSize).kind();
+            biome = kind == MazeBiomes.Kind.OVERGROWTH ? 1
+                    : kind == MazeBiomes.Kind.CRIMSON_MARSHLANDS ? 2 : 0;
+        }
+        Integer previous = LAST_BIOME_ATMOSPHERE.get(player.getUUID());
         boolean refresh = player.level().getGameTime() % 100L == 0L;
-        if ((previous == null || previous != overgrowth || refresh)
+        if ((previous == null || previous != biome || refresh)
                 && ServerPlayNetworking.canSend(player, BiomeAtmospherePayload.TYPE)) {
-            ServerPlayNetworking.send(player, new BiomeAtmospherePayload(overgrowth));
-            LAST_BIOME_ATMOSPHERE.put(player.getUUID(), overgrowth);
+            ServerPlayNetworking.send(player, new BiomeAtmospherePayload(biome));
+            LAST_BIOME_ATMOSPHERE.put(player.getUUID(), biome);
         }
     }
 
@@ -2208,13 +2212,17 @@ public final class WorldGenerator {
                 }
 
                 MazeBiomes.Biome biome = mazeBiomeAt(seed, x, z, cell);
+                int biomeWallHeight = biome.kind() == MazeBiomes.Kind.CRIMSON_MARSHLANDS
+                        ? Math.min(DIMENSION_CEILING_Y - floorY - 2,
+                                Math.max(config.wallHeight + 28, 56))
+                        : config.wallHeight;
                 boolean wall = isWall(topology, structures, seed, biome,
                         x, z, cell, thickness, radius);
                 if (wall) {
-                    for (int y = 1; y <= config.wallHeight; y++)
+                    for (int y = 1; y <= biomeWallHeight; y++)
                         bufferedSet(chunk, x, floorY + y, z,
                                 patternedWall(seed, x, y, z, biome, cell, radius));
-                    placeBiomeWallDetail(chunk, seed, x, z, config.wallHeight, biome, floorY);
+                    placeBiomeWallDetail(chunk, seed, x, z, biomeWallHeight, biome, floorY);
                 } else {
                     // Reserved footprints and their approaches are already shaped during normal
                     // chunk generation, so NBT placement never needs to rebuild the chunk later.
@@ -2222,16 +2230,20 @@ public final class WorldGenerator {
                     if (needsElevationSlab(seed, x, z, cell, floorY))
                         bufferedSet(chunk, x, floorY + 1, z,
                                 Asterion.ANCIENT_STONE_SLAB.defaultBlockState());
-                    if (isArchOpening(topology, x, z, cell, thickness, radius)) {
-                        int archY = Math.max(9, config.wallHeight / 3);
+                    if (biome.kind() != MazeBiomes.Kind.CRIMSON_MARSHLANDS
+                            && isArchOpening(topology, x, z, cell, thickness, radius)) {
+                        int archY = Math.max(9, biomeWallHeight / 3);
                         for (int y = archY; y <= archY + 2; y++)
                             bufferedSet(chunk, x, floorY + y, z,
                                     patternedWall(seed, x, y, z, biome, cell, radius));
                     }
-                    if (placeMazeMotifColumn(chunk, seed, x, z, cell, thickness,
-                            config.wallHeight, biome, radius, floorY)) continue;
+                    // Cell-shaped motifs do not belong in the circular maze: against curved
+                    // walls they became disconnected rectangular shelves in open space.
+                    if (biome.kind() != MazeBiomes.Kind.CRIMSON_MARSHLANDS
+                            && placeMazeMotifColumn(chunk, seed, x, z, cell, thickness,
+                            biomeWallHeight, biome, radius, floorY)) continue;
                     placeDecorationColumn(chunk, p, topology, structures, seed, x, z, cell,
-                            thickness, radius, config.wallHeight, biome, floorY);
+                            thickness, radius, biomeWallHeight, biome, floorY);
                 }
             }
         }
@@ -2287,6 +2299,11 @@ public final class WorldGenerator {
                 AsterionConfig.INSTANCE.cellSize).kind() == MazeBiomes.Kind.OVERGROWTH;
     }
 
+    public static boolean isCrimsonMarshlandsAt(double x, double z) {
+        return mazeBiomeAt(activeMazeTerrainSeed, Mth.floor(x), Mth.floor(z),
+                AsterionConfig.INSTANCE.cellSize).kind() == MazeBiomes.Kind.CRIMSON_MARSHLANDS;
+    }
+
     private static boolean needsElevationSlab(long seed, int x, int z, int cell, int floorY) {
         return mazeFloorY(seed, x + 1, z, cell) > floorY
                 || mazeFloorY(seed, x - 1, z, cell) > floorY
@@ -2319,6 +2336,8 @@ public final class WorldGenerator {
         int limit = radius * size;
         if (isCenterArena(x, z, size)) return false;
         if (structures.reserved(x, z)) return false;
+        if (biome.kind() == MazeBiomes.Kind.CRIMSON_MARSHLANDS)
+            return isCircularMazeWall(seed, x, z, size, thickness);
         int gx = Math.floorDiv(x + limit, size);
         int gz = Math.floorDiv(z + limit, size);
         int lx = Math.floorMod(x + limit, size);
@@ -2329,6 +2348,100 @@ public final class WorldGenerator {
         if (lz < thickness) return !topology.openInfinite(gx, gz - 1, gx, gz)
                 && !biomeOpensWall(seed, biome, gx, gz - 1, gx, gz, false);
         return false;
+    }
+
+    /** Concentric passages split by short radial partitions, with deterministic gates in
+     * every ring. Each Crimson region receives its own circular maze center. */
+    private static boolean isCircularMazeWall(long seed, int x, int z, int cell, int thickness) {
+        MazeBiomes.Catalog catalog = MazeBiomes.current();
+        int regionSize = cell * catalog.regionSizeCells();
+        int regionX = Math.floorDiv(x, regionSize);
+        int regionZ = Math.floorDiv(z, regionSize);
+        double centerX = regionX * (double)regionSize + regionSize * 0.5D;
+        double centerZ = regionZ * (double)regionSize + regionSize * 0.5D;
+        double dx = x + 0.5D - centerX;
+        double dz = z + 0.5D - centerZ;
+        double radius = Math.sqrt(dx * dx + dz * dz);
+        double angle = Math.atan2(dz, dx);
+        if (angle < 0.0D) angle += Math.PI * 2.0D;
+
+        double ringSpacing = cell * 1.72D;
+        if (radius < ringSpacing * 0.72D) return false;
+        int ring = Math.max(1, Mth.floor(radius / ringSpacing + 0.5D));
+        double ringDistance = Math.abs(radius - ring * ringSpacing);
+        long regionSeed = mix(seed ^ (long)regionX * 0xD6E8FEB86659FD93L
+                ^ (long)regionZ * 0xA5A3564E27F8862BL);
+        if (isCrimsonGrandHall(regionSeed, radius, angle, ringSpacing)
+                || isCrimsonChamber(regionSeed, dx, dz, radius, angle, ringSpacing)) return false;
+
+        long ringSeed = mix(regionSeed ^ ring * 0x9E3779B97F4A7C15L);
+        double ringJitter = signedUnitFloat(ringSeed) * ringSpacing * 0.14D;
+        ringDistance = Math.abs(radius - (ring * ringSpacing + ringJitter));
+        if (ringDistance < thickness * 0.62D) {
+            int slices = 36;
+            int slice = Mth.floor(angle / (Math.PI * 2.0D) * slices) % slices;
+            int gateA = (int)Math.floorMod(ringSeed, slices);
+            int gateB = (gateA + 8 + (int)Math.floorMod(ringSeed >>> 11, 8L)) % slices;
+            int gateC = (gateB + 7 + (int)Math.floorMod(ringSeed >>> 23, 9L)) % slices;
+            int gateWidth = 1 + (int)Math.floorMod(ringSeed >>> 37, 2L);
+            if (circularSliceDistance(slice, gateA, slices) > 1
+                    && circularSliceDistance(slice, gateB, slices) > gateWidth
+                    && circularSliceDistance(slice, gateC, slices) > 1) return true;
+        }
+
+        // Radial partitions only occupy selected annuli. Alternating their phase stops the
+        // rings from becoming simple racetracks while preserving multiple routes.
+        int spokes = 12;
+        double spokeStep = Math.PI * 2.0D / spokes;
+        int spoke = Mth.floor(angle / spokeStep + 0.5D) % spokes;
+        double spokeAngle = spoke * spokeStep;
+        double difference = Math.abs(angle - spokeAngle);
+        difference = Math.min(difference, Math.PI * 2.0D - difference);
+        double arcDistance = radius * difference;
+        int annulus = Math.max(0, Mth.floor(radius / ringSpacing));
+        long partition = mix(regionSeed ^ (long)spoke * 0xC2B2AE3D27D4EB4FL
+                ^ (long)annulus * 0x165667B19E3779F9L);
+        boolean broadAnnularHall = Math.floorMod(mix(regionSeed ^ annulus * 0x94D049BB133111EBL), 6L) == 0L;
+        return !broadAnnularHall && arcDistance < thickness * 0.52D
+                && Math.floorMod(partition, 7L) <= 2L;
+    }
+
+    private static boolean isCrimsonGrandHall(long regionSeed, double radius, double angle,
+                                              double ringSpacing) {
+        int hallCount = 2 + (int)Math.floorMod(regionSeed >>> 7, 3L);
+        for (int hall = 0; hall < hallCount; hall++) {
+            long value = mix(regionSeed ^ hall * 0xDB4F0B9175AE2165L);
+            double hallAngle = unitFloat(value) * Math.PI * 2.0D;
+            double difference = Math.abs(angle - hallAngle);
+            difference = Math.min(difference, Math.PI * 2.0D - difference);
+            double width = ringSpacing * (0.24D + unitFloat(value >>> 17) * 0.16D);
+            if (radius * difference < width && radius > ringSpacing * 0.62D) return true;
+        }
+        return false;
+    }
+
+    private static boolean isCrimsonChamber(long regionSeed, double dx, double dz,
+                                             double radius, double angle, double ringSpacing) {
+        int annulus = Math.max(0, Mth.floor(radius / ringSpacing));
+        int sectors = 10;
+        int sector = Mth.floor(angle / (Math.PI * 2.0D) * sectors + 0.5D) % sectors;
+        long chamber = mix(regionSeed ^ (long)annulus * 0xA24BAED4963EE407L
+                ^ (long)sector * 0x9FB21C651E98DF25L);
+        if (Math.floorMod(chamber, 5L) != 0L) return false;
+        double chamberAngle = sector * Math.PI * 2.0D / sectors
+                + signedUnitFloat(chamber >>> 19) * 0.12D;
+        double chamberRadius = (annulus + 0.52D) * ringSpacing;
+        double chamberX = Math.cos(chamberAngle) * chamberRadius;
+        double chamberZ = Math.sin(chamberAngle) * chamberRadius;
+        double size = ringSpacing * (0.52D + unitFloat(chamber >>> 31) * 0.20D);
+        double differenceX = dx - chamberX;
+        double differenceZ = dz - chamberZ;
+        return differenceX * differenceX + differenceZ * differenceZ < size * size;
+    }
+
+    private static int circularSliceDistance(int first, int second, int count) {
+        int difference = Math.abs(first - second);
+        return Math.min(difference, count - difference);
     }
 
     private static boolean biomeOpensWall(long seed, MazeBiomes.Biome biome, int ax, int az,
@@ -2513,7 +2626,6 @@ public final class WorldGenerator {
         long patch = mix(seed ^ (long) Math.floorDiv(x, 5) * 0x9E3779B97F4A7C15L
                 ^ (long) Math.floorDiv(z, 5) * 0xD1B54A32D192ED03L);
         long detail = mix(patch ^ (long) x * 341873128712L ^ (long) z * 132897987541L);
-        if (Math.floorMod(detail, 37) == 0) return Asterion.MAZESTEEL_BLOCK;
         if (Math.floorMod(detail, 17) == 0) return Asterion.ANCIENT_BRICKS;
         return Asterion.ANCIENT_STONE;
     }
@@ -2591,8 +2703,9 @@ public final class WorldGenerator {
     private static void placeBiomeWallDetail(ChunkAccess chunk, long seed, int x, int z,
                                              int wallHeight,
                                              MazeBiomes.Biome biome, int floorY) {
-        if (biome.hasFeature("leaf_crowns")) {
-            BlockState leaves = Asterion.ANCIENT_LEAVES.defaultBlockState()
+        if (biome.hasFeature("leaf_crowns") || biome.hasFeature("tainted_foliage")) {
+            boolean tainted = biome.hasFeature("tainted_foliage");
+            BlockState leaves = (tainted ? Asterion.TAINTED_LEAVES : Asterion.ANCIENT_LEAVES).defaultBlockState()
                     .setValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT, true);
             // Guaranteed eye-level foliage uses broad 3D fields, producing continuous
             // organic wall growth instead of relying entirely on decoration attempts.
@@ -2601,12 +2714,12 @@ public final class WorldGenerator {
                         x, floorY + rise, z, 7.5D) * 0.72D
                         + wallNoise(seed ^ 0x4F1BBCDCBFA54001L,
                         x, floorY + rise, z, 16.0D) * 0.28D;
-                if (wallGrowth > 0.69D)
+                if (wallGrowth > (tainted ? 0.735D : 0.69D))
                     bufferedSet(chunk, x, floorY + rise, z, leaves);
             }
             double crown = wallNoise(seed ^ 0xE7037ED1A0B428DBL, x, 0, z, 5.8D)
                     * 0.72D + wallNoise(seed ^ 0x8EBC6AF09C88C6E3L, x, 0, z, 12.0D) * 0.28D;
-            if (crown < 0.55D) return;
+            if (crown < (tainted ? 0.61D : 0.55D)) return;
             int crownY = floorY + wallHeight;
             bufferedSet(chunk, x, crownY, z, leaves);
             if (crown > 0.70D && crownY > floorY + 4)
@@ -2667,6 +2780,10 @@ public final class WorldGenerator {
 
     private static float unitFloat(long value) {
         return (value >>> 40) / (float) (1L << 24);
+    }
+
+    private static float signedUnitFloat(long value) {
+        return unitFloat(value) * 2.0F - 1.0F;
     }
 
     private static long mix(long z) {

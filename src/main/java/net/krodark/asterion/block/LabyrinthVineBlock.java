@@ -12,22 +12,20 @@ import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.ScheduledTickAccess;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.RenderShape;
-import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
-/** A six-direction chain-vine whose exposed growth tip attracts fireflies. */
+/** A deliberately simple vertical vine: it either grows up from a floor or down from a ceiling. */
 public final class LabyrinthVineBlock extends BaseEntityBlock {
-    public static final EnumProperty<Direction> FACING = BlockStateProperties.FACING;
+    public static final EnumProperty<Direction> FACING = EnumProperty.create(
+            "facing", Direction.class, direction -> direction.getAxis() == Direction.Axis.Y);
     public static final BooleanProperty END = BooleanProperty.create("end");
 
     public LabyrinthVineBlock(Properties properties) {
@@ -39,9 +37,8 @@ public final class LabyrinthVineBlock extends BaseEntityBlock {
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
-        Direction direction = context.getClickedFace();
-        // A freshly extended segment is always the new exposed tip. Neighbor updates will
-        // convert the previous tip to a middle segment after this block enters the world.
+        Direction clicked = context.getClickedFace();
+        Direction direction = clicked.getAxis() == Direction.Axis.Y ? clicked : Direction.DOWN;
         return defaultBlockState().setValue(FACING, direction).setValue(END, true);
     }
 
@@ -53,18 +50,11 @@ public final class LabyrinthVineBlock extends BaseEntityBlock {
         if (direction == supportDirection && !canSurvive(state, level, pos))
             return net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
 
-        // A neighbor is a child only when it points away from this segment. This lets a
-        // chain turn corners without rewriting the parent's attachment direction.
-        boolean hasChild = false;
-        for (Direction candidate : Direction.values()) {
-            BlockState adjacent = candidate == direction ? neighborState
-                    : level.getBlockState(pos.relative(candidate));
-            if (adjacent.is(Asterion.LABYRINTH_VINE)
-                    && adjacent.getValue(FACING) == candidate) {
-                hasChild = true;
-                break;
-            }
-        }
+        Direction growth = state.getValue(FACING);
+        BlockState child = direction == growth ? neighborState
+                : level.getBlockState(pos.relative(growth));
+        boolean hasChild = child.is(Asterion.LABYRINTH_VINE)
+                && child.getValue(FACING) == growth;
         return state.setValue(END, !hasChild);
     }
 
@@ -75,16 +65,6 @@ public final class LabyrinthVineBlock extends BaseEntityBlock {
         BlockState support = level.getBlockState(supportPos);
         return support.is(Asterion.LABYRINTH_VINE)
                 || Block.canSupportCenter(level, supportPos, growthDirection);
-    }
-
-    @Override
-    protected BlockState rotate(BlockState state, Rotation rotation) {
-        return state.setValue(FACING, rotation.rotate(state.getValue(FACING)));
-    }
-
-    @Override
-    protected BlockState mirror(BlockState state, Mirror mirror) {
-        return state.setValue(FACING, mirror.mirror(state.getValue(FACING)));
     }
 
     @Override
@@ -113,11 +93,7 @@ public final class LabyrinthVineBlock extends BaseEntityBlock {
 
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        return switch (state.getValue(FACING).getAxis()) {
-            case X -> box(0, 5, 5, 16, 11, 11);
-            case Y -> box(5, 0, 5, 11, 16, 11);
-            case Z -> box(5, 5, 0, 11, 11, 16);
-        };
+        return box(5, 0, 5, 11, 16, 11);
     }
 
     @Override public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {

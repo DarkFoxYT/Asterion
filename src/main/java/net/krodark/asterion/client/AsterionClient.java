@@ -14,12 +14,14 @@ import net.krodark.asterion.client.ragdoll.PhysicsDebrisSystem;
 import net.krodark.asterion.client.ragdoll.RagdollClientController;
 import net.krodark.asterion.client.render.entity.MinotaurGeoRenderer;
 import net.krodark.asterion.client.render.entity.BombadierBeetleGeoRenderer;
+import net.krodark.asterion.client.render.entity.ScarletCentipedeGeoRenderer;
 import net.krodark.asterion.client.particle.BombardierStenchParticle;
 import net.krodark.asterion.client.particle.BombardierGasFireParticle;
 import net.krodark.asterion.client.particle.AsterionEmissiveParticles;
 import net.krodark.asterion.client.particle.FlyingInsectParticle;
 import net.krodark.asterion.client.particle.AncientWallDustParticle;
 import net.krodark.asterion.client.particle.RumbleSmokeParticle;
+import net.krodark.asterion.client.particle.HostileFireflyParticle;
 import net.krodark.asterion.client.render.block.RuneGeoRenderer;
 import net.krodark.asterion.client.render.block.LabyrinthVineGeoRenderer;
 import net.krodark.asterion.client.render.block.SkeletonGeoRenderer;
@@ -50,6 +52,7 @@ public final class AsterionClient implements ClientModInitializer {
         RagdollClientController.initialize();
         EntityRenderers.register(Asterion.MINOTAUR, MinotaurGeoRenderer::new);
         EntityRenderers.register(Asterion.BOMBARDIER_BEETLE, BombadierBeetleGeoRenderer::new);
+        EntityRenderers.register(Asterion.SCARLET_CENTIPEDE, ScarletCentipedeGeoRenderer::new);
         ParticleProviderRegistry.getInstance().register(Asterion.BOMBARDIER_STENCH, sprites ->
                 (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
                         BombardierStenchParticle.create(level, x, y, z,
@@ -65,6 +68,10 @@ public final class AsterionClient implements ClientModInitializer {
         ParticleProviderRegistry.getInstance().register(Asterion.FIREFLY, sprites ->
                 (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
                         FlyingInsectParticle.createFirefly(level, x, y, z,
+                                velocityX, velocityY, velocityZ, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.HOSTILE_FIREFLY, sprites ->
+                (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
+                        HostileFireflyParticle.create(level, x, y, z,
                                 velocityX, velocityY, velocityZ, sprites, random));
         ParticleProviderRegistry.getInstance().register(Asterion.ANCIENT_WALL_DUST, sprites ->
                 (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
@@ -114,7 +121,7 @@ public final class AsterionClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(DazePayload.TYPE, (payload, context) ->
                 context.client().execute(() -> DazeOverlay.begin(payload)));
         ClientPlayNetworking.registerGlobalReceiver(BiomeAtmospherePayload.TYPE, (payload, context) ->
-                context.client().execute(() -> AsterionPostEffects.setOvergrowth(payload.overgrowth())));
+                context.client().execute(() -> AsterionPostEffects.setBiome(payload.biome())));
         ClientPlayNetworking.registerGlobalReceiver(RagdollImpulsePayload.TYPE, (payload, context) ->
                 context.client().execute(() -> DismembermentEngine.INSTANCE.forcePlayerTumble(
                         context.client(), payload.source(), payload.impulse(), payload.force())));

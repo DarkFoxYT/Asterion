@@ -27,24 +27,26 @@ public final class OvergrowthPuddleFeature extends Feature<NoneFeatureConfigurat
         RandomSource random = context.random();
         int minX = Math.floorDiv(context.origin().getX(), 16) * 16;
         int minZ = Math.floorDiv(context.origin().getZ(), 16) * 16;
-        long roll = mix(level.getSeed() ^ (long) minX * 0xD1B54A32D192ED03L
-                ^ (long) minZ * 0x94D049BB133111EBL);
-        if (Math.floorMod(roll, 3L) != 0L) return false;
-
-        for (int attempt = 0; attempt < 12; attempt++) {
-            BlockPos floor = OvergrowthFeatureSupport.findFloor(level,
-                    minX + 3 + random.nextInt(10), minZ + 3 + random.nextInt(10));
-            if (floor == null || !OvergrowthFeatureSupport.enabled(level, floor, "puddles")) continue;
+        for (int attempt = 0; attempt < 40; attempt++) {
+            int sampleX = minX + 3 + random.nextInt(10);
+            int sampleZ = minZ + 3 + random.nextInt(10);
+            BlockPos floor = OvergrowthFeatureSupport.findFloor(level, sampleX, sampleZ);
+            if (floor == null) continue;
+            boolean marsh = OvergrowthFeatureSupport.enabled(level, floor, "marsh_pools");
+            if (!marsh && !OvergrowthFeatureSupport.enabled(level, floor, "puddles")) continue;
             WallFeed wall = nearbyWall(level, floor);
-            if (!hasCleanBasin(level, floor)) continue;
-            carvePuddle(level, floor, random, wall);
+            if (!hasCleanBasin(level, floor, marsh)) continue;
+            carvePuddle(level, floor, random, wall, marsh);
             return true;
         }
         return false;
     }
 
-    private static boolean hasCleanBasin(WorldGenLevel level, BlockPos center) {
-        for (int dx = -3; dx <= 3; dx++) for (int dz = -3; dz <= 3; dz++) {
+    private static boolean hasCleanBasin(WorldGenLevel level, BlockPos center, boolean marsh) {
+        for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) {
+            // Circular corridors rarely offer a perfect square footprint. Requiring the
+            // center and cardinal arms preserves clean basins without rejecting curved halls.
+            if (marsh && Math.abs(dx) + Math.abs(dz) > 1) continue;
             BlockPos floor = center.offset(dx, 0, dz);
             if (!OvergrowthFeatureSupport.isMazeFloor(level, floor)
                     || !OvergrowthFeatureSupport.isOpen(level, floor.above())) return false;
@@ -53,26 +55,37 @@ public final class OvergrowthPuddleFeature extends Feature<NoneFeatureConfigurat
     }
 
     private static void carvePuddle(WorldGenLevel level, BlockPos center, RandomSource random,
-                                    WallFeed wallFeed) {
-        double longAxis = 2.05D + random.nextDouble() * 0.65D;
-        double shortAxis = 1.55D + random.nextDouble() * 0.45D;
+                                    WallFeed wallFeed, boolean marsh) {
+        double longAxis = marsh ? 4.8D + random.nextDouble() * 1.8D
+                : 2.05D + random.nextDouble() * 0.65D;
+        double shortAxis = marsh ? 3.5D + random.nextDouble() * 1.5D
+                : 1.55D + random.nextDouble() * 0.45D;
         boolean stretchX = random.nextBoolean();
-        for (int dx = -3; dx <= 3; dx++) for (int dz = -3; dz <= 3; dz++) {
+        int reach = marsh ? 7 : 3;
+        for (int dx = -reach; dx <= reach; dx++) for (int dz = -reach; dz <= reach; dz++) {
             double nx = dx / (stretchX ? longAxis : shortAxis);
             double nz = dz / (stretchX ? shortAxis : longAxis);
             double noise = signedNoise(center, dx, dz) * 0.15D;
             double shape = Math.sqrt(nx * nx + nz * nz) + noise;
             BlockPos pos = center.offset(dx, 0, dz);
+            if (!level.ensureCanWrite(pos) || !level.ensureCanWrite(pos.below())) continue;
+            boolean cleanFloor = OvergrowthFeatureSupport.isMazeFloor(level, pos)
+                    && OvergrowthFeatureSupport.isOpen(level, pos.above());
+            if (!cleanFloor) continue;
 
             if (shape <= 0.72D) {
                 level.setBlock(pos.below(), Blocks.MUD.defaultBlockState(), 2);
                 level.setBlock(pos, Blocks.WATER.defaultBlockState(), 2);
+                if (marsh && random.nextFloat() < 0.055F)
+                    TaintedPetalsFeature.placeOnWaterSurface(level, pos.above());
             } else if (shape <= 1.03D) {
                 level.setBlock(pos.below(), Blocks.MUD.defaultBlockState(), 2);
                 level.setBlock(pos, smoothWaterEdge(dx, dz, random), 2);
-            } else if (shape <= 1.30D && random.nextFloat() < 0.74F) {
+            } else if (shape <= (marsh ? 1.38D : 1.30D)
+                    && random.nextFloat() < (marsh ? 0.88F : 0.74F)) {
                 level.setBlock(pos, Blocks.MUD.defaultBlockState(), 2);
-            } else if (shape <= 1.58D && random.nextFloat() < 0.48F) {
+            } else if (shape <= (marsh ? 1.72D : 1.58D)
+                    && random.nextFloat() < (marsh ? 0.58F : 0.48F)) {
                 level.setBlock(pos, random.nextBoolean()
                         ? Asterion.ANCIENT_MOSS.defaultBlockState()
                         : Asterion.ANCIENT_MOSSY_BRICKS.defaultBlockState(), 2);
@@ -81,13 +94,15 @@ public final class OvergrowthPuddleFeature extends Feature<NoneFeatureConfigurat
 
         // If the basin naturally sits beside masonry, let a narrow two-block seep descend
         // directly into its edge. The water column is over the recessed basin, so it stays tidy.
-        if (wallFeed != null && random.nextFloat() < 0.58F) {
+        if (wallFeed != null && random.nextFloat() < (marsh ? 0.76F : 0.58F)) {
             BlockPos lip = center.relative(wallFeed.direction, wallFeed.distance - 1);
             BlockPos backing = center.relative(wallFeed.direction, wallFeed.distance);
             if (OvergrowthFeatureSupport.isMazeWall(level.getBlockState(backing.above()))
                     && OvergrowthFeatureSupport.isMazeWall(level.getBlockState(backing.above(2)))) {
                 level.setBlock(lip.above(), Blocks.WATER.defaultBlockState(), 2);
                 level.setBlock(lip.above(2), Blocks.WATER.defaultBlockState(), 2);
+                if (marsh && OvergrowthFeatureSupport.isMazeWall(level.getBlockState(backing.above(3))))
+                    level.setBlock(lip.above(3), Blocks.WATER.defaultBlockState(), 2);
                 level.setBlock(lip.below(), Blocks.MUD.defaultBlockState(), 2);
             }
         }

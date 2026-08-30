@@ -18,13 +18,15 @@ import java.util.Set;
 /** Data-driven catalog for the visual biomes used inside the labyrinth. */
 public final class MazeBiomes {
     private static final Identifier CATALOG = Asterion.id("maze_biomes.json");
-    private static final Catalog FALLBACK = new Catalog(12, 7, 2.0F, 4.0F, List.of(
-            new Biome(Kind.ANCIENT, 60, 0, 13, Set.of()),
-            new Biome(Kind.OVERGROWTH, 40, 9, 3,
+    private static final Catalog FALLBACK = new Catalog(20, 7, 2.0F, 4.0F, List.of(
+            new Biome(Kind.ANCIENT, 50, 0, 13, Set.of()),
+            new Biome(Kind.OVERGROWTH, 30, 9, 3,
                     Set.of("mossy_walls", "leaf_crowns", "canopy", "floor_plants",
                             "moss_patches", "leaf_clusters", "bridges", "bridge_chains", "rest_sites",
                             "giant_dead_trees",
-                            "ground_vines", "hanging_vines"))));
+                            "ground_vines", "hanging_vines")),
+            new Biome(Kind.CRIMSON_MARSHLANDS, 20, 0, 7,
+                    Set.of("circular_maze", "marsh_pools", "tainted_foliage", "crimson_bonsai"))));
     private static volatile Catalog current = FALLBACK;
     private static volatile MinecraftServer loadedServer;
 
@@ -93,6 +95,7 @@ public final class MazeBiomes {
         return switch (id.toLowerCase(Locale.ROOT)) {
             case "ancient" -> Kind.ANCIENT;
             case "overgrowth" -> Kind.OVERGROWTH;
+            case "crimson_marshlands" -> Kind.CRIMSON_MARSHLANDS;
             default -> null;
         };
     }
@@ -115,7 +118,8 @@ public final class MazeBiomes {
 
     public enum Kind {
         ANCIENT,
-        OVERGROWTH
+        OVERGROWTH,
+        CRIMSON_MARSHLANDS
     }
 
     public record Biome(Kind kind, int weight, int wallOpeningDivisor, int motifChance,

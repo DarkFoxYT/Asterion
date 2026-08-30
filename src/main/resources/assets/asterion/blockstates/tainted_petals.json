@@ -1,0 +1,28 @@
+{
+  "multipart": [
+    { "when": { "north": "true" }, "apply": [
+      { "model": "asterion:block/tainted_petals", "weight": 3 },
+      { "model": "asterion:block/tainted_petals_variant", "weight": 2 }
+    ]},
+    { "when": { "east": "true" }, "apply": [
+      { "model": "asterion:block/tainted_petals", "y": 90, "uvlock": true, "weight": 3 },
+      { "model": "asterion:block/tainted_petals_variant", "y": 90, "uvlock": true, "weight": 2 }
+    ]},
+    { "when": { "south": "true" }, "apply": [
+      { "model": "asterion:block/tainted_petals", "y": 180, "uvlock": true, "weight": 3 },
+      { "model": "asterion:block/tainted_petals_variant", "y": 180, "uvlock": true, "weight": 2 }
+    ]},
+    { "when": { "west": "true" }, "apply": [
+      { "model": "asterion:block/tainted_petals", "y": 270, "uvlock": true, "weight": 3 },
+      { "model": "asterion:block/tainted_petals_variant", "y": 270, "uvlock": true, "weight": 2 }
+    ]},
+    { "when": { "up": "true" }, "apply": [
+      { "model": "asterion:block/tainted_petals", "x": 270, "uvlock": true, "weight": 3 },
+      { "model": "asterion:block/tainted_petals_variant", "x": 270, "uvlock": true, "weight": 2 }
+    ]},
+    { "when": { "down": "true" }, "apply": [
+      { "model": "asterion:block/tainted_petals", "x": 90, "uvlock": true, "weight": 3 },
+      { "model": "asterion:block/tainted_petals_variant", "x": 90, "uvlock": true, "weight": 2 }
+    ]}
+  ]
+}

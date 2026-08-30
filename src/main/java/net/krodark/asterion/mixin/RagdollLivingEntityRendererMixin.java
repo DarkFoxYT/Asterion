@@ -4,6 +4,9 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.fabricmc.fabric.api.client.rendering.v1.FabricRenderState;
 import net.krodark.asterion.client.ragdoll.DismembermentEngine;
 import net.krodark.asterion.client.ragdoll.RagdollRenderData;
+import net.krodark.asterion.client.render.entity.SurfaceOrientation;
+import net.krodark.asterion.entity.ScarletCentipedeEntity;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelPart;
@@ -50,6 +53,18 @@ abstract class RagdollLivingEntityRendererMixin {
         if (id != null) DismembermentEngine.INSTANCE.captureRenderedPose(id);
         asterion$visibility.forEach((part, visible) -> part.visible = visible);
         asterion$visibility.clear();
+    }
+
+    @Inject(method = "setupRotations", at = @At("TAIL"))
+    private void asterion$alignCentipedeRider(LivingEntityRenderState state, PoseStack poses,
+                                               float bodyRot, float scale, CallbackInfo ci) {
+        Integer id = ((FabricRenderState)state).getData(RagdollRenderData.ENTITY_ID);
+        Minecraft minecraft = Minecraft.getInstance();
+        if (id == null || minecraft.level == null) return;
+        if (!(minecraft.level.getEntity(id) instanceof net.minecraft.world.entity.player.Player player)
+                || !(player.getVehicle() instanceof ScarletCentipedeEntity centipede)) return;
+        poses.mulPose(SurfaceOrientation.relativeToRenderYaw(
+                centipede.attachmentNormal(), centipede.surfaceForward(), bodyRot));
     }
 
     @Unique private void mask(ModelPart part) { asterion$visibility.putIfAbsent(part, part.visible); part.visible = false; }

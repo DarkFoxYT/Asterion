@@ -39,6 +39,8 @@ public final class DeadSunClientEvents {
         register(DeadSunEventSystem.ECLIPSE, EclipseEffect::new);
         register(DeadSunEventSystem.SHIFTING, NeutralEffect::new);
         register(DeadSunEventSystem.DEAD_SUN_BARRAGE, NeutralEffect::new);
+        register(DeadSunEventSystem.POISON_GEYSERS, NeutralEffect::new);
+        register(DeadSunEventSystem.CRIMSON_FIREFLIES, NeutralEffect::new);
     }
 
     private DeadSunClientEvents() {
@@ -244,6 +246,12 @@ public final class DeadSunClientEvents {
         return client.level != null && client.level.dimension().equals(Asterion.ASTERION_LEVEL)
                 && activeId != null && activeId.equals(DeadSunEventSystem.ECLIPSE)
                 && active != null && eclipseStrength() > 0.0001F;
+    }
+
+    public static boolean isCrimsonFireflyEventActive() {
+        Minecraft client = Minecraft.getInstance();
+        return client.level != null && client.level.dimension().equals(Asterion.ASTERION_LEVEL)
+                && active != null && DeadSunEventSystem.CRIMSON_FIREFLIES.equals(activeId);
     }
 
     public static int eclipseIntroTicks() {

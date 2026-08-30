@@ -4,6 +4,7 @@ import net.krodark.asterion.Asterion;
 import net.krodark.asterion.client.ragdoll.DismembermentEngine;
 import net.krodark.asterion.entity.BombadierBeetleEntity;
 import net.krodark.asterion.entity.MinotaurEntity;
+import net.krodark.asterion.entity.ScarletCentipedeEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
@@ -37,6 +38,7 @@ public final class RagdollEngineApi {
         return entity != null
                 && !(entity instanceof MinotaurEntity)
                 && !(entity instanceof BombadierBeetleEntity)
+                && !(entity instanceof ScarletCentipedeEntity)
                 && entity.level().dimension().equals(Asterion.ASTERION_LEVEL);
     }
 }

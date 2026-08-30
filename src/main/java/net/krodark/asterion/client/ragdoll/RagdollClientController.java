@@ -9,6 +9,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.entity.LivingEntity;
 import net.krodark.asterion.entity.MinotaurEntity;
 import net.krodark.asterion.entity.BombadierBeetleEntity;
+import net.krodark.asterion.entity.ScarletCentipedeEntity;
 import net.krodark.asterion.client.DazeOverlay;
 import net.krodark.asterion.client.BossFinaleOverlay;
 import org.lwjgl.glfw.GLFW;
@@ -98,8 +99,9 @@ public final class RagdollClientController {
         if (++scanTicker % scanInterval == 0) {
             for (LivingEntity entity : client.level.getEntitiesOfClass(LivingEntity.class,
                     client.player.getBoundingBox().inflate(scanRange),
-                    entity -> !entity.isAlive() && !(entity instanceof MinotaurEntity)
-                            && !(entity instanceof BombadierBeetleEntity))) {
+                     entity -> !entity.isAlive() && !(entity instanceof MinotaurEntity)
+                            && !(entity instanceof BombadierBeetleEntity)
+                            && !(entity instanceof ScarletCentipedeEntity))) {
                 if (!engine.isRagdolled(entity.getId())) {
                     Vec3 motion = entity.getDeltaMovement();
                     Vec3 direction = motion.lengthSqr() > 1.0e-6 ? motion.normalize() : entity.getLookAngle();

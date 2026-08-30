@@ -58,7 +58,7 @@ public final class DirectionalGateBlock extends Block {
 
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        if (state.getValue(FACE) != AttachFace.WALL)
+        if (state.getValue(FACE) != AttachFace.FLOOR)
             return box(0, 6, 0, 16, 10, 16);
         return state.getValue(FACING).getAxis() == Direction.Axis.X
                 ? box(6, 0, 0, 10, 16, 16)

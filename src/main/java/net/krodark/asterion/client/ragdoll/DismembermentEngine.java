@@ -29,6 +29,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.krodark.asterion.entity.MinotaurEntity;
 import net.krodark.asterion.entity.BombadierBeetleEntity;
+import net.krodark.asterion.entity.ScarletCentipedeEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.BlockItem;
@@ -1186,7 +1187,8 @@ public final class DismembermentEngine {
 
     private static boolean isRagdollExcluded(Entity entity) {
         if (entity == null) return true;
-        if (entity instanceof MinotaurEntity || entity instanceof BombadierBeetleEntity) {
+        if (entity instanceof MinotaurEntity || entity instanceof BombadierBeetleEntity
+                || entity instanceof ScarletCentipedeEntity) {
             return true;
         }
         String path = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).getPath();

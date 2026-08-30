@@ -29,6 +29,9 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.DustParticleOptions;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -49,6 +52,8 @@ public final class DeadSunEventSystem {
     public static final Identifier ECLIPSE = Asterion.id("eclipse");
     public static final Identifier SHIFTING = Asterion.id("shifting");
     public static final Identifier DEAD_SUN_BARRAGE = Asterion.id("dead_sun_barrage");
+    public static final Identifier POISON_GEYSERS = Asterion.id("poison_geysers");
+    public static final Identifier CRIMSON_FIREFLIES = Asterion.id("crimson_fireflies");
     private static final int MIN_INTERVAL = 20 * 35;
     private static final int MAX_INTERVAL = 20 * 95;
     private static final Map<Identifier, Definition> DEFINITIONS = new LinkedHashMap<>();
@@ -56,6 +61,8 @@ public final class DeadSunEventSystem {
     private static final ArrayDeque<WallLayer> SHIFT_ANIMATION = new ArrayDeque<>();
     private static final List<PendingStrike> PENDING_STRIKES = new ArrayList<>();
     private static final Map<UUID, RumbleHazard> RUMBLE_HAZARDS = new HashMap<>();
+    private static final List<PoisonGeyser> POISON_GEYSER_HAZARDS = new ArrayList<>();
+    private static final List<CrimsonFirefly> CRIMSON_FIREFLY_SWARM = new ArrayList<>();
 
     private static final class RumbleHazard {
         private final boolean huge;
@@ -96,17 +103,43 @@ public final class DeadSunEventSystem {
         });
         register(new Definition() {
             @Override public Identifier id() { return DEAD_SUN_BARRAGE; }
-            @Override public int weight() { return 6; }
-            @Override public int minDurationTicks() { return 20 * 22; }
-            @Override public int maxDurationTicks() { return 20 * 38; }
+            @Override public int weight() { return 1; }
+            @Override public int minDurationTicks() { return 20 * 18; }
+            @Override public int maxDurationTicks() { return 20 * 26; }
             @Override public float intensity(RandomSource random) { return 0.8F + random.nextFloat() * 0.2F; }
             @Override public void onTick(ServerLevel level, int elapsedTicks) {
                 tickPendingStrikes(level);
-                if (elapsedTicks >= 20 && elapsedTicks % 42 == 0) scheduleStrikes(level);
+                if (elapsedTicks >= 30 && elapsedTicks % 72 == 0) scheduleStrikes(level);
             }
             @Override public void onEnd(ServerLevel level) {
                 PENDING_STRIKES.clear();
             }
+        });
+        register(new Definition() {
+            @Override public Identifier id() { return POISON_GEYSERS; }
+            @Override public int weight() { return 5; }
+            @Override public int minDurationTicks() { return 20 * 18; }
+            @Override public int maxDurationTicks() { return 20 * 30; }
+            @Override public float intensity(RandomSource random) { return 0.72F + random.nextFloat() * 0.24F; }
+            @Override public boolean eligible(ServerLevel level) { return hasCrimsonPlayer(level); }
+            @Override public void onTick(ServerLevel level, int elapsedTicks) {
+                if (elapsedTicks >= 18 && elapsedTicks % 58 == 0) schedulePoisonGeysers(level);
+                tickPoisonGeysers(level);
+            }
+            @Override public void onEnd(ServerLevel level) { POISON_GEYSER_HAZARDS.clear(); }
+        });
+        register(new Definition() {
+            @Override public Identifier id() { return CRIMSON_FIREFLIES; }
+            @Override public int weight() { return 4; }
+            @Override public int minDurationTicks() { return 20 * 16; }
+            @Override public int maxDurationTicks() { return 20 * 24; }
+            @Override public float intensity(RandomSource random) { return 0.68F + random.nextFloat() * 0.27F; }
+            @Override public boolean eligible(ServerLevel level) { return hasCrimsonPlayer(level); }
+            @Override public void onTick(ServerLevel level, int elapsedTicks) {
+                if (elapsedTicks > 22 && elapsedTicks % 10 == 0) spawnCrimsonFireflies(level);
+                tickCrimsonFireflies(level);
+            }
+            @Override public void onEnd(ServerLevel level) { CRIMSON_FIREFLY_SWARM.clear(); }
         });
         register(new Definition() {
             @Override public Identifier id() { return ECLIPSE; }
@@ -167,7 +200,7 @@ public final class DeadSunEventSystem {
                     }
                     if (!trigger(level, definition.id())) {
                         command.getSource().sendFailure(Component.literal(
-                                "That event cannot start while the Eclipse is active."));
+                                "That event cannot start here right now; biome events require an eligible player."));
                         return 0;
                     }
                     SchedulerState state = STATES.get(level.getServer());
@@ -232,6 +265,8 @@ public final class DeadSunEventSystem {
         ServerLevel level = server.getLevel(Asterion.ASTERION_LEVEL);
         if (level != null) finishWallShift(level);
         PENDING_STRIKES.clear();
+        POISON_GEYSER_HAZARDS.clear();
+        CRIMSON_FIREFLY_SWARM.clear();
         STATES.remove(server);
     }
 
@@ -278,7 +313,8 @@ public final class DeadSunEventSystem {
 
     public static boolean trigger(ServerLevel level, Identifier eventId) {
         Definition definition = DEFINITIONS.get(eventId);
-        if (definition == null || WorldGenerator.isBossEncounterActive(level)) return false;
+        if (definition == null || WorldGenerator.isBossEncounterActive(level)
+                || !definition.eligible(level)) return false;
         SchedulerState state = STATES.computeIfAbsent(level.getServer(), ignored -> new SchedulerState());
         if (definition.id().equals(SHIFTING) && isEclipseActive(level)) return false;
         if (state.active != null) state.active.definition.onEnd(level);
@@ -336,7 +372,12 @@ public final class DeadSunEventSystem {
     private static void startRandom(ServerLevel level, SchedulerState state) {
         RandomSource random = level.getRandom();
         var eligible = DEFINITIONS.values().stream()
+                .filter(definition -> definition.eligible(level))
                 .filter(definition -> !definition.id().equals(SHIFTING) || !isEclipseActive(level)).toList();
+        if (eligible.isEmpty()) {
+            state.nextEventTick = scheduleNext(random, level.getGameTime());
+            return;
+        }
         int totalWeight = eligible.stream().mapToInt(definition -> Math.max(1, definition.weight())).sum();
         int roll = random.nextInt(totalWeight);
         Definition selected = eligible.getFirst();
@@ -626,20 +667,239 @@ public final class DeadSunEventSystem {
     private record Placement(BlockPos pos, BlockState state) { }
     private record WallLayer(List<BlockPos> remove, List<Placement> place, BlockPos soundAt) { }
 
+    private static boolean hasCrimsonPlayer(ServerLevel level) {
+        return level.players().stream().anyMatch(player -> player.isAlive() && !player.isSpectator()
+                && WorldGenerator.isCrimsonMarshlandsAt(player.getX(), player.getZ()));
+    }
+
+    private static void schedulePoisonGeysers(ServerLevel level) {
+        RandomSource random = level.getRandom();
+        for (ServerPlayer player : level.players()) {
+            if (!player.isAlive() || player.isCreative() || player.isSpectator()
+                    || !WorldGenerator.isCrimsonMarshlandsAt(player.getX(), player.getZ())) continue;
+            int count = 1 + (random.nextFloat() < 0.42F ? 1 : 0);
+            for (int index = 0; index < count; index++) {
+                BlockPos vent = findGeyserVent(level, player, random);
+                if (vent == null || POISON_GEYSER_HAZARDS.stream()
+                        .anyMatch(existing -> existing.vent.distSqr(vent) < 25.0D)) continue;
+                POISON_GEYSER_HAZARDS.add(new PoisonGeyser(vent, 34 + random.nextInt(10),
+                        52 + random.nextInt(20), 2.15F + random.nextFloat() * 0.55F,
+                        10.0F + random.nextFloat() * 10.0F));
+            }
+        }
+    }
+
+    private static BlockPos findGeyserVent(ServerLevel level, ServerPlayer player, RandomSource random) {
+        for (int attempt = 0; attempt < 28; attempt++) {
+            double angle = random.nextDouble() * Math.PI * 2.0D;
+            double distance = 3.0D + random.nextDouble() * 12.0D;
+            int x = net.minecraft.util.Mth.floor(player.getX() + Math.cos(angle) * distance);
+            int z = net.minecraft.util.Mth.floor(player.getZ() + Math.sin(angle) * distance);
+            if (!WorldGenerator.isCrimsonMarshlandsAt(x, z)) continue;
+            for (int dy = 3; dy >= -5; dy--) {
+                BlockPos water = new BlockPos(x, player.getBlockY() + dy, z);
+                if (!level.getFluidState(water).is(net.minecraft.tags.FluidTags.WATER)
+                        || level.getFluidState(water.above()).is(net.minecraft.tags.FluidTags.WATER)) continue;
+                BlockPos surface = water.above();
+                if (level.getBlockState(surface).isAir()) return surface;
+            }
+        }
+        return null;
+    }
+
+    private static void tickPoisonGeysers(ServerLevel level) {
+        Iterator<PoisonGeyser> iterator = POISON_GEYSER_HAZARDS.iterator();
+        while (iterator.hasNext()) {
+            PoisonGeyser geyser = iterator.next();
+            Vec3 center = Vec3.atBottomCenterOf(geyser.vent);
+            if (!level.getFluidState(geyser.vent.below()).is(net.minecraft.tags.FluidTags.WATER)) {
+                iterator.remove();
+                continue;
+            }
+            if (geyser.warningTicks-- > 0) {
+                double pulse = 0.25D + (1.0D - geyser.warningTicks / 44.0D) * 0.45D;
+                level.sendParticles(new DustParticleOptions(0x83B84A, 0.9F),
+                        center.x, center.y + 0.08D, center.z, 5,
+                        pulse, 0.025D, pulse, 0.01D);
+                level.sendParticles(new DustParticleOptions(0xB2DFC7, 0.54F),
+                        center.x, center.y + 0.14D, center.z, 3,
+                        pulse * 0.62D, 0.035D, pulse * 0.62D, 0.006D);
+                if ((geyser.warningTicks % 11) == 0)
+                    level.playSound(null, geyser.vent, SoundEvents.LAVA_EXTINGUISH,
+                            SoundSource.BLOCKS, 0.32F, 1.55F);
+                continue;
+            }
+            if (geyser.activeTicks-- <= 0) {
+                iterator.remove();
+                continue;
+            }
+
+            if (!geyser.erupted) {
+                geyser.erupted = true;
+                level.sendParticles(ParticleTypes.POOF, center.x, center.y + 0.25D, center.z,
+                        22, geyser.radius * 0.34D, 0.28D, geyser.radius * 0.34D, 0.12D);
+                level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR,
+                        center.x, center.y + 0.5D, center.z, 28,
+                        geyser.radius * 0.42D, 0.9D, geyser.radius * 0.42D, 0.075D);
+                level.playSound(null, geyser.vent, SoundEvents.FIRE_EXTINGUISH,
+                        SoundSource.BLOCKS, 1.4F, 0.52F);
+            }
+
+            int layers = Math.max(5, net.minecraft.util.Mth.ceil(geyser.columnHeight / 2.4F));
+            for (int layer = 0; layer <= layers; layer++) {
+                double progress = layer / (double)layers;
+                double y = center.y + 0.2D + progress * geyser.columnHeight;
+                double spread = 0.10D + geyser.radius * (0.17D - progress * 0.09D);
+                level.sendParticles(new DustParticleOptions(geyserGradientColor(progress),
+                                (float)(0.82D - progress * 0.28D)),
+                        center.x, y, center.z, 2, spread, 0.24D, spread, 0.012D);
+                if ((layer & 1) == 0) {
+                    level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE,
+                            center.x, y, center.z, 1, spread * 0.62D, 0.16D,
+                            spread * 0.62D, 0.065D);
+                    level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR,
+                            center.x, y, center.z, 2, spread, 0.32D, spread, 0.018D);
+                }
+            }
+            if (geyser.activeTicks == 68 || geyser.activeTicks % 18 == 0)
+                level.playSound(null, geyser.vent, SoundEvents.FIRE_EXTINGUISH,
+                        SoundSource.BLOCKS, 0.9F, 0.62F + level.getRandom().nextFloat() * 0.12F);
+
+            long now = level.getGameTime();
+            AABB cloud = new AABB(center.x - geyser.radius, center.y - 0.2D,
+                    center.z - geyser.radius, center.x + geyser.radius,
+                    center.y + geyser.columnHeight, center.z + geyser.radius);
+            for (ServerPlayer player : level.getEntitiesOfClass(ServerPlayer.class, cloud)) {
+                if (!player.isAlive() || player.isCreative() || player.isSpectator()
+                        || !WorldGenerator.isCrimsonMarshlandsAt(player.getX(), player.getZ())) continue;
+                double horizontal = new Vec3(player.getX() - center.x, 0.0D,
+                        player.getZ() - center.z).length();
+                if (horizontal > geyser.radius) continue;
+                player.addEffect(new MobEffectInstance(MobEffects.POISON, 55, 0, false, true));
+                long lastDamage = geyser.lastDamage.getOrDefault(player.getUUID(), Long.MIN_VALUE);
+                if (now - lastDamage >= 20L) {
+                    player.hurtServer(level, player.damageSources().magic(), 1.5F);
+                    geyser.lastDamage.put(player.getUUID(), now);
+                }
+                if (horizontal <= geyser.radius * 0.58D
+                        && geyser.knockedDown.add(player.getUUID()))
+                    knockDownFromGeyser(level, player, center);
+            }
+        }
+    }
+
+    private static void knockDownFromGeyser(ServerLevel level, ServerPlayer player, Vec3 center) {
+        Vec3 away = player.position().subtract(center);
+        away = away.horizontalDistanceSqr() < 1.0E-5D ? new Vec3(0.35D, 0.0D, 0.1D)
+                : new Vec3(away.x, 0.0D, away.z).normalize();
+        Vec3 impulse = away.scale(0.72D).add(0.0D, 0.64D, 0.0D);
+        player.setDeltaMovement(impulse);
+        player.hurtMarked = true;
+        player.resetFallDistance();
+        RagdollServerNetworking.markRagdolled(player, 58);
+        if (ServerPlayNetworking.canSend(player, RagdollImpulsePayload.TYPE))
+            ServerPlayNetworking.send(player, new RagdollImpulsePayload(center, impulse, 1.2F));
+        if (ServerPlayNetworking.canSend(player, DazePayload.TYPE))
+            ServerPlayNetworking.send(player, new DazePayload(34, 2));
+    }
+
+    private static int geyserGradientColor(double progress) {
+        double t = Math.max(0.0D, Math.min(1.0D, progress));
+        int red = (int)Math.round(0x43 + (0xB8 - 0x43) * t);
+        int green = (int)Math.round(0x78 + (0xE5 - 0x78) * t);
+        int blue = (int)Math.round(0x58 + (0xCF - 0x58) * t);
+        return red << 16 | green << 8 | blue;
+    }
+
+    private static void spawnCrimsonFireflies(ServerLevel level) {
+        RandomSource random = level.getRandom();
+        for (ServerPlayer player : level.players()) {
+            if (!player.isAlive() || player.isCreative() || player.isSpectator()
+                    || !WorldGenerator.isCrimsonMarshlandsAt(player.getX(), player.getZ())) continue;
+            long owned = CRIMSON_FIREFLY_SWARM.stream().filter(firefly ->
+                    firefly.target.equals(player.getUUID())).count();
+            if (owned >= 14) continue;
+            double angle = random.nextDouble() * Math.PI * 2.0D;
+            double distance = 5.5D + random.nextDouble() * 4.5D;
+            Vec3 position = player.position().add(Math.cos(angle) * distance,
+                    0.6D + random.nextDouble() * 2.8D, Math.sin(angle) * distance);
+            CRIMSON_FIREFLY_SWARM.add(new CrimsonFirefly(player.getUUID(), position,
+                    145 + random.nextInt(80), random.nextFloat() * 6.28F));
+        }
+    }
+
+    private static void tickCrimsonFireflies(ServerLevel level) {
+        Iterator<CrimsonFirefly> iterator = CRIMSON_FIREFLY_SWARM.iterator();
+        while (iterator.hasNext()) {
+            CrimsonFirefly firefly = iterator.next();
+            var entity = level.getEntity(firefly.target);
+            if (!(entity instanceof ServerPlayer player) || !player.isAlive() || player.isSpectator()
+                    || !WorldGenerator.isCrimsonMarshlandsAt(player.getX(), player.getZ())
+                    || firefly.life-- <= 0) {
+                iterator.remove();
+                continue;
+            }
+            Vec3 target = player.getEyePosition().add(0.0D,
+                    Math.sin((level.getGameTime() + firefly.phase) * 0.17D) * 0.28D - 0.25D, 0.0D);
+            Vec3 delta = target.subtract(firefly.position);
+            double distance = delta.length();
+            if (distance < 0.72D) {
+                player.igniteForTicks(16);
+                player.hurtServer(level, player.damageSources().inFire(), 1.0F);
+                level.sendParticles(ParticleTypes.FLAME, firefly.position.x, firefly.position.y,
+                        firefly.position.z, 8, 0.18D, 0.18D, 0.18D, 0.035D);
+                level.sendParticles(ParticleTypes.SMOKE, firefly.position.x, firefly.position.y,
+                        firefly.position.z, 5, 0.12D, 0.12D, 0.12D, 0.025D);
+                level.playSound(null, player.blockPosition(), SoundEvents.FIRECHARGE_USE,
+                        SoundSource.PLAYERS, 0.32F, 1.65F);
+                iterator.remove();
+                continue;
+            }
+            double speed = 0.085D + Math.min(0.11D, firefly.age++ * 0.0011D);
+            Vec3 velocity = delta.normalize().scale(speed);
+            Vec3 next = firefly.position.add(velocity);
+            BlockPos nextBlock = BlockPos.containing(next);
+            if (level.getBlockState(nextBlock).isCollisionShapeFullBlock(level, nextBlock)) {
+                level.sendParticles(ParticleTypes.SMOKE, firefly.position.x, firefly.position.y,
+                        firefly.position.z, 2, 0.05D, 0.05D, 0.05D, 0.01D);
+                iterator.remove();
+                continue;
+            }
+            firefly.position = next;
+            level.sendParticles(Asterion.HOSTILE_FIREFLY, next.x, next.y, next.z,
+                    0, velocity.x, velocity.y, velocity.z, 1.0D);
+            if ((firefly.age & 3) == 0)
+                level.sendParticles(new DustParticleOptions(0xFF170D, 0.62F),
+                        next.x, next.y, next.z, 1, 0.025D, 0.025D, 0.025D, 0.0D);
+        }
+    }
+
     private static void scheduleStrikes(ServerLevel level) {
         RandomSource random = level.getRandom();
         for (var player : level.players()) {
             if (!player.isAlive() || player.isCreative() || player.isSpectator()) continue;
-            int count = 2 + random.nextInt(3);
+            int count = random.nextFloat() < 0.18F ? 2 : 1;
             for (int strikeIndex = 0; strikeIndex < count; strikeIndex++) {
-                double angle = random.nextDouble() * Math.PI * 2.0D;
-                double distance = 4.0D + random.nextDouble() * 14.0D;
-                int x = net.minecraft.util.Mth.floor(player.getX() + Math.cos(angle) * distance);
-                int z = net.minecraft.util.Mth.floor(player.getZ() + Math.sin(angle) * distance);
+                int warning = 44 + random.nextInt(12);
+                Vec3 movement = player.getDeltaMovement();
+                double prediction = Math.min(10.0D, warning * 0.28D);
+                double offsetX = movement.x * prediction;
+                double offsetZ = movement.z * prediction;
+                if (strikeIndex > 0) {
+                    double angle = random.nextDouble() * Math.PI * 2.0D;
+                    offsetX += Math.cos(angle) * (4.5D + random.nextDouble() * 3.0D);
+                    offsetZ += Math.sin(angle) * (4.5D + random.nextDouble() * 3.0D);
+                } else {
+                    offsetX += random.nextDouble() * 1.4D - 0.7D;
+                    offsetZ += random.nextDouble() * 1.4D - 0.7D;
+                }
+                int x = net.minecraft.util.Mth.floor(player.getX() + offsetX);
+                int z = net.minecraft.util.Mth.floor(player.getZ() + offsetZ);
                 BlockPos target = net.krodark.asterion.WorldGenerator.findDeadSunStrikeTarget(
                         level, x, z, net.minecraft.util.Mth.floor(player.getY()));
-                int warning = 30 + random.nextInt(10);
-                float radius = 3.4F + random.nextFloat() * 2.2F;
+                float radius = 3.0F + random.nextFloat() * 1.15F;
+                if (PENDING_STRIKES.stream().anyMatch(existing ->
+                        existing.target.distSqr(target) < Math.pow(existing.radius + radius + 2.0F, 2.0D))) continue;
                 long seed = random.nextLong();
                 PENDING_STRIKES.add(new PendingStrike(target, warning, radius, seed));
                 DeadSunStrikePayload payload = new DeadSunStrikePayload(target, warning, radius, seed);
@@ -686,9 +946,43 @@ public final class DeadSunEventSystem {
         int minDurationTicks();
         int maxDurationTicks();
         float intensity(RandomSource random);
+        default boolean eligible(ServerLevel level) { return true; }
         default void onStart(ServerLevel level, long seed, int durationTicks, float intensity) { }
         default void onTick(ServerLevel level, int elapsedTicks) { }
         default void onEnd(ServerLevel level) { }
+    }
+
+    private static final class PoisonGeyser {
+        private final BlockPos vent;
+        private int warningTicks;
+        private int activeTicks;
+        private final float radius;
+        private final float columnHeight;
+        private final Set<UUID> knockedDown = new HashSet<>();
+        private final Map<UUID, Long> lastDamage = new HashMap<>();
+        private boolean erupted;
+        private PoisonGeyser(BlockPos vent, int warningTicks, int activeTicks, float radius,
+                             float columnHeight) {
+            this.vent = vent;
+            this.warningTicks = warningTicks;
+            this.activeTicks = activeTicks;
+            this.radius = radius;
+            this.columnHeight = columnHeight;
+        }
+    }
+
+    private static final class CrimsonFirefly {
+        private final UUID target;
+        private Vec3 position;
+        private int life;
+        private final float phase;
+        private int age;
+        private CrimsonFirefly(UUID target, Vec3 position, int life, float phase) {
+            this.target = target;
+            this.position = position;
+            this.life = life;
+            this.phase = phase;
+        }
     }
 
     private static final class SchedulerState {

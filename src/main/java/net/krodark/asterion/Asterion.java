@@ -30,6 +30,7 @@ import net.krodark.asterion.network.DazePayload;
 import net.krodark.asterion.network.ragdoll.*;
 import net.krodark.asterion.entity.MinotaurEntity;
 import net.krodark.asterion.entity.BombadierBeetleEntity;
+import net.krodark.asterion.entity.ScarletCentipedeEntity;
 import net.krodark.asterion.block.ShortGrassBlock;
 import net.krodark.asterion.event.DeadSunEventSystem;
 import net.krodark.asterion.effect.ResolveEffect;
@@ -48,6 +49,8 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
+import net.minecraft.world.item.SpawnEggItem;
+import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.effect.MobEffect;
@@ -68,6 +71,7 @@ import net.krodark.asterion.block.SkeletonBlock;
 import net.krodark.asterion.block.SkeletonBlockEntity;
 import net.krodark.asterion.block.ShatteredDeadWoodBlock;
 import net.krodark.asterion.block.ShatteredDeadWoodBlockEntity;
+import net.krodark.asterion.block.PassionBloomBlock;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.ChainBlock;
@@ -81,6 +85,7 @@ import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.TallGrassBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.WallBlock;
+import net.minecraft.world.level.block.MultifaceBlock;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
@@ -100,6 +105,7 @@ import net.krodark.asterion.worldgen.OvergrowthPuddleFeature;
 import net.krodark.asterion.worldgen.GiantDeadTreeFeature;
 import net.krodark.asterion.worldgen.AncientGroundVineFeature;
 import net.krodark.asterion.worldgen.AncientHangingVineFeature;
+import net.krodark.asterion.worldgen.TaintedPetalsFeature;
 import net.krodark.asterion.worldgen.MazeBiomes;
 import net.krodark.asterion.worldgen.MazeChunkGenerator;
 import org.slf4j.Logger;
@@ -147,6 +153,18 @@ public class Asterion implements ModInitializer {
             "ancient_leaves", MapColor.TERRACOTTA_BROWN,
             properties -> new UntintedParticleLeavesBlock(0.01F, ParticleTypes.PALE_OAK_LEAVES,
                     properties.strength(0.2F).randomTicks().sound(SoundType.GRASS).noOcclusion()));
+    public static final LeavesBlock TAINTED_LEAVES = (LeavesBlock)registerBlock(
+            "tainted_leaves", MapColor.COLOR_RED,
+            properties -> new UntintedParticleLeavesBlock(0.008F, ParticleTypes.CRIMSON_SPORE,
+                    properties.strength(0.2F).randomTicks().sound(SoundType.GRASS).noOcclusion()));
+    public static final MultifaceBlock TAINTED_PETALS = (MultifaceBlock)registerBlock(
+            "tainted_petals", MapColor.COLOR_RED,
+            properties -> new MultifaceBlock(properties.noCollision().replaceable().instabreak()
+                    .sound(SoundType.PINK_PETALS).noOcclusion()));
+    public static final PassionBloomBlock PASSION_BLOOM = (PassionBloomBlock)registerBlockWithoutItem(
+            "tainted_heart", MapColor.COLOR_RED,
+            properties -> new PassionBloomBlock(properties.noCollision().instabreak()
+                    .sound(SoundType.SWEET_BERRY_BUSH).noOcclusion()));
     public static final Block SHORT_GRASS = registerBlock("short_grass", MapColor.PLANT,
             properties -> new ShortGrassBlock(properties.noCollision().replaceable().instabreak()
                     .sound(SoundType.GRASS).offsetType(BlockBehaviour.OffsetType.XZ)));
@@ -207,6 +225,23 @@ public class Asterion implements ModInitializer {
                     .sized(0.8F, 0.45F).eyeHeight(0.3F).clientTrackingRange(10)
                     .fireImmune().build(BOMBARDIER_BEETLE_KEY)
     );
+    private static final ResourceKey<EntityType<?>> SCARLET_CENTIPEDE_KEY = ResourceKey.create(
+            Registries.ENTITY_TYPE, id("scarlet_centipede"));
+    public static final EntityType<ScarletCentipedeEntity> SCARLET_CENTIPEDE = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            SCARLET_CENTIPEDE_KEY,
+            EntityType.Builder.of(ScarletCentipedeEntity::new, MobCategory.CREATURE)
+                    .sized(2.1F, 0.82F).eyeHeight(0.62F).clientTrackingRange(12)
+                    .build(SCARLET_CENTIPEDE_KEY)
+    );
+    private static final ResourceKey<Item> SCARLET_CENTIPEDE_SPAWN_EGG_KEY = ResourceKey.create(
+            Registries.ITEM, id("scarlet_centipede_spawn_egg"));
+    public static final Item SCARLET_CENTIPEDE_SPAWN_EGG = Registry.register(
+            BuiltInRegistries.ITEM,
+            SCARLET_CENTIPEDE_SPAWN_EGG_KEY,
+            new SpawnEggItem(new Item.Properties().setId(SCARLET_CENTIPEDE_SPAWN_EGG_KEY)
+                    .spawnEgg(SCARLET_CENTIPEDE))
+    );
     public static final SimpleParticleType BOMBARDIER_STENCH = Registry.register(
             BuiltInRegistries.PARTICLE_TYPE, id("bombardier_stench"), FabricParticleTypes.simple());
     public static final SimpleParticleType BOMBARDIER_GAS_FIRE = Registry.register(
@@ -215,6 +250,8 @@ public class Asterion implements ModInitializer {
             BuiltInRegistries.PARTICLE_TYPE, id("fly"), FabricParticleTypes.simple());
     public static final SimpleParticleType FIREFLY = Registry.register(
             BuiltInRegistries.PARTICLE_TYPE, id("firefly"), FabricParticleTypes.simple());
+    public static final SimpleParticleType HOSTILE_FIREFLY = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, id("hostile_firefly"), FabricParticleTypes.simple());
     public static final SimpleParticleType ANCIENT_WALL_DUST = Registry.register(
             BuiltInRegistries.PARTICLE_TYPE, id("ancient_wall_dust"), FabricParticleTypes.simple());
     public static final SimpleParticleType RUMBLE_SMOKE = Registry.register(
@@ -239,6 +276,18 @@ public class Asterion implements ModInitializer {
     public static final Item MINOTAUR_SIGIL = Registry.register(
             BuiltInRegistries.ITEM, MINOTAUR_SIGIL_KEY,
             new Item(new Item.Properties().setId(MINOTAUR_SIGIL_KEY).stacksTo(1).rarity(Rarity.EPIC)));
+    private static final ResourceKey<Item> TAINTED_HEART_KEY = ResourceKey.create(
+            Registries.ITEM, id("tainted_heart"));
+    public static final Item TAINTED_HEART = Registry.register(
+            BuiltInRegistries.ITEM, TAINTED_HEART_KEY,
+            new BlockItem(PASSION_BLOOM, new Item.Properties().setId(TAINTED_HEART_KEY)));
+    private static final ResourceKey<Item> TAINTED_HEART_EATABLE_KEY = ResourceKey.create(
+            Registries.ITEM, id("tainted_heart_eatable"));
+    public static final Item TAINTED_HEART_EATABLE = Registry.register(
+            BuiltInRegistries.ITEM, TAINTED_HEART_EATABLE_KEY,
+            new Item(new Item.Properties().setId(TAINTED_HEART_EATABLE_KEY)
+                    .food(new FoodProperties.Builder().nutrition(5)
+                            .saturationModifier(0.55F).build())));
     private static final ResourceKey<CreativeModeTab> ITEM_GROUP_KEY = ResourceKey.create(
             Registries.CREATIVE_MODE_TAB, id("asterion"));
     public static final CreativeModeTab ITEM_GROUP = Registry.register(
@@ -251,6 +300,9 @@ public class Asterion implements ModInitializer {
                         output.accept(ANTIKYTHERA_MECHANISM);
                         output.accept(ANTIKYTHERA_BLUEPRINT);
                         output.accept(MINOTAUR_SIGIL);
+                        output.accept(SCARLET_CENTIPEDE_SPAWN_EGG);
+                        output.accept(TAINTED_HEART);
+                        output.accept(TAINTED_HEART_EATABLE);
                         output.accept(ANCIENT_BRICKS);
                         output.accept(ANCIENT_MOSSY_BRICKS);
                         output.accept(ANCIENT_BRICK_SLAB);
@@ -267,6 +319,8 @@ public class Asterion implements ModInitializer {
                         output.accept(ANCIENT_MOSS);
                         output.accept(ANCIENT_MOSS_CARPET);
                         output.accept(ANCIENT_LEAVES);
+                        output.accept(TAINTED_LEAVES);
+                        output.accept(TAINTED_PETALS);
                         output.accept(SHORT_GRASS);
                         output.accept(ANCIENT_STONE_SLAB);
                         output.accept(ANCIENT_STONE_STAIRS);
@@ -312,6 +366,9 @@ public class Asterion implements ModInitializer {
     public static final Feature<NoneFeatureConfiguration> ANCIENT_HANGING_VINE_FEATURE = Registry.register(
             BuiltInRegistries.FEATURE, id("ancient_hanging_vines"),
             new AncientHangingVineFeature(NoneFeatureConfiguration.CODEC));
+    public static final Feature<NoneFeatureConfiguration> TAINTED_PETALS_FEATURE = Registry.register(
+            BuiltInRegistries.FEATURE, id("tainted_petals"),
+            new TaintedPetalsFeature(NoneFeatureConfiguration.CODEC));
     public static final com.mojang.serialization.MapCodec<MazeChunkGenerator> MAZE_CHUNK_GENERATOR =
             Registry.register(BuiltInRegistries.CHUNK_GENERATOR, id("maze"), MazeChunkGenerator.CODEC);
     private static final ResourceKey<PlacedFeature> UNDERWATER_RUIN_PLACED = ResourceKey.create(
@@ -334,6 +391,8 @@ public class Asterion implements ModInitializer {
             Registries.PLACED_FEATURE, id("ancient_ground_vines"));
     private static final ResourceKey<PlacedFeature> ANCIENT_HANGING_VINE_PLACED = ResourceKey.create(
             Registries.PLACED_FEATURE, id("ancient_hanging_vines"));
+    private static final ResourceKey<PlacedFeature> TAINTED_PETALS_PLACED = ResourceKey.create(
+            Registries.PLACED_FEATURE, id("tainted_petals"));
 
     @Override
     public void onInitialize() {
@@ -371,6 +430,7 @@ public class Asterion implements ModInitializer {
         PortalCommands.register();
         FabricDefaultAttributeRegistry.register(MINOTAUR, MinotaurEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(BOMBARDIER_BEETLE, BombadierBeetleEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(SCARLET_CENTIPEDE, ScarletCentipedeEntity.createAttributes());
         ServerChunkEvents.CHUNK_LOAD.register(WorldGenerator::onChunkLoad);
         PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, blockEntity) ->
                 !(level instanceof net.minecraft.server.level.ServerLevel serverLevel)
@@ -400,8 +460,12 @@ public class Asterion implements ModInitializer {
                 GenerationStep.Decoration.VEGETAL_DECORATION, ANCIENT_GROUND_VINE_PLACED);
         BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),
                 GenerationStep.Decoration.VEGETAL_DECORATION, ANCIENT_HANGING_VINE_PLACED);
+        BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),
+                GenerationStep.Decoration.VEGETAL_DECORATION, TAINTED_PETALS_PLACED);
         BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID),
                 MobCategory.CREATURE, BOMBARDIER_BEETLE, 12, 1, 3);
+        BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID),
+                MobCategory.CREATURE, SCARLET_CENTIPEDE, 5, 1, 1);
         ServerTickEvents.END_SERVER_TICK.register(WorldGenerator::tickServer);
         ServerTickEvents.END_SERVER_TICK.register(ResolveSystem::tick);
         ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, baseDamageTaken,
@@ -446,15 +510,21 @@ public class Asterion implements ModInitializer {
 
     private static Block registerBlock(String name, MapColor color,
                                        java.util.function.Function<BlockBehaviour.Properties, Block> factory) {
+        Block block = registerBlockWithoutItem(name, color, factory);
         Identifier identifier = id(name);
-        ResourceKey<Block> blockKey = ResourceKey.create(Registries.BLOCK, identifier);
-        Block block = Registry.register(BuiltInRegistries.BLOCK, blockKey, factory.apply(
-                BlockBehaviour.Properties.of().setId(blockKey).mapColor(color)
-                        .strength(3.5f, 8.0f).sound(SoundType.DEEPSLATE)));
         ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, identifier);
         Registry.register(BuiltInRegistries.ITEM, itemKey,
                 new BlockItem(block, new Item.Properties().setId(itemKey).useBlockDescriptionPrefix()));
         return block;
+    }
+
+    private static Block registerBlockWithoutItem(String name, MapColor color,
+                                                  java.util.function.Function<BlockBehaviour.Properties, Block> factory) {
+        Identifier identifier = id(name);
+        ResourceKey<Block> blockKey = ResourceKey.create(Registries.BLOCK, identifier);
+        return Registry.register(BuiltInRegistries.BLOCK, blockKey, factory.apply(
+                BlockBehaviour.Properties.of().setId(blockKey).mapColor(color)
+                        .strength(3.5f, 8.0f).sound(SoundType.DEEPSLATE)));
     }
 
     private static RuneBlock[] registerRuneBlocks() {

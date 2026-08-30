@@ -9,7 +9,7 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.core.Direction;
 
-/** Non-emissive vine renderer with all six directions pivoting around block center. */
+/** Non-emissive two-state vine renderer using the authored downward pose as zero rotation. */
 public final class LabyrinthVineGeoRenderer
         extends GeoBlockRenderer<LabyrinthVineBlockEntity, BlockEntityRenderState> {
     public LabyrinthVineGeoRenderer(BlockEntityRendererProvider.Context context) {
@@ -27,19 +27,8 @@ public final class LabyrinthVineGeoRenderer
         Direction facing = pass.getOrDefaultGeckolibData(
                 LabyrinthVineGeoModel.FACING, Direction.DOWN);
         snapshots.ifPresent("full", snapshot -> {
-            float x = 0.0F;
-            float z = 0.0F;
-            switch (facing) {
-                // The authored model points down. DOWN therefore remains the clean,
-                // rotation-free reference pose and every other state is absolute.
-                case UP -> x = (float)Math.PI;
-                case NORTH -> x = (float)Math.PI * 0.5F;
-                case SOUTH -> x = -(float)Math.PI * 0.5F;
-                case EAST -> z = (float)Math.PI * 0.5F;
-                case WEST -> z = -(float)Math.PI * 0.5F;
-                default -> { }
-            }
-            snapshot.setRotation(x, 0.0F, z);
+            snapshot.setRotation(facing == Direction.UP ? (float)Math.PI : 0.0F,
+                    0.0F, 0.0F);
         });
     }
 
