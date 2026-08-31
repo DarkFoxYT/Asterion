@@ -218,7 +218,7 @@ public class Asterion implements ModInitializer {
     public static final LabyrinthVineBlock LABYRINTH_VINE = (LabyrinthVineBlock)registerBlock(
             "labyrinth_vine", MapColor.COLOR_BROWN,
             properties -> new LabyrinthVineBlock(properties.noOcclusion().strength(0.4F)
-                    .sound(SoundType.VINE).lightLevel(state -> 0)));
+                    .sound(SoundType.VINE).lightLevel(state -> 5)));
     public static final SkeletonBlock SKELETON = (SkeletonBlock)registerBlock(
             "skeleton", MapColor.COLOR_LIGHT_GRAY,
             properties -> new SkeletonBlock(properties.noOcclusion().strength(0.45F)
