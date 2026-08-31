@@ -225,6 +225,7 @@ public class Asterion implements ModInitializer {
                     .sound(SoundType.BONE_BLOCK)));
     public static final RuneBlock[] RUNE_BLOCKS = registerRuneBlocks();
     public static final Block[] RUNE_STONE_BLOCKS = registerRuneStoneBlocks();
+    public static final Item[] RUNE_TABLETS = registerRuneTablets();
     public static final RuneDoorBlock RUNE_ZONE_DOOR = (RuneDoorBlock)registerBlock("rune_zone_door",
             MapColor.COLOR_BLACK, RuneDoorBlock::new);
     public static final BlockEntityType<RuneBlockEntity> RUNE_BLOCK_ENTITY = Registry.register(
@@ -404,20 +405,30 @@ public class Asterion implements ModInitializer {
                         output.accept(MAZESTEEL_CHAIN);
                         output.accept(MAZESTEEL_GATE);
                         output.accept(WINCH);
-                        output.accept(net.krodark.asterion.block.RespawnObelisks.ALTAR);
-                        output.accept(net.krodark.asterion.block.RespawnObelisks.OBELISK);
-                        output.accept(net.krodark.asterion.block.RespawnObelisks.CHARGED_RUNE);
                         output.accept(LABYRINTH_VINE);
                         output.accept(SKELETON);
-                        for (RuneBlock rune : RUNE_BLOCKS) output.accept(rune);
-                        for (Block rune : RUNE_STONE_BLOCKS) output.accept(rune);
-                        output.accept(RUNE_ZONE_DOOR);
                         output.accept(MINOTAUR_DOOR);
                         output.accept(BARREL_DOOR);
                         output.accept(MINOTAUR_KEY);
                     })
                     .build()
     );
+    public static final CreativeModeTab RUNE_ITEM_GROUP = Registry.register(
+            BuiltInRegistries.CREATIVE_MODE_TAB,
+            ResourceKey.create(Registries.CREATIVE_MODE_TAB, id("runes")),
+            FabricCreativeModeTab.builder()
+                    .title(Component.translatable("itemGroup.asterion.runes"))
+                    .icon(() -> new ItemStack(RUNE_TABLETS[0]))
+                    .displayItems((parameters, output) -> {
+                        for (Item tablet : RUNE_TABLETS) output.accept(tablet);
+                        for (RuneBlock rune : RUNE_BLOCKS) output.accept(rune);
+                        for (Block rune : RUNE_STONE_BLOCKS) output.accept(rune);
+                        output.accept(RUNE_ZONE_DOOR);
+                        output.accept(net.krodark.asterion.block.RespawnObelisks.CHARGED_RUNE);
+                        output.accept(net.krodark.asterion.block.RespawnObelisks.ALTAR);
+                        output.accept(net.krodark.asterion.block.RespawnObelisks.OBELISK);
+                    }).build());
+
     public static final Feature<NoneFeatureConfiguration> UNDERWATER_RUIN_FEATURE = Registry.register(
             BuiltInRegistries.FEATURE, id("underwater_ruin"),
             new UnderwaterRuinFeature(NoneFeatureConfiguration.CODEC));
@@ -644,6 +655,16 @@ public class Asterion implements ModInitializer {
         return Registry.register(BuiltInRegistries.BLOCK, blockKey, factory.apply(
                 BlockBehaviour.Properties.of().setId(blockKey).mapColor(color)
                         .strength(3.5f, 8.0f).sound(SoundType.DEEPSLATE)));
+    }
+
+    private static Item[] registerRuneTablets() {
+        Item[] tablets = new Item[GreekRune.values().length];
+        for (int index = 0; index < tablets.length; index++) {
+            ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id("runestone" + (index + 1)));
+            tablets[index] = Registry.register(BuiltInRegistries.ITEM, key,
+                    new Item(new Item.Properties().setId(key)));
+        }
+        return tablets;
     }
 
     /** Full decorative cubes, kept separate from the interactive Greek rune puzzle pieces. */

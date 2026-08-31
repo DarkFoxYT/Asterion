@@ -36,7 +36,9 @@ public final class RunePuzzleGameTest implements FabricClientGameTest {
                     check(!rune.isWorldGenerated(), "Player placement became a beetle habitat");
                     rune.interact(player, new ItemStack(Asterion.RUNE_STONE_BLOCKS[(index + 1) % 24]));
                     check(!rune.getBlockState().getValue(RuneBlock.POWERED), "Wrong key activated rune");
-                    ItemStack key = new ItemStack(Asterion.RUNE_STONE_BLOCKS[index]);
+                    rune.interact(player, new ItemStack(Asterion.RUNE_TABLETS[(index + 1) % 24]));
+                    check(!rune.getBlockState().getValue(RuneBlock.POWERED), "Wrong tablet activated rune");
+                    ItemStack key = new ItemStack(Asterion.RUNE_TABLETS[index]);
                     rune.interact(player, key);
                     check(key.getCount() == 1, "Reusable key consumed");
                     for (int c = 0; c < 3; c++) for (int r = 0; r < 3; r++) {

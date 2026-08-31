@@ -72,10 +72,11 @@ public final class RuneBlockEntity extends BlockEntity implements GeoBlockEntity
     public void interact(Player player, ItemStack key) {
         if (!(level instanceof ServerLevel) || !player.mayBuild()) return;
         boolean reset = key.isEmpty() && player.isShiftKeyDown();
-        boolean matches = key.is(Asterion.RUNE_STONE_BLOCKS[runeIndex()].asItem());
+        boolean matches = key.is(Asterion.RUNE_TABLETS[runeIndex()])
+                || key.is(Asterion.RUNE_STONE_BLOCKS[runeIndex()].asItem());
         if (!reset && !matches) {
             player.sendOverlayMessage(net.minecraft.network.chat.Component.translatable("message.asterion.rune_key_required",
-                    net.minecraft.network.chat.Component.translatable(Asterion.RUNE_STONE_BLOCKS[runeIndex()].getDescriptionId())));
+                    net.minecraft.network.chat.Component.translatable(Asterion.RUNE_TABLETS[runeIndex()].getDescriptionId())));
             return;
         }
         boolean powered = !reset;
