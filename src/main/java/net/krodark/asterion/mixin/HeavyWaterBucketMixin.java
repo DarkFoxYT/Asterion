@@ -20,6 +20,13 @@ import org.spongepowered.asm.mixin.injection.At;
 
 @Mixin(BucketItem.class)
 public abstract class HeavyWaterBucketMixin {
+    @org.spongepowered.asm.mixin.injection.Inject(method = "emptyContents", at = @At("HEAD"), cancellable = true)
+    private void asterion$protectCatacombFluids(LivingEntity user, net.minecraft.world.level.Level level, BlockPos pos,
+            net.minecraft.world.phys.BlockHitResult hit,
+            org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Boolean> result) {
+        if (user instanceof net.minecraft.world.entity.player.Player
+                && net.krodark.asterion.worldgen.CatacombProtection.contains(level, pos)) result.setReturnValue(false);
+    }
     @Shadow @Final private Fluid content;
     @ModifyExpressionValue(method = {"use", "emptyContents"}, at = @At(value = "FIELD",
             target = "Lnet/minecraft/world/level/material/Fluids;WATER:Lnet/minecraft/world/level/material/FlowingFluid;"))

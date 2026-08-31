@@ -43,6 +43,7 @@ public final class HeavyWaterloggingGameTest implements FabricClientGameTest {
             server.runOnServer(mc -> {
                 ServerLevel level = mc.overworld();
                 var player = mc.getPlayerList().getPlayers().getFirst();
+                CatacombProtectionCheck.run(mc, player);
                 BlockPos decorationPos = new BlockPos(22, 122, 0);
                 level.setBlock(decorationPos.below(), Blocks.DIRT.defaultBlockState(), 3);
                 for (var block : new net.minecraft.world.level.block.Block[]{Asterion.SKELETON, Asterion.LABYRINTH_VINE,
@@ -85,6 +86,36 @@ public final class HeavyWaterloggingGameTest implements FabricClientGameTest {
                     check(!level.getBlockState(pos).getValue(BlockStateProperties.WATERLOGGED), "Pickup did not drain container");
                 }
                 BlockPos solid = new BlockPos(16, 122, 0);
+                BlockPos circuit = new BlockPos(18, 122, 8);
+                for (var block : new net.minecraft.world.level.block.Block[]{Blocks.REDSTONE_WIRE,
+                        Blocks.REPEATER, Blocks.COMPARATOR, Blocks.REDSTONE_TORCH, Blocks.REDSTONE_WALL_TORCH,
+                        Blocks.LEVER, Blocks.STONE_BUTTON, Blocks.OAK_BUTTON, Blocks.STONE_PRESSURE_PLATE,
+                        Blocks.OAK_PRESSURE_PLATE, Blocks.LIGHT_WEIGHTED_PRESSURE_PLATE,
+                        Blocks.HEAVY_WEIGHTED_PRESSURE_PLATE, Blocks.TRIPWIRE, Blocks.TRIPWIRE_HOOK,
+                        Blocks.DAYLIGHT_DETECTOR, Blocks.POWERED_RAIL, Blocks.DETECTOR_RAIL, Blocks.ACTIVATOR_RAIL}) {
+                    for (Direction side : Direction.values())
+                        level.setBlock(circuit.relative(side), Blocks.STONE.defaultBlockState(), 2);
+                    for (int amount = 1; amount <= 9; amount++) {
+                        BlockState dry = block.defaultBlockState();
+                        level.setBlock(circuit, dry, 2);
+                        check(HeavyWaterlogging.fill(level, circuit, dry, HeavyWaterlogging.fluid(amount)), "Circuit rejected heavy water: " + block);
+                        level.updateNeighborsAt(circuit.above(), Blocks.STONE);
+                        if (block == Blocks.TRIPWIRE_HOOK)
+                            net.minecraft.world.level.block.TripWireHookBlock.calculateState(level, circuit, level.getBlockState(circuit), false, true, -1, null);
+                        BlockState wet = level.getBlockState(circuit);
+                        check(wet.is(block) && HeavyWaterlogging.amount(wet) == amount, "Circuit lost block/water on neighbor update: " + block);
+                        var encoded = BlockState.CODEC.encodeStart(JsonOps.INSTANCE, wet).getOrThrow();
+                        check(BlockState.CODEC.parse(JsonOps.INSTANCE, encoded).getOrThrow() == wet, "Circuit water failed save round-trip");
+                    }
+                    level.setBlock(circuit, block.defaultBlockState(), 2);
+                    check(((BucketItem)HeavyWater.BUCKET).emptyContents(player, level, circuit, null), "Bucket destroyed circuit: " + block);
+                    check(level.getBlockState(circuit).is(block), "Bucket replaced circuit: " + block);
+                    check(((BucketPickup)block).pickupBlock(player, level, circuit, level.getBlockState(circuit)).is(HeavyWater.BUCKET), "Circuit pickup failed: " + block);
+                }
+                Asterion.LOGGER.info("PASS: 18 redstone components retain all Heavy Water layers, neighbor updates, saved state and bucket pickup");
+                level.setBlock(circuit, Blocks.REDSTONE_WIRE.defaultBlockState(), 2);
+                check(((BucketItem)Items.WATER_BUCKET).emptyContents(player, level, circuit, null), "Ordinary water bucket failed");
+                check(!level.getBlockState(circuit).is(Blocks.REDSTONE_WIRE), "Changed ordinary water's redstone behavior");
                 level.setBlock(solid, Blocks.STONE_SLAB.defaultBlockState().setValue(BlockStateProperties.SLAB_TYPE, SlabType.DOUBLE), 3);
                 check(!((BucketItem)HeavyWater.BUCKET).emptyContents(player, level, solid, null), "Waterlogged a double slab");
                 check(level.getBlockState(solid).is(Blocks.STONE_SLAB), "Double slab was destroyed");
@@ -114,9 +145,22 @@ public final class HeavyWaterloggingGameTest implements FabricClientGameTest {
                 }
 
                 // Flow, independent of bucket use and placement, must waterlog nearby containers.
+                BlockPos placedWire = new BlockPos(-6, 122, 0);
+                for (int amount = 1; amount <= 8; amount++) {
+                    level.setBlock(placedWire, HeavyWater.BLOCK.defaultBlockState().setValue(TidalWaterBlock.LEVEL, amount), 3);
+                    player.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.REDSTONE));
+                    var hit = new BlockHitResult(Vec3.atCenterOf(placedWire.below()).add(0, .5, 0), Direction.UP, placedWire.below(), false);
+                    ((BlockItem)Items.REDSTONE).place(new BlockPlaceContext(new UseOnContext(player, InteractionHand.MAIN_HAND, hit)));
+                    check(level.getBlockState(placedWire).is(Blocks.REDSTONE_WIRE)
+                            && HeavyWaterlogging.amount(level.getBlockState(placedWire)) == amount,
+                            "Placing redstone lost the flood layer");
+                }
                 BlockPos flow = new BlockPos(8, 122, 6);
                 level.setBlock(flow, HeavyWater.WATER_BLOCK.defaultBlockState(), 3);
                 level.setBlock(flow.east(), Blocks.STONE_SLAB.defaultBlockState(), 3);
+                BlockPos wire = flow.west();
+                level.setBlock(wire, Blocks.REDSTONE_WIRE.defaultBlockState(), 3);
+                level.setBlock(wire.west(), Blocks.REDSTONE_BLOCK.defaultBlockState(), 3);
                 checkFloodContainers(mc.getLevel(Asterion.ASTERION_LEVEL));
                 long start = level.getGameTime();
                 ServerTickEvents.END_LEVEL_TICK.register(ticking -> {
@@ -125,6 +169,9 @@ public final class HeavyWaterloggingGameTest implements FabricClientGameTest {
                     try {
                         if (tick >= 100) {
                             check(level.getBlockState(flow.east()).is(Blocks.STONE_SLAB), "Flow replaced slab");
+                            check(level.getBlockState(wire).is(Blocks.REDSTONE_WIRE), "Flow destroyed redstone dust");
+                            check(HeavyWaterlogging.amount(level.getBlockState(wire)) == HeavyWaterlogging.NORMAL, "Flow failed to waterlog dust");
+                            check(level.getBlockState(wire).getValue(BlockStateProperties.POWER) == 15, "Flooded dust stopped conducting power");
                             check(HeavyWaterlogging.amount(level.getBlockState(flow.east())) == HeavyWaterlogging.NORMAL, "Flow did not waterlog slab");
                             check(level.getBlockState(placed).is(Blocks.STONE_STAIRS), "Scheduled ticks destroyed logged stairs");
                         }
@@ -142,14 +189,19 @@ public final class HeavyWaterloggingGameTest implements FabricClientGameTest {
     }
     private static void checkFloodContainers(ServerLevel maze) {
         BlockState[] shapes = {Blocks.STONE_STAIRS.defaultBlockState(), Blocks.STONE_SLAB.defaultBlockState(),
-                Blocks.IRON_BARS.defaultBlockState(), Asterion.MAZESTEEL_GATE.defaultBlockState()};
+                Blocks.IRON_BARS.defaultBlockState(), Asterion.MAZESTEEL_GATE.defaultBlockState(),
+                Blocks.REDSTONE_WIRE.defaultBlockState(), Blocks.REPEATER.defaultBlockState(),
+                Blocks.COMPARATOR.defaultBlockState()};
         BlockPos base = new BlockPos(320, 7, 320);
         for (int i = 0; i < shapes.length; i++) {
             BlockPos pos = base.east(i);
             maze.setBlock(pos, HeavyWater.WATER_BLOCK.defaultBlockState(), 3);
+            if (shapes[i].getBlock() instanceof net.krodark.asterion.block.HeavyWaterRedstone)
+                maze.setBlock(pos, HeavyWaterlogging.withFluid(Blocks.STONE_SLAB.defaultBlockState()
+                        .setValue(BlockStateProperties.SLAB_TYPE, SlabType.TOP), HeavyWater.STILL.defaultFluidState()), 3);
             maze.setBlock(pos.above(), shapes[i], 3);
         }
-        BlockPos preWet = base.east(5).above();
+        BlockPos preWet = base.east(9).above();
         maze.setBlock(preWet.below(), HeavyWater.WATER_BLOCK.defaultBlockState(), 3);
         maze.setBlock(preWet, Blocks.OAK_FENCE.defaultBlockState().setValue(BlockStateProperties.WATERLOGGED, true), 3);
         for (int step = 1; step <= 8; step++) {

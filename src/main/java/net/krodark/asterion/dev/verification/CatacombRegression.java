@@ -1,107 +1,78 @@
 package net.krodark.asterion.dev.verification;
 
-import net.krodark.asterion.worldgen.CatacombLayout;
-
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.IntTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NbtAccounter;
-import net.minecraft.nbt.NbtIo;
-
+import net.krodark.asterion.worldgen.*;
+import net.minecraft.core.Direction;
+import net.minecraft.nbt.*;
 import java.nio.file.Path;
-import java.util.ArrayDeque;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
-/** Checks the worldgen contracts most likely to strand players or break edited NBT rooms. */
+/** Contracts for the supplied full-size templates and their infinite rooted layout. */
 public final class CatacombRegression {
     private static int checks;
-
     public static void main(String[] args) throws Exception {
-        connectedFloodedGalleries();
-        for (String name : new String[]{"crossing", "ossuary", "sluice", "parkour"}) template(name);
-        System.out.println("Catacomb regression: " + checks + " checks passed");
-    }
-
-    private static void connectedFloodedGalleries() {
-        Set<Long> passages = new HashSet<>();
-        for (int x = -64; x < 64; x++) for (int z = -64; z < 64; z++) {
-            if (CatacombLayout.passage(x, z)) passages.add(key(x, z));
-            for (long seed : new long[]{0, -1, 894237, Long.MIN_VALUE, Long.MAX_VALUE}) {
-                int depth = CatacombLayout.WATER_Y - CatacombLayout.floor(seed, x, z);
-                require(depth == 1 || depth == 2, "Unsafe water depth at " + x + "," + z);
+        Set<String> selected = new HashSet<>();
+        for (long seed : new long[]{0,-1,894237,Long.MIN_VALUE,Long.MAX_VALUE}) {
+            for (int x=-24; x<=24; x++) for(int z=-24; z<=24; z++) {
+                if (CatacombLayout.reserved(x,z)) continue;
+                var module = AuthoredCatacombs.module(seed,x,z);
+                selected.add(module.name());
+                require((module.exits() & module.blocked()) == 0,"An active connection was capped");
+                for (Direction side : Direction.Plane.HORIZONTAL)
+                    require(CatacombLayout.connected(seed,x,z,side)==CatacombLayout.connected(seed,x+side.getStepX(),z+side.getStepZ(),side.getOpposite()),"Mismatched seam");
+                int px=x,pz=z,steps=0;
+                while(px!=CatacombLayout.ROOT_X || pz!=CatacombLayout.ROOT_Z) {
+                    var parent=CatacombLayout.parent(seed,px,pz);
+                    require(parent!=null && ++steps<128,"Cycle or disconnected cell");
+                    px+=parent.getStepX(); pz+=parent.getStepZ();
+                    require(!CatacombLayout.reserved(px,pz),"Path crosses arena");
+                }
             }
         }
-        Set<Long> reached = new HashSet<>();
-        ArrayDeque<Long> queue = new ArrayDeque<>();
-        queue.add(passages.iterator().next());
-        while (!queue.isEmpty()) {
-            long next = queue.removeFirst();
-            if (!passages.contains(next) || !reached.add(next)) continue;
-            int x = (int)(next >> 32), z = (int)next;
-            queue.add(key(x - 1, z)); queue.add(key(x + 1, z));
-            queue.add(key(x, z - 1)); queue.add(key(x, z + 1));
-        }
-        require(reached.equals(passages), "Disconnected galleries across tile/negative-coordinate seams");
+        require(selected.containsAll(AuthoredCatacombs.TEMPLATES),"Unreachable variants: "+AuthoredCatacombs.TEMPLATES.stream().filter(n->!selected.contains(n)).toList());
+        for(String name:AuthoredCatacombs.TEMPLATES) template(name,19,31,19);
+        for(int part=1;part<=9;part++) template("arena_part"+part,41,48,41);
+        require(AuthoredCatacombs.ARENA_BASE_Y+23==AuthoredCatacombs.CONNECTOR_Y,"Arena exit elevation differs from crypts");
+        require(!CatacombLayout.contains(new net.minecraft.core.BlockPos(0,7,0)),"Arena counted as catacombs");
+        System.out.println("Authored catacomb regression: "+checks+" checks passed; all 24 assets validated");
     }
-
-    private static void template(String name) throws Exception {
-        Path path = Path.of("src/main/resources/data/asterion/structure/catacombs", name + ".nbt");
-        CompoundTag root = NbtIo.readCompressed(path, NbtAccounter.unlimitedHeap());
-        ListTag size = root.getListOrEmpty("size");
-        require(integer(size, 0) == 9 && integer(size, 1) == 11 && integer(size, 2) == 9,
-                name + ": footprint no longer fits the jigsaw reservation");
-        ListTag palette = root.getListOrEmpty("palette");
-        Map<Integer, CompoundTag> states = new HashMap<>();
-        int connectors = 0;
-        for (var value : root.getListOrEmpty("blocks")) {
-            CompoundTag block = (CompoundTag)value;
-            ListTag pos = block.getListOrEmpty("pos");
-            int x = integer(pos, 0), y = integer(pos, 1), z = integer(pos, 2);
-            require(x >= 0 && x < 9 && y >= 0 && y < 11 && z >= 0 && z < 9, name + ": out-of-bounds block");
-            int index = block.getIntOr("state", -1);
-            require(index >= 0 && index < palette.size(), name + ": invalid palette index");
-            CompoundTag state = (CompoundTag)palette.get(index);
-            require(states.put(x + z * 9 + y * 81, state) == null, name + ": overlapping block records");
-            if (state.getStringOr("Name", "").equals("minecraft:jigsaw")) {
+    private static void template(String name,int sx,int sy,int sz) throws Exception {
+        CompoundTag root=NbtIo.readCompressed(Path.of("src/main/resources/data/asterion/structure/catacombs",name+".nbt"),NbtAccounter.unlimitedHeap());
+        var size=root.getListOrEmpty("size");
+        require(integer(size,0)==sx && integer(size,1)==sy && integer(size,2)==sz,"Invalid dimensions: "+name);
+        var palette=root.getListOrEmpty("palette");
+        Set<Integer> positions=new HashSet<>(); int connectors=0, rewards=0;
+        for(var entry:root.getListOrEmpty("blocks")) {
+            var block=(CompoundTag)entry; var pos=block.getListOrEmpty("pos");
+            int x=integer(pos,0),y=integer(pos,1),z=integer(pos,2);
+            require(x>=0&&x<sx&&y>=0&&y<sy&&z>=0&&z<sz,"Out of bounds: "+name);
+            require(positions.add(x+sx*(z+sz*y)),"Duplicate coordinate: "+name);
+            var state=(CompoundTag)palette.get(block.getIntOr("state",-1));
+            String blockName=state.getStringOr("Name","");
+            if(blockName.equals("minecraft:chest")||blockName.equals("minecraft:barrel")||blockName.equals("minecraft:trapped_chest")) {
+                var data=block.getCompoundOrEmpty("nbt");
+                if(data.getListOrEmpty("Items").isEmpty()) {
+                    String loot=data.getStringOr("LootTable","");
+                    require(loot.startsWith("asterion:chests/catacomb_"),"Missing container loot: "+name);
+                    require(!data.contains("LootTableSeed"),"Fixed repeated loot seed: "+name);
+                    if(loot.equals("asterion:chests/catacomb_puzzle_reward"))rewards++;
+                    else require(loot.equals("asterion:chests/"+(name.equals("puzzleroom")?"catacomb_puzzle_supplies":"catacomb_cache")),"Wrong loot tier: "+name);
+                }
+            }
+            if(state.getStringOr("Name","").equals("minecraft:jigsaw")) {
                 connectors++;
-                CompoundTag nbt = block.getCompoundOrEmpty("nbt");
-                require(!nbt.getStringOr("pool", "").isBlank(), name + ": missing jigsaw pool");
-                require(!nbt.getStringOr("final_state", "").isBlank(), name + ": unsanitized jigsaw");
+                var data=block.getCompoundOrEmpty("nbt");
+                require(data.getStringOr("name","").equals("asterion:catacombs/door"),"Unconfigured connector: "+name);
+                require(data.getStringOr("target","").equals("asterion:catacombs/door"),"Unconfigured target: "+name);
+                require(data.getStringOr("final_state","").equals("minecraft:air"),"Unexpected connector replacement");
+                require(data.getStringOr("joint","").equals("aligned"),"Rollable module: "+name);
+                require(y==(name.startsWith("arena_part")?23:5),"Misaligned doorway");
             }
         }
-        require(states.size() == 891, name + ": unfilled shell or missing explicit air");
-        require(is(states, 0, 4, 2, "asterion:lamenter") && is(states, 8, 4, 2, "asterion:lamenter"),
-                name + ": missing wall Lamenters");
-        require(states.get(2 * 9 + 4 * 81).getCompoundOrEmpty("Properties").getStringOr("facing", "").equals("east")
-                && states.get(8 + 2 * 9 + 4 * 81).getCompoundOrEmpty("Properties").getStringOr("facing", "").equals("west"),
-                name + ": Lamenters must face into the gallery");
-        require(connectors == (name.equals("crossing") ? 5 : 1), name + ": incompatible connector count");
-        require(is(states, 2, 9, 2, "minecraft:water") && is(states, 2, 8, 2, "minecraft:dripstone_block")
-                && is(states, 2, 7, 2, "minecraft:pointed_dripstone"), name + ": missing roof leak");
-        for (int x = 0; x < 9; x++) for (int z = 0; z < 9; z++) {
-            String floor = states.get(x + z * 9).getStringOr("Name", "");
-            require(floor.startsWith("asterion:ancient_") || floor.equals("minecraft:jigsaw"), name + ": leaking floor");
-            require(states.get(x + z * 9 + 10 * 81).getStringOr("Name", "").startsWith("asterion:ancient_"), name + ": leaking reservoir lid");
-        }
-        if (name.equals("sluice")) {
-            for (int x = 3; x <= 5; x++) {
-                CompoundTag gate = states.get(x + 3 * 9 + 81);
-                require(gate.getStringOr("Name", "").equals("asterion:mazesteel_gate"), "Missing lower gate panel");
-                require(gate.getCompoundOrEmpty("Properties").getStringOr("waterlogged", "").equals("true"),
-                        "Water will wash away a lower sluice panel");
-            }
-            for (int x : new int[]{2, 4, 6}) require(is(states, x, 3, 6, "minecraft:lever"), "Valve/controller offsets disagree");
-            require(is(states, 4, 5, 3, "asterion:sluice_lock"), "Missing puzzle controller");
-        }
+        require(positions.size()==sx*sy*sz,"Missing explicit blocks/air: "+name);
+        int expected=name.startsWith("arena_part")?(name.equals("arena_part8")?1:0):name.startsWith("corridor_cross")||name.startsWith("crossing")?4:name.startsWith("corridor_t")?3:name.startsWith("corridor_deadend")||name.equals("puzzleroom")?1:2;
+        require(connectors==expected,"Wrong connector count: "+name);
+        require(rewards==(name.equals("puzzleroom")?1:0),"Expected one main puzzle reward and none elsewhere: "+name);
     }
-
-    private static boolean is(Map<Integer, CompoundTag> states, int x, int y, int z, String name) {
-        return states.get(x + z * 9 + y * 81).getStringOr("Name", "").equals(name);
-    }
-    private static int integer(ListTag list, int index) { return ((IntTag)list.get(index)).intValue(); }
-    private static long key(int x, int z) { return (long)x << 32 | Integer.toUnsignedLong(z); }
-    private static void require(boolean success, String message) { checks++; if (!success) throw new AssertionError(message); }
+    private static int integer(ListTag list,int i){return ((IntTag)list.get(i)).intValue();}
+    private static void require(boolean ok,String message){checks++;if(!ok)throw new AssertionError(message);}
 }

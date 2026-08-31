@@ -16,7 +16,7 @@ public final class MazeWildlife {
         if (level.getGameTime() % 200 != 0 || !level.getGameRules().get(GameRules.SPAWN_MOBS)) return;
         for (var player : level.players()) {
             if (player.isSpectator() || !player.isAlive()) continue;
-            boolean sewer = player.getY() < CatacombLayout.ROOF_Y;
+            boolean sewer = CatacombLayout.contains(player.blockPosition());
             AABB area = player.getBoundingBox().inflate(56);
             int count = sewer ? level.getEntitiesOfClass(ScarletCentipedeEntity.class, area).size()
                     : level.getEntitiesOfClass(BombadierBeetleEntity.class, area).size();
@@ -26,7 +26,7 @@ public final class MazeWildlife {
                 int x = (int)Math.floor(player.getX() + Math.cos(angle) * distance);
                 int z = (int)Math.floor(player.getZ() + Math.sin(angle) * distance);
                 if (!level.getChunkSource().hasChunk(x >> 4, z >> 4)) continue;
-                for (int y = sewer ? 10 : 59; y >= (sewer ? 5 : 48); y--) {
+                for (int y = sewer ? CatacombLayout.WATER_Y + 3 : 59; y >= (sewer ? CatacombLayout.FLOOR_Y - 1 : 48); y--) {
                     BlockPos feet = new BlockPos(x, y, z);
                     if (Math.abs(x) < 65 && Math.abs(z) < 65 || WorldGenerator.isNearSafeRune(level, feet)
                             || !BugSurfaces.allowed(level, feet.below())) continue;

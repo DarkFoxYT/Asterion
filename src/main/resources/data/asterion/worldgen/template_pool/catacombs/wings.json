@@ -1,41 +1,32 @@
 {
-  "fallback": "minecraft:empty",
   "elements": [
     {
-      "weight": 3,
       "element": {
-        "element_type": "minecraft:single_pool_element",
-        "location": "asterion:catacombs/sluice",
-        "processors": "minecraft:empty",
-        "projection": "rigid"
-      }
-    },
-    {
-      "weight": 2,
-      "element": {
-        "element_type": "minecraft:single_pool_element",
-        "location": "asterion:catacombs/parkour",
-        "processors": "minecraft:empty",
-        "projection": "rigid"
-      }
-    },
-    {
-      "weight": 2,
-      "element": {
-        "element_type": "minecraft:single_pool_element",
-        "location": "asterion:catacombs/ossuary",
-        "processors": "minecraft:empty",
-        "projection": "rigid"
-      }
-    },
-    {
-      "weight": 2,
-      "element": {
+        "location": "asterion:catacombs/ossuary_01",
         "projection": "rigid",
-        "processors": "minecraft:empty",
-        "location": "asterion:catacombs/cursed_brazier",
-        "element_type": "minecraft:single_pool_element"
-      }
+        "element_type": "minecraft:single_pool_element",
+        "processors": "minecraft:empty"
+      },
+      "weight": 1
+    },
+    {
+      "element": {
+        "location": "asterion:catacombs/parkour",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element",
+        "processors": "minecraft:empty"
+      },
+      "weight": 1
+    },
+    {
+      "element": {
+        "location": "asterion:catacombs/puzzleroom",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element",
+        "processors": "minecraft:empty"
+      },
+      "weight": 1
     }
-  ]
+  ],
+  "fallback": "minecraft:empty"
 }

@@ -218,9 +218,19 @@ loom {
             runDir "build/barrel-door-gametest"
             ideConfigGenerated = false
         }
+        catacombTest {
+            client()
+            name = "Catacomb layout integration test"
+            vmArg "-Dfabric.client.gametest"
+            vmArg "-Dfabric.client.gametest.modid=asterion_catacomb_test"
+            vmArg "-Dfabric.addMods=${layout.buildDirectory.dir('catacomb-testmod').get().asFile.absolutePath}"
+            runDir "build/catacomb-gametest"
+            ideConfigGenerated = false
+        }
         doorTest {
             client()
             name = "Door integration test"
+            if (project.hasProperty("pillarOnly")) vmArg "-Dasterion.pillarTest=true"
             vmArg "-Dfabric.client.gametest"
             vmArg "-Dfabric.client.gametest.modid=asterion"
             runDir "build/door-gametest"
@@ -248,6 +258,18 @@ loom {
 }
 
 tasks.matching { it.name == "runLamenterTest" }.configureEach { dependsOn "prepareLamenterGameTest" }
+tasks.register("prepareCatacombGameTest") {
+    def metadata = layout.buildDirectory.file("catacomb-testmod/fabric.mod.json")
+    outputs.file(metadata)
+    doLast {
+        def target = metadata.get().asFile
+        target.parentFile.mkdirs()
+        target.text = groovy.json.JsonOutput.toJson([
+                schemaVersion: 1, id: "asterion_catacomb_test", version: "1.0.0", environment: "client",
+                entrypoints: ["fabric-client-gametest": ["net.krodark.asterion.dev.verification.CatacombLayoutGameTest"]]])
+    }
+}
+tasks.matching { it.name == "runCatacombTest" }.configureEach { dependsOn "prepareCatacombGameTest" }
 tasks.matching { it.name in ["runClient", "runEssentialClient", "runEssentialTest"] }.configureEach { dependsOn "jar" }
 
 // IntelliJ's "Main.main()" Gradle action creates its own JavaExec instead of using runClient.
@@ -333,7 +355,18 @@ tasks.register("rebuildCatacombTemplates", JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     mainClass = "net.krodark.asterion.dev.CatacombTemplateBuilder"
     javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
-    args file("src/main/resources/data/asterion/structure/catacombs").absolutePath
+    args layout.buildDirectory.dir("legacy-catacomb-template-preview").get().asFile.absolutePath
+}
+
+tasks.register("importAuthoredCatacombs", JavaExec) {
+    group = "development"
+    description = "Imports authored NBT copies and normalizes their jigsaw metadata without editing the saved world."
+    dependsOn compileJava
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = "net.krodark.asterion.dev.ImportAuthoredCatacombs"
+    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+    args file("run/saves/build/generated/asterion/structure/catacombs").absolutePath,
+            file("src/main/resources/data/asterion/structure/catacombs").absolutePath
 }
 
 def regressionSuites = [
@@ -408,6 +441,8 @@ tasks.matching { it.name == "runBarrelDoorTest" }.configureEach { dependsOn "pre
 
 
 tasks.register("prepareHeavyWaterGameTest") {
+    def loggingOnly = providers.gradleProperty("heavyWaterloggingOnly").isPresent()
+    inputs.property("loggingOnly", loggingOnly)
     def metadata = layout.buildDirectory.file("heavy-water-testmod/fabric.mod.json")
     outputs.file(metadata)
     doLast {
@@ -415,8 +450,10 @@ tasks.register("prepareHeavyWaterGameTest") {
         target.parentFile.mkdirs()
         target.text = groovy.json.JsonOutput.toJson([
                 schemaVersion: 1, id: "asterion_heavy_water_test", version: "1.0.0", environment: "client",
-                entrypoints: ["fabric-client-gametest": ["net.krodark.asterion.dev.verification.HeavyWaterloggingGameTest",
-                        "net.krodark.asterion.dev.verification.HeavyWaterGameTest"]]])
+                entrypoints: ["fabric-client-gametest": loggingOnly
+                        ? ["net.krodark.asterion.dev.verification.HeavyWaterloggingGameTest"]
+                        : ["net.krodark.asterion.dev.verification.HeavyWaterloggingGameTest",
+                           "net.krodark.asterion.dev.verification.HeavyWaterGameTest"]]])
     }
 }
 tasks.matching { it.name == "runHeavyWaterTest" }.configureEach { dependsOn "prepareHeavyWaterGameTest" }
@@ -429,7 +466,7 @@ tasks.matching { it.name == "runHeavyWaterTest" }.configureEach { dependsOn "pre
         target.parentFile.mkdirs()
         target.text = groovy.json.JsonOutput.toJson([
                 schemaVersion: 1, id: "asterion_rune_puzzle_test", version: "1.0.0", environment: "client",
-                entrypoints: ["fabric-client-gametest": ["net.krodark.asterion.dev.verification.RunePuzzleGameTest", "net.krodark.asterion.dev.verification.GameplayGameTest"]]])
+                entrypoints: ["fabric-client-gametest": ["net.krodark.asterion.dev.verification.RagdollMultiplayerGameTest", "net.krodark.asterion.dev.verification.RunePuzzleGameTest", "net.krodark.asterion.dev.verification.GameplayGameTest"]]])
     }
 }
 tasks.matching { it.name == "runRunePuzzleTest" }.configureEach { dependsOn "prepareRunePuzzleGameTest" }

@@ -17,9 +17,15 @@ public final class GasClouds {
     private static final Map<ServerLevel, List<Cloud>> CLOUDS = new IdentityHashMap<>();
     private GasClouds() { }
     public static void emit(ServerLevel level, Vec3 origin, Vec3 velocity, UUID owner) {
+        emit(level, origin, velocity, owner, false);
+    }
+    public static void emitFlamethrower(ServerLevel level, Vec3 origin, Vec3 velocity, UUID owner) {
+        emit(level, origin, velocity, owner, true);
+    }
+    private static void emit(ServerLevel level, Vec3 origin, Vec3 velocity, UUID owner, boolean flamethrower) {
         var clouds = CLOUDS.computeIfAbsent(level, ignored -> new ArrayList<>());
         if (clouds.size() >= 256 || clouds.stream().filter(c -> Objects.equals(c.owner, owner)).count() >= 64) return;
-        clouds.add(new Cloud(origin, velocity, owner));
+        clouds.add(new Cloud(origin, velocity, owner, flamethrower));
     }
     public static void ignite(ServerLevel level, Vec3 origin, UUID owner) {
         for (var cloud : CLOUDS.getOrDefault(level, List.of()))
@@ -52,7 +58,9 @@ public final class GasClouds {
                 if (visible(level, cloud.pos, next)) cloud.pos = next;
                 else cloud.velocity = Vec3.ZERO;
                 cloud.velocity = cloud.velocity.multiply(.975, .97, .975).add(0, -.001, 0);
-                if (cloud.age % 4 == 0) level.sendParticles(cloud.burn > 0 ? Asterion.BOMBARDIER_GAS_FIRE : Asterion.BOMBARDIER_STENCH,
+                if (cloud.age % 4 == 0) level.sendParticles(cloud.flamethrower
+                        ? (cloud.burn > 0 ? Asterion.FLAMETHROWER_GAS_FIRE : Asterion.FLAMETHROWER_GAS)
+                        : (cloud.burn > 0 ? Asterion.BOMBARDIER_GAS_FIRE : Asterion.BOMBARDIER_STENCH),
                         cloud.pos.x, cloud.pos.y, cloud.pos.z, 3, .38, .25, .38, .005);
                 if (level.getGameTime() % 10 != 0) continue;
                 for (var victim : level.getEntitiesOfClass(LivingEntity.class, new AABB(cloud.pos, cloud.pos).inflate(1.2))) {
@@ -72,8 +80,12 @@ public final class GasClouds {
         CLOUDS.values().removeIf(List::isEmpty);
     }
     public static void clear() { CLOUDS.clear(); }
+    public static void clearOwner(ServerLevel level, UUID owner) {
+        var clouds = CLOUDS.get(level);
+        if (clouds != null) clouds.removeIf(cloud -> owner.equals(cloud.owner));
+    }
     private static final class Cloud {
-        Vec3 pos, velocity; final UUID owner; int age, burn;
-        Cloud(Vec3 pos, Vec3 velocity, UUID owner) { this.pos = pos; this.velocity = velocity; this.owner = owner; }
+        Vec3 pos, velocity; final UUID owner; final boolean flamethrower; int age, burn;
+        Cloud(Vec3 pos, Vec3 velocity, UUID owner, boolean flamethrower) { this.pos = pos; this.velocity = velocity; this.owner = owner; this.flamethrower = flamethrower; }
     }
 }

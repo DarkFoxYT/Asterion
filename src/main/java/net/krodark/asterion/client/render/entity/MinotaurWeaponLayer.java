@@ -40,11 +40,11 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
                         poses.pushPose();
                         if (!drawn) {
                             int sign = side.equals("right") ? -1 : 1;
-                            // Relative to the animated pelvis; outside the skirt and thighs.
-                            poses.translate(sign * 23.0 / 16, 4.0 / 16, -8.0 / 16);
-                            poses.mulPose(com.mojang.math.Axis.XP.rotationDegrees(180));
-                            poses.mulPose(com.mojang.math.Axis.YP.rotationDegrees(sign * 90));
-                            poses.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(sign * 6));
+                            // Thin edge against the hip, blade trailing behind the thigh.
+                            // The mesh is broad in Z, so a 90-degree yaw made it stick out sideways.
+                            poses.translate(sign * 17.0 / 16, 10.0 / 16, 3.0 / 16);
+                            poses.mulPose(com.mojang.math.Axis.XP.rotationDegrees(168));
+                            poses.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(-sign * 6));
                         }
                         MinotaurSwordVisual.submit(poses, tasks, posed.cameraState(), posed.packedLight(), drawn);
                         poses.popPose();

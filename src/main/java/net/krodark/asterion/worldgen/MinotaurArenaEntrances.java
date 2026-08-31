@@ -13,13 +13,13 @@ import net.minecraft.world.level.block.state.properties.AttachFace;
 
 /** One player stairway faces an enclosed Minotaur staging room across the arena. */
 public final class MinotaurArenaEntrances {
-    public static final int DOOR_RADIUS = 34, FLOOR_Y = 36;
+    public static final int DOOR_RADIUS = 61, FLOOR_Y = AuthoredCatacombs.ARENA_FLOOR_Y;
     public static final Direction PLAYER_ENTRANCE = Direction.SOUTH, BOSS_ENTRANCE = Direction.NORTH;
-    public static final java.util.List<Direction> DOORS = java.util.List.of(PLAYER_ENTRANCE, BOSS_ENTRANCE);
+    public static final java.util.List<Direction> DOORS = java.util.List.of(PLAYER_ENTRANCE);
     public static final int BOSS_ROOM_BACK = 44;
     private MinotaurArenaEntrances() { }
     public static BlockPos door(Direction outward) {
-        return new BlockPos(outward.getStepX() * DOOR_RADIUS, FLOOR_Y + 1, outward.getStepZ() * DOOR_RADIUS);
+        return new BlockPos(outward.getStepX() * DOOR_RADIUS, AuthoredCatacombs.CONNECTOR_Y, outward.getStepZ() * DOOR_RADIUS);
     }
     public static BlockPos gate(Direction outward) { return door(outward).relative(outward.getOpposite(), 1); }
     public static int gateHeight() { return Math.max(7, (int)Math.ceil(2.75 * net.krodark.asterion.AsterionConfig.INSTANCE.minotaurScale) + 1); }
@@ -34,7 +34,7 @@ public final class MinotaurArenaEntrances {
         return false;
     }
     public static Direction corridorAt(Vec3 position) {
-        if (position.y < FLOOR_Y + .5 || position.y > FLOOR_Y + 8) return null;
+        if (position.y < AuthoredCatacombs.CONNECTOR_Y - .5 || position.y > AuthoredCatacombs.CONNECTOR_Y + 7) return null;
         for (Direction facing : java.util.List.of(PLAYER_ENTRANCE)) {
             Vec3 offset = position.subtract(Vec3.atBottomCenterOf(door(facing)));
             double depth = offset.dot(facing.getUnitVec3());
@@ -91,6 +91,11 @@ public final class MinotaurArenaEntrances {
     }
     public static int floorAt(int radius) { return FLOOR_Y + Math.clamp(radius - 42, 0, 12); }
     public static void build(ServerLevel level) {
+        if (AuthoredCatacombs.enabled()) {
+            MinotaurDoorBlock.place(level, door(PLAYER_ENTRANCE), PLAYER_ENTRANCE);
+            setGates(level, 0, null);
+            return;
+        }
         int heightLimit = Math.max(8, (int)Math.ceil(2.75 * net.krodark.asterion.AsterionConfig.INSTANCE.minotaurScale) + 2);
         // Fill obsolete corridors too, so upgrading a four-door save cannot leave side entrances.
         for (Direction removed : java.util.List.of(Direction.EAST, Direction.WEST, BOSS_ENTRANCE)) {
@@ -125,14 +130,21 @@ public final class MinotaurArenaEntrances {
 
     private static void buildCatacombApproach(ServerLevel level) {
         // Both routes meet OUTSIDE the single keyed player door: surface stair and undercroft stair.
-        // The lower landing joins the catacomb gallery at x=32, without another arena opening.
-        for (int x = 3; x <= 34; x++) {
-            int floor = Math.max(CatacombLayout.floor(level.getSeed(), 32, 42), FLOOR_Y + 3 - x);
+        // A single approach reaches the root hub. No extra hole is cut in the arena shell.
+        for (int x = 3; x <= CatacombLayout.ROOT_CENTER + 2; x++) {
+            int floor = Math.max(CatacombLayout.FLOOR_Y, FLOOR_Y + 3 - x);
             for (int z = 40; z <= 44; z++) {
                 level.setBlock(new BlockPos(x, floor, z), Asterion.ANCIENT_STONE.defaultBlockState(), 2);
                 for (int y = 1; y <= 5; y++)
                     level.setBlock(new BlockPos(x, floor + y, z), y == 5 || z == 40 || z == 44
                             ? Asterion.ANCIENT_BRICKS.defaultBlockState() : Blocks.AIR.defaultBlockState(), 2);
+            }
+        }
+        for (int z = 42; z <= CatacombLayout.ROOT_CENTER; z++) {
+            for (int x = CatacombLayout.ROOT_CENTER - 1; x <= CatacombLayout.ROOT_CENTER + 1; x++) {
+                level.setBlock(new BlockPos(x, CatacombLayout.FLOOR_Y, z), Asterion.ANCIENT_STONE.defaultBlockState(), 2);
+                for (int y = 1; y <= 4; y++)
+                    level.setBlock(new BlockPos(x, CatacombLayout.FLOOR_Y + y, z), Blocks.AIR.defaultBlockState(), 2);
             }
         }
     }

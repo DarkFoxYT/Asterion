@@ -1,1 +1,23 @@
-{"fallback":"minecraft:empty","elements":[{"weight":1,"element":{"element_type":"minecraft:single_pool_element","location":"asterion:catacombs/crossing","processors":"minecraft:empty","projection":"rigid"}}]}
+{
+  "elements": [
+    {
+      "element": {
+        "location": "asterion:catacombs/crossing_01",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element",
+        "processors": "minecraft:empty"
+      },
+      "weight": 1
+    },
+    {
+      "element": {
+        "location": "asterion:catacombs/crossing_02",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element",
+        "processors": "minecraft:empty"
+      },
+      "weight": 1
+    }
+  ],
+  "fallback": "minecraft:empty"
+}

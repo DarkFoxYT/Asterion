@@ -15,6 +15,7 @@ public final class MinotaurDoorRenderer extends GeoBlockRenderer<MinotaurDoorBlo
     private static final DataTicket<Float> ANGLE = DataTickets.create("asterion_door_angle", Float.class);
     public MinotaurDoorRenderer(BlockEntityRendererProvider.Context context) { super(context, new Model()); }
     @Override public void addRenderData(MinotaurDoorBlockEntity door, Void related, BlockEntityRenderState state, float partialTick) {
+        net.krodark.asterion.client.MinotaurDoorShake.track(door);
         state.addGeckolibData(ANGLE, door.angle(partialTick));
     }
     @Override public void adjustModelBonesForRender(RenderPassInfo<BlockEntityRenderState> pass, BoneSnapshots bones) {

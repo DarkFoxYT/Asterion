@@ -6,7 +6,7 @@ import net.minecraft.world.phys.Vec3;
 
 /** Authored hinge/emitter coordinates, shared by rendering, dust and detached leaves. */
 public final class MinotaurDoorMotion {
-    public static final int WIDTH = 7, HEIGHT = 5, OPEN_TICKS = 28, BREAK_TICK = 70;
+    public static final int WIDTH = 7, HEIGHT = 5, OPEN_TICKS = 72, BREAK_TICK = 70;
     public static final float OPEN_ANGLE = (float)Math.toRadians(100);
     public static final float BREAK_ANGLE = (float)Math.toRadians(58);
     private static final int[] IMPACTS = {8, 26, 44};

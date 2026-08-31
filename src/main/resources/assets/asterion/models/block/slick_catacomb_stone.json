@@ -1,1 +1,1 @@
-{"parent":"minecraft:block/cube_all","textures":{"all":"minecraft:block/dark_prismarine"}}
+{"parent":"minecraft:block/cube_all","textures":{"all":"asterion:block/slick_catacomb_stone","particle":"asterion:block/slick_catacomb_stone"}}

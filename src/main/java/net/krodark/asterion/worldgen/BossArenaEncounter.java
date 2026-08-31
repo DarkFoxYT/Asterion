@@ -36,7 +36,7 @@ public final class BossArenaEncounter {
         // Include the nearby party before anything closes; never pull players from elsewhere in the maze.
         for (ServerPlayer player : List.copyOf(level.players())) {
             if (player != trigger && eligible(player) && player.position().horizontalDistance() < 60
-                    && player.getY() >= 35 && player.getY() < 61) admit(level, player, entry);
+                    && player.getY() >= AuthoredCatacombs.ARENA_FLOOR_Y && player.getY() < 49) admit(level, player, entry);
         }
         for (Direction facing : MinotaurArenaEntrances.DOORS) if (facing != active.bossDoor) {
             moveFromClosure(level, facing);
@@ -50,7 +50,7 @@ public final class BossArenaEncounter {
     private static void admit(ServerLevel level, ServerPlayer player, Direction entry) {
         if (active == null || !active.participants.add(player.getUUID())) return;
         Vec3 safe = safePosition(level, player, entry, active.participants.size() - 1);
-        Vec3 focus = Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(active.bossDoor)).add(0, 2.5, 0);
+        Vec3 focus = net.krodark.asterion.WorldGenerator.bossArenaCenter().add(0, 2.5, 0);
         Vec3 delta = focus.subtract(safe.add(0, player.getEyeHeight(), 0));
         float yaw = (float)Math.toDegrees(Math.atan2(-delta.x, delta.z));
         player.stopRiding();
@@ -72,15 +72,15 @@ public final class BossArenaEncounter {
             int index = slot + attempt;
             int side = index % 5 - 2;
             double radius = 25 - (index / 5 % 12) * 1.4;
-            Vec3 candidate = Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(entry))
-                    .subtract(entry.getUnitVec3().scale(34 - radius))
+            Vec3 candidate = net.krodark.asterion.WorldGenerator.bossArenaCenter()
+                    .add(entry.getUnitVec3().scale(radius))
                     .add(entry.getClockWise().getUnitVec3().scale(side * 1.25));
             var bounds = player.getBoundingBox().move(candidate.subtract(player.position()));
             if (level.noCollision(player, bounds)
                     && !level.getBlockState(BlockPos.containing(candidate).below()).getCollisionShape(level, BlockPos.containing(candidate).below()).isEmpty())
                 return candidate;
         }
-        return new Vec3(.5, 37, .5);
+        return net.krodark.asterion.WorldGenerator.bossArenaCenter();
     }
 
     public static void tick(ServerLevel level) {
@@ -130,7 +130,8 @@ public final class BossArenaEncounter {
             level.playSound(null, MinotaurArenaEntrances.gate(facing),
                     rows == height ? SoundEvents.ANVIL_LAND : SoundEvents.CHAIN_HIT, SoundSource.BLOCKS, 1.4F, .6F);
         }
-        if (elapsed >= INTRO_TICKS && !active.restored && active.closedRows.getOrDefault(active.bossDoor, 0) == height) {
+        if (elapsed >= INTRO_TICKS && !active.restored && (!MinotaurArenaEntrances.DOORS.contains(active.bossDoor)
+                || active.closedRows.getOrDefault(active.bossDoor, 0) == height)) {
             restoreDoors(level);
             active.restored = true;
         }
@@ -139,12 +140,12 @@ public final class BossArenaEncounter {
     }
 
     public static boolean blocksCentipedeSpawn(ServerLevel level, Vec3 position) {
-        return isSealed(level) && position.horizontalDistanceSqr() < 46 * 46 && position.y >= 35 && position.y <= 62;
+        return isSealed(level) && position.horizontalDistanceSqr() < 46 * 46 && position.y >= AuthoredCatacombs.ARENA_FLOOR_Y && position.y <= 49;
     }
 
     private static void tickArenaCreatures(ServerLevel level, int elapsed) {
         if (elapsed % 20 != 0) return;
-        var arena = new net.minecraft.world.phys.AABB(-44, 35, -44, 44, 62, 44);
+        var arena = new net.minecraft.world.phys.AABB(-44, AuthoredCatacombs.ARENA_FLOOR_Y, -44, 44, 49, 44);
         // Leave ridden/named centipedes alone; suppress wild arena interference, not player mounts.
         for (var centipede : level.getEntitiesOfClass(net.krodark.asterion.entity.ScarletCentipedeEntity.class, arena))
             if (!centipede.isVehicle() && !centipede.hasCustomName()) centipede.discard();
@@ -154,7 +155,7 @@ public final class BossArenaEncounter {
         int remaining = Math.min(2, 4 - existing);
         for (int attempt = 0; attempt < 24 && remaining > 0; attempt++) {
             double angle = level.getRandom().nextDouble() * Math.PI * 2;
-            Vec3 pos = new Vec3(Math.cos(angle) * 20 + .5, 37, Math.sin(angle) * 20 + .5);
+            Vec3 pos = new Vec3(Math.cos(angle) * 20 + .5, AuthoredCatacombs.ARENA_FLOOR_Y + 1, Math.sin(angle) * 20 + .5);
             if (level.players().stream().anyMatch(player -> player.position().distanceToSqr(pos) < 8 * 8)) continue;
             var beetle = Asterion.BOMBARDIER_BEETLE.create(level, net.minecraft.world.entity.EntitySpawnReason.EVENT);
             if (beetle == null) break;

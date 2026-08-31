@@ -48,6 +48,13 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
         return breaching ? MinotaurDoorMotion.breachAngle(elapsed)
                 : startAngle + (targetAngle - startAngle) * MinotaurDoorMotion.ease(elapsed / MinotaurDoorMotion.OPEN_TICKS);
     }
+    public float movementRumble(float partialTick) {
+        if (level == null || breaching) return 0;
+        float t = (level.getGameTime() - motionStart + partialTick) / MinotaurDoorMotion.OPEN_TICKS;
+        if (t <= 0 || t >= 1) return 0;
+        float travel = Math.abs(targetAngle - startAngle) / MinotaurDoorMotion.OPEN_ANGLE;
+        return (float)Math.sin(t * Math.PI) * Math.min(1F, travel);
+    }
     public void interact(Player player, ItemStack held) {
         if (level == null || breaching) return;
         // The arena's north door is a boss exit, never a second keyed player entrance.

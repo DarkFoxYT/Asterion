@@ -12,6 +12,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(BlockItem.class)
 public abstract class BlockItemMixin {
+    @Inject(method = "placeBlock", at = @At("HEAD"), cancellable = true)
+    private void asterion$protectCatacombs(BlockPlaceContext context, BlockState state, CallbackInfoReturnable<Boolean> result) {
+        if (context.getPlayer() != null
+                && net.krodark.asterion.worldgen.CatacombProtection.contains(context.getLevel(), context.getClickedPos()))
+            result.setReturnValue(false);
+    }
     @Inject(method = "getPlacementState", at = @At("RETURN"), cancellable = true)
     private void asterion$retainHeavyWater(BlockPlaceContext context, CallbackInfoReturnable<BlockState> result) {
         BlockState state = result.getReturnValue();

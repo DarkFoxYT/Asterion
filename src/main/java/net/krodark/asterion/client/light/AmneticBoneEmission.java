@@ -1,6 +1,8 @@
 package net.krodark.asterion.client.light;
 
 import com.meekdev.amnetic.client.bloom.Bloom;
+import com.meekdev.amnetic.client.emissive.EmissiveContext;
+import com.meekdev.amnetic.client.emissive.EmissiveSources;
 import com.meekdev.amnetic.client.instanced.*;
 import com.meekdev.amnetic.client.instanced.internal.InstanceMeshRegistry;
 import com.meekdev.amnetic.client.pipeline.Pipeline;
@@ -19,18 +21,25 @@ public final class AmneticBoneEmission {
     private static final InstanceLayout LAYOUT = InstanceLayout.builder().mat4(2).vec4(6).vec4(7).build();
     private static final Map<Identifier, Entry> ENTRIES = new HashMap<>();
     private static boolean initialized;
-    private static boolean capturing;
+    private static final SourceContext SOURCE_CONTEXT = new SourceContext();
     private static long submissions;
     public static long submissions() { return submissions; }
     private AmneticBoneEmission() { }
 
-    public static boolean beginCapture() { boolean previous = capturing; capturing = true; return previous; }
-    public static void endCapture(boolean previous) { capturing = previous; }
+    private static void emit(EmissiveContext context) {
+        SOURCE_CONTEXT.frame = context;
+        try {
+            for (Entry entry : ENTRIES.values()) {
+                if (entry.count > 0) InstanceMeshRegistry.INSTANCE.render(entry.id, SOURCE_CONTEXT);
+            }
+        } finally { SOURCE_CONTEXT.frame = null; }
+    }
 
     public static void submit(Identifier model, EmissiveBoneMesh geometry, Identifier texture,
                               Matrix4fc pose, int color, float uScale, float vScale) {
         if (!Bloom.settings().isEnabled()) return;
         if (!initialized) {
+            EmissiveSources.register(Asterion.id("vine_glow"), AmneticBoneEmission::emit);
             // Also clear when bloom is disabled or a capture fails; never reuse last frame's poses.
             Pipeline.add(RenderStage.POST, 11, "Clear bone emission submissions", ctx ->
                     ENTRIES.values().forEach(entry -> entry.count = 0));
@@ -57,11 +66,13 @@ public final class AmneticBoneEmission {
     }
 
     private static final class Entry {
+        final Identifier id;
         final EmissiveBoneMesh geometry;
         final Identifier texture;
         final ArrayList<Instance> poses = new ArrayList<>();
         int count;
         Entry(Identifier id, EmissiveBoneMesh geometry, Identifier texture) {
+            this.id = id;
             this.geometry = geometry;
             this.texture = texture;
             Identifier shader = Asterion.id("bone/emission");
@@ -69,16 +80,24 @@ public final class AmneticBoneEmission {
                             .putVec4(instance.color).putVec4(instance.uv))
                     .geometry(geometry.amneticGeometry()).shaders(shader, shader)
                     .extraSampler("TextureSampler", texture, 0, false)
-                    .phase(InstancePhase.WORLD_LAST).emissive()
+                    .phase(InstancePhase.WORLD_LAST).manual().emissive()
                     .renderState(RenderState.builder().depthTest(true).depthWrite(false)
                             .backfaceCulling(false).blend(RenderState.BlendMode.ALPHA).build())
                     .onRender((ctx, batch) -> {
-                        // Normal scene rendering stays on the sharp vanilla surface. Only Amnetic's
-                        // explicit emission pass receives these instances; no duplicate scene draw.
-                        if (!capturing) return;
+                        // Manual mesh: only the official emissive-source hook invokes this draw.
                         for (int i = 0; i < count; i++) batch.add(poses.get(i));
                         submissions += count;
                     }).register(id);
         }
+    }
+
+    private static final class SourceContext extends InstanceRenderContext {
+        EmissiveContext frame;
+        @Override public net.minecraft.client.Minecraft client() { return net.minecraft.client.Minecraft.getInstance(); }
+        @Override public net.minecraft.client.multiplayer.ClientLevel world() { return frame.level(); }
+        @Override public float deltaTick() { return frame.deltaTick(); }
+        @Override public net.minecraft.world.phys.Vec3 cameraPos() { return frame.cameraPos(); }
+        @Override public Matrix4fc viewMatrix() { return frame.view(); }
+        @Override public Matrix4fc projectionMatrix() { return frame.projection(); }
     }
 }

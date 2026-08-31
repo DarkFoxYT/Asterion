@@ -21,7 +21,7 @@ public final class FlamethrowerItem extends Item {
     @Override public void onUseTick(Level world, LivingEntity entity, ItemStack stack, int remaining) {
         if (!(world instanceof ServerLevel level) || remaining % 4 != 0 || entity.isSpectator() || entity.isInWater()) return;
         var direction = entity.getLookAngle();
-        GasClouds.emit(level, entity.getEyePosition().add(direction.scale(.6)), direction.scale(.4), entity.getUUID());
+        GasClouds.emitFlamethrower(level, entity.getEyePosition().add(direction.scale(.6)), direction.scale(.4), entity.getUUID());
         if (remaining % 20 == 0) stack.hurtAndBreak(1, entity, entity.getUsedItemHand() == InteractionHand.MAIN_HAND
                 ? net.minecraft.world.entity.EquipmentSlot.MAINHAND : net.minecraft.world.entity.EquipmentSlot.OFFHAND);
     }

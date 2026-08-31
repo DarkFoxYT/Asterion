@@ -29,6 +29,7 @@ final class MinotaurCombatSelectionCheck {
             var weaponKey = (EntityDataAccessor<Integer>)weapon.get(null);
             Set<String> expected = new HashSet<>(MinotaurEntity.debugAttackNames());
             expected.remove("retrieve_axe"); // Pickup is exercised using the actual thrown object in the game test.
+            expected.remove("rage_roar"); // Triggered once by max rage, never randomly selected.
             for (String phase : new String[]{"PILLARS", "EXTREME"}) {
                 stage.set(boss, Enum.valueOf((Class)stage.getType(), phase));
                 Set<String> seen = new HashSet<>();

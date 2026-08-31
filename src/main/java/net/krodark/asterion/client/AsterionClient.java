@@ -92,6 +92,12 @@ public final class AsterionClient implements ClientModInitializer {
                 (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
                         BombardierStenchParticle.create(level, x, y, z,
                                 velocityX, velocityY, velocityZ, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.FLAMETHROWER_GAS_FIRE, sprites ->
+                (type, level, x, y, z, vx, vy, vz, random) ->
+                        BombardierGasFireParticle.createFlamethrower(level, x, y, z, vx, vy, vz, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.FLAMETHROWER_GAS, sprites ->
+                (type, level, x, y, z, vx, vy, vz, random) ->
+                        BombardierStenchParticle.createFlamethrower(level, x, y, z, vx, vy, vz, sprites, random));
         ParticleProviderRegistry.getInstance().register(Asterion.BOMBARDIER_GAS_FIRE, sprites ->
                 (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
                         BombardierGasFireParticle.create(level, x, y, z,
@@ -117,6 +123,7 @@ public final class AsterionClient implements ClientModInitializer {
                         RumbleSmokeParticle.create(level, x, y, z,
                                 velocityX, velocityY, velocityZ, sprites, random));
         BlockEntityRenderers.register(Asterion.RUNE_BLOCK_ENTITY, RuneGeoRenderer::new);
+        BlockEntityRenderers.register(Asterion.PILLAR_BLOCK_ENTITY, net.krodark.asterion.client.render.block.PillarRenderer::new);
         BlockEntityRenderers.register(Asterion.MINOTAUR_DOOR_BLOCK_ENTITY,
                 net.krodark.asterion.client.render.block.MinotaurDoorRenderer::new);
         BlockEntityRenderers.register(Asterion.BARREL_DOOR_BLOCK_ENTITY,
@@ -187,6 +194,8 @@ public final class AsterionClient implements ClientModInitializer {
                         context.client(), payload.position(), payload.velocity(), payload.serverTick())));
         ClientPlayNetworking.registerGlobalReceiver(RagdollPosePayload.TYPE, (payload, context) ->
                 context.client().execute(() -> DismembermentEngine.INSTANCE.applyRemotePose(context.client(), payload)));
+        ClientPlayNetworking.registerGlobalReceiver(RagdollStatePayload.TYPE, (payload, context) ->
+                context.client().execute(() -> DismembermentEngine.INSTANCE.applyRemoteState(context.client(), payload)));
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
         BiomeMusic.initialize();
         MazeAmbience.initialize();

@@ -69,6 +69,7 @@ public final class DismembermentEngine {
     private final Set<Integer> remoteDriven = new HashSet<>();
     private final Map<Integer, Integer> remotePoseSequences = new HashMap<>();
     private final Map<Integer, Integer> remotePoseTicks = new HashMap<>();
+    private final Map<Integer, Integer> pendingPlayerExits = new HashMap<>();
     private int poseSequence;
     private final Map<Long, Float> regionalTrauma = new HashMap<>();
     private final Map<Integer, Map<Integer, String>> detachedModelPaths = new HashMap<>();
@@ -1255,6 +1256,7 @@ public final class DismembermentEngine {
                     || !hasGroundContact(entityId)) return;
             Vec3 exit = findSafeTumbleExit(client, entityId);
             Vec3 exitVelocity = ragdollVelocity(entityId);
+            if (requestServerGetUp(entityId, exit, exitVelocity)) return;
             removeRagdoll(entityId);
             if (exit != null) {
                 if (ClientPlayNetworking.canSend(TumbleExitPayload.TYPE))
@@ -1393,6 +1395,7 @@ public final class DismembermentEngine {
 
     public void followPlayerTumble(Minecraft client) {
         if (client.player == null || !playerTumbles.contains(client.player.getId())) return;
+        if (pendingPlayerExits.containsKey(client.player.getId())) return;
         RigidBodyPiece torso = find(client.player.getId(), 1);
         Vec3 trackingPosition = findSafeTumbleExit(client, client.player.getId());
         if (trackingPosition != null) {
@@ -1400,7 +1403,7 @@ public final class DismembermentEngine {
             if (torso != null && ClientPlayNetworking.canSend(TumbleExitPayload.TYPE))
                 ClientPlayNetworking.send(new TumbleExitPayload(
                         trackingPosition.x, trackingPosition.y, trackingPosition.z,
-                        torso.velocity.x, torso.velocity.y, torso.velocity.z));
+                        torso.velocity.x, torso.velocity.y, torso.velocity.z, false));
         }
         client.player.setDeltaMovement(Vec3.ZERO);
     }
@@ -1487,6 +1490,7 @@ public final class DismembermentEngine {
             if (!hasGroundContact(entityId)) return;
             Vec3 exit = findSafeTumbleExit(client, entityId);
             Vec3 exitVelocity = ragdollVelocity(entityId);
+            if (requestServerGetUp(entityId, exit, exitVelocity)) return;
             removeRagdoll(entityId);
             if (exit != null) {
                 if (ClientPlayNetworking.canSend(TumbleExitPayload.TYPE))
@@ -1496,6 +1500,15 @@ public final class DismembermentEngine {
             }
             client.player.setDeltaMovement(exitVelocity);
         } else removeRagdoll(entityId);
+    }
+
+    private boolean requestServerGetUp(int entityId, Vec3 exit, Vec3 velocity) {
+        if (exit == null || !ClientPlayNetworking.canSend(TumbleExitPayload.TYPE)) return false;
+        if (!pendingPlayerExits.containsKey(entityId)) {
+            pendingPlayerExits.put(entityId, traumaDecayTicker);
+            ClientPlayNetworking.send(new TumbleExitPayload(exit.x, exit.y, exit.z, velocity.x, velocity.y, velocity.z));
+        }
+        return true;
     }
 
     public boolean hasGroundContact(int entityId) {
@@ -1569,6 +1582,7 @@ public final class DismembermentEngine {
     }
 
     private void removeRagdoll(int entityId) {
+        pendingPlayerExits.remove(entityId);
         pieces.removeIf(part -> {
             if (part.entityId != entityId) return false;
             if (grabbed == part) grabbed = null;
@@ -1589,6 +1603,23 @@ public final class DismembermentEngine {
         remotePoseTicks.remove(entityId);
     }
 
+    public void applyRemoteState(Minecraft client, net.krodark.asterion.network.ragdoll.RagdollStatePayload payload) {
+        if (client.level == null) return;
+        Entity owner = client.level.getEntity(payload.entityId());
+        if (owner == null || !owner.getUUID().equals(payload.playerId())) return;
+        if (!payload.active()) {
+            electrifiedUntil.remove(payload.entityId());
+            removeRagdoll(payload.entityId());
+            return;
+        }
+        if (owner == client.player || !(owner instanceof Player) || !owner.isAlive()) return;
+        if (!ragdolled.contains(owner.getId()))
+            ragdoll(owner, 1, owner.getBoundingBox().getCenter(), Vec3.ZERO, 0, false);
+        playerTumbles.add(owner.getId());
+        remoteDriven.add(owner.getId());
+        remotePoseTicks.put(owner.getId(), traumaDecayTicker);
+    }
+
     public void applyRemotePose(Minecraft client, RagdollPosePayload payload) {
         if (client.level == null || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) {
             return;
@@ -1603,11 +1634,13 @@ public final class DismembermentEngine {
         if (previousSequence != null
                 && Integer.compareUnsigned(payload.sequence(), previousSequence) <= 0) return;
         Entity owner = client.level.getEntity(payload.entityId());
+        if (owner instanceof Player && !owner.isAlive()) return;
         if (!ragdolled.contains(payload.entityId())) {
             if (owner == null) return;
             ragdoll(owner, 1, owner.getBoundingBox().getCenter(), Vec3.ZERO, 0.0, false);
         }
         remoteDriven.add(payload.entityId());
+        if (owner instanceof Player) playerTumbles.add(payload.entityId());
         remotePoseSequences.put(payload.entityId(), payload.sequence());
         remotePoseTicks.put(payload.entityId(), traumaDecayTicker);
         for (RagdollPosePayload.Part snapshot : payload.parts()) {
@@ -1635,7 +1668,9 @@ public final class DismembermentEngine {
     private void sendPoseSnapshots() {
         if ((traumaDecayTicker & 1) != 0 || !ClientPlayNetworking.canSend(RagdollPosePayload.TYPE)) return;
         for (int entityId : ragdolled) {
-            if (remoteDriven.contains(entityId)) continue;
+            if (remoteDriven.contains(entityId) || pendingPlayerExits.containsKey(entityId)) continue;
+            var client = Minecraft.getInstance();
+            if (client.level != null && client.level.getEntity(entityId) instanceof Player owner && owner != client.player) continue;
             List<RagdollPosePayload.Part> snapshot = new ArrayList<>(10);
             for (RigidBodyPiece part : pieces) {
                 if (part.entityId != entityId || snapshot.size() >= 16) continue;
@@ -1653,18 +1688,21 @@ public final class DismembermentEngine {
 
     public void tick(ClientLevel level, Entity collisionContext) {
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) { clear(); return; }
+        // Stay a ragdoll until the server accepts standing up. A refused/stalled request can retry.
+        pendingPlayerExits.entrySet().removeIf(entry -> traumaDecayTicker - entry.getValue() > 20);
         electrifiedUntil.entrySet().removeIf(entry -> {
             if (entry.getValue() > traumaDecayTicker) return false;
             if (collisionContext.getId() != entry.getKey()) removeRagdoll(entry.getKey());
             return true;
         });
         tickWailing();
-        remotePoseTicks.entrySet().removeIf(entry -> {
-            if (traumaDecayTicker - entry.getValue() <= 60) return false;
-            remoteDriven.remove(entry.getKey());
-            remotePoseSequences.remove(entry.getKey());
-            return true;
-        });
+        // A missing owner or stale stream must remove the body, not hand it to local physics.
+        for (int id : new ArrayList<>(remotePoseTicks.keySet()))
+            if (level.getEntity(id) == null || traumaDecayTicker - remotePoseTicks.get(id) > 60) removeRagdoll(id);
+        Set<Integer> departedPlayers = new HashSet<>();
+        for (RigidBodyPiece part : pieces)
+            if (part.playerBody && level.getEntity(part.entityId) == null) departedPlayers.add(part.entityId);
+        departedPlayers.forEach(this::removeRagdoll);
         recentExplosions.removeIf(blast -> traumaDecayTicker - blast.createdTick > 6);
         synchronizePlayerAttachments(level);
         updateEnvironmentalEffects(level);
@@ -1687,10 +1725,14 @@ public final class DismembermentEngine {
                 part.physicsBlend = Math.min(1.0f, part.physicsBlend + 0.125f);
             part.previous = part.position;
             part.previousOrientation.set(part.orientation);
+            if (remoteDriven.contains(part.entityId)
+                    && traumaDecayTicker - remotePoseTicks.getOrDefault(part.entityId, traumaDecayTicker) <= 3)
+                part.position = part.position.add(part.velocity.scale(.8));
             incomingVelocities.put(part, part.velocity);
             if (isAnatomicalRegion(part.region) && part.region != 0 && part.supportTicks > 0)
                 supportedAnatomicalIslands.add(part.entityId);
-            if (part == grabbed || part.position.distanceToSqr(collisionContext.position()) <= 128.0 * 128.0)
+            if (!remoteDriven.contains(part.entityId)
+                    && (part == grabbed || part.position.distanceToSqr(collisionContext.position()) <= 128.0 * 128.0))
                 active.add(part);
             if (part.playerBody && !playerArmorLoads.containsKey(part.entityId)) {
                 Entity owner = level.getEntity(part.entityId);
@@ -1835,6 +1877,7 @@ public final class DismembermentEngine {
 
         for (int i = pieces.size() - 1; i >= 0; i--) {
             RigidBodyPiece part = pieces.get(i);
+            if (remoteDriven.contains(part.entityId)) continue;
             boolean collided = collidedParts.contains(part);
             boolean measuredSupport = hasGroundSupport(level, part)
                     || part.contacts.values().stream().anyMatch(contact -> contact.normal.y > 0.58
@@ -3453,7 +3496,7 @@ public final class DismembermentEngine {
         regionalTrauma.keySet().removeIf(key -> (int) (key >> 32) == entityId);
     }
 
-    public void clear() { pieces.clear(); detached.clear(); detachedModelPaths.clear(); renderedPoseCache.clear(); ragdolled.clear(); remoteDriven.clear(); remotePoseSequences.clear(); remotePoseTicks.clear(); playerTumbles.clear(); playerFracturedLegs.clear(); appliedFracturePoses.clear(); tumbleStartedAt.clear(); ragdollStartedAt.clear(); electrifiedUntil.clear(); wailing.clear(); recentExplosions.clear(); regionalTrauma.clear(); islandSleepTicks.clear(); blockImpactAges.clear(); entityImpactAges.clear(); rigidSoundAges.clear(); grabbed = null; smoothedGrabTarget = null; solverIndex = null; lastAuthorityTick = Long.MIN_VALUE; }
+    public void clear() { pieces.clear(); detached.clear(); detachedModelPaths.clear(); renderedPoseCache.clear(); ragdolled.clear(); remoteDriven.clear(); remotePoseSequences.clear(); remotePoseTicks.clear(); pendingPlayerExits.clear(); playerTumbles.clear(); playerFracturedLegs.clear(); appliedFracturePoses.clear(); tumbleStartedAt.clear(); ragdollStartedAt.clear(); electrifiedUntil.clear(); wailing.clear(); recentExplosions.clear(); regionalTrauma.clear(); islandSleepTicks.clear(); blockImpactAges.clear(); entityImpactAges.clear(); rigidSoundAges.clear(); grabbed = null; smoothedGrabTarget = null; solverIndex = null; lastAuthorityTick = Long.MIN_VALUE; }
 
     private static boolean inAsterion(Entity entity) {
         return entity != null && entity.level().dimension().equals(Asterion.ASTERION_LEVEL);

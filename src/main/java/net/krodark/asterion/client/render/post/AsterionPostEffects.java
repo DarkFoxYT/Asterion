@@ -177,7 +177,8 @@ public final class AsterionPostEffects {
             floodBlend = 0;
         } else {
             double cameraY = AmneticCamera.isReady() ? AmneticCamera.position().y : client.player.getEyeY();
-            float underground = Mth.clamp((float)(net.krodark.asterion.worldgen.CatacombLayout.ROOF_Y + 3 - cameraY) / 4F, 0F, 1F)
+            int vaultRoof = Math.min(46, net.krodark.asterion.worldgen.CatacombLayout.roofAt(client.player.getBlockX(), client.player.getBlockZ()));
+            float underground = Mth.clamp((float)(vaultRoof + 3 - cameraY) / 4F, 0F, 1F)
                     * Mth.clamp((float)(cameraY - 2), 0F, 1F);
             catacombBlend += (underground - catacombBlend) * .04F;
             float floodTarget = DeadSunClientEvents.floodStrength();

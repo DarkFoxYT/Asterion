@@ -16,6 +16,7 @@ import java.util.UUID;
 public final class RagdollServerNetworking {
     private static final Map<String, Long> LAST_POSE = new HashMap<>();
     private static final Map<UUID, Long> ACTIVE_RAGDOLLS = new HashMap<>();
+    private static final Map<UUID, net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level>> RAGDOLL_LEVELS = new HashMap<>();
     private static final Map<UUID, Integer> SCRIPTED_THROW_DAMAGE = new HashMap<>();
 
     public static void suppressThrowFallDamage(ServerPlayer player, int ticks) {
@@ -28,7 +29,25 @@ public final class RagdollServerNetworking {
     }
 
     public static void initialize() {
-        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPED.register(server -> SCRIPTED_THROW_DAMAGE.clear());
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+            SCRIPTED_THROW_DAMAGE.clear(); ACTIVE_RAGDOLLS.clear(); RAGDOLL_LEVELS.clear(); LAST_POSE.clear();
+        });
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
+            for (UUID id : java.util.List.copyOf(ACTIVE_RAGDOLLS.keySet())) {
+                ServerPlayer player = server.getPlayerList().getPlayer(id);
+                if (player == null) { ACTIVE_RAGDOLLS.remove(id); RAGDOLL_LEVELS.remove(id); }
+                else if (!player.isAlive() || !player.level().dimension().equals(RAGDOLL_LEVELS.get(id))
+                        || ACTIVE_RAGDOLLS.get(id) < server.getTickCount()) finishRagdoll(player);
+            }
+        });
+        net.fabricmc.fabric.api.networking.v1.EntityTrackingEvents.START_TRACKING.register((entity, viewer) -> {
+            if (entity instanceof ServerPlayer player && isRagdolled(player)) sendState(viewer, player, true);
+        });
+        net.fabricmc.fabric.api.networking.v1.EntityTrackingEvents.STOP_TRACKING.register((entity, viewer) -> {
+            if (entity instanceof ServerPlayer player) sendState(viewer, player, false);
+        });
+        net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> finishRagdoll(handler.getPlayer()));
+        net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> finishRagdoll(oldPlayer));
         ServerPlayNetworking.registerGlobalReceiver(RagdollFallDamagePayload.TYPE, (payload, context) ->
                 context.server().execute(() -> applyFallDamage(context.player(), payload.damage())));
         ServerPlayNetworking.registerGlobalReceiver(TumbleExitPayload.TYPE, (payload, context) ->
@@ -79,6 +98,7 @@ public final class RagdollServerNetworking {
     }
 
     private static void exitTumble(ServerPlayer player, TumbleExitPayload payload) {
+        if (!player.isAlive() || player.isSpectator()) return;
         if (MinotaurEntity.controlsPlayer(player)) return;
         if (WorldGenerator.isElectrified(player)) return;
         Vec3 target = new Vec3(payload.x(), payload.y(), payload.z());
@@ -97,15 +117,18 @@ public final class RagdollServerNetworking {
             return;
         }
 
-        player.teleportTo(target.x, target.y, target.z);
+        // Following a ragdoll is movement, not a teleport/stand-up on every frame.
+        if (payload.finished()) player.teleportTo(target.x, target.y, target.z);
+        else player.setPos(target);
         Vec3 velocity = new Vec3(payload.vx(), payload.vy(), payload.vz());
         if (velocity.lengthSqr() > 16) {
             velocity = velocity.normalize().scale(4);
         }
         player.setDeltaMovement(velocity);
         player.resetFallDistance();
-        ACTIVE_RAGDOLLS.remove(player.getUUID());
-        if (ServerPlayNetworking.canSend(player, RagdollAuthorityPayload.TYPE)) {
+        if (payload.finished()) finishRagdoll(player);
+        else markRagdolled(player, 60);
+        if (payload.finished() && ServerPlayNetworking.canSend(player, RagdollAuthorityPayload.TYPE)) {
             ServerPlayNetworking.send(player, new RagdollAuthorityPayload(player.position(), velocity,
                     player.level().getGameTime()));
         }
@@ -116,7 +139,6 @@ public final class RagdollServerNetworking {
             return;
         }
         long now = sender.level().getGameTime();
-        if (payload.entityId() == sender.getId()) markRagdolled(sender, 16);
         if (LAST_POSE.size() > 256) {
             LAST_POSE.entrySet().removeIf(entry -> now - entry.getValue() > 200);
         }
@@ -126,6 +148,7 @@ public final class RagdollServerNetworking {
         }
         LAST_POSE.put(key, now);
         var tracked = sender.level().getEntity(payload.entityId());
+        if (!(tracked instanceof LivingEntity) || tracked instanceof MinotaurEntity) return;
         if (tracked instanceof ServerPlayer && tracked != sender) {
             return;
         }
@@ -134,6 +157,18 @@ public final class RagdollServerNetworking {
         if (!finite(center) || sender.distanceToSqr(center) > 96 * 96) {
             return;
         }
+        // Validate every body transform before it can reach another client's renderer.
+        for (var part : payload.parts()) {
+            Vec3 point = new Vec3(part.x(), part.y(), part.z());
+            Vec3 velocity = new Vec3(part.vx(), part.vy(), part.vz());
+            if (!finite(point) || !finite(velocity) || point.distanceToSqr(center) > 64
+                    || velocity.lengthSqr() > 256 || !Float.isFinite(part.qx()) || !Float.isFinite(part.qy())
+                    || !Float.isFinite(part.qz()) || !Float.isFinite(part.qw())) return;
+        }
+        if (tracked == sender) {
+            if (!sender.isAlive() || sender.isSpectator()) return;
+            markRagdolled(sender, 60);
+        } else if (tracked.isAlive() || sender.distanceToSqr(tracked) > 48 * 48) return;
 
         for (ServerPlayer viewer : sender.level().players()) {
             if (viewer != sender && viewer.distanceToSqr(center) < 96 * 96
@@ -148,20 +183,28 @@ public final class RagdollServerNetworking {
     }
 
     public static void markRagdolled(ServerPlayer player, int ticks) {
-        ACTIVE_RAGDOLLS.put(player.getUUID(), player.level().getGameTime() + Math.max(1, ticks));
-        if (ACTIVE_RAGDOLLS.size() > 256) {
-            long now = player.level().getGameTime();
-            ACTIVE_RAGDOLLS.entrySet().removeIf(entry -> entry.getValue() < now);
-        }
+        long expires = player.level().getServer().getTickCount() + Math.max(1, ticks);
+        boolean started = !isRagdolled(player);
+        ACTIVE_RAGDOLLS.merge(player.getUUID(), expires, Math::max);
+        RAGDOLL_LEVELS.put(player.getUUID(), player.level().dimension());
+        if (started) for (ServerPlayer viewer : player.level().players()) sendState(viewer, player, true);
     }
 
     public static boolean isRagdolled(ServerPlayer player) {
         long expires = ACTIVE_RAGDOLLS.getOrDefault(player.getUUID(), Long.MIN_VALUE);
-        if (expires < player.level().getGameTime()) {
-            ACTIVE_RAGDOLLS.remove(player.getUUID());
-            return false;
-        }
-        return true;
+        return expires >= player.level().getServer().getTickCount();
+    }
+
+    public static void finishRagdoll(ServerPlayer player) {
+        if (ACTIVE_RAGDOLLS.remove(player.getUUID()) == null) return;
+        RAGDOLL_LEVELS.remove(player.getUUID());
+        LAST_POSE.keySet().removeIf(key -> key.startsWith(player.getUUID() + ":"));
+        for (ServerPlayer viewer : player.level().getServer().getPlayerList().getPlayers()) sendState(viewer, player, false);
+    }
+
+    private static void sendState(ServerPlayer viewer, ServerPlayer owner, boolean active) {
+        if (ServerPlayNetworking.canSend(viewer, RagdollStatePayload.TYPE))
+            ServerPlayNetworking.send(viewer, new RagdollStatePayload(owner.getId(), owner.getUUID(), active));
     }
 
     public static void forceAuthority(ServerPlayer player, Vec3 velocity) {

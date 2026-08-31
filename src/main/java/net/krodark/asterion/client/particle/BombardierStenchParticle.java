@@ -17,6 +17,7 @@ public final class BombardierStenchParticle extends AnimatedEmissiveParticle {
     private float sizeMultiplier = 1;
     private int sizeChangeTicks;
     private boolean burning;
+    private boolean flamethrower;
     private SpriteSet fireSprites;
 
     private BombardierStenchParticle(ClientLevel level, double x, double y, double z,
@@ -45,6 +46,13 @@ public final class BombardierStenchParticle extends AnimatedEmissiveParticle {
                                   SpriteSet sprites, RandomSource random) {
         return new BombardierStenchParticle(level, x, y, z,
                 velocityX, velocityY, velocityZ, sprites, random);
+    }
+
+    public static Particle createFlamethrower(ClientLevel level, double x, double y, double z,
+                                            double vx, double vy, double vz, SpriteSet sprites, RandomSource random) {
+        var smoke = new BombardierStenchParticle(level, x, y, z, vx, vy, vz, sprites, random);
+        smoke.flamethrower = true;
+        return smoke;
     }
 
     public static Particle createBelch(ClientLevel level, double x, double y, double z,
@@ -83,7 +91,7 @@ public final class BombardierStenchParticle extends AnimatedEmissiveParticle {
 
         if (burning) {
             float progress = age / (float)Math.max(1, lifetime);
-            BombardierGasFireParticle.applyFireColor(this, progress);
+            BombardierGasFireParticle.applyFireColor(this, progress, flamethrower);
             setAlpha(progress < 0.78F ? 0.92F : 0.92F * (1.0F - progress) / 0.22F);
             return;
         }
@@ -101,9 +109,13 @@ public final class BombardierStenchParticle extends AnimatedEmissiveParticle {
 
     public static void igniteNearby(ClientLevel level, double x, double y, double z, double radius,
                                     SpriteSet fireSprites) {
+        igniteNearby(level, x, y, z, radius, fireSprites, false);
+    }
+    public static void igniteNearby(ClientLevel level, double x, double y, double z, double radius,
+                                    SpriteSet fireSprites, boolean flamethrower) {
         double radiusSquared = radius * radius;
         for (BombardierStenchParticle smoke : ACTIVE) {
-            if (smoke.level != level || smoke.removed || smoke.burning) continue;
+            if (smoke.level != level || smoke.removed || smoke.burning || smoke.flamethrower != flamethrower) continue;
             double dx = smoke.x - x;
             double dy = smoke.y - y;
             double dz = smoke.z - z;

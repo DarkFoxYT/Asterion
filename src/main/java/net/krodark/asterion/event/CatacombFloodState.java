@@ -50,9 +50,9 @@ public final class CatacombFloodState extends SavedData {
 
     public static boolean isFlooding(ServerLevel level, BlockPos pos) {
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return false;
-        boolean catacombs = pos.getY() >= 3 && pos.getY() <= CatacombLayout.ROOF_Y;
-        boolean arena = pos.getY() >= 36 && pos.getY() <= 61
-                && Math.abs((long)pos.getX()) <= 34 && Math.abs((long)pos.getZ()) <= 34;
+        boolean catacombs = CatacombLayout.contains(pos);
+        boolean arena = pos.getY() >= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_FLOOR_Y && pos.getY() <= 49
+                && Math.abs((long)pos.getX()) <= 61 && Math.abs((long)pos.getZ()) <= 61;
         return (catacombs || arena) && get(level).active;
     }
 

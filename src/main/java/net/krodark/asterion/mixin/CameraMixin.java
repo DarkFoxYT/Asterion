@@ -84,6 +84,11 @@ public abstract class CameraMixin {
             setPosition(entrance.position());
             setRotation(entrance.yaw(), entrance.pitch());
         }
+        DeadSunClientEvents.Sample doorShake = net.krodark.asterion.client.MinotaurDoorShake.sample(position(), partial);
+        if (doorShake != DeadSunClientEvents.Sample.NONE) {
+            setPosition(position().add(doorShake.cameraOffset()));
+            setRotation(yRot() + doorShake.yawDegrees(), xRot() + doorShake.pitchDegrees());
+        }
         DeadSunClientEvents.Sample sample = DeadSunClientEvents.sample(partial);
         if (sample != DeadSunClientEvents.Sample.NONE) {
             setPosition(position().add(sample.cameraOffset()));

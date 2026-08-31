@@ -113,6 +113,24 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
                 24,.85,.2,.85,.025);
         return true;
     }
+    public static boolean relight(ServerLevel level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        if (!(state.getBlock() instanceof GreekBrazierBlock)) return false;
+        BlockPos center = root(pos, state);
+        for (int x = 0; x < 3; x++) for (int z = 0; z < 3; z++) {
+            BlockPos tile = part(center, x, z);
+            BlockState other = level.getBlockState(tile);
+            if (!owned(other, tile, center) || !other.getFluidState().isEmpty()) return false;
+        }
+        for (int x = 0; x < 3; x++) for (int z = 0; z < 3; z++) {
+            BlockPos tile = part(center, x, z);
+            level.setBlock(tile, level.getBlockState(tile).setValue(BlockStateProperties.LIT, true), UPDATE_ALL);
+        }
+        level.scheduleTick(center, state.getBlock(), 20);
+        level.playSound(null, center, SoundEvents.FIRECHARGE_USE, SoundSource.BLOCKS, 1.2F, .7F);
+        level.sendParticles(net.krodark.asterion.Asterion.GREEK_FIRE, center.getX()+.5, center.getY()+1.1, center.getZ()+.5, 18, .7, .3, .7, .035);
+        return true;
+    }
     @Override protected FluidState getFluidState(BlockState state) {
         return state.getValue(BlockStateProperties.WATERLOGGED)?Fluids.WATER.getSource(false):super.getFluidState(state);
     }

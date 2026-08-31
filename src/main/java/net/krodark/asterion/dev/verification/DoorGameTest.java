@@ -29,6 +29,7 @@ import net.minecraft.world.phys.Vec3;
 public final class DoorGameTest implements FabricClientGameTest {
     @Override public void runTest(ClientGameTestContext context) {
         context.runOnClient(client -> org.lwjgl.glfw.GLFW.glfwHideWindow(client.getWindow().handle()));
+        if (Boolean.getBoolean("asterion.pillarTest")) { PillarCheck.integration(context); return; }
         BlockPos root = new BlockPos(0, 121, 0);
         try (var world = context.worldBuilder().create()) {
             var server = world.getServer();
@@ -46,6 +47,7 @@ public final class DoorGameTest implements FabricClientGameTest {
                         check(!maze.getBlockState(wall).getCollisionShape(maze, wall).isEmpty(), "Removed doorway is not sealed");
                     }
                 }
+                PillarCheck.arena(maze);
                 check(WorldGenerator.activeBossBraziers(maze) == 4, "Arena fire-power braziers missing");
                 var fireBoss = Asterion.MINOTAUR.create(maze, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
                 try {
@@ -58,14 +60,18 @@ public final class DoorGameTest implements FabricClientGameTest {
                         net.krodark.asterion.block.GreekBrazierBlock.placeStructure((pos, state) -> maze.setBlock(pos, state, 3),
                                 net.krodark.asterion.worldgen.CatacombArena.brazier(direction));
                 } catch (ReflectiveOperationException exception) { throw new AssertionError(exception); }
-                for (int x = 3; x <= 34; x++) {
-                    int floor = Math.max(net.krodark.asterion.worldgen.CatacombLayout.floor(maze.getSeed(), 32, 42), 39 - x);
+                for (int x = 3; x <= net.krodark.asterion.worldgen.CatacombLayout.ROOT_CENTER; x++) {
+                    int floor = Math.max(net.krodark.asterion.worldgen.CatacombLayout.FLOOR_Y, 39 - x);
                     check(maze.getBlockState(new BlockPos(x, floor + 1, 42)).getCollisionShape(maze, new BlockPos(x, floor + 1, 42)).isEmpty(), "Blocked catacomb approach");
                     check(!maze.getBlockState(new BlockPos(x, floor, 42)).isAir(), "Catacomb stairs lack support");
                 }
                 for (int z = 35; z <= 44; z++) for (int y = MinotaurArenaEntrances.floorAt(z) + 1; y <= MinotaurArenaEntrances.floorAt(z) + 3; y++) {
                     BlockPos approach = new BlockPos(0, y, z);
                     check(maze.getBlockState(approach).getCollisionShape(maze, approach).isEmpty(), "Catacomb stair blocked player entrance/reset landing");
+                }
+                for (int z = 42; z <= net.krodark.asterion.worldgen.CatacombLayout.ROOT_CENTER; z++) {
+                    BlockPos pos = new BlockPos(net.krodark.asterion.worldgen.CatacombLayout.ROOT_CENTER, 8, z);
+                    check(maze.getBlockState(pos).getCollisionShape(maze, pos).isEmpty(), "Root hub connector blocked");
                 }
                 int roomTop = 36 + MinotaurArenaEntrances.gateHeight() + 1;
                 for (int radius = 35; radius <= MinotaurArenaEntrances.BOSS_ROOM_BACK; radius++) {
@@ -110,6 +116,7 @@ public final class DoorGameTest implements FabricClientGameTest {
                 for (int x = -40; x <= 40; x++) for (int z = -80; z <= 80; z++)
                     level.setBlock(new BlockPos(x, 120, z), Blocks.STONE.defaultBlockState(), 3);
                 player.setGameMode(GameType.CREATIVE);
+                PillarCheck.run(level, player);
                 MinotaurMotionCheck.run(level, player);
                 player.setYRot(180);
                 var stack = new ItemStack(Asterion.MINOTAUR_DOOR);
@@ -138,7 +145,7 @@ public final class DoorGameTest implements FabricClientGameTest {
                         .interact(mc.getPlayerList().getPlayers().getFirst(), key);
                 check(key.getCount() == 1, "Reusable key was consumed");
             });
-            context.waitTicks(36);
+            context.waitTicks(MinotaurDoorMotion.OPEN_TICKS + 8);
             context.takeScreenshot("door-open");
             server.runOnServer(mc -> {
                 var level = mc.overworld();
@@ -154,7 +161,7 @@ public final class DoorGameTest implements FabricClientGameTest {
                 player.setPos(previous);
                 door.interact(player, ItemStack.EMPTY);
             });
-            context.waitTicks(36);
+            context.waitTicks(MinotaurDoorMotion.OPEN_TICKS + 8);
             server.runOnServer(mc -> {
                 var door = (MinotaurDoorBlockEntity)mc.overworld().getBlockEntity(root);
                 check(!door.getBlockState().getValue(MinotaurDoorBlock.OPEN), "Unlocked door did not close");
@@ -407,10 +414,11 @@ public final class DoorGameTest implements FabricClientGameTest {
                     check(maze.getBlockState(MinotaurArenaEntrances.gate(side).above(MinotaurArenaEntrances.gateHeight())).is(Asterion.MAZESTEEL_GATE), "Raised gate hardware missing");
                 check(!maze.getBlockState(new BlockPos(0, 62, 0)).isAir(), "Roof missing before collapse");
                 MinotaurCombatSelectionCheck.run(maze, mc.getPlayerList().getPlayers().getFirst());
+                MinotaurRageCheck.run(maze, mc.getPlayerList().getPlayers().getFirst());
                 WorldGenerator.collapseBossRoofRing(maze, new Vec3(0, 37, 0), 0);
                 check(maze.getBlockState(new BlockPos(0, 62, 0)).isAir() && maze.getBlockState(new BlockPos(0, 61, 0)).isAir(), "Scripted roof collapse only emitted cosmetic copies");
             });
-            context.runOnClient(client -> check(bossBarCount(client) >= 2, "Death regression had no visible boss bars to remove"));
+            context.runOnClient(client -> check(bossBarCount(client) == 1, "Phase one must show only the health bar"));
             server.runOnServer(mc -> {
                 var player = mc.getPlayerList().getPlayers().getFirst();
                 player.setInvulnerable(false);

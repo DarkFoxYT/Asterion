@@ -40,12 +40,22 @@ public final class HeavyWaterlogging {
         return state.setValue(BlockStateProperties.WATERLOGGED, false).setValue(LEVEL, 0);
     }
     public static boolean canFill(@Nullable LivingEntity user, BlockGetter level, BlockPos pos, BlockState state) {
+        if (state.getBlock() instanceof net.krodark.asterion.block.HeavyWaterRedstone)
+            return supports(state) && !state.getValue(BlockStateProperties.WATERLOGGED);
         return supports(state) && !state.getValue(BlockStateProperties.WATERLOGGED)
                 && state.getBlock() instanceof LiquidBlockContainer container
                 && container.canPlaceLiquid(user, level, pos, state, Fluids.WATER);
     }
     public static boolean fill(LevelAccessor level, BlockPos pos, BlockState state, FluidState fluid) {
         if (!canFill(null, level, pos, state)) return false;
+        if (state.getBlock() instanceof net.krodark.asterion.block.HeavyWaterRedstone) {
+            if (!level.isClientSide()) {
+                level.setBlock(pos, withFluid(state, fluid), 3);
+                if (!(fluid.getType() instanceof TidalWaterFluid))
+                    level.scheduleTick(pos, HeavyWater.STILL, HeavyWater.STILL.getTickDelay(level));
+            }
+            return true;
+        }
         var container = (LiquidBlockContainer)state.getBlock();
         // Retain vanilla side effects, e.g. extinguishing a campfire or candle, before retaining the custom fluid.
         if (!container.placeLiquid(level, pos, state, Fluids.WATER.defaultFluidState())) return false;

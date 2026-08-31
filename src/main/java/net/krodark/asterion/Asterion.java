@@ -197,6 +197,11 @@ public class Asterion implements ModInitializer {
     public static final BlockEntityType<net.krodark.asterion.block.LamenterBlockEntity> LAMENTER_BLOCK_ENTITY = Registry.register(
             BuiltInRegistries.BLOCK_ENTITY_TYPE, id("lamenter"), FabricBlockEntityTypeBuilder.create(
                     net.krodark.asterion.block.LamenterBlockEntity::new, LAMENTER).build());
+    public static final Block PILLAR = registerBlock("pillar", MapColor.COLOR_BROWN,
+            props -> new net.krodark.asterion.block.PillarBlock(props.noOcclusion().strength(8F, 1200F).sound(net.minecraft.world.level.block.SoundType.WOOD).noLootTable()));
+    public static final BlockEntityType<net.krodark.asterion.block.PillarBlockEntity> PILLAR_BLOCK_ENTITY = Registry.register(
+            BuiltInRegistries.BLOCK_ENTITY_TYPE, id("pillar"), FabricBlockEntityTypeBuilder.create(
+                    net.krodark.asterion.block.PillarBlockEntity::new, PILLAR).build());
     public static final Block MINOTAUR_DOOR = registerBlock("minotaur_door", MapColor.COLOR_BROWN,
             properties -> new net.krodark.asterion.block.MinotaurDoorBlock(properties.noOcclusion().strength(8F, 1200F).noLootTable()));
     public static final BlockEntityType<net.krodark.asterion.block.MinotaurDoorBlockEntity> MINOTAUR_DOOR_BLOCK_ENTITY = Registry.register(
@@ -292,6 +297,10 @@ public class Asterion implements ModInitializer {
             BuiltInRegistries.PARTICLE_TYPE, id("bombardier_stench"), FabricParticleTypes.simple());
     public static final SimpleParticleType MINOTAUR_BELCH_SMOKE = Registry.register(
             BuiltInRegistries.PARTICLE_TYPE, id("minotaur_belch_smoke"), FabricParticleTypes.simple());
+    public static final SimpleParticleType FLAMETHROWER_GAS_FIRE = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, id("flamethrower_gas_fire"), FabricParticleTypes.simple());
+    public static final SimpleParticleType FLAMETHROWER_GAS = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, id("flamethrower_gas"), FabricParticleTypes.simple());
     public static final SimpleParticleType BOMBARDIER_GAS_FIRE = Registry.register(
             BuiltInRegistries.PARTICLE_TYPE, id("bombardier_gas_fire"), FabricParticleTypes.simple());
     public static final SimpleParticleType GREEK_FIRE = Registry.register(
@@ -410,6 +419,7 @@ public class Asterion implements ModInitializer {
                         output.accept(LABYRINTH_VINE);
                         output.accept(SKELETON);
                         output.accept(MINOTAUR_DOOR);
+                        output.accept(PILLAR);
                         output.accept(BARREL_DOOR);
                         output.accept(MINOTAUR_KEY);
                     })
@@ -523,6 +533,7 @@ public class Asterion implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(BiomeAtmospherePayload.TYPE, BiomeAtmospherePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RagdollImpulsePayload.TYPE, RagdollImpulsePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RagdollPosePayload.TYPE, RagdollPosePayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(RagdollStatePayload.TYPE, RagdollStatePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RagdollAuthorityPayload.TYPE, RagdollAuthorityPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RagdollExplosionPayload.TYPE, RagdollExplosionPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RagdollKillPayload.TYPE, RagdollKillPayload.CODEC);
@@ -552,8 +563,12 @@ public class Asterion implements ModInitializer {
         ServerChunkEvents.CHUNK_UNLOAD.register(CatacombFloodState::onChunkUnload);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> CatacombFloodState.clear());
         PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, blockEntity) ->
-                !(level instanceof net.minecraft.server.level.ServerLevel serverLevel)
-                        || !WorldGenerator.isActivePortalProtected(serverLevel, pos));
+                !net.krodark.asterion.worldgen.CatacombProtection.contains(level, pos)
+                        && (!(level instanceof net.minecraft.server.level.ServerLevel serverLevel)
+                        || !WorldGenerator.isActivePortalProtected(serverLevel, pos)));
+        net.fabricmc.fabric.api.event.player.AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) ->
+                net.krodark.asterion.worldgen.CatacombProtection.contains(level, pos)
+                        ? net.minecraft.world.InteractionResult.FAIL : net.minecraft.world.InteractionResult.PASS);
         PlayerBlockBreakEvents.AFTER.register((level, player, pos, state, blockEntity) -> {
             if (level instanceof net.minecraft.server.level.ServerLevel serverLevel)
                 WorldGenerator.trackMazeBreak(serverLevel, pos, state);

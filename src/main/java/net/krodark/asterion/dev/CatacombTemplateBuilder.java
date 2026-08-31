@@ -11,7 +11,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** Editable 9x9 crypt blueprints. All four rotations fit the 32-block generation tile. */
+/** Editable 9x9 crypt blueprints. Crypt entrances, plain corridors and puzzle rooms fit the 48-block generation tile. */
 public final class CatacombTemplateBuilder {
     private final ListTag palette = new ListTag();
     private final Map<String, Integer> states = new LinkedHashMap<>();
@@ -22,7 +22,7 @@ public final class CatacombTemplateBuilder {
         SharedConstants.tryDetectVersion();
         Path directory = Path.of(args[0]);
         Files.createDirectories(directory);
-        for (String type : new String[]{"crossing", "ossuary", "sluice", "parkour", "cursed_brazier"}) {
+        for (String type : new String[]{"crossing", "corridor", "puzzleroom"}) {
             CatacombTemplateBuilder builder = new CatacombTemplateBuilder();
             builder.build(type);
             builder.write(directory.resolve(type + ".nbt"));
@@ -31,7 +31,7 @@ public final class CatacombTemplateBuilder {
 
     private void build(String type) {
         boolean crossing = type.equals("crossing");
-        boolean through = crossing || type.equals("ossuary");
+        boolean through = crossing || type.equals("corridor");
         for (int x = 0; x < 9; x++) for (int z = 0; z < 9; z++) for (int y = 0; y < 11; y++) {
             boolean edge = x == 0 || x == 8 || z == 0 || z == 8;
             boolean door = y >= 1 && y <= 4 && ((Math.abs(x - 4) <= 1 && (z == 8 || z == 0 && through))
@@ -60,18 +60,7 @@ public final class CatacombTemplateBuilder {
             for (int x : new int[]{1, 7}) for (int z : new int[]{1, 7}) {
                 for (int y = 1; y <= 6; y++) put(x, y, z, "minecraft:chiseled_deepslate");
             }
-        } else if (type.equals("ossuary")) {
-            for (int z : new int[]{2, 5}) for (int x : new int[]{1, 7}) {
-                put(x, 1, z, "asterion:ancient_stone");
-                put(x, 2, z, "minecraft:bone_block", "axis", "z");
-                put(x, 2, z + 1, "minecraft:polished_deepslate_slab", "type", "bottom");
-                put(x, 3, z, "minecraft:skeleton_skull", "rotation", "0");
-            }
-            // A manual door between dry stepping stones; both directions can open it.
-            put(4, 1, 4, "asterion:ancient_stone");
-            put(4, 2, 4, "minecraft:dark_oak_door", "half", "lower", "facing", "south", "hinge", "left");
-            put(4, 3, 4, "minecraft:dark_oak_door", "half", "upper", "facing", "south", "hinge", "left");
-        } else if (type.equals("sluice")) {
+        } else if (type.equals("puzzleroom")) {
             for (int x = 1; x <= 7; x++) for (int y = 1; y <= 7; y++)
                 put(x, y, 3, x >= 3 && x <= 5 && y <= 4 ? "asterion:mazesteel_gate" : "asterion:ancient_bricks",
                         x >= 3 && x <= 5 && y <= 4 ? new String[]{"face", "floor", "facing", "south", "open", "false", "waterlogged", y == 1 ? "true" : "false"} : new String[0]);
@@ -84,24 +73,6 @@ public final class CatacombTemplateBuilder {
             }
             put(4, 1, 1, "asterion:ancient_stone");
             barrel(4, 2, 1);
-        } else if (type.equals("cursed_brazier")) {
-            for (int x = 1; x <= 7; x++) for (int z = 1; z <= 7; z++) put(x, 1, z, "asterion:ancient_stone");
-            put(0, 3, 5, "asterion:spewer", "facing", "east", "triggered", "false");
-            put(8, 3, 5, "asterion:fire_burst_trap", "facing", "west", "triggered", "false");
-            put(2, 2, 5, "asterion:bear_trap");
-            barrel(4, 2, 1);
-            CompoundTag entity = new CompoundTag(), data = new CompoundTag();
-            ListTag pos = new ListTag(); pos.add(net.minecraft.nbt.DoubleTag.valueOf(4.5));
-            pos.add(net.minecraft.nbt.DoubleTag.valueOf(2)); pos.add(net.minecraft.nbt.DoubleTag.valueOf(4.5));
-            entity.put("pos", pos); entity.put("blockPos", ints(4, 2, 4)); data.putString("id", "asterion:cursed_brazier");
-            data.putBoolean("PersistenceRequired", true); entity.put("nbt", data); entities.add(entity);
-        } else {
-            int[][] steps = {{2, 1, 6}, {2, 2, 3}, {5, 3, 2}, {6, 4, 5}};
-            for (int[] step : steps) for (int x = step[0]; x <= step[0] + 1; x++)
-                put(x, step[1], step[2], "asterion:slick_catacomb_stone");
-            put(6, 7, 5, "asterion:mazesteel_block");
-            put(6, 6, 5, "asterion:mazesteel_chain", "axis", "y");
-            barrel(7, 5, 5);
         }
     }
 

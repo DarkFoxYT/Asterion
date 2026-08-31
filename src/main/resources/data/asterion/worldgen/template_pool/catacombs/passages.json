@@ -1,1 +1,95 @@
-{"fallback":"minecraft:empty","elements":[{"weight":1,"element":{"element_type":"minecraft:single_pool_element","location":"asterion:catacombs/ossuary","processors":"minecraft:empty","projection":"rigid"}}]}
+{
+  "elements": [
+    {
+      "element": {
+        "location": "asterion:catacombs/corridor_cross_01",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element",
+        "processors": "minecraft:empty"
+      },
+      "weight": 1
+    },
+    {
+      "element": {
+        "location": "asterion:catacombs/corridor_cross_02",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element",
+        "processors": "minecraft:empty"
+      },
+      "weight": 1
+    },
+    {
+      "element": {
+        "location": "asterion:catacombs/corridor_deadend_01",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element",
+        "processors": "minecraft:empty"
+      },
+      "weight": 1
+    },
+    {
+      "element": {
+        "location": "asterion:catacombs/corridor_deadend_02",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element",
+        "processors": "minecraft:empty"
+      },
+      "weight": 1
+    },
+    {
+      "element": {
+        "location": "asterion:catacombs/corridor_straight_01",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element",
+        "processors": "minecraft:empty"
+      },
+      "weight": 1
+    },
+    {
+      "element": {
+        "location": "asterion:catacombs/corridor_straight_02",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element",
+        "processors": "minecraft:empty"
+      },
+      "weight": 1
+    },
+    {
+      "element": {
+        "location": "asterion:catacombs/corridor_straight_03",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element",
+        "processors": "minecraft:empty"
+      },
+      "weight": 1
+    },
+    {
+      "element": {
+        "location": "asterion:catacombs/corridor_straight_04",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element",
+        "processors": "minecraft:empty"
+      },
+      "weight": 1
+    },
+    {
+      "element": {
+        "location": "asterion:catacombs/corridor_t_01",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element",
+        "processors": "minecraft:empty"
+      },
+      "weight": 1
+    },
+    {
+      "element": {
+        "location": "asterion:catacombs/corridor_t_02",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element",
+        "processors": "minecraft:empty"
+      },
+      "weight": 1
+    }
+  ],
+  "fallback": "minecraft:empty"
+}

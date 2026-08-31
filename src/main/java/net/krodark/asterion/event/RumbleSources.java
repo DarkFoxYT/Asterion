@@ -15,7 +15,7 @@ public final class RumbleSources {
     public record Source(Vec3 position, Vec3 normal, BlockPos block) { }
     private RumbleSources() { }
     public static @Nullable Source find(Level level, Vec3 observer, RandomGenerator random) {
-        boolean catacomb = observer.y >= 3 && observer.y <= CatacombLayout.ROOF_Y;
+        boolean catacomb = CatacombLayout.contains(BlockPos.containing(observer));
         boolean aboveWalls = observer.y >= 49 + AsterionConfig.INSTANCE.wallHeight - 1;
         for (int attempt = 0; attempt < 6; attempt++) {
             Vec3 start, end;

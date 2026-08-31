@@ -7,12 +7,11 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
-import java.util.function.BiConsumer;
 
 /** Arena mechanics kept separate from the replaceable arena shell. */
 public final class CatacombArena {
     private static final java.util.Map<java.util.UUID, Motion> MOTION = new java.util.HashMap<>();
-    private static final int FLOOR = 36;
+    private static final int FLOOR = AuthoredCatacombs.ARENA_FLOOR_Y;
     private static final int[][] POOLS = {{7, 7}, {-7, 7}, {7, -7}, {-7, -7},
             {20, 10}, {-20, 10}, {20, -10}, {-20, -10}, {10, 20}, {-10, 20}, {10, -20}, {-10, -20}};
 
@@ -27,45 +26,12 @@ public final class CatacombArena {
     }
 
     public static BlockPos brazier(Direction direction) {
-        return new BlockPos(direction.getStepX() * 25, FLOOR + 7, direction.getStepZ() * 25)
+        return new BlockPos(direction.getStepX() * 25, FLOOR + 1, direction.getStepZ() * 25)
                 .relative(direction.getClockWise(), 6);
     }
 
     public static BlockPos lamenter(Direction direction) {
         return brazier(direction).above(2).relative(direction);
-    }
-
-    public static void build(BiConsumer<BlockPos, BlockState> place) {
-        for (Direction side : Direction.Plane.HORIZONTAL) {
-            // Six one-block rises with one-block gaps; the final pad also has a hook anchor.
-            // Offset the routes from the two door lanes so neither entrance gets obstructed.
-            for (int step = 0; step < 6; step++) {
-                BlockPos center = new BlockPos(side.getStepX() * (5 + step * 4), FLOOR + 1 + step,
-                        side.getStepZ() * (5 + step * 4)).relative(side.getClockWise(), 6);
-                for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++)
-                    place.accept(center.offset(x, 0, z), Asterion.MAZESTEEL_BLOCK.defaultBlockState());
-            }
-            BlockPos fire = brazier(side);
-            net.krodark.asterion.block.GreekBrazierBlock.placeStructure(place, fire);
-            place.accept(lamenter(side), Asterion.LAMENTER.defaultBlockState()
-                    .setValue(net.krodark.asterion.block.LamenterBlock.FACING, side.getOpposite()));
-            // A short reachable anchor, entirely below the roof and away from the tear column.
-            for (int y = 1; y <= 3; y++)
-                place.accept(fire.relative(side.getClockWise(), 1).above(y),
-                        Asterion.MAZESTEEL_CHAIN.defaultBlockState());
-        }
-        // Self-contained ceiling leaks survive without flooding the arena floor.
-        for (int[] pool : POOLS) {
-            int x = pool[0], z = pool[1];
-            int y = FLOOR + 18 + Math.max(0, (34 - (int)Math.sqrt(x * x + z * z)) / 4);
-            place.accept(new BlockPos(x, y - 1, z), Blocks.DRIPSTONE_BLOCK.defaultBlockState());
-            place.accept(new BlockPos(x, y, z), Blocks.WATER.defaultBlockState());
-            place.accept(new BlockPos(x, y + 1, z), Asterion.ANCIENT_BRICKS.defaultBlockState());
-            for (Direction side : Direction.Plane.HORIZONTAL)
-                place.accept(new BlockPos(x, y, z).relative(side), Asterion.ANCIENT_BRICKS.defaultBlockState());
-            place.accept(new BlockPos(x, y - 2, z), Blocks.POINTED_DRIPSTONE.defaultBlockState()
-                    .setValue(BlockStateProperties.VERTICAL_DIRECTION, Direction.DOWN));
-        }
     }
 
     public static void powerBurst(net.minecraft.server.level.ServerLevel level, net.minecraft.world.phys.Vec3 target) {

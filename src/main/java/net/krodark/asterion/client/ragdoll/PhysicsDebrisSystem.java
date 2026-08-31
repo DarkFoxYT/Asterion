@@ -56,7 +56,7 @@ public final class PhysicsDebrisSystem {
                     Integer.MAX_VALUE, .3F, true, false, 900, 1100)
     };
     private static final List<DoorCloud> DOOR_CLOUDS = new ArrayList<>();
-    private static final int MAX_PIECES = 128;
+    private static final int MAX_PIECES = 192;
     private static ClientLevel trackedLevel;
     private static long lastAmbientTick = Long.MIN_VALUE;
     private static long lastImpactSoundTick = Long.MIN_VALUE;
@@ -140,6 +140,10 @@ public final class PhysicsDebrisSystem {
     }
 
     private static void trimDebris() {
+        for (Iterator<Piece> it = PIECES.iterator(); PIECES.size() > MAX_PIECES && it.hasNext();) {
+            Piece piece = it.next();
+            if (piece.arenaRubble && piece.sleeping) it.remove();
+        }
         for (Iterator<Piece> it = PIECES.iterator(); PIECES.size() > MAX_PIECES && it.hasNext();)
             if (it.next().variant != 7) it.remove();
     }
@@ -226,6 +230,8 @@ public final class PhysicsDebrisSystem {
         for (Piece piece : PIECES) {
             Vec3 position = piece.previousPosition.lerp(piece.position, partialTick);
             if (position.distanceToSqr(camera) > 96 * 96) continue;
+            double cullRadius = piece.halfExtents().length() + .5;
+            if (!state.cameraRenderState.cullFrustum.isVisible(new AABB(position, position).inflate(cullRadius))) continue;
             Quaternionf rotation = new Quaternionf(piece.previousOrientation).slerp(piece.orientation, partialTick);
             poses.pushPose();
             poses.translate(position.x - camera.x, position.y - camera.y, position.z - camera.z);

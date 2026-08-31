@@ -2,6 +2,8 @@ package net.krodark.asterion.entity;
 
 /** Maps server action ticks to authored keyframes, including release and recovery rather than only clip length. */
 public final class MinotaurAnimationTiming {
+    // Authored animation frames are 24 fps, independently of Minecraft's 20 server ticks/sec.
+    public static final double ROAR_SOUND_SECONDS = 60.0 / 24.0;
     public static final int AXE_RELEASE = 15;
     public static final int[] COMBO_HITS = {19, 33, 46};
     public static final Track CLEAVE = track(48, 2.3864, 18, .9091);
@@ -20,6 +22,9 @@ public final class MinotaurAnimationTiming {
     public static final Track SHEATHE_SWORD = track(24, 1.5417);
     public static final Track SHEATHE_AXE = track(20, 1.0);
     public static final Track ROAR = track(150, 7.4713);
+    // Door impact coincides with the jaw opening; the sustained roar plays after the entrance advance.
+    public static final Track ENTRY_ROAR = new Track(new double[]{0, 52, 70, 100, 138, 150},
+            new double[]{0, 2.2989, 3.0172, 3.8793, 6.8966, 7.4713});
     public static final Track FIRE_ROAR = new Track(new double[]{0, 18, 24, 78, 92, 108},
             new double[]{0, 2.5862, 3.0172, 5.364, 6.1303, 7.4713});
     public static final Track BELCH = track(65, 3.25);
@@ -41,6 +46,11 @@ public final class MinotaurAnimationTiming {
     public static final class Track {
         private final double[] ticks, frames;
         private Track(double[] ticks, double[] frames) { this.ticks = ticks; this.frames = frames; }
+        public int roarSoundTick() {
+            for (int tick = 1; tick <= ticks[ticks.length - 1]; tick++)
+                if (seconds(tick) >= ROAR_SOUND_SECONDS) return tick;
+            throw new IllegalStateException("Roar clip does not reach frame 60");
+        }
         public double seconds(double tick) {
             if (tick <= 0) return 0;
             for (int i = 1; i < ticks.length; i++) if (tick <= ticks[i]) {

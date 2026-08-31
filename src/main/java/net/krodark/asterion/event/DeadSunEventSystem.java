@@ -385,8 +385,8 @@ public final class DeadSunEventSystem {
                 .filter(definition -> definition.eligible(level))
                 .filter(definition -> RareMazeEvents.get(level).ready(definition.id(), level.getGameTime()))
                 .filter(definition -> !definition.id().equals(FLOOD) || level.players().stream().anyMatch(player ->
-                        player.isAlive() && !player.isSpectator() && player.getY() >= 3
-                                && player.getY() <= net.krodark.asterion.worldgen.CatacombLayout.ROOF_Y))
+                        player.isAlive() && !player.isSpectator()
+                                && net.krodark.asterion.worldgen.CatacombLayout.contains(player.blockPosition())))
                 .filter(definition -> !definition.id().equals(SHIFTING) || !isEclipseActive(level)).toList();
         if (eligible.isEmpty()) {
             state.nextEventTick = scheduleNext(random, level.getGameTime());
