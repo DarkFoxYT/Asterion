@@ -282,7 +282,7 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
             BurningGas gas = burningGas.get(index);
             gas.age++;
             if ((gas.age & 1) == 0)
-                level.sendParticles(ParticleTypes.SMALL_FLAME, gas.position.x, gas.position.y, gas.position.z,
+                level.sendParticles(Asterion.BOMBARDIER_GAS_FIRE, gas.position.x, gas.position.y, gas.position.z,
                         2, 0.20D, 0.16D, 0.20D, 0.018D);
             if (gas.age == 1 || gas.age % 6 == 0)
                 level.sendParticles(ParticleTypes.LAVA, gas.position.x, gas.position.y, gas.position.z,

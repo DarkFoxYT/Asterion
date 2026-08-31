@@ -15,7 +15,6 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 
-/** Small, mud-bottomed Overgrowth puddles; some are fed by a restrained wall seep. */
 public final class OvergrowthPuddleFeature extends Feature<NoneFeatureConfiguration> {
     public OvergrowthPuddleFeature(Codec<NoneFeatureConfiguration> codec) {
         super(codec);
@@ -44,8 +43,7 @@ public final class OvergrowthPuddleFeature extends Feature<NoneFeatureConfigurat
 
     private static boolean hasCleanBasin(WorldGenLevel level, BlockPos center, boolean marsh) {
         for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) {
-            // Circular corridors rarely offer a perfect square footprint. Requiring the
-            // center and cardinal arms preserves clean basins without rejecting curved halls.
+            // Marshes can fit curved corridors without a square footprint.
             if (marsh && Math.abs(dx) + Math.abs(dz) > 1) continue;
             BlockPos floor = center.offset(dx, 0, dz);
             if (!OvergrowthFeatureSupport.isMazeFloor(level, floor)
@@ -68,7 +66,7 @@ public final class OvergrowthPuddleFeature extends Feature<NoneFeatureConfigurat
             double noise = signedNoise(center, dx, dz) * 0.15D;
             double shape = Math.sqrt(nx * nx + nz * nz) + noise;
             BlockPos pos = center.offset(dx, 0, dz);
-            if (!level.ensureCanWrite(pos) || !level.ensureCanWrite(pos.below())) continue;
+            if (!OvergrowthFeatureSupport.canWrite(level, pos) || !OvergrowthFeatureSupport.canWrite(level, pos.below())) continue;
             boolean cleanFloor = OvergrowthFeatureSupport.isMazeFloor(level, pos)
                     && OvergrowthFeatureSupport.isOpen(level, pos.above());
             if (!cleanFloor) continue;
@@ -92,12 +90,13 @@ public final class OvergrowthPuddleFeature extends Feature<NoneFeatureConfigurat
             }
         }
 
-        // If the basin naturally sits beside masonry, let a narrow two-block seep descend
-        // directly into its edge. The water column is over the recessed basin, so it stays tidy.
+        // Keep the wall seep over the recessed basin.
         if (wallFeed != null && random.nextFloat() < (marsh ? 0.76F : 0.58F)) {
             BlockPos lip = center.relative(wallFeed.direction, wallFeed.distance - 1);
             BlockPos backing = center.relative(wallFeed.direction, wallFeed.distance);
-            if (OvergrowthFeatureSupport.isMazeWall(level.getBlockState(backing.above()))
+            if (OvergrowthFeatureSupport.canWrite(level, lip.below())
+                    && OvergrowthFeatureSupport.canWrite(level, lip.above(3))
+                    && OvergrowthFeatureSupport.isMazeWall(level.getBlockState(backing.above()))
                     && OvergrowthFeatureSupport.isMazeWall(level.getBlockState(backing.above(2)))) {
                 level.setBlock(lip.above(), Blocks.WATER.defaultBlockState(), 2);
                 level.setBlock(lip.above(2), Blocks.WATER.defaultBlockState(), 2);

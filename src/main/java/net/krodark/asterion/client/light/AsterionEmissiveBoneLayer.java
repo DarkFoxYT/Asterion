@@ -21,6 +21,8 @@ public class AsterionEmissiveBoneLayer<T extends GeoAnimatable, O, R extends Geo
     /** Retained for existing layers; halo strength no longer creates an extra rendering pass. */
     protected float emissiveStrength(R state) { return 0f; }
     protected float surfaceBrightness(R state) { return 0.8f; }
+    protected boolean enhancedSurface(R state) { return false; }
+    protected Identifier amneticEmissionMesh(R state) { return null; }
     protected int emissiveColor(R state) { return 0xFFFFFFFF; }
 
     @Override
@@ -41,13 +43,18 @@ public class AsterionEmissiveBoneLayer<T extends GeoAnimatable, O, R extends Geo
         if ((color >>> 24) == 0) return;
         var mesh = EmissiveBoneMesh.of(cuboid);
         float uScale = widthRatio, vScale = heightRatio;
+        Identifier emissionMesh = amneticEmissionMesh(state);
         // SubmitNodeCollector snapshots the animated pose; mesh data never stores per-entity state.
         var stack = pass.poseStack();
         stack.pushPose();
         try {
             bone.translateAwayFromPivotPoint(stack);
-            tasks.submitCustomGeometry(stack, AsterionEmissiveBuffer.renderType(texture),
-                    (pose, buffer) -> mesh.render(pose, buffer, color, uScale, vScale));
+            tasks.submitCustomGeometry(stack, AsterionEmissiveBuffer.renderType(texture, enhancedSurface(state)),
+                    (pose, buffer) -> {
+                        mesh.render(pose, buffer, color, uScale, vScale);
+                        if (emissionMesh != null)
+                            AmneticBoneEmission.submit(emissionMesh, mesh, texture, pose.pose(), color, uScale, vScale);
+                    });
         } finally {
             stack.popPose();
         }

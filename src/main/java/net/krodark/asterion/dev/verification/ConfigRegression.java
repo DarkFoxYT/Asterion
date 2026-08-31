@@ -26,6 +26,7 @@ public final class ConfigRegression {
             AsterionConfig defaults = AsterionConfig.INSTANCE;
             require(Files.isRegularFile(file), "first launch did not create a config");
             require(defaults.cellSize == 13, "default maze dimensions changed");
+            require(!defaults.potatoParticleCulling, "extra particle culling must default off");
             Method load = AsterionConfig.class.getDeclaredMethod("load");
             load.setAccessible(true);
 
@@ -128,6 +129,7 @@ public final class ConfigRegression {
     private static void sanitizedRoundTrip(Path file, Method load) throws Exception {
         AsterionConfig config = new AsterionConfig();
         config.cellSize = 2;
+        config.potatoParticleCulling = true;
         config.wallThickness = 99;
         config.minotaurGazeMinTicks = 300;
         config.minotaurGazeMaxTicks = 1;
@@ -135,6 +137,7 @@ public final class ConfigRegression {
         config.minotaurDamageMax = 1;
         config.save();
         AsterionConfig loaded = read(load);
+        require(loaded.potatoParticleCulling, "particle culling choice was not preserved");
         require(loaded.cellSize == 9 && loaded.wallThickness == 4, "corridor clearance became invalid");
         require(loaded.minotaurGazeMinTicks == 300 && loaded.minotaurGazeMaxTicks == 300,
                 "gaze timing bounds were inverted");

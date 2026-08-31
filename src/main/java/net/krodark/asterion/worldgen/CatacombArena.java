@@ -9,7 +9,7 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
 import java.util.function.BiConsumer;
 
-/** Four jump routes share the existing Minotaur arena; no second boss or separate progression. */
+/** Temporary arena floor details; elevated brazier routes await the authored map. */
 public final class CatacombArena {
     private static final java.util.Map<java.util.UUID, Motion> MOTION = new java.util.HashMap<>();
     private static final int FLOOR = 36;
@@ -36,28 +36,7 @@ public final class CatacombArena {
     }
 
     public static void build(BiConsumer<BlockPos, BlockState> place) {
-        for (Direction direction : Direction.Plane.HORIZONTAL) {
-            Direction across = direction.getClockWise();
-            for (int step = 0; step < 6; step++) {
-                int radius = 10 + step * 3;
-                BlockPos center = new BlockPos(direction.getStepX() * radius, FLOOR + 1 + step,
-                        direction.getStepZ() * radius).relative(across, 6);
-                // Narrow platforms leave two-block jump gaps, rising one block per jump.
-                for (int side = -1; side <= 1; side++)
-                    place.accept(center.relative(across, side),
-                            Asterion.MAZESTEEL_BLOCK.defaultBlockState());
-            }
-            BlockPos bowl = brazier(direction);
-            for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++)
-                place.accept(bowl.offset(x, -1, z), Asterion.MAZESTEEL_BLOCK.defaultBlockState());
-            net.krodark.asterion.block.GreekBrazierBlock.placeStructure(place, bowl);
-            place.accept(lamenter(direction), Asterion.LAMENTER.defaultBlockState()
-                    .setValue(net.krodark.asterion.block.LamenterBlock.FACING, direction.getOpposite()));
-            BlockPos anchor = brazier(direction).above(4).relative(across, 3);
-            place.accept(anchor, Asterion.MAZESTEEL_BLOCK.defaultBlockState());
-            place.accept(anchor.below(), Asterion.MAZESTEEL_CHAIN.defaultBlockState());
-            place.accept(anchor.below(2), Asterion.MAZESTEEL_CHAIN.defaultBlockState());
-        }
+        // Elevated brazier/platform puzzle is reserved for the authored arena map.
         // Self-contained ceiling leaks survive without flooding the arena floor.
         for (int[] pool : POOLS) {
             int x = pool[0], z = pool[1];

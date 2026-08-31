@@ -42,9 +42,19 @@ public final class DoorGameTest implements FabricClientGameTest {
                     check(!maze.getBlockState(MinotaurArenaEntrances.gate(removed)).is(Asterion.MAZESTEEL_GATE),
                             "Obsolete side gate survived the two-door layout");
                     for (int side = -3; side <= 3; side++) for (int y = 37; y <= 43; y++) {
-                        BlockPos wall = MinotaurArenaEntrances.door(removed).relative(removed.getClockWise(), side).atY(y);
+                        BlockPos wall = MinotaurArenaEntrances.door(removed).relative(removed).relative(removed.getClockWise(), side).atY(y);
                         check(!maze.getBlockState(wall).getCollisionShape(maze, wall).isEmpty(), "Removed doorway is not sealed");
                     }
+                }
+                check(WorldGenerator.activeBossBraziers(maze) == 0, "Temporary brazier platforms still generated");
+                for (int x = 3; x <= 34; x++) {
+                    int floor = Math.max(net.krodark.asterion.worldgen.CatacombLayout.floor(maze.getSeed(), 32, 42), 39 - x);
+                    check(maze.getBlockState(new BlockPos(x, floor + 1, 42)).getCollisionShape(maze, new BlockPos(x, floor + 1, 42)).isEmpty(), "Blocked catacomb approach");
+                    check(!maze.getBlockState(new BlockPos(x, floor, 42)).isAir(), "Catacomb stairs lack support");
+                }
+                for (int z = 35; z <= 44; z++) for (int y = MinotaurArenaEntrances.floorAt(z) + 1; y <= MinotaurArenaEntrances.floorAt(z) + 3; y++) {
+                    BlockPos approach = new BlockPos(0, y, z);
+                    check(maze.getBlockState(approach).getCollisionShape(maze, approach).isEmpty(), "Catacomb stair blocked player entrance/reset landing");
                 }
                 int roomTop = 36 + MinotaurArenaEntrances.gateHeight() + 1;
                 for (int radius = 35; radius <= MinotaurArenaEntrances.BOSS_ROOM_BACK; radius++) {
@@ -86,9 +96,10 @@ public final class DoorGameTest implements FabricClientGameTest {
             server.runOnServer(mc -> {
                 var level = mc.overworld();
                 var player = mc.getPlayerList().getPlayers().getFirst();
-                for (int x = -40; x <= 40; x++) for (int z = -40; z <= 40; z++)
+                for (int x = -40; x <= 40; x++) for (int z = -80; z <= 80; z++)
                     level.setBlock(new BlockPos(x, 120, z), Blocks.STONE.defaultBlockState(), 3);
                 player.setGameMode(GameType.CREATIVE);
+                MinotaurMotionCheck.run(level, player);
                 player.setYRot(180);
                 var stack = new ItemStack(Asterion.MINOTAUR_DOOR);
                 var hit = new BlockHitResult(Vec3.atBottomCenterOf(root), Direction.UP, root.below(), false);
@@ -300,7 +311,7 @@ public final class DoorGameTest implements FabricClientGameTest {
                 check(!level.getBlockState(MinotaurArenaEntrances.door(Direction.NORTH)).is(Asterion.MINOTAUR_DOOR),
                         "Boss entrance was not broken off");
             });
-            context.waitTicks(45);
+            context.waitTicks(95);
             server.runOnServer(mc -> {
                 var level = mc.getLevel(Asterion.ASTERION_LEVEL);
                 var player = mc.getPlayerList().getPlayers().getFirst();
@@ -324,6 +335,11 @@ public final class DoorGameTest implements FabricClientGameTest {
                         && !client.options.hideGui, "Cinematic did not restore the previous camera and HUD");
             });
             context.takeScreenshot("arena-gates-sealed");
+            server.runCommand("execute as @a at @s run asterion minotaur debug");
+            server.runCommand("execute as @a at @s run asterion minotaur status");
+            server.runCommand("execute as @a at @s run asterion minotaur stop");
+            server.runOnServer(mc -> check(WorldGenerator.isBossEncounterActive(mc.getLevel(Asterion.ASTERION_LEVEL)),
+                    "Stopping arena telemetry removed the real boss"));
             server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 37 23.5 0 -8");
             context.runOnClient(client -> {
                 client.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
@@ -374,7 +390,33 @@ public final class DoorGameTest implements FabricClientGameTest {
             Asterion.LOGGER.info("PASS: prebuilt roof and doors, clear entrance lanes for all pillar counts, keyed crossing required, opposite-door boss spawn, uninterrupted intro and physical launch");
             server.runOnServer(mc -> {
                 var maze = mc.getLevel(Asterion.ASTERION_LEVEL);
-                check(WorldGenerator.resetBossEncounterAfterDeath(mc.getPlayerList().getPlayers().getFirst()), "Encounter did not reset");
+                for (int x : new int[]{-32, 32}) check(maze.getBlockState(new BlockPos(x, 45, 0)).isAir(), "Obsolete side corridor projects into the arena");
+                for (Direction side : MinotaurArenaEntrances.DOORS)
+                    check(maze.getBlockState(MinotaurArenaEntrances.gate(side).above(MinotaurArenaEntrances.gateHeight())).is(Asterion.MAZESTEEL_GATE), "Raised gate hardware missing");
+                check(!maze.getBlockState(new BlockPos(0, 62, 0)).isAir(), "Roof missing before collapse");
+                MinotaurCombatSelectionCheck.run(maze, mc.getPlayerList().getPlayers().getFirst());
+                WorldGenerator.collapseBossRoofRing(maze, new Vec3(0, 37, 0), 0);
+                check(maze.getBlockState(new BlockPos(0, 62, 0)).isAir() && maze.getBlockState(new BlockPos(0, 61, 0)).isAir(), "Scripted roof collapse only emitted cosmetic copies");
+            });
+            context.runOnClient(client -> check(bossBarCount(client) >= 2, "Death regression had no visible boss bars to remove"));
+            server.runOnServer(mc -> {
+                var player = mc.getPlayerList().getPlayers().getFirst();
+                player.setInvulnerable(false);
+                player.hurtServer(mc.getLevel(Asterion.ASTERION_LEVEL), player.damageSources().genericKill(), Float.MAX_VALUE);
+            });
+            context.waitTicks(5);
+            context.runOnClient(client -> {
+                check(bossBarCount(client) == 0, "Boss bars survived death and encounter discard");
+                client.player.respawn();
+            });
+            context.waitTicks(8);
+            context.runOnClient(client -> check(bossBarCount(client) == 0, "Boss bars returned on respawn"));
+            server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 37 23.5 0 0");
+            context.waitTicks(3);
+            Asterion.LOGGER.info("PASS: actual death, encounter discard, boss bar removal and respawn cleanup");
+            server.runOnServer(mc -> {
+                var maze = mc.getLevel(Asterion.ASTERION_LEVEL);
+                check(!WorldGenerator.isBossEncounterActive(maze), "Death did not reset the encounter");
                 check(maze.getEntitiesOfClass(net.krodark.asterion.entity.BombadierBeetleEntity.class,
                         new net.minecraft.world.phys.AABB(-44, 35, -44, 44, 62, 44),
                         beetle -> beetle.entityTags().contains("asterion_arena_beetle")).isEmpty(), "Reset left summoned beetles behind");
@@ -429,7 +471,7 @@ public final class DoorGameTest implements FabricClientGameTest {
                 mc.overworld().setBlock(new BlockPos(0, 37, 0), Blocks.GOLD_BLOCK.defaultBlockState(), 2);
             });
             server.runCommand("execute as @a at @s run asterion minotaur attack rubble_throw");
-            context.waitTicks(20);
+            context.waitTicks(30);
             server.runOnServer(mc -> check(debugBoss.get().debugStatus().contains("attack=RUBBLE_THROW"), "Forced overworld attack did not run"));
             context.takeScreenshot("overworld-debug-rubble");
             context.runOnClient(client -> {
@@ -484,15 +526,19 @@ public final class DoorGameTest implements FabricClientGameTest {
             server.runOnServer(mc -> {
                 var player = mc.getPlayerList().getPlayers().getFirst();
                 var boss = debugBoss.get();
+                // Clear the earlier door fixture out of this charge lane.
+                for (int x = -6; x < 18; x++) for (int y = 121; y < 136; y++) for (int z = -8; z <= 8; z++)
+                    mc.overworld().setBlock(new BlockPos(x, y, z), Blocks.AIR.defaultBlockState(), 2);
                 boss.setPos(0, 121, 0);
                 player.teleportTo(2, 123, 0);
                 player.resetFallDistance();
+                boss.beginDebug(player);
                 player.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
                 player.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH).setBaseValue(100);
                 player.setHealth(100);
                 player.getFoodData().setFoodLevel(0);
                 player.getFoodData().setSaturation(0);
-                for (int y = 121; y < 136; y++) for (int z = -15; z <= 15; z++)
+                for (int y = 121; y < 160; y++) for (int z = -80; z <= 80; z++)
                     mc.overworld().setBlock(new BlockPos(18, y, z), Blocks.STONE.defaultBlockState(), 2);
             });
             server.runCommand("execute as @a at @s run asterion minotaur attack grab");
@@ -505,12 +551,384 @@ public final class DoorGameTest implements FabricClientGameTest {
                 check(player.getHealth() <= 80 && player.getHealth() > 75, "Expected 10 release + 10 wall impact damage; health=" + player.getHealth());
             });
             context.waitTicks(15);
-            server.runOnServer(mc -> check(debugBoss.get().debugStatus().contains("WALL_SHOVE"), "Wall impact did not trigger pin pursuit"));
+            server.runOnServer(mc -> {
+                var boss = debugBoss.get();
+                check(boss.debugStatus().contains("attack=CHARGE"), "Throw did not prioritize charge: " + boss.debugStatus());
+                try {
+                    var finish = MinotaurEntity.class.getDeclaredMethod("finishBossAttack", int.class);
+                    finish.setAccessible(true); finish.invoke(boss, 0);
+                    var pending = MinotaurEntity.class.getDeclaredField("throwPursuitPending");
+                    pending.setAccessible(true); pending.setBoolean(boss, true);
+                    var combos = MinotaurEntity.class.getDeclaredMethod("tickPendingCombos", net.minecraft.server.level.ServerLevel.class);
+                    combos.setAccessible(true); combos.invoke(boss, mc.overworld());
+                    check(boss.debugStatus().contains("attack=CHAIN_GRAPPLE"), "Charge cooldown did not fall back to chain grapple");
+                } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
+            });
             server.runCommand("execute as @a at @s run asterion minotaur stop");
             server.runOnServer(mc -> check(!MinotaurEntity.controlsPlayer(mc.getPlayerList().getPlayers().getFirst()), "Stop left grab controls locked"));
             Asterion.LOGGER.info("PASS: airborne grab, hand attachment state, movement lock, 50–80 block throw and cleanup");
+            server.runOnServer(mc -> {
+                var player = mc.getPlayerList().getPlayers().getFirst();
+                player.setGameMode(net.minecraft.world.level.GameType.CREATIVE);
+                player.teleportTo(8, 121, 0);
+                var boss = Asterion.MINOTAUR.create(mc.overworld(), net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+                boss.setPos(0, 121, 0); boss.beginDebug(player); mc.overworld().addFreshEntity(boss); debugBoss.set(boss);
+                check(boss.forceDebugAttack(player, "sword_combo"), "Cannot force sword attack");
+            });
+            context.runOnClient(client -> { client.player.setYRot(90); client.player.setXRot(-18); });
+            context.waitTicks(10);
+            context.takeScreenshot("minotaur-pull-swords-out");
+            context.waitTicks(MinotaurEntity.DRAW_SWORD_TICKS - 10 + 5);
+            server.runOnServer(mc -> check(debugBoss.get().weaponMode() == 2, "Swords were not drawn"));
+            context.takeScreenshot("minotaur-swords-drawn");
+            server.runOnServer(mc -> {
+                finishWeaponTestAttack(debugBoss.get());
+                debugBoss.get().forceDebugAttack(mc.getPlayerList().getPlayers().getFirst(), "axe_throw");
+            });
+            context.waitTicks(8);
+            server.runOnServer(mc -> check(!debugBoss.get().axeInWorld() && debugBoss.get().weaponSwapTicks() > 0, "Axe attack skipped sheathing swords"));
+            context.waitTicks(60);
+            server.runOnServer(mc -> {
+                check(debugBoss.get().axeInWorld(), "Axe was not thrown into the world");
+                finishWeaponTestAttack(debugBoss.get());
+                debugBoss.get().forceDebugAttack(mc.getPlayerList().getPlayers().getFirst(), "cleave");
+                check(debugBoss.get().debugStatus().contains("RETRIEVE_AXE"), "Cleave bypassed missing axe");
+                finishWeaponTestAttack(debugBoss.get());
+                debugBoss.get().forceDebugAttack(mc.getPlayerList().getPlayers().getFirst(), "sword_combo");
+            });
+            context.waitTicks(MinotaurEntity.DRAW_SWORD_TICKS + 5);
+            server.runOnServer(mc -> {
+                var boss = debugBoss.get();
+                check(boss.weaponMode() == 2 && boss.axeInWorld(), "Swords unavailable while axe was in world");
+                finishWeaponTestAttack(boss);
+                try {
+                    var id = (java.util.UUID)read(boss, "thrownAxe");
+                    var axe = mc.overworld().getEntity(id);
+                    check(axe != null, "Thrown axe disappeared");
+                    check(axe instanceof net.krodark.asterion.entity.MinotaurAxeEntity, "Axe still uses dropped-item physics");
+                    boss.setPos(axe.position().add(-1, 0, 0));
+                } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
+                boss.forceDebugAttack(mc.getPlayerList().getPlayers().getFirst(), "retrieve_axe");
+            });
+            context.waitTicks(25);
+            server.runOnServer(mc -> {
+                var boss = debugBoss.get(); var player = mc.getPlayerList().getPlayers().getFirst();
+                check(!boss.axeInWorld() && boss.weaponMode() == 1, "Axe was not retrieved");
+                finishWeaponTestAttack(boss);
+                boss.setPos(13, 121, 0); player.teleportTo(17, 121, 0);
+                for (String removed : new String[]{"wall_shove", "red_lightning_charge", "arena_sweep"}) {
+                    check(!MinotaurEntity.debugAttackNames().contains(removed), "Removed attack still suggested: " + removed);
+                    check(!boss.forceDebugAttack(player, removed), "Removed attack still executable: " + removed);
+                }
+                try {
+                    var rage = MinotaurEntity.class.getDeclaredMethod("setRage", int.class); rage.setAccessible(true);
+                    rage.invoke(boss, 0); double calm = boss.rageCooldownMultiplier();
+                    rage.invoke(boss, 12); check(boss.rageCooldownMultiplier() < calm * .5, "Rage did not reduce cooldowns");
+                } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
+                boss.stopDebug();
+            });
+            Asterion.LOGGER.info("PASS: weapon draw/sheath, physical axe throw/retrieval, missing-axe gating, removed attack rejection and rage cooldown scaling");
+            server.runOnServer(mc -> {
+                var level = mc.overworld();
+                // A spinning body must hit a one-block wall, settle above the floor and remain retrievable.
+                for (int y = 121; y <= 140; y++) for (int z = -26; z <= -14; z++)
+                    level.setBlock(new BlockPos(12, y, z), Blocks.STONE.defaultBlockState(), 2);
+                var axe = new net.krodark.asterion.entity.MinotaurAxeEntity(Asterion.MINOTAUR_AXE, level);
+                axe.launch(new Vec3(0, 131, -20), new Vec3(1.7, .25, 0), 90);
+                level.addFreshEntity(axe);
+                var initial = axe.renderRotation(1);
+                for (int tick = 0; tick < 360; tick++) {
+                    axe.tick();
+                    check(Double.isFinite(axe.position().lengthSqr()) && axe.renderRotation(1).isFinite(), "Axe physics became non-finite");
+                    check(axe.getX() < 12.1, "Axe tunneled through a wall");
+                    check(axe.getBoundingBox().minY >= 120.98, "Axe clipped below floor");
+                    if (tick == 4) check(Math.abs(initial.dot(axe.renderRotation(1))) < .99, "Thrown axe did not spin");
+                }
+                check(axe.sleeping(), "Axe never settled");
+                check(!axe.isRemoved(), "Resting axe vanished before retrieval");
+                Vec3 restingPosition = axe.position();
+                Vec3 restingVelocity = axe.getDeltaMovement();
+                WorldGenerator.explodeBossRubble(level, restingPosition);
+                level.explode(null, axe.getX() + 1, axe.getY() + 1, axe.getZ(), 6,
+                        net.minecraft.world.level.Level.ExplosionInteraction.NONE);
+                check(axe.getDeltaMovement().equals(restingVelocity), "Explosion accelerated the recoverable axe");
+                axe.tick();
+                check(axe.sleeping() && axe.position().equals(restingPosition) && !axe.isRemoved(),
+                        "Phase-two/explosion disturbed the settled axe");
+                axe.discard();
+            });
+            Asterion.LOGGER.info("PASS: axe spin, swept wall/floor collision, stable settling, persistence and explosion immunity");
+            server.runOnServer(mc -> {
+                var player = mc.getPlayerList().getPlayers().getFirst();
+                player.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+                player.teleportTo(3, 121, -30); player.resetFallDistance(); player.setHealth(100);
+                player.getFoodData().setFoodLevel(10); player.getFoodData().setSaturation(0);
+                var boss = Asterion.MINOTAUR.create(mc.overworld(), net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+                boss.setPos(0, 121, -30); boss.beginDebug(player); boss.setDebugRunning(false);
+                mc.overworld().addFreshEntity(boss); debugBoss.set(boss);
+                // The trigger counts actual health loss, after the Minotaur's armor.
+                boss.hurtServer(mc.overworld(), player.damageSources().playerAttack(player), 24);
+                try {
+                    var trigger = MinotaurEntity.class.getDeclaredMethod("shouldHornRam", net.minecraft.server.level.ServerPlayer.class);
+                    trigger.setAccessible(true);
+                    check((boolean)trigger.invoke(boss, player), "Close damage burst did not prioritize horns");
+                    player.teleportTo(14, 121, -30);
+                    check(!(boolean)trigger.invoke(boss, player), "Distant target triggered defensive horn ram");
+                    player.teleportTo(3, 121, -30);
+                } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
+                boss.forceDebugAttack(player, "horn_ram");
+            });
+            context.waitTicks(55);
+            server.runOnServer(mc -> {
+                var boss = debugBoss.get(); var player = mc.getPlayerList().getPlayers().getFirst();
+                check(player.getHealth() == 93, "Horn ram did not deal exactly 7 base damage: " + player.getHealth());
+                try {
+                    double travel = (double)read(boss, "hornTravel");
+                    check(travel >= 7 && travel <= 10.001, "Horn knockback outside 7–10 blocks: " + travel);
+                    check((int)read(boss, "wallComboWindow") == 0 && (int)read(boss, "airborneCatchWindow") == 0,
+                            "Horn ram scheduled a follow-up combo");
+                } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
+                check(!MinotaurEntity.controlsPlayer(player), "Horn ram left movement locked");
+                boss.stopDebug();
+            });
+            Asterion.LOGGER.info("PASS: close burst horn trigger, range gate, 7 damage, 7–10 block ragdoll knockback, no scheduled combo and control release");
+            server.runOnServer(mc -> {
+                var player = mc.getPlayerList().getPlayers().getFirst();
+                player.setGameMode(GameType.CREATIVE); player.teleportTo(0, 121, -12);
+                var boss = Asterion.MINOTAUR.create(mc.overworld(), net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+                boss.setPos(0, 121, 0); boss.beginDebug(player); boss.setDebugRunning(false);
+                mc.overworld().addFreshEntity(boss); debugBoss.set(boss);
+            });
+            context.runOnClient(client -> { client.player.setYRot(0); client.player.setXRot(-18); });
+            context.waitTicks(10);
+            context.takeScreenshot("minotaur-custom-axe-back");
+            server.runOnServer(mc -> mc.getPlayerList().getPlayers().getFirst().teleportTo(10, 121, -5));
+            context.runOnClient(client -> { client.player.setYRot(63.5F); client.player.setXRot(-18); });
+            context.waitTicks(4);
+            context.takeScreenshot("minotaur-custom-swords-hips");
+            server.runOnServer(mc -> {
+                var player = mc.getPlayerList().getPlayers().getFirst(); player.teleportTo(0, 121, 12);
+                debugBoss.get().forceDebugAttack(player, "cleave");
+            });
+            context.runOnClient(client -> { client.player.setYRot(180); client.player.setXRot(-18); });
+            context.waitTicks(12);
+            context.takeScreenshot("minotaur-pull-axe-from-back");
+            context.waitTicks(MinotaurEntity.DRAW_AXE_TICKS - 12 + 5);
+            context.takeScreenshot("minotaur-custom-axe-hand");
+            context.runOnClient(client -> check(net.krodark.asterion.client.render.BossGroundTelegraphRenderer.activeCount() > 0,
+                    "Weapon wind-up did not send a ground damage warning"));
+            server.runOnServer(mc -> mc.getPlayerList().getPlayers().getFirst().teleportTo(0, 132, 15));
+            context.runOnClient(client -> { client.player.setYRot(180); client.player.setXRot(40); });
+            context.waitTicks(2);
+            context.takeScreenshot("minotaur-ground-cleave-warning");
+            server.runOnServer(mc -> {
+                mc.getPlayerList().getPlayers().getFirst().teleportTo(0, 121, 12);
+                finishWeaponTestAttack(debugBoss.get());
+                debugBoss.get().forceDebugAttack(mc.getPlayerList().getPlayers().getFirst(), "axe_throw");
+            });
+            context.waitTicks(19);
+            context.takeScreenshot("minotaur-custom-axe-flight");
+            server.runOnServer(mc -> debugBoss.get().stopDebug());
+            context.waitTicks(5);
+            context.runOnClient(client -> check(net.krodark.asterion.client.render.BossGroundTelegraphRenderer.activeCount() == 0,
+                    "Cancelled/dead boss left a damage warning behind"));
+            server.runOnServer(mc -> mc.getPlayerList().getPlayers().getFirst().teleportTo(0, 132, 15));
+            context.runOnClient(client -> {
+                client.player.setYRot(180); client.player.setXRot(40);
+                net.krodark.asterion.client.render.BossGroundTelegraphRenderer.receive(new net.krodark.asterion.network.BossTelegraphPayload(
+                        new Vec3(0, 121, 0), new Vec3(0, 0, 1), 8, 12,
+                        net.krodark.asterion.network.BossTelegraphPayload.TARGET_CIRCLE, client.player.getId(), (float)(Math.PI * 2), 0, 0));
+            });
+            context.waitTicks(2);
+            context.takeScreenshot("minotaur-ground-circle-warning");
+            context.runOnClient(client -> net.krodark.asterion.client.render.BossGroundTelegraphRenderer.receive(
+                    new net.krodark.asterion.network.BossTelegraphPayload(new Vec3(0, 121, -10), new Vec3(0, 0, 1), 24, 8,
+                            net.krodark.asterion.network.BossTelegraphPayload.CHARGE_LANE, client.player.getId(), 0, 2, 0)));
+            context.waitTicks(2);
+            context.takeScreenshot("minotaur-ground-charge-warning");
+            context.waitTicks(10);
+            context.runOnClient(client -> check(net.krodark.asterion.client.render.BossGroundTelegraphRenderer.activeCount() == 0,
+                    "Expired ground warning was not removed"));
+            Asterion.LOGGER.info("PASS: weapon ground warning delivery, cancellation, circle/lane rendering and expiry");
+            server.runOnServer(mc -> {
+                var player = mc.getPlayerList().getPlayers().getFirst();
+                player.teleportTo(0, 121, 5); player.setGameMode(GameType.SURVIVAL);
+                player.setHealth(100); player.invulnerableTime = 0;
+                var boss = Asterion.MINOTAUR.create(mc.overworld(), net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+                boss.setPos(0, 121, 0); boss.beginDebug(player); mc.overworld().addFreshEntity(boss); debugBoss.set(boss);
+                check(boss.forceDebugAttack(player, "axe_chop"), "Overhead chop not available in debug commands");
+                boss.setDebugRunning(false);
+                tickWeaponAttack(boss, player, MinotaurEntity.DRAW_AXE_TICKS + 17);
+                check(boss.bossAttackAnimationTicks() == 17 && player.getHealth() == 100, "Chop dealt damage during wind-up");
+                player.setGameMode(GameType.CREATIVE); player.teleportTo(10, 124, 12);
+            });
+            context.runOnClient(client -> { client.player.setYRot(140); client.player.setXRot(-12); });
+            context.waitTicks(7);
+            context.takeScreenshot("minotaur-axe-overhead-windup");
+            server.runOnServer(mc -> {
+                var player = mc.getPlayerList().getPlayers().getFirst();
+                player.teleportTo(0, 121, 5); player.setGameMode(GameType.SURVIVAL); player.invulnerableTime = 0;
+                tickWeaponAttack(debugBoss.get(), player, MinotaurEntity.AXE_CHOP_HIT_TICK - 18);
+                check(player.getHealth() == 100, "Chop hit before its downswing contact");
+                tickWeaponAttack(debugBoss.get(), player, 1);
+                check(player.getHealth() == 82, "Chop did not hit the forward lane at its downswing contact");
+                player.setGameMode(GameType.CREATIVE); player.teleportTo(10, 124, 12);
+            });
+            context.waitTicks(7);
+            context.takeScreenshot("minotaur-axe-overhead-impact");
+            server.runOnServer(mc -> {
+                var player = mc.getPlayerList().getPlayers().getFirst();
+                player.setGameMode(GameType.SURVIVAL); player.teleportTo(3, 121, 5); player.setHealth(100); player.invulnerableTime = 0;
+                try {
+                    var chop = MinotaurEntity.class.getDeclaredMethod("performAxeChop", net.minecraft.server.level.ServerLevel.class);
+                    chop.setAccessible(true); chop.invoke(debugBoss.get(), mc.overworld());
+                } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
+                check(player.getHealth() == 100, "Sidestepping the chop lane still took damage");
+                debugBoss.get().stopDebug();
+            });
+            Asterion.LOGGER.info("PASS: overhead axe chop wind-up, authored downswing impact, 18 damage and safe sidestep lane");
+            server.runOnServer(mc -> {
+                var level = mc.overworld(); var player = mc.getPlayerList().getPlayers().getFirst();
+                player.setGameMode(GameType.SURVIVAL); player.setHealth(100); player.invulnerableTime = 0;
+                player.teleportTo(0, 125, -20); player.setDeltaMovement(Vec3.ZERO);
+                var axe = new net.krodark.asterion.entity.MinotaurAxeEntity(Asterion.MINOTAUR_AXE, level);
+                axe.launch(new Vec3(0, 124, -24), new Vec3(0, .08, 1.6), 0);
+                level.addFreshEntity(axe);
+                for (int tick = 0; tick < 8; tick++) axe.tick();
+                check(player.getHealth() == 80, "Swept axe blade did not deal 20 damage: " + player.getHealth());
+                player.invulnerableTime = 0;
+                for (int tick = 0; tick < 8; tick++) axe.tick();
+                check(player.getHealth() == 80, "Same throw damaged player more than once");
+                axe.discard();
+                player.setHealth(100); player.invulnerableTime = 0; player.teleportTo(0, 121, -20);
+                player.setDeltaMovement(Vec3.ZERO);
+                var aimed = new net.krodark.asterion.entity.MinotaurAxeEntity(Asterion.MINOTAUR_AXE, level);
+                aimed.launchAimed(new Vec3(0, 127, -40), new Vec3(0, 121 + 3.15 * aimed.modelScale(), -20), 0, 14);
+                level.addFreshEntity(aimed);
+                for (int tick = 0; tick < 24; tick++) {
+                    aimed.tick();
+                    if (tick >= 9 && tick <= 17) Asterion.LOGGER.info("Axe flight check tick={} position={} velocity={} bounds={} health={}", tick,
+                            aimed.position(), aimed.getDeltaMovement(), aimed.getBoundingBox(), player.getHealth());
+                }
+                check(player.getHealth() < 100, "Aimed physical axe missed a stationary grounded player");
+                aimed.discard(); player.setGameMode(GameType.CREATIVE); player.setHealth(100);
+                player.teleportTo(10, 125, 12); player.setYRot(140); player.setXRot(8);
+                var boss = Asterion.MINOTAUR.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+                boss.setPos(0, 121, 0); boss.beginDebug(player); boss.setDebugRunning(false); boss.setNoAi(true);
+                level.addFreshEntity(boss); debugBoss.set(boss);
+                try {
+                    var begin = MinotaurEntity.class.getDeclaredMethod("beginCollapse", net.minecraft.server.level.ServerLevel.class);
+                    begin.setAccessible(true); begin.invoke(boss, level);
+                    var tick = MinotaurEntity.class.getDeclaredMethod("tickCollapse", net.minecraft.server.level.ServerLevel.class, net.minecraft.server.level.ServerPlayer.class);
+                    tick.setAccessible(true); for (int i = 0; i < 90; i++) tick.invoke(boss, level, player);
+                    check(boss.collapseAnimationTicks() == 90 && boss.getY() >= 121, "Collapse did not hold grounded pose");
+                } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
+            });
+            context.waitTicks(8);
+            context.takeScreenshot("minotaur-collapsed-rubble");
+            context.runOnClient(client -> { PhysicsDebrisSystem.clear(); client.particleEngine.clearParticles(); });
+            context.takeScreenshot("minotaur-authored-dies-pose");
+            server.runOnServer(mc -> debugBoss.get().stopDebug());
+            Asterion.LOGGER.info("PASS: swept physical axe blade damage, single hit per throw and grounded collapse pose");
+
+            server.runOnServer(mc -> {
+                var level = mc.overworld(); var player = mc.getPlayerList().getPlayers().getFirst();
+                player.setGameMode(GameType.SURVIVAL); player.setHealth(100); player.invulnerableTime = 0;
+                player.teleportTo(0, 121, 12); player.setDeltaMovement(Vec3.ZERO);
+                var boss = Asterion.MINOTAUR.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+                boss.setPos(0, 121, 0); boss.setYRot(0); boss.setYHeadRot(0); boss.beginDebug(player);
+                level.addFreshEntity(boss); debugBoss.set(boss);
+                check(boss.forceDebugAttack(player, "chain_grapple"), "Chain debug attack unavailable");
+                boss.setDebugRunning(false);
+                tickWeaponAttack(boss, player, 24);
+                check(boss.bossAttackAnimationTicks() == 24, "Chain clock included a weapon swap");
+                check(player.getDeltaMovement().equals(Vec3.ZERO), "Chain pulled before frame 30");
+                check(boss.grabTargetEntityId() == player.getId() && boss.isChainGrappleActive(), "Chain endpoint not synchronized");
+            });
+            context.runOnClient(client -> { client.player.setYRot(180); client.player.setXRot(-12); });
+            context.waitTicks(4);
+            context.runOnClient(client -> {
+                var boss = client.level.getEntitiesOfClass(MinotaurEntity.class, client.player.getBoundingBox().inflate(32)).getFirst();
+                var model = new net.krodark.asterion.client.render.entity.MinotaurGeoModel();
+                for (String clip : new String[]{"roar", "roar_start", "walk", "run", "charge_start", "run charge attack",
+                        "leep", "chain_grapple", "punch_single", "punch combo", "swing_swords_combo",
+                        "swing_axe_horizontal", "swing_axe_vertical", "axe_throw", "pull_sword_out", "pull_axe_from_back",
+                        "rubble_throw", "dies", "asterion_sheathe_swords", "asterion_sheathe_axe", "asterion_revive"})
+                    check(model.getBakedAnimation(boss, clip) != null, "Missing baked Minotaur animation: " + clip);
+            });
+            context.takeScreenshot("minotaur-mazesteel-chain-frame29");
+            server.runOnServer(mc -> {
+                var player = mc.getPlayerList().getPlayers().getFirst(); var boss = debugBoss.get();
+                player.setDeltaMovement(Vec3.ZERO);
+                tickWeaponAttack(boss, player, 1);
+                Vec3 yank = player.getDeltaMovement();
+                check(yank.z < -2 && yank.y > .1, "Frame 30 did not strongly yank the player toward the Minotaur");
+                tickWeaponAttack(boss, player, 5);
+                check(player.getDeltaMovement().equals(yank), "Grapple repeatedly pulled after its one yank");
+                try {
+                    var flight = MinotaurEntity.class.getDeclaredMethod("tickThrownPlayer", net.minecraft.server.level.ServerLevel.class);
+                    flight.setAccessible(true);
+                    for (int i = 0; i < 10; i++) flight.invoke(boss, mc.overworld());
+                } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
+                double gap = player.position().subtract(boss.position()).horizontalDistance();
+                check(gap >= 3.1 && gap <= 3.6, "Yank did not arrive in front of the boss: " + gap);
+                check(!MinotaurEntity.controlsPlayer(player), "Yank did not release movement at arrival");
+                // Resolve landing before the later punch contact; no manually imposed horizontal movement.
+                player.teleportTo(player.getX(), 121, player.getZ()); player.setDeltaMovement(Vec3.ZERO);
+                tickWeaponAttack(boss, player, 6);
+                check(boss.debugStatus().contains("attack=PUNCH_SINGLE"), "Close grapple did not follow with punch_single");
+                check(boss.grabTargetEntityId() == -1 && !boss.isChainGrappleActive(), "Chain stayed attached during punch");
+                tickWeaponAttack(boss, player, 19);
+                check(player.getHealth() == 100, "Punch connected before the authored impact");
+                player.invulnerableTime = 0;
+                tickWeaponAttack(boss, player, 1);
+                check(player.getHealth() == 94, "Single punch missed a grounded player: " + player.getHealth());
+                boss.stopDebug(); player.setGameMode(GameType.CREATIVE);
+                verifyLocomotion(mc.overworld(), player, MinotaurEntity.BehaviorPhase.ROAMING, 4);
+                verifyLocomotion(mc.overworld(), player, MinotaurEntity.BehaviorPhase.CHASING, 7);
+            });
+            Asterion.LOGGER.info("PASS: custom chain endpoint, frame-30 single yank, grounded punch follow-up and measured walk/run speed");
 
         }
+    }
+    private static void verifyLocomotion(net.minecraft.server.level.ServerLevel level,
+            net.minecraft.server.level.ServerPlayer player, MinotaurEntity.BehaviorPhase phase, double expected) {
+        var boss = Asterion.MINOTAUR.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+        boss.setPos(-20, 121, -50); boss.setYRot(0); boss.setOnGround(true);
+        boss.beginDebug(player); boss.setDebugRunning(false);
+        try {
+            var setPhase = MinotaurEntity.class.getDeclaredMethod("setBehaviorPhase", MinotaurEntity.BehaviorPhase.class);
+            setPhase.setAccessible(true); setPhase.invoke(boss, phase);
+            double start = 0;
+            for (int tick = 0; tick < 60; tick++) {
+                boss.getMoveControl().setWantedPosition(-20, 121, 20, 1.4);
+                boss.getMoveControl().tick();
+                // Vanilla applies input damping immediately before travel; exercise native collisions and drag.
+                boss.travel(new Vec3(0, 0, boss.zza * .98F));
+                if (tick == 19) start = boss.getZ();
+            }
+            double measured = (boss.getZ() - start) / 2;
+            check(Math.abs(measured - expected) < .08, phase + " speed should be " + expected + " blocks/s, got " + measured);
+            Asterion.LOGGER.info("Measured Minotaur {} speed: {} blocks/s", phase, measured);
+        } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
+        finally { boss.discard(); }
+    }
+    private static int bossBarCount(net.minecraft.client.Minecraft client) {
+        try { return ((java.util.Map<?, ?>)read(client.gui.getBossOverlay(), "events")).size(); }
+        catch (ReflectiveOperationException error) { throw new AssertionError(error); }
+    }
+    private static void tickWeaponAttack(MinotaurEntity boss, net.minecraft.server.level.ServerPlayer player, int ticks) {
+        try {
+            var tick = MinotaurEntity.class.getDeclaredMethod("tickBossAttack", net.minecraft.server.level.ServerLevel.class, net.minecraft.server.level.ServerPlayer.class);
+            tick.setAccessible(true);
+            for (int i = 0; i < ticks; i++) tick.invoke(boss, player.level(), player);
+        } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
+    }
+    private static void finishWeaponTestAttack(MinotaurEntity boss) {
+        try {
+            var finish = MinotaurEntity.class.getDeclaredMethod("finishBossAttack", int.class);
+            finish.setAccessible(true); finish.invoke(boss, 0);
+        } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
     }
     private static void check(boolean condition, String message) { if (!condition) throw new AssertionError(message); }
 

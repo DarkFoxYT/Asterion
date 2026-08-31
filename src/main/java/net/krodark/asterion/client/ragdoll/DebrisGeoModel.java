@@ -26,6 +26,8 @@ final class DebrisGeoModel extends GeoModel<DebrisPhysicsObject> {
     @Override
     public Identifier getModelResource(GeoRenderState renderState) {
         return switch (renderState.getOrDefaultGeckolibData(VARIANT, 1)) {
+            case 9 -> Asterion.id("physics/sword");
+            case 8 -> Asterion.id("physics/axe");
             case 7 -> Asterion.id("physics/minotaur_door_debirs");
             case 2 -> MODEL_2;
             case 3 -> MODEL_3;
@@ -39,6 +41,8 @@ final class DebrisGeoModel extends GeoModel<DebrisPhysicsObject> {
     @Override
     public Identifier getTextureResource(GeoRenderState renderState) {
         return switch (renderState.getOrDefaultGeckolibData(VARIANT, 1)) {
+            case 9 -> Asterion.id("textures/physics/sword.png");
+            case 8 -> Asterion.id("textures/physics/axe.png");
             case 7 -> Asterion.id("textures/physics/minotaur_door_debris.png");
             case 2 -> TEXTURE_2;
             case 3 -> TEXTURE_3;

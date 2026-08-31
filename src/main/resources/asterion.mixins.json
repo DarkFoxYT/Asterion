@@ -5,12 +5,15 @@
   "compatibilityLevel": "JAVA_25",
   "mixins": [
     "BlockItemMixin",
+    "ChunkAccessAccessor",
     "CinematicServerMovementMixin",
     "PrimaryLevelDataMixin",
-    "ResolveDamageMixin"
+    "ResolveDamageMixin",
+    "WorldGenRegionAccessor"
   ],
   "client": [
     "AmneticParticleCullingMixin",
+    "AmneticBoneEmissionMixin",
     "AsterionFogRendererMixin",
     "CameraMixin",
     "CentipedeInteractionMixin",

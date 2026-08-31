@@ -22,7 +22,7 @@ public final class BombardierGasFireParticle extends AnimatedEmissiveParticle {
         hasPhysics = false;
         lifetime = 24 + random.nextInt(12);
         quadSize = 0.62F + random.nextFloat() * 0.42F;
-        BombardierStenchParticle.igniteNearby(level, x, y, z, 2.25D);
+        BombardierStenchParticle.igniteNearby(level, x, y, z, 2.25D, sprites);
         setSpriteFromAge(sprites);
         applyFireColor(this, 0.0F);
         setAlpha(0.88F);

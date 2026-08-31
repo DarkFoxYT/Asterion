@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:stonecutting",
+  "ingredient": "asterion:mazesteel_block",
+  "result": {
+    "id": "asterion:mazesteel_slab",
+    "count": 2
+  }
+}

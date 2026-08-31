@@ -63,7 +63,7 @@ public final class AncientMossPatchFeature extends Feature<NoneFeatureConfigurat
     }
 
     private static boolean openForGrowth(WorldGenLevel level, BlockPos feet) {
-        return level.getBlockState(feet).isAir() && level.getBlockState(feet.above()).isAir()
+        return OvergrowthFeatureSupport.isOpen(level, feet) && level.getBlockState(feet.above()).isAir()
                 && level.getBlockState(feet.above(2)).isAir();
     }
 

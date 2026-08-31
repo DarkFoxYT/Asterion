@@ -7,11 +7,14 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.world.phys.Vec3;
 
 public record BossTelegraphPayload(Vec3 center, Vec3 direction, float radius,
-                                   int durationTicks, int kind) implements CustomPacketPayload {
+                                   int durationTicks, int kind, int ownerId, float arcRadians,
+                                   float halfWidth, float progress) implements CustomPacketPayload {
     public static final int HALF_ARENA_SWEEP = 0;
     public static final int TARGET_CIRCLE = 1;
     public static final int CHARGE_LANE = 2;
     public static final int FRONT_CONE = 3;
+    public static final int BOX = 4;
+    public static final int BOX_CONE = 5;
     public static final Type<BossTelegraphPayload> TYPE = new Type<>(Asterion.id("boss_telegraph"));
     public static final StreamCodec<RegistryFriendlyByteBuf, BossTelegraphPayload> CODEC =
             CustomPacketPayload.codec(BossTelegraphPayload::write, BossTelegraphPayload::read);
@@ -22,11 +25,16 @@ public record BossTelegraphPayload(Vec3 center, Vec3 direction, float radius,
         buffer.writeFloat(radius);
         buffer.writeVarInt(durationTicks);
         buffer.writeVarInt(kind);
+        buffer.writeVarInt(ownerId);
+        buffer.writeFloat(arcRadians);
+        buffer.writeFloat(halfWidth);
+        buffer.writeFloat(progress);
     }
 
     private static BossTelegraphPayload read(RegistryFriendlyByteBuf buffer) {
         return new BossTelegraphPayload(readVec(buffer), readVec(buffer), buffer.readFloat(),
-                buffer.readVarInt(), buffer.readVarInt());
+                buffer.readVarInt(), buffer.readVarInt(), buffer.readVarInt(), buffer.readFloat(),
+                buffer.readFloat(), buffer.readFloat());
     }
 
     private static void writeVec(RegistryFriendlyByteBuf b, Vec3 v) {

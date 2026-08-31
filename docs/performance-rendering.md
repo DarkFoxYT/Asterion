@@ -1,8 +1,10 @@
 # Rendering performance without quality reductions
 
-Amnetic remains bundled and unmodified. Asterion enables its GPU instancing path for the existing animated flame/smoke mesh and supplies an order-preserving culling step through a narrowly scoped mixin. Other mods' Amnetic meshes are unaffected.
+Amnetic remains bundled; its rendering code is unchanged (the later local-preset safety patch is documented separately). Asterion enables its GPU instancing path for the existing animated flame/smoke mesh and supplies an order-preserving culling step through a narrowly scoped mixin. Other mods' Amnetic meshes are unaffected.
 
 ## Particle submission
+
+Extra particle culling is now **off by default**. Enable **Potato particle culling** in Mod Menu → Asterion, or set `potatoParticleCulling` to `true` in `config/asterion.json`. The setting applies immediately through Mod Menu. With it off, Asterion does not apply its extra 64-block cutoff, CPU/GPU frustum filtering or 2048-particle submission cap. Normal Minecraft particle lifetime, graphics settings and depth occlusion still apply. The optimizations described below apply only when this option is on; the GPU path is not necessarily faster on every low-end PC.
 
 - With 256–2048 tracked particles and compute support, Amnetic uploads the instance/bounds buffers and draws indirectly. Two compute passes perform frustum tests, a local prefix scan, and stable scatter into Amnetic's instance buffer. No visibility counts are read back to the CPU.
 - Back-to-front sorting stays unchanged. Unlike Amnetic's unordered atomic compaction, stable scatter retains the exact order of surviving translucent sprites. Payloads, atlas coordinates, colors, opacity, emission strength, draw phase and particle lifetime are unchanged.
@@ -17,7 +19,7 @@ This is frustum culling, not depth/occlusion culling. It does not lower particle
 
 The Dead Sun shader returns immediately where nearby opaque geometry completely hides the sun and its corona, provided the separate radiance volume is inactive. It also skips zero-opacity/zero-strength output. Fog integration computes invariant wind and dust tint once and skips depth reconstruction for sky pixels. Sample counts, render resolutions, noise functions, blur kernels, colors and animation timing remain unchanged.
 
-Portal layers reuse their staging matrices, vectors and instance records. They retain CPU visibility tests: adding a compute dispatch for each one-instance portal layer would add overhead. Lamenter tear emission computes its phase once and keeps the same four origins, cadence and trajectories. Bone emissive rendering remains on its existing sharp cached-mesh path.
+Portal layers reuse their staging matrices, vectors and instance records. They retain CPU visibility tests: adding a compute dispatch for each one-instance portal layer would add overhead. Lamenter tear emission computes its phase once and keeps the same four origins, cadence and trajectories. Vine glow now also submits its cached geometry and rendered poses to Amnetic's explicit emission capture; other bone layers keep their existing surface path.
 
 ## Verification
 

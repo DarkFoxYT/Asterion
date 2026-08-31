@@ -29,7 +29,7 @@ public final class AsterionModMenu implements ModMenuApi {
             AsterionConfig config = AsterionConfig.INSTANCE;
             int left = width / 2 - 155;
             int right = width / 2 + 5;
-            int y = Math.max(20, (height - 190) / 2);
+            int y = Math.max(20, (height - 211) / 2);
             addRenderableOnly(new StringWidget(width / 2 - 100, y - 20, 200, 20,
                     Component.literal("Cinematics and performance"), font));
             addRenderableWidget(CycleButton.onOffBuilder(config.cinematicsEnabled).create(
@@ -88,6 +88,10 @@ public final class AsterionModMenu implements ModMenuApi {
             addRenderableWidget(CycleButton.onOffBuilder(config.dustyAirEnabled).create(
                     right, y, 150, 20, Component.literal("Dusty-air shader"),
                     (button, value) -> config.dustyAirEnabled = value));
+            y += 21;
+            addRenderableWidget(CycleButton.onOffBuilder(config.potatoParticleCulling).create(
+                    left, y, 310, 20, Component.literal("Potato particle culling"),
+                    (button, value) -> config.potatoParticleCulling = value));
             y += 24;
             addRenderableWidget(Button.builder(Component.literal("Save and return"), button -> {
                 config.save();

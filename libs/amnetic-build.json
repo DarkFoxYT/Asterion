@@ -1,8 +1,9 @@
 {
-  "version": "1.0-SNAPSHOT",
+  "version": "1.0-SNAPSHOT-asterion.1",
   "sourceCommit": "de756b6",
   "minecraft": "26.1.2",
-  "amneticSha256": "82b6772c183a4d34fb5be41c92abe8ba2b6a4c9bd1b00d298b18d63570e8766c",
+  "amneticSha256": "4a529f44f38260a0a17b78abfff11a9c078532a5d8638bdeaf7472fdb34e158b",
   "bb4jSha256": "c2242d567a3246ce68fe115f4214127e0d3986a99d6dde1a7a52aae0059fe888",
-  "installation": "Amnetic and its bb4j parser library nested inside Asterion"
+  "installation": "Amnetic and its bb4j parser library nested inside Asterion",
+  "sourcePatch": "docs/curseforge/amnetic-preset-safety.patch"
 }

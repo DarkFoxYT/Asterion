@@ -37,8 +37,14 @@ public final class AsterionEmissiveConfig {
             boolean upgradeEyes = legacy || values.version < 3;
             // Upgrade the shipped eye setting once, preserving deliberately customized strengths.
             if (upgradeEyes && values.minotaurEyeStrength == 0.85F) values.minotaurEyeStrength = 1.0F;
+            boolean upgradeFire = legacy || values.version < 4;
+            if (upgradeFire) {
+                if (values.beetleFireStrength == 2F) values.beetleFireStrength = 3.2F;
+                if (values.intensity == .16F) values.intensity = .22F;
+                if (values.threshold == 1.1F) values.threshold = .95F;
+            }
             sanitize();
-            if (upgradeEyes) save();
+            if (upgradeEyes || upgradeFire) save();
         } catch (Exception exception) {
             Asterion.LOGGER.warn("Unable to load Asterion emissive config {}", PATH, exception);
             values = new Values();
@@ -98,27 +104,27 @@ public final class AsterionEmissiveConfig {
     }
 
     private static void sanitize() {
-        values.version = 3;
+        values.version = 4;
         values.threshold = finiteClamp(values.threshold, 0.0F, 2.0F, 1.1F);
         values.intensity = finiteClamp(values.intensity, 0.0F, 0.5F, 0.16F);
         values.levels = Mth.clamp(values.levels, 2, 3);
         values.scale = finiteClamp(values.scale, 0.5F, 1.0F, 0.75F);
         values.knee = finiteClamp(values.knee, 0.0F, 1.0F, 0.25F);
         values.minotaurEyeStrength = finiteClamp(values.minotaurEyeStrength, 0.0F, 1.0F, 1.0F);
-        values.beetleFireStrength = finiteClamp(values.beetleFireStrength, 0.0F, 3.0F, 2.0F);
+        values.beetleFireStrength = finiteClamp(values.beetleFireStrength, 0.0F, 5.0F, 3.2F);
         values.vineGlowStrength = finiteClamp(values.vineGlowStrength, 0.0F, 1.0F, 0.65F);
     }
 
     private static final class Values {
-        private int version = 3;
+        private int version = 4;
         private boolean enabled = true;
-        private float threshold = 1.1F;
-        private float intensity = 0.16F;
+        private float threshold = .95F;
+        private float intensity = .22F;
         private int levels = 2;
         private float scale = 0.75F;
         private float knee = 0.25F;
         private float minotaurEyeStrength = 1.0F;
-        private float beetleFireStrength = 2.0F;
+        private float beetleFireStrength = 3.2F;
         private float vineGlowStrength = 0.65F;
     }
 }

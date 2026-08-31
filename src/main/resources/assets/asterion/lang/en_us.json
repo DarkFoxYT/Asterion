@@ -52,6 +52,9 @@
   "block.asterion.ancient_stone_stairs": "Ancient Stone Stairs",
   "block.asterion.ancient_stone_wall": "Ancient Stone Wall",
   "block.asterion.mazesteel_block": "Mazesteel Block",
+  "block.asterion.mazesteel_slab": "Mazesteel Slab",
+  "block.asterion.mazesteel_stairs": "Mazesteel Stairs",
+  "block.asterion.mazesteel_bars": "Mazesteel Bars",
   "block.asterion.mazesteel_chain": "Mazesteel Chain",
   "block.asterion.mazesteel_gate": "Mazesteel Gate",
   "block.asterion.winch": "Mazesteel Winch",
@@ -114,6 +117,7 @@
   "subtitles.asterion.minotaur_roar": "Minotaur roars",
   "effect.asterion.resolve": "Resolve",
   "hud.asterion.ragdoll_get_up": "SHIFT  —  GET UP",
+  "block.asterion.barrel_door": "Barrel Door",
   "block.asterion.minotaur_door": "Minotaur Double Door",
   "item.asterion.minotaur_key": "Minotaur Door Key",
   "message.asterion.minotaur_door_locked": "Locked — a Minotaur Door Key is required."

@@ -175,11 +175,11 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
     }
     @Override public void animateTick(BlockState state,Level level,BlockPos pos,RandomSource random) {
         if(!isRoot(state) || !state.getValue(BlockStateProperties.LIT)) return;
-        for(int i=0;i<5;i++) level.addParticle(Asterion.BRAZIER_FIRE,
-                pos.getX()+.5+(random.nextDouble()-.5)*2.1,pos.getY()+1.02+random.nextDouble()*.25,
-                pos.getZ()+.5+(random.nextDouble()-.5)*2.1,0,.045,0);
-        if(random.nextInt(3)==0) level.addParticle(ParticleTypes.LARGE_SMOKE,
-                pos.getX()+.5,pos.getY()+1.6,pos.getZ()+.5,0,.04,0);
+        for(int i=0;i<3;i++) level.addParticle(Asterion.BRAZIER_FIRE,
+                pos.getX()+.5+(random.nextDouble()-.5)*1.6,pos.getY()+1.22+random.nextDouble()*.12,
+                pos.getZ()+.5+(random.nextDouble()-.5)*1.6,0,.11,0);
+        if(random.nextInt(6)==0) level.addParticle(ParticleTypes.SMOKE,
+                pos.getX()+.5,pos.getY()+2.8,pos.getZ()+.5,0,.055,0);
     }
     @Override protected void entityInside(BlockState state,Level level,BlockPos pos,
             net.minecraft.world.entity.Entity entity,net.minecraft.world.entity.InsideBlockEffectApplier effects,boolean precise) {

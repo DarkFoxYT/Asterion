@@ -64,7 +64,7 @@ public final class TaintedPetalsFeature extends Feature<NoneFeatureConfiguration
     }
 
     private static boolean placeFace(WorldGenLevel level, BlockPos pos, Direction supportDirection) {
-        if (!level.ensureCanWrite(pos)) return false;
+        if (!OvergrowthFeatureSupport.canWrite(level, pos)) return false;
         BlockState oldState = level.getBlockState(pos);
         if (!oldState.isAir() && !oldState.is(Asterion.TAINTED_PETALS)) return false;
         BlockState state = Asterion.TAINTED_PETALS.getStateForPlacement(
@@ -76,7 +76,7 @@ public final class TaintedPetalsFeature extends Feature<NoneFeatureConfiguration
 
     /** Places the thin petal plane immediately over a marsh pool instead of using a leaf block. */
     static boolean placeOnWaterSurface(WorldGenLevel level, BlockPos pos) {
-        if (!level.ensureCanWrite(pos) || !level.getBlockState(pos).isAir()
+        if (!OvergrowthFeatureSupport.canWrite(level, pos) || !level.getBlockState(pos).isAir()
                 || !level.getFluidState(pos.below()).is(net.minecraft.tags.FluidTags.WATER)) return false;
         BlockState state = Asterion.TAINTED_PETALS.defaultBlockState()
                 .setValue(MultifaceBlock.getFaceProperty(Direction.DOWN), true);

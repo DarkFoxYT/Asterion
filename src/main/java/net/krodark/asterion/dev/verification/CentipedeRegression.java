@@ -8,6 +8,9 @@ import net.krodark.asterion.entity.CentipedeMotion;
 import net.krodark.asterion.entity.CentipedeSeats;
 import net.krodark.asterion.entity.CentipedeTrail;
 import net.krodark.asterion.entity.CentipedeSurfaceProbe;
+import net.krodark.asterion.entity.CentipedeSegments;
+import net.krodark.asterion.entity.CentipedeBodyConstraint;
+import net.minecraft.util.RandomSource;
 import net.minecraft.core.Direction;
 
 import com.google.gson.JsonArray;
@@ -39,7 +42,8 @@ public final class CentipedeRegression {
         climbingChain();
         cornerTrail();
         outsideCornerChain();
-        anticipatoryProbe();
+        contactProbe();
+        lengthsAndBodySeparation();
         stableSeats();
         segmentPickingAndSaddles();
         smoothMotion();
@@ -228,26 +232,66 @@ public final class CentipedeRegression {
         require(chain.sample(6, 1).position().z < 0, "last section failed to round the outside corner");
     }
 
-    private static void anticipatoryProbe() {
+    private static void contactProbe() {
         AABB body = new AABB(-1, 0, -1, 1, .82, 1);
         AABB wall = new AABB(1.55, -3, -5, 3, 8, 5);
         var early = CentipedeSurfaceProbe.ahead(body, new Vec3(.3, 0, 0), Direction.DOWN, List.of(wall));
-        require(early != null && early.face() == Direction.EAST && early.gap() > .5, "prepare wall before actual collision");
-        require(early.normal().x > 0 && early.normal().y < 0, "pre-contact belly normal is blended");
-        var closer = CentipedeSurfaceProbe.ahead(body.move(.4, 0, 0), new Vec3(.3, 0, 0), Direction.DOWN, List.of(wall));
-        require(closer != null && closer.gap() < .18 && closer.normal().x > early.normal().x, "transition increases smoothly with proximity");
+        require(early == null, "distant wall must not trigger climbing or tilt");
+        var closer = CentipedeSurfaceProbe.ahead(body.move(.49, 0, 0), new Vec3(.3, 0, 0), Direction.DOWN, List.of(wall));
+        require(closer != null && closer.face() == Direction.EAST && closer.gap() < .08, "near-contact wall may hand off");
+        near(closer.normal(), DOWN, 0, "probe must not tilt before confirmed attachment");
+        require(CentipedeSurfaceProbe.ahead(body, new Vec3(.3, 0, 0), Direction.DOWN, List.of()) == null,
+                "empty space cannot be a climbable surface");
         require(CentipedeSurfaceProbe.ahead(body, Vec3.ZERO, Direction.DOWN, List.of(wall)) == null, "stationary mount doesn't attach from looking");
         require(CentipedeSurfaceProbe.ahead(body, new Vec3(0, 0, .3), Direction.DOWN, List.of(wall)) == null, "parallel wall doesn't steal attachment");
         require(CentipedeSurfaceProbe.ahead(body, new Vec3(-.3, 0, 0), Direction.DOWN, List.of(wall)) == null, "wall behind isn't anticipated");
-        AABB ceiling = new AABB(-5, 1.3, -5, 5, 3, 5);
+        AABB ceiling = new AABB(-5, .88, -5, 5, 3, 5);
         var nextWall = CentipedeSurfaceProbe.ahead(body, new Vec3(0, .3, 0), Direction.EAST, List.of(ceiling));
-        require(nextWall != null && nextWall.face() == Direction.UP, "wall-to-ceiling transition also anticipates contact");
+        require(nextWall != null && nextWall.face() == Direction.UP, "wall-to-ceiling hand-off at real contact");
         AABB outside = new AABB(-2.1, 2, -.1, 0, 2.82, 2);
         AABB endingWall = new AABB(0, 0, -5, 4, 8, 0);
         var wrap = CentipedeSurfaceProbe.aroundEdge(outside, new Vec3(0, 0, .3), Direction.EAST, List.of(endingWall));
-        require(wrap != null && wrap.face() == Direction.NORTH, "outside corner wraps onto next wall face");
+        require(wrap == null, "outside corner cannot invent contact on the hidden side of a wall");
         require(CentipedeSurfaceProbe.aroundEdge(outside, new Vec3(0, 0, .3), Direction.EAST,
                 List.of(endingWall, new AABB(0, 0, 0, 4, 8, 4))) == null, "block seam must not trigger corner wrapping");
+    }
+
+    private static void lengthsAndBodySeparation() throws Exception {
+        RandomSource random = RandomSource.create(712);
+        java.util.Set<Integer> lengths = new java.util.HashSet<>();
+        for (int i = 0; i < 10000; i++) {
+            int count = CentipedeSegments.randomCount(random);
+            require(count >= 5 && count <= 12, "spawn length out of range");
+            lengths.add(count);
+        }
+        require(lengths.size() == 8, "spawn length is not varied");
+        var argument = com.mojang.brigadier.arguments.IntegerArgumentType.integer(CentipedeSegments.MIN, CentipedeSegments.MAX);
+        require(argument.parse(new com.mojang.brigadier.StringReader("3")) == 3, "command lower boundary");
+        require(argument.parse(new com.mojang.brigadier.StringReader("32")) == 32, "command upper boundary");
+        for (String invalid : new String[]{"-1", "0", "2", "33", "100000"}) {
+            boolean rejected = false;
+            try { argument.parse(new com.mojang.brigadier.StringReader(invalid)); }
+            catch (com.mojang.brigadier.exceptions.CommandSyntaxException expected) { rejected = true; }
+            require(rejected, "command accepted unsupported segment count " + invalid);
+        }
+        for (Vec3 normal : new Vec3[]{DOWN, new Vec3(1, 0, 0), new Vec3(0, 0, 1)}) {
+            Vec3 forward = CentipedeFrame.tangent(NORTH, normal, new Vec3(0, 1, 0));
+            Vec3 center = new Vec3(3, 5, 7);
+            for (double distance : new double[]{0, .01, .5, 1, 1.44}) {
+                Vec3 other = center.add(forward.scale(distance));
+                Vec3 separated = CentipedeBodyConstraint.separate(center, other, normal, forward);
+                require(separated.distanceTo(other) >= CentipedeBodyConstraint.CORE_SPACING - 1e-8, "body cores still overlap");
+                require(Math.abs(separated.subtract(center).dot(normal)) < 1e-8, "self avoidance lifted segment off its surface");
+            }
+            Vec3 obstacle = center.add(forward.scale(2));
+            double fraction = CentipedeBodyConstraint.movementFraction(center, forward, obstacle);
+            require(fraction > 0 && fraction < .6, "head must stop before entering its own tail");
+            require(center.add(forward.scale(fraction)).distanceTo(obstacle) >= CentipedeBodyConstraint.CORE_SPACING,
+                    "head sweep tunnels through body");
+            require(CentipedeBodyConstraint.movementFraction(center, forward.scale(-1), obstacle) == 1, "must allow moving away from tail");
+            require(CentipedeBodyConstraint.movementFraction(center, forward.scale(-1), center.add(forward.scale(.1))) == 1,
+                    "must allow escaping an existing overlap");
+        }
     }
 
     private static void stableSeats() {

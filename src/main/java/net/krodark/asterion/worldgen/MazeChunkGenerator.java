@@ -13,12 +13,23 @@ import net.minecraft.world.level.StructureManager;
 import java.util.concurrent.CompletableFuture;
 
 public final class MazeChunkGenerator extends FlatLevelSource {
+    private record TerrainSeed(RandomState state, long seed) { }
+    private static volatile TerrainSeed cachedTerrainSeed;
     public static final MapCodec<MazeChunkGenerator> CODEC = FlatLevelGeneratorSettings.CODEC
             .fieldOf("settings")
             .xmap(MazeChunkGenerator::new, MazeChunkGenerator::settings);
 
     public MazeChunkGenerator(FlatLevelGeneratorSettings settings) {
         super(settings);
+    }
+
+    /** Keep the established terrain layout; features must use this same derived seed. */
+    public static long terrainSeed(RandomState randomState) {
+        TerrainSeed cached = cachedTerrainSeed;
+        if (cached != null && cached.state == randomState) return cached.seed;
+        long seed = randomState.getOrCreateRandomFactory(Asterion.id("maze_layout")).at(0, 0, 0).nextLong();
+        cachedTerrainSeed = new TerrainSeed(randomState, seed);
+        return seed;
     }
 
     @Override
@@ -31,8 +42,7 @@ public final class MazeChunkGenerator extends FlatLevelSource {
                                                          StructureManager structureManager,
                                                          ChunkAccess chunk) {
         return super.fillFromNoise(blender, randomState, structureManager, chunk).thenApply(generated -> {
-            long worldSeed = randomState.getOrCreateRandomFactory(Asterion.id("maze_layout"))
-                    .at(0, 0, 0).nextLong();
+            long worldSeed = terrainSeed(randomState);
             WorldGenerator.generateMazeChunk(generated, worldSeed);
             return generated;
         });

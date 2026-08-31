@@ -53,14 +53,13 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
             ScarletCentipedeEntity.class, EntityDataSerializers.VECTOR3);
     private static final Direction[] SURFACES = Direction.values();
     private static final int DEFAULT_CHAIN_SEGMENTS = 7;
-    private static final int MIN_CHAIN_SEGMENTS = 3;
-    private static final int MAX_CHAIN_SEGMENTS = 32;
-    private static final int CONTACT_GRACE_TICKS = 10;
-    private static final double CONTACT_PROBE = 0.34D;
+    private static final int MIN_CHAIN_SEGMENTS = CentipedeSegments.MIN;
+    private static final int MAX_CHAIN_SEGMENTS = CentipedeSegments.MAX;
+    private static final int CONTACT_GRACE_TICKS = 3;
+    private static final double CONTACT_PROBE = 0.12D;
     private static final double ADHESION = 0.145D;
     private static final double RIDDEN_SPEED = 0.31D;
     private static final double SURFACE_BLEND = 0.18D;
-    private Vec3 anticipatedNormal;
     private int lastSurfaceSwitchTick = -100;
 
     private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
@@ -84,6 +83,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     public ScarletCentipedeEntity(EntityType<? extends ScarletCentipedeEntity> type, Level level) {
         super(type, level);
         xpReward = 4;
+        if (!level.isClientSide()) setChainSegmentCount(CentipedeSegments.randomCount(random));
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -124,7 +124,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     @Override
     protected void readAdditionalSaveData(ValueInput input) {
         super.readAdditionalSaveData(input);
-        setChainSegmentCount(input.getIntOr("chain_segments", DEFAULT_CHAIN_SEGMENTS));
+        setChainSegmentCount(input.getIntOr("chain_segments", chainSegmentCount()));
         getEntityData().set(DATA_SEATS, input.getStringOr("segment_riders", ""));
     }
 
@@ -168,7 +168,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
 
     @Override
     public void travel(Vec3 input) {
-        anticipateSurface(input);
+        updateNearbySurface(input);
         Direction surface = attachedSurface();
         if (isInWater() || isInLava() || !onGround() && !usesSurfaceTravel()) {
             if (input.x * input.x + input.z * input.z > 1.0E-4D) {
@@ -213,6 +213,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         double response = desiredTangent.lengthSqr() > 1.0E-5D ? 0.20D : 0.30D;
         smoothedSurfaceMotion = smoothedSurfaceMotion.lerp(desiredTangent, response);
         smoothedSurfaceMotion = projectOntoSurface(smoothedSurfaceMotion, normal);
+        smoothedSurfaceMotion = bodyChain.limitHeadMotion(smoothedSurfaceMotion);
         if (smoothedSurfaceMotion.lengthSqr() < 1.0E-6D) smoothedSurfaceMotion = Vec3.ZERO;
         Vec3 motion = smoothedSurfaceMotion.add(surface.getUnitVec3().scale(ADHESION));
         setDeltaMovement(motion);
@@ -311,7 +312,6 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         // A rear passenger cannot send steering, and even the driver cannot invent a wall.
         if (face != Direction.DOWN && !touchingSurface(face)) return;
         if (face != attachedSurface()) lastSurfaceSwitchTick = tickCount;
-        anticipatedNormal = null;
         setAttachedSurface(face);
         surfaceContactGrace = CONTACT_GRACE_TICKS;
         driverHeading = heading.normalize();
@@ -384,7 +384,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
 
     private void updateSurfaceAfterMovement() {
         Direction current = attachedSurface();
-        if (current != Direction.DOWN && tickCount - lastSurfaceSwitchTick < 6) return;
+        if (current != Direction.DOWN && tickCount - lastSurfaceSwitchTick < 6 && touchingSurface(current)) return;
         if (current == Direction.DOWN && !horizontalCollision) return;
 
         Direction transition = bestTransitionSurface(current);
@@ -402,8 +402,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
                 attachTo(replacement, current);
                 return;
             }
-            // Convex block corners can lose collision contact for a handful of ticks. Keep pulling
-            // toward the last face while the wider probe searches for the next surface.
+            // Only a short grace period for block seams; a missing wall restores gravity.
             if (surfaceContactGrace-- <= 0) detachFromSurface();
         }
     }
@@ -414,7 +413,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         if (tickCount - lastSurfaceSwitchTick < 6 && touchingSurface(current)) return null;
         if (current == Direction.DOWN && horizontalCollision) {
             Direction wall = null;
-            double wallScore = -Double.MAX_VALUE;
+            double wallScore = .05;
             for (Direction candidate : Direction.Plane.HORIZONTAL) {
                 if (!touchingSurface(candidate)) continue;
                 double score = surfaceForward.dot(candidate.getUnitVec3());
@@ -450,8 +449,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
                 getBoundingBox().move(direction.getUnitVec3().scale(CONTACT_PROBE)));
     }
 
-    private void anticipateSurface(Vec3 input) {
-        anticipatedNormal = null;
+    private void updateNearbySurface(Vec3 input) {
         if (isInWater() || isInLava() || tickCount - lastSurfaceSwitchTick < 6) return;
         Vec3 motion;
         if (getControllingPassenger() instanceof Player player) {
@@ -465,11 +463,13 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         if (approach == null)
             approach = CentipedeSurfaceProbe.aroundEdge(getBoundingBox(), motion, attachedSurface(), blocks);
         if (approach == null) return;
-        anticipatedNormal = approach.normal();
-        if (approach.gap() <= .18) attachTo(approach.face(), attachedSurface());
+        // No speculative tilt or gravity changes: the new face must already be within
+        // contact tolerance. Blend the pose only after this confirmed hand-off.
+        if (approach.gap() <= .08 && touchingSurface(approach.face())) attachTo(approach.face(), attachedSurface());
     }
 
     private void attachTo(Direction next, Direction previous) {
+        if (!touchingSurface(next)) return;
         Vec3 nextNormal = next.getUnitVec3();
         Vec3 projected = projectOntoSurface(surfaceForward, nextNormal);
         if (projected.lengthSqr() < 1.0E-5D) {
@@ -482,7 +482,6 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         // Momentum is transported gradually by blendAttachmentNormal, not snapped to the
         // final wall direction while the body is still facing the old surface.
         setAttachedSurface(next);
-        anticipatedNormal = null;
         lastSurfaceSwitchTick = tickCount;
         setNoGravity(next != Direction.DOWN);
         surfaceContactGrace = CONTACT_GRACE_TICKS;
@@ -501,7 +500,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
 
     private void blendAttachmentNormal() {
         Vec3 oldNormal = smoothedAttachmentNormal;
-        Vec3 target = anticipatedNormal != null ? anticipatedNormal : attachedSurface().getUnitVec3();
+        Vec3 target = attachedSurface().getUnitVec3();
         Vec3 blended = smoothedAttachmentNormal.lerp(target, SURFACE_BLEND);
         smoothedAttachmentNormal = blended.lengthSqr() < 1.0E-6D ? target : blended.normalize();
         Quaternionf turn = new Quaternionf().rotationTo(vector(oldNormal), vector(smoothedAttachmentNormal));
@@ -512,8 +511,8 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     }
 
     private boolean usesSurfaceTravel() {
-        return attachedSurface() != Direction.DOWN
-                || smoothedAttachmentNormal.distanceToSqr(Direction.DOWN.getUnitVec3()) > 0.0025D;
+        // Visual settling after detachment must never keep the mount levitating.
+        return attachedSurface() != Direction.DOWN;
     }
 
     /** Matches the camera transform: player yaw is evaluated on a flat plane, then tilted

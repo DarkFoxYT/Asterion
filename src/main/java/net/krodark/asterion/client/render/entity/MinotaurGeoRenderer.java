@@ -32,11 +32,14 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
     private static final DataTicket<Float> GRAB_EXTENSION = DataTickets.create("asterion_minotaur_grab_extension", Float.class);
     private static final DataTicket<Integer> GRAB_ARM = DataTickets.create("asterion_minotaur_grab_arm", Integer.class);
     private static final DataTicket<Integer> HELD_PLAYER = DataTickets.create("asterion_minotaur_held_player", Integer.class);
+    private static final DataTicket<Boolean> AXE_ACTION = DataTickets.create("asterion_minotaur_axe_action", Boolean.class);
+    private static final DataTicket<Boolean> AUTHORED_POSE = DataTickets.create("asterion_minotaur_authored_pose", Boolean.class);
     private static final DataTicket<Float> IDLE_PHASE = DataTickets.create("asterion_minotaur_idle_phase", Float.class);
     private static final DataTicket<Float> IDLE_WEIGHT = DataTickets.create("asterion_minotaur_idle_weight", Float.class);
     private static final DataTicket<Float> HORN_WEIGHT = DataTickets.create("asterion_minotaur_horn_weight", Float.class);
     private static final DataTicket<Float> RAGE_WEIGHT = DataTickets.create("asterion_minotaur_rage_weight", Float.class);
     private static final DataTicket<Integer> ATTACK_TICKS = DataTickets.create("asterion_minotaur_attack_ticks", Integer.class);
+    private static final DataTicket<Float> COLLAPSE = DataTickets.create("asterion_minotaur_collapse", Float.class);
     private static final DataTicket<Float> DOOR_ENTRY = DataTickets.create("asterion_minotaur_door_entry", Float.class);
     private final Map<UUID, LookPose> lookPoses = new HashMap<>();
     private final Map<UUID, GrabPose> grabPoses = new HashMap<>();
@@ -44,6 +47,8 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
     public MinotaurGeoRenderer(EntityRendererProvider.Context context) {
         super(context, new MinotaurGeoModel());
         withScale(1.0F);
+        withRenderLayer(new MinotaurWeaponLayer(this));
+        withRenderLayer(new MinotaurChainLayer(this));
         // The eye mask sits just outside the head surface, retaining depth occlusion by real geometry.
         withRenderLayer(new AsterionEmissiveBoneLayer<>(this, "glow",
                 // The current 512px atlas contains the glow bone's isolated eye islands.
@@ -54,7 +59,11 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
                 return !state.isInvisible;
             }
 
+            @Override protected boolean enhancedSurface(EntityRenderState state) { return true; }
+
             @Override protected float surfaceBrightness(EntityRenderState state) {
+                float collapse = state.getOrDefaultGeckolibData(COLLAPSE, 0F);
+                if (collapse > 45 && collapse < 118) return .04F;
                 return state.getOrDefaultGeckolibData(DOOR_ENTRY, -1F) >= 0 ? 1F : AsterionEmissiveConfig.minotaurEyeStrength();
             }
 
@@ -103,9 +112,14 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         state.addGeckolibData(LOOK_PITCH, pose.pitch * Mth.DEG_TO_RAD);
         state.addGeckolibData(IDLE_PHASE, (minotaur.tickCount + partialTick) * 0.055F);
         state.addGeckolibData(IDLE_WEIGHT, pose.idleWeight);
+        state.addGeckolibData(AUTHORED_POSE, switch (minotaur.animationState()) {
+            case IDLE, WALK, CHASE, HORN -> false;
+            default -> true;
+        });
         state.addGeckolibData(HORN_WEIGHT, minotaur.isSpineCharging() ? 1.0F : 0.0F);
         state.addGeckolibData(RAGE_WEIGHT, minotaur.rage() / 12.0F);
         state.addGeckolibData(ATTACK_TICKS, minotaur.bossAttackAnimationTicks());
+        state.addGeckolibData(COLLAPSE, minotaur.collapseAnimationTicks() > 0 ? minotaur.collapseAnimationTicks() + partialTick : 0F);
         state.addGeckolibData(DOOR_ENTRY, minotaur.doorEntryTicks() > 0 ? minotaur.doorEntryTicks() - 1 + partialTick : -1F);
         if (minotaur.isGreekFireLaserActive())
             state.addGeckolibData(DataTickets.RENDER_COLOR, 0x8856FF74);
@@ -118,7 +132,7 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         float grabExtension = 0.65F;
         int liveArm = minotaur.reachArmSide();
         if (liveArm != 0) grab.arm = liveArm;
-        if (minotaur.isPerformingReach() && liveArm != 0) {
+        if (minotaur.isPerformingReach() && !minotaur.isChainGrappleActive() && liveArm != 0) {
             desiredGrab = minotaur.isPerformingGrab()
                     ? grabTicks < 11 ? smoother(grabTicks / 11.0F)
                     : grabTicks < 49 ? 1.0F : 1.0F - smoother((grabTicks - 49) / 12.0F)
@@ -150,6 +164,7 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         state.addGeckolibData(GRAB_EXTENSION, grab.extension);
         state.addGeckolibData(GRAB_ARM, grab.arm);
         state.addGeckolibData(HELD_PLAYER, minotaur.heldPlayerId());
+        state.addGeckolibData(AXE_ACTION, minotaur.isAxeAttackActive());
         float rage = minotaur.rage() / 12.0F;
         if (minotaur.doorEntryTicks() > 0) {
             state.addGeckolibData(EYE_TINT, 0xFFD8FFFF);
@@ -175,9 +190,13 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         if (held >= 0) pass.addLocatorPositionListener(
                 pass.getOrDefaultGeckolibData(GRAB_ARM, 1) >= 0 ? "right_player_grip" : "left_player_grip",
                 (world, model, local) -> MinotaurHandAttachment.capture(held, world));
+        // Let the action clips own their full pose; camera tracking and old charge/grab offsets would distort them.
+        if (pass.getOrDefaultGeckolibData(AUTHORED_POSE, false)) return;
         float yaw = pass.getOrDefaultGeckolibData(LOOK_YAW, 0.0F);
         float pitch = pass.getOrDefaultGeckolibData(LOOK_PITCH, 0.0F);
-        rotateBone(bones, "body", -yaw * 0.18F, -pitch * 0.14F);
+        // Camera-facing torso offsets would change the weapon's attack plane for every viewer.
+        if (!pass.getOrDefaultGeckolibData(AXE_ACTION, false))
+            rotateBone(bones, "body", -yaw * 0.18F, -pitch * 0.14F);
         rotateBone(bones, "neck", -yaw * 0.32F, -pitch * 0.31F);
         rotateBone(bones, "head", -yaw * 0.50F, -pitch * 0.55F);
 
@@ -232,17 +251,7 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
             rotateBone3(bones, "lefthorn", -0.08F * lowered * horn, 0.0F, -0.06F * horn);
             rotateBone3(bones, "righthorn", -0.08F * lowered * horn, 0.0F, 0.06F * horn);
         }
-        float entry = pass.getOrDefaultGeckolibData(DOOR_ENTRY, -1F);
-        if (entry >= 0 && entry < 82) {
-            float shove = net.krodark.asterion.block.MinotaurDoorMotion.breachAngle(Math.min(entry, 59)) * 2F;
-            float windup = smoother((entry - 54) / 8F) * (1F - smoother((entry - 72) / 10F));
-            float kick = smoother((entry - 63) / 7F) * (1F - smoother((entry - 72) / 10F));
-            rotateBone3(bones, "body", shove * .18F - kick * .2F, 0, .08F * kick);
-            rotateBone3(bones, "rightleg", .48F * windup * (1 - kick) - 1.4F * kick, 0, .08F * kick);
-            rotateBone3(bones, "lowerrightleg", -.8F * windup * (1 - kick) + .25F * kick, 0, 0);
-            rotateBone3(bones, "leftleg", .12F * kick, 0, -.06F * kick);
-            rotateBone3(bones, "leftarm", -.2F * shove, 0, -.18F * kick);
-        }
+
     }
 
     private static void applyArmReach(BoneSnapshots bones, int side, float yaw, float pitch,

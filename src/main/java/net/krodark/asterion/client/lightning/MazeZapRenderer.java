@@ -29,12 +29,12 @@ import java.util.List;
 public final class MazeZapRenderer {
     private static final List<Strike> STRIKES = new ArrayList<>();
     private static final List<GroundStrike> GROUND_STRIKES = new ArrayList<>();
-    private static final List<Telegraph> TELEGRAPHS = new ArrayList<>();
 
     private MazeZapRenderer() {
     }
 
     public static void register() {
+        net.krodark.asterion.client.render.BossGroundTelegraphRenderer.register();
         ClientTickEvents.END_CLIENT_TICK.register(MazeZapRenderer::tick);
         LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(context -> {
             Minecraft client = Minecraft.getInstance();
@@ -81,58 +81,6 @@ public final class MazeZapRenderer {
                                 strike.seed + branch * 7919L + now / 3L);
                     }
             }
-            for (Telegraph telegraph : TELEGRAPHS) {
-                if (now > telegraph.expiresAt) continue;
-                float pulse = 0.55F + 0.25F * (float)Math.sin(now * 0.55D);
-                Vec3 forward = new Vec3(telegraph.direction.x, 0.0D, telegraph.direction.z).normalize();
-                if (forward.lengthSqr() < 0.01D) forward = new Vec3(0.0D, 0.0D, 1.0D);
-                double baseAngle = Math.atan2(forward.z, forward.x);
-                if (telegraph.kind == BossTelegraphPayload.CHARGE_LANE) {
-                    Vec3 right = new Vec3(-forward.z, 0.0D, forward.x);
-                    for (int side = -1; side <= 1; side += 2) {
-                        Vec3 a = telegraph.center.add(right.scale(side * 2.25D)).add(0, 0.08D, 0);
-                        Vec3 b = a.add(forward.scale(telegraph.radius));
-                        BetterLightningRenderer.draw(lightning, context.poseStack().last(), Vec3.ZERO,
-                                a.subtract(camera), b.subtract(camera), pulse,
-                                telegraph.seed + side * 977L);
-                    }
-                    for (int rung = 2; rung <= 8; rung += 2) {
-                        Vec3 middle = telegraph.center.add(forward.scale(telegraph.radius * rung / 8.0D))
-                                .add(0, 0.075D, 0);
-                        BetterLightningRenderer.draw(lightning, context.poseStack().last(), Vec3.ZERO,
-                                middle.add(right.scale(-2.25D)).subtract(camera),
-                                middle.add(right.scale(2.25D)).subtract(camera), pulse * 0.72F,
-                                telegraph.seed + rung * 313L);
-                    }
-                    continue;
-                }
-                double arc = telegraph.kind == BossTelegraphPayload.TARGET_CIRCLE
-                        ? Mth.TWO_PI : telegraph.kind == BossTelegraphPayload.FRONT_CONE
-                        ? Math.toRadians(125.0D) : Math.PI;
-                double startAngle = telegraph.kind == BossTelegraphPayload.TARGET_CIRCLE
-                        ? 0.0D : baseAngle - arc * 0.5D;
-                int segments = telegraph.kind == BossTelegraphPayload.TARGET_CIRCLE ? 24 : 18;
-                int rays = telegraph.kind == BossTelegraphPayload.TARGET_CIRCLE ? 8
-                        : AsterionConfig.INSTANCE.cinematicQuality >= 2 ? 13 : 8;
-                for (int ray = 0; ray < rays; ray++) {
-                    double angle = startAngle + arc * ray / Math.max(1.0D, rays - 1.0D);
-                    Vec3 end = telegraph.center.add(Math.cos(angle) * telegraph.radius, 0.07D,
-                            Math.sin(angle) * telegraph.radius);
-                    BetterLightningRenderer.draw(lightning, context.poseStack().last(), Vec3.ZERO,
-                            telegraph.center.add(0, 0.07D, 0).subtract(camera), end.subtract(camera),
-                            pulse * 0.78F, telegraph.seed + ray * 977L);
-                }
-                for (int segment = 0; segment < segments; segment++) {
-                    double a0 = startAngle + arc * segment / segments;
-                    double a1 = startAngle + arc * (segment + 1) / segments;
-                    Vec3 a = telegraph.center.add(Math.cos(a0) * telegraph.radius, 0.08D,
-                            Math.sin(a0) * telegraph.radius);
-                    Vec3 b = telegraph.center.add(Math.cos(a1) * telegraph.radius, 0.08D,
-                            Math.sin(a1) * telegraph.radius);
-                    BetterLightningRenderer.draw(lightning, context.poseStack().last(), Vec3.ZERO,
-                            a.subtract(camera), b.subtract(camera), pulse, telegraph.seed + segment * 131L);
-                }
-            }
         });
     }
 
@@ -157,17 +105,14 @@ public final class MazeZapRenderer {
     }
 
     public static void receiveTelegraph(BossTelegraphPayload payload) {
-        Minecraft client = Minecraft.getInstance();
-        long now = client.level == null ? 0L : client.level.getGameTime();
-        TELEGRAPHS.add(new Telegraph(payload.center(), payload.direction(), payload.radius(), payload.kind(),
-                now + Math.max(1, payload.durationTicks()), now * 7919L + TELEGRAPHS.size()));
+        net.krodark.asterion.client.render.BossGroundTelegraphRenderer.receive(payload);
     }
 
     public static void clearTransientCombatEffects() {
         STRIKES.forEach(Strike::removeLights);
         STRIKES.clear();
         GROUND_STRIKES.clear();
-        TELEGRAPHS.clear();
+        net.krodark.asterion.client.render.BossGroundTelegraphRenderer.clear();
     }
 
     private static net.minecraft.client.multiplayer.ClientLevel trackedLevel;
@@ -177,12 +122,11 @@ public final class MazeZapRenderer {
             STRIKES.forEach(Strike::removeLights);
             STRIKES.clear();
             GROUND_STRIKES.clear();
-            TELEGRAPHS.clear();
+            net.krodark.asterion.client.render.BossGroundTelegraphRenderer.clear();
             return;
         }
         long now = client.level.getGameTime();
         GROUND_STRIKES.removeIf(strike -> now > strike.expiresAt);
-        TELEGRAPHS.removeIf(telegraph -> now > telegraph.expiresAt);
         Iterator<Strike> iterator = STRIKES.iterator();
         while (iterator.hasNext()) {
             Strike strike = iterator.next();
@@ -199,8 +143,6 @@ public final class MazeZapRenderer {
 
     private record GroundStrike(net.minecraft.core.BlockPos target, long seed,
                                 long startsAt, long expiresAt) { }
-    private record Telegraph(Vec3 center, Vec3 direction, float radius, int kind,
-                             long expiresAt, long seed) { }
 
     private static Vec3 bodyCenter(Entity target) {
         return target.position().add(0.0D, target.getBbHeight() * 0.52D, 0.0D);

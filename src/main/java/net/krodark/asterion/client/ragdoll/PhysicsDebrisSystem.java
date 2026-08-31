@@ -98,8 +98,8 @@ public final class PhysicsDebrisSystem {
             door.previousOrientation.set(door.orientation);
             // A kick supplies linear momentum and off-center torque; the leaves keep rotating freely.
             Vec3 across = payload.facing().getClockWise().getUnitVec3();
-            door.velocity = inward.scale(1.25 + random.nextDouble() * .22)
-                    .add(across.scale(side * .10)).add(0, .48 + random.nextDouble() * .10, 0);
+            door.velocity = inward.scale(1.55 + random.nextDouble() * .18)
+                    .add(across.scale(side * .22)).add(0, .48 + random.nextDouble() * .10, 0);
             Vec3 spin = across.scale(.12 + random.nextDouble() * .035).add(inward.scale(side * .055));
             door.angularVelocity.set((float)spin.x, side * .10F, (float)spin.z);
             PIECES.add(door);
@@ -108,6 +108,11 @@ public final class PhysicsDebrisSystem {
     }
 
     public static void spawnArenaDebris(net.krodark.asterion.network.ArenaDebrisPayload payload) {
+        if (payload.fragments().isEmpty()) {
+            PIECES.removeIf(piece -> piece.variant == 7 || piece.arenaRubble);
+            DOOR_CLOUDS.clear();
+            return;
+        }
         Minecraft client = Minecraft.getInstance();
         if (client.level == null || client.player == null) return;
         if (trackedLevel != client.level) { clear(); trackedLevel = client.level; }
@@ -844,11 +849,11 @@ public final class PhysicsDebrisSystem {
         }
 
         private double gravityFactor() {
-            return profile(variant).gravityFactor;
+            return arenaRubble ? 1.0 : profile(variant).gravityFactor;
         }
 
         private double airRetention() {
-            return profile(variant).airRetention;
+            return arenaRubble ? .998 : profile(variant).airRetention;
         }
 
         private float massFactor() {

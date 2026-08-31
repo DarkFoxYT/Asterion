@@ -151,6 +151,15 @@ loom {
             runDir "build/lamenter-gametest"
             ideConfigGenerated = false
         }
+        barrelDoorTest {
+            client()
+            name = "Barrel door integration test"
+            vmArg "-Dfabric.client.gametest"
+            vmArg "-Dfabric.client.gametest.modid=asterion_barrel_door_test"
+            vmArg "-Dfabric.addMods=${layout.buildDirectory.dir('barrel-door-testmod').get().asFile.absolutePath}"
+            runDir "build/barrel-door-gametest"
+            ideConfigGenerated = false
+        }
         doorTest {
             client()
             name = "Door integration test"
@@ -159,10 +168,32 @@ loom {
             runDir "build/door-gametest"
             ideConfigGenerated = false
         }
+        biomeTest {
+            client()
+            name = "Biome feature integration test"
+            vmArg "-Dfabric.client.gametest"
+            vmArg "-Dfabric.client.gametest.modid=asterion_biome_test"
+            vmArg "-Dfabric.addMods=${layout.buildDirectory.dir('biome-testmod').get().asFile.absolutePath}"
+            runDir "build/biome-gametest"
+            ideConfigGenerated = false
+        }
     }
 }
 
 tasks.matching { it.name == "runLamenterTest" }.configureEach { dependsOn "prepareLamenterGameTest" }
+
+tasks.register("prepareBiomeGameTest") {
+    def metadata = layout.buildDirectory.file("biome-testmod/fabric.mod.json")
+    outputs.file(metadata)
+    doLast {
+        def target = metadata.get().asFile
+        target.parentFile.mkdirs()
+        target.text = groovy.json.JsonOutput.toJson([
+                schemaVersion: 1, id: "asterion_biome_test", version: "1.0.0", environment: "client",
+                entrypoints: ["fabric-client-gametest": ["net.krodark.asterion.worldgen.BiomeFeatureGameTest"]]])
+    }
+}
+tasks.matching { it.name == "runBiomeTest" }.configureEach { dependsOn "prepareBiomeGameTest" }
 
 tasks.register("prepareRendererGameTest") {
     def metadata = layout.buildDirectory.file("renderer-testmod/fabric.mod.json")
@@ -173,7 +204,8 @@ tasks.register("prepareRendererGameTest") {
         target.text = groovy.json.JsonOutput.toJson([
                 schemaVersion: 1, id: "asterion_renderer_test", version: "1.0.0", environment: "client",
                 entrypoints: ["fabric-client-gametest": ["net.krodark.asterion.dev.verification.RenderPerformanceGameTest",
-                        "net.krodark.asterion.dev.verification.PortalEmissionGameTest"]]])
+                        "net.krodark.asterion.dev.verification.PortalEmissionGameTest",
+                        "net.krodark.asterion.dev.verification.VineEmissionGameTest"]]])
     }
 }
 tasks.matching { it.name == "runRenderPerformanceTest" }.configureEach { dependsOn "prepareRendererGameTest" }
@@ -269,3 +301,16 @@ tasks.register("modDistribution", Sync) {
     from(tasks.named("jar"))
     from("docs/INSTALL-MODS.txt")
 }
+
+ tasks.register("prepareBarrelDoorGameTest") {
+    def metadata = layout.buildDirectory.file("barrel-door-testmod/fabric.mod.json")
+    outputs.file(metadata)
+    doLast {
+        def target = metadata.get().asFile
+        target.parentFile.mkdirs()
+        target.text = groovy.json.JsonOutput.toJson([
+                schemaVersion: 1, id: "asterion_barrel_door_test", version: "1.0.0", environment: "client",
+                entrypoints: ["fabric-client-gametest": ["net.krodark.asterion.dev.verification.BarrelDoorGameTest"]]])
+    }
+}
+tasks.matching { it.name == "runBarrelDoorTest" }.configureEach { dependsOn "prepareBarrelDoorGameTest" }

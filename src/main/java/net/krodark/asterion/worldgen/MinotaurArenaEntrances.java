@@ -21,7 +21,7 @@ public final class MinotaurArenaEntrances {
     public static BlockPos door(Direction outward) {
         return new BlockPos(outward.getStepX() * DOOR_RADIUS, FLOOR_Y + 1, outward.getStepZ() * DOOR_RADIUS);
     }
-    public static BlockPos gate(Direction outward) { return door(outward).relative(outward.getOpposite(), 4); }
+    public static BlockPos gate(Direction outward) { return door(outward).relative(outward.getOpposite(), 1); }
     public static int gateHeight() { return Math.max(7, (int)Math.ceil(2.75 * net.krodark.asterion.AsterionConfig.INSTANCE.minotaurScale) + 1); }
     public static AABB gateBounds(Direction facing) { return panelBounds(gate(facing), facing, gateHeight()); }
     public static AABB doorBounds(Direction facing) { return panelBounds(door(facing), facing, 5); }
@@ -53,10 +53,14 @@ public final class MinotaurArenaEntrances {
             var next = state.setValue(DirectionalGateBlock.OPEN, row < gateHeight() - closedRows);
             if (!level.getBlockState(pos).equals(next)) level.setBlock(pos, next, 2);
         }
+        // A raised portcullis remains visible above the passage on both entrances.
+        for (int side = -3; side <= 3; side++)
+            level.setBlock(gate(facing).relative(facing.getClockWise(), side).above(gateHeight()),
+                    state.setValue(DirectionalGateBlock.OPEN, false), 2);
     }
-    public static boolean entranceLane(int x, int z) { return Math.abs(x) <= 4 || Math.abs(z) <= 4; }
+    public static boolean entranceLane(int x, int z) { return Math.abs(x) <= 4; }
 
-    /** Keep the complete five-block pillar bases away from all four nine-block entry lanes. */
+    /** Keep the complete five-block pillar bases away from the two nine-block entry lanes. */
     public static java.util.List<BlockPos> pillarCenters(int count) {
         var centers = new java.util.ArrayList<BlockPos>(count);
         for (int quadrant = 0; quadrant < 4; quadrant++) {
@@ -90,22 +94,22 @@ public final class MinotaurArenaEntrances {
         int heightLimit = Math.max(8, (int)Math.ceil(2.75 * net.krodark.asterion.AsterionConfig.INSTANCE.minotaurScale) + 2);
         // Fill obsolete corridors too, so upgrading a four-door save cannot leave side entrances.
         for (Direction removed : java.util.List.of(Direction.EAST, Direction.WEST, BOSS_ENTRANCE)) {
-            int start = removed == BOSS_ENTRANCE ? BOSS_ROOM_BACK : 30;
+            int start = removed == BOSS_ENTRANCE ? BOSS_ROOM_BACK : DOOR_RADIUS + 1;
             for (int radius = start; radius <= 56; radius++) for (int side = -4; side <= 4; side++)
-                for (int y = FLOOR_Y; y <= floorAt(radius) + heightLimit; y++)
+                for (int y = FLOOR_Y; y <= FLOOR_Y + 29; y++)
                     level.setBlock(new BlockPos(removed.getStepX() * radius, y, removed.getStepZ() * radius)
                             .relative(removed.getClockWise(), side), Asterion.ANCIENT_BRICKS.defaultBlockState(), 2);
         }
         for (Direction outward : DOORS) {
             Direction across = outward.getClockWise();
-            for (int radius = 30; radius <= (outward == BOSS_ENTRANCE ? BOSS_ROOM_BACK : 56); radius++) {
+            for (int radius = DOOR_RADIUS - 1; radius <= (outward == BOSS_ENTRANCE ? BOSS_ROOM_BACK : 56); radius++) {
                 int floor = outward == BOSS_ENTRANCE ? FLOOR_Y : floorAt(radius);
                 BlockPos center = new BlockPos(outward.getStepX() * radius, floor, outward.getStepZ() * radius);
                 for (int side = -4; side <= 4; side++) {
                     BlockPos base = center.relative(across, side);
                     level.setBlock(base, Asterion.ANCIENT_STONE.defaultBlockState(), 2);
-                    for (int height = 1; height <= heightLimit; height++) {
-                        boolean frame = Math.abs(side) == 4 || height == heightLimit
+                    for (int height = 1; height <= heightLimit + 1; height++) {
+                        boolean frame = Math.abs(side) == 4 || height >= heightLimit
                                 || outward == BOSS_ENTRANCE && radius == BOSS_ROOM_BACK
                                 || radius == DOOR_RADIUS && height > 5;
                         level.setBlock(base.above(height), frame ? Asterion.ANCIENT_BRICKS.defaultBlockState()
@@ -115,7 +119,22 @@ public final class MinotaurArenaEntrances {
             }
             MinotaurDoorBlock.place(level, door(outward), outward);
         }
+        buildCatacombApproach(level);
         setGates(level, 0, null);
+    }
+
+    private static void buildCatacombApproach(ServerLevel level) {
+        // Both routes meet OUTSIDE the single keyed player door: surface stair and undercroft stair.
+        // The lower landing joins the catacomb gallery at x=32, without another arena opening.
+        for (int x = 3; x <= 34; x++) {
+            int floor = Math.max(CatacombLayout.floor(level.getSeed(), 32, 42), FLOOR_Y + 3 - x);
+            for (int z = 40; z <= 44; z++) {
+                level.setBlock(new BlockPos(x, floor, z), Asterion.ANCIENT_STONE.defaultBlockState(), 2);
+                for (int y = 1; y <= 5; y++)
+                    level.setBlock(new BlockPos(x, floor + y, z), y == 5 || z == 40 || z == 44
+                            ? Asterion.ANCIENT_BRICKS.defaultBlockState() : Blocks.AIR.defaultBlockState(), 2);
+            }
+        }
     }
 
     public static void breakLintel(ServerLevel level, Direction facing, double bossHeight) {

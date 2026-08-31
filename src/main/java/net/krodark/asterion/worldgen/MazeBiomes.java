@@ -22,7 +22,7 @@ public final class MazeBiomes {
             new Biome(Kind.ANCIENT, 50, 0, 13, Set.of()),
             new Biome(Kind.OVERGROWTH, 30, 9, 3,
                     Set.of("mossy_walls", "leaf_crowns", "canopy", "floor_plants",
-                            "moss_patches", "leaf_clusters", "bridges", "bridge_chains", "rest_sites",
+                            "moss_patches", "leaf_clusters", "bridges", "bridge_chains", "rest_sites", "puddles",
                             "giant_dead_trees",
                             "ground_vines", "hanging_vines")),
             new Biome(Kind.CRIMSON_MARSHLANDS, 20, 0, 7,
@@ -78,7 +78,6 @@ public final class MazeBiomes {
                     return;
                 }
                 current = new Catalog(regionSize, centerRadius, transitionWidth, blendWidth, List.copyOf(biomes));
-                Asterion.LOGGER.info("Loaded {} maze biomes from {}", biomes.size(), CATALOG);
             }
         } catch (Exception exception) {
             Asterion.LOGGER.error("Could not read {}; using built-in maze biomes", CATALOG, exception);

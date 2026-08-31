@@ -70,13 +70,19 @@ public final class BossEntranceCinematic {
     public static CameraPose cameraPose(Vec3 playerEye, float partial) {
         if (!active || !showShot) return null;
         float time = ticks + partial;
-        float push = MinotaurDoorMotion.ease(time / 90F);
         Vec3 inward = door.getOpposite().getUnitVec3();
         Vec3 root = Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(door));
-        Vec3 camera = root.add(inward.scale(14 + push * 5)).add(0, 3.8, 0)
-                .add(door.getClockWise().getUnitVec3().scale(1.2 - push * 2.4));
-        Vec3 focus = root.add(inward.scale(Math.clamp((time - 70) * .32, 0, 9))).add(0, 3.9, 0);
-        float returning = MinotaurDoorMotion.ease((time - 100) / 20F);
+        float recoil = MinotaurDoorMotion.ease((time - 68) / 20F);
+        Vec3 camera = root.add(inward.scale(8.5 + recoil * 8.5)).add(0, 2.15 + recoil * .65, 0)
+                .add(door.getClockWise().getUnitVec3().scale(1.8 - recoil * 3.0));
+        float impact = 0;
+        for (int beat : new int[]{8, 26, 44, 70}) {
+            float age = time - beat;
+            if (age >= 0 && age < 10) impact += (beat == 70 ? .26F : .075F) * (1 - age / 10F);
+        }
+        camera = camera.add(Math.sin(time * 2.7) * impact, Math.cos(time * 3.4) * impact * .65, 0);
+        Vec3 focus = root.add(inward.scale(Math.clamp((time - 70) * .32, 0, 9))).add(0, 3.7, 0);
+        float returning = MinotaurDoorMotion.ease((time - (duration - 20)) / 20F);
         camera = camera.lerp(playerEye, returning);
         Vec3 delta = focus.subtract(camera);
         float yaw = (float)Math.toDegrees(Math.atan2(-delta.x, delta.z));

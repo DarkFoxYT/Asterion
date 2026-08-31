@@ -29,6 +29,21 @@ public final class AsterionEmissiveBuffer {
             .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
             .withCull(false).build();
 
+    private static final Map<Identifier, RenderType> ENHANCED = new HashMap<>();
+    private static final RenderPipeline ENHANCED_SURFACE = RenderPipeline.builder(RenderPipelines.MATRICES_FOG_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath("asterion", "pipeline/enhanced_emissive_surface"))
+            .withVertexShader("core/entity").withFragmentShader(Identifier.fromNamespaceAndPath("asterion", "core/enhanced_emissive"))
+            .withShaderDefine("EMISSIVE").withShaderDefine("NO_OVERLAY").withShaderDefine("NO_CARDINAL_LIGHTING")
+            .withSampler("Sampler0").withVertexFormat(DefaultVertexFormat.ENTITY, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false)).withCull(false).build();
+
+    public static RenderType renderType(Identifier texture, boolean enhanced) {
+        if (!enhanced) return renderType(texture);
+        return ENHANCED.computeIfAbsent(texture, key -> RenderType.create("asterion_emissive/enhanced/" + key,
+                RenderSetup.builder(ENHANCED_SURFACE).withTexture("Sampler0", key).createRenderSetup()));
+    }
+
     private AsterionEmissiveBuffer() {}
 
     /** A sharp, depth-tested surface: no HDR amplification, glow attachment or fullscreen blur. */

@@ -22,6 +22,16 @@ public final class DoorSmokeParticle extends SingleQuadParticle {
         setColor(.62F * shade, .56F * shade, .46F * shade);
         setAlpha(0); setSpriteFromAge(sprites);
     }
+    public static Particle soot(ClientLevel level, double x, double y, double z, double vx, double vy, double vz,
+                                SpriteSet sprites, RandomSource random) {
+        var smoke = new DoorSmokeParticle(level, x, y, z, vx, vy, vz, sprites, random);
+        smoke.setColor(.065F, .07F, .06F);
+        smoke.quadSize = .55F + random.nextFloat() * .4F;
+        smoke.lifetime = 55 + random.nextInt(25);
+        smoke.yd = .035 + random.nextDouble() * .025;
+        smoke.gravity = -.002F;
+        return smoke;
+    }
     @Override public void tick() {
         super.tick();
         if (!isAlive()) return;

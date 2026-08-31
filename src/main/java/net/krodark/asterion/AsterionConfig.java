@@ -55,6 +55,7 @@ public final class AsterionConfig {
     public boolean cinematicsEnabled = true;
     public int cinematicQuality = 2;
     public int ambientParticleQuality = 2;
+    public boolean potatoParticleCulling = false;
     public int ragdollPhysicsQuality = 2;
     public boolean dynamicLightsEnabled = true;
     public int dynamicLightQuality = 2;

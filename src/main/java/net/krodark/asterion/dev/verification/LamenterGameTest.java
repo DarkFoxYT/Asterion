@@ -83,15 +83,7 @@ public final class LamenterGameTest implements FabricClientGameTest {
                             CatacombFloodState.setActive(maze, false);
                             LamenterBlockEntity.tick(maze, floodFace, maze.getBlockState(floodFace), blockEntity);
                             check(!maze.getBlockState(floodFace).getValue(LamenterBlock.CRYING), "Lamenter did not stop after flood");
-                            check(WorldGenerator.activeBossBraziers(maze) == 4, "Arena braziers not powering boss");
-                            for (Direction direction : directions) {
-                                BlockPos face = CatacombArena.lamenter(direction);
-                                check(maze.getBlockState(face).is(Asterion.LAMENTER), "Arena missing Lamenter");
-                                check(face.relative(direction.getOpposite()).below(2).equals(CatacombArena.brazier(direction)),
-                                        "Arena tears miss brazier");
-                                net.krodark.asterion.block.GreekBrazierBlock.extinguish(maze, CatacombArena.brazier(direction));
-                            }
-                            check(WorldGenerator.activeBossBraziers(maze) == 0, "Extinguished braziers still power boss");
+                            check(WorldGenerator.activeBossBraziers(maze) == 0, "Temporary arena braziers should remain disabled");
                         }
                         elapsed.set(tick);
                     } catch (Throwable error) { failure.set(error); elapsed.set(521); }

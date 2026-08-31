@@ -18,7 +18,7 @@ import java.util.*;
 
 /** Owns arena sealing and player safety separately from the boss's combat AI. */
 public final class BossArenaEncounter {
-    public static final int INTRO_TICKS = 120;
+    public static final int INTRO_TICKS = 170;
     private static Encounter active;
     private BossArenaEncounter() { }
 
@@ -85,6 +85,13 @@ public final class BossArenaEncounter {
 
     public static void tick(ServerLevel level) {
         if (active == null || active.level != level) return;
+        for (UUID id : List.copyOf(active.participants)) {
+            ServerPlayer player = level.getServer().getPlayerList().getPlayer(id);
+            if (player != null && !player.isAlive() && player.level() == level) {
+                net.krodark.asterion.WorldGenerator.resetBossEncounterAfterDeath(player);
+                return;
+            }
+        }
         var entity = level.getEntity(active.boss);
         if (!(entity instanceof MinotaurEntity boss) || !boss.isAlive()) { finish(level); return; }
         int elapsed = (int)(level.getGameTime() - active.start);
@@ -113,7 +120,7 @@ public final class BossArenaEncounter {
         int height = MinotaurArenaEntrances.gateHeight();
         int closedRows = Math.clamp((elapsed - 8) / 2, 0, height);
         for (Direction facing : MinotaurArenaEntrances.DOORS) {
-            int rows = facing == active.bossDoor ? Math.clamp((elapsed - 100) / 2, 0, height) : closedRows;
+            int rows = facing == active.bossDoor ? Math.clamp((elapsed - MinotaurEntity.ROAR_START_TICKS) / 2, 0, height) : closedRows;
             if (facing == active.bossDoor && (boss.doorEntryTicks() > 0
                     || boss.getBoundingBox().intersects(MinotaurArenaEntrances.gateBounds(facing).inflate(.2)))) continue;
             if (rows == active.closedRows.getOrDefault(facing, 0)) continue;
@@ -141,7 +148,8 @@ public final class BossArenaEncounter {
         // Leave ridden/named centipedes alone; suppress wild arena interference, not player mounts.
         for (var centipede : level.getEntitiesOfClass(net.krodark.asterion.entity.ScarletCentipedeEntity.class, arena))
             if (!centipede.isVehicle() && !centipede.hasCustomName()) centipede.discard();
-        if (elapsed < INTRO_TICKS + 40 || (elapsed - INTRO_TICKS - 40) % 300 != 0) return;
+        int firstWave = ((INTRO_TICKS + 40 + 19) / 20) * 20;
+        if (elapsed < firstWave || (elapsed - firstWave) % 300 != 0) return;
         int existing = level.getEntitiesOfClass(net.krodark.asterion.entity.BombadierBeetleEntity.class, arena).size();
         int remaining = Math.min(2, 4 - existing);
         for (int attempt = 0; attempt < 24 && remaining > 0; attempt++) {

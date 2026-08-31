@@ -160,7 +160,7 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
             for (int dy = 0; dy <= verticalRadius; dy++) {
                 for (int dz = -radius; dz <= radius; dz++) {
                     BlockPos pos = center.offset(dx, dy, dz);
-                    if (!level.ensureCanWrite(pos)) continue;
+                    if (!OvergrowthFeatureSupport.canWrite(level, pos)) continue;
                     double shape = dx * dx / (double)(radius * radius)
                             + dz * dz / (double)(radius * radius)
                             + dy * dy / (double)(verticalRadius * verticalRadius);
@@ -181,7 +181,7 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
                 if (random.nextFloat() >= 0.006F) continue;
                 BlockPos leaf = center.offset(dx, 0, dz);
                 BlockPos fruit = leaf.below();
-                if (!level.ensureCanWrite(fruit) || !level.getBlockState(leaf).is(Asterion.TAINTED_LEAVES)
+                if (!OvergrowthFeatureSupport.canWrite(level, fruit) || !level.getBlockState(leaf).is(Asterion.TAINTED_LEAVES)
                         || !level.getBlockState(fruit).isAir()) continue;
                 level.setBlock(fruit, Asterion.PASSION_BLOOM.defaultBlockState(), 2);
             }
@@ -250,7 +250,7 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
             for (int across = -1; across <= 1; across++) {
                 for (int rise = 1; rise <= 4; rise++) {
                     BlockPos pos = base.relative(road, along).relative(side, across).above(rise);
-                    if (!level.ensureCanWrite(pos)) continue;
+                    if (!OvergrowthFeatureSupport.canWrite(level, pos)) continue;
                     BlockState state = level.getBlockState(pos);
                     if (state.is(Asterion.DEAD_WOOD) || state.is(Asterion.SHATTERED_DEAD_WOOD))
                         level.setBlock(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
@@ -260,13 +260,13 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
     }
 
     private static void setWood(WorldGenLevel level, BlockPos pos, Direction.Axis axis) {
-        if (!level.ensureCanWrite(pos) || !canReplace(level, pos)) return;
+        if (!OvergrowthFeatureSupport.canWrite(level, pos) || !canReplace(level, pos)) return;
         level.setBlock(pos, Asterion.DEAD_WOOD.defaultBlockState()
                 .setValue(RotatedPillarBlock.AXIS, axis), 2);
     }
 
     private static void setShattered(WorldGenLevel level, BlockPos pos, Direction facing) {
-        if (!level.ensureCanWrite(pos)
+        if (!OvergrowthFeatureSupport.canWrite(level, pos)
                 || (!canReplace(level, pos) && !level.getBlockState(pos).is(Asterion.DEAD_WOOD))) return;
         level.setBlock(pos, Asterion.SHATTERED_DEAD_WOOD.defaultBlockState()
                 .setValue(ShatteredDeadWoodBlock.FACING, facing), 2);

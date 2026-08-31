@@ -171,7 +171,6 @@ public final class MazeNbtStructures {
                         origin, settings, box, reserved, roll));
             }
         }
-        Asterion.LOGGER.info("Reserved {} size-aware NBT landmarks in the Asterion", placements.size());
         Layout layout = new Layout(placements);
         GENERATION_LAYOUTS.put(seed, layout);
         return layout;
@@ -327,21 +326,19 @@ public final class MazeNbtStructures {
             if (!generatedAroundStructure) preparePlacementArea(level, placement);
             boolean placed = placement.template.placeInWorld(level, placement.origin, placement.origin,
                     placement.settings, RandomSource.create(placement.seed), 2);
-            if (placed) {
-                sanitize(level, placement.box);
-                carveAccessibilityBridges(level, placement);
-                configureSafeRoom(level, placement);
-                cacheSafeCheckpoint(level, placement);
+            if (!placed) {
+                Asterion.LOGGER.warn("Failed to place maze NBT template {} at {}", placement.id, placement.origin);
+                queued.remove(placement.origin);
+                return;
             }
-            else Asterion.LOGGER.warn("Failed to place maze NBT template {} at {}", placement.id, placement.origin);
+            sanitize(level, placement.box);
+            carveAccessibilityBridges(level, placement);
+            configureSafeRoom(level, placement);
+            cacheSafeCheckpoint(level, placement);
             level.setBlock(marker, Blocks.REINFORCED_DEEPSLATE.defaultBlockState(), 2);
         }
 
-        /**
-         * NBT landmarks may use any footprint and rotation, so their authored doorway does not
-         * necessarily line up with the procedural grid.  Four short, bounded bridges guarantee
-         * that the room joins the spanning maze without clearing cross-shaped paths across chunks.
-         */
+        // Rotated template doorways do not necessarily line up with the maze grid.
         private static void carveAccessibilityBridges(ServerLevel level, Placement placement) {
             int floorY = placement.box.minY();
             int centerX = (placement.box.minX() + placement.box.maxX()) / 2;

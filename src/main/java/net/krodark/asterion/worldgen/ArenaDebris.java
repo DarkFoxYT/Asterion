@@ -23,6 +23,11 @@ public final class ArenaDebris {
         }
         PENDING.clear();
     }
-    public static void clear(ServerLevel level) { PENDING.remove(level); }
+    public static void clear(ServerLevel level) {
+        PENDING.remove(level);
+        // Empty batch is an encounter reset, clearing only arena rubble and door leaves client-side.
+        for (var player : level.players()) if (ServerPlayNetworking.canSend(player, ArenaDebrisPayload.TYPE))
+            ServerPlayNetworking.send(player, new ArenaDebrisPayload(List.of(), 0));
+    }
     public static void clear() { PENDING.clear(); }
 }

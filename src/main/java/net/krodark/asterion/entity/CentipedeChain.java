@@ -82,11 +82,27 @@ public final class CentipedeChain {
             // The delayed support normal belongs to this part of the trail, not the head now.
             Pose target = trail.behind(i * CentipedeFrame.LINK_LENGTH);
             Vec3 desired = target.position;
-            Vec3 targetFacing = CentipedeFrame.tangent(target.forward, target.normal, old.forward);
-            var contact = collision.followSurface(old.position, desired, target.normal, old.forward);
-            Vec3 newFacing = CentipedeMotion.followHeading(old.forward, targetFacing, contact.normal(), .075);
+            Pose leader = current[i - 1];
+            Vec3 jointNormal = CentipedeFrame.unit(target.normal.lerp(leader.normal, .15), target.normal);
+            Vec3 targetFacing = CentipedeFrame.tangent(leader.position.subtract(desired), jointNormal, target.forward);
+            var contact = collision.followSurface(old.position, desired, jointNormal, old.forward);
+            Vec3 newFacing = CentipedeMotion.followHeading(old.forward, targetFacing, contact.normal(), .12);
             // Resolve the final orientation too: turning a wide segment must not overlap a wall.
             contact = collision.followSurface(contact.position(), contact.position(), contact.normal(), newFacing);
+            for (int pass = 0; pass < 3; pass++) {
+                Vec3 separated = contact.position();
+                for (int other = 0; other < count; other++) {
+                    if (Math.abs(i - other) <= 1) continue;
+                    separated = CentipedeBodyConstraint.separate(separated, current[other].position, contact.normal(), newFacing);
+                }
+                // Don't trade self-overlap for disconnected links. World collision takes
+                // priority when there isn't enough room to completely spread the chain.
+                Vec3 away = separated.subtract(leader.position);
+                double maximum = CentipedeFrame.LINK_LENGTH + .25;
+                if (away.lengthSqr() > maximum * maximum)
+                    separated = leader.position.add(away.normalize().scale(maximum));
+                contact = collision.followSurface(contact.position(), separated, contact.normal(), newFacing);
+            }
             current[i] = new Pose(contact.position(), contact.normal(), newFacing);
         }
     }
@@ -105,6 +121,18 @@ public final class CentipedeChain {
     }
 
     public boolean initialized() { return count > 0; }
+
+    public Vec3 limitHeadMotion(Vec3 motion) {
+        if (count < 3) return motion;
+        double allowed = 1;
+        Vec3 head = current[0].position;
+        Vec3 nose = head.add(current[0].forward.scale(1.45));
+        for (int i = 2; i < count; i++) {
+            allowed = Math.min(allowed, CentipedeBodyConstraint.movementFraction(head, motion, current[i].position));
+            allowed = Math.min(allowed, CentipedeBodyConstraint.movementFraction(nose, motion, current[i].position));
+        }
+        return motion.scale(allowed);
+    }
 
     public float gait(int index, float partial) {
         index = Mth.clamp(index, 0, count - 1);

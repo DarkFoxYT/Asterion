@@ -56,11 +56,15 @@ public final class AsterionClient implements ClientModInitializer {
         RagdollClientController.initialize();
         CentipedeInteractionClient.initialize();
         EntityRenderers.register(Asterion.MINOTAUR, MinotaurGeoRenderer::new);
+        EntityRenderers.register(Asterion.MINOTAUR_AXE, net.krodark.asterion.client.render.entity.MinotaurAxeRenderer::new);
         EntityRenderers.register(Asterion.BOMBARDIER_BEETLE, BombadierBeetleGeoRenderer::new);
         EntityRenderers.register(Asterion.SCARLET_CENTIPEDE, ScarletCentipedeGeoRenderer::new);
         ParticleProviderRegistry.getInstance().register(Asterion.GREEK_FIRE, sprites ->
                 (type, level, x, y, z, vx, vy, vz, random) ->
                         GreekFireParticle.create(level, x, y, z, vx, vy, vz, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.GREEK_FIRE_SOOT, sprites ->
+                (type, level, x, y, z, vx, vy, vz, random) ->
+                        net.krodark.asterion.client.particle.DoorSmokeParticle.soot(level, x, y, z, vx, vy, vz, sprites, random));
         ParticleProviderRegistry.getInstance().register(Asterion.BRAZIER_FIRE, sprites ->
                 (type, level, x, y, z, vx, vy, vz, random) ->
                         GreekFireParticle.createBrazier(level, x, y, z, vx, vy, vz, sprites, random));
@@ -104,6 +108,8 @@ public final class AsterionClient implements ClientModInitializer {
         BlockEntityRenderers.register(Asterion.RUNE_BLOCK_ENTITY, RuneGeoRenderer::new);
         BlockEntityRenderers.register(Asterion.MINOTAUR_DOOR_BLOCK_ENTITY,
                 net.krodark.asterion.client.render.block.MinotaurDoorRenderer::new);
+        BlockEntityRenderers.register(Asterion.BARREL_DOOR_BLOCK_ENTITY,
+                net.krodark.asterion.client.render.block.BarrelDoorRenderer::new);
         BlockEntityRenderers.register(net.krodark.asterion.block.RespawnObelisks.BLOCK_ENTITY,
                 net.krodark.asterion.client.render.block.SanctuaryRenderer::new);
         BlockEntityRenderers.register(Asterion.LABYRINTH_VINE_BLOCK_ENTITY, LabyrinthVineGeoRenderer::new);

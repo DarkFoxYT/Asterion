@@ -102,6 +102,11 @@ public final class AsterionWorldState extends SavedData {
     public record SavedPortal(net.minecraft.core.BlockPos center, int surfaceY, long visualSeed,
                               ResourceKey<Level> dimension) { }
 
+    public void resetMinotaurEncounter() {
+        minotaurDefeated = false;
+        setDirty();
+    }
+
     public void markMinotaurDefeated() {
         if (minotaurDefeated) return;
         minotaurDefeated = true;

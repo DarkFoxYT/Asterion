@@ -12,7 +12,7 @@
 			},
 			"bones": [
 				{
-					"name": "full",
+					"name": "axe_grip", "parent": "righthand", "pivot": [-55, 82.25, 0.5], "rotation": [90, 0, 0] }, { "name": "weapon_right", "parent": "righthand", "pivot": [-55, 82.25, 0.5], "rotation": [90, 0, 0] }, { "name": "weapon_left", "parent": "lefthand", "pivot": [55, 82.25, 0.5], "rotation": [90, 0, 0] }, { "name": "axe_back", "parent": "body", "pivot": [-8, 68, 19], "rotation": [0, 0, -25] }, { "name": "sword_hip_right", "parent": "lowerbody", "pivot": [-26, 47.25, 8], "rotation": [180, 0, -12] }, { "name": "sword_hip_left", "parent": "lowerbody", "pivot": [26, 47.25, 8], "rotation": [180, 0, 12] }, { "name": "full",
 					"pivot": [0, 0, 0]
 				},
 				{

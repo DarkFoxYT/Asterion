@@ -13,7 +13,6 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 
-/** Wall-rooted leaf clumps and flowing mathematical leaf-vines. */
 public final class AncientLeavesClusterFeature extends Feature<NoneFeatureConfiguration> {
     public AncientLeavesClusterFeature(Codec<NoneFeatureConfiguration> codec) {
         super(codec);
@@ -38,7 +37,6 @@ public final class AncientLeavesClusterFeature extends Feature<NoneFeatureConfig
                     AsterionConfig.INSTANCE.wallHeight - 11));
             WallAttachment wall = findWall(level, new BlockPos(centerX, wallY, centerZ),
                     AsterionConfig.INSTANCE.cellSize);
-            // No free-floating fallback: every generated mass starts on real masonry.
             if (wall == null) continue;
             placed += placeWallClump(level, wall, leaves, random);
             if ((cluster & 1) == 0) placed += placeLeafTrail(level, wall, leaves, random);
@@ -52,10 +50,8 @@ public final class AncientLeavesClusterFeature extends Feature<NoneFeatureConfig
             for (Direction towardWall : directions) {
                 BlockPos wall = center.relative(towardWall, distance);
                 Direction outward = towardWall.getOpposite();
-                // A placed feature may inspect nearby masonry, but it must not select an
-                // attachment whose first leaf lies outside the currently writable region.
-                if (OvergrowthFeatureSupport.isMazeWall(level.getBlockState(wall))
-                        && level.ensureCanWrite(wall.relative(outward)))
+                if (OvergrowthFeatureSupport.canWrite(level, wall.relative(outward))
+                        && OvergrowthFeatureSupport.isMazeWall(level.getBlockState(wall)))
                     return new WallAttachment(wall, outward);
             }
         }
@@ -78,7 +74,7 @@ public final class AncientLeavesClusterFeature extends Feature<NoneFeatureConfig
                     if (shape > 1.08D) continue;
                     BlockPos pos = wall.anchor.relative(tangent, across).above(dy)
                             .relative(wall.outward, outward);
-                    if (!level.ensureCanWrite(pos)) continue;
+                    if (!OvergrowthFeatureSupport.canWrite(level, pos)) continue;
                     BlockPos backing = pos.relative(wall.outward.getOpposite());
                     if (!OvergrowthFeatureSupport.enabled(level, pos, "leaf_clusters")
                             || !OvergrowthFeatureSupport.isOpen(level, pos)
@@ -94,7 +90,6 @@ public final class AncientLeavesClusterFeature extends Feature<NoneFeatureConfig
         return placed;
     }
 
-    /** A descending sine curve, rasterized with connected elbows and rooted to the wall. */
     private static int placeLeafTrail(WorldGenLevel level, WallAttachment wall,
                                       BlockState leaves, RandomSource random) {
         Direction tangent = wall.outward.getClockWise();
@@ -104,8 +99,7 @@ public final class AncientLeavesClusterFeature extends Feature<NoneFeatureConfig
         int placed = 0;
         for (int step = 0; step < length; step++) {
             int across = (int)Math.round(Math.sin(phase + step * 0.48D) * 2.1D);
-            // First descend at the previous X/Z, then move sideways. This turns the
-            // sampled curve into a face-connected block path instead of diagonals.
+            // Descend before moving sideways so leaves stay face-connected.
             BlockPos elbow = wall.anchor.relative(tangent, previousAcross).below(step)
                     .relative(wall.outward);
             placed += placeRootedLeaf(level, elbow, wall.outward, leaves);
@@ -123,19 +117,13 @@ public final class AncientLeavesClusterFeature extends Feature<NoneFeatureConfig
 
     private static int placeRootedLeaf(WorldGenLevel level, BlockPos pos, Direction outward,
                                        BlockState leaves) {
-        if (!level.ensureCanWrite(pos)
+        if (!OvergrowthFeatureSupport.canWrite(level, pos)
                 || !OvergrowthFeatureSupport.enabled(level, pos, "leaf_clusters")
                 || !OvergrowthFeatureSupport.isOpen(level, pos)
                 || !OvergrowthFeatureSupport.isMazeWall(
                         level.getBlockState(pos.relative(outward.getOpposite())))) return 0;
         level.setBlock(pos, leaves, 2);
         return 1;
-    }
-
-    private static long mix(long value) {
-        value = (value ^ (value >>> 30)) * 0xbf58476d1ce4e5b9L;
-        value = (value ^ (value >>> 27)) * 0x94d049bb133111ebL;
-        return value ^ (value >>> 31);
     }
 
     private record WallAttachment(BlockPos anchor, Direction outward) { }

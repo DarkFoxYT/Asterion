@@ -41,29 +41,38 @@ public final class MinotaurDebugCommands {
                 var entry = it.next(); Session session = entry.getValue();
                 ServerPlayer owner = server.getPlayerList().getPlayer(entry.getKey());
                 if (owner == null || owner.level() != session.boss.level() || session.boss.isRemoved()) {
-                    session.boss.stopDebug(); it.remove();
+                    if (session.owned) session.boss.stopDebug(); it.remove();
                     if (owner != null) owner.sendSystemMessage(Component.literal("[Minotaur debug] Session ended."));
                     continue;
                 }
                 String key = session.boss.debugStateKey();
-                if (!key.equals(session.lastKey) || server.getTickCount() - session.lastReport >= 100) {
+                if (!key.equals(session.lastKey) || server.getTickCount() - session.lastReport >= 40) {
                     owner.sendSystemMessage(Component.literal("[Minotaur debug] " + session.boss.debugStatus()));
                     session.lastKey = key; session.lastReport = server.getTickCount();
                 }
             }
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
-            for (Session session : SESSIONS.values()) session.boss.stopDebug();
+            for (Session session : SESSIONS.values()) if (session.owned) session.boss.stopDebug();
             SESSIONS.clear();
         });
     }
     private static int start(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer owner = source.getPlayerOrException();
-        if (!owner.level().dimension().equals(Level.OVERWORLD)) {
-            source.sendFailure(Component.literal("Run the Minotaur debug encounter in the Overworld.")); return 0;
-        }
         Session old = SESSIONS.get(owner.getUUID());
-        if (old != null && !old.boss.isRemoved()) { old.boss.setDebugRunning(true); return 1; }
+        if (old != null && !old.boss.isRemoved()) { if (old.owned) old.boss.setDebugRunning(true); return 1; }
+        if (owner.level().dimension().equals(Asterion.ASTERION_LEVEL)) {
+            var boss = owner.level().getEntitiesOfClass(MinotaurEntity.class, owner.getBoundingBox().inflate(96),
+                    entity -> entity.isAlive() && entity.behaviorPhase() == MinotaurEntity.BehaviorPhase.BOSS)
+                    .stream().min(Comparator.comparingDouble(entity -> entity.distanceToSqr(owner))).orElse(null);
+            if (boss == null) { source.sendFailure(Component.literal("No active arena Minotaur nearby.")); return 0; }
+            SESSIONS.put(owner.getUUID(), new Session(boss, false));
+            source.sendSuccess(() -> Component.literal("[Minotaur debug] Watching the arena boss. Live attack/state telemetry enabled; status and stop are available without changing the fight."), false);
+            return 1;
+        }
+        if (!owner.level().dimension().equals(Level.OVERWORLD)) {
+            source.sendFailure(Component.literal("Use debug in the Overworld or during the maze arena fight.")); return 0;
+        }
         var level = owner.level();
         var boss = Asterion.MINOTAUR.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
         if (boss == null) return 0;
@@ -82,7 +91,7 @@ public final class MinotaurDebugCommands {
         if (spawn == null) { source.sendFailure(Component.literal("No clear space ahead for the Minotaur. Try an open area.")); return 0; }
         boss.setPos(spawn); boss.beginDebug(owner);
         if (!level.addFreshEntity(boss)) return 0;
-        SESSIONS.put(owner.getUUID(), new Session(boss));
+        SESSIONS.put(owner.getUUID(), new Session(boss, true));
         source.sendSuccess(() -> Component.literal("[Minotaur debug] Active. Attacks can hurt: use Creative for safe observation. "
                 + "Commands: /asterion minotaur attack <name>, pause, auto, status, stop. No arena construction or finale; the test boss is not saved."), false);
         return 1;
@@ -90,8 +99,11 @@ public final class MinotaurDebugCommands {
     private static int control(CommandSourceStack source, String action) throws CommandSyntaxException {
         var owner = source.getPlayerOrException(); Session session = SESSIONS.get(owner.getUUID());
         if (session == null || session.boss.isRemoved()) { source.sendFailure(Component.literal("Start with /asterion minotaur debug.")); return 0; }
+        if (!session.owned && !action.equals("status") && !action.equals("stop")) {
+            source.sendFailure(Component.literal("Arena debug observes the live fight. Use Overworld debug to force or pause attacks.")); return 0;
+        }
         switch (action) {
-            case "stop" -> { session.boss.stopDebug(); SESSIONS.remove(owner.getUUID()); }
+            case "stop" -> { if (session.owned) session.boss.stopDebug(); SESSIONS.remove(owner.getUUID()); }
             case "pause" -> session.boss.setDebugRunning(false);
             case "auto" -> session.boss.setDebugRunning(true);
             case "status" -> { }
@@ -106,8 +118,9 @@ public final class MinotaurDebugCommands {
     }
     private static final class Session {
         final MinotaurEntity boss;
+        final boolean owned;
         String lastKey = "";
         int lastReport;
-        Session(MinotaurEntity boss) { this.boss = boss; }
+        Session(MinotaurEntity boss, boolean owned) { this.boss = boss; this.owned = owned; }
     }
 }

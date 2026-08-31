@@ -10,12 +10,13 @@ import java.util.Collections;
 import java.util.WeakHashMap;
 import java.util.Set;
 
-/** Animated custom gas, with an emissive burn phase when the beetle ignites its trail. */
+/** Original green smoke that switches to custom emissive sprites when ignited. */
 public final class BombardierStenchParticle extends AnimatedEmissiveParticle {
     private static final Set<BombardierStenchParticle> ACTIVE = Collections.newSetFromMap(new WeakHashMap<>());
     private float targetSize;
     private int sizeChangeTicks;
     private boolean burning;
+    private SpriteSet fireSprites;
 
     private BombardierStenchParticle(ClientLevel level, double x, double y, double z,
                                      double velocityX, double velocityY, double velocityZ,
@@ -67,7 +68,7 @@ public final class BombardierStenchParticle extends AnimatedEmissiveParticle {
         xd *= friction;
         yd *= friction;
         zd *= friction;
-        setSpriteFromAge(sprites);
+        updateSprite();
 
         if (burning) {
             float progress = age / (float)Math.max(1, lifetime);
@@ -87,22 +88,24 @@ public final class BombardierStenchParticle extends AnimatedEmissiveParticle {
         super.remove();
     }
 
-    public static void igniteNearby(ClientLevel level, double x, double y, double z, double radius) {
+    public static void igniteNearby(ClientLevel level, double x, double y, double z, double radius,
+                                    SpriteSet fireSprites) {
         double radiusSquared = radius * radius;
         for (BombardierStenchParticle smoke : ACTIVE) {
             if (smoke.level != level || smoke.removed || smoke.burning) continue;
             double dx = smoke.x - x;
             double dy = smoke.y - y;
             double dz = smoke.z - z;
-            if (dx * dx + dy * dy + dz * dz <= radiusSquared) smoke.ignite();
+            if (dx * dx + dy * dy + dz * dz <= radiusSquared) smoke.ignite(fireSprites);
         }
     }
 
     @Override
     protected boolean isEmissive() { return burning; }
 
-    private void ignite() {
+    private void ignite(SpriteSet fireSprites) {
         if (burning) return;
+        this.fireSprites = fireSprites;
         burning = true;
         age = 0;
         lifetime = 28 + random.nextInt(10);
@@ -112,7 +115,13 @@ public final class BombardierStenchParticle extends AnimatedEmissiveParticle {
         zd *= 0.45D;
         setColor(0.12F, 0.42F, 1.0F);
         setAlpha(0.92F);
-        setSpriteFromAge(sprites);
+        updateSprite();
+    }
+
+    private void updateSprite() {
+        if (burning) setSpriteFromAge(fireSprites);
+        // Preserve all twelve original smoke frames; custom fire has eight frames.
+        else if (isAlive()) setSprite(sprites.get(Math.min(11, age * 12 / Math.max(1, lifetime)), 11));
     }
 
     private static float randomSize(RandomSource random) {

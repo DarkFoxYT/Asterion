@@ -10,9 +10,8 @@ import net.krodark.asterion.client.light.AsterionEmissiveBoneLayer;
 import net.krodark.asterion.client.light.AsterionEmissiveConfig;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
-import net.minecraft.core.Direction;
 
-/** Two-state vine with an emissive end bulb, preserving the authored downward pose. */
+/** Uses each variant's authored pose; only the end segment's glow bone is emissive. */
 public final class LabyrinthVineGeoRenderer
         extends GeoBlockRenderer<LabyrinthVineBlockEntity, BlockEntityRenderState> {
     public LabyrinthVineGeoRenderer(BlockEntityRendererProvider.Context context) {
@@ -26,6 +25,10 @@ public final class LabyrinthVineGeoRenderer
             @Override protected float surfaceBrightness(BlockEntityRenderState state) {
                 return AsterionEmissiveConfig.vineGlowStrength();
             }
+
+            @Override protected net.minecraft.resources.Identifier amneticEmissionMesh(BlockEntityRenderState state) {
+                return getGeoModel().getModelResource(state);
+            }
         });
     }
 
@@ -37,12 +40,8 @@ public final class LabyrinthVineGeoRenderer
             snapshot.skipRender(!end);
             snapshot.skipChildrenRender(!end);
         });
-        Direction facing = pass.getOrDefaultGeckolibData(
-                LabyrinthVineGeoModel.FACING, Direction.DOWN);
-        snapshots.ifPresent("full", snapshot -> {
-            snapshot.setRotation(facing == Direction.UP ? (float)Math.PI : 0.0F,
-                    0.0F, 0.0F);
-        });
+        // The upright asset already includes its root rotation and pivot.
+        // Overriding "full" here would flip it again and misalign the bulb with the stem.
     }
 
     @Override

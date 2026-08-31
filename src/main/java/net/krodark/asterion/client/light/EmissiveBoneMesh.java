@@ -53,6 +53,20 @@ public final class EmissiveBoneMesh {
         }
     }
 
+    /** Built once per baked bone for Amnetic; the cached quad UVs and positions remain identical. */
+    public com.meekdev.amnetic.client.instanced.MeshData amneticGeometry() {
+        int count = vertices.length / 5;
+        int[] indices = new int[count / 4 * 6];
+        for (int quad = 0; quad < count / 4; quad++) {
+            int v = quad * 4, i = quad * 6;
+            indices[i] = v; indices[i + 1] = v + 1; indices[i + 2] = v + 2;
+            indices[i + 3] = v; indices[i + 4] = v + 2; indices[i + 5] = v + 3;
+        }
+        var geometry = com.meekdev.amnetic.client.instanced.MeshData.mutable(5, true, count, indices.length);
+        geometry.update(vertices, vertices.length, indices, indices.length);
+        return geometry;
+    }
+
     /** Only the animated pose and tint change each draw; no cube traversal or per-vertex allocation. */
     public void render(PoseStack.Pose pose, VertexConsumer buffer, int color, float uScale, float vScale) {
         Vector3f position = POSITION.get();

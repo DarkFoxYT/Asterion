@@ -5,7 +5,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
 
-/** Anticipates only faces in the direction of travel, using actual block collision shapes. */
+/** Short-range, collision-shape-based surface hand-offs, never speculative wall climbing. */
 public final class CentipedeSurfaceProbe {
     public record Approach(Direction face, double gap, Vec3 normal) {}
     private CentipedeSurfaceProbe() {}
@@ -14,7 +14,7 @@ public final class CentipedeSurfaceProbe {
         double speed = motion.length();
         if (speed < .015) return null;
         Vec3 heading = motion.scale(1 / speed);
-        double reach = .35 + Math.min(.45, speed * 2);
+        double reach = .10;
         double best = Double.MAX_VALUE;
         Approach result = null;
         for (Direction face : Direction.values()) {
@@ -33,10 +33,7 @@ public final class CentipedeSurfaceProbe {
                 double along = Math.max(0, gap) / heading.dot(normal);
                 AABB arrived = body.move(heading.scale(along + .025));
                 if (!arrived.intersects(block) || along >= best) continue;
-                double t = Math.clamp(1 - Math.max(0, gap) / reach, 0, 1);
-                double blend = t * t * (3 - 2 * t) * .55;
-                result = new Approach(face, gap, CentipedeFrame.unit(
-                        support.getUnitVec3().lerp(normal, blend), support.getUnitVec3()));
+                result = new Approach(face, gap, support.getUnitVec3());
                 best = along;
             }
         }
@@ -64,6 +61,7 @@ public final class CentipedeSurfaceProbe {
                 };
                 if (edge < -.02 || edge > .18) continue;
                 Direction face = travel.getOpposite();
+                if (!body.move(face.getUnitVec3().scale(.12)).intersects(block)) continue;
                 return new Approach(face, edge, CentipedeFrame.unit(
                         support.getUnitVec3().lerp(face.getUnitVec3(), .4), support.getUnitVec3()));
             }
