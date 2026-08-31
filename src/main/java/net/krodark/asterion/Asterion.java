@@ -277,7 +277,7 @@ public class Asterion implements ModInitializer {
             BuiltInRegistries.ENTITY_TYPE,
             SCARLET_CENTIPEDE_KEY,
             EntityType.Builder.of(ScarletCentipedeEntity::new, MobCategory.CREATURE)
-                    .sized(2.1F, 0.82F).eyeHeight(0.62F).clientTrackingRange(48)
+                    .sized(1.785F, 0.697F).eyeHeight(0.527F).clientTrackingRange(48)
                     .build(SCARLET_CENTIPEDE_KEY)
     );
     private static final ResourceKey<Item> SCARLET_CENTIPEDE_SPAWN_EGG_KEY = ResourceKey.create(
@@ -296,6 +296,8 @@ public class Asterion implements ModInitializer {
             BuiltInRegistries.PARTICLE_TYPE, id("bombardier_gas_fire"), FabricParticleTypes.simple());
     public static final SimpleParticleType GREEK_FIRE = Registry.register(
             BuiltInRegistries.PARTICLE_TYPE, id("greek_fire"), FabricParticleTypes.simple());
+    public static final SimpleParticleType MINOTAUR_BELCH_FIRE = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, id("minotaur_belch_fire"), FabricParticleTypes.simple());
     public static final SimpleParticleType GREEK_FIRE_SOOT = Registry.register(
             BuiltInRegistries.PARTICLE_TYPE, id("greek_fire_soot"), FabricParticleTypes.simple());
     public static final SimpleParticleType BRAZIER_FIRE = Registry.register(
@@ -492,6 +494,10 @@ public class Asterion implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        net.krodark.asterion.game.GameplayContent.initialize();
+        net.krodark.asterion.effect.GreekFireBurn.initialize();
+        net.krodark.asterion.effect.SingedEffect.initialize();
+        ServerTickEvents.END_SERVER_TICK.register(net.krodark.asterion.effect.SingedScars::tick);
         net.krodark.asterion.fluid.HeavyWater.initialize();
         net.krodark.asterion.block.RespawnObelisks.initialize();
         AsterionConfig.INSTANCE.sanitize();
@@ -600,9 +606,12 @@ public class Asterion implements ModInitializer {
             if (entity instanceof net.minecraft.server.level.ServerPlayer player)
                 WorldGenerator.prepareRapidRespawn(player);
         });
-        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
-                WorldGenerator.playerConnected(handler.getPlayer()));
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            net.krodark.asterion.effect.SingedScars.get(server).apply(handler.getPlayer());
+            WorldGenerator.playerConnected(handler.getPlayer());
+        });
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
+            net.krodark.asterion.effect.SingedScars.get(newPlayer.level().getServer()).apply(newPlayer);
             net.krodark.asterion.fluid.HeavyWaterFatigue.reset(newPlayer);
             if (oldPlayer.level().dimension().equals(ASTERION_LEVEL)) {
                 BlockPos deathPosition = oldPlayer.blockPosition().immutable();

@@ -41,6 +41,7 @@ import net.fabricmc.fabric.api.client.particle.v1.ParticleProviderRegistry;
 public final class AsterionClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
+        net.krodark.asterion.dev.EssentialLaunchSmokeTest.install();
         net.krodark.asterion.client.render.HeavyWaterRendering.initialize();
         AsterionEmissiveConfig.load();
         AsterionEmissiveParticles.initialize();
@@ -59,12 +60,16 @@ public final class AsterionClient implements ClientModInitializer {
         EntityRenderers.register(Asterion.MINOTAUR, MinotaurGeoRenderer::new);
         EntityRenderers.register(Asterion.MINOTAUR_AXE, net.krodark.asterion.client.render.entity.MinotaurAxeRenderer::new);
         EntityRenderers.register(Asterion.BOMBARDIER_BEETLE, BombadierBeetleGeoRenderer::new);
-        // Deliberately model-free until the rune beetle's GeckoLib assets are available.
-        EntityRenderers.register(Asterion.RUNE_BEETLE, net.minecraft.client.renderer.entity.NoopRenderer::new);
+        // Animated beetle placeholder until the dedicated model is supplied.
+        EntityRenderers.register(net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER, net.krodark.asterion.client.render.entity.CursedBrazierRenderer::new);
+        EntityRenderers.register(Asterion.RUNE_BEETLE, net.krodark.asterion.client.render.entity.RuneBeetleRenderer::new);
         EntityRenderers.register(Asterion.SCARLET_CENTIPEDE, ScarletCentipedeGeoRenderer::new);
         ParticleProviderRegistry.getInstance().register(Asterion.GREEK_FIRE, sprites ->
                 (type, level, x, y, z, vx, vy, vz, random) ->
                         GreekFireParticle.create(level, x, y, z, vx, vy, vz, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.MINOTAUR_BELCH_FIRE, sprites ->
+                (type, level, x, y, z, vx, vy, vz, random) ->
+                        GreekFireParticle.createBelch(level, x, y, z, vx, vy, vz, sprites, random));
         ParticleProviderRegistry.getInstance().register(Asterion.GREEK_FIRE_SOOT, sprites ->
                 (type, level, x, y, z, vx, vy, vz, random) ->
                         net.krodark.asterion.client.particle.DoorSmokeParticle.soot(level, x, y, z, vx, vy, vz, sprites, random));
@@ -165,7 +170,10 @@ public final class AsterionClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(DazePayload.TYPE, (payload, context) ->
                 context.client().execute(() -> DazeOverlay.begin(payload)));
         ClientPlayNetworking.registerGlobalReceiver(BiomeAtmospherePayload.TYPE, (payload, context) ->
-                context.client().execute(() -> AsterionPostEffects.setBiome(payload.biome())));
+                context.client().execute(() -> {
+                    AsterionPostEffects.setBiome(payload.biome());
+                    BiomeMusic.setBiome(payload.biome());
+                }));
         ClientPlayNetworking.registerGlobalReceiver(RagdollImpulsePayload.TYPE, (payload, context) ->
                 context.client().execute(() -> DismembermentEngine.INSTANCE.forcePlayerTumble(
                         context.client(), payload.source(), payload.impulse(), payload.force())));
@@ -180,6 +188,8 @@ public final class AsterionClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(RagdollPosePayload.TYPE, (payload, context) ->
                 context.client().execute(() -> DismembermentEngine.INSTANCE.applyRemotePose(context.client(), payload)));
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+        BiomeMusic.initialize();
+        MazeAmbience.initialize();
     }
 
     private void tick(Minecraft client) {

@@ -19,3 +19,8 @@ hs_err_pid*
 
 # Common working directory
 run
+
+# Runtime diagnostics stay local, never in source control.
+logs/
+*.log
+*.log.gz

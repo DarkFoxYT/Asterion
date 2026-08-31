@@ -18,7 +18,7 @@ public final class GreekFireParticle extends AnimatedEmissiveParticle {
         gravity = -0.001F;
         hasPhysics = false;
         lifetime = 16 + random.nextInt(9);
-        quadSize = 0.66F + random.nextFloat() * 0.22F;
+        quadSize = 1.0F + random.nextFloat() * 0.35F;
         // Preserve the supplied green edges and white-hot center without a second tint.
         setAlpha(0.88F);
         setSpriteFromAge(sprites);
@@ -54,6 +54,15 @@ public final class GreekFireParticle extends AnimatedEmissiveParticle {
         flame.xd = vx * .15D;
         flame.zd = vz * .15D;
         flame.setAlpha(0);
+        return flame;
+    }
+
+    public static Particle createBelch(ClientLevel level, double x, double y, double z,
+                                      double vx, double vy, double vz, SpriteSet sprites, RandomSource random) {
+        GreekFireParticle flame = new GreekFireParticle(level, x, y, z, vx, vy, vz, sprites, random);
+        flame.quadSize = 2.4F + random.nextFloat() * .8F;
+        flame.lifetime = 24 + random.nextInt(12);
+        flame.yd = .07 + random.nextDouble() * .05;
         return flame;
     }
 }

@@ -15,6 +15,7 @@ final class WorldgenDataChecks {
 
     static void run(ServerLevel level, BlockPos sample) {
         checkBounds();
+        checkLandmarks(level);
         var chunk = level.getChunkAt(sample);
         BlockPos base = new BlockPos(chunk.getPos().getMinBlockX() + 2, 120,
                 chunk.getPos().getMinBlockZ() + 2);
@@ -58,6 +59,37 @@ final class WorldgenDataChecks {
         check(chunk.getBlockEntity(chest) == null, "Replaced chest left a block entity behind");
         check(!OvergrowthFeatureSupport.canWrite(level, base.atY(level.getMaxY() + 1)),
                 "Feature allowed a write above build height");
+    }
+
+    private static void checkLandmarks(ServerLevel level) {
+        long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
+        boolean entranceFound = false, pitFound = false;
+        for (int cx = 12; cx <= 52 && !entranceFound; cx += 8) {
+            var chunk = level.getChunk(cx, 4);
+            int x = chunk.getPos().getMinBlockX() + 8, z = chunk.getPos().getMinBlockZ() + 8;
+            int floor = net.krodark.asterion.WorldGenerator.mazeFloorHeight(seed, x, z);
+            BlockPos center = new BlockPos(x, floor - 6, z);
+            if (!chunk.getBlockState(center.below()).is(Blocks.LODESTONE)) continue;
+            entranceFound = true;
+            check(chunk.getBlockState(new BlockPos(x, floor + 1, z)).is(net.krodark.asterion.Asterion.MAZESTEEL_BARS), "Entrance grate does not project above maze floor");
+            check(CatacombEntrances.checkpoint(level, center) != null, "Entrance does not provide a safe checkpoint");
+            check(level.getBlockState(center).isAir() && level.getBlockState(center.above()).isAir(), "Entrance respawn blocked");
+            for (int y = 8; y <= floor + 1; y++) check(level.getBlockState(new BlockPos(x + 4, y, z)).is(Blocks.LADDER), "Broken sewer entrance ladder");
+        }
+        check(entranceFound, "No catacomb entrance generated in five eligible chunks");
+        for (int cx = 18; cx <= 66 && !pitFound; cx += 12) {
+            var chunk = level.getChunk(cx, 6);
+            int x = chunk.getPos().getMinBlockX() + 8, z = chunk.getPos().getMinBlockZ() + 8;
+            int floor = net.krodark.asterion.WorldGenerator.mazeFloorHeight(seed, x, z);
+            if (!chunk.getBlockState(new BlockPos(x, floor - 24, z)).is(net.krodark.asterion.Asterion.ANCIENT_BRICKS)) continue;
+            if (!chunk.getBlockState(new BlockPos(x, floor - 23, z)).is(Blocks.WATER)) continue;
+            pitFound = true;
+            check(chunk.getBlockState(new BlockPos(x, floor, z)).isAir(), "Pit connector not aligned with maze floor");
+            check(chunk.getBlockState(new BlockPos(x, floor + 1, z)).isAir(), "Maze wall blocks pit opening");
+        }
+        check(pitFound, "No jigsaw pit generated at surface level");
+        check(level.getStructureManager().get(net.krodark.asterion.Asterion.id("catacombs/cursed_brazier")).isPresent(), "Cursed brazier room missing");
+        net.krodark.asterion.Asterion.LOGGER.info("PASS: raised grate sanctuary, clear checkpoint, continuous sewer ladder and surface-aligned jigsaw pit");
     }
 
     private static CompoundTag dummy(BlockPos pos) {

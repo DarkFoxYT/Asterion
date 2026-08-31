@@ -34,14 +34,31 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
         if (!pass.willRender() || pass.renderState().isInvisible) return;
         boolean drawn = pass.renderState().getOrDefaultGeckolibData(SWORDS_DRAWN, false);
         for (String side : SIDES)
-            pass.model().getBone(drawn ? (side.equals("right") ? "hand_itemR" : "hand_itemL") : "sword_hip_" + side).ifPresent(bone ->
-                    consumer.accept(bone, (posed, ignored, tasks) -> MinotaurSwordVisual.submit(
-                            posed.poseStack(), tasks, posed.cameraState(), posed.packedLight())));
+            pass.model().getBone(drawn ? (side.equals("right") ? "hand_itemR" : "hand_itemL") : "lowerbody").ifPresent(bone ->
+                    consumer.accept(bone, (posed, ignored, tasks) -> {
+                        var poses = posed.poseStack();
+                        poses.pushPose();
+                        if (!drawn) {
+                            int sign = side.equals("right") ? -1 : 1;
+                            // Relative to the animated pelvis; outside the skirt and thighs.
+                            poses.translate(sign * 23.0 / 16, 4.0 / 16, -8.0 / 16);
+                            poses.mulPose(com.mojang.math.Axis.XP.rotationDegrees(180));
+                            poses.mulPose(com.mojang.math.Axis.YP.rotationDegrees(sign * 90));
+                            poses.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(sign * 6));
+                        }
+                        MinotaurSwordVisual.submit(poses, tasks, posed.cameraState(), posed.packedLight(), drawn);
+                        poses.popPose();
+                    }));
         String name = pass.renderState().getOrDefaultGeckolibData(AXE_BONE, "");
         if (name.isEmpty()) return;
-        pass.model().getBone(name).ifPresent(bone -> consumer.accept(bone, (posed, ignored, tasks) -> {
+        pass.model().getBone(name).or(() -> pass.model().getBone(name.equals("axe_grip") ? "hand_itemR" : "body"))
+                .ifPresent(bone -> consumer.accept(bone, (posed, ignored, tasks) -> {
             var poses = posed.poseStack();
             poses.pushPose();
+            if (bone.name().equals("body")) {
+                poses.translate(0, -.2, 1.2);
+                poses.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(30));
+            }
             poses.translate(0, -MinotaurAxeEntity.GRIP_Y, 0);
             if (name.equals("axe_grip")) MinotaurAxeVisual.captureHand(
                     posed.renderState().getGeckolibData(OWNER), poses, posed.cameraState());

@@ -24,7 +24,7 @@ public final class AsterionConfig {
     public int configVersion = CURRENT_VERSION;
     public int underwaterRuinChance = 800;
     public float mechanismChance = 0.12f;
-    public int gatewayDistance = 5_000;
+    public int gatewayDistance = 900;
     public int mazeRadiusCells = 80;
     public int cellSize = 13;
     public int wallThickness = 2;
@@ -55,6 +55,7 @@ public final class AsterionConfig {
     public boolean cinematicsEnabled = true;
     /** -1 preserves vanilla brightness; 0 is Moody and 100 is Bright. */
     public int brightnessPercent = 0;
+    public int musicVolumePercent = 50;
     public int cinematicQuality = 2;
     public int ambientParticleQuality = 2;
     public boolean potatoParticleCulling = false;
@@ -65,7 +66,7 @@ public final class AsterionConfig {
     public int dynamicLightRangePercent = 100;
     public int maxDynamicLights = 96;
     public boolean ragdollEquipment = true;
-    public boolean ragdollMashRecovery = true;
+    public boolean ragdollMashRecovery = false;
     public boolean enhancedLightning = true;
     public boolean deadSunEnabled = true;
     public boolean dustyAirEnabled = true;
@@ -136,7 +137,7 @@ public final class AsterionConfig {
             mazeLandmarkChance = 28;
         }
         if (version < 7) {
-            gatewayDistance = 5_000;
+            gatewayDistance = 900;
         }
         if (version < 8) {
             playerBlockDecayTicks = 400;
@@ -227,7 +228,7 @@ public final class AsterionConfig {
     public void sanitize() {
         underwaterRuinChance = Math.max(1, underwaterRuinChance);
         mechanismChance = clamp(mechanismChance, 0.0f, 1.0f);
-        gatewayDistance = Math.max(1_000, gatewayDistance);
+        gatewayDistance = Math.max(128, Math.min(1_000, gatewayDistance));
         configVersion = CURRENT_VERSION;
         mazeRadiusCells = Math.max(16, Math.min(160, mazeRadiusCells));
         cellSize = Math.max(9, Math.min(21, cellSize | 1));
@@ -258,6 +259,7 @@ public final class AsterionConfig {
         minotaurBossPillarCount = Math.max(4, Math.min(16, minotaurBossPillarCount));
         cinematicQuality = Math.max(0, Math.min(2, cinematicQuality));
         brightnessPercent = Math.clamp(brightnessPercent, -1, 100);
+        musicVolumePercent = Math.clamp(musicVolumePercent, 0, 100);
         ambientParticleQuality = Math.max(0, Math.min(2, ambientParticleQuality));
         ragdollPhysicsQuality = Math.max(0, Math.min(2, ragdollPhysicsQuality));
         dynamicLightQuality = Math.max(0, Math.min(2, dynamicLightQuality));

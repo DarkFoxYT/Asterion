@@ -11,6 +11,9 @@
     "subtitle": "subtitles.asterion.minotaur_step",
     "sounds": ["asterion:minotaur_step"]
   },
+  "maze_ambience": {
+    "sounds": [{"name": "asterion:ambiance/maze_amb", "stream": true}]
+  },
   "minotaur_roar": {
     "subtitle": "subtitles.asterion.minotaur_roar",
     "sounds": [

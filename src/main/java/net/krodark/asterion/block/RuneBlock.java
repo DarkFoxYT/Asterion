@@ -78,7 +78,13 @@ public final class RuneBlock extends BaseEntityBlock {
             BlockPos pos = part(root, facing, column, row);
             BlockState state = level.getBlockState(pos);
             if (state.getBlock() instanceof RuneBlock && root(pos, state).equals(root))
-                level.setBlock(pos, state.setValue(POWERED, powered), UPDATE_ALL);
+                level.setBlock(pos, state.setValue(POWERED, powered), UPDATE_CLIENTS);
+        }
+        // Notify only after ALL nine signal sources have changed. Otherwise the backing
+        // conductor can read a still-powered section and keep adjacent circuitry latched.
+        for (int column = 0; column < 3; column++) for (int row = 0; row < 3; row++) {
+            BlockPos pos = part(root, facing, column, row);
+            BlockState state = level.getBlockState(pos);
             level.updateNeighborsAt(pos, state.getBlock());
             for (Direction side : Direction.values()) level.updateNeighborsAt(pos.relative(side), state.getBlock());
         }
@@ -88,7 +94,12 @@ public final class RuneBlock extends BaseEntityBlock {
             BlockPos pos = part(root, facing, column, row);
             BlockState state = level.getBlockState(pos);
             if (state.getBlock() instanceof RuneBlock && root(pos, state).equals(root))
-                level.setBlock(pos, Blocks.AIR.defaultBlockState(), UPDATE_ALL);
+                level.setBlock(pos, Blocks.AIR.defaultBlockState(), UPDATE_CLIENTS);
+        }
+        for (int column = 0; column < 3; column++) for (int row = 0; row < 3; row++) {
+            BlockPos pos = part(root, facing, column, row);
+            BlockState state = level.getBlockState(pos);
+            level.updateNeighborsAt(pos, state.getBlock());
             for (Direction side : Direction.values()) level.updateNeighborsAt(pos.relative(side), state.getBlock());
         }
     }

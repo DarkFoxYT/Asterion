@@ -86,6 +86,8 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         if (!level.isClientSide()) setChainSegmentCount(CentipedeSegments.randomCount(random));
     }
 
+    @Override public boolean canBreatheUnderwater() { return true; }
+
     public static AttributeSupplier.Builder createAttributes() {
         return PathfinderMob.createMobAttributes()
                 .add(Attributes.MAX_HEALTH, 30.0D)
@@ -99,7 +101,9 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     public boolean checkSpawnRules(LevelAccessor level, EntitySpawnReason reason) {
         if (reason == EntitySpawnReason.NATURAL
                 && (!(level instanceof ServerLevel serverLevel)
-                || !serverLevel.dimension().equals(Asterion.ASTERION_LEVEL))) return false;
+                || !serverLevel.dimension().equals(Asterion.ASTERION_LEVEL)
+                || getY() >= net.krodark.asterion.worldgen.CatacombLayout.ROOF_Y
+                || net.krodark.asterion.WorldGenerator.isNearSafeRune(serverLevel, blockPosition()))) return false;
         if (level instanceof ServerLevel server && reason != EntitySpawnReason.SPAWN_ITEM_USE
                 && net.krodark.asterion.worldgen.BossArenaEncounter.blocksCentipedeSpawn(server, position())) return false;
         return super.checkSpawnRules(level, reason);
@@ -445,8 +449,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     }
 
     private boolean touchingSurface(Direction direction) {
-        return !level().noCollision(this,
-                getBoundingBox().move(direction.getUnitVec3().scale(CONTACT_PROBE)));
+        return BugSurfaces.touches(level(), getBoundingBox().move(direction.getUnitVec3().scale(CONTACT_PROBE)));
     }
 
     private void updateNearbySurface(Vec3 input) {
@@ -458,7 +461,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
             motion = forward.scale(input.z).subtract(up.cross(forward).scale(input.x)).scale(RIDDEN_SPEED);
         } else motion = isNoAi() ? Vec3.ZERO : wildHeading.scale(wildSpeed);
         if (motion.lengthSqr() < .000225) return;
-        var blocks = bodyCollision.collect(getBoundingBox().inflate(.85));
+        var blocks = BugSurfaces.collect(level(), getBoundingBox().inflate(.85));
         var approach = CentipedeSurfaceProbe.ahead(getBoundingBox(), motion, attachedSurface(), blocks);
         if (approach == null)
             approach = CentipedeSurfaceProbe.aroundEdge(getBoundingBox(), motion, attachedSurface(), blocks);

@@ -83,6 +83,7 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
     @Override
     public void addRenderData(MinotaurEntity minotaur, Void relatedObject,
                               EntityRenderState state, float partialTick) {
+        MinotaurPoseBlend.capture(minotaur, state, partialTick);
         // Every viewer sees the server's target direction, not a different camera-facing torso.
         float bodyYaw = Mth.rotLerp(partialTick, minotaur.yBodyRotO, minotaur.yBodyRot);
         float headYaw = Mth.rotLerp(partialTick, minotaur.yHeadRotO, minotaur.yHeadRot);
@@ -179,7 +180,10 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
                 pass.getOrDefaultGeckolibData(GRAB_ARM, 1) >= 0 ? "right_player_grip" : "left_player_grip",
                 (world, model, local) -> MinotaurHandAttachment.capture(held, world));
         // Let the action clips own their full pose; camera tracking and old charge/grab offsets would distort them.
-        if (pass.getOrDefaultGeckolibData(AUTHORED_POSE, false)) return;
+        if (pass.getOrDefaultGeckolibData(AUTHORED_POSE, false)) {
+            MinotaurPoseBlend.apply(pass, bones);
+            return;
+        }
         float yaw = pass.getOrDefaultGeckolibData(LOOK_YAW, 0.0F);
         float pitch = pass.getOrDefaultGeckolibData(LOOK_PITCH, 0.0F);
         // Camera-facing torso offsets would change the weapon's attack plane for every viewer.
@@ -239,7 +243,7 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
             rotateBone3(bones, "lefthorn", -0.08F * lowered * horn, 0.0F, -0.06F * horn);
             rotateBone3(bones, "righthorn", -0.08F * lowered * horn, 0.0F, 0.06F * horn);
         }
-
+        MinotaurPoseBlend.apply(pass, bones);
     }
 
     private static void applyArmReach(BoneSnapshots bones, int side, float yaw, float pitch,

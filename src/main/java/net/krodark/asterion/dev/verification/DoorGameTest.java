@@ -46,7 +46,18 @@ public final class DoorGameTest implements FabricClientGameTest {
                         check(!maze.getBlockState(wall).getCollisionShape(maze, wall).isEmpty(), "Removed doorway is not sealed");
                     }
                 }
-                check(WorldGenerator.activeBossBraziers(maze) == 0, "Temporary brazier platforms still generated");
+                check(WorldGenerator.activeBossBraziers(maze) == 4, "Arena fire-power braziers missing");
+                var fireBoss = Asterion.MINOTAUR.create(maze, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+                try {
+                    var powered = MinotaurEntity.class.getDeclaredMethod("greekFirePowered"); powered.setAccessible(true);
+                    check((boolean)powered.invoke(fireBoss), "Boss did not receive brazier power");
+                    for (Direction direction : Direction.Plane.HORIZONTAL)
+                        net.krodark.asterion.block.GreekBrazierBlock.extinguish(maze, net.krodark.asterion.worldgen.CatacombArena.brazier(direction));
+                    check(!(boolean)powered.invoke(fireBoss), "Boss retained fire after all braziers extinguished");
+                    for (Direction direction : Direction.Plane.HORIZONTAL)
+                        net.krodark.asterion.block.GreekBrazierBlock.placeStructure((pos, state) -> maze.setBlock(pos, state, 3),
+                                net.krodark.asterion.worldgen.CatacombArena.brazier(direction));
+                } catch (ReflectiveOperationException exception) { throw new AssertionError(exception); }
                 for (int x = 3; x <= 34; x++) {
                     int floor = Math.max(net.krodark.asterion.worldgen.CatacombLayout.floor(maze.getSeed(), 32, 42), 39 - x);
                     check(maze.getBlockState(new BlockPos(x, floor + 1, 42)).getCollisionShape(maze, new BlockPos(x, floor + 1, 42)).isEmpty(), "Blocked catacomb approach");

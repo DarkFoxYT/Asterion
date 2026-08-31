@@ -401,8 +401,17 @@ public final class MazeNbtStructures {
                     for (int z = placement.box.minZ(); z <= placement.box.maxZ(); z++) {
                         cursor.set(x, y, z);
                         if (!level.getBlockState(cursor).is(Blocks.LODESTONE)) continue;
-                        safeCheckpoints.put(placement.origin, cursor.above().immutable());
-                        return;
+                        // Legacy rooms had a lantern directly over their lodestone. Never cache
+                        // that occupied position as a respawn; find a clear, supported neighbor.
+                        for (int dy = 1; dy >= 0; dy--) for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
+                            BlockPos feet = cursor.offset(dx, dy, dz).immutable();
+                            if (level.getBlockState(feet.below()).isCollisionShapeFullBlock(level, feet.below())
+                                    && level.getBlockState(feet).getCollisionShape(level, feet).isEmpty()
+                                    && level.getBlockState(feet.above()).getCollisionShape(level, feet.above()).isEmpty()
+                                    && level.getFluidState(feet).isEmpty() && level.getFluidState(feet.above()).isEmpty()) {
+                                safeCheckpoints.put(placement.origin, feet); return;
+                            }
+                        }
                     }
         }
 
@@ -423,9 +432,8 @@ public final class MazeNbtStructures {
             BlockPos best = null;
             double bestDistance = Double.MAX_VALUE;
             for (BlockPos checkpoint : safeCheckpoints.values()) {
-                if (!isActivated(level, checkpoint)) continue;
                 double distance = checkpoint.distSqr(position);
-                if (distance <= radiusSquared && distance < bestDistance) {
+                if (distance <= radiusSquared && distance < bestDistance && isActivated(level, checkpoint)) {
                     best = checkpoint;
                     bestDistance = distance;
                 }
@@ -475,7 +483,9 @@ public final class MazeNbtStructures {
 
         private static boolean isActivated(ServerLevel level, BlockPos checkpoint) {
             for (BlockPos pos : BlockPos.betweenClosed(checkpoint.offset(-10, -4, -10), checkpoint.offset(10, 6, 10)))
-                if (level.getBlockState(pos).getBlock() instanceof net.krodark.asterion.block.SanctuaryBlock && level.getBlockState(pos).getValue(net.krodark.asterion.block.SanctuaryBlock.CHARGE) > 0) return true;
+                if (level.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4) != null
+                        && level.getBlockState(pos).getBlock() instanceof net.krodark.asterion.block.SanctuaryBlock
+                        && level.getBlockState(pos).getValue(net.krodark.asterion.block.SanctuaryBlock.CHARGE) > 0) return true;
             return false;
         }
 

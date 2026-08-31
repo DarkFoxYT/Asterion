@@ -91,7 +91,8 @@ public final class CentipedeRegression {
             Vec3 world = origin.add(i * 0.43, i * 0.22, -i * 0.91);
             Vector3f p = CentipedeFrame.boneTranslation(world.subtract(origin));
             // Actual GeckoLib BoneSnapshot translation, including its mirrored X and render scale.
-            Vec3 rendered = origin.add(-p.x / 16.0 * 2, p.y / 16.0 * 2, p.z / 16.0 * 2);
+            Vec3 rendered = origin.add(-p.x / 16.0 * CentipedeFrame.MODEL_SCALE,
+                    p.y / 16.0 * CentipedeFrame.MODEL_SCALE, p.z / 16.0 * CentipedeFrame.MODEL_SCALE);
             near(rendered, world, 0.00001, "world-space anchor is independent of player yaw");
         }
     }

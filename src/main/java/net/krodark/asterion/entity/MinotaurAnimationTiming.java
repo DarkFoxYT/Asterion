@@ -25,7 +25,7 @@ public final class MinotaurAnimationTiming {
     public static final Track BELCH = track(65, 3.25);
     public static final Track LEAP = track(20, .9703);
     public static final Track LAND = track(12, .9703);
-    public static final Track DIES = track(60, 2.9583);
+    public static final Track DIES = track(85, 2.9583);
     public static final Track REVIVE = track(30, .6667);
     private MinotaurAnimationTiming() { }
 

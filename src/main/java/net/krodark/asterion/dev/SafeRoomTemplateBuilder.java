@@ -35,14 +35,22 @@ public final class SafeRoomTemplateBuilder {
         }
         for(int x=0;x<SIZE;x++) for(int z=0;z<SIZE;z++)
             if((x+z)%4!=0 || x<2 || z<2 || x>=SIZE-2 || z>=SIZE-2) add(x,8,z,(x*z)%11==0?2:0);
-        add(7,1,7,3); add(7,2,7,4);
-        addBarrel(4,1,7); addBarrel(10,1,7);
+        // Checkpoint marker is flush with the floor; both respawn body blocks remain empty.
+        add(7,0,7,3);
+        add(7,1,4,12);
+        addBarrel(3,1,5); addBarrel(11,1,5);
+        add(3,1,9,13); add(11,1,9,14);
+        for (int x : new int[]{3, 11}) for (int z : new int[]{3, 11}) {
+            add(x,0,z,15); add(x,1,z,4);
+        }
+        // Benches frame the central crossing without narrowing any of its four approaches.
+        for (int x : new int[]{4,5,9,10}) add(x,1,11,16);
         for(int[] p:new int[][]{{2,1,2},{12,1,2},{2,1,12},{12,1,12}})
-            for(int y=1;y<=5;y++) add(p[0],y,p[2],5);
+            for(int y=1;y<=5;y++) add(p[0],y,p[2],y==5?4:0);
         root.put("blocks",BLOCKS);
         Path out=Path.of(args[0]); Files.createDirectories(out.getParent()); NbtIo.writeCompressed(root,out);
     }
-    private static ListTag palette(){ListTag p=new ListTag();p.add(state("asterion:ancient_bricks"));p.add(state("asterion:ancient_stone"));p.add(state("minecraft:cracked_deepslate_bricks"));p.add(state("minecraft:lodestone"));p.add(state("minecraft:soul_lantern"));p.add(state("minecraft:crying_obsidian"));p.add(state("minecraft:barrel"));p.add(state("minecraft:air"));p.add(state("minecraft:air"));p.add(state("asterion:rune_zone_door","open","true"));p.add(state("minecraft:air"));p.add(state("minecraft:air"));return p;}
+    private static ListTag palette(){ListTag p=new ListTag();p.add(state("asterion:ancient_bricks"));p.add(state("asterion:ancient_stone"));p.add(state("minecraft:cracked_deepslate_bricks"));p.add(state("minecraft:lodestone"));p.add(state("minecraft:soul_lantern"));p.add(state("minecraft:crying_obsidian"));p.add(state("minecraft:barrel"));p.add(state("minecraft:air"));p.add(state("minecraft:air"));p.add(state("asterion:rune_zone_door","open","true"));p.add(state("minecraft:air"));p.add(state("minecraft:air"));p.add(state("asterion:respawn_obelisk","charge","1"));p.add(state("minecraft:crafting_table"));p.add(state("minecraft:furnace","facing","west"));p.add(state("minecraft:sea_lantern"));p.add(state("asterion:ancient_stone_slab","type","bottom"));return p;}
     private static CompoundTag state(String n){CompoundTag t=new CompoundTag();t.putString("Name",n);return t;}
     private static CompoundTag state(String n,String property,String value){CompoundTag t=state(n);CompoundTag props=new CompoundTag();props.putString(property,value);t.put("Properties",props);return t;}
     private static void add(int x,int y,int z,int s){CompoundTag b=new CompoundTag();b.put("pos",ints(x,y,z));b.putInt("state",s);BLOCKS.add(b);}

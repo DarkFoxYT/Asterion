@@ -29,7 +29,7 @@ public final class AsterionModMenu implements ModMenuApi {
             AsterionConfig config = AsterionConfig.INSTANCE;
             int left = width / 2 - 155;
             int right = width / 2 + 5;
-            int y = Math.max(20, (height - 211) / 2);
+            int y = Math.max(20, (height - 232) / 2);
             addRenderableOnly(new StringWidget(width / 2 - 100, y - 20, 200, 20,
                     Component.literal("Cinematics and performance"), font));
             addRenderableWidget(CycleButton.onOffBuilder(config.cinematicsEnabled).create(
@@ -97,6 +97,15 @@ public final class AsterionModMenu implements ModMenuApi {
                             config.brightnessPercent).withValues(-1, 0, 25, 50, 75, 100).create(
                     right, y, 150, 20, Component.literal("Brightness"),
                     (button, value) -> config.brightnessPercent = value));
+            y += 21;
+            addRenderableWidget(new net.minecraft.client.gui.components.AbstractSliderButton(
+                    left, y, 310, 20, Component.empty(), config.musicVolumePercent / 100.0) {
+                { updateMessage(); }
+                @Override protected void updateMessage() {
+                    setMessage(Component.literal("Biome / arena music: " + Math.round(value * 100) + "%"));
+                }
+                @Override protected void applyValue() { config.musicVolumePercent = (int)Math.round(value * 100); }
+            });
             y += 24;
             addRenderableWidget(Button.builder(Component.literal("Save and return"), button -> {
                 config.save();

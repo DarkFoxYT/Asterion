@@ -70,7 +70,10 @@ final class MinotaurPolishCheck {
                 tick.invoke(smoke, level, boss);
                 float lost = previousHealth - player.getHealth();
                 check(age < ignite ? lost == 0 : lost <= 4.001F, "Smoke damaged early or overlapping fire stacked damage");
-                if (age == ignite) check(lost > 0, "Greek fire did not damage a player inside the ignited cloud");
+                if (age == ignite) {
+                    check(lost > 0, "Greek fire did not damage a player inside the ignited cloud");
+                    check(player.hasEffect(net.krodark.asterion.effect.GreekFireBurn.TYPE), "Greek fire source not synced for overlay");
+                }
             }
             check(clouds.isEmpty(), "Expired smoke hazards remained active");
             Asterion.LOGGER.info("PASS: smoke warning delay, Greek fire contact damage, overlapping-cloud cap and expiry");
@@ -88,6 +91,32 @@ final class MinotaurPolishCheck {
                 finish.invoke(boss, 0);
             }
             Asterion.LOGGER.info("PASS: charge, horn ram, stampede and smoke belch face their target");
+            player.clearFire();
+            check(!net.krodark.asterion.effect.GreekFireBurn.TYPE.value().applyEffectTick(level, player, 0),
+                    "Extinguished Greek fire marker stayed active");
+            player.removeEffect(net.krodark.asterion.effect.GreekFireBurn.TYPE);
+            player.igniteForSeconds(2);
+            check(!player.hasEffect(net.krodark.asterion.effect.GreekFireBurn.TYPE), "Ordinary fire acquired green overlay");
+
+            boss.setPos(0, 121, 0); boss.horizontalCollision = true;
+            var wall = new net.minecraft.core.BlockPos(0, 122, 2);
+            var oldWall = new java.util.HashMap<net.minecraft.core.BlockPos, net.minecraft.world.level.block.state.BlockState>();
+            for (int x = -1; x <= 1; x++) for (int y = 121; y <= 132; y++) {
+                var pos = new net.minecraft.core.BlockPos(x, y, 2);
+                oldWall.put(pos, level.getBlockState(pos));
+                level.setBlock(pos, net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(), 2);
+            }
+            try {
+                var impact = method(MinotaurEntity.class, "breakCombatWall", ServerLevel.class,
+                        net.minecraft.world.phys.AABB.class, MinotaurEntity.class);
+                impact.invoke(boss, level, boss.getBoundingBox().expandTowards(0, 0, 3), boss);
+                check((int)field(boss, "lastWallDebrisTick") == boss.tickCount, "Wall collision emitted no fragments");
+                check(level.getBlockState(wall).is(net.minecraft.world.level.block.Blocks.STONE), "Visual impact destroyed arena wall");
+            } finally { oldWall.forEach((pos, state) -> level.setBlock(pos, state, 2)); boss.horizontalCollision = false; }
+            method(MinotaurEntity.class, "beginCollapse", ServerLevel.class).invoke(boss, level);
+            method(MinotaurEntity.class, "tickCollapse", ServerLevel.class, ServerPlayer.class).invoke(boss, level, player);
+            check(boss.animationState() == MinotaurEntity.AnimationState.DIES, "Collapse smoke starts without death animation");
+            Asterion.LOGGER.info("PASS: Greek fire source/expiry, intact-wall impact debris, smoke-synchronized collapse");
         } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
         finally {
             boss.discard(); ((net.minecraft.world.level.storage.ServerLevelData)level.getLevelData()).setGameTime(previousTime); player.setPos(previous); player.clearFire();

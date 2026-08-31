@@ -1,8 +1,8 @@
 {
   "variants": {
-    "facing=down,end=false": { "model": "minecraft:block/air" },
-    "facing=down,end=true":  { "model": "minecraft:block/air" },
-    "facing=up,end=false":   { "model": "minecraft:block/air" },
-    "facing=up,end=true":    { "model": "minecraft:block/air" }
+    "facing=down,end=false": { "model": "asterion:block/labyrinth_vine_particles" },
+    "facing=down,end=true":  { "model": "asterion:block/labyrinth_vine_particles" },
+    "facing=up,end=false":   { "model": "asterion:block/labyrinth_vine_particles" },
+    "facing=up,end=true":    { "model": "asterion:block/labyrinth_vine_particles" }
   }
 }

@@ -74,6 +74,30 @@ processResources {
     filesMatching("fabric.mod.json") {
         expand resourceProperties
     }
+    // Keep artists' original filenames in the workspace; ship legal resource IDs.
+    filesMatching("assets/asterion/sounds/music/**/*.ogg") {
+        path = path.toLowerCase(java.util.Locale.ROOT).replaceAll('[^a-z0-9/._-]', '_')
+    }
+    doLast {
+        def sounds = new groovy.json.JsonSlurper().parse(file('src/main/resources/assets/asterion/sounds.json'))
+        def tracks = []
+        def seen = new HashSet<String>()
+        fileTree('src/main/resources/assets/asterion/sounds/music').matching { include '**/*.ogg' }.files.sort().each { track ->
+            def group = track.parentFile.name
+            if (!(group in ['ancient', 'overgrown', 'crimsonmarshlands', 'arena'])) return
+            def stem = track.name.substring(0, track.name.length() - 4)
+            def split = stem.lastIndexOf(' - ')
+            def title = split < 0 ? stem : stem.substring(0, split).trim()
+            def artist = split < 0 ? 'Unknown artist' : stem.substring(split + 3).trim()
+            def resource = "music/${group}/${stem}".toLowerCase(java.util.Locale.ROOT).replaceAll('[^a-z0-9/._-]', '_')
+            if (!seen.add(resource)) throw new GradleException("Duplicate music resource: ${resource}")
+            def event = resource.replace('/', '.')
+            sounds[event] = [sounds: [[name: "asterion:${resource}", stream: true]]]
+            tracks.add([group: group, sound: "asterion:${event}", title: title, artist: artist])
+        }
+        file("${destinationDir}/assets/asterion/sounds.json").text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(sounds))
+        file("${destinationDir}/assets/asterion/music_tracks.json").text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(tracks))
+    }
 }
 
 def targetJavaVersion = 25
@@ -133,6 +157,31 @@ loom {
         asterion { sourceSet sourceSets.main }
     }
     runs {
+        client {
+            mainClass = "net.krodark.asterion.dev.EssentialClientLaunch"
+            vmArg "-Dasterion.essential.modJar=${layout.buildDirectory.file("libs/${base.archivesName.get()}-${version}.jar").get().asFile.absolutePath}"
+            ideConfigGenerated = false
+        }
+        essentialClient {
+            client()
+            name = "Minecraft Client with Essential"
+            vmArg "-Dasterion.essential.modJar=${layout.buildDirectory.file("libs/${base.archivesName.get()}-${version}.jar").get().asFile.absolutePath}"
+            // 26.1 uses official names in both environments. Essential's legacy dev
+            // remapper still requires Tiny mappings, so use the normal loader path.
+            mainClass = "net.krodark.asterion.dev.EssentialClientLaunch"
+            runDir "run"
+            ideConfigGenerated = false
+        }
+        essentialTest {
+            client()
+            name = "Essential integration test"
+            vmArg "-Dasterion.essential.modJar=${layout.buildDirectory.file("libs/${base.archivesName.get()}-${version}.jar").get().asFile.absolutePath}"
+            mainClass = "net.krodark.asterion.dev.EssentialClientLaunch"
+            vmArg "-Dasterion.essential.smokeTest=true"
+            vmArg "-Dfabric.addMods=${fileTree('run/mods').matching { include '*.jar' }.files.collect { it.absolutePath }.join(File.pathSeparator)}"
+            runDir "build/essential-gametest"
+            ideConfigGenerated = false
+        }
         renderPerformanceTest {
             client()
             name = "Renderer performance integration test"
@@ -199,6 +248,22 @@ loom {
 }
 
 tasks.matching { it.name == "runLamenterTest" }.configureEach { dependsOn "prepareLamenterGameTest" }
+tasks.matching { it.name in ["runClient", "runEssentialClient", "runEssentialTest"] }.configureEach { dependsOn "jar" }
+
+// IntelliJ's "Main.main()" Gradle action creates its own JavaExec instead of using runClient.
+// Route that client launch through the same compatibility bootstrap after Loom's injector.
+tasks.withType(JavaExec).configureEach {
+    if (name == 'net.fabricmc.devlaunchinjector.Main.main()') {
+        dependsOn 'jar'
+        doFirst {
+            if (allJvmArgs.any { it == '-Dfabric.dli.env=client' }) {
+                setJvmArgs(jvmArgs.findAll { !it.startsWith('-Dfabric.dli.main=') && !it.startsWith('-Dasterion.essential.modJar=') })
+                systemProperty 'fabric.dli.main', 'net.krodark.asterion.dev.EssentialClientLaunch'
+                systemProperty 'asterion.essential.modJar', tasks.jar.archiveFile.get().asFile.absolutePath
+            }
+        }
+    }
+}
 
 tasks.register("prepareBiomeGameTest") {
     def metadata = layout.buildDirectory.file("biome-testmod/fabric.mod.json")
@@ -234,6 +299,14 @@ tasks.register("rebuildSafeRoomTemplate", JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     mainClass = "net.krodark.asterion.dev.SafeRoomTemplateBuilder"
     args file("src/main/resources/data/asterion/structure/safe_room.nbt").absolutePath
+}
+
+tasks.register("rebuildMazePitTemplate", JavaExec) {
+    group = "asterion"
+    dependsOn compileJava
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = "net.krodark.asterion.dev.MazePitTemplateBuilder"
+    args file("src/main/resources/data/asterion/structure/maze_pits/pit.nbt").absolutePath
 }
 
 tasks.register("rebuildRuneGateTemplate", JavaExec) {
@@ -356,7 +429,7 @@ tasks.matching { it.name == "runHeavyWaterTest" }.configureEach { dependsOn "pre
         target.parentFile.mkdirs()
         target.text = groovy.json.JsonOutput.toJson([
                 schemaVersion: 1, id: "asterion_rune_puzzle_test", version: "1.0.0", environment: "client",
-                entrypoints: ["fabric-client-gametest": ["net.krodark.asterion.dev.verification.RunePuzzleGameTest"]]])
+                entrypoints: ["fabric-client-gametest": ["net.krodark.asterion.dev.verification.RunePuzzleGameTest", "net.krodark.asterion.dev.verification.GameplayGameTest"]]])
     }
 }
 tasks.matching { it.name == "runRunePuzzleTest" }.configureEach { dependsOn "prepareRunePuzzleGameTest" }

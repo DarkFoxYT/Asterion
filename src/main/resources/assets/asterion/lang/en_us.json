@@ -176,5 +176,17 @@
   "block.asterion.barrel_door": "Barrel Door",
   "block.asterion.minotaur_door": "Minotaur Double Door",
   "item.asterion.minotaur_key": "Minotaur Door Key",
-  "message.asterion.minotaur_door_locked": "Locked — a Minotaur Door Key is required."
+  "message.asterion.minotaur_door_locked": "Locked — a Minotaur Door Key is required.",
+  "effect.asterion.singed": "Singed",
+  "message.asterion.singed_heart": "Greek fire has permanently scarred one heart.",
+  "message.asterion.trap_period": "Trap repeats every %s seconds (sneak + use to decrease).",
+  "block.asterion.spewer": "Gas Spewer",
+  "block.asterion.fire_burst_trap": "Timed Fire Trap",
+  "block.asterion.bear_trap": "Mazesteel Bear Trap",
+  "item.asterion.flamethrower": "Beetle-Gas Flamethrower",
+  "item.asterion.greek_fire_sword": "Greek Fire Sword",
+  "entity.asterion.cursed_brazier": "Cursed Brazier",
+  "item.asterion.cursed_brazier_spawn_egg": "Cursed Brazier Spawn Egg",
+  "item.asterion.rune_beetle_spawn_egg": "Rune Beetle Spawn Egg",
+  "message.asterion.omega_treasure": "The Omega reveals its treasure. Collect it before the maze collapses!"
 }

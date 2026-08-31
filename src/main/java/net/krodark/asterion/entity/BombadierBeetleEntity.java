@@ -85,6 +85,8 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
         xpReward = 2;
     }
 
+    @Override public boolean canBreatheUnderwater() { return true; }
+
     public static AttributeSupplier.Builder createAttributes() {
         return PathfinderMob.createMobAttributes()
                 .add(Attributes.MAX_HEALTH, 12.0D)
@@ -448,7 +450,7 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
         for (Direction direction : WALL_DIRECTIONS) {
             for (int distance = 1; distance <= 3; distance++) {
                 BlockPos cursor = origin.relative(direction, distance);
-                if (level().getBlockState(cursor).getCollisionShape(level(), cursor).isEmpty()) continue;
+                if (!BugSurfaces.allowed(level(), cursor)) continue;
                 if (distance < bestDistance) {
                     bestDistance = distance;
                     best = direction;
@@ -496,7 +498,7 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
 
     private boolean touchingSurface(Direction direction) {
         Vec3 normal = direction.getUnitVec3();
-        return !level().noCollision(this, getBoundingBox().move(normal.scale(0.26D)));
+        return BugSurfaces.touches(level(), getBoundingBox().move(normal.scale(0.26D)));
     }
 
     private void holdToAttachedSurface() {
@@ -523,7 +525,7 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
         for (LivingEntity victim : level.getEntitiesOfClass(LivingEntity.class, fireCloud,
                 entity -> entity != this && entity.isAlive())) {
             if (!ignitedVictims.add(victim.getUUID())) continue;
-            victim.igniteForSeconds(4.0F);
+            net.krodark.asterion.effect.GreekFireBurn.ignite(victim, 4.0F);
             victim.hurtServer(level, level.damageSources().inFire(), 4.0F);
         }
     }

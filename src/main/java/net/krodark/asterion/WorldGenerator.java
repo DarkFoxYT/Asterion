@@ -77,7 +77,8 @@ public final class WorldGenerator {
     private static final boolean ENABLE_MAZE_NBT_STRUCTURES = true;
     private static final int FLOOR_Y = 48;
     private static final int BOSS_FLOOR_Y = 36;
-    private static final int DIMENSION_CEILING_Y = 127;
+    // The dimension stores 304 blocks (whole chunk sections); chains end at Y=300.
+    private static final int DIMENSION_CEILING_Y = 300;
     private static final int PIT_HALF_WIDTH = 34;
     private static final int PIT_WALL_THICKNESS = 6;
     private static final int SKYFALL_CLEARANCE = 42;
@@ -134,6 +135,9 @@ public final class WorldGenerator {
 
         if (newlyGenerated) {
             MazeNbtStructures.markCopperClean(chunk);
+            // CHUNK_LOAD runs before the chunk's FULL future completes. World reads here
+            // can wait on that same future; decorate from the following server tick instead.
+            net.krodark.asterion.worldgen.ZoneRunePlacement.enqueue(level, chunk);
         } else {
             MazeNbtStructures.cleanLegacyCopper(chunk,
                     BOSS_FLOOR_Y - AsterionConfig.INSTANCE.floorThickness,
@@ -182,6 +186,8 @@ public final class WorldGenerator {
     }
 
     private static void tickMaze(ServerLevel maze) {
+        net.krodark.asterion.worldgen.ZoneRunePlacement.tick(maze);
+        net.krodark.asterion.worldgen.MazeWildlife.tick(maze);
         net.krodark.asterion.worldgen.CatacombArena.tick(maze);
         if (ENABLE_MAZE_NBT_STRUCTURES) mazeStructureLayout(maze);
         tickBossFinale(maze);
@@ -225,6 +231,7 @@ public final class WorldGenerator {
     private static void tickRuneCheckpoint(ServerPlayer player) {
         ServerLevel level = (ServerLevel)player.level();
         BlockPos checkpoint = MazeNbtStructures.safeCheckpointNear(level, player.blockPosition(), 7.0D);
+        if (checkpoint == null) checkpoint = net.krodark.asterion.worldgen.CatacombEntrances.checkpoint(level, player.blockPosition());
         if (checkpoint == null) return;
         BlockPos previous = AsterionWorldState.get(level).runeCheckpoint(player.getUUID());
         AsterionWorldState.get(level).setRuneCheckpoint(player.getUUID(), checkpoint);
@@ -246,12 +253,10 @@ public final class WorldGenerator {
         if (maze == null) return;
         BlockPos checkpoint = findRespawnCheckpoint(maze, player.getUUID(), deathPosition);
         maze.getChunkAt(checkpoint);
-        if (player.level() == maze && player.position().distanceToSqr(Vec3.atBottomCenterOf(checkpoint)) <= 9.0D) {
-            player.setPos(checkpoint.getX() + 0.5D, checkpoint.getY() + 0.1D, checkpoint.getZ() + 0.5D);
-        } else {
-            player.teleportTo(maze, checkpoint.getX() + 0.5D, checkpoint.getY() + 0.1D,
-                    checkpoint.getZ() + 0.5D, Set.of(), player.getYRot(), 0.0F, true);
-        }
+        // Even a nearby respawn needs an acknowledged teleport packet. A server-only
+        // setPos lets stale client movement push the replacement player into the floor.
+        player.teleportTo(maze, checkpoint.getX() + 0.5D, checkpoint.getY() + 0.1D,
+                checkpoint.getZ() + 0.5D, Set.of(), player.getYRot(), 0.0F, true);
         player.setDeltaMovement(Vec3.ZERO);
         player.resetFallDistance();
         WARD_FALL_PROTECTION.put(player.getUUID(), 100);
@@ -268,6 +273,7 @@ public final class WorldGenerator {
         }
         if (checkpoint == null)
             checkpoint = MazeNbtStructures.nearestSafeHouse(maze, deathPosition);
+        if (checkpoint != null && !isSafeRespawnPosition(maze, checkpoint)) checkpoint = null;
         if (checkpoint == null) {
             checkpoint = randomMazeArrival(maze, playerId, 0L);
             prepareMazeArrival(maze, checkpoint);
@@ -297,6 +303,9 @@ public final class WorldGenerator {
     private static boolean isSafeRespawnPosition(ServerLevel level, BlockPos feet) {
         BlockPos floor = feet.below();
         return level.getBlockState(floor).isCollisionShapeFullBlock(level, floor)
+                && level.getFluidState(feet).isEmpty() && level.getFluidState(feet.above()).isEmpty()
+                && !level.getBlockState(feet).is(net.minecraft.tags.BlockTags.FIRE)
+                && !level.getBlockState(floor).is(Blocks.MAGMA_BLOCK)
                 && level.getBlockState(feet).getCollisionShape(level, feet).isEmpty()
                 && level.getBlockState(feet.above()).getCollisionShape(level, feet.above()).isEmpty();
     }
@@ -358,7 +367,8 @@ public final class WorldGenerator {
     }
 
     public static boolean isNearSafeRune(ServerLevel level, BlockPos center) {
-        return MazeNbtStructures.safeCheckpointNear(level, center, 9.0D) != null;
+        return MazeNbtStructures.safeCheckpointNear(level, center, 9.0D) != null
+                || net.krodark.asterion.worldgen.CatacombEntrances.checkpoint(level, center) != null;
     }
 
     private static void generateNextPrewarmChunk(ServerLevel maze, BlockPos destination) {
@@ -606,7 +616,7 @@ public final class WorldGenerator {
 
     public static BlockPos gatewayPosition(long seed) {
         double angle = unitFloat(mix(seed ^ 0x6A09E667F3BCC909L)) * Mth.TWO_PI;
-        int distance = AsterionConfig.INSTANCE.gatewayDistance;
+        int distance = Math.max(128, Math.min(999, AsterionConfig.INSTANCE.gatewayDistance));
         return new BlockPos((int) Math.round(Math.cos(angle) * distance), 0,
                 (int) Math.round(Math.sin(angle) * distance));
     }
@@ -1016,10 +1026,12 @@ public final class WorldGenerator {
         BossArenaEncounter.finish(level);
         AsterionWorldState.get(level).markMinotaurDefeated();
         bossFinale = new BossFinale(boss.getUUID());
+        bossFinale.ticks = -200;
+        net.krodark.asterion.worldgen.OmegaTreasure.reward(level);
         for (ServerPlayer player : level.players()) {
             bossFinale.previousInvulnerability.put(player.getUUID(), player.isInvulnerable());
-            if (ServerPlayNetworking.canSend(player, BossFinalePayload.TYPE))
-                ServerPlayNetworking.send(player, BossFinalePayload.INSTANCE);
+            player.setInvulnerable(true);
+            player.sendSystemMessage(net.minecraft.network.chat.Component.translatable("message.asterion.omega_treasure"));
         }
     }
 
@@ -1027,6 +1039,9 @@ public final class WorldGenerator {
         BossFinale finale = bossFinale;
         if (finale == null) return;
         finale.ticks++;
+        if (finale.ticks <= 0) return;
+        if (finale.ticks == 1) for (ServerPlayer player : maze.players())
+            if (ServerPlayNetworking.canSend(player, BossFinalePayload.TYPE)) ServerPlayNetworking.send(player, BossFinalePayload.INSTANCE);
         if ((finale.ticks % 6) == 0 && finale.ticks <= 260) {
             MazeShiftPayload rumble = new MazeShiftPayload(BlockPos.containing(bossArenaCenter()),
                     4096.0F, Math.min(6.0F, 0.55F + finale.ticks / 42.0F), 20);
@@ -1242,7 +1257,7 @@ public final class WorldGenerator {
 
     }
 
-    private static int arenaRevision() { return 500 + AsterionConfig.INSTANCE.minotaurBossPillarCount; }
+    private static int arenaRevision() { return 600 + AsterionConfig.INSTANCE.minotaurBossPillarCount; }
 
     private static void rebuildBossArena(ServerLevel level) {
         bossArenaPrepared = true;
@@ -1283,6 +1298,7 @@ public final class WorldGenerator {
     }
 
     private static BlockState bossFloorState(int x, int z, int depth) {
+        if (depth == 0 && net.krodark.asterion.worldgen.OmegaTreasure.inlay(x, z)) return Asterion.MAZESTEEL_BLOCK.defaultBlockState();
         if (net.krodark.asterion.worldgen.CatacombArena.puddle(x, z)) {
             if (depth == 0) return Blocks.WATER.defaultBlockState();
             if (depth == 1) return Asterion.SLICK_CATACOMB_STONE.defaultBlockState();
@@ -1330,7 +1346,7 @@ public final class WorldGenerator {
                 build.growth.add(new BuildBlock(new BlockPos(x, y, z), roof));
                 if (rib) build.growth.add(new BuildBlock(new BlockPos(x, y - 1, z), roof));
             }
-        // No exposed ceiling plumbing or ornamental blocks projecting into combat space.
+        net.krodark.asterion.worldgen.CatacombArena.build((pos, state) -> build.growth.add(new BuildBlock(pos, state)));
     }
 
     private static int bossRoofY(int x, int z) {

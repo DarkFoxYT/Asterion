@@ -58,53 +58,9 @@ public final class CatacombFeature extends Feature<NoneFeatureConfiguration> {
     }
 
     private static void placeAccess(FeaturePlaceContext<NoneFeatureConfiguration> context, ChunkPos chunk) {
-        // Search each selected chunk for an actual open surface corridor, never a wall or landmark.
-        if (Math.floorMod(chunk.x(), 8) != 4 || Math.floorMod(chunk.z(), 8) != 4) return;
-        var world = context.level();
-        long terrainSeed = world.getLevel().getChunkSource().randomState()
+        long seed = context.level().getLevel().getChunkSource().randomState()
                 .getOrCreateRandomFactory(Asterion.id("maze_layout")).at(0, 0, 0).nextLong();
-        for (int dx = 3; dx <= 12; dx++) for (int dz = 3; dz <= 12; dz++) {
-            int x = chunk.getMinBlockX() + dx, z = chunk.getMinBlockZ() + dz;
-            if (Math.abs(x) < 96 && Math.abs(z) < 96) continue;
-            if (MazeNbtStructures.generationLayout(terrainSeed)
-                    .reserved(x, z)) continue;
-            int top = -1;
-            for (int y = 54; y >= 48; y--) {
-                BlockPos p = new BlockPos(x, y, z);
-                if (world.getBlockState(p).isCollisionShapeFullBlock(world, p)
-                        && world.getBlockState(p.above()).isAir() && world.getBlockState(p.above(2)).isAir()) {
-                    top = y;
-                    break;
-                }
-            }
-            if (top < 0) continue;
-            // A lined ladder shaft, with a dry lip and a shallow-water landing. All writes stay local.
-            for (int y = CatacombLayout.FLOOR_Y; y <= top; y++) {
-                for (int sx = -1; sx <= 1; sx++) for (int sz = -1; sz <= 1; sz++) {
-                    BlockPos p = new BlockPos(x + sx, y, z + sz);
-                    world.setBlock(p, Asterion.ANCIENT_BRICKS.defaultBlockState(), 2);
-                }
-                if (y > CatacombLayout.WATER_Y)
-                    world.setBlock(new BlockPos(x, y, z), Blocks.LADDER.defaultBlockState()
-                            .setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.EAST), 2);
-            }
-            // Join the shaft to the tile's east/west gallery without touching adjacent chunks.
-            int galleryZ = chunk.getMinBlockZ() + 1;
-            for (int pz = galleryZ; pz <= z; pz++) for (int y = 7; y <= 10; y++)
-                world.setBlock(new BlockPos(x, y, pz), (y == 7 ? Blocks.WATER : Blocks.AIR).defaultBlockState(), 2);
-            for (int y = 8; y <= top; y++)
-                world.setBlock(new BlockPos(x, y, z), Blocks.LADDER.defaultBlockState()
-                        .setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.EAST), 2);
-            world.setBlock(new BlockPos(x + 1, top + 1, z), Blocks.SOUL_LANTERN.defaultBlockState(), 2);
-            // A reusable hook is guaranteed at each entrance; no dependence on random loot.
-            BlockPos supplies = new BlockPos(x - 1, top + 1, z);
-            world.setBlock(supplies, Blocks.BARREL.defaultBlockState(), 2);
-            if (world.getBlockEntity(supplies) instanceof net.minecraft.world.level.block.entity.BarrelBlockEntity barrel) {
-                barrel.setItem(0, new net.minecraft.world.item.ItemStack(Asterion.CATACOMB_GRAPPLING_HOOK));
-                barrel.setItem(1, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.WATER_BUCKET));
-                barrel.setChanged();
-            }
-            return;
-        }
+        CatacombEntrances.place(context.level(), chunk, seed);
+        MazePits.place(context, chunk, seed);
     }
 }

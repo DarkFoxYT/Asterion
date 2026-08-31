@@ -9,7 +9,7 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
 import java.util.function.BiConsumer;
 
-/** Temporary arena floor details; elevated brazier routes await the authored map. */
+/** Arena mechanics kept separate from the replaceable arena shell. */
 public final class CatacombArena {
     private static final java.util.Map<java.util.UUID, Motion> MOTION = new java.util.HashMap<>();
     private static final int FLOOR = 36;
@@ -21,7 +21,7 @@ public final class CatacombArena {
     public static boolean puddle(int x, int z) {
         for (int[] center : POOLS) {
             int dx = x - center[0], dz = z - center[1];
-            if (dx * dx * 4 + dz * dz * 7 <= 42) return true;
+            if (dx * dx * 4 + dz * dz * 7 <= 72) return true;
         }
         return false;
     }
@@ -36,7 +36,24 @@ public final class CatacombArena {
     }
 
     public static void build(BiConsumer<BlockPos, BlockState> place) {
-        // Elevated brazier/platform puzzle is reserved for the authored arena map.
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            // Six one-block rises with one-block gaps; the final pad also has a hook anchor.
+            // Offset the routes from the two door lanes so neither entrance gets obstructed.
+            for (int step = 0; step < 6; step++) {
+                BlockPos center = new BlockPos(side.getStepX() * (5 + step * 4), FLOOR + 1 + step,
+                        side.getStepZ() * (5 + step * 4)).relative(side.getClockWise(), 6);
+                for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++)
+                    place.accept(center.offset(x, 0, z), Asterion.MAZESTEEL_BLOCK.defaultBlockState());
+            }
+            BlockPos fire = brazier(side);
+            net.krodark.asterion.block.GreekBrazierBlock.placeStructure(place, fire);
+            place.accept(lamenter(side), Asterion.LAMENTER.defaultBlockState()
+                    .setValue(net.krodark.asterion.block.LamenterBlock.FACING, side.getOpposite()));
+            // A short reachable anchor, entirely below the roof and away from the tear column.
+            for (int y = 1; y <= 3; y++)
+                place.accept(fire.relative(side.getClockWise(), 1).above(y),
+                        Asterion.MAZESTEEL_CHAIN.defaultBlockState());
+        }
         // Self-contained ceiling leaks survive without flooding the arena floor.
         for (int[] pool : POOLS) {
             int x = pool[0], z = pool[1];
@@ -48,6 +65,20 @@ public final class CatacombArena {
                 place.accept(new BlockPos(x, y, z).relative(side), Asterion.ANCIENT_BRICKS.defaultBlockState());
             place.accept(new BlockPos(x, y - 2, z), Blocks.POINTED_DRIPSTONE.defaultBlockState()
                     .setValue(BlockStateProperties.VERTICAL_DIRECTION, Direction.DOWN));
+        }
+    }
+
+    public static void powerBurst(net.minecraft.server.level.ServerLevel level, net.minecraft.world.phys.Vec3 target) {
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            BlockPos source = brazier(side);
+            var state = level.getBlockState(source);
+            if (!state.is(Asterion.GREEK_BRAZIER) || !state.getValue(BlockStateProperties.LIT)) continue;
+            var start = net.minecraft.world.phys.Vec3.atCenterOf(source).add(0, .65, 0);
+            var velocity = target.subtract(start).normalize().scale(.65);
+            // Initial velocity only: short packets of flame leave the brazier; no sampled beam.
+            for (int i = 0; i < 5; i++) level.sendParticles(Asterion.GREEK_FIRE,
+                    start.x + level.getRandom().nextGaussian() * .12, start.y, start.z + level.getRandom().nextGaussian() * .12,
+                    0, velocity.x, velocity.y, velocity.z, 1);
         }
     }
 

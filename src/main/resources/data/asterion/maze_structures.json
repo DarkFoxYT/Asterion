@@ -4,10 +4,6 @@
   "chance": 0.9,
   "templates": [
     {
-      "template": "asterion:vanilla_dungeon",
-      "weight": 12
-    },
-    {
       "template": "asterion:safe_room",
       "weight": 3
     },

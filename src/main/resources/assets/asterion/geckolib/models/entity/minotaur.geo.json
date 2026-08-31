@@ -11,6 +11,8 @@
 				"visible_bounds_offset": [0, 3.75, 0]
 			},
 			"bones": [
+				{"name": "sword_hip_right", "parent": "lowerbody", "pivot": [-20, 42, -5], "rotation": [180, -90, -6]},
+				{"name": "sword_hip_left", "parent": "lowerbody", "pivot": [20, 42, -5], "rotation": [180, 90, 6]},
 				{
 					"name": "full",
 					"pivot": [0, 0, 0]
@@ -395,7 +397,7 @@
 					"name": "hand_itemL",
 					"parent": "lefthand",
 					"pivot": [59.5, 81.75, 0.5],
-					"rotation": [0, 90, -90]
+					"rotation": [95, 0, 90]
 				},
 				{
 					"name": "rightshoulder",
@@ -508,7 +510,7 @@
 					"name": "hand_itemR",
 					"parent": "righthand",
 					"pivot": [-59.5, 82.75, 0.5],
-					"rotation": [0, 0, 90]
+					"rotation": [90, 0, 180]
 				},
 				{
 					"name": "thing for skirt ig",

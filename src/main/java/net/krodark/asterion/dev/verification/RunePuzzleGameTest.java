@@ -74,6 +74,23 @@ public final class RunePuzzleGameTest implements FabricClientGameTest {
             context.takeScreenshot("rune-powered");
             server.runOnServer(mc -> {
                 var level = mc.overworld();
+                level.setBlock(root.south(), Blocks.STONE.defaultBlockState(), 3);
+                level.setBlock(root.south(2), Blocks.REDSTONE_LAMP.defaultBlockState(), 3);
+                RuneBlock.setPowered(level, root, Direction.NORTH, false);
+                RuneBlock.setPowered(level, root, Direction.NORTH, true);
+                check(level.getBlockState(root.south(2)).getValue(BlockStateProperties.LIT), "Backing conductor did not power lamp");
+                RuneBlock.setPowered(level, root, Direction.NORTH, false);
+            });
+            context.waitTicks(8);
+            server.runOnServer(mc -> {
+                var level = mc.overworld();
+                check(!level.getBlockState(root.south(2)).getValue(BlockStateProperties.LIT), "Backing conductor stayed powered after reset");
+                check(!level.getBlockState(root.north()).getValue(BlockStateProperties.LIT), "Front lamp stayed powered after reset");
+                level.setBlock(root.south(), Blocks.REDSTONE_LAMP.defaultBlockState(), 3);
+                RuneBlock.setPowered(level, root, Direction.NORTH, true);
+            });
+            server.runOnServer(mc -> {
+                var level = mc.overworld();
                 var pos = root.east().above(2);
                 Asterion.RUNE_BLOCKS[0].playerWillDestroy(level, pos, level.getBlockState(pos), mc.getPlayerList().getPlayers().getFirst());
                 for (int c = 0; c < 3; c++) for (int r = 0; r < 3; r++)

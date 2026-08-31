@@ -29,6 +29,7 @@ final class MinotaurSmokeClouds {
     }
 
     void tick(ServerLevel level, MinotaurEntity owner) {
+        if (!owner.greekFirePowered()) { clear(); return; }
         // Multiple overlapping clouds must never multiply a single fire pulse's damage.
         var damaged = new HashSet<UUID>();
         for (var iterator = clouds.iterator(); iterator.hasNext();) {
@@ -52,8 +53,8 @@ final class MinotaurSmokeClouds {
                 level.playSound(null, cloud.position.x, cloud.position.y, cloud.position.z,
                         SoundEvents.FIRECHARGE_USE, SoundSource.HOSTILE, .55F, .7F);
             if ((cloud.age & 3) == 0) {
-                level.sendParticles(Asterion.GREEK_FIRE, cloud.position.x, cloud.position.y + .25, cloud.position.z,
-                        4, .8, .4, .8, .015);
+                level.sendParticles(Asterion.MINOTAUR_BELCH_FIRE, cloud.position.x, cloud.position.y + 1.0, cloud.position.z,
+                        4, .9, .55, .9, .015);
                 level.sendParticles(Asterion.GREEK_FIRE_SOOT, cloud.position.x, cloud.position.y + .4, cloud.position.z,
                         1, .65, .2, .65, .01);
             }
@@ -66,7 +67,7 @@ final class MinotaurSmokeClouds {
                 if (sight.getType() != HitResult.Type.MISS) continue;
                 damaged.add(player.getUUID());
                 player.hurtServer(level, level.damageSources().inFire(), 4F);
-                player.igniteForSeconds(2);
+                net.krodark.asterion.effect.GreekFireBurn.ignite(player, 2);
             }
         }
     }

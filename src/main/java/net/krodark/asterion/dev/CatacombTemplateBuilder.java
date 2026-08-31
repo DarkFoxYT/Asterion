@@ -16,12 +16,13 @@ public final class CatacombTemplateBuilder {
     private final ListTag palette = new ListTag();
     private final Map<String, Integer> states = new LinkedHashMap<>();
     private final Map<Integer, CompoundTag> blocks = new LinkedHashMap<>();
+    private final ListTag entities = new ListTag();
 
     public static void main(String[] args) throws Exception {
         SharedConstants.tryDetectVersion();
         Path directory = Path.of(args[0]);
         Files.createDirectories(directory);
-        for (String type : new String[]{"crossing", "ossuary", "sluice", "parkour"}) {
+        for (String type : new String[]{"crossing", "ossuary", "sluice", "parkour", "cursed_brazier"}) {
             CatacombTemplateBuilder builder = new CatacombTemplateBuilder();
             builder.build(type);
             builder.write(directory.resolve(type + ".nbt"));
@@ -83,6 +84,17 @@ public final class CatacombTemplateBuilder {
             }
             put(4, 1, 1, "asterion:ancient_stone");
             barrel(4, 2, 1);
+        } else if (type.equals("cursed_brazier")) {
+            for (int x = 1; x <= 7; x++) for (int z = 1; z <= 7; z++) put(x, 1, z, "asterion:ancient_stone");
+            put(0, 3, 5, "asterion:spewer", "facing", "east", "triggered", "false");
+            put(8, 3, 5, "asterion:fire_burst_trap", "facing", "west", "triggered", "false");
+            put(2, 2, 5, "asterion:bear_trap");
+            barrel(4, 2, 1);
+            CompoundTag entity = new CompoundTag(), data = new CompoundTag();
+            ListTag pos = new ListTag(); pos.add(net.minecraft.nbt.DoubleTag.valueOf(4.5));
+            pos.add(net.minecraft.nbt.DoubleTag.valueOf(2)); pos.add(net.minecraft.nbt.DoubleTag.valueOf(4.5));
+            entity.put("pos", pos); entity.put("blockPos", ints(4, 2, 4)); data.putString("id", "asterion:cursed_brazier");
+            data.putBoolean("PersistenceRequired", true); entity.put("nbt", data); entities.add(entity);
         } else {
             int[][] steps = {{2, 1, 6}, {2, 2, 3}, {5, 3, 2}, {6, 4, 5}};
             for (int[] step : steps) for (int x = step[0]; x <= step[0] + 1; x++)
@@ -138,7 +150,7 @@ public final class CatacombTemplateBuilder {
         root.putInt("DataVersion", SharedConstants.getCurrentVersion().dataVersion().version());
         root.put("size", ints(9, 11, 9));
         root.put("palette", palette);
-        root.put("entities", new ListTag());
+        root.put("entities", entities);
         ListTag list = new ListTag();
         blocks.values().forEach(list::add);
         root.put("blocks", list);

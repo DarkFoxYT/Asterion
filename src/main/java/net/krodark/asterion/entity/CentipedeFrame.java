@@ -7,11 +7,11 @@ import org.joml.Vector3f;
 
 /** Coordinate contract shared by the physics, seats and GeckoLib adapter. */
 public final class CentipedeFrame {
-    public static final float MODEL_SCALE = 2.0F;
-    public static final double LINK_LENGTH = 1.875D;
-    public static final double HALF_WIDTH = 0.83D;
-    public static final double HALF_HEIGHT = 0.63D;
-    public static final double HALF_LENGTH = 0.95D;
+    public static final float MODEL_SCALE = 1.7F;
+    public static final double LINK_LENGTH = 1.59375D;
+    public static final double HALF_WIDTH = 0.7055D;
+    public static final double HALF_HEIGHT = 0.5355D;
+    public static final double HALF_LENGTH = 0.8075D;
     public static final double CLEARANCE = HALF_HEIGHT + 0.025D;
     public static final Vec3 DOWN = new Vec3(0, -1, 0);
     private CentipedeFrame() {}

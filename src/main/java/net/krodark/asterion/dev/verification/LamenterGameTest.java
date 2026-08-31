@@ -24,8 +24,8 @@ public final class LamenterGameTest implements FabricClientGameTest {
         AtomicInteger elapsed = new AtomicInteger(-1);
         AtomicReference<Throwable> failure = new AtomicReference<>();
         Direction[] directions = {Direction.SOUTH, Direction.WEST, Direction.NORTH, Direction.EAST};
-        BlockPos[] faces = {new BlockPos(0, 124, 0), new BlockPos(4, 124, 0),
-                new BlockPos(8, 124, 0), new BlockPos(12, 124, 0)};
+        BlockPos[] faces = {new BlockPos(0, 124, 0), new BlockPos(6, 124, 0),
+                new BlockPos(12, 124, 0), new BlockPos(18, 124, 0)};
         try (var world = context.worldBuilder().create()) {
             var server = world.getServer();
             server.runCommand("tp @a 0.5 122 4.5 180 -14");
@@ -33,8 +33,10 @@ public final class LamenterGameTest implements FabricClientGameTest {
             server.runCommand("time set day");
             server.runOnServer(mc -> {
                 ServerLevel level = mc.overworld();
-                for (int x = -5; x <= 17; x++) for (int z = -5; z <= 7; z++)
+                for (int x = -5; x <= 22; x++) for (int z = -5; z <= 7; z++)
                     level.setBlock(new BlockPos(x, 121, z), Blocks.STONE.defaultBlockState(), 3);
+                for (int x = -5; x <= 22; x++) for (int z = -5; z <= 7; z++) for (int y = 122; y <= 127; y++)
+                    level.setBlock(new BlockPos(x, y, z), Blocks.AIR.defaultBlockState(), 3);
                 for (int x = -2; x <= 2; x++) for (int y = 122; y <= 126; y++)
                     level.setBlock(new BlockPos(x, y, -1), Asterion.ANCIENT_BRICKS.defaultBlockState(), 3);
                 for (int i = 0; i < faces.length; i++) {
@@ -51,7 +53,8 @@ public final class LamenterGameTest implements FabricClientGameTest {
                     try {
                         for (int i = 0; i < faces.length; i++) {
                             BlockPos pos = faces[i], bowl = pos.relative(directions[i]).below(2);
-                            if (tick == 0 || tick == 161) level.setBlock(bowl, Asterion.GREEK_BRAZIER.defaultBlockState(), 3);
+                            if (tick == 0 || tick == 161)
+                                net.krodark.asterion.block.GreekBrazierBlock.placeStructure((tile, state) -> level.setBlock(tile, state, 3), bowl);
                             if (tick == 0) {
                                 level.getBlockState(pos).useWithoutItem(level, mc.getPlayerList().getPlayers().getFirst(),
                                         new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(pos),
@@ -83,7 +86,7 @@ public final class LamenterGameTest implements FabricClientGameTest {
                             CatacombFloodState.setActive(maze, false);
                             LamenterBlockEntity.tick(maze, floodFace, maze.getBlockState(floodFace), blockEntity);
                             check(!maze.getBlockState(floodFace).getValue(LamenterBlock.CRYING), "Lamenter did not stop after flood");
-                            check(WorldGenerator.activeBossBraziers(maze) == 0, "Temporary arena braziers should remain disabled");
+                            check(WorldGenerator.activeBossBraziers(maze) == 4, "Prepared arena should have four powered braziers");
                         }
                         elapsed.set(tick);
                     } catch (Throwable error) { failure.set(error); elapsed.set(521); }

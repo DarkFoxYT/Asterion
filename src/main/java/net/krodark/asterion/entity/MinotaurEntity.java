@@ -380,8 +380,31 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
     private Vec3 combatPoint(Vec3 point) { return debugMode ? point : WorldGenerator.clampBossArena(point); }
     private Vec3 combatCenter() { return debugMode ? debugOrigin : WorldGenerator.bossArenaCenter(); }
+    private int lastWallDebrisTick = -20;
     private int breakCombatWall(ServerLevel level, AABB bounds, MinotaurEntity boss) {
-        return 0; // Only scripted pillar and entrance debris may change the arena.
+        if (!horizontalCollision || tickCount - lastWallDebrisTick < 12) return 0;
+        Vec3 forward = bounds.getCenter().subtract(position()).multiply(1, 0, 1).normalize();
+        if (forward.lengthSqr() < .01) forward = getLookAngle().multiply(1, 0, 1).normalize();
+        boolean emitted = false;
+        for (int row = 0; row < 3; row++) {
+            Vec3 origin = position().add(0, .7 + row * getBbHeight() * .25, 0);
+            var hit = level.clip(new net.minecraft.world.level.ClipContext(origin,
+                    origin.add(forward.scale(getBbWidth() * .5 + 2)),
+                    net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                    net.minecraft.world.level.ClipContext.Fluid.NONE, this));
+            if (hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS) continue;
+            Vec3 normal = hit.getDirection().getUnitVec3();
+            Vec3 surface = hit.getLocation().add(normal.scale(.25));
+            for (int i = 0; i < 4; i++)
+                net.krodark.asterion.worldgen.ArenaDebris.queue(level, surface,
+                        normal.scale(.35 + random.nextDouble() * .55).add(
+                                (random.nextDouble() - .5) * .4, .25 + random.nextDouble() * .4,
+                                (random.nextDouble() - .5) * .4));
+            level.sendParticles(Asterion.DOOR_SMOKE, surface.x, surface.y, surface.z, 5, .4, .4, .4, .035);
+            emitted = true;
+        }
+        if (emitted) lastWallDebrisTick = tickCount;
+        return 0; // Visual fragments only: preserve arena blocks and collision.
     }
     private void scarArena(ServerLevel level, Vec3 point, int radius) {
         for (int i = 0; i < 8; i++) {
@@ -429,7 +452,9 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                         || getEntityData().get(DATA_CORRIDOR_CHARGE_TICKS) > 0) {
                     yBodyRot = getYRot(); return;
                 }
-                super.clientTick();
+                // Movement control owns travel yaw. Vanilla's idle head-following body
+                // control fought it and made the torso face away from the path.
+                yBodyRot = Mth.approachDegrees(yBodyRot, getYRot(), 10F);
             }
         };
     }
@@ -1160,6 +1185,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 corridorChargeDirection.z * speed);
         AABB impact = getBoundingBox().expandTowards(corridorChargeDirection.scale(2.4D))
                 .inflate(0.55D, 0.35D, 0.55D);
+        breakCombatWall(level, impact, this);
         int broken = WorldGenerator.breakPlayerBlocksAround(level, impact);
         if (horizontalCollision || broken > 0)
             broken += WorldGenerator.breakMazeWallAround(level, impact, this);
@@ -2042,7 +2068,16 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     private boolean attackReady(BossAttack attack) {
-        return enabledAttack(attack) && bossAttackLockouts[attack.ordinal()] <= 0 && !(requiresAxe(attack) && axeInWorld());
+        return enabledAttack(attack) && (!usesGreekFire(attack) || greekFirePowered())
+                && bossAttackLockouts[attack.ordinal()] <= 0 && !(requiresAxe(attack) && axeInWorld());
+    }
+
+    private static boolean usesGreekFire(BossAttack attack) {
+        return attack == BossAttack.FIRE_RINGS || attack == BossAttack.GREEK_FIRE_LASER || attack == BossAttack.SMOKE_BELCH;
+    }
+
+    boolean greekFirePowered() {
+        return debugMode || level() instanceof ServerLevel server && WorldGenerator.activeBossBraziers(server) > 0;
     }
 
     private void recordCloseDamage(DamageSource source, float damage) {
@@ -2240,7 +2275,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     private void beginBossAttack(ServerPlayer player, BossAttack attack) {
-        if (!enabledAttack(attack)) return;
+        if (!enabledAttack(attack) || usesGreekFire(attack) && !greekFirePowered()) return;
         weaponAdvanceTicks = 0;
         getEntityData().set(DATA_WEAPON_SWAP, 0);
         for (int i = 0; i < attacksSinceUse.length; i++) attacksSinceUse[i] = Math.min(30, attacksSinceUse[i] + 1);
@@ -2478,6 +2513,11 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
     private void tickBossAttack(ServerLevel level, ServerPlayer player) {
         if (!enabledAttack(bossAttack)) { finishBossAttack(20); return; }
+        if (usesGreekFire(bossAttack)) {
+            if (!greekFirePowered()) { finishBossAttack(20); return; }
+            if (bossAttackTicks % 32 == 0)
+                net.krodark.asterion.worldgen.CatacombArena.powerBurst(level, position().add(0, 3, 0));
+        }
         faceAttackTarget(player);
         if ((tickCount & 1) == 0) updateGroundTelegraph(level);
         if (!prepareWeapon(bossAttack)) return;
@@ -3061,7 +3101,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     private void tickGreekFireLaser(ServerLevel level, ServerPlayer player) {
-        int braziers = 4; // Innate Greek fire; temporary arena braziers are disabled.
+        int braziers = debugMode ? 4 : WorldGenerator.activeBossBraziers(level);
         if (braziers == 0) { finishBossAttack(66); return; }
         setDeltaMovement(getDeltaMovement().multiply(0.04D, 1.0D, 0.04D));
         Vec3 origin = getEyePosition().add(0.0D, -0.25D, 0.0D);
@@ -3084,7 +3124,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             double miss = player.getEyePosition().distanceTo(origin.add(greekFireAim.scale(along)));
             if (miss <= 1.15D && hasLineOfSight(player) && bossAttackTicks % 10 == 0) {
                 player.hurtServer(level, damageSources().magic(), 5.0F * braziers / 4.0F);
-                player.igniteForSeconds(2.0F);
+                net.krodark.asterion.effect.GreekFireBurn.ignite(player, 2.0F);
             }
         }
         if (bossAttackTicks >= 108) finishBossAttack(66);
@@ -3212,7 +3252,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             boolean standingInRing = bossFireBlocks.contains(feet);
             if (standingInRing && victim.getY() <= floorY + 1.35D) {
                 if (victim.hurtServer(level, damageSources().mobAttack(this), 4.0F))
-                    victim.igniteForSeconds(2.0F);
+                    net.krodark.asterion.effect.GreekFireBurn.ignite(victim, 2.0F);
             }
         }
         level.sendParticles(Asterion.GREEK_FIRE,
@@ -3261,6 +3301,9 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             playSound(SoundEvents.STONE_BREAK, 3.4F, 0.45F);
         }
         if (bossAttackTicks == 48) {
+            for (ServerPlayer viewer : level.players())
+                if (viewer.distanceToSqr(bossLeapTarget) < 48 * 48 && ServerPlayNetworking.canSend(viewer, MazeShiftPayload.TYPE))
+                    ServerPlayNetworking.send(viewer, new MazeShiftPayload(BlockPos.containing(bossLeapTarget), 48, 1.35F, 14));
             scarArena(level, bossLeapTarget, 5);
             for (ServerPlayer victim : level.getEntitiesOfClass(ServerPlayer.class,
                     new AABB(bossLeapTarget, bossLeapTarget).inflate(4.5D))) {
@@ -3530,7 +3573,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             setPos(collapseAnchor.x, collapseAnchor.y, collapseAnchor.z);
             setDeltaMovement(Vec3.ZERO);
         }
-        if (collapseTicks >= 55 && collapseTicks % 4 == 0)
+        if (collapseTicks % 4 == 0)
             level.sendParticles(Asterion.DOOR_SMOKE, getX(), getY() + .6, getZ(),
                     collapseTicks >= 118 ? 14 : 5, 2.7, .35, 2.7, collapseTicks >= 118 ? .10 : .025);
         if (collapseTicks <= 30 && (collapseTicks % 5) == 0) {
@@ -4635,8 +4678,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     public AnimationState animationState() {
-        if (collapseAnimationTicks() > 0) return collapseAnimationTicks() <= 28 ? AnimationState.IDLE
-                : collapseAnimationTicks() >= 138 ? AnimationState.REVIVE : AnimationState.DIES;
+        if (collapseAnimationTicks() > 0) return collapseAnimationTicks() >= 138 ? AnimationState.REVIVE : AnimationState.DIES;
         if (weaponSwapTicks() > 0) return isSheathingWeapon()
                 ? weaponTransitionMode() == 2 ? AnimationState.SHEATHE_SWORD : AnimationState.SHEATHE_AXE
                 : pendingWeaponMode() == 2 ? AnimationState.DRAW_SWORD : AnimationState.DRAW_AXE;
@@ -4817,7 +4859,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
     private double animationPhaseTick(AnimationState pose) {
         if (weaponSwapTicks() > 0) return isSheathingWeapon() ? weaponSwapTicks() : weaponSwapTicks() - weaponSheathTicks();
-        if (pose == AnimationState.DIES) return Math.max(0, collapseAnimationTicks() - 28);
+        if (pose == AnimationState.DIES) return collapseAnimationTicks();
         if (pose == AnimationState.REVIVE) return Math.max(0, collapseAnimationTicks() - 138);
         if (pose == AnimationState.ROAR_START && doorEntryTicks() > 0) return doorEntryTicks() - 1;
         if (pose == AnimationState.WARNING && getEntityData().get(DATA_CORRIDOR_CHARGE_TICKS) > 0)
