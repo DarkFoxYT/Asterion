@@ -8,6 +8,7 @@ import com.meekdev.amnetic.client.instanced.RenderState;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
+import net.krodark.asterion.client.PerformanceGovernor;
 import net.krodark.asterion.network.GatewayPortalPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -56,7 +57,8 @@ public final class AsterionPortalRenderer {
                 || !client.level.dimension().equals(Level.OVERWORLD)) return;
         double playerDx = client.player.getX() - (gateway.getX() + 0.5D);
         double playerDz = client.player.getZ() - (gateway.getZ() + 0.5D);
-        int particleInterval = switch (AsterionConfig.INSTANCE.ambientParticleQuality) {
+        int particleInterval = switch (Math.min(AsterionConfig.INSTANCE.ambientParticleQuality,
+                PerformanceGovernor.quality())) {
             case 0 -> 9;
             case 1 -> 6;
             default -> 3;

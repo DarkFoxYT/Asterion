@@ -10,6 +10,7 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.util.Mth;
 import java.util.*;
 
 /** Shared finite gas hazards for spewers, cursed braziers and player weapons. */
@@ -27,10 +28,15 @@ public final class GasClouds {
         if (clouds.size() >= 256 || clouds.stream().filter(c -> Objects.equals(c.owner, owner)).count() >= 64) return;
         clouds.add(new Cloud(origin, velocity, owner, flamethrower));
     }
-    public static void ignite(ServerLevel level, Vec3 origin, UUID owner) {
+    public static boolean ignite(ServerLevel level, Vec3 origin, UUID owner) {
+        boolean ignited = false;
         for (var cloud : CLOUDS.getOrDefault(level, List.of()))
             if (cloud.burn == 0 && Objects.equals(cloud.owner, owner) && cloud.pos.distanceToSqr(origin) < 4 * 4
-                    && visible(level, origin, cloud.pos)) cloud.burn = 60;
+                    && visible(level, origin, cloud.pos)) { cloud.burn = 60; ignited = true; }
+        if (ignited) level.playSound(null, origin.x, origin.y, origin.z,
+                net.minecraft.sounds.SoundEvents.FIRECHARGE_USE, net.minecraft.sounds.SoundSource.PLAYERS,
+                .9F, .92F + level.getRandom().nextFloat() * .16F);
+        return ignited;
     }
     private static boolean visible(ServerLevel level, Vec3 start, Vec3 end) {
         return level.clip(new ClipContext(start, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
@@ -42,11 +48,21 @@ public final class GasClouds {
             Set<UUID> hit = new HashSet<>();
             // Delayed propagation makes ignition visibly travel away from the weapon.
             if (level.getGameTime() % 3 == 0) {
-                var burning = clouds.stream().filter(c -> c.burn > 0).map(c -> c.pos).toList();
-                for (var cloud : clouds) if (cloud.burn == 0)
-                    for (Vec3 fire : burning) if (cloud.pos.distanceToSqr(fire) < 6.25 && visible(level, fire, cloud.pos)) {
-                        cloud.burn = 60; break;
-                    }
+                Vec3 spreadSound = null;
+                Map<Long,List<Vec3>> burning=new HashMap<>();
+                for(var cloud:clouds)if(cloud.burn>0)
+                    burning.computeIfAbsent(cell(cloud.pos),ignored->new ArrayList<>()).add(cloud.pos);
+                for(var cloud:clouds)if(cloud.burn==0) {
+                    int cx=Mth.floor(cloud.pos.x/3),cy=Mth.floor(cloud.pos.y/3),cz=Mth.floor(cloud.pos.z/3);
+                    search:for(int dx=-1;dx<=1;dx++)for(int dy=-1;dy<=1;dy++)for(int dz=-1;dz<=1;dz++)
+                        for(Vec3 fire:burning.getOrDefault(cell(cx+dx,cy+dy,cz+dz),List.of()))
+                            if(cloud.pos.distanceToSqr(fire)<6.25 && visible(level,fire,cloud.pos)) {
+                                cloud.burn=60; spreadSound=cloud.pos; break search;
+                            }
+                }
+                if (spreadSound != null) level.playSound(null, spreadSound.x, spreadSound.y, spreadSound.z,
+                        net.minecraft.sounds.SoundEvents.FIRECHARGE_USE, net.minecraft.sounds.SoundSource.BLOCKS,
+                        .45F, 1.05F + level.getRandom().nextFloat() * .2F);
             }
             for (var iterator = clouds.iterator(); iterator.hasNext();) {
                 var cloud = iterator.next();
@@ -55,14 +71,16 @@ public final class GasClouds {
                         || !level.getFluidState(block).isEmpty()) { iterator.remove(); continue; }
                 if (cloud.burn > 0) cloud.burn--;
                 Vec3 next = cloud.pos.add(cloud.velocity);
-                if (visible(level, cloud.pos, next)) cloud.pos = next;
-                else cloud.velocity = Vec3.ZERO;
+                if(cloud.velocity.lengthSqr()>1.0e-8) {
+                    if (visible(level, cloud.pos, next)) cloud.pos = next;
+                    else cloud.velocity = Vec3.ZERO;
+                }
                 cloud.velocity = cloud.velocity.multiply(.975, .97, .975).add(0, -.001, 0);
                 if (cloud.age % 4 == 0) level.sendParticles(cloud.flamethrower
                         ? (cloud.burn > 0 ? Asterion.FLAMETHROWER_GAS_FIRE : Asterion.FLAMETHROWER_GAS)
                         : (cloud.burn > 0 ? Asterion.BOMBARDIER_GAS_FIRE : Asterion.BOMBARDIER_STENCH),
                         cloud.pos.x, cloud.pos.y, cloud.pos.z, 3, .38, .25, .38, .005);
-                if (level.getGameTime() % 10 != 0) continue;
+                if (cloud.age % (cloud.burn>0 ? 10 : 20) != 0) continue;
                 for (var victim : level.getEntitiesOfClass(LivingEntity.class, new AABB(cloud.pos, cloud.pos).inflate(1.2))) {
                     if (!victim.isAlive() || victim.getUUID().equals(cloud.owner) || hit.contains(victim.getUUID())
                             || victim instanceof ServerPlayer player && (player.isCreative() || player.isSpectator())
@@ -83,6 +101,10 @@ public final class GasClouds {
     public static void clearOwner(ServerLevel level, UUID owner) {
         var clouds = CLOUDS.get(level);
         if (clouds != null) clouds.removeIf(cloud -> owner.equals(cloud.owner));
+    }
+    private static long cell(Vec3 pos){return cell(Mth.floor(pos.x/3),Mth.floor(pos.y/3),Mth.floor(pos.z/3));}
+    private static long cell(int x,int y,int z){
+        return ((long)x&0x1fffffL)<<42|((long)y&0x1fffffL)<<21|((long)z&0x1fffffL);
     }
     private static final class Cloud {
         Vec3 pos, velocity; final UUID owner; final boolean flamethrower; int age, burn;

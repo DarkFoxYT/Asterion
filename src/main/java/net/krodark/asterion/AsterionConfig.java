@@ -15,7 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public final class AsterionConfig {
-    private static final int CURRENT_VERSION = 21;
+    private static final int CURRENT_VERSION = 23;
     private static final Logger LOGGER = LoggerFactory.getLogger("asterion.config");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("asterion.json");
@@ -65,8 +65,10 @@ public final class AsterionConfig {
     public boolean droppedItemLights = true;
     public int dynamicLightRangePercent = 100;
     public int maxDynamicLights = 96;
+    public boolean adaptivePerformance = true;
+    public int performanceTargetFps = 240;
     public boolean ragdollEquipment = true;
-    public boolean ragdollMashRecovery = false;
+    public boolean ragdollMashRecovery = true;
     public boolean enhancedLightning = true;
     public boolean deadSunEnabled = true;
     public boolean dustyAirEnabled = true;
@@ -193,6 +195,11 @@ public final class AsterionConfig {
             dynamicLightRangePercent = 100;
             maxDynamicLights = 96;
         }
+        if (version < 22) {
+            adaptivePerformance = true;
+            performanceTargetFps = 240;
+        }
+        if (version < 23) ragdollMashRecovery = true;
     }
 
     private void applySkyDefaults() {
@@ -265,6 +272,7 @@ public final class AsterionConfig {
         dynamicLightQuality = Math.max(0, Math.min(2, dynamicLightQuality));
         dynamicLightRangePercent = Math.max(25, Math.min(100, dynamicLightRangePercent));
         maxDynamicLights = Math.max(8, Math.min(256, maxDynamicLights));
+        performanceTargetFps = Math.max(60, Math.min(360, performanceTargetFps));
         deadSunStrength = clamp(deadSunStrength, 0.0f, 2.0f);
         dustyAirStrength = clamp(dustyAirStrength, 0.0f, 2.0f);
         deadSunHeight = clamp(deadSunHeight, 100.0f, 240.0f);

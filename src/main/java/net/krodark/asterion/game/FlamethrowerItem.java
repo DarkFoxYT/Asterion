@@ -32,7 +32,5 @@ public final class FlamethrowerItem extends Item {
         player.stopUsingItem();
         GasClouds.ignite(player.level(), player.getEyePosition(), player.getUUID());
         player.getCooldowns().addCooldown(held, 10);
-        player.level().playSound(null, player.blockPosition(), net.minecraft.sounds.SoundEvents.FLINTANDSTEEL_USE,
-                net.minecraft.sounds.SoundSource.PLAYERS, .8F, .9F);
     }
 }

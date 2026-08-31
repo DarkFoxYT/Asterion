@@ -14,7 +14,7 @@ import net.minecraft.world.level.material.FluidState;
 public interface HeavyWaterRedstone extends SimpleWaterloggedBlock {
     @Override
     default boolean canPlaceLiquid(LivingEntity user, BlockGetter level, BlockPos pos, BlockState state, Fluid fluid) {
-        return HeavyWaterlogging.isHeavy(fluid) ? HeavyWaterlogging.amount(state) == 0 : !state.blocksMotion();
+        return HeavyWaterlogging.isHeavy(fluid) ? HeavyWaterlogging.amount(state) == 0 : state.getCollisionShape(level, pos).isEmpty();
     }
 
     @Override

@@ -1,6 +1,7 @@
 package net.krodark.asterion.client.particle;
 
 import net.krodark.asterion.AsterionConfig;
+import net.krodark.asterion.client.PerformanceGovernor;
 import net.krodark.asterion.client.light.LedAmneticLight;
 import net.krodark.asterion.client.event.DeadSunClientEvents;
 import net.krodark.asterion.client.render.post.AsterionPostEffects;
@@ -215,8 +216,8 @@ public final class FlyingInsectParticle extends SingleQuadParticle {
             LedAmneticLight.removeItemGlowLight(this);
             ownsDynamicLight = false;
         }
-        int coreInterval = config.ambientParticleQuality == 0 ? 4
-                : config.ambientParticleQuality == 1 ? 2 : 1;
+        int effectiveQuality = Math.min(config.ambientParticleQuality, PerformanceGovernor.quality());
+        int coreInterval = effectiveQuality == 0 ? 4 : effectiveQuality == 1 ? 2 : 1;
         coreInterval *= Math.min(4, lightStride);
         if (!enraged && age % coreInterval == 0)
             AsterionEmissiveParticles.spawnFireflyCore(x, y, z, xd, yd, zd, pulse);

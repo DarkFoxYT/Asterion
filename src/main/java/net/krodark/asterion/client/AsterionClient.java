@@ -131,6 +131,8 @@ public final class AsterionClient implements ClientModInitializer {
         BlockEntityRenderers.register(net.krodark.asterion.block.RespawnObelisks.BLOCK_ENTITY,
                 net.krodark.asterion.client.render.block.SanctuaryRenderer::new);
         BlockEntityRenderers.register(Asterion.LABYRINTH_VINE_BLOCK_ENTITY, LabyrinthVineGeoRenderer::new);
+        BlockEntityRenderers.register(Asterion.GREEK_FIRE_TORCH_BLOCK_ENTITY,
+                net.krodark.asterion.client.render.block.GreekFireTorchRenderer::new);
         BlockEntityRenderers.register(Asterion.SKELETON_BLOCK_ENTITY, SkeletonGeoRenderer::new);
         BlockEntityRenderers.register(Asterion.SHATTERED_DEAD_WOOD_BLOCK_ENTITY,
                 ShatteredDeadWoodGeoRenderer::new);
@@ -158,6 +160,9 @@ public final class AsterionClient implements ClientModInitializer {
                 context.client().execute(() -> DeadSunClientEvents.receiveShift(payload)));
         ClientPlayNetworking.registerGlobalReceiver(net.krodark.asterion.network.ArenaDebrisPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> PhysicsDebrisSystem.spawnArenaDebris(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(net.krodark.asterion.network.MinotaurImpactPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> DeadSunClientEvents.impact(payload.position(), payload.radius(),
+                        payload.strength(), payload.duration())));
         ClientPlayNetworking.registerGlobalReceiver(DoorBreakPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> PhysicsDebrisSystem.spawnDoors(payload)));
         ClientPlayNetworking.registerGlobalReceiver(DeadSunStrikePayload.TYPE, (payload, context) ->
@@ -212,6 +217,7 @@ public final class AsterionClient implements ClientModInitializer {
         PhysicsDebrisSystem.tick(client);
         DazeOverlay.tick(client);
         HeldItemDynamicLights.tick(client);
+        net.krodark.asterion.client.light.BrazierAmneticLights.tick(client);
         LedAmneticLight.tickCleanup(client);
         AsterionPostEffects.tickBiomeAtmosphere(client);
     }

@@ -192,6 +192,28 @@ public class Asterion implements ModInitializer {
                     .lightLevel(state -> state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT) ? 12 : 0)));
     public static final Block GREEK_FIRE_LANTERN = registerBlock("greek_fire_lantern", MapColor.COLOR_GREEN,
             properties -> new Block(properties.sound(SoundType.METAL).lightLevel(state -> 15)));
+    public static final net.krodark.asterion.block.GreekFireTorchBlock GREEK_FIRE_WALL_TORCH =
+            (net.krodark.asterion.block.GreekFireTorchBlock)registerBlock("greek_fire_wall_torch", MapColor.COLOR_GREEN,
+                    properties -> new net.krodark.asterion.block.GreekFireTorchBlock(properties.noOcclusion()
+                            .strength(.4F).sound(SoundType.METAL).lightLevel(state -> 14), true,
+                            net.krodark.asterion.block.GreekFireTorchBlock.FireColor.GREEK));
+    public static final net.krodark.asterion.block.GreekFireTorchBlock GREEK_FIRE_FLOOR_TORCH =
+            (net.krodark.asterion.block.GreekFireTorchBlock)registerBlock("greek_fire_floor_torch", MapColor.COLOR_GREEN,
+                    properties -> new net.krodark.asterion.block.GreekFireTorchBlock(properties.noOcclusion()
+                            .strength(.4F).sound(SoundType.METAL).lightLevel(state -> state.getValue(net.krodark.asterion.block.GreekFireTorchBlock.TOP)?14:0), false,
+                            net.krodark.asterion.block.GreekFireTorchBlock.FireColor.GREEK));
+    public static final net.krodark.asterion.block.GreekFireTorchBlock RED_FIRE_WALL_TORCH = torch("red_fire_wall_torch",true,
+            net.krodark.asterion.block.GreekFireTorchBlock.FireColor.RED);
+    public static final net.krodark.asterion.block.GreekFireTorchBlock RED_FIRE_FLOOR_TORCH = torch("red_fire_floor_torch",false,
+            net.krodark.asterion.block.GreekFireTorchBlock.FireColor.RED);
+    public static final net.krodark.asterion.block.GreekFireTorchBlock ORANGE_FIRE_WALL_TORCH = torch("orange_fire_wall_torch",true,
+            net.krodark.asterion.block.GreekFireTorchBlock.FireColor.ORANGE);
+    public static final net.krodark.asterion.block.GreekFireTorchBlock ORANGE_FIRE_FLOOR_TORCH = torch("orange_fire_floor_torch",false,
+            net.krodark.asterion.block.GreekFireTorchBlock.FireColor.ORANGE);
+    public static final BlockEntityType<net.krodark.asterion.block.GreekFireTorchBlockEntity> GREEK_FIRE_TORCH_BLOCK_ENTITY = Registry.register(
+            BuiltInRegistries.BLOCK_ENTITY_TYPE,id("greek_fire_torch"),FabricBlockEntityTypeBuilder.create(
+                    net.krodark.asterion.block.GreekFireTorchBlockEntity::new,GREEK_FIRE_WALL_TORCH,GREEK_FIRE_FLOOR_TORCH,
+                    RED_FIRE_WALL_TORCH,RED_FIRE_FLOOR_TORCH,ORANGE_FIRE_WALL_TORCH,ORANGE_FIRE_FLOOR_TORCH).build());
     public static final Block LAMENTER = registerBlock("lamenter", MapColor.TERRACOTTA_BROWN,
             net.krodark.asterion.block.LamenterBlock::new);
     public static final BlockEntityType<net.krodark.asterion.block.LamenterBlockEntity> LAMENTER_BLOCK_ENTITY = Registry.register(
@@ -417,6 +439,12 @@ public class Asterion implements ModInitializer {
                         output.accept(MAZESTEEL_GATE);
                         output.accept(WINCH);
                         output.accept(LABYRINTH_VINE);
+                        output.accept(GREEK_FIRE_WALL_TORCH);
+                        output.accept(GREEK_FIRE_FLOOR_TORCH);
+                        output.accept(RED_FIRE_WALL_TORCH);
+                        output.accept(RED_FIRE_FLOOR_TORCH);
+                        output.accept(ORANGE_FIRE_WALL_TORCH);
+                        output.accept(ORANGE_FIRE_FLOOR_TORCH);
                         output.accept(SKELETON);
                         output.accept(MINOTAUR_DOOR);
                         output.accept(PILLAR);
@@ -522,6 +550,8 @@ public class Asterion implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(DeadSunEventPayload.TYPE, DeadSunEventPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(MazeShiftPayload.TYPE, MazeShiftPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.ArenaDebrisPayload.TYPE, net.krodark.asterion.network.ArenaDebrisPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.MinotaurImpactPayload.TYPE,
+                net.krodark.asterion.network.MinotaurImpactPayload.CODEC);
         ServerTickEvents.END_SERVER_TICK.register(net.krodark.asterion.worldgen.ArenaDebris::flush);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> net.krodark.asterion.worldgen.ArenaDebris.clear());
         PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.DoorBreakPayload.TYPE,
@@ -563,14 +593,17 @@ public class Asterion implements ModInitializer {
         ServerChunkEvents.CHUNK_UNLOAD.register(CatacombFloodState::onChunkUnload);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> CatacombFloodState.clear());
         PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, blockEntity) ->
-                !net.krodark.asterion.worldgen.CatacombProtection.contains(level, pos)
+                (!net.krodark.asterion.worldgen.CatacombProtection.contains(level, pos)
+                        || net.krodark.asterion.worldgen.CatacombProtection.isOre(state))
                         && (!(level instanceof net.minecraft.server.level.ServerLevel serverLevel)
                         || !WorldGenerator.isActivePortalProtected(serverLevel, pos)));
         net.fabricmc.fabric.api.event.player.AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) ->
                 net.krodark.asterion.worldgen.CatacombProtection.contains(level, pos)
+                        && !net.krodark.asterion.worldgen.CatacombProtection.isOre(level.getBlockState(pos))
                         ? net.minecraft.world.InteractionResult.FAIL : net.minecraft.world.InteractionResult.PASS);
         PlayerBlockBreakEvents.AFTER.register((level, player, pos, state, blockEntity) -> {
-            if (level instanceof net.minecraft.server.level.ServerLevel serverLevel)
+            if (level instanceof net.minecraft.server.level.ServerLevel serverLevel
+                    && !net.krodark.asterion.worldgen.CatacombProtection.isOre(state))
                 WorldGenerator.trackMazeBreak(serverLevel, pos, state);
         });
         BiomeModifications.addFeature(BiomeSelectors.tag(BiomeTags.IS_OCEAN),
@@ -660,6 +693,15 @@ public class Asterion implements ModInitializer {
         Identifier identifier = id(name);
         return Registry.register(BuiltInRegistries.SOUND_EVENT, identifier,
                 SoundEvent.createVariableRangeEvent(identifier));
+    }
+
+    private static net.krodark.asterion.block.GreekFireTorchBlock torch(String name,boolean wall,
+            net.krodark.asterion.block.GreekFireTorchBlock.FireColor color) {
+        return (net.krodark.asterion.block.GreekFireTorchBlock)registerBlock(name,
+                color==net.krodark.asterion.block.GreekFireTorchBlock.FireColor.RED?MapColor.COLOR_RED:MapColor.COLOR_ORANGE,
+                properties -> new net.krodark.asterion.block.GreekFireTorchBlock(properties.noOcclusion()
+                        .strength(.4F).sound(SoundType.METAL)
+                        .lightLevel(state -> wall||state.getValue(net.krodark.asterion.block.GreekFireTorchBlock.TOP)?14:0),wall,color));
     }
 
     private static Block registerBlock(String name, MapColor color,

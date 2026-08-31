@@ -22,6 +22,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -31,6 +32,7 @@ import org.spongepowered.asm.mixin.Final;
 public abstract class CameraMixin {
     @Unique private Vec3 asterion$smoothedRagdollCamera;
     @Unique private final Quaternionf asterion$centipedeTilt = new Quaternionf();
+    @Unique private float asterion$flamethrowerFovStrength;
     @Shadow @Final private Quaternionf rotation;
     @Shadow @Final private Vector3f forwards;
     @Shadow @Final private Vector3f up;
@@ -41,6 +43,19 @@ public abstract class CameraMixin {
     @Shadow public abstract Vec3 position();
     @Shadow public abstract float xRot();
     @Shadow public abstract float yRot();
+
+    @Inject(method = "getFov", at = @At("RETURN"), cancellable = true)
+    private void asterion$flamethrowerFovPulse(CallbackInfoReturnable<Float> result) {
+        Minecraft minecraft = Minecraft.getInstance();
+        boolean spraying = minecraft.player != null && minecraft.player.isUsingItem()
+                && minecraft.player.getUseItem().is(net.krodark.asterion.game.GameplayContent.FLAMETHROWER);
+        asterion$flamethrowerFovStrength = Mth.lerp(.12F, asterion$flamethrowerFovStrength,
+                spraying ? 1.0F : 0.0F);
+        if (asterion$flamethrowerFovStrength < .002F) return;
+        float seconds = (System.nanoTime() & 0x3fffffffffffffffL) * 1.0e-9F;
+        float pulse = 1.15F + Mth.sin(seconds * 5.4F) * .7F;
+        result.setReturnValue(result.getReturnValueF() + pulse * asterion$flamethrowerFovStrength);
+    }
 
     @Inject(method = "update", at = @At("TAIL"))
     private void asterion$followRagdollHead(DeltaTracker tracker, CallbackInfo ci) {
@@ -53,15 +68,19 @@ public abstract class CameraMixin {
         if (minecraft.player == null) asterion$smoothedRagdollCamera = null;
         else {
             Vec3 head = DismembermentEngine.INSTANCE.playerTumbleCameraPosition(minecraft.player.getId(), partial);
-            if (head == null) asterion$smoothedRagdollCamera = null;
+            Vec3 torso = DismembermentEngine.INSTANCE.tumbleCameraAnchor(minecraft.player.getId(), partial);
+            if (head == null && torso == null) asterion$smoothedRagdollCamera = null;
             else {
-                Vec3 desired = head.add(position().subtract(minecraft.player.getEyePosition(partial)));
-                Vec3 torso = DismembermentEngine.INSTANCE.tumbleCameraAnchor(minecraft.player.getId(), partial);
-                Vec3 anchor = minecraft.options.getCameraType().isFirstPerson() && torso != null ? torso : head;
+                // The head is a fast, light rigid body and made the view whip on every impact.
+                // Follow the torso, lifted toward the head, while vanilla still owns yaw and pitch.
+                Vec3 anchor = torso != null ? torso : head;
+                Vec3 visualEye = torso != null && head != null ? torso.lerp(head, 0.38).add(0, 0.18, 0)
+                        : anchor.add(0, 0.35, 0);
+                Vec3 desired = visualEye.add(position().subtract(minecraft.player.getEyePosition(partial)));
                 if (asterion$smoothedRagdollCamera == null || asterion$smoothedRagdollCamera.distanceToSqr(desired) > 6.25)
                     asterion$smoothedRagdollCamera = desired;
                 else {
-                    double blend = 1.0 - Math.pow(.72, Math.max(.25, tracker.getGameTimeDeltaTicks()));
+                    double blend = 1.0 - Math.pow(.48, Math.max(.25, tracker.getGameTimeDeltaTicks()));
                     asterion$smoothedRagdollCamera = asterion$smoothedRagdollCamera.lerp(desired, blend);
                 }
                 Vec3 safe = asterion$clipCamera(minecraft, anchor, asterion$smoothedRagdollCamera);

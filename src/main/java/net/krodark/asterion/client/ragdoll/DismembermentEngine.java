@@ -1696,6 +1696,14 @@ public final class DismembermentEngine {
             return true;
         });
         tickWailing();
+        if(pieces.isEmpty()) {
+            recentExplosions.clear();
+            if(++traumaDecayTicker%20==0) {
+                regionalTrauma.replaceAll((key,value)->value*.94f);
+                regionalTrauma.entrySet().removeIf(entry->entry.getValue()<.035f);
+            }
+            return;
+        }
         // A missing owner or stale stream must remove the body, not hand it to local physics.
         for (int id : new ArrayList<>(remotePoseTicks.keySet()))
             if (level.getEntity(id) == null || traumaDecayTicker - remotePoseTicks.get(id) > 60) removeRagdoll(id);
@@ -1751,7 +1759,9 @@ public final class DismembermentEngine {
                 break;
             }
         }
-        final int configuredSubsteps = switch (net.krodark.asterion.AsterionConfig.INSTANCE.ragdollPhysicsQuality) {
+        int effectiveQuality=Math.min(net.krodark.asterion.AsterionConfig.INSTANCE.ragdollPhysicsQuality,
+                net.krodark.asterion.client.PerformanceGovernor.quality());
+        final int configuredSubsteps = switch (effectiveQuality) {
             case 0 -> 2;
             case 1 -> 3;
             default -> 4;

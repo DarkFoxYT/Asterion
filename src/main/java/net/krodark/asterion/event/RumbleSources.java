@@ -34,8 +34,10 @@ public final class RumbleSources {
     }
     public static @Nullable Source trace(Level level, Vec3 start, Vec3 end) {
         int steps = Math.max(1, (int)Math.ceil(start.distanceTo(end)));
-        for (int i = 0; i <= steps; i++)
-            if (!level.hasChunkAt(BlockPos.containing(start.lerp(end, i / (double)steps)))) return null;
+        for (int i = 0; i <= steps; i++) {
+            BlockPos sample = BlockPos.containing(start.lerp(end, i / (double)steps));
+            if (!level.getChunkSource().hasChunk(sample.getX() >> 4, sample.getZ() >> 4)) return null;
+        }
         var hit = level.clip(new ClipContext(start, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
                 net.minecraft.world.phys.shapes.CollisionContext.empty()));
         if (hit.getType() != HitResult.Type.BLOCK || hit.isInside()) return null;

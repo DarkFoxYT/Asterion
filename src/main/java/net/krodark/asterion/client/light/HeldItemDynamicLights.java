@@ -51,7 +51,8 @@ public final class HeldItemDynamicLights {
             clear();
             return;
         }
-        int quality = config.dynamicLightQuality;
+        int quality = Math.min(config.dynamicLightQuality,
+                net.krodark.asterion.client.PerformanceGovernor.quality());
         int scanInterval = quality == 0 ? 6 : quality == 1 ? 3 : 1;
         if (client.level.getGameTime() % scanInterval != 0L) return;
         double range = lightRange(config, quality);
@@ -115,7 +116,8 @@ public final class HeldItemDynamicLights {
         AsterionConfig config = AsterionConfig.INSTANCE;
         if (!config.dynamicLightsEnabled || client.level == null || client.player == null) return;
         long now = System.nanoTime();
-        int quality = config.dynamicLightQuality;
+        int quality = Math.min(config.dynamicLightQuality,
+                net.krodark.asterion.client.PerformanceGovernor.quality());
         long interval = quality == 0 ? 50_000_000L : quality == 1 ? 25_000_000L : 12_000_000L;
         if (now < nextRenderUpdateNs) return;
         nextRenderUpdateNs = now + interval;
@@ -191,7 +193,8 @@ public final class HeldItemDynamicLights {
         float visualIntensity = style.intensity * flicker * (inAsterion ? 0.46F : 1.0F);
         float visualRadius = style.radius * (0.992F + flicker * 0.008F)
                 * (inAsterion ? 0.72F : 1.0F);
-        int quality = AsterionConfig.INSTANCE.dynamicLightQuality;
+        int quality = Math.min(AsterionConfig.INSTANCE.dynamicLightQuality,
+                net.krodark.asterion.client.PerformanceGovernor.quality());
         boolean softShadow = quality >= 2 && !inAsterion && (castsShadow || style.radius >= 6.5F);
         visualRadius *= quality == 0 ? 0.70F : quality == 1 ? 0.88F : 1.0F;
         LedAmneticLight.updateItemGlowLight(key, position, style.red, style.green, style.blue,

@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "asterion:block/torch_orange_fire"
+  }
+}
+

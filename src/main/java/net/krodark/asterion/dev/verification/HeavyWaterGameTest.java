@@ -15,6 +15,7 @@ import net.krodark.asterion.event.RumbleSources;
 import net.krodark.asterion.fluid.HeavyWater;
 import net.krodark.asterion.fluid.HeavyWaterFatigue;
 import net.krodark.asterion.fluid.TidalWaterBlock;
+import net.krodark.asterion.worldgen.CatacombLayout;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.FluidTags;
@@ -101,20 +102,20 @@ public final class HeavyWaterGameTest implements FabricClientGameTest {
                             player.setGameMode(net.minecraft.world.level.GameType.CREATIVE);
                         }
                         var maze = mc.getLevel(Asterion.ASTERION_LEVEL);
-                        if (tick >= 680 && highTideAt.get() < 0 && CatacombFloodState.get(maze).riseSteps() == 16) {
+                        if (tick >= 680 && highTideAt.get() < 0 && CatacombFloodState.get(maze).riseSteps() == CatacombFloodState.MAX_RISE) {
                             highTideAt.set(tick);
                             maze.setChunkForced(-20, -20, true);
                             maze.getChunk(-20, -20);
                         }
                         if (highTideAt.get() >= 0 && tick == highTideAt.get() + 120) {
-                            check(maze.getBlockState(new BlockPos(320, 9, 320)).is(HeavyWater.BLOCK), "Live tide did not update loaded basin");
-                            check(maze.getBlockState(new BlockPos(-320, 9, -320)).is(HeavyWater.BLOCK), "Reloaded chunk missed the shared high tide");
+                            check(maze.getBlockState(new BlockPos(320, CatacombFloodState.FLOOD_TOP_Y, 320)).is(HeavyWater.BLOCK), "Live tide did not update loaded basin");
+                            check(maze.getBlockState(new BlockPos(-320, CatacombFloodState.FLOOD_TOP_Y, -320)).is(HeavyWater.BLOCK), "Reloaded chunk missed the shared high tide");
                             DeadSunEventSystem.stop(maze);
                             stoppedAt.set(tick);
                         }
                         if (stoppedAt.get() >= 0 && tick > stoppedAt.get() + 640 && CatacombFloodState.get(maze).riseSteps() == 0
-                                && maze.getBlockState(new BlockPos(320, 7, 320)).is(HeavyWater.WATER_BLOCK)) {
-                            check(maze.getBlockState(new BlockPos(320, 9, 320)).isAir(), "Live tide left water above the baseline");
+                                && maze.getBlockState(new BlockPos(320, CatacombLayout.WATER_Y, 320)).is(HeavyWater.WATER_BLOCK)) {
+                            check(maze.getBlockState(new BlockPos(320, CatacombFloodState.FLOOD_TOP_Y, 320)).isAir(), "Live tide left water above the baseline");
                             maze.setChunkForced(20, 20, false);
                             maze.setChunkForced(-20, -20, false);
                             finished.set(true);
@@ -153,33 +154,45 @@ public final class HeavyWaterGameTest implements FabricClientGameTest {
         var saved = RareMazeEvents.CODEC.encodeStart(JsonOps.INSTANCE, timing).getOrThrow();
         var restored = RareMazeEvents.CODEC.parse(JsonOps.INSTANCE, saved).getOrThrow();
         check(restored.nextFloodTick() == timing.nextFloodTick() && restored.nextEclipseTick() == timing.nextEclipseTick(), "Rare deadlines changed on save");
+        BlockPos arenaDry = new BlockPos(0, CatacombLayout.WATER_Y, 0);
+        maze.setBlock(arenaDry, Blocks.AIR.defaultBlockState(), 3);
+        CatacombFloodState.reconcile(maze, maze.getChunkAt(arenaDry), CatacombFloodState.MAX_RISE);
+        check(maze.getBlockState(arenaDry).isAir(), "Authored arena was included in catacomb flooding");
         check(!timing.ready(DeadSunEventSystem.ECLIPSE, now), "Natural eclipse bypassed quiet period");
         check(DeadSunEventSystem.trigger(maze, DeadSunEventSystem.ECLIPSE), "Forced eclipse should bypass rarity");
         DeadSunEventSystem.stop(maze);
-        BlockPos[] bases = {new BlockPos(319, 7, 320), new BlockPos(320, 7, 320), new BlockPos(-320, 7, -320), new BlockPos(323, 7, 324)};
-        for (BlockPos base : bases) {
+        BlockPos[] bases = {new BlockPos(319, CatacombLayout.WATER_Y, 320), new BlockPos(320, CatacombLayout.WATER_Y, 320), new BlockPos(-320, CatacombLayout.WATER_Y, -320), new BlockPos(323, CatacombLayout.WATER_Y, 324)};
+        for (int i=0;i<bases.length;i++) {
+            BlockPos base=bases[i];
             maze.setBlock(base.below(), Blocks.STONE.defaultBlockState(), 3);
-            maze.setBlock(base, Blocks.WATER.defaultBlockState(), 3); // Existing saves migrate too.
-            maze.setBlock(base.above(), Blocks.AIR.defaultBlockState(), 3);
-            maze.setBlock(base.above(2), Blocks.AIR.defaultBlockState(), 3);
+            maze.setBlock(base, i==bases.length-1 ? Blocks.AIR.defaultBlockState()
+                    : Blocks.WATER.defaultBlockState(), 3); // Includes a completely dry gallery.
+            for (int y = CatacombLayout.WATER_Y + 1; y <= CatacombFloodState.FLOOD_TOP_Y; y++)
+                maze.setBlock(base.atY(y), Blocks.AIR.defaultBlockState(), 3);
         }
         BlockPos protectedBlock = bases[1].east().above();
         maze.setBlock(protectedBlock, Blocks.DIAMOND_BLOCK.defaultBlockState(), 3);
-        for (int step = 1; step <= 16; step++) {
+        for (int step : new int[]{1,8,72,CatacombFloodState.MAX_RISE}) {
             for (BlockPos base : bases) CatacombFloodState.reconcile(maze, maze.getChunkAt(base), step);
-            int surfaceY = step <= 8 ? 8 : 9;
+            int surfaceY=CatacombLayout.WATER_Y+1+(step-1)/8;
             for (BlockPos base : bases) {
-                BlockPos surface = new BlockPos(base.getX(), surfaceY, base.getZ());
-                check(maze.getFluidState(surface).getType() == HeavyWater.FLUID, "Flood surface missing");
-                check(Math.abs(surfaceY + maze.getFluidState(surface).getOwnHeight() - (8 + step / 8.0)) < 1e-6,
-                        "Flood desynchronized across chunk/negative-coordinate boundary");
+                BlockPos surface=new BlockPos(base.getX(),surfaceY,base.getZ());
+                check(maze.getFluidState(surface).getType()==HeavyWater.FLUID,"Flood surface missing");
+                check(Math.abs(surfaceY+maze.getFluidState(surface).getOwnHeight()
+                        -(CatacombLayout.WATER_Y+1+step/8.0))<1e-6,
+                        "Flood desynchronized across dry/wet and negative-coordinate columns");
             }
-            check(maze.getBlockState(protectedBlock).is(Blocks.DIAMOND_BLOCK), "Flood destroyed a player block");
+            check(maze.getBlockState(protectedBlock).is(Blocks.DIAMOND_BLOCK),"Flood destroyed a player block");
         }
-        for (BlockPos base : bases) {
-            CatacombFloodState.reconcile(maze, maze.getChunkAt(base), 0);
-            check(maze.getBlockState(base).is(HeavyWater.WATER_BLOCK), "Receding tide did not restore normal water");
-            check(maze.getBlockState(base.above()).isAir() && maze.getBlockState(base.above(2)).isAir(), "Flood did not drain");
+        check(maze.getFluidState(new BlockPos(bases[3].getX(),CatacombFloodState.FLOOD_TOP_Y,bases[3].getZ()))
+                .is(net.minecraft.tags.FluidTags.WATER),"Flood did not spread into a dry gallery through Y=42");
+        for (int i=0;i<bases.length;i++) {
+            BlockPos base=bases[i];
+            CatacombFloodState.reconcile(maze,maze.getChunkAt(base),0);
+            check(i==bases.length-1 ? maze.getBlockState(base).isAir()
+                    : maze.getBlockState(base).is(HeavyWater.WATER_BLOCK),"Recession changed the original dry/wet baseline");
+            for(int y=CatacombLayout.WATER_Y+1;y<=CatacombFloodState.FLOOD_TOP_Y;y++)
+                check(maze.getBlockState(base.atY(y)).isAir(),"Flood did not drain at Y="+y);
         }
         check(DeadSunEventSystem.trigger(maze, DeadSunEventSystem.FLOOD), "Forced flood should bypass rarity");
         check(CatacombFloodState.isFlooding(maze, bases[0]), "Flood signal missing");

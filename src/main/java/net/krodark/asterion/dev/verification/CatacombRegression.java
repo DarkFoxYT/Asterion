@@ -11,23 +11,35 @@ public final class CatacombRegression {
     private static int checks;
     public static void main(String[] args) throws Exception {
         Set<String> selected = new HashSet<>();
+        int total=0, occupied=0, puzzles=0, deadends=0;
         for (long seed : new long[]{0,-1,894237,Long.MIN_VALUE,Long.MAX_VALUE}) {
             for (int x=-24; x<=24; x++) for(int z=-24; z<=24; z++) {
                 if (CatacombLayout.reserved(x,z)) continue;
+                total++;
+                if (!CatacombLayout.occupied(seed,x,z)) {
+                    for(Direction side:Direction.Plane.HORIZONTAL) require(!CatacombLayout.connected(seed,x,z,side),"Connection into solid rock");
+                    continue;
+                }
+                occupied++;
                 var module = AuthoredCatacombs.module(seed,x,z);
                 selected.add(module.name());
+                if(Integer.bitCount(module.exits())==1)deadends++;
+                if(module.name().equals("puzzleroom"))puzzles++;
                 require((module.exits() & module.blocked()) == 0,"An active connection was capped");
                 for (Direction side : Direction.Plane.HORIZONTAL)
                     require(CatacombLayout.connected(seed,x,z,side)==CatacombLayout.connected(seed,x+side.getStepX(),z+side.getStepZ(),side.getOpposite()),"Mismatched seam");
                 int px=x,pz=z,steps=0;
                 while(px!=CatacombLayout.ROOT_X || pz!=CatacombLayout.ROOT_Z) {
                     var parent=CatacombLayout.parent(seed,px,pz);
-                    require(parent!=null && ++steps<128,"Cycle or disconnected cell");
+                    require(parent!=null && ++steps<512,"Cycle or disconnected cell");
                     px+=parent.getStepX(); pz+=parent.getStepZ();
-                    require(!CatacombLayout.reserved(px,pz),"Path crosses arena");
+                    require(CatacombLayout.occupied(seed,px,pz),"Path crosses arena or uncarved rock");
                 }
             }
         }
+        require(occupied>total*.30 && occupied<total*.50,"Layout too dense or too sparse: "+occupied+"/"+total);
+        require(puzzles>0 && puzzles<deadends*.06,"Puzzle rooms are not rare: "+puzzles+"/"+deadends);
+        System.out.println("Layout sample: "+occupied+" occupied / "+total+" cells; "+puzzles+" puzzles / "+deadends+" dead ends");
         require(selected.containsAll(AuthoredCatacombs.TEMPLATES),"Unreachable variants: "+AuthoredCatacombs.TEMPLATES.stream().filter(n->!selected.contains(n)).toList());
         for(String name:AuthoredCatacombs.TEMPLATES) template(name,19,31,19);
         for(int part=1;part<=9;part++) template("arena_part"+part,41,48,41);

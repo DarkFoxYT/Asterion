@@ -4,6 +4,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.WeakHashMap;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.krodark.asterion.Asterion;
@@ -23,10 +24,13 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
-/** A shared catacomb tide: two blocks of rise, in exact eighth-block steps. */
+/** A shared catacomb flash flood, filling dry galleries through block Y=42. */
 public final class CatacombFloodState extends SavedData {
-    public static final int MAX_RISE = 16;
-    public static final int STEP_TICKS = 40;
+    public static final int FLOOD_TOP_Y = 42;
+    public static final int MAX_RISE = (FLOOD_TOP_Y - CatacombLayout.WATER_Y) * 8;
+    public static final int RISE_PER_STEP = 8;
+    public static final int STEP_TICKS = 5;
+    public static final int RISE_DURATION_TICKS = MAX_RISE / RISE_PER_STEP * STEP_TICKS;
     public static final Codec<CatacombFloodState> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.BOOL.optionalFieldOf("active", false).forGetter(s -> s.active),
             Codec.intRange(0, MAX_RISE).optionalFieldOf("rise", 0).forGetter(s -> s.rise),
@@ -51,9 +55,7 @@ public final class CatacombFloodState extends SavedData {
     public static boolean isFlooding(ServerLevel level, BlockPos pos) {
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return false;
         boolean catacombs = CatacombLayout.contains(pos);
-        boolean arena = pos.getY() >= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_FLOOR_Y && pos.getY() <= 49
-                && Math.abs((long)pos.getX()) <= 61 && Math.abs((long)pos.getZ()) <= 61;
-        return (catacombs || arena) && get(level).active;
+        return catacombs && !isArenaColumn(pos.getX(), pos.getZ()) && get(level).active;
     }
 
     public static void setActive(ServerLevel level, boolean active) {
@@ -66,6 +68,8 @@ public final class CatacombFloodState extends SavedData {
         state.active = true;
         state.endsAt = level.getGameTime() + durationTicks;
         state.nextStep = level.getGameTime() + STEP_TICKS;
+        var loaded=LOADED.computeIfAbsent(level,ignored->new LoadedTide());
+        loaded.pending.addAll(loaded.chunks);
         state.setDirty();
     }
 
@@ -83,7 +87,10 @@ public final class CatacombFloodState extends SavedData {
     }
     public static void onChunkUnload(ServerLevel level, LevelChunk chunk) {
         var loaded = LOADED.get(level);
-        if (loaded != null) { loaded.chunks.remove(chunk.getPos().pack()); loaded.pending.remove(chunk.getPos().pack()); }
+        if (loaded != null) {
+            long packed=chunk.getPos().pack();
+            loaded.chunks.remove(packed);loaded.pending.remove(packed);loaded.appliedRise.remove(packed);
+        }
     }
     public static void clear() { LOADED.clear(); }
 
@@ -94,69 +101,92 @@ public final class CatacombFloodState extends SavedData {
             setActive(level, false);
         var loaded = LOADED.computeIfAbsent(level, ignored -> new LoadedTide());
         int target = state.active ? MAX_RISE : 0;
-        // Complete a bounded pass before advancing again, including freshly loaded chunks.
-        if (state.rise != target && now >= state.nextStep && loaded.pending.isEmpty()) {
-            state.rise += Integer.signum(target - state.rise);
+        // Advance quickly; lagging/background chunks jump directly to the newest shared height.
+        if (state.rise != target && now >= state.nextStep) {
+            state.rise += Integer.signum(target-state.rise)
+                    * Math.min(RISE_PER_STEP,Math.abs(target-state.rise));
             state.nextStep = now + STEP_TICKS;
             loaded.pending.addAll(loaded.chunks);
             state.setDirty();
         }
-        for (int budget = 0; budget < 8 && !loaded.pending.isEmpty(); budget++) {
-            long packed = loaded.pending.removeFirst();
-            LevelChunk chunk = level.getChunkSource().getChunkNow(ChunkPos.getX(packed), ChunkPos.getZ(packed));
-            if (chunk != null) reconcile(level, chunk, state.rise);
+        int budget=0;
+        // Keep the flood visibly synchronized around players before background chunks.
+        for(var player:level.players())for(int dx=-1;dx<=1 && budget<8;dx++)for(int dz=-1;dz<=1 && budget<8;dz++) {
+            long packed=ChunkPos.pack(player.chunkPosition().x()+dx,player.chunkPosition().z()+dz);
+            if(loaded.pending.remove(packed) && reconcileLoaded(level,loaded,packed,state.rise))budget++;
         }
+        while(budget++<10 && !loaded.pending.isEmpty()) {
+            long packed=loaded.pending.removeFirst();
+            reconcileLoaded(level,loaded,packed,state.rise);
+        }
+    }
+
+    private static boolean reconcileLoaded(ServerLevel level,LoadedTide loaded,long packed,int rise) {
+        LevelChunk chunk=level.getChunkSource().getChunkNow(ChunkPos.getX(packed),ChunkPos.getZ(packed));
+        if(chunk==null)return false;
+        int previous=loaded.appliedRise.getOrDefault(packed,-1);
+        reconcile(level,chunk,rise,previous);
+        loaded.appliedRise.put(packed,rise);
+        return true;
     }
 
     /** Only replace liquid or clear air over an existing basin; never erase gates, props or player blocks. */
     public static void reconcile(ServerLevel level, LevelChunk chunk, int riseSteps) {
+        reconcile(level,chunk,riseSteps,-1);
+    }
+
+    private static void reconcile(ServerLevel level,LevelChunk chunk,int riseSteps,int previousRise) {
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         int surfaceEighths = (CatacombLayout.WATER_Y + 1) * 8 + Math.clamp(riseSteps, 0, MAX_RISE);
+        int fromY=CatacombLayout.WATER_Y;
+        int toY=FLOOD_TOP_Y;
+        if(previousRise>=0 && Math.abs(riseSteps-previousRise)<=RISE_PER_STEP) {
+            fromY=Math.max(CatacombLayout.WATER_Y,
+                    CatacombLayout.WATER_Y+Math.min(previousRise,riseSteps)/8);
+            toY=Math.min(FLOOD_TOP_Y,
+                    CatacombLayout.WATER_Y+Math.max(previousRise,riseSteps)/8+1);
+        }
         for (int x = chunk.getPos().getMinBlockX(); x <= chunk.getPos().getMaxBlockX(); x++)
             for (int z = chunk.getPos().getMinBlockZ(); z <= chunk.getPos().getMaxBlockZ(); z++) {
-                // Authored crypts are wider than the procedural passage mask: include their wet floors too.
                 BlockState base = chunk.getBlockState(cursor.set(x, CatacombLayout.WATER_Y, z));
-                boolean basin = base.getFluidState().is(net.minecraft.tags.FluidTags.WATER);
-                if (!basin && HeavyWaterlogging.canFill(null, level, cursor, base)) {
-                    for (var side : net.minecraft.core.Direction.Plane.HORIZONTAL) {
-                        BlockPos neighbor = cursor.relative(side);
-                        if (level.hasChunkAt(neighbor) && level.getFluidState(neighbor).is(net.minecraft.tags.FluidTags.WATER)) {
-                            basin = true;
-                            break;
-                        }
-                    }
-                }
-                for (int y = CatacombLayout.FLOOR_Y; y <= CatacombLayout.WATER_Y + 2; y++) {
+                // Flood every open gallery column, including rooms which started completely dry.
+                boolean basin = !isArenaColumn(x, z) && CatacombLayout.contains(cursor)
+                        && (base.isAir() || base.getFluidState().is(net.minecraft.tags.FluidTags.WATER)
+                        || HeavyWaterlogging.isTidal(base)
+                        || HeavyWaterlogging.canFill(null,level,cursor,base));
+                for (int y = fromY; y <= toY; y++) {
                     cursor.set(x, y, z);
                     BlockState old = chunk.getBlockState(cursor);
                     int amount = Math.clamp(surfaceEighths - y * 8, 0, 8);
                     if (HeavyWaterlogging.isTidal(old)) {
-                        BlockState next = amount == 0 ? HeavyWaterlogging.dry(old)
-                                : HeavyWaterlogging.withFluid(old, riseSteps == 0 ? HeavyWater.STILL.defaultFluidState()
-                                : HeavyWater.FLUID.getFlowing(amount, false));
+                        BlockState next = amount == 0 || riseSteps==0 ? HeavyWaterlogging.dry(old)
+                                : HeavyWaterlogging.withFluid(old, HeavyWater.FLUID.getFlowing(amount, false));
                         if (next != old) level.setBlock(cursor, next, 2);
-                        if (amount > 0 && riseSteps == 0)
-                            level.scheduleTick(cursor, HeavyWater.STILL, HeavyWater.STILL.getTickDelay(level));
                         continue;
                     }
-                    if (basin && amount > 0 && HeavyWaterlogging.canFill(null, level, cursor, old)) {
-                        HeavyWaterlogging.fill(level, cursor, old, riseSteps == 0 ? HeavyWater.STILL.defaultFluidState()
-                                : HeavyWater.FLUID.getFlowing(amount, false));
+                    if (basin && riseSteps>0 && amount > 0 && HeavyWaterlogging.canFill(null, level, cursor, old)) {
+                        HeavyWaterlogging.fill(level, cursor, old, HeavyWater.FLUID.getFlowing(amount, false));
                         continue;
                     }
                     boolean tidal = old.is(HeavyWater.BLOCK);
-                    boolean originalWater = y <= CatacombLayout.WATER_Y && (old.is(Blocks.WATER) || old.is(HeavyWater.WATER_BLOCK));
-                    boolean fill = basin && y > CatacombLayout.WATER_Y && old.isAir();
+                    boolean originalWater = y == CatacombLayout.WATER_Y
+                            && (old.is(Blocks.WATER) || old.is(HeavyWater.WATER_BLOCK));
+                    boolean fill = basin && riseSteps>0 && old.isAir();
                     if (!tidal && !originalWater && !fill) continue;
-                    BlockState next = amount == 0 ? Blocks.AIR.defaultBlockState()
-                            : riseSteps == 0 ? HeavyWater.WATER_BLOCK.defaultBlockState()
+                    BlockState next = originalWater ? HeavyWater.WATER_BLOCK.defaultBlockState()
+                            : amount == 0 || riseSteps==0 ? Blocks.AIR.defaultBlockState()
                             : HeavyWater.BLOCK.defaultBlockState().setValue(TidalWaterBlock.LEVEL, amount);
                     if (old != next) level.setBlock(cursor, next, 2);
                 }
             }
     }
+    private static boolean isArenaColumn(int x, int z) {
+        return Math.abs((long)x) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS
+                && Math.abs((long)z) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS;
+    }
     private static final class LoadedTide {
         final LinkedHashSet<Long> chunks = new LinkedHashSet<>(), pending = new LinkedHashSet<>();
+        final Map<Long,Integer> appliedRise=new HashMap<>();
     }
 
     public static void registerCommands() {
@@ -176,7 +206,7 @@ public final class CatacombFloodState extends SavedData {
                         setActive(maze, false);
                     }
                     command.getSource().sendSuccess(() -> Component.literal(active
-                            ? "Catacomb tide rising two blocks in shared eighth-block steps."
+                            ? "Catacomb flash flood rising rapidly through block Y=42."
                             : "Catacomb tide receding to its normal level."), true);
                     return 1;
                 }));

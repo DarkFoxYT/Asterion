@@ -28,7 +28,7 @@ public final class HeavyWater {
             Asterion.id("heavy_water_layer"), new TidalWaterBlock(BlockBehaviour.Properties.of()
                     .setId(ResourceKey.create(Registries.BLOCK, Asterion.id("heavy_water_layer")))
                     .mapColor(MapColor.WATER).replaceable().noCollision().noOcclusion()
-                    .strength(100).noLootTable().liquid().forceSolidOff()));
+                    .strength(100).noLootTable().liquid()));
     public static final Item BUCKET = Registry.register(BuiltInRegistries.ITEM,
             Asterion.id("heavy_water_bucket"), new BucketItem(STILL, new Item.Properties()
                     .setId(ResourceKey.create(Registries.ITEM, Asterion.id("heavy_water_bucket")))

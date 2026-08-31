@@ -25,6 +25,16 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                 check(MinotaurArenaEntrances.DOORS.size()==1,"Extra arena entrance");
                 check(WorldGenerator.activeBossBraziers(level)==0,"Generated braziers overwrote the authored arena");
                 check(WorldGenerator.bossPillarsRemaining()==0,"Generated pillars were added to the authored arena");
+                int closedDoorPieces=0;
+                for(int x=-61;x<=61;x++)for(int z=-61;z<=61;z++)for(int y=1;y<=48;y++) {
+                    var state=level.getBlockState(new BlockPos(x,y,z));
+                    if(state.is(Asterion.BARREL_DOOR)) {
+                        closedDoorPieces++;
+                        check(!state.getValue(net.krodark.asterion.block.BarrelDoorBlock.OPEN)
+                                && !state.getValue(net.krodark.asterion.block.BarrelDoorBlock.WING),
+                                "Authored arena barrel door was not placed closed");
+                    }
+                }
                 for (int x=-42;x<=42;x++) for (int z=-42;z<=42;z++) for (int y=7;y<=34;y++) {
                     var state=level.getBlockState(new BlockPos(x,y,z));
                     check(!state.is(Asterion.PILLAR) && !state.is(Asterion.GREEK_BRAZIER) && !state.is(Asterion.LAMENTER),
@@ -40,6 +50,7 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                 // Force full generation, including modules spanning multiple chunks.
                 for(int cz=19;cz>=16;cz--)for(int cx=19;cx>=16;cx--)level.getChunk(cx,cz);
                 for(int tx=14;tx<=15;tx++)for(int tz=14;tz<=15;tz++) {
+                    if(!CatacombLayout.occupied(seed,tx,tz))continue;
                     var module=AuthoredCatacombs.module(seed,tx,tz);
                     var template=level.getStructureManager().get(Asterion.id("catacombs/"+module.name())).orElseThrow();
                     check(template.getSize().getY()==31,"Old placeholder loaded");
@@ -54,10 +65,17 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                 for(String name:AuthoredCatacombs.TEMPLATES) {
                     var template=level.getStructureManager().get(Asterion.id("catacombs/"+name)).orElseThrow();
                     BlockPos origin=new BlockPos(index++*24,100,0);
-                    var settings=new StructurePlaceSettings().setIgnoreEntities(true).setRotation(Rotation.NONE)
-                            .addProcessor(JigsawReplacementProcessor.INSTANCE);
-                    check(template.placeInWorld(server.overworld(),origin,origin,settings,RandomSource.create(1),2),"Failed to place "+name);
+                    var settings=AuthoredCatacombs.settings(new net.minecraft.world.level.levelgen.structure.BoundingBox(origin.getX(),100,0,origin.getX()+18,130,18));
+                    check(template.placeInWorld(server.overworld(),origin,origin,settings,RandomSource.create(1),18),"Failed to place "+name);
                     check(!server.overworld().getBlockState(origin.offset(9,5,0)).is(Blocks.JIGSAW),"Live jigsaw in "+name);
+                    for(BlockPos doorPos:BlockPos.betweenClosed(origin,origin.offset(18,30,18))) {
+                        var state=server.overworld().getBlockState(doorPos);
+                        if(!state.is(Asterion.BARREL_DOOR))continue;
+                        closedDoorPieces++;
+                        check(!state.getValue(net.krodark.asterion.block.BarrelDoorBlock.OPEN)
+                                && !state.getValue(net.krodark.asterion.block.BarrelDoorBlock.WING),
+                                "Barrel door was not closed in "+name);
+                    }
                     if(name.equals("puzzleroom")) {
                         var reward=(net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity)server.overworld().getBlockEntity(origin.offset(2,16,17));
                         var barrel=(net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity)server.overworld().getBlockEntity(origin.offset(16,13,17));
@@ -65,7 +83,10 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                         check(barrel!=null&&barrel.getLootTable()!=null&&barrel.getLootTable().identifier().equals(Asterion.id("chests/catacomb_puzzle_supplies")),"Barrel loot NBT was not placed");
                     }
                 }
+                check(closedDoorPieces>0,"No authored barrel doors were exercised");
                 Asterion.LOGGER.info("PASS: authored arena assembly, single keyed entrance, reload markers, arena approach, real chunk seams and all 15 crypt variants");
+                CrossingSurfaceCheck.run(server.overworld());
+                CatacombRedstoneCheck.run(server.overworld());
                 CatacombLootCheck.run(server.overworld());
                 var player=server.getPlayerList().getPlayers().getFirst();
                 player.teleportTo(level,.5,AuthoredCatacombs.CONNECTOR_Y,63.5,java.util.Set.of(),180,0,true);

@@ -17,6 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 abstract class RagdollLevelRendererMixin {
     @Inject(method = "submitEntities", at = @At("TAIL"))
     private void asterion$submitRagdolls(PoseStack poses, LevelRenderState state, SubmitNodeCollector output, CallbackInfo ci) {
+        net.krodark.asterion.client.PerformanceGovernor.frame(Minecraft.getInstance());
         RagdollRenderer.submit(poses, state, output);
         PhysicsDebrisSystem.submit(poses, state, output);
         Minecraft client = Minecraft.getInstance();

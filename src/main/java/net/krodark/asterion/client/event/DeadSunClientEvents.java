@@ -423,8 +423,7 @@ public final class DeadSunClientEvents {
         var client = Minecraft.getInstance();
         if (client.level == null || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)
                 || !DeadSunEventSystem.FLOOD.equals(activeId) || !(active instanceof NeutralEffect flood)) return 0;
-        double riseTicks = net.krodark.asterion.event.CatacombFloodState.MAX_RISE
-                * net.krodark.asterion.event.CatacombFloodState.STEP_TICKS;
+        double riseTicks = net.krodark.asterion.event.CatacombFloodState.RISE_DURATION_TICKS;
         return (float)Mth.clamp((client.level.getGameTime() - flood.startTick) / riseTicks, 0, 1);
     }
 

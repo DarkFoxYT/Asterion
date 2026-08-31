@@ -46,7 +46,6 @@ public final class PillarBlock extends BaseEntityBlock {
         for(int x=0;x<3;x++) for(int y=0;y<MODEL_HEIGHT;y++) for(int z=0;z<3;z++) {
             BlockPos pos=part(root,x,y,z);
             if(!level.isLoaded(pos) || level.isOutsideBuildHeight(pos) || !level.getWorldBorder().isWithinBounds(pos)
-                    || context.getPlayer()!=null && CatacombProtection.contains(level,pos)
                     || !level.getBlockState(pos).canBeReplaced(context)) return null;
             VoxelShape shape=SHAPES[index(MODEL_HEIGHT,x,y,z)];
             if (!shape.isEmpty() && !level.isUnobstructed(null,shape.move(pos.getX(),pos.getY(),pos.getZ()))) return null;

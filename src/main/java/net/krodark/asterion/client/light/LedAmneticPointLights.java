@@ -14,6 +14,7 @@ import net.minecraft.world.phys.Vec3;
 final class LedAmneticPointLights {
     private static final Map<Object, Light> LIGHTS = new LinkedHashMap<>(128, 0.75F, true);
     private static final Map<Object, LedAmneticLight.LedPointLightSample> BUFFERED = new LinkedHashMap<>();
+    private static final Map<Object,Integer> CONFIGURED_QUALITY = new LinkedHashMap<>();
 
     private LedAmneticPointLights() {
     }
@@ -24,7 +25,7 @@ final class LedAmneticPointLights {
             remove(key);
             return;
         }
-        int quality = config.dynamicLightQuality;
+        int quality = effectiveQuality(config);
         boolean shadows = quality >= 2 && sample.castsShadow();
         float godray = quality >= 2 && sample.radius() >= 6.5F ? 0.24F : 0.0F;
         Light light = LIGHTS.computeIfAbsent(key, ignored -> createLight(sample));
@@ -35,7 +36,8 @@ final class LedAmneticPointLights {
                 && Math.abs(previous.red() - sample.red()) < 0.003F
                 && Math.abs(previous.green() - sample.green()) < 0.003F
                 && Math.abs(previous.blue() - sample.blue()) < 0.003F
-                && previous.castsShadow() == sample.castsShadow()) {
+                && previous.castsShadow() == sample.castsShadow()
+                && CONFIGURED_QUALITY.getOrDefault(key,-1)==quality) {
             trimToBudget(key);
             return;
         }
@@ -49,6 +51,7 @@ final class LedAmneticPointLights {
                 .godraySteps(quality >= 2 ? 10 : 0)
                 .godrayShadows(shadows)
                 .setEnabled(true);
+        CONFIGURED_QUALITY.put(key,quality);
         trimToBudget(key);
     }
 
@@ -64,6 +67,7 @@ final class LedAmneticPointLights {
     static void remove(Object key) {
         Light light = LIGHTS.remove(key);
         BUFFERED.remove(key);
+        CONFIGURED_QUALITY.remove(key);
         if (light != null) {
             light.remove();
         }
@@ -73,6 +77,7 @@ final class LedAmneticPointLights {
         LIGHTS.values().forEach(Light::remove);
         LIGHTS.clear();
         BUFFERED.clear();
+        CONFIGURED_QUALITY.clear();
     }
 
     static Vec3 nearestAttractor(Vec3 origin, double maxDistance) {
@@ -94,7 +99,7 @@ final class LedAmneticPointLights {
     }
 
     private static Light createLight(LedAmneticLight.LedPointLightSample sample) {
-        int quality = AsterionConfig.INSTANCE.dynamicLightQuality;
+        int quality = effectiveQuality(AsterionConfig.INSTANCE);
         boolean shadows = quality >= 2 && sample.castsShadow();
         boolean godrays = quality >= 2 && sample.radius() >= 6.5F;
         return Lights.point(
@@ -117,7 +122,7 @@ final class LedAmneticPointLights {
 
     private static void trimToBudget(Object protectedKey) {
         AsterionConfig config = AsterionConfig.INSTANCE;
-        int quality = config.dynamicLightQuality;
+        int quality = effectiveQuality(config);
         int qualityBudget = quality == 0 ? 24 : quality == 1 ? 56 : 96;
         int budget = Math.min(qualityBudget, config.maxDynamicLights);
         while (LIGHTS.size() > budget) {
@@ -133,5 +138,9 @@ final class LedAmneticPointLights {
                 break;
             }
         }
+    }
+    private static int effectiveQuality(AsterionConfig config) {
+        return Math.min(config.dynamicLightQuality,
+                net.krodark.asterion.client.PerformanceGovernor.quality());
     }
 }

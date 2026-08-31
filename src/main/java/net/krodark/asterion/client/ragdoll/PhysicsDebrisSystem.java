@@ -3,6 +3,7 @@ package net.krodark.asterion.client.ragdoll;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
+import net.krodark.asterion.client.PerformanceGovernor;
 import net.krodark.asterion.block.MinotaurDoorMotion;
 import net.krodark.asterion.network.DoorBreakPayload;
 import net.minecraft.client.Minecraft;
@@ -198,7 +199,9 @@ public final class PhysicsDebrisSystem {
         }
         DOOR_CLOUDS.removeIf(cloud -> ++cloud.age > 42);
         for (DoorCloud cloud : DOOR_CLOUDS) cloud.emit(client.level, cloud.age < 16 ? 8 : 4);
-        int substeps = Mth.clamp(2 + AsterionConfig.INSTANCE.ragdollPhysicsQuality, 2, 4);
+        if(PIECES.isEmpty())return;
+        int substeps = Mth.clamp(2 + Math.min(AsterionConfig.INSTANCE.ragdollPhysicsQuality,
+                net.krodark.asterion.client.PerformanceGovernor.quality()), 2, 4);
         List<Piece> fracturedChildren = new ArrayList<>();
         Iterator<Piece> iterator = PIECES.iterator();
         while (iterator.hasNext()) {
@@ -260,7 +263,8 @@ public final class PhysicsDebrisSystem {
     }
 
     private static void spawnSurfaceRubble(ClientLevel level, Vec3 observer, float intensity, Random random) {
-        int cap = 32 + AsterionConfig.INSTANCE.ragdollPhysicsQuality * 16;
+        int cap = 32 + Math.min(AsterionConfig.INSTANCE.ragdollPhysicsQuality,
+                PerformanceGovernor.quality()) * 16;
         if (PIECES.size() >= cap) return;
         var source = net.krodark.asterion.event.RumbleSources.find(level, observer, random);
         if (source == null) return;

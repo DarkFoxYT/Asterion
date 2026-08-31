@@ -16,8 +16,8 @@ public abstract class CatacombPlayerEditMixin {
     @Inject(method = "mayUseItemAt", at = @At("HEAD"), cancellable = true)
     private void asterion$protectItemEdits(BlockPos pos, Direction face, ItemStack item, CallbackInfoReturnable<Boolean> result) {
         Player player = (Player)(Object)this;
-        if (CatacombProtection.contains(player.level(), pos)
-                || item.getItem() instanceof BucketItem && CatacombProtection.contains(player.level(), pos.relative(face.getOpposite())))
+        if (item.getItem() instanceof BucketItem && (CatacombProtection.contains(player.level(), pos)
+                || CatacombProtection.contains(player.level(), pos.relative(face.getOpposite()))))
             result.setReturnValue(false);
     }
 }

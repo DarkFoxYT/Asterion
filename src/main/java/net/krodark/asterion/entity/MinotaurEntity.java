@@ -388,10 +388,11 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private Vec3 combatCenter() { return debugMode ? debugOrigin : WorldGenerator.bossArenaCenter(); }
     private int lastWallDebrisTick = -20;
     private int breakCombatWall(ServerLevel level, AABB bounds, MinotaurEntity boss) {
-        if (!horizontalCollision || tickCount - lastWallDebrisTick < 12) return 0;
         Vec3 forward = bounds.getCenter().subtract(position()).multiply(1, 0, 1).normalize();
         if (forward.lengthSqr() < .01) forward = getLookAngle().multiply(1, 0, 1).normalize();
         boolean emitted = false;
+        Vec3 primarySurface = null;
+        Vec3 primaryNormal = Vec3.ZERO;
         for (int row = 0; row < 3; row++) {
             Vec3 origin = position().add(0, .7 + row * getBbHeight() * .25, 0);
             var hit = level.clip(new net.minecraft.world.level.ClipContext(origin,
@@ -401,16 +402,43 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             if (hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS) continue;
             Vec3 normal = hit.getDirection().getUnitVec3();
             Vec3 surface = hit.getLocation().add(normal.scale(.25));
-            for (int i = 0; i < 4; i++)
+            if (primarySurface == null) { primarySurface = surface; primaryNormal = normal; }
+            for (int i = 0; i < 7; i++)
                 net.krodark.asterion.worldgen.ArenaDebris.queue(level, surface,
                         normal.scale(.35 + random.nextDouble() * .55).add(
                                 (random.nextDouble() - .5) * .4, .25 + random.nextDouble() * .4,
                                 (random.nextDouble() - .5) * .4));
-            level.sendParticles(Asterion.DOOR_SMOKE, surface.x, surface.y, surface.z, 5, .4, .4, .4, .035);
+            level.sendParticles(Asterion.DOOR_SMOKE, surface.x, surface.y, surface.z,
+                    14, .85, .75, .85, .045);
+            level.sendParticles(ParticleTypes.DUST_PLUME, surface.x, surface.y, surface.z,
+                    12, .7, .6, .7, .08);
             emitted = true;
         }
-        if (emitted) lastWallDebrisTick = tickCount;
-        return 0; // Visual fragments only: preserve arena blocks and collision.
+        if (emitted) {
+            lastWallDebrisTick = tickCount;
+            // Push the body clear immediately. Waiting for horizontalCollision lets one more charge
+            // step run into the wall and is the source of the visible wall-clipping continuation.
+            setDeltaMovement(Vec3.ZERO);
+            Vec3 impact = primarySurface == null ? bounds.getCenter() : primarySurface;
+            if (primaryNormal.lengthSqr() > .01) {
+                Vec3 safe = position().add(primaryNormal.scale(.12));
+                setPos(safe.x, safe.y, safe.z);
+            }
+            broadcastMinotaurImpact(level, impact, 34F, 1.35F, 18);
+            playSound(SoundEvents.GENERIC_EXPLODE.value(), 3.0F, .42F);
+        }
+        return emitted ? 1 : 0; // Visual fragments only: preserve arena blocks and collision.
+    }
+    private void broadcastMinotaurImpact(ServerLevel level, Vec3 impact, float radius,
+                                         float strength, int duration) {
+        var payload = new net.krodark.asterion.network.MinotaurImpactPayload(
+                impact, radius, strength, duration);
+        double sendRadius = radius + 6.0D;
+        for (ServerPlayer viewer : level.players())
+            if (viewer.distanceToSqr(impact) <= sendRadius * sendRadius
+                    && ServerPlayNetworking.canSend(viewer,
+                    net.krodark.asterion.network.MinotaurImpactPayload.TYPE))
+                ServerPlayNetworking.send(viewer, payload);
     }
     private void scarArena(ServerLevel level, Vec3 point, int radius) {
         for (int i = 0; i < 8; i++) {
@@ -2687,6 +2715,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                         setDeltaMovement(bossChargeDirection.scale(-0.18D).add(0, 0.16D, 0));
                         level.sendParticles(ParticleTypes.EXPLOSION, getX(), getY() + 1.0D, getZ(),
                                 8, 1.0D, 1.4D, 1.0D, 0.04D);
+                        broadcastMinotaurImpact(level, impact.getCenter(), 38F, 1.55F, 20);
                         riposteTicks = 24;
                         bossStunTicks = 52;
                         finishBossAttack(46);
@@ -2695,8 +2724,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                     int smashed = breakCombatWall(level, impact, this);
                     if (smashed > 0) {
                         applyBossCollisionDamage(level, false);
-                        recoverFromArenaImpact();
-                        setDeltaMovement(bossChargeDirection.scale(-0.22D).add(0.0D, 0.14D, 0.0D));
+                        setDeltaMovement(Vec3.ZERO);
+                resetFallDistance();
                         scarArena(level, position(), 4);
                         playSound(SoundEvents.RAVAGER_ATTACK, 2.5F, 0.42F);
                         riposteTicks = 28;
@@ -2707,8 +2736,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                     if (horizontalCollision) {
                         if (clearCombatObstacle(level, impact) > 0) return;
                         applyBossCollisionDamage(level, false);
-                        recoverFromArenaImpact();
-                        setDeltaMovement(bossChargeDirection.scale(-0.24D).add(0.0D, 0.16D, 0.0D));
+                        setDeltaMovement(Vec3.ZERO);
+                resetFallDistance();
                         riposteTicks = 30;
                         bossStunTicks = 58;
                         finishBossAttack(44);
@@ -2869,7 +2898,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             int smashed = breakCombatWall(level, impact, this);
             if (smashed > 0) {
                 applyBossCollisionDamage(level, false);
-                recoverFromArenaImpact();
+                setDeltaMovement(Vec3.ZERO);
+                resetFallDistance();
                 scarArena(level, position(), 4);
                 level.sendParticles(ParticleTypes.EXPLOSION, getX(), getY() + 0.8D, getZ(),
                         5, 1.1D, 0.8D, 1.1D, 0.08D);
@@ -2932,8 +2962,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             int smashed = breakCombatWall(level, horns, this);
             if (smashed > 0 || horizontalCollision) {
                 applyBossCollisionDamage(level, false);
-                recoverFromArenaImpact();
-                setDeltaMovement(bossChargeDirection.scale(-0.28D).add(0.0D, 0.18D, 0.0D));
+                setDeltaMovement(Vec3.ZERO);
+                resetFallDistance();
                 scarArena(level, position(), 4);
                 bossStunTicks = 66;
                 riposteTicks = 66;
@@ -3528,7 +3558,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             clearCombatObstacle(level, impact);
             int smashed = breakCombatWall(level, impact, this);
             if (smashed > 0) {
-                recoverFromArenaImpact();
+                setDeltaMovement(Vec3.ZERO);
+                resetFallDistance();
                 scarArena(level, position(), 5);
                 level.sendParticles(ParticleTypes.EXPLOSION, getX(), getY() + 1.0D, getZ(),
                         7, 1.2D, 1.1D, 1.2D, 0.08D);
@@ -3537,7 +3568,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 return;
             }
             if (horizontalCollision) {
-                recoverFromArenaImpact();
+                setDeltaMovement(Vec3.ZERO);
+                resetFallDistance();
                 riposteTicks = 36;
                 finishBossAttack(54);
                 return;
@@ -3577,14 +3609,6 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             if (velocity.horizontalDistanceSqr() < 0.04D && bossChargeDirection.horizontalDistanceSqr() > 0.01D)
                 setDeltaMovement(bossChargeDirection.scale(0.42D).add(0.0D, velocity.y, 0.0D));
         }
-    }
-
-    private void recoverFromArenaImpact() {
-        Vec3 retreat = bossChargeDirection.horizontalDistanceSqr() > 0.01D
-                ? position().subtract(bossChargeDirection.normalize().scale(2.8D)) : position();
-        Vec3 safe = combatPoint(retreat);
-        setPos(safe.x, Math.max(combatCenter().y, safe.y), safe.z);
-        resetFallDistance();
     }
 
     private void performCleave(ServerLevel level) {

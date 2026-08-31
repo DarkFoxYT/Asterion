@@ -395,8 +395,10 @@ public final class WorldGenerator {
     public static void trackPlayerPlacement(ServerLevel level, BlockPos pos, BlockState state) {
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
         PLAYER_PLACED_BLOCKS.put(new BlockKey(level.dimension(), pos.immutable()), state.getBlock());
+        int decayTicks = net.krodark.asterion.worldgen.CatacombProtection.contains(level, pos)
+                ? 20 : AsterionConfig.INSTANCE.playerBlockDecayTicks;
         DECAYING_BLOCKS.add(new DecayingBlock(level.dimension(), pos.immutable(), state.getBlock(),
-                level.getGameTime() + AsterionConfig.INSTANCE.playerBlockDecayTicks));
+                level.getGameTime() + decayTicks));
     }
 
     public static void trackMazeBreak(ServerLevel level, BlockPos pos, BlockState state) {

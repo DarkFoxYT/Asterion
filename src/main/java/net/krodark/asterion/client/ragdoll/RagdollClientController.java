@@ -2,6 +2,7 @@ package net.krodark.asterion.client.ragdoll;
 
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
+import net.krodark.asterion.client.PerformanceGovernor;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.CameraType;
@@ -18,6 +19,9 @@ public final class RagdollClientController {
     private static boolean tumbleWasDown;
     private static boolean shiftWasDown;
     private static boolean rightWasDown;
+    private static boolean recoveryWasDown;
+    private static int recoveryPresses;
+    private static int recoveryLastPressTick;
     private static int scanTicker;
     private static CameraType cameraBeforeTumble;
     private static boolean thirdPersonLocked;
@@ -40,6 +44,7 @@ public final class RagdollClientController {
             tumbleWasDown = false;
             shiftWasDown = false;
             rightWasDown = false;
+            resetRecovery();
             observedLocalPlayer = null;
             return;
         }
@@ -52,6 +57,7 @@ public final class RagdollClientController {
             tumbleWasDown = false;
             shiftWasDown = false;
             rightWasDown = false;
+            resetRecovery();
             observedLocalPlayer = client.player;
         }
 
@@ -64,6 +70,7 @@ public final class RagdollClientController {
             tumbleWasDown = false;
             shiftWasDown = false;
             rightWasDown = false;
+            resetRecovery();
             engine.tick(client.level, client.player);
             return;
         }
@@ -83,6 +90,23 @@ public final class RagdollClientController {
             engine.releaseRagdoll(client.player.getId());
         }
         shiftWasDown = shift;
+
+        boolean recovery = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_SPACE) == GLFW.GLFW_PRESS;
+        boolean tumbling = engine.isPlayerTumbling(client.player.getId());
+        if (!tumbling || DazeOverlay.isActive()) resetRecovery();
+        else {
+            if (client.player.tickCount - recoveryLastPressTick > 24) recoveryPresses = 0;
+            if (input && recovery && !recoveryWasDown) {
+                recoveryLastPressTick = client.player.tickCount;
+                recoveryPresses++;
+                if (recoveryPresses >= 4 && engine.ragdollElapsedTicks(client.player.getId()) >= 8
+                        && engine.hasGroundContact(client.player.getId())) {
+                    engine.releaseRagdoll(client.player.getId());
+                    resetRecovery();
+                }
+            }
+            recoveryWasDown = recovery;
+        }
         syncRagdollCamera(client, engine);
 
         boolean right = GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS;
@@ -93,7 +117,8 @@ public final class RagdollClientController {
                 axis(window, GLFW.GLFW_KEY_A, GLFW.GLFW_KEY_D),
                 axis(window, GLFW.GLFW_KEY_S, GLFW.GLFW_KEY_W));
 
-        int ragdollQuality = AsterionConfig.INSTANCE.ragdollPhysicsQuality;
+        int ragdollQuality = Math.min(AsterionConfig.INSTANCE.ragdollPhysicsQuality,
+                PerformanceGovernor.quality());
         int scanInterval = ragdollQuality == 0 ? 10 : ragdollQuality == 1 ? 7 : 5;
         double scanRange = ragdollQuality == 0 ? 40.0D : ragdollQuality == 1 ? 52.0D : 64.0D;
         if (++scanTicker % scanInterval == 0) {
@@ -144,5 +169,11 @@ public final class RagdollClientController {
         if (cameraBeforeTumble != null) client.options.setCameraType(cameraBeforeTumble);
         cameraBeforeTumble = null;
         thirdPersonLocked = false;
+    }
+
+    private static void resetRecovery() {
+        recoveryWasDown = false;
+        recoveryPresses = 0;
+        recoveryLastPressTick = 0;
     }
 }

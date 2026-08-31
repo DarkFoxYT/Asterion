@@ -24,6 +24,7 @@ public final class GameplayGameTest implements FabricClientGameTest {
                 var level = mc.overworld(); var player = mc.getPlayerList().getPlayers().getFirst();
                 for (int x = -14; x <= 14; x++) for (int z = -14; z <= 14; z++) level.setBlock(new BlockPos(x,120,z), Blocks.STONE.defaultBlockState(),3);
                 player.setGameMode(GameType.SURVIVAL);
+                verifyGreekFireTorches(level,player);
                 for (var block : new net.minecraft.world.level.block.Block[]{Asterion.MAZESTEEL_BLOCK,Asterion.MAZESTEEL_BARS,Asterion.MAZESTEEL_CHAIN,Asterion.LAMENTER}) {
                     for (var tool : new Item[]{Items.AIR,Items.WOODEN_PICKAXE,Items.NETHERITE_PICKAXE}) {
                         player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,new ItemStack(tool));
@@ -120,6 +121,47 @@ public final class GameplayGameTest implements FabricClientGameTest {
                 Asterion.LOGGER.info("PASS: matching rune-beetle loot and actual right-click spray / left-click ignition");
             });
         } catch (Exception exception) { throw new AssertionError(exception); }
+    }
+    private static void verifyGreekFireTorches(net.minecraft.server.level.ServerLevel level,
+                                                net.minecraft.server.level.ServerPlayer player) {
+        BlockPos floor=new BlockPos(8,121,7);
+        level.setBlock(floor.below(),Blocks.STONE.defaultBlockState(),3);
+        level.setBlock(floor,Asterion.GREEK_FIRE_FLOOR_TORCH.defaultBlockState(),3);
+        level.setBlock(floor.above(),Asterion.GREEK_FIRE_FLOOR_TORCH.defaultBlockState(),3);
+        check(!level.getBlockState(floor).getValue(GreekFireTorchBlock.TOP)
+                        && level.getBlockState(floor.above()).getValue(GreekFireTorchBlock.TOP),
+                "Floor torch column did not switch shaft/tip states");
+        check(level.getBlockState(floor).getLightEmission()==0
+                        && level.getBlockState(floor.above()).getLightEmission()==14,
+                "Only the floor torch tip should emit block light");
+        level.setBlock(floor.above(),Blocks.AIR.defaultBlockState(),3);
+        check(level.getBlockState(floor).getValue(GreekFireTorchBlock.TOP),
+                "Shortened floor torch did not rebuild its tip");
+
+        BlockPos support=new BlockPos(12,122,7);
+        level.setBlock(support,Blocks.STONE.defaultBlockState(),3);
+        var hit=new net.minecraft.world.phys.BlockHitResult(Vec3.atCenterOf(support).add(.5,0,0),
+                Direction.EAST,support,false);
+        var stack=new ItemStack(Asterion.GREEK_FIRE_WALL_TORCH);
+        player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,stack);
+        ((net.minecraft.world.item.BlockItem)Asterion.GREEK_FIRE_WALL_TORCH.asItem()).place(
+                new net.minecraft.world.item.context.BlockPlaceContext(
+                        new net.minecraft.world.item.context.UseOnContext(player,
+                                net.minecraft.world.InteractionHand.MAIN_HAND,hit)));
+        BlockPos wall=support.east();
+        check(level.getBlockState(wall).is(Asterion.GREEK_FIRE_WALL_TORCH)
+                        && level.getBlockState(wall).getValue(GreekFireTorchBlock.FACING)==Direction.EAST,
+                "Wall torch did not attach to the selected wall face");
+        var topHit=new net.minecraft.world.phys.BlockHitResult(Vec3.atCenterOf(support).add(0,.5,0),
+                Direction.UP,support,false);
+        check(Asterion.GREEK_FIRE_WALL_TORCH.getStateForPlacement(
+                        new net.minecraft.world.item.context.BlockPlaceContext(
+                                new net.minecraft.world.item.context.UseOnContext(player,
+                                        net.minecraft.world.InteractionHand.MAIN_HAND,topHit)))==null,
+                "Wall torch accepted floor placement");
+        level.setBlock(support,Blocks.AIR.defaultBlockState(),3);
+        check(level.getBlockState(wall).isAir(),"Unsupported wall torch remained floating");
+        Asterion.LOGGER.info("PASS: wall-only torch placement and joined floor-torch shaft/tip/light updates");
     }
     private static void check(boolean value,String message){if(!value)throw new AssertionError(message);}
 }

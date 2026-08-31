@@ -37,7 +37,7 @@ public final class AuthoredCatacombs {
     }
     public static Module module(long seed, int tx, int tz) {
         int exits = exits(seed, tx, tz), degree = Integer.bitCount(exits);
-        long hash = seed ^ tx * 0x632BE59BD9B4E019L ^ tz * 0x9E3779B97F4A7C15L;
+        long hash = (seed ^ 0xA0761D6478BD642FL) ^ tx * 0x632BE59BD9B4E019L ^ tz * 0x9E3779B97F4A7C15L;
         hash = (hash ^ (hash >>> 30)) * 0xBF58476D1CE4E5B9L;
         hash = (hash ^ (hash >>> 27)) * 0x94D049BB133111EBL;
         hash ^= hash >>> 31;
@@ -89,7 +89,7 @@ public final class AuthoredCatacombs {
                 // Keep the existing maze floor and walls there; only crossings break the surface.
                 BoundingBox roomClip = module.name().startsWith("crossing_") ? clip
                         : new BoundingBox(clip.minX(), clip.minY(), clip.minZ(), clip.maxX(), 47, clip.maxZ());
-                template.placeInWorld(world, origin, origin, settings(roomClip).setRotation(module.rotation())
+                template.placeInWorld(world, origin, origin, placementSettings(roomClip, module.name().startsWith("crossing_")).setRotation(module.rotation())
                                 .setRotationPivot(new BlockPos(9, 0, 9)), RandomSource.create(seed ^ origin.asLong()), 18);
                 if (module.name().startsWith("crossing_")) surfaceApproach(world, chunk, origin, seed);
                 // No corner asset was supplied: rotate a T and close only its unused connector.
@@ -107,20 +107,79 @@ public final class AuthoredCatacombs {
                 // Preserve saved circuitry and shape across chunk boundaries; do not flood
                 // dry components with the destination's old fluid or notify every brick.
                 .setKnownShape(true).setLiquidSettings(LiquidSettings.IGNORE_WATERLOGGING)
-                .addProcessor(BlockIgnoreProcessor.STRUCTURE_BLOCK).addProcessor(JigsawReplacementProcessor.INSTANCE);
+                .addProcessor(BlockIgnoreProcessor.STRUCTURE_BLOCK).addProcessor(JigsawReplacementProcessor.INSTANCE)
+                .addProcessor(CLOSED_BARREL_DOORS);
     }
-    private static void surfaceApproach(WorldGenLevel world, ChunkPos chunk, BlockPos origin, long seed) {
-        // Keep the authored hatch, winch and lever. Grade only the surface around them.
-        for (int x = 0; x < SIZE; x++) for (int z = 0; z < SIZE; z++) {
-            int wx = origin.getX() + x, wz = origin.getZ() + z;
-            if (wx < chunk.getMinBlockX() || wx > chunk.getMaxBlockX() || wz < chunk.getMinBlockZ() || wz > chunk.getMaxBlockZ()) continue;
-            int radius = Math.max(Math.abs(x-9), Math.abs(z-9));
-            int surface = net.krodark.asterion.WorldGenerator.mazeFloorHeight(seed, wx, wz);
-            int deck = Math.min(surface, 48 + Math.max(0, radius - 3));
-            if (radius >= 3) {
-                for (int y = 49; y <= deck; y++) world.setBlock(new BlockPos(wx, y, wz), Asterion.ANCIENT_BRICKS.defaultBlockState(), 2);
+    // Runtime-only processor: upper template air must never erase the surrounding maze.
+    private static final StructureProcessor CROSSING_SURFACE = new StructureProcessor() {
+        @Override public StructureTemplate.StructureBlockInfo processBlock(
+                net.minecraft.world.level.LevelReader world, BlockPos origin, BlockPos reference,
+                StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed,
+                StructurePlaceSettings settings) {
+            BlockPos p=original.pos();
+            return p.getY()>=29 && Math.max(Math.abs(p.getX()-9),Math.abs(p.getZ()-9))>2 ? null : transformed;
+        }
+        @Override protected StructureProcessorType<?> getType() { return StructureProcessorType.BLOCK_IGNORE; }
+    };
+    private static final StructureProcessor CLOSED_BARREL_DOORS = new StructureProcessor() {
+        @Override public StructureTemplate.StructureBlockInfo processBlock(
+                net.minecraft.world.level.LevelReader world, BlockPos origin, BlockPos reference,
+                StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed,
+                StructurePlaceSettings settings) {
+            var state = transformed.state();
+            if (!state.is(Asterion.BARREL_DOOR)) return transformed;
+            // Open doors save a second 3x4 collision wing. Drop that moved copy and
+            // retain the original plane below as the closed door.
+            if (state.getValue(net.krodark.asterion.block.BarrelDoorBlock.WING)) return null;
+            return new StructureTemplate.StructureBlockInfo(transformed.pos(), state
+                    .setValue(net.krodark.asterion.block.BarrelDoorBlock.OPEN, false)
+                    .setValue(net.krodark.asterion.block.BarrelDoorBlock.WING, false), transformed.nbt());
+        }
+        @Override protected StructureProcessorType<?> getType() { return StructureProcessorType.BLOCK_IGNORE; }
+    };
+    public static StructurePlaceSettings placementSettings(BoundingBox clip, boolean crossing) {
+        StructurePlaceSettings settings=settings(clip);
+        return crossing ? settings.addProcessor(CROSSING_SURFACE) : settings;
+    }
+    public static void surfaceApproach(net.minecraft.world.level.ServerLevelAccessor world, ChunkPos chunk, BlockPos origin, long seed) {
+        // Only visit the current chunk's intersection with the compact approach. No
+        // neighboring chunk loads, topology searches, or whole-room clearance pass.
+        int minX=Math.max(1,chunk.getMinBlockX()-origin.getX());
+        int maxX=Math.min(17,chunk.getMaxBlockX()-origin.getX());
+        int minZ=Math.max(1,chunk.getMinBlockZ()-origin.getZ());
+        int maxZ=Math.min(17,chunk.getMaxBlockZ()-origin.getZ());
+        BlockPos.MutableBlockPos pos=new BlockPos.MutableBlockPos();
+        var brick=Asterion.ANCIENT_BRICKS.defaultBlockState();
+        var air=Blocks.AIR.defaultBlockState();
+        for(int x=minX;x<=maxX;x++)for(int z=minZ;z<=maxZ;z++) {
+            int wx=origin.getX()+x,wz=origin.getZ()+z;
+            int radius=Math.max(Math.abs(x-9),Math.abs(z-9));
+            int surface=net.krodark.asterion.WorldGenerator.mazeFloorHeight(seed,wx,wz);
+            if(radius<=2) {
+                // A small entrance recess, not a cleared plaza. Keep the wall/ceiling
+                // above two-block headroom and retain the authored winch and lever at 49.
+                for(int y=50;y<=Math.max(50,surface+2);y++) {
+                    pos.set(wx,y,wz);
+                    if(!world.getBlockState(pos).isAir())world.setBlock(pos,air,18);
+                }
+                continue;
             }
-            for (int y = Math.max(50, deck+1); y <= surface+4; y++) world.setBlock(new BlockPos(wx, y, wz), Blocks.AIR.defaultBlockState(), 2);
+            // Inspect the existing column before grading. Solid wall/decor columns
+            // remain entirely untouched, including their foundations at the maze floor.
+            pos.set(wx,surface+1,wz);
+            if(!world.getBlockState(pos).getCollisionShape(world,pos).isEmpty())continue;
+            pos.set(wx,surface+2,wz);
+            if(!world.getBlockState(pos).getCollisionShape(world,pos).isEmpty())continue;
+            int deck=Math.min(surface,48+radius-2);
+            for(int y=48;y<=deck;y++) {
+                pos.set(wx,y,wz);
+                if(world.getBlockState(pos)!=brick)world.setBlock(pos,brick,18);
+            }
+            // Lower ground only; never clear the walls or decorations above it.
+            for(int y=deck+1;y<=surface;y++) {
+                pos.set(wx,y,wz);
+                if(!world.getBlockState(pos).isAir())world.setBlock(pos,air,18);
+            }
         }
     }
     public static void placeArena(ServerLevel level) {

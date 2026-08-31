@@ -9,6 +9,7 @@ import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.client.event.DeadSunClientEvents;
 import net.krodark.asterion.client.DeadSunEntryCinematic;
 import net.krodark.asterion.client.BossFinaleOverlay;
+import net.krodark.asterion.client.PerformanceGovernor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.UniformValue;
 import net.minecraft.util.Mth;
@@ -31,7 +32,8 @@ public final class AsterionPostEffects {
 
     public static void register() {
         PostEffects.register(Asterion.id("dimension/dead_sun"), config -> config
-                .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.deadSunEnabled)
+                .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.deadSunEnabled
+                        && PerformanceGovernor.quality() > 0)
                 .phase(RenderPhase.POST_WORLD)
                 .priority(10)
                 .fade(32, 16)
@@ -52,7 +54,8 @@ public final class AsterionPostEffects {
                         AsterionConfig.INSTANCE.deadSunCoronaG, AsterionConfig.INSTANCE.deadSunCoronaB)));
 
         PostEffects.register(Asterion.id("dimension/dusty_air"), config -> config
-                .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.dustyAirEnabled)
+                .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.dustyAirEnabled
+                        && PerformanceGovernor.quality() > 0)
                 .phase(RenderPhase.POST_WORLD)
                 .priority(20)
                 .fade(24, 16)
@@ -64,6 +67,38 @@ public final class AsterionPostEffects {
                 .uniformVec3("FogColor", AsterionPostEffects::fogColor)
                 .uniform("EclipseData", DeadSunClientEvents::eclipseStrength)
                 .uniformRaw("WorldData", AsterionPostEffects::worldData));
+
+        // Under sustained frame pressure these retain the same world-space colors,
+        // depth occlusion and animation with fewer full-resolution passes/ray samples.
+        PostEffects.register(Asterion.id("dimension/dead_sun_fast"), config -> config
+                .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.deadSunEnabled
+                        && PerformanceGovernor.quality() == 0)
+                .phase(RenderPhase.POST_WORLD).priority(10).fade(3, 8)
+                .uniform("DustTime", AsterionPostEffects::renderTime)
+                .uniform("AsterionStrength", () -> AsterionConfig.INSTANCE.deadSunStrength)
+                .uniform("AsterionQuality", 0)
+                .uniformRaw("WorldData", AsterionPostEffects::worldData)
+                .uniformVec4("DeadSunData", AsterionPostEffects::deadSunData)
+                .uniformVec4("DeadSunTuning", AsterionPostEffects::deadSunTuning)
+                .uniform("EclipseData", DeadSunClientEvents::eclipseStrength)
+                .uniform("WorldDarkness", DeadSunClientEvents::darknessStrength)
+                .uniform("EntryRadiance", AsterionPostEffects::radiance)
+                .uniform("FinaleProgress", BossFinaleOverlay::sunDetonationStrength)
+                .uniform("DeadSunOpacity", () -> AsterionConfig.INSTANCE.deadSunOpacity)
+                .uniformVec3("DeadSunCoreColor", () -> new Vector3f(AsterionConfig.INSTANCE.deadSunCoreR,
+                        AsterionConfig.INSTANCE.deadSunCoreG, AsterionConfig.INSTANCE.deadSunCoreB))
+                .uniformVec3("DeadSunCoronaColor", () -> new Vector3f(AsterionConfig.INSTANCE.deadSunCoronaR,
+                        AsterionConfig.INSTANCE.deadSunCoronaG, AsterionConfig.INSTANCE.deadSunCoronaB)));
+        PostEffects.register(Asterion.id("dimension/dusty_air_fast"), config -> config
+                .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.dustyAirEnabled
+                        && PerformanceGovernor.quality() == 0)
+                .phase(RenderPhase.POST_WORLD).priority(20).fade(3, 8)
+                .uniform("DustTime", AsterionPostEffects::renderTime)
+                .uniform("AsterionStrength", () -> AsterionConfig.INSTANCE.dustyAirStrength)
+                .uniformRaw("WorldData", AsterionPostEffects::worldData)
+                .uniformVec3("AtmosphereSettings", AsterionPostEffects::atmosphereSettings)
+                .uniformVec3("DustColor", AsterionPostEffects::dustColor)
+                .uniformVec3("FogColor", AsterionPostEffects::fogColor));
     }
 
     private static boolean isInsideAsterion() {
@@ -76,7 +111,7 @@ public final class AsterionPostEffects {
     }
 
     private static double effectQuality() {
-        return AsterionConfig.INSTANCE.cinematicQuality;
+        return Math.min(AsterionConfig.INSTANCE.cinematicQuality, PerformanceGovernor.quality());
     }
 
     private static double renderTime() {

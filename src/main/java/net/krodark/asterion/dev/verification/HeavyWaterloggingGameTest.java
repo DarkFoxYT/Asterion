@@ -192,7 +192,7 @@ public final class HeavyWaterloggingGameTest implements FabricClientGameTest {
                 Blocks.IRON_BARS.defaultBlockState(), Asterion.MAZESTEEL_GATE.defaultBlockState(),
                 Blocks.REDSTONE_WIRE.defaultBlockState(), Blocks.REPEATER.defaultBlockState(),
                 Blocks.COMPARATOR.defaultBlockState()};
-        BlockPos base = new BlockPos(320, 7, 320);
+        BlockPos base = new BlockPos(320, net.krodark.asterion.worldgen.CatacombLayout.WATER_Y, 320);
         for (int i = 0; i < shapes.length; i++) {
             BlockPos pos = base.east(i);
             maze.setBlock(pos, HeavyWater.WATER_BLOCK.defaultBlockState(), 3);

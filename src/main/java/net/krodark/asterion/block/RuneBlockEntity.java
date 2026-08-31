@@ -57,7 +57,7 @@ public final class RuneBlockEntity extends BlockEntity implements GeoBlockEntity
         for (int attempt = 0; attempt < 12; attempt++) {
             BlockPos pos = root.offset(level.getRandom().nextInt(13) - 6, level.getRandom().nextInt(5) - 2,
                     level.getRandom().nextInt(13) - 6);
-            if (!level.hasChunkAt(pos) || !level.hasChunkAt(pos.below())) continue;
+            if (!level.getChunkSource().hasChunk(pos.getX() >> 4, pos.getZ() >> 4)) continue;
             if (!level.getBlockState(pos.below()).isFaceSturdy(level, pos.below(), net.minecraft.core.Direction.UP)
                     || !level.getFluidState(pos).isEmpty()) continue;
             var beetle = Asterion.RUNE_BEETLE.create(level, net.minecraft.world.entity.EntitySpawnReason.NATURAL);

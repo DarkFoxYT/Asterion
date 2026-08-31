@@ -149,7 +149,7 @@
   "item.asterion.scarlet_centipede_spawn_egg": "Scarlet Centipede Spawn Egg",
   "subtitles.asterion.minotaur_roar": "Minotaur roars",
   "effect.asterion.resolve": "Resolve",
-  "hud.asterion.ragdoll_get_up": "SHIFT  —  GET UP",
+  "hud.asterion.ragdoll_get_up": "MASH SPACE  —  GET UP",
   "block.asterion.rune_a": "Rune Alpha (Α)",
   "block.asterion.rune_b": "Rune Beta (Β)",
   "block.asterion.rune_c": "Rune Gamma (Γ)",
@@ -189,5 +189,11 @@
   "entity.asterion.cursed_brazier": "Cursed Brazier",
   "item.asterion.cursed_brazier_spawn_egg": "Cursed Brazier Spawn Egg",
   "item.asterion.rune_beetle_spawn_egg": "Rune Beetle Spawn Egg",
-  "message.asterion.omega_treasure": "The Omega reveals its treasure. Collect it before the maze collapses!"
+  "message.asterion.omega_treasure": "The Omega reveals its treasure. Collect it before the maze collapses!",
+  "block.asterion.greek_fire_wall_torch": "Greek Fire Wall Torch",
+  "block.asterion.greek_fire_floor_torch": "Greek Fire Floor Torch",
+  "block.asterion.red_fire_wall_torch": "Red Fire Wall Torch",
+  "block.asterion.red_fire_floor_torch": "Red Fire Floor Torch",
+  "block.asterion.orange_fire_wall_torch": "Orange Fire Wall Torch",
+  "block.asterion.orange_fire_floor_torch": "Orange Fire Floor Torch"
 }

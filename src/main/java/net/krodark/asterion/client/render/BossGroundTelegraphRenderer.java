@@ -146,7 +146,7 @@ public final class BossGroundTelegraphRenderer {
             long key = ((long)bx << 32) ^ (bz & 0xffffffffL);
             double y = heights.computeIfAbsent(key, ignored -> {
                 var pos = new BlockPos.MutableBlockPos(bx, Mth.floor(center.y) + 1, bz);
-                if (!level.hasChunkAt(pos)) return Double.NaN;
+                if (!level.getChunkSource().hasChunk(bx >> 4, bz >> 4)) return Double.NaN;
                 for (int h = pos.getY(); h >= Math.max(level.getMinY(), center.y - 32); h--) {
                     pos.setY(h);
                     var collision = level.getBlockState(pos).getCollisionShape(level, pos);

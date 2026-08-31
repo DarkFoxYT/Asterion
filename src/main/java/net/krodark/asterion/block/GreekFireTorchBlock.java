@@ -1,0 +1,101 @@
+package net.krodark.asterion.block;
+
+import com.mojang.serialization.MapCodec;
+import net.minecraft.core.*;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.*;
+import net.minecraft.world.level.block.*;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.*;
+import net.minecraft.world.level.block.state.properties.*;
+import net.minecraft.world.phys.shapes.*;
+import net.minecraft.world.phys.AABB;
+import org.jspecify.annotations.Nullable;
+
+/** One renderer supports a wall sconce and a vertically joinable floor-torch column. */
+public final class GreekFireTorchBlock extends BaseEntityBlock {
+    public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
+    public static final BooleanProperty TOP = BooleanProperty.create("top");
+    public final boolean wall;
+    public final FireColor fireColor;
+
+    public GreekFireTorchBlock(Properties properties, boolean wall, FireColor fireColor) {
+        super(properties);
+        this.wall=wall;
+        this.fireColor=fireColor;
+        registerDefaultState(stateDefinition.any().setValue(FACING,Direction.SOUTH).setValue(TOP,true));
+    }
+    @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
+    @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block,BlockState> builder) {
+        builder.add(FACING,TOP);
+    }
+    @Override public @Nullable BlockState getStateForPlacement(BlockPlaceContext context) {
+        Direction face=context.getClickedFace();
+        if(wall) {
+            if(!face.getAxis().isHorizontal()) return null;
+            BlockState state=defaultBlockState().setValue(FACING,face);
+            return canSurvive(state,context.getLevel(),context.getClickedPos())?state:null;
+        }
+        if(face!=Direction.UP) return null;
+        BlockState state=defaultBlockState().setValue(TOP,
+                context.getLevel().getBlockState(context.getClickedPos().above()).getBlock()!=this);
+        return canSurvive(state,context.getLevel(),context.getClickedPos())?state:null;
+    }
+    @Override protected boolean canSurvive(BlockState state,LevelReader level,BlockPos pos) {
+        if(wall) {
+            Direction support=state.getValue(FACING).getOpposite();
+            BlockPos supportPos=pos.relative(support);
+            return level.getBlockState(supportPos).isFaceSturdy(level,supportPos,state.getValue(FACING));
+        }
+        BlockPos below=pos.below();
+        return level.getBlockState(below).getBlock()==this
+                || Block.canSupportCenter(level,below,Direction.UP);
+    }
+    @Override protected BlockState updateShape(BlockState state,LevelReader level,ScheduledTickAccess ticks,
+            BlockPos pos,Direction direction,BlockPos neighborPos,BlockState neighbor,RandomSource random) {
+        if(!canSurvive(state,level,pos)) return Blocks.AIR.defaultBlockState();
+        if(!wall && direction==Direction.UP)
+            return state.setValue(TOP,neighbor.getBlock()!=this);
+        return state;
+    }
+    @Override protected BlockState rotate(BlockState state,Rotation rotation) {
+        return state.setValue(FACING,rotation.rotate(state.getValue(FACING)));
+    }
+    @Override protected BlockState mirror(BlockState state,Mirror mirror) {
+        return state.rotate(mirror.getRotation(state.getValue(FACING)));
+    }
+    @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
+    @Override protected VoxelShape getShape(BlockState state,BlockGetter level,BlockPos pos,CollisionContext context) {
+        if(!wall) return state.getValue(TOP)?box(1,0,1,15,16,15):box(6,0,6,10,16,10);
+        VoxelShape south=Shapes.or(box(6,0,10,10,16,16),box(1,14,5,15,32,16));
+        return switch(state.getValue(FACING)) {
+            case NORTH -> rotateShape(south,2); case WEST -> rotateShape(south,1);
+            case EAST -> rotateShape(south,3); default -> south;
+        };
+    }
+    private static VoxelShape rotateShape(VoxelShape source,int turns) {
+        VoxelShape result=source;
+        for(int i=0;i<turns;i++) {
+            VoxelShape next=Shapes.empty();
+            for(AABB box:result.toAabbs()) next=Shapes.or(next,Shapes.box(1-box.maxZ,box.minY,box.minX,
+                    1-box.minZ,box.maxY,box.maxX));
+            result=next;
+        }
+        return result.optimize();
+    }
+    @Override public BlockEntity newBlockEntity(BlockPos pos,BlockState state) {
+        return new GreekFireTorchBlockEntity(pos,state);
+    }
+
+    public enum FireColor {
+        GREEK("torch_greek_fire", .18F, 1.0F, .30F),
+        RED("torch_red_fire", 1.0F, .12F, .06F),
+        ORANGE("torch_orange_fire", 1.0F, .46F, .08F);
+        public final String texture;
+        public final float red,green,blue;
+        FireColor(String texture,float red,float green,float blue) {
+            this.texture=texture; this.red=red; this.green=green; this.blue=blue;
+        }
+    }
+}

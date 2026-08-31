@@ -29,7 +29,7 @@ public final class AsterionModMenu implements ModMenuApi {
             AsterionConfig config = AsterionConfig.INSTANCE;
             int left = width / 2 - 155;
             int right = width / 2 + 5;
-            int y = Math.max(20, (height - 232) / 2);
+            int y = Math.max(20, (height - 253) / 2);
             addRenderableOnly(new StringWidget(width / 2 - 100, y - 20, 200, 20,
                     Component.literal("Cinematics and performance"), font));
             addRenderableWidget(CycleButton.onOffBuilder(config.cinematicsEnabled).create(
@@ -39,6 +39,14 @@ public final class AsterionModMenu implements ModMenuApi {
                             config.cinematicQuality).withValues(0, 1, 2).create(
                     right, y, 150, 20, Component.literal("Effects quality"),
                     (button, value) -> config.cinematicQuality = value));
+            y += 21;
+            addRenderableWidget(CycleButton.onOffBuilder(config.adaptivePerformance).create(
+                    left, y, 150, 20, Component.literal("Adaptive performance"),
+                    (button, value) -> config.adaptivePerformance = value));
+            addRenderableWidget(CycleButton.<Integer>builder(value -> Component.literal(value + " FPS"),
+                            config.performanceTargetFps).withValues(60, 120, 165, 240, 360).create(
+                    right, y, 150, 20, Component.literal("Performance target"),
+                    (button, value) -> config.performanceTargetFps = value));
             y += 21;
             addRenderableWidget(CycleButton.onOffBuilder(config.dynamicLightsEnabled).create(
                     left, y, 150, 20, Component.literal("Dynamic lights"),

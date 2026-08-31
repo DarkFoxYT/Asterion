@@ -1,0 +1,2 @@
+{"type":"minecraft:block","pools":[{"rolls":1,"entries":[{"type":"minecraft:item","name":"asterion:orange_fire_floor_torch"}],"conditions":[{"condition":"minecraft:survives_explosion"}]}]}
+

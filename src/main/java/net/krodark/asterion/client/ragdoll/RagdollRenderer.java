@@ -48,7 +48,7 @@ public final class RagdollRenderer {
 
     public static void submit(PoseStack poses, LevelRenderState state, SubmitNodeCollector collector) {
         Minecraft client = Minecraft.getInstance();
-        if (client.level == null) return;
+        if (client.level == null || DismembermentEngine.INSTANCE.pieces().isEmpty()) return;
         Vec3 camera = state.cameraRenderState.pos;
         List<RigidBodyPiece> bodies = new ArrayList<>();
         List<RigidBodyPiece> grips = new ArrayList<>();

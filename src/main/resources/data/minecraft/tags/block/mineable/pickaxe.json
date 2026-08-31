@@ -47,6 +47,12 @@
     "asterion:rune_u",
     "asterion:rune_v",
     "asterion:rune_w",
-    "asterion:rune_x"
+    "asterion:rune_x",
+    "asterion:greek_fire_wall_torch",
+    "asterion:greek_fire_floor_torch",
+    "asterion:red_fire_wall_torch",
+    "asterion:red_fire_floor_torch",
+    "asterion:orange_fire_wall_torch",
+    "asterion:orange_fire_floor_torch"
   ]
 }
