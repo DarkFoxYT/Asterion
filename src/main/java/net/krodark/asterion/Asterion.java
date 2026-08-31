@@ -148,10 +148,10 @@ public class Asterion implements ModInitializer {
                     .strength(3.2F, 5.0F).sound(SoundType.WOOD)));
     public static final Block ANCIENT_STONE = registerBlock("ancient_stone", MapColor.TERRACOTTA_BROWN, Block::new);
     public static final Block MOSSY_ANCIENT_STONE = registerBlock("mossy_ancient_stone", MapColor.TERRACOTTA_GREEN, Block::new);
-    public static final Block ANCIENT_MOSS = registerBlock("ancient_moss", MapColor.TERRACOTTA_GREEN, Block::new);
+    public static final Block ANCIENT_MOSS = registerBlock("ancient_moss", MapColor.TERRACOTTA_GREEN, net.krodark.asterion.block.WaterloggedMossBlock::new);
     public static final Block ANCIENT_MOSS_CARPET = registerBlock(
             "ancient_moss_carpet", MapColor.TERRACOTTA_GREEN,
-            properties -> new CarpetBlock(properties.noCollision().strength(0.1F)
+            properties -> new net.krodark.asterion.block.WaterloggedMossCarpetBlock(properties.noCollision().strength(0.1F)
                     .sound(SoundType.MOSS_CARPET)));
     public static final LeavesBlock ANCIENT_LEAVES = (LeavesBlock)registerBlock(
             "ancient_leaves", MapColor.TERRACOTTA_BROWN,

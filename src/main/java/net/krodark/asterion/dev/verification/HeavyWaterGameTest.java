@@ -59,6 +59,11 @@ public final class HeavyWaterGameTest implements FabricClientGameTest {
                 }
                 check(HeavyWater.STILL.defaultFluidState().is(FluidTags.WATER), "Normal Heavy Water missing water tag");
                 check(HeavyWater.STILL.getBucket() == HeavyWater.BUCKET, "Wrong bucket");
+                for (var gate : Asterion.MAZESTEEL_GATE.getStateDefinition().getPossibleStates()) {
+                    boolean open = gate.getValue(net.krodark.asterion.block.DirectionalGateBlock.OPEN);
+                    check(gate.getCollisionShape(level, fixed).isEmpty() == open, "Gate collision disagrees with open state");
+                    check(gate.getShape(level, fixed).isEmpty() == open, "Open gate retains an invisible selection shape");
+                }
                 checkRumbleSources(level);
                 checkFloodAndRarity(mc.getLevel(Asterion.ASTERION_LEVEL));
                 long start = level.getGameTime() + 1;
@@ -77,7 +82,15 @@ public final class HeavyWaterGameTest implements FabricClientGameTest {
                             player.teleportTo(2.5, 122.2, 2.5);
                         }
                         if (tick >= 101 && tick <= 530) player.setAirSupply(player.getMaxAirSupply());
-                        if (tick == 120) check(HeavyWaterFatigue.swimmingInHeavyWater(player), "Heavy Water immersion not detected");
+                        if (tick == 120) {
+                            check(HeavyWaterFatigue.swimmingInHeavyWater(player), "Heavy Water immersion not detected");
+                            player.setDeltaMovement(.2, .1, 0);
+                            player.travel(Vec3.ZERO);
+                            check(player.getDeltaMovement().x < .16, "Heavy Water lacks additional horizontal resistance");
+                            check(player.getDeltaMovement().y > 0 && player.getDeltaMovement().y < .08,
+                                    "Heavy Water must slow ascent without forcing the swimmer down");
+                            Asterion.LOGGER.info("PASS: open gate shapes and Heavy Water horizontal/ascent resistance");
+                        }
                         if (tick == 300) check(!player.hasEffect(MobEffects.MINING_FATIGUE), "Fatigue starts too soon");
                         if (tick == 530) {
                             check(player.hasEffect(MobEffects.MINING_FATIGUE), "Prolonged swimming did not cause fatigue");

@@ -76,6 +76,7 @@ public final class DirectionalGateBlock extends Block implements net.minecraft.w
 
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        if (state.getValue(OPEN)) return Shapes.empty();
         if (state.getValue(FACE) != AttachFace.FLOOR)
             return box(0, 6, 0, 16, 10, 16);
         return state.getValue(FACING).getAxis() == Direction.Axis.X
@@ -92,6 +93,9 @@ public final class DirectionalGateBlock extends Block implements net.minecraft.w
     @Override
     protected VoxelShape getOcclusionShape(BlockState state) {
         return Shapes.empty();
+    }
+    @Override protected boolean isPathfindable(BlockState state, net.minecraft.world.level.pathfinder.PathComputationType type) {
+        return state.getValue(OPEN);
     }
     @Override protected float getDestroyProgress(BlockState state, net.minecraft.world.entity.player.Player player,
                                                  BlockGetter level, BlockPos pos) {

@@ -4,7 +4,7 @@
     {
       "rolls": 1,
       "entries": [
-        { "type": "minecraft:item", "name": "asterion:tainted_heart" }
+        { "type": "minecraft:item", "name": "asterion:tainted_heart_eatable" }
       ],
       "conditions": [
         { "condition": "minecraft:survives_explosion" }

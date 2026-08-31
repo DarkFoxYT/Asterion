@@ -23,6 +23,7 @@ public final class BarrelDoorGameTest implements FabricClientGameTest {
             server.runOnServer(mc -> {
                 var level = mc.overworld();
                 var player = mc.getPlayerList().getPlayers().getFirst();
+                GreekBrazierBlock.placeStructure((pos, state) -> level.setBlock(pos, state, 3), new BlockPos(10, 126, 0));
                 for (int x = -12; x <= 12; x++) for (int z = -12; z <= 12; z++)
                     level.setBlock(new BlockPos(x, 120, z), Blocks.STONE.defaultBlockState(), 3);
                 player.setGameMode(GameType.SURVIVAL);
@@ -46,6 +47,27 @@ public final class BarrelDoorGameTest implements FabricClientGameTest {
             });
             context.runOnClient(client -> client.options.hideGui = true);
             context.waitTicks(20);
+            context.runOnClient(client -> {
+                int previous = net.krodark.asterion.AsterionConfig.INSTANCE.brightnessPercent;
+                double vanilla = client.options.gamma().get();
+                try {
+                    var extractor = new net.minecraft.client.renderer.LightmapRenderStateExtractor(client.gameRenderer, client);
+                    var light = new net.minecraft.client.renderer.state.LightmapRenderState();
+                    for (int brightness : new int[]{0, 100, -1}) {
+                        net.krodark.asterion.AsterionConfig.INSTANCE.brightnessPercent = brightness;
+                        extractor.tick(); extractor.extract(light, 0);
+                        check(Math.abs(light.brightness - (brightness < 0 ? vanilla : brightness / 100F)) < .001,
+                                "Rendered brightness override failed");
+                        check(client.options.gamma().get() == vanilla, "Brightness override rewrote vanilla preference");
+                    }
+                } finally { net.krodark.asterion.AsterionConfig.INSTANCE.brightnessPercent = previous; }
+            });
+            server.runOnServer(mc -> {
+                var level = mc.overworld();
+                for (int x = 9; x <= 11; x++) for (int z = -1; z <= 1; z++)
+                    check(level.getBlockState(new BlockPos(x, 126, z)).is(Asterion.GREEK_BRAZIER), "Unsupported brazier broke");
+                Asterion.LOGGER.info("PASS: unsupported brazier survives; Moody/Bright/Vanilla render settings preserve vanilla preference");
+            });
             context.takeScreenshot("barrel-door-closed");
             server.runOnServer(mc -> {
                 var level = mc.overworld();
@@ -82,6 +104,24 @@ public final class BarrelDoorGameTest implements FabricClientGameTest {
                         mc.getPlayerList().getPlayers().getFirst());
                 for (int c = 0; c < 3; c++) for (int r = 0; r < 4; r++)
                     check(level.getBlockState(BarrelDoorBlock.part(root, Direction.NORTH, c, r)).isAir(), "Orphan door part");
+                for (int amount = 0; amount <= 9; amount++) {
+                    var fluid = amount == 0 ? net.minecraft.world.level.material.Fluids.WATER.defaultFluidState()
+                            : net.krodark.asterion.fluid.HeavyWaterlogging.fluid(amount);
+                    for (int c = 0; c < 3; c++) for (int r = 0; r < 4; r++)
+                        level.setBlock(BarrelDoorBlock.part(root, Direction.NORTH, c, r), fluid.createLegacyBlock(), 2);
+                    for (int d = 1; d <= 3; d++) for (int r = 0; r < 4; r++)
+                        level.setBlock(root.east().south(d).above(r), fluid.createLegacyBlock(), 2);
+                    BarrelDoorBlock.place(level, root, Direction.NORTH);
+                    check(level.getFluidState(root).getType() == fluid.getType(), "Placing door erased water");
+                    check(BarrelDoorBlock.prepareSwing(level, root, Direction.NORTH), "Door cannot swing through water");
+                    BarrelDoorBlock.setOpen(level, root, Direction.NORTH, true);
+                    BarrelDoorBlock.setOpen(level, root, Direction.NORTH, false);
+                    check(level.getFluidState(root.east().south(2)).getType() == fluid.getType(), "Closing erased wing water");
+                    BarrelDoorBlock.removeDoor(level, root, Direction.NORTH);
+                    check(level.getFluidState(root).getType() == fluid.getType()
+                            && level.getFluidState(root).getAmount() == fluid.getAmount(), "Removing door lost fluid or height");
+                }
+                Asterion.LOGGER.info("PASS: barrel door preserves vanilla water and all Heavy Water layers through placement, swing and removal");
             });
         }
     }

@@ -57,8 +57,7 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
             BlockPos pos = part(center,x,z);
             if (!level.isLoaded(pos) || level.isOutsideBuildHeight(pos)
                     || !level.getWorldBorder().isWithinBounds(pos)
-                    || !level.getBlockState(pos).canBeReplaced(context)
-                    || !level.getBlockState(pos.below()).isFaceSturdy(level,pos.below(),Direction.UP)) return null;
+                    || !level.getBlockState(pos).canBeReplaced(context)) return null;
         }
         boolean wet = level.getFluidState(center).is(net.minecraft.tags.FluidTags.WATER);
         return defaultBlockState().setValue(BlockStateProperties.WATERLOGGED,wet)
@@ -145,8 +144,7 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
         for(int x=0;x<3;x++) for(int z=0;z<3;z++) {
             BlockPos tile=part(center,x,z);
             BlockState other=level.getBlockState(tile);
-            if(!owned(other,tile,center)
-                    || !level.getBlockState(tile.below()).isFaceSturdy(level,tile.below(),Direction.UP)) {
+            if(!owned(other,tile,center)) {
                 popResource(level,center,new ItemStack(this)); removeAll(level,center); return;
             }
             wet |= other.getValue(BlockStateProperties.WATERLOGGED);

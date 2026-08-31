@@ -53,6 +53,8 @@ public final class AsterionConfig {
     public float minotaurVerticalFov = 70.0f;
     public int minotaurBossPillarCount = 6;
     public boolean cinematicsEnabled = true;
+    /** -1 preserves vanilla brightness; 0 is Moody and 100 is Bright. */
+    public int brightnessPercent = 0;
     public int cinematicQuality = 2;
     public int ambientParticleQuality = 2;
     public boolean potatoParticleCulling = false;
@@ -255,6 +257,7 @@ public final class AsterionConfig {
         minotaurVerticalFov = clamp(minotaurVerticalFov, 25.0f, 120.0f);
         minotaurBossPillarCount = Math.max(4, Math.min(16, minotaurBossPillarCount));
         cinematicQuality = Math.max(0, Math.min(2, cinematicQuality));
+        brightnessPercent = Math.clamp(brightnessPercent, -1, 100);
         ambientParticleQuality = Math.max(0, Math.min(2, ambientParticleQuality));
         ragdollPhysicsQuality = Math.max(0, Math.min(2, ragdollPhysicsQuality));
         dynamicLightQuality = Math.max(0, Math.min(2, dynamicLightQuality));

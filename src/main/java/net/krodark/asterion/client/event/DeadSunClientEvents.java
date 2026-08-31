@@ -418,9 +418,21 @@ public final class DeadSunClientEvents {
         }
     }
 
+    /** Flood atmosphere uses the synchronized event clock, including players joining mid-event. */
+    public static float floodStrength() {
+        var client = Minecraft.getInstance();
+        if (client.level == null || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)
+                || !DeadSunEventSystem.FLOOD.equals(activeId) || !(active instanceof NeutralEffect flood)) return 0;
+        double riseTicks = net.krodark.asterion.event.CatacombFloodState.MAX_RISE
+                * net.krodark.asterion.event.CatacombFloodState.STEP_TICKS;
+        return (float)Mth.clamp((client.level.getGameTime() - flood.startTick) / riseTicks, 0, 1);
+    }
+
     private static final class NeutralEffect implements ActiveEffect {
+        private final long startTick;
         private final long endTick;
         private NeutralEffect(long seed, long startTick, int duration, float intensity) {
+            this.startTick = startTick;
             this.endTick = startTick + Math.max(1, duration);
         }
         @Override public long endTick() { return endTick; }

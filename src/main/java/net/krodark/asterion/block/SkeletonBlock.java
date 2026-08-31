@@ -23,14 +23,14 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
 /** A floor skeleton that can only face one of the four horizontal directions. */
-public final class SkeletonBlock extends BaseEntityBlock {
+public final class SkeletonBlock extends BaseEntityBlock implements WaterloggedDecoration {
     public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     private static final VoxelShape NORTH_SOUTH_SHAPE = box(2.0D, 0.0D, 0.0D, 14.0D, 2.5D, 16.0D);
     private static final VoxelShape EAST_WEST_SHAPE = box(0.0D, 0.0D, 2.0D, 16.0D, 2.5D, 14.0D);
 
     public SkeletonBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH));
+        registerDefaultState(stateDefinition.any().setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED, false).setValue(FACING, Direction.NORTH));
     }
 
     @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }

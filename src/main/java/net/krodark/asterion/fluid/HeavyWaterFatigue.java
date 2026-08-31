@@ -39,7 +39,7 @@ public final class HeavyWaterFatigue {
             }
         }
     }
-    public static boolean swimmingInHeavyWater(ServerPlayer player) {
+    public static boolean swimmingInHeavyWater(net.minecraft.world.entity.player.Player player) {
         if (!player.isInWater() || player.isPassenger()
                 || player.onGround() && player.getFluidHeight(FluidTags.WATER) < .8 && !player.isSwimming()) return false;
         var level = player.level();

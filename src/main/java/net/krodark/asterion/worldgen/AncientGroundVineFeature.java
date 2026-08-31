@@ -24,7 +24,7 @@ public final class AncientGroundVineFeature extends Feature<NoneFeatureConfigura
         BlockPos origin = context.origin();
         if (!OvergrowthFeatureSupport.enabled(level, origin, "ground_vines")) return false;
         int placed = 0;
-        int attempts = 18 + random.nextInt(12);
+        int attempts = (18 + random.nextInt(12)) / 2;
         for (int attempt = 0; attempt < attempts; attempt++) {
             int x = origin.getX() + random.nextIntBetweenInclusive(-7, 7);
             int z = origin.getZ() + random.nextIntBetweenInclusive(-7, 7);

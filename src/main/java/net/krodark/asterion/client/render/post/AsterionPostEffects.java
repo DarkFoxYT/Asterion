@@ -23,6 +23,8 @@ public final class AsterionPostEffects {
     private static int biomeTarget;
     private static float overgrowthBlend;
     private static float crimsonBlend;
+    private static float catacombBlend;
+    private static float floodBlend;
 
     private AsterionPostEffects() {
     }
@@ -119,10 +121,12 @@ public final class AsterionPostEffects {
         return new Vector3f(
                 config.dustDensity * mix(1.0F, 0.82F, overgrowthBlend)
                         * mix(1.0F, 0.92F, crimsonBlend)
-                        * mix(1.0F, 2.80F, eclipse),
+                        * mix(1.0F, 2.80F, eclipse)
+                        * mix(1.0F, 1.4F + 2.8F * floodBlend, catacombBlend),
                 config.fogStrength * mix(1.0F, 0.90F, overgrowthBlend)
                         * mix(1.0F, 0.94F, crimsonBlend)
-                        * mix(1.0F, 2.25F, eclipse),
+                        * mix(1.0F, 2.25F, eclipse)
+                        * mix(1.0F, 1.1F + .4F * floodBlend, catacombBlend),
                 config.shaderAnimationSpeed);
     }
 
@@ -139,9 +143,9 @@ public final class AsterionPostEffects {
         green = mix(green, 0.70F, crimsonBlend);
         blue = mix(blue, 0.84F, crimsonBlend);
         return new Vector3f(
-                mix(red, 0.15F, eclipse),
-                mix(green, 0.018F, eclipse),
-                mix(blue, 0.012F, eclipse));
+                mix(mix(red, 0.15F, eclipse), .70F, catacombBlend),
+                mix(mix(green, 0.018F, eclipse), .81F, catacombBlend),
+                mix(mix(blue, 0.012F, eclipse), .90F, catacombBlend));
     }
 
     private static Vector3f fogColor() {
@@ -154,9 +158,9 @@ public final class AsterionPostEffects {
         green = mix(green, 0.34F, crimsonBlend);
         blue = mix(blue, 0.43F, crimsonBlend);
         return new Vector3f(
-                mix(red, 0.018F, eclipse),
-                mix(green, 0.003F, eclipse),
-                mix(blue, 0.002F, eclipse));
+                mix(mix(red, 0.018F, eclipse), .64F, catacombBlend),
+                mix(mix(green, 0.003F, eclipse), .76F, catacombBlend),
+                mix(mix(blue, 0.002F, eclipse), .86F, catacombBlend));
     }
 
     public static void setBiome(int biome) {
@@ -168,6 +172,17 @@ public final class AsterionPostEffects {
     }
 
     public static void tickBiomeAtmosphere(Minecraft client) {
+        if (!isInsideAsterion() || client.player == null) {
+            catacombBlend = 0;
+            floodBlend = 0;
+        } else {
+            double cameraY = AmneticCamera.isReady() ? AmneticCamera.position().y : client.player.getEyeY();
+            float underground = Mth.clamp((float)(net.krodark.asterion.worldgen.CatacombLayout.ROOF_Y + 3 - cameraY) / 4F, 0F, 1F)
+                    * Mth.clamp((float)(cameraY - 2), 0F, 1F);
+            catacombBlend += (underground - catacombBlend) * .04F;
+            float floodTarget = DeadSunClientEvents.floodStrength();
+            floodBlend += (floodTarget - floodBlend) * .025F;
+        }
         if (client.level == null || !client.level.dimension().equals(Asterion.ASTERION_LEVEL))
             biomeTarget = 0;
         float target = biomeTarget == 1 ? 1.0F : 0.0F;

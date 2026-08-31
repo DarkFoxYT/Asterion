@@ -23,14 +23,14 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
 /** A deliberately simple vertical vine: it either grows up from a floor or down from a ceiling. */
-public final class LabyrinthVineBlock extends BaseEntityBlock {
+public final class LabyrinthVineBlock extends BaseEntityBlock implements WaterloggedDecoration {
     public static final EnumProperty<Direction> FACING = EnumProperty.create(
             "facing", Direction.class, direction -> direction.getAxis() == Direction.Axis.Y);
     public static final BooleanProperty END = BooleanProperty.create("end");
 
     public LabyrinthVineBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.DOWN).setValue(END, true));
+        registerDefaultState(stateDefinition.any().setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED, false).setValue(FACING, Direction.DOWN).setValue(END, true));
     }
 
     @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
@@ -48,7 +48,7 @@ public final class LabyrinthVineBlock extends BaseEntityBlock {
                                      BlockState neighborState, RandomSource random) {
         Direction supportDirection = state.getValue(FACING).getOpposite();
         if (direction == supportDirection && !canSurvive(state, level, pos))
-            return net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
+            return state.getFluidState().createLegacyBlock();
 
         Direction growth = state.getValue(FACING);
         BlockState child = direction == growth ? neighborState

@@ -20,14 +20,20 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(BlockBehaviour.BlockStateBase.class)
 public abstract class HeavyWaterBlockStateMixin {
     @Unique private int asterion$heavyWater;
+    @Unique private boolean asterion$decorationWater;
     @Inject(method = "initCache", at = @At("HEAD"))
     private void asterion$cacheWaterLevel(CallbackInfo info) {
         asterion$heavyWater = HeavyWaterlogging.amount((BlockState)(Object)this);
+        var state = (BlockState)(Object)this;
+        asterion$decorationWater = state.getBlock() instanceof net.krodark.asterion.block.WaterloggedDecoration
+                && state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED);
     }
     @Inject(method = "getFluidState", at = @At("HEAD"), cancellable = true)
     private void asterion$loggedFluid(CallbackInfoReturnable<FluidState> result) {
         if (asterion$heavyWater > 0 && HeavyWaterlogging.ready)
             result.setReturnValue(HeavyWaterlogging.fluid(asterion$heavyWater));
+        else if (asterion$decorationWater)
+            result.setReturnValue(net.minecraft.world.level.material.Fluids.WATER.getSource(false));
     }
     @Inject(method = "updateShape", at = @At("RETURN"))
     private void asterion$scheduleHeavyWater(LevelReader level, ScheduledTickAccess ticks, BlockPos pos,
@@ -35,5 +41,8 @@ public abstract class HeavyWaterBlockStateMixin {
                                             RandomSource random, CallbackInfoReturnable<BlockState> result) {
         if (asterion$heavyWater == HeavyWaterlogging.NORMAL && HeavyWaterlogging.ready)
             ticks.scheduleTick(pos, HeavyWater.STILL, HeavyWater.STILL.getTickDelay(level));
+        else if (asterion$decorationWater && asterion$heavyWater == 0)
+            ticks.scheduleTick(pos, net.minecraft.world.level.material.Fluids.WATER,
+                    net.minecraft.world.level.material.Fluids.WATER.getTickDelay(level));
     }
 }

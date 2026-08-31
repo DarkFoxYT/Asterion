@@ -43,6 +43,27 @@ public final class HeavyWaterloggingGameTest implements FabricClientGameTest {
             server.runOnServer(mc -> {
                 ServerLevel level = mc.overworld();
                 var player = mc.getPlayerList().getPlayers().getFirst();
+                BlockPos decorationPos = new BlockPos(22, 122, 0);
+                level.setBlock(decorationPos.below(), Blocks.DIRT.defaultBlockState(), 3);
+                for (var block : new net.minecraft.world.level.block.Block[]{Asterion.SKELETON, Asterion.LABYRINTH_VINE,
+                        Asterion.SHORT_GRASS, Asterion.ANCIENT_MOSS, Asterion.ANCIENT_MOSS_CARPET, Asterion.BARREL_DOOR}) {
+                    BlockState dry = block.defaultBlockState();
+                    if (block == Asterion.LABYRINTH_VINE) dry = dry.setValue(net.krodark.asterion.block.LabyrinthVineBlock.FACING, Direction.UP);
+                    check(!dry.getValue(BlockStateProperties.WATERLOGGED), "Decoration defaults to wet");
+                    level.setBlock(decorationPos, dry, 2);
+                    var container = (net.minecraft.world.level.block.SimpleWaterloggedBlock)block;
+                    check(container.placeLiquid(level, decorationPos, dry, net.minecraft.world.level.material.Fluids.WATER.defaultFluidState()), "Vanilla water rejected");
+                    check(level.getFluidState(decorationPos).isSource(), "Vanilla water not exposed by decoration");
+                    for (int amount = 1; amount <= 9; amount++) {
+                        level.setBlock(decorationPos, dry, 2);
+                        check(HeavyWaterlogging.fill(level, decorationPos, dry, HeavyWaterlogging.fluid(amount)), "Heavy Water rejected by decoration");
+                        check(HeavyWaterlogging.amount(level.getBlockState(decorationPos)) == amount, "Decoration lost water layer");
+                        var encoded = BlockState.CODEC.encodeStart(JsonOps.INSTANCE, level.getBlockState(decorationPos)).getOrThrow();
+                        check(HeavyWaterlogging.amount(BlockState.CODEC.parse(JsonOps.INSTANCE, encoded).getOrThrow()) == amount, "Decoration water did not survive save");
+                    }
+                }
+                level.setBlock(decorationPos, Blocks.AIR.defaultBlockState(), 2);
+                Asterion.LOGGER.info("PASS: corpse, vines, grass, moss and barrel door support vanilla water and all Heavy Water levels");
                 for (int x = -8; x <= 20; x++) for (int z = -4; z <= 10; z++)
                     level.setBlock(new BlockPos(x, 121, z), Blocks.STONE.defaultBlockState(), 3);
                 BlockState[] candidates = {

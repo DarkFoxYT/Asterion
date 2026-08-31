@@ -22,7 +22,7 @@ import net.minecraft.world.phys.shapes.*;
 import org.jspecify.annotations.Nullable;
 
 /** One rendered anchor and 11 invisible interaction/collision parts, occupying the authored 3x4 opening. */
-public final class BarrelDoorBlock extends BaseEntityBlock {
+public final class BarrelDoorBlock extends BaseEntityBlock implements WaterloggedDecoration {
     public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty OPEN = BlockStateProperties.OPEN;
     public static final IntegerProperty COLUMN = IntegerProperty.create("column", 0, 3);
@@ -30,7 +30,7 @@ public final class BarrelDoorBlock extends BaseEntityBlock {
     public static final IntegerProperty ROW = IntegerProperty.create("row", 0, 3);
     public BarrelDoorBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH)
+        registerDefaultState(stateDefinition.any().setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED, false).setValue(FACING, Direction.NORTH)
                 .setValue(OPEN, false).setValue(WING, false).setValue(COLUMN, 1).setValue(ROW, 0));
     }
     @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
@@ -67,10 +67,12 @@ public final class BarrelDoorBlock extends BaseEntityBlock {
     }
     public static void place(Level level, BlockPos root, Direction facing) {
         BlockState base = Asterion.BARREL_DOOR.defaultBlockState().setValue(FACING, facing);
-        level.setBlock(root, base, UPDATE_CLIENTS);
+        level.setBlock(root, WaterloggedDecoration.retain(base, level.getFluidState(root)), UPDATE_CLIENTS);
         for (int column = 0; column < 3; column++) for (int row = 0; row < 4; row++) {
             if (column == 1 && row == 0) continue;
-            level.setBlock(part(root, facing, column, row), base.setValue(COLUMN, column).setValue(ROW, row), UPDATE_CLIENTS);
+            BlockPos part = part(root, facing, column, row);
+            level.setBlock(part, WaterloggedDecoration.retain(base.setValue(COLUMN, column).setValue(ROW, row),
+                    level.getFluidState(part)), UPDATE_CLIENTS);
         }
     }
     private static BlockPos wing(BlockPos root, Direction facing, int depth, int row) {
@@ -81,13 +83,18 @@ public final class BarrelDoorBlock extends BaseEntityBlock {
             BlockPos pos = wing(root, facing, depth, row);
             if (!level.isLoaded(pos) || !level.getWorldBorder().isWithinBounds(pos)) return false;
             BlockState state = level.getBlockState(pos);
-            if (!(state.is(Asterion.BARREL_DOOR) && root(pos, state).equals(root)) && !state.isAir()) return false;
+            if (!(state.is(Asterion.BARREL_DOOR) && root(pos, state).equals(root)) && !state.isAir()
+                    && !(state.getBlock() instanceof net.minecraft.world.level.block.LiquidBlock)
+                    && !(state.getBlock() instanceof net.krodark.asterion.fluid.TidalWaterBlock)) return false;
             if (!level.getEntities((net.minecraft.world.entity.Entity)null, new net.minecraft.world.phys.AABB(pos),
                     entity -> entity.isAlive() && !entity.isSpectator()).isEmpty()) return false;
         }
         BlockState base = Asterion.BARREL_DOOR.defaultBlockState().setValue(FACING, facing).setValue(OPEN, true).setValue(WING, true);
-        for (int depth = 1; depth <= 3; depth++) for (int row = 0; row < 4; row++)
-            level.setBlock(wing(root, facing, depth, row), base.setValue(COLUMN, depth).setValue(ROW, row), UPDATE_CLIENTS);
+        for (int depth = 1; depth <= 3; depth++) for (int row = 0; row < 4; row++) {
+            BlockPos part = wing(root, facing, depth, row);
+            level.setBlock(part, WaterloggedDecoration.retain(base.setValue(COLUMN, depth).setValue(ROW, row),
+                    level.getFluidState(part)), UPDATE_CLIENTS);
+        }
         return true;
     }
     private static void removeWing(Level level, BlockPos root, Direction facing) {
@@ -96,7 +103,7 @@ public final class BarrelDoorBlock extends BaseEntityBlock {
             if (!level.isLoaded(pos)) continue;
             BlockState state = level.getBlockState(pos);
             if (state.is(Asterion.BARREL_DOOR) && state.getValue(WING) && root(pos, state).equals(root))
-                level.setBlock(pos, Blocks.AIR.defaultBlockState(), UPDATE_CLIENTS);
+                level.setBlock(pos, state.getFluidState().createLegacyBlock(), UPDATE_CLIENTS);
         }
     }
     public static void setOpen(Level level, BlockPos root, Direction facing, boolean open) {
@@ -114,7 +121,7 @@ public final class BarrelDoorBlock extends BaseEntityBlock {
             BlockPos pos = part(root, facing, column, row);
             BlockState state = level.getBlockState(pos);
             if (state.is(Asterion.BARREL_DOOR) && root(pos, state).equals(root))
-                level.setBlock(pos, Blocks.AIR.defaultBlockState(), UPDATE_CLIENTS);
+                level.setBlock(pos, state.getFluidState().createLegacyBlock(), UPDATE_CLIENTS);
         }
     }
     private InteractionResult interact(Level level, BlockPos pos, BlockState state, Player player, ItemStack held) {

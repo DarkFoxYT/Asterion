@@ -90,8 +90,13 @@ public final class AsterionModMenu implements ModMenuApi {
                     (button, value) -> config.dustyAirEnabled = value));
             y += 21;
             addRenderableWidget(CycleButton.onOffBuilder(config.potatoParticleCulling).create(
-                    left, y, 310, 20, Component.literal("Potato particle culling"),
+                    left, y, 150, 20, Component.literal("Potato particle culling"),
                     (button, value) -> config.potatoParticleCulling = value));
+            addRenderableWidget(CycleButton.<Integer>builder(value -> Component.literal(
+                            value < 0 ? "Vanilla" : value == 0 ? "Moody" : value == 100 ? "Bright" : value + "%"),
+                            config.brightnessPercent).withValues(-1, 0, 25, 50, 75, 100).create(
+                    right, y, 150, 20, Component.literal("Brightness"),
+                    (button, value) -> config.brightnessPercent = value));
             y += 24;
             addRenderableWidget(Button.builder(Component.literal("Save and return"), button -> {
                 config.save();

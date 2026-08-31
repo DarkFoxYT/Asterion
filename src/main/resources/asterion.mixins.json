@@ -4,6 +4,7 @@
   "package": "net.krodark.asterion.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
+    "HeavyWaterMovementMixin",
     "HeavyWaterStateDefinitionMixin",
     "HeavyWaterBlockStateMixin",
     "HeavyWaterFlowMixin",
@@ -17,6 +18,7 @@
     "WorldGenRegionAccessor"
   ],
   "client": [
+    "MoodyBrightnessMixin",
     "TidalWaterSurfaceMixin",
     "AmneticParticleCullingMixin",
     "AmneticBoneEmissionMixin",
