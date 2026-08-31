@@ -47,7 +47,16 @@ final class ParticleRegression {
             glColorMask(true, true, true, true);
             glActiveTexture(GL_TEXTURE0);
 
-            for (String particle : new String[] {"greek_fire", "bombardier_stench", "bombardier_gas_fire"}) {
+            // Unlit beetle/belch smoke intentionally uses vanilla's twelve-frame campfire animation.
+            for (String smoke : new String[]{"bombardier_stench", "minotaur_belch_smoke"}) {
+                var frames = JsonParser.parseString(text("assets/asterion/particles/" + smoke + ".json"))
+                        .getAsJsonObject().getAsJsonArray("textures");
+                if (frames.size() != 12) throw new AssertionError(smoke + " must retain all twelve smoke frames");
+                for (int i = 0; i < 12; i++)
+                    if (!frames.get(i).getAsString().equals("minecraft:big_smoke_" + i))
+                        throw new AssertionError("Incorrect native smoke frame " + i);
+            }
+            for (String particle : new String[] {"greek_fire", "bombardier_gas_fire"}) {
                 var frames = JsonParser.parseString(text("assets/asterion/particles/" + particle + ".json"))
                         .getAsJsonObject().getAsJsonArray("textures");
                 if (frames.size() != 8) throw new AssertionError(particle + " must contain all eight frames");

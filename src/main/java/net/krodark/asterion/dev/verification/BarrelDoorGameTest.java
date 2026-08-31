@@ -122,7 +122,17 @@ public final class BarrelDoorGameTest implements FabricClientGameTest {
                             && level.getFluidState(root).getAmount() == fluid.getAmount(), "Removing door lost fluid or height");
                 }
                 Asterion.LOGGER.info("PASS: barrel door preserves vanilla water and all Heavy Water layers through placement, swing and removal");
+                level.setBlock(new BlockPos(0, 121, 0), Blocks.STONE.defaultBlockState(), 3);
+                level.setBlock(new BlockPos(0, 122, 0), Asterion.LABYRINTH_VINE.defaultBlockState()
+                        .setValue(LabyrinthVineBlock.FACING, Direction.UP), 3);
+                level.setBlock(new BlockPos(3, 123, 0), Blocks.STONE.defaultBlockState(), 3);
+                level.setBlock(new BlockPos(3, 122, 0), Asterion.LABYRINTH_VINE.defaultBlockState()
+                        .setValue(LabyrinthVineBlock.FACING, Direction.DOWN), 3);
             });
+            server.runCommand("time set midnight");
+            server.runCommand("tp @a 1.5 121 -4 0 -5");
+            context.waitTicks(30);
+            context.takeScreenshot("vine-glow-upright-and-hanging");
         }
     }
     private static void check(boolean condition, String message) {
