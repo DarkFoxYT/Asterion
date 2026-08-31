@@ -77,7 +77,7 @@ public final class GasClouds {
                 }
                 cloud.velocity = cloud.velocity.multiply(.975, .97, .975).add(0, -.001, 0);
                 if (cloud.age % 4 == 0) level.sendParticles(cloud.flamethrower
-                        ? (cloud.burn > 0 ? Asterion.FLAMETHROWER_GAS_FIRE : Asterion.FLAMETHROWER_GAS)
+                        ? (cloud.burn > 0 ? Asterion.GREEK_FIRE : Asterion.FLAMETHROWER_GAS)
                         : (cloud.burn > 0 ? Asterion.BOMBARDIER_GAS_FIRE : Asterion.BOMBARDIER_STENCH),
                         cloud.pos.x, cloud.pos.y, cloud.pos.z, 3, .38, .25, .38, .005);
                 if (cloud.age % (cloud.burn>0 ? 10 : 20) != 0) continue;
@@ -91,7 +91,8 @@ public final class GasClouds {
                             && victim instanceof ServerPlayer player && !attacker.canHarmPlayer(player)) continue;
                     hit.add(victim.getUUID());
                     victim.hurtServer(level, level.damageSources().inFire(), 5);
-                    GreekFireBurn.ignite(victim, 4);
+                    if (cloud.flamethrower) GreekFireBurn.ignite(victim, 4);
+                    else victim.igniteForSeconds(4);
                 }
             }
         }

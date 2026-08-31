@@ -17,6 +17,7 @@ public final class MinotaurArenaEntrances {
     public static final Direction PLAYER_ENTRANCE = Direction.SOUTH, BOSS_ENTRANCE = Direction.NORTH;
     public static final java.util.List<Direction> DOORS = java.util.List.of(PLAYER_ENTRANCE);
     public static final int BOSS_ROOM_BACK = 44;
+    public static final BlockPos AUTHORED_BOSS_GATE = new BlockPos(0, AuthoredCatacombs.ARENA_FLOOR_Y, -41);
     private MinotaurArenaEntrances() { }
     public static BlockPos door(Direction outward) {
         return new BlockPos(outward.getStepX() * DOOR_RADIUS, AuthoredCatacombs.CONNECTOR_Y, outward.getStepZ() * DOOR_RADIUS);
@@ -44,6 +45,13 @@ public final class MinotaurArenaEntrances {
     }
     public static void setGates(ServerLevel level, int closedRows, Direction except) {
         for (Direction facing : DOORS) if (facing != except) setGate(level, facing, closedRows);
+        setAuthoredBossGate(level, closedRows);
+    }
+    public static void setAuthoredBossGate(ServerLevel level,int closedRows) {
+        var base=Asterion.MAZESTEEL_GATE.defaultBlockState().setValue(DirectionalGateBlock.FACE,AttachFace.FLOOR)
+                .setValue(DirectionalGateBlock.FACING,Direction.SOUTH);
+        for(int row=0;row<6;row++)for(int side=-3;side<=3;side++)
+            level.setBlock(AUTHORED_BOSS_GATE.offset(side,row,0),base.setValue(DirectionalGateBlock.OPEN,row<6-closedRows),2);
     }
     public static void setGate(ServerLevel level, Direction facing, int closedRows) {
         var state = Asterion.MAZESTEEL_GATE.defaultBlockState().setValue(DirectionalGateBlock.FACE, AttachFace.FLOOR)

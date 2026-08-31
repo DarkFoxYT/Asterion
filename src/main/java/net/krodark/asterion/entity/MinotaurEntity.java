@@ -586,7 +586,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         // Additional party members must not teleport or restart an already active boss.
         if (minotaur.doorEntryStarted) return minotaur;
         Vec3 center = WorldGenerator.bossArenaCenter();
-        minotaur.setPos(center.x, center.y, center.z);
+        minotaur.setPos(center.x, center.y,
+                net.krodark.asterion.worldgen.AuthoredCatacombs.enabled() ? -45.0D : center.z);
         minotaur.setPersistenceRequired();
         minotaur.eclipseTarget = player.getUUID();
         minotaur.beginBossIntercept(player);
@@ -1518,8 +1519,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         int tick = doorEntryTicks();
         if (net.krodark.asterion.worldgen.AuthoredCatacombs.enabled() && tick > 0) {
             getNavigation().stop();
-            setDeltaMovement(Vec3.ZERO);
             setYRot(0); setYHeadRot(0); yBodyRot = 0;
+            setDeltaMovement(tick>=60&&tick<122?new Vec3(0,getDeltaMovement().y,.18):Vec3.ZERO);
             if (tick - 1 == MinotaurAnimationTiming.ENTRY_ROAR.roarSoundTick()) playRoar(4F, .72F, .85F);
             if (tick >= net.krodark.asterion.worldgen.BossArenaEncounter.INTRO_TICKS) {
                 getEntityData().set(DATA_DOOR_ENTRY_TICKS, 0);

@@ -128,6 +128,8 @@ public final class AsterionClient implements ClientModInitializer {
                 net.krodark.asterion.client.render.block.MinotaurDoorRenderer::new);
         BlockEntityRenderers.register(Asterion.BARREL_DOOR_BLOCK_ENTITY,
                 net.krodark.asterion.client.render.block.BarrelDoorRenderer::new);
+        BlockEntityRenderers.register(Asterion.OMEGA_LOCK_BLOCK_ENTITY,
+                net.krodark.asterion.client.render.block.OmegaLockRenderer::new);
         BlockEntityRenderers.register(net.krodark.asterion.block.RespawnObelisks.BLOCK_ENTITY,
                 net.krodark.asterion.client.render.block.SanctuaryRenderer::new);
         BlockEntityRenderers.register(Asterion.LABYRINTH_VINE_BLOCK_ENTITY, LabyrinthVineGeoRenderer::new);

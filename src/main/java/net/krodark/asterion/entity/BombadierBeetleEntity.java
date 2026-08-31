@@ -525,7 +525,7 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
         for (LivingEntity victim : level.getEntitiesOfClass(LivingEntity.class, fireCloud,
                 entity -> entity != this && entity.isAlive())) {
             if (!ignitedVictims.add(victim.getUUID())) continue;
-            net.krodark.asterion.effect.GreekFireBurn.ignite(victim, 4.0F);
+            victim.igniteForSeconds(4.0F);
             victim.hurtServer(level, level.damageSources().inFire(), 4.0F);
         }
     }

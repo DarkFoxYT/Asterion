@@ -7,6 +7,7 @@ import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.WorldGenerator;
 import net.krodark.asterion.entity.MinotaurEntity;
+import net.krodark.asterion.client.render.portal.AsterionPortalRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
@@ -75,15 +76,17 @@ public final class BiomeMusic {
         if (++ticks % 10 == 0) arena = WorldGenerator.isInsideBossArena(client.player.position())
                 && !level.getEntitiesOfClass(MinotaurEntity.class, client.player.getBoundingBox().inflate(128),
                     boss -> boss.isAlive() && boss.behaviorPhase() == MinotaurEntity.BehaviorPhase.BOSS).isEmpty();
-        String desired = group(biome, arena);
+        boolean victory = !arena && WorldGenerator.isInsideBossArena(client.player.position())
+                && AsterionPortalRenderer.isOpen();
+        String desired = victory ? "victory" : group(biome, arena);
         if (!desired.equals(lastGroup)) { gap = 0; lastGroup = desired; }
         float volume = AsterionConfig.INSTANCE.musicVolumePercent / 100F;
         boolean audible = volume > 0 && client.options.getSoundSourceVolume(SoundSource.MUSIC) > 0
                 && client.options.getSoundSourceVolume(SoundSource.MASTER) > 0;
         if (voice != null) {
-            voice.target = audible && playing.group().equals(desired) ? gain(desired) * volume : 0;
+            voice.target = audible && compatible(playing,desired) ? gain(desired) * volume : 0;
             if (!client.getSoundManager().isActive(voice) && ticks - voice.started > 40) {
-                boolean changed = !playing.group().equals(desired);
+                boolean changed = !compatible(playing,desired);
                 previous = playing; voice = null; playing = null; notice = 0;
                 gap = changed ? 0 : 100 + level.getRandom().nextInt(201);
             }
@@ -92,13 +95,19 @@ public final class BiomeMusic {
         if (!audible || desired.isEmpty()) return;
         if (gap > 0) { gap--; return; }
         if (tracks.isEmpty()) loadTracks(client);
-        var choices = tracks.stream().filter(t -> t.group().equals(desired)).toList();
+        var choices = tracks.stream().filter(t -> desired.equals("victory")
+                ? !t.group().equals("arena") && !t.group().equals("crypts")
+                : t.group().equals(desired)).toList();
         if (choices.isEmpty()) { gap = 200; return; }
         var candidates = choices.size() > 1 ? choices.stream().filter(t -> !t.equals(previous)).toList() : choices;
         playing = candidates.get(level.getRandom().nextInt(candidates.size()));
         voice = new Voice(playing, ticks, gain(desired) * volume);
         client.getSoundManager().play(voice);
         notice = 120;
+    }
+    private static boolean compatible(Track track,String desired) {
+        return desired.equals("victory") ? !track.group().equals("arena") && !track.group().equals("crypts")
+                : track.group().equals(desired);
     }
 
     private static void loadTracks(Minecraft client) {

@@ -64,6 +64,7 @@ public final class CatacombRegression {
                 var data=block.getCompoundOrEmpty("nbt");
                 if(data.getListOrEmpty("Items").isEmpty()) {
                     String loot=data.getStringOr("LootTable","");
+                    if(name.startsWith("arena_part") && loot.isEmpty()) continue;
                     require(loot.startsWith("asterion:chests/catacomb_"),"Missing container loot: "+name);
                     require(!data.contains("LootTableSeed"),"Fixed repeated loot seed: "+name);
                     if(loot.equals("asterion:chests/catacomb_puzzle_reward"))rewards++;

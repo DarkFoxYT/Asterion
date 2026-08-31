@@ -118,9 +118,11 @@ public final class BossArenaEncounter {
             return player == null || player.level() != level;
         });
         int height = MinotaurArenaEntrances.gateHeight();
-        int closedRows = Math.clamp((elapsed - 8) / 2, 0, height);
+        // Keep the authored grates fully raised for the reveal; seal the room once
+        // control returns to the party.
+        int closedRows = Math.clamp((elapsed - INTRO_TICKS) / 2, 0, height);
         for (Direction facing : MinotaurArenaEntrances.DOORS) {
-            int rows = facing == active.bossDoor ? Math.clamp((elapsed - MinotaurEntity.ROAR_START_TICKS) / 2, 0, height) : closedRows;
+            int rows = closedRows;
             if (facing == active.bossDoor && (boss.doorEntryTicks() > 0
                     || boss.getBoundingBox().intersects(MinotaurArenaEntrances.gateBounds(facing).inflate(.2)))) continue;
             if (rows == active.closedRows.getOrDefault(facing, 0)) continue;
@@ -130,6 +132,7 @@ public final class BossArenaEncounter {
             level.playSound(null, MinotaurArenaEntrances.gate(facing),
                     rows == height ? SoundEvents.ANVIL_LAND : SoundEvents.CHAIN_HIT, SoundSource.BLOCKS, 1.4F, .6F);
         }
+        MinotaurArenaEntrances.setAuthoredBossGate(level, closedRows);
         if (elapsed >= INTRO_TICKS && !active.restored && (!MinotaurArenaEntrances.DOORS.contains(active.bossDoor)
                 || active.closedRows.getOrDefault(active.bossDoor, 0) == height)) {
             restoreDoors(level);
@@ -210,6 +213,14 @@ public final class BossArenaEncounter {
         net.krodark.asterion.WorldGenerator.clearBossEntryTracking();
         MinotaurArenaEntrances.setGates(level, 0, null);
         restoreDoors(level);
+    }
+
+    /** Victory cleanup keeps the authored broken doorway and seals its surviving portcullis. */
+    public static void finishDefeated(ServerLevel level) {
+        ArenaDebris.clear(level);
+        clear();
+        net.krodark.asterion.WorldGenerator.clearBossEntryTracking();
+        MinotaurArenaEntrances.setGates(level, MinotaurArenaEntrances.gateHeight(), null);
     }
 
     public static void clear() {

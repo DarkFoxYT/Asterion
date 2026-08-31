@@ -114,6 +114,7 @@ public final class WorldGenerator {
     private static boolean bossArenaPrepared;
     private static BossArenaBuild bossArenaBuild;
     private static BossFinale bossFinale;
+    private static final BlockPos ARENA_EXIT_PORTAL = new BlockPos(0, 8, -60);
     private static long activeMazeTerrainSeed;
     private static final PriorityQueue<DecayingBlock> DECAYING_BLOCKS = new PriorityQueue<>(
             Comparator.comparingLong(DecayingBlock::dueTick));
@@ -873,6 +874,10 @@ public final class WorldGenerator {
         }
         if (Math.max(Math.abs(dx), Math.abs(dz)) > 2.45D
                 || Math.abs(player.getY() - portal.surfaceY) > 2.35D) return false;
+        if (portal.dimension.equals(Asterion.ASTERION_LEVEL)) {
+            beginArenaExit(player);
+            return true;
+        }
         ServerLevel maze = player.level().getServer().getLevel(Asterion.ASTERION_LEVEL);
         if (maze == null) return false;
         beginTransition(player, maze);
@@ -1025,16 +1030,37 @@ public final class WorldGenerator {
     }
 
     public static void beginBossFinale(ServerLevel level, MinotaurEntity boss) {
-        if (bossFinale != null) return;
-        BossArenaEncounter.finish(level);
+        if (AsterionWorldState.get(level).minotaurDefeated()) return;
+        BossArenaEncounter.finishDefeated(level);
         AsterionWorldState.get(level).markMinotaurDefeated();
-        bossFinale = new BossFinale(boss.getUUID());
-        bossFinale.ticks = -200;
+        boss.spawnAtLocation(level, new net.minecraft.world.item.ItemStack(Asterion.OMEGA_KEY));
         net.krodark.asterion.worldgen.OmegaTreasure.reward(level);
+        openArenaExit(level);
         for (ServerPlayer player : level.players()) {
-            bossFinale.previousInvulnerability.put(player.getUUID(), player.isInvulnerable());
-            player.setInvulnerable(true);
             player.sendSystemMessage(net.minecraft.network.chat.Component.translatable("message.asterion.omega_treasure"));
+        }
+    }
+
+    private static void openArenaExit(ServerLevel level) {
+        for (int x=-1;x<=1;x++) for (int y=-2;y<=2;y++)
+            level.setBlock(ARENA_EXIT_PORTAL.offset(x,y,0), Blocks.AIR.defaultBlockState(), 2);
+        long seed = mix(level.getSeed() ^ 0x51A7E0B1D4C3A29FL) | Long.MIN_VALUE;
+        summonedPortal = new SummonedPortal(level.dimension(), ARENA_EXIT_PORTAL, ARENA_EXIT_PORTAL.getY(), seed);
+        AsterionWorldState.get(level).setSummonedPortal(level.dimension(), ARENA_EXIT_PORTAL,
+                ARENA_EXIT_PORTAL.getY(), seed);
+        GatewayPortalPayload payload = portalPayload(level.getServer(), ARENA_EXIT_PORTAL,
+                ARENA_EXIT_PORTAL.getY(), seed);
+        for (ServerPlayer player:level.players()) if(ServerPlayNetworking.canSend(player,GatewayPortalPayload.TYPE))
+            ServerPlayNetworking.send(player,payload);
+    }
+
+    private static void beginArenaExit(ServerPlayer entrant) {
+        if (bossFinale != null) return;
+        ServerLevel maze=entrant.level();
+        bossFinale=new BossFinale(new UUID(0,0));
+        for(ServerPlayer player:maze.players()) {
+            bossFinale.previousInvulnerability.put(player.getUUID(),player.isInvulnerable());
+            player.setInvulnerable(true);
         }
     }
 
@@ -1104,10 +1130,8 @@ public final class WorldGenerator {
         }
         if (finale.ticks >= 390) {
             bossFinale = null;
-            BossArenaEncounter.finish(maze);
+            BossArenaEncounter.finishDefeated(maze);
             clearBossArenaTransientState(maze);
-            rebuildBossArena(maze);
-            AsterionWorldState.get(maze).resetMinotaurEncounter();
         }
     }
 
@@ -2012,14 +2036,15 @@ public final class WorldGenerator {
         int limit = radius * config.cellSize;
         long roll = mix(maze.getSeed() ^ entrant.getMostSignificantBits()
                 ^ Long.rotateLeft(entrant.getLeastSignificantBits(), 23) ^ salt);
-        int margin = Math.min(3, Math.max(1, radius / 8));
-        int usable = Math.max(1, size - margin * 2);
-        int gx = margin + (int) Math.floorMod(roll, usable);
-        int gz = margin + (int) Math.floorMod(roll >>> 24, usable);
-
         int centerCell = size / 2;
+        int maxOffset = Math.max(6, Math.min(radius - 2,
+                (2000 - config.cellSize) / Math.max(1, config.cellSize)));
+        int usable = maxOffset * 2 + 1;
+        int gx = centerCell - maxOffset + (int)Math.floorMod(roll, usable);
+        int gz = centerCell - maxOffset + (int)Math.floorMod(roll >>> 24, usable);
+
         if (Math.abs(gx - centerCell) <= 2 && Math.abs(gz - centerCell) <= 2)
-            gx = Math.min(size - margin - 1, gx + 4);
+            gx = Math.min(centerCell + maxOffset, gx + 4);
 
         int corridorCenter = config.wallThickness
                 + (config.cellSize - config.wallThickness) / 2;

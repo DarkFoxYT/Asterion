@@ -242,6 +242,13 @@ public class Asterion implements ModInitializer {
             properties -> new DirectionalGateBlock(properties.noOcclusion()));
     public static final WinchBlock WINCH = (WinchBlock)registerBlock(
             "winch", MapColor.METAL, WinchBlock::new);
+    public static final net.krodark.asterion.block.OmegaLockBlock OMEGA_LOCK =
+            (net.krodark.asterion.block.OmegaLockBlock)registerBlock("omega_lock", MapColor.METAL,
+                    properties -> new net.krodark.asterion.block.OmegaLockBlock(properties.noOcclusion()
+                            .strength(8F, 1200F).sound(SoundType.METAL)));
+    public static final BlockEntityType<net.krodark.asterion.block.OmegaLockBlockEntity> OMEGA_LOCK_BLOCK_ENTITY = Registry.register(
+            BuiltInRegistries.BLOCK_ENTITY_TYPE, id("omega_lock"), FabricBlockEntityTypeBuilder.create(
+                    net.krodark.asterion.block.OmegaLockBlockEntity::new, OMEGA_LOCK).build());
     public static final LabyrinthVineBlock LABYRINTH_VINE = (LabyrinthVineBlock)registerBlock(
             "labyrinth_vine", MapColor.COLOR_BROWN,
             properties -> new LabyrinthVineBlock(properties.noOcclusion().strength(0.4F)
@@ -369,6 +376,9 @@ public class Asterion implements ModInitializer {
     private static final ResourceKey<Item> MINOTAUR_KEY_ID = ResourceKey.create(Registries.ITEM, id("minotaur_key"));
     public static final Item MINOTAUR_KEY = Registry.register(BuiltInRegistries.ITEM, MINOTAUR_KEY_ID,
             new Item(new Item.Properties().setId(MINOTAUR_KEY_ID).stacksTo(1).rarity(Rarity.UNCOMMON)));
+    private static final ResourceKey<Item> OMEGA_KEY_ID = ResourceKey.create(Registries.ITEM, id("omega_key"));
+    public static final Item OMEGA_KEY = Registry.register(BuiltInRegistries.ITEM, OMEGA_KEY_ID,
+            new Item(new Item.Properties().setId(OMEGA_KEY_ID).stacksTo(1).rarity(Rarity.EPIC).fireResistant()));
     public static final Item MINOTAUR_SIGIL = Registry.register(
             BuiltInRegistries.ITEM, MINOTAUR_SIGIL_KEY,
             new Item(new Item.Properties().setId(MINOTAUR_SIGIL_KEY).stacksTo(1).rarity(Rarity.EPIC)));
@@ -438,6 +448,7 @@ public class Asterion implements ModInitializer {
                         output.accept(MAZESTEEL_CHAIN);
                         output.accept(MAZESTEEL_GATE);
                         output.accept(WINCH);
+                        output.accept(OMEGA_LOCK);
                         output.accept(LABYRINTH_VINE);
                         output.accept(GREEK_FIRE_WALL_TORCH);
                         output.accept(GREEK_FIRE_FLOOR_TORCH);
@@ -450,6 +461,7 @@ public class Asterion implements ModInitializer {
                         output.accept(PILLAR);
                         output.accept(BARREL_DOOR);
                         output.accept(MINOTAUR_KEY);
+                        output.accept(OMEGA_KEY);
                     })
                     .build()
     );

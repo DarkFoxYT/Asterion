@@ -54,7 +54,9 @@ public final class AsterionPortalRenderer {
     private static void tickAtmosphere(Minecraft client) {
         if (client.level == null || client.level != portalWorld || gateway == null
                 || surfaceY == Integer.MIN_VALUE || client.player == null
-                || !client.level.dimension().equals(Level.OVERWORLD)) return;
+                || (!client.level.dimension().equals(Level.OVERWORLD)
+                && !client.level.dimension().equals(Asterion.ASTERION_LEVEL))) return;
+        if (client.level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
         double playerDx = client.player.getX() - (gateway.getX() + 0.5D);
         double playerDz = client.player.getZ() - (gateway.getZ() + 0.5D);
         int particleInterval = switch (Math.min(AsterionConfig.INSTANCE.ambientParticleQuality,
@@ -138,7 +140,9 @@ public final class AsterionPortalRenderer {
                 .onRender((ctx, batch) -> {
                     ClientLevel world = ctx.world();
                     if (world == null || world != portalWorld || gateway == null
-                            || !world.dimension().equals(Level.OVERWORLD)) return;
+                            || (!world.dimension().equals(Level.OVERWORLD)
+                            && !world.dimension().equals(Asterion.ASTERION_LEVEL))) return;
+                    boolean vertical = world.dimension().equals(Asterion.ASTERION_LEVEL);
 
                     Vec3 camera = ctx.cameraPos();
                     double dx = camera.x - (gateway.getX() + 0.5D);
@@ -171,9 +175,12 @@ public final class AsterionPortalRenderer {
                     float boundsRadius = radius * openingScale * layerScale * 1.414214F + 0.02F;
                     if (!batch.visible(cx, cy, cz, boundsRadius)) return;
                     transform.translation((float)(cx - camera.x),
-                                    (float)(cy + (halo ? 0.006D : 0.0D) - camera.y), (float)(cz - camera.z))
-                            .scale(radius * openingScale * layerScale, 1.0F,
-                                    radius * openingScale * layerScale);
+                                    (float)(cy + (halo ? 0.006D : 0.0D) - camera.y),
+                                    (float)(cz + (vertical && halo ? .012D : 0D) - camera.z));
+                    if(vertical) transform.scale(1.5F*openingScale*layerScale,
+                            2.5F*openingScale*layerScale,1F);
+                    else transform.rotateX((float)Math.PI/2F).scale(radius * openingScale * layerScale,
+                            radius * openingScale * layerScale, 1.0F);
                     double cameraHeight = Math.max(1.25D, Math.abs(camera.y - cy));
                     float viewX = (float) Mth.clamp(dx / cameraHeight, -1.6D, 1.6D);
                     float viewZ = (float) Mth.clamp(dz / cameraHeight, -1.6D, 1.6D);
@@ -192,8 +199,8 @@ public final class AsterionPortalRenderer {
 
     private static MeshData planeMesh() {
         return MeshData.of(new float[] {
-                -1.0F, 0.0F, -1.0F,  1.0F, 0.0F, -1.0F,
-                 1.0F, 0.0F,  1.0F, -1.0F, 0.0F,  1.0F
+                -1.0F, -1.0F, 0.0F,  1.0F, -1.0F, 0.0F,
+                 1.0F,  1.0F, 0.0F, -1.0F,  1.0F, 0.0F
         }, new int[] {0, 1, 2, 0, 2, 3});
     }
 

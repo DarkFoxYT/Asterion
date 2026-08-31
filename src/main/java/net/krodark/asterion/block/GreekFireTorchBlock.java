@@ -35,7 +35,9 @@ public final class GreekFireTorchBlock extends BaseEntityBlock {
         if(wall) {
             if(!face.getAxis().isHorizontal()) return null;
             BlockState state=defaultBlockState().setValue(FACING,face);
-            return canSurvive(state,context.getLevel(),context.getClickedPos())?state:null;
+            BlockPos pos=context.getClickedPos();
+            return canSurvive(state,context.getLevel(),pos)
+                    && context.getLevel().getBlockState(pos.above()).canBeReplaced(context)?state:null;
         }
         if(face!=Direction.UP) return null;
         BlockState state=defaultBlockState().setValue(TOP,

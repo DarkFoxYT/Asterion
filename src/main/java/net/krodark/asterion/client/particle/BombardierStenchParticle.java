@@ -61,6 +61,9 @@ public final class BombardierStenchParticle extends AnimatedEmissiveParticle {
         smoke.sizeMultiplier = 4;
         smoke.quadSize *= smoke.sizeMultiplier;
         smoke.targetSize *= smoke.sizeMultiplier;
+        // The Minotaur's belch is Greek fire, so its smoke must only react to
+        // the dedicated Greek-fire ignition particles.
+        smoke.flamethrower = true;
         return smoke;
     }
 
@@ -136,7 +139,7 @@ public final class BombardierStenchParticle extends AnimatedEmissiveParticle {
         xd *= 0.45D;
         yd = Math.max(0.012D, yd * 0.55D);
         zd *= 0.45D;
-        setColor(0.12F, 0.42F, 1.0F);
+        BombardierGasFireParticle.applyFireColor(this, 0.0F, flamethrower);
         setAlpha(0.92F);
         updateSprite();
     }

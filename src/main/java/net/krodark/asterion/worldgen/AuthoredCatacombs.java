@@ -88,7 +88,7 @@ public final class AuthoredCatacombs {
                 // The last two layers of ordinary modules are an exterior roof cap/air.
                 // Keep the existing maze floor and walls there; only crossings break the surface.
                 BoundingBox roomClip = module.name().startsWith("crossing_") ? clip
-                        : new BoundingBox(clip.minX(), clip.minY(), clip.minZ(), clip.maxX(), 47, clip.maxZ());
+                        : new BoundingBox(clip.minX(), clip.minY(), clip.minZ(), clip.maxX(), 46, clip.maxZ());
                 template.placeInWorld(world, origin, origin, placementSettings(roomClip, module.name().startsWith("crossing_")).setRotation(module.rotation())
                                 .setRotationPivot(new BlockPos(9, 0, 9)), RandomSource.create(seed ^ origin.asLong()), 18);
                 if (module.name().startsWith("crossing_")) surfaceApproach(world, chunk, origin, seed);
@@ -201,6 +201,18 @@ public final class AuthoredCatacombs {
             var chunk = level.getChunk(cx, cz);
             level.setBlock(new BlockPos(cx*16, 1, cz*16), Blocks.BEDROCK.defaultBlockState(), 2);
             MazeNbtStructures.markCopperClean(chunk);
+        }
+        configureArenaLoot(level);
+    }
+    private static void configureArenaLoot(ServerLevel level) {
+        var common=net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.LOOT_TABLE,
+                Asterion.id("chests/arena_vault_common"));
+        var treasure=net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.LOOT_TABLE,
+                Asterion.id("chests/arena_vault_treasure"));
+        for(BlockPos pos:BlockPos.betweenClosed(-61,ARENA_BASE_Y,-61,61,48,61)) {
+            if(level.getBlockEntity(pos) instanceof net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity container
+                    && container.getLootTable()==null)
+                container.setLootTable(Math.floorMod(pos.asLong()^level.getSeed(),4)==0?treasure:common);
         }
     }
     private static void corridor(ServerLevel level, int x, int z) {

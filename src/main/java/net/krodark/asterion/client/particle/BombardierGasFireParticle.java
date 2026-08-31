@@ -9,9 +9,9 @@ import net.minecraft.util.RandomSource;
 
 public final class BombardierGasFireParticle extends AnimatedEmissiveParticle {
     private static final float[] STOPS = {0.0F, 0.10F, 0.22F, 0.42F, 0.64F, 1.0F};
-    private static final int[] COLORS = {0x1F6BFF, 0xFFFFFF, 0xFFEB29, 0xFF5C05, 0xB30602, 0x060606};
+    private static final int[] COLORS = {0xFF9A18, 0xFF6812, 0xE93B0C, 0xB71513, 0x620913, 0x050303};
 
-    private static final int[] GREEK_COLORS = {0x1F6BFF, 0xFFFFFF, 0xD8FFAD, 0x80FF39, 0x36CC40, 0x123C25};
+    private static final int[] GREEK_COLORS = {0xFFFFC7, 0xF7FFD8, 0xD8FFAD, 0x80FF39, 0x36CC40, 0x123C25};
     private final boolean greekFire;
 
     private BombardierGasFireParticle(ClientLevel level, double x, double y, double z,
