@@ -1,0 +1,34 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "asterion:block/spewer",
+      "x": 0,
+      "y": 0
+    },
+    "facing=east": {
+      "model": "asterion:block/spewer",
+      "x": 0,
+      "y": 90
+    },
+    "facing=south": {
+      "model": "asterion:block/spewer",
+      "x": 0,
+      "y": 180
+    },
+    "facing=west": {
+      "model": "asterion:block/spewer",
+      "x": 0,
+      "y": 270
+    },
+    "facing=up": {
+      "model": "asterion:block/spewer",
+      "x": 270,
+      "y": 0
+    },
+    "facing=down": {
+      "model": "asterion:block/spewer",
+      "x": 90,
+      "y": 0
+    }
+  }
+}

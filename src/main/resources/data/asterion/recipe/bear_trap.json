@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "I I",
+    "IPI"
+  ],
+  "key": {
+    "I": "minecraft:iron_ingot",
+    "P": "minecraft:heavy_weighted_pressure_plate"
+  },
+  "result": {
+    "id": "asterion:bear_trap",
+    "count": 2
+  }
+}

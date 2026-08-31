@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "asterion:item/greek_fire_sword",
+    "tints": [
+      {
+        "type": "minecraft:constant",
+        "value": 8650596
+      }
+    ]
+  }
+}

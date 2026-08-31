@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:block/orientable",
+  "textures": {
+    "top": "asterion:block/mazesteel_block",
+    "side": "asterion:block/ancient_bricks",
+    "front": "minecraft:block/dispenser_front",
+    "particle": "asterion:block/ancient_bricks"
+  }
+}

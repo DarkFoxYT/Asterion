@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "III",
+    "DBD",
+    "IRI"
+  ],
+  "key": {
+    "I": "minecraft:iron_ingot",
+    "D": "minecraft:dispenser",
+    "R": "minecraft:redstone",
+    "B": "minecraft:blaze_powder"
+  },
+  "result": {
+    "id": "asterion:fire_burst_trap",
+    "count": 1
+  }
+}

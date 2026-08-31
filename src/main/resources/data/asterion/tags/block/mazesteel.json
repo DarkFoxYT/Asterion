@@ -1,0 +1,14 @@
+{
+  "values": [
+    "asterion:mazesteel_block",
+    "asterion:mazesteel_slab",
+    "asterion:mazesteel_stairs",
+    "asterion:mazesteel_bars",
+    "asterion:mazesteel_chain",
+    "asterion:mazesteel_gate",
+    "asterion:lamenter",
+    "asterion:winch",
+    "asterion:sluice_lock"
+  ],
+  "replace": false
+}
