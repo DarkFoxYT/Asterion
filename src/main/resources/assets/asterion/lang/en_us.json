@@ -1,4 +1,8 @@
 {
+  "block.asterion.greek_fire_lantern": "Greek Fire Lantern",
+  "subtitles.asterion.metal_hit": "Metal clangs",
+  "subtitles.asterion.minotaur_door_openclose": "Minotaur door creaks",
+  "subtitles.asterion.minotaur_step": "Minotaur stomps",
   "block.asterion.heavy_water": "Heavy Water",
   "block.asterion.heavy_water_layer": "Heavy Water Flood Layer",
   "item.asterion.heavy_water_bucket": "Heavy Water Bucket",

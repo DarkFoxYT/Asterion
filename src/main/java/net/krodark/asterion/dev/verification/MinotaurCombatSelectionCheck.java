@@ -62,6 +62,23 @@ final class MinotaurCombatSelectionCheck {
                 check(kept > 210, "Drawn weapon was discarded too readily: " + mode + " / " + kept);
                 Asterion.LOGGER.info("PASS: weapon mode {} retained for {}/300 tactical choices", mode, kept);
             }
+            player.setPos(0, 37, 20); player.setDeltaMovement(Vec3.ZERO);
+            boss.getEntityData().set(weaponKey, 1); field(boss, "weaponUsesRemaining", 3);
+            int throwsChosen = 0;
+            for (int roll = 0; roll < 300; roll++)
+                if (choose.invoke(boss, player, boss.distanceTo(player)).toString().equals("AXE_THROW")) throwsChosen++;
+            check(throwsChosen >= 25, "A drawn axe was effectively forbidden from being thrown: " + throwsChosen);
+            var axeOut = MinotaurEntity.class.getDeclaredField("DATA_AXE_OUT"); axeOut.setAccessible(true);
+            boss.getEntityData().set((EntityDataAccessor<Boolean>)axeOut.get(null), true);
+            player.setPos(0, 37, 6.5); boss.getEntityData().set(weaponKey, 2);
+            int swordsChosen = 0;
+            for (int roll = 0; roll < 150; roll++) {
+                String attack = choose.invoke(boss, player, boss.distanceTo(player)).toString();
+                check(!Set.of("AXE_THROW", "AXE_CHOP", "CLEAVE", "SLAM").contains(attack), "Missing axe reused: " + attack);
+                if (Set.of("SWORD_COMBO", "SPIN_COMBO").contains(attack)) swordsChosen++;
+            }
+            check(swordsChosen >= 100, "Swords were not used while the axe was away");
+            Asterion.LOGGER.info("PASS: drawn axe thrown in {}/300 ranged choices; swords used {}/150 times with axe in world", throwsChosen, swordsChosen);
         } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
         finally { player.setPos(previous); boss.discard(); }
     }

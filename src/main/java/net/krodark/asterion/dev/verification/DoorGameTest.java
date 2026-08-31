@@ -906,7 +906,13 @@ public final class DoorGameTest implements FabricClientGameTest {
                 context.runOnClient(client -> check(net.krodark.asterion.client.render.BossGroundTelegraphRenderer.activeCount() > 0,
                         "Charge variant did not deliver its ground lane: " + laneAttack));
                 if (laneAttack.equals("charge")) {
-                    context.waitTicks(40);
+                    var clips = new java.util.HashSet<String>();
+                    for (int frame = 0; frame < 40; frame++) {
+                        context.waitTicks(1);
+                        context.runOnClient(client -> clips.add(assertActiveAnimation(client, debugBoss.get().getId())));
+                    }
+                    check(clips.contains("charge_start") && clips.contains("run charge attack"),
+                            "Charge did not hand off from windup to the authored run: " + clips);
                     context.takeScreenshot("minotaur-charge-door-smoke");
                 }
                 server.runOnServer(mc -> debugBoss.get().stopDebug());
@@ -927,8 +933,40 @@ public final class DoorGameTest implements FabricClientGameTest {
             server.runOnServer(mc -> debugBoss.get().stopDebug());
             Asterion.LOGGER.info("PASS: all charge lane payloads, charge billows, live mouth animation and delayed smoke ignition");
 
+            for (String heldAttack : new String[]{"axe_throw", "sword_combo", "rubble_throw"}) {
+                server.runOnServer(mc -> {
+                    var player = mc.getPlayerList().getPlayers().getFirst(); player.teleportTo(0, 121, 18);
+                    var boss = Asterion.MINOTAUR.create(mc.overworld(), net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+                    boss.setPos(0, 121, 0); boss.beginDebug(player); mc.overworld().addFreshEntity(boss); debugBoss.set(boss);
+                    check(boss.forceDebugAttack(player, heldAttack), "Held-pose test attack unavailable");
+                    tickWeaponAttack(boss, player, heldAttack.equals("axe_throw") ? MinotaurEntity.DRAW_AXE_TICKS + 16
+                            : heldAttack.equals("sword_combo") ? MinotaurEntity.DRAW_SWORD_TICKS + 20 : 30);
+                    boss.setDebugRunning(false);
+                    if (heldAttack.equals("axe_throw")) check(boss.axeInWorld(), "Release frame did not spawn a physical axe");
+                });
+                context.runOnClient(client -> { client.player.setYRot(180); client.player.setXRot(-8); });
+                context.waitTicks(6);
+                for (int frame = 0; frame < 20; frame++) {
+                    context.waitTicks(4);
+                    context.runOnClient(client -> assertActiveAnimation(client, debugBoss.get().getId()));
+                }
+                context.takeScreenshot("minotaur-held-" + heldAttack);
+                server.runOnServer(mc -> debugBoss.get().stopDebug());
+            }
+            Asterion.LOGGER.info("PASS: frame-by-frame charge handoff and expired axe/sword/rubble clips hold their poses without resetting");
+
         }
     }
+    private static String assertActiveAnimation(net.minecraft.client.Minecraft client, int id) {
+        var boss = (MinotaurEntity)client.level.getEntity(id);
+        check(boss != null, "Animated boss disappeared");
+        var controller = boss.getAnimatableInstanceCache().getManagerForId(id).getAnimationControllers().get("movement");
+        check(controller != null && controller.isAnimatingBones(), "Controller dropped the active pose");
+        check(controller.getCurrentTimelineTime() < controller.getTimeline().lastAnimationEndTime(),
+                "Controller entered its T-pose/reset tail: " + controller.getCurrentRawAnimation());
+        return controller.getCurrentRawAnimation().getAnimationStages().getFirst().animationName();
+    }
+
     private static void verifyLocomotion(net.minecraft.server.level.ServerLevel level,
             net.minecraft.server.level.ServerPlayer player, MinotaurEntity.BehaviorPhase phase, double expected) {
         var boss = Asterion.MINOTAUR.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);

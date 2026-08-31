@@ -118,6 +118,9 @@ public class Asterion implements ModInitializer {
     public static final ResourceKey<Level> ASTERION_LEVEL = ResourceKey.create(
             Registries.DIMENSION, id("asterion_dimension"));
     public static final SoundEvent MINOTAUR_ROAR = registerSound("minotaur_roar");
+    public static final SoundEvent MINOTAUR_STEP = registerSound("minotaur_step");
+    public static final SoundEvent MINOTAUR_DOOR_OPENCLOSE = registerSound("minotaur_door_openclose");
+    public static final SoundEvent METAL_HIT = registerSound("metal_hit_sound");
     public static final Holder.Reference<MobEffect> RESOLVE = Registry.registerForHolder(
             BuiltInRegistries.MOB_EFFECT, id("resolve"), new ResolveEffect());
 
@@ -187,6 +190,8 @@ public class Asterion implements ModInitializer {
     public static final Block GREEK_BRAZIER = registerBlock("greek_brazier", MapColor.COLOR_GREEN,
             properties -> new net.krodark.asterion.block.GreekBrazierBlock(properties.noOcclusion()
                     .lightLevel(state -> state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT) ? 12 : 0)));
+    public static final Block GREEK_FIRE_LANTERN = registerBlock("greek_fire_lantern", MapColor.COLOR_GREEN,
+            properties -> new Block(properties.sound(SoundType.METAL).lightLevel(state -> 15)));
     public static final Block LAMENTER = registerBlock("lamenter", MapColor.TERRACOTTA_BROWN,
             net.krodark.asterion.block.LamenterBlock::new);
     public static final BlockEntityType<net.krodark.asterion.block.LamenterBlockEntity> LAMENTER_BLOCK_ENTITY = Registry.register(
@@ -356,6 +361,7 @@ public class Asterion implements ModInitializer {
                         output.accept(SLICK_CATACOMB_STONE);
                         output.accept(SLUICE_LOCK);
                         output.accept(GREEK_BRAZIER);
+                        output.accept(GREEK_FIRE_LANTERN);
                         output.accept(LAMENTER);
                         output.accept(ANTIKYTHERA_BLUEPRINT);
                         output.accept(MINOTAUR_SIGIL);

@@ -79,7 +79,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private static final double GRAPPLE_CATCH_DISTANCE = 3.0;
     public static final int ROAR_START_TICKS = 150;
     public static final double WALK_BLOCKS_PER_SECOND = 4, RUN_BLOCKS_PER_SECOND = 7;
-    private static final int[] COMBO_STRIKE_TICKS = {19, 31, 44};
+    private static final int[] COMBO_STRIKE_TICKS = MinotaurAnimationTiming.COMBO_HITS;
     private static final RawAnimation WALK_ANIMATION = RawAnimation.begin().thenLoop("walk");
     private static final RawAnimation RUN_ANIMATION = RawAnimation.begin().thenLoop("run");
     private static final RawAnimation WARNING_ANIMATION = RawAnimation.begin().thenPlayAndHold("charge_start");
@@ -102,6 +102,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private static final RawAnimation REVIVE_ANIMATION = RawAnimation.begin().thenPlayAndHold("asterion_revive");
     public static final int DRAW_SWORD_TICKS = 34, DRAW_AXE_TICKS = 24, AXE_CHOP_HIT_TICK = 26;
     private static final RawAnimation BELCH_ANIMATION = RawAnimation.begin().thenPlayAndHold("asterion_smoke_belch");
+    private static final RawAnimation BACK_KICK_ANIMATION = RawAnimation.begin().thenPlayAndHold("asterion_back_kick");
+    private int stompRecoveryCooldown = 48;
     private static final RawAnimation HORN_ANIMATION = RawAnimation.begin().thenLoop("horn_ram");
     private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
     private static final EntityDataAccessor<Integer> DATA_PHASE = SynchedEntityData.defineId(
@@ -233,7 +235,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private boolean wallShoveHit;
     private AnimationState clientAnimationPose;
     private double clientPoseStartAge;
-    private double clientPoseStartSeconds;
+    private double clientPoseStartTick;
+    private double clientPoseAge;
     private final MinotaurSmokeClouds smokeClouds = new MinotaurSmokeClouds();
     private long regenerationDeadline;
     private int clientMovingUntil;
@@ -398,7 +401,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private enum CombatRange { CLOSE, MEDIUM, FAR }
     private enum GrabThrowStyle { ARENA, SKY }
     public enum AnimationState { IDLE, WALK, WARNING, CHASE, ATTACK, VERTICAL_ATTACK, SWORD, SPIN,
-        LEAP, CHAIN, PUNCH, HORN, AXE_CHOP, AXE_THROW, ROAR_START, CHARGE_RUN, PUNCH_SINGLE, LAND, DRAW_SWORD, DRAW_AXE, SHEATHE_SWORD, SHEATHE_AXE, RUBBLE, DIES, REVIVE, BELCH }
+        LEAP, CHAIN, PUNCH, HORN, AXE_CHOP, AXE_THROW, ROAR_START, CHARGE_RUN, PUNCH_SINGLE, LAND, DRAW_SWORD, DRAW_AXE, SHEATHE_SWORD, SHEATHE_AXE, RUBBLE, DIES, REVIVE, BELCH, BACK_KICK }
 
     public MinotaurEntity(EntityType<? extends MinotaurEntity> type, Level level) {
         super(type, level);
@@ -821,7 +824,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if (!observed && paranoiaCooldown <= 0 && distance > 24.0D && distance < 70.0D
                 && random.nextInt(260) == 0) {
             if (random.nextBoolean()) playRoar(0.75F, 0.55F + random.nextFloat() * 0.12F, 0.28F);
-            else playSound(SoundEvents.RAVAGER_STEP, 0.75F, 0.55F + random.nextFloat() * 0.12F);
+            else playSound(Asterion.MINOTAUR_STEP, 0.75F, 0.55F + random.nextFloat() * 0.12F);
             paranoiaCooldown = random.nextIntBetweenInclusive(180, 360);
         }
 
@@ -972,7 +975,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if ((phaseTicks % 12) == 0) {
             level.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 0.15D, getZ(),
                     5, 0.55D, 0.05D, 0.55D, 0.015D);
-            playSound(SoundEvents.RAVAGER_STEP, 1.6F, 0.52F);
+            playSound(Asterion.MINOTAUR_STEP, 1.6F, 0.52F);
         }
         if (--warningTicks <= 0) beginChase(player);
     }
@@ -1647,7 +1650,9 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                     : Math.min(40, pillarOpportunityTicks + 1);
         }
         if (bossAttackCooldown <= 0 && weaponMode() != 0 && weaponUsesRemaining > 0
-                && distance > 7 && distance < 24 && hasLineOfSight(player) && weaponAdvanceTicks++ < 45) {
+                && distance > 7 && distance < 24 && hasLineOfSight(player)
+                && !(weaponMode() == 1 && distance > 12 && attackReady(BossAttack.AXE_THROW))
+                && weaponAdvanceTicks++ < 45) {
             if (getNavigation().isDone() || phaseTicks % 12 == 0) getNavigation().moveTo(player, 1);
             return;
         }
@@ -1927,7 +1932,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if (distance > 6 && distance < 32) addReady(choices, BossAttack.CHARGE, BossAttack.LEAP, BossAttack.CHAIN_GRAPPLE);
         if (distance > 9) addReady(choices, BossAttack.PAWING, BossAttack.STAMPEDE, BossAttack.RUBBLE_THROW);
         if (distance > 5 && distance < 30) addReady(choices, BossAttack.FIRE_RINGS, BossAttack.GREEK_FIRE_LASER, BossAttack.SMOKE_BELCH);
-        if (distance > 12 && distance < 35 && weaponUsesRemaining == 0) addReady(choices, BossAttack.AXE_THROW);
+        if (distance > 10 && distance < 35 && (weaponMode() != 2 || weaponUsesRemaining <= 1)
+                && (weaponMode() != 1 || weaponUsesRemaining <= 3 || distance > 18)) addReady(choices, BossAttack.AXE_THROW);
         if (storedArrows > 0) addReady(choices, BossAttack.ARROW_RETURN);
         if (RagdollServerNetworking.isRagdolled(player) && distance < 24) addReady(choices, BossAttack.RAGDOLL_STOMP);
         if (axeInWorld() && axeAge > 160 && (distance > 8 || position().distanceToSqr(axeLastPosition) < 25))
@@ -1971,7 +1977,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 case FIRE_RINGS -> 4;
                 case GREEK_FIRE_LASER -> 4.0;
                 case SMOKE_BELCH -> 4.8;
-                case AXE_THROW -> 0.5;
+                case AXE_THROW -> weaponMode() == 1 ? 5.8 : 3.8;
                 case RETRIEVE_AXE -> position().distanceToSqr(axeLastPosition) < 25 ? 5 : .5;
                 case CHARGE -> 6.5;
                 case STAMPEDE, PAWING -> 4.5;
@@ -2077,12 +2083,14 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             double progress = weaponSwapTicks() / (double)weaponSheathTicks();
             return progress < (weaponTransitionMode() == 2 ? .68 : .5) ? weaponTransitionMode() : 0;
         }
-        double progress = (weaponSwapTicks() - weaponSheathTicks()) / (double)Math.max(1, weaponDrawTicks());
-        return progress >= (pendingWeaponMode() == 2 ? .32 : .5) ? pendingWeaponMode() : 0;
+        double tick = weaponSwapTicks() - weaponSheathTicks();
+        double seconds = (pendingWeaponMode() == 2 ? MinotaurAnimationTiming.DRAW_SWORD
+                : MinotaurAnimationTiming.DRAW_AXE).seconds(tick);
+        return seconds >= .5 ? pendingWeaponMode() : 0;
     }
 
     private boolean prepareWeapon(BossAttack attack) {
-        if (attack == BossAttack.AXE_THROW && axeInWorld() && bossAttackTicks >= 16) return true;
+        if (attack == BossAttack.AXE_THROW && axeInWorld() && bossAttackTicks >= MinotaurAnimationTiming.AXE_RELEASE) return true;
         int wanted = attackWeapon(attack);
         if (weaponMode() == wanted && weaponSwapTicks() == 0) return true;
         getNavigation().stop();
@@ -2355,6 +2363,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                         5.8F, 12, BossTelegraphPayload.FRONT_CONE);
             playSound(SoundEvents.RAVAGER_ATTACK, 2.2F, 0.68F);
         } else if (attack == BossAttack.RAGDOLL_STOMP) {
+            getEntityData().set(DATA_LEAP_LANDING, -1);
             stompTarget = player.getUUID();
             stompTargetPosition = combatPoint(player.position()
                     .add(player.getDeltaMovement().multiply(4.0D, 0.0D, 4.0D)));
@@ -2513,7 +2522,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                         Vec3 hoof = position().add(bossChargeDirection.scale(1.38D)).add(right.scale(side));
                         level.sendParticles(ParticleTypes.DUST_PLUME, hoof.x, getY() + 0.10D, hoof.z,
                                 10, 0.42D, 0.08D, 0.42D, 0.05D);
-                        playSound(SoundEvents.RAVAGER_STEP, 2.35F,
+                        playSound(Asterion.MINOTAUR_STEP, 2.35F,
                                 0.32F + bossAttackTicks / (float)Math.max(1, windupTicks) * 0.10F);
                     }
                     // A committed boss charge is allowed to smash a newly placed obstruction.
@@ -2619,7 +2628,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             }
             case GRAB -> tickGrabAttack(level, player);
             case AXE_THROW -> {
-                if (bossAttackTicks == 16) throwAxe(level, player);
+                if (bossAttackTicks == MinotaurAnimationTiming.AXE_RELEASE) throwAxe(level, player);
                 if (bossAttackTicks >= 30) finishBossAttack(30);
             }
             case RETRIEVE_AXE -> retrieveAxe(level);
@@ -2683,7 +2692,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             Vec3 hoof = position().add(forward.scale(1.45D)).add(right.scale(side));
             level.sendParticles(ParticleTypes.DUST_PLUME, hoof.x, getY() + 0.12D, hoof.z,
                     9, 0.42D, 0.09D, 0.42D, 0.055D);
-            if ((bossAttackTicks % 8) == 0) playSound(SoundEvents.RAVAGER_STEP, 2.2F, 0.42F);
+            if ((bossAttackTicks % 8) == 0) playSound(Asterion.MINOTAUR_STEP, 2.2F, 0.42F);
         }
         if (bossAttackTicks == 38) {
             setBossAttack(BossAttack.STAMPEDE);
@@ -2706,7 +2715,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 Vec3 hoof = position().add(bossChargeDirection.scale(1.4D)).add(right.scale(side));
                 level.sendParticles(ParticleTypes.DUST_PLUME, hoof.x, getY() + 0.1D, hoof.z,
                         10, 0.45D, 0.08D, 0.45D, 0.05D);
-                playSound(SoundEvents.RAVAGER_STEP, 2.4F,
+                playSound(Asterion.MINOTAUR_STEP, 2.4F,
                         0.36F + bossAttackTicks / 300.0F);
             }
             if (bossAttackTicks == 30) playRoar(4.0F, 0.68F, 1.05F);
@@ -2762,7 +2771,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 Vec3 hoof = position().add(bossChargeDirection.scale(1.35D)).add(right.scale(side));
                 level.sendParticles(ParticleTypes.DUST_PLUME, hoof.x, getY() + 0.08D, hoof.z,
                         12, 0.45D, 0.08D, 0.45D, 0.05D);
-                playSound(SoundEvents.RAVAGER_STEP, 2.5F, 0.34F + bossAttackTicks * 0.004F);
+                playSound(Asterion.MINOTAUR_STEP, 2.5F, 0.34F + bossAttackTicks * 0.004F);
             }
             if (bossAttackTicks == 24) playRoar(3.8F, 0.70F, 0.9F);
             return;
@@ -2835,6 +2844,12 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     private void tickRagdollStomp(ServerLevel level, ServerPlayer fallback) {
+        int landed = getEntityData().get(DATA_LEAP_LANDING);
+        if (landed >= 0) {
+            setDeltaMovement(getDeltaMovement().multiply(.1, 1, .1));
+            if (bossAttackTicks >= landed + 12) finishBossAttack(stompRecoveryCooldown);
+            return;
+        }
         Player found = stompTarget == null ? null : level.getPlayerByUUID(stompTarget);
         ServerPlayer target = found instanceof ServerPlayer serverPlayer ? serverPlayer : fallback;
         if (target != null && target.isAlive() && RagdollServerNetworking.isRagdolled(target)
@@ -2891,7 +2906,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                     9, 2.2D, 0.22D, 2.2D, 0.05D);
             playSound(SoundEvents.GENERIC_EXPLODE.value(), 3.2F, 0.42F);
             riposteTicks = hit ? 28 : 50;
-            finishBossAttack(hit ? 54 : 44);
+            stompRecoveryCooldown = hit ? 54 : 44;
+            getEntityData().set(DATA_LEAP_LANDING, bossAttackTicks);
             return;
         }
         if (bossAttackTicks >= 48) {
@@ -3525,7 +3541,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                     ServerPlayNetworking.send(viewer, rumble);
             level.sendParticles(ParticleTypes.DUST_PLUME, getX(), getY() + 0.1D, getZ(),
                     18 + collapseTicks, 5.5D, 0.2D, 5.5D, 0.045D);
-            playSound(SoundEvents.RAVAGER_STEP, 2.4F + collapseTicks * 0.04F,
+            playSound(Asterion.MINOTAUR_STEP, 2.4F + collapseTicks * 0.04F,
                     0.46F - collapseTicks * 0.004F);
         }
         if (collapseTicks == 30) {
@@ -3978,7 +3994,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             awarenessRepathTicks = 0;
             level.sendParticles(ParticleTypes.DUST_PLUME, sweep.getCenter().x, getY() + 0.5D,
                     sweep.getCenter().z, Math.min(16, broken * 2), 0.55D, 0.45D, 0.55D, 0.04D);
-            playSound(SoundEvents.RAVAGER_STEP, 1.5F, 0.52F);
+            playSound(Asterion.MINOTAUR_STEP, 1.5F, 0.52F);
         }
     }
 
@@ -4140,7 +4156,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         setDeltaMovement(Vec3.ZERO);
         level.sendParticles(ParticleTypes.DUST_PLUME, getX(), getY() + 0.35D, getZ(),
                 30, 1.35D, 0.65D, 1.35D, 0.040D);
-        playSound(SoundEvents.RAVAGER_STEP, 0.72F, 0.42F);
+        playSound(Asterion.MINOTAUR_STEP, 0.72F, 0.42F);
 
         stalkingRoute.clear();
         stalkingDestination = null;
@@ -4159,7 +4175,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 getZ(), 22, 1.05D, 1.35D, 1.05D, 0.018D);
         level.sendParticles(ParticleTypes.DUST_PLUME, getX(), getY() + 0.18D,
                 getZ(), 28, 1.25D, 0.35D, 1.25D, 0.035D);
-        playSound(SoundEvents.RAVAGER_STEP, 0.82F, 0.40F);
+        playSound(Asterion.MINOTAUR_STEP, 0.82F, 0.40F);
     }
 
     private Vec3 findShadowRelocation(ServerPlayer player) {
@@ -4297,7 +4313,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
     private void playHeavySteps() {
         if (getDeltaMovement().horizontalDistanceSqr() > 0.012D && (tickCount % 9) == 0) {
-            playSound(SoundEvents.RAVAGER_STEP, behaviorPhase() == BehaviorPhase.CHASING ? 1.8F : 1.05F,
+            playSound(Asterion.MINOTAUR_STEP, behaviorPhase() == BehaviorPhase.CHASING ? 1.8F : 1.05F,
                     behaviorPhase() == BehaviorPhase.CHASING ? 0.68F : 0.48F);
             if (behaviorPhase() == BehaviorPhase.CHASING && level() instanceof ServerLevel level) {
                 MazeShiftPayload footfall = new MazeShiftPayload(blockPosition(), 26.0F,
@@ -4363,7 +4379,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         heavyJumpArmed = false;
         heavyJumpWasAirborne = false;
         playSound(SoundEvents.GENERIC_EXPLODE.value(), 2.7F, 0.36F);
-        playSound(SoundEvents.RAVAGER_STEP, 3.2F, 0.34F);
+        playSound(Asterion.MINOTAUR_STEP, 3.2F, 0.34F);
         level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK,
                         level.getBlockState(blockPosition().below())),
                 getX(), getY() + 0.12D, getZ(), 34, 1.45D, 0.18D, 1.45D, 0.16D);
@@ -4641,12 +4657,14 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             if (renderedAttack == BossAttack.SMOKE_BELCH) return AnimationState.BELCH;
             if (renderedAttack == BossAttack.GREEK_FIRE_LASER || renderedAttack == BossAttack.FIRE_RINGS)
                 return AnimationState.ROAR_START;
-            if (renderedAttack == BossAttack.CLEAVE || renderedAttack == BossAttack.BACK_KICK
+            if (renderedAttack == BossAttack.BACK_KICK) return AnimationState.BACK_KICK;
+            if (renderedAttack == BossAttack.CLEAVE
                     || renderedAttack == BossAttack.ARENA_SWEEP) return AnimationState.ATTACK;
             if (renderedAttack == BossAttack.SLAM) return AnimationState.VERTICAL_ATTACK;
             if (renderedAttack == BossAttack.AXE_CHOP) return AnimationState.AXE_CHOP;
             if (renderedAttack == BossAttack.RUBBLE_THROW) return AnimationState.RUBBLE;
-            if (renderedAttack == BossAttack.RAGDOLL_STOMP) return AnimationState.LEAP;
+            if (renderedAttack == BossAttack.RAGDOLL_STOMP) return renderedAttackTicks <= 18 ? AnimationState.CHASE
+                    : getEntityData().get(DATA_LEAP_LANDING) >= 0 ? AnimationState.LAND : AnimationState.LEAP;
             if (renderedAttack == BossAttack.GRAB) return AnimationState.IDLE;
             if (renderedAttack == BossAttack.WALL_SHOVE || renderedAttack == BossAttack.PUNCH_SINGLE) return AnimationState.PUNCH_SINGLE;
             if (renderedAttack == BossAttack.AXE_THROW) return AnimationState.AXE_THROW;
@@ -4746,7 +4764,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<MinotaurEntity>("movement", 8, test -> {
+        controllers.add(new MinotaurAnimationController(test -> {
             AnimationState pose = animationState();
             RawAnimation animation = switch (pose) {
                 case DRAW_SWORD -> DRAW_SWORD_ANIMATION;
@@ -4772,64 +4790,69 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 case CHARGE_RUN -> CHARGE_RUN_ANIMATION;
                 case ROAR_START -> ROAR_START_ANIMATION;
                 case BELCH -> BELCH_ANIMATION;
+                case BACK_KICK -> BACK_KICK_ANIMATION;
                 case CHASE -> RUN_ANIMATION;
                 case WALK -> WALK_ANIMATION;
                 case IDLE -> IDLE_ANIMATION;
             };
-            test.setControllerSpeed(1);
-            float partial = test.renderState().getPartialTick();
-            double seconds = -1;
-            if (weaponSwapTicks() > 0) {
-                double portion = isSheathingWeapon() ? weaponSwapTicks() + partial
-                        : weaponSwapTicks() - weaponSheathTicks() + partial;
-                double duration = isSheathingWeapon() ? weaponSheathTicks() : weaponDrawTicks();
-                seconds = Math.min(1, portion / Math.max(1, duration)) * (weaponTransitionMode() == 2 ? 1.5417 : 1.0);
-            } else if (pose == AnimationState.DIES) seconds = Math.max(0, (collapseAnimationTicks() - 28 + partial) / 20.0);
-            else if (pose == AnimationState.REVIVE) seconds = Math.min(.6667, (collapseAnimationTicks() - 138 + partial) / 30.0 * .6667);
-            else if (pose == AnimationState.BELCH) seconds = (bossAttackAnimationTicks() + partial) / 20.0;
-            else if (pose == AnimationState.ROAR_START) seconds = (doorEntryTicks() > 0 ? doorEntryTicks() - 1 + partial : bossAttackAnimationTicks() + partial) / 20.0;
-            else if (pose == AnimationState.WARNING) {
-                int corridor = getEntityData().get(DATA_CORRIDOR_CHARGE_TICKS);
-                int windup = chargeAnimationWindup();
-                seconds = Math.min(1, ((corridor > 0 ? corridor : bossAttackAnimationTicks()) + partial) / windup) * 3.4849;
-            } else if (pose == AnimationState.LAND) {
-                seconds = Math.min(.9703, (bossAttackAnimationTicks() - getEntityData().get(DATA_LEAP_LANDING) + partial) / 12.0 * .9703);
-            } else if (pose == AnimationState.LEAP) {
-                // The authored clip ends in its airborne pose; hold that pose until the real landing.
-                seconds = Math.min(.9703, (bossAttackAnimationTicks() + partial) / 20.0);
-            } else if (weaponSwapTicks() == 0 && (pose == AnimationState.CHAIN || pose == AnimationState.PUNCH
-                    || pose == AnimationState.RUBBLE || pose == AnimationState.VERTICAL_ATTACK || pose == AnimationState.PUNCH_SINGLE || pose == AnimationState.AXE_CHOP || pose == AnimationState.AXE_THROW
-                    || pose == AnimationState.ATTACK && bossAttackState() == BossAttack.CLEAVE || pose == AnimationState.SWORD))
-                seconds = (bossAttackAnimationTicks() + partial) / 20.0;
-            // Leave the looping charge on GeckoLib's clock so all four transition ticks actually blend.
-            test.controller().setTransitionTicks(4);
+            // Keep a continuous local tick clock; packet updates only anchor a newly entered pose.
             double age = test.renderState().getAnimatableAge();
+            double observed = animationPhaseTick(pose) + test.renderState().getPartialTick();
             if (clientAnimationPose != pose) {
-                clientAnimationPose = pose; clientPoseStartAge = age;
-                clientPoseStartSeconds = Math.max(0, seconds);
+                clientAnimationPose = pose; clientPoseStartAge = age; clientPoseStartTick = observed; clientPoseAge = 0;
             }
-            if (seconds >= 0) {
-                // Packet timestamps are anchors, never a per-frame clock: partialTick wraps between packets.
-                double rate = weaponSwapTicks() > 0
-                        ? (weaponTransitionMode() == 2 ? 1.5417 : 1.0) * 20
-                            / Math.max(1, isSheathingWeapon() ? weaponSheathTicks() : weaponDrawTicks())
-                        : pose == AnimationState.WARNING ? 3.4849 * 20 / chargeAnimationWindup()
-                        : pose == AnimationState.REVIVE ? .6667 * 20 / 30
-                        : pose == AnimationState.LAND ? .9703 * 20 / 12 : 1;
-                seconds = clientPoseStartSeconds + Math.max(0, age - clientPoseStartAge) / 20.0 * rate;
-                if (pose == AnimationState.LEAP || pose == AnimationState.LAND) seconds = Math.min(.9703, seconds);
-                if (pose == AnimationState.REVIVE) seconds = Math.min(.6667, seconds);
-                if (pose == AnimationState.WARNING) seconds = Math.min(3.4849, seconds);
-            }
+            // Extra render passes can request partialTick=1 before the ordinary interpolated pass.
+            double poseAge = clientPoseAge = Math.max(clientPoseAge, Math.max(0, age - clientPoseStartAge));
+            double ticks = clientPoseStartTick + poseAge;
+            double seconds = animationSeconds(pose, ticks);
+            test.setControllerSpeed(pose == AnimationState.CHARGE_RUN
+                    ? (float)Math.clamp(getDeltaMovement().horizontalDistance() / .35, 1, 2.4) : 1);
             var result = test.setAndContinue(animation);
-            if (seconds >= 0) {
-                double transitionAge = Math.max(0, age - clientPoseStartAge);
-                // Blend on wall-clock pose age, even for reversed/retimed clips or late tracking.
-                if (transitionAge < 4) test.controller().setTimelineTime(transitionAge / 20.0);
-                else test.controller().setAnimationTime(seconds);
-            }
+            ((MinotaurAnimationController)test.controller()).samplePose(seconds, poseAge);
             return result;
         }));
+    }
+
+    private double animationPhaseTick(AnimationState pose) {
+        if (weaponSwapTicks() > 0) return isSheathingWeapon() ? weaponSwapTicks() : weaponSwapTicks() - weaponSheathTicks();
+        if (pose == AnimationState.DIES) return Math.max(0, collapseAnimationTicks() - 28);
+        if (pose == AnimationState.REVIVE) return Math.max(0, collapseAnimationTicks() - 138);
+        if (pose == AnimationState.ROAR_START && doorEntryTicks() > 0) return doorEntryTicks() - 1;
+        if (pose == AnimationState.WARNING && getEntityData().get(DATA_CORRIDOR_CHARGE_TICKS) > 0)
+            return getEntityData().get(DATA_CORRIDOR_CHARGE_TICKS);
+        if (pose == AnimationState.LAND) return bossAttackAnimationTicks() - getEntityData().get(DATA_LEAP_LANDING);
+        if (pose == AnimationState.LEAP && bossAttackState() == BossAttack.RAGDOLL_STOMP)
+            return Math.max(0, bossAttackAnimationTicks() - 18);
+        return bossAttackAnimationTicks();
+    }
+
+    private double animationSeconds(AnimationState pose, double tick) {
+        return switch (pose) {
+            case DRAW_SWORD -> MinotaurAnimationTiming.DRAW_SWORD.seconds(tick);
+            case DRAW_AXE -> MinotaurAnimationTiming.DRAW_AXE.seconds(tick);
+            case SHEATHE_SWORD -> MinotaurAnimationTiming.SHEATHE_SWORD.seconds(tick);
+            case SHEATHE_AXE -> MinotaurAnimationTiming.SHEATHE_AXE.seconds(tick);
+            case ATTACK -> MinotaurAnimationTiming.CLEAVE.seconds(tick);
+            case AXE_CHOP -> MinotaurAnimationTiming.CHOP.seconds(tick);
+            case VERTICAL_ATTACK -> MinotaurAnimationTiming.SLAM.seconds(tick);
+            case AXE_THROW -> MinotaurAnimationTiming.THROW.seconds(tick);
+            case SWORD, PUNCH -> MinotaurAnimationTiming.COMBO.seconds(tick);
+            case SPIN -> MinotaurAnimationTiming.SPIN.seconds(tick);
+            case PUNCH_SINGLE -> MinotaurAnimationTiming.PUNCH.seconds(tick);
+            case BACK_KICK -> MinotaurAnimationTiming.BACK_KICK.seconds(tick);
+            case CHAIN -> (bossAttackState() == BossAttack.ARROW_RETURN
+                    ? MinotaurAnimationTiming.ARROWS : MinotaurAnimationTiming.CHAIN).seconds(tick);
+            case RUBBLE -> MinotaurAnimationTiming.RUBBLE.seconds(tick);
+            case WARNING -> MinotaurAnimationTiming.chargeSeconds(tick, chargeAnimationWindup());
+            case ROAR_START -> (bossAttackState() == BossAttack.GREEK_FIRE_LASER || bossAttackState() == BossAttack.FIRE_RINGS
+                    ? MinotaurAnimationTiming.FIRE_ROAR : MinotaurAnimationTiming.ROAR).seconds(tick);
+            case BELCH -> MinotaurAnimationTiming.BELCH.seconds(tick);
+            case LEAP -> MinotaurAnimationTiming.LEAP.seconds(tick);
+            case LAND -> MinotaurAnimationTiming.LAND.seconds(tick);
+            case DIES -> MinotaurAnimationTiming.DIES.seconds(tick);
+            case REVIVE -> MinotaurAnimationTiming.REVIVE.seconds(tick);
+            default -> -1; // Locomotion loops use the controller's clock, including their loop seam.
+        };
     }
 
     @Override

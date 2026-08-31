@@ -1,4 +1,16 @@
 {
+  "metal_hit_sound": {
+    "subtitle": "subtitles.asterion.metal_hit",
+    "sounds": ["asterion:metal_hit_sound"]
+  },
+  "minotaur_door_openclose": {
+    "subtitle": "subtitles.asterion.minotaur_door_openclose",
+    "sounds": ["asterion:minotaur_door_openclose"]
+  },
+  "minotaur_step": {
+    "subtitle": "subtitles.asterion.minotaur_step",
+    "sounds": ["asterion:minotaur_step"]
+  },
   "minotaur_roar": {
     "subtitle": "subtitles.asterion.minotaur_roar",
     "sounds": [

@@ -72,13 +72,10 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
         startAngle = angle(0);
         targetAngle = targetAngle > 0 ? 0 : MinotaurDoorMotion.OPEN_ANGLE;
         motionStart = level.getGameTime();
-        level.playSound(null, worldPosition, targetAngle > 0 ? SoundEvents.IRON_DOOR_OPEN : SoundEvents.IRON_DOOR_CLOSE,
-                SoundSource.BLOCKS, 2.2F, .55F);
-        level.playSound(null, worldPosition, SoundEvents.GRINDSTONE_USE, SoundSource.BLOCKS, 1.4F, .6F);
+        level.playSound(null, worldPosition, Asterion.MINOTAUR_DOOR_OPENCLOSE,
+                SoundSource.BLOCKS, 2.2F, 1F);
         // Keep the passage passable throughout closing; occupancy is checked again before latching.
         MinotaurDoorBlock.setOpen(level, worldPosition, facing(), true);
-        level.playSound(null, worldPosition, targetAngle > 0 ? SoundEvents.IRON_DOOR_OPEN : SoundEvents.IRON_DOOR_CLOSE,
-                SoundSource.BLOCKS, 1.8F, .5F);
         sync();
     }
     private boolean occupied() {
@@ -91,7 +88,7 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
         startAngle = angle(0);
         targetAngle = 0;
         motionStart = level.getGameTime();
-        level.playSound(null, worldPosition, SoundEvents.IRON_DOOR_CLOSE, SoundSource.BLOCKS, 1.8F, .5F);
+        level.playSound(null, worldPosition, Asterion.MINOTAUR_DOOR_OPENCLOSE, SoundSource.BLOCKS, 1.8F, 1F);
         sync();
     }
     public void beginBreach() {
@@ -112,7 +109,7 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
                 ServerPlayNetworking.send(player, new MazeShiftPayload(worldPosition, 64, 1.8F, 22));
         }
         server.playSound(null, worldPosition, SoundEvents.ZOMBIE_BREAK_WOODEN_DOOR, SoundSource.BLOCKS, 3.5F, .55F);
-        server.playSound(null, worldPosition, SoundEvents.ANVIL_LAND, SoundSource.BLOCKS, 2.5F, .5F);
+        server.playSound(null, worldPosition, Asterion.METAL_HIT, SoundSource.BLOCKS, 2.5F, .85F);
         Vec3 inward = facing.getOpposite().getUnitVec3();
         Vec3 across = facing.getClockWise().getUnitVec3();
         for (int i = 0; i < 18; i++) {
@@ -130,7 +127,7 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
         if (level.isClientSide()) { door.scrapeDust(); return; }
         if (door.breaching) {
             if (elapsed == 8 || elapsed == 26 || elapsed == 44) {
-                level.playSound(null, pos, SoundEvents.ZOMBIE_ATTACK_IRON_DOOR, SoundSource.BLOCKS, 2.6F, .5F);
+                level.playSound(null, pos, Asterion.METAL_HIT, SoundSource.BLOCKS, 2.6F, .9F);
                 if (level instanceof ServerLevel server) {
                     for (var viewer : server.players()) if (viewer.distanceToSqr(Vec3.atCenterOf(pos)) < 64 * 64
                             && ServerPlayNetworking.canSend(viewer, MazeShiftPayload.TYPE))
