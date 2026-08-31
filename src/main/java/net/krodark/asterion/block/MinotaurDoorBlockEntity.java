@@ -72,8 +72,6 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
         startAngle = angle(0);
         targetAngle = targetAngle > 0 ? 0 : MinotaurDoorMotion.OPEN_ANGLE;
         motionStart = level.getGameTime();
-        level.playSound(null, worldPosition, Asterion.MINOTAUR_DOOR_OPENCLOSE,
-                SoundSource.BLOCKS, 2.2F, 1F);
         // Keep the passage passable throughout closing; occupancy is checked again before latching.
         MinotaurDoorBlock.setOpen(level, worldPosition, facing(), true);
         sync();
@@ -88,7 +86,6 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
         startAngle = angle(0);
         targetAngle = 0;
         motionStart = level.getGameTime();
-        level.playSound(null, worldPosition, Asterion.MINOTAUR_DOOR_OPENCLOSE, SoundSource.BLOCKS, 1.8F, 1F);
         sync();
     }
     public void beginBreach() {
@@ -127,7 +124,7 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
         if (level.isClientSide()) { door.scrapeDust(); return; }
         if (door.breaching) {
             if (elapsed == 8 || elapsed == 26 || elapsed == 44) {
-                level.playSound(null, pos, Asterion.METAL_HIT, SoundSource.BLOCKS, 2.6F, .9F);
+                level.playSound(null, pos, SoundEvents.ZOMBIE_ATTACK_IRON_DOOR, SoundSource.BLOCKS, 2.6F, .5F);
                 if (level instanceof ServerLevel server) {
                     for (var viewer : server.players()) if (viewer.distanceToSqr(Vec3.atCenterOf(pos)) < 64 * 64
                             && ServerPlayNetworking.canSend(viewer, MazeShiftPayload.TYPE))

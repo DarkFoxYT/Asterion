@@ -14,6 +14,7 @@ import java.util.Set;
 public final class BombardierStenchParticle extends AnimatedEmissiveParticle {
     private static final Set<BombardierStenchParticle> ACTIVE = Collections.newSetFromMap(new WeakHashMap<>());
     private float targetSize;
+    private float sizeMultiplier = 1;
     private int sizeChangeTicks;
     private boolean burning;
     private SpriteSet fireSprites;
@@ -46,6 +47,15 @@ public final class BombardierStenchParticle extends AnimatedEmissiveParticle {
                 velocityX, velocityY, velocityZ, sprites, random);
     }
 
+    public static Particle createBelch(ClientLevel level, double x, double y, double z,
+                                      double vx, double vy, double vz, SpriteSet sprites, RandomSource random) {
+        var smoke = new BombardierStenchParticle(level, x, y, z, vx, vy, vz, sprites, random);
+        smoke.sizeMultiplier = 4;
+        smoke.quadSize *= smoke.sizeMultiplier;
+        smoke.targetSize *= smoke.sizeMultiplier;
+        return smoke;
+    }
+
     @Override
     public void tick() {
         markTicked();
@@ -58,7 +68,7 @@ public final class BombardierStenchParticle extends AnimatedEmissiveParticle {
         }
 
         if (!burning && --sizeChangeTicks <= 0) {
-            targetSize = randomSize(random);
+            targetSize = randomSize(random) * sizeMultiplier;
             sizeChangeTicks = 7 + random.nextInt(13);
         }
         quadSize = Mth.lerp(0.12F, quadSize, targetSize);

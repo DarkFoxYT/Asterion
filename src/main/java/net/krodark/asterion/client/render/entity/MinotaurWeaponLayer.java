@@ -34,7 +34,7 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
         if (!pass.willRender() || pass.renderState().isInvisible) return;
         boolean drawn = pass.renderState().getOrDefaultGeckolibData(SWORDS_DRAWN, false);
         for (String side : SIDES)
-            pass.model().getBone((drawn ? "weapon_" : "sword_hip_") + side).ifPresent(bone ->
+            pass.model().getBone(drawn ? (side.equals("right") ? "hand_itemR" : "hand_itemL") : "sword_hip_" + side).ifPresent(bone ->
                     consumer.accept(bone, (posed, ignored, tasks) -> MinotaurSwordVisual.submit(
                             posed.poseStack(), tasks, posed.cameraState(), posed.packedLight())));
         String name = pass.renderState().getOrDefaultGeckolibData(AXE_BONE, "");

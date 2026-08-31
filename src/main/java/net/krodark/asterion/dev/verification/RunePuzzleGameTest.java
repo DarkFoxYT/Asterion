@@ -33,6 +33,7 @@ public final class RunePuzzleGameTest implements FabricClientGameTest {
                             net.minecraft.world.InteractionHand.MAIN_HAND, placed, hit));
                     check(placed.isEmpty(), "Item placement failed or did not consume one plaque");
                     var rune = (RuneBlockEntity)level.getBlockEntity(root);
+                    check(!rune.isWorldGenerated(), "Player placement became a beetle habitat");
                     rune.interact(player, new ItemStack(Asterion.RUNE_STONE_BLOCKS[(index + 1) % 24]));
                     check(!rune.getBlockState().getValue(RuneBlock.POWERED), "Wrong key activated rune");
                     ItemStack key = new ItemStack(Asterion.RUNE_STONE_BLOCKS[index]);
@@ -81,6 +82,28 @@ public final class RunePuzzleGameTest implements FabricClientGameTest {
                 var level = mc.overworld();
                 check(!level.getBlockState(root.north()).getValue(BlockStateProperties.LIT), "Front lamp stuck on");
                 check(!level.getBlockState(root.south()).getValue(BlockStateProperties.LIT), "Back lamp stuck on");
+                var block = Asterion.RUNE_BLOCKS[0];
+                level.getGameRules().set(net.minecraft.world.level.gamerules.GameRules.SPAWN_MOBS, true, mc);
+                block.place(level, root, Direction.NORTH);
+                var rune = (RuneBlockEntity)level.getBlockEntity(root);
+                var bounds = new net.minecraft.world.phys.AABB(root).inflate(32);
+                for (int tick = 0; tick < 2400; tick++) RuneBlockEntity.tick(level, root, rune.getBlockState(), rune);
+                check(level.getEntitiesOfClass(net.krodark.asterion.entity.RuneBeetleEntity.class, bounds).isEmpty(),
+                        "Unproven rune spawned beetles");
+                rune.setWorldGenerated(true);
+                var restored = (RuneBlockEntity)net.minecraft.world.level.block.entity.BlockEntity.loadStatic(
+                        root, rune.getBlockState(), rune.saveWithFullMetadata(level.registryAccess()), level.registryAccess());
+                check(restored != null && restored.isWorldGenerated(), "Generated provenance lost on reload");
+                for (int tick = 0; tick < 4800; tick++) RuneBlockEntity.tick(level, root, rune.getBlockState(), rune);
+                var beetles = level.getEntitiesOfClass(net.krodark.asterion.entity.RuneBeetleEntity.class, bounds);
+                check(!beetles.isEmpty() && beetles.size() <= 2, "Natural rune spawn missing or uncapped: " + beetles.size());
+                for (var beetle : beetles) {
+                    check(level.noCollision(beetle), "Rune beetle spawned inside a block");
+                    beetle.discard();
+                }
+                block.setPlacedBy(level, root, rune.getBlockState(), mc.getPlayerList().getPlayers().getFirst(), new ItemStack(block));
+                check(!((RuneBlockEntity)level.getBlockEntity(root)).isWorldGenerated(), "Replacement retained natural provenance");
+                Asterion.LOGGER.info("PASS: rune beetle natural-only spawning, saved provenance, player replacement exclusion and local cap");
             });
         }
     }

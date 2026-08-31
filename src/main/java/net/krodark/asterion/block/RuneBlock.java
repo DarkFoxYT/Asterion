@@ -60,7 +60,10 @@ public final class RuneBlock extends BaseEntityBlock {
     }
     @Override public void setPlacedBy(Level level, BlockPos pos, BlockState state,
                                      @Nullable LivingEntity placer, ItemStack stack) {
-        if (!level.isClientSide()) place(level, pos, state.getValue(FACING));
+        if (!level.isClientSide()) {
+            place(level, pos, state.getValue(FACING));
+            if (level.getBlockEntity(pos) instanceof RuneBlockEntity rune) rune.setWorldGenerated(false);
+        }
     }
     public void place(Level level, BlockPos root, Direction facing) {
         BlockState base = defaultBlockState().setValue(FACING, facing);

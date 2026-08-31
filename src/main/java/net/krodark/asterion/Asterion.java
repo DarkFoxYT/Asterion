@@ -258,6 +258,11 @@ public class Asterion implements ModInitializer {
                     .sized(1, 1).clientTrackingRange(16).updateInterval(1).build(MINOTAUR_AXE_KEY));
     private static final ResourceKey<EntityType<?>> BOMBARDIER_BEETLE_KEY = ResourceKey.create(
             Registries.ENTITY_TYPE, id("bombadier_beetle"));
+    private static final ResourceKey<EntityType<?>> RUNE_BEETLE_KEY = ResourceKey.create(Registries.ENTITY_TYPE, id("rune_beetle"));
+    public static final EntityType<net.krodark.asterion.entity.RuneBeetleEntity> RUNE_BEETLE = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, RUNE_BEETLE_KEY,
+            EntityType.Builder.of(net.krodark.asterion.entity.RuneBeetleEntity::new, MobCategory.CREATURE)
+                    .sized(.45F, .25F).eyeHeight(.15F).clientTrackingRange(8).build(RUNE_BEETLE_KEY));
     public static final EntityType<BombadierBeetleEntity> BOMBARDIER_BEETLE = Registry.register(
             BuiltInRegistries.ENTITY_TYPE,
             BOMBARDIER_BEETLE_KEY,
@@ -284,6 +289,8 @@ public class Asterion implements ModInitializer {
     );
     public static final SimpleParticleType BOMBARDIER_STENCH = Registry.register(
             BuiltInRegistries.PARTICLE_TYPE, id("bombardier_stench"), FabricParticleTypes.simple());
+    public static final SimpleParticleType MINOTAUR_BELCH_SMOKE = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, id("minotaur_belch_smoke"), FabricParticleTypes.simple());
     public static final SimpleParticleType BOMBARDIER_GAS_FIRE = Registry.register(
             BuiltInRegistries.PARTICLE_TYPE, id("bombardier_gas_fire"), FabricParticleTypes.simple());
     public static final SimpleParticleType GREEK_FIRE = Registry.register(
@@ -521,6 +528,7 @@ public class Asterion implements ModInitializer {
         net.krodark.asterion.command.MinotaurDebugCommands.register();
         FabricDefaultAttributeRegistry.register(MINOTAUR, MinotaurEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(BOMBARDIER_BEETLE, BombadierBeetleEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(RUNE_BEETLE, net.krodark.asterion.entity.RuneBeetleEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(SCARLET_CENTIPEDE, ScarletCentipedeEntity.createAttributes());
         ServerChunkEvents.CHUNK_LOAD.register(WorldGenerator::onChunkLoad);
         ServerChunkEvents.CHUNK_LOAD.register(CatacombFloodState::onChunkLoad);

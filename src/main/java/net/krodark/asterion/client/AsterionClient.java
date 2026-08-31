@@ -59,6 +59,8 @@ public final class AsterionClient implements ClientModInitializer {
         EntityRenderers.register(Asterion.MINOTAUR, MinotaurGeoRenderer::new);
         EntityRenderers.register(Asterion.MINOTAUR_AXE, net.krodark.asterion.client.render.entity.MinotaurAxeRenderer::new);
         EntityRenderers.register(Asterion.BOMBARDIER_BEETLE, BombadierBeetleGeoRenderer::new);
+        // Deliberately model-free until the rune beetle's GeckoLib assets are available.
+        EntityRenderers.register(Asterion.RUNE_BEETLE, net.minecraft.client.renderer.entity.NoopRenderer::new);
         EntityRenderers.register(Asterion.SCARLET_CENTIPEDE, ScarletCentipedeGeoRenderer::new);
         ParticleProviderRegistry.getInstance().register(Asterion.GREEK_FIRE, sprites ->
                 (type, level, x, y, z, vx, vy, vz, random) ->
@@ -78,6 +80,9 @@ public final class AsterionClient implements ClientModInitializer {
         ParticleProviderRegistry.getInstance().register(Asterion.DOOR_DUST, sprites ->
                 (type, level, x, y, z, vx, vy, vz, random) ->
                         new net.krodark.asterion.client.particle.DoorDustParticle(level, x, y, z, vx, vy, vz, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.MINOTAUR_BELCH_SMOKE, sprites ->
+                (type, level, x, y, z, vx, vy, vz, random) ->
+                        BombardierStenchParticle.createBelch(level, x, y, z, vx, vy, vz, sprites, random));
         ParticleProviderRegistry.getInstance().register(Asterion.BOMBARDIER_STENCH, sprites ->
                 (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
                         BombardierStenchParticle.create(level, x, y, z,

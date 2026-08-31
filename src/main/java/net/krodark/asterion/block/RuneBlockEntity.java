@@ -20,6 +20,21 @@ import org.jspecify.annotations.Nullable;
 public final class RuneBlockEntity extends BlockEntity implements GeoBlockEntity {
     private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
     private float glowPercent;
+    private boolean worldGenerated;
+    private int beetleSpawnDelay = 200;
+
+    public boolean isWorldGenerated() { return worldGenerated; }
+    public void setWorldGenerated(boolean value) { worldGenerated = value; setChanged(); }
+
+    @Override protected void saveAdditional(net.minecraft.world.level.storage.ValueOutput out) {
+        super.saveAdditional(out);
+        out.putBoolean("worldGenerated", worldGenerated);
+    }
+    @Override protected void loadAdditional(net.minecraft.world.level.storage.ValueInput in) {
+        super.loadAdditional(in);
+        // Unknown/legacy plaques are deliberately ineligible: their origin cannot be proven.
+        worldGenerated = in.getBooleanOr("worldGenerated", false);
+    }
     public RuneBlockEntity(BlockPos pos, BlockState state) { super(Asterion.RUNE_BLOCK_ENTITY, pos, state); }
 
     public static void tick(Level level, BlockPos pos, BlockState state, RuneBlockEntity rune) {
@@ -27,6 +42,31 @@ public final class RuneBlockEntity extends BlockEntity implements GeoBlockEntity
         rune.glowPercent += (target - rune.glowPercent) * .18F;
         if (Math.abs(target - rune.glowPercent) < .08F) rune.glowPercent = target;
         if (!level.isClientSide() && level.getGameTime() % 20 == 0) level.scheduleTick(pos, state.getBlock(), 1);
+        if (level instanceof ServerLevel server && rune.worldGenerated && --rune.beetleSpawnDelay <= 0) {
+            rune.beetleSpawnDelay = 600 + server.getRandom().nextInt(600);
+            rune.spawnBeetle(server, pos);
+        }
+    }
+
+    private void spawnBeetle(ServerLevel level, BlockPos root) {
+        if (!level.getGameRules().get(net.minecraft.world.level.gamerules.GameRules.SPAWN_MOBS)) return;
+        if (level.players().stream().noneMatch(player -> !player.isSpectator()
+                && player.distanceToSqr(root.getX() + .5, root.getY(), root.getZ() + .5) < 48 * 48)) return;
+        if (level.getEntitiesOfClass(net.krodark.asterion.entity.RuneBeetleEntity.class,
+                new net.minecraft.world.phys.AABB(root).inflate(32)).size() >= 2) return;
+        for (int attempt = 0; attempt < 12; attempt++) {
+            BlockPos pos = root.offset(level.getRandom().nextInt(13) - 6, level.getRandom().nextInt(5) - 2,
+                    level.getRandom().nextInt(13) - 6);
+            if (!level.hasChunkAt(pos) || !level.hasChunkAt(pos.below())) continue;
+            if (!level.getBlockState(pos.below()).isFaceSturdy(level, pos.below(), net.minecraft.core.Direction.UP)
+                    || !level.getFluidState(pos).isEmpty()) continue;
+            var beetle = Asterion.RUNE_BEETLE.create(level, net.minecraft.world.entity.EntitySpawnReason.NATURAL);
+            if (beetle == null) return;
+            beetle.setPos(pos.getX() + .5, pos.getY(), pos.getZ() + .5);
+            if (!level.noCollision(beetle) || !level.isUnobstructed(beetle)) continue;
+            level.addFreshEntity(beetle);
+            return;
+        }
     }
 
     public void interact(Player player, ItemStack key) {

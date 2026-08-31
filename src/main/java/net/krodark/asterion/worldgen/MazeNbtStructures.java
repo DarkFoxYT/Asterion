@@ -7,7 +7,6 @@ import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.GreekRune;
 import net.krodark.asterion.WorldGenerator;
-import net.krodark.asterion.block.RuneBlock;
 import net.krodark.asterion.block.RuneDoorBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
@@ -407,13 +406,14 @@ public final class MazeNbtStructures {
                     }
         }
 
-        private void configureSafeRoom(ServerLevel level, Placement placement, boolean removePlaques) {
-            // Legacy templates still contain puzzle plaques and sealed gates. New placements omit
-            // the plaques and leave those gates open now that their progression system is retired.
+        private void configureSafeRoom(ServerLevel level, Placement placement, boolean newlyGenerated) {
+            // Keep the rune habitat, but leave the retired progression gates open. Only initial
+            // template placement establishes provenance; revisiting must not bless player blocks.
             for (BlockPos pos : BlockPos.betweenClosed(placement.box.minX(), placement.box.minY(), placement.box.minZ(),
                     placement.box.maxX(), placement.box.maxY(), placement.box.maxZ())) {
                 var state = level.getBlockState(pos);
-                if (removePlaques && state.getBlock() instanceof RuneBlock) level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+                if (newlyGenerated && level.getBlockEntity(pos) instanceof net.krodark.asterion.block.RuneBlockEntity rune)
+                    rune.setWorldGenerated(true);
                 else if (state.is(Asterion.RUNE_ZONE_DOOR)) level.setBlock(pos, state.setValue(RuneDoorBlock.OPEN, true), 3);
             }
         }

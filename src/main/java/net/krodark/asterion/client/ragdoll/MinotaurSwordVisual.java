@@ -13,7 +13,7 @@ public final class MinotaurSwordVisual {
     public static void submit(PoseStack poses, SubmitNodeCollector tasks, CameraRenderState camera, int light) {
         poses.pushPose();
         // Grip the lower handle so the large crossguard clears the twelve-pixel fist bore.
-        poses.scale(.5F, .5F, .5F);
+        poses.scale(1F, 1F, 1F);
         poses.translate(0, 6.0 / 16, 0);
         RENDERER.performRenderPass(SWORD, null, poses, tasks, camera, light, 0);
         poses.popPose();

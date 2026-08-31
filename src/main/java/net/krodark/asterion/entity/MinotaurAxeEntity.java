@@ -147,7 +147,7 @@ public final class MinotaurAxeEntity extends Entity {
         entityData.set(ROTATION, new Quaternionf(rotation));
         if (strongest > .3 && impactCooldown == 0) {
             impactCooldown = 8;
-            server.playSound(null, blockPosition(), net.krodark.asterion.Asterion.METAL_HIT, SoundSource.HOSTILE, 1.2F, .65F);
+            server.playSound(null, blockPosition(), SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 1.2F, .65F);
             server.sendParticles(ParticleTypes.POOF, getX(), getY() - bounds(center).getYsize() * .4, getZ(), 10, .4, .12, .4, .025);
         }
     }

@@ -44,8 +44,8 @@ final class MinotaurSmokeClouds {
                         ? cloud.velocity.multiply(.982, 1, .982).add(0, -.003, 0)
                         : hit.getDirection().getStepY() > 0 ? Vec3.ZERO : new Vec3(0, -.06, 0);
                 if ((cloud.age & 3) == 0)
-                    level.sendParticles(Asterion.BOMBARDIER_STENCH, cloud.position.x, cloud.position.y, cloud.position.z,
-                            3, .65, .25, .65, .008);
+                    level.sendParticles(Asterion.MINOTAUR_BELCH_SMOKE, cloud.position.x, cloud.position.y, cloud.position.z,
+                            3, 1.1, .55, 1.1, .008);
                 continue;
             }
             if (cloud.age == cloud.igniteAt)

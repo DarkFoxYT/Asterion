@@ -824,7 +824,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if (!observed && paranoiaCooldown <= 0 && distance > 24.0D && distance < 70.0D
                 && random.nextInt(260) == 0) {
             if (random.nextBoolean()) playRoar(0.75F, 0.55F + random.nextFloat() * 0.12F, 0.28F);
-            else playSound(Asterion.MINOTAUR_STEP, 0.75F, 0.55F + random.nextFloat() * 0.12F);
+            else playSound(SoundEvents.RAVAGER_STEP, 0.75F, 0.55F + random.nextFloat() * 0.12F);
             paranoiaCooldown = random.nextIntBetweenInclusive(180, 360);
         }
 
@@ -975,7 +975,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if ((phaseTicks % 12) == 0) {
             level.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 0.15D, getZ(),
                     5, 0.55D, 0.05D, 0.55D, 0.015D);
-            playSound(Asterion.MINOTAUR_STEP, 1.6F, 0.52F);
+            playSound(SoundEvents.RAVAGER_STEP, 1.6F, 0.52F);
         }
         if (--warningTicks <= 0) beginChase(player);
     }
@@ -2522,7 +2522,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                         Vec3 hoof = position().add(bossChargeDirection.scale(1.38D)).add(right.scale(side));
                         level.sendParticles(ParticleTypes.DUST_PLUME, hoof.x, getY() + 0.10D, hoof.z,
                                 10, 0.42D, 0.08D, 0.42D, 0.05D);
-                        playSound(Asterion.MINOTAUR_STEP, 2.35F,
+                        playSound(SoundEvents.RAVAGER_STEP, 2.35F,
                                 0.32F + bossAttackTicks / (float)Math.max(1, windupTicks) * 0.10F);
                     }
                     // A committed boss charge is allowed to smash a newly placed obstruction.
@@ -2692,7 +2692,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             Vec3 hoof = position().add(forward.scale(1.45D)).add(right.scale(side));
             level.sendParticles(ParticleTypes.DUST_PLUME, hoof.x, getY() + 0.12D, hoof.z,
                     9, 0.42D, 0.09D, 0.42D, 0.055D);
-            if ((bossAttackTicks % 8) == 0) playSound(Asterion.MINOTAUR_STEP, 2.2F, 0.42F);
+            if ((bossAttackTicks % 8) == 0) playSound(SoundEvents.RAVAGER_STEP, 2.2F, 0.42F);
         }
         if (bossAttackTicks == 38) {
             setBossAttack(BossAttack.STAMPEDE);
@@ -2715,7 +2715,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 Vec3 hoof = position().add(bossChargeDirection.scale(1.4D)).add(right.scale(side));
                 level.sendParticles(ParticleTypes.DUST_PLUME, hoof.x, getY() + 0.1D, hoof.z,
                         10, 0.45D, 0.08D, 0.45D, 0.05D);
-                playSound(Asterion.MINOTAUR_STEP, 2.4F,
+                playSound(SoundEvents.RAVAGER_STEP, 2.4F,
                         0.36F + bossAttackTicks / 300.0F);
             }
             if (bossAttackTicks == 30) playRoar(4.0F, 0.68F, 1.05F);
@@ -2771,7 +2771,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 Vec3 hoof = position().add(bossChargeDirection.scale(1.35D)).add(right.scale(side));
                 level.sendParticles(ParticleTypes.DUST_PLUME, hoof.x, getY() + 0.08D, hoof.z,
                         12, 0.45D, 0.08D, 0.45D, 0.05D);
-                playSound(Asterion.MINOTAUR_STEP, 2.5F, 0.34F + bossAttackTicks * 0.004F);
+                playSound(SoundEvents.RAVAGER_STEP, 2.5F, 0.34F + bossAttackTicks * 0.004F);
             }
             if (bossAttackTicks == 24) playRoar(3.8F, 0.70F, 0.9F);
             return;
@@ -3541,7 +3541,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                     ServerPlayNetworking.send(viewer, rumble);
             level.sendParticles(ParticleTypes.DUST_PLUME, getX(), getY() + 0.1D, getZ(),
                     18 + collapseTicks, 5.5D, 0.2D, 5.5D, 0.045D);
-            playSound(Asterion.MINOTAUR_STEP, 2.4F + collapseTicks * 0.04F,
+            playSound(SoundEvents.RAVAGER_STEP, 2.4F + collapseTicks * 0.04F,
                     0.46F - collapseTicks * 0.004F);
         }
         if (collapseTicks == 30) {
@@ -3994,7 +3994,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             awarenessRepathTicks = 0;
             level.sendParticles(ParticleTypes.DUST_PLUME, sweep.getCenter().x, getY() + 0.5D,
                     sweep.getCenter().z, Math.min(16, broken * 2), 0.55D, 0.45D, 0.55D, 0.04D);
-            playSound(Asterion.MINOTAUR_STEP, 1.5F, 0.52F);
+            playSound(SoundEvents.RAVAGER_STEP, 1.5F, 0.52F);
         }
     }
 
@@ -4156,7 +4156,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         setDeltaMovement(Vec3.ZERO);
         level.sendParticles(ParticleTypes.DUST_PLUME, getX(), getY() + 0.35D, getZ(),
                 30, 1.35D, 0.65D, 1.35D, 0.040D);
-        playSound(Asterion.MINOTAUR_STEP, 0.72F, 0.42F);
+        playSound(SoundEvents.RAVAGER_STEP, 0.72F, 0.42F);
 
         stalkingRoute.clear();
         stalkingDestination = null;
@@ -4175,7 +4175,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 getZ(), 22, 1.05D, 1.35D, 1.05D, 0.018D);
         level.sendParticles(ParticleTypes.DUST_PLUME, getX(), getY() + 0.18D,
                 getZ(), 28, 1.25D, 0.35D, 1.25D, 0.035D);
-        playSound(Asterion.MINOTAUR_STEP, 0.82F, 0.40F);
+        playSound(SoundEvents.RAVAGER_STEP, 0.82F, 0.40F);
     }
 
     private Vec3 findShadowRelocation(ServerPlayer player) {
@@ -4313,7 +4313,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
     private void playHeavySteps() {
         if (getDeltaMovement().horizontalDistanceSqr() > 0.012D && (tickCount % 9) == 0) {
-            playSound(Asterion.MINOTAUR_STEP, behaviorPhase() == BehaviorPhase.CHASING ? 1.8F : 1.05F,
+            playSound(SoundEvents.RAVAGER_STEP, behaviorPhase() == BehaviorPhase.CHASING ? 1.8F : 1.05F,
                     behaviorPhase() == BehaviorPhase.CHASING ? 0.68F : 0.48F);
             if (behaviorPhase() == BehaviorPhase.CHASING && level() instanceof ServerLevel level) {
                 MazeShiftPayload footfall = new MazeShiftPayload(blockPosition(), 26.0F,
@@ -4379,7 +4379,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         heavyJumpArmed = false;
         heavyJumpWasAirborne = false;
         playSound(SoundEvents.GENERIC_EXPLODE.value(), 2.7F, 0.36F);
-        playSound(Asterion.MINOTAUR_STEP, 3.2F, 0.34F);
+        playSound(SoundEvents.RAVAGER_STEP, 3.2F, 0.34F);
         level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK,
                         level.getBlockState(blockPosition().below())),
                 getX(), getY() + 0.12D, getZ(), 34, 1.45D, 0.18D, 1.45D, 0.16D);
@@ -4796,8 +4796,10 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 case IDLE -> IDLE_ANIMATION;
             };
             // Keep a continuous local tick clock; packet updates only anchor a newly entered pose.
-            double age = test.renderState().getAnimatableAge();
-            double observed = animationPhaseTick(pose) + test.renderState().getPartialTick();
+            double partial = test.renderState().getPartialTick();
+            // Outline/attachment passes request partialTick=1; they must not move the shared clock ahead.
+            double age = test.renderState().getAnimatableAge() - (partial == 1 ? 1 : 0);
+            double observed = animationPhaseTick(pose) + (partial == 1 ? 0 : partial);
             if (clientAnimationPose != pose) {
                 clientAnimationPose = pose; clientPoseStartAge = age; clientPoseStartTick = observed; clientPoseAge = 0;
             }
@@ -4805,8 +4807,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             double poseAge = clientPoseAge = Math.max(clientPoseAge, Math.max(0, age - clientPoseStartAge));
             double ticks = clientPoseStartTick + poseAge;
             double seconds = animationSeconds(pose, ticks);
-            test.setControllerSpeed(pose == AnimationState.CHARGE_RUN
-                    ? (float)Math.clamp(getDeltaMovement().horizontalDistance() / .35, 1, 2.4) : 1);
+            // The authored charge cadence stays continuous through packet velocity corrections.
+            test.setControllerSpeed(1);
             var result = test.setAndContinue(animation);
             ((MinotaurAnimationController)test.controller()).samplePose(seconds, poseAge);
             return result;

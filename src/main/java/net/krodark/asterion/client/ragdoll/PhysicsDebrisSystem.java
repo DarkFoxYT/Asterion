@@ -396,7 +396,7 @@ public final class PhysicsDebrisSystem {
             if (strongestImpact > .18 && (lastImpactSoundTick == Long.MIN_VALUE || level.getGameTime() - lastImpactSoundTick >= 2)) {
                 lastImpactSoundTick = level.getGameTime();
                 level.playLocalSound(door.position.x, door.position.y, door.position.z,
-                        door.variant == 7 ? net.krodark.asterion.Asterion.METAL_HIT : SoundEvents.STONE_HIT,
+                        door.variant == 7 ? SoundEvents.ANVIL_LAND : SoundEvents.STONE_HIT,
                         SoundSource.BLOCKS, door.variant == 7 ? 1.6F : .8F, .5F, false);
             }
         }

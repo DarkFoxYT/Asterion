@@ -102,10 +102,9 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         state.addGeckolibData(LOOK_PITCH, pose.pitch * Mth.DEG_TO_RAD);
         state.addGeckolibData(IDLE_PHASE, (minotaur.tickCount + partialTick) * 0.055F);
         state.addGeckolibData(IDLE_WEIGHT, pose.idleWeight);
-        state.addGeckolibData(AUTHORED_POSE, switch (minotaur.animationState()) {
-            case IDLE, WALK, CHASE, HORN -> false;
-            default -> true;
-        });
+        // Procedural rage/head/torso offsets snapped on as soon as an action became locomotion,
+        // bypassing the controller's crossfade. Keep authored poses authoritative except the grab IK.
+        state.addGeckolibData(AUTHORED_POSE, !minotaur.isPerformingGrab());
         state.addGeckolibData(HORN_WEIGHT, minotaur.isSpineCharging() ? 1.0F : 0.0F);
         state.addGeckolibData(RAGE_WEIGHT, minotaur.rage() / 12.0F);
         state.addGeckolibData(ATTACK_TICKS, minotaur.bossAttackAnimationTicks());
