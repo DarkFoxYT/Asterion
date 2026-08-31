@@ -143,8 +143,12 @@ public final class MinotaurArenaEntrances {
         for (int depth = -1; depth <= 1; depth++) for (int side = -3; side <= 3; side++)
             for (int y = 5; y < height; y++) {
                 BlockPos pos = root.relative(facing, depth).relative(facing.getClockWise(), side).above(y);
-                if (level.getBlockState(pos).is(Asterion.ANCIENT_BRICKS))
+                if (level.getBlockState(pos).is(Asterion.ANCIENT_BRICKS)) {
+                    if (level.getRandom().nextInt(4) == 0)
+                        ArenaDebris.queue(level, Vec3.atCenterOf(pos), facing.getOpposite().getUnitVec3()
+                                .scale(.5 + level.getRandom().nextDouble() * .5).add(0, .2, 0));
                     level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2);
+                }
             }
     }
 }

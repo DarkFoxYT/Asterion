@@ -42,7 +42,7 @@ public final class SafeRoomTemplateBuilder {
         root.put("blocks",BLOCKS);
         Path out=Path.of(args[0]); Files.createDirectories(out.getParent()); NbtIo.writeCompressed(root,out);
     }
-    private static ListTag palette(){ListTag p=new ListTag();p.add(state("asterion:ancient_bricks"));p.add(state("asterion:ancient_stone"));p.add(state("minecraft:cracked_deepslate_bricks"));p.add(state("minecraft:lodestone"));p.add(state("minecraft:soul_lantern"));p.add(state("minecraft:crying_obsidian"));p.add(state("minecraft:barrel"));p.add(state("minecraft:air"));p.add(state("asterion:rune_1","facing","south"));p.add(state("asterion:rune_zone_door","open","false"));p.add(state("asterion:rune_2","facing","south"));p.add(state("asterion:rune_3","facing","south"));return p;}
+    private static ListTag palette(){ListTag p=new ListTag();p.add(state("asterion:ancient_bricks"));p.add(state("asterion:ancient_stone"));p.add(state("minecraft:cracked_deepslate_bricks"));p.add(state("minecraft:lodestone"));p.add(state("minecraft:soul_lantern"));p.add(state("minecraft:crying_obsidian"));p.add(state("minecraft:barrel"));p.add(state("minecraft:air"));p.add(state("minecraft:air"));p.add(state("asterion:rune_zone_door","open","true"));p.add(state("minecraft:air"));p.add(state("minecraft:air"));return p;}
     private static CompoundTag state(String n){CompoundTag t=new CompoundTag();t.putString("Name",n);return t;}
     private static CompoundTag state(String n,String property,String value){CompoundTag t=state(n);CompoundTag props=new CompoundTag();props.putString(property,value);t.put("Properties",props);return t;}
     private static void add(int x,int y,int z,int s){CompoundTag b=new CompoundTag();b.put("pos",ints(x,y,z));b.putInt("state",s);BLOCKS.add(b);}

@@ -36,9 +36,9 @@ public final class RuneGateTemplateBuilder {
     private static ListTag palette() {
         ListTag p=new ListTag();
         p.add(state("asterion:ancient_bricks")); p.add(state("asterion:ancient_stone"));
-        p.add(state("minecraft:air")); p.add(state("asterion:rune_zone_door","open","false"));
-        p.add(state("asterion:rune_1","facing","south")); p.add(state("asterion:rune_2","facing","south"));
-        p.add(state("asterion:rune_3","facing","south")); p.add(state("minecraft:barrel"));
+        p.add(state("minecraft:air")); p.add(state("asterion:rune_zone_door","open","true"));
+        p.add(state("minecraft:air")); p.add(state("minecraft:air"));
+        p.add(state("minecraft:air")); p.add(state("minecraft:barrel"));
         return p;
     }
     private static CompoundTag state(String n){CompoundTag t=new CompoundTag();t.putString("Name",n);return t;}

@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.worldgen.CatacombLayout;
 import net.krodark.asterion.fluid.HeavyWater;
+import net.krodark.asterion.fluid.HeavyWaterlogging;
 import net.krodark.asterion.fluid.TidalWaterBlock;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
@@ -115,15 +116,38 @@ public final class CatacombFloodState extends SavedData {
             for (int z = chunk.getPos().getMinBlockZ(); z <= chunk.getPos().getMaxBlockZ(); z++) {
                 // Authored crypts are wider than the procedural passage mask: include their wet floors too.
                 BlockState base = chunk.getBlockState(cursor.set(x, CatacombLayout.WATER_Y, z));
-                boolean basin = base.is(HeavyWater.BLOCK) || base.is(HeavyWater.WATER_BLOCK) || base.is(Blocks.WATER);
+                boolean basin = base.getFluidState().is(net.minecraft.tags.FluidTags.WATER);
+                if (!basin && HeavyWaterlogging.canFill(null, level, cursor, base)) {
+                    for (var side : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+                        BlockPos neighbor = cursor.relative(side);
+                        if (level.hasChunkAt(neighbor) && level.getFluidState(neighbor).is(net.minecraft.tags.FluidTags.WATER)) {
+                            basin = true;
+                            break;
+                        }
+                    }
+                }
                 for (int y = CatacombLayout.FLOOR_Y; y <= CatacombLayout.WATER_Y + 2; y++) {
                     cursor.set(x, y, z);
                     BlockState old = chunk.getBlockState(cursor);
+                    int amount = Math.clamp(surfaceEighths - y * 8, 0, 8);
+                    if (HeavyWaterlogging.isTidal(old)) {
+                        BlockState next = amount == 0 ? HeavyWaterlogging.dry(old)
+                                : HeavyWaterlogging.withFluid(old, riseSteps == 0 ? HeavyWater.STILL.defaultFluidState()
+                                : HeavyWater.FLUID.getFlowing(amount, false));
+                        if (next != old) level.setBlock(cursor, next, 2);
+                        if (amount > 0 && riseSteps == 0)
+                            level.scheduleTick(cursor, HeavyWater.STILL, HeavyWater.STILL.getTickDelay(level));
+                        continue;
+                    }
+                    if (basin && amount > 0 && HeavyWaterlogging.canFill(null, level, cursor, old)) {
+                        HeavyWaterlogging.fill(level, cursor, old, riseSteps == 0 ? HeavyWater.STILL.defaultFluidState()
+                                : HeavyWater.FLUID.getFlowing(amount, false));
+                        continue;
+                    }
                     boolean tidal = old.is(HeavyWater.BLOCK);
                     boolean originalWater = y <= CatacombLayout.WATER_Y && (old.is(Blocks.WATER) || old.is(HeavyWater.WATER_BLOCK));
                     boolean fill = basin && y > CatacombLayout.WATER_Y && old.isAir();
                     if (!tidal && !originalWater && !fill) continue;
-                    int amount = Math.clamp(surfaceEighths - y * 8, 0, 8);
                     BlockState next = amount == 0 ? Blocks.AIR.defaultBlockState()
                             : riseSteps == 0 ? HeavyWater.WATER_BLOCK.defaultBlockState()
                             : HeavyWater.BLOCK.defaultBlockState().setValue(TidalWaterBlock.LEVEL, amount);

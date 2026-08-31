@@ -83,21 +83,11 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
     @Override
     public void addRenderData(MinotaurEntity minotaur, Void relatedObject,
                               EntityRenderState state, float partialTick) {
-        Player player = Minecraft.getInstance().player;
-        float targetYaw = 0.0F;
-        float targetPitch = 0.0F;
-        if (player != null && player.level() == minotaur.level() && player.isAlive()
-                && minotaur.distanceToSqr(player) < 96.0D * 96.0D) {
-            Vec3 origin = minotaur.getEyePosition(partialTick);
-            Vec3 target = player.getEyePosition(partialTick);
-            Vec3 delta = target.subtract(origin);
-            double horizontal = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
-            float worldYaw = (float)(Mth.atan2(delta.z, delta.x) * Mth.RAD_TO_DEG) - 90.0F;
-            float bodyYaw = Mth.rotLerp(partialTick, minotaur.yBodyRotO, minotaur.yBodyRot);
-            targetYaw = Mth.clamp(Mth.wrapDegrees(worldYaw - bodyYaw), -72.0F, 72.0F);
-            targetPitch = Mth.clamp((float)-(Mth.atan2(delta.y, horizontal) * Mth.RAD_TO_DEG),
-                    -34.0F, 42.0F);
-        }
+        // Every viewer sees the server's target direction, not a different camera-facing torso.
+        float bodyYaw = Mth.rotLerp(partialTick, minotaur.yBodyRotO, minotaur.yBodyRot);
+        float headYaw = Mth.rotLerp(partialTick, minotaur.yHeadRotO, minotaur.yHeadRot);
+        float targetYaw = Mth.clamp(Mth.wrapDegrees(headYaw - bodyYaw), -72F, 72F);
+        float targetPitch = Mth.clamp(Mth.lerp(partialTick, minotaur.xRotO, minotaur.getXRot()), -34F, 42F);
 
         LookPose pose = lookPoses.computeIfAbsent(minotaur.getUUID(), ignored -> new LookPose());
         float frameTicks = Math.max(0.05F, Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaTicks());
@@ -145,7 +135,6 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
                 Vec3 delta = targetCenter.subtract(shoulderCenter);
                 double horizontal = Math.max(0.001D, Math.sqrt(delta.x * delta.x + delta.z * delta.z));
                 float worldYaw = (float)(Mth.atan2(delta.z, delta.x) * Mth.RAD_TO_DEG) - 90.0F;
-                float bodyYaw = Mth.rotLerp(partialTick, minotaur.yBodyRotO, minotaur.yBodyRot);
                 grabYaw = Mth.clamp(Mth.wrapDegrees(worldYaw - bodyYaw), -78.0F, 78.0F) * Mth.DEG_TO_RAD;
                 grabPitch = Mth.clamp((float)-(Mth.atan2(delta.y, horizontal) * Mth.RAD_TO_DEG),
                         -62.0F, 48.0F) * Mth.DEG_TO_RAD;

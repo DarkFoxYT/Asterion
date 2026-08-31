@@ -4,6 +4,11 @@
   "package": "net.krodark.asterion.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
+    "HeavyWaterStateDefinitionMixin",
+    "HeavyWaterBlockStateMixin",
+    "HeavyWaterFlowMixin",
+    "HeavyWaterBucketMixin",
+    "HeavyWaterPickupMixin",
     "BlockItemMixin",
     "ChunkAccessAccessor",
     "CinematicServerMovementMixin",

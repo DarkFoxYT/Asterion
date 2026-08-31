@@ -113,6 +113,16 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
         }
         server.playSound(null, worldPosition, SoundEvents.ZOMBIE_BREAK_WOODEN_DOOR, SoundSource.BLOCKS, 3.5F, .55F);
         server.playSound(null, worldPosition, SoundEvents.ANVIL_LAND, SoundSource.BLOCKS, 2.5F, .5F);
+        Vec3 inward = facing.getOpposite().getUnitVec3();
+        Vec3 across = facing.getClockWise().getUnitVec3();
+        for (int i = 0; i < 18; i++) {
+            double side = (server.getRandom().nextDouble() - .5) * 6;
+            Vec3 fragment = Vec3.atBottomCenterOf(worldPosition).add(across.scale(side))
+                    .add(0, .5 + server.getRandom().nextDouble() * 4.5, 0);
+            net.krodark.asterion.worldgen.ArenaDebris.queue(server, fragment,
+                    inward.scale(.45 + server.getRandom().nextDouble() * .65)
+                            .add(across.scale(side * .07)).add(0, .25 + server.getRandom().nextDouble() * .4, 0));
+        }
         MinotaurDoorBlock.removeDoor(level, worldPosition, facing);
     }
     public static void tick(Level level, BlockPos pos, BlockState state, MinotaurDoorBlockEntity door) {

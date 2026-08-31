@@ -361,52 +361,6 @@ public final class WorldGenerator {
         return MazeNbtStructures.safeCheckpointNear(level, center, 9.0D) != null;
     }
 
-    public static void solveRuneRoom(ServerLevel level, BlockPos runePos, ServerPlayer player, int color) {
-        net.krodark.asterion.block.RespawnObelisks.ensureRoomFixtures(level, runePos);
-        int opened = 0;
-        for (BlockPos cursor : BlockPos.betweenClosed(runePos.offset(-10, -4, -10), runePos.offset(10, 7, 10))) {
-            BlockState state = level.getBlockState(cursor);
-            if (state.is(Asterion.RUNE_ZONE_DOOR) && !state.getValue(RuneDoorBlock.OPEN)) {
-                level.setBlock(cursor, state.setValue(RuneDoorBlock.OPEN, true), 3);
-                opened++;
-                level.sendParticles(ParticleTypes.REVERSE_PORTAL, cursor.getX() + 0.5D,
-                        cursor.getY() + 0.5D, cursor.getZ() + 0.5D, 3,
-                        0.25D, 0.35D, 0.25D, 0.025D);
-            }
-        }
-        boolean charged = net.krodark.asterion.block.RespawnObelisks.chargeNearest(level, runePos);
-        level.playSound(null, runePos, SoundEvents.RESPAWN_ANCHOR_CHARGE,
-                SoundSource.BLOCKS, 1.4F, 0.82F);
-        if (opened > 0) level.playSound(null, runePos, SoundEvents.IRON_DOOR_OPEN,
-                SoundSource.BLOCKS, 1.25F, 0.62F);
-        level.sendParticles(ParticleTypes.SOUL_FIRE_FLAME, runePos.getX() + 0.5D,
-                runePos.getY() + 1.1D, runePos.getZ() + 0.5D, 42,
-                1.1D, 1.2D, 1.1D, 0.035D);
-        player.sendOverlayMessage(Component.translatable(charged
-                ? "message.asterion.altar_charged" : "message.asterion.altar_unavailable"));
-    }
-
-    public static void failRuneRoom(ServerLevel level, BlockPos runePos, ServerPlayer player) {
-        level.playSound(null, runePos, SoundEvents.SCULK_SHRIEKER_SHRIEK,
-                SoundSource.BLOCKS, 1.25F, 0.72F);
-        level.playSound(null, player.blockPosition(), SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(),
-                SoundSource.PLAYERS, 0.9F, 0.48F);
-        level.sendParticles(ParticleTypes.SCULK_SOUL, runePos.getX() + 0.5D,
-                runePos.getY() + 0.9D, runePos.getZ() + 0.5D, 22,
-                0.55D, 0.7D, 0.55D, 0.035D);
-        level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(),
-                player.getY() + 1.0D, player.getZ(), 30,
-                0.45D, 0.75D, 0.45D, 0.08D);
-        player.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 60, 0, false, false));
-        player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 35, 1, false, false));
-        Vec3 away = player.position().subtract(Vec3.atCenterOf(runePos));
-        if (away.horizontalDistanceSqr() < 0.01D) away = new Vec3(0.0D, 0.0D, 1.0D);
-        away = away.normalize().scale(0.65D);
-        player.push(away.x, 0.22D, away.z);
-        player.hurtMarked = true;
-        player.sendOverlayMessage(Component.translatable("message.asterion.rune_wrong"));
-    }
-
     private static void generateNextPrewarmChunk(ServerLevel maze, BlockPos destination) {
         if (prewarmIndex >= PREWARM_OFFSETS.length) return;
         ChunkPos center = ChunkPos.containing(destination);

@@ -646,7 +646,8 @@ public class Asterion implements ModInitializer {
         for (int index = 0; index < runes.length; index++) {
             final int runeIndex = index;
             runes[index] = (RuneBlock)registerBlock("rune_" + (index + 1), MapColor.COLOR_BROWN,
-                    properties -> new RuneBlock(runeIndex, properties.noOcclusion()));
+                    properties -> new RuneBlock(runeIndex, properties.noOcclusion().noLootTable()
+                            .pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK)));
         }
         return runes;
     }

@@ -192,6 +192,7 @@ public final class DoorGameTest implements FabricClientGameTest {
                             .is(Asterion.MINOTAUR_DOOR), "Breaking one part left orphaned collision blocks");
             });
             Asterion.LOGGER.info("PASS: door item placement, all 35 collision parts, key lock, opening/closing, breach and live debris rendering");
+            server.runOnServer(mc -> MinotaurPolishCheck.run(mc.overworld(), mc.getPlayerList().getPlayers().getFirst()));
 
             // Arriving directly in the pit is no longer an encounter trigger.
             server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 37 0.5 180 0");
@@ -853,7 +854,7 @@ public final class DoorGameTest implements FabricClientGameTest {
                 for (String clip : new String[]{"roar", "roar_start", "walk", "run", "charge_start", "run charge attack",
                         "leep", "chain_grapple", "punch_single", "punch combo", "swing_swords_combo",
                         "swing_axe_horizontal", "swing_axe_vertical", "axe_throw", "pull_sword_out", "pull_axe_from_back",
-                        "rubble_throw", "dies", "asterion_sheathe_swords", "asterion_sheathe_axe", "asterion_revive"})
+                        "rubble_throw", "dies", "asterion_sheathe_swords", "asterion_sheathe_axe", "asterion_revive", "asterion_smoke_belch"})
                     check(model.getBakedAnimation(boss, clip) != null, "Missing baked Minotaur animation: " + clip);
             });
             context.takeScreenshot("minotaur-mazesteel-chain-frame29");
@@ -871,23 +872,60 @@ public final class DoorGameTest implements FabricClientGameTest {
                     for (int i = 0; i < 10; i++) flight.invoke(boss, mc.overworld());
                 } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
                 double gap = player.position().subtract(boss.position()).horizontalDistance();
-                check(gap >= 3.1 && gap <= 3.6, "Yank did not arrive in front of the boss: " + gap);
+                check(gap >= 2.8 && gap <= 3.2, "Yank did not arrive within the boss's catch range: " + gap);
                 check(!MinotaurEntity.controlsPlayer(player), "Yank did not release movement at arrival");
-                // Resolve landing before the later punch contact; no manually imposed horizontal movement.
+                // Resolve landing, then transfer the single yank into the hand without another impulse.
                 player.teleportTo(player.getX(), 121, player.getZ()); player.setDeltaMovement(Vec3.ZERO);
                 tickWeaponAttack(boss, player, 6);
-                check(boss.debugStatus().contains("attack=PUNCH_SINGLE"), "Close grapple did not follow with punch_single");
-                check(boss.grabTargetEntityId() == -1 && !boss.isChainGrappleActive(), "Chain stayed attached during punch");
-                tickWeaponAttack(boss, player, 19);
-                check(player.getHealth() == 100, "Punch connected before the authored impact");
+                check(boss.debugStatus().contains("attack=GRAB"), "Close grapple did not combo into grab");
+                check(boss.heldPlayerId() == player.getId() && !boss.isChainGrappleActive(), "Yank did not transfer to the hand");
+                tickWeaponAttack(boss, player, 39);
+                check(player.getHealth() == 100, "Grab damaged the player before release");
+                check(boss.heldPlayerId() == player.getId(), "Combo lost its held player");
                 player.invulnerableTime = 0;
                 tickWeaponAttack(boss, player, 1);
-                check(player.getHealth() == 94, "Single punch missed a grounded player: " + player.getHealth());
+                check(player.getHealth() == 90 && boss.heldPlayerId() == -1,
+                        "Combo throw failed to release/damage player: " + player.getHealth());
+                check(player.getDeltaMovement().horizontalDistance() >= 5.4, "Combo throw lost its launch impulse");
                 boss.stopDebug(); player.setGameMode(GameType.CREATIVE);
                 verifyLocomotion(mc.overworld(), player, MinotaurEntity.BehaviorPhase.ROAMING, 4);
                 verifyLocomotion(mc.overworld(), player, MinotaurEntity.BehaviorPhase.CHASING, 7);
             });
-            Asterion.LOGGER.info("PASS: custom chain endpoint, frame-30 single yank, grounded punch follow-up and measured walk/run speed");
+            Asterion.LOGGER.info("PASS: custom chain endpoint, frame-30 single yank, grab/throw combo and measured walk/run speed");
+
+            for (String laneAttack : new String[]{"charge", "horn_ram", "stampede"}) {
+                server.runOnServer(mc -> {
+                    var player = mc.getPlayerList().getPlayers().getFirst();
+                    player.setGameMode(GameType.CREATIVE); player.teleportTo(0, 121, 18); player.setDeltaMovement(Vec3.ZERO);
+                    var boss = Asterion.MINOTAUR.create(mc.overworld(), net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+                    boss.setPos(0, 121, 0); boss.beginDebug(player); mc.overworld().addFreshEntity(boss); debugBoss.set(boss);
+                    check(boss.forceDebugAttack(player, laneAttack), "Charge variant unavailable: " + laneAttack);
+                });
+                context.runOnClient(client -> { client.player.setYRot(180); client.player.setXRot(6); });
+                context.waitTicks(8);
+                context.runOnClient(client -> check(net.krodark.asterion.client.render.BossGroundTelegraphRenderer.activeCount() > 0,
+                        "Charge variant did not deliver its ground lane: " + laneAttack));
+                if (laneAttack.equals("charge")) {
+                    context.waitTicks(40);
+                    context.takeScreenshot("minotaur-charge-door-smoke");
+                }
+                server.runOnServer(mc -> debugBoss.get().stopDebug());
+                context.waitTicks(4);
+            }
+            server.runOnServer(mc -> {
+                var player = mc.getPlayerList().getPlayers().getFirst();
+                player.teleportTo(0, 121, 18); player.setDeltaMovement(Vec3.ZERO);
+                var boss = Asterion.MINOTAUR.create(mc.overworld(), net.minecraft.world.entity.EntitySpawnReason.COMMAND);
+                boss.setPos(0, 121, 0); boss.beginDebug(player); mc.overworld().addFreshEntity(boss); debugBoss.set(boss);
+                check(boss.forceDebugAttack(player, "smoke_belch"), "Smoke belch unavailable");
+            });
+            context.runOnClient(client -> { client.player.setYRot(180); client.player.setXRot(-5); });
+            context.waitTicks(32);
+            context.takeScreenshot("minotaur-smoke-belch");
+            context.waitTicks(125);
+            context.takeScreenshot("minotaur-smoke-ignited");
+            server.runOnServer(mc -> debugBoss.get().stopDebug());
+            Asterion.LOGGER.info("PASS: all charge lane payloads, charge billows, live mouth animation and delayed smoke ignition");
 
         }
     }

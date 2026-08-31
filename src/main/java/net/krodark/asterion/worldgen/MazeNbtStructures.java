@@ -8,7 +8,6 @@ import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.GreekRune;
 import net.krodark.asterion.WorldGenerator;
 import net.krodark.asterion.block.RuneBlock;
-import net.krodark.asterion.block.RuneBlockEntity;
 import net.krodark.asterion.block.RuneDoorBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
@@ -317,7 +316,7 @@ public final class MazeNbtStructures {
             }
             if (level.getBlockState(marker).is(Blocks.REINFORCED_DEEPSLATE)) {
                 carveAccessibilityBridges(level, placement);
-                configureSafeRoom(level, placement);
+                configureSafeRoom(level, placement, false);
                 cacheSafeCheckpoint(level, placement);
                 return;
             }
@@ -333,7 +332,7 @@ public final class MazeNbtStructures {
             }
             sanitize(level, placement.box);
             carveAccessibilityBridges(level, placement);
-            configureSafeRoom(level, placement);
+            configureSafeRoom(level, placement, true);
             cacheSafeCheckpoint(level, placement);
             level.setBlock(marker, Blocks.REINFORCED_DEEPSLATE.defaultBlockState(), 2);
         }
@@ -408,61 +407,14 @@ public final class MazeNbtStructures {
                     }
         }
 
-        private void configureSafeRoom(ServerLevel level, Placement placement) {
-            boolean safeRoom = isSafeRoom(placement.id);
-            List<BlockPos> plaques = new ArrayList<>();
-            List<BlockPos> gates = new ArrayList<>();
-            boolean roomSolved = false;
-            double centerX = (placement.box.minX() + placement.box.maxX()) * 0.5D;
-            double centerZ = (placement.box.minZ() + placement.box.maxZ()) * 0.5D;
-            for (int y = placement.box.minY(); y <= placement.box.maxY(); y++)
-                for (int x = placement.box.minX(); x <= placement.box.maxX(); x++)
-                    for (int z = placement.box.minZ(); z <= placement.box.maxZ(); z++) {
-                        BlockPos pos = new BlockPos(x, y, z);
-                        var state = level.getBlockState(pos);
-                        if (state.getBlock() instanceof RuneBlock) {
-                            plaques.add(pos);
-                            if (level.getBlockEntity(pos) instanceof RuneBlockEntity rune && rune.isSolved())
-                                roomSolved = true;
-                        }
-                        if (state.is(Asterion.RUNE_ZONE_DOOR)) gates.add(pos);
-            }
-            for (BlockPos pos : gates) {
+        private void configureSafeRoom(ServerLevel level, Placement placement, boolean removePlaques) {
+            // Legacy templates still contain puzzle plaques and sealed gates. New placements omit
+            // the plaques and leave those gates open now that their progression system is retired.
+            for (BlockPos pos : BlockPos.betweenClosed(placement.box.minX(), placement.box.minY(), placement.box.minZ(),
+                    placement.box.maxX(), placement.box.maxY(), placement.box.maxZ())) {
                 var state = level.getBlockState(pos);
-                level.setBlock(pos, state.setValue(RuneDoorBlock.OPEN, roomSolved || safeRoom), 2);
-            }
-            plaques.sort(java.util.Comparator.comparingLong(BlockPos::asLong));
-            if (!plaques.isEmpty())
-                net.krodark.asterion.block.RespawnObelisks.ensureRoomFixtures(level, plaques.getFirst());
-            if (plaques.size() > 3) {
-                for (int i = 3; i < plaques.size(); i++)
-                    level.setBlock(plaques.get(i), Blocks.AIR.defaultBlockState(), 3);
-                plaques = new ArrayList<>(plaques.subList(0, 3));
-            }
-            int expected = GreekRune.forRadius(centerX, centerZ).ordinal();
-            int[] choices = expected == 0 ? new int[]{0, 1, 2}
-                    : expected == Asterion.RUNE_BLOCKS.length - 1
-                    ? new int[]{expected - 2, expected - 1, expected}
-                    : new int[]{expected - 1, expected, expected + 1};
-            int rotation = Math.floorMod((int)placement.seed, choices.length);
-            for (int i = 0; i < Math.min(3, plaques.size()); i++) {
-                BlockPos pos = plaques.get(i);
-                var old = level.getBlockState(pos);
-                int choice = choices[(i + rotation) % choices.length];
-                var replacement = Asterion.RUNE_BLOCKS[choice].defaultBlockState()
-                        .setValue(RuneBlock.FACING, old.getValue(RuneBlock.FACING));
-                boolean wasSolved = level.getBlockEntity(pos) instanceof RuneBlockEntity rune && rune.isSolved();
-                if (!old.equals(replacement)) level.setBlock(pos, replacement, 3);
-                if (wasSolved && level.getBlockEntity(pos) instanceof RuneBlockEntity rune)
-                    rune.markSolved(0xFFFF9A3D);
-            }
-            if (safeRoom && plaques.size() == 3) {
-                Asterion.LOGGER.debug("Configured safe-room runes at {} as {}, {}, {} (answer {})",
-                        placement.origin, choices[rotation] + 1, choices[(rotation + 1) % 3] + 1,
-                        choices[(rotation + 2) % 3] + 1, expected + 1);
-            } else if (safeRoom) {
-                Asterion.LOGGER.warn("Safe room at {} has {} rune sockets; expected exactly 3",
-                        placement.origin, plaques.size());
+                if (removePlaques && state.getBlock() instanceof RuneBlock) level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+                else if (state.is(Asterion.RUNE_ZONE_DOOR)) level.setBlock(pos, state.setValue(RuneDoorBlock.OPEN, true), 3);
             }
         }
 
@@ -523,7 +475,7 @@ public final class MazeNbtStructures {
 
         private static boolean isActivated(ServerLevel level, BlockPos checkpoint) {
             for (BlockPos pos : BlockPos.betweenClosed(checkpoint.offset(-10, -4, -10), checkpoint.offset(10, 6, 10)))
-                if (level.getBlockEntity(pos) instanceof RuneBlockEntity rune && rune.isSolved()) return true;
+                if (level.getBlockState(pos).getBlock() instanceof net.krodark.asterion.block.SanctuaryBlock && level.getBlockState(pos).getValue(net.krodark.asterion.block.SanctuaryBlock.CHARGE) > 0) return true;
             return false;
         }
 

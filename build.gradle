@@ -151,6 +151,15 @@ loom {
             runDir "build/lamenter-gametest"
             ideConfigGenerated = false
         }
+        runePuzzleTest {
+            client()
+            name = "Rune puzzle integration test"
+            vmArg "-Dfabric.client.gametest"
+            vmArg "-Dfabric.client.gametest.modid=asterion_rune_puzzle_test"
+            vmArg "-Dfabric.addMods=${layout.buildDirectory.dir('rune-puzzle-testmod').get().asFile.absolutePath}"
+            runDir "build/rune-puzzle-gametest"
+            ideConfigGenerated = false
+        }
         barrelDoorTest {
             client()
             name = "Barrel door integration test"
@@ -333,7 +342,21 @@ tasks.register("prepareHeavyWaterGameTest") {
         target.parentFile.mkdirs()
         target.text = groovy.json.JsonOutput.toJson([
                 schemaVersion: 1, id: "asterion_heavy_water_test", version: "1.0.0", environment: "client",
-                entrypoints: ["fabric-client-gametest": ["net.krodark.asterion.dev.verification.HeavyWaterGameTest"]]])
+                entrypoints: ["fabric-client-gametest": ["net.krodark.asterion.dev.verification.HeavyWaterloggingGameTest",
+                        "net.krodark.asterion.dev.verification.HeavyWaterGameTest"]]])
     }
 }
 tasks.matching { it.name == "runHeavyWaterTest" }.configureEach { dependsOn "prepareHeavyWaterGameTest" }
+
+ tasks.register("prepareRunePuzzleGameTest") {
+    def metadata = layout.buildDirectory.file("rune-puzzle-testmod/fabric.mod.json")
+    outputs.file(metadata)
+    doLast {
+        def target = metadata.get().asFile
+        target.parentFile.mkdirs()
+        target.text = groovy.json.JsonOutput.toJson([
+                schemaVersion: 1, id: "asterion_rune_puzzle_test", version: "1.0.0", environment: "client",
+                entrypoints: ["fabric-client-gametest": ["net.krodark.asterion.dev.verification.RunePuzzleGameTest"]]])
+    }
+}
+tasks.matching { it.name == "runRunePuzzleTest" }.configureEach { dependsOn "prepareRunePuzzleGameTest" }

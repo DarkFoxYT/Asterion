@@ -31,6 +31,8 @@ public final class RuneGeoRenderer extends GeoBlockRenderer<RuneBlockEntity, Blo
         });
     }
 
+    @Override public boolean shouldRenderOffScreen() { return true; }
+
     @Override
     public void addRenderData(RuneBlockEntity rune, Void relatedObject, BlockEntityRenderState state,
                               float partialTick) {

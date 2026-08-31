@@ -34,5 +34,5 @@ public final class HeavyWater {
                     .setId(ResourceKey.create(Registries.ITEM, Asterion.id("heavy_water_bucket")))
                     .craftRemainder(Items.BUCKET).stacksTo(1)));
     private HeavyWater() { }
-    public static void initialize() { }
+    public static void initialize() { HeavyWaterlogging.ready = true; }
 }
