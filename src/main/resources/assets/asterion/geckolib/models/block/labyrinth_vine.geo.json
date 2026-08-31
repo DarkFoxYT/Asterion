@@ -90,7 +90,7 @@
 					]
 				},
 				{
-					"name": "glow",
+					"name": "head",
 					"parent": "bulb",
 					"pivot": [0, 0, 0],
 					"cubes": [
@@ -109,8 +109,8 @@
 					]
 				},
 				{
-					"name": "head",
-					"parent": "bulb",
+					"name": "glow",
+					"parent": "head",
 					"pivot": [0, 0, 0],
 					"cubes": [
 						{
