@@ -12,6 +12,7 @@
     "WorldGenRegionAccessor"
   ],
   "client": [
+    "TidalWaterSurfaceMixin",
     "AmneticParticleCullingMixin",
     "AmneticBoneEmissionMixin",
     "AsterionFogRendererMixin",

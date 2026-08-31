@@ -10,7 +10,7 @@ import java.util.Collections;
 import java.util.WeakHashMap;
 import java.util.Set;
 
-/** Original green smoke that switches to custom emissive sprites when ignited. */
+/** Dusty beige campfire smoke that switches to custom emissive sprites when ignited. */
 public final class BombardierStenchParticle extends AnimatedEmissiveParticle {
     private static final Set<BombardierStenchParticle> ACTIVE = Collections.newSetFromMap(new WeakHashMap<>());
     private float targetSize;
@@ -32,7 +32,8 @@ public final class BombardierStenchParticle extends AnimatedEmissiveParticle {
         this.quadSize = 0.9F;
         this.targetSize = randomSize(random);
         this.sizeChangeTicks = 7 + random.nextInt(11);
-        setColor(0.35F, 1.0F, 0.20F);
+        float shade = .90F + random.nextFloat() * .10F;
+        setColor(.80F * shade, .72F * shade, .57F * shade);
         setAlpha(0.72F);
         setSpriteFromAge(sprites);
         ACTIVE.add(this);

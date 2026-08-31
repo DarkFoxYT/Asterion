@@ -3,6 +3,7 @@ package net.krodark.asterion;
 import net.minecraft.core.BlockPos;
 
 import net.fabricmc.api.ModInitializer;
+import net.krodark.asterion.event.CatacombFloodState;
 import net.fabricmc.fabric.api.biome.v1.BiomeModifications;
 import net.fabricmc.fabric.api.biome.v1.BiomeSelectors;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -218,6 +219,7 @@ public class Asterion implements ModInitializer {
             properties -> new SkeletonBlock(properties.noOcclusion().strength(0.45F)
                     .sound(SoundType.BONE_BLOCK)));
     public static final RuneBlock[] RUNE_BLOCKS = registerRuneBlocks();
+    public static final Block[] RUNE_STONE_BLOCKS = registerRuneStoneBlocks();
     public static final RuneDoorBlock RUNE_ZONE_DOOR = (RuneDoorBlock)registerBlock("rune_zone_door",
             MapColor.COLOR_BLACK, RuneDoorBlock::new);
     public static final BlockEntityType<RuneBlockEntity> RUNE_BLOCK_ENTITY = Registry.register(
@@ -350,6 +352,7 @@ public class Asterion implements ModInitializer {
                     .displayItems((parameters, output) -> {
                         output.accept(ANTIKYTHERA_MECHANISM);
                         output.accept(CATACOMB_GRAPPLING_HOOK);
+                        output.accept(net.krodark.asterion.fluid.HeavyWater.BUCKET);
                         output.accept(SLICK_CATACOMB_STONE);
                         output.accept(SLUICE_LOCK);
                         output.accept(GREEK_BRAZIER);
@@ -394,6 +397,7 @@ public class Asterion implements ModInitializer {
                         output.accept(LABYRINTH_VINE);
                         output.accept(SKELETON);
                         for (RuneBlock rune : RUNE_BLOCKS) output.accept(rune);
+                        for (Block rune : RUNE_STONE_BLOCKS) output.accept(rune);
                         output.accept(RUNE_ZONE_DOOR);
                         output.accept(MINOTAUR_DOOR);
                         output.accept(BARREL_DOOR);
@@ -464,6 +468,7 @@ public class Asterion implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        net.krodark.asterion.fluid.HeavyWater.initialize();
         net.krodark.asterion.block.RespawnObelisks.initialize();
         AsterionConfig.INSTANCE.sanitize();
         PayloadTypeRegistry.clientboundPlay().register(DimensionTransitionPayload.TYPE, DimensionTransitionPayload.CODEC);
@@ -512,6 +517,9 @@ public class Asterion implements ModInitializer {
         FabricDefaultAttributeRegistry.register(BOMBARDIER_BEETLE, BombadierBeetleEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(SCARLET_CENTIPEDE, ScarletCentipedeEntity.createAttributes());
         ServerChunkEvents.CHUNK_LOAD.register(WorldGenerator::onChunkLoad);
+        ServerChunkEvents.CHUNK_LOAD.register(CatacombFloodState::onChunkLoad);
+        ServerChunkEvents.CHUNK_UNLOAD.register(CatacombFloodState::onChunkUnload);
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> CatacombFloodState.clear());
         PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, blockEntity) ->
                 !(level instanceof net.minecraft.server.level.ServerLevel serverLevel)
                         || !WorldGenerator.isActivePortalProtected(serverLevel, pos));
@@ -553,6 +561,8 @@ public class Asterion implements ModInitializer {
                 MobCategory.CREATURE, SCARLET_CENTIPEDE, 5, 1, 1);
         ServerTickEvents.END_SERVER_TICK.register(WorldGenerator::tickServer);
         ServerTickEvents.END_SERVER_TICK.register(CatacombGrapplingHookItem::tick);
+        ServerTickEvents.END_SERVER_TICK.register(net.krodark.asterion.fluid.HeavyWaterFatigue::tick);
+        ServerLifecycleEvents.SERVER_STOPPED.register(net.krodark.asterion.fluid.HeavyWaterFatigue::clear);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
             CatacombGrapplingHookItem.clear();
             net.krodark.asterion.worldgen.CatacombArena.clear();
@@ -568,6 +578,7 @@ public class Asterion implements ModInitializer {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 WorldGenerator.playerConnected(handler.getPlayer()));
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
+            net.krodark.asterion.fluid.HeavyWaterFatigue.reset(newPlayer);
             if (oldPlayer.level().dimension().equals(ASTERION_LEVEL)) {
                 BlockPos deathPosition = oldPlayer.blockPosition().immutable();
                 WorldGenerator.finishRapidRespawn(newPlayer);
@@ -619,6 +630,15 @@ public class Asterion implements ModInitializer {
         return Registry.register(BuiltInRegistries.BLOCK, blockKey, factory.apply(
                 BlockBehaviour.Properties.of().setId(blockKey).mapColor(color)
                         .strength(3.5f, 8.0f).sound(SoundType.DEEPSLATE)));
+    }
+
+    /** Full decorative cubes, kept separate from the interactive Greek rune puzzle pieces. */
+    private static Block[] registerRuneStoneBlocks() {
+        Block[] blocks = new Block[24];
+        for (int index = 0; index < blocks.length; index++) {
+            blocks[index] = registerBlock("rune_" + (char)('a' + index), MapColor.TERRACOTTA_BROWN, Block::new);
+        }
+        return blocks;
     }
 
     private static RuneBlock[] registerRuneBlocks() {

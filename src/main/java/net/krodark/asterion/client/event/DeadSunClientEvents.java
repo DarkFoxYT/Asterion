@@ -38,6 +38,7 @@ public final class DeadSunClientEvents {
         register(DeadSunEventSystem.RUMBLE, RumbleEffect::new);
         register(DeadSunEventSystem.ECLIPSE, EclipseEffect::new);
         register(DeadSunEventSystem.SHIFTING, NeutralEffect::new);
+        register(DeadSunEventSystem.FLOOD, NeutralEffect::new);
         register(DeadSunEventSystem.DEAD_SUN_BARRAGE, NeutralEffect::new);
         register(DeadSunEventSystem.POISON_GEYSERS, NeutralEffect::new);
         register(DeadSunEventSystem.CRIMSON_FIREFLIES, NeutralEffect::new);

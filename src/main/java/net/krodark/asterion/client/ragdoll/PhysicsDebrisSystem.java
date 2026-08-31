@@ -169,9 +169,8 @@ public final class PhysicsDebrisSystem {
         double distance = client.player.position().distanceTo(center);
         if (distance > Math.max(24.0, radius + 28.0)) return;
         Random random = new Random(seed ^ client.level.getGameTime() * 0x9E3779B97F4A7C15L);
-        spawnAncientWallDust(client.level, center, radius, intensity, random);
-        int count = Mth.clamp(2 + Math.round(intensity * 7.0F), 2, 10);
-        for (int i = 0; i < count; i++) spawnFromCeiling(client.level, center, radius, intensity, random);
+        int count = Mth.clamp(2 + Math.round(intensity * 4.0F), 2, 6);
+        for (int i = 0; i < count; i++) spawnSurfaceRubble(client.level, client.player.position(), intensity, random);
     }
 
     public static void spawnAmbientRumble(Minecraft client, float intensity, long seed) {
@@ -254,68 +253,26 @@ public final class PhysicsDebrisSystem {
         }
     }
 
-    private static void spawnFromCeiling(ClientLevel level, Vec3 center, float radius,
-                                         float intensity, Random random) {
+    private static void spawnSurfaceRubble(ClientLevel level, Vec3 observer, float intensity, Random random) {
         int cap = 32 + AsterionConfig.INSTANCE.ragdollPhysicsQuality * 16;
         if (PIECES.size() >= cap) return;
-        double spread = Math.max(3.0, Math.min(14.0, radius * 0.65));
-        double x = center.x + (random.nextDouble() * 2.0 - 1.0) * spread;
-        double z = center.z + (random.nextDouble() * 2.0 - 1.0) * spread;
-        int startY = Mth.floor(center.y) + 2;
-        BlockPos ceiling = null;
-        for (int y = startY; y <= startY + 22; y++) {
-            BlockPos candidate = BlockPos.containing(x, y, z);
-            if (!level.getBlockState(candidate).getCollisionShape(level, candidate).isEmpty()
-                    && level.getBlockState(candidate.below()).getCollisionShape(level, candidate.below()).isEmpty()) {
-                ceiling = candidate;
-                break;
-            }
-        }
-        int variant = randomVariant(random);
-        float scale = randomScale(variant, random);
-        Vec3 half = profile(variant).halfExtents.scale(scale * 0.88);
-        double y = ceiling == null
-                ? center.y + 5.0 + random.nextDouble() * 5.0
-                : ceiling.getY() - half.y - 0.035;
-        Piece piece = new Piece(new Vec3(x, y, z), variant, scale, random);
-        VariantProfile profile = profile(variant);
-        double lightness = 1.0D - profile.massFactor;
-        double drift = 1.0D + lightness * 1.05D;
-        double fall = 0.72D + profile.massFactor * 0.28D;
-        piece.velocity = new Vec3((random.nextDouble() - 0.5) * (0.10 + intensity * 0.12) * drift,
-                (-0.035 - random.nextDouble() * (0.09 + intensity * 0.12)) * fall,
-                (random.nextDouble() - 0.5) * (0.10 + intensity * 0.12) * drift);
-        if (!isWorldClear(level, piece, piece.position)) {
-            for (int i = 1; i <= 8 && !isWorldClear(level, piece, piece.position); i++)
-                piece.position = piece.position.add(0, -0.08, 0);
-            piece.previousPosition = piece.position;
-        }
+        var source = net.krodark.asterion.event.RumbleSources.find(level, observer, random);
+        if (source == null) return;
+        int variant = 2 + random.nextInt(5);
+        Piece piece = new Piece(source.position(), variant, .14F + random.nextFloat() * .13F, random);
+        piece.velocity = source.normal().scale(.045 + random.nextDouble() * .075)
+                .add((random.nextDouble() - .5) * .04, -.025, (random.nextDouble() - .5) * .04);
+        piece.angularVelocity.mul(.65F);
         if (!isWorldClear(level, piece, piece.position)) return;
-        spawnDebrisSmoke(level, piece.position, random, variant == 1 ? 8 : 4);
         PIECES.add(piece);
-        if (ceiling != null) ceilingDust(level, ceiling, random, intensity);
-    }
-
-    private static int randomVariant(Random random) {
-        float roll = random.nextFloat();
-        if (roll < 0.055F) return 1;
-        if (roll < 0.29F) return 2;
-        if (roll < 0.51F) return 3;
-        if (roll < 0.70F) return 4;
-        if (roll < 0.87F) return 5;
-        return 6;
-    }
-
-    private static float randomScale(int variant, Random random) {
-        float shaped = random.nextFloat() * random.nextFloat();
-        return switch (variant) {
-            case 1 -> 0.92F + random.nextFloat() * 0.16F;
-            case 2 -> 0.26F + shaped * 0.34F;
-            case 3 -> 0.32F + shaped * 0.42F;
-            case 4 -> 0.34F + shaped * 0.44F;
-            case 5 -> 0.42F + shaped * 0.44F;
-            default -> 0.48F + shaped * 0.46F;
-        };
+        spawnDebrisSmoke(level, piece.position, random, 4 + Math.round(intensity * 3));
+        Vec3 tangent = Math.abs(source.normal().y) > .5 ? new Vec3(1, 0, 0)
+                : new Vec3(-source.normal().z, 0, source.normal().x);
+        for (int i = 0; i < 8; i++) {
+            Vec3 dust = piece.position.add(tangent.scale((random.nextDouble() - .5) * .6));
+            level.addParticle(Asterion.ANCIENT_WALL_DUST, dust.x, dust.y, dust.z,
+                    source.normal().x * .008, -.012, source.normal().z * .008);
+        }
     }
 
     private static boolean simulateStep(ClientLevel level, Piece piece, double dt,
@@ -574,17 +531,6 @@ public final class PhysicsDebrisSystem {
         return low;
     }
 
-    private static void ceilingDust(ClientLevel level, BlockPos ceiling, Random random, float intensity) {
-        BlockState state = level.getBlockState(ceiling);
-        BlockParticleOption dust = new BlockParticleOption(ParticleTypes.BLOCK, state);
-        int count = 4 + Math.round(intensity * 5.0F);
-        for (int i = 0; i < count; i++) level.addParticle(dust,
-                ceiling.getX() + random.nextDouble(), ceiling.getY() - 0.03,
-                ceiling.getZ() + random.nextDouble(),
-                (random.nextDouble() - 0.5) * 0.035, -0.015 - random.nextDouble() * 0.055,
-                (random.nextDouble() - 0.5) * 0.035);
-    }
-
     private static void spawnDebrisSmoke(ClientLevel level, Vec3 position, Random random, int count) {
         for (int i = 0; i < count; i++) level.addParticle(Asterion.RUMBLE_SMOKE,
                 position.x + (random.nextDouble() - 0.5D) * 0.75D,
@@ -593,78 +539,6 @@ public final class PhysicsDebrisSystem {
                 (random.nextDouble() - 0.5D) * 0.025D,
                 0.004D + random.nextDouble() * 0.018D,
                 (random.nextDouble() - 0.5D) * 0.025D);
-    }
-
-    private static void spawnAncientWallDust(ClientLevel level, Vec3 center, float radius,
-                                             float intensity, Random random) {
-        int emitters = Mth.clamp(4 + Math.round(intensity * 5.0F), 4, 10);
-        double spread = Math.max(5.0, Math.min(15.0, radius * 0.72));
-        for (int emitter = 0; emitter < emitters; emitter++) {
-            DustSource source = findUpperWallSource(level, center, spread, random);
-            if (source == null) continue;
-            int count = 7 + random.nextInt(8) + Math.round(intensity * 4.0F);
-            for (int i = 0; i < count; i++) {
-                double across = (random.nextDouble() - 0.5D) * 1.15D;
-                double depth = (random.nextDouble() - 0.5D) * 0.34D;
-                Vec3 position = source.position.add(source.tangent.scale(across))
-                        .add(source.normal.scale(depth));
-                double outward = 0.002D + random.nextDouble() * 0.012D;
-                level.addParticle(Asterion.ANCIENT_WALL_DUST,
-                        position.x, position.y - random.nextDouble() * 0.28D, position.z,
-                        source.normal.x * outward + (random.nextDouble() - 0.5D) * 0.007D,
-                        -0.004D - random.nextDouble() * 0.018D,
-                        source.normal.z * outward + (random.nextDouble() - 0.5D) * 0.007D);
-            }
-        }
-    }
-
-    private static DustSource findUpperWallSource(ClientLevel level, Vec3 center,
-                                                   double spread, Random random) {
-        for (int attempt = 0; attempt < 18; attempt++) {
-            int x = Mth.floor(center.x + (random.nextDouble() * 2.0D - 1.0D) * spread);
-            int z = Mth.floor(center.z + (random.nextDouble() * 2.0D - 1.0D) * spread);
-            int lowY = Mth.floor(center.y) + 3;
-            int highY = lowY + 20;
-
-            // Undersides and ceiling seams are visible from inside the maze.
-            for (int y = lowY; y <= highY; y++) {
-                BlockPos wall = new BlockPos(x, y, z);
-                if (isSolid(level, wall) && !isSolid(level, wall.below())) {
-                    Direction side = horizontalAirSide(level, wall, random);
-                    Vec3 normal = side == null ? new Vec3(0, -1, 0) : side.getUnitVec3();
-                    Vec3 tangent = Math.abs(normal.y) > 0.5D ? new Vec3(1, 0, 0)
-                            : new Vec3(-normal.z, 0, normal.x);
-                    return new DustSource(Vec3.atCenterOf(wall).add(normal.scale(0.52D)), normal, tangent);
-                }
-            }
-
-            // Open-topped wall columns shed dust over their exposed edges.
-            for (int y = highY; y >= lowY; y--) {
-                BlockPos wall = new BlockPos(x, y, z);
-                if (!isSolid(level, wall) || isSolid(level, wall.above())) continue;
-                Direction side = horizontalAirSide(level, wall, random);
-                if (side == null) continue;
-                Vec3 normal = side.getUnitVec3();
-                Vec3 tangent = new Vec3(-normal.z, 0, normal.x);
-                return new DustSource(Vec3.atCenterOf(wall).add(normal.scale(0.53D)).add(0, 0.42D, 0),
-                        normal, tangent);
-            }
-        }
-        return null;
-    }
-
-    private static Direction horizontalAirSide(ClientLevel level, BlockPos wall, Random random) {
-        int offset = random.nextInt(4);
-        Direction[] directions = {Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST};
-        for (int i = 0; i < directions.length; i++) {
-            Direction direction = directions[(i + offset) & 3];
-            if (!isSolid(level, wall.relative(direction))) return direction;
-        }
-        return null;
-    }
-
-    private static boolean isSolid(ClientLevel level, BlockPos position) {
-        return !level.getBlockState(position).getCollisionShape(level, position).isEmpty();
     }
 
     private static void burst(ClientLevel level, Piece piece, Vec3 normal, double impactSpeed) {
@@ -930,5 +804,4 @@ public final class PhysicsDebrisSystem {
                                   boolean unbreakable, boolean rolling,
                                   int minimumLifetime, int maximumLifetime) { }
     private record Collision(Vec3 normal, double depth, Vec3 point) { }
-    private record DustSource(Vec3 position, Vec3 normal, Vec3 tangent) { }
 }

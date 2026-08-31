@@ -24,8 +24,6 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.entity.item.FallingBlockEntity;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.particles.BlockParticleOption;
@@ -49,6 +47,7 @@ import java.util.HashMap;
 
 public final class DeadSunEventSystem {
     public static final Identifier RUMBLE = Asterion.id("rumble");
+    public static final Identifier FLOOD = Asterion.id("flood");
     public static final Identifier ECLIPSE = Asterion.id("eclipse");
     public static final Identifier SHIFTING = Asterion.id("shifting");
     public static final Identifier DEAD_SUN_BARRAGE = Asterion.id("dead_sun_barrage");
@@ -60,20 +59,8 @@ public final class DeadSunEventSystem {
     private static final Map<MinecraftServer, SchedulerState> STATES = new WeakHashMap<>();
     private static final ArrayDeque<WallLayer> SHIFT_ANIMATION = new ArrayDeque<>();
     private static final List<PendingStrike> PENDING_STRIKES = new ArrayList<>();
-    private static final Map<UUID, RumbleHazard> RUMBLE_HAZARDS = new HashMap<>();
     private static final List<PoisonGeyser> POISON_GEYSER_HAZARDS = new ArrayList<>();
     private static final List<CrimsonFirefly> CRIMSON_FIREFLY_SWARM = new ArrayList<>();
-
-    private static final class RumbleHazard {
-        private final boolean huge;
-        private final long expiresAt;
-        private final Set<UUID> hitPlayers = new HashSet<>();
-
-        private RumbleHazard(boolean huge, long expiresAt) {
-            this.huge = huge;
-            this.expiresAt = expiresAt;
-        }
-    }
 
     static {
         register(new Definition() {
@@ -142,8 +129,28 @@ public final class DeadSunEventSystem {
             @Override public void onEnd(ServerLevel level) { CRIMSON_FIREFLY_SWARM.clear(); }
         });
         register(new Definition() {
+            @Override public Identifier id() { return FLOOD; }
+            @Override public int weight() { return 1; }
+            @Override public int minDurationTicks() { return 20 * 120; }
+            @Override public int maxDurationTicks() { return 20 * 180; }
+            @Override public float intensity(RandomSource random) { return .35F; }
+            @Override public void onStart(ServerLevel level, long seed, int duration, float intensity) {
+                CatacombFloodState.start(level, duration);
+            }
+            @Override public void onTick(ServerLevel level, int elapsed) {
+                if (elapsed % 20 != 0 || CatacombFloodState.get(level).riseSteps() >= CatacombFloodState.MAX_RISE) return;
+                ActiveEvent event = STATES.get(level.getServer()).active;
+                // Large/multiplayer loaded areas still get a complete rise and forty seconds at high tide.
+                if (event.durationTicks < elapsed + 800) {
+                    event.durationTicks = elapsed + 800;
+                    CatacombFloodState.ensureRemainingTicks(level, 800);
+                }
+            }
+            @Override public void onEnd(ServerLevel level) { CatacombFloodState.setActive(level, false); }
+        });
+        register(new Definition() {
             @Override public Identifier id() { return ECLIPSE; }
-            @Override public int weight() { return 4; }
+            @Override public int weight() { return 1; }
             @Override public int minDurationTicks() { return 20 * 60; }
             @Override public int maxDurationTicks() { return 20 * 60 * 10; }
             @Override public float intensity(RandomSource random) { return 0.82F + random.nextFloat() * 0.18F; }
@@ -256,14 +263,16 @@ public final class DeadSunEventSystem {
         return true;
     }
 
-    public static boolean isEclipseActive(ServerLevel level) {
+    public static boolean isEclipseActive(ServerLevel level) { return isActive(level, ECLIPSE); }
+
+    public static boolean isActive(ServerLevel level, Identifier event) {
         SchedulerState state = STATES.get(level.getServer());
-        return state != null && state.active != null && state.active.definition.id().equals(ECLIPSE);
+        return state != null && state.active != null && state.active.definition.id().equals(event);
     }
 
     public static void clearRuntimeState(MinecraftServer server) {
         ServerLevel level = server.getLevel(Asterion.ASTERION_LEVEL);
-        if (level != null) finishWallShift(level);
+        if (level != null) { stop(level); finishWallShift(level); }
         PENDING_STRIKES.clear();
         POISON_GEYSER_HAZARDS.clear();
         CRIMSON_FIREFLY_SWARM.clear();
@@ -325,7 +334,8 @@ public final class DeadSunEventSystem {
     public static void tick(MinecraftServer server) {
         ServerLevel level = server.getLevel(Asterion.ASTERION_LEVEL);
         if (level == null) return;
-        tickRumbleHazards(level);
+        CatacombFloodState.tick(level);
+        RareMazeEvents.get(level);
         SchedulerState state = STATES.computeIfAbsent(server, ignored -> new SchedulerState());
         long now = level.getGameTime();
 
@@ -373,6 +383,10 @@ public final class DeadSunEventSystem {
         RandomSource random = level.getRandom();
         var eligible = DEFINITIONS.values().stream()
                 .filter(definition -> definition.eligible(level))
+                .filter(definition -> RareMazeEvents.get(level).ready(definition.id(), level.getGameTime()))
+                .filter(definition -> !definition.id().equals(FLOOD) || level.players().stream().anyMatch(player ->
+                        player.isAlive() && !player.isSpectator() && player.getY() >= 3
+                                && player.getY() <= net.krodark.asterion.worldgen.CatacombLayout.ROOF_Y))
                 .filter(definition -> !definition.id().equals(SHIFTING) || !isEclipseActive(level)).toList();
         if (eligible.isEmpty()) {
             state.nextEventTick = scheduleNext(random, level.getGameTime());
@@ -397,6 +411,7 @@ public final class DeadSunEventSystem {
         long seed = random.nextLong();
         float intensity = selected.intensity(random);
         state.active = new ActiveEvent(selected, duration, seed, intensity);
+        RareMazeEvents.get(level).schedule(level, selected.id(), duration);
         selected.onStart(level, seed, duration, intensity);
         Asterion.LOGGER.info("Dead Sun event {} began for {} ticks", selected.id(), duration);
         syncNewPlayers(level, state.active);
@@ -484,100 +499,14 @@ public final class DeadSunEventSystem {
     }
 
     private static void tickRumbleDebris(ServerLevel level) {
-        RandomSource random = level.getRandom();
+        // Geometry and dust are bounded client-side rigid bodies; never destroy or place maze blocks.
         for (var player : level.players()) {
             if (!player.isAlive() || player.isSpectator()) continue;
-            BlockPos origin = player.blockPosition();
-            for (int attempt = 0; attempt < 10; attempt++) {
-                int x = origin.getX() + random.nextIntBetweenInclusive(-13, 13);
-                int z = origin.getZ() + random.nextIntBetweenInclusive(-13, 13);
-                int y = 49 + Math.max(8, net.krodark.asterion.AsterionConfig.INSTANCE.wallHeight - 1
-                        - random.nextInt(3));
-                BlockPos wall = new BlockPos(x, y, z);
-                BlockState state = level.getBlockState(wall);
-                if (!isMazeWall(state) || !level.getBlockState(wall.below()).isCollisionShapeFullBlock(level, wall.below()))
-                    continue;
-                level.sendParticles(new BlockParticleOption(ParticleTypes.FALLING_DUST, state),
-                        x + 0.5D, y + 0.25D, z + 0.5D,
-                        9, 0.42D, 0.2D, 0.42D, 0.025D);
-                level.sendParticles(Asterion.RUMBLE_SMOKE, x + 0.5D, y + 0.25D, z + 0.5D,
-                        8, 0.48D, 0.3D, 0.48D, 0.018D);
-                if (random.nextFloat() < 0.32F && level.getBlockState(wall.above()).isAir()) {
-                    FallingBlockEntity rubble = FallingBlockEntity.fall(level, wall, state);
-                    rubble.time = 1;
-                    rubble.dropItem = false;
-                    boolean huge = random.nextFloat() < 0.09F;
-                    RUMBLE_HAZARDS.put(rubble.getUUID(),
-                            new RumbleHazard(huge, level.getGameTime() + 140L));
-                }
-                if (random.nextFloat() < 0.45F)
-                    level.playSound(null, wall, SoundEvents.DEEPSLATE_HIT, SoundSource.BLOCKS,
-                            0.65F, 0.62F + random.nextFloat() * 0.18F);
-                break;
-            }
+            var source = RumbleSources.find(level, player.position(), new java.util.Random(level.getRandom().nextLong()));
+            if (source != null && level.getRandom().nextFloat() < .45F)
+                level.playSound(null, source.block(), SoundEvents.DEEPSLATE_HIT, SoundSource.BLOCKS,
+                        .55F, .7F + level.getRandom().nextFloat() * .15F);
         }
-    }
-
-    private static void tickRumbleHazards(ServerLevel level) {
-        long now = level.getGameTime();
-        Iterator<Map.Entry<UUID, RumbleHazard>> iterator = RUMBLE_HAZARDS.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<UUID, RumbleHazard> entry = iterator.next();
-            RumbleHazard hazard = entry.getValue();
-            var entity = level.getEntity(entry.getKey());
-            if (!(entity instanceof FallingBlockEntity rubble) || !rubble.isAlive() || now > hazard.expiresAt) {
-                iterator.remove();
-                continue;
-            }
-            if (rubble.getDeltaMovement().y > -0.075D) continue;
-            AABB impact = rubble.getBoundingBox().inflate(hazard.huge ? 0.34D : 0.12D, 0.08D, hazard.huge ? 0.34D : 0.12D);
-            boolean consumed = false;
-            for (ServerPlayer player : level.getEntitiesOfClass(ServerPlayer.class, impact.inflate(0.0D, 0.8D, 0.0D))) {
-                if (!player.isAlive() || player.isSpectator() || hazard.hitPlayers.contains(player.getUUID())) continue;
-                AABB head = new AABB(player.getX() - 0.42D, player.getEyeY() - 0.38D,
-                        player.getZ() - 0.42D, player.getX() + 0.42D,
-                        player.getEyeY() + 0.30D, player.getZ() + 0.42D);
-                if (!impact.intersects(head)) continue;
-                hazard.hitPlayers.add(player.getUUID());
-                applyRumbleHeadImpact(level, player, rubble, hazard.huge);
-                consumed = true;
-            }
-            if (consumed) {
-                rubble.discard();
-                iterator.remove();
-            }
-        }
-    }
-
-    private static void applyRumbleHeadImpact(ServerLevel level, ServerPlayer player,
-                                              FallingBlockEntity rubble, boolean huge) {
-        boolean helmeted = !player.getItemBySlot(EquipmentSlot.HEAD).isEmpty();
-        level.sendParticles(ParticleTypes.CRIT, player.getX(), player.getEyeY() + 0.18D, player.getZ(),
-                huge ? 18 : 9, 0.34D, 0.18D, 0.34D, 0.08D);
-        if (helmeted && !huge) {
-            level.playSound(null, player.blockPosition(), SoundEvents.ANVIL_LAND,
-                    SoundSource.PLAYERS, 0.75F, 1.45F);
-            return;
-        }
-
-        float damage = huge ? (helmeted ? 5.0F : 8.0F) : 3.0F;
-        player.hurtServer(level, player.damageSources().fall(), damage);
-        Vec3 away = player.position().subtract(rubble.position());
-        away = away.horizontalDistanceSqr() < 1.0e-5D ? new Vec3(0.24D, 0.0D, 0.0D)
-                : away.normalize().scale(huge ? 0.62D : 0.34D);
-        Vec3 impulse = new Vec3(away.x, huge ? 0.18D : 0.10D, away.z);
-        player.setDeltaMovement(impulse);
-        player.hurtMarked = true;
-        player.resetFallDistance();
-        int duration = huge ? 128 : 68;
-        RagdollServerNetworking.markRagdolled(player, duration + 4);
-        if (ServerPlayNetworking.canSend(player, RagdollImpulsePayload.TYPE))
-            ServerPlayNetworking.send(player, new RagdollImpulsePayload(rubble.position(), impulse,
-                    huge ? 1.65F : 1.05F));
-        if (ServerPlayNetworking.canSend(player, DazePayload.TYPE))
-            ServerPlayNetworking.send(player, new DazePayload(duration, huge ? 7 : 4));
-        level.playSound(null, player.blockPosition(), SoundEvents.HEAVY_CORE_PLACE,
-                SoundSource.PLAYERS, huge ? 1.25F : 0.8F, huge ? 0.55F : 0.82F);
     }
 
     private static BlockPos findWallNear(ServerLevel level, BlockPos origin) {

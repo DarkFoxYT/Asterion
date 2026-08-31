@@ -43,7 +43,7 @@ public final class CatacombLayout {
                                 ? Asterion.ANCIENT_MOSSY_BRICKS.defaultBlockState()
                                 : Asterion.ANCIENT_BRICKS.defaultBlockState();
                     } else {
-                        state = (y <= WATER_Y ? Blocks.WATER : Blocks.AIR).defaultBlockState();
+                        state = (y <= WATER_Y ? net.krodark.asterion.fluid.HeavyWater.WATER_BLOCK : Blocks.AIR).defaultBlockState();
                     }
                     chunk.setBlockState(cursor.set(x, y, z), state, 0);
                 }
