@@ -143,7 +143,9 @@ public final class RagdollServerNetworking {
             LAST_POSE.entrySet().removeIf(entry -> now - entry.getValue() > 200);
         }
         String key = sender.getUUID() + ":" + payload.entityId();
-        if (now - LAST_POSE.getOrDefault(key, -1000L) < 2) {
+        // Owner clients publish once per game tick; accepting that cadence avoids the
+        // stop/start appearance produced by a 10 Hz ragdoll pose stream.
+        if (now - LAST_POSE.getOrDefault(key, -1000L) < 1) {
             return;
         }
         LAST_POSE.put(key, now);

@@ -1648,8 +1648,10 @@ public final class DismembermentEngine {
             if (part == null) continue;
             Vec3 transmittedVelocity = new Vec3(snapshot.vx(), snapshot.vy(), snapshot.vz());
             double speed = transmittedVelocity.length();
-            Vec3 target = new Vec3(snapshot.x(), snapshot.y(), snapshot.z())
-                    .add(transmittedVelocity.scale(Mth.clamp(0.65 + speed * 0.18, 0.65, 1.15)));
+            // Snap toward the owner's authoritative simulated pose. Rendering already
+            // interpolates previous/current transforms, so predicting here as well caused
+            // remote limbs to overshoot and then pop back on the next packet.
+            Vec3 target = new Vec3(snapshot.x(), snapshot.y(), snapshot.z());
             double error = part.position.distanceTo(target);
             double positionBlend = Mth.clamp(0.58 + speed * 0.10 + error * 0.16, 0.58, 0.94);
             Quaternionf targetRotation = new Quaternionf(snapshot.qx(), snapshot.qy(),
@@ -1666,7 +1668,7 @@ public final class DismembermentEngine {
     }
 
     private void sendPoseSnapshots() {
-        if ((traumaDecayTicker & 1) != 0 || !ClientPlayNetworking.canSend(RagdollPosePayload.TYPE)) return;
+        if (!ClientPlayNetworking.canSend(RagdollPosePayload.TYPE)) return;
         for (int entityId : ragdolled) {
             if (remoteDriven.contains(entityId) || pendingPlayerExits.containsKey(entityId)) continue;
             var client = Minecraft.getInstance();
@@ -1733,9 +1735,6 @@ public final class DismembermentEngine {
                 part.physicsBlend = Math.min(1.0f, part.physicsBlend + 0.125f);
             part.previous = part.position;
             part.previousOrientation.set(part.orientation);
-            if (remoteDriven.contains(part.entityId)
-                    && traumaDecayTicker - remotePoseTicks.getOrDefault(part.entityId, traumaDecayTicker) <= 3)
-                part.position = part.position.add(part.velocity.scale(.8));
             incomingVelocities.put(part, part.velocity);
             if (isAnatomicalRegion(part.region) && part.region != 0 && part.supportTicks > 0)
                 supportedAnatomicalIslands.add(part.entityId);
@@ -1759,9 +1758,9 @@ public final class DismembermentEngine {
                 break;
             }
         }
-        int effectiveQuality=Math.min(net.krodark.asterion.AsterionConfig.INSTANCE.ragdollPhysicsQuality,
-                net.krodark.asterion.client.PerformanceGovernor.quality());
-        final int configuredSubsteps = switch (effectiveQuality) {
+        // Ragdoll stability must follow the explicit ragdoll setting. Dynamically reducing
+        // solver substeps changes joint stiffness and was the source of the degraded feel.
+        final int configuredSubsteps = switch (net.krodark.asterion.AsterionConfig.INSTANCE.ragdollPhysicsQuality) {
             case 0 -> 2;
             case 1 -> 3;
             default -> 4;

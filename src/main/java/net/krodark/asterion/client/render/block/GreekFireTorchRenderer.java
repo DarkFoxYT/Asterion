@@ -11,13 +11,11 @@ import net.krodark.asterion.client.light.AsterionEmissiveBoneLayer;
 import net.krodark.asterion.client.light.LedAmneticLight;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
-import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 
 public final class GreekFireTorchRenderer extends GeoBlockRenderer<GreekFireTorchBlockEntity,BlockEntityRenderState> {
     private static final DataTicket<Boolean> WALL=DataTickets.create("asterion_torch_wall",Boolean.class);
     private static final DataTicket<Boolean> TOP=DataTickets.create("asterion_torch_top",Boolean.class);
-    private static final DataTicket<Direction> FACING=DataTickets.create("asterion_torch_facing",Direction.class);
     private static final DataTicket<GreekFireTorchBlock.FireColor> COLOR=DataTickets.create("asterion_torch_color",GreekFireTorchBlock.FireColor.class);
     public GreekFireTorchRenderer(BlockEntityRendererProvider.Context context) {
         super(context,new Model());
@@ -43,7 +41,6 @@ public final class GreekFireTorchRenderer extends GeoBlockRenderer<GreekFireTorc
         GreekFireTorchBlock block=(GreekFireTorchBlock)torch.getBlockState().getBlock();
         state.addGeckolibData(WALL,block.wall);
         state.addGeckolibData(TOP,torch.getBlockState().getValue(GreekFireTorchBlock.TOP));
-        state.addGeckolibData(FACING,torch.getBlockState().getValue(GreekFireTorchBlock.FACING));
         state.addGeckolibData(COLOR,block.fireColor);
         boolean flame=block.wall||torch.getBlockState().getValue(GreekFireTorchBlock.TOP);
         if(flame) {
@@ -59,16 +56,8 @@ public final class GreekFireTorchRenderer extends GeoBlockRenderer<GreekFireTorc
         bones.ifPresent("shaft",bone->bone.skipRender(!wall&&top));
         bones.ifPresent("top",bone->{bone.skipRender(!wall&&!top);bone.skipChildrenRender(!wall&&!top);});
         bones.ifPresent("flame",bone->bone.skipRender(true));
-        if(wall) {
-            Direction facing=pass.getOrDefaultGeckolibData(FACING,Direction.NORTH);
-            float yaw=switch(facing) {
-                case EAST -> -(float)Math.PI/2F;
-                case SOUTH -> (float)Math.PI;
-                case WEST -> (float)Math.PI/2F;
-                default -> 0F;
-            };
-            bones.ifPresent("full",bone->bone.setRotation(0,yaw,0));
-        }
+        // GeoBlockRenderer already reads HORIZONTAL_FACING and rotates the whole
+        // render pose once. Rotating the root bone here as well doubled every yaw.
     }
     private static final class Model extends GeoModel<GreekFireTorchBlockEntity> {
         @Override public Identifier getModelResource(GeoRenderState state) {

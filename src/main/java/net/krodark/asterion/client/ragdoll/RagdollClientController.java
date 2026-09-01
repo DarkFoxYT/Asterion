@@ -2,7 +2,6 @@ package net.krodark.asterion.client.ragdoll;
 
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
-import net.krodark.asterion.client.PerformanceGovernor;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.CameraType;
@@ -117,8 +116,7 @@ public final class RagdollClientController {
                 axis(window, GLFW.GLFW_KEY_A, GLFW.GLFW_KEY_D),
                 axis(window, GLFW.GLFW_KEY_S, GLFW.GLFW_KEY_W));
 
-        int ragdollQuality = Math.min(AsterionConfig.INSTANCE.ragdollPhysicsQuality,
-                PerformanceGovernor.quality());
+        int ragdollQuality = AsterionConfig.INSTANCE.ragdollPhysicsQuality;
         int scanInterval = ragdollQuality == 0 ? 10 : ragdollQuality == 1 ? 7 : 5;
         double scanRange = ragdollQuality == 0 ? 40.0D : ragdollQuality == 1 ? 52.0D : 64.0D;
         if (++scanTicker % scanInterval == 0) {
