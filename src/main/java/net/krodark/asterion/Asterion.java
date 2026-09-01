@@ -20,6 +20,8 @@ import net.krodark.asterion.network.EntryOmenPayload;
 import net.krodark.asterion.network.BossFinalePayload;
 import net.krodark.asterion.network.GatewayPortalPayload;
 import net.krodark.asterion.network.TransitionReadyPayload;
+import net.krodark.asterion.network.PressureButtonHoldPayload;
+import net.krodark.asterion.network.PressureButtonNetworking;
 import net.krodark.asterion.network.MazeZapPayload;
 import net.krodark.asterion.network.DeadSunEventPayload;
 import net.krodark.asterion.network.MazeShiftPayload;
@@ -219,6 +221,9 @@ public class Asterion implements ModInitializer {
                     RED_FIRE_WALL_TORCH,RED_FIRE_FLOOR_TORCH,ORANGE_FIRE_WALL_TORCH,ORANGE_FIRE_FLOOR_TORCH).build());
     public static final Block LAMENTER = registerBlock("lamenter", MapColor.TERRACOTTA_BROWN,
             net.krodark.asterion.block.LamenterBlock::new);
+    public static final Block PRESSURE_BUTTON = registerBlock("pressure_button", MapColor.METAL,
+            properties -> new net.krodark.asterion.block.PressureButtonBlock(properties.noOcclusion()
+                    .strength(1.4F,6.0F).sound(SoundType.METAL)));
     public static final BlockEntityType<net.krodark.asterion.block.LamenterBlockEntity> LAMENTER_BLOCK_ENTITY = Registry.register(
             BuiltInRegistries.BLOCK_ENTITY_TYPE, id("lamenter"), FabricBlockEntityTypeBuilder.create(
                     net.krodark.asterion.block.LamenterBlockEntity::new, LAMENTER).build());
@@ -418,6 +423,7 @@ public class Asterion implements ModInitializer {
                         output.accept(GREEK_FIRE_LANTERN);
                         output.accept(RED_FIRE_LANTERN);
                         output.accept(LAMENTER);
+                        output.accept(PRESSURE_BUTTON);
                         output.accept(ANTIKYTHERA_BLUEPRINT);
                         output.accept(MINOTAUR_SIGIL);
                         output.accept(SCARLET_CENTIPEDE_SPAWN_EGG);
@@ -562,6 +568,7 @@ public class Asterion implements ModInitializer {
                 net.krodark.asterion.network.BossEntrancePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(GatewayPortalPayload.TYPE, GatewayPortalPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(TransitionReadyPayload.TYPE, TransitionReadyPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(PressureButtonHoldPayload.TYPE,PressureButtonHoldPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(MazeZapPayload.TYPE, MazeZapPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(DeadSunEventPayload.TYPE, DeadSunEventPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(MazeShiftPayload.TYPE, MazeShiftPayload.CODEC);
@@ -591,6 +598,7 @@ public class Asterion implements ModInitializer {
         PayloadTypeRegistry.serverboundPlay().register(RagdollPosePayload.TYPE, RagdollPosePayload.CODEC);
         RagdollServerNetworking.initialize();
         net.krodark.asterion.network.CentipedeNetworking.initialize();
+        PressureButtonNetworking.initialize();
         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(
                 TransitionReadyPayload.TYPE, (payload, context) -> context.server().execute(() ->
                         WorldGenerator.markTransitionReady(context.player())));

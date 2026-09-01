@@ -51,6 +51,7 @@ public final class AsterionClient implements ClientModInitializer {
         DimensionTransitionOverlay.register();
         BossFinaleOverlay.register();
         BossEntranceCinematic.register();
+        PressureButtonClient.initialize();
         MazeObjectiveOverlay.register();
         MazeZapRenderer.register();
         DazeOverlay.register();
@@ -211,6 +212,7 @@ public final class AsterionClient implements ClientModInitializer {
         DeadSunEntryCinematic.tick(client);
         BossFinaleOverlay.tick(client);
         BossEntranceCinematic.tick(client);
+        PressureButtonClient.tick(client);
         CinematicControls.tick(client);
         MazeObjectiveOverlay.tick(client);
         DeadSunClientEvents.tick(client);

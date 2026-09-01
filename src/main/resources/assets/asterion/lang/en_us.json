@@ -199,5 +199,6 @@
   "block.asterion.orange_fire_floor_torch": "Orange Fire Floor Torch",
   "item.asterion.omega_key": "Omega Key",
   "block.asterion.omega_lock": "Omega Lock",
-  "message.asterion.omega_lock_no_gate": "The lock cannot find a nearby portcullis."
+  "message.asterion.omega_lock_no_gate": "The lock cannot find a nearby portcullis.",
+  "block.asterion.pressure_button": "Pressure Button"
 }

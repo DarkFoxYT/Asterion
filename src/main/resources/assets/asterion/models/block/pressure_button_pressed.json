@@ -1,0 +1,4 @@
+{
+  "parent": "minecraft:block/button_pressed",
+  "textures": { "texture": "asterion:block/mazesteel_block", "particle": "asterion:block/mazesteel_block" }
+}

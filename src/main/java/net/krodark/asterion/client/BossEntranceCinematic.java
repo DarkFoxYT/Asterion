@@ -13,7 +13,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 public final class BossEntranceCinematic {
-    private static boolean active, showShot;
+    private static boolean active, showShot, finished;
     private static int ticks, duration;
     private static Direction door;
     private static CameraType previousCamera;
@@ -38,6 +38,7 @@ public final class BossEntranceCinematic {
         door = payload.bossDoor();
         if (!door.getAxis().isHorizontal()) return;
         duration = Math.clamp(payload.duration(), 1, 200);
+        finished = false;
         ticks = Math.clamp(payload.elapsed(), 0, duration);
         active = true;
         showShot = AsterionConfig.INSTANCE.cinematicsEnabled;
@@ -52,6 +53,7 @@ public final class BossEntranceCinematic {
     }
 
     public static boolean isActive() { return active; }
+    public static boolean hasFinished() { return finished; }
     public static void tick(Minecraft client) {
         if (!active) return;
         if (client.player == null || client.level == null || !client.player.isAlive()
@@ -93,6 +95,7 @@ public final class BossEntranceCinematic {
     public static void finish(Minecraft client) {
         if (!active) return;
         active = false;
+        finished = true;
         if (showShot) {
             if (previousCamera != null) client.options.setCameraType(previousCamera);
             client.smartCull = previousCull;

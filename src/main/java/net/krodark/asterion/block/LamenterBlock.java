@@ -4,7 +4,6 @@ import com.mojang.serialization.MapCodec;
 import net.krodark.asterion.Asterion;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -43,13 +42,6 @@ public final class LamenterBlock extends BaseEntityBlock {
     }
     @Override protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
                                                         Player player, BlockHitResult hit) {
-        if (!player.mayBuild()) return InteractionResult.PASS;
-        if (!level.isClientSide()) {
-            boolean active = !state.getValue(ACTIVE);
-            level.setBlock(pos, state.setValue(ACTIVE, active), UPDATE_ALL);
-            player.sendSystemMessage(Component.translatable(active
-                    ? "message.asterion.lamenter_awakened" : "message.asterion.lamenter_quiet"));
-        }
         return InteractionResult.SUCCESS;
     }
     @Override public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
