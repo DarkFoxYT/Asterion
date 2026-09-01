@@ -28,7 +28,11 @@ public final class GameplayContent {
     public static final Item GREEK_FIRE_SWORD = item("greek_fire_sword", GreekFireSwordItem::new);
     private static final ResourceKey<EntityType<?>> CURSED_KEY = ResourceKey.create(Registries.ENTITY_TYPE, Asterion.id("cursed_brazier"));
     public static final EntityType<CursedBrazierEntity> CURSED_BRAZIER = Registry.register(BuiltInRegistries.ENTITY_TYPE, CURSED_KEY,
-            EntityType.Builder.of(CursedBrazierEntity::new, MobCategory.MONSTER).sized(2.6F, 1.2F).fireImmune().clientTrackingRange(10).build(CURSED_KEY));
+            EntityType.Builder.of(CursedBrazierEntity::new, MobCategory.MONSTER)
+                    .sized(4.8F, 4.85F)
+                    .fireImmune()
+                    .clientTrackingRange(12)
+                    .build(CURSED_KEY));
     public static final Item CURSED_BRAZIER_EGG = item("cursed_brazier_spawn_egg", p -> new SpawnEggItem(p.spawnEgg(CURSED_BRAZIER)));
     public static final Item CURSED_BRAZIER_KEY = item("cursed_brazier_key",
             p -> new Item(p.stacksTo(1).rarity(Rarity.RARE).fireResistant()));

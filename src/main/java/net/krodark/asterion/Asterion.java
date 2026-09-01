@@ -703,6 +703,7 @@ public class Asterion implements ModInitializer {
                 WorldGenerator.prepareRapidRespawn(player);
         });
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            handler.getPlayer().awardRecipes(server.getRecipeManager().getRecipes());
             net.krodark.asterion.effect.SingedScars.get(server).apply(handler.getPlayer());
             WorldGenerator.playerConnected(handler.getPlayer());
         });

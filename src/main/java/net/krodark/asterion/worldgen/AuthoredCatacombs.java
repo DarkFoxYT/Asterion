@@ -74,8 +74,8 @@ public final class AuthoredCatacombs {
         }
         throw new IllegalStateException("No module fits exits " + exits);
     }
-    public static void place(WorldGenLevel world, ChunkPos chunk) {
-        ServerLevel level = world.getLevel();
+    public static void place(net.minecraft.world.level.ServerLevelAccessor world, ChunkPos chunk) {
+        ServerLevel level = world instanceof ServerLevel server ? server : ((WorldGenLevel)world).getLevel();
         long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
         BoundingBox clip = new BoundingBox(chunk.getMinBlockX(), BASE_Y, chunk.getMinBlockZ(),
                 chunk.getMaxBlockX(), BASE_Y + 30, chunk.getMaxBlockZ());
@@ -108,7 +108,7 @@ public final class AuthoredCatacombs {
                 }
             }
     }
-    private static void markTemplateRunes(WorldGenLevel world,StructureTemplate template,BlockPos origin,
+    private static void markTemplateRunes(net.minecraft.world.level.ServerLevelAccessor world,StructureTemplate template,BlockPos origin,
                                           StructurePlaceSettings placement,BoundingBox clip) {
         for(var block:Asterion.RUNE_BLOCKS)
             for(var info:template.filterBlocks(origin,placement,block,true))

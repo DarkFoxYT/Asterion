@@ -72,7 +72,7 @@ public final class PressureButtonNetworking {
         if(lamenter&&!state.getValue(LamenterBlock.ACTIVE))
             level.setBlock(pos,state.setValue(LamenterBlock.ACTIVE,true),Block.UPDATE_ALL);
         if(button&&!state.getValue(PressureButtonBlock.POWERED))
-            level.setBlock(pos,state.setValue(PressureButtonBlock.POWERED,true),Block.UPDATE_CLIENTS);
+            level.setBlock(pos,state.setValue(PressureButtonBlock.POWERED,true),Block.UPDATE_ALL);
         HOLDS.put(player.getUUID(),new Hold(level.dimension(),pos.immutable(),0,activeTarget));
     }
 
@@ -108,7 +108,7 @@ public final class PressureButtonNetworking {
     private static void release(ServerLevel level,Hold hold) {
         var state=level.getBlockState(hold.pos);
         if(state.is(Asterion.PRESSURE_BUTTON)&&state.getValue(PressureButtonBlock.POWERED))
-            level.setBlock(hold.pos,state.setValue(PressureButtonBlock.POWERED,false),Block.UPDATE_CLIENTS);
+            level.setBlock(hold.pos,state.setValue(PressureButtonBlock.POWERED,false),Block.UPDATE_ALL);
         if(hold.activeTarget!=null) {
             var target=level.getBlockState(hold.activeTarget);
             boolean stillHeld=HOLDS.values().stream().anyMatch(other->hold.activeTarget.equals(other.activeTarget));

@@ -17,9 +17,9 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 
 public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazierEntity, EntityRenderState> {
-    private static final Identifier MODEL = Asterion.id("block/brazier");
-    private static final Identifier TEXTURE = Asterion.id("textures/block/brasier.png");
-    private static final Identifier ANIMATION = Asterion.id("entity/bombadier_beetle");
+    private static final Identifier MODEL = Asterion.id("entity/cursed_brazier");
+    private static final Identifier TEXTURE = Asterion.id("textures/entity/cursed_brazier.png");
+    private static final Identifier ANIMATION = Asterion.id("entity/cursed_brazier");
     private static final DataTicket<Boolean> SHIELDED =
             DataTickets.create("asterion_brazier_shielded", Boolean.class);
     private static final DataTicket<Boolean> FLAMES_ACTIVE =
@@ -34,6 +34,15 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
             DataTickets.create("asterion_brazier_attack_age", Float.class);
     private static final DataTicket<Float> TIME =
             DataTickets.create("asterion_brazier_time", Float.class);
+    private static final String[] GLOW_BONES = {
+            "topglow", "middleglow", "bottomglow", "centerglow"
+    };
+    private static final int[] GLOW_ATTACKS = {
+            CursedBrazierEntity.Attack.FIRE_BEAM.ordinal(),
+            CursedBrazierEntity.Attack.CARDINAL_DASH.ordinal(),
+            CursedBrazierEntity.Attack.FLOOR_JETS.ordinal(),
+            CursedBrazierEntity.Attack.SPIN_TORNADO.ordinal()
+    };
 
     public CursedBrazierRenderer(EntityRendererProvider.Context context) {
         super(context, new GeoModel<>() {
@@ -69,7 +78,27 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
                 return 0xFF55FF72;
             }
         });
-        shadowRadius = 1.2F;
+        for (String bone : GLOW_BONES) addGlowLayer(bone);
+        shadowRadius = 2.35F;
+    }
+
+    private void addGlowLayer(String boneName) {
+        withRenderLayer(new AsterionEmissiveBoneLayer<>(this, boneName, TEXTURE) {
+            @Override
+            public boolean shouldRenderBone(EntityRenderState state) {
+                return state.getOrDefaultGeckolibData(FLAMES_ACTIVE, false);
+            }
+
+            @Override
+            protected float surfaceBrightness(EntityRenderState state) {
+                return 1F;
+            }
+
+            @Override
+            protected boolean enhancedSurface(EntityRenderState state) {
+                return true;
+            }
+        });
     }
 
     @Override
@@ -89,7 +118,8 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
 
         float strength = brazier.shielded() ? 3.2F : 1.8F;
         float radius = brazier.shielded() ? 11F : 8F;
-        LedAmneticLight.updateItemGlowLight(brazier, brazier.position().add(0, 0.95, 0),
+        LedAmneticLight.updateItemGlowLight(brazier,
+                brazier.position().add(0, brazier.getBbHeight() * 0.62, 0),
                 0.18F, 1F, 0.30F, strength, radius, false);
     }
 
@@ -133,6 +163,10 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
 
         int attack = pass.getOrDefaultGeckolibData(ATTACK, CursedBrazierEntity.Attack.NONE.ordinal());
         float attackAge = pass.getOrDefaultGeckolibData(ATTACK_AGE, 0F);
+        for (int index = 0; index < GLOW_BONES.length; index++) {
+            if (attack != GLOW_ATTACKS[index]) continue;
+            bones.ifPresent(GLOW_BONES[index], bone -> bone.setScale(0F, 0F, 0F));
+        }
         bones.ifPresent("full", bone -> applyAttackMotion(bone, attack, attackAge));
     }
 

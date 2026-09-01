@@ -25,6 +25,18 @@ public final class GameplayGameTest implements FabricClientGameTest {
                 for (int x = -14; x <= 14; x++) for (int z = -14; z <= 14; z++) level.setBlock(new BlockPos(x,120,z), Blocks.STONE.defaultBlockState(),3);
                 player.setGameMode(GameType.SURVIVAL);
                 verifyGreekFireTorches(level,player);
+                BlockPos buttonPos=new BlockPos(-8,121,7),lampPos=buttonPos.east();
+                level.setBlock(lampPos,Blocks.REDSTONE_LAMP.defaultBlockState(),3);
+                var pressed=Asterion.PRESSURE_BUTTON.defaultBlockState()
+                        .setValue(PressureButtonBlock.FACING,Direction.UP)
+                        .setValue(PressureButtonBlock.POWERED,true);
+                level.setBlock(buttonPos,pressed,net.minecraft.world.level.block.Block.UPDATE_ALL);
+                check(level.getBlockState(buttonPos).getSignal(level,buttonPos,Direction.WEST)==15
+                                && level.getBlockState(lampPos).getValue(net.minecraft.world.level.block.RedstoneLampBlock.LIT),
+                        "Held pressure button did not emit redstone");
+                level.setBlock(buttonPos,pressed.setValue(PressureButtonBlock.POWERED,false),net.minecraft.world.level.block.Block.UPDATE_ALL);
+                check(level.getBlockState(buttonPos).getSignal(level,buttonPos,Direction.WEST)==0,
+                        "Released pressure button kept emitting redstone");
                 for (var block : new net.minecraft.world.level.block.Block[]{Asterion.MAZESTEEL_BLOCK,Asterion.MAZESTEEL_BARS,Asterion.MAZESTEEL_CHAIN,Asterion.LAMENTER}) {
                     for (var tool : new Item[]{Items.AIR,Items.WOODEN_PICKAXE,Items.NETHERITE_PICKAXE}) {
                         player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,new ItemStack(tool));

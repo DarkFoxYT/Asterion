@@ -3,6 +3,8 @@ package net.krodark.asterion.entity;
 import com.geckolib.animatable.GeoEntity;
 import com.geckolib.animatable.instance.AnimatableInstanceCache;
 import com.geckolib.animatable.manager.AnimatableManager;
+import com.geckolib.animation.AnimationController;
+import com.geckolib.animation.RawAnimation;
 import com.geckolib.util.GeckoLibUtil;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import java.util.ArrayList;
@@ -43,6 +45,10 @@ import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
 
 public final class CursedBrazierEntity extends PathfinderMob implements GeoEntity {
+    private static final RawAnimation IDLE_ANIMATION =
+            RawAnimation.begin().thenLoop("animation.cursed_brazier.idle");
+    private static final RawAnimation SHOOT_BEAM_ANIMATION =
+            RawAnimation.begin().thenPlayAndHold("shoot_beam");
     private static final int TARGET_RANGE = 30;
     private static final int AWAKEN_RANGE = 17;
     public static final int AWAKENING_DURATION = 64;
@@ -414,7 +420,8 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
 
         if (tick < 70) {
             if (tick % 3 == 0) {
-                level.sendParticles(Asterion.GREEK_FIRE_SOOT, getX(), getY() + 0.6, getZ(),
+                level.sendParticles(Asterion.GREEK_FIRE_SOOT,
+                        getX(), getY() + getBbHeight() * 0.55, getZ(),
                         8, 0.7, 0.25, 0.7, 0.02);
             }
             return;
@@ -577,10 +584,11 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         if (!shielded()) return;
         setPos(lockedPosition);
         if (tickCount % 2 == 0) {
-            level.sendParticles(ParticleTypes.ELECTRIC_SPARK, getX(), getY() + 0.6, getZ(),
-                    9, 1.45, 0.7, 1.45, 0.035);
-            level.sendParticles(Asterion.GREEK_FIRE, getX(), getY() + 0.6, getZ(),
-                    7, 1.3, 0.65, 1.3, 0.018);
+            double centerY = getY() + getBbHeight() * 0.52;
+            level.sendParticles(ParticleTypes.ELECTRIC_SPARK, getX(), centerY, getZ(),
+                    9, 2.2, 1.7, 2.2, 0.035);
+            level.sendParticles(Asterion.GREEK_FIRE, getX(), centerY, getZ(),
+                    7, 2.0, 1.55, 2.0, 0.018);
         }
         if (shieldLamenter == null || !level.getBlockState(shieldLamenter).is(Asterion.LAMENTER)) {
             setShielded(false);
@@ -593,8 +601,9 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
             setShielded(false);
             shieldLamenter = null;
             cooldown = 35;
-            level.sendParticles(ParticleTypes.CLOUD, getX(), getY() + 0.7, getZ(),
-                    35, 1.2, 0.6, 1.2, 0.08);
+            level.sendParticles(ParticleTypes.CLOUD,
+                    getX(), getY() + getBbHeight() * 0.52, getZ(),
+                    35, 2.1, 1.5, 2.1, 0.08);
             playSound(SoundEvents.FIRE_EXTINGUISH, 1.6F, 0.7F);
         }
     }
@@ -608,8 +617,9 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
     public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
         if (source.is(DamageTypeTags.IS_FIRE)) return false;
         if (!shielded()) return super.hurtServer(level, source, amount);
-        level.sendParticles(ParticleTypes.ELECTRIC_SPARK, getX(), getY() + 0.6, getZ(),
-                14, 1.2, 0.7, 1.2, 0.04);
+        level.sendParticles(ParticleTypes.ELECTRIC_SPARK,
+                getX(), getY() + getBbHeight() * 0.52, getZ(),
+                14, 2.1, 1.6, 2.1, 0.04);
         return false;
     }
 
@@ -727,6 +737,10 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+        controllers.add(new AnimationController<CursedBrazierEntity>("attack", 2, state ->
+                state.setAndContinue(attack() == Attack.FIRE_BEAM
+                        ? SHOOT_BEAM_ANIMATION
+                        : IDLE_ANIMATION)));
     }
 
     @Override

@@ -60,6 +60,13 @@ public final class PressureButtonBlock extends Block {
             Player player,BlockHitResult hit) {
         return InteractionResult.SUCCESS;
     }
+    @Override protected boolean isSignalSource(BlockState state) { return true; }
+    @Override protected int getSignal(BlockState state,BlockGetter level,BlockPos pos,Direction side) {
+        return state.getValue(POWERED)?15:0;
+    }
+    @Override protected int getDirectSignal(BlockState state,BlockGetter level,BlockPos pos,Direction side) {
+        return state.getValue(POWERED)&&side==state.getValue(FACING)?15:0;
+    }
     @Override protected VoxelShape getShape(BlockState state,BlockGetter level,BlockPos pos,CollisionContext context) {
         return switch(state.getValue(FACING)) {
             case DOWN -> box(2,13,2,14,16,14);
