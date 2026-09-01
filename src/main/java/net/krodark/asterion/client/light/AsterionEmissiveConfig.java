@@ -43,8 +43,13 @@ public final class AsterionEmissiveConfig {
                 if (values.intensity == .16F) values.intensity = .22F;
                 if (values.threshold == 1.1F) values.threshold = .95F;
             }
+            boolean restoreAmnetic = legacy || values.version < 5;
+            if (restoreAmnetic) {
+                if (values.threshold == .95F) values.threshold = .047F;
+                if (values.intensity == .22F) values.intensity = 3.316F;
+            }
             sanitize();
-            if (upgradeEyes || upgradeFire) save();
+            if (upgradeEyes || upgradeFire || restoreAmnetic) save();
         } catch (Exception exception) {
             Asterion.LOGGER.warn("Unable to load Asterion emissive config {}", PATH, exception);
             values = new Values();
@@ -104,9 +109,9 @@ public final class AsterionEmissiveConfig {
     }
 
     private static void sanitize() {
-        values.version = 4;
+        values.version = 5;
         values.threshold = finiteClamp(values.threshold, 0.0F, 2.0F, 1.1F);
-        values.intensity = finiteClamp(values.intensity, 0.0F, 0.5F, 0.16F);
+        values.intensity = finiteClamp(values.intensity, 0.0F, 8.0F, 3.316F);
         values.levels = Mth.clamp(values.levels, 2, 3);
         values.scale = finiteClamp(values.scale, 0.5F, 1.0F, 0.75F);
         values.knee = finiteClamp(values.knee, 0.0F, 1.0F, 0.25F);
@@ -116,10 +121,10 @@ public final class AsterionEmissiveConfig {
     }
 
     private static final class Values {
-        private int version = 4;
+        private int version = 5;
         private boolean enabled = true;
-        private float threshold = .95F;
-        private float intensity = .22F;
+        private float threshold = .047F;
+        private float intensity = 3.316F;
         private int levels = 2;
         private float scale = 0.75F;
         private float knee = 0.25F;

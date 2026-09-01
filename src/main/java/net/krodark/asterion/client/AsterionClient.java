@@ -51,6 +51,7 @@ public final class AsterionClient implements ClientModInitializer {
         DimensionTransitionOverlay.register();
         BossFinaleOverlay.register();
         BossEntranceCinematic.register();
+        CursedBrazierCinematic.register();
         PressureButtonClient.initialize();
         MazeObjectiveOverlay.register();
         MazeZapRenderer.register();
@@ -127,6 +128,8 @@ public final class AsterionClient implements ClientModInitializer {
         BlockEntityRenderers.register(Asterion.PILLAR_BLOCK_ENTITY, net.krodark.asterion.client.render.block.PillarRenderer::new);
         BlockEntityRenderers.register(Asterion.MINOTAUR_DOOR_BLOCK_ENTITY,
                 net.krodark.asterion.client.render.block.MinotaurDoorRenderer::new);
+        BlockEntityRenderers.register(Asterion.CURSED_BRAZIER_DOOR_BLOCK_ENTITY,
+                net.krodark.asterion.client.render.block.CursedBrazierDoorRenderer::new);
         BlockEntityRenderers.register(Asterion.BARREL_DOOR_BLOCK_ENTITY,
                 net.krodark.asterion.client.render.block.BarrelDoorRenderer::new);
         BlockEntityRenderers.register(net.krodark.asterion.block.RespawnObelisks.BLOCK_ENTITY,
@@ -147,6 +150,9 @@ public final class AsterionClient implements ClientModInitializer {
                 context.client().execute(BossFinaleOverlay::begin));
         ClientPlayNetworking.registerGlobalReceiver(BossEntrancePayload.TYPE, (payload, context) ->
                 context.client().execute(() -> BossEntranceCinematic.receive(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(CursedBrazierAwakeningPayload.TYPE,
+                (payload, context) -> context.client().execute(
+                        () -> CursedBrazierCinematic.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(GatewayPortalPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> AsterionPortalRenderer.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(MazeZapPayload.TYPE, (payload, context) ->
@@ -212,6 +218,7 @@ public final class AsterionClient implements ClientModInitializer {
         DeadSunEntryCinematic.tick(client);
         BossFinaleOverlay.tick(client);
         BossEntranceCinematic.tick(client);
+        CursedBrazierCinematic.tick(client);
         PressureButtonClient.tick(client);
         CinematicControls.tick(client);
         MazeObjectiveOverlay.tick(client);

@@ -52,7 +52,7 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                 level.getChunkAt(new BlockPos(CatacombLayout.ROOT_CENTER,49,CatacombLayout.ROOT_CENTER));
                 check(CatacombEntrances.checkpoint(level,new BlockPos(CatacombLayout.ROOT_CENTER,24,CatacombLayout.ROOT_CENTER))!=null,"Authored crossing lost its safe checkpoint");
                 for(int cx=-4;cx<=3;cx++)for(int cz=-4;cz<=3;cz++)
-                    check(level.getBlockState(new BlockPos(cx*16,1,cz*16)).is(Blocks.BEDROCK),"Missing arena reload marker");
+                    check(level.getBlockState(new BlockPos(cx*16,0,cz*16)).is(Blocks.LIGHT),"Missing arena reload marker");
                 for(int z=62;z<=CatacombLayout.ROOT_CENTER;z++) clear(level,new BlockPos(0,AuthoredCatacombs.CONNECTOR_Y+1,z));
                 for(int x=0;x<=CatacombLayout.ROOT_CENTER-10;x++) clear(level,new BlockPos(x,AuthoredCatacombs.CONNECTOR_Y+1,CatacombLayout.ROOT_CENTER));
                 long seed=MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());

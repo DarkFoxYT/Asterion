@@ -18,6 +18,9 @@ public final class DazeOverlay {
     private static int required;
     private static int progress;
     private static boolean spaceWasDown;
+    private static boolean ragdollRecovery;
+    private static int ragdollProgress;
+    private static int ragdollRequired = 4;
 
     private DazeOverlay() { }
 
@@ -51,12 +54,6 @@ public final class DazeOverlay {
         else if (!mash && down && (duration - remaining) % 3 == 0)
             progress = Math.min(required, progress + 1);
         if (progress >= required || remaining <= 0) {
-            if (!DismembermentEngine.INSTANCE.hasGroundContact(client.player.getId())) {
-                remaining = 1;
-                progress = required;
-                spaceWasDown = down;
-                return;
-            }
             DismembermentEngine.INSTANCE.releaseRagdoll(client.player.getId());
             remaining = 0;
         }
@@ -80,25 +77,40 @@ public final class DazeOverlay {
 
     public static boolean isActive() { return remaining > 0; }
 
+    public static void showRagdollRecovery(int presses, int needed) {
+        ragdollRecovery = true;
+        ragdollRequired = Math.max(1, needed);
+        ragdollProgress = Mth.clamp(presses, 0, ragdollRequired);
+    }
+
+    public static void hideRagdollRecovery() {
+        ragdollRecovery = false;
+        ragdollProgress = 0;
+    }
+
     public static void cancel() {
         remaining = 0;
         progress = 0;
         spaceWasDown = false;
+        hideRagdollRecovery();
     }
 
     private static void render(GuiGraphicsExtractor graphics, net.minecraft.client.DeltaTracker delta) {
-        if (remaining <= 0) return;
+        if (remaining <= 0 && !ragdollRecovery) return;
         Minecraft client = Minecraft.getInstance();
         int width = 190, height = 12;
         int x = (graphics.guiWidth() - width) / 2;
         int y = graphics.guiHeight() - 72;
-        float intro = Mth.clamp((duration - remaining) / 8.0F, 0.0F, 1.0F);
+        float intro = remaining > 0 ? Mth.clamp((duration - remaining) / 8.0F, 0.0F, 1.0F) : 1.0F;
         int alpha = Mth.floor(intro * 220.0F);
         graphics.fill(x - 2, y - 2, x + width + 2, y + height + 2, alpha << 24 | 0x140B0B);
         graphics.fill(x, y, x + width, y + height, alpha << 24 | 0x2B2222);
-        int filled = Mth.floor(width * Mth.clamp(progress / (float) required, 0.0F, 1.0F));
+        int shownProgress = remaining > 0 ? progress : ragdollProgress;
+        int shownRequired = remaining > 0 ? required : ragdollRequired;
+        int filled = Mth.floor(width * Mth.clamp(shownProgress / (float) shownRequired, 0.0F, 1.0F));
         graphics.fill(x, y, x + filled, y + height, alpha << 24 | 0xC92820);
-        String instruction = AsterionConfig.INSTANCE.ragdollMashRecovery
+        String instruction = remaining <= 0 ? "MASH SPACE — GET UP"
+                : AsterionConfig.INSTANCE.ragdollMashRecovery
                 ? "TAP SPACE — BREAK THE FALL" : "HOLD SPACE — BRACE AND GET UP";
         graphics.centeredText(client.font, Component.literal(instruction),
                 graphics.guiWidth() / 2, y - 13, alpha << 24 | 0xFFE3D8);

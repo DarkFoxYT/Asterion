@@ -30,7 +30,7 @@ public final class UnderwaterRuinFeature extends Feature<NoneFeatureConfiguratio
 
         var template = context.level().getLevel().getStructureManager().get(Asterion.id("underwater_ruin"));
         if (template.isEmpty()) {
-            Asterion.LOGGER.error("Missing structure template asterion:underwater_ruin; run rebuildStructureTemplates");
+            Asterion.LOGGER.error("Missing required structure asterion:underwater_ruin");
             return false;
         }
 

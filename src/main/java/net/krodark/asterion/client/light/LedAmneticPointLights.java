@@ -27,7 +27,7 @@ final class LedAmneticPointLights {
         }
         int quality = effectiveQuality(config);
         boolean shadows = quality >= 2 && sample.castsShadow();
-        float godray = quality >= 2 && sample.radius() >= 6.5F ? 0.24F : 0.0F;
+        boolean godrays = quality >= 2 && sample.radius() >= 2.5F;
         Light light = LIGHTS.computeIfAbsent(key, ignored -> createLight(sample));
         LedAmneticLight.LedPointLightSample previous = BUFFERED.put(key, sample);
         if (previous != null && previous.position().distanceToSqr(sample.position()) < 0.0009D
@@ -46,9 +46,11 @@ final class LedAmneticPointLights {
                 .setIntensity(Math.abs(sample.strength()))
                 .setRange(Math.max(0.1F, sample.radius()))
                 .castsShadow(shadows)
-                .shadowStrength(0.72F)
-                .godray(godray)
-                .godraySteps(quality >= 2 ? 10 : 0)
+                .shadowStrength(1.0F)
+                .godray(godrays ? 1.0F : 0.0F)
+                .godraySteps(godrays ? 10 : 0)
+                .godrayDensity(godrays ? 0.435F : 0.0F)
+                .godrayAniso(0.95F)
                 .godrayShadows(shadows)
                 .setEnabled(true);
         CONFIGURED_QUALITY.put(key,quality);
@@ -101,7 +103,7 @@ final class LedAmneticPointLights {
     private static Light createLight(LedAmneticLight.LedPointLightSample sample) {
         int quality = effectiveQuality(AsterionConfig.INSTANCE);
         boolean shadows = quality >= 2 && sample.castsShadow();
-        boolean godrays = quality >= 2 && sample.radius() >= 6.5F;
+        boolean godrays = quality >= 2 && sample.radius() >= 2.5F;
         return Lights.point(
                         sample.position(),
                         sample.red(),
@@ -111,11 +113,11 @@ final class LedAmneticPointLights {
                         Math.abs(sample.strength()))
                 .setFalloff(FalloffCurve.SMOOTH)
                 .castsShadow(shadows)
-                .shadowStrength(0.72F)
-                .godray(godrays ? 0.24F : 0.0F)
+                .shadowStrength(1.0F)
+                .godray(godrays ? 1.0F : 0.0F)
                 .godraySteps(godrays ? 10 : 0)
-                .godrayDensity(godrays ? 0.11F : 0.0F)
-                .godrayAniso(0.72F)
+                .godrayDensity(godrays ? 0.435F : 0.0F)
+                .godrayAniso(0.95F)
                 .godrayShadows(shadows)
                 ;
     }

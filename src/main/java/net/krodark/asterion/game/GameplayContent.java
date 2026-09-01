@@ -30,6 +30,8 @@ public final class GameplayContent {
     public static final EntityType<CursedBrazierEntity> CURSED_BRAZIER = Registry.register(BuiltInRegistries.ENTITY_TYPE, CURSED_KEY,
             EntityType.Builder.of(CursedBrazierEntity::new, MobCategory.MONSTER).sized(2.6F, 1.2F).fireImmune().clientTrackingRange(10).build(CURSED_KEY));
     public static final Item CURSED_BRAZIER_EGG = item("cursed_brazier_spawn_egg", p -> new SpawnEggItem(p.spawnEgg(CURSED_BRAZIER)));
+    public static final Item CURSED_BRAZIER_KEY = item("cursed_brazier_key",
+            p -> new Item(p.stacksTo(1).rarity(Rarity.RARE).fireResistant()));
     public static final Item RUNE_BEETLE_EGG = item("rune_beetle_spawn_egg", p -> new SpawnEggItem(p.spawnEgg(Asterion.RUNE_BEETLE)));
     private GameplayContent() { }
     private static Block block(String name, java.util.function.Function<BlockBehaviour.Properties, Block> factory) {
@@ -46,7 +48,8 @@ public final class GameplayContent {
         FabricDefaultAttributeRegistry.register(CURSED_BRAZIER, CursedBrazierEntity.createAttributes());
         CreativeModeTabEvents.modifyOutputEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Asterion.id("asterion"))).register(output -> {
             output.accept(SPEWER); output.accept(FIRE_BURST_TRAP); output.accept(BEAR_TRAP);
-            output.accept(FLAMETHROWER); output.accept(GREEK_FIRE_SWORD); output.accept(CURSED_BRAZIER_EGG); output.accept(RUNE_BEETLE_EGG);
+            output.accept(FLAMETHROWER); output.accept(GREEK_FIRE_SWORD); output.accept(CURSED_BRAZIER_EGG);
+            output.accept(CURSED_BRAZIER_KEY); output.accept(RUNE_BEETLE_EGG);
         });
         PayloadTypeRegistry.serverboundPlay().register(IgniteGasPayload.TYPE, IgniteGasPayload.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(IgniteGasPayload.TYPE, (payload, context) -> context.server().execute(() -> FlamethrowerItem.ignite(context.player())));

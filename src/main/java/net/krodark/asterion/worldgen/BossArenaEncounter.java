@@ -36,6 +36,9 @@ public final class BossArenaEncounter {
     public static void begin(ServerLevel level, ServerPlayer trigger, MinotaurEntity boss, Direction entry) {
         if (entry != MinotaurArenaEntrances.PLAYER_ENTRANCE) return;
         if (active != null) { admit(level, trigger, entry); return; }
+        // The authored portcullises must be completely raised before the camera takes
+        // control. This also repairs partially closed gates left by an interrupted intro.
+        MinotaurArenaEntrances.setGates(level, 0, null);
         active = new Encounter(level, boss.getUUID(), entry.getOpposite(), level.getGameTime());
         admit(level, trigger, entry);
         // Include the nearby party before anything closes; never pull players from elsewhere in the maze.
@@ -55,7 +58,7 @@ public final class BossArenaEncounter {
     private static void admit(ServerLevel level, ServerPlayer player, Direction entry) {
         if (active == null || !active.participants.add(player.getUUID())) return;
         Vec3 safe = safePosition(level, player, entry, active.participants.size() - 1);
-        Vec3 focus = net.krodark.asterion.WorldGenerator.bossArenaCenter().add(0, 2.5, 0);
+        Vec3 focus = Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(active.bossDoor)).add(0, 2.8, 0);
         Vec3 delta = focus.subtract(safe.add(0, player.getEyeHeight(), 0));
         float yaw = (float)Math.toDegrees(Math.atan2(-delta.x, delta.z));
         player.stopRiding();
@@ -73,19 +76,20 @@ public final class BossArenaEncounter {
     }
 
     private static Vec3 safePosition(ServerLevel level, ServerPlayer player, Direction entry, int slot) {
+        Vec3 gate = Vec3.atBottomCenterOf(MinotaurArenaEntrances.gate(entry));
+        Vec3 inward = entry.getOpposite().getUnitVec3();
+        Vec3 across = entry.getClockWise().getUnitVec3();
         for (int attempt = 0; attempt < 60; attempt++) {
             int index = slot + attempt;
             int side = index % 5 - 2;
-            double radius = 25 - (index / 5 % 12) * 1.4;
-            Vec3 candidate = net.krodark.asterion.WorldGenerator.bossArenaCenter()
-                    .add(entry.getUnitVec3().scale(radius))
-                    .add(entry.getClockWise().getUnitVec3().scale(side * 1.25));
+            double depth = 7.5D + (index / 5 % 12) * 1.15D;
+            Vec3 candidate = gate.add(inward.scale(depth)).add(across.scale(side * 1.25D));
             var bounds = player.getBoundingBox().move(candidate.subtract(player.position()));
             if (level.noCollision(player, bounds)
                     && !level.getBlockState(BlockPos.containing(candidate).below()).getCollisionShape(level, BlockPos.containing(candidate).below()).isEmpty())
                 return candidate;
         }
-        return net.krodark.asterion.WorldGenerator.bossArenaCenter();
+        return gate.add(inward.scale(10.0D));
     }
 
     public static void tick(ServerLevel level) {
@@ -126,7 +130,10 @@ public final class BossArenaEncounter {
         // Keep the authored grates fully raised for the reveal; seal the room once
         // control returns to the party.
         int closedRows = Math.clamp((elapsed - INTRO_TICKS) / 2, 0, height);
-        for (Direction facing : MinotaurArenaEntrances.DOORS) {
+        List<Direction> encounterGates = AuthoredCatacombs.enabled()
+                ? List.of(MinotaurArenaEntrances.PLAYER_ENTRANCE, MinotaurArenaEntrances.BOSS_ENTRANCE)
+                : MinotaurArenaEntrances.DOORS;
+        for (Direction facing : encounterGates) {
             int rows = closedRows;
             if (facing == active.bossDoor && (boss.doorEntryTicks() > 0
                     || boss.getBoundingBox().intersects(MinotaurArenaEntrances.gateBounds(facing).inflate(.2)))) continue;
@@ -137,11 +144,11 @@ public final class BossArenaEncounter {
             level.playSound(null, MinotaurArenaEntrances.gate(facing),
                     rows == height ? SoundEvents.ANVIL_LAND : SoundEvents.CHAIN_HIT, SoundSource.BLOCKS, 1.4F, .6F);
         }
-        MinotaurArenaEntrances.setAuthoredBossGate(level, closedRows);
-        if (elapsed >= INTRO_TICKS && !active.restored && (!MinotaurArenaEntrances.DOORS.contains(active.bossDoor)
-                || active.closedRows.getOrDefault(active.bossDoor, 0) == height)) {
-            restoreDoors(level);
-            active.restored = true;
+        if (elapsed >= INTRO_TICKS) {
+            // The north door is sacrificial. Never recreate it during combat: doing so
+            // can wall the Minotaur into his staging room after his breach animation.
+            BlockPos bossDoor = MinotaurArenaEntrances.door(active.bossDoor);
+            MinotaurDoorBlock.removeDoor(level, bossDoor, active.bossDoor);
         }
         boolean anyonePresent = level.players().stream().anyMatch(p -> p.isAlive() && active.participants.contains(p.getUUID()));
         if (!anyonePresent) { boss.discard(); finish(level); }
@@ -267,7 +274,6 @@ public final class BossArenaEncounter {
         final Set<UUID> participants = new LinkedHashSet<>();
         final Map<UUID, Lock> locks = new HashMap<>();
         final Map<Direction, Integer> closedRows = new EnumMap<>(Direction.class);
-        boolean restored;
         Encounter(ServerLevel level, UUID boss, Direction door, long start) {
             this.level = level; this.boss = boss; this.bossDoor = door; this.start = start;
         }

@@ -30,6 +30,12 @@ public final class GreekFireBurn extends MobEffect {
 
     @Override public boolean shouldApplyEffectTickThisTick(int duration, int amplifier) { return true; }
     @Override public boolean applyEffectTick(ServerLevel level, LivingEntity entity, int amplifier) {
+        if ((entity.tickCount & 3) == 0) {
+            var behind = entity.getEyePosition().subtract(entity.getLookAngle().scale(.5))
+                    .add(0, -.18, 0);
+            level.sendParticles(Asterion.GREEK_FIRE, behind.x, behind.y, behind.z,
+                    3, .16, .22, .16, .012);
+        }
         return entity.isOnFire();
     }
 }

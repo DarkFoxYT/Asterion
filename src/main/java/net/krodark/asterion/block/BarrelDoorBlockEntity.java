@@ -40,6 +40,17 @@ public final class BarrelDoorBlockEntity extends BlockEntity implements GeoBlock
     }
     public void interact(Player player, ItemStack held) {
         if (level == null || level.isClientSide()) return;
+        if(getBlockState().getValue(BarrelDoorBlock.CURSED_LOCKED)) {
+            if(!held.is(net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER_KEY)) {
+                player.sendOverlayMessage(net.minecraft.network.chat.Component.translatable(
+                        "message.asterion.cursed_brazier_door_locked"));
+                level.playSound(null,worldPosition,SoundEvents.CHAIN_HIT,SoundSource.BLOCKS,.8F,.62F);
+                return;
+            }
+            if(!player.isCreative())held.shrink(1);
+            BarrelDoorBlock.setCursedLocked(level,worldPosition,facing(),false);
+            level.playSound(null,worldPosition,SoundEvents.VAULT_ACTIVATE,SoundSource.BLOCKS,1F,.8F);
+        }
         if (targetAngle > 0 && occupied()) return;
         if (targetAngle == 0 && !BarrelDoorBlock.prepareSwing(level, worldPosition, facing())) return;
         startAngle = angle(0);

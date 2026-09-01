@@ -32,7 +32,7 @@ public final class SanctuaryRenderer extends GeoBlockRenderer<SanctuaryBlockEnti
                 return !state.getOrDefaultGeckolibData(ALTAR, false)
                         || state.getOrDefaultGeckolibData(CHARGE, 0) != 2;
             }
-            @Override protected float emissiveStrength(BlockEntityRenderState state) {
+            @Override protected float surfaceBrightness(BlockEntityRenderState state) {
                 return state.getOrDefaultGeckolibData(CHARGE, 0) == 1 ? .85F : 0F;
             }
             @Override protected int emissiveColor(BlockEntityRenderState state) {

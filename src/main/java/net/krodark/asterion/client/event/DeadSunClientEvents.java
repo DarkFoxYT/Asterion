@@ -124,8 +124,6 @@ public final class DeadSunClientEvents {
         activeId = pending.eventId();
         activeSeed = pending.seed();
         if (newEvent && activeId.equals(DeadSunEventSystem.ECLIPSE)) eclipseIntroTicks = 0;
-        if (newEvent) Asterion.LOGGER.info("Client activated Dead Sun event {} (elapsed {}/{})",
-                pending.eventId(), pending.elapsedTicks(), pending.durationTicks());
         active = factory.create(pending.seed(), client.level.getGameTime() - pending.elapsedTicks(),
                 pending.durationTicks(), pending.intensity());
         if (newEvent && activeId.equals(DeadSunEventSystem.RUMBLE) && client.player != null)

@@ -30,7 +30,10 @@ public final class LabyrinthVineBlock extends BaseEntityBlock implements Waterlo
 
     public LabyrinthVineBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED, false).setValue(FACING, Direction.DOWN).setValue(END, true));
+        registerDefaultState(stateDefinition.any()
+                .setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED, false)
+                .setValue(FACING, Direction.DOWN)
+                .setValue(END, true));
     }
 
     @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }

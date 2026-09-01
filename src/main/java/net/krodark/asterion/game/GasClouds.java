@@ -70,6 +70,13 @@ public final class GasClouds {
                 if (++cloud.age > 200 || cloud.burn == 1 || !level.getChunkSource().hasChunk(block.getX() >> 4, block.getZ() >> 4)
                         || !level.getFluidState(block).isEmpty()) { iterator.remove(); continue; }
                 if (cloud.burn > 0) cloud.burn--;
+                else {
+                    var state = level.getBlockState(block);
+                    if (state.is(net.minecraft.tags.BlockTags.FIRE)
+                            || (state.is(Asterion.GREEK_FIRE_FLOOR_TORCH)
+                            || state.is(Asterion.GREEK_FIRE_WALL_TORCH))
+                            && state.getValue(net.krodark.asterion.block.GreekFireTorchBlock.LIT)) cloud.burn = 60;
+                }
                 Vec3 next = cloud.pos.add(cloud.velocity);
                 if(cloud.velocity.lengthSqr()>1.0e-8) {
                     if (visible(level, cloud.pos, next)) cloud.pos = next;

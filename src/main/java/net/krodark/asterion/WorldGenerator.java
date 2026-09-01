@@ -346,8 +346,6 @@ public final class WorldGenerator {
         rebuildBossArena(maze);
         ELECTRIFIED.remove(deadPlayer.getUUID());
         WARD_FALL_PROTECTION.remove(deadPlayer.getUUID());
-        Asterion.LOGGER.info("Reset unfinished Minotaur encounter after {} died in the central pit",
-                deadPlayer.getGameProfile().name());
         return true;
     }
 
@@ -876,6 +874,7 @@ public final class WorldGenerator {
         if (portal.dimension.equals(Asterion.ASTERION_LEVEL)) {
             if (Math.abs(dx) > 1.55D || Math.abs(dz) > 1.15D
                     || Math.abs(player.getY() - portal.surfaceY) > 2.55D) return false;
+            if (!AsterionWorldState.get((ServerLevel)player.level()).minotaurDefeated()) return false;
             beginArenaExit(player);
             return true;
         }
@@ -1106,26 +1105,18 @@ public final class WorldGenerator {
         if (finale.ticks == 310) {
             Entity boss = maze.getEntityInAnyDimension(finale.bossId);
             if (boss != null) boss.discard();
-            ServerLevel overworld = maze.getServer().overworld();
-            BlockPos spawn = overworld.getLevelData().getRespawnData().pos();
-            overworld.getChunkAt(spawn);
-            int surface = overworld.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
-                    spawn.getX(), spawn.getZ());
             for (ServerPlayer player : new ArrayList<>(maze.players())) {
+                finale.previousInvulnerability.putIfAbsent(player.getUUID(), player.isInvulnerable());
                 player.addItem(new net.minecraft.world.item.ItemStack(Asterion.MINOTAUR_SIGIL));
                 player.addItem(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.ECHO_SHARD, 8));
                 player.giveExperiencePoints(750);
-                double arrivalY = surface + 18.0D;
-                player.teleportTo(overworld, spawn.getX() + 0.5D, arrivalY, spawn.getZ() + 0.5D,
-                        Set.of(), player.getYRot(), 0.0F, true);
-                Vec3 fall = new Vec3(0.10D, -0.42D, -0.06D);
-                player.setDeltaMovement(fall);
-                player.hurtMarked = true;
+                FinaleDestination destination = finaleDestination(player);
+                player.teleportTo(destination.level(), destination.position().getX() + 0.5D,
+                        destination.position().getY() + 1.1D, destination.position().getZ() + 0.5D,
+                        Set.of(), destination.yaw(), 0.0F, true);
+                player.setDeltaMovement(Vec3.ZERO);
                 player.resetFallDistance();
                 player.setInvulnerable(true);
-                if (ServerPlayNetworking.canSend(player, RagdollImpulsePayload.TYPE))
-                    ServerPlayNetworking.send(player, new RagdollImpulsePayload(
-                            player.position().add(0.0D, 5.0D, 0.0D), fall, 1.15F));
             }
         }
         if (finale.ticks == 362) {
@@ -1140,6 +1131,26 @@ public final class WorldGenerator {
             BossArenaEncounter.finishDefeated(maze);
             clearBossArenaTransientState(maze);
         }
+    }
+
+    private static FinaleDestination finaleDestination(ServerPlayer player) {
+        MinecraftServer server = player.level().getServer();
+        ServerPlayer.RespawnConfig config = player.getRespawnConfig();
+        LevelData.RespawnData respawn = config == null ? null : config.respawnData();
+        if (respawn != null && respawn.dimension().equals(Level.OVERWORLD)) {
+            ServerLevel target = server.getLevel(respawn.dimension());
+            if (target != null) {
+                target.getChunkAt(respawn.pos());
+                return new FinaleDestination(target, respawn.pos(), respawn.yaw());
+            }
+        }
+        ServerLevel overworld = server.overworld();
+        BlockPos spawn = overworld.getLevelData().getRespawnData().pos();
+        overworld.getChunkAt(spawn);
+        int surface = overworld.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                spawn.getX(), spawn.getZ());
+        return new FinaleDestination(overworld,
+                new BlockPos(spawn.getX(), surface, spawn.getZ()), 0.0F);
     }
 
     private static void strikeFinaleAroundPlayers(ServerLevel level, int ticks, boolean detonation) {
@@ -1282,23 +1293,72 @@ public final class WorldGenerator {
         } else {
             // Restore encounter state without adding geometry to the authored build.
             bossArenaBuild = new BossArenaBuild();
+            discoverAuthoredBossPillars(level, bossArenaBuild);
             bossArenaBuild.ready = true;
             bossArenaPrepared = true;
         }
 
     }
 
-    private static int arenaRevision() { return 902; }
+    private static int arenaRevision() { return 905; }
 
     private static void rebuildBossArena(ServerLevel level) {
         bossArenaPrepared = true;
         net.krodark.asterion.worldgen.AuthoredCatacombs.placeArena(level);
         // The NBT files own the room: no generated floor, dome, pillars or furniture.
         bossArenaBuild = new BossArenaBuild();
+        discoverAuthoredBossPillars(level, bossArenaBuild);
         MinotaurArenaEntrances.build(level);
         bossArenaBuild.ready = true;
         ARENA_PREVIOUS_POSITIONS.clear();
         AsterionWorldState.get(level).setBossArenaRevision(arenaRevision());
+    }
+
+    private static void discoverAuthoredBossPillars(ServerLevel level, BossArenaBuild build) {
+        build.pillars.clear();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int x = -net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS;
+             x <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS; x++)
+            for (int z = -net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS;
+                 z <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS; z++) {
+                if (!level.getChunkSource().hasChunk(x >> 4, z >> 4)) continue;
+                for (int y = BOSS_FLOOR_Y; y <= BOSS_FLOOR_Y + 2; y++) {
+                    cursor.set(x, y, z);
+                    BlockState state = level.getBlockState(cursor);
+                    if (state.is(Asterion.PILLAR)
+                            && net.krodark.asterion.block.PillarBlock.isRoot(state)) {
+                        build.pillars.add(new BossPillar(x, y, z));
+                        break;
+                    }
+                }
+            }
+        build.pillars.sort(java.util.Comparator.comparingInt((BossPillar p) -> p.x)
+                .thenComparingInt(p -> p.z));
+    }
+
+    private static void ensureAuthoredBossPillars(ServerLevel level) {
+        if (bossArenaBuild != null && bossArenaBuild.ready && bossArenaBuild.pillars.isEmpty())
+            discoverAuthoredBossPillars(level, bossArenaBuild);
+    }
+
+    public static void registerAuthoredArenaPillars(ServerLevel level, LevelChunk chunk) {
+        BossArenaBuild build = bossArenaBuild;
+        if (build == null) return;
+        ChunkPos cp = chunk.getPos();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int x = cp.getMinBlockX(); x <= cp.getMaxBlockX(); x++)
+            for (int z = cp.getMinBlockZ(); z <= cp.getMaxBlockZ(); z++)
+                for (int y = BOSS_FLOOR_Y; y <= BOSS_FLOOR_Y + 2; y++) {
+                    cursor.set(x, y, z);
+                    BlockState state = chunk.getBlockState(cursor);
+                    if (!state.is(Asterion.PILLAR)
+                            || !net.krodark.asterion.block.PillarBlock.isRoot(state)) continue;
+                    boolean known = false;
+                    for (BossPillar pillar : build.pillars)
+                        if (pillar.x == x && pillar.y == y && pillar.z == z) { known = true; break; }
+                    if (!known) build.pillars.add(new BossPillar(x, y, z));
+                    break;
+                }
     }
 
     private static int bossPillarHeight(int x, int z) {
@@ -1328,30 +1388,27 @@ public final class WorldGenerator {
 
     public static int bossPillarsRemaining() {
         if (bossArenaBuild == null) return AsterionConfig.INSTANCE.minotaurBossPillarCount;
+        if (net.krodark.asterion.worldgen.AuthoredCatacombs.enabled()
+                && bossArenaBuild.pillars.isEmpty()) return 12;
         return (int)bossArenaBuild.pillars.stream().filter(pillar -> !pillar.broken).count();
     }
 
     public static int activeBossBraziers(ServerLevel level) {
-        int active = 0;
-        for (Direction direction : Direction.Plane.HORIZONTAL) {
-            BlockPos pos = net.krodark.asterion.worldgen.CatacombArena.brazier(direction);
-            BlockState state = level.getBlockState(pos);
-            if (state.is(Asterion.GREEK_BRAZIER) && state.getValue(CampfireBlock.LIT)) active++;
-        }
-        return active;
+        return net.krodark.asterion.worldgen.CatacombArena.litBraziers(level).size();
     }
 
     public static boolean breakBossPillar(ServerLevel level, AABB impact) {
         BossArenaBuild build = bossArenaBuild;
         if (build == null || !build.ready) return false;
+        ensureAuthoredBossPillars(level);
         for (BossPillar pillar : build.pillars) {
             if (pillar.broken) continue;
-            BlockPos root = new BlockPos(pillar.x, BOSS_FLOOR_Y + 1, pillar.z);
+            BlockPos root = new BlockPos(pillar.x, pillar.y, pillar.z);
             BlockState anchor = level.getBlockState(root);
             int height = anchor.is(Asterion.PILLAR) ? anchor.getValue(net.krodark.asterion.block.PillarBlock.HEIGHT)
                     : bossPillarHeight(pillar.x, pillar.z);
-            AABB bounds = new AABB(pillar.x - 1, BOSS_FLOOR_Y + 1, pillar.z - 1,
-                    pillar.x + 2, BOSS_FLOOR_Y + 1 + height, pillar.z + 2);
+            AABB bounds = new AABB(pillar.x - 1, pillar.y, pillar.z - 1,
+                    pillar.x + 2, pillar.y + height, pillar.z + 2);
             if (!impact.intersects(bounds)) continue;
             pillar.broken = true;
             net.krodark.asterion.block.PillarBlock.removeStructure(level, root, height);
@@ -1513,12 +1570,14 @@ public final class WorldGenerator {
         if (build == null || radius < 0 || radius > PIT_HALF_WIDTH) return;
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         java.util.List<Vec3> launches = new java.util.ArrayList<>();
-        for (int x = -radius; x <= radius; x++) for (int z = -radius; z <= radius; z++) {
-            int radial = Mth.floor(Math.sqrt(x * x + z * z));
-            if (radial != radius) continue;
-            int roofY = bossRoofY(x, z);
+        int authoredRadius = Math.min(net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS, radius * 2 + 1);
+        int innerRadius = Math.max(-1, authoredRadius - 2);
+        for (int x = -authoredRadius; x <= authoredRadius; x++) for (int z = -authoredRadius; z <= authoredRadius; z++) {
+            int radial = Math.max(Math.abs(x), Math.abs(z));
+            if (radial <= innerRadius) continue;
+            int roofY = net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y + 47;
             boolean removedRoof = false;
-            for (int y = roofY - 1; y <= roofY; y++) {
+            for (int y = net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y + 28; y <= roofY; y++) {
                 cursor.set(x, y, z);
                 BlockState state = level.getBlockState(cursor);
                 if (state.isAir()) continue;
@@ -1935,8 +1994,6 @@ public final class WorldGenerator {
         PendingTransition pending = new PendingTransition(maze, destination,
                 player.isInvulnerable(), player.isNoGravity(), player.noPhysics);
         PENDING_TRANSITIONS.put(player.getUUID(), pending);
-        Asterion.LOGGER.info("Preparing Asterion transition for {} ({} buffered chunks)",
-                player.getScoreboardName(), PREWARM_OFFSETS.length - prewarmIndex);
         maze.getChunkSource().addTicketWithRadius(TicketType.PORTAL, pending.destinationChunk, 1);
         player.setInvulnerable(true);
         player.setNoGravity(true);
@@ -1955,9 +2012,6 @@ public final class WorldGenerator {
                 player.setPos(player.getX(), player.getY() - (0.10D + pending.ticks * 0.012D), player.getZ());
             if (!pending.teleported && prewarmIndex < PREWARM_OFFSETS.length) {
                 generateNextPrewarmChunk(pending.maze, pending.destination);
-                if (prewarmIndex % 12 == 0 || prewarmIndex == PREWARM_OFFSETS.length)
-                    Asterion.LOGGER.info("Asterion transition buffer: {}/{} chunks",
-                            prewarmIndex, PREWARM_OFFSETS.length);
                 pending.ticks++;
                 return;
             }
@@ -1981,7 +2035,6 @@ public final class WorldGenerator {
                 player.setDeltaMovement(Vec3.ZERO);
                 player.resetFallDistance();
                 pending.teleported = true;
-                Asterion.LOGGER.info("Teleported {} into the Asterion", player.getScoreboardName());
             }
             if (pending.teleported && !pending.clientReady) {
                 player.setPos(pending.destination.getX() + 0.5D,
@@ -2108,6 +2161,12 @@ public final class WorldGenerator {
 
         for (int x = startX; x <= endX; x++) {
             for (int z = startZ; z <= endZ; z++) {
+
+                // The complete central chamber comes from arena_part1-9. Terrain generation
+                // deliberately leaves this volume alone so no retired pit floor or wall can
+                // appear before or underneath the authored templates.
+                if (Math.abs(x) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS
+                        && Math.abs(z) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS) continue;
 
                 if (isPitOpening(x, z)) {
                     placeFloorColumn(chunk, p, seed, x, z, BOSS_FLOOR_Y, config.floorThickness,
@@ -2731,9 +2790,9 @@ public final class WorldGenerator {
     }
 
     private static final class BossPillar {
-        private final int x, z;
+        private final int x, y, z;
         private boolean broken;
-        private BossPillar(int x, int z) { this.x = x; this.z = z; }
+        private BossPillar(int x, int y, int z) { this.x = x; this.y = y; this.z = z; }
     }
     private static final class BossArenaBuild {
         long buriedUntil;
@@ -2747,6 +2806,7 @@ public final class WorldGenerator {
         private int ticks;
         private BossFinale(UUID bossId) { this.bossId = bossId; }
     }
+    private record FinaleDestination(ServerLevel level, BlockPos position, float yaw) { }
 
     private static final class ElectrifiedState {
         private int remainingTicks;

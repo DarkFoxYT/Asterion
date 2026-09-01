@@ -9,7 +9,11 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 
 public final class ShortGrassBlock extends TallGrassBlock implements WaterloggedDecoration {
-    public ShortGrassBlock(BlockBehaviour.Properties properties) { super(properties); registerDefaultState(defaultBlockState().setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED, false)); }
+    public ShortGrassBlock(BlockBehaviour.Properties properties) {
+        super(properties);
+        registerDefaultState(defaultBlockState().setValue(
+                net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED, false));
+    }
 
     @Override
     protected boolean mayPlaceOn(BlockState floor, BlockGetter level, BlockPos pos) {

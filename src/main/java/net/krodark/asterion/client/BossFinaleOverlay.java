@@ -12,6 +12,12 @@ import net.minecraft.world.phys.Vec3;
 
 public final class BossFinaleOverlay {
     private static final int CINEMATIC_RENDER_DISTANCE = 12;
+    private static final int CREDITS_TICKS = 220;
+    private static final int RETURN_FADE_TICKS = 52;
+    private static final String[] CREDITS = {
+            "ASTERION", "A LABYRINTH MOD", "", "THE MINOTAUR HAS FALLEN",
+            "THE MAZE RELEASES YOU", "", "THANK YOU FOR PLAYING"
+    };
     private static boolean active;
     private static boolean overworldReady;
     private static int ticks;
@@ -80,7 +86,7 @@ public final class BossFinaleOverlay {
                 && client.level.hasChunk(client.player.getBlockX() >> 4, client.player.getBlockZ() >> 4)
                 && client.level.isLoaded(client.player.blockPosition())) {
             overworldReady = true;
-            if (++fadeTicks >= 52) finish(client);
+            if (++fadeTicks >= CREDITS_TICKS + RETURN_FADE_TICKS) finish(client);
         }
     }
 
@@ -123,8 +129,23 @@ public final class BossFinaleOverlay {
     private static void render(GuiGraphicsExtractor graphics, net.minecraft.client.DeltaTracker tracker) {
         if (!active || ticks < 220) return;
         if (overworldReady) {
-            int alpha = Math.round((1.0F - smoother(fadeTicks / 52.0F)) * 255.0F);
+            float fade = smoother(Mth.clamp((fadeTicks - CREDITS_TICKS)
+                    / (float)RETURN_FADE_TICKS, 0.0F, 1.0F));
+            int alpha = Math.round((1.0F - fade) * 255.0F);
             graphics.fill(0, 0, graphics.guiWidth(), graphics.guiHeight(), alpha << 24);
+            if (fadeTicks < CREDITS_TICKS) {
+                float travel = fadeTicks / (float)CREDITS_TICKS;
+                int startY = graphics.guiHeight() + 24
+                        - Math.round(travel * (graphics.guiHeight() + 150));
+                for (int line = 0; line < CREDITS.length; line++) {
+                    int y = startY + line * 22;
+                    if (y < -16 || y > graphics.guiHeight() + 16 || CREDITS[line].isEmpty()) continue;
+                    int color = line == 0 ? 0xFFF0C879 : 0xFFE8E1D2;
+                    graphics.centeredText(Minecraft.getInstance().font,
+                            net.minecraft.network.chat.Component.literal(CREDITS[line]),
+                            graphics.guiWidth() / 2, y, color);
+                }
+            }
             return;
         }
         float blackout = smoother(Mth.clamp((ticks - 220.0F) / 45.0F, 0.0F, 1.0F));

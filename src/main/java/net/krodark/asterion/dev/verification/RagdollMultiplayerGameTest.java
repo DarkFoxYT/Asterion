@@ -28,10 +28,13 @@ public final class RagdollMultiplayerGameTest implements FabricClientGameTest {
                 player.setGameMode(net.minecraft.world.level.GameType.SURVIVAL); player.setInvulnerable(true);
                 var boss = GameplayContent.CURSED_BRAZIER.create(level,net.minecraft.world.entity.EntitySpawnReason.COMMAND);
                 boss.setPos(0,121,0); level.addFreshEntity(boss);
-                check(boss.getMaxHealth()==100,"Brazier still has ordinary-mob health");
+                check(boss.getMaxHealth()==140,"Brazier still has ordinary-mob health");
                 EnumSet<CursedBrazierEntity.Attack> attacks=EnumSet.noneOf(CursedBrazierEntity.Attack.class);
-                for(int i=0;i<430;i++){ boss.tick(); attacks.add(boss.attack()); }
-                check(attacks.containsAll(List.of(CursedBrazierEntity.Attack.VOLLEY,CursedBrazierEntity.Attack.FAN,CursedBrazierEntity.Attack.ERUPTION)),"Miniboss did not use all three fire attacks");
+                for(int i=0;i<900;i++){ boss.tick(); attacks.add(boss.attack()); }
+                check(attacks.containsAll(List.of(CursedBrazierEntity.Attack.FLOOR_JETS,
+                        CursedBrazierEntity.Attack.FIRE_BEAM,CursedBrazierEntity.Attack.SPIN_TORNADO,
+                        CursedBrazierEntity.Attack.CARDINAL_DASH)),
+                        "Miniboss did not use all four fire attacks; observed " + attacks);
                 var field=CursedBrazierEntity.class.getDeclaredField("bossBar");field.setAccessible(true);
                 var bar=(net.minecraft.server.level.ServerBossEvent)field.get(boss);
                 check(bar.getPlayers().contains(player),"Miniboss health bar missing");
@@ -42,7 +45,7 @@ public final class RagdollMultiplayerGameTest implements FabricClientGameTest {
                 var map=(Map<?,?>)clouds.get(null);
                 check(((List<?>)map.getOrDefault(level,null)) == null || ((List<?>)map.get(level)).isEmpty(),"Dead miniboss left controlled flames behind");
                 boss.discard(); GasClouds.clear();
-                Asterion.LOGGER.info("PASS: Cursed Brazier miniboss health, three fire attacks, boss-bar cleanup and owned-flame cleanup");
+                Asterion.LOGGER.info("PASS: Cursed Brazier miniboss health, four fire attacks, boss-bar cleanup and owned-flame cleanup");
             });
             server.runCommand("execute in asterion:asterion_dimension run tp @a 200 121 200 180 0");
             context.waitTicks(10);

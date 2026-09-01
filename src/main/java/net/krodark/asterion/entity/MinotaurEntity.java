@@ -457,8 +457,12 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private enum BossStage { PILLARS, COLLAPSE, EXTREME, DEFEATED }
     private enum CombatRange { CLOSE, MEDIUM, FAR }
     private enum GrabThrowStyle { ARENA, SKY }
-    public enum AnimationState { IDLE, WALK, WARNING, CHASE, ATTACK, VERTICAL_ATTACK, SWORD, SPIN,
-        LEAP, CHAIN, PUNCH, HORN, AXE_CHOP, AXE_THROW, ROAR_START, CHARGE_RUN, PUNCH_SINGLE, LAND, DRAW_SWORD, DRAW_AXE, SHEATHE_SWORD, SHEATHE_AXE, RUBBLE, DIES, REVIVE, BELCH, BACK_KICK }
+    public enum AnimationState {
+        IDLE, WALK, WARNING, CHASE, ATTACK, VERTICAL_ATTACK, SWORD, SPIN,
+        LEAP, CHAIN, PUNCH, HORN, AXE_CHOP, AXE_THROW, ROAR_START, CHARGE_RUN,
+        PUNCH_SINGLE, LAND, DRAW_SWORD, DRAW_AXE, SHEATHE_SWORD, SHEATHE_AXE,
+        RUBBLE, DIES, REVIVE, BELCH, BACK_KICK
+    }
 
     public MinotaurEntity(EntityType<? extends MinotaurEntity> type, Level level) {
         super(type, level);
@@ -1540,6 +1544,17 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                     .add(0, getDeltaMovement().y, 0));
         }
         if (elapsed >= ROAR_START_TICKS) {
+            // The animation and block-entity ticker normally remove the complete door
+            // at the impact beat. Enforce the final state before combat navigation starts
+            // so a delayed/unloaded door part can never trap the boss in the reveal room.
+            net.krodark.asterion.block.MinotaurDoorBlock.removeDoor(level, entryDoor, entryFacing);
+            Vec3 inside = Vec3.atBottomCenterOf(
+                    net.krodark.asterion.worldgen.MinotaurArenaEntrances.gate(entryFacing))
+                    .add(inward.scale(getBbWidth() * .5D + 2.25D));
+            if (position().subtract(inside).dot(inward) < 0.0D) {
+                AABB destination = getBoundingBox().move(inside.subtract(position()));
+                if (level.noCollision(this, destination)) setPos(inside.x, inside.y, inside.z);
+            }
             getEntityData().set(DATA_DOOR_ENTRY_TICKS, 0);
             bossAttackCooldown = 40;
             return false;
@@ -2012,8 +2027,9 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private void tickBrazierRage(ServerLevel level) {
         if (debugMode || bossStage == BossStage.DEFEATED || phaseTicks % 20 != 0) return;
         long now = level.getGameTime();
-        for (net.minecraft.core.Direction side : net.minecraft.core.Direction.Plane.HORIZONTAL) {
-            BlockPos pos = net.krodark.asterion.worldgen.CatacombArena.brazier(side);
+        java.util.Set<BlockPos> present = new java.util.HashSet<>();
+        for (BlockPos pos : net.krodark.asterion.worldgen.CatacombArena.braziers(level)) {
+            present.add(pos);
             var state = level.getBlockState(pos);
             if (!state.is(Asterion.GREEK_BRAZIER) || state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT)) {
                 brazierRelights.remove(pos);
@@ -2026,6 +2042,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 level.sendParticles(Asterion.DOOR_SMOKE, pos.getX()+.5, pos.getY()+1.2, pos.getZ()+.5, 4, .4, .2, .4, .02);
             }
         }
+        brazierRelights.keySet().removeIf(pos -> !present.contains(pos));
         int ceiling = bossStage == BossStage.EXTREME ? 12 : WorldGenerator.activeBossBraziers(level) * 2;
         if (rage() > ceiling || bossStage == BossStage.EXTREME) setRage(ceiling);
         else if (phaseTicks % 40 == 0 && rage() < ceiling) setRage(rage() + 1);

@@ -16,7 +16,6 @@ import org.lwjgl.glfw.GLFW;
 
 public final class RagdollClientController {
     private static boolean tumbleWasDown;
-    private static boolean shiftWasDown;
     private static boolean rightWasDown;
     private static boolean recoveryWasDown;
     private static int recoveryPresses;
@@ -41,7 +40,6 @@ public final class RagdollClientController {
             restoreCamera(client);
             engine.clear();
             tumbleWasDown = false;
-            shiftWasDown = false;
             rightWasDown = false;
             resetRecovery();
             observedLocalPlayer = null;
@@ -54,7 +52,6 @@ public final class RagdollClientController {
             DazeOverlay.cancel();
             restoreCamera(client);
             tumbleWasDown = false;
-            shiftWasDown = false;
             rightWasDown = false;
             resetRecovery();
             observedLocalPlayer = client.player;
@@ -67,7 +64,6 @@ public final class RagdollClientController {
             DazeOverlay.cancel();
             restoreCamera(client);
             tumbleWasDown = false;
-            shiftWasDown = false;
             rightWasDown = false;
             resetRecovery();
             engine.tick(client.level, client.player);
@@ -77,34 +73,32 @@ public final class RagdollClientController {
         boolean input = client.screen == null;
         long window = client.getWindow().handle();
         boolean tumble = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_H) == GLFW.GLFW_PRESS;
-        if (input && tumble && !tumbleWasDown) {
+        if (input && tumble && !tumbleWasDown
+                && !engine.isPlayerTumbling(client.player.getId())) {
             engine.togglePlayerTumble(client);
         }
         tumbleWasDown = tumble;
 
-        boolean shift = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
-                || GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
-        if (input && !DazeOverlay.isActive() && shift && !shiftWasDown
-                && engine.isPlayerTumbling(client.player.getId())) {
-            engine.releaseRagdoll(client.player.getId());
-        }
-        shiftWasDown = shift;
-
         boolean recovery = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_SPACE) == GLFW.GLFW_PRESS;
         boolean tumbling = engine.isPlayerTumbling(client.player.getId());
-        if (!tumbling || DazeOverlay.isActive()) resetRecovery();
+        if (!tumbling || DazeOverlay.isActive()) {
+            resetRecovery();
+            DazeOverlay.hideRagdollRecovery();
+        }
         else {
             if (client.player.tickCount - recoveryLastPressTick > 24) recoveryPresses = 0;
             if (input && recovery && !recoveryWasDown) {
                 recoveryLastPressTick = client.player.tickCount;
                 recoveryPresses++;
-                if (recoveryPresses >= 4 && engine.ragdollElapsedTicks(client.player.getId()) >= 8
-                        && engine.hasGroundContact(client.player.getId())) {
+                if (recoveryPresses >= 4 && engine.ragdollElapsedTicks(client.player.getId()) >= 8) {
                     engine.releaseRagdoll(client.player.getId());
                     resetRecovery();
+                    DazeOverlay.hideRagdollRecovery();
                 }
             }
             recoveryWasDown = recovery;
+            if (engine.isPlayerTumbling(client.player.getId()))
+                DazeOverlay.showRagdollRecovery(recoveryPresses, 4);
         }
         syncRagdollCamera(client, engine);
 

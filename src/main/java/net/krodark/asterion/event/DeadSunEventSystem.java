@@ -413,7 +413,6 @@ public final class DeadSunEventSystem {
         state.active = new ActiveEvent(selected, duration, seed, intensity);
         RareMazeEvents.get(level).schedule(level, selected.id(), duration);
         selected.onStart(level, seed, duration, intensity);
-        Asterion.LOGGER.info("Dead Sun event {} began for {} ticks", selected.id(), duration);
         syncNewPlayers(level, state.active);
     }
 

@@ -66,7 +66,6 @@ final class WorldgenDataChecks {
             check(level.getStructureManager().get(net.krodark.asterion.Asterion.id("catacombs/" + name)).isPresent(), "Missing authored crypt " + name);
         for (int part = 1; part <= 9; part++)
             check(level.getStructureManager().get(net.krodark.asterion.Asterion.id("catacombs/arena_part" + part)).isPresent(), "Missing arena part " + part);
-        net.krodark.asterion.Asterion.LOGGER.info("PASS: all authored catacomb and arena templates available");
     }
     private static CompoundTag dummy(BlockPos pos) {
         var tag = new CompoundTag();

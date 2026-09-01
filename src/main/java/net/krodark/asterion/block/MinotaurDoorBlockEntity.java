@@ -14,6 +14,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -62,8 +63,12 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
                 && worldPosition.equals(net.krodark.asterion.worldgen.MinotaurArenaEntrances.door(
                         net.krodark.asterion.worldgen.MinotaurArenaEntrances.BOSS_ENTRANCE))) return;
         if (net.krodark.asterion.worldgen.BossArenaEncounter.sealsDoor(level, worldPosition, facing())) return;
-        if (held.is(Asterion.MINOTAUR_KEY) && !unlockedWithKey) {
+        boolean insertedKey = held.is(Asterion.MINOTAUR_KEY) && !unlockedWithKey;
+        if (insertedKey) {
             unlockedWithKey = true;
+            unlocked = true;
+            if (!player.isCreative()) held.shrink(1);
+            level.playSound(null, worldPosition, SoundEvents.IRON_TRAPDOOR_OPEN, SoundSource.BLOCKS, 1F, .65F);
             sync();
         }
         if (!unlocked) {
@@ -116,6 +121,11 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
         server.playSound(null, worldPosition, Asterion.METAL_HIT, SoundSource.BLOCKS, 2.5F, .85F);
         Vec3 inward = facing.getOpposite().getUnitVec3();
         Vec3 across = facing.getClockWise().getUnitVec3();
+        Vec3 smokeCenter = Vec3.atBottomCenterOf(worldPosition).add(inward.scale(1.15D)).add(0, 3.2D, 0);
+        server.sendParticles(Asterion.DOOR_SMOKE, smokeCenter.x, smokeCenter.y, smokeCenter.z,
+                110, 3.8D, 3.1D, 2.2D, 0.075D);
+        server.sendParticles(ParticleTypes.DUST_PLUME, smokeCenter.x, smokeCenter.y - 1.2D, smokeCenter.z,
+                55, 3.2D, 2.1D, 1.7D, 0.12D);
         for (int i = 0; i < 18; i++) {
             double side = (server.getRandom().nextDouble() - .5) * 6;
             Vec3 fragment = Vec3.atBottomCenterOf(worldPosition).add(across.scale(side))
@@ -138,6 +148,7 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
                         ServerPlayNetworking.send(viewer, new MazeShiftPayload(pos, 64, elapsed == 44 ? .65F : .38F, 10));
                     server.sendParticles(Asterion.DOOR_DUST, pos.getX() + .5, pos.getY() + .18, pos.getZ() + .5,
                             24, 2.4, .12, .4, .035);
+                    door.dropCeilingRubble(server, elapsed == 44 ? 22 : 12);
                 }
             }
             if (elapsed >= MinotaurDoorMotion.BREAK_TICK) door.breakOff();
@@ -150,6 +161,22 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
             } else MinotaurDoorBlock.setOpen(level, pos, door.facing(), false);
             door.sync();
         }
+    }
+    private void dropCeilingRubble(ServerLevel level, int count) {
+        Direction acrossDirection = facing().getClockWise();
+        Vec3 across = acrossDirection.getUnitVec3();
+        Vec3 inward = facing().getOpposite().getUnitVec3();
+        Vec3 ceiling = Vec3.atBottomCenterOf(worldPosition).add(0, 22.5D, 0).add(inward.scale(2.0D));
+        for (int i = 0; i < count; i++) {
+            double side = (level.getRandom().nextDouble() - .5D) * 9.0D;
+            Vec3 origin = ceiling.add(across.scale(side)).add(inward.scale(level.getRandom().nextDouble() * 4.0D));
+            net.krodark.asterion.worldgen.ArenaDebris.queue(level, origin,
+                    new Vec3((level.getRandom().nextDouble() - .5D) * .12D,
+                            -.32D - level.getRandom().nextDouble() * .28D,
+                            (level.getRandom().nextDouble() - .5D) * .12D));
+        }
+        level.sendParticles(ParticleTypes.DUST_PLUME, ceiling.x, ceiling.y, ceiling.z,
+                count * 2, 4.5D, .7D, 3.0D, .04D);
     }
     private void scrapeDust() {
         long elapsed = level.getGameTime() - motionStart;

@@ -237,9 +237,15 @@ public final class AuthoredCatacombs {
                 && cp.getMaxBlockZ()>=62&&cp.getMinBlockZ()<=CatacombLayout.ROOT_CENTER+1;
         if(!arena&&!approach)return;
         BlockPos marker=new BlockPos(cp.getMinBlockX(),ARENA_CHUNK_MARKER_Y,cp.getMinBlockZ());
-        if(chunk.getBlockState(marker).is(Blocks.BARRIER))return;
+        var revisionMarker=Blocks.LIGHT.defaultBlockState().setValue(
+                net.minecraft.world.level.block.LightBlock.LEVEL,1);
+        // LIGHT is the current invisible revision marker. Previous arena revisions used
+        // BARRIER and STRUCTURE_VOID, so every affected chunk is rebuilt once as one
+        // coherent copy of the nine authored templates instead of retaining mixed parts.
+        if(chunk.getBlockState(marker).equals(revisionMarker))return;
         BoundingBox chunkBounds=new BoundingBox(cp.getMinBlockX(),ARENA_BASE_Y,cp.getMinBlockZ(),
                 cp.getMaxBlockX(),ARENA_BASE_Y+47,cp.getMaxBlockZ());
+        if(arena)clearOldArenaChunk(chunk,chunkBounds);
         if(arena)for(int part=1;part<=9;part++) {
             BlockPos origin=new BlockPos(-61+((part-1)%3)*41,ARENA_BASE_Y,-61+((part-1)/3)*41);
             int maxX=origin.getX()+40,maxZ=origin.getZ()+40;
@@ -255,13 +261,23 @@ public final class AuthoredCatacombs {
         }
         placeArenaApproach(level,chunk);
         markGeneratedRunes(chunk,chunkBounds);
+        net.krodark.asterion.WorldGenerator.registerAuthoredArenaPillars(level,chunk);
         configureArenaLoot(level,chunk);
         MinotaurArenaEntrances.buildForChunk(level,cp);
-        chunk.setBlockState(new BlockPos(cp.getMinBlockX(),1,cp.getMinBlockZ()),
-                Blocks.BEDROCK.defaultBlockState(),0);
-        chunk.setBlockState(marker,Blocks.BARRIER.defaultBlockState(),0);
+        // Keep the visible arena volume entirely authored by the NBT files. The marker
+        // lives below that volume and has no collision or rendered model.
+        chunk.setBlockState(marker,revisionMarker,0);
         MazeNbtStructures.markCopperClean(chunk);
         chunk.markUnsaved();
+    }
+    private static void clearOldArenaChunk(LevelChunk chunk,BoundingBox bounds) {
+        // A template's air is meaningful. Clear the complete authored volume first so no
+        // dome, floor, furniture or collision from the retired generated arena can survive.
+        var air=Blocks.AIR.defaultBlockState();
+        BlockPos.MutableBlockPos cursor=new BlockPos.MutableBlockPos();
+        for(int x=bounds.minX();x<=bounds.maxX();x++)for(int z=bounds.minZ();z<=bounds.maxZ();z++)
+            for(int y=bounds.minY();y<=bounds.maxY();y++)
+                chunk.setBlockState(cursor.set(x,y,z),air,0);
     }
     private static void placeArenaPart(ServerLevel level, StructureTemplate template, BlockPos origin,
                                        BoundingBox bounds, int part) {
@@ -270,7 +286,6 @@ public final class AuthoredCatacombs {
         Map<Long,net.minecraft.world.level.chunk.LevelChunk> chunks=new HashMap<>();
         for(var info:palettes.getFirst().blocks()) {
             var state=info.state();
-            if(state.isAir())continue;
             if(state.is(Blocks.STRUCTURE_BLOCK)||state.is(Blocks.STRUCTURE_VOID)
                     ||state.is(Blocks.JIGSAW)||state.is(Blocks.CYAN_WOOL))state=Blocks.AIR.defaultBlockState();
             if(state.is(Asterion.BARREL_DOOR)) {

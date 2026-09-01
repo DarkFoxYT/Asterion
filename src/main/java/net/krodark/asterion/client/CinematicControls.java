@@ -6,7 +6,10 @@ import net.minecraft.client.Minecraft;
 public final class CinematicControls {
     private CinematicControls() { }
     public static boolean locked() {
-        return BossEntranceCinematic.isActive() || DeadSunEntryCinematic.isActive() || BossFinaleOverlay.isActive();
+        return BossEntranceCinematic.isActive()
+                || CursedBrazierCinematic.isActive()
+                || DeadSunEntryCinematic.isActive()
+                || BossFinaleOverlay.isActive();
     }
     public static void tick(Minecraft client) {
         if (!locked() || client.player == null) return;

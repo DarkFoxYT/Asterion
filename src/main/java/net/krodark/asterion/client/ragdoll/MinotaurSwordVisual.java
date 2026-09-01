@@ -10,13 +10,11 @@ public final class MinotaurSwordVisual {
     private static final DebrisGeoRenderer RENDERER = new DebrisGeoRenderer();
     private MinotaurSwordVisual() { }
 
-    public static void submit(PoseStack poses, SubmitNodeCollector tasks, CameraRenderState camera, int light, boolean drawn) {
+    public static void submit(PoseStack poses, SubmitNodeCollector tasks,
+                              CameraRenderState camera, int light) {
         poses.pushPose();
         // Grip the lower handle so the large crossguard clears the twelve-pixel fist bore.
-        // The 92-pixel physics mesh is longer than the entire leg. Fit the stowed
-        // copy between belt and ankle; retain the enlarged combat silhouette in hand.
-        float scale = drawn ? 1F : .5F;
-        poses.scale(scale, scale, scale);
+        // Hand and hip attachments intentionally share the same authored scale.
         poses.translate(0, 6.0 / 16, 0);
         RENDERER.performRenderPass(SWORD, null, poses, tasks, camera, light, 0);
         poses.popPose();

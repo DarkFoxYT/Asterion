@@ -12,6 +12,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -205,7 +206,10 @@ public class Asterion implements ModInitializer {
     public static final net.krodark.asterion.block.GreekFireTorchBlock GREEK_FIRE_FLOOR_TORCH =
             (net.krodark.asterion.block.GreekFireTorchBlock)registerBlock("greek_fire_floor_torch", MapColor.COLOR_GREEN,
                     properties -> new net.krodark.asterion.block.GreekFireTorchBlock(properties.noOcclusion()
-                            .strength(.4F).sound(SoundType.METAL).lightLevel(state -> state.getValue(net.krodark.asterion.block.GreekFireTorchBlock.LIT)&&state.getValue(net.krodark.asterion.block.GreekFireTorchBlock.TOP)?14:0), false,
+                            .strength(.4F).sound(SoundType.METAL).lightLevel(state ->
+                                    state.getValue(net.krodark.asterion.block.GreekFireTorchBlock.LIT)
+                                            && state.getValue(net.krodark.asterion.block.GreekFireTorchBlock.TOP)
+                                            ? 14 : 0), false,
                             net.krodark.asterion.block.GreekFireTorchBlock.FireColor.GREEK));
     public static final net.krodark.asterion.block.GreekFireTorchBlock RED_FIRE_WALL_TORCH = torch("red_fire_wall_torch",true,
             net.krodark.asterion.block.GreekFireTorchBlock.FireColor.RED);
@@ -237,6 +241,12 @@ public class Asterion implements ModInitializer {
     public static final BlockEntityType<net.krodark.asterion.block.MinotaurDoorBlockEntity> MINOTAUR_DOOR_BLOCK_ENTITY = Registry.register(
             BuiltInRegistries.BLOCK_ENTITY_TYPE, id("minotaur_door"), FabricBlockEntityTypeBuilder.create(
                     net.krodark.asterion.block.MinotaurDoorBlockEntity::new, MINOTAUR_DOOR).build());
+    public static final Block CURSED_BRAZIER_DOOR = registerBlock("cursed_brazier_door", MapColor.COLOR_BROWN,
+            properties -> new net.krodark.asterion.block.CursedBrazierDoorBlock(properties.noOcclusion()
+                    .strength(8F, 1200F).sound(SoundType.METAL).noLootTable()));
+    public static final BlockEntityType<net.krodark.asterion.block.CursedBrazierDoorBlockEntity> CURSED_BRAZIER_DOOR_BLOCK_ENTITY = Registry.register(
+            BuiltInRegistries.BLOCK_ENTITY_TYPE, id("cursed_brazier_door"), FabricBlockEntityTypeBuilder.create(
+                    net.krodark.asterion.block.CursedBrazierDoorBlockEntity::new, CURSED_BRAZIER_DOOR).build());
     public static final Block BARREL_DOOR = registerBlock("barrel_door", MapColor.COLOR_BROWN,
             properties -> new net.krodark.asterion.block.BarrelDoorBlock(properties.noOcclusion().strength(3F, 6F).sound(SoundType.WOOD).noLootTable()));
     public static final BlockEntityType<net.krodark.asterion.block.BarrelDoorBlockEntity> BARREL_DOOR_BLOCK_ENTITY = Registry.register(
@@ -468,6 +478,7 @@ public class Asterion implements ModInitializer {
                         output.accept(ORANGE_FIRE_FLOOR_TORCH);
                         output.accept(SKELETON);
                         output.accept(MINOTAUR_DOOR);
+                        output.accept(CURSED_BRAZIER_DOOR);
                         output.accept(PILLAR);
                         output.accept(BARREL_DOOR);
                         output.accept(MINOTAUR_KEY);
@@ -566,6 +577,9 @@ public class Asterion implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(BossFinalePayload.TYPE, BossFinalePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.BossEntrancePayload.TYPE,
                 net.krodark.asterion.network.BossEntrancePayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(
+                net.krodark.asterion.network.CursedBrazierAwakeningPayload.TYPE,
+                net.krodark.asterion.network.CursedBrazierAwakeningPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(GatewayPortalPayload.TYPE, GatewayPortalPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(TransitionReadyPayload.TYPE, TransitionReadyPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(PressureButtonHoldPayload.TYPE,PressureButtonHoldPayload.CODEC);
@@ -662,6 +676,16 @@ public class Asterion implements ModInitializer {
                 MobCategory.CREATURE, BOMBARDIER_BEETLE, 12, 1, 3);
         BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID),
                 MobCategory.CREATURE, SCARLET_CENTIPEDE, 5, 1, 1);
+        // The custom Minotaur arena is beetle territory. Reject centipedes from every
+        // spawn path there (natural biome spawning, eggs and commands) without changing
+        // their ecology in the rest of the catacombs.
+        ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {
+            if (entity instanceof ScarletCentipedeEntity
+                    && level.dimension().equals(ASTERION_LEVEL)
+                    && Math.abs((long)entity.getBlockX()) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS
+                    && Math.abs((long)entity.getBlockZ()) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS)
+                entity.discard();
+        });
         ServerTickEvents.END_SERVER_TICK.register(WorldGenerator::tickServer);
         ServerTickEvents.END_SERVER_TICK.register(CatacombGrapplingHookItem::tick);
         ServerTickEvents.END_SERVER_TICK.register(net.krodark.asterion.fluid.HeavyWaterFatigue::tick);
@@ -707,6 +731,7 @@ public class Asterion implements ModInitializer {
             }
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> ResolveSystem.clear());
+        LOGGER.info("Asterion loaded");
     }
 
     public static Identifier id(String path) {

@@ -100,7 +100,6 @@ public final class RagdollServerNetworking {
     private static void exitTumble(ServerPlayer player, TumbleExitPayload payload) {
         if (!player.isAlive() || player.isSpectator()) return;
         if (MinotaurEntity.controlsPlayer(player)) return;
-        if (WorldGenerator.isElectrified(player)) return;
         Vec3 target = new Vec3(payload.x(), payload.y(), payload.z());
         boolean invalidPosition = !finite(target) || player.position().distanceToSqr(target) > 1024;
         boolean invalidVelocity = !Double.isFinite(payload.vx())
@@ -114,7 +113,10 @@ public final class RagdollServerNetworking {
         var destination = player.getBoundingBox().move(target.subtract(player.position())).deflate(.001);
         if (!player.level().hasChunk(pos.getX() >> 4, pos.getZ() >> 4)
                 || !player.level().noCollision(player, destination)) {
-            return;
+            // Physics can put the torso too close to a wall for the standing player
+            // box. Keep the server's already-safe tracked position and still complete
+            // recovery instead of leaving the client in an orphaned ragdoll forever.
+            target = player.position();
         }
 
         // Following a ragdoll is movement, not a teleport/stand-up on every frame.
@@ -198,7 +200,10 @@ public final class RagdollServerNetworking {
     }
 
     public static void finishRagdoll(ServerPlayer player) {
-        if (ACTIVE_RAGDOLLS.remove(player.getUUID()) == null) return;
+        // Idempotent by design: a fast client can finish its mash before the first
+        // owner pose has populated ACTIVE_RAGDOLLS. It still needs an explicit false
+        // state or its hidden player body and third-person ragdoll remain orphaned.
+        ACTIVE_RAGDOLLS.remove(player.getUUID());
         RAGDOLL_LEVELS.remove(player.getUUID());
         LAST_POSE.keySet().removeIf(key -> key.startsWith(player.getUUID() + ":"));
         for (ServerPlayer viewer : player.level().getServer().getPlayerList().getPlayers()) sendState(viewer, player, false);

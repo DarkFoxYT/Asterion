@@ -2,6 +2,7 @@ package net.krodark.asterion.client.light;
 
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
+import net.krodark.asterion.block.RespawnObelisks;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HashMap;
@@ -38,6 +39,7 @@ public final class HeldItemDynamicLights {
     private static final LightStyle WARM_LIGHT = new LightStyle(1.0F, 0.42F, 0.105F, 3.15F, 9.25F, true);
     private static final LightStyle REDSTONE_LIGHT = new LightStyle(1.0F, 0.055F, 0.025F, 1.45F, 5.0F, false);
     private static final LightStyle SEA_LIGHT = new LightStyle(0.36F, 0.82F, 1.0F, 2.55F, 8.0F, false);
+    private static final LightStyle CHARGED_RUNE_LIGHT = new LightStyle(0.48F, 0.88F, 1.0F, 2.1F, 6.5F, false);
     private static final LightStyle NO_LIGHT = new LightStyle(0.0F, 0.0F, 0.0F, 0.0F, 0.0F, false);
     private static long lastRenderNs;
     private static long nextRenderUpdateNs;
@@ -228,6 +230,9 @@ public final class HeldItemDynamicLights {
         }
         if (stack.is(Blocks.SEA_LANTERN.asItem())) {
             return SEA_LIGHT;
+        }
+        if (stack.is(RespawnObelisks.CHARGED_RUNE)) {
+            return CHARGED_RUNE_LIGHT;
         }
         if (stack.getItem() instanceof BlockItem blockItem) {
             LightStyle cached = BLOCK_LIGHT_STYLES.computeIfAbsent(stack.getItem(), ignored -> {

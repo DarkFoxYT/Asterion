@@ -29,7 +29,7 @@ public final class PressureButtonNetworking {
                 ServerPlayer player=server.getPlayerList().getPlayer(entry.getKey());
                 Hold hold=entry.getValue();
                 ServerLevel level=server.getLevel(hold.dimension);
-                if(player==null||level==null||player.level()!=level||!validTarget(player,hold.pos)) {
+                if(player==null||level==null||player.level()!=level||!validHeld(player,hold.pos)) {
                     iterator.remove();
                     if(level!=null) release(level,hold);
                     continue;
@@ -80,6 +80,12 @@ public final class PressureButtonNetworking {
         if(player.distanceToSqr(pos.getX()+.5,pos.getY()+.5,pos.getZ()+.5)>6.0D*6.0D) return false;
         var hit=player.pick(6.0D,0,false);
         return hit instanceof net.minecraft.world.phys.BlockHitResult blockHit&&blockHit.getBlockPos().equals(pos);
+    }
+
+    private static boolean validHeld(ServerPlayer player,BlockPos pos) {
+        if(player.distanceToSqr(pos.getX()+.5,pos.getY()+.5,pos.getZ()+.5)>6.0D*6.0D) return false;
+        var state=player.level().getBlockState(pos);
+        return state.is(Asterion.PRESSURE_BUTTON)||state.is(Asterion.LAMENTER);
     }
 
     private static Hold advance(ServerLevel level,Hold hold) {

@@ -1249,11 +1249,9 @@ public final class DismembermentEngine {
         }
         int entityId = client.player.getId();
         if (playerTumbles.contains(entityId)) {
-            if (isElectrified(entityId)) return;
             RagdollConfig config = RagdollRuntime.INSTANCE.config;
             int elapsed = traumaDecayTicker - tumbleStartedAt.getOrDefault(entityId, traumaDecayTicker);
-            if (!config.ragdollManualExit || elapsed < config.ragdollMinExitTicks
-                    || !hasGroundContact(entityId)) return;
+            if (!config.ragdollManualExit || elapsed < config.ragdollMinExitTicks) return;
             Vec3 exit = findSafeTumbleExit(client, entityId);
             Vec3 exitVelocity = ragdollVelocity(entityId);
             if (requestServerGetUp(entityId, exit, exitVelocity)) return;
@@ -1395,12 +1393,15 @@ public final class DismembermentEngine {
 
     public void followPlayerTumble(Minecraft client) {
         if (client.player == null || !playerTumbles.contains(client.player.getId())) return;
-        if (pendingPlayerExits.containsKey(client.player.getId())) return;
+        boolean waitingForServer = pendingPlayerExits.containsKey(client.player.getId());
         RigidBodyPiece torso = find(client.player.getId(), 1);
         Vec3 trackingPosition = findSafeTumbleExit(client, client.player.getId());
         if (trackingPosition != null) {
+            // The hidden vanilla player remains attached to the physical torso even
+            // while the server is acknowledging get-up. Stopping here used to leave
+            // the real entity behind and made the final exit packet fail validation.
             client.player.setPos(trackingPosition.x, trackingPosition.y, trackingPosition.z);
-            if (torso != null && ClientPlayNetworking.canSend(TumbleExitPayload.TYPE))
+            if (!waitingForServer && torso != null && ClientPlayNetworking.canSend(TumbleExitPayload.TYPE))
                 ClientPlayNetworking.send(new TumbleExitPayload(
                         trackingPosition.x, trackingPosition.y, trackingPosition.z,
                         torso.velocity.x, torso.velocity.y, torso.velocity.z, false));
@@ -1484,10 +1485,8 @@ public final class DismembermentEngine {
     record WoundProjection(int region, Vec3 modelPosition, Vec3 modelNormal) { }
 
     public void releaseRagdoll(int entityId) {
-        if (isElectrified(entityId)) return;
         Minecraft client = Minecraft.getInstance();
         if (client.player != null && client.player.getId() == entityId && playerTumbles.contains(entityId)) {
-            if (!hasGroundContact(entityId)) return;
             Vec3 exit = findSafeTumbleExit(client, entityId);
             Vec3 exitVelocity = ragdollVelocity(entityId);
             if (requestServerGetUp(entityId, exit, exitVelocity)) return;
@@ -3505,7 +3504,34 @@ public final class DismembermentEngine {
         regionalTrauma.keySet().removeIf(key -> (int) (key >> 32) == entityId);
     }
 
-    public void clear() { pieces.clear(); detached.clear(); detachedModelPaths.clear(); renderedPoseCache.clear(); ragdolled.clear(); remoteDriven.clear(); remotePoseSequences.clear(); remotePoseTicks.clear(); pendingPlayerExits.clear(); playerTumbles.clear(); playerFracturedLegs.clear(); appliedFracturePoses.clear(); tumbleStartedAt.clear(); ragdollStartedAt.clear(); electrifiedUntil.clear(); wailing.clear(); recentExplosions.clear(); regionalTrauma.clear(); islandSleepTicks.clear(); blockImpactAges.clear(); entityImpactAges.clear(); rigidSoundAges.clear(); grabbed = null; smoothedGrabTarget = null; solverIndex = null; lastAuthorityTick = Long.MIN_VALUE; }
+    public void clear() {
+        pieces.clear();
+        detached.clear();
+        detachedModelPaths.clear();
+        renderedPoseCache.clear();
+        ragdolled.clear();
+        remoteDriven.clear();
+        remotePoseSequences.clear();
+        remotePoseTicks.clear();
+        pendingPlayerExits.clear();
+        playerTumbles.clear();
+        playerFracturedLegs.clear();
+        appliedFracturePoses.clear();
+        tumbleStartedAt.clear();
+        ragdollStartedAt.clear();
+        electrifiedUntil.clear();
+        wailing.clear();
+        recentExplosions.clear();
+        regionalTrauma.clear();
+        islandSleepTicks.clear();
+        blockImpactAges.clear();
+        entityImpactAges.clear();
+        rigidSoundAges.clear();
+        grabbed = null;
+        smoothedGrabTarget = null;
+        solverIndex = null;
+        lastAuthorityTick = Long.MIN_VALUE;
+    }
 
     private static boolean inAsterion(Entity entity) {
         return entity != null && entity.level().dimension().equals(Asterion.ASTERION_LEVEL);

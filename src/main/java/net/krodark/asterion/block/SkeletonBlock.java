@@ -30,7 +30,9 @@ public final class SkeletonBlock extends BaseEntityBlock implements WaterloggedD
 
     public SkeletonBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED, false).setValue(FACING, Direction.NORTH));
+        registerDefaultState(stateDefinition.any()
+                .setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED, false)
+                .setValue(FACING, Direction.NORTH));
     }
 
     @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }

@@ -121,6 +121,20 @@ jar {
     }
 }
 
+// Fabric keeps the production-shaped mod jar open for the lifetime of an
+// Essential development client. Give every launch an immutable copy so a later
+// Gradle build cannot replace the zip while the running class loader reads it.
+def essentialRuntimeToken = "${System.currentTimeMillis()}-${ProcessHandle.current().pid()}"
+def essentialRuntimeDirectory = file("run/.asterion-runtime/${essentialRuntimeToken}")
+def essentialRuntimeJar = new File(essentialRuntimeDirectory,
+        "${base.archivesName.get()}-${version}.jar")
+tasks.register("stageEssentialRuntimeJar", Copy) {
+    dependsOn tasks.named("jar")
+    from(tasks.named("jar"))
+    into essentialRuntimeDirectory
+    rename { essentialRuntimeJar.name }
+}
+
 publishing {
     publications {
         create("mavenJava", MavenPublication) {
@@ -131,27 +145,6 @@ publishing {
 
 }
 
-tasks.register("rebuildStructureTemplates", JavaExec) {
-    group = "asterion"
-    description = "Rebuilds editable structure blueprints into vanilla structure-template NBT files."
-    dependsOn compileJava
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = "net.krodark.asterion.dev.RuinTemplateBuilder"
-    args file("src/main/resources/data/asterion/structure/underwater_ruin.nbt").absolutePath
-}
-
-tasks.register("prepareLamenterGameTest") {
-    def metadata = layout.buildDirectory.file("lamenter-testmod/fabric.mod.json")
-    outputs.file(metadata)
-    doLast {
-        def target = metadata.get().asFile
-        target.parentFile.mkdirs()
-        target.text = groovy.json.JsonOutput.toJson([
-                schemaVersion: 1, id: "asterion_lamenter_test", version: "1.0.0", environment: "client",
-                entrypoints: ["fabric-client-gametest": ["net.krodark.asterion.dev.verification.LamenterGameTest"]]])
-    }
-}
-
 loom {
     mods {
         asterion { sourceSet sourceSets.main }
@@ -159,13 +152,13 @@ loom {
     runs {
         client {
             mainClass = "net.krodark.asterion.dev.EssentialClientLaunch"
-            vmArg "-Dasterion.essential.modJar=${layout.buildDirectory.file("libs/${base.archivesName.get()}-${version}.jar").get().asFile.absolutePath}"
+            vmArg "-Dasterion.essential.modJar=${essentialRuntimeJar.absolutePath}"
             ideConfigGenerated = false
         }
         essentialClient {
             client()
             name = "Minecraft Client with Essential"
-            vmArg "-Dasterion.essential.modJar=${layout.buildDirectory.file("libs/${base.archivesName.get()}-${version}.jar").get().asFile.absolutePath}"
+            vmArg "-Dasterion.essential.modJar=${essentialRuntimeJar.absolutePath}"
             // 26.1 uses official names in both environments. Essential's legacy dev
             // remapper still requires Tiny mappings, so use the normal loader path.
             mainClass = "net.krodark.asterion.dev.EssentialClientLaunch"
@@ -175,7 +168,7 @@ loom {
         essentialTest {
             client()
             name = "Essential integration test"
-            vmArg "-Dasterion.essential.modJar=${layout.buildDirectory.file("libs/${base.archivesName.get()}-${version}.jar").get().asFile.absolutePath}"
+            vmArg "-Dasterion.essential.modJar=${essentialRuntimeJar.absolutePath}"
             mainClass = "net.krodark.asterion.dev.EssentialClientLaunch"
             vmArg "-Dasterion.essential.smokeTest=true"
             vmArg "-Dfabric.addMods=${fileTree('run/mods').matching { include '*.jar' }.files.collect { it.absolutePath }.join(File.pathSeparator)}"
@@ -257,116 +250,66 @@ loom {
     }
 }
 
-tasks.matching { it.name == "runLamenterTest" }.configureEach { dependsOn "prepareLamenterGameTest" }
-tasks.register("prepareCatacombGameTest") {
-    def metadata = layout.buildDirectory.file("catacomb-testmod/fabric.mod.json")
-    outputs.file(metadata)
-    doLast {
-        def target = metadata.get().asFile
-        target.parentFile.mkdirs()
-        target.text = groovy.json.JsonOutput.toJson([
-                schemaVersion: 1, id: "asterion_catacomb_test", version: "1.0.0", environment: "client",
-                entrypoints: ["fabric-client-gametest": ["net.krodark.asterion.dev.verification.CatacombLayoutGameTest"]]])
+def clientGameTests = [
+        [run: "LamenterTest", folder: "lamenter-testmod", id: "asterion_lamenter_test",
+         classes: ["net.krodark.asterion.dev.verification.LamenterGameTest"]],
+        [run: "CatacombTest", folder: "catacomb-testmod", id: "asterion_catacomb_test",
+         classes: ["net.krodark.asterion.dev.verification.CatacombLayoutGameTest"]],
+        [run: "BiomeTest", folder: "biome-testmod", id: "asterion_biome_test",
+         classes: ["net.krodark.asterion.worldgen.BiomeFeatureGameTest"]],
+        [run: "RenderPerformanceTest", folder: "renderer-testmod", id: "asterion_renderer_test",
+         classes: ["net.krodark.asterion.dev.verification.RenderPerformanceGameTest",
+                   "net.krodark.asterion.dev.verification.PortalEmissionGameTest",
+                   "net.krodark.asterion.dev.verification.VineEmissionGameTest"]],
+        [run: "BarrelDoorTest", folder: "barrel-door-testmod", id: "asterion_barrel_door_test",
+         classes: ["net.krodark.asterion.dev.verification.BarrelDoorGameTest"]],
+        [run: "HeavyWaterTest", folder: "heavy-water-testmod", id: "asterion_heavy_water_test",
+         classes: providers.gradleProperty("heavyWaterloggingOnly").isPresent()
+                 ? ["net.krodark.asterion.dev.verification.HeavyWaterloggingGameTest"]
+                 : ["net.krodark.asterion.dev.verification.HeavyWaterloggingGameTest",
+                    "net.krodark.asterion.dev.verification.HeavyWaterGameTest"]],
+        [run: "RunePuzzleTest", folder: "rune-puzzle-testmod", id: "asterion_rune_puzzle_test",
+         classes: ["net.krodark.asterion.dev.verification.RagdollMultiplayerGameTest",
+                   "net.krodark.asterion.dev.verification.RunePuzzleGameTest",
+                   "net.krodark.asterion.dev.verification.GameplayGameTest"]]
+]
+
+clientGameTests.each { suite ->
+    def prepareTask = "prepare${suite.run}"
+    def metadata = layout.buildDirectory.file("${suite.folder}/fabric.mod.json")
+    tasks.register(prepareTask) {
+        inputs.property("entrypoints", suite.classes)
+        outputs.file(metadata)
+        doLast {
+            def target = metadata.get().asFile
+            target.parentFile.mkdirs()
+            target.text = groovy.json.JsonOutput.toJson([
+                    schemaVersion: 1,
+                    id: suite.id,
+                    version: "1.0.0",
+                    environment: "client",
+                    entrypoints: ["fabric-client-gametest": suite.classes]
+            ])
+        }
     }
+    tasks.matching { it.name == "run${suite.run}" }.configureEach { dependsOn prepareTask }
 }
-tasks.matching { it.name == "runCatacombTest" }.configureEach { dependsOn "prepareCatacombGameTest" }
-tasks.matching { it.name in ["runClient", "runEssentialClient", "runEssentialTest"] }.configureEach { dependsOn "jar" }
+
+tasks.matching { it.name in ["runClient", "runEssentialClient", "runEssentialTest"] }.configureEach { dependsOn "stageEssentialRuntimeJar" }
 
 // IntelliJ's "Main.main()" Gradle action creates its own JavaExec instead of using runClient.
 // Route that client launch through the same compatibility bootstrap after Loom's injector.
 tasks.withType(JavaExec).configureEach {
     if (name == 'net.fabricmc.devlaunchinjector.Main.main()') {
-        dependsOn 'jar'
+        dependsOn 'stageEssentialRuntimeJar'
         doFirst {
             if (allJvmArgs.any { it == '-Dfabric.dli.env=client' }) {
                 setJvmArgs(jvmArgs.findAll { !it.startsWith('-Dfabric.dli.main=') && !it.startsWith('-Dasterion.essential.modJar=') })
                 systemProperty 'fabric.dli.main', 'net.krodark.asterion.dev.EssentialClientLaunch'
-                systemProperty 'asterion.essential.modJar', tasks.jar.archiveFile.get().asFile.absolutePath
+                systemProperty 'asterion.essential.modJar', essentialRuntimeJar.absolutePath
             }
         }
     }
-}
-
-tasks.register("prepareBiomeGameTest") {
-    def metadata = layout.buildDirectory.file("biome-testmod/fabric.mod.json")
-    outputs.file(metadata)
-    doLast {
-        def target = metadata.get().asFile
-        target.parentFile.mkdirs()
-        target.text = groovy.json.JsonOutput.toJson([
-                schemaVersion: 1, id: "asterion_biome_test", version: "1.0.0", environment: "client",
-                entrypoints: ["fabric-client-gametest": ["net.krodark.asterion.worldgen.BiomeFeatureGameTest"]]])
-    }
-}
-tasks.matching { it.name == "runBiomeTest" }.configureEach { dependsOn "prepareBiomeGameTest" }
-
-tasks.register("prepareRendererGameTest") {
-    def metadata = layout.buildDirectory.file("renderer-testmod/fabric.mod.json")
-    outputs.file(metadata)
-    doLast {
-        def target = metadata.get().asFile
-        target.parentFile.mkdirs()
-        target.text = groovy.json.JsonOutput.toJson([
-                schemaVersion: 1, id: "asterion_renderer_test", version: "1.0.0", environment: "client",
-                entrypoints: ["fabric-client-gametest": ["net.krodark.asterion.dev.verification.RenderPerformanceGameTest",
-                        "net.krodark.asterion.dev.verification.PortalEmissionGameTest",
-                        "net.krodark.asterion.dev.verification.VineEmissionGameTest"]]])
-    }
-}
-tasks.matching { it.name == "runRenderPerformanceTest" }.configureEach { dependsOn "prepareRendererGameTest" }
-
-tasks.register("rebuildSafeRoomTemplate", JavaExec) {
-    group = "asterion"
-    dependsOn compileJava
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = "net.krodark.asterion.dev.SafeRoomTemplateBuilder"
-    args file("src/main/resources/data/asterion/structure/safe_room.nbt").absolutePath
-}
-
-tasks.register("rebuildMazePitTemplate", JavaExec) {
-    group = "asterion"
-    dependsOn compileJava
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = "net.krodark.asterion.dev.MazePitTemplateBuilder"
-    args file("src/main/resources/data/asterion/structure/maze_pits/pit.nbt").absolutePath
-}
-
-tasks.register("rebuildRuneGateTemplate", JavaExec) {
-    group = "asterion"
-    dependsOn compileJava
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = "net.krodark.asterion.dev.RuneGateTemplateBuilder"
-    args file("src/main/resources/data/asterion/structure/rune_gate.nbt").absolutePath
-}
-
-tasks.register("rebuildVanillaDungeonTemplate", JavaExec) {
-    group = "asterion"
-    description = "Rebuilds the common vanilla-style dungeon maze test template."
-    dependsOn compileJava
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = "net.krodark.asterion.dev.VanillaDungeonTemplateBuilder"
-    args file("src/main/resources/data/asterion/structure/vanilla_dungeon.nbt").absolutePath
-}
-
-tasks.register("rebuildCatacombTemplates", JavaExec) {
-    group = "asterion"
-    description = "Builds the editable underwater catacomb jigsaw rooms."
-    dependsOn compileJava
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = "net.krodark.asterion.dev.CatacombTemplateBuilder"
-    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
-    args layout.buildDirectory.dir("legacy-catacomb-template-preview").get().asFile.absolutePath
-}
-
-tasks.register("importAuthoredCatacombs", JavaExec) {
-    group = "development"
-    description = "Imports authored NBT copies and normalizes their jigsaw metadata without editing the saved world."
-    dependsOn compileJava
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = "net.krodark.asterion.dev.ImportAuthoredCatacombs"
-    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
-    args file("run/saves/build/generated/asterion/structure/catacombs").absolutePath,
-            file("src/main/resources/data/asterion/structure/catacombs").absolutePath
 }
 
 def regressionSuites = [
@@ -380,7 +323,7 @@ def regressionSuites = [
         ],
         catacombRegression: [
                 entryPoint: "CatacombRegression",
-                summary: "Checks flooded gallery connectivity and editable catacomb template contracts."
+                summary: "Checks flooded gallery connectivity and authored catacomb structures."
         ],
         amneticRegression: [
                 entryPoint: "AmneticRegression",
@@ -425,48 +368,3 @@ tasks.register("modDistribution", Sync) {
     from(tasks.named("jar"))
     from("docs/INSTALL-MODS.txt")
 }
-
- tasks.register("prepareBarrelDoorGameTest") {
-    def metadata = layout.buildDirectory.file("barrel-door-testmod/fabric.mod.json")
-    outputs.file(metadata)
-    doLast {
-        def target = metadata.get().asFile
-        target.parentFile.mkdirs()
-        target.text = groovy.json.JsonOutput.toJson([
-                schemaVersion: 1, id: "asterion_barrel_door_test", version: "1.0.0", environment: "client",
-                entrypoints: ["fabric-client-gametest": ["net.krodark.asterion.dev.verification.BarrelDoorGameTest"]]])
-    }
-}
-tasks.matching { it.name == "runBarrelDoorTest" }.configureEach { dependsOn "prepareBarrelDoorGameTest" }
-
-
-tasks.register("prepareHeavyWaterGameTest") {
-    def loggingOnly = providers.gradleProperty("heavyWaterloggingOnly").isPresent()
-    inputs.property("loggingOnly", loggingOnly)
-    def metadata = layout.buildDirectory.file("heavy-water-testmod/fabric.mod.json")
-    outputs.file(metadata)
-    doLast {
-        def target = metadata.get().asFile
-        target.parentFile.mkdirs()
-        target.text = groovy.json.JsonOutput.toJson([
-                schemaVersion: 1, id: "asterion_heavy_water_test", version: "1.0.0", environment: "client",
-                entrypoints: ["fabric-client-gametest": loggingOnly
-                        ? ["net.krodark.asterion.dev.verification.HeavyWaterloggingGameTest"]
-                        : ["net.krodark.asterion.dev.verification.HeavyWaterloggingGameTest",
-                           "net.krodark.asterion.dev.verification.HeavyWaterGameTest"]]])
-    }
-}
-tasks.matching { it.name == "runHeavyWaterTest" }.configureEach { dependsOn "prepareHeavyWaterGameTest" }
-
- tasks.register("prepareRunePuzzleGameTest") {
-    def metadata = layout.buildDirectory.file("rune-puzzle-testmod/fabric.mod.json")
-    outputs.file(metadata)
-    doLast {
-        def target = metadata.get().asFile
-        target.parentFile.mkdirs()
-        target.text = groovy.json.JsonOutput.toJson([
-                schemaVersion: 1, id: "asterion_rune_puzzle_test", version: "1.0.0", environment: "client",
-                entrypoints: ["fabric-client-gametest": ["net.krodark.asterion.dev.verification.RagdollMultiplayerGameTest", "net.krodark.asterion.dev.verification.RunePuzzleGameTest", "net.krodark.asterion.dev.verification.GameplayGameTest"]]])
-    }
-}
-tasks.matching { it.name == "runRunePuzzleTest" }.configureEach { dependsOn "prepareRunePuzzleGameTest" }

@@ -11,6 +11,8 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 /** Arena mechanics kept separate from the replaceable arena shell. */
 public final class CatacombArena {
     private static final java.util.Map<java.util.UUID, Motion> MOTION = new java.util.HashMap<>();
+    private static final java.util.Map<net.minecraft.server.level.ServerLevel, BrazierScan> BRAZIER_SCANS =
+            new java.util.WeakHashMap<>();
     private static final int FLOOR = AuthoredCatacombs.ARENA_FLOOR_Y;
     private static final int[][] POOLS = {{7, 7}, {-7, 7}, {7, -7}, {-7, -7},
             {20, 10}, {-20, 10}, {20, -10}, {-20, -10}, {10, 20}, {-10, 20}, {10, -20}, {-10, -20}};
@@ -34,11 +36,40 @@ public final class CatacombArena {
         return brazier(direction).above(2).relative(direction);
     }
 
+    /** Finds the actual authored/placed brazier roots instead of assuming four generated fixtures. */
+    public static java.util.List<BlockPos> braziers(net.minecraft.server.level.ServerLevel level) {
+        long now = level.getGameTime();
+        BrazierScan cached = BRAZIER_SCANS.get(level);
+        if (cached != null && now - cached.tick < 20) return cached.positions;
+        java.util.List<BlockPos> found = new java.util.ArrayList<>();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int x = -AuthoredCatacombs.ARENA_RADIUS; x <= AuthoredCatacombs.ARENA_RADIUS; x++)
+            for (int z = -AuthoredCatacombs.ARENA_RADIUS; z <= AuthoredCatacombs.ARENA_RADIUS; z++) {
+                if (!level.getChunkSource().hasChunk(x >> 4, z >> 4)) continue;
+                for (int y = FLOOR; y <= FLOOR + 6; y++) {
+                    cursor.set(x, y, z);
+                    BlockState state = level.getBlockState(cursor);
+                    if (state.is(Asterion.GREEK_BRAZIER)
+                            && net.krodark.asterion.block.GreekBrazierBlock.isRoot(state)) {
+                        found.add(cursor.immutable());
+                        break;
+                    }
+                }
+            }
+        java.util.List<BlockPos> stable = java.util.List.copyOf(found);
+        BRAZIER_SCANS.put(level, new BrazierScan(now, stable));
+        return stable;
+    }
+
+    public static java.util.List<BlockPos> litBraziers(net.minecraft.server.level.ServerLevel level) {
+        return braziers(level).stream().filter(pos -> {
+            BlockState state = level.getBlockState(pos);
+            return state.is(Asterion.GREEK_BRAZIER) && state.getValue(BlockStateProperties.LIT);
+        }).toList();
+    }
+
     public static void powerBurst(net.minecraft.server.level.ServerLevel level, net.minecraft.world.phys.Vec3 target) {
-        for (Direction side : Direction.Plane.HORIZONTAL) {
-            BlockPos source = brazier(side);
-            var state = level.getBlockState(source);
-            if (!state.is(Asterion.GREEK_BRAZIER) || !state.getValue(BlockStateProperties.LIT)) continue;
+        for (BlockPos source : litBraziers(level)) {
             var start = net.minecraft.world.phys.Vec3.atCenterOf(source).add(0, .65, 0);
             var velocity = target.subtract(start).normalize().scale(.65);
             // Initial velocity only: short packets of flame leave the brazier; no sampled beam.
@@ -85,6 +116,7 @@ public final class CatacombArena {
         }
     }
 
-    public static void clear() { MOTION.clear(); }
+    public static void clear() { MOTION.clear(); BRAZIER_SCANS.clear(); }
     private record Motion(net.minecraft.world.phys.Vec3 position, net.minecraft.world.phys.Vec3 drift) { }
+    private record BrazierScan(long tick, java.util.List<BlockPos> positions) { }
 }

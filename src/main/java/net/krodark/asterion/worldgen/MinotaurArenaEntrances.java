@@ -23,7 +23,7 @@ public final class MinotaurArenaEntrances {
     public static BlockPos door(Direction outward) {
         if (AuthoredCatacombs.enabled())
             return new BlockPos(0, AuthoredCatacombs.ARENA_BASE_Y + 5,
-                    outward == BOSS_ENTRANCE ? -40 : 40);
+                    outward == BOSS_ENTRANCE ? -40 : 41);
         return new BlockPos(outward.getStepX() * DOOR_RADIUS, AuthoredCatacombs.CONNECTOR_Y, outward.getStepZ() * DOOR_RADIUS);
     }
     public static BlockPos gate(Direction outward) { return door(outward).relative(outward.getOpposite(), 1); }
@@ -49,7 +49,8 @@ public final class MinotaurArenaEntrances {
     }
     public static void setGates(ServerLevel level, int closedRows, Direction except) {
         if (AuthoredCatacombs.enabled()) {
-            if (except != BOSS_ENTRANCE) setAuthoredBossGate(level, closedRows);
+            for (Direction facing : java.util.List.of(PLAYER_ENTRANCE, BOSS_ENTRANCE))
+                if (facing != except) setGate(level, facing, closedRows);
             return;
         }
         for (Direction facing : DOORS) if (facing != except) setGate(level, facing, closedRows);
@@ -65,7 +66,16 @@ public final class MinotaurArenaEntrances {
     }
     public static void setGate(ServerLevel level, Direction facing, int closedRows) {
         if (AuthoredCatacombs.enabled()) {
-            if (facing == BOSS_ENTRANCE) setAuthoredBossGate(level, closedRows);
+            BlockPos center = facing == BOSS_ENTRANCE ? AUTHORED_BOSS_GATE : gate(PLAYER_ENTRANCE);
+            int authoredHeight = facing == BOSS_ENTRANCE ? 6 : 5;
+            int normalizedClosed = Math.clamp(closedRows, 0, gateHeight()) * authoredHeight / gateHeight();
+            for (int row = 0; row < authoredHeight; row++) for (int side = -3; side <= 3; side++) {
+                BlockPos pos = center.relative(facing.getClockWise(), side).above(row);
+                var state = level.getBlockState(pos);
+                if (!state.is(Asterion.MAZESTEEL_GATE)) continue;
+                var next = state.setValue(DirectionalGateBlock.OPEN, row < authoredHeight - normalizedClosed);
+                if (!state.equals(next)) level.setBlock(pos, next, 2);
+            }
             return;
         }
         var state = Asterion.MAZESTEEL_GATE.defaultBlockState().setValue(DirectionalGateBlock.FACE, AttachFace.FLOOR)
@@ -181,6 +191,9 @@ public final class MinotaurArenaEntrances {
     }
 
     public static void breakLintel(ServerLevel level, Direction facing, double bossHeight) {
+        // The authored nine-part arena already provides the boss opening. Never carve
+        // or emit debris from its custom NBT during the reveal cinematic.
+        if (AuthoredCatacombs.enabled()) return;
         int height = (int)Math.ceil(bossHeight) + 1;
         BlockPos root = door(facing);
         for (int depth = -1; depth <= 1; depth++) for (int side = -3; side <= 3; side++)

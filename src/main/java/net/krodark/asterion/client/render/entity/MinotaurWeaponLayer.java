@@ -46,7 +46,8 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
                             poses.mulPose(com.mojang.math.Axis.XP.rotationDegrees(168));
                             poses.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(-sign * 6));
                         }
-                        MinotaurSwordVisual.submit(poses, tasks, posed.cameraState(), posed.packedLight(), drawn);
+                        MinotaurSwordVisual.submit(
+                                poses, tasks, posed.cameraState(), posed.packedLight());
                         poses.popPose();
                     }));
         String name = pass.renderState().getOrDefaultGeckolibData(AXE_BONE, "");

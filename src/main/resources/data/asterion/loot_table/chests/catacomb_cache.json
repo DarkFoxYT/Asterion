@@ -176,6 +176,21 @@
           "chance": 0.08
         }
       ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "asterion:cursed_brazier_key"
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "minecraft:random_chance",
+          "chance": 0.0333333333
+        }
+      ]
     }
   ]
 }

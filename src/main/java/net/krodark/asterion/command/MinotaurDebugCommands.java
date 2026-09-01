@@ -60,18 +60,27 @@ public final class MinotaurDebugCommands {
     private static int start(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer owner = source.getPlayerOrException();
         Session old = SESSIONS.get(owner.getUUID());
-        if (old != null && !old.boss.isRemoved()) { if (old.owned) old.boss.setDebugRunning(true); return 1; }
+        if (old != null && !old.boss.isRemoved()) {
+            if (old.owned) old.boss.setDebugRunning(true);
+            return 1;
+        }
         if (owner.level().dimension().equals(Asterion.ASTERION_LEVEL)) {
             var boss = owner.level().getEntitiesOfClass(MinotaurEntity.class, owner.getBoundingBox().inflate(96),
                     entity -> entity.isAlive() && entity.behaviorPhase() == MinotaurEntity.BehaviorPhase.BOSS)
                     .stream().min(Comparator.comparingDouble(entity -> entity.distanceToSqr(owner))).orElse(null);
-            if (boss == null) { source.sendFailure(Component.literal("No active arena Minotaur nearby.")); return 0; }
+            if (boss == null) {
+                source.sendFailure(Component.literal("No active arena Minotaur nearby."));
+                return 0;
+            }
             SESSIONS.put(owner.getUUID(), new Session(boss, false));
-            source.sendSuccess(() -> Component.literal("[Minotaur debug] Watching the arena boss. Live attack/state telemetry enabled; status and stop are available without changing the fight."), false);
+            source.sendSuccess(() -> Component.literal(
+                    "[Minotaur debug] Watching the arena boss. Use status to inspect it or stop to leave."), false);
             return 1;
         }
         if (!owner.level().dimension().equals(Level.OVERWORLD)) {
-            source.sendFailure(Component.literal("Use debug in the Overworld or during the maze arena fight.")); return 0;
+            source.sendFailure(Component.literal(
+                    "Use debug in the Overworld or during the maze arena fight."));
+            return 0;
         }
         var level = owner.level();
         var boss = Asterion.MINOTAUR.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
@@ -88,8 +97,12 @@ public final class MinotaurDebugCommands {
             if (level.noCollision(boss) && !level.getBlockState(BlockPos.containing(boss.position()).below())
                     .getCollisionShape(level, BlockPos.containing(boss.position()).below()).isEmpty()) spawn = boss.position();
         }
-        if (spawn == null) { source.sendFailure(Component.literal("No clear space ahead for the Minotaur. Try an open area.")); return 0; }
-        boss.setPos(spawn); boss.beginDebug(owner);
+        if (spawn == null) {
+            source.sendFailure(Component.literal("No clear space ahead for the Minotaur. Try an open area."));
+            return 0;
+        }
+        boss.setPos(spawn);
+        boss.beginDebug(owner);
         if (!level.addFreshEntity(boss)) return 0;
         SESSIONS.put(owner.getUUID(), new Session(boss, true));
         source.sendSuccess(() -> Component.literal("[Minotaur debug] Active. Attacks can hurt: use Creative for safe observation. "

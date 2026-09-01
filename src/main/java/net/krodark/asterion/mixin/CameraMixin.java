@@ -4,6 +4,7 @@ import net.krodark.asterion.client.event.DeadSunClientEvents;
 import net.krodark.asterion.client.DeadSunEntryCinematic;
 import net.krodark.asterion.client.BossFinaleOverlay;
 import net.krodark.asterion.client.BossEntranceCinematic;
+import net.krodark.asterion.client.CursedBrazierCinematic;
 import net.krodark.asterion.client.ragdoll.DismembermentEngine;
 import net.krodark.asterion.client.render.entity.SurfaceOrientation;
 import net.krodark.asterion.entity.ScarletCentipedeEntity;
@@ -103,6 +104,11 @@ public abstract class CameraMixin {
             setPosition(entrance.position());
             setRotation(entrance.yaw(), entrance.pitch());
         }
+        CursedBrazierCinematic.CameraPose brazier = CursedBrazierCinematic.cameraPose(position(), partial);
+        if (brazier != null) {
+            setPosition(brazier.position());
+            setRotation(brazier.yaw(), brazier.pitch());
+        }
         DeadSunClientEvents.Sample doorShake = net.krodark.asterion.client.MinotaurDoorShake.sample(position(), partial);
         if (doorShake != DeadSunClientEvents.Sample.NONE) {
             setPosition(position().add(doorShake.cameraOffset()));
@@ -113,7 +119,7 @@ public abstract class CameraMixin {
             setPosition(position().add(sample.cameraOffset()));
             setRotation(yRot() + sample.yawDegrees(), xRot() + sample.pitchDegrees());
         }
-        if (shot == null && finale == null && entrance == null && minecraft.player != null
+        if (shot == null && finale == null && entrance == null && brazier == null && minecraft.player != null
                 && minecraft.player.getVehicle() instanceof ScarletCentipedeEntity centipede) {
             Quaternionf target = SurfaceOrientation.cameraTilt(centipede.passengerNormal(minecraft.player, partial));
             float frameTicks = Math.max(0.05F, tracker.getGameTimeDeltaTicks());
@@ -139,7 +145,8 @@ public abstract class CameraMixin {
             matrixPropertiesDirty |= 3;
             asterion$rebuildCinematicFrustum(minecraft);
         } else asterion$centipedeTilt.identity();
-        if (shot != null || finale != null || entrance != null) asterion$rebuildCinematicFrustum(minecraft);
+        if (shot != null || finale != null || entrance != null || brazier != null)
+            asterion$rebuildCinematicFrustum(minecraft);
     }
 
     /** Camera.update creates its culling frustum before this tail injection moves the camera.

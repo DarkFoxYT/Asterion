@@ -25,13 +25,17 @@ import org.jspecify.annotations.Nullable;
 public final class BarrelDoorBlock extends BaseEntityBlock implements WaterloggedDecoration {
     public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty OPEN = BlockStateProperties.OPEN;
+    public static final BooleanProperty CURSED_LOCKED = BooleanProperty.create("cursed_locked");
     public static final IntegerProperty COLUMN = IntegerProperty.create("column", 0, 3);
     public static final BooleanProperty WING = BooleanProperty.create("wing");
     public static final IntegerProperty ROW = IntegerProperty.create("row", 0, 3);
     public BarrelDoorBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED, false).setValue(FACING, Direction.NORTH)
-                .setValue(OPEN, false).setValue(WING, false).setValue(COLUMN, 1).setValue(ROW, 0));
+        registerDefaultState(stateDefinition.any()
+                .setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED, false)
+                .setValue(FACING, Direction.NORTH)
+                .setValue(OPEN, false).setValue(CURSED_LOCKED,false)
+                .setValue(WING, false).setValue(COLUMN, 1).setValue(ROW, 0));
     }
     @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
     public static boolean isRoot(BlockState state) { return !state.getValue(WING) && state.getValue(COLUMN) == 1 && state.getValue(ROW) == 0; }
@@ -45,7 +49,7 @@ public final class BarrelDoorBlock extends BaseEntityBlock implements Waterlogge
         return root.relative(facing.getClockWise(), column - 1).above(row);
     }
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, OPEN, COLUMN, ROW, WING);
+        builder.add(FACING, OPEN, CURSED_LOCKED, COLUMN, ROW, WING);
     }
     @Override public @Nullable BlockState getStateForPlacement(BlockPlaceContext context) {
         var level = context.getLevel();
@@ -212,6 +216,15 @@ public final class BarrelDoorBlock extends BaseEntityBlock implements Waterlogge
         // lightweight instance for those cells so vanilla does not report failed BE loads;
         // only the root is ticked or rendered.
         return new BarrelDoorBlockEntity(pos, state);
+    }
+    /** Marks the original 3x4 door plane for the future Cursed Brazier crypt room. */
+    public static void setCursedLocked(Level level,BlockPos root,Direction facing,boolean locked) {
+        for(int column=0;column<3;column++)for(int row=0;row<4;row++) {
+            BlockPos pos=part(root,facing,column,row);
+            BlockState state=level.getBlockState(pos);
+            if(state.is(Asterion.BARREL_DOOR)&&!state.getValue(WING)&&root(pos,state).equals(root))
+                level.setBlock(pos,state.setValue(CURSED_LOCKED,locked),UPDATE_CLIENTS);
+        }
     }
     @Override public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
         return isRoot(state)?createTickerHelper(type,Asterion.BARREL_DOOR_BLOCK_ENTITY,BarrelDoorBlockEntity::tick):null;

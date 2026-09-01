@@ -143,7 +143,7 @@ public final class DoorGameTest implements FabricClientGameTest {
                 var key = new ItemStack(Asterion.MINOTAUR_KEY);
                 ((MinotaurDoorBlockEntity)mc.overworld().getBlockEntity(root))
                         .interact(mc.getPlayerList().getPlayers().getFirst(), key);
-                check(key.getCount() == 1, "Reusable key was consumed");
+                check(key.isEmpty(), "Minotaur key was not consumed on first unlock");
             });
             context.waitTicks(MinotaurDoorMotion.OPEN_TICKS + 8);
             context.takeScreenshot("door-open");
@@ -291,7 +291,10 @@ public final class DoorGameTest implements FabricClientGameTest {
             server.runOnServer(mc -> {
                 var player = mc.getPlayerList().getPlayers().getFirst();
                 anchor.set(player.position());
-                check(player.getZ() < 28, "Player was not moved to the inside of the gate");
+                check(player.getZ() > 28 && player.getZ() < 35,
+                        "Player was not staged just inside the entrance gate");
+                check(Math.abs(net.minecraft.util.Mth.wrapDegrees(player.getYRot() - 180F)) < 8F,
+                        "Player was not facing the Minotaur's north gate");
                 check(BossArenaEncounter.isMovementLocked(player), "Server did not lock cinematic movement");
                 check(player.isInvulnerable(), "Cinematic player is vulnerable to attacks");
                 player.connection.handleMovePlayer(new net.minecraft.network.protocol.game.ServerboundMovePlayerPacket.PosRot(
@@ -314,8 +317,8 @@ public final class DoorGameTest implements FabricClientGameTest {
                 check(player.position().distanceToSqr(anchor.get()) < .001, "Held movement displaced the cinematic body");
                 check(!maze.getBlockState(MinotaurArenaEntrances.door(Direction.SOUTH)).getValue(MinotaurDoorBlock.OPEN),
                         "The player's entry doors did not close behind them");
-                check(!maze.getBlockState(MinotaurArenaEntrances.gate(Direction.SOUTH)).getValue(DirectionalGateBlock.OPEN),
-                        "The player's gate did not lower");
+                check(maze.getBlockState(MinotaurArenaEntrances.gate(Direction.SOUTH)).getValue(DirectionalGateBlock.OPEN),
+                        "The player's gate lowered during the cutscene");
                 check(maze.getBlockState(MinotaurArenaEntrances.gate(Direction.NORTH)).getValue(DirectionalGateBlock.OPEN),
                         "The boss gate closed before the Minotaur could enter");
                 check(maze.noCollision(player), "The closing gate crushed the player");
@@ -342,6 +345,8 @@ public final class DoorGameTest implements FabricClientGameTest {
                 }
                 check(level.getBlockState(MinotaurArenaEntrances.door(Direction.SOUTH)).is(Asterion.MINOTAUR_DOOR),
                         "Boss broke the player's entrance too");
+                check(!level.getBlockState(MinotaurArenaEntrances.door(Direction.NORTH)).is(Asterion.MINOTAUR_DOOR),
+                        "Boss entrance door was rebuilt after the cutscene");
                 boolean entered = false;
                 for (var entity : level.getAllEntities()) if (entity instanceof MinotaurEntity boss)
                     entered |= boss.behaviorPhase() == MinotaurEntity.BehaviorPhase.BOSS

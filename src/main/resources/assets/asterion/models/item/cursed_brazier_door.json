@@ -1,0 +1,5 @@
+{
+  "parent":"minecraft:item/generated",
+  "textures":{"layer0":"asterion:block/cursed_brazier_door"},
+  "display":{"gui":{"rotation":[15,160,0],"translation":[0,1,0],"scale":[0.75,0.75,0.75]}}
+}

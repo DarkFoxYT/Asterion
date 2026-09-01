@@ -19,6 +19,7 @@ public final class BossEntranceCinematic {
     private static CameraType previousCamera;
     private static boolean previousCull;
     private static float returnYaw, returnPitch;
+    private static Vec3 openingEye;
     private BossEntranceCinematic() { }
 
     public static void register() {
@@ -43,6 +44,7 @@ public final class BossEntranceCinematic {
         active = true;
         showShot = AsterionConfig.INSTANCE.cinematicsEnabled;
         returnYaw = client.player.getYRot(); returnPitch = client.player.getXRot();
+        openingEye = client.player.getEyePosition();
         if (!showShot) return;
         previousCamera = client.options.getCameraType();
         previousCull = client.smartCull;
@@ -75,15 +77,16 @@ public final class BossEntranceCinematic {
         Vec3 inward = door.getOpposite().getUnitVec3();
         Vec3 doorway = Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(door));
         float recoil = MinotaurDoorMotion.ease((time - 68) / 20F);
-        Vec3 camera = doorway.add(inward.scale(14.0 + recoil * 4.0)).add(0, 2.4 + recoil * .65, 0)
-                .add(door.getClockWise().getUnitVec3().scale(1.8 - recoil * 3.0));
+        Vec3 doorShot = doorway.add(inward.scale(10.5 + recoil * 3.0)).add(0, 1.35 + recoil * .45, 0);
+        float approach = MinotaurDoorMotion.ease(time / 24F);
+        Vec3 camera = (openingEye == null ? playerEye : openingEye).lerp(doorShot, approach);
         float impact = 0;
         for (int beat : new int[]{8, 26, 44, 70}) {
             float age = time - beat;
             if (age >= 0 && age < 10) impact += (beat == 70 ? .26F : .075F) * (1 - age / 10F);
         }
         camera = camera.add(Math.sin(time * 2.7) * impact, Math.cos(time * 3.4) * impact * .65, 0);
-        Vec3 focus = doorway.add(inward.scale(1.5)).add(0, 3.7, 0);
+        Vec3 focus = doorway.add(inward.scale(1.2)).add(0, 3.15, 0);
         float returning = MinotaurDoorMotion.ease((time - (duration - 20)) / 20F);
         camera = camera.lerp(playerEye, returning);
         Vec3 delta = focus.subtract(camera);
@@ -102,7 +105,7 @@ public final class BossEntranceCinematic {
             CinematicHud.end(client);
             if (client.level != null) client.levelRenderer.getSectionOcclusionGraph().invalidate();
         }
-        showShot = false; previousCamera = null;
+        showShot = false; previousCamera = null; openingEye = null;
     }
 
     public record CameraPose(Vec3 position, float yaw, float pitch) { }
