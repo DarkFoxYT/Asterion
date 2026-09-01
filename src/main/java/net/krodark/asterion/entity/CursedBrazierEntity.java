@@ -101,6 +101,9 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
     private int gridMoveTicks;
     private int gridMoveDuration;
     private boolean gridStepTaken;
+    private UUID attackTargetId;
+    private UUID lastTargetId;
+    private int sameTargetStreak;
 
     public enum Attack {
         NONE, FLOOR_JETS, FIRE_BEAM, SPIN_TORNADO, CARDINAL_DASH
@@ -204,7 +207,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
                     3, 0.4, 0.1, 0.4, 0.01);
         }
 
-        ServerPlayer target = nearestTarget(level);
+        ServerPlayer target = attack == Attack.NONE ? tacticalTarget(level) : lockedTarget(level);
         if (target == null) {
             leaveCombat(level);
             return;
@@ -306,11 +309,24 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         }
     }
 
-    private ServerPlayer nearestTarget(ServerLevel level) {
-        return level.players().stream()
-                .filter(this::canFight)
-                .min(Comparator.comparingDouble(this::distanceToSqr))
-                .orElse(null);
+    private ServerPlayer tacticalTarget(ServerLevel level) {
+        List<ServerPlayer> candidates=level.players().stream().filter(this::canFight).toList();
+        return candidates.stream().max(Comparator.comparingDouble(player -> {
+            double distance=Math.sqrt(horizontalDistanceSqr(player.position(),position()));
+            double healthPressure=1.0-player.getHealth()/Math.max(1F,player.getMaxHealth());
+            double motion=new Vec3(player.getDeltaMovement().x,0,player.getDeltaMovement().z).length();
+            long allies=candidates.stream().filter(other->other!=player
+                    && horizontalDistanceSqr(other.position(),player.position())<36).count();
+            double score=18-Math.min(18,distance)+healthPressure*4+motion*2+allies*1.2;
+            if(hasLineOfSight(player))score+=2;
+            if(player.getUUID().equals(lastTargetId)&&sameTargetStreak>=2)score-=5+sameTargetStreak;
+            return score;
+        })).orElse(null);
+    }
+
+    private ServerPlayer lockedTarget(ServerLevel level) {
+        ServerPlayer locked=attackTargetId==null?null:level.getServer().getPlayerList().getPlayer(attackTargetId);
+        return locked!=null&&canFight(locked)?locked:tacticalTarget(level);
     }
 
     private boolean canFight(ServerPlayer player) {
@@ -333,35 +349,39 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
 
     private Attack chooseAttack(ServerLevel level, ServerPlayer target) {
         double distance = Math.sqrt(horizontalDistanceSqr(target.position(), position()));
-        List<Attack> choices = new ArrayList<>();
-        choices.add(Attack.FLOOR_JETS);
-        if (distance < 8 && clearance(level, cardinalToward(target), 8) > 2.5) {
-            choices.add(Attack.CARDINAL_DASH);
-            choices.add(Attack.CARDINAL_DASH);
-        }
-        if (hasLineOfSight(target)) {
-            choices.add(Attack.FIRE_BEAM);
-            if (distance > 11) choices.add(Attack.FIRE_BEAM);
-        }
-        if (clearance(level, cardinalToward(target), 8) > 3.5) {
-            choices.add(Attack.CARDINAL_DASH);
-            if (distance > 13) choices.add(Attack.CARDINAL_DASH);
-        }
-        if (level.noCollision(this, getBoundingBox().inflate(2.2, 0, 2.2))) {
-            choices.add(Attack.SPIN_TORNADO);
-            if (distance < 10) choices.add(Attack.SPIN_TORNADO);
-        }
+        Vec3 velocity=new Vec3(target.getDeltaMovement().x,0,target.getDeltaMovement().z);
+        double movement=Math.min(1.5,velocity.length());
+        boolean sight=hasLineOfSight(target);
+        double clear=clearance(level,cardinalToward(target),10);
+        boolean spinRoom=level.noCollision(this,getBoundingBox().inflate(2.2,0,2.2));
+        long closePlayers=level.players().stream().filter(this::canFight)
+                .filter(player->horizontalDistanceSqr(player.position(),position())<100).count();
+        int mostUsed=0;
+        for(Attack candidate:Attack.values())mostUsed=Math.max(mostUsed,attackUses[candidate.ordinal()]);
 
-        if (choices.size() > 1) choices.removeIf(candidate -> candidate == lastAttack);
-        int leastUsed = choices.stream()
-                .mapToInt(candidate -> attackUses[candidate.ordinal()])
-                .min().orElse(0);
-        choices.removeIf(candidate -> attackUses[candidate.ordinal()] > leastUsed);
-        return choices.get(random.nextInt(choices.size()));
+        Map<Attack,Double> score=new java.util.EnumMap<>(Attack.class);
+        score.put(Attack.FLOOR_JETS,2.2+movement*5.5+(distance>7&&distance<20?1.4:0)+closePlayers*.55);
+        score.put(Attack.FIRE_BEAM,sight?3.0+Math.clamp((distance-6)/4,0,3)+(1-Math.min(1,movement))*1.8:-100.0);
+        score.put(Attack.CARDINAL_DASH,clear>=3.5?2.8+Math.min(3,distance/5)+(sight?0:2.2): -100.0);
+        score.put(Attack.SPIN_TORNADO,spinRoom?2.0+Math.max(0,10-distance)*.55+closePlayers*1.15:-100.0);
+
+        Attack best=Attack.FLOOR_JETS;
+        double bestScore=-Double.MAX_VALUE;
+        for(Attack candidate:List.of(Attack.FLOOR_JETS,Attack.FIRE_BEAM,Attack.CARDINAL_DASH,Attack.SPIN_TORNADO)) {
+            double tactical=score.get(candidate);
+            if(candidate==lastAttack)tactical-=4.5;
+            tactical+=(mostUsed-attackUses[candidate.ordinal()])*1.15;
+            tactical+=random.nextDouble()*.28;
+            if(tactical>bestScore){bestScore=tactical;best=candidate;}
+        }
+        return best;
     }
 
     private void startAttack(Attack next, ServerPlayer target) {
         attack = next;
+        attackTargetId=target.getUUID();
+        if(attackTargetId.equals(lastTargetId))sameTargetStreak++;
+        else {lastTargetId=attackTargetId;sameTargetStreak=1;}
         lastAttack = next;
         attackUses[next.ordinal()]++;
         entityData.set(ATTACK_ID, next.ordinal());
@@ -384,6 +404,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         jetPositions.clear();
         gridStepTaken = false;
         gridMoveTicks = 0;
+        attackTargetId=null;
         cooldown = Math.min(delay, 6) + random.nextInt(5);
     }
 
@@ -542,24 +563,41 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
     private boolean beginGridStep(ServerLevel level, ServerPlayer target) {
         gridStepTaken = true;
         Vec3 origin = snapToGrid(position());
+        double currentDistance=Math.sqrt(horizontalDistanceSqr(origin,target.position()));
+        boolean currentSight=hasLineOfSight(target);
+        // Hold a useful firing position. Reposition only to escape pressure, recover
+        // sight, or correct a genuinely poor range instead of shuffling every attack.
+        if(currentSight&&currentDistance>=6&&currentDistance<=14&&random.nextFloat()<.72F)return false;
         List<Vec3> candidates = new ArrayList<>();
         for (Vec3 direction : CARDINAL_DIRECTIONS) {
             for (int blocks : new int[]{3, 5}) candidates.add(origin.add(direction.scale(blocks)));
         }
         candidates.removeIf(candidate -> !canOccupy(level, candidate));
         if (candidates.isEmpty()) return false;
-        candidates.sort(Comparator.comparingDouble(candidate -> {
-            double distance = Math.sqrt(horizontalDistanceSqr(candidate, target.position()));
-            return Math.abs(distance - 9.0);
-        }));
+        candidates.sort(Comparator.comparingDouble(candidate -> positionCost(level,candidate,target)));
+        double currentCost=positionCost(level,origin,target);
+        if(positionCost(level,candidates.getFirst(),target)>currentCost-.65)return false;
         gridMoveStart = position();
-        gridMoveTarget = candidates.get(random.nextInt(Math.min(2, candidates.size())));
+        gridMoveTarget = candidates.getFirst();
         gridMoveTicks = 1;
         gridMoveDuration = 7;
         Vec3 travel = gridMoveTarget.subtract(gridMoveStart);
         face(travel);
         updateFacingImmediate();
         return true;
+    }
+
+    private double positionCost(ServerLevel level,Vec3 candidate,ServerPlayer target) {
+        double distance=Math.sqrt(horizontalDistanceSqr(candidate,target.position()));
+        double cost=Math.abs(distance-10.0);
+        Vec3 eye=candidate.add(0,getBbHeight()*.68,0);
+        var hit=level.clip(new net.minecraft.world.level.ClipContext(eye,target.getEyePosition(),
+                net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                net.minecraft.world.level.ClipContext.Fluid.NONE,this));
+        if(hit.getType()!=net.minecraft.world.phys.HitResult.Type.MISS)cost+=4.5;
+        long crowd=level.players().stream().filter(this::canFight)
+                .filter(player->horizontalDistanceSqr(candidate,player.position())<25).count();
+        return cost+crowd*1.35;
     }
 
     private void tickGridStep() {
@@ -799,6 +837,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
     protected void dropCustomDeathLoot(ServerLevel level, DamageSource source, boolean killedByPlayer) {
         super.dropCustomDeathLoot(level, source, killedByPlayer);
         spawnAtLocation(level, new ItemStack(GameplayContent.CURSED_BRAZIER_KEY));
+        spawnAtLocation(level, new ItemStack(Asterion.MINOTAUR_KEY));
     }
 
     @Override

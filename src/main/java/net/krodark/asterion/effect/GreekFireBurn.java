@@ -31,10 +31,14 @@ public final class GreekFireBurn extends MobEffect {
     @Override public boolean shouldApplyEffectTickThisTick(int duration, int amplifier) { return true; }
     @Override public boolean applyEffectTick(ServerLevel level, LivingEntity entity, int amplifier) {
         if ((entity.tickCount & 3) == 0) {
-            var behind = entity.getEyePosition().subtract(entity.getLookAngle().scale(.5))
-                    .add(0, -.18, 0);
+            // Keep the effect wrapped around the body for observers without allowing its
+            // one-block billboards to intersect the burning player's first-person camera.
+            var horizontalLook = entity.getLookAngle().multiply(1, 0, 1);
+            if (horizontalLook.lengthSqr() < 1.0E-5) horizontalLook = new net.minecraft.world.phys.Vec3(0, 0, 1);
+            var behind = entity.position().subtract(horizontalLook.normalize().scale(.78))
+                    .add(0, entity.getBbHeight() * .42, 0);
             level.sendParticles(Asterion.GREEK_FIRE, behind.x, behind.y, behind.z,
-                    3, .16, .22, .16, .012);
+                    2, .14, .20, .14, .010);
         }
         return entity.isOnFire();
     }

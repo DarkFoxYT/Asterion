@@ -41,11 +41,16 @@ public final class RagdollMultiplayerGameTest implements FabricClientGameTest {
                 player.setGameMode(net.minecraft.world.level.GameType.CREATIVE);boss.tick();
                 check(bar.getPlayers().isEmpty(),"Miniboss bar remained on ineligible player");
                 boss.die(level.damageSources().generic());
+                var drops=level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
+                        boss.getBoundingBox().inflate(4));
+                check(drops.stream().anyMatch(drop->drop.getItem().is(GameplayContent.CURSED_BRAZIER_KEY))
+                                && drops.stream().anyMatch(drop->drop.getItem().is(Asterion.MINOTAUR_KEY)),
+                        "Cursed Brazier did not drop both encounter keys");
                 var clouds=GasClouds.class.getDeclaredField("CLOUDS");clouds.setAccessible(true);
                 var map=(Map<?,?>)clouds.get(null);
                 check(((List<?>)map.getOrDefault(level,null)) == null || ((List<?>)map.get(level)).isEmpty(),"Dead miniboss left controlled flames behind");
                 boss.discard(); GasClouds.clear();
-                Asterion.LOGGER.info("PASS: Cursed Brazier miniboss health, four fire attacks, boss-bar cleanup and owned-flame cleanup");
+                Asterion.LOGGER.info("PASS: Cursed Brazier attacks, glow lifecycle, both key drops, boss-bar and flame cleanup");
             });
             server.runCommand("execute in asterion:asterion_dimension run tp @a 200 121 200 180 0");
             context.waitTicks(10);

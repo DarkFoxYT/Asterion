@@ -146,6 +146,13 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
         float phaseAge = pass.getOrDefaultGeckolibData(PHASE_AGE, 0F);
         float time = pass.getOrDefaultGeckolibData(TIME, 0F);
 
+        // GeckoLib snapshots can retain visibility/scale changes made by a previous phase.
+        // Restore authored glow geometry every frame before applying the current pose.
+        for (String glowBone : GLOW_BONES) {
+            bones.ifPresent(glowBone, bone -> bone.skipRender(false)
+                    .skipChildrenRender(false).setScale(1F, 1F, 1F));
+        }
+
         bones.ifPresent("full", bone -> {
             if (phase == CursedBrazierEntity.Phase.DORMANT.ordinal()) {
                 bone.setTranslation(bone.getTranslateX(), bone.getTranslateY() - 3.5F,
