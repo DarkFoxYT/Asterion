@@ -1,0 +1,15 @@
+{
+  "objective.asterion.new": "목표",
+  "objective.asterion.enter_catacombs": "지하 묘지에 들어가기",
+  "objective.asterion.enter_catacombs_hint": "미궁 아래로 향하는 길을 찾으세요",
+  "objective.asterion.get_brazier_key": "저주받은 화로의 열쇠 찾기",
+  "objective.asterion.get_brazier_key_hint": "지하 묘지에서 봉인된 방의 열쇠를 찾으세요",
+  "objective.asterion.defeat_brazier": "저주받은 화로 처치하기",
+  "objective.asterion.defeat_brazier_hint": "열쇠를 사용해 화로의 방에 들어가세요",
+  "objective.asterion.reach_arena_doors": "투기장 문에 도달하기",
+  "objective.asterion.reach_arena_doors_hint": "미노타우로스 열쇠를 투기장 입구로 가져가세요",
+  "objective.asterion.defeat_dead_sun": "죽은 태양 처치하기",
+  "objective.asterion.defeat_dead_sun_hint": "투기장에서 살아남아 그 수호자를 쓰러뜨리세요",
+  "objective.asterion.open_omega_lock": "오메가 자물쇠 열기",
+  "objective.asterion.open_omega_lock_hint": "오메가 열쇠로 앞으로 나아갈 길을 여세요"
+}

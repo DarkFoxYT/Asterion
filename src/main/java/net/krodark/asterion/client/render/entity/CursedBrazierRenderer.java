@@ -37,12 +37,6 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
     private static final String[] GLOW_BONES = {
             "topglow", "middleglow", "bottomglow", "centerglow"
     };
-    private static final int[] GLOW_ATTACKS = {
-            CursedBrazierEntity.Attack.FLOOR_JETS.ordinal(),
-            CursedBrazierEntity.Attack.SPIN_TORNADO.ordinal(),
-            CursedBrazierEntity.Attack.CARDINAL_DASH.ordinal(),
-            CursedBrazierEntity.Attack.FIRE_BEAM.ordinal()
-    };
 
     public CursedBrazierRenderer(EntityRendererProvider.Context context) {
         super(context, new GeoModel<>() {
@@ -78,26 +72,20 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
                 return 0xFF55FF72;
             }
         });
-        for (int index = 0; index < GLOW_BONES.length; index++) {
-            addGlowLayer(GLOW_BONES[index], GLOW_ATTACKS[index]);
-        }
+        for (String glowBone : GLOW_BONES) addGlowLayer(glowBone);
         shadowRadius = 2.35F;
     }
 
-    private void addGlowLayer(String boneName, int matchingAttack) {
+    private void addGlowLayer(String boneName) {
         withRenderLayer(new AsterionEmissiveBoneLayer<>(this, boneName, TEXTURE) {
             @Override
             public boolean shouldRenderBone(EntityRenderState state) {
-                return state.getOrDefaultGeckolibData(FLAMES_ACTIVE, false)
-                        && state.getOrDefaultGeckolibData(ATTACK,
-                        CursedBrazierEntity.Attack.NONE.ordinal()) == matchingAttack;
+                return true;
             }
 
             @Override
             protected float surfaceBrightness(EntityRenderState state) {
-                int attack = state.getOrDefaultGeckolibData(ATTACK,
-                        CursedBrazierEntity.Attack.NONE.ordinal());
-                return attack == matchingAttack ? 1F : 0.72F;
+                return 1F;
             }
 
             @Override
@@ -106,15 +94,27 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
             }
 
             @Override
+            protected Identifier amneticEmissionMesh(EntityRenderState state) {
+                return Asterion.id("cursed_brazier/" + boneName);
+            }
+
+            @Override
             protected int emissiveColor(EntityRenderState state) {
-                int attack = state.getOrDefaultGeckolibData(ATTACK,
-                        CursedBrazierEntity.Attack.NONE.ordinal());
-                if (attack != matchingAttack) return 0xFF78FF82;
                 float time = state.getOrDefaultGeckolibData(TIME, 0F);
-                int greenBlue = 54 + Math.round((Mth.sin(time * 0.55F) + 1F) * 18F);
-                return 0xFFFF0000 | greenBlue << 8 | greenBlue;
+                int red = 70 + Math.round((Mth.sin(time * 0.16F) + 1F) * 12F);
+                int alpha = Math.round(glowAlpha(state) * 255F);
+                return alpha << 24 | red << 16 | 0xFF << 8 | 0x72;
             }
         });
+    }
+
+    private static float glowAlpha(EntityRenderState state) {
+        int phase = state.getOrDefaultGeckolibData(
+                PHASE, CursedBrazierEntity.Phase.DORMANT.ordinal());
+        if (phase == CursedBrazierEntity.Phase.DORMANT.ordinal()) return 0F;
+        if (phase != CursedBrazierEntity.Phase.AWAKENING.ordinal()) return 1F;
+        float age = state.getOrDefaultGeckolibData(PHASE_AGE, 0F);
+        return smooth((age - 10F) / 40F);
     }
 
     @Override
@@ -127,12 +127,12 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
         state.addGeckolibData(PHASE_AGE, brazier.phaseAge(partialTick));
         state.addGeckolibData(ATTACK_AGE, brazier.attackAge(partialTick));
         state.addGeckolibData(TIME, brazier.tickCount + partialTick);
-        if (!brazier.flamesActive()) {
+        float alpha = glowAlpha(state);
+        if (alpha <= 0.001F) {
             LedAmneticLight.removeItemGlowLight(brazier);
             return;
         }
-
-        float strength = brazier.shielded() ? 3.2F : 1.8F;
+        float strength = (brazier.shielded() ? 3.2F : 1.8F) * alpha;
         float radius = brazier.shielded() ? 11F : 8F;
         LedAmneticLight.updateItemGlowLight(brazier,
                 brazier.position().add(0, brazier.getBbHeight() * 0.62, 0),
@@ -148,16 +148,11 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
         float phaseAge = pass.getOrDefaultGeckolibData(PHASE_AGE, 0F);
         float time = pass.getOrDefaultGeckolibData(TIME, 0F);
 
-        int selectedGlowAttack = pass.getOrDefaultGeckolibData(
-                ATTACK, CursedBrazierEntity.Attack.NONE.ordinal());
-        boolean flamesActive = pass.getOrDefaultGeckolibData(FLAMES_ACTIVE, false);
-        // Glow geometry is never part of the idle/dormant/cutscene model. Reveal exactly
-        // one assigned bone during its attack; the matching emissive layer draws it again.
-        for (int index = 0; index < GLOW_BONES.length; index++) {
-            boolean visible = flamesActive && selectedGlowAttack == GLOW_ATTACKS[index];
-            bones.ifPresent(GLOW_BONES[index], bone -> bone.skipRender(!visible)
-                    .skipChildrenRender(!visible).setScale(1F, 1F, 1F));
-        }
+        // Keep the cores out of the ordinary opaque model pass. Their dedicated emissive
+        // layers control alpha during awakening and submit the exact same bones to Amnetic.
+        for (String glowBone : GLOW_BONES)
+            bones.ifPresent(glowBone, bone -> bone.skipRender(true)
+                    .skipChildrenRender(false).setScale(1F, 1F, 1F));
 
         bones.ifPresent("full", bone -> {
             if (phase == CursedBrazierEntity.Phase.DORMANT.ordinal()) {

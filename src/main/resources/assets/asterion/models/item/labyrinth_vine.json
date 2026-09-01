@@ -1,4 +1,6 @@
 {
-  "parent":"minecraft:item/generated",
-  "textures":{"layer0":"asterion:block/labyrinth_vine"}
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "asterion:item/vine_item"
+  }
 }

@@ -34,6 +34,8 @@ public final class MinotaurDebugCommands {
                     .then(Commands.literal("pause").executes(c -> control(c.getSource(), "pause")))
                     .then(Commands.literal("auto").executes(c -> control(c.getSource(), "auto")))
                     .then(Commands.literal("status").executes(c -> control(c.getSource(), "status")))
+                    .then(Commands.literal("pillars")
+                        .then(Commands.literal("destroy_all").executes(c -> destroyPillars(c.getSource()))))
                     .then(Commands.literal("stop").executes(c -> control(c.getSource(), "stop"))))));
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             if (server.getTickCount() % 10 != 0) return;
@@ -128,6 +130,20 @@ public final class MinotaurDebugCommands {
         }
         source.sendSuccess(() -> Component.literal("[Minotaur debug] " + (action.equals("stop") ? "Stopped." : session.boss.debugStatus())), false);
         return 1;
+    }
+    private static int destroyPillars(CommandSourceStack source) {
+        if (!source.getLevel().dimension().equals(Asterion.ASTERION_LEVEL)) {
+            source.sendFailure(Component.literal("Arena pillars only exist in the Asterion dimension."));
+            return 0;
+        }
+        int destroyed = net.krodark.asterion.WorldGenerator.destroyAllBossPillars(source.getLevel());
+        if (destroyed == 0) {
+            source.sendFailure(Component.literal("No active arena pillars were found."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("[Minotaur debug] Destroyed " + destroyed
+                + " active arena pillar" + (destroyed == 1 ? "." : "s.")), true);
+        return destroyed;
     }
     private static final class Session {
         final MinotaurEntity boss;

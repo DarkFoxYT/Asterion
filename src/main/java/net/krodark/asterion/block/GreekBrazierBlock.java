@@ -100,6 +100,12 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
                     ? Blocks.WATER.defaultBlockState() : Blocks.AIR.defaultBlockState(),UPDATE_ALL);
         }
     }
+    /** Removes a complete linked brazier without drops, used by authored-room migrations. */
+    public static void removeStructure(Level level,BlockPos center) {
+        BlockState state=level.getBlockState(center);
+        if(state.getBlock() instanceof GreekBrazierBlock)center=root(center,state);
+        removeAll(level,center);
+    }
     public static boolean extinguish(ServerLevel level, BlockPos pos) {
         BlockState state=level.getBlockState(pos);
         if(!(state.getBlock() instanceof GreekBrazierBlock)) return false;

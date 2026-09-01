@@ -17,10 +17,10 @@ public final class MazeWildlife {
         for (var player : level.players()) {
             if (player.isSpectator() || !player.isAlive()) continue;
             boolean sewer = CatacombLayout.contains(player.blockPosition());
+            if (sewer) continue;
             AABB area = player.getBoundingBox().inflate(56);
-            int count = sewer ? level.getEntitiesOfClass(ScarletCentipedeEntity.class, area).size()
-                    : level.getEntitiesOfClass(BombadierBeetleEntity.class, area).size();
-            if (count >= (sewer ? 2 : 6)) continue;
+            int count = level.getEntitiesOfClass(BombadierBeetleEntity.class, area).size();
+            if (count >= 6) continue;
             for (int attempt = 0; attempt < 18; attempt++) {
                 double angle = level.getRandom().nextDouble() * Math.PI * 2, distance = 24 + level.getRandom().nextInt(20);
                 int x = (int)Math.floor(player.getX() + Math.cos(angle) * distance);

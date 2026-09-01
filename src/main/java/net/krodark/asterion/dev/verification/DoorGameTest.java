@@ -34,6 +34,7 @@ public final class DoorGameTest implements FabricClientGameTest {
         try (var world = context.worldBuilder().create()) {
             var server = world.getServer();
             server.runOnServer(mc -> {
+                WorldGenerator.ensureBossArenaReady(mc.getLevel(Asterion.ASTERION_LEVEL));
                 check(WorldGenerator.isBossArenaReady(), "Arena was not completed before the player joined");
                 var maze = mc.getLevel(Asterion.ASTERION_LEVEL);
                 MinotaurArenaEntrances.build(maze);

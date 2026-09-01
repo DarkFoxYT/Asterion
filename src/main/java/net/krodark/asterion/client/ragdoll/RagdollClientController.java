@@ -24,6 +24,7 @@ public final class RagdollClientController {
     private static CameraType cameraBeforeTumble;
     private static boolean thirdPersonLocked;
     private static LivingEntity observedLocalPlayer;
+    private static int ragdollSuppressedUntilTick;
 
     private RagdollClientController() {
     }
@@ -91,6 +92,7 @@ public final class RagdollClientController {
                 recoveryLastPressTick = client.player.tickCount;
                 recoveryPresses++;
                 if (recoveryPresses >= 4 && engine.ragdollElapsedTicks(client.player.getId()) >= 8) {
+                    suppressAutomaticFallRagdoll(40);
                     engine.releaseRagdoll(client.player.getId());
                     resetRecovery();
                     DazeOverlay.hideRagdollRecovery();
@@ -134,6 +136,14 @@ public final class RagdollClientController {
     }
 
     public static void suppressAutomaticFallRagdoll(int ticks) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player != null)
+            ragdollSuppressedUntilTick = Math.max(ragdollSuppressedUntilTick,
+                    client.player.tickCount + Math.max(1, ticks));
+    }
+
+    public static boolean isAutomaticRagdollSuppressed(Minecraft client) {
+        return client.player != null && client.player.tickCount < ragdollSuppressedUntilTick;
     }
 
     private static float axis(long window, int negative, int positive) {
@@ -154,6 +164,19 @@ public final class RagdollClientController {
         }
         if (client.options.getCameraType() != CameraType.THIRD_PERSON_BACK)
             client.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+    }
+
+    /** Enforced from the camera update as well as client ticks so F5 can never win for a render frame. */
+    public static void enforceRagdollCamera(Minecraft client) {
+        if (client.player != null
+                && DismembermentEngine.INSTANCE.isPlayerTumbling(client.player.getId())) {
+            if (!thirdPersonLocked) {
+                cameraBeforeTumble = client.options.getCameraType();
+                thirdPersonLocked = true;
+            }
+            if (client.options.getCameraType() != CameraType.THIRD_PERSON_BACK)
+                client.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+        }
     }
 
     private static void restoreCamera(Minecraft client) {

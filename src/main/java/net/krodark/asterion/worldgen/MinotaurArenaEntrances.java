@@ -19,6 +19,7 @@ public final class MinotaurArenaEntrances {
     public static final java.util.List<Direction> DOORS = java.util.List.of(PLAYER_ENTRANCE);
     public static final int BOSS_ROOM_BACK = 44;
     public static final BlockPos AUTHORED_BOSS_GATE = new BlockPos(0, AuthoredCatacombs.ARENA_FLOOR_Y, -41);
+    public static final BlockPos OMEGA_LOCK_POSITION = AUTHORED_BOSS_GATE.above();
     private MinotaurArenaEntrances() { }
     public static BlockPos door(Direction outward) {
         if (AuthoredCatacombs.enabled())
@@ -63,9 +64,11 @@ public final class MinotaurArenaEntrances {
                 .setValue(DirectionalGateBlock.FACING,Direction.SOUTH);
         for(int row=0;row<6;row++)for(int side=-3;side<=3;side++) {
             BlockPos pos=AUTHORED_BOSS_GATE.offset(side,row,0);
+            if(pos.equals(OMEGA_LOCK_POSITION)&&preserveOmegaOpening(level,pos))continue;
             var next=base.setValue(DirectionalGateBlock.OPEN,row<6-closedRows);
             if(!level.getBlockState(pos).equals(next)) level.setBlock(pos,next,2);
         }
+        ensureOmegaLock(level);
     }
     public static void setGate(ServerLevel level, Direction facing, int closedRows) {
         if (AuthoredCatacombs.enabled()) {
@@ -77,12 +80,15 @@ public final class MinotaurArenaEntrances {
                     .setValue(DirectionalGateBlock.FACING, facing.getOpposite());
             for (int row = 0; row < authoredHeight; row++) for (int side = -3; side <= 3; side++) {
                 BlockPos pos = center.relative(facing.getClockWise(), side).above(row);
+                if(facing==BOSS_ENTRANCE&&pos.equals(OMEGA_LOCK_POSITION)
+                        &&preserveOmegaOpening(level,pos))continue;
                 var state = level.getBlockState(pos);
                 if (!state.is(Asterion.MAZESTEEL_GATE)) state = base;
                 var next = state.setValue(DirectionalGateBlock.OPEN, row < authoredHeight - normalizedClosed);
                 if (!state.equals(next)) level.setBlock(pos, next, 2);
                 else if (!level.getBlockState(pos).is(Asterion.MAZESTEEL_GATE)) level.setBlock(pos, next, 2);
             }
+            if(facing==BOSS_ENTRANCE)ensureOmegaLock(level);
             return;
         }
         var state = Asterion.MAZESTEEL_GATE.defaultBlockState().setValue(DirectionalGateBlock.FACE, AttachFace.FLOOR)
@@ -118,15 +124,29 @@ public final class MinotaurArenaEntrances {
 
     /** Detect entry through the actual doorway plane, never from the player's later location. */
     public static Direction crossedEntrance(Vec3 previous, Vec3 current) {
-        if (previous == null || previous.distanceToSqr(current) > 16 * 16) return null;
         for (Direction facing : java.util.List.of(PLAYER_ENTRANCE)) {
             Vec3 center = Vec3.atBottomCenterOf(door(facing));
             Vec3 outward = facing.getUnitVec3();
-            double before = previous.subtract(center).dot(outward), after = current.subtract(center).dot(outward);
-            if (before < 0 || after >= 0) continue;
-            Vec3 crossing = previous.lerp(current, before / (before - after)).subtract(center);
-            if (Math.abs(crossing.dot(facing.getClockWise().getUnitVec3())) <= 3.5
-                    && crossing.y >= -.25 && crossing.y < 4.5) return facing;
+            Vec3 relative = current.subtract(center);
+            double after = relative.dot(outward);
+            double across = Math.abs(relative.dot(facing.getClockWise().getUnitVec3()));
+            boolean justInside = after < 0 && after >= -8 && across <= 3.5
+                    && relative.y >= -.25 && relative.y < 4.5;
+            if (previous == null || previous.distanceToSqr(current) > 16 * 16) {
+                if (justInside) return facing;
+                continue;
+            }
+            double before = previous.subtract(center).dot(outward);
+            if (before >= 0 && after < 0) {
+                Vec3 crossing = previous.lerp(current, before / (before - after)).subtract(center);
+                if (Math.abs(crossing.dot(facing.getClockWise().getUnitVec3())) <= 3.5
+                        && crossing.y >= -.25 && crossing.y < 4.5) return facing;
+            }
+            // Recover if a lag spike, teleport correction, or a reload caused the
+            // exact plane-crossing sample to be missed. The keyed door check still
+            // authorizes the encounter, and this narrow strip cannot trigger from
+            // merely arriving elsewhere in the arena.
+            if (justInside) return facing;
         }
         return null;
     }
@@ -138,6 +158,10 @@ public final class MinotaurArenaEntrances {
             for(Direction facing:java.util.List.of(PLAYER_ENTRANCE,BOSS_ENTRANCE))
                 if(!(level.getBlockEntity(door(facing)) instanceof net.krodark.asterion.block.MinotaurDoorBlockEntity))
                     MinotaurDoorBlock.place(level,door(facing),facing);
+            // Template saves remember their last editor state. Before the encounter
+            // exists, both authored portcullises must always be raised, including in
+            // worlds generated by an older build.
+            setGates(level,0,null);
             return;
         }
         int heightLimit = Math.max(8, (int)Math.ceil(2.75 * net.krodark.asterion.AsterionConfig.INSTANCE.minotaurScale) + 2);
@@ -168,7 +192,6 @@ public final class MinotaurArenaEntrances {
             }
             MinotaurDoorBlock.place(level, door(outward), outward);
         }
-        buildCatacombApproach(level);
         setGates(level, 0, null);
     }
     public static void buildForChunk(ServerLevel level,net.minecraft.world.level.ChunkPos chunk) {
@@ -176,28 +199,24 @@ public final class MinotaurArenaEntrances {
         // Both doors and the north portcullis are authored in arena parts 8 and 2.
         // The sole jigsaw at z=61 connects to the nearest saved door at z=40;
         // never stamp a second synthetic entrance over that connector.
+        if(chunk.equals(net.minecraft.world.level.ChunkPos.containing(gate(PLAYER_ENTRANCE))))
+            setGate(level,PLAYER_ENTRANCE,0);
         if(chunk.z()==-3)setAuthoredBossGate(level,0);
     }
 
-    private static void buildCatacombApproach(ServerLevel level) {
-        // Both routes meet OUTSIDE the single keyed player door: surface stair and undercroft stair.
-        // A single approach reaches the root hub. No extra hole is cut in the arena shell.
-        for (int x = 3; x <= CatacombLayout.ROOT_CENTER + 2; x++) {
-            int floor = Math.max(CatacombLayout.FLOOR_Y, FLOOR_Y + 3 - x);
-            for (int z = 40; z <= 44; z++) {
-                level.setBlock(new BlockPos(x, floor, z), Asterion.ANCIENT_STONE.defaultBlockState(), 2);
-                for (int y = 1; y <= 5; y++)
-                    level.setBlock(new BlockPos(x, floor + y, z), y == 5 || z == 40 || z == 44
-                            ? Asterion.ANCIENT_BRICKS.defaultBlockState() : Blocks.AIR.defaultBlockState(), 2);
-            }
-        }
-        for (int z = 42; z <= CatacombLayout.ROOT_CENTER; z++) {
-            for (int x = CatacombLayout.ROOT_CENTER - 1; x <= CatacombLayout.ROOT_CENTER + 1; x++) {
-                level.setBlock(new BlockPos(x, CatacombLayout.FLOOR_Y, z), Asterion.ANCIENT_STONE.defaultBlockState(), 2);
-                for (int y = 1; y <= 4; y++)
-                    level.setBlock(new BlockPos(x, CatacombLayout.FLOOR_Y + y, z), Blocks.AIR.defaultBlockState(), 2);
-            }
-        }
+    /** Repairs saves where the encounter's gate normalization replaced the authored keyhole. */
+    private static void ensureOmegaLock(ServerLevel level) {
+        if(level.getBlockState(OMEGA_LOCK_POSITION).is(Asterion.MAZESTEEL_GATE))
+            level.setBlock(OMEGA_LOCK_POSITION,Asterion.OMEGA_LOCK.defaultBlockState()
+                    .setValue(net.krodark.asterion.block.OmegaLockBlock.FACING,Direction.NORTH),3);
+    }
+
+    private static boolean preserveOmegaOpening(ServerLevel level,BlockPos pos) {
+        var state=level.getBlockState(pos);
+        if(state.isAir())return true;
+        if(!state.is(Asterion.OMEGA_LOCK))return false;
+        if(state.getValue(net.krodark.asterion.block.OmegaLockBlock.UNLOCKED))level.removeBlock(pos,false);
+        return true;
     }
 
     public static void breakLintel(ServerLevel level, Direction facing, double bossHeight) {

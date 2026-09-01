@@ -1,0 +1,15 @@
+{
+  "objective.asterion.new": "ZIEL",
+  "objective.asterion.enter_catacombs": "Betritt die Katakomben",
+  "objective.asterion.enter_catacombs_hint": "Finde einen Weg unter das Labyrinth",
+  "objective.asterion.get_brazier_key": "Finde den Schlüssel der Verfluchten Feuerschale",
+  "objective.asterion.get_brazier_key_hint": "Durchsuche die Katakomben nach dem Schlüssel zur versiegelten Kammer",
+  "objective.asterion.defeat_brazier": "Besiege die Verfluchte Feuerschale",
+  "objective.asterion.defeat_brazier_hint": "Benutze den Schlüssel, um ihre Kammer zu betreten",
+  "objective.asterion.reach_arena_doors": "Erreiche die Arenatore",
+  "objective.asterion.reach_arena_doors_hint": "Bringe den Minotaurenschlüssel zum Eingang der Arena",
+  "objective.asterion.defeat_dead_sun": "Besiege die Tote Sonne",
+  "objective.asterion.defeat_dead_sun_hint": "Überlebe die Arena und bezwinge ihren Champion",
+  "objective.asterion.open_omega_lock": "Öffne das Omega-Schloss",
+  "objective.asterion.open_omega_lock_hint": "Benutze den Omega-Schlüssel, um den Weg zu öffnen"
+}

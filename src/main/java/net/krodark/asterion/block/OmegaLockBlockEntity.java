@@ -56,9 +56,9 @@ public final class OmegaLockBlockEntity extends BlockEntity implements GeoBlockE
             return gate.is(Asterion.MAZESTEEL_GATE) && !gate.getValue(DirectionalGateBlock.OPEN);
         }).mapToInt(BlockPos::getY).min().orElse(Integer.MAX_VALUE);
         if (lowest == Integer.MAX_VALUE) {
-            // The key mechanism rises with the final gate and is consumed completely;
-            // leaving an unlocked block behind produced a floating/invisible lock shell.
-            server.removeBlock(pos, false);
+            // The mechanism leaves with the raised gate. Arena repair preserves the empty
+            // authored keyhole cell, so completion remains stable across future reloads.
+            server.removeBlock(pos,false);
             return;
         }
         int changed = 0;

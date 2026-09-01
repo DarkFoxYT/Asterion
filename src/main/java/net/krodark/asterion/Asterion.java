@@ -188,8 +188,6 @@ public class Asterion implements ModInitializer {
             properties -> new net.minecraft.world.level.block.IronBarsBlock(properties.noOcclusion().sound(SoundType.METAL)));
     public static final Block SLICK_CATACOMB_STONE = registerBlock("slick_catacomb_stone", MapColor.TERRACOTTA_CYAN,
             properties -> new Block(properties.friction(0.985F)));
-    public static final Block SLUICE_LOCK = registerBlock("sluice_lock", MapColor.METAL,
-            net.krodark.asterion.block.SluiceLockBlock::new);
     public static final Block GREEK_BRAZIER = registerBlock("greek_brazier", MapColor.COLOR_GREEN,
             properties -> new net.krodark.asterion.block.GreekBrazierBlock(properties.noOcclusion()
                     .lightLevel(state -> state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT) ? 12 : 0)));
@@ -389,17 +387,12 @@ public class Asterion implements ModInitializer {
             BLUEPRINT_KEY,
             new AntikytheraBlueprintItem(new Item.Properties().setId(BLUEPRINT_KEY).stacksTo(1).rarity(Rarity.RARE))
     );
-    private static final ResourceKey<Item> MINOTAUR_SIGIL_KEY = ResourceKey.create(
-            Registries.ITEM, id("minotaur_sigil"));
     private static final ResourceKey<Item> MINOTAUR_KEY_ID = ResourceKey.create(Registries.ITEM, id("minotaur_key"));
     public static final Item MINOTAUR_KEY = Registry.register(BuiltInRegistries.ITEM, MINOTAUR_KEY_ID,
             new Item(new Item.Properties().setId(MINOTAUR_KEY_ID).stacksTo(1).rarity(Rarity.UNCOMMON)));
     private static final ResourceKey<Item> OMEGA_KEY_ID = ResourceKey.create(Registries.ITEM, id("omega_key"));
     public static final Item OMEGA_KEY = Registry.register(BuiltInRegistries.ITEM, OMEGA_KEY_ID,
             new Item(new Item.Properties().setId(OMEGA_KEY_ID).stacksTo(1).rarity(Rarity.EPIC).fireResistant()));
-    public static final Item MINOTAUR_SIGIL = Registry.register(
-            BuiltInRegistries.ITEM, MINOTAUR_SIGIL_KEY,
-            new Item(new Item.Properties().setId(MINOTAUR_SIGIL_KEY).stacksTo(1).rarity(Rarity.EPIC)));
     private static final ResourceKey<Item> TAINTED_HEART_KEY = ResourceKey.create(
             Registries.ITEM, id("tainted_heart"));
     public static final Item TAINTED_HEART = Registry.register(
@@ -414,9 +407,6 @@ public class Asterion implements ModInitializer {
                             .saturationModifier(0.55F).build())));
     private static final ResourceKey<CreativeModeTab> ITEM_GROUP_KEY = ResourceKey.create(
             Registries.CREATIVE_MODE_TAB, id("asterion"));
-    private static final ResourceKey<Item> GRAPPLING_HOOK_KEY = ResourceKey.create(Registries.ITEM, id("catacomb_grappling_hook"));
-    public static final Item CATACOMB_GRAPPLING_HOOK = Registry.register(BuiltInRegistries.ITEM, GRAPPLING_HOOK_KEY,
-            new CatacombGrapplingHookItem(new Item.Properties().setId(GRAPPLING_HOOK_KEY).stacksTo(1).rarity(Rarity.UNCOMMON)));
     public static final CreativeModeTab ITEM_GROUP = Registry.register(
             BuiltInRegistries.CREATIVE_MODE_TAB,
             ITEM_GROUP_KEY,
@@ -425,17 +415,14 @@ public class Asterion implements ModInitializer {
                     .icon(() -> new ItemStack(ANTIKYTHERA_MECHANISM))
                     .displayItems((parameters, output) -> {
                         output.accept(ANTIKYTHERA_MECHANISM);
-                        output.accept(CATACOMB_GRAPPLING_HOOK);
                         output.accept(net.krodark.asterion.fluid.HeavyWater.BUCKET);
                         output.accept(SLICK_CATACOMB_STONE);
-                        output.accept(SLUICE_LOCK);
                         output.accept(GREEK_BRAZIER);
                         output.accept(GREEK_FIRE_LANTERN);
                         output.accept(RED_FIRE_LANTERN);
                         output.accept(LAMENTER);
                         output.accept(PRESSURE_BUTTON);
                         output.accept(ANTIKYTHERA_BLUEPRINT);
-                        output.accept(MINOTAUR_SIGIL);
                         output.accept(SCARLET_CENTIPEDE_SPAWN_EGG);
                         output.accept(TAINTED_HEART);
                         output.accept(TAINTED_HEART_EATABLE);
@@ -622,6 +609,7 @@ public class Asterion implements ModInitializer {
         net.krodark.asterion.event.CatacombFloodState.registerCommands();
         DynamicBlockLights.initialize();
         PortalCommands.register();
+        net.krodark.asterion.command.CatacombLocateCommands.register();
         net.krodark.asterion.command.MinotaurDebugCommands.register();
         FabricDefaultAttributeRegistry.register(MINOTAUR, MinotaurEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(BOMBARDIER_BEETLE, BombadierBeetleEntity.createAttributes());
@@ -677,22 +665,22 @@ public class Asterion implements ModInitializer {
                 MobCategory.CREATURE, BOMBARDIER_BEETLE, 12, 1, 3);
         BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID),
                 MobCategory.CREATURE, SCARLET_CENTIPEDE, 5, 1, 1);
-        // The custom Minotaur arena is beetle territory. Reject centipedes from every
-        // spawn path there (natural biome spawning, eggs and commands) without changing
-        // their ecology in the rest of the catacombs.
+        // Crypts and boss rooms are beetle territory. Reject centipedes from every
+        // spawn path there, including natural biome spawning, eggs and commands.
         ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {
             if (entity instanceof ScarletCentipedeEntity
                     && level.dimension().equals(ASTERION_LEVEL)
-                    && Math.abs((long)entity.getBlockX()) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS
-                    && Math.abs((long)entity.getBlockZ()) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS)
+                    && (!WorldGenerator.isAncientBiomeAt(entity.getX(),entity.getZ())
+                    || net.krodark.asterion.worldgen.CatacombLayout.contains(entity.blockPosition())
+                    || net.krodark.asterion.worldgen.AuthoredCatacombs.insideCursedBrazierRoom(entity.blockPosition())
+                    || Math.abs((long)entity.getBlockX()) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS
+                    && Math.abs((long)entity.getBlockZ()) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS))
                 entity.discard();
         });
         ServerTickEvents.END_SERVER_TICK.register(WorldGenerator::tickServer);
-        ServerTickEvents.END_SERVER_TICK.register(CatacombGrapplingHookItem::tick);
         ServerTickEvents.END_SERVER_TICK.register(net.krodark.asterion.fluid.HeavyWaterFatigue::tick);
         ServerLifecycleEvents.SERVER_STOPPED.register(net.krodark.asterion.fluid.HeavyWaterFatigue::clear);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
-            CatacombGrapplingHookItem.clear();
             net.krodark.asterion.worldgen.CatacombArena.clear();
         });
         ServerTickEvents.END_SERVER_TICK.register(ResolveSystem::tick);

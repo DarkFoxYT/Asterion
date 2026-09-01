@@ -68,6 +68,10 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
             unlockedWithKey = true;
             unlocked = true;
             if (!player.isCreative()) held.shrink(1);
+            if(player instanceof net.minecraft.server.level.ServerPlayer serverPlayer
+                    &&worldPosition.equals(net.krodark.asterion.worldgen.MinotaurArenaEntrances.door(
+                    net.krodark.asterion.worldgen.MinotaurArenaEntrances.PLAYER_ENTRANCE)))
+                net.krodark.asterion.WorldGenerator.requestBossArenaStart(serverPlayer);
             level.playSound(null, worldPosition, SoundEvents.IRON_TRAPDOOR_OPEN, SoundSource.BLOCKS, 1F, .65F);
             sync();
         }

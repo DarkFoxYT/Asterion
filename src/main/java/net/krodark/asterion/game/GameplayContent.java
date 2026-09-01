@@ -21,11 +21,9 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 public final class GameplayContent {
     public static final Block SPEWER = block("spewer", p -> new TimedTrapBlock(true, p));
     public static final Block FIRE_BURST_TRAP = block("fire_burst_trap", p -> new TimedTrapBlock(false, p));
-    public static final Block BEAR_TRAP = block("bear_trap", p -> new BearTrapBlock(p.noCollision().noOcclusion()));
     public static final BlockEntityType<TimedTrapBlockEntity> TRAP_ENTITY = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE,
             Asterion.id("timed_trap"), FabricBlockEntityTypeBuilder.create(TimedTrapBlockEntity::new, SPEWER, FIRE_BURST_TRAP).build());
     public static final Item FLAMETHROWER = item("flamethrower", p -> new FlamethrowerItem(p.durability(512)));
-    public static final Item GREEK_FIRE_SWORD = item("greek_fire_sword", GreekFireSwordItem::new);
     private static final ResourceKey<EntityType<?>> CURSED_KEY = ResourceKey.create(Registries.ENTITY_TYPE, Asterion.id("cursed_brazier"));
     public static final EntityType<CursedBrazierEntity> CURSED_BRAZIER = Registry.register(BuiltInRegistries.ENTITY_TYPE, CURSED_KEY,
             EntityType.Builder.of(CursedBrazierEntity::new, MobCategory.MONSTER)
@@ -51,8 +49,8 @@ public final class GameplayContent {
     public static void initialize() {
         FabricDefaultAttributeRegistry.register(CURSED_BRAZIER, CursedBrazierEntity.createAttributes());
         CreativeModeTabEvents.modifyOutputEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Asterion.id("asterion"))).register(output -> {
-            output.accept(SPEWER); output.accept(FIRE_BURST_TRAP); output.accept(BEAR_TRAP);
-            output.accept(FLAMETHROWER); output.accept(GREEK_FIRE_SWORD); output.accept(CURSED_BRAZIER_EGG);
+            output.accept(SPEWER); output.accept(FIRE_BURST_TRAP);
+            output.accept(FLAMETHROWER); output.accept(CURSED_BRAZIER_EGG);
             output.accept(CURSED_BRAZIER_KEY); output.accept(RUNE_BEETLE_EGG);
         });
         PayloadTypeRegistry.serverboundPlay().register(IgniteGasPayload.TYPE, IgniteGasPayload.CODEC);

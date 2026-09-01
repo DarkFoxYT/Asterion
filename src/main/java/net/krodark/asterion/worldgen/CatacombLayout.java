@@ -15,11 +15,21 @@ public final class CatacombLayout {
     public static final int ROOF_Y = AuthoredCatacombs.BASE_Y + 30;
     public static final int ROOT_X = 4, ROOT_Z = 4;
     public static final int ROOT_CENTER = ROOT_X * TILE + TILE / 2;
+    public static final int BRAZIER_ROOM_MIN_X = 10, BRAZIER_ROOM_MAX_X = 12;
+    public static final int BRAZIER_ROOM_MIN_Z = 4, BRAZIER_ROOM_MAX_Z = 6;
+    public static final int BRAZIER_APPROACH_Z = 5;
+    /** Guaranteed surface crossing on the direct branch between the root and boss room. */
+    public static final int BRAZIER_APPROACH_CROSSING_X = 7;
 
     private CatacombLayout() { }
 
     public static boolean reserved(int tx, int tz) {
-        return tx >= -4 && tx <= 3 && tz >= -4 && tz <= 3;
+        return tx >= -4 && tx <= 3 && tz >= -4 && tz <= 3 || brazierRoom(tx, tz);
+    }
+
+    public static boolean brazierRoom(int tx, int tz) {
+        return tx >= BRAZIER_ROOM_MIN_X && tx <= BRAZIER_ROOM_MAX_X
+                && tz >= BRAZIER_ROOM_MIN_Z && tz <= BRAZIER_ROOM_MAX_Z;
     }
 
     public static int roofAt(int x, int z) {
@@ -64,6 +74,21 @@ public final class CatacombLayout {
     /** A bounded local calculation: every occupied cell has a route to the arena root. */
     public static Direction parent(long seed, int x, int z) {
         if (reserved(x,z) || x==ROOT_X && z==ROOT_Z) return null;
+        // The arena jigsaw feeds the first authored module at (0, 4). Keep a short
+        // authored-module branch from there to the root instead of a hand-built hall.
+        if (z == ROOT_Z && x >= 0 && x < ROOT_X) return Direction.EAST;
+        // A short guaranteed branch connects the authored boss room to the root.
+        if (x == ROOT_X && z == BRAZIER_APPROACH_Z) return Direction.NORTH;
+        if (z == BRAZIER_APPROACH_Z && x > ROOT_X && x < BRAZIER_ROOM_MIN_X) return Direction.WEST;
+        // Route the existing infinite tree around the reserved 3x3 footprint. These
+        // border cells keep descendants connected without opening accidental doors
+        // through the authored room walls.
+        if (x == BRAZIER_ROOM_MAX_X + 1 && z >= BRAZIER_ROOM_MIN_Z && z <= BRAZIER_ROOM_MAX_Z)
+            return z <= BRAZIER_APPROACH_Z ? Direction.NORTH : Direction.SOUTH;
+        if (z == BRAZIER_ROOM_MIN_Z - 1 && x > ROOT_X && x <= BRAZIER_ROOM_MAX_X + 1)
+            return Direction.WEST;
+        if (z == BRAZIER_ROOM_MAX_Z + 1 && x > ROOT_X && x <= BRAZIER_ROOM_MAX_X + 1)
+            return Direction.WEST;
         Direction spine=backboneParent(seed,x,z);
         if (spine!=null) return spine;
         if (Math.floorMod(x-ROOT_X,SPACING)==0 || Math.floorMod(z-ROOT_Z,SPACING)==0) return null;
@@ -80,11 +105,15 @@ public final class CatacombLayout {
         return null;
     }
     public static boolean occupied(long seed,int x,int z) {
-        return !reserved(x,z) && (x==ROOT_X && z==ROOT_Z || parent(seed,x,z)!=null);
+        return !reserved(x,z) && !brazierRoom(x,z)
+                && (x==ROOT_X && z==ROOT_Z || parent(seed,x,z)!=null);
     }
 
     public static boolean connected(long seed, int tx, int tz, Direction side) {
         int nx = tx + side.getStepX(), nz = tz + side.getStepZ();
+        if (tx == BRAZIER_ROOM_MIN_X - 1 && tz == BRAZIER_APPROACH_Z && side == Direction.EAST) return true;
+        if (tx == BRAZIER_ROOM_MIN_X && tz == BRAZIER_APPROACH_Z && side == Direction.WEST) return true;
+        if (brazierRoom(nx, nz)) return false;
         return !reserved(tx, tz) && !reserved(nx, nz)
                 && (parent(seed, tx, tz) == side || parent(seed, nx, nz) == side.getOpposite());
     }

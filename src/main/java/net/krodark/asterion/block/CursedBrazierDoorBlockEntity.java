@@ -105,7 +105,7 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
         return AABB.encapsulatingFullBlocks(a, b).inflate(.35D, 0, .35D);
     }
     public static void tick(Level level, BlockPos pos, BlockState state, CursedBrazierDoorBlockEntity door) {
-        if (level.isClientSide()) return;
+        if (level.isClientSide() || !CursedBrazierDoorBlock.isRoot(state)) return;
         if (door.moving) {
             long elapsed = level.getGameTime() - door.motionStart;
             if (level instanceof net.minecraft.server.level.ServerLevel server && elapsed % 6 == 0) {

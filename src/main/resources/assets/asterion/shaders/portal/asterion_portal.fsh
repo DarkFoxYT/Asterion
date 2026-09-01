@@ -1,6 +1,7 @@
 #version 330 core
 
 uniform sampler2D PortalSampler;
+uniform sampler2D OverworldSampler;
 
 in vec2 vUv;
 flat in vec4 vPortal;
@@ -14,7 +15,13 @@ void main() {
     vec2 centered = vUv - 0.5;
     float squareDistance = max(abs(centered.x), abs(centered.y)) * 2.0;
     float haloLayer = step(0.5, vEffect.w);
+    float exitPortal = step(0.5, vPortal.z);
     if (haloLayer > 0.5) {
+        // The Overworld portal is a clean destination window, not a rift with a second ring.
+        if (exitPortal > 0.5) {
+            FragColor = vec4(0.0);
+            return;
+        }
         // Square dust wake using the same oxblood/dirty-ochre palette as the volume shader.
         // This layer performs no texture or relief samples.
         float ring = smoothstep(0.62, 0.76, squareDistance)
@@ -22,11 +29,28 @@ void main() {
         float gridPhase = (centered.x + centered.y) * 18.0 - vEffect.z * 0.38;
         float cadence = 0.72 + 0.28 * sin(gridPhase);
         float breath = 0.87 + 0.13 * sin(vEffect.z * 0.67);
-        float exitPortal = step(0.5, vPortal.z);
         vec3 dustTint = mix(vec3(0.2607004, 0.07607989, 0.07607989), vec3(0.08, 0.42, 1.0), exitPortal);
         vec3 fogTint = mix(vec3(0.15294118, 0.1364837, 0.049780853), vec3(0.025, 0.16, 0.46), exitPortal);
         vec3 haloColor = mix(fogTint, dustTint, 0.58 + cadence * 0.22) * (1.18 + cadence);
         FragColor = vec4(haloColor, ring * cadence * breath * vPortal.w * 0.58);
+        return;
+    }
+    if (exitPortal > 0.5) {
+        // The physical doorway is 3:5. Crop the square vista horizontally instead of
+        // stretching it into the tall mesh, leaving extra room for camera parallax.
+        vec2 uv = vec2(0.5 + centered.x * 0.60, vUv.y);
+        vec2 stepUv = view * 0.036 / 10.0;
+        float depth = 0.0;
+        for (int i = 0; i < 10; ++i) {
+            vec3 probe = texture(OverworldSampler, clamp(uv, 0.002, 0.998)).rgb;
+            float height = dot(probe, vec3(0.2126, 0.7152, 0.0722));
+            depth += 0.1;
+            if (depth >= 1.0 - height) break;
+            uv -= stepUv;
+        }
+        vec3 color = texture(OverworldSampler, clamp(uv, 0.002, 0.998)).rgb;
+        float rectangularEdge = 1.0 - smoothstep(0.92, 1.0, squareDistance);
+        FragColor = vec4(color, rectangularEdge * vPortal.w);
         return;
     }
     float perspective = 1.0 + dot(centered, normalize(view + vec2(0.0001))) * viewAmount * 0.12;
@@ -68,7 +92,6 @@ void main() {
     float innerVignette = mix(0.72 + 0.28 * (1.0 - squareDistance), 1.0, sampledHeight);
     float pitRim = smoothstep(0.18, 0.28, squareDistance)
             * (1.0 - smoothstep(0.34, 0.47, squareDistance));
-    float exitPortal = step(0.5, vPortal.z);
     vec3 dustTint = mix(vec3(0.2607004, 0.07607989, 0.07607989), vec3(0.08, 0.42, 1.0), exitPortal);
     vec3 fogTint = mix(vec3(0.15294118, 0.1364837, 0.049780853), vec3(0.025, 0.16, 0.46), exitPortal);
     vec3 riftColor = mix(color * innerVignette,

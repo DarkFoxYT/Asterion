@@ -1,0 +1,15 @@
+{
+  "objective.asterion.new": "ЦЕЛЬ",
+  "objective.asterion.enter_catacombs": "Войдите в катакомбы",
+  "objective.asterion.enter_catacombs_hint": "Найдите путь под лабиринтом",
+  "objective.asterion.get_brazier_key": "Найдите ключ Проклятой жаровни",
+  "objective.asterion.get_brazier_key_hint": "Отыщите в катакомбах ключ от запечатанного зала",
+  "objective.asterion.defeat_brazier": "Победите Проклятую жаровню",
+  "objective.asterion.defeat_brazier_hint": "Используйте ключ, чтобы войти в её зал",
+  "objective.asterion.reach_arena_doors": "Доберитесь до ворот арены",
+  "objective.asterion.reach_arena_doors_hint": "Принесите ключ Минотавра ко входу на арену",
+  "objective.asterion.defeat_dead_sun": "Победите Мёртвое Солнце",
+  "objective.asterion.defeat_dead_sun_hint": "Выживите на арене и сокрушите её чемпиона",
+  "objective.asterion.open_omega_lock": "Откройте замок Омега",
+  "objective.asterion.open_omega_lock_hint": "Используйте ключ Омега, чтобы открыть путь"
+}

@@ -28,6 +28,7 @@ public final class AsterionPortalRenderer {
     private static final Identifier HALO_ID = Asterion.id("gateway/portal_halo");
     private static final Identifier SHADER = Asterion.id("portal/asterion_portal");
     private static final Identifier PORTAL_IMAGE = Asterion.id("textures/portal/asterion_portal_square.png");
+    private static final Identifier OVERWORLD_IMAGE = Asterion.id("textures/portal/overworld_portal_square.png");
     private static final InstanceLayout LAYOUT = InstanceLayout.builder()
             .mat4(1).vec4(5).vec4(6).build();
     private static final float CORE_RADIUS = 1.48F;
@@ -127,6 +128,7 @@ public final class AsterionPortalRenderer {
                 .geometry(planeMesh())
                 .shaders(SHADER, SHADER)
                 .extraSampler("PortalSampler", PORTAL_IMAGE, 1, true)
+                .extraSampler("OverworldSampler", OVERWORLD_IMAGE, 2, true)
                 .phase(InstancePhase.WORLD_LAST)
                 .renderState(RenderState.builder()
                         .depthTest(true)
@@ -182,12 +184,15 @@ public final class AsterionPortalRenderer {
                             2.5F*openingScale*layerScale,1F);
                     else transform.rotateX((float)Math.PI/2F).scale(radius * openingScale * layerScale,
                             radius * openingScale * layerScale, 1.0F);
-                    double cameraHeight = Math.max(1.25D, Math.abs(camera.y - cy));
-                    float viewX = (float) Mth.clamp(dx / cameraHeight, -1.6D, 1.6D);
-                    float viewZ = (float) Mth.clamp(dz / cameraHeight, -1.6D, 1.6D);
+                    double viewDepth = vertical ? Math.max(1.25D, Math.abs(camera.z - cz))
+                            : Math.max(1.25D, Math.abs(camera.y - cy));
+                    float viewX = (float) Mth.clamp(dx / viewDepth, -1.6D, 1.6D);
+                    float viewY = vertical
+                            ? (float) Mth.clamp((camera.y - cy) / viewDepth, -1.6D, 1.6D)
+                            : (float) Mth.clamp(dz / viewDepth, -1.6D, 1.6D);
                     float flowTime = (now % 240_000_000_000L) * 0.000000001F;
                     portal.set((float) cx, (float) cy, vertical ? 1.0F : 0.0F, reveal);
-                    effect.set(viewX, viewZ, flowTime, halo ? 1.0F : 0.0F);
+                    effect.set(viewX, viewY, flowTime, halo ? 1.0F : 0.0F);
                     batch.add(submission);
                 })
                 .register(id);

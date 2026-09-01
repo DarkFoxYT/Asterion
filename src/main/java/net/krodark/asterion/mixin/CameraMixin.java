@@ -45,6 +45,12 @@ public abstract class CameraMixin {
     @Shadow public abstract float xRot();
     @Shadow public abstract float yRot();
 
+    @Inject(method = "update", at = @At("HEAD"))
+    private void asterion$lockRagdollPerspective(DeltaTracker tracker, CallbackInfo ci) {
+        net.krodark.asterion.client.ragdoll.RagdollClientController
+                .enforceRagdollCamera(Minecraft.getInstance());
+    }
+
     @Inject(method = "getFov", at = @At("RETURN"), cancellable = true)
     private void asterion$flamethrowerFovPulse(CallbackInfoReturnable<Float> result) {
         Minecraft minecraft = Minecraft.getInstance();

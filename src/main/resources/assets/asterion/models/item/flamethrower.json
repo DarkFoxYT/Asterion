@@ -1,157 +1,108 @@
 {
-  "parent": "minecraft:block/block",
-  "textures": {
-    "metal": "asterion:block/mazesteel_block",
-    "particle": "asterion:block/mazesteel_block"
-  },
-  "elements": [
-    {
-      "from": [
-        4,
-        4,
-        2
-      ],
-      "to": [
-        12,
-        11,
-        12
-      ],
-      "faces": {
-        "north": {
-          "texture": "#metal"
-        },
-        "south": {
-          "texture": "#metal"
-        },
-        "east": {
-          "texture": "#metal"
-        },
-        "west": {
-          "texture": "#metal"
-        },
-        "up": {
-          "texture": "#metal"
-        },
-        "down": {
-          "texture": "#metal"
-        }
-      }
-    },
-    {
-      "from": [
-        6,
-        6,
-        12
-      ],
-      "to": [
-        10,
-        9,
-        16
-      ],
-      "faces": {
-        "north": {
-          "texture": "#metal"
-        },
-        "south": {
-          "texture": "#metal"
-        },
-        "east": {
-          "texture": "#metal"
-        },
-        "west": {
-          "texture": "#metal"
-        },
-        "up": {
-          "texture": "#metal"
-        },
-        "down": {
-          "texture": "#metal"
-        }
-      }
-    },
-    {
-      "from": [
-        6,
-        0,
-        4
-      ],
-      "to": [
-        10,
-        4,
-        7
-      ],
-      "faces": {
-        "north": {
-          "texture": "#metal"
-        },
-        "south": {
-          "texture": "#metal"
-        },
-        "east": {
-          "texture": "#metal"
-        },
-        "west": {
-          "texture": "#metal"
-        },
-        "up": {
-          "texture": "#metal"
-        },
-        "down": {
-          "texture": "#metal"
-        }
-      }
-    }
+  "credit": "Made with Blockbench",
+  "parent": "builtin/entity",
+  "texture_size": [
+    64,
+    64
   ],
   "display": {
     "thirdperson_righthand": {
-      "rotation": [
-        0,
-        90,
-        0
-      ],
       "translation": [
         0,
-        2,
-        0
+        -2.5,
+        -3.5
       ],
       "scale": [
-        0.65,
-        0.65,
-        0.65
+        0.75,
+        0.75,
+        0.75
+      ]
+    },
+    "thirdperson_lefthand": {
+      "translation": [
+        0,
+        -2.5,
+        -3.5
+      ],
+      "scale": [
+        0.75,
+        0.75,
+        0.75
       ]
     },
     "firstperson_righthand": {
       "rotation": [
-        0,
-        90,
-        0
+        22.5300000000002,
+        34.070000000000164,
+        4.070000000000164
       ],
       "translation": [
-        1,
-        1,
-        0
+        0.25,
+        -2.25,
+        -3.5
       ],
       "scale": [
-        0.65,
-        0.65,
-        0.65
+        0.6,
+        0.6,
+        0.6
+      ]
+    },
+    "firstperson_lefthand": {
+      "rotation": [
+        22.420000000000073,
+        -23.329999999999927,
+        3.2600000000002183
+      ],
+      "translation": [
+        1.25,
+        -2.25,
+        -3.25
+      ],
+      "scale": [
+        0.6,
+        0.6,
+        0.6
+      ]
+    },
+    "ground": {
+      "translation": [
+        0,
+        -1.25,
+        -0.25
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
       ]
     },
     "gui": {
       "rotation": [
-        25,
-        -45,
+        30,
+        -135,
         0
       ],
       "translation": [
-        0,
-        0,
+        1.5,
+        -6.5,
         0
       ],
       "scale": [
-        0.8,
-        0.8,
-        0.8
+        0.925,
+        0.925,
+        0.925
+      ]
+    },
+    "fixed": {
+      "rotation": [
+        0,
+        -90,
+        0
+      ],
+      "translation": [
+        2,
+        -6,
+        0
       ]
     }
   }

@@ -28,8 +28,7 @@ public final class OmegaTreasure {
         }
         for (int i = 0; i < 18; i++) {
             double angle = i * Math.PI * 2 / 18;
-            ItemStack stack = i == 0 ? new ItemStack(net.krodark.asterion.game.GameplayContent.GREEK_FIRE_SWORD)
-                    : i < 4 ? new ItemStack(Items.DIAMOND, 2) : i < 8 ? new ItemStack(Items.EMERALD, 4)
+            ItemStack stack = i < 4 ? new ItemStack(Items.DIAMOND, 2) : i < 8 ? new ItemStack(Items.EMERALD, 4)
                     : new ItemStack(Items.GOLD_INGOT, 6);
             var item = new ItemEntity(level, Math.cos(angle) * 2, 37.5, Math.sin(angle) * 2, stack);
             item.setDeltaMovement(Math.cos(angle) * .1, .2, Math.sin(angle) * .1);

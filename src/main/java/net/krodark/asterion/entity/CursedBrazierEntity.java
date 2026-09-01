@@ -55,7 +55,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
     private static final RawAnimation SHOOT_BEAM_ANIMATION =
             RawAnimation.begin().thenPlayAndHold("shoot_beam");
     private static final int TARGET_RANGE = 30;
-    private static final int AWAKEN_RANGE = 17;
+    private static final int AWAKEN_RANGE = 23;
     public static final int AWAKENING_DURATION = 64;
     private static final int ENCOUNTER_DOOR_RANGE = 32;
     private static final int SHIELD_BRAZIER_COUNT = 7;
@@ -204,10 +204,10 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
             return;
         }
 
-        if (tickCount % 4 == 0) {
+        if (tickCount % 8 == 0) {
             level.sendParticles(Asterion.BRAZIER_FIRE,
                     getX(), getY() + getBbHeight() * 0.78, getZ(),
-                    3, 0.4, 0.1, 0.4, 0.01);
+                    2, 0.4, 0.1, 0.4, 0.01);
         }
 
         ServerPlayer target = attack == Attack.NONE ? tacticalTarget(level) : lockedTarget(level);
@@ -414,18 +414,18 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
     private void tickFloorJets(ServerLevel level, ServerPlayer target) {
         int tick = ++attackTicks;
         if (tick == 1) prepareFloorJets(level, target);
-        if (tick <= 38 && tick % 3 == 0) {
+        if (tick <= 38 && tick % 5 == 0) {
             for (Vec3 position : jetPositions) {
                 level.sendParticles(new DustParticleOptions(0xFF170D, 1.15F),
                         position.x, position.y + 0.035, position.z,
-                        14, 0.48, 0.015, 0.48, 0.005);
+                        6, 0.48, 0.015, 0.48, 0.005);
                 level.sendParticles(Asterion.GREEK_FIRE_SOOT, position.x, position.y, position.z,
-                        6, 0.35, 0.03, 0.35, 0.01);
+                        2, 0.35, 0.03, 0.35, 0.01);
             }
         }
         if (tick >= 40 && tick <= 70 && tick % 6 == 0) {
             for (Vec3 position : jetPositions) {
-                for (int burst = 0; burst < 4; burst++) {
+                for (int burst = 0; burst < 2; burst++) {
                     spawnFlame(level, position, new Vec3(0, 0.22 + burst * 0.055, 0));
                 }
                 damagePlayers(level, new AABB(position.subtract(0.9, 0.2, 0.9),
@@ -440,10 +440,10 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         Vec3 desired = directionOrForward(target.getEyePosition().subtract(mouth()));
         aim = directionOrForward(aim.lerp(desired, tick < 35 ? 0.09 : 0.025));
         face(aim);
-        if (tick < 35 && tick % 2 == 0) {
+        if (tick < 35 && tick % 4 == 0) {
             Vec3 mouth = mouth();
             level.sendParticles(Asterion.GREEK_FIRE_SOOT, mouth.x, mouth.y, mouth.z,
-                    5, 0.18, 0.12, 0.18, 0.015);
+                    2, 0.18, 0.12, 0.18, 0.015);
         }
         if (tick >= 35 && tick <= 82) traceFireBeam(level, tick);
         if (tick > 92) finishAttack(5);
@@ -451,11 +451,11 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
 
     private void traceFireBeam(ServerLevel level, int tick) {
         Vec3 origin = mouth();
-        for (double distance = 1; distance <= 26; distance += 0.85) {
+        for (double distance = 1; distance <= 26; distance += 1.2) {
             Vec3 point = origin.add(aim.scale(distance));
             BlockPos block = BlockPos.containing(point);
             if (!level.getBlockState(block).getCollisionShape(level, block).isEmpty()) return;
-            if ((tick + (int) (distance * 2)) % 3 == 0) spawnFlame(level, point, aim.scale(0.08));
+            if ((tick + (int) (distance * 2)) % 4 == 0) spawnFlame(level, point, aim.scale(0.08));
             damagePlayers(level, new AABB(point.subtract(0.7, 0.7, 0.7),
                     point.add(0.7, 0.7, 0.7)), 8F, 18, false);
         }
@@ -474,10 +474,10 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         }
 
         if (tick < 70) {
-            if (tick % 3 == 0) {
+            if (tick % 5 == 0) {
                 level.sendParticles(Asterion.GREEK_FIRE_SOOT,
                         getX(), getY() + getBbHeight() * 0.55, getZ(),
-                        8, 0.7, 0.25, 0.7, 0.02);
+                        3, 0.7, 0.25, 0.7, 0.02);
             }
             return;
         }
@@ -487,8 +487,8 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         double speed = 2.0 + 14.0 * eased;
         setYRot((float) (getYRot() + speed));
         yBodyRot = getYRot();
-        int streams = progress < 0.35 ? 2 : progress < 0.7 ? 3 : 4;
-        for (int stream = 0; stream < streams; stream++) {
+        int streams = progress < 0.5 ? 2 : 3;
+        for (int stream = 0; tick % 2 == 0 && stream < streams; stream++) {
             double angle = Math.toRadians(getYRot()) + stream * Math.PI * 2 / streams;
             Vec3 direction = new Vec3(Math.cos(angle), 0.015 + progress * 0.025, Math.sin(angle));
             spawnFlame(level, mouth().add(direction.scale(1.1)),
@@ -517,8 +517,8 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
             if (canOccupy(level, next)) setPos(next);
             else attackTicks += DASH_MOVE_TICKS - legTick;
             GasClouds.emit(level, position().add(0, 0.45, 0), aim.scale(-0.045), getUUID());
-            level.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 0.45, getZ(),
-                    3, 0.3, 0.18, 0.3, 0.01);
+            if (tick % 2 == 0) level.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 0.45, getZ(),
+                    2, 0.3, 0.18, 0.3, 0.01);
             damagePlayers(level, getBoundingBox().inflate(0.65, 0.3, 0.65),
                     10F, 16, true);
         }
@@ -696,12 +696,12 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
     private void updateShield(ServerLevel level) {
         if (!shielded()) return;
         setPos(lockedPosition);
-        if (tickCount % 2 == 0) {
+        if (tickCount % 4 == 0) {
             double centerY = getY() + getBbHeight() * 0.52;
             level.sendParticles(ParticleTypes.ELECTRIC_SPARK, getX(), centerY, getZ(),
-                    9, 2.2, 1.7, 2.2, 0.035);
+                    4, 2.2, 1.7, 2.2, 0.035);
             level.sendParticles(Asterion.GREEK_FIRE, getX(), centerY, getZ(),
-                    7, 2.0, 1.55, 2.0, 0.018);
+                    3, 2.0, 1.55, 2.0, 0.018);
         }
         int stillLit = 0;
         for (BlockPos brazier : shieldBraziers) {
@@ -709,14 +709,14 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
             if (!(state.getBlock() instanceof GreekBrazierBlock)
                     || !state.getValue(BlockStateProperties.LIT)) continue;
             stillLit++;
-            if (tickCount % 2 == 0) {
+            if (tickCount % 6 == 0) {
                 double x = brazier.getX() + 0.5;
                 double y = brazier.getY() + 1.35;
                 double z = brazier.getZ() + 0.5;
                 level.sendParticles(ParticleTypes.ELECTRIC_SPARK, x, y, z,
-                        5, 1.35, 1.15, 1.35, 0.03);
+                        2, 1.35, 1.15, 1.35, 0.03);
                 level.sendParticles(Asterion.GREEK_FIRE, x, y, z,
-                        4, 1.15, 0.9, 1.15, 0.015);
+                        2, 1.15, 0.9, 1.15, 0.015);
             }
         }
         if (stillLit == 0) {
@@ -726,7 +726,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
             gridStepTaken = true;
             level.sendParticles(ParticleTypes.CLOUD,
                     getX(), getY() + getBbHeight() * 0.52, getZ(),
-                    35, 2.1, 1.5, 2.1, 0.08);
+                    16, 2.1, 1.5, 2.1, 0.08);
             playSound(SoundEvents.FIRE_EXTINGUISH, 1.6F, 0.7F);
         }
     }
@@ -742,7 +742,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         if (!shielded()) return super.hurtServer(level, source, amount);
         level.sendParticles(ParticleTypes.ELECTRIC_SPARK,
                 getX(), getY() + getBbHeight() * 0.52, getZ(),
-                14, 2.1, 1.6, 2.1, 0.04);
+                6, 2.1, 1.6, 2.1, 0.04);
         return false;
     }
 

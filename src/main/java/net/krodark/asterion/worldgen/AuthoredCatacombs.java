@@ -20,6 +20,13 @@ public final class AuthoredCatacombs {
     public static final int BASE_Y = 19, SIZE = 19, CONNECTOR_Y = BASE_Y + 5;
     public static final int ARENA_BASE_Y = 1, ARENA_FLOOR_Y = 6, ARENA_RADIUS = 61;
     private static final int ARENA_CHUNK_MARKER_Y = 0;
+    private static final int ARENA_CHUNK_REVISION = 7;
+    public static final BlockPos BRAZIER_ROOM_ORIGIN = new BlockPos(
+            CatacombLayout.BRAZIER_ROOM_MIN_X * SIZE, BASE_Y,
+            CatacombLayout.BRAZIER_ROOM_MIN_Z * SIZE + 3);
+    private static final int BRAZIER_PART_SIZE = 25;
+    private static final int BRAZIER_ROOM_SIZE = BRAZIER_PART_SIZE * 2;
+    private static final int BRAZIER_ROOM_MARKER_Y = BASE_Y - 1;
     public static final List<String> TEMPLATES = List.of("corridor_cross_01", "corridor_cross_02",
             "corridor_deadend_01", "corridor_deadend_02", "corridor_straight_01", "corridor_straight_02",
             "corridor_straight_03", "corridor_straight_04", "corridor_t_01", "corridor_t_02",
@@ -38,8 +45,8 @@ public final class AuthoredCatacombs {
         int mask = 0;
         for (Direction side : Direction.Plane.HORIZONTAL)
             if (CatacombLayout.connected(seed, tx, tz, side)) mask |= bit(side);
-        // The root also accepts the arena approach from the west.
-        if (tx == CatacombLayout.ROOT_X && tz == CatacombLayout.ROOT_Z) mask |= 8;
+        // The first module accepts the arena's south-facing jigsaw connector.
+        if (tx == 0 && tz == CatacombLayout.ROOT_Z) mask |= 1;
         return mask;
     }
     public static Module module(long seed, int tx, int tz) {
@@ -64,8 +71,10 @@ public final class AuthoredCatacombs {
             name = (hash & 1) == 0 ? "corridor_cross_01" : "corridor_cross_02"; nativeMask = 15;
         }
         // Crossings are the authored surface-entry modules, not generic puzzle rooms.
+        boolean bossApproachCrossing=tx==CatacombLayout.BRAZIER_APPROACH_CROSSING_X
+                &&tz==CatacombLayout.BRAZIER_APPROACH_Z;
         if ((tx == CatacombLayout.ROOT_X && tz == CatacombLayout.ROOT_Z)
-                || degree >= 3 && Math.floorMod(hash, 24) == 0) {
+                ||bossApproachCrossing||degree>=3&&Math.floorMod(hash,8)==0) {
             name = (hash & 1) == 0 ? "crossing_01" : "crossing_02"; nativeMask = 15;
         }
         Rotation[] rotations = Rotation.values();
@@ -111,6 +120,94 @@ public final class AuthoredCatacombs {
                     }
                 }
             }
+        placeCursedBrazierRoom(level, world, chunk, clip, seed);
+    }
+
+    private static void placeCursedBrazierRoom(ServerLevel level,
+                                               net.minecraft.world.level.ServerLevelAccessor world,
+                                               ChunkPos chunk, BoundingBox clip, long seed) {
+        BoundingBox room = new BoundingBox(BRAZIER_ROOM_ORIGIN.getX(), BASE_Y,
+                BRAZIER_ROOM_ORIGIN.getZ(), BRAZIER_ROOM_ORIGIN.getX() + BRAZIER_ROOM_SIZE - 1,
+                BASE_Y + 30, BRAZIER_ROOM_ORIGIN.getZ() + BRAZIER_ROOM_SIZE - 1);
+        if (!room.intersects(clip)) return;
+
+        for (int part = 0; part < 4; part++) {
+            int partNumber = part + 1;
+            int partX = part == 1 || part == 3 ? BRAZIER_PART_SIZE : 0;
+            int partZ = part >= 2 ? BRAZIER_PART_SIZE : 0;
+            BlockPos origin = BRAZIER_ROOM_ORIGIN.offset(partX, 0, partZ);
+            var template = level.getStructureManager().get(Asterion.id(
+                            "catacombs/cursed_brazier_room_part" + partNumber))
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Missing Cursed Brazier room part " + partNumber));
+            if (!template.getSize().equals(new net.minecraft.core.Vec3i(25, 31, 25))) {
+                throw new IllegalStateException("Cursed Brazier room parts must be 25x31x25");
+            }
+            var placement = settings(clip);
+            template.placeInWorld(world, origin, origin, placement,
+                    RandomSource.create(seed ^ origin.asLong()), 18);
+        }
+        world.setBlock(roomChunkMarker(chunk), roomMarkerState(), 2);
+    }
+
+    private static BlockPos roomChunkMarker(ChunkPos chunk) {
+        return new BlockPos(chunk.getMinBlockX(), BRAZIER_ROOM_MARKER_Y, chunk.getMinBlockZ());
+    }
+
+    private static net.minecraft.world.level.block.state.BlockState roomMarkerState() {
+        return Blocks.LIGHT.defaultBlockState().setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 1);
+    }
+
+    public static boolean cursedBrazierRoomChunkReady(ServerLevel level,ChunkPos chunk) {
+        return level.getBlockState(roomChunkMarker(chunk)).equals(roomMarkerState());
+    }
+
+    public static void placeCursedBrazierRoomChunk(ServerLevel level,ChunkPos chunk) {
+        BoundingBox clip=new BoundingBox(chunk.getMinBlockX(),BASE_Y,chunk.getMinBlockZ(),
+                chunk.getMaxBlockX(),BASE_Y+30,chunk.getMaxBlockZ());
+        long seed=MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
+        placeCursedBrazierRoom(level,level,chunk,clip,seed);
+    }
+
+    public static boolean insideCursedBrazierRoom(BlockPos pos) {
+        return pos.getX() >= BRAZIER_ROOM_ORIGIN.getX() && pos.getX() < BRAZIER_ROOM_ORIGIN.getX() + BRAZIER_ROOM_SIZE
+                && pos.getZ() >= BRAZIER_ROOM_ORIGIN.getZ() && pos.getZ() < BRAZIER_ROOM_ORIGIN.getZ() + BRAZIER_ROOM_SIZE
+                && pos.getY() >= BASE_Y && pos.getY() <= BASE_Y + 30;
+    }
+
+    /** Waits for every intersecting chunk before consuming the boss marker. */
+    public static void tickCursedBrazierRoom(ServerLevel level) {
+        if (level.getGameTime() % 20 != 0 || level.players().stream().noneMatch(player ->
+                player.distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(
+                        BRAZIER_ROOM_ORIGIN.offset(BRAZIER_PART_SIZE, 4, BRAZIER_PART_SIZE))) < 112 * 112)) return;
+        int minChunkX = BRAZIER_ROOM_ORIGIN.getX() >> 4;
+        int maxChunkX = (BRAZIER_ROOM_ORIGIN.getX() + BRAZIER_ROOM_SIZE - 1) >> 4;
+        int minChunkZ = BRAZIER_ROOM_ORIGIN.getZ() >> 4;
+        int maxChunkZ = (BRAZIER_ROOM_ORIGIN.getZ() + BRAZIER_ROOM_SIZE - 1) >> 4;
+        for (int chunkX=minChunkX;chunkX<=maxChunkX;chunkX++) for(int chunkZ=minChunkZ;chunkZ<=maxChunkZ;chunkZ++) {
+            if (!level.getChunkSource().hasChunk(chunkX,chunkZ)) {
+                ZoneRunePlacement.enqueueCursedBrazierRoom(level);
+                return;
+            }
+            ChunkPos chunk=new ChunkPos(chunkX,chunkZ);
+            if (!cursedBrazierRoomChunkReady(level,chunk)) {
+                ZoneRunePlacement.enqueueCursedBrazierRoom(level);
+                return;
+            }
+        }
+        BlockPos marker=BRAZIER_ROOM_ORIGIN.offset(BRAZIER_PART_SIZE,4,BRAZIER_PART_SIZE);
+        if (!level.getBlockState(marker).is(Blocks.RED_WOOL)) return;
+        level.setBlock(marker,Blocks.AIR.defaultBlockState(),2);
+        var roomBounds=net.minecraft.world.phys.AABB.encapsulatingFullBlocks(BRAZIER_ROOM_ORIGIN,
+                BRAZIER_ROOM_ORIGIN.offset(BRAZIER_ROOM_SIZE-1,30,BRAZIER_ROOM_SIZE-1));
+        if(!level.getEntitiesOfClass(net.krodark.asterion.entity.CursedBrazierEntity.class,
+                roomBounds,net.minecraft.world.entity.Entity::isAlive).isEmpty())return;
+        var boss=net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER.create(
+                level,net.minecraft.world.entity.EntitySpawnReason.STRUCTURE);
+        if(boss==null)return;
+        boss.setPos(marker.getX()+.5D,marker.getY(),marker.getZ()+.5D);
+        boss.setYRot(180F);boss.setYHeadRot(180F);
+        level.addFreshEntity(boss);
     }
     private static void markTemplateRunes(net.minecraft.world.level.ServerLevelAccessor world,StructureTemplate template,BlockPos origin,
                                           StructurePlaceSettings placement,BoundingBox clip) {
@@ -150,6 +247,10 @@ public final class AuthoredCatacombs {
             // saved tags and initialize surviving rune roots after the chunk is placed.
             if (state.getBlock() instanceof net.krodark.asterion.block.RuneBlock)
                 return new StructureTemplate.StructureBlockInfo(transformed.pos(), state, null);
+            if (state.is(Asterion.CURSED_BRAZIER_DOOR)) {
+                var closed=state.setValue(net.krodark.asterion.block.CursedBrazierDoorBlock.OPEN,false);
+                return new StructureTemplate.StructureBlockInfo(transformed.pos(),closed,null);
+            }
             if (!state.is(Asterion.BARREL_DOOR)) return transformed;
             // Open doors save a second 3x4 collision wing. Drop that moved copy and
             // retain the original plane below as the closed door.
@@ -231,8 +332,28 @@ public final class AuthoredCatacombs {
         }
     }
     public static void placeArena(ServerLevel level) {
-        // Arena chunks install themselves when their FULL chunk callback runs. Forcing
-        // even the center chunk from SERVER_STARTED can wait on the same chunk future.
+        // SERVER_STARTED cannot synchronously request its own chunk futures. Queue the
+        // complete authored footprint and let the normal server tick install a small
+        // number of FULL chunks at a time before the encounter reports itself ready.
+        ZoneRunePlacement.enqueueArena(level);
+    }
+
+    public static boolean arenaComplete(ServerLevel level) {
+        for (ChunkPos pos : ZoneRunePlacement.arenaChunks()) {
+            LevelChunk chunk = level.getChunkSource().getChunkNow(pos.x(), pos.z());
+            if (chunk == null || !chunk.getBlockState(arenaMarker(pos)).equals(arenaRevisionMarker()))
+                return false;
+        }
+        return true;
+    }
+
+    private static BlockPos arenaMarker(ChunkPos pos) {
+        return new BlockPos(pos.getMinBlockX(), ARENA_CHUNK_MARKER_Y, pos.getMinBlockZ());
+    }
+
+    private static net.minecraft.world.level.block.state.BlockState arenaRevisionMarker() {
+        return Blocks.LIGHT.defaultBlockState().setValue(
+                net.minecraft.world.level.block.LightBlock.LEVEL, ARENA_CHUNK_REVISION);
     }
     public static void ensureArenaPillars(ServerLevel level) {
         for(BlockPos root:ARENA_PILLAR_ROOTS) {
@@ -241,26 +362,30 @@ public final class AuthoredCatacombs {
                     (pos,part)->level.setBlock(pos,part,18),root,
                     net.krodark.asterion.block.PillarBlock.MODEL_HEIGHT);
         }
+        // Arena parts 4 and 6 contain the only two intended Greek-fire braziers.
+        // Remove fixtures created by the retired four-direction procedural layout so
+        // existing saves converge to the authored structure instead of keeping extras.
         for(Direction direction:Direction.Plane.HORIZONTAL) {
-            BlockPos brazier=CatacombArena.brazier(direction);
-            if(!level.getBlockState(brazier).is(Asterion.GREEK_BRAZIER))
-                net.krodark.asterion.block.GreekBrazierBlock.placeStructure(
-                        (pos,state)->level.setBlock(pos,state,18),brazier);
+            net.krodark.asterion.block.GreekBrazierBlock.removeStructure(
+                    level,CatacombArena.brazier(direction));
         }
+        CatacombArena.invalidateBrazierScan(level);
     }
     public static void placeArenaChunk(ServerLevel level,LevelChunk chunk) {
         ChunkPos cp=chunk.getPos();
         boolean arena=cp.x()>=-4&&cp.x()<=3&&cp.z()>=-4&&cp.z()<=3;
-        boolean approach=cp.getMaxBlockX()>=-1&&cp.getMinBlockX()<=CatacombLayout.ROOT_CENTER
-                && cp.getMaxBlockZ()>=62&&cp.getMinBlockZ()<=CatacombLayout.ROOT_CENTER+1;
-        if(!arena&&!approach)return;
-        BlockPos marker=new BlockPos(cp.getMinBlockX(),ARENA_CHUNK_MARKER_Y,cp.getMinBlockZ());
-        var revisionMarker=Blocks.LIGHT.defaultBlockState().setValue(
-                net.minecraft.world.level.block.LightBlock.LEVEL,2);
+        boolean approach=cp.getMaxBlockX()>=-2&&cp.getMinBlockX()<=11
+                && cp.getMaxBlockZ()>=62&&cp.getMinBlockZ()<=76;
+        boolean retiredApproach=cp.getMaxBlockX()>=-2&&cp.getMinBlockX()<=CatacombLayout.ROOT_CENTER
+                &&cp.getMaxBlockZ()>=62&&cp.getMinBlockZ()<=CatacombLayout.ROOT_CENTER+2;
+        if(!arena&&!approach&&!retiredApproach)return;
+        BlockPos marker=arenaMarker(cp);
+        var revisionMarker=arenaRevisionMarker();
         // LIGHT is the current invisible revision marker. Previous arena revisions used
         // BARRIER and STRUCTURE_VOID, so every affected chunk is rebuilt once as one
         // coherent copy of the nine authored templates instead of retaining mixed parts.
         if(chunk.getBlockState(marker).equals(revisionMarker))return;
+        if(retiredApproach)sealRetiredApproach(level,chunk);
         BoundingBox chunkBounds=new BoundingBox(cp.getMinBlockX(),ARENA_BASE_Y,cp.getMinBlockZ(),
                 cp.getMaxBlockX(),ARENA_BASE_Y+47,cp.getMaxBlockZ());
         if(arena)clearOldArenaChunk(chunk,chunkBounds);
@@ -278,6 +403,7 @@ public final class AuthoredCatacombs {
             placeArenaPart(level,template,origin,clip,part);
         }
         placeArenaApproach(level,chunk);
+        if(retiredApproach&&!arena)place(level,cp);
         markGeneratedRunes(chunk,chunkBounds);
         net.krodark.asterion.WorldGenerator.registerAuthoredArenaPillars(level,chunk);
         configureArenaLoot(level,chunk);
@@ -287,6 +413,19 @@ public final class AuthoredCatacombs {
         chunk.setBlockState(marker,revisionMarker,0);
         MazeNbtStructures.markCopperClean(chunk);
         chunk.markUnsaved();
+        net.krodark.asterion.WorldGenerator.arenaChunkPlaced(level);
+    }
+
+    private static void sealRetiredApproach(ServerLevel level, LevelChunk chunk) {
+        ChunkPos cp=chunk.getPos();
+        for(int x=cp.getMinBlockX();x<=cp.getMaxBlockX();x++)for(int z=cp.getMinBlockZ();z<=cp.getMaxBlockZ();z++) {
+            boolean oldVertical=Math.abs(x)<=1&&z>=77&&z<=CatacombLayout.ROOT_CENTER+1;
+            boolean oldHorizontal=x>=-1&&x<=CatacombLayout.ROOT_CENTER-9
+                    &&Math.abs(z-CatacombLayout.ROOT_CENTER)<=1;
+            if(!oldVertical&&!oldHorizontal)continue;
+            for(int y=CONNECTOR_Y;y<CONNECTOR_Y+4;y++)
+                level.setBlock(new BlockPos(x,y,z),Asterion.ANCIENT_BRICKS.defaultBlockState(),18);
+        }
     }
     private static void clearOldArenaChunk(LevelChunk chunk,BoundingBox bounds) {
         // A template's air is meaningful. Clear the complete authored volume first so no
@@ -365,12 +504,19 @@ public final class AuthoredCatacombs {
     private static void placeArenaApproach(ServerLevel level,LevelChunk chunk) {
         ChunkPos cp=chunk.getPos();
         for(int x=cp.getMinBlockX();x<=cp.getMaxBlockX();x++)for(int z=cp.getMinBlockZ();z<=cp.getMaxBlockZ();z++) {
-            boolean vertical=Math.abs(x)<=1&&z>=62&&z<=CatacombLayout.ROOT_CENTER+1;
-            boolean horizontal=x>=-1&&x<=CatacombLayout.ROOT_CENTER-9
-                    && Math.abs(z-CatacombLayout.ROOT_CENTER)<=1;
-            if((!vertical&&!horizontal)||(Math.abs(x)<=ARENA_RADIUS&&Math.abs(z)<=ARENA_RADIUS))continue;
-            level.setBlock(new BlockPos(x,CONNECTOR_Y-1,z),Asterion.ANCIENT_BRICKS.defaultBlockState(),18);
-            for(int y=0;y<4;y++)level.setBlock(new BlockPos(x,CONNECTOR_Y+y,z),Blocks.AIR.defaultBlockState(),18);
+            // The arena template owns the lobby, descending stair and keyed door. Begin
+            // outside its south-facing jigsaw and join the first 19x19 authored module.
+            if(z<ARENA_RADIUS+1||z>76)continue;
+            int center=Math.round((z-(ARENA_RADIUS+1))*9F/(76-(ARENA_RADIUS+1)));
+            boolean core=Math.abs(x-center)<=1;
+            boolean wall=Math.abs(x-center)==2;
+            if(!core&&!wall)continue;
+
+            int floor=CONNECTOR_Y-1;
+            level.setBlock(new BlockPos(x,floor,z),Asterion.ANCIENT_BRICKS.defaultBlockState(),18);
+            for(int y=1;y<=4;y++)level.setBlock(new BlockPos(x,floor+y,z),
+                    core?Blocks.AIR.defaultBlockState():Asterion.ANCIENT_BRICKS.defaultBlockState(),18);
+            level.setBlock(new BlockPos(x,floor+5,z),Asterion.ANCIENT_BRICKS.defaultBlockState(),18);
         }
     }
 }

@@ -1,0 +1,15 @@
+{
+  "objective.asterion.new": "OBJETIVO",
+  "objective.asterion.enter_catacombs": "Entra en las catacumbas",
+  "objective.asterion.enter_catacombs_hint": "Encuentra un camino bajo el laberinto",
+  "objective.asterion.get_brazier_key": "Encuentra la llave del Brasero Maldito",
+  "objective.asterion.get_brazier_key_hint": "Busca en las catacumbas la llave de la cámara sellada",
+  "objective.asterion.defeat_brazier": "Derrota al Brasero Maldito",
+  "objective.asterion.defeat_brazier_hint": "Usa la llave para entrar en su cámara",
+  "objective.asterion.reach_arena_doors": "Llega a las puertas de la arena",
+  "objective.asterion.reach_arena_doors_hint": "Lleva la llave del Minotauro a la entrada de la arena",
+  "objective.asterion.defeat_dead_sun": "Derrota al Sol Muerto",
+  "objective.asterion.defeat_dead_sun_hint": "Sobrevive a la arena y acaba con su campeón",
+  "objective.asterion.open_omega_lock": "Abre la cerradura Omega",
+  "objective.asterion.open_omega_lock_hint": "Usa la llave Omega para abrir el camino"
+}

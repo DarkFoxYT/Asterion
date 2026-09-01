@@ -7,8 +7,7 @@
     "asterion:mazesteel_chain",
     "asterion:mazesteel_gate",
     "asterion:lamenter",
-    "asterion:winch",
-    "asterion:sluice_lock"
+    "asterion:winch"
   ],
   "replace": false
 }

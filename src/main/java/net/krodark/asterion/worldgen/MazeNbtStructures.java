@@ -484,7 +484,7 @@ public final class MazeNbtStructures {
         private static boolean isActivated(ServerLevel level, BlockPos checkpoint) {
             for (BlockPos pos : BlockPos.betweenClosed(checkpoint.offset(-10, -4, -10), checkpoint.offset(10, 6, 10)))
                 if (level.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4) != null
-                        && level.getBlockState(pos).getBlock() instanceof net.krodark.asterion.block.SanctuaryBlock
+                        && level.getBlockState(pos).is(net.krodark.asterion.block.RespawnObelisks.OBELISK)
                         && level.getBlockState(pos).getValue(net.krodark.asterion.block.SanctuaryBlock.CHARGE) > 0) return true;
             return false;
         }

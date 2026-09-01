@@ -25,15 +25,17 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                 for(int cx=-1;cx<=5;cx++)for(int cz=3;cz<=5;cz++)
                     AuthoredCatacombs.placeArenaChunk(level,level.getChunk(cx,cz));
                 check(WorldGenerator.isBossArenaReady(),"Arena not ready");
-                check(level.getBlockState(new BlockPos(0,6,0)).is(Asterion.ANCIENT_MOSSY_BRICKS),"Authored arena center was overwritten");
-                check(level.getBlockState(new BlockPos(0,7,0)).isAir(),"Arena center obstructed");
+                BlockPos centerFloor = new BlockPos(0, AuthoredCatacombs.ARENA_FLOOR_Y - 1, 0);
+                check(!level.getBlockState(centerFloor).getCollisionShape(level, centerFloor).isEmpty(),
+                        "Authored arena center floor was not generated");
+                check(level.getBlockState(centerFloor.above()).isAir(), "Arena center obstructed");
                 for(int x=-1;x<=1;x++)for(int y=6;y<=10;y++)
                     check(!level.getBlockState(new BlockPos(x,y,-60)).is(Blocks.CYAN_WOOL),
                             "Arena exit portal marker remained as cyan wool");
                 check(level.getBlockEntity(MinotaurArenaEntrances.door(net.minecraft.core.Direction.SOUTH)) instanceof net.krodark.asterion.block.MinotaurDoorBlockEntity,"Single keyed arena entrance missing");
                 check(MinotaurArenaEntrances.DOORS.size()==1,"Extra arena entrance");
-                check(WorldGenerator.activeBossBraziers(level)==0,"Generated braziers overwrote the authored arena");
-                check(WorldGenerator.bossPillarsRemaining()==0,"Generated pillars were added to the authored arena");
+                check(WorldGenerator.activeBossBraziers(level)>0,"Authored arena braziers were not generated");
+                check(WorldGenerator.bossPillarsRemaining()>0,"Authored arena pillars were not registered");
                 int closedDoorPieces=0;
                 for(int x=-61;x<=61;x++)for(int z=-61;z<=61;z++)for(int y=1;y<=48;y++) {
                     var state=level.getBlockState(new BlockPos(x,y,z));
@@ -44,15 +46,22 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                                 "Authored arena barrel door was not placed closed");
                     }
                 }
-                for (int x=-42;x<=42;x++) for (int z=-42;z<=42;z++) for (int y=7;y<=34;y++) {
-                    var state=level.getBlockState(new BlockPos(x,y,z));
-                    check(!state.is(Asterion.PILLAR) && !state.is(Asterion.GREEK_BRAZIER) && !state.is(Asterion.LAMENTER),
-                            "Procedural fixture added inside the supplied arena at "+x+","+y+","+z);
-                }
                 level.getChunkAt(new BlockPos(CatacombLayout.ROOT_CENTER,49,CatacombLayout.ROOT_CENTER));
                 check(CatacombEntrances.checkpoint(level,new BlockPos(CatacombLayout.ROOT_CENTER,24,CatacombLayout.ROOT_CENTER))!=null,"Authored crossing lost its safe checkpoint");
                 for(int cx=-4;cx<=3;cx++)for(int cz=-4;cz<=3;cz++)
                     check(level.getBlockState(new BlockPos(cx*16,0,cz*16)).is(Blocks.LIGHT),"Missing arena reload marker");
+                BlockPos playerDoor=MinotaurArenaEntrances.door(MinotaurArenaEntrances.PLAYER_ENTRANCE);
+                for(int z=playerDoor.getZ()+1;z<=AuthoredCatacombs.ARENA_RADIUS;z++) {
+                    int floor=Math.min(AuthoredCatacombs.CONNECTOR_Y-1,playerDoor.getY()-1+z-(playerDoor.getZ()+1));
+                    BlockPos step=new BlockPos(0,floor,z);
+                    check(!level.getBlockState(step).getCollisionShape(level,step).isEmpty(),"Missing arena descent step at "+step);
+                    clear(level,step.above());
+                    clear(level,step.above(2));
+                    if(z>playerDoor.getZ()+1) {
+                        int previous=Math.min(AuthoredCatacombs.CONNECTOR_Y-1,playerDoor.getY()-1+z-1-(playerDoor.getZ()+1));
+                        check(floor-previous<=1,"Arena descent is too steep at z="+z);
+                    }
+                }
                 for(int z=62;z<=CatacombLayout.ROOT_CENTER;z++) clear(level,new BlockPos(0,AuthoredCatacombs.CONNECTOR_Y+1,z));
                 for(int x=0;x<=CatacombLayout.ROOT_CENTER-10;x++) clear(level,new BlockPos(x,AuthoredCatacombs.CONNECTOR_Y+1,CatacombLayout.ROOT_CENTER));
                 long seed=MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
@@ -102,7 +111,7 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                 var boss=net.krodark.asterion.entity.MinotaurEntity.activateCenterBoss(level,player,null,net.minecraft.core.Direction.SOUTH);
                 check(boss!=null && boss.getY()==AuthoredCatacombs.ARENA_FLOOR_Y+1,"Boss did not spawn on authored floor");
                 BossArenaEncounter.begin(level,player,boss,net.minecraft.core.Direction.SOUTH);
-                check(player.getY()==AuthoredCatacombs.ARENA_FLOOR_Y+1,"Party entry used old arena elevation");
+                check(player.getY()==AuthoredCatacombs.ARENA_FLOOR_Y,"Party entry used old arena elevation");
                 check(level.noCollision(player),"Party entry placed player in masonry");
                 BossArenaEncounter.finish(level);
                 boss.discard();

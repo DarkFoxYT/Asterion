@@ -3,8 +3,10 @@ package net.krodark.asterion.client;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
-import net.krodark.asterion.WorldGenerator;
 import net.krodark.asterion.client.ragdoll.DismembermentEngine;
+import net.krodark.asterion.game.GameplayContent;
+import net.krodark.asterion.worldgen.CatacombLayout;
+import net.krodark.asterion.worldgen.MinotaurArenaEntrances;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
@@ -12,17 +14,32 @@ import net.minecraft.util.Mth;
 
 public final class MazeObjectiveOverlay {
     private static final Component INTRO = Component.translatable("objective.asterion.new");
-    private static final Component REACH_CENTER = Component.translatable("objective.asterion.reach_center");
-    private static final Component REACH_HINT = Component.translatable("objective.asterion.reach_center_hint");
-    private static final Component PIT_OBJECTIVE = Component.translatable("objective.asterion.jump_pit");
-    private static final Component PIT_HINT = Component.translatable("objective.asterion.jump_pit_hint");
     private static boolean armed;
     private static boolean sawTumble;
     private static boolean visible;
     private static int waitTicks;
     private static int visibleTicks;
     private static int completionTicks;
-    private static boolean pitObjective;
+    private static Stage stage = Stage.ENTER_CATACOMBS;
+    private static boolean sawBrazierKey;
+    private static boolean sawMinotaurKey;
+    private static boolean sawOmegaKey;
+
+    private enum Stage {
+        ENTER_CATACOMBS("enter_catacombs"),
+        GET_BRAZIER_KEY("get_brazier_key"),
+        DEFEAT_BRAZIER("defeat_brazier"),
+        REACH_ARENA_DOORS("reach_arena_doors"),
+        DEFEAT_DEAD_SUN("defeat_dead_sun"),
+        OPEN_OMEGA_LOCK("open_omega_lock");
+
+        private final Component objective;
+        private final Component hint;
+        Stage(String key) {
+            objective = Component.translatable("objective.asterion." + key);
+            hint = Component.translatable("objective.asterion." + key + "_hint");
+        }
+    }
 
     private MazeObjectiveOverlay() { }
 
@@ -37,7 +54,7 @@ public final class MazeObjectiveOverlay {
         waitTicks = 0;
         visibleTicks = 0;
         completionTicks = 0;
-        pitObjective = false;
+        resetProgress();
     }
 
     public static void armAfterBossWipe() {
@@ -47,7 +64,7 @@ public final class MazeObjectiveOverlay {
         waitTicks = 0;
         visibleTicks = 0;
         completionTicks = 0;
-        pitObjective = false;
+        resetProgress();
     }
 
     public static void tick(Minecraft client) {
@@ -67,14 +84,30 @@ public final class MazeObjectiveOverlay {
         }
         if (!visible) return;
         visibleTicks++;
-        if (!pitObjective && WorldGenerator.hasEnteredCenterPerimeter(client.player.position())) {
-            pitObjective = true;
-            visibleTicks = 0;
+        sawBrazierKey |= client.player.getInventory().contains(new net.minecraft.world.item.ItemStack(GameplayContent.CURSED_BRAZIER_KEY));
+        sawMinotaurKey |= client.player.getInventory().contains(new net.minecraft.world.item.ItemStack(Asterion.MINOTAUR_KEY));
+        sawOmegaKey |= client.player.getInventory().contains(new net.minecraft.world.item.ItemStack(Asterion.OMEGA_KEY));
+
+        boolean complete = switch (stage) {
+            case ENTER_CATACOMBS -> CatacombLayout.contains(client.player.blockPosition());
+            case GET_BRAZIER_KEY -> sawBrazierKey;
+            case DEFEAT_BRAZIER -> sawMinotaurKey || sawOmegaKey;
+            case REACH_ARENA_DOORS -> client.player.position().distanceToSqr(
+                    MinotaurArenaEntrances.door(MinotaurArenaEntrances.PLAYER_ENTRANCE).getCenter()) <= 24.0D * 24.0D;
+            case DEFEAT_DEAD_SUN -> sawOmegaKey;
+            case OPEN_OMEGA_LOCK -> sawOmegaKey && !client.player.getInventory().contains(
+                    new net.minecraft.world.item.ItemStack(Asterion.OMEGA_KEY));
+        };
+        if (!complete) {
             completionTicks = 0;
+        } else if (++completionTicks >= 18) {
+            completionTicks = 0;
+            if (stage == Stage.OPEN_OMEGA_LOCK) visible = false;
+            else {
+                stage = Stage.values()[stage.ordinal() + 1];
+                visibleTicks = 0;
+            }
         }
-        if (pitObjective && WorldGenerator.hasReachedMazeCenter(client.player.position())) {
-            if (++completionTicks >= 18) visible = false;
-        } else completionTicks = 0;
     }
 
     private static void render(GuiGraphicsExtractor graphics, net.minecraft.client.DeltaTracker tracker) {
@@ -84,8 +117,8 @@ public final class MazeObjectiveOverlay {
         float appear = smootherstep(Mth.clamp(renderTicks / 14.0F, 0.0F, 1.0F));
         float completionFade = 1.0F - smootherstep(Mth.clamp(completionTicks / 18.0F, 0.0F, 1.0F));
         int alpha = Math.round(appear * completionFade * 245.0F);
-        Component objective = pitObjective ? PIT_OBJECTIVE : REACH_CENTER;
-        Component hint = pitObjective ? PIT_HINT : REACH_HINT;
+        Component objective = stage.objective;
+        Component hint = stage.hint;
         int contentWidth = Math.max(client.font.width(objective), client.font.width(hint));
         float settle = smootherstep(Mth.clamp((renderTicks - 34.0F) / 48.0F, 0.0F, 1.0F));
         int panelWidth = Math.max(184, contentWidth + 26);
@@ -96,7 +129,7 @@ public final class MazeObjectiveOverlay {
         graphics.fill(left, panelTop, left + panelWidth, panelTop + panelHeight,
                 Math.round(appear * completionFade * 190.0F) << 24 | 0x090707);
         graphics.fill(left, panelTop, left + 3, panelTop + panelHeight,
-                alpha << 24 | (pitObjective ? 0xD31C16 : 0x8F2A24));
+                alpha << 24 | (stage.ordinal() >= Stage.DEFEAT_BRAZIER.ordinal() ? 0xD31C16 : 0x8F2A24));
         graphics.fill(left + 3, panelTop, left + panelWidth, panelTop + 1,
                 Math.round(alpha * 0.35F) << 24 | 0x8B4A3C);
         int textCenter = left + panelWidth / 2 + 2;
@@ -114,5 +147,12 @@ public final class MazeObjectiveOverlay {
 
     private static float smootherstep(float value) {
         return value * value * value * (value * (value * 6.0F - 15.0F) + 10.0F);
+    }
+
+    private static void resetProgress() {
+        stage = Stage.ENTER_CATACOMBS;
+        sawBrazierKey = false;
+        sawMinotaurKey = false;
+        sawOmegaKey = false;
     }
 }

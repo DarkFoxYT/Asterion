@@ -96,7 +96,6 @@ public final class GameplayGameTest implements FabricClientGameTest {
                 var beetle=Asterion.RUNE_BEETLE.create(level,EntitySpawnReason.COMMAND);beetle.setRuneIndex(17);beetle.setPos(-2,121,-1);level.addFreshEntity(beetle);
                 var brazier=GameplayContent.CURSED_BRAZIER.create(level,EntitySpawnReason.COMMAND);brazier.setPos(4,121,2);level.addFreshEntity(brazier);
                 level.setBlock(new BlockPos(-3,121,2),GameplayContent.SPEWER.defaultBlockState(),3);
-                level.setBlock(new BlockPos(2,121,-2),GameplayContent.BEAR_TRAP.defaultBlockState(),3);
                 player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,new ItemStack(GameplayContent.FLAMETHROWER));
                 Asterion.LOGGER.info("PASS: fixed mining time, portal range, saved trap phase, damage/occlusion, bug support/breathing and persistent Singed scars");
             });

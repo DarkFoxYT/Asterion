@@ -121,9 +121,13 @@ public final class CursedBrazierDoorBlock extends BaseEntityBlock {
     @Override protected BlockState rotate(BlockState state, Rotation rotation) { return state.setValue(FACING, rotation.rotate(state.getValue(FACING))); }
     @Override protected BlockState mirror(BlockState state, Mirror mirror) { return rotate(state, mirror.getRotation(state.getValue(FACING))); }
     @Override public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return isRoot(state) ? new CursedBrazierDoorBlockEntity(pos, state) : null;
+        // BaseEntityBlock marks every part of this multiblock as block-entity capable.
+        // Supplying an inert entity for the non-root parts keeps chunk loading valid;
+        // only the root is ticked and rendered.
+        return new CursedBrazierDoorBlockEntity(pos, state);
     }
     @Override public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+        if (!isRoot(state)) return null;
         return createTickerHelper(type, Asterion.CURSED_BRAZIER_DOOR_BLOCK_ENTITY, CursedBrazierDoorBlockEntity::tick);
     }
 }

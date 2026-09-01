@@ -10,6 +10,7 @@ import net.krodark.asterion.block.CursedBrazierDoorBlockEntity;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.phys.Vec3;
 
 public final class CursedBrazierDoorRenderer extends GeoBlockRenderer<CursedBrazierDoorBlockEntity, BlockEntityRenderState> {
     private static final DataTicket<Float> LIFT = DataTickets.create("asterion_cursed_door_lift", Float.class);
@@ -23,6 +24,10 @@ public final class CursedBrazierDoorRenderer extends GeoBlockRenderer<CursedBraz
         bones.ifPresent("full", bone -> bone.setTranslateY(lift * 72F));
     }
     @Override public boolean shouldRenderOffScreen() { return true; }
+    @Override public boolean shouldRender(CursedBrazierDoorBlockEntity door, Vec3 camera) {
+        return net.krodark.asterion.block.CursedBrazierDoorBlock.isRoot(door.getBlockState())
+                && super.shouldRender(door, camera);
+    }
     @Override public int getViewDistance() { return 128; }
     private static final class Model extends GeoModel<CursedBrazierDoorBlockEntity> {
         @Override public Identifier getModelResource(GeoRenderState state) { return Asterion.id("block/cursed_brazier_door"); }

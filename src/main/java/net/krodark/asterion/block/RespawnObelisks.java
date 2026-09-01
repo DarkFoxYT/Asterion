@@ -96,8 +96,10 @@ public final class RespawnObelisks {
                     level.setBlock(pos, ALTAR.defaultBlockState(), 3);
                     hasAltar = true;
                 } else if (!hasObelisk) {
-                    level.setBlock(pos, OBELISK.defaultBlockState(), 3);
-                    hasObelisk = true;
+                    boolean clear=true;
+                    for(int x=-1;x<=1&&clear;x++)for(int z=-1;z<=1&&clear;z++)for(int y=0;y<3;y++)
+                        if(!level.getBlockState(pos.offset(x,y,z)).isAir()){clear=false;break;}
+                    if(clear){OBELISK.placeObelisk(level,pos,0);hasObelisk=true;}
                 }
                 if (hasAltar && hasObelisk) return;
             }

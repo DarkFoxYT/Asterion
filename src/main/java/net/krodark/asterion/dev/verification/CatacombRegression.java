@@ -17,7 +17,8 @@ public final class CatacombRegression {
                 if (CatacombLayout.reserved(x,z)) continue;
                 total++;
                 if (!CatacombLayout.occupied(seed,x,z)) {
-                    for(Direction side:Direction.Plane.HORIZONTAL) require(!CatacombLayout.connected(seed,x,z,side),"Connection into solid rock");
+                    for(Direction side:Direction.Plane.HORIZONTAL) require(!CatacombLayout.connected(seed,x,z,side),
+                            "Connection into solid rock at " + x + "," + z + " toward " + side + " seed " + seed);
                     continue;
                 }
                 occupied++;
@@ -31,7 +32,8 @@ public final class CatacombRegression {
                 int px=x,pz=z,steps=0;
                 while(px!=CatacombLayout.ROOT_X || pz!=CatacombLayout.ROOT_Z) {
                     var parent=CatacombLayout.parent(seed,px,pz);
-                    require(parent!=null && ++steps<512,"Cycle or disconnected cell");
+                    require(parent!=null && ++steps<512,"Cycle or disconnected cell from " + x + "," + z
+                            + " at " + px + "," + pz + " seed " + seed);
                     px+=parent.getStepX(); pz+=parent.getStepZ();
                     require(CatacombLayout.occupied(seed,px,pz),"Path crosses arena or uncarved rock");
                 }
@@ -39,13 +41,39 @@ public final class CatacombRegression {
         }
         require(occupied>total*.30 && occupied<total*.50,"Layout too dense or too sparse: "+occupied+"/"+total);
         require(puzzles>0 && puzzles<deadends*.06,"Puzzle rooms are not rare: "+puzzles+"/"+deadends);
+        for(long seed:new long[]{0,-1,894237,Long.MIN_VALUE,Long.MAX_VALUE}) {
+            var crossing=AuthoredCatacombs.module(seed,CatacombLayout.BRAZIER_APPROACH_CROSSING_X,
+                    CatacombLayout.BRAZIER_APPROACH_Z);
+            require(crossing.name().startsWith("crossing_"),"Boss approach crossing was not guaranteed");
+            require((crossing.exits()&2)!=0&&(crossing.exits()&8)!=0,
+                    "Boss approach crossing does not connect root to boss room");
+        }
         System.out.println("Layout sample: "+occupied+" occupied / "+total+" cells; "+puzzles+" puzzles / "+deadends+" dead ends");
         require(selected.containsAll(AuthoredCatacombs.TEMPLATES),"Unreachable variants: "+AuthoredCatacombs.TEMPLATES.stream().filter(n->!selected.contains(n)).toList());
         for(String name:AuthoredCatacombs.TEMPLATES) template(name,19,31,19);
         for(int part=1;part<=9;part++) template("arena_part"+part,41,48,41);
+        for(int part=1;part<=4;part++) brazierTemplate(part);
         require(AuthoredCatacombs.ARENA_BASE_Y+23==AuthoredCatacombs.CONNECTOR_Y,"Arena exit elevation differs from crypts");
         require(!CatacombLayout.contains(new net.minecraft.core.BlockPos(0,7,0)),"Arena counted as catacombs");
-        System.out.println("Authored catacomb regression: "+checks+" checks passed; all 24 assets validated");
+        System.out.println("Authored catacomb regression: "+checks+" checks passed; all 28 assets validated");
+    }
+    private static void brazierTemplate(int part) throws Exception {
+        String name="cursed_brazier_room_part"+part;
+        CompoundTag root=NbtIo.readCompressed(Path.of(
+                "src/main/resources/data/asterion/structure/catacombs",name+".nbt"),NbtAccounter.unlimitedHeap());
+        var size=root.getListOrEmpty("size");
+        require(integer(size,0)==25&&integer(size,1)==31&&integer(size,2)==25,"Invalid dimensions: "+name);
+        var palette=root.getListOrEmpty("palette");
+        int wool=0,doors=0;
+        for(var entry:root.getListOrEmpty("blocks")) {
+            var block=(CompoundTag)entry;
+            var state=(CompoundTag)palette.get(block.getIntOr("state",-1));
+            String blockName=state.getStringOr("Name","");
+            if(blockName.equals("minecraft:red_wool"))wool++;
+            if(blockName.equals("asterion:cursed_brazier_door"))doors++;
+        }
+        require(wool==(part==4?1:0),"Boss marker must exist only in room part 4: "+name);
+        require(doors>0,"Missing encounter door: "+name);
     }
     private static void template(String name,int sx,int sy,int sz) throws Exception {
         CompoundTag root=NbtIo.readCompressed(Path.of("src/main/resources/data/asterion/structure/catacombs",name+".nbt"),NbtAccounter.unlimitedHeap());

@@ -1,6 +1,9 @@
 {
   "model": {
-    "type": "minecraft:model",
-    "model": "asterion:item/flamethrower"
+    "type": "minecraft:special",
+    "base": "asterion:item/flamethrower",
+    "model": {
+      "type": "geckolib:geckolib"
+    }
   }
 }

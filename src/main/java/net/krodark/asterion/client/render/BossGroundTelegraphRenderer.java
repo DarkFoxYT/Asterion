@@ -5,11 +5,12 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.krodark.asterion.Asterion;
-import net.krodark.asterion.client.light.AsterionEmissiveBuffer;
 import net.krodark.asterion.network.BossTelegraphPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.rendertype.AmneticRenderTypeAccess;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -24,9 +25,10 @@ import java.util.Map;
 
 /** Ground-projected, depth-tested warning surfaces. Cached geometry; no particles, textures or bloom. */
 public final class BossGroundTelegraphRenderer {
-    private static final RenderType SURFACE = AsterionEmissiveBuffer.customRenderType("boss_ground_warning",
-            RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
-                    .withLocation(Asterion.id("pipeline/boss_ground_warning")).withCull(false).build());
+    private static final RenderType SURFACE = AmneticRenderTypeAccess.create("asterion/boss_ground_warning",
+            RenderSetup.builder(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+                    .withLocation(Asterion.id("pipeline/boss_ground_warning")).withCull(false).build())
+                    .createRenderSetup());
     private static final Map<Integer, Warning> WARNINGS = new LinkedHashMap<>();
     private static ClientLevel trackedLevel;
     private record Quad(Vec3 a, Vec3 b, Vec3 c, Vec3 d, boolean rim) { }
@@ -67,7 +69,8 @@ public final class BossGroundTelegraphRenderer {
             var pose = context.poseStack().last();
             for (Warning warning : WARNINGS.values()) {
                 var owner = client.level.getEntity(warning.shape.ownerId());
-                if (owner == null || !owner.isAlive() || warning.shape.center().distanceToSqr(camera) > 128 * 128) continue;
+                if ((owner != null && !owner.isAlive())
+                        || warning.shape.center().distanceToSqr(camera) > 128 * 128) continue;
                 float progress = warning.shape.durationTicks() <= 3 ? warning.shape.progress()
                         : (now - warning.received) / (float)warning.shape.durationTicks();
                 progress = Mth.clamp(progress, 0, 1);
@@ -80,6 +83,7 @@ public final class BossGroundTelegraphRenderer {
                     vertex(out, pose, quad.c, camera, color); vertex(out, pose, quad.d, camera, color);
                 }
             }
+            context.bufferSource().endBatch(SURFACE);
         });
     }
     private static void vertex(VertexConsumer out, PoseStack.Pose pose, Vec3 point, Vec3 camera, int color) {

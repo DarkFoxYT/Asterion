@@ -1,0 +1,15 @@
+{
+  "objective.asterion.new": "OBJECTIF",
+  "objective.asterion.enter_catacombs": "Entrez dans les catacombes",
+  "objective.asterion.enter_catacombs_hint": "Trouvez un passage sous le labyrinthe",
+  "objective.asterion.get_brazier_key": "Trouvez la clé du Brasero maudit",
+  "objective.asterion.get_brazier_key_hint": "Fouillez les catacombes pour trouver la clé de la salle scellée",
+  "objective.asterion.defeat_brazier": "Vainquez le Brasero maudit",
+  "objective.asterion.defeat_brazier_hint": "Utilisez la clé pour entrer dans sa salle",
+  "objective.asterion.reach_arena_doors": "Atteignez les portes de l’arène",
+  "objective.asterion.reach_arena_doors_hint": "Apportez la clé du Minotaure à l’entrée de l’arène",
+  "objective.asterion.defeat_dead_sun": "Vainquez le Soleil mort",
+  "objective.asterion.defeat_dead_sun_hint": "Survivez à l’arène et terrassez son champion",
+  "objective.asterion.open_omega_lock": "Ouvrez le verrou Oméga",
+  "objective.asterion.open_omega_lock_hint": "Utilisez la clé Oméga pour ouvrir la voie"
+}

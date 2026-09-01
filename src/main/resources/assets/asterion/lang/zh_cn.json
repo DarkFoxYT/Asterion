@@ -1,0 +1,15 @@
+{
+  "objective.asterion.new": "目标",
+  "objective.asterion.enter_catacombs": "进入地下墓穴",
+  "objective.asterion.enter_catacombs_hint": "寻找通往迷宫地下的道路",
+  "objective.asterion.get_brazier_key": "找到诅咒火盆钥匙",
+  "objective.asterion.get_brazier_key_hint": "在地下墓穴中寻找密室的钥匙",
+  "objective.asterion.defeat_brazier": "击败诅咒火盆",
+  "objective.asterion.defeat_brazier_hint": "使用钥匙进入它的密室",
+  "objective.asterion.reach_arena_doors": "抵达竞技场大门",
+  "objective.asterion.reach_arena_doors_hint": "将牛头人钥匙带到竞技场入口",
+  "objective.asterion.defeat_dead_sun": "击败死日",
+  "objective.asterion.defeat_dead_sun_hint": "在竞技场中存活并击败它的勇士",
+  "objective.asterion.open_omega_lock": "打开欧米伽锁",
+  "objective.asterion.open_omega_lock_hint": "使用欧米伽钥匙开启前路"
+}

@@ -8,13 +8,14 @@ import net.krodark.asterion.network.BossEntrancePayload;
 import net.krodark.asterion.worldgen.MinotaurArenaEntrances;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 public final class BossEntranceCinematic {
     private static boolean active, showShot, finished;
-    private static int ticks, duration;
+    private static int ticks, duration, lastSoundTick;
     private static Direction door;
     private static CameraType previousCamera;
     private static boolean previousCull;
@@ -41,6 +42,7 @@ public final class BossEntranceCinematic {
         duration = Math.clamp(payload.duration(), 1, 200);
         finished = false;
         ticks = Math.clamp(payload.elapsed(), 0, duration);
+        lastSoundTick = ticks - 1;
         active = true;
         showShot = AsterionConfig.INSTANCE.cinematicsEnabled;
         returnYaw = client.player.getYRot(); returnPitch = client.player.getXRot();
@@ -64,11 +66,23 @@ public final class BossEntranceCinematic {
         }
         client.player.setDeltaMovement(Vec3.ZERO);
         client.player.setYRot(returnYaw); client.player.setXRot(returnPitch);
+        playCinematicSounds(client);
         if (showShot) {
             CinematicHud.maintain(client);
             client.options.setCameraType(CameraType.FIRST_PERSON);
             client.smartCull = false;
         }
+    }
+
+    private static void playCinematicSounds(Minecraft client) {
+        for (int beat : new int[]{8, 26, 44}) if (lastSoundTick < beat && ticks >= beat)
+            client.getSoundManager().play(SimpleSoundInstance.forUI(Asterion.METAL_HIT,
+                    beat == 44 ? 0.46F : 0.58F, beat == 44 ? 2.4F : 1.75F));
+        if (lastSoundTick < 70 && ticks >= 70)
+            client.getSoundManager().play(SimpleSoundInstance.forUI(Asterion.MINOTAUR_DOOR_OPENCLOSE, 0.72F, 2.6F));
+        if (lastSoundTick < 92 && ticks >= 92)
+            client.getSoundManager().play(SimpleSoundInstance.forUI(Asterion.MINOTAUR_ROAR, 0.68F, 3.2F));
+        lastSoundTick = ticks;
     }
 
     public static CameraPose cameraPose(Vec3 playerEye, float partial) {

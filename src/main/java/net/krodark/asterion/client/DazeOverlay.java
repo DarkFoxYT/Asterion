@@ -54,6 +54,8 @@ public final class DazeOverlay {
         else if (!mash && down && (duration - remaining) % 3 == 0)
             progress = Math.min(required, progress + 1);
         if (progress >= required || remaining <= 0) {
+            net.krodark.asterion.client.ragdoll.RagdollClientController
+                    .suppressAutomaticFallRagdoll(40);
             DismembermentEngine.INSTANCE.releaseRagdoll(client.player.getId());
             remaining = 0;
         }

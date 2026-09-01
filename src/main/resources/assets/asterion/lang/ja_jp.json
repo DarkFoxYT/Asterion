@@ -1,0 +1,15 @@
+{
+  "objective.asterion.new": "目標",
+  "objective.asterion.enter_catacombs": "地下墓地に入る",
+  "objective.asterion.enter_catacombs_hint": "迷宮の地下へ続く道を探す",
+  "objective.asterion.get_brazier_key": "呪われた火鉢の鍵を見つける",
+  "objective.asterion.get_brazier_key_hint": "地下墓地で封印された部屋の鍵を探す",
+  "objective.asterion.defeat_brazier": "呪われた火鉢を倒す",
+  "objective.asterion.defeat_brazier_hint": "鍵を使ってその部屋に入る",
+  "objective.asterion.reach_arena_doors": "闘技場の扉にたどり着く",
+  "objective.asterion.reach_arena_doors_hint": "ミノタウロスの鍵を闘技場の入口へ運ぶ",
+  "objective.asterion.defeat_dead_sun": "死せる太陽を倒す",
+  "objective.asterion.defeat_dead_sun_hint": "闘技場を生き延び、その覇者を倒す",
+  "objective.asterion.open_omega_lock": "オメガの錠を開く",
+  "objective.asterion.open_omega_lock_hint": "オメガの鍵を使って道を開く"
+}

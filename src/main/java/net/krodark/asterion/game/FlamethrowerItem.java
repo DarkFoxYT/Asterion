@@ -1,5 +1,13 @@
 package net.krodark.asterion.game;
 
+import com.geckolib.animatable.GeoItem;
+import com.geckolib.animatable.client.GeoRenderProvider;
+import com.geckolib.animatable.instance.AnimatableInstanceCache;
+import com.geckolib.animatable.manager.AnimatableManager;
+import com.geckolib.model.DefaultedItemGeoModel;
+import com.geckolib.renderer.GeoItemRenderer;
+import com.geckolib.util.GeckoLibUtil;
+import net.krodark.asterion.Asterion;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -11,8 +19,34 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemUseAnimation;
 import net.minecraft.world.level.Level;
 
-public final class FlamethrowerItem extends Item {
-    public FlamethrowerItem(Properties properties) { super(properties); }
+import java.util.function.Consumer;
+
+public final class FlamethrowerItem extends Item implements GeoItem {
+    private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
+
+    public FlamethrowerItem(Properties properties) {
+        super(properties);
+    }
+
+    @Override
+    public void createGeoRenderer(Consumer<GeoRenderProvider> consumer) {
+        consumer.accept(new GeoRenderProvider() {
+            private GeoItemRenderer<FlamethrowerItem> renderer;
+
+            @Override
+            public GeoItemRenderer<FlamethrowerItem> getGeoItemRenderer() {
+                if (renderer == null) {
+                    var model = new DefaultedItemGeoModel<FlamethrowerItem>(Asterion.id("flamethrower"))
+                            .withAltTexture(Asterion.id("beetle_flamethrower"));
+                    renderer = new GeoItemRenderer<>(model);
+                }
+                return renderer;
+            }
+        });
+    }
+
+    @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {}
+    @Override public AnimatableInstanceCache getAnimatableInstanceCache() { return animationCache; }
     @Override public InteractionResult use(Level level, Player player, InteractionHand hand) {
         player.startUsingItem(hand); return InteractionResult.CONSUME;
     }

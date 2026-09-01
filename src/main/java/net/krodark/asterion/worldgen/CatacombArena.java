@@ -68,6 +68,10 @@ public final class CatacombArena {
         }).toList();
     }
 
+    public static void invalidateBrazierScan(net.minecraft.server.level.ServerLevel level) {
+        BRAZIER_SCANS.remove(level);
+    }
+
     public static void powerBurst(net.minecraft.server.level.ServerLevel level, net.minecraft.world.phys.Vec3 target) {
         for (BlockPos source : litBraziers(level)) {
             var start = net.minecraft.world.phys.Vec3.atCenterOf(source).add(0, .65, 0);

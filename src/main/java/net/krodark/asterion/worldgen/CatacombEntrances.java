@@ -61,7 +61,6 @@ public final class CatacombEntrances {
         BlockPos supply = new BlockPos(x - 3, floor + 1, z);
         world.setBlock(supply, Blocks.BARREL.defaultBlockState(), 2);
         if (world.getBlockEntity(supply) instanceof net.minecraft.world.level.block.entity.BarrelBlockEntity barrel) {
-            barrel.setItem(0, new net.minecraft.world.item.ItemStack(Asterion.CATACOMB_GRAPPLING_HOOK));
             barrel.setItem(1, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.WATER_BUCKET));
             barrel.setItem(2, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.BREAD, 6));
             barrel.setChanged();

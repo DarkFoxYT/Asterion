@@ -17,6 +17,11 @@ import net.minecraft.world.level.chunk.LevelChunk;
 
 public final class ZoneRunePlacement {
     private static final java.util.Map<ServerLevel, java.util.ArrayDeque<net.minecraft.world.level.ChunkPos>> PENDING = new java.util.IdentityHashMap<>();
+    private static final java.util.Map<ServerLevel, java.util.ArrayDeque<ChunkPos>> ARENA_PENDING =
+            new java.util.IdentityHashMap<>();
+    private static final java.util.Map<ServerLevel, java.util.ArrayDeque<ChunkPos>> BRAZIER_ROOM_PENDING =
+            new java.util.IdentityHashMap<>();
+    private static final java.util.List<ChunkPos> ARENA_CHUNKS = createArenaChunks();
     private ZoneRunePlacement() { }
     private static final java.util.List<String> MAZE_FEATURES = java.util.List.of(
             "ancient_moss_patch", "giant_dead_tree", "ancient_leaves_cluster",
@@ -26,7 +31,42 @@ public final class ZoneRunePlacement {
     public static void enqueue(ServerLevel level, LevelChunk chunk) {
         PENDING.computeIfAbsent(level, ignored -> new java.util.ArrayDeque<>()).add(chunk.getPos());
     }
+    public static java.util.List<ChunkPos> arenaChunks() { return ARENA_CHUNKS; }
+    public static void enqueueArena(ServerLevel level) {
+        var queue = ARENA_PENDING.computeIfAbsent(level, ignored -> new java.util.ArrayDeque<>());
+        if (queue.isEmpty()) queue.addAll(ARENA_CHUNKS);
+    }
+    public static void enqueueCursedBrazierRoom(ServerLevel level) {
+        if (BRAZIER_ROOM_PENDING.containsKey(level)) return;
+        var queue=new java.util.ArrayDeque<ChunkPos>();
+        int minX=AuthoredCatacombs.BRAZIER_ROOM_ORIGIN.getX()>>4;
+        int maxX=(AuthoredCatacombs.BRAZIER_ROOM_ORIGIN.getX()+49)>>4;
+        int minZ=AuthoredCatacombs.BRAZIER_ROOM_ORIGIN.getZ()>>4;
+        int maxZ=(AuthoredCatacombs.BRAZIER_ROOM_ORIGIN.getZ()+49)>>4;
+        for(int x=minX;x<=maxX;x++)for(int z=minZ;z<=maxZ;z++)queue.add(new ChunkPos(x,z));
+        BRAZIER_ROOM_PENDING.put(level,queue);
+    }
     public static void tick(ServerLevel level) {
+        var arena = ARENA_PENDING.get(level);
+        // Finish the arena before a newly connected player can reach its keyed door.
+        // Eight chunks per tick completes the authored footprint in roughly half a second.
+        for (int i = 0; i < 8 && arena != null && !arena.isEmpty(); i++) {
+            ChunkPos pos = arena.removeFirst();
+            // This runs from the ordinary server tick, after chunk scheduling startup,
+            // so requesting FULL here cannot wait on the callback currently executing.
+            AuthoredCatacombs.placeArenaChunk(level, level.getChunk(pos.x(), pos.z()));
+        }
+        if (arena != null && arena.isEmpty()) ARENA_PENDING.remove(level);
+
+        var room=BRAZIER_ROOM_PENDING.get(level);
+        for(int i=0;i<2&&room!=null&&!room.isEmpty();i++) {
+            ChunkPos pos=room.removeFirst();
+            level.getChunk(pos.x(),pos.z());
+            if(!AuthoredCatacombs.cursedBrazierRoomChunkReady(level,pos))
+                AuthoredCatacombs.placeCursedBrazierRoomChunk(level,pos);
+        }
+        if(room!=null&&room.isEmpty())BRAZIER_ROOM_PENDING.remove(level);
+
         var queue = PENDING.get(level);
         if (queue == null) return;
         for (int i = 0; i < 2 && !queue.isEmpty(); i++) {
@@ -40,7 +80,17 @@ public final class ZoneRunePlacement {
         }
         if (queue.isEmpty()) PENDING.remove(level);
     }
-    public static void clear() { PENDING.clear(); }
+    public static void clear() { PENDING.clear(); ARENA_PENDING.clear(); BRAZIER_ROOM_PENDING.clear(); }
+    private static java.util.List<ChunkPos> createArenaChunks() {
+        java.util.LinkedHashSet<ChunkPos> chunks = new java.util.LinkedHashSet<>();
+        for (int x = -4; x <= 3; x++) for (int z = -4; z <= 3; z++)
+            chunks.add(new ChunkPos(x, z));
+        // Include the retired approach footprint once so existing saves have the old
+        // hand-carved hall sealed and replaced by ordinary authored modules.
+        for (int x = -1; x <= 5; x++) for (int z = 3; z <= 5; z++)
+            chunks.add(new ChunkPos(x, z));
+        return java.util.List.copyOf(chunks);
+    }
     private static void placeDeferredWorldgen(ServerLevel level, LevelChunk chunk) {
         var cp = chunk.getPos();
         if (cp.x() >= -4 && cp.x() <= 3 && cp.z() >= -4 && cp.z() <= 3) return;

@@ -1,0 +1,15 @@
+{
+  "objective.asterion.new": "OBJETIVO",
+  "objective.asterion.enter_catacombs": "Entre nas catacumbas",
+  "objective.asterion.enter_catacombs_hint": "Encontre um caminho sob o labirinto",
+  "objective.asterion.get_brazier_key": "Encontre a chave do Braseiro Amaldiçoado",
+  "objective.asterion.get_brazier_key_hint": "Procure nas catacumbas a chave da câmara selada",
+  "objective.asterion.defeat_brazier": "Derrote o Braseiro Amaldiçoado",
+  "objective.asterion.defeat_brazier_hint": "Use a chave para entrar na câmara",
+  "objective.asterion.reach_arena_doors": "Chegue aos portões da arena",
+  "objective.asterion.reach_arena_doors_hint": "Leve a chave do Minotauro até a entrada da arena",
+  "objective.asterion.defeat_dead_sun": "Derrote o Sol Morto",
+  "objective.asterion.defeat_dead_sun_hint": "Sobreviva à arena e derrote seu campeão",
+  "objective.asterion.open_omega_lock": "Abra a fechadura Ômega",
+  "objective.asterion.open_omega_lock_hint": "Use a chave Ômega para abrir o caminho"
+}

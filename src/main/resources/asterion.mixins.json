@@ -39,6 +39,7 @@
     "RagdollEntityRendererMixin",
     "RagdollLivingEntityRendererMixin",
     "RagdollLevelRendererMixin",
+    "SodiumRenderRegionMixin",
     "RagdollLocalPlayerMixin",
     "RagdollItemInHandRendererMixin"
   ],

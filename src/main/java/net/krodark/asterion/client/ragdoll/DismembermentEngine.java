@@ -69,7 +69,6 @@ public final class DismembermentEngine {
     private final Set<Integer> remoteDriven = new HashSet<>();
     private final Map<Integer, Integer> remotePoseSequences = new HashMap<>();
     private final Map<Integer, Integer> remotePoseTicks = new HashMap<>();
-    private final Map<Integer, Integer> pendingPlayerExits = new HashMap<>();
     private int poseSequence;
     private final Map<Long, Float> regionalTrauma = new HashMap<>();
     private final Map<Integer, Map<Integer, String>> detachedModelPaths = new HashMap<>();
@@ -1252,17 +1251,7 @@ public final class DismembermentEngine {
             RagdollConfig config = RagdollRuntime.INSTANCE.config;
             int elapsed = traumaDecayTicker - tumbleStartedAt.getOrDefault(entityId, traumaDecayTicker);
             if (!config.ragdollManualExit || elapsed < config.ragdollMinExitTicks) return;
-            Vec3 exit = findSafeTumbleExit(client, entityId);
-            Vec3 exitVelocity = ragdollVelocity(entityId);
-            if (requestServerGetUp(entityId, exit, exitVelocity)) return;
-            removeRagdoll(entityId);
-            if (exit != null) {
-                if (ClientPlayNetworking.canSend(TumbleExitPayload.TYPE))
-                    ClientPlayNetworking.send(new TumbleExitPayload(exit.x, exit.y, exit.z,
-                            exitVelocity.x, exitVelocity.y, exitVelocity.z));
-                client.player.setPos(exit.x, exit.y, exit.z);
-            }
-            client.player.setDeltaMovement(exitVelocity);
+            releaseRagdoll(entityId);
             return;
         }
         if (ragdolled.contains(entityId)) return;
@@ -1283,7 +1272,8 @@ public final class DismembermentEngine {
 
     public void forcePlayerTumble(Minecraft client, Vec3 sourcePosition, Vec3 impulse, float force) {
         if (client.player == null || client.level == null
-                || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
+                || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)
+                || RagdollClientController.isAutomaticRagdollSuppressed(client)) return;
         int entityId = client.player.getId();
         if (!playerTumbles.contains(entityId)) togglePlayerTumble(client);
         applyFracturePose(entityId);
@@ -1393,7 +1383,6 @@ public final class DismembermentEngine {
 
     public void followPlayerTumble(Minecraft client) {
         if (client.player == null || !playerTumbles.contains(client.player.getId())) return;
-        boolean waitingForServer = pendingPlayerExits.containsKey(client.player.getId());
         RigidBodyPiece torso = find(client.player.getId(), 1);
         Vec3 trackingPosition = findSafeTumbleExit(client, client.player.getId());
         if (trackingPosition != null) {
@@ -1401,7 +1390,7 @@ public final class DismembermentEngine {
             // while the server is acknowledging get-up. Stopping here used to leave
             // the real entity behind and made the final exit packet fail validation.
             client.player.setPos(trackingPosition.x, trackingPosition.y, trackingPosition.z);
-            if (!waitingForServer && torso != null && ClientPlayNetworking.canSend(TumbleExitPayload.TYPE))
+            if (torso != null && ClientPlayNetworking.canSend(TumbleExitPayload.TYPE))
                 ClientPlayNetworking.send(new TumbleExitPayload(
                         trackingPosition.x, trackingPosition.y, trackingPosition.z,
                         torso.velocity.x, torso.velocity.y, torso.velocity.z, false));
@@ -1488,26 +1477,16 @@ public final class DismembermentEngine {
         Minecraft client = Minecraft.getInstance();
         if (client.player != null && client.player.getId() == entityId && playerTumbles.contains(entityId)) {
             Vec3 exit = findSafeTumbleExit(client, entityId);
+            if (exit == null) exit = client.player.position();
             Vec3 exitVelocity = ragdollVelocity(entityId);
-            if (requestServerGetUp(entityId, exit, exitVelocity)) return;
+            RagdollClientController.suppressAutomaticFallRagdoll(40);
+            if (ClientPlayNetworking.canSend(TumbleExitPayload.TYPE))
+                ClientPlayNetworking.send(new TumbleExitPayload(exit.x, exit.y, exit.z,
+                        exitVelocity.x, exitVelocity.y, exitVelocity.z));
             removeRagdoll(entityId);
-            if (exit != null) {
-                if (ClientPlayNetworking.canSend(TumbleExitPayload.TYPE))
-                    ClientPlayNetworking.send(new TumbleExitPayload(exit.x, exit.y, exit.z,
-                            exitVelocity.x, exitVelocity.y, exitVelocity.z));
-                client.player.setPos(exit.x, exit.y, exit.z);
-            }
+            client.player.setPos(exit.x, exit.y, exit.z);
             client.player.setDeltaMovement(exitVelocity);
         } else removeRagdoll(entityId);
-    }
-
-    private boolean requestServerGetUp(int entityId, Vec3 exit, Vec3 velocity) {
-        if (exit == null || !ClientPlayNetworking.canSend(TumbleExitPayload.TYPE)) return false;
-        if (!pendingPlayerExits.containsKey(entityId)) {
-            pendingPlayerExits.put(entityId, traumaDecayTicker);
-            ClientPlayNetworking.send(new TumbleExitPayload(exit.x, exit.y, exit.z, velocity.x, velocity.y, velocity.z));
-        }
-        return true;
     }
 
     public boolean hasGroundContact(int entityId) {
@@ -1581,7 +1560,6 @@ public final class DismembermentEngine {
     }
 
     private void removeRagdoll(int entityId) {
-        pendingPlayerExits.remove(entityId);
         pieces.removeIf(part -> {
             if (part.entityId != entityId) return false;
             if (grabbed == part) grabbed = null;
@@ -1669,7 +1647,7 @@ public final class DismembermentEngine {
     private void sendPoseSnapshots() {
         if (!ClientPlayNetworking.canSend(RagdollPosePayload.TYPE)) return;
         for (int entityId : ragdolled) {
-            if (remoteDriven.contains(entityId) || pendingPlayerExits.containsKey(entityId)) continue;
+            if (remoteDriven.contains(entityId)) continue;
             var client = Minecraft.getInstance();
             if (client.level != null && client.level.getEntity(entityId) instanceof Player owner && owner != client.player) continue;
             List<RagdollPosePayload.Part> snapshot = new ArrayList<>(10);
@@ -1689,8 +1667,6 @@ public final class DismembermentEngine {
 
     public void tick(ClientLevel level, Entity collisionContext) {
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) { clear(); return; }
-        // Stay a ragdoll until the server accepts standing up. A refused/stalled request can retry.
-        pendingPlayerExits.entrySet().removeIf(entry -> traumaDecayTicker - entry.getValue() > 20);
         electrifiedUntil.entrySet().removeIf(entry -> {
             if (entry.getValue() > traumaDecayTicker) return false;
             if (collisionContext.getId() != entry.getKey()) removeRagdoll(entry.getKey());
@@ -3513,7 +3489,6 @@ public final class DismembermentEngine {
         remoteDriven.clear();
         remotePoseSequences.clear();
         remotePoseTicks.clear();
-        pendingPlayerExits.clear();
         playerTumbles.clear();
         playerFracturedLegs.clear();
         appliedFracturePoses.clear();
