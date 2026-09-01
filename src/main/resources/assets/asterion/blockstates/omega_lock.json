@@ -1,1 +1,12 @@
-{"variants":{"":{"model":"asterion:block/omega_lock_particles"}}}
+{
+  "variants": {
+    "facing=north,unlocked=false": { "model": "asterion:block/omega_lock" },
+    "facing=east,unlocked=false":  { "model": "asterion:block/omega_lock", "y": 90 },
+    "facing=south,unlocked=false": { "model": "asterion:block/omega_lock", "y": 180 },
+    "facing=west,unlocked=false":  { "model": "asterion:block/omega_lock", "y": 270 },
+    "facing=north,unlocked=true":  { "model": "asterion:block/omega_lock" },
+    "facing=east,unlocked=true":   { "model": "asterion:block/omega_lock", "y": 90 },
+    "facing=south,unlocked=true":  { "model": "asterion:block/omega_lock", "y": 180 },
+    "facing=west,unlocked=true":   { "model": "asterion:block/omega_lock", "y": 270 }
+  }
+}

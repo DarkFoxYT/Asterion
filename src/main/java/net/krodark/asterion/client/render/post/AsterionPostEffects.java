@@ -55,7 +55,7 @@ public final class AsterionPostEffects {
 
         PostEffects.register(Asterion.id("dimension/dusty_air"), config -> config
                 .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.dustyAirEnabled
-                        && PerformanceGovernor.quality() > 0)
+                        )
                 .phase(RenderPhase.POST_WORLD)
                 .priority(20)
                 .fade(24, 16)
@@ -89,16 +89,6 @@ public final class AsterionPostEffects {
                         AsterionConfig.INSTANCE.deadSunCoreG, AsterionConfig.INSTANCE.deadSunCoreB))
                 .uniformVec3("DeadSunCoronaColor", () -> new Vector3f(AsterionConfig.INSTANCE.deadSunCoronaR,
                         AsterionConfig.INSTANCE.deadSunCoronaG, AsterionConfig.INSTANCE.deadSunCoronaB)));
-        PostEffects.register(Asterion.id("dimension/dusty_air_fast"), config -> config
-                .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.dustyAirEnabled
-                        && PerformanceGovernor.quality() == 0)
-                .phase(RenderPhase.POST_WORLD).priority(20).fade(3, 8)
-                .uniform("DustTime", AsterionPostEffects::renderTime)
-                .uniform("AsterionStrength", () -> AsterionConfig.INSTANCE.dustyAirStrength)
-                .uniformRaw("WorldData", AsterionPostEffects::worldData)
-                .uniformVec3("AtmosphereSettings", AsterionPostEffects::atmosphereSettings)
-                .uniformVec3("DustColor", AsterionPostEffects::dustColor)
-                .uniformVec3("FogColor", AsterionPostEffects::fogColor));
     }
 
     private static boolean isInsideAsterion() {
@@ -107,7 +97,9 @@ public final class AsterionPostEffects {
     }
 
     private static boolean isPostProcessingReady() {
-        return isInsideAsterion() && AmneticCamera.isReady();
+        // The camera snapshot is populated later in the same render frame. Using
+        // its transient readiness as an enable switch caused the fog chain to blink off.
+        return isInsideAsterion();
     }
 
     private static double effectQuality() {

@@ -17,7 +17,9 @@ flat out vec4 vEffect;
 void main() {
     mat4 model = mat4(InstTransform0, InstTransform1, InstTransform2, InstTransform3);
     gl_Position = ProjViewMatrix * model * vec4(Position, 1.0);
-    vUv = Position.xz * 0.5 + 0.5;
+    // The registered quad is authored in local XY. Sampling XZ collapsed every
+    // portal into a single horizontal texture row after the model transform.
+    vUv = Position.xy * 0.5 + 0.5;
     vPortal = InstPortal;
     vEffect = InstEffect;
 }

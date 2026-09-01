@@ -21,7 +21,10 @@ public final class ZoneRunePlacement {
         for (int i = 0; i < 4 && !queue.isEmpty(); i++) {
             var pos = queue.removeFirst();
             var chunk = level.getChunkSource().getChunkNow(pos.x(), pos.z());
-            if (chunk != null) decorate(level, chunk);
+            if (chunk != null) {
+                AuthoredCatacombs.placeArenaChunk(level,chunk);
+                decorate(level,chunk);
+            }
         }
         if (queue.isEmpty()) PENDING.remove(level);
     }

@@ -30,8 +30,8 @@ public final class AsterionPortalRenderer {
     private static final Identifier PORTAL_IMAGE = Asterion.id("textures/portal/asterion_portal_square.png");
     private static final InstanceLayout LAYOUT = InstanceLayout.builder()
             .mat4(1).vec4(5).vec4(6).build();
-    private static final float CORE_RADIUS = 2.62F;
-    private static final double WAKE_DISTANCE = 52.0D;
+    private static final float CORE_RADIUS = 1.48F;
+    private static final double WAKE_DISTANCE = 96.0D;
     private static final double DRAW_DISTANCE = 112.0D;
     private static final long OPEN_NANOS = 1_050_000_000L;
 
@@ -172,7 +172,8 @@ public final class AsterionPortalRenderer {
                     float openingScale = 0.08F + 0.92F * (1.0F - (float) Math.pow(1.0F - reveal, 3.0D));
                     float layerScale = halo ? 1.28F : 1.0F;
                     // Test before allocating transforms/uniform vectors; cover the square's corners.
-                    float boundsRadius = radius * openingScale * layerScale * 1.414214F + 0.02F;
+                    float boundsRadius = (vertical ? 2.92F : radius * 1.414214F)
+                            * openingScale * layerScale + 0.02F;
                     if (!batch.visible(cx, cy, cz, boundsRadius)) return;
                     transform.translation((float)(cx - camera.x),
                                     (float)(cy + (halo ? 0.006D : 0.0D) - camera.y),
@@ -185,7 +186,7 @@ public final class AsterionPortalRenderer {
                     float viewX = (float) Mth.clamp(dx / cameraHeight, -1.6D, 1.6D);
                     float viewZ = (float) Mth.clamp(dz / cameraHeight, -1.6D, 1.6D);
                     float flowTime = (now % 240_000_000_000L) * 0.000000001F;
-                    portal.set((float) cx, (float) cy, (float) cz, reveal);
+                    portal.set((float) cx, (float) cy, vertical ? 1.0F : 0.0F, reveal);
                     effect.set(viewX, viewZ, flowTime, halo ? 1.0F : 0.0F);
                     batch.add(submission);
                 })

@@ -22,8 +22,9 @@ void main() {
         float gridPhase = (centered.x + centered.y) * 18.0 - vEffect.z * 0.38;
         float cadence = 0.72 + 0.28 * sin(gridPhase);
         float breath = 0.87 + 0.13 * sin(vEffect.z * 0.67);
-        vec3 dustTint = vec3(0.2607004, 0.07607989, 0.07607989);
-        vec3 fogTint = vec3(0.15294118, 0.1364837, 0.049780853);
+        float exitPortal = step(0.5, vPortal.z);
+        vec3 dustTint = mix(vec3(0.2607004, 0.07607989, 0.07607989), vec3(0.08, 0.42, 1.0), exitPortal);
+        vec3 fogTint = mix(vec3(0.15294118, 0.1364837, 0.049780853), vec3(0.025, 0.16, 0.46), exitPortal);
         vec3 haloColor = mix(fogTint, dustTint, 0.58 + cadence * 0.22) * (1.18 + cadence);
         FragColor = vec4(haloColor, ring * cadence * breath * vPortal.w * 0.58);
         return;
@@ -34,11 +35,11 @@ void main() {
     float abyss = 1.0 - smoothstep(0.12, 0.43, squareDistance);
     uv += vec2(sin(centered.y * 28.0 - vEffect.z * 0.48),
             cos(centered.x * 28.0 + vEffect.z * 0.42)) * 0.0045 * abyss;
-    const float layers = 20.0;
+    const float layers = 8.0;
     vec2 stepUv = view * 0.105 / layers;
     float depth = 0.0;
     float sampledHeight = 0.0;
-    for (int i = 0; i < 20; ++i) {
+    for (int i = 0; i < 8; ++i) {
         vec4 probe = texture(PortalSampler, clamp(uv, 0.001, 0.999));
         // Opaque artwork still gets depth: brightness, not alpha, is the height map.
         float height = dot(probe.rgb, vec3(0.2126, 0.7152, 0.0722));
@@ -67,8 +68,9 @@ void main() {
     float innerVignette = mix(0.72 + 0.28 * (1.0 - squareDistance), 1.0, sampledHeight);
     float pitRim = smoothstep(0.18, 0.28, squareDistance)
             * (1.0 - smoothstep(0.34, 0.47, squareDistance));
-    vec3 dustTint = vec3(0.2607004, 0.07607989, 0.07607989);
-    vec3 fogTint = vec3(0.15294118, 0.1364837, 0.049780853);
+    float exitPortal = step(0.5, vPortal.z);
+    vec3 dustTint = mix(vec3(0.2607004, 0.07607989, 0.07607989), vec3(0.08, 0.42, 1.0), exitPortal);
+    vec3 fogTint = mix(vec3(0.15294118, 0.1364837, 0.049780853), vec3(0.025, 0.16, 0.46), exitPortal);
     vec3 riftColor = mix(color * innerVignette,
             mix(fogTint, dustTint, 0.68) + color * 0.32, pitRim * 0.54);
     float coreAlpha = image.a * aperture;

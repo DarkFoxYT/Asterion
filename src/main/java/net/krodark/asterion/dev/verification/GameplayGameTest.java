@@ -152,6 +152,19 @@ public final class GameplayGameTest implements FabricClientGameTest {
         check(level.getBlockState(wall).is(Asterion.GREEK_FIRE_WALL_TORCH)
                         && level.getBlockState(wall).getValue(GreekFireTorchBlock.FACING)==Direction.EAST,
                 "Wall torch did not attach to the selected wall face");
+        for(Direction facing:Direction.Plane.HORIZONTAL) {
+            var bounds=Asterion.GREEK_FIRE_WALL_TORCH.defaultBlockState()
+                    .setValue(GreekFireTorchBlock.FACING,facing)
+                    .getCollisionShape(level,wall).bounds();
+            boolean reachesSupport=switch(facing) {
+                case NORTH -> bounds.maxZ>=.999;
+                case EAST -> bounds.minX<=.001;
+                case SOUTH -> bounds.minZ<=.001;
+                case WEST -> bounds.maxX>=.999;
+                default -> false;
+            };
+            check(reachesSupport,"Wall torch collision misses its support for "+facing);
+        }
         var topHit=new net.minecraft.world.phys.BlockHitResult(Vec3.atCenterOf(support).add(0,.5,0),
                 Direction.UP,support,false);
         check(Asterion.GREEK_FIRE_WALL_TORCH.getStateForPlacement(
@@ -161,7 +174,7 @@ public final class GameplayGameTest implements FabricClientGameTest {
                 "Wall torch accepted floor placement");
         level.setBlock(support,Blocks.AIR.defaultBlockState(),3);
         check(level.getBlockState(wall).isAir(),"Unsupported wall torch remained floating");
-        Asterion.LOGGER.info("PASS: wall-only torch placement and joined floor-torch shaft/tip/light updates");
+        Asterion.LOGGER.info("PASS: four-way wall torch collision/placement and joined floor-torch shaft/tip/light updates");
     }
     private static void check(boolean value,String message){if(!value)throw new AssertionError(message);}
 }

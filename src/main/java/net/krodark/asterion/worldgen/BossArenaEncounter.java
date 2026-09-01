@@ -24,8 +24,13 @@ public final class BossArenaEncounter {
 
     public static void initialize(ServerLevel level) {
         clear();
-        MinotaurArenaEntrances.setGates(level, 0, null);
-        restoreDoors(level);
+        // Authored gates and doors are restored by their FULL chunk callback. Doing
+        // world reads here can wait on chunk futures while SERVER_STARTED still owns
+        // the server thread, freezing initial world load.
+        if(!AuthoredCatacombs.enabled()) {
+            MinotaurArenaEntrances.setGates(level,0,null);
+            restoreDoors(level);
+        }
     }
 
     public static void begin(ServerLevel level, ServerPlayer trigger, MinotaurEntity boss, Direction entry) {

@@ -78,7 +78,7 @@ public final class PortalEmissionGameTest implements FabricClientGameTest {
         private final double[] first, second;
 
         Probe() {
-            this(new double[] {0.9, 140.012, 0.5}, new double[] {3.4, 140.018, 0.5});
+            this(new double[] {0.9, 140.012, 0.5}, new double[] {2.15, 140.018, 0.5});
         }
 
         Probe(double[] first, double[] second) {
@@ -122,7 +122,7 @@ public final class PortalEmissionGameTest implements FabricClientGameTest {
                     for (int i = 0; i < packNames.length; i++) GL11.glPixelStorei(packNames[i], packValues[i]);
                 }
                 core = sample(frame.camera(), buffer, first[0], first[1], first[2]);
-                // Outside the core's maximum radius (2.636), inside the halo's square ring.
+                // Outside the new 3x3 core, inside its restrained square halo.
                 halo = sample(frame.camera(), buffer, second[0], second[1], second[2]);
                 visibleFrames = core > 0.01F && halo > 0.001F ? visibleFrames + 1 : 0;
                 darkFrames = core < 0.00001F && halo < 0.00001F ? darkFrames + 1 : 0;

@@ -18,9 +18,18 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
         try(var world=context.worldBuilder().create()) {
             world.getServer().runOnServer(server -> {
                 var level=server.getLevel(Asterion.ASTERION_LEVEL);
+                // Runtime installs arena pieces from completed chunk callbacks. This test
+                // intentionally forces all pieces so it can inspect the entire 123x123 build.
+                for(int cx=-4;cx<=3;cx++)for(int cz=-4;cz<=3;cz++)
+                    AuthoredCatacombs.placeArenaChunk(level,level.getChunk(cx,cz));
+                for(int cx=-1;cx<=5;cx++)for(int cz=3;cz<=5;cz++)
+                    AuthoredCatacombs.placeArenaChunk(level,level.getChunk(cx,cz));
                 check(WorldGenerator.isBossArenaReady(),"Arena not ready");
                 check(level.getBlockState(new BlockPos(0,6,0)).is(Asterion.ANCIENT_MOSSY_BRICKS),"Authored arena center was overwritten");
                 check(level.getBlockState(new BlockPos(0,7,0)).isAir(),"Arena center obstructed");
+                for(int x=-1;x<=1;x++)for(int y=6;y<=10;y++)
+                    check(!level.getBlockState(new BlockPos(x,y,-60)).is(Blocks.CYAN_WOOL),
+                            "Arena exit portal marker remained as cyan wool");
                 check(level.getBlockEntity(MinotaurArenaEntrances.door(net.minecraft.core.Direction.SOUTH)) instanceof net.krodark.asterion.block.MinotaurDoorBlockEntity,"Single keyed arena entrance missing");
                 check(MinotaurArenaEntrances.DOORS.size()==1,"Extra arena entrance");
                 check(WorldGenerator.activeBossBraziers(level)==0,"Generated braziers overwrote the authored arena");

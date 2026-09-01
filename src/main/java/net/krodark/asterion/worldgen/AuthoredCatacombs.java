@@ -1,6 +1,7 @@
 package net.krodark.asterion.worldgen;
 
 import net.krodark.asterion.Asterion;
+import net.krodark.asterion.mixin.StructureTemplateAccessor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -9,6 +10,7 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.templatesystem.*;
 import java.util.*;
@@ -17,6 +19,7 @@ import java.util.*;
 public final class AuthoredCatacombs {
     public static final int BASE_Y = 19, SIZE = 19, CONNECTOR_Y = BASE_Y + 5;
     public static final int ARENA_BASE_Y = 1, ARENA_FLOOR_Y = 6, ARENA_RADIUS = 61;
+    private static final int ARENA_CHUNK_MARKER_Y = 0;
     public static final List<String> TEMPLATES = List.of("corridor_cross_01", "corridor_cross_02",
             "corridor_deadend_01", "corridor_deadend_02", "corridor_straight_01", "corridor_straight_02",
             "corridor_straight_03", "corridor_straight_04", "corridor_t_01", "corridor_t_02",
@@ -89,8 +92,11 @@ public final class AuthoredCatacombs {
                 // Keep the existing maze floor and walls there; only crossings break the surface.
                 BoundingBox roomClip = module.name().startsWith("crossing_") ? clip
                         : new BoundingBox(clip.minX(), clip.minY(), clip.minZ(), clip.maxX(), 46, clip.maxZ());
-                template.placeInWorld(world, origin, origin, placementSettings(roomClip, module.name().startsWith("crossing_")).setRotation(module.rotation())
-                                .setRotationPivot(new BlockPos(9, 0, 9)), RandomSource.create(seed ^ origin.asLong()), 18);
+                var placement=placementSettings(roomClip,module.name().startsWith("crossing_"))
+                        .setRotation(module.rotation()).setRotationPivot(new BlockPos(9,0,9));
+                template.placeInWorld(world,origin,origin,placement,
+                        RandomSource.create(seed^origin.asLong()),18);
+                markTemplateRunes(world,template,origin,placement,roomClip);
                 if (module.name().startsWith("crossing_")) surfaceApproach(world, chunk, origin, seed);
                 // No corner asset was supplied: rotate a T and close only its unused connector.
                 for (Direction side : Direction.Plane.HORIZONTAL) if ((module.blocked() & bit(side)) != 0) {
@@ -101,6 +107,14 @@ public final class AuthoredCatacombs {
                     }
                 }
             }
+    }
+    private static void markTemplateRunes(WorldGenLevel world,StructureTemplate template,BlockPos origin,
+                                          StructurePlaceSettings placement,BoundingBox clip) {
+        for(var block:Asterion.RUNE_BLOCKS)
+            for(var info:template.filterBlocks(origin,placement,block,true))
+                if(clip.isInside(info.pos())&&net.krodark.asterion.block.RuneBlock.isRoot(info.state())
+                        && world.getBlockEntity(info.pos()) instanceof net.krodark.asterion.block.RuneBlockEntity rune)
+                    rune.setWorldGenerated(true);
     }
     public static StructurePlaceSettings settings(BoundingBox clip) {
         return new StructurePlaceSettings().setBoundingBox(clip).setIgnoreEntities(true)
@@ -127,13 +141,39 @@ public final class AuthoredCatacombs {
                 StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed,
                 StructurePlaceSettings settings) {
             var state = transformed.state();
+            // Multipart template NBT can target a section that another rotated piece
+            // later occupies. Both entities only need runtime defaults, so strip their
+            // saved tags and initialize surviving rune roots after the chunk is placed.
+            if (state.getBlock() instanceof net.krodark.asterion.block.RuneBlock)
+                return new StructureTemplate.StructureBlockInfo(transformed.pos(), state, null);
             if (!state.is(Asterion.BARREL_DOOR)) return transformed;
             // Open doors save a second 3x4 collision wing. Drop that moved copy and
             // retain the original plane below as the closed door.
             if (state.getValue(net.krodark.asterion.block.BarrelDoorBlock.WING)) return null;
-            return new StructureTemplate.StructureBlockInfo(transformed.pos(), state
+            net.minecraft.world.level.block.state.BlockState closed = state
                     .setValue(net.krodark.asterion.block.BarrelDoorBlock.OPEN, false)
-                    .setValue(net.krodark.asterion.block.BarrelDoorBlock.WING, false), transformed.nbt());
+                    .setValue(net.krodark.asterion.block.BarrelDoorBlock.WING, false);
+            return new StructureTemplate.StructureBlockInfo(transformed.pos(), closed, null);
+        }
+        @Override protected StructureProcessorType<?> getType() { return StructureProcessorType.BLOCK_IGNORE; }
+    };
+    private static final StructureProcessor REMOVE_ARENA_MARKERS = new StructureProcessor() {
+        @Override public StructureTemplate.StructureBlockInfo processBlock(
+                net.minecraft.world.level.LevelReader world, BlockPos origin, BlockPos reference,
+                StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed,
+                StructurePlaceSettings settings) {
+            return transformed.state().is(Blocks.CYAN_WOOL)
+                    ? new StructureTemplate.StructureBlockInfo(transformed.pos(), Blocks.AIR.defaultBlockState(), null)
+                    : transformed;
+        }
+        @Override protected StructureProcessorType<?> getType() { return StructureProcessorType.BLOCK_IGNORE; }
+    };
+    private static final StructureProcessor ARENA_NBT_ONLY = new StructureProcessor() {
+        @Override public StructureTemplate.StructureBlockInfo processBlock(
+                net.minecraft.world.level.LevelReader world, BlockPos origin, BlockPos reference,
+                StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed,
+                StructurePlaceSettings settings) {
+            return transformed.nbt()==null ? null : transformed;
         }
         @Override protected StructureProcessorType<?> getType() { return StructureProcessorType.BLOCK_IGNORE; }
     };
@@ -183,43 +223,105 @@ public final class AuthoredCatacombs {
         }
     }
     public static void placeArena(ServerLevel level) {
-        // Row order and +Z orientation are confirmed by part 8's south-facing exit.
-        for (int part = 1; part <= 9; part++) {
-            var template = level.getStructureManager().get(Asterion.id("catacombs/arena_part" + part)).orElseThrow();
-            if (!template.getSize().equals(new net.minecraft.core.Vec3i(41, 48, 41)))
-                throw new IllegalStateException("Arena part " + part + " must be 41x48x41");
-            BlockPos origin = new BlockPos(-61 + ((part - 1) % 3) * 41, ARENA_BASE_Y,
-                    -61 + ((part - 1) / 3) * 41);
-            BoundingBox bounds = new BoundingBox(origin.getX(), origin.getY(), origin.getZ(), origin.getX()+40, origin.getY()+47, origin.getZ()+40);
-            template.placeInWorld(level, origin, origin, settings(bounds), RandomSource.create(part), 18);
-        }
-        // Connect the author's one exit to the root, entirely outside the arena footprint.
-        for (int z = 62; z <= CatacombLayout.ROOT_CENTER; z++) corridor(level, 0, z);
-        for (int x = 0; x <= CatacombLayout.ROOT_CENTER - 10; x++) corridor(level, x, CatacombLayout.ROOT_CENTER);
-        // Preserve the terrain-ready markers, or chunk reload would regenerate over the arena.
-        for (int cx = -4; cx <= 3; cx++) for (int cz = -4; cz <= 3; cz++) {
-            var chunk = level.getChunk(cx, cz);
-            level.setBlock(new BlockPos(cx*16, 1, cz*16), Blocks.BEDROCK.defaultBlockState(), 2);
-            MazeNbtStructures.markCopperClean(chunk);
-        }
-        configureArenaLoot(level);
+        // Arena chunks install themselves when their FULL chunk callback runs. Forcing
+        // even the center chunk from SERVER_STARTED can wait on the same chunk future.
     }
-    private static void configureArenaLoot(ServerLevel level) {
+    public static void placeArenaChunk(ServerLevel level,LevelChunk chunk) {
+        ChunkPos cp=chunk.getPos();
+        boolean arena=cp.x()>=-4&&cp.x()<=3&&cp.z()>=-4&&cp.z()<=3;
+        boolean approach=cp.getMaxBlockX()>=-1&&cp.getMinBlockX()<=CatacombLayout.ROOT_CENTER
+                && cp.getMaxBlockZ()>=62&&cp.getMinBlockZ()<=CatacombLayout.ROOT_CENTER+1;
+        if(!arena&&!approach)return;
+        BlockPos marker=new BlockPos(cp.getMinBlockX(),ARENA_CHUNK_MARKER_Y,cp.getMinBlockZ());
+        if(chunk.getBlockState(marker).is(Blocks.BARRIER))return;
+        BoundingBox chunkBounds=new BoundingBox(cp.getMinBlockX(),ARENA_BASE_Y,cp.getMinBlockZ(),
+                cp.getMaxBlockX(),ARENA_BASE_Y+47,cp.getMaxBlockZ());
+        if(arena)for(int part=1;part<=9;part++) {
+            BlockPos origin=new BlockPos(-61+((part-1)%3)*41,ARENA_BASE_Y,-61+((part-1)/3)*41);
+            int maxX=origin.getX()+40,maxZ=origin.getZ()+40;
+            if(maxX<chunkBounds.minX()||origin.getX()>chunkBounds.maxX()
+                    ||maxZ<chunkBounds.minZ()||origin.getZ()>chunkBounds.maxZ())continue;
+            var template=level.getStructureManager().get(Asterion.id("catacombs/arena_part"+part)).orElseThrow();
+            if(!template.getSize().equals(new net.minecraft.core.Vec3i(41,48,41)))
+                throw new IllegalStateException("Arena part "+part+" must be 41x48x41");
+            BoundingBox clip=new BoundingBox(Math.max(origin.getX(),chunkBounds.minX()),ARENA_BASE_Y,
+                    Math.max(origin.getZ(),chunkBounds.minZ()),Math.min(maxX,chunkBounds.maxX()),
+                    ARENA_BASE_Y+47,Math.min(maxZ,chunkBounds.maxZ()));
+            placeArenaPart(level,template,origin,clip,part);
+        }
+        placeArenaApproach(level,chunk);
+        markGeneratedRunes(chunk,chunkBounds);
+        configureArenaLoot(level,chunk);
+        MinotaurArenaEntrances.buildForChunk(level,cp);
+        chunk.setBlockState(new BlockPos(cp.getMinBlockX(),1,cp.getMinBlockZ()),
+                Blocks.BEDROCK.defaultBlockState(),0);
+        chunk.setBlockState(marker,Blocks.BARRIER.defaultBlockState(),0);
+        MazeNbtStructures.markCopperClean(chunk);
+        chunk.markUnsaved();
+    }
+    private static void placeArenaPart(ServerLevel level, StructureTemplate template, BlockPos origin,
+                                       BoundingBox bounds, int part) {
+        var palettes=((StructureTemplateAccessor)(Object)template).asterion$getPalettes();
+        if(palettes.isEmpty())return;
+        Map<Long,net.minecraft.world.level.chunk.LevelChunk> chunks=new HashMap<>();
+        for(var info:palettes.getFirst().blocks()) {
+            var state=info.state();
+            if(state.isAir())continue;
+            if(state.is(Blocks.STRUCTURE_BLOCK)||state.is(Blocks.STRUCTURE_VOID)
+                    ||state.is(Blocks.JIGSAW)||state.is(Blocks.CYAN_WOOL))state=Blocks.AIR.defaultBlockState();
+            if(state.is(Asterion.BARREL_DOOR)) {
+                if(state.getValue(net.krodark.asterion.block.BarrelDoorBlock.WING))continue;
+                state=state.setValue(net.krodark.asterion.block.BarrelDoorBlock.OPEN,false)
+                        .setValue(net.krodark.asterion.block.BarrelDoorBlock.WING,false);
+            }
+            BlockPos pos=origin.offset(info.pos());
+            if(!bounds.isInside(pos))continue;
+            // Only the small set requiring lifecycle/light work uses Level#setBlock.
+            // Plain masonry goes directly into its already-loaded chunk, avoiding
+            // hundreds of thousands of repeated world lookups and neighbor checks.
+            if(state.hasBlockEntity()||state.getLightEmission()>0||!state.getFluidState().isEmpty())
+                level.setBlock(pos,state,18);
+            else {
+                long key=ChunkPos.pack(pos.getX()>>4,pos.getZ()>>4);
+                var chunk=chunks.computeIfAbsent(key,ignored->level.getChunk(pos.getX()>>4,pos.getZ()>>4));
+                chunk.setBlockState(pos,state,0);
+            }
+        }
+        // Let vanilla deserialize the few authored block entities after the fast
+        // block batch. Multipart rune/barrel tags were intentionally stripped above.
+        template.placeInWorld(level,origin,origin,settings(bounds)
+                .addProcessor(REMOVE_ARENA_MARKERS).addProcessor(ARENA_NBT_ONLY),
+                RandomSource.create(part),18);
+        for(var chunk:chunks.values())chunk.markUnsaved();
+    }
+    private static void configureArenaLoot(ServerLevel level,LevelChunk chunk) {
         var common=net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.LOOT_TABLE,
                 Asterion.id("chests/arena_vault_common"));
         var treasure=net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.LOOT_TABLE,
                 Asterion.id("chests/arena_vault_treasure"));
-        for(BlockPos pos:BlockPos.betweenClosed(-61,ARENA_BASE_Y,-61,61,48,61)) {
-            if(level.getBlockEntity(pos) instanceof net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity container
-                    && container.getLootTable()==null)
-                container.setLootTable(Math.floorMod(pos.asLong()^level.getSeed(),4)==0?treasure:common);
+        for(var entry:chunk.getBlockEntities().entrySet()) {
+                BlockPos pos=entry.getKey();
+                if(pos.getY()<ARENA_BASE_Y||pos.getY()>48||Math.abs(pos.getX())>61||Math.abs(pos.getZ())>61)continue;
+                if(entry.getValue() instanceof net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity container
+                        && container.getLootTable()==null)
+                    container.setLootTable(Math.floorMod(pos.asLong()^level.getSeed(),4)==0?treasure:common);
         }
     }
-    private static void corridor(ServerLevel level, int x, int z) {
-        for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) {
-            if (Math.abs(x + dx) <= ARENA_RADIUS && Math.abs(z + dz) <= ARENA_RADIUS) continue;
-            level.setBlock(new BlockPos(x+dx, CONNECTOR_Y-1, z+dz), Asterion.ANCIENT_BRICKS.defaultBlockState(), 2);
-            for (int y = 0; y < 4; y++) level.setBlock(new BlockPos(x+dx, CONNECTOR_Y+y, z+dz), Blocks.AIR.defaultBlockState(), 2);
+    public static void markGeneratedRunes(LevelChunk chunk,BoundingBox bounds) {
+        for(var entry:chunk.getBlockEntities().entrySet())
+            if(bounds.isInside(entry.getKey())
+                    && entry.getValue() instanceof net.krodark.asterion.block.RuneBlockEntity rune
+                    && !rune.isWorldGenerated())rune.setWorldGenerated(true);
+    }
+    private static void placeArenaApproach(ServerLevel level,LevelChunk chunk) {
+        ChunkPos cp=chunk.getPos();
+        for(int x=cp.getMinBlockX();x<=cp.getMaxBlockX();x++)for(int z=cp.getMinBlockZ();z<=cp.getMaxBlockZ();z++) {
+            boolean vertical=Math.abs(x)<=1&&z>=62&&z<=CatacombLayout.ROOT_CENTER+1;
+            boolean horizontal=x>=-1&&x<=CatacombLayout.ROOT_CENTER-9
+                    && Math.abs(z-CatacombLayout.ROOT_CENTER)<=1;
+            if((!vertical&&!horizontal)||(Math.abs(x)<=ARENA_RADIUS&&Math.abs(z)<=ARENA_RADIUS))continue;
+            level.setBlock(new BlockPos(x,CONNECTOR_Y-1,z),Asterion.ANCIENT_BRICKS.defaultBlockState(),18);
+            for(int y=0;y<4;y++)level.setBlock(new BlockPos(x,CONNECTOR_Y+y,z),Blocks.AIR.defaultBlockState(),18);
         }
     }
 }

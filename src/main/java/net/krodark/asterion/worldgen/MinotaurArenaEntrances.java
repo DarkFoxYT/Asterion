@@ -50,8 +50,11 @@ public final class MinotaurArenaEntrances {
     public static void setAuthoredBossGate(ServerLevel level,int closedRows) {
         var base=Asterion.MAZESTEEL_GATE.defaultBlockState().setValue(DirectionalGateBlock.FACE,AttachFace.FLOOR)
                 .setValue(DirectionalGateBlock.FACING,Direction.SOUTH);
-        for(int row=0;row<6;row++)for(int side=-3;side<=3;side++)
-            level.setBlock(AUTHORED_BOSS_GATE.offset(side,row,0),base.setValue(DirectionalGateBlock.OPEN,row<6-closedRows),2);
+        for(int row=0;row<6;row++)for(int side=-3;side<=3;side++) {
+            BlockPos pos=AUTHORED_BOSS_GATE.offset(side,row,0);
+            var next=base.setValue(DirectionalGateBlock.OPEN,row<6-closedRows);
+            if(!level.getBlockState(pos).equals(next)) level.setBlock(pos,next,2);
+        }
     }
     public static void setGate(ServerLevel level, Direction facing, int closedRows) {
         var state = Asterion.MAZESTEEL_GATE.defaultBlockState().setValue(DirectionalGateBlock.FACE, AttachFace.FLOOR)
@@ -62,9 +65,11 @@ public final class MinotaurArenaEntrances {
             if (!level.getBlockState(pos).equals(next)) level.setBlock(pos, next, 2);
         }
         // A raised portcullis remains visible above the passage on both entrances.
-        for (int side = -3; side <= 3; side++)
-            level.setBlock(gate(facing).relative(facing.getClockWise(), side).above(gateHeight()),
-                    state.setValue(DirectionalGateBlock.OPEN, false), 2);
+        for (int side = -3; side <= 3; side++) {
+            BlockPos pos=gate(facing).relative(facing.getClockWise(), side).above(gateHeight());
+            var next=state.setValue(DirectionalGateBlock.OPEN, false);
+            if(!level.getBlockState(pos).equals(next)) level.setBlock(pos,next,2);
+        }
     }
     public static boolean entranceLane(int x, int z) { return Math.abs(x) <= 4; }
 
@@ -100,8 +105,8 @@ public final class MinotaurArenaEntrances {
     public static int floorAt(int radius) { return FLOOR_Y + Math.clamp(radius - 42, 0, 12); }
     public static void build(ServerLevel level) {
         if (AuthoredCatacombs.enabled()) {
-            MinotaurDoorBlock.place(level, door(PLAYER_ENTRANCE), PLAYER_ENTRANCE);
-            setGates(level, 0, null);
+            if(level.getChunkSource().hasChunk(0,3))buildForChunk(level,new net.minecraft.world.level.ChunkPos(0,3));
+            if(level.getChunkSource().hasChunk(0,-3))buildForChunk(level,new net.minecraft.world.level.ChunkPos(0,-3));
             return;
         }
         int heightLimit = Math.max(8, (int)Math.ceil(2.75 * net.krodark.asterion.AsterionConfig.INSTANCE.minotaurScale) + 2);
@@ -134,6 +139,13 @@ public final class MinotaurArenaEntrances {
         }
         buildCatacombApproach(level);
         setGates(level, 0, null);
+    }
+    public static void buildForChunk(ServerLevel level,net.minecraft.world.level.ChunkPos chunk) {
+        if(chunk.x()!=0)return;
+        if(chunk.z()==3) {
+            MinotaurDoorBlock.place(level,door(PLAYER_ENTRANCE),PLAYER_ENTRANCE);
+            setGate(level,PLAYER_ENTRANCE,0);
+        } else if(chunk.z()==-3)setAuthoredBossGate(level,0);
     }
 
     private static void buildCatacombApproach(ServerLevel level) {

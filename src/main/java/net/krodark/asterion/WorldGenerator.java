@@ -143,6 +143,7 @@ public final class WorldGenerator {
             MazeNbtStructures.cleanLegacyCopper(chunk,
                     BOSS_FLOOR_Y - AsterionConfig.INSTANCE.floorThickness,
                     FLOOR_Y + AsterionConfig.INSTANCE.wallHeight);
+            net.krodark.asterion.worldgen.ZoneRunePlacement.enqueue(level,chunk);
         }
 
         if (ENABLE_MAZE_NBT_STRUCTURES) {
@@ -650,12 +651,12 @@ public final class WorldGenerator {
             if (edge > 5 || Math.abs(dx) + Math.abs(dz) > 8) continue;
             int x = centerX + dx;
             int z = centerZ + dz;
-            if (edge <= 2) {
+            if (edge <= 1) {
                 for (int y = portalY - 2; y <= surfaceY + 2; y++)
                     level.setBlock(cursor.set(x, y, z), Blocks.AIR.defaultBlockState(), 2);
                 level.setBlock(cursor.set(x, portalY - 3, z),
                         gatewayRimState(dx, dz, Math.max(3, edge)), 2);
-            } else if (edge == 3) {
+            } else if (edge == 2) {
                 for (int y = portalY - 3; y < surfaceY; y++) {
                     int depth = surfaceY - y;
                     BlockState lining = depth % 3 == 0
@@ -664,7 +665,7 @@ public final class WorldGenerator {
                     level.setBlock(cursor.set(x, y, z), lining, 2);
                 }
                 level.setBlock(cursor.set(x, surfaceY, z),
-                        ((Math.abs(dx) == 3 && dz == 0) || (Math.abs(dz) == 3 && dx == 0))
+                        ((Math.abs(dx) == 2 && dz == 0) || (Math.abs(dz) == 2 && dx == 0))
                                 ? Asterion.ANCIENT_BRICK_SLAB.defaultBlockState()
                                 : Asterion.ANCIENT_BRICK_WALL.defaultBlockState(), 2);
             } else {
@@ -872,12 +873,14 @@ public final class WorldGenerator {
                     portal.center, portal.surfaceY, portal.visualSeed));
             LAST_PORTAL_SYNC.put(player.getUUID(), now);
         }
-        if (Math.max(Math.abs(dx), Math.abs(dz)) > 2.45D
-                || Math.abs(player.getY() - portal.surfaceY) > 2.35D) return false;
         if (portal.dimension.equals(Asterion.ASTERION_LEVEL)) {
+            if (Math.abs(dx) > 1.55D || Math.abs(dz) > 1.15D
+                    || Math.abs(player.getY() - portal.surfaceY) > 2.55D) return false;
             beginArenaExit(player);
             return true;
         }
+        if (Math.max(Math.abs(dx), Math.abs(dz)) > 1.48D
+                || Math.abs(player.getY() - portal.surfaceY) > 2.0D) return false;
         ServerLevel maze = player.level().getServer().getLevel(Asterion.ASTERION_LEVEL);
         if (maze == null) return false;
         beginTransition(player, maze);
@@ -895,13 +898,17 @@ public final class WorldGenerator {
             ServerLevel source = server.getLevel(portal.dimension);
             if (source != null) {
                 Vec3 center = new Vec3(portal.center.getX() + 0.5D, portal.surfaceY, portal.center.getZ() + 0.5D);
-                AABB intake = new AABB(center.x - 2.05D, center.y - 2.35D, center.z - 2.05D,
-                        center.x + 2.05D, center.y + 2.35D, center.z + 2.05D);
+                boolean vertical = portal.dimension.equals(Asterion.ASTERION_LEVEL);
+                AABB intake = vertical
+                        ? new AABB(center.x - 1.55D, center.y - 2.55D, center.z - 1.15D,
+                                center.x + 1.55D, center.y + 2.55D, center.z + 1.15D)
+                        : new AABB(center.x - 1.48D, center.y - 2.0D, center.z - 1.48D,
+                                center.x + 1.48D, center.y + 2.0D, center.z + 1.48D);
                 for (Entity entity : source.getEntitiesOfClass(Entity.class, intake,
                         entity -> !(entity instanceof ServerPlayer) && !entity.isRemoved())) {
                     double dx = entity.getX() - center.x;
                     double dz = entity.getZ() - center.z;
-                    if (dx * dx / (2.05D * 2.05D) + dz * dz / (1.55D * 1.55D) <= 1.0D)
+                    if (vertical || Math.max(Math.abs(dx), Math.abs(dz)) <= 1.48D)
                         PHASING_ENTITIES.computeIfAbsent(entity.getUUID(), ignored -> new PhasingEntity(entity));
                 }
             }
@@ -1470,6 +1477,8 @@ public final class WorldGenerator {
 
     private static void tickBossArenaDebris(ServerLevel level) {
         if (!bossArenaPrepared || (level.getGameTime() % 10L) != 0L) return;
+        if(level.players().stream().noneMatch(player->player.isAlive()
+                && player.distanceToSqr(.5,BOSS_FLOOR_Y+1,.5)<96D*96D))return;
         int diameter = PIT_HALF_WIDTH * 2 + 1;
         long phase = level.getGameTime() / 10L;
         for (int sample = 0; sample < 96; sample++) {
@@ -1478,6 +1487,7 @@ public final class WorldGenerator {
             int x = (int)Math.floorMod(roll, diameter) - PIT_HALF_WIDTH;
             int z = (int)Math.floorMod(roll >>> 24, diameter) - PIT_HALF_WIDTH;
             if (x * x + z * z > PIT_HALF_WIDTH * PIT_HALF_WIDTH) continue;
+            if(!level.getChunkSource().hasChunk(x>>4,z>>4))continue;
             for (int y = BOSS_FLOOR_Y + 1; y <= BOSS_FLOOR_Y + 8; y++) {
                 BlockPos pos = new BlockPos(x, y, z);
                 BlockState state = level.getBlockState(pos);

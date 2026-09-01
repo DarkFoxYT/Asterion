@@ -96,7 +96,7 @@ void main() {
     float depth = texture(DepthSampler, texCoord).r;
     vec3 direction = worldRay(texCoord);
     float travel = depth >= 0.9999 ? 112.0 : min(length(reconstructWorld(depth) - CameraPos), 112.0);
-    int sampleCount = Quality < 0.5 ? 4 : (Quality < 1.5 ? 7 : 10);
+    int sampleCount = Quality < 0.5 ? 3 : (Quality < 1.5 ? 5 : 7);
     float stepLength = travel / float(sampleCount);
 
     float opticalDepth = 0.0;
@@ -104,7 +104,7 @@ void main() {
     vec3 wind = vec3(Time * 0.006, Time * 0.0015, -Time * 0.004) * Settings.z;
     vec3 neutralDust = mix(DustTint, vec3(dot(DustTint, vec3(0.299, 0.587, 0.114))), 0.16);
 
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < 7; ++i) {
         if (i >= sampleCount) break;
         float distanceAlongRay = (float(i) + 0.5) * stepLength;
         vec3 sampleWorld = CameraPos + direction * distanceAlongRay;

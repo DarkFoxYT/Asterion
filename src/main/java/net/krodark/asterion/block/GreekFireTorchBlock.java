@@ -24,7 +24,7 @@ public final class GreekFireTorchBlock extends BaseEntityBlock {
         super(properties);
         this.wall=wall;
         this.fireColor=fireColor;
-        registerDefaultState(stateDefinition.any().setValue(FACING,Direction.SOUTH).setValue(TOP,true));
+        registerDefaultState(stateDefinition.any().setValue(FACING,Direction.NORTH).setValue(TOP,true));
     }
     @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block,BlockState> builder) {
@@ -70,10 +70,17 @@ public final class GreekFireTorchBlock extends BaseEntityBlock {
     @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
     @Override protected VoxelShape getShape(BlockState state,BlockGetter level,BlockPos pos,CollisionContext context) {
         if(!wall) return state.getValue(TOP)?box(1,0,1,15,16,15):box(6,0,6,10,16,10);
-        VoxelShape south=Shapes.or(box(6,0,10,10,16,16),box(1,14,5,15,32,16));
+        // Native model faces north: its support wall is on the south (+Z) edge.
+        // Only the metal cup/shaft collides; the animated flame remains passable.
+        VoxelShape north=Shapes.or(
+                box(6,1,13,10,9,16),
+                box(6,5,10,10,11,14),
+                box(6,9,7,10,16,11),
+                box(6,14,4,10,20,8),
+                box(3,18,1,13,22,10));
         return switch(state.getValue(FACING)) {
-            case NORTH -> rotateShape(south,2); case WEST -> rotateShape(south,1);
-            case EAST -> rotateShape(south,3); default -> south;
+            case EAST -> rotateShape(north,1); case SOUTH -> rotateShape(north,2);
+            case WEST -> rotateShape(north,3); default -> north;
         };
     }
     private static VoxelShape rotateShape(VoxelShape source,int turns) {

@@ -395,7 +395,7 @@
 					"name": "hand_itemL",
 					"parent": "lefthand",
 					"pivot": [59.5, 81.75, 0.5],
-					"rotation": [95, 0, 90]
+					"rotation": [85, 0, -90]
 				},
 				{
 					"name": "rightshoulder",

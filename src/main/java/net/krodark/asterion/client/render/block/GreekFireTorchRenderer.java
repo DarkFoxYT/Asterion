@@ -60,7 +60,13 @@ public final class GreekFireTorchRenderer extends GeoBlockRenderer<GreekFireTorc
         bones.ifPresent("top",bone->{bone.skipRender(!wall&&!top);bone.skipChildrenRender(!wall&&!top);});
         bones.ifPresent("flame",bone->bone.skipRender(true));
         if(wall) {
-            float yaw=-pass.getOrDefaultGeckolibData(FACING,Direction.SOUTH).toYRot()*((float)Math.PI/180F);
+            Direction facing=pass.getOrDefaultGeckolibData(FACING,Direction.NORTH);
+            float yaw=switch(facing) {
+                case EAST -> -(float)Math.PI/2F;
+                case SOUTH -> (float)Math.PI;
+                case WEST -> (float)Math.PI/2F;
+                default -> 0F;
+            };
             bones.ifPresent("full",bone->bone.setRotation(0,yaw,0));
         }
     }

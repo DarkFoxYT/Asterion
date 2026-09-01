@@ -33,8 +33,9 @@ import org.jspecify.annotations.Nullable;
 public final class OmegaLockBlock extends BaseEntityBlock {
     public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty UNLOCKED = BooleanProperty.create("unlocked");
-    private static final VoxelShape NORTH_SOUTH = box(2, 1, 5, 14, 15, 11);
-    private static final VoxelShape EAST_WEST = box(5, 1, 2, 11, 15, 14);
+    // Match the supplied Blockbench model exactly so wall placement and selection feel solid.
+    private static final VoxelShape NORTH_SOUTH = box(0, 0, 5, 16, 16, 11);
+    private static final VoxelShape EAST_WEST = box(5, 0, 0, 11, 16, 16);
 
     public OmegaLockBlock(Properties properties) {
         super(properties);
@@ -53,7 +54,7 @@ public final class OmegaLockBlock extends BaseEntityBlock {
         }
         return InteractionResult.SUCCESS;
     }
-    @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
+    @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.MODEL; }
     @Override protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return state.getValue(FACING).getAxis() == Direction.Axis.Z ? NORTH_SOUTH : EAST_WEST;
     }

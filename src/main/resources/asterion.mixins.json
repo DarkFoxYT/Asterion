@@ -21,6 +21,7 @@
     "CinematicServerMovementMixin",
     "PrimaryLevelDataMixin",
     "ResolveDamageMixin",
+    "StructureTemplateAccessor",
     "WorldGenRegionAccessor"
   ],
   "client": [
