@@ -1498,18 +1498,13 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
     private void beginDoorEntry(net.minecraft.core.Direction playerEntrance) {
         doorEntryStarted = true;
-        if (net.krodark.asterion.worldgen.AuthoredCatacombs.enabled()) {
-            // The authored arena has one player entrance and no boss staging door.
-            bossAttackCooldown = net.krodark.asterion.worldgen.BossArenaEncounter.INTRO_TICKS + 20;
-            getEntityData().set(DATA_DOOR_ENTRY_TICKS, 1);
-            return;
-        }
         entryFacing = net.krodark.asterion.worldgen.MinotaurArenaEntrances.BOSS_ENTRANCE;
         entryDoor = net.krodark.asterion.worldgen.MinotaurArenaEntrances.door(entryFacing);
         if (!(level().getBlockEntity(entryDoor) instanceof net.krodark.asterion.block.MinotaurDoorBlockEntity)) return;
         // Leave room for the authored neck/head lunge as well as the collision body.
         Vec3 behind = Vec3.atBottomCenterOf(entryDoor)
-                .add(entryFacing.getUnitVec3().scale(Math.max(5.5, getBbWidth() * .5 + 3.5)));
+                .add(entryFacing.getUnitVec3().scale(Math.max(5.5, getBbWidth() * .5 + 3.5)))
+                .add(0, net.krodark.asterion.worldgen.AuthoredCatacombs.enabled() ? 1 : 0, 0);
         setPos(behind.x, behind.y, behind.z);
         setDeltaMovement(Vec3.ZERO);
         getEntityData().set(DATA_DOOR_ENTRY_TICKS, 1);
@@ -1517,17 +1512,6 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
     private boolean tickDoorEntry(ServerLevel level) {
         int tick = doorEntryTicks();
-        if (net.krodark.asterion.worldgen.AuthoredCatacombs.enabled() && tick > 0) {
-            getNavigation().stop();
-            setYRot(0); setYHeadRot(0); yBodyRot = 0;
-            setDeltaMovement(tick>=60&&tick<122?new Vec3(0,getDeltaMovement().y,.18):Vec3.ZERO);
-            if (tick - 1 == MinotaurAnimationTiming.ENTRY_ROAR.roarSoundTick()) playRoar(4F, .72F, .85F);
-            if (tick >= net.krodark.asterion.worldgen.BossArenaEncounter.INTRO_TICKS) {
-                getEntityData().set(DATA_DOOR_ENTRY_TICKS, 0);
-                bossAttackCooldown = 40;
-            } else getEntityData().set(DATA_DOOR_ENTRY_TICKS, tick + 1);
-            return true;
-        }
         if (tick <= 0 || entryDoor == null || entryFacing == null) return false;
         getNavigation().stop();
         setTarget(null);

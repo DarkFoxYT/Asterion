@@ -15,11 +15,15 @@ import net.minecraft.world.level.block.state.properties.AttachFace;
 public final class MinotaurArenaEntrances {
     public static final int DOOR_RADIUS = 61, FLOOR_Y = AuthoredCatacombs.ARENA_FLOOR_Y;
     public static final Direction PLAYER_ENTRANCE = Direction.SOUTH, BOSS_ENTRANCE = Direction.NORTH;
+    /** Player-authorized entrances only; the north door is reserved for the boss reveal. */
     public static final java.util.List<Direction> DOORS = java.util.List.of(PLAYER_ENTRANCE);
     public static final int BOSS_ROOM_BACK = 44;
     public static final BlockPos AUTHORED_BOSS_GATE = new BlockPos(0, AuthoredCatacombs.ARENA_FLOOR_Y, -41);
     private MinotaurArenaEntrances() { }
     public static BlockPos door(Direction outward) {
+        if (AuthoredCatacombs.enabled())
+            return new BlockPos(0, AuthoredCatacombs.ARENA_BASE_Y + 5,
+                    outward == BOSS_ENTRANCE ? -40 : 40);
         return new BlockPos(outward.getStepX() * DOOR_RADIUS, AuthoredCatacombs.CONNECTOR_Y, outward.getStepZ() * DOOR_RADIUS);
     }
     public static BlockPos gate(Direction outward) { return door(outward).relative(outward.getOpposite(), 1); }
@@ -32,7 +36,7 @@ public final class MinotaurArenaEntrances {
     }
     public static boolean isGate(BlockPos pos) {
         for (Direction facing : DOORS) if (gateBounds(facing).contains(Vec3.atCenterOf(pos))) return true;
-        return false;
+        return AuthoredCatacombs.enabled() && gateBounds(BOSS_ENTRANCE).contains(Vec3.atCenterOf(pos));
     }
     public static Direction corridorAt(Vec3 position) {
         if (position.y < AuthoredCatacombs.CONNECTOR_Y - .5 || position.y > AuthoredCatacombs.CONNECTOR_Y + 7) return null;
@@ -44,8 +48,11 @@ public final class MinotaurArenaEntrances {
         return null;
     }
     public static void setGates(ServerLevel level, int closedRows, Direction except) {
+        if (AuthoredCatacombs.enabled()) {
+            if (except != BOSS_ENTRANCE) setAuthoredBossGate(level, closedRows);
+            return;
+        }
         for (Direction facing : DOORS) if (facing != except) setGate(level, facing, closedRows);
-        setAuthoredBossGate(level, closedRows);
     }
     public static void setAuthoredBossGate(ServerLevel level,int closedRows) {
         var base=Asterion.MAZESTEEL_GATE.defaultBlockState().setValue(DirectionalGateBlock.FACE,AttachFace.FLOOR)
@@ -57,6 +64,10 @@ public final class MinotaurArenaEntrances {
         }
     }
     public static void setGate(ServerLevel level, Direction facing, int closedRows) {
+        if (AuthoredCatacombs.enabled()) {
+            if (facing == BOSS_ENTRANCE) setAuthoredBossGate(level, closedRows);
+            return;
+        }
         var state = Asterion.MAZESTEEL_GATE.defaultBlockState().setValue(DirectionalGateBlock.FACE, AttachFace.FLOOR)
                 .setValue(DirectionalGateBlock.FACING, facing);
         for (int row = 0; row < gateHeight(); row++) for (int side = -3; side <= 3; side++) {
@@ -142,10 +153,10 @@ public final class MinotaurArenaEntrances {
     }
     public static void buildForChunk(ServerLevel level,net.minecraft.world.level.ChunkPos chunk) {
         if(chunk.x()!=0)return;
-        if(chunk.z()==3) {
-            MinotaurDoorBlock.place(level,door(PLAYER_ENTRANCE),PLAYER_ENTRANCE);
-            setGate(level,PLAYER_ENTRANCE,0);
-        } else if(chunk.z()==-3)setAuthoredBossGate(level,0);
+        // Both doors and the north portcullis are authored in arena parts 8 and 2.
+        // The sole jigsaw at z=61 connects to the nearest saved door at z=40;
+        // never stamp a second synthetic entrance over that connector.
+        if(chunk.z()==-3)setAuthoredBossGate(level,0);
     }
 
     private static void buildCatacombApproach(ServerLevel level) {

@@ -55,13 +55,45 @@ public final class AsterionPostEffects {
 
         PostEffects.register(Asterion.id("dimension/dusty_air"), config -> config
                 .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.dustyAirEnabled
-                        )
+                        && effectQuality() == 1)
                 .phase(RenderPhase.POST_WORLD)
                 .priority(20)
                 .fade(24, 16)
                 .uniform("DustTime", AsterionPostEffects::renderTime)
                 .uniform("AsterionStrength", () -> AsterionConfig.INSTANCE.dustyAirStrength)
                 .uniform("AsterionQuality", AsterionPostEffects::effectQuality)
+                .uniformVec3("AtmosphereSettings", AsterionPostEffects::atmosphereSettings)
+                .uniformVec3("DustColor", AsterionPostEffects::dustColor)
+                .uniformVec3("FogColor", AsterionPostEffects::fogColor)
+                .uniform("EclipseData", DeadSunClientEvents::eclipseStrength)
+                .uniformRaw("WorldData", AsterionPostEffects::worldData));
+
+        // High quality runs the volume at the actual window size. The old fixed
+        // 640x360 target was then enlarged over the scene and made the fog visibly blocky.
+        PostEffects.register(Asterion.id("dimension/dusty_air_high"), config -> config
+                .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.dustyAirEnabled
+                        && effectQuality() >= 2)
+                .phase(RenderPhase.POST_WORLD)
+                .priority(20)
+                .fade(24, 16)
+                .uniform("DustTime", AsterionPostEffects::renderTime)
+                .uniform("AsterionStrength", () -> AsterionConfig.INSTANCE.dustyAirStrength)
+                .uniform("AsterionQuality", AsterionPostEffects::effectQuality)
+                .uniformVec3("AtmosphereSettings", AsterionPostEffects::atmosphereSettings)
+                .uniformVec3("DustColor", AsterionPostEffects::dustColor)
+                .uniformVec3("FogColor", AsterionPostEffects::fogColor)
+                .uniform("EclipseData", DeadSunClientEvents::eclipseStrength)
+                .uniformRaw("WorldData", AsterionPostEffects::worldData));
+
+        PostEffects.register(Asterion.id("dimension/dusty_air_fast"), config -> config
+                .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.dustyAirEnabled
+                        && effectQuality() <= 0)
+                .phase(RenderPhase.POST_WORLD)
+                .priority(20)
+                .fade(3, 8)
+                .uniform("DustTime", AsterionPostEffects::renderTime)
+                .uniform("AsterionStrength", () -> AsterionConfig.INSTANCE.dustyAirStrength)
+                .uniform("AsterionQuality", 0)
                 .uniformVec3("AtmosphereSettings", AsterionPostEffects::atmosphereSettings)
                 .uniformVec3("DustColor", AsterionPostEffects::dustColor)
                 .uniformVec3("FogColor", AsterionPostEffects::fogColor)

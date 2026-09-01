@@ -192,6 +192,8 @@ public class Asterion implements ModInitializer {
                     .lightLevel(state -> state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT) ? 12 : 0)));
     public static final Block GREEK_FIRE_LANTERN = registerBlock("greek_fire_lantern", MapColor.COLOR_GREEN,
             properties -> new Block(properties.sound(SoundType.METAL).lightLevel(state -> 15)));
+    public static final Block RED_FIRE_LANTERN = registerBlock("red_fire_lantern", MapColor.COLOR_RED,
+            properties -> new Block(properties.sound(SoundType.METAL).lightLevel(state -> 15)));
     public static final net.krodark.asterion.block.GreekFireTorchBlock GREEK_FIRE_WALL_TORCH =
             (net.krodark.asterion.block.GreekFireTorchBlock)registerBlock("greek_fire_wall_torch", MapColor.COLOR_GREEN,
                     properties -> new net.krodark.asterion.block.GreekFireTorchBlock(properties.noOcclusion()
@@ -413,6 +415,7 @@ public class Asterion implements ModInitializer {
                         output.accept(SLUICE_LOCK);
                         output.accept(GREEK_BRAZIER);
                         output.accept(GREEK_FIRE_LANTERN);
+                        output.accept(RED_FIRE_LANTERN);
                         output.accept(LAMENTER);
                         output.accept(ANTIKYTHERA_BLUEPRINT);
                         output.accept(MINOTAUR_SIGIL);

@@ -202,7 +202,10 @@ public final class BossArenaEncounter {
     }
 
     private static void restoreDoors(ServerLevel level) {
-        for (Direction facing : MinotaurArenaEntrances.DOORS) {
+        var doors = AuthoredCatacombs.enabled()
+                ? List.of(MinotaurArenaEntrances.PLAYER_ENTRANCE, MinotaurArenaEntrances.BOSS_ENTRANCE)
+                : MinotaurArenaEntrances.DOORS;
+        for (Direction facing : doors) {
             BlockPos root = MinotaurArenaEntrances.door(facing);
             if (level.getBlockEntity(root) instanceof MinotaurDoorBlockEntity) continue;
             moveFromClosure(level, facing);

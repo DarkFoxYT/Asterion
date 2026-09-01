@@ -173,6 +173,10 @@ public final class AuthoredCatacombs {
                 net.minecraft.world.level.LevelReader world, BlockPos origin, BlockPos reference,
                 StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed,
                 StructurePlaceSettings settings) {
+            // Door animation angles in a structure save describe the builder's last
+            // preview frame. Keep the already-placed closed state and its fresh block
+            // entity defaults instead of restoring a visually open angle from disk.
+            if (transformed.state().is(Asterion.MINOTAUR_DOOR)) return null;
             return transformed.nbt()==null ? null : transformed;
         }
         @Override protected StructureProcessorType<?> getType() { return StructureProcessorType.BLOCK_IGNORE; }
