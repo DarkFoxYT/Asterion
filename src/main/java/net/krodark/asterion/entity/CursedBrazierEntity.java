@@ -60,6 +60,9 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
     private static final int ENCOUNTER_DOOR_RANGE = 32;
     private static final int SHIELD_BRAZIER_COUNT = 7;
     private static final int BRAZIER_SEARCH_RANGE = 30;
+    public static final int DASH_MOVE_TICKS = 10;
+    public static final int DASH_PAUSE_TICKS = 20;
+    public static final int DASH_LEG_TICKS = DASH_MOVE_TICKS + DASH_PAUSE_TICKS;
     private static final List<Vec3> CARDINAL_DIRECTIONS = List.of(
             new Vec3(1, 0, 0), new Vec3(-1, 0, 0),
             new Vec3(0, 0, 1), new Vec3(0, 0, -1));
@@ -498,7 +501,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
 
     private void tickCardinalDash(ServerLevel level, ServerPlayer target) {
         int tick = ++attackTicks;
-        int legTick = (tick - 1) % 14;
+        int legTick = (tick - 1) % DASH_LEG_TICKS;
         if (legTick == 0) {
             aim = bestCardinalDirection(level, target);
             if (clearance(level, aim, 8) < 1.2) {
@@ -509,17 +512,19 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
             updateFacingImmediate();
             dashLeg++;
         }
-        if (legTick < 10) {
+        if (legTick < DASH_MOVE_TICKS) {
             Vec3 next = position().add(aim.scale(0.92));
             if (canOccupy(level, next)) setPos(next);
-            else attackTicks += 10 - legTick;
+            else attackTicks += DASH_MOVE_TICKS - legTick;
             GasClouds.emit(level, position().add(0, 0.45, 0), aim.scale(-0.045), getUUID());
             level.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 0.45, getZ(),
                     3, 0.3, 0.18, 0.3, 0.01);
             damagePlayers(level, getBoundingBox().inflate(0.65, 0.3, 0.65),
                     10F, 16, true);
         }
-        if (dashLeg >= 7 && legTick >= 10) finishAttack(4);
+        // After each straight run the pot visibly settles for one second before it
+        // evaluates and commits to the next cardinal direction.
+        if (dashLeg >= 7 && legTick >= DASH_MOVE_TICKS) finishAttack(4);
     }
 
     private void tryStartShieldPhase(ServerLevel level) {

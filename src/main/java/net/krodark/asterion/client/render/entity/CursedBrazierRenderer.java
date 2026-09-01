@@ -88,7 +88,9 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
         withRenderLayer(new AsterionEmissiveBoneLayer<>(this, boneName, TEXTURE) {
             @Override
             public boolean shouldRenderBone(EntityRenderState state) {
-                return state.getOrDefaultGeckolibData(FLAMES_ACTIVE, false);
+                return state.getOrDefaultGeckolibData(FLAMES_ACTIVE, false)
+                        && state.getOrDefaultGeckolibData(ATTACK,
+                        CursedBrazierEntity.Attack.NONE.ordinal()) == matchingAttack;
             }
 
             @Override
@@ -146,11 +148,15 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
         float phaseAge = pass.getOrDefaultGeckolibData(PHASE_AGE, 0F);
         float time = pass.getOrDefaultGeckolibData(TIME, 0F);
 
-        // GeckoLib snapshots can retain visibility/scale changes made by a previous phase.
-        // Restore authored glow geometry every frame before applying the current pose.
-        for (String glowBone : GLOW_BONES) {
-            bones.ifPresent(glowBone, bone -> bone.skipRender(false)
-                    .skipChildrenRender(false).setScale(1F, 1F, 1F));
+        int selectedGlowAttack = pass.getOrDefaultGeckolibData(
+                ATTACK, CursedBrazierEntity.Attack.NONE.ordinal());
+        boolean flamesActive = pass.getOrDefaultGeckolibData(FLAMES_ACTIVE, false);
+        // Glow geometry is never part of the idle/dormant/cutscene model. Reveal exactly
+        // one assigned bone during its attack; the matching emissive layer draws it again.
+        for (int index = 0; index < GLOW_BONES.length; index++) {
+            boolean visible = flamesActive && selectedGlowAttack == GLOW_ATTACKS[index];
+            bones.ifPresent(GLOW_BONES[index], bone -> bone.skipRender(!visible)
+                    .skipChildrenRender(!visible).setScale(1F, 1F, 1F));
         }
 
         bones.ifPresent("full", bone -> {
@@ -195,8 +201,10 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
                     bone.getRotY(),
                     bone.getRotZ() + Mth.sin(age * 0.22F) * 0.035F * acceleration);
         } else if (attack == CursedBrazierEntity.Attack.CARDINAL_DASH.ordinal()) {
-            float stride = (age % 14F) / 14F;
-            float lean = Mth.sin(stride * Mth.PI) * 0.12F;
+            float leg = age % CursedBrazierEntity.DASH_LEG_TICKS;
+            float stride = Math.clamp(leg / CursedBrazierEntity.DASH_MOVE_TICKS, 0F, 1F);
+            float lean = leg < CursedBrazierEntity.DASH_MOVE_TICKS
+                    ? Mth.sin(stride * Mth.PI) * 0.12F : 0F;
             bone.setRotation(bone.getRotX() + lean, bone.getRotY(), bone.getRotZ());
         } else if (attack == CursedBrazierEntity.Attack.FIRE_BEAM.ordinal()) {
             float brace = smooth(age / 28F) * (1F - smooth((age - 82F) / 10F));

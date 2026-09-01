@@ -30,6 +30,10 @@ public final class GreekFireBurn extends MobEffect {
 
     @Override public boolean shouldApplyEffectTickThisTick(int duration, int amplifier) { return true; }
     @Override public boolean applyEffectTick(ServerLevel level, LivingEntity entity, int amplifier) {
+        // Player-sized Greek-fire billboards remain intrusive in first person even when
+        // moved behind the torso. The status effect and damage remain fully server-side;
+        // only its body-attached cosmetic particles are suppressed for players.
+        if (entity instanceof net.minecraft.world.entity.player.Player) return entity.isOnFire();
         if ((entity.tickCount & 3) == 0) {
             // Keep the effect wrapped around the body for observers without allowing its
             // one-block billboards to intersect the burning player's first-person camera.
