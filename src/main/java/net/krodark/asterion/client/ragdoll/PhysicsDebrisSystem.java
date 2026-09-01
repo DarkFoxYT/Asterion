@@ -124,7 +124,7 @@ public final class PhysicsDebrisSystem {
             if (!Double.isFinite(pos.lengthSqr()) || !Double.isFinite(velocity.lengthSqr())
                     || pos.distanceToSqr(client.player.position()) > 96 * 96) continue;
             int variant = 2 + random.nextInt(3);
-            Piece piece = new Piece(pos, variant, .55F + random.nextFloat() * .4F, random);
+            Piece piece = new Piece(pos, variant, fragment.scale(), random);
             piece.velocity = velocity.lengthSqr() > 9 ? velocity.normalize().scale(3) : velocity;
             piece.angularVelocity.mul(.55F);
             piece.arenaRubble = true;

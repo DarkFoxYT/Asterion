@@ -566,6 +566,7 @@ public class Asterion implements ModInitializer {
     @Override
     public void onInitialize() {
         net.krodark.asterion.game.GameplayContent.initialize();
+        net.krodark.asterion.game.EncounterKeyRecovery.initialize();
         net.krodark.asterion.effect.GreekFireBurn.initialize();
         net.krodark.asterion.effect.SingedEffect.initialize();
         ServerTickEvents.END_SERVER_TICK.register(net.krodark.asterion.effect.SingedScars::tick);

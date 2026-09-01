@@ -589,6 +589,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if (minotaur == null) return null;
         // Additional party members must not teleport or restart an already active boss.
         if (minotaur.doorEntryStarted) return minotaur;
+        net.krodark.asterion.worldgen.AuthoredCatacombs.ensureArenaPillars(level);
+        net.krodark.asterion.worldgen.MinotaurArenaEntrances.build(level);
         Vec3 center = WorldGenerator.bossArenaCenter();
         minotaur.setPos(center.x, center.y,
                 net.krodark.asterion.worldgen.AuthoredCatacombs.enabled() ? -45.0D : center.z);
@@ -2677,6 +2679,14 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                     getLookControl().setLookAt(player, 12.0F, 6.0F);
                     Vec3 aim = player.position().subtract(position());
                     Vec3 horizontal = new Vec3(aim.x, 0.0D, aim.z);
+                    if (bossChargeTargetsPillar && bossAttackTicks <= windupTicks - 8) {
+                        Vec3 pillar = WorldGenerator.bossPillarChargeTarget(position(), player.position());
+                        if (pillar == null || pillar.subtract(position()).multiply(1, 0, 1).normalize()
+                                .dot(bossChargeDirection) < 0.975D) {
+                            bossChargeTargetsPillar = false;
+                            if (horizontal.lengthSqr() > 0.01D) bossChargeDirection = horizontal.normalize();
+                        }
+                    }
                     if (!bossChargeTargetsPillar && horizontal.lengthSqr() > 0.01D)
                         bossChargeDirection = bossChargeDirection.lerp(horizontal.normalize(), 0.11D).normalize();
                     if (bossAttackTicks >= 8 && (bossAttackTicks & 3) == 0) {

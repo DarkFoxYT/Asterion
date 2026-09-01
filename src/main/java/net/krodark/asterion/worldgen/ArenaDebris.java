@@ -12,8 +12,12 @@ public final class ArenaDebris {
     private static final Map<ServerLevel, List<ArenaDebrisPayload.Fragment>> PENDING = new IdentityHashMap<>();
     private ArenaDebris() { }
     public static void queue(ServerLevel level, Vec3 position, Vec3 velocity) {
+        queue(level, position, velocity, 0.55F + level.getRandom().nextFloat() * 0.4F);
+    }
+    public static void queue(ServerLevel level, Vec3 position, Vec3 velocity, float scale) {
         var batch = PENDING.computeIfAbsent(level, ignored -> new ArrayList<>());
-        if (batch.size() < ArenaDebrisPayload.MAX_FRAGMENTS) batch.add(new ArenaDebrisPayload.Fragment(position, velocity));
+        if (batch.size() < ArenaDebrisPayload.MAX_FRAGMENTS)
+            batch.add(new ArenaDebrisPayload.Fragment(position, velocity, scale));
     }
     public static void flush(MinecraftServer server) {
         for (var entry : PENDING.entrySet()) for (var player : entry.getKey().players()) {

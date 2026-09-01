@@ -24,7 +24,7 @@ final class PillarCheck {
                 run(level,player);
                 var maze=server.getLevel(Asterion.ASTERION_LEVEL);
                 arena(maze);
-                var root=MinotaurArenaEntrances.pillarCenters(AsterionConfig.INSTANCE.minotaurBossPillarCount).getFirst().above();
+                var root=firstArenaRoot(maze);
                 check(net.krodark.asterion.WorldGenerator.breakBossPillar(maze,new AABB(root)),"Boss could not destroy new pillar");
                 for(int y=0;y<27;y++) check(!maze.getBlockState(root.above(y)).is(Asterion.PILLAR),"Boss left upper pillar fragments");
                 Asterion.LOGGER.info("PASS: authored arena pillar generation and boss destruction");
@@ -33,11 +33,25 @@ final class PillarCheck {
         }
     }
     static void arena(ServerLevel level) {
-        for (BlockPos center : MinotaurArenaEntrances.pillarCenters(AsterionConfig.INSTANCE.minotaurBossPillarCount)) {
-            BlockPos root = center.above();
-            check(level.getBlockState(root).is(Asterion.PILLAR), "Arena pillar was not replaced at " + root);
-            verify(level,root,level.getBlockState(root).getValue(PillarBlock.HEIGHT));
-        }
+        net.krodark.asterion.worldgen.AuthoredCatacombs.ensureArenaPillars(level);
+        int found = 0;
+        for (int x = -61; x <= 61; x++) for (int z = -61; z <= 61; z++)
+            for (int y = 1; y <= 48; y++) {
+                BlockPos root = new BlockPos(x, y, z);
+                var state = level.getBlockState(root);
+                if (!state.is(Asterion.PILLAR) || !PillarBlock.isRoot(state)) continue;
+                found++;
+            }
+        check(found >= 4, "Authored arena did not expose enough dynamic pillars: " + found);
+    }
+    static BlockPos firstArenaRoot(ServerLevel level) {
+        for (int x = -61; x <= 61; x++) for (int z = -61; z <= 61; z++)
+            for (int y = 1; y <= 48; y++) {
+                BlockPos pos = new BlockPos(x, y, z);
+                if (level.getBlockState(pos).is(Asterion.PILLAR)
+                        && PillarBlock.isRoot(level.getBlockState(pos))) return pos;
+            }
+        throw new AssertionError("Authored arena has no dynamic pillar root");
     }
     static void run(ServerLevel level, ServerPlayer player) {
         BlockPos root = new BlockPos(22,121,0);

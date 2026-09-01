@@ -26,6 +26,10 @@ public final class AuthoredCatacombs {
             "crossing_01", "crossing_02", "ossuary_01", "parkour", "puzzleroom");
     private AuthoredCatacombs() { }
     public static boolean enabled() { return true; }
+    private static final List<BlockPos> ARENA_PILLAR_ROOTS=List.of(
+            new BlockPos(-5,6,-25),new BlockPos(5,6,-25),new BlockPos(-25,6,-5),new BlockPos(-25,6,5),
+            new BlockPos(-17,6,-17),new BlockPos(-17,6,17),new BlockPos(17,6,-17),new BlockPos(17,6,17),
+            new BlockPos(25,6,-5),new BlockPos(25,6,5),new BlockPos(-5,6,25),new BlockPos(5,6,25));
     public record Module(String name, Rotation rotation, int exits, int blocked) { }
     private static int bit(Direction side) { return switch(side) {
         case NORTH -> 1; case EAST -> 2; case SOUTH -> 4; case WEST -> 8; default -> 0;
@@ -230,6 +234,20 @@ public final class AuthoredCatacombs {
         // Arena chunks install themselves when their FULL chunk callback runs. Forcing
         // even the center chunk from SERVER_STARTED can wait on the same chunk future.
     }
+    public static void ensureArenaPillars(ServerLevel level) {
+        for(BlockPos root:ARENA_PILLAR_ROOTS) {
+            level.setBlock(root.below(),Asterion.MAZESTEEL_BLOCK.defaultBlockState(),18);
+            net.krodark.asterion.block.PillarBlock.placeStructure(
+                    (pos,part)->level.setBlock(pos,part,18),root,
+                    net.krodark.asterion.block.PillarBlock.MODEL_HEIGHT);
+        }
+        for(Direction direction:Direction.Plane.HORIZONTAL) {
+            BlockPos brazier=CatacombArena.brazier(direction);
+            if(!level.getBlockState(brazier).is(Asterion.GREEK_BRAZIER))
+                net.krodark.asterion.block.GreekBrazierBlock.placeStructure(
+                        (pos,state)->level.setBlock(pos,state,18),brazier);
+        }
+    }
     public static void placeArenaChunk(ServerLevel level,LevelChunk chunk) {
         ChunkPos cp=chunk.getPos();
         boolean arena=cp.x()>=-4&&cp.x()<=3&&cp.z()>=-4&&cp.z()<=3;
@@ -238,7 +256,7 @@ public final class AuthoredCatacombs {
         if(!arena&&!approach)return;
         BlockPos marker=new BlockPos(cp.getMinBlockX(),ARENA_CHUNK_MARKER_Y,cp.getMinBlockZ());
         var revisionMarker=Blocks.LIGHT.defaultBlockState().setValue(
-                net.minecraft.world.level.block.LightBlock.LEVEL,1);
+                net.minecraft.world.level.block.LightBlock.LEVEL,2);
         // LIGHT is the current invisible revision marker. Previous arena revisions used
         // BARRIER and STRUCTURE_VOID, so every affected chunk is rebuilt once as one
         // coherent copy of the nine authored templates instead of retaining mixed parts.
@@ -284,6 +302,7 @@ public final class AuthoredCatacombs {
         var palettes=((StructureTemplateAccessor)(Object)template).asterion$getPalettes();
         if(palettes.isEmpty())return;
         Map<Long,net.minecraft.world.level.chunk.LevelChunk> chunks=new HashMap<>();
+        List<BlockPos> pillarRoots=new ArrayList<>();
         for(var info:palettes.getFirst().blocks()) {
             var state=info.state();
             if(state.is(Blocks.STRUCTURE_BLOCK)||state.is(Blocks.STRUCTURE_VOID)
@@ -295,6 +314,10 @@ public final class AuthoredCatacombs {
             }
             BlockPos pos=origin.offset(info.pos());
             if(!bounds.isInside(pos))continue;
+            if(state.is(Asterion.PILLAR) && net.krodark.asterion.block.PillarBlock.isRoot(state)) {
+                level.setBlock(pos.below(), Asterion.MAZESTEEL_BLOCK.defaultBlockState(), 18);
+                pillarRoots.add(pos.immutable());
+            }
             // Only the small set requiring lifecycle/light work uses Level#setBlock.
             // Plain masonry goes directly into its already-loaded chunk, avoiding
             // hundreds of thousands of repeated world lookups and neighbor checks.
@@ -311,6 +334,13 @@ public final class AuthoredCatacombs {
         template.placeInWorld(level,origin,origin,settings(bounds)
                 .addProcessor(REMOVE_ARENA_MARKERS).addProcessor(ARENA_NBT_ONLY),
                 RandomSource.create(part),18);
+        // Structure saves omit cells occupied by the model's empty collision slices.
+        // Rebuild each saved root into the complete linked volume so its integrity tick
+        // cannot mistake those omitted cells for damage and delete the pillar.
+        for(BlockPos root:pillarRoots)
+            net.krodark.asterion.block.PillarBlock.placeStructure(
+                    (pos,state)->level.setBlock(pos,state,18),root,
+                    net.krodark.asterion.block.PillarBlock.MODEL_HEIGHT);
         for(var chunk:chunks.values())chunk.markUnsaved();
     }
     private static void configureArenaLoot(ServerLevel level,LevelChunk chunk) {

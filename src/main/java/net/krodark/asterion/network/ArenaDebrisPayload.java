@@ -12,7 +12,12 @@ import java.util.ArrayList;
 public record ArenaDebrisPayload(List<Fragment> fragments, long seed) implements CustomPacketPayload {
     public static final int MAX_FRAGMENTS = 96;
     public ArenaDebrisPayload { fragments = List.copyOf(fragments); if (fragments.size() > MAX_FRAGMENTS) throw new IllegalArgumentException("Debris batch too large"); }
-    public record Fragment(Vec3 position, Vec3 velocity) { }
+    public record Fragment(Vec3 position, Vec3 velocity, float scale) {
+        public Fragment {
+            if (!Float.isFinite(scale) || scale <= 0.0F || scale > 3.0F)
+                throw new IllegalArgumentException("Invalid debris scale");
+        }
+    }
     public static final Type<ArenaDebrisPayload> TYPE = new Type<>(Asterion.id("arena_debris"));
     public static final StreamCodec<RegistryFriendlyByteBuf, ArenaDebrisPayload> CODEC = StreamCodec.of(
         (out, p) -> {
@@ -20,13 +25,14 @@ public record ArenaDebrisPayload(List<Fragment> fragments, long seed) implements
             for (Fragment f : p.fragments) {
                 out.writeDouble(f.position.x); out.writeDouble(f.position.y); out.writeDouble(f.position.z);
                 out.writeFloat((float)f.velocity.x); out.writeFloat((float)f.velocity.y); out.writeFloat((float)f.velocity.z);
+                out.writeFloat(f.scale);
             }
         }, in -> {
             long seed = in.readLong(); int count = in.readVarInt();
             if (count < 0 || count > MAX_FRAGMENTS) throw new IllegalArgumentException("Invalid debris count");
             var fragments = new ArrayList<Fragment>(count);
             for (int i = 0; i < count; i++) fragments.add(new Fragment(new Vec3(in.readDouble(), in.readDouble(), in.readDouble()),
-                    new Vec3(in.readFloat(), in.readFloat(), in.readFloat())));
+                    new Vec3(in.readFloat(), in.readFloat(), in.readFloat()), in.readFloat()));
             return new ArenaDebrisPayload(fragments, seed);
         });
     @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }

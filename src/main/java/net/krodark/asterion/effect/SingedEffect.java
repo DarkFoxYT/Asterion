@@ -16,6 +16,7 @@ public final class SingedEffect extends MobEffect {
     public static void initialize() { }
     @Override public boolean shouldApplyEffectTickThisTick(int duration, int amplifier) { return duration % 4 == 0; }
     @Override public boolean applyEffectTick(ServerLevel level, LivingEntity entity, int amplifier) {
+        if (entity instanceof net.minecraft.world.entity.player.Player) return true;
         level.sendParticles(Asterion.GREEK_FIRE, entity.getX(), entity.getY() + entity.getBbHeight() * .5,
                 entity.getZ(), 2, entity.getBbWidth() * .4, entity.getBbHeight() * .35, entity.getBbWidth() * .4, .015);
         return true;

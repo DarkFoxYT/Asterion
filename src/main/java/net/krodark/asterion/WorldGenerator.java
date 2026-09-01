@@ -1293,6 +1293,7 @@ public final class WorldGenerator {
         } else {
             // Restore encounter state without adding geometry to the authored build.
             bossArenaBuild = new BossArenaBuild();
+            net.krodark.asterion.worldgen.AuthoredCatacombs.ensureArenaPillars(level);
             discoverAuthoredBossPillars(level, bossArenaBuild);
             bossArenaBuild.ready = true;
             bossArenaPrepared = true;
@@ -1300,13 +1301,14 @@ public final class WorldGenerator {
 
     }
 
-    private static int arenaRevision() { return 905; }
+    private static int arenaRevision() { return 906; }
 
     private static void rebuildBossArena(ServerLevel level) {
         bossArenaPrepared = true;
         net.krodark.asterion.worldgen.AuthoredCatacombs.placeArena(level);
         // The NBT files own the room: no generated floor, dome, pillars or furniture.
         bossArenaBuild = new BossArenaBuild();
+        net.krodark.asterion.worldgen.AuthoredCatacombs.ensureArenaPillars(level);
         discoverAuthoredBossPillars(level, bossArenaBuild);
         MinotaurArenaEntrances.build(level);
         bossArenaBuild.ready = true;
@@ -1322,7 +1324,8 @@ public final class WorldGenerator {
             for (int z = -net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS;
                  z <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS; z++) {
                 if (!level.getChunkSource().hasChunk(x >> 4, z >> 4)) continue;
-                for (int y = BOSS_FLOOR_Y; y <= BOSS_FLOOR_Y + 2; y++) {
+                for (int y = net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y;
+                     y <= BOSS_FLOOR_Y + 2; y++) {
                     cursor.set(x, y, z);
                     BlockState state = level.getBlockState(cursor);
                     if (state.is(Asterion.PILLAR)
@@ -1445,8 +1448,13 @@ public final class WorldGenerator {
             double along = new Vec3(toPlayer.x, 0, toPlayer.z).dot(direction);
             Vec3 nearest = boss.add(direction.scale(Mth.clamp(along, 0.0D, length)));
             double laneDistance = new Vec3(player.x - nearest.x, 0, player.z - nearest.z).length();
-            if (along <= 1.5D || along >= length + 2.0D || laneDistance > 4.8D) continue;
-            double score = laneDistance * 5.0D + length;
+            // A pillar charge should read as an attempt to run through the player,
+            // with the pillar visibly behind them. Wide side-on lanes made him stare
+            // at masonry and then sprint away from the player.
+            if (along <= 2.5D || along >= length - 2.5D || laneDistance > 2.15D) continue;
+            Vec3 towardPlayer = new Vec3(toPlayer.x, 0, toPlayer.z).normalize();
+            if (towardPlayer.dot(direction) < 0.975D) continue;
+            double score = laneDistance * 8.0D + length;
             if (score < bestScore) { bestScore = score; best = target; }
         }
         return best;
@@ -1567,7 +1575,8 @@ public final class WorldGenerator {
 
     public static void collapseBossRoofRing(ServerLevel level, Vec3 origin, int radius) {
         BossArenaBuild build = bossArenaBuild;
-        if (build == null || radius < 0 || radius > PIT_HALF_WIDTH) return;
+        if ((!net.krodark.asterion.worldgen.AuthoredCatacombs.enabled() && build == null)
+                || radius < 0 || radius > PIT_HALF_WIDTH) return;
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         java.util.List<Vec3> launches = new java.util.ArrayList<>();
         int authoredRadius = Math.min(net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS, radius * 2 + 1);
@@ -1585,16 +1594,19 @@ public final class WorldGenerator {
                 level.setBlock(cursor, Blocks.AIR.defaultBlockState(), 2);
                 removedRoof = true;
             }
-            if (removedRoof) launches.add(new Vec3(x + .5, roofY - 1.15, z + .5));
+            if (removedRoof || net.krodark.asterion.worldgen.AuthoredCatacombs.enabled())
+                launches.add(new Vec3(x + .5, roofY - 1.15, z + .5));
         }
         // Even angular coverage: a scan-order cap previously emitted mostly from one side.
         launches.sort(java.util.Comparator.comparingDouble(pos -> Math.atan2(pos.z, pos.x)));
-        int count = Math.min(16, launches.size());
+        int count = Math.min(32, launches.size());
         for (int i = 0; i < count; i++) {
             Vec3 pos = launches.get(i * launches.size() / count);
+            float scale = 1.25F + level.getRandom().nextFloat() * 1.15F;
             net.krodark.asterion.worldgen.ArenaDebris.queue(level, pos,
-                    new Vec3((level.getRandom().nextDouble()-.5)*.16, -.35-level.getRandom().nextDouble()*.25, (level.getRandom().nextDouble()-.5)*.16));
-            level.sendParticles(Asterion.DOOR_SMOKE, pos.x, pos.y, pos.z, 3, .8, .45, .8, .025);
+                    new Vec3((level.getRandom().nextDouble()-.5)*.12, -.48-level.getRandom().nextDouble()*.34,
+                            (level.getRandom().nextDouble()-.5)*.12), scale);
+            level.sendParticles(Asterion.DOOR_SMOKE, pos.x, pos.y, pos.z, 5, 1.1, .65, 1.1, .03);
             if ((i & 1) == 0)
                 level.sendParticles(Asterion.DOOR_SMOKE, pos.x, BOSS_FLOOR_Y + .5, pos.z, 3, 1.4, .35, 1.4, .04);
         }

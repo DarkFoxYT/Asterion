@@ -38,10 +38,10 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
             "topglow", "middleglow", "bottomglow", "centerglow"
     };
     private static final int[] GLOW_ATTACKS = {
-            CursedBrazierEntity.Attack.FIRE_BEAM.ordinal(),
-            CursedBrazierEntity.Attack.CARDINAL_DASH.ordinal(),
             CursedBrazierEntity.Attack.FLOOR_JETS.ordinal(),
-            CursedBrazierEntity.Attack.SPIN_TORNADO.ordinal()
+            CursedBrazierEntity.Attack.SPIN_TORNADO.ordinal(),
+            CursedBrazierEntity.Attack.CARDINAL_DASH.ordinal(),
+            CursedBrazierEntity.Attack.FIRE_BEAM.ordinal()
     };
 
     public CursedBrazierRenderer(EntityRendererProvider.Context context) {

@@ -572,10 +572,15 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         boolean currentSight=hasLineOfSight(target);
         // Hold a useful firing position. Reposition only to escape pressure, recover
         // sight, or correct a genuinely poor range instead of shuffling every attack.
-        if(currentSight&&currentDistance>=6&&currentDistance<=14&&random.nextFloat()<.72F)return false;
+        if(currentSight&&currentDistance>=6&&currentDistance<=14&&random.nextFloat()<.25F)return false;
         List<Vec3> candidates = new ArrayList<>();
+        double restY=restingPosition==null?origin.y:restingPosition.y;
+        for(int blocks:new int[]{-5,-3,3,5}) {
+            Vec3 vertical=origin.add(0,blocks,0);
+            if(vertical.y>=restY-8&&vertical.y<=restY+8)candidates.add(vertical);
+        }
         for (Vec3 direction : CARDINAL_DIRECTIONS) {
-            for (int blocks : new int[]{3, 5}) candidates.add(origin.add(direction.scale(blocks)));
+            candidates.add(origin.add(direction.scale(3)));
         }
         candidates.removeIf(candidate -> !canOccupy(level, candidate));
         if (candidates.isEmpty()) return false;
@@ -585,7 +590,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         gridMoveStart = position();
         gridMoveTarget = candidates.getFirst();
         gridMoveTicks = 1;
-        gridMoveDuration = 7;
+        gridMoveDuration = Math.abs(gridMoveTarget.y-gridMoveStart.y)>0.5?12:7;
         Vec3 travel = gridMoveTarget.subtract(gridMoveStart);
         face(travel);
         updateFacingImmediate();
@@ -595,6 +600,14 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
     private double positionCost(ServerLevel level,Vec3 candidate,ServerPlayer target) {
         double distance=Math.sqrt(horizontalDistanceSqr(candidate,target.position()));
         double cost=Math.abs(distance-10.0);
+        double horizontalTravel=Math.sqrt(horizontalDistanceSqr(candidate,position()));
+        double verticalTravel=Math.abs(candidate.y-position().y);
+        // The pot reads more clearly when it changes altitude around the player. Horizontal
+        // shuffles remain possible for collision/line-of-sight recovery but cost more.
+        cost+=horizontalTravel*1.15;
+        if(verticalTravel>0.5)cost-=2.4+Math.min(1.4,verticalTravel*.22);
+        double desiredY=target.getY()+target.getBbHeight()*.55;
+        cost+=Math.abs(candidate.y-desiredY)*.16;
         Vec3 eye=candidate.add(0,getBbHeight()*.68,0);
         var hit=level.clip(new net.minecraft.world.level.ClipContext(eye,target.getEyePosition(),
                 net.minecraft.world.level.ClipContext.Block.COLLIDER,
@@ -842,7 +855,9 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
     protected void dropCustomDeathLoot(ServerLevel level, DamageSource source, boolean killedByPlayer) {
         super.dropCustomDeathLoot(level, source, killedByPlayer);
         spawnAtLocation(level, new ItemStack(GameplayContent.CURSED_BRAZIER_KEY));
-        spawnAtLocation(level, new ItemStack(Asterion.MINOTAUR_KEY));
+        var minotaurKey=spawnAtLocation(level, new ItemStack(Asterion.MINOTAUR_KEY));
+        net.krodark.asterion.game.EncounterKeyRecovery.track(level,minotaurKey,
+                source.getEntity() instanceof ServerPlayer player?player:null);
     }
 
     @Override

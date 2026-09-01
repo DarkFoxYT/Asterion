@@ -64,11 +64,13 @@ final class MinotaurRageCheck {
             var pendingField=net.krodark.asterion.worldgen.ArenaDebris.class.getDeclaredField("PENDING");pendingField.setAccessible(true);
             var pending=(Map<ServerLevel,List<net.krodark.asterion.network.ArenaDebrisPayload.Fragment>>)pendingField.get(null);
             int before=pending.getOrDefault(level,List.of()).size();
-            WorldGenerator.collapseBossRoofRing(level,boss.position(),20);
+            WorldGenerator.collapseBossRoofRing(level,boss.position(),5);
             var fragments=pending.get(level).subList(before,pending.get(level).size());
             Set<Integer> quadrants=new HashSet<>();
             for(var fragment:fragments) quadrants.add((fragment.position().x>0?1:0)+(fragment.position().z>0?2:0));
-            check(fragments.size()==16 && quadrants.size()==4,"Roof debris is not distributed across every quadrant");
+            check(fragments.size()==32 && quadrants.size()==4,"Roof debris is not distributed across every quadrant");
+            check(fragments.stream().allMatch(fragment -> fragment.scale() >= 1.25F),
+                    "Roof collapse did not use heavy rubble pieces");
             Asterion.LOGGER.info("PASS: roar frame 60, once-only combat roar, hidden phase-one rage, brazier weakening/timed relight and maximum phase-two rage");
             Asterion.LOGGER.info("PASS: submerged braziers stay extinguished and bounded roof debris covers all quadrants");
         } catch(ReflectiveOperationException error) { throw new AssertionError(error); }

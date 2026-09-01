@@ -39,7 +39,10 @@ public final class MinotaurArenaEntrances {
         return AuthoredCatacombs.enabled() && gateBounds(BOSS_ENTRANCE).contains(Vec3.atCenterOf(pos));
     }
     public static Direction corridorAt(Vec3 position) {
-        if (position.y < AuthoredCatacombs.CONNECTOR_Y - .5 || position.y > AuthoredCatacombs.CONNECTOR_Y + 7) return null;
+        double floorY = AuthoredCatacombs.enabled()
+                ? door(PLAYER_ENTRANCE).getY()
+                : AuthoredCatacombs.CONNECTOR_Y;
+        if (position.y < floorY - .5 || position.y > floorY + 7) return null;
         for (Direction facing : java.util.List.of(PLAYER_ENTRANCE)) {
             Vec3 offset = position.subtract(Vec3.atBottomCenterOf(door(facing)));
             double depth = offset.dot(facing.getUnitVec3());
@@ -69,12 +72,16 @@ public final class MinotaurArenaEntrances {
             BlockPos center = facing == BOSS_ENTRANCE ? AUTHORED_BOSS_GATE : gate(PLAYER_ENTRANCE);
             int authoredHeight = facing == BOSS_ENTRANCE ? 6 : 5;
             int normalizedClosed = Math.clamp(closedRows, 0, gateHeight()) * authoredHeight / gateHeight();
+            var base = Asterion.MAZESTEEL_GATE.defaultBlockState()
+                    .setValue(DirectionalGateBlock.FACE, AttachFace.FLOOR)
+                    .setValue(DirectionalGateBlock.FACING, facing.getOpposite());
             for (int row = 0; row < authoredHeight; row++) for (int side = -3; side <= 3; side++) {
                 BlockPos pos = center.relative(facing.getClockWise(), side).above(row);
                 var state = level.getBlockState(pos);
-                if (!state.is(Asterion.MAZESTEEL_GATE)) continue;
+                if (!state.is(Asterion.MAZESTEEL_GATE)) state = base;
                 var next = state.setValue(DirectionalGateBlock.OPEN, row < authoredHeight - normalizedClosed);
                 if (!state.equals(next)) level.setBlock(pos, next, 2);
+                else if (!level.getBlockState(pos).is(Asterion.MAZESTEEL_GATE)) level.setBlock(pos, next, 2);
             }
             return;
         }
@@ -128,6 +135,9 @@ public final class MinotaurArenaEntrances {
         if (AuthoredCatacombs.enabled()) {
             if(level.getChunkSource().hasChunk(0,3))buildForChunk(level,new net.minecraft.world.level.ChunkPos(0,3));
             if(level.getChunkSource().hasChunk(0,-3))buildForChunk(level,new net.minecraft.world.level.ChunkPos(0,-3));
+            for(Direction facing:java.util.List.of(PLAYER_ENTRANCE,BOSS_ENTRANCE))
+                if(!(level.getBlockEntity(door(facing)) instanceof net.krodark.asterion.block.MinotaurDoorBlockEntity))
+                    MinotaurDoorBlock.place(level,door(facing),facing);
             return;
         }
         int heightLimit = Math.max(8, (int)Math.ceil(2.75 * net.krodark.asterion.AsterionConfig.INSTANCE.minotaurScale) + 2);
