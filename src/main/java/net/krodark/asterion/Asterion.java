@@ -197,12 +197,13 @@ public class Asterion implements ModInitializer {
     public static final net.krodark.asterion.block.GreekFireTorchBlock GREEK_FIRE_WALL_TORCH =
             (net.krodark.asterion.block.GreekFireTorchBlock)registerBlock("greek_fire_wall_torch", MapColor.COLOR_GREEN,
                     properties -> new net.krodark.asterion.block.GreekFireTorchBlock(properties.noOcclusion()
-                            .strength(.4F).sound(SoundType.METAL).lightLevel(state -> 14), true,
+                            .strength(.4F).sound(SoundType.METAL).lightLevel(state ->
+                                    state.getValue(net.krodark.asterion.block.GreekFireTorchBlock.LIT)?14:0), true,
                             net.krodark.asterion.block.GreekFireTorchBlock.FireColor.GREEK));
     public static final net.krodark.asterion.block.GreekFireTorchBlock GREEK_FIRE_FLOOR_TORCH =
             (net.krodark.asterion.block.GreekFireTorchBlock)registerBlock("greek_fire_floor_torch", MapColor.COLOR_GREEN,
                     properties -> new net.krodark.asterion.block.GreekFireTorchBlock(properties.noOcclusion()
-                            .strength(.4F).sound(SoundType.METAL).lightLevel(state -> state.getValue(net.krodark.asterion.block.GreekFireTorchBlock.TOP)?14:0), false,
+                            .strength(.4F).sound(SoundType.METAL).lightLevel(state -> state.getValue(net.krodark.asterion.block.GreekFireTorchBlock.LIT)&&state.getValue(net.krodark.asterion.block.GreekFireTorchBlock.TOP)?14:0), false,
                             net.krodark.asterion.block.GreekFireTorchBlock.FireColor.GREEK));
     public static final net.krodark.asterion.block.GreekFireTorchBlock RED_FIRE_WALL_TORCH = torch("red_fire_wall_torch",true,
             net.krodark.asterion.block.GreekFireTorchBlock.FireColor.RED);
@@ -716,7 +717,8 @@ public class Asterion implements ModInitializer {
                 color==net.krodark.asterion.block.GreekFireTorchBlock.FireColor.RED?MapColor.COLOR_RED:MapColor.COLOR_ORANGE,
                 properties -> new net.krodark.asterion.block.GreekFireTorchBlock(properties.noOcclusion()
                         .strength(.4F).sound(SoundType.METAL)
-                        .lightLevel(state -> wall||state.getValue(net.krodark.asterion.block.GreekFireTorchBlock.TOP)?14:0),wall,color));
+                        .lightLevel(state -> state.getValue(net.krodark.asterion.block.GreekFireTorchBlock.LIT)
+                                &&(wall||state.getValue(net.krodark.asterion.block.GreekFireTorchBlock.TOP))?14:0),wall,color));
     }
 
     private static Block registerBlock(String name, MapColor color,

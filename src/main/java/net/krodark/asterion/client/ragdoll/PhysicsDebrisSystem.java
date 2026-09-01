@@ -314,6 +314,7 @@ public final class PhysicsDebrisSystem {
             Vec3 normal = move(level, piece, increment);
             if (normal == null) continue;
             double impactSpeed = Math.max(0.0, -piece.velocity.dot(normal));
+            triggerImpactShake(level, piece, normal, impactSpeed);
             piece.impacts++;
             boolean shouldBreak = !piece.unbreakable() && (impactSpeed > piece.breakSpeed()
                     || piece.impacts >= piece.maxImpacts());
@@ -364,6 +365,7 @@ public final class PhysicsDebrisSystem {
                 Vec3 lever = point.subtract(door.position);
                 double speed = door.velocityAt(point).dot(normal);
                 strongestImpact = Math.max(strongestImpact, -speed);
+                triggerImpactShake(level, door, normal, -speed);
                 if (door.blockVisual != null && door.age > 3 && speed < -.32) {
                     burst(level, door, normal, -speed);
                     door.shattered = true;
@@ -401,8 +403,6 @@ public final class PhysicsDebrisSystem {
                 && door.age - door.lastDustTick >= (strongestImpact > .18 ? 5 : 9)) {
             doorDust(level, door, strongestImpact > .18 ? (door.variant == 7 ? 48 : 8) : 4, Math.min(.24, strongestImpact * .16));
             door.lastDustTick = door.age;
-            if (strongestImpact > .35) net.krodark.asterion.client.event.DeadSunClientEvents.impact(
-                    door.position, 28, (float)Math.min(door.variant == 7 ? 1.3 : .3, strongestImpact * .8), 14);
             if (strongestImpact > .18 && (lastImpactSoundTick == Long.MIN_VALUE || level.getGameTime() - lastImpactSoundTick >= 2)) {
                 lastImpactSoundTick = level.getGameTime();
                 level.playLocalSound(door.position.x, door.position.y, door.position.z,
@@ -410,6 +410,27 @@ public final class PhysicsDebrisSystem {
                         SoundSource.BLOCKS, door.variant == 7 ? 1.6F : .8F, .5F, false);
             }
         }
+    }
+
+    private static void triggerImpactShake(ClientLevel level, Piece piece, Vec3 normal, double impactSpeed) {
+        if (impactSpeed < .42D || normal.y < .45D) return;
+        boolean fullSizeDebris = piece.variant == 1 || piece.variant == 7;
+        boolean largeArenaRubble = piece.arenaRubble && piece.scale >= .70F;
+        if (!fullSizeDebris && !largeArenaRubble) return;
+        if (piece.lastShakeTick != Long.MIN_VALUE && level.getGameTime() - piece.lastShakeTick < 12L) return;
+
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) return;
+        float radius = piece.variant == 7 ? 30.0F : largeArenaRubble ? 18.0F : 22.0F;
+        if (client.player.position().distanceToSqr(piece.position) >= radius * radius) return;
+
+        double massWeight = Mth.clamp(Math.sqrt(piece.mass()) * .42D, .55D, 1.45D);
+        float strength = (float) Mth.clamp((impactSpeed - .24D) * massWeight,
+                .16D, piece.variant == 7 ? 1.35D : largeArenaRubble ? .62D : .95D);
+        int duration = Mth.clamp(7 + (int)Math.round(impactSpeed * 7.0D), 9, 18);
+        piece.lastShakeTick = level.getGameTime();
+        net.krodark.asterion.client.event.DeadSunClientEvents.impact(
+                piece.position, radius, strength, duration);
     }
 
     /** Existing boss/explosion packets can knock settled leaves loose again. */
@@ -691,6 +712,7 @@ public final class PhysicsDebrisSystem {
         private int floorSurvivals;
         private int wallSurvivals;
         private int lastDustTick = -20;
+        private long lastShakeTick = Long.MIN_VALUE;
         private boolean sleeping;
         private boolean arenaRubble, shattered;
         private BlockState blockVisual;

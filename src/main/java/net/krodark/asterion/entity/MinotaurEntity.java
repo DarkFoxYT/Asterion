@@ -3623,6 +3623,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         }
         Vec3 impact = position().add(forward.scale(5.5));
         level.sendParticles(ParticleTypes.DUST_PLUME, impact.x, getY() + .12, impact.z, 20, .65, .12, .65, .07);
+        broadcastMinotaurImpact(level, new Vec3(impact.x, getY() + .12D, impact.z),
+                26.0F, 1.08F, 14);
         playSound(SoundEvents.ANVIL_LAND, 2.2F, .55F);
         swing(net.minecraft.world.InteractionHand.MAIN_HAND);
     }
@@ -3644,6 +3646,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 14, 3.5D, 0.25D, 3.5D, 0.02D);
         level.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 0.15D, getZ(),
                 45, 5.0D, 0.2D, 5.0D, 0.04D);
+        broadcastMinotaurImpact(level, new Vec3(getX(), getY() + .15D, getZ()),
+                36.0F, 1.48F, 20);
         for (ServerPlayer victim : level.getEntitiesOfClass(ServerPlayer.class, getBoundingBox().inflate(8.0D))) {
             Vec3 away = victim.position().subtract(position());
             victim.hurtServer(level, damageSources().mobAttack(this), 12.0F);
