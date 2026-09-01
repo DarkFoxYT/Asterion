@@ -22,30 +22,32 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-/** Floor-mounted hold switch. The client sends progress only while this block remains targeted. */
+/** Surface-mounted hold switch for floors, walls and ceilings. */
 public final class PressureButtonBlock extends Block {
-    public static final EnumProperty<Direction> FACING=BlockStateProperties.HORIZONTAL_FACING;
+    public static final EnumProperty<Direction> FACING=BlockStateProperties.FACING;
     public static final BooleanProperty POWERED=BlockStateProperties.POWERED;
 
     public PressureButtonBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(FACING,Direction.NORTH).setValue(POWERED,false));
+        registerDefaultState(stateDefinition.any().setValue(FACING,Direction.UP).setValue(POWERED,false));
     }
     @Override protected MapCodec<? extends Block> codec() { return MapCodec.unit(this); }
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block,BlockState> builder) {
         builder.add(FACING,POWERED);
     }
     @Override public BlockState getStateForPlacement(BlockPlaceContext context) {
-        BlockState state=defaultBlockState().setValue(FACING,context.getHorizontalDirection().getOpposite());
+        BlockState state=defaultBlockState().setValue(FACING,context.getClickedFace());
         return canSurvive(state,context.getLevel(),context.getClickedPos())?state:null;
     }
     @Override protected boolean canSurvive(BlockState state,LevelReader level,BlockPos pos) {
-        return Block.canSupportCenter(level,pos.below(),Direction.UP);
+        Direction facing=state.getValue(FACING);
+        Direction support=facing.getOpposite();
+        return Block.canSupportCenter(level,pos.relative(support),facing);
     }
     @Override protected BlockState updateShape(BlockState state,LevelReader level,ScheduledTickAccess ticks,
             BlockPos pos,Direction direction,BlockPos neighborPos,BlockState neighbor,
             net.minecraft.util.RandomSource random) {
-        return direction==Direction.DOWN&&!canSurvive(state,level,pos)
+        return direction==state.getValue(FACING).getOpposite()&&!canSurvive(state,level,pos)
                 ?net.minecraft.world.level.block.Blocks.AIR.defaultBlockState():state;
     }
     @Override protected BlockState rotate(BlockState state,Rotation rotation) {
@@ -59,6 +61,13 @@ public final class PressureButtonBlock extends Block {
         return InteractionResult.SUCCESS;
     }
     @Override protected VoxelShape getShape(BlockState state,BlockGetter level,BlockPos pos,CollisionContext context) {
-        return box(4,0,4,12,3,12);
+        return switch(state.getValue(FACING)) {
+            case DOWN -> box(2,13,2,14,16,14);
+            case NORTH -> box(2,2,13,14,14,16);
+            case SOUTH -> box(2,2,0,14,14,3);
+            case WEST -> box(13,2,2,16,14,14);
+            case EAST -> box(0,2,2,3,14,14);
+            default -> box(2,0,2,14,3,14);
+        };
     }
 }

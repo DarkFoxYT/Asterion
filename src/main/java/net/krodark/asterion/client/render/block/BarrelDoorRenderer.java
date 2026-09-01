@@ -10,6 +10,7 @@ import net.krodark.asterion.block.BarrelDoorBlockEntity;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.phys.Vec3;
 
 public final class BarrelDoorRenderer extends GeoBlockRenderer<BarrelDoorBlockEntity, BlockEntityRenderState> {
     private static final DataTicket<Float> ANGLE = DataTickets.create("asterion_barrel_door_angle", Float.class);
@@ -22,6 +23,10 @@ public final class BarrelDoorRenderer extends GeoBlockRenderer<BarrelDoorBlockEn
         bones.ifPresent("door", bone -> bone.setRotation(0, angle, 0));
     }
     @Override public boolean shouldRenderOffScreen() { return true; }
+    @Override public boolean shouldRender(BarrelDoorBlockEntity door,Vec3 camera) {
+        return net.krodark.asterion.block.BarrelDoorBlock.isRoot(door.getBlockState())
+                && super.shouldRender(door,camera);
+    }
     @Override public int getViewDistance() { return 128; }
     private static final class Model extends GeoModel<BarrelDoorBlockEntity> {
         @Override public Identifier getModelResource(GeoRenderState state) { return Asterion.id("block/barrel_door"); }

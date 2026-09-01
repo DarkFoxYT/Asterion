@@ -32,6 +32,10 @@ public final class RuneGeoRenderer extends GeoBlockRenderer<RuneBlockEntity, Blo
     }
 
     @Override public boolean shouldRenderOffScreen() { return true; }
+    @Override public boolean shouldRender(RuneBlockEntity rune,Vec3 camera) {
+        return net.krodark.asterion.block.RuneBlock.isRoot(rune.getBlockState())
+                && super.shouldRender(rune,camera);
+    }
 
     @Override
     public void addRenderData(RuneBlockEntity rune, Void relatedObject, BlockEntityRenderState state,

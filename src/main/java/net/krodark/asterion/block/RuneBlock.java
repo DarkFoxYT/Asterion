@@ -174,9 +174,9 @@ public final class RuneBlock extends BaseEntityBlock {
     }
     @Override protected VoxelShape getOcclusionShape(BlockState state) { return Shapes.empty(); }
     @Override public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return isRoot(state) ? new RuneBlockEntity(pos, state) : null;
+        return new RuneBlockEntity(pos,state);
     }
     @Override public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        return createTickerHelper(type, Asterion.RUNE_BLOCK_ENTITY, RuneBlockEntity::tick);
+        return isRoot(state)?createTickerHelper(type,Asterion.RUNE_BLOCK_ENTITY,RuneBlockEntity::tick):null;
     }
 }

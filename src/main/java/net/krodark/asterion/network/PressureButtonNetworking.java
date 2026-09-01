@@ -21,43 +21,74 @@ public final class PressureButtonNetworking {
 
     public static void initialize() {
         ServerPlayNetworking.registerGlobalReceiver(PressureButtonHoldPayload.TYPE,(payload,context)->
-                context.server().execute(()->hold(context.player(),payload.pos())));
+                context.server().execute(()->setHolding(context.player(),payload.pos(),payload.held())));
         ServerTickEvents.END_SERVER_TICK.register(server->{
-            long now=server.getTickCount();
             var iterator=HOLDS.entrySet().iterator();
             while(iterator.hasNext()) {
-                Hold hold=iterator.next().getValue();
-                if(now-hold.lastTick<=2) continue;
-                iterator.remove();
+                var entry=iterator.next();
+                ServerPlayer player=server.getPlayerList().getPlayer(entry.getKey());
+                Hold hold=entry.getValue();
+                ServerLevel level=server.getLevel(hold.dimension);
+                if(player==null||level==null||player.level()!=level||!validTarget(player,hold.pos)) {
+                    iterator.remove();
+                    if(level!=null) release(level,hold);
+                    continue;
+                }
+                Hold advanced=advance(level,hold);
+                entry.setValue(advanced);
+            }
+        });
+        net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register((handler,server)->{
+            Hold hold=HOLDS.remove(handler.getPlayer().getUUID());
+            if(hold!=null) {
                 ServerLevel level=server.getLevel(hold.dimension);
                 if(level!=null) release(level,hold);
             }
         });
     }
 
-    private static void hold(ServerPlayer player,BlockPos pos) {
-        if(player.distanceToSqr(pos.getX()+.5,pos.getY()+.5,pos.getZ()+.5)>6.0D*6.0D) return;
+    private static void setHolding(ServerPlayer player,BlockPos pos,boolean held) {
+        Hold old=HOLDS.get(player.getUUID());
+        if(!held) {
+            if(old!=null&&old.pos.equals(pos)) {
+                HOLDS.remove(player.getUUID());
+                ServerLevel oldLevel=player.level().getServer().getLevel(old.dimension);
+                if(oldLevel!=null) release(oldLevel,old);
+            }
+            return;
+        }
+        if(!validTarget(player,pos)) return;
         ServerLevel level=player.level();
-        var hit=player.pick(6.0D,0,false);
-        if(!(hit instanceof net.minecraft.world.phys.BlockHitResult blockHit)||!blockHit.getBlockPos().equals(pos)) return;
         var state=level.getBlockState(pos);
         boolean button=state.is(Asterion.PRESSURE_BUTTON),lamenter=state.is(Asterion.LAMENTER);
         if(!button&&!lamenter) return;
-        Hold old=HOLDS.get(player.getUUID());
         if(old!=null&&!old.pos.equals(pos)) {
             HOLDS.remove(player.getUUID());
             ServerLevel oldLevel=level.getServer().getLevel(old.dimension);
             if(oldLevel!=null) release(oldLevel,old);
-            old=null;
         }
-        int progress=old!=null&&old.pos.equals(pos)&&old.lastTick==level.getServer().getTickCount()-1?old.progress+1:1;
-        BlockPos activeTarget=lamenter?pos.immutable():old!=null&&old.pos.equals(pos)?old.activeTarget:null;
+        if(old!=null&&old.pos.equals(pos)) return;
+        BlockPos activeTarget=lamenter?pos.immutable():null;
         if(lamenter&&!state.getValue(LamenterBlock.ACTIVE))
             level.setBlock(pos,state.setValue(LamenterBlock.ACTIVE,true),Block.UPDATE_ALL);
         if(button&&!state.getValue(PressureButtonBlock.POWERED))
             level.setBlock(pos,state.setValue(PressureButtonBlock.POWERED,true),Block.UPDATE_CLIENTS);
-        if(button&&progress>=HOLD_TICKS&&activeTarget==null) {
-            activeTarget=nearestLamenter(level,pos,48);
+        HOLDS.put(player.getUUID(),new Hold(level.dimension(),pos.immutable(),0,activeTarget));
+    }
+
+    private static boolean validTarget(ServerPlayer player,BlockPos pos) {
+        if(player.distanceToSqr(pos.getX()+.5,pos.getY()+.5,pos.getZ()+.5)>6.0D*6.0D) return false;
+        var hit=player.pick(6.0D,0,false);
+        return hit instanceof net.minecraft.world.phys.BlockHitResult blockHit&&blockHit.getBlockPos().equals(pos);
+    }
+
+    private static Hold advance(ServerLevel level,Hold hold) {
+        var state=level.getBlockState(hold.pos);
+        if(!state.is(Asterion.PRESSURE_BUTTON)) return hold;
+        int progress=Math.min(HOLD_TICKS,hold.progress+1);
+        BlockPos activeTarget=hold.activeTarget;
+        if(progress>=HOLD_TICKS&&activeTarget==null) {
+            activeTarget=nearestLamenter(level,hold.pos,48);
             if(activeTarget!=null) {
                 var targetState=level.getBlockState(activeTarget);
                 level.setBlock(activeTarget,targetState.setValue(LamenterBlock.ACTIVE,true),Block.UPDATE_ALL);
@@ -65,8 +96,7 @@ public final class PressureButtonNetworking {
                     net.minecraft.sounds.SoundSource.BLOCKS,.9F,.72F);
             }
         }
-        HOLDS.put(player.getUUID(),new Hold(level.dimension(),pos.immutable(),progress,
-                level.getServer().getTickCount(),activeTarget));
+        return new Hold(hold.dimension,hold.pos,progress,activeTarget);
     }
 
     private static void release(ServerLevel level,Hold hold) {
@@ -92,5 +122,5 @@ public final class PressureButtonNetworking {
         return nearest;
     }
     private record Hold(net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension,
-                        BlockPos pos,int progress,long lastTick,BlockPos activeTarget) { }
+                        BlockPos pos,int progress,BlockPos activeTarget) { }
 }

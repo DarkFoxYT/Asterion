@@ -3,8 +3,8 @@
 	"credit": "Made with Blockbench",
 	"texture_size": [32, 32],
 	"textures": {
-		"0": "asterion:block/poressure_button",
-		"particle": "asterion:block/poressure_button"
+		"0": "asterion:block/pressure_button",
+		"particle": "asterion:block/pressure_button"
 	},
 	"elements": [
 		{

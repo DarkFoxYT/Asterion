@@ -28,23 +28,34 @@ public final class PressureButtonClient {
                     .withLocation(Asterion.id("pipeline/pressure_button_marker")).withCull(false).build());
     private static final List<BlockPos> BUTTONS=new ArrayList<>();
     private static int scanDelay;
+    private static BlockPos heldTarget;
     private PressureButtonClient() { }
 
     public static void initialize() {
         LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(context->render(context));
     }
     public static void tick(Minecraft client) {
-        if(client.player==null||client.level==null) { BUTTONS.clear(); return; }
-        if(client.options.keyUse.isDown()&&client.hitResult instanceof BlockHitResult hit
-                &&ClientPlayNetworking.canSend(PressureButtonHoldPayload.TYPE)) {
+        if(client.player==null||client.level==null) { releaseHold(); BUTTONS.clear(); return; }
+        BlockPos target=null;
+        if(client.options.keyUse.isDown()&&client.hitResult instanceof BlockHitResult hit) {
             var targeted=client.level.getBlockState(hit.getBlockPos());
             if(targeted.is(Asterion.PRESSURE_BUTTON)||targeted.is(Asterion.LAMENTER))
-                ClientPlayNetworking.send(new PressureButtonHoldPayload(hit.getBlockPos()));
+                target=hit.getBlockPos().immutable();
+        }
+        if(!java.util.Objects.equals(target,heldTarget)&&ClientPlayNetworking.canSend(PressureButtonHoldPayload.TYPE)) {
+            if(heldTarget!=null) ClientPlayNetworking.send(new PressureButtonHoldPayload(heldTarget,false));
+            heldTarget=target;
+            if(heldTarget!=null) ClientPlayNetworking.send(new PressureButtonHoldPayload(heldTarget,true));
         }
         if(!BossEntranceCinematic.hasFinished()) { BUTTONS.clear(); return; }
         if(--scanDelay>0) return;
         scanDelay=40;
         scan(client);
+    }
+    private static void releaseHold() {
+        if(heldTarget!=null&&ClientPlayNetworking.canSend(PressureButtonHoldPayload.TYPE))
+            ClientPlayNetworking.send(new PressureButtonHoldPayload(heldTarget,false));
+        heldTarget=null;
     }
     private static void scan(Minecraft client) {
         BUTTONS.clear();

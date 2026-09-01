@@ -208,9 +208,12 @@ public final class BarrelDoorBlock extends BaseEntityBlock implements Waterlogge
     }
     @Override protected VoxelShape getOcclusionShape(BlockState state) { return Shapes.empty(); }
     @Override public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return isRoot(state) ? new BarrelDoorBlockEntity(pos, state) : null;
+        // Structure NBT may include a block-entity tag for every multipart cell. Accept a
+        // lightweight instance for those cells so vanilla does not report failed BE loads;
+        // only the root is ticked or rendered.
+        return new BarrelDoorBlockEntity(pos, state);
     }
     @Override public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        return createTickerHelper(type, Asterion.BARREL_DOOR_BLOCK_ENTITY, BarrelDoorBlockEntity::tick);
+        return isRoot(state)?createTickerHelper(type,Asterion.BARREL_DOOR_BLOCK_ENTITY,BarrelDoorBlockEntity::tick):null;
     }
 }

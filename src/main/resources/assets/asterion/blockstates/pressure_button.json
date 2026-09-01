@@ -1,12 +1,16 @@
 {
   "variants": {
-    "facing=north,powered=false": { "model": "asterion:block/pressure_button" },
-    "facing=east,powered=false":  { "model": "asterion:block/pressure_button", "y": 90 },
-    "facing=south,powered=false": { "model": "asterion:block/pressure_button", "y": 180 },
-    "facing=west,powered=false":  { "model": "asterion:block/pressure_button", "y": 270 },
-    "facing=north,powered=true":  { "model": "asterion:block/pressure_button_pressed" },
-    "facing=east,powered=true":   { "model": "asterion:block/pressure_button_pressed", "y": 90 },
-    "facing=south,powered=true":  { "model": "asterion:block/pressure_button_pressed", "y": 180 },
-    "facing=west,powered=true":   { "model": "asterion:block/pressure_button_pressed", "y": 270 }
+    "facing=up,powered=false": { "model": "asterion:block/pressure_button" },
+    "facing=down,powered=false": { "model": "asterion:block/pressure_button", "x": 180 },
+    "facing=north,powered=false": { "model": "asterion:block/pressure_button", "x": 90 },
+    "facing=east,powered=false": { "model": "asterion:block/pressure_button", "x": 90, "y": 90 },
+    "facing=south,powered=false": { "model": "asterion:block/pressure_button", "x": 90, "y": 180 },
+    "facing=west,powered=false": { "model": "asterion:block/pressure_button", "x": 90, "y": 270 },
+    "facing=up,powered=true": { "model": "asterion:block/pressure_button_pressed" },
+    "facing=down,powered=true": { "model": "asterion:block/pressure_button_pressed", "x": 180 },
+    "facing=north,powered=true": { "model": "asterion:block/pressure_button_pressed", "x": 90 },
+    "facing=east,powered=true": { "model": "asterion:block/pressure_button_pressed", "x": 90, "y": 90 },
+    "facing=south,powered=true": { "model": "asterion:block/pressure_button_pressed", "x": 90, "y": 180 },
+    "facing=west,powered=true": { "model": "asterion:block/pressure_button_pressed", "x": 90, "y": 270 }
   }
 }
