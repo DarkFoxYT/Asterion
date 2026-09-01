@@ -25,6 +25,9 @@ import org.jspecify.annotations.Nullable;
 
 /** One visible bowl and eight linked collision parts, all contained in a 3x3 footprint. */
 public final class GreekBrazierBlock extends Block implements SimpleWaterloggedBlock {
+    private static final int RELIGHT_DELAY = 20 * 30;
+    private static final java.util.Map<ServerLevel, java.util.Map<Long, Long>> RELIGHT_AT =
+            java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
     public static final IntegerProperty COLUMN = IntegerProperty.create("column", 0, 2);
     public static final IntegerProperty ROW = IntegerProperty.create("row", 0, 2);
     public static final BooleanProperty FORMED = BooleanProperty.create("formed");
@@ -111,6 +114,9 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
         level.playSound(null,center,SoundEvents.FIRE_EXTINGUISH,SoundSource.BLOCKS,1.3F,.8F);
         level.sendParticles(ParticleTypes.SMOKE,center.getX()+.5,center.getY()+1.1,center.getZ()+.5,
                 24,.85,.2,.85,.025);
+        RELIGHT_AT.computeIfAbsent(level, ignored -> new java.util.HashMap<>())
+                .put(center.asLong(), level.getGameTime() + RELIGHT_DELAY);
+        level.scheduleTick(center, state.getBlock(), RELIGHT_DELAY);
         return true;
     }
     public static boolean relight(ServerLevel level, BlockPos pos) {
@@ -126,6 +132,8 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
             BlockPos tile = part(center, x, z);
             level.setBlock(tile, level.getBlockState(tile).setValue(BlockStateProperties.LIT, true), UPDATE_ALL);
         }
+        java.util.Map<Long, Long> timers = RELIGHT_AT.get(level);
+        if (timers != null) timers.remove(center.asLong());
         level.scheduleTick(center, state.getBlock(), 20);
         level.playSound(null, center, SoundEvents.FIRECHARGE_USE, SoundSource.BLOCKS, 1.2F, .7F);
         level.sendParticles(net.krodark.asterion.Asterion.GREEK_FIRE, center.getX()+.5, center.getY()+1.1, center.getZ()+.5, 18, .7, .3, .7, .035);
@@ -170,6 +178,16 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
                 if(direction!=Direction.DOWN && level.getFluidState(tile.relative(direction)).is(net.minecraft.tags.FluidTags.WATER)) wet=true;
         }
         if(wet) extinguish(level,center);
+        if (isRoot(anchor) && !wet && !anchor.getValue(BlockStateProperties.LIT)) {
+            java.util.Map<Long, Long> timers = RELIGHT_AT.computeIfAbsent(level,
+                    ignored -> new java.util.HashMap<>());
+            long deadline = timers.computeIfAbsent(center.asLong(),
+                    ignored -> level.getGameTime() + RELIGHT_DELAY);
+            long remaining = deadline - level.getGameTime();
+            if (remaining <= 0) relight(level, center);
+            else level.scheduleTick(center, this, (int)Math.min(remaining, RELIGHT_DELAY));
+            return;
+        }
         if(isRoot(state) && anchor.getValue(BlockStateProperties.LIT)) level.scheduleTick(center,this,20);
     }
     @Override public BlockState playerWillDestroy(Level level,BlockPos pos,BlockState state,Player player) {

@@ -3,10 +3,12 @@
   "id": "asterion",
   "version": "${version}",
   "name": "Asterion",
-  "description": "Minotaur",
-  "authors": [],
-  "contact": {},
-  "license": "All-Rights-Reserved",
+  "description": "Descend into an infinite living labyrinth, explore its flooded catacombs, and survive the Minotaur at its heart.",
+  "authors": [
+    "Kronoz",
+    "DarkFox"
+  ],
+  "license": "LicenseRef-AMALGAM-Proprietary",
   "icon": "assets/asterion/icon.png",
   "environment": "*",
   "entrypoints": {

@@ -14,13 +14,16 @@ import java.util.Map;
 import java.util.UUID;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.WorldGenerator;
-import net.krodark.asterion.block.LamenterBlock;
+import net.krodark.asterion.block.GreekBrazierBlock;
+import net.krodark.asterion.effect.GreekFireBurn;
 import net.krodark.asterion.game.GameplayContent;
 import net.krodark.asterion.game.GasClouds;
 import net.krodark.asterion.network.CursedBrazierAwakeningPayload;
 import net.krodark.asterion.network.MazeShiftPayload;
+import net.krodark.asterion.network.ragdoll.RagdollImpulsePayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -40,8 +43,10 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 public final class CursedBrazierEntity extends PathfinderMob implements GeoEntity {
@@ -53,6 +58,8 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
     private static final int AWAKEN_RANGE = 17;
     public static final int AWAKENING_DURATION = 64;
     private static final int ENCOUNTER_DOOR_RANGE = 32;
+    private static final int SHIELD_BRAZIER_COUNT = 7;
+    private static final int BRAZIER_SEARCH_RANGE = 30;
     private static final List<Vec3> CARDINAL_DIRECTIONS = List.of(
             new Vec3(1, 0, 0), new Vec3(-1, 0, 0),
             new Vec3(0, 0, 1), new Vec3(0, 0, -1));
@@ -72,6 +79,8 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
             UUID.randomUUID(), Component.translatable("entity.asterion.cursed_brazier"),
             BossEvent.BossBarColor.GREEN, BossEvent.BossBarOverlay.NOTCHED_10);
     private final List<Vec3> jetPositions = new ArrayList<>();
+    private final List<BlockPos> shieldBraziers = new ArrayList<>();
+    private final Map<UUID, Integer> hitCooldowns = new java.util.HashMap<>();
     private final int[] attackUses = new int[Attack.values().length];
 
     private int cooldown = 50;
@@ -83,10 +92,15 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
     private Attack lastAttack = Attack.NONE;
     private Vec3 aim = Vec3.ZERO;
     private Vec3 lockedPosition = Vec3.ZERO;
-    private BlockPos shieldLamenter;
-    private boolean orbitClockwise;
+    private boolean middleShieldUsed;
+    private boolean finalShieldUsed;
     private Vec3 restingPosition;
     private float desiredYaw;
+    private Vec3 gridMoveStart = Vec3.ZERO;
+    private Vec3 gridMoveTarget = Vec3.ZERO;
+    private int gridMoveTicks;
+    private int gridMoveDuration;
+    private boolean gridStepTaken;
 
     public enum Attack {
         NONE, FLOOR_JETS, FIRE_BEAM, SPIN_TORNADO, CARDINAL_DASH
@@ -163,6 +177,8 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         super.tick();
         setDeltaMovement(Vec3.ZERO);
         if (!(level() instanceof ServerLevel level)) return;
+        hitCooldowns.replaceAll((uuid, ticks) -> ticks - 1);
+        hitCooldowns.values().removeIf(ticks -> ticks <= 0);
 
         updateBossBar();
         if (!isAlive() || isNoAi()) return;
@@ -195,16 +211,17 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         }
 
         level.players().stream().filter(this::canFight).forEach(bossBar::addPlayer);
+        if (!shielded()) tryStartShieldPhase(level);
         updateShield(level);
         if (shielded()) return;
 
         if (attack == Attack.NONE) {
-            hoverAround(level, target);
-            if (--cooldown > 0) return;
-            if (attacksStarted > 0 && attacksStarted % 3 == 0 && moveToShieldPerch(level, target)) {
-                attacksStarted++;
+            if (!gridStepTaken && beginGridStep(level, target)) return;
+            if (gridMoveTicks > 0) {
+                tickGridStep();
                 return;
             }
+            if (--cooldown > 0) return;
             startAttack(chooseAttack(level, target), target);
             attacksStarted++;
         }
@@ -216,7 +233,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
             case CARDINAL_DASH -> tickCardinalDash(level, target);
             case NONE -> { }
         }
-        if (attack != Attack.SPIN_TORNADO) updateFacing();
+        if (attack != Attack.SPIN_TORNADO && gridMoveTicks == 0) updateFacing();
     }
 
     private void tickDormant(ServerLevel level) {
@@ -309,7 +326,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         if (attack != Attack.NONE) finishAttack(30);
         if (shielded()) {
             setShielded(false);
-            shieldLamenter = null;
+            shieldBraziers.clear();
         }
         GasClouds.clearOwner(level, getUUID());
     }
@@ -318,6 +335,10 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         double distance = Math.sqrt(horizontalDistanceSqr(target.position(), position()));
         List<Attack> choices = new ArrayList<>();
         choices.add(Attack.FLOOR_JETS);
+        if (distance < 8 && clearance(level, cardinalToward(target), 8) > 2.5) {
+            choices.add(Attack.CARDINAL_DASH);
+            choices.add(Attack.CARDINAL_DASH);
+        }
         if (hasLineOfSight(target)) {
             choices.add(Attack.FIRE_BEAM);
             if (distance > 11) choices.add(Attack.FIRE_BEAM);
@@ -351,6 +372,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         lockedPosition = target.position();
         aim = directionOrForward(target.getEyePosition().subtract(mouth()));
         face(aim);
+        updateFacingImmediate();
         playSound(SoundEvents.FIRE_AMBIENT, 1.2F, 0.65F);
     }
 
@@ -360,7 +382,9 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         attackTicks = 0;
         dashLeg = 0;
         jetPositions.clear();
-        cooldown = delay + random.nextInt(21);
+        gridStepTaken = false;
+        gridMoveTicks = 0;
+        cooldown = Math.min(delay, 6) + random.nextInt(5);
     }
 
     private void tickFloorJets(ServerLevel level, ServerPlayer target) {
@@ -368,8 +392,11 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         if (tick == 1) prepareFloorJets(level, target);
         if (tick <= 38 && tick % 3 == 0) {
             for (Vec3 position : jetPositions) {
+                level.sendParticles(new DustParticleOptions(0xFF170D, 1.15F),
+                        position.x, position.y + 0.035, position.z,
+                        14, 0.48, 0.015, 0.48, 0.005);
                 level.sendParticles(Asterion.GREEK_FIRE_SOOT, position.x, position.y, position.z,
-                        10, 0.35, 0.03, 0.35, 0.01);
+                        6, 0.35, 0.03, 0.35, 0.01);
             }
         }
         if (tick >= 40 && tick <= 70 && tick % 6 == 0) {
@@ -377,9 +404,11 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
                 for (int burst = 0; burst < 4; burst++) {
                     spawnFlame(level, position, new Vec3(0, 0.22 + burst * 0.055, 0));
                 }
+                damagePlayers(level, new AABB(position.subtract(0.9, 0.2, 0.9),
+                        position.add(0.9, 3.4, 0.9)), 7F, 45, false);
             }
         }
-        if (tick > 82) finishAttack(40);
+        if (tick > 82) finishAttack(4);
     }
 
     private void tickFireBeam(ServerLevel level, ServerPlayer target) {
@@ -393,7 +422,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
                     5, 0.18, 0.12, 0.18, 0.015);
         }
         if (tick >= 35 && tick <= 82) traceFireBeam(level, tick);
-        if (tick > 92) finishAttack(45);
+        if (tick > 92) finishAttack(5);
     }
 
     private void traceFireBeam(ServerLevel level, int tick) {
@@ -403,6 +432,8 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
             BlockPos block = BlockPos.containing(point);
             if (!level.getBlockState(block).getCollisionShape(level, block).isEmpty()) return;
             if ((tick + (int) (distance * 2)) % 3 == 0) spawnFlame(level, point, aim.scale(0.08));
+            damagePlayers(level, new AABB(point.subtract(0.7, 0.7, 0.7),
+                    point.add(0.7, 0.7, 0.7)), 8F, 18, false);
         }
     }
 
@@ -427,9 +458,10 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
             return;
         }
 
-        double progress = Math.clamp((tick - 70) / 90.0, 0, 1);
-        double speed = 0.025 + 0.43 * progress * progress * progress;
-        setYRot((float) (getYRot() + Math.toDegrees(speed)));
+        double progress = Math.clamp((tick - 70) / 68.0, 0, 1);
+        double eased = progress * progress * (3.0 - 2.0 * progress);
+        double speed = 2.0 + 14.0 * eased;
+        setYRot((float) (getYRot() + speed));
         yBodyRot = getYRot();
         int streams = progress < 0.35 ? 2 : progress < 0.7 ? 3 : 4;
         for (int stream = 0; stream < streams; stream++) {
@@ -438,7 +470,9 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
             spawnFlame(level, mouth().add(direction.scale(1.1)),
                     direction.scale(0.35 + progress * 0.52));
         }
-        if (tick > 170) finishAttack(55);
+        damagePlayers(level, getBoundingBox().inflate(1.35, 0.55, 1.35),
+                9F, 12, true);
+        if (tick > 160) finishAttack(5);
     }
 
     private void tickCardinalDash(ServerLevel level, ServerPlayer target) {
@@ -451,72 +485,95 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
                 return;
             }
             face(aim);
+            updateFacingImmediate();
             dashLeg++;
         }
         if (legTick < 10) {
-            Vec3 next = position().add(aim.scale(0.72));
+            Vec3 next = position().add(aim.scale(0.92));
             if (canOccupy(level, next)) setPos(next);
             else attackTicks += 10 - legTick;
             GasClouds.emit(level, position().add(0, 0.45, 0), aim.scale(-0.045), getUUID());
             level.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 0.45, getZ(),
                     3, 0.3, 0.18, 0.3, 0.01);
+            damagePlayers(level, getBoundingBox().inflate(0.65, 0.3, 0.65),
+                    10F, 16, true);
         }
-        if (dashLeg >= 7 && legTick >= 10) finishAttack(48);
+        if (dashLeg >= 7 && legTick >= 10) finishAttack(4);
     }
 
-    private boolean moveToShieldPerch(ServerLevel level, ServerPlayer target) {
-        List<Map.Entry<BlockPos, Vec3>> choices = new ArrayList<>();
-        BlockPos center = blockPosition();
-        for (BlockPos mutable : BlockPos.betweenClosed(
-                center.offset(-24, -10, -24), center.offset(24, 14, 24))) {
-            var state = level.getBlockState(mutable);
-            if (!state.is(Asterion.LAMENTER)
-                    || state.getValue(LamenterBlock.ACTIVE)
-                    || state.getValue(LamenterBlock.CRYING)) continue;
-            BlockPos lamenter = mutable.immutable();
-            Direction facing = state.getValue(LamenterBlock.FACING);
-            Vec3 perch = Vec3.atCenterOf(lamenter.relative(facing, 2).below(2));
-            if (canOccupy(level, perch)) choices.add(Map.entry(lamenter, perch));
-        }
-        if (choices.isEmpty()) return false;
+    private void tryStartShieldPhase(ServerLevel level) {
+        float health = getHealth() / getMaxHealth();
+        boolean middle = health <= 0.58F && !middleShieldUsed;
+        boolean ending = health <= 0.24F && !finalShieldUsed;
+        if (!middle && !ending) return;
+        if (tickCount % 10 != 0) return;
 
-        choices.sort(Comparator.comparingDouble(choice ->
-                choice.getValue().distanceToSqr(target.position())));
-        Map.Entry<BlockPos, Vec3> chosen = choices.get(random.nextInt(Math.min(3, choices.size())));
-        shieldLamenter = chosen.getKey();
-        setPos(chosen.getValue());
-        lockedPosition = position();
+        List<BlockPos> candidates = findLitBraziers(level);
+        if (candidates.size() < SHIELD_BRAZIER_COUNT) return;
+        if (attack != Attack.NONE) finishAttack(0);
+        shieldBraziers.clear();
+        shieldBraziers.addAll(candidates.subList(0, SHIELD_BRAZIER_COUNT));
+        if (middle) middleShieldUsed = true;
+        else finalShieldUsed = true;
+        lockedPosition = snapToGrid(position());
+        if (canOccupy(level, lockedPosition)) setPos(lockedPosition);
+        else lockedPosition = position();
         setShielded(true);
-        cooldown = 20;
         level.playSound(null, blockPosition(), SoundEvents.BEACON_ACTIVATE,
-                SoundSource.HOSTILE, 1.2F, 0.65F);
+                SoundSource.HOSTILE, 1.8F, 0.52F);
+    }
+
+    private List<BlockPos> findLitBraziers(ServerLevel level) {
+        List<BlockPos> found = new ArrayList<>();
+        BlockPos center = blockPosition();
+        for (BlockPos cursor : BlockPos.betweenClosed(
+                center.offset(-BRAZIER_SEARCH_RANGE, -10, -BRAZIER_SEARCH_RANGE),
+                center.offset(BRAZIER_SEARCH_RANGE, 10, BRAZIER_SEARCH_RANGE))) {
+            var state = level.getBlockState(cursor);
+            if (!(state.getBlock() instanceof GreekBrazierBlock)
+                    || !GreekBrazierBlock.isRoot(state)
+                    || !state.getValue(BlockStateProperties.LIT)) continue;
+            found.add(cursor.immutable());
+        }
+        found.sort(Comparator.comparingDouble(pos -> pos.distSqr(center)));
+        return found;
+    }
+
+    private boolean beginGridStep(ServerLevel level, ServerPlayer target) {
+        gridStepTaken = true;
+        Vec3 origin = snapToGrid(position());
+        List<Vec3> candidates = new ArrayList<>();
+        for (Vec3 direction : CARDINAL_DIRECTIONS) {
+            for (int blocks : new int[]{3, 5}) candidates.add(origin.add(direction.scale(blocks)));
+        }
+        candidates.removeIf(candidate -> !canOccupy(level, candidate));
+        if (candidates.isEmpty()) return false;
+        candidates.sort(Comparator.comparingDouble(candidate -> {
+            double distance = Math.sqrt(horizontalDistanceSqr(candidate, target.position()));
+            return Math.abs(distance - 9.0);
+        }));
+        gridMoveStart = position();
+        gridMoveTarget = candidates.get(random.nextInt(Math.min(2, candidates.size())));
+        gridMoveTicks = 1;
+        gridMoveDuration = 7;
+        Vec3 travel = gridMoveTarget.subtract(gridMoveStart);
+        face(travel);
+        updateFacingImmediate();
         return true;
     }
 
-    private void hoverAround(ServerLevel level, ServerPlayer target) {
-        Vec3 offset = target.position().subtract(position());
-        Vec3 horizontal = new Vec3(offset.x, 0, offset.z);
-        double distance = horizontal.length();
-        if (distance < 0.01) return;
-        Vec3 forward = horizontal.scale(1 / distance);
-        Vec3 side = new Vec3(-forward.z, 0, forward.x).scale(orbitClockwise ? 1 : -1);
-        if (tickCount % 100 == 0) orbitClockwise = !orbitClockwise;
+    private void tickGridStep() {
+        float progress = Math.clamp(gridMoveTicks++ / (float) gridMoveDuration, 0F, 1F);
+        float eased = progress * progress * (3F - 2F * progress);
+        setPos(gridMoveStart.lerp(gridMoveTarget, eased));
+        if (progress < 1F) return;
+        setPos(gridMoveTarget);
+        gridMoveTicks = 0;
+    }
 
-        Vec3 direction = side;
-        if (distance > 12) direction = forward;
-        else if (distance < 6) direction = forward.scale(-1);
-        double vertical = Math.clamp(target.getY() + 0.65 - getY(), -0.07, 0.07);
-        Vec3 next = position().add(direction.scale(0.085)).add(0, vertical, 0);
-        if (canOccupy(level, next)) {
-            setPos(next);
-        } else {
-            Vec3 alternate = position().add(side.scale(-0.09)).add(0, vertical, 0);
-            if (canOccupy(level, alternate)) {
-                setPos(alternate);
-                orbitClockwise = !orbitClockwise;
-            }
-        }
-        face(directionOrForward(target.getEyePosition().subtract(mouth())));
+    private static Vec3 snapToGrid(Vec3 position) {
+        return new Vec3(Math.floor(position.x) + 0.5,
+                Math.rint(position.y), Math.floor(position.z) + 0.5);
     }
 
     private void prepareFloorJets(ServerLevel level, ServerPlayer target) {
@@ -590,17 +647,27 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
             level.sendParticles(Asterion.GREEK_FIRE, getX(), centerY, getZ(),
                     7, 2.0, 1.55, 2.0, 0.018);
         }
-        if (shieldLamenter == null || !level.getBlockState(shieldLamenter).is(Asterion.LAMENTER)) {
-            setShielded(false);
-            shieldLamenter = null;
-            cooldown = 25;
-            return;
+        int stillLit = 0;
+        for (BlockPos brazier : shieldBraziers) {
+            var state = level.getBlockState(brazier);
+            if (!(state.getBlock() instanceof GreekBrazierBlock)
+                    || !state.getValue(BlockStateProperties.LIT)) continue;
+            stillLit++;
+            if (tickCount % 2 == 0) {
+                double x = brazier.getX() + 0.5;
+                double y = brazier.getY() + 1.35;
+                double z = brazier.getZ() + 0.5;
+                level.sendParticles(ParticleTypes.ELECTRIC_SPARK, x, y, z,
+                        5, 1.35, 1.15, 1.35, 0.03);
+                level.sendParticles(Asterion.GREEK_FIRE, x, y, z,
+                        4, 1.15, 0.9, 1.15, 0.015);
+            }
         }
-        var state = level.getBlockState(shieldLamenter);
-        if (state.getValue(LamenterBlock.ACTIVE) || state.getValue(LamenterBlock.CRYING)) {
+        if (stillLit == 0) {
             setShielded(false);
-            shieldLamenter = null;
-            cooldown = 35;
+            shieldBraziers.clear();
+            cooldown = 3;
+            gridStepTaken = true;
             level.sendParticles(ParticleTypes.CLOUD,
                     getX(), getY() + getBbHeight() * 0.52, getZ(),
                     35, 2.1, 1.5, 2.1, 0.08);
@@ -624,7 +691,8 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
     }
 
     private void face(Vec3 direction) {
-        desiredYaw = (float) Math.toDegrees(Math.atan2(-direction.x, direction.z));
+        float raw = (float) Math.toDegrees(Math.atan2(-direction.x, direction.z));
+        desiredYaw = Math.round(raw / 90F) * 90F;
     }
 
     private void updateFacing() {
@@ -632,6 +700,31 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         setYRot(getYRot() + Math.clamp(difference, -7.5F, 7.5F));
         yBodyRot = getYRot();
         yHeadRot = getYRot();
+    }
+
+    private void updateFacingImmediate() {
+        setYRot(desiredYaw);
+        yRotO = desiredYaw;
+        yBodyRot = desiredYaw;
+        yHeadRot = desiredYaw;
+    }
+
+    private void damagePlayers(ServerLevel level, AABB area, float damage,
+                               int immunityTicks, boolean ragdoll) {
+        for (ServerPlayer player : level.getEntitiesOfClass(ServerPlayer.class, area, this::canFight)) {
+            if (hitCooldowns.containsKey(player.getUUID())) continue;
+            if (!player.hurtServer(level, level.damageSources().mobAttack(this), damage)) continue;
+            GreekFireBurn.ignite(player, ragdoll ? 3F : 6F);
+            hitCooldowns.put(player.getUUID(), immunityTicks);
+            Vec3 impulse = directionOrForward(player.position().subtract(position()))
+                    .scale(ragdoll ? 1.25 : 0.42).add(0, ragdoll ? 0.42 : 0.12, 0);
+            player.push(impulse.x, impulse.y, impulse.z);
+            player.hurtMarked = true;
+            if (ragdoll && ServerPlayNetworking.canSend(player, RagdollImpulsePayload.TYPE)) {
+                ServerPlayNetworking.send(player,
+                        new RagdollImpulsePayload(position(), impulse, 1.15F));
+            }
+        }
     }
 
     private Vec3 mouth() {
@@ -717,6 +810,8 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         output.putDouble("RestX", rest.x);
         output.putDouble("RestY", rest.y);
         output.putDouble("RestZ", rest.z);
+        output.putBoolean("MiddleShieldUsed", middleShieldUsed);
+        output.putBoolean("FinalShieldUsed", finalShieldUsed);
     }
 
     @Override
@@ -732,6 +827,8 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
                 input.getDoubleOr("RestX", getX()),
                 input.getDoubleOr("RestY", getY()),
                 input.getDoubleOr("RestZ", getZ()));
+        middleShieldUsed = input.getBooleanOr("MiddleShieldUsed", false);
+        finalShieldUsed = input.getBooleanOr("FinalShieldUsed", false);
         setInvulnerable(restored != Phase.ACTIVE);
     }
 

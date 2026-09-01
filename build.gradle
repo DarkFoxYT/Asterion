@@ -116,8 +116,8 @@ java {
 }
 
 jar {
-    from("LICENSE") {
-        rename { "${it}_${project.archives_base_name}" }
+    from("LICENSE.txt") {
+        rename { "LICENSE_${project.archives_base_name}.txt" }
     }
 }
 

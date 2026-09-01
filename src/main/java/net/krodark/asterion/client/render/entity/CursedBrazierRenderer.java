@@ -78,11 +78,13 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
                 return 0xFF55FF72;
             }
         });
-        for (String bone : GLOW_BONES) addGlowLayer(bone);
+        for (int index = 0; index < GLOW_BONES.length; index++) {
+            addGlowLayer(GLOW_BONES[index], GLOW_ATTACKS[index]);
+        }
         shadowRadius = 2.35F;
     }
 
-    private void addGlowLayer(String boneName) {
+    private void addGlowLayer(String boneName, int matchingAttack) {
         withRenderLayer(new AsterionEmissiveBoneLayer<>(this, boneName, TEXTURE) {
             @Override
             public boolean shouldRenderBone(EntityRenderState state) {
@@ -91,12 +93,24 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
 
             @Override
             protected float surfaceBrightness(EntityRenderState state) {
-                return 1F;
+                int attack = state.getOrDefaultGeckolibData(ATTACK,
+                        CursedBrazierEntity.Attack.NONE.ordinal());
+                return attack == matchingAttack ? 1F : 0.72F;
             }
 
             @Override
             protected boolean enhancedSurface(EntityRenderState state) {
                 return true;
+            }
+
+            @Override
+            protected int emissiveColor(EntityRenderState state) {
+                int attack = state.getOrDefaultGeckolibData(ATTACK,
+                        CursedBrazierEntity.Attack.NONE.ordinal());
+                if (attack != matchingAttack) return 0xFF78FF82;
+                float time = state.getOrDefaultGeckolibData(TIME, 0F);
+                int greenBlue = 54 + Math.round((Mth.sin(time * 0.55F) + 1F) * 18F);
+                return 0xFFFF0000 | greenBlue << 8 | greenBlue;
             }
         });
     }
@@ -152,21 +166,17 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
                 return;
             }
 
-            float bob = Mth.sin(time * 0.105F) * 1.15F;
-            float sway = Mth.sin(time * 0.052F + 0.8F) * 0.025F;
+            float bob = Mth.sin(time * 0.105F) * 0.22F;
+            float sway = Mth.sin(time * 0.052F + 0.8F) * 0.012F;
             bone.setTranslation(bone.getTranslateX(), bone.getTranslateY() + 1.7F + bob,
                     bone.getTranslateZ());
             bone.setRotation(bone.getRotX() + sway * 0.55F,
-                    bone.getRotY() + time * 0.006F,
+                    bone.getRotY(),
                     bone.getRotZ() + sway);
         });
 
         int attack = pass.getOrDefaultGeckolibData(ATTACK, CursedBrazierEntity.Attack.NONE.ordinal());
         float attackAge = pass.getOrDefaultGeckolibData(ATTACK_AGE, 0F);
-        for (int index = 0; index < GLOW_BONES.length; index++) {
-            if (attack != GLOW_ATTACKS[index]) continue;
-            bones.ifPresent(GLOW_BONES[index], bone -> bone.setScale(0F, 0F, 0F));
-        }
         bones.ifPresent("full", bone -> applyAttackMotion(bone, attack, attackAge));
     }
 
@@ -174,9 +184,8 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
                                           int attack, float age) {
         if (attack == CursedBrazierEntity.Attack.SPIN_TORNADO.ordinal()) {
             float acceleration = Math.clamp((age - 70F) / 90F, 0F, 1F);
-            float spin = acceleration * acceleration * acceleration;
             bone.setRotation(bone.getRotX(),
-                    bone.getRotY() + spin * spin * 18F,
+                    bone.getRotY(),
                     bone.getRotZ() + Mth.sin(age * 0.22F) * 0.035F * acceleration);
         } else if (attack == CursedBrazierEntity.Attack.CARDINAL_DASH.ordinal()) {
             float stride = (age % 14F) / 14F;
