@@ -55,7 +55,12 @@ public final class OmegaLockBlockEntity extends BlockEntity implements GeoBlockE
             BlockState gate = server.getBlockState(p);
             return gate.is(Asterion.MAZESTEEL_GATE) && !gate.getValue(DirectionalGateBlock.OPEN);
         }).mapToInt(BlockPos::getY).min().orElse(Integer.MAX_VALUE);
-        if (lowest == Integer.MAX_VALUE) { lock.openingTicks = 0; lock.setChanged(); return; }
+        if (lowest == Integer.MAX_VALUE) {
+            // The key mechanism rises with the final gate and is consumed completely;
+            // leaving an unlocked block behind produced a floating/invisible lock shell.
+            server.removeBlock(pos, false);
+            return;
+        }
         int changed = 0;
         for (BlockPos gatePos : lock.gates) if (gatePos.getY() == lowest) {
             BlockState gate = server.getBlockState(gatePos);

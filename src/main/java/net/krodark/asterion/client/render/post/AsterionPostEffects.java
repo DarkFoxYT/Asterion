@@ -9,7 +9,6 @@ import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.client.event.DeadSunClientEvents;
 import net.krodark.asterion.client.DeadSunEntryCinematic;
 import net.krodark.asterion.client.BossFinaleOverlay;
-import net.krodark.asterion.client.PerformanceGovernor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.UniformValue;
 import net.minecraft.util.Mth;
@@ -26,6 +25,10 @@ public final class AsterionPostEffects {
     private static float crimsonBlend;
     private static float catacombBlend;
     private static float floodBlend;
+    private static final Matrix4f lastInverseViewProjection = new Matrix4f();
+    private static Vec3 lastCameraPosition = Vec3.ZERO;
+    private static Vec3 lastCameraForward = new Vec3(0.0D, 0.0D, 1.0D);
+    private static boolean hasCameraSnapshot;
 
     private AsterionPostEffects() {
     }
@@ -33,7 +36,7 @@ public final class AsterionPostEffects {
     public static void register() {
         PostEffects.register(Asterion.id("dimension/dead_sun"), config -> config
                 .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.deadSunEnabled
-                        && PerformanceGovernor.quality() > 0)
+                        && effectQuality() > 0)
                 .phase(RenderPhase.POST_WORLD)
                 .priority(10)
                 .fade(32, 16)
@@ -104,7 +107,7 @@ public final class AsterionPostEffects {
         // depth occlusion and animation with fewer full-resolution passes/ray samples.
         PostEffects.register(Asterion.id("dimension/dead_sun_fast"), config -> config
                 .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.deadSunEnabled
-                        && PerformanceGovernor.quality() == 0)
+                        && effectQuality() <= 0)
                 .phase(RenderPhase.POST_WORLD).priority(10).fade(3, 8)
                 .uniform("DustTime", AsterionPostEffects::renderTime)
                 .uniform("AsterionStrength", () -> AsterionConfig.INSTANCE.deadSunStrength)
@@ -129,13 +132,19 @@ public final class AsterionPostEffects {
     }
 
     private static boolean isPostProcessingReady() {
-        // The camera snapshot is populated later in the same render frame. Using
-        // its transient readiness as an enable switch caused the fog chain to blink off.
-        return isInsideAsterion();
+        // Start only once a real camera snapshot exists. Afterwards, a transient missed
+        // snapshot reuses the last valid matrices instead of blinking or projecting with identity.
+        if (!isInsideAsterion()) {
+            hasCameraSnapshot = false;
+            return false;
+        }
+        return AmneticCamera.isReady() || hasCameraSnapshot;
     }
 
     private static double effectQuality() {
-        return Math.min(AsterionConfig.INSTANCE.cinematicQuality, PerformanceGovernor.quality());
+        // Changing post chains at runtime makes both chains fade across one another and
+        // intermittently drops the volume. The configured quality remains stable per session.
+        return Mth.clamp(AsterionConfig.INSTANCE.cinematicQuality, 0, 2);
     }
 
     private static double renderTime() {
@@ -272,18 +281,21 @@ public final class AsterionPostEffects {
     }
 
     private static List<UniformValue> worldData() {
-        Matrix4f inverseViewProjection = AmneticCamera.isReady()
-                ? AmneticCamera.inverseViewProjection()
-                : new Matrix4f();
-        Vec3 camera = AmneticCamera.position();
-        Vec3 forward = AmneticCamera.forward();
+        if (AmneticCamera.isReady()) {
+            lastInverseViewProjection.set(AmneticCamera.inverseViewProjection());
+            lastCameraPosition = AmneticCamera.position();
+            lastCameraForward = AmneticCamera.forward();
+            hasCameraSnapshot = true;
+        }
         float zeroToOne = RenderSystem.getDevice().isZZeroToOne() ? 1.0f : 0.0f;
         return List.of(
-                new UniformValue.Matrix4x4Uniform(inverseViewProjection),
+                new UniformValue.Matrix4x4Uniform(new Matrix4f(lastInverseViewProjection)),
                 new UniformValue.Vec4Uniform(new Vector4f(
-                        (float) camera.x, (float) camera.y, (float) camera.z, zeroToOne)),
+                        (float) lastCameraPosition.x, (float) lastCameraPosition.y,
+                        (float) lastCameraPosition.z, zeroToOne)),
                 new UniformValue.Vec4Uniform(new Vector4f(
-                        (float) forward.x, (float) forward.y, (float) forward.z, 0.0f))
+                        (float) lastCameraForward.x, (float) lastCameraForward.y,
+                        (float) lastCameraForward.z, 0.0f))
         );
     }
 }

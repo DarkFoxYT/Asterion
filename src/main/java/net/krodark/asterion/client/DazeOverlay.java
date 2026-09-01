@@ -15,8 +15,8 @@ import org.lwjgl.glfw.GLFW;
 public final class DazeOverlay {
     private static int remaining;
     private static int duration;
-    private static float required;
-    private static float progress;
+    private static int required;
+    private static int progress;
     private static boolean spaceWasDown;
 
     private DazeOverlay() { }
@@ -28,8 +28,8 @@ public final class DazeOverlay {
     public static void begin(DazePayload payload) {
         duration = Mth.clamp(payload.durationTicks(), 30, 200);
         remaining = duration;
-        required = Mth.clamp(payload.requiredPresses(), 3, 8) * 2.4F;
-        progress = 0.0F;
+        required = Mth.clamp(payload.requiredPresses(), 4, 18);
+        progress = 0;
         spaceWasDown = true;
     }
 
@@ -45,12 +45,11 @@ public final class DazeOverlay {
         boolean down = client.screen == null && GLFW.glfwGetKey(client.getWindow().handle(),
                 GLFW.GLFW_KEY_SPACE) == GLFW.GLFW_PRESS;
         boolean mash = AsterionConfig.INSTANCE.ragdollMashRecovery;
-        if (down) {
-            float gain = mash ? (!spaceWasDown ? 1.05F : 0.035F) : 0.30F;
-            progress = Math.min(required, progress + gain);
-        } else {
-            progress = Math.max(0.0F, progress - 0.025F);
-        }
+        // Mash progress is made of completed key presses and stays earned. The newer
+        // per-tick decay made the bar immediately retreat between every legitimate tap.
+        if (mash && down && !spaceWasDown) progress = Math.min(required, progress + 1);
+        else if (!mash && down && (duration - remaining) % 3 == 0)
+            progress = Math.min(required, progress + 1);
         if (progress >= required || remaining <= 0) {
             if (!DismembermentEngine.INSTANCE.hasGroundContact(client.player.getId())) {
                 remaining = 1;
@@ -83,7 +82,7 @@ public final class DazeOverlay {
 
     public static void cancel() {
         remaining = 0;
-        progress = 0.0F;
+        progress = 0;
         spaceWasDown = false;
     }
 
@@ -97,7 +96,7 @@ public final class DazeOverlay {
         int alpha = Mth.floor(intro * 220.0F);
         graphics.fill(x - 2, y - 2, x + width + 2, y + height + 2, alpha << 24 | 0x140B0B);
         graphics.fill(x, y, x + width, y + height, alpha << 24 | 0x2B2222);
-        int filled = Mth.floor(width * Mth.clamp(progress / required, 0.0F, 1.0F));
+        int filled = Mth.floor(width * Mth.clamp(progress / (float) required, 0.0F, 1.0F));
         graphics.fill(x, y, x + filled, y + height, alpha << 24 | 0xC92820);
         String instruction = AsterionConfig.INSTANCE.ragdollMashRecovery
                 ? "TAP SPACE — BREAK THE FALL" : "HOLD SPACE — BRACE AND GET UP";
