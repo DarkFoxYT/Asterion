@@ -57,6 +57,25 @@ public final class WinchBlock extends Block {
     }
 
     @Override
+    protected void affectNeighborsAfterRemoval(BlockState state, ServerLevel level, BlockPos pos,
+                                               boolean movedByPiston) {
+        // The open state belongs to the winch, not to the panels themselves. If the
+        // controller is removed, fail closed so an open gate cannot be left floating.
+        boolean closedAny = false;
+        for (BlockPos gatePos : findConnectedGates(level, pos)) {
+            if (level.dimension().equals(Asterion.ASTERION_LEVEL)
+                    && net.krodark.asterion.worldgen.MinotaurArenaEntrances.isGate(gatePos)) continue;
+            BlockState gate = level.getBlockState(gatePos);
+            if (!gate.getValue(DirectionalGateBlock.OPEN)) continue;
+            level.setBlock(gatePos, gate.setValue(DirectionalGateBlock.OPEN, false), Block.UPDATE_ALL);
+            closedAny = true;
+        }
+        if (closedAny) level.playSound(null, pos, SoundEvents.IRON_TRAPDOOR_CLOSE,
+                SoundSource.BLOCKS, 0.65F, 0.7F);
+        super.affectNeighborsAfterRemoval(state, level, pos, movedByPiston);
+    }
+
+    @Override
     protected void neighborChanged(BlockState state, Level level, BlockPos pos, Block neighborBlock,
                                    Orientation orientation, boolean movedByPiston) {
         if (level.isClientSide()) return;

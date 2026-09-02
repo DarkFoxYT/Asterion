@@ -2064,6 +2064,12 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private BossAttack chooseCombatAttack(ServerPlayer player, double distance) {
         if (shouldHornRam(player)) return BossAttack.HORN_RAM;
         if (shouldPrioritizeGrab(player) && (player.getY() - getY() > 1.2 || weaponMode() == 0)) return BossAttack.GRAB;
+        // Once the thrown axe has settled, deliberately recover it instead of circling
+        // through unrelated attacks forever. Nearby pickups are taken quickly; distant
+        // ones become mandatory only after enough time for the player to punish the throw.
+        if (axeInWorld() && attackReady(BossAttack.RETRIEVE_AXE)
+                && (axeAge >= 240 || axeAge >= 80 && position().distanceToSqr(axeLastPosition) <= 144.0D))
+            return BossAttack.RETRIEVE_AXE;
         List<BossAttack> choices = new ArrayList<>();
         // Both arena phases have the full moveset. Context gates only moves that need a specific target state.
         if (distance < 6.2) addReady(choices, BossAttack.GRAB, BossAttack.PUNCH_SINGLE, BossAttack.PUNCH_COMBO, BossAttack.BACK_KICK);
@@ -2076,7 +2082,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 && (weaponMode() != 1 || weaponUsesRemaining <= 3 || distance > 18)) addReady(choices, BossAttack.AXE_THROW);
         if (storedArrows > 0) addReady(choices, BossAttack.ARROW_RETURN);
         if (RagdollServerNetworking.isRagdolled(player) && distance < 24) addReady(choices, BossAttack.RAGDOLL_STOMP);
-        if (axeInWorld() && axeAge > 160 && (distance > 8 || position().distanceToSqr(axeLastPosition) < 25))
+        if (axeInWorld() && axeAge > 80 && (distance > 8 || position().distanceToSqr(axeLastPosition) < 144))
             addReady(choices, BossAttack.RETRIEVE_AXE);
         return pickTacticalAttack(player, choices, distance);
     }
@@ -2118,7 +2124,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 case GREEK_FIRE_LASER -> 4.0;
                 case SMOKE_BELCH -> 4.8;
                 case AXE_THROW -> weaponMode() == 1 ? 5.8 : 3.8;
-                case RETRIEVE_AXE -> position().distanceToSqr(axeLastPosition) < 25 ? 5 : .5;
+                case RETRIEVE_AXE -> position().distanceToSqr(axeLastPosition) < 144 ? 8 : 2.5;
                 case CHARGE -> 6.5;
                 case STAMPEDE, PAWING -> 4.5;
                 case RAGDOLL_STOMP, ARROW_RETURN -> 8;
@@ -2813,8 +2819,13 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 getNavigation().stop();
                 setDeltaMovement(0, getDeltaMovement().y, 0);
                 for (int strike = 0; strike < COMBO_STRIKE_TICKS.length; strike++)
-                    if (bossAttackTicks == COMBO_STRIKE_TICKS[strike])
+                    if (bossAttackTicks == COMBO_STRIKE_TICKS[strike]) {
+                        // Sample the victim direction on the authored blade-contact frame.
+                        // This keeps server damage aligned with the visible sword arc even
+                        // when the target crosses him during the preceding recovery frames.
+                        faceDirection(player.position().subtract(position()), 14.0F);
                         performSwordArc(level, strike == 2 ? 17 : 12, strike == 2 ? 1.85 : 1.25);
+                    }
                 if (bossAttackTicks >= 73) finishBossAttack(36);
             }
             case SPIN_COMBO -> {
@@ -2900,6 +2911,25 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         }
     }
 
+    /** Every committed arena charge may destroy one pillar and ends on that heavy impact. */
+    private boolean breakPillarDuringCharge(ServerLevel level, AABB impact,
+                                            int stunTicks, int recoveryTicks) {
+        if (bossStage != BossStage.PILLARS || !WorldGenerator.breakBossPillar(level, impact)) return false;
+        damageFromBrokenPillar(level);
+        increaseRage(1);
+        applyBossCollisionDamage(level, true);
+        scarArena(level, position(), 4);
+        setDeltaMovement(bossChargeDirection.scale(-0.18D).add(0.0D, 0.16D, 0.0D));
+        resetFallDistance();
+        level.sendParticles(ParticleTypes.EXPLOSION, getX(), getY() + 1.0D, getZ(),
+                8, 1.0D, 1.4D, 1.0D, 0.04D);
+        broadcastMinotaurImpact(level, impact.getCenter(), 38.0F, 1.55F, 20);
+        riposteTicks = 24;
+        bossStunTicks = stunTicks;
+        finishBossAttack(recoveryTicks);
+        return true;
+    }
+
     private void tickStampede(ServerLevel level, ServerPlayer player) {
         if (bossAttackTicks <= 30) {
             setDeltaMovement(getDeltaMovement().multiply(0.08D, 1.0D, 0.08D));
@@ -2928,6 +2958,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                     bossChargeDirection.z * speed);
             AABB impact = getBoundingBox().expandTowards(bossChargeDirection.scale(2.5D)).inflate(0.7D);
             clearCombatObstacle(level, impact);
+            if (breakPillarDuringCharge(level, impact, 62, 58)) return;
             int smashed = breakCombatWall(level, impact, this);
             if (smashed > 0) {
                 applyBossCollisionDamage(level, false);
@@ -2992,6 +3023,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             AABB horns = getBoundingBox().expandTowards(bossChargeDirection.scale(2.6D))
                     .inflate(0.65D, 0.35D, 0.65D);
             clearCombatObstacle(level, horns);
+            if (breakPillarDuringCharge(level, horns, 66, 58)) return;
             int smashed = breakCombatWall(level, horns, this);
             if (smashed > 0 || horizontalCollision) {
                 applyBossCollisionDamage(level, false);
