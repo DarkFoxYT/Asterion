@@ -467,6 +467,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     public MinotaurEntity(EntityType<? extends MinotaurEntity> type, Level level) {
         super(type, level);
         xpReward = 35;
+        setPersistenceRequired();
         moveControl = new HeavyMoveControl(this);
         lookControl = new net.minecraft.world.entity.ai.control.LookControl(this) {
             @Override public void tick() {
@@ -2373,6 +2374,12 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
     @Override protected void addAdditionalSaveData(net.minecraft.world.level.storage.ValueOutput output) {
         super.addAdditionalSaveData(output);
+        output.putInt("asterion_behavior_phase", behaviorPhase().ordinal());
+        output.putInt("asterion_behavior_ticks", phaseTicks);
+        output.putInt("asterion_boss_stage", bossStage.ordinal());
+        output.putInt("asterion_collapse_ticks", collapseTicks);
+        output.putInt("asterion_boss_animation_ticks", bossAttackAnimationTicks());
+        output.putInt("asterion_rage", rage());
         if (thrownAxe != null) output.putString("minotaur_axe_uuid", thrownAxe.toString());
         output.putDouble("minotaur_axe_x", axeLastPosition.x);
         output.putDouble("minotaur_axe_y", axeLastPosition.y);
@@ -2381,6 +2388,17 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
     @Override protected void readAdditionalSaveData(net.minecraft.world.level.storage.ValueInput input) {
         super.readAdditionalSaveData(input);
+        BehaviorPhase restoredPhase = BehaviorPhase.values()[Mth.clamp(input.getIntOr(
+                "asterion_behavior_phase", BehaviorPhase.DORMANT.ordinal()), 0, BehaviorPhase.values().length - 1)];
+        bossStage = BossStage.values()[Mth.clamp(input.getIntOr(
+                "asterion_boss_stage", BossStage.PILLARS.ordinal()), 0, BossStage.values().length - 1)];
+        getEntityData().set(DATA_PHASE, restoredPhase.ordinal());
+        getEntityData().set(DATA_BOSS_STAGE, bossStage.ordinal());
+        getEntityData().set(DATA_BOSS_ATTACK_TICKS,
+                Math.max(0, input.getIntOr("asterion_boss_animation_ticks", 0)));
+        getEntityData().set(DATA_RAGE, Mth.clamp(input.getIntOr("asterion_rage", 0), 0, 12));
+        phaseTicks = Math.max(0, input.getIntOr("asterion_behavior_ticks", 0));
+        collapseTicks = Math.max(0, input.getIntOr("asterion_collapse_ticks", 0));
         String id = input.getStringOr("minotaur_axe_uuid", "");
         try { thrownAxe = id.isEmpty() ? null : UUID.fromString(id); } catch (IllegalArgumentException ignored) { thrownAxe = null; }
         getEntityData().set(DATA_AXE_OUT, thrownAxe != null);
@@ -3767,7 +3785,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             setAggressive(true);
             setRage(12);
             updateChaseSpeed();
-            setHealth(Math.min(getHealth(), getMaxHealth() * 0.70F));
+            // Phase two is a clean second health bar, not the remains of pillar damage.
+            setHealth(getMaxHealth());
             playSound(SoundEvents.RAVAGER_STEP, 3F, .45F);
             level.sendParticles(Asterion.GREEK_FIRE, getX(), getY() + getBbHeight() * 0.45D, getZ(),
                     80, 1.4D, 2.2D, 1.4D, 0.08D);
@@ -4789,6 +4808,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         getNavigation().stop();
         setDeltaMovement(Vec3.ZERO);
         setHealth(1.0F);
+        getEntityData().set(DATA_BOSS_ATTACK_TICKS, 0);
         noPhysics = false;
         healthBossBar.removeAllPlayers();
         rageBossBar.removeAllPlayers();
@@ -4801,6 +4821,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         setDeltaMovement(Vec3.ZERO);
         setTarget(null);
         setAggressive(false);
+        getEntityData().set(DATA_BOSS_ATTACK_TICKS, Math.min(85, bossAttackAnimationTicks() + 1));
         if ((phaseTicks & 7) == 0)
             level.sendParticles(ParticleTypes.ELECTRIC_SPARK, getX(), getY() + getBbHeight() * 0.55D,
                     getZ(), 18, 1.0D, 1.6D, 1.0D, 0.12D);
@@ -4826,12 +4847,17 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         return false;
     }
 
+    public boolean isDefeatedBoss() {
+        return behaviorPhase() == BehaviorPhase.BOSS && bossStage == BossStage.DEFEATED;
+    }
+
     public int collapseAnimationTicks() {
         return getEntityData().get(DATA_BOSS_STAGE) == BossStage.COLLAPSE.ordinal()
                 ? getEntityData().get(DATA_BOSS_ATTACK_TICKS) : 0;
     }
 
     public AnimationState animationState() {
+        if (getEntityData().get(DATA_BOSS_STAGE) == BossStage.DEFEATED.ordinal()) return AnimationState.DIES;
         if (collapseAnimationTicks() > 0) return collapseAnimationTicks() >= 138 ? AnimationState.REVIVE : AnimationState.DIES;
         if (weaponSwapTicks() > 0) return isSheathingWeapon()
                 ? weaponTransitionMode() == 2 ? AnimationState.SHEATHE_SWORD : AnimationState.SHEATHE_AXE
@@ -5013,7 +5039,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
     private double animationPhaseTick(AnimationState pose) {
         if (weaponSwapTicks() > 0) return isSheathingWeapon() ? weaponSwapTicks() : weaponSwapTicks() - weaponSheathTicks();
-        if (pose == AnimationState.DIES) return collapseAnimationTicks();
+        if (pose == AnimationState.DIES) return getEntityData().get(DATA_BOSS_STAGE) == BossStage.DEFEATED.ordinal()
+                ? bossAttackAnimationTicks() : collapseAnimationTicks();
         if (pose == AnimationState.REVIVE) return Math.max(0, collapseAnimationTicks() - 138);
         if (pose == AnimationState.ROAR_START && doorEntryTicks() > 0) return doorEntryTicks() - 1;
         if (pose == AnimationState.WARNING && getEntityData().get(DATA_CORRIDOR_CHARGE_TICKS) > 0)

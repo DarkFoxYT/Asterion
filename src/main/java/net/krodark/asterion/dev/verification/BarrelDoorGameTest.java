@@ -99,7 +99,8 @@ public final class BarrelDoorGameTest implements FabricClientGameTest {
                     check(level.getBlockState(root.east().south(depth).above(row)).isAir(), "Closing left an invisible leaf");
                 level.setBlock(root.east().south(2), Blocks.STONE.defaultBlockState(), 3);
                 door.interact(mc.getPlayerList().getPlayers().getFirst(), ItemStack.EMPTY);
-                check(!door.getBlockState().getValue(BarrelDoorBlock.OPEN), "Door opened through a wall");
+                check(door.getBlockState().getValue(BarrelDoorBlock.OPEN), "Door refused to open beside an obstruction");
+                check(level.getBlockState(root.east().south(2)).is(Blocks.STONE), "Door destroyed its swing obstruction");
                 Asterion.BARREL_DOOR.playerWillDestroy(level, root.above(3), level.getBlockState(root.above(3)),
                         mc.getPlayerList().getPlayers().getFirst());
                 for (int c = 0; c < 3; c++) for (int r = 0; r < 4; r++)

@@ -32,6 +32,7 @@ public final class AsterionPortalRenderer {
     private static final InstanceLayout LAYOUT = InstanceLayout.builder()
             .mat4(1).vec4(5).vec4(6).build();
     private static final float CORE_RADIUS = 1.48F;
+    private static final double HORIZONTAL_GROUND_CLEARANCE = 0.075D;
     private static final double WAKE_DISTANCE = 96.0D;
     private static final double DRAW_DISTANCE = 112.0D;
     private static final long OPEN_NANOS = 1_050_000_000L;
@@ -167,7 +168,11 @@ public final class AsterionPortalRenderer {
                     if (reveal <= 0.002F) return;
 
                     double cx = gateway.getX() + 0.5D;
-                    double cy = surfaceY + 0.012D;
+                    // Horizontal portals need enough clearance to stay above the floor's
+                    // depth surface. The old 0.012 offset z-fought and visibly sank into
+                    // full blocks at shallow camera angles. Vertical arena portals retain
+                    // their centered height.
+                    double cy = surfaceY + (vertical ? 0.012D : HORIZONTAL_GROUND_CLEARANCE);
                     double cz = gateway.getZ() + 0.5D;
                     float pulse = 1.0F + (float) Math.sin(now * 0.0000000024D) * 0.006F;
                     float radius = CORE_RADIUS * pulse;

@@ -413,8 +413,10 @@ public final class WorldGenerator {
             return;
         }
         RESTORING_BLOCKS.removeIf(entry -> entry.dimension.equals(level.dimension()) && entry.pos.equals(pos));
+        long restoreDelay = net.krodark.asterion.worldgen.CatacombProtection.contains(level, pos)
+                ? 20L : 100L;
         RESTORING_BLOCKS.add(new RestoringBlock(level.dimension(), pos.immutable(), state,
-                level.getGameTime() + 100L));
+                level.getGameTime() + restoreDelay));
     }
 
     public static boolean isActivePortalProtected(ServerLevel level, BlockPos pos) {
@@ -1073,7 +1075,14 @@ public final class WorldGenerator {
     private static void beginArenaExit(ServerPlayer entrant) {
         if (bossFinale != null) return;
         ServerLevel maze=entrant.level();
-        bossFinale=new BossFinale(new UUID(0,0));
+        UUID defeatedBoss = new UUID(0, 0);
+        for (Entity entity : maze.getAllEntities()) {
+            if (entity instanceof MinotaurEntity minotaur && minotaur.isDefeatedBoss()) {
+                defeatedBoss = minotaur.getUUID();
+                break;
+            }
+        }
+        bossFinale=new BossFinale(defeatedBoss);
         for(ServerPlayer player:maze.players()) {
             bossFinale.previousInvulnerability.put(player.getUUID(),player.isInvulnerable());
             player.setInvulnerable(true);

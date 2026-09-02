@@ -78,7 +78,7 @@ public final class PortalEmissionGameTest implements FabricClientGameTest {
         private final double[] first, second;
 
         Probe() {
-            this(new double[] {0.9, 140.012, 0.5}, new double[] {2.15, 140.018, 0.5});
+            this(new double[] {0.9, 140.075, 0.5}, new double[] {2.15, 140.081, 0.5});
         }
 
         Probe(double[] first, double[] second) {

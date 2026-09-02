@@ -620,14 +620,8 @@ public class Asterion implements ModInitializer {
         ServerChunkEvents.CHUNK_UNLOAD.register(CatacombFloodState::onChunkUnload);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> CatacombFloodState.clear());
         PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, blockEntity) ->
-                (!net.krodark.asterion.worldgen.CatacombProtection.contains(level, pos)
-                        || net.krodark.asterion.worldgen.CatacombProtection.isOre(state))
-                        && (!(level instanceof net.minecraft.server.level.ServerLevel serverLevel)
-                        || !WorldGenerator.isActivePortalProtected(serverLevel, pos)));
-        net.fabricmc.fabric.api.event.player.AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) ->
-                net.krodark.asterion.worldgen.CatacombProtection.contains(level, pos)
-                        && !net.krodark.asterion.worldgen.CatacombProtection.isOre(level.getBlockState(pos))
-                        ? net.minecraft.world.InteractionResult.FAIL : net.minecraft.world.InteractionResult.PASS);
+                !(level instanceof net.minecraft.server.level.ServerLevel serverLevel)
+                        || !WorldGenerator.isActivePortalProtected(serverLevel, pos));
         PlayerBlockBreakEvents.AFTER.register((level, player, pos, state, blockEntity) -> {
             if (level instanceof net.minecraft.server.level.ServerLevel serverLevel
                     && !net.krodark.asterion.worldgen.CatacombProtection.isOre(state))
@@ -701,6 +695,8 @@ public class Asterion implements ModInitializer {
             net.krodark.asterion.fluid.HeavyWaterFatigue.reset(newPlayer);
             if (oldPlayer.level().dimension().equals(ASTERION_LEVEL)) {
                 BlockPos deathPosition = oldPlayer.blockPosition().immutable();
+                net.krodark.asterion.worldgen.AuthoredCatacombs.resetCursedBrazierAfterDeath(
+                        (net.minecraft.server.level.ServerLevel)oldPlayer.level(), deathPosition);
                 WorldGenerator.finishRapidRespawn(newPlayer);
                 boolean bossWipe = WorldGenerator.resetBossEncounterAfterDeath(oldPlayer);
                 WorldGenerator.respawnAtRune(newPlayer, deathPosition);

@@ -21,9 +21,11 @@ public final class AuthoredCatacombs {
     public static final int ARENA_BASE_Y = 1, ARENA_FLOOR_Y = 6, ARENA_RADIUS = 61;
     private static final int ARENA_CHUNK_MARKER_Y = 0;
     private static final int ARENA_CHUNK_REVISION = 7;
-    public static final BlockPos BRAZIER_ROOM_ORIGIN = new BlockPos(
-            CatacombLayout.BRAZIER_ROOM_MIN_X * SIZE, BASE_Y,
-            CatacombLayout.BRAZIER_ROOM_MIN_Z * SIZE + 3);
+    public static final List<BlockPos> BRAZIER_ROOM_ORIGINS = CatacombLayout.BRAZIER_ROOM_MIN_ZS.stream()
+            .map(minZ -> new BlockPos(CatacombLayout.BRAZIER_ROOM_MIN_X * SIZE, BASE_Y, minZ * SIZE + 3))
+            .toList();
+    /** Original chamber retained for commands and saved-world compatibility. */
+    public static final BlockPos BRAZIER_ROOM_ORIGIN = BRAZIER_ROOM_ORIGINS.getFirst();
     private static final int BRAZIER_PART_SIZE = 25;
     private static final int BRAZIER_ROOM_SIZE = BRAZIER_PART_SIZE * 2;
     private static final int BRAZIER_ROOM_MARKER_Y = BASE_Y - 1;
@@ -120,22 +122,30 @@ public final class AuthoredCatacombs {
                     }
                 }
             }
-        placeCursedBrazierRoom(level, world, chunk, clip, seed);
+        placeCursedBrazierRooms(level, world, chunk, clip, seed);
+    }
+
+    private static void placeCursedBrazierRooms(ServerLevel level,
+                                                net.minecraft.world.level.ServerLevelAccessor world,
+                                                ChunkPos chunk, BoundingBox clip, long seed) {
+        for (BlockPos roomOrigin : BRAZIER_ROOM_ORIGINS)
+            placeCursedBrazierRoom(level, world, chunk, clip, seed, roomOrigin);
     }
 
     private static void placeCursedBrazierRoom(ServerLevel level,
                                                net.minecraft.world.level.ServerLevelAccessor world,
-                                               ChunkPos chunk, BoundingBox clip, long seed) {
-        BoundingBox room = new BoundingBox(BRAZIER_ROOM_ORIGIN.getX(), BASE_Y,
-                BRAZIER_ROOM_ORIGIN.getZ(), BRAZIER_ROOM_ORIGIN.getX() + BRAZIER_ROOM_SIZE - 1,
-                BASE_Y + 30, BRAZIER_ROOM_ORIGIN.getZ() + BRAZIER_ROOM_SIZE - 1);
+                                               ChunkPos chunk, BoundingBox clip, long seed,
+                                               BlockPos roomOrigin) {
+        BoundingBox room = new BoundingBox(roomOrigin.getX(), BASE_Y,
+                roomOrigin.getZ(), roomOrigin.getX() + BRAZIER_ROOM_SIZE - 1,
+                BASE_Y + 30, roomOrigin.getZ() + BRAZIER_ROOM_SIZE - 1);
         if (!room.intersects(clip)) return;
 
         for (int part = 0; part < 4; part++) {
             int partNumber = part + 1;
             int partX = part == 1 || part == 3 ? BRAZIER_PART_SIZE : 0;
             int partZ = part >= 2 ? BRAZIER_PART_SIZE : 0;
-            BlockPos origin = BRAZIER_ROOM_ORIGIN.offset(partX, 0, partZ);
+            BlockPos origin = roomOrigin.offset(partX, 0, partZ);
             var template = level.getStructureManager().get(Asterion.id(
                             "catacombs/cursed_brazier_room_part" + partNumber))
                     .orElseThrow(() -> new IllegalStateException(
@@ -163,43 +173,63 @@ public final class AuthoredCatacombs {
     }
 
     public static void placeCursedBrazierRoomChunk(ServerLevel level,ChunkPos chunk) {
-        BoundingBox clip=new BoundingBox(chunk.getMinBlockX(),BASE_Y,chunk.getMinBlockZ(),
-                chunk.getMaxBlockX(),BASE_Y+30,chunk.getMaxBlockZ());
-        long seed=MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
-        placeCursedBrazierRoom(level,level,chunk,clip,seed);
+        // Re-run ordinary authored placement too: this retrofits the new straight hall
+        // modules into already-generated saves as their room queue reaches each chunk.
+        place(level, chunk);
     }
 
     public static boolean insideCursedBrazierRoom(BlockPos pos) {
-        return pos.getX() >= BRAZIER_ROOM_ORIGIN.getX() && pos.getX() < BRAZIER_ROOM_ORIGIN.getX() + BRAZIER_ROOM_SIZE
-                && pos.getZ() >= BRAZIER_ROOM_ORIGIN.getZ() && pos.getZ() < BRAZIER_ROOM_ORIGIN.getZ() + BRAZIER_ROOM_SIZE
-                && pos.getY() >= BASE_Y && pos.getY() <= BASE_Y + 30;
+        return cursedBrazierRoomIndex(pos) >= 0;
     }
 
-    /** Waits for every intersecting chunk before consuming the boss marker. */
+    public static int cursedBrazierRoomIndex(BlockPos pos) {
+        if (pos.getY() < BASE_Y || pos.getY() > BASE_Y + 30) return -1;
+        for (int index = 0; index < BRAZIER_ROOM_ORIGINS.size(); index++) {
+            BlockPos origin = BRAZIER_ROOM_ORIGINS.get(index);
+            if (pos.getX() >= origin.getX() && pos.getX() < origin.getX() + BRAZIER_ROOM_SIZE
+                    && pos.getZ() >= origin.getZ() && pos.getZ() < origin.getZ() + BRAZIER_ROOM_SIZE)
+                return index;
+        }
+        return -1;
+    }
+
+    public static BlockPos cursedBrazierEntrance(int roomIndex) {
+        BlockPos origin = BRAZIER_ROOM_ORIGINS.get(Math.clamp(roomIndex, 0, BRAZIER_ROOM_ORIGINS.size() - 1));
+        return new BlockPos(origin.getX(), CONNECTOR_Y, origin.getZ() + BRAZIER_PART_SIZE);
+    }
+
+    /** Waits for every intersecting chunk before consuming each boss marker. */
     public static void tickCursedBrazierRoom(ServerLevel level) {
-        if (level.getGameTime() % 20 != 0 || level.players().stream().noneMatch(player ->
-                player.distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(
-                        BRAZIER_ROOM_ORIGIN.offset(BRAZIER_PART_SIZE, 4, BRAZIER_PART_SIZE))) < 112 * 112)) return;
-        int minChunkX = BRAZIER_ROOM_ORIGIN.getX() >> 4;
-        int maxChunkX = (BRAZIER_ROOM_ORIGIN.getX() + BRAZIER_ROOM_SIZE - 1) >> 4;
-        int minChunkZ = BRAZIER_ROOM_ORIGIN.getZ() >> 4;
-        int maxChunkZ = (BRAZIER_ROOM_ORIGIN.getZ() + BRAZIER_ROOM_SIZE - 1) >> 4;
+        if (level.getGameTime() % 20 != 0) return;
+        for (int roomIndex = 0; roomIndex < BRAZIER_ROOM_ORIGINS.size(); roomIndex++)
+            tickCursedBrazierRoom(level, roomIndex, BRAZIER_ROOM_ORIGINS.get(roomIndex));
+    }
+
+    private static void tickCursedBrazierRoom(ServerLevel level, int roomIndex, BlockPos roomOrigin) {
+        BlockPos center = roomOrigin.offset(BRAZIER_PART_SIZE, 4, BRAZIER_PART_SIZE);
+        if (level.players().stream().noneMatch(player -> player.distanceToSqr(
+                net.minecraft.world.phys.Vec3.atCenterOf(center)) < 112 * 112)) return;
+        int minChunkX = roomOrigin.getX() >> 4;
+        int maxChunkX = (roomOrigin.getX() + BRAZIER_ROOM_SIZE - 1) >> 4;
+        int minChunkZ = roomOrigin.getZ() >> 4;
+        int maxChunkZ = (roomOrigin.getZ() + BRAZIER_ROOM_SIZE - 1) >> 4;
         for (int chunkX=minChunkX;chunkX<=maxChunkX;chunkX++) for(int chunkZ=minChunkZ;chunkZ<=maxChunkZ;chunkZ++) {
             if (!level.getChunkSource().hasChunk(chunkX,chunkZ)) {
-                ZoneRunePlacement.enqueueCursedBrazierRoom(level);
+                ZoneRunePlacement.enqueueCursedBrazierRoom(level, roomIndex);
                 return;
             }
             ChunkPos chunk=new ChunkPos(chunkX,chunkZ);
             if (!cursedBrazierRoomChunkReady(level,chunk)) {
-                ZoneRunePlacement.enqueueCursedBrazierRoom(level);
+                ZoneRunePlacement.enqueueCursedBrazierRoom(level, roomIndex);
                 return;
             }
         }
-        BlockPos marker=BRAZIER_ROOM_ORIGIN.offset(BRAZIER_PART_SIZE,4,BRAZIER_PART_SIZE);
-        if (!level.getBlockState(marker).is(Blocks.RED_WOOL)) return;
-        level.setBlock(marker,Blocks.AIR.defaultBlockState(),2);
-        var roomBounds=net.minecraft.world.phys.AABB.encapsulatingFullBlocks(BRAZIER_ROOM_ORIGIN,
-                BRAZIER_ROOM_ORIGIN.offset(BRAZIER_ROOM_SIZE-1,30,BRAZIER_ROOM_SIZE-1));
+        BlockPos marker=center;
+        if (level.getBlockState(marker).is(Blocks.RED_WOOL))
+            level.setBlock(marker,Blocks.AIR.defaultBlockState(),2);
+        if (net.krodark.asterion.AsterionWorldState.get(level).cursedBrazierDefeated(roomIndex)) return;
+        var roomBounds=net.minecraft.world.phys.AABB.encapsulatingFullBlocks(roomOrigin,
+                roomOrigin.offset(BRAZIER_ROOM_SIZE-1,30,BRAZIER_ROOM_SIZE-1));
         if(!level.getEntitiesOfClass(net.krodark.asterion.entity.CursedBrazierEntity.class,
                 roomBounds,net.minecraft.world.entity.Entity::isAlive).isEmpty())return;
         var boss=net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER.create(
@@ -207,7 +237,20 @@ public final class AuthoredCatacombs {
         if(boss==null)return;
         boss.setPos(marker.getX()+.5D,marker.getY(),marker.getZ()+.5D);
         boss.setYRot(180F);boss.setYHeadRot(180F);
+        boss.setPersistenceRequired();
         level.addFreshEntity(boss);
+    }
+
+    public static void resetCursedBrazierAfterDeath(ServerLevel level, BlockPos deathPosition) {
+        int roomIndex = cursedBrazierRoomIndex(deathPosition);
+        if (roomIndex < 0) return;
+        net.krodark.asterion.AsterionWorldState.get(level).resetCursedBrazierEncounter(roomIndex);
+        BlockPos roomOrigin = BRAZIER_ROOM_ORIGINS.get(roomIndex);
+        var roomBounds=net.minecraft.world.phys.AABB.encapsulatingFullBlocks(roomOrigin,
+                roomOrigin.offset(BRAZIER_ROOM_SIZE-1,30,BRAZIER_ROOM_SIZE-1));
+        for (var boss : level.getEntitiesOfClass(net.krodark.asterion.entity.CursedBrazierEntity.class,
+                roomBounds, net.minecraft.world.entity.Entity::isAlive))
+            boss.resetAfterPlayerDeath(level);
     }
     private static void markTemplateRunes(net.minecraft.world.level.ServerLevelAccessor world,StructureTemplate template,BlockPos origin,
                                           StructurePlaceSettings placement,BoundingBox clip) {

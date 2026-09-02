@@ -19,6 +19,10 @@ public final class AsterionWorldState extends SavedData {
     private static final Codec<AsterionWorldState> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.BOOL.optionalFieldOf("minotaur_defeated", false)
                     .forGetter(state -> state.minotaurDefeated),
+            Codec.BOOL.optionalFieldOf("cursed_brazier_defeated", false)
+                    .forGetter(state -> state.cursedBrazierDefeated),
+            Codec.INT.listOf().optionalFieldOf("defeated_cursed_brazier_rooms", java.util.List.of())
+                    .forGetter(state -> state.cursedBrazierDefeatedRooms.stream().sorted().toList()),
             Codec.unboundedMap(Codec.STRING, Codec.LONG).optionalFieldOf("rune_checkpoints", Map.of())
                     .forGetter(state -> state.runeCheckpoints),
             Codec.LONG.optionalFieldOf("summoned_portal_center", Long.MIN_VALUE)
@@ -36,6 +40,8 @@ public final class AsterionWorldState extends SavedData {
             Asterion.id("world_state"), AsterionWorldState::new, CODEC, DataFixTypes.LEVEL);
 
     private boolean minotaurDefeated;
+    private boolean cursedBrazierDefeated;
+    private final java.util.Set<Integer> cursedBrazierDefeatedRooms;
     private final Map<String, Long> runeCheckpoints;
     private long summonedPortalCenter;
     private int summonedPortalY;
@@ -45,13 +51,17 @@ public final class AsterionWorldState extends SavedData {
     private boolean arenaLamentersInstalled;
 
     public AsterionWorldState() {
-        this(false, Map.of(), Long.MIN_VALUE, 0, 0L, "minecraft:overworld", 0, false);
+        this(false, false, java.util.List.of(), Map.of(), Long.MIN_VALUE, 0, 0L, "minecraft:overworld", 0, false);
     }
-    private AsterionWorldState(boolean minotaurDefeated, Map<String, Long> runeCheckpoints,
+    private AsterionWorldState(boolean minotaurDefeated, boolean cursedBrazierDefeated,
+                               java.util.List<Integer> cursedBrazierDefeatedRooms,
+                               Map<String, Long> runeCheckpoints,
                                long summonedPortalCenter, int summonedPortalY,
                                long summonedPortalSeed, String summonedPortalDimension, int bossArenaRevision,
                                boolean arenaLamentersInstalled) {
         this.minotaurDefeated = minotaurDefeated;
+        this.cursedBrazierDefeated = cursedBrazierDefeated;
+        this.cursedBrazierDefeatedRooms = new java.util.HashSet<>(cursedBrazierDefeatedRooms);
         this.runeCheckpoints = new HashMap<>(runeCheckpoints);
         this.summonedPortalCenter = summonedPortalCenter;
         this.summonedPortalY = summonedPortalY;
@@ -66,6 +76,10 @@ public final class AsterionWorldState extends SavedData {
     }
 
     public boolean minotaurDefeated() { return minotaurDefeated; }
+    public boolean cursedBrazierDefeated() { return cursedBrazierDefeated; }
+    public boolean cursedBrazierDefeated(int roomIndex) {
+        return roomIndex == 0 ? cursedBrazierDefeated : cursedBrazierDefeatedRooms.contains(roomIndex);
+    }
 
     public int bossArenaRevision() { return bossArenaRevision; }
     public void setBossArenaRevision(int revision) { bossArenaRevision = revision; setDirty(); }
@@ -110,6 +124,27 @@ public final class AsterionWorldState extends SavedData {
     public void markMinotaurDefeated() {
         if (minotaurDefeated) return;
         minotaurDefeated = true;
+        setDirty();
+    }
+
+    public void resetCursedBrazierEncounter() {
+        resetCursedBrazierEncounter(0);
+    }
+
+    public void resetCursedBrazierEncounter(int roomIndex) {
+        if (roomIndex == 0) cursedBrazierDefeated = false;
+        else cursedBrazierDefeatedRooms.remove(roomIndex);
+        setDirty();
+    }
+
+    public void markCursedBrazierDefeated() {
+        markCursedBrazierDefeated(0);
+    }
+
+    public void markCursedBrazierDefeated(int roomIndex) {
+        if (cursedBrazierDefeated(roomIndex)) return;
+        if (roomIndex == 0) cursedBrazierDefeated = true;
+        else cursedBrazierDefeatedRooms.add(roomIndex);
         setDirty();
     }
 }

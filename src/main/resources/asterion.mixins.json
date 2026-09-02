@@ -17,6 +17,7 @@
     "HeavyWaterPickupMixin",
     "BlockItemMixin",
     "CatacombPlayerEditMixin",
+    "CentipedeRiderSuffocationMixin",
     "ChunkAccessAccessor",
     "CinematicServerMovementMixin",
     "PrimaryLevelDataMixin",

@@ -31,7 +31,10 @@ public final class GreekFireTorchRenderer extends GeoBlockRenderer<GreekFireTorc
             }
             @Override protected boolean enhancedSurface(BlockEntityRenderState state) { return true; }
             @Override protected Identifier amneticEmissionMesh(BlockEntityRenderState state) {
-                return getGeoModel().getModelResource(state);
+                // Low quality keeps the regular full-bright flame but skips the extra
+                // bloom capture/instance pass. Medium and high remain visually unchanged.
+                return net.krodark.asterion.AsterionConfig.INSTANCE.cinematicQuality == 0
+                        ? null : getGeoModel().getModelResource(state);
             }
             @Override protected void renderBone(RenderPassInfo<BlockEntityRenderState> pass,
                     com.geckolib.cache.model.GeoBone bone,net.minecraft.client.renderer.SubmitNodeCollector tasks) {
