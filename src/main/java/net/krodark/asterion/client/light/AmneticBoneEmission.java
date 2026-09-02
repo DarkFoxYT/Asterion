@@ -19,7 +19,7 @@ import java.util.Map;
 /** Reuses the exact rendered bone poses in Amnetic's depth-tested emissive capture. */
 public final class AmneticBoneEmission {
     private static final InstanceLayout LAYOUT = InstanceLayout.builder().mat4(2).vec4(6).vec4(7).build();
-    private static final Map<Identifier, Entry> ENTRIES = new HashMap<>();
+    private static final Map<MeshKey, Entry> ENTRIES = new HashMap<>();
     private static boolean initialized;
     private static final SourceContext SOURCE_CONTEXT = new SourceContext();
     private static long submissions;
@@ -45,12 +45,14 @@ public final class AmneticBoneEmission {
                     ENTRIES.values().forEach(entry -> entry.count = 0));
             initialized = true;
         }
-        Entry entry = ENTRIES.get(model);
-        if (entry == null || entry.geometry != geometry || !entry.texture.equals(texture)) {
-            Identifier id = Asterion.id("bone_emission/" + model.getNamespace() + "/" + model.getPath());
-            InstanceMeshRegistry.INSTANCE.unregister(id);
+        MeshKey key = new MeshKey(model, texture);
+        Entry entry = ENTRIES.get(key);
+        if (entry == null || entry.geometry != geometry) {
+            Identifier id = Asterion.id("bone_emission/" + model.getNamespace() + "/" + model.getPath()
+                    + "/" + texture.getNamespace() + "/" + texture.getPath());
+            if (entry != null) InstanceMeshRegistry.INSTANCE.unregister(id);
             entry = new Entry(id, geometry, texture);
-            ENTRIES.put(model, entry);
+            ENTRIES.put(key, entry);
         }
         if (entry.count == entry.poses.size()) entry.poses.add(new Instance());
         Instance instance = entry.poses.get(entry.count++);
@@ -64,6 +66,8 @@ public final class AmneticBoneEmission {
         final Matrix4f pose = new Matrix4f();
         final Vector4f color = new Vector4f(), uv = new Vector4f();
     }
+
+    private record MeshKey(Identifier model, Identifier texture) { }
 
     private static final class Entry {
         final Identifier id;

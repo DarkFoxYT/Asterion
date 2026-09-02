@@ -29,7 +29,8 @@ final class CatacombProtectionCheck {
                 player.setGameMode(mode);
                 player.setItemInHand(InteractionHand.MAIN_HAND,new ItemStack(Items.STONE,16));
                 maze.setBlock(pos,Blocks.STONE.defaultBlockState(),2);
-                check(!player.gameMode.destroyBlock(pos) && maze.getBlockState(pos).is(Blocks.STONE),"Player broke protected block in " + mode);
+                check(player.gameMode.destroyBlock(pos) && maze.getBlockState(pos).isAir(),
+                        "Player could not temporarily break catacomb masonry in " + mode);
                 maze.setBlock(pos,Blocks.AIR.defaultBlockState(),2);
                 maze.setBlock(pos.below(),Blocks.STONE.defaultBlockState(),2);
                 var hit = new BlockHitResult(Vec3.atCenterOf(pos.below()).add(0,.5,0),Direction.UP,pos.below(),false);
@@ -50,7 +51,7 @@ final class CatacombProtectionCheck {
             player.teleportTo(original,oldPos.x,oldPos.y,oldPos.z,Set.of(),0,0,true);
             original.setBlock(pos,Blocks.STONE.defaultBlockState(),2);
             check(player.gameMode.destroyBlock(pos),"Protection leaked into overworld");
-            Asterion.LOGGER.info("PASS: catacomb masonry and buckets stay protected; ores break permanently and temporary player placement is accepted");
+            Asterion.LOGGER.info("PASS: catacomb masonry can be broken for timed repair; buckets stay protected, ores remain permanent and temporary placement is accepted");
         } finally {
             player.teleportTo(original,oldPos.x,oldPos.y,oldPos.z,Set.of(),0,0,true);
             player.setGameMode(oldMode);

@@ -41,12 +41,23 @@ public final class CatacombRegression {
         }
         require(occupied>total*.30 && occupied<total*.50,"Layout too dense or too sparse: "+occupied+"/"+total);
         require(puzzles>0 && puzzles<deadends*.06,"Puzzle rooms are not rare: "+puzzles+"/"+deadends);
+        require(AuthoredCatacombs.BRAZIER_ROOM_ORIGINS.size()==3,
+                "Expected three authored Cursed Brazier chambers");
         for(long seed:new long[]{0,-1,894237,Long.MIN_VALUE,Long.MAX_VALUE}) {
             var crossing=AuthoredCatacombs.module(seed,CatacombLayout.BRAZIER_APPROACH_CROSSING_X,
                     CatacombLayout.BRAZIER_APPROACH_Z);
             require(crossing.name().startsWith("crossing_"),"Boss approach crossing was not guaranteed");
             require((crossing.exits()&2)!=0&&(crossing.exits()&8)!=0,
                     "Boss approach crossing does not connect root to boss room");
+            for (int minZ : CatacombLayout.BRAZIER_ROOM_MIN_ZS) {
+                int hallZ = minZ + 1;
+                for (int x = CatacombLayout.ROOT_X; x < CatacombLayout.BRAZIER_ROOM_MIN_X; x++) {
+                    require(CatacombLayout.occupied(seed, x, hallZ),
+                            "Missing straight boss hall at " + x + "," + hallZ);
+                    require(CatacombLayout.connected(seed, x, hallZ, Direction.EAST),
+                            "Broken east/west boss hall at " + x + "," + hallZ);
+                }
+            }
         }
         System.out.println("Layout sample: "+occupied+" occupied / "+total+" cells; "+puzzles+" puzzles / "+deadends+" dead ends");
         require(selected.containsAll(AuthoredCatacombs.TEMPLATES),"Unreachable variants: "+AuthoredCatacombs.TEMPLATES.stream().filter(n->!selected.contains(n)).toList());

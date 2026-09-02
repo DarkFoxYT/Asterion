@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
+import java.util.List;
 
 /** Stateless, chunk-order-independent undercroft. The surface maze continues infinitely. */
 public final class CatacombLayout {
@@ -18,6 +19,8 @@ public final class CatacombLayout {
     public static final int BRAZIER_ROOM_MIN_X = 10, BRAZIER_ROOM_MAX_X = 12;
     public static final int BRAZIER_ROOM_MIN_Z = 4, BRAZIER_ROOM_MAX_Z = 6;
     public static final int BRAZIER_APPROACH_Z = 5;
+    /** Three authored chambers on parallel eastward branches, separated by solid crypt. */
+    public static final List<Integer> BRAZIER_ROOM_MIN_ZS = List.of(4, 10, 16);
     /** Guaranteed surface crossing on the direct branch between the root and boss room. */
     public static final int BRAZIER_APPROACH_CROSSING_X = 7;
 
@@ -28,8 +31,20 @@ public final class CatacombLayout {
     }
 
     public static boolean brazierRoom(int tx, int tz) {
-        return tx >= BRAZIER_ROOM_MIN_X && tx <= BRAZIER_ROOM_MAX_X
-                && tz >= BRAZIER_ROOM_MIN_Z && tz <= BRAZIER_ROOM_MAX_Z;
+        return brazierRoomIndex(tx, tz) >= 0;
+    }
+
+    public static int brazierRoomIndex(int tx, int tz) {
+        if (tx < BRAZIER_ROOM_MIN_X || tx > BRAZIER_ROOM_MAX_X) return -1;
+        for (int index = 0; index < BRAZIER_ROOM_MIN_ZS.size(); index++) {
+            int minZ = BRAZIER_ROOM_MIN_ZS.get(index);
+            if (tz >= minZ && tz <= minZ + 2) return index;
+        }
+        return -1;
+    }
+
+    private static boolean brazierApproach(int z) {
+        return BRAZIER_ROOM_MIN_ZS.stream().anyMatch(minZ -> z == minZ + 1);
     }
 
     public static int roofAt(int x, int z) {
@@ -77,18 +92,19 @@ public final class CatacombLayout {
         // The arena jigsaw feeds the first authored module at (0, 4). Keep a short
         // authored-module branch from there to the root instead of a hand-built hall.
         if (z == ROOT_Z && x >= 0 && x < ROOT_X) return Direction.EAST;
-        // A short guaranteed branch connects the authored boss room to the root.
-        if (x == ROOT_X && z == BRAZIER_APPROACH_Z) return Direction.NORTH;
-        if (z == BRAZIER_APPROACH_Z && x > ROOT_X && x < BRAZIER_ROOM_MIN_X) return Direction.WEST;
-        // Route the existing infinite tree around the reserved 3x3 footprint. These
-        // border cells keep descendants connected without opening accidental doors
-        // through the authored room walls.
-        if (x == BRAZIER_ROOM_MAX_X + 1 && z >= BRAZIER_ROOM_MIN_Z && z <= BRAZIER_ROOM_MAX_Z)
-            return z <= BRAZIER_APPROACH_Z ? Direction.NORTH : Direction.SOUTH;
-        if (z == BRAZIER_ROOM_MIN_Z - 1 && x > ROOT_X && x <= BRAZIER_ROOM_MAX_X + 1)
-            return Direction.WEST;
-        if (z == BRAZIER_ROOM_MAX_Z + 1 && x > ROOT_X && x <= BRAZIER_ROOM_MAX_X + 1)
-            return Direction.WEST;
+        // A straight north/south crypt spine feeds three straight east/west boss halls.
+        int finalApproach = BRAZIER_ROOM_MIN_ZS.getLast() + 1;
+        if (x == ROOT_X && z > ROOT_Z && z <= finalApproach) return Direction.NORTH;
+        if (brazierApproach(z) && x > ROOT_X && x < BRAZIER_ROOM_MIN_X) return Direction.WEST;
+        // Route the infinite tree around every reserved 3x3 room footprint without
+        // opening accidental diagonal or side entrances through the authored walls.
+        for (int minZ : BRAZIER_ROOM_MIN_ZS) {
+            int approachZ = minZ + 1, maxZ = minZ + 2;
+            if (x == BRAZIER_ROOM_MAX_X + 1 && z >= minZ && z <= maxZ)
+                return z <= approachZ ? Direction.NORTH : Direction.SOUTH;
+            if ((z == minZ - 1 || z == maxZ + 1) && x > ROOT_X && x <= BRAZIER_ROOM_MAX_X + 1)
+                return Direction.WEST;
+        }
         Direction spine=backboneParent(seed,x,z);
         if (spine!=null) return spine;
         if (Math.floorMod(x-ROOT_X,SPACING)==0 || Math.floorMod(z-ROOT_Z,SPACING)==0) return null;
@@ -111,8 +127,8 @@ public final class CatacombLayout {
 
     public static boolean connected(long seed, int tx, int tz, Direction side) {
         int nx = tx + side.getStepX(), nz = tz + side.getStepZ();
-        if (tx == BRAZIER_ROOM_MIN_X - 1 && tz == BRAZIER_APPROACH_Z && side == Direction.EAST) return true;
-        if (tx == BRAZIER_ROOM_MIN_X && tz == BRAZIER_APPROACH_Z && side == Direction.WEST) return true;
+        if (tx == BRAZIER_ROOM_MIN_X - 1 && brazierApproach(tz) && side == Direction.EAST) return true;
+        if (tx == BRAZIER_ROOM_MIN_X && brazierApproach(tz) && side == Direction.WEST) return true;
         if (brazierRoom(nx, nz)) return false;
         return !reserved(tx, tz) && !reserved(nx, nz)
                 && (parent(seed, tx, tz) == side || parent(seed, nx, nz) == side.getOpposite());

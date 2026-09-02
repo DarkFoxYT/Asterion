@@ -37,14 +37,41 @@ public final class ZoneRunePlacement {
         if (queue.isEmpty()) queue.addAll(ARENA_CHUNKS);
     }
     public static void enqueueCursedBrazierRoom(ServerLevel level) {
-        if (BRAZIER_ROOM_PENDING.containsKey(level)) return;
-        var queue=new java.util.ArrayDeque<ChunkPos>();
-        int minX=AuthoredCatacombs.BRAZIER_ROOM_ORIGIN.getX()>>4;
-        int maxX=(AuthoredCatacombs.BRAZIER_ROOM_ORIGIN.getX()+49)>>4;
-        int minZ=AuthoredCatacombs.BRAZIER_ROOM_ORIGIN.getZ()>>4;
-        int maxZ=(AuthoredCatacombs.BRAZIER_ROOM_ORIGIN.getZ()+49)>>4;
-        for(int x=minX;x<=maxX;x++)for(int z=minZ;z<=maxZ;z++)queue.add(new ChunkPos(x,z));
-        BRAZIER_ROOM_PENDING.put(level,queue);
+        for (int roomIndex = 0; roomIndex < AuthoredCatacombs.BRAZIER_ROOM_ORIGINS.size(); roomIndex++)
+            enqueueCursedBrazierRoom(level, roomIndex);
+    }
+    public static void enqueueCursedBrazierRoom(ServerLevel level, int roomIndex) {
+        int normalizedRoom = Math.clamp(roomIndex, 0, AuthoredCatacombs.BRAZIER_ROOM_ORIGINS.size() - 1);
+        BlockPos origin = AuthoredCatacombs.BRAZIER_ROOM_ORIGINS.get(normalizedRoom);
+        var queue = BRAZIER_ROOM_PENDING.computeIfAbsent(level, ignored -> new java.util.ArrayDeque<>());
+        var queued = new java.util.HashSet<>(queue);
+        int hallZ = CatacombLayout.BRAZIER_ROOM_MIN_ZS.get(normalizedRoom) + 1;
+        int spineMinChunkX = (CatacombLayout.ROOT_X * CatacombLayout.TILE) >> 4;
+        int spineMaxChunkX = (CatacombLayout.ROOT_X * CatacombLayout.TILE + CatacombLayout.TILE - 1) >> 4;
+        int spineMinChunkZ = (CatacombLayout.ROOT_Z * CatacombLayout.TILE) >> 4;
+        int spineMaxChunkZ = (hallZ * CatacombLayout.TILE + CatacombLayout.TILE - 1) >> 4;
+        for (int x=spineMinChunkX;x<=spineMaxChunkX;x++) for (int z=spineMinChunkZ;z<=spineMaxChunkZ;z++) {
+            ChunkPos chunk = new ChunkPos(x,z);
+            if (queued.add(chunk)) queue.add(chunk);
+        }
+        // Include every chunk crossed by this room's axis-aligned crypt-module hall so
+        // existing worlds receive the same clean connection as newly generated worlds.
+        int hallMinChunkX = (CatacombLayout.ROOT_X * CatacombLayout.TILE) >> 4;
+        int hallMaxChunkX = (CatacombLayout.BRAZIER_ROOM_MIN_X * CatacombLayout.TILE - 1) >> 4;
+        int hallMinChunkZ = (hallZ * CatacombLayout.TILE) >> 4;
+        int hallMaxChunkZ = (hallZ * CatacombLayout.TILE + CatacombLayout.TILE - 1) >> 4;
+        for (int x=hallMinChunkX;x<=hallMaxChunkX;x++) for (int z=hallMinChunkZ;z<=hallMaxChunkZ;z++) {
+            ChunkPos chunk = new ChunkPos(x,z);
+            if (queued.add(chunk)) queue.add(chunk);
+        }
+        int minX=origin.getX()>>4;
+        int maxX=(origin.getX()+49)>>4;
+        int minZ=origin.getZ()>>4;
+        int maxZ=(origin.getZ()+49)>>4;
+        for(int x=minX;x<=maxX;x++)for(int z=minZ;z<=maxZ;z++) {
+            ChunkPos chunk = new ChunkPos(x,z);
+            if (queued.add(chunk)) queue.add(chunk);
+        }
     }
     public static void tick(ServerLevel level) {
         var arena = ARENA_PENDING.get(level);

@@ -119,6 +119,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
     public CursedBrazierEntity(EntityType<? extends CursedBrazierEntity> type, Level level) {
         super(type, level);
         xpReward = 35;
+        setPersistenceRequired();
         setNoGravity(true);
         desiredYaw = getYRot();
     }
@@ -833,9 +834,35 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
 
     @Override
     public void die(DamageSource source) {
-        if (level() instanceof ServerLevel level) openEncounterDoors(level);
+        if (level() instanceof ServerLevel level) {
+            int roomIndex = net.krodark.asterion.worldgen.AuthoredCatacombs
+                    .cursedBrazierRoomIndex(blockPosition());
+            if (roomIndex >= 0)
+                net.krodark.asterion.AsterionWorldState.get(level).markCursedBrazierDefeated(roomIndex);
+            openEncounterDoors(level);
+        }
         clearCombatState();
         super.die(source);
+    }
+
+    /** Re-arms the same room after a real player death without duplicating the boss. */
+    public void resetAfterPlayerDeath(ServerLevel level) {
+        clearCombatState();
+        setHealth(getMaxHealth());
+        middleShieldUsed = false;
+        finalShieldUsed = false;
+        gridStepTaken = false;
+        cooldown = 40;
+        if (restingPosition == null) restingPosition = position();
+        setPos(restingPosition.x, restingPosition.y, restingPosition.z);
+        setPhase(Phase.DORMANT);
+        setInvulnerable(true);
+        openEncounterDoors(level);
+    }
+
+    @Override
+    public boolean removeWhenFarAway(double distanceToClosestPlayer) {
+        return false;
     }
 
     @Override

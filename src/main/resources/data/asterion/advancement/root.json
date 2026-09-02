@@ -1,0 +1,18 @@
+{
+  "criteria": {
+    "enter_labyrinth": {
+      "conditions": { "to": "asterion:asterion_dimension" },
+      "trigger": "minecraft:changed_dimension"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "background": "minecraft:gui/advancements/backgrounds/stone",
+    "description": { "translate": "advancement.asterion.root.description" },
+    "icon": { "id": "asterion:ancient_bricks" },
+    "show_toast": false,
+    "title": { "translate": "advancement.asterion.root.title" }
+  },
+  "requirements": [["enter_labyrinth"]],
+  "sends_telemetry_event": false
+}

@@ -150,8 +150,9 @@ public final class BossArenaEncounter {
             BlockPos bossDoor = MinotaurArenaEntrances.door(active.bossDoor);
             MinotaurDoorBlock.removeDoor(level, bossDoor, active.bossDoor);
         }
-        boolean anyonePresent = level.players().stream().anyMatch(p -> p.isAlive() && active.participants.contains(p.getUUID()));
-        if (!anyonePresent) { boss.discard(); finish(level); }
+        // Logging out, changing dimension, or being the only creative player must not
+        // delete a live encounter. The entity is persistent and waits in the sealed arena;
+        // an actual participant death is handled above by the explicit arena reset path.
     }
 
     public static boolean blocksCentipedeSpawn(ServerLevel level, Vec3 position) {

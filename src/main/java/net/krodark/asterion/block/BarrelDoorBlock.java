@@ -86,16 +86,19 @@ public final class BarrelDoorBlock extends BaseEntityBlock implements Waterlogge
         for (int depth = 1; depth <= 3; depth++) for (int row = 0; row < 4; row++) {
             BlockPos pos = wing(root, facing, depth, row);
             if (!level.isLoaded(pos) || !level.getWorldBorder().isWithinBounds(pos)) return false;
-            BlockState state = level.getBlockState(pos);
-            if (!(state.is(Asterion.BARREL_DOOR) && root(pos, state).equals(root)) && !state.isAir()
-                    && !(state.getBlock() instanceof net.minecraft.world.level.block.LiquidBlock)
-                    && !(state.getBlock() instanceof net.krodark.asterion.fluid.TidalWaterBlock)) return false;
-            if (!level.getEntities((net.minecraft.world.entity.Entity)null, new net.minecraft.world.phys.AABB(pos),
-                    entity -> entity.isAlive() && !entity.isSpectator()).isEmpty()) return false;
         }
         BlockState base = Asterion.BARREL_DOOR.defaultBlockState().setValue(FACING, facing).setValue(OPEN, true).setValue(WING, true);
         for (int depth = 1; depth <= 3; depth++) for (int row = 0; row < 4; row++) {
             BlockPos part = wing(root, facing, depth, row);
+            BlockState existing = level.getBlockState(part);
+            // Solid scenery is allowed to clip the visual swing. Keep it intact and omit
+            // only that invisible collision cell so the controller can always open.
+            if (!existing.isAir()
+                    && !(existing.is(Asterion.BARREL_DOOR) && root(part, existing).equals(root))
+                    && !(existing.getBlock() instanceof net.minecraft.world.level.block.LiquidBlock)
+                    && !(existing.getBlock() instanceof net.krodark.asterion.fluid.TidalWaterBlock)) continue;
+            if (!level.getEntities((net.minecraft.world.entity.Entity)null, new net.minecraft.world.phys.AABB(part),
+                    entity -> entity.isAlive() && !entity.isSpectator()).isEmpty()) continue;
             level.setBlock(part, WaterloggedDecoration.retain(base.setValue(COLUMN, depth).setValue(ROW, row),
                     level.getFluidState(part)), UPDATE_CLIENTS);
         }
@@ -164,7 +167,8 @@ public final class BarrelDoorBlock extends BaseEntityBlock implements Waterlogge
             for (int depth = 1; depth <= 3; depth++) for (int row = 0; row < 4; row++) {
                 BlockPos posWing = wing(root, facing, depth, row);
                 BlockState other = level.getBlockState(posWing);
-                if (!other.is(this) || !other.getValue(WING) || !root(posWing, other).equals(root)) {
+                if ((!other.is(this) || !other.getValue(WING) || !root(posWing, other).equals(root))
+                        && other.isAir()) {
                     removeDoor(level, root, facing);
                     return;
                 }

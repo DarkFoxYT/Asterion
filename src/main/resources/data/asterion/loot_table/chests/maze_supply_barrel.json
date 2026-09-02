@@ -72,7 +72,6 @@
       },
       "bonus_rolls": 0.0,
       "entries": [
-        { "type": "minecraft:item", "name": "asterion:minotaur_key", "weight": 2 },
         {
           "type": "minecraft:item",
           "name": "minecraft:cobweb",
@@ -115,6 +114,15 @@
           "name": "minecraft:rotten_flesh",
           "weight": 3
         }
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        { "type": "minecraft:item", "name": "asterion:minotaur_key" }
+      ],
+      "conditions": [
+        { "condition": "minecraft:random_chance", "chance": 0.02 }
       ]
     }
   ],
