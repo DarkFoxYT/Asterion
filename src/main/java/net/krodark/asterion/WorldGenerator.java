@@ -423,33 +423,6 @@ public final class WorldGenerator {
                 level.getGameTime() + restoreDelay));
     }
 
-    /** Restores only terrain actually removed by a construct blast; mined wall skins stay broken. */
-    public static void queueConstructExplosionRepair(ServerLevel level, BlockPos center, int radius) {
-        if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
-        long dueTick = level.getGameTime() + 80L;
-        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-        int radiusSqr = radius * radius;
-        for (int x = center.getX() - radius; x <= center.getX() + radius; x++)
-            for (int y = center.getY() - radius; y <= center.getY() + radius; y++)
-                for (int z = center.getZ() - radius; z <= center.getZ() + radius; z++) {
-                    int dx = x - center.getX(), dy = y - center.getY(), dz = z - center.getZ();
-                    if (dx * dx + dy * dy + dz * dz > radiusSqr) continue;
-                    cursor.set(x, y, z);
-                    BlockState state = level.getBlockState(cursor);
-                    BlockKey key = new BlockKey(level.dimension(), cursor.immutable());
-                    if (state.isAir() || !state.getFluidState().isEmpty()
-                            || state.is(Asterion.MAZE_WALL_CORE)
-                            || state.getDestroySpeed(level, cursor) < 0.0F
-                            || level.getBlockEntity(cursor) != null
-                            || PLAYER_PLACED_BLOCKS.containsKey(key)
-                            || net.krodark.asterion.worldgen.CatacombProtection.isOre(state)
-                            || isActivePortalProtected(level, cursor)) continue;
-                    RESTORING_BLOCKS.removeIf(entry -> entry.dimension.equals(level.dimension())
-                            && entry.pos.equals(key.pos));
-                    RESTORING_BLOCKS.add(new RestoringBlock(level.dimension(), key.pos, state, dueTick));
-                }
-    }
-
     private static boolean shouldRestoreMazeBreak(ServerLevel level, BlockPos pos) {
         long seed = net.krodark.asterion.worldgen.MazeChunkGenerator
                 .terrainSeed(level.getChunkSource().randomState());

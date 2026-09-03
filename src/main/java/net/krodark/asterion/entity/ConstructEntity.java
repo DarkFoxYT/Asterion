@@ -13,8 +13,6 @@ import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.krodark.asterion.Asterion;
-import net.krodark.asterion.WorldGenerator;
-import net.krodark.asterion.effect.GreekFireBurn;
 import net.krodark.asterion.game.GasClouds;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
@@ -29,7 +27,7 @@ import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
 
-/** A rare Greek-fire ambusher whose authored attack detonates on frame 186. */
+/** A rare Greek-fire ambusher with a readable armored/attack/recovery cycle. */
 public final class ConstructEntity extends PathfinderMob implements GeoEntity {
     private static final EntityDataAccessor<Boolean> ATTACKING = SynchedEntityData.defineId(
             ConstructEntity.class, EntityDataSerializers.BOOLEAN);
@@ -37,10 +35,13 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
     private static final RawAnimation ATTACK = RawAnimation.begin().thenPlayAndHold("attack");
     private static final double NOTICE_RANGE = 34.0D;
     private static final double IGNITE_RANGE = 3.5D;
-    /** 186 authored frames at the animation's 24 FPS = 7.75 seconds = 155 game ticks. */
-    public static final int EXPLOSION_TICK = 155;
+    /** Authored animation timing: 24 frames per second, rendered at 20 game ticks per second. */
+    public static final int ATTACK_HIT_TICK = 42; // frame 50
+    public static final int ATTACK_ANIMATION_TICKS = 155; // 7.75 seconds
+    public static final int RECOVERY_TICKS = 100; // five seconds armored and lowered
     private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
     private int attackTicks;
+    private int recoveryTicks;
 
     public ConstructEntity(EntityType<? extends ConstructEntity> type, Level level) {
         super(type, level);
@@ -78,24 +79,30 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
             Player target = nearestTarget();
             if (target != null) {
                 getLookControl().setLookAt(target, 40.0F, 40.0F);
-                if (attackTicks % 32 == 12) sprayGreekFire(server, target);
             }
             if (attackTicks % 8 == 0)
                 server.sendParticles(Asterion.GREEK_FIRE, getX(), getY() + getBbHeight() * .5D, getZ(),
                         1, .12D, .18D, .12D, .006D);
-            if (++attackTicks >= EXPLOSION_TICK) {
-                WorldGenerator.queueConstructExplosionRepair(server, blockPosition(), 7);
-                server.explode(this, getX(), getY() + getBbHeight() * 0.45D, getZ(), 3.0F,
-                        Level.ExplosionInteraction.MOB);
-                for (LivingEntity victim : server.getEntitiesOfClass(LivingEntity.class,
-                        getBoundingBox().inflate(5.0D), entity -> entity != this && entity.isAlive()))
-                    GreekFireBurn.ignite(victim, 6.0F);
-                discard();
+            attackTicks++;
+            if (attackTicks == ATTACK_HIT_TICK && target != null) {
+                sprayGreekFire(server, target);
+                playSound(SoundEvents.FIRECHARGE_USE, 1.0F, 0.85F);
+            }
+            if (attackTicks >= ATTACK_ANIMATION_TICKS) {
+                entityData.set(ATTACKING, false);
+                attackTicks = 0;
+                recoveryTicks = RECOVERY_TICKS;
             }
             return;
         }
 
         Player target = nearestTarget();
+        if (recoveryTicks > 0) {
+            recoveryTicks--;
+            getNavigation().stop();
+            if (target != null) getLookControl().setLookAt(target, 20.0F, 20.0F);
+            return;
+        }
         if (target == null) {
             getNavigation().stop();
             return;
@@ -105,7 +112,6 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
             entityData.set(ATTACKING, true);
             attackTicks = 0;
             getNavigation().stop();
-            playSound(SoundEvents.CREEPER_PRIMED, 1.0F, 0.8F);
         } else {
             if (getNavigation().isDone() || tickCount % 10 == 0)
                 getNavigation().moveTo(target, 1.1D);
@@ -147,12 +153,14 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
         super.addAdditionalSaveData(output);
         output.putBoolean("Attacking", isAttacking());
         output.putInt("AttackTicks", attackTicks);
+        output.putInt("RecoveryTicks", recoveryTicks);
     }
 
     @Override protected void readAdditionalSaveData(ValueInput input) {
         super.readAdditionalSaveData(input);
         entityData.set(ATTACKING, input.getBooleanOr("Attacking", false));
-        attackTicks = Math.clamp(input.getIntOr("AttackTicks", 0), 0, EXPLOSION_TICK);
+        attackTicks = Math.clamp(input.getIntOr("AttackTicks", 0), 0, ATTACK_ANIMATION_TICKS);
+        recoveryTicks = Math.clamp(input.getIntOr("RecoveryTicks", 0), 0, RECOVERY_TICKS);
     }
 
     @Override public AnimatableInstanceCache getAnimatableInstanceCache() {

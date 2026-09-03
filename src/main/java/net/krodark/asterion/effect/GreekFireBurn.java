@@ -24,7 +24,9 @@ public final class GreekFireBurn extends MobEffect {
         victim.igniteForSeconds(seconds);
         victim.addEffect(new MobEffectInstance(TYPE, Math.max(1, victim.getRemainingFireTicks()), 0, false, false, false));
         victim.addEffect(new MobEffectInstance(SingedEffect.TYPE, Math.max(200, victim.getRemainingFireTicks()), 0, false, false, true));
-        if (fresh && victim instanceof net.minecraft.server.level.ServerPlayer player && victim.getRandom().nextFloat() < .30F)
+        // Run the max-health change only on the authoritative server player. This is
+        // the same path for integrated singleplayer and dedicated multiplayer servers.
+        if (fresh && victim instanceof net.minecraft.server.level.ServerPlayer player)
             SingedScars.get(player.level().getServer()).scar(player);
     }
 

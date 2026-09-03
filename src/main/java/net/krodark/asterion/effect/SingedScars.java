@@ -27,7 +27,7 @@ public final class SingedScars extends SavedData {
     public void scar(ServerPlayer player) {
         if (player.isCreative() || player.isSpectator() || player.getMaxHealth() <= 2) return;
         hearts.put(player.getUUID().toString(), lostHearts(player) + 1);
-        restoreAt.put(player.getUUID().toString(), player.level().getGameTime() + 600L);
+        restoreAt.put(player.getUUID().toString(), (long)player.level().getServer().getTickCount() + 600L);
         setDirty();
         apply(player);
         player.sendSystemMessage(net.minecraft.network.chat.Component.translatable("message.asterion.singed_heart"));
@@ -40,9 +40,10 @@ public final class SingedScars extends SavedData {
         String playerId = player.getUUID().toString();
         int lost = lostHearts(player);
         if (lost > 0) {
+            long serverTick = player.level().getServer().getTickCount();
             long deadline = restoreAt.computeIfAbsent(playerId,
-                    ignored -> player.level().getGameTime() + 600L);
-            if (player.level().getGameTime() >= deadline) {
+                    ignored -> serverTick + 600L);
+            if (serverTick >= deadline) {
                 hearts.remove(playerId);
                 restoreAt.remove(playerId);
                 setDirty();
