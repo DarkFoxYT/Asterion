@@ -82,8 +82,10 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
                 // Centre the axe itself on the upper back and turn its authored vertical
                 // axis across the shoulders. Using the grip offset here pushed the entire
                 // weapon sideways and made the fallback body attachment look crooked.
-                poses.translate(0, .55, 1.05);
-                poses.mulPose(com.mojang.math.Axis.XP.rotationDegrees(7));
+                // The torso's rear face reaches roughly Z=1.1 in this bone's space.
+                // Leave clearance for the axe head/handle thickness instead of placing
+                // its centre directly on that face and letting it cut through the body.
+                poses.translate(0, .82, 1.42);
                 poses.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(90));
                 poses.translate(0, -MinotaurAxeEntity.CENTER_Y, 0);
             } else {

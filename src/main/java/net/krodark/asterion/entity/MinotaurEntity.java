@@ -508,7 +508,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 .add(Attributes.FOLLOW_RANGE, 96.0D)
                 .add(Attributes.ATTACK_DAMAGE, 10.0D)
                 .add(Attributes.ATTACK_KNOCKBACK, 1.8D)
-                .add(Attributes.KNOCKBACK_RESISTANCE, 0.82D)
+                .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D)
                 .add(Attributes.ARMOR, 14.0D)
                 .add(Attributes.STEP_HEIGHT, 3.0D);
     }
@@ -687,6 +687,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         tickWorldAxe(level);
         tickFireSootTrail(level);
         tickThrownPlayer(level);
+        pushIntersectingPlayers(level);
         if (behaviorPhase() == BehaviorPhase.BOSS && bossStage != BossStage.COLLAPSE
                 && bossStage != BossStage.DEFEATED && doorEntryTicks() == 0 && isAlive()) smokeClouds.tick(level, this);
         else smokeClouds.clear();
@@ -2942,6 +2943,33 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         }
     }
 
+    /** Players cannot transfer collision momentum into this multi-ton boss. */
+    @Override
+    public boolean isPushable() {
+        return false;
+    }
+
+    /**
+     * Vanilla entity collision is symmetric. Replace it with a small one-way shove
+     * owned by the server, while scripted grabs/throws retain their own movement authority.
+     */
+    private void pushIntersectingPlayers(ServerLevel level) {
+        if (!isAlive() || bossStage == BossStage.DEFEATED) return;
+        Vec3 bodyMotion = getDeltaMovement().multiply(1.0D, 0.0D, 1.0D);
+        double shove = 0.18D + Math.min(0.32D, bodyMotion.length() * 0.35D);
+        for (ServerPlayer player : level.getEntitiesOfClass(ServerPlayer.class,
+                getBoundingBox().inflate(0.12D), candidate -> candidate.isAlive()
+                        && !candidate.isSpectator() && !candidate.isCreative())) {
+            if (controlsPlayer(player)) continue;
+            Vec3 away = player.position().subtract(position()).multiply(1.0D, 0.0D, 1.0D);
+            if (away.lengthSqr() < 1.0E-5D)
+                away = Vec3.directionFromRotation(0.0F, getYRot()).multiply(1.0D, 0.0D, 1.0D);
+            away = away.normalize();
+            player.push(away.x * shove, 0.035D, away.z * shove);
+            player.hurtMarked = true;
+        }
+    }
+
     /** Every committed arena charge may destroy one pillar and ends on that heavy impact. */
     private boolean breakPillarDuringCharge(ServerLevel level, AABB impact,
                                             int stunTicks, int recoveryTicks) {
@@ -3838,7 +3866,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             playSound(SoundEvents.GENERIC_EXPLODE.value(), 4.5F, 0.34F);
         }
         if (collapseTicks >= 34 && collapseTicks <= 136 && (collapseTicks - 34) % 3 == 0)
-            WorldGenerator.collapseBossRoofRing(level, position(), (collapseTicks - 34) / 3);
+            WorldGenerator.collapseBossRoofRing(level,
+                    debugMode ? collapseAnchor : combatCenter(), (collapseTicks - 34) / 3);
         if (collapseTicks >= 36 && collapseTicks <= 108 && collapseTicks % 12 == 0) {
             float force = 1.4F + (collapseTicks - 36) / 72.0F * 2.2F;
             broadcastMinotaurImpact(level, collapseAnchor.add(0, 28, 0), 110.0F, force, 18);
@@ -4138,10 +4167,10 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         player.setDeltaMovement(impulse);
         player.hurtMarked = true;
         player.resetFallDistance();
-        float chance = Mth.clamp(0.18F + force * 0.18F + rage() * 0.012F, 0.28F, 0.68F);
-        // Boss impacts own their animation timing and must consistently transition the player
-        // into the physics reaction. Outside the arena, retain the lighter probabilistic stumble.
-        if (!guaranteed && behaviorPhase() != BehaviorPhase.BOSS && random.nextFloat() >= chance) return;
+        // This helper is only called by authored knockdown frames. Asterion's roaming
+        // form and the arena Minotaur therefore share one authoritative result: every
+        // connected knockdown creates (or refreshes) the complete client body assembly.
+        // Keep the parameter for call-site readability where an attack is explicitly heavy.
         RagdollServerNetworking.markRagdolled(player, 86);
         if (ServerPlayNetworking.canSend(player, RagdollImpulsePayload.TYPE))
             ServerPlayNetworking.send(player, new RagdollImpulsePayload(position(), impulse, force));

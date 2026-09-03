@@ -77,9 +77,13 @@ public final class BiomeMusic {
             var nearbyBosses = level.getEntitiesOfClass(MinotaurEntity.class,
                     client.player.getBoundingBox().inflate(128),
                     boss -> boss.behaviorPhase() == MinotaurEntity.BehaviorPhase.BOSS);
-            defeatedBossNearby = nearbyBosses.stream().anyMatch(MinotaurEntity::isDefeatedBoss);
-            arena = WorldGenerator.isInsideBossArena(client.player.position())
-                    && nearbyBosses.stream().anyMatch(boss -> boss.isAlive() && !boss.isDefeatedBoss());
+            boolean activeBossNearby = nearbyBosses.stream()
+                    .anyMatch(boss -> boss.isAlive() && !boss.isDefeatedBoss());
+            // A permanent death-pose Minotaur intentionally remains as an entity. It must not
+            // silence a living/revived boss that is also tracked by the client.
+            defeatedBossNearby = !activeBossNearby
+                    && nearbyBosses.stream().anyMatch(MinotaurEntity::isDefeatedBoss);
+            arena = WorldGenerator.isInsideBossArena(client.player.position()) && activeBossNearby;
         }
         // The permanent corpse intentionally retains one health point, so isAlive()
         // alone cannot distinguish victory from an active encounter.

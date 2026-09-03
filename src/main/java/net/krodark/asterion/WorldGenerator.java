@@ -1749,6 +1749,7 @@ public final class WorldGenerator {
         int roofY = net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y + 47;
         double distance = Math.min(net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS,
                 step * 1.78D);
+        fractureCentralRoof(level, cursor, launches, origin, step, roofY);
         // Nine uneven primary faults crawl away from the impact. Alternating branches
         // split off later, producing forks and missing slabs instead of a geometric ring.
         for (int fault = 0; fault < 9; fault++) {
@@ -1780,6 +1781,27 @@ public final class WorldGenerator {
                 net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS, -1, roofY);
     }
 
+    /**
+     * Opens a dense, widening cavity over the arena centre while leaving its perimeter
+     * chipped and asymmetric. The longer faults below remain responsible for the cracks
+     * radiating out across the rest of the vault.
+     */
+    private static void fractureCentralRoof(ServerLevel level, BlockPos.MutableBlockPos cursor,
+                                            java.util.List<Vec3> launches, Vec3 center,
+                                            int step, int roofY) {
+        int radius = Math.min(12, 2 + step / 2);
+        int centerX = Mth.floor(center.x);
+        int centerZ = Mth.floor(center.z);
+        for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
+            double distance = Math.sqrt(dx * dx + dz * dz);
+            if (distance > radius) continue;
+            long edgeSeed = mix(level.getSeed() ^ (long)(centerX + dx) * 0x9E3779B97F4A7C15L
+                    ^ (long)(centerZ + dz) * 0xC2B2AE3D27D4EB4FL);
+            if (distance > radius - 1.35D && (edgeSeed & 3L) == 0L) continue;
+            removeRoofColumn(level, cursor, launches, centerX + dx, centerZ + dz, roofY);
+        }
+    }
+
     private static boolean isPermanentUpperMazeBuild(BlockPos pos) {
         return pos.getY() >= FLOOR_Y + 1
                 && !(Math.abs((long)pos.getX()) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS
@@ -1799,18 +1821,22 @@ public final class WorldGenerator {
         int centerZ = Mth.floor(center.z + Math.sin(angle) * distance);
         for (int dx = -width; dx <= width; dx++) for (int dz = -width; dz <= width; dz++) {
             if (dx * dx + dz * dz > width * width + 1) continue;
-            int x = centerX + dx, z = centerZ + dz;
-            int underside = findArenaRoofUnderside(level, cursor, x, z, roofY);
-            if (underside < 0) continue;
-            boolean removed = false;
-            for (int y = underside; y <= roofY; y++) {
-                cursor.set(x, y, z);
-                if (level.getBlockState(cursor).isAir()) continue;
-                level.setBlock(cursor, Blocks.AIR.defaultBlockState(), 3);
-                removed = true;
-            }
-            if (removed) launches.add(new Vec3(x + .5D, underside - .15D, z + .5D));
+            removeRoofColumn(level, cursor, launches, centerX + dx, centerZ + dz, roofY);
         }
+    }
+
+    private static void removeRoofColumn(ServerLevel level, BlockPos.MutableBlockPos cursor,
+                                         java.util.List<Vec3> launches, int x, int z, int roofY) {
+        int underside = findArenaRoofUnderside(level, cursor, x, z, roofY);
+        if (underside < 0) return;
+        boolean removed = false;
+        for (int y = underside; y <= roofY; y++) {
+            cursor.set(x, y, z);
+            if (level.getBlockState(cursor).isAir()) continue;
+            level.setBlock(cursor, Blocks.AIR.defaultBlockState(), 3);
+            removed = true;
+        }
+        if (removed) launches.add(new Vec3(x + .5D, underside - .15D, z + .5D));
     }
 
     /**
