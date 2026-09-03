@@ -1132,7 +1132,11 @@ public final class WorldGenerator {
         if (AsterionWorldState.get(level).minotaurDefeated()) return;
         BossArenaEncounter.finishDefeated(level);
         AsterionWorldState.get(level).markMinotaurDefeated();
-        boss.spawnAtLocation(level, new net.minecraft.world.item.ItemStack(Asterion.OMEGA_KEY));
+        var omegaKey = boss.spawnAtLocation(level, new net.minecraft.world.item.ItemStack(Asterion.OMEGA_KEY));
+        ServerPlayer nearest = level.players().stream()
+                .filter(player -> player.isAlive() && !player.isSpectator())
+                .min(Comparator.comparingDouble(player -> player.distanceToSqr(boss))).orElse(null);
+        net.krodark.asterion.game.EncounterKeyRecovery.track(level, omegaKey, nearest);
         net.krodark.asterion.worldgen.OmegaTreasure.reward(level);
         openArenaExit(level);
         for (ServerPlayer player : level.players()) {
