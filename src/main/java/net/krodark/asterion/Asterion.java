@@ -56,6 +56,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.item.SpawnEggItem;
+import net.minecraft.world.item.ToolMaterial;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
@@ -83,6 +84,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.ChainBlock;
 import net.minecraft.world.level.block.CarpetBlock;
 import net.minecraft.world.level.block.FenceBlock;
+import net.minecraft.world.level.block.FenceGateBlock;
 import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.UntintedParticleLeavesBlock;
 import net.minecraft.world.level.block.SlabBlock;
@@ -94,8 +96,10 @@ import net.minecraft.world.level.block.WallBlock;
 import net.minecraft.world.level.block.MultifaceBlock;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.properties.WoodType;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.tags.BiomeTags;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import net.minecraft.world.level.levelgen.feature.Feature;
@@ -147,6 +151,18 @@ public class Asterion implements ModInitializer {
             properties -> new FenceBlock(properties.strength(2.0F, 3.0F).sound(SoundType.WOOD)));
     public static final Block DEAD_WOOD = registerBlock("dead_wood", MapColor.COLOR_BROWN,
             properties -> new RotatedPillarBlock(properties.strength(3.2F, 5.0F).sound(SoundType.WOOD)));
+    public static final Block DEAD_WOOD_PLANKS = registerBlock("dead_wood_planks", MapColor.COLOR_BROWN,
+            properties -> new Block(properties.strength(2.0F, 3.0F).sound(SoundType.WOOD).ignitedByLava()));
+    public static final Block DEAD_WOOD_SLAB = registerBlock("dead_wood_slab", MapColor.COLOR_BROWN,
+            properties -> new SlabBlock(properties.strength(2.0F, 3.0F).sound(SoundType.WOOD).ignitedByLava()));
+    public static final Block DEAD_WOOD_STAIRS = registerBlock("dead_wood_stairs", MapColor.COLOR_BROWN,
+            properties -> new StairBlock(DEAD_WOOD_PLANKS.defaultBlockState(),
+                    properties.strength(2.0F, 3.0F).sound(SoundType.WOOD).ignitedByLava()) { });
+    public static final Block DEAD_WOOD_FENCE = registerBlock("dead_wood_fence", MapColor.COLOR_BROWN,
+            properties -> new FenceBlock(properties.strength(2.0F, 3.0F).sound(SoundType.WOOD).ignitedByLava()));
+    public static final Block DEAD_WOOD_FENCE_GATE = registerBlock("dead_wood_fence_gate", MapColor.COLOR_BROWN,
+            properties -> new FenceGateBlock(WoodType.OAK,
+                    properties.strength(2.0F, 3.0F).sound(SoundType.WOOD).ignitedByLava()));
     public static final ShatteredDeadWoodBlock SHATTERED_DEAD_WOOD = (ShatteredDeadWoodBlock)registerBlock(
             "shattered_dead_wood", MapColor.COLOR_BROWN,
             properties -> new ShatteredDeadWoodBlock(properties.noOcclusion()
@@ -417,6 +433,20 @@ public class Asterion implements ModInitializer {
             BLUEPRINT_KEY,
             new AntikytheraBlueprintItem(new Item.Properties().setId(BLUEPRINT_KEY).stacksTo(1).rarity(Rarity.RARE))
     );
+    private static final TagKey<Block> INCORRECT_FOR_CELESTIAL_BRONZE_TOOL = TagKey.create(
+            Registries.BLOCK, id("incorrect_for_celestial_bronze_tool"));
+    private static final TagKey<Item> REPAIRS_CELESTIAL_BRONZE_TOOLS = TagKey.create(
+            Registries.ITEM, id("repairs_celestial_bronze_tools"));
+    public static final ToolMaterial CELESTIAL_BRONZE = new ToolMaterial(
+            INCORRECT_FOR_CELESTIAL_BRONZE_TOOL, 1200, 7.5F, 3.5F, 18,
+            REPAIRS_CELESTIAL_BRONZE_TOOLS);
+    private static final ResourceKey<Item> CELESTIAL_BRONZE_SWORD_KEY = ResourceKey.create(
+            Registries.ITEM, id("celestial_bronze_sword"));
+    public static final Item CELESTIAL_BRONZE_SWORD = Registry.register(
+            BuiltInRegistries.ITEM, CELESTIAL_BRONZE_SWORD_KEY,
+            new Item(new Item.Properties().setId(CELESTIAL_BRONZE_SWORD_KEY)
+                    .sword(CELESTIAL_BRONZE, 3.5F, -2.3F)
+                    .rarity(Rarity.RARE).fireResistant()));
     private static final ResourceKey<Item> MINOTAUR_KEY_ID = ResourceKey.create(Registries.ITEM, id("minotaur_key"));
     public static final Item MINOTAUR_KEY = Registry.register(BuiltInRegistries.ITEM, MINOTAUR_KEY_ID,
             new Item(new Item.Properties().setId(MINOTAUR_KEY_ID).stacksTo(1).rarity(Rarity.UNCOMMON)));
@@ -445,6 +475,7 @@ public class Asterion implements ModInitializer {
                     .icon(() -> new ItemStack(ANTIKYTHERA_MECHANISM))
                     .displayItems((parameters, output) -> {
                         output.accept(ANTIKYTHERA_MECHANISM);
+                        output.accept(CELESTIAL_BRONZE_SWORD);
                         output.accept(net.krodark.asterion.fluid.HeavyWater.BUCKET);
                         output.accept(SLICK_CATACOMB_STONE);
                         output.accept(GREEK_BRAZIER);
@@ -468,6 +499,11 @@ public class Asterion implements ModInitializer {
                         output.accept(ANCIENT_PLANK_STAIRS);
                         output.accept(ANCIENT_PLANK_FENCE);
                         output.accept(DEAD_WOOD);
+                        output.accept(DEAD_WOOD_PLANKS);
+                        output.accept(DEAD_WOOD_SLAB);
+                        output.accept(DEAD_WOOD_STAIRS);
+                        output.accept(DEAD_WOOD_FENCE);
+                        output.accept(DEAD_WOOD_FENCE_GATE);
                         output.accept(SHATTERED_DEAD_WOOD);
                         output.accept(ANCIENT_STONE);
                         output.accept(MOSSY_ANCIENT_STONE);

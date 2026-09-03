@@ -6,6 +6,11 @@
     "asterion:ancient_plank_stairs",
     "asterion:ancient_plank_fence",
     "asterion:dead_wood",
+    "asterion:dead_wood_planks",
+    "asterion:dead_wood_slab",
+    "asterion:dead_wood_stairs",
+    "asterion:dead_wood_fence",
+    "asterion:dead_wood_fence_gate",
     "asterion:shattered_dead_wood",
     "asterion:barrel_door"
   ]

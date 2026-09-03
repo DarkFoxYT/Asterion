@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/handheld",
+  "textures": {
+    "layer0": "asterion:item/celestial_bronze_sword"
+  }
+}
