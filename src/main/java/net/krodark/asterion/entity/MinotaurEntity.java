@@ -128,6 +128,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private boolean grapplePull;
     private int weaponUsesRemaining, weaponAdvanceTicks;
     private final int[] attacksSinceUse = new int[BossAttack.values().length];
+    private final int[] weaponFamilySinceUse = {3, 3, 3};
     private Vec3 throwVelocity = Vec3.ZERO;
     private int throwFlightTicks;
     private Vec3 throwWallImpact;
@@ -2137,10 +2138,15 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 default -> -20;
             };
             if (score < -5) continue;
+            int family = weaponFamily(attack);
+            if (family >= 0) {
+                score += Math.min(6, weaponFamilySinceUse[family]) * .75D;
+                if (weaponFamilySinceUse[family] >= 5) score += 3.5D;
+            }
             boolean keepWeapon = weaponMode() != 0 && attackWeapon(attack) == weaponMode()
                     && attack != BossAttack.AXE_THROW;
-            if (keepWeapon) score += weaponUsesRemaining > 0 ? 7 : 2.5;
-            if (weaponUsesRemaining > 0 && !keepWeapon) score -= 2;
+            if (keepWeapon) score += weaponUsesRemaining > 0 ? 2.25D : 1.0D;
+            if (weaponUsesRemaining > 0 && family >= 0 && !keepWeapon) score -= .65D;
             if (attack == lastBossAttack) score -= 2;
             else if (attack == attackBeforeLast) score -= .65;
             if (attack != BossAttack.AXE_THROW && attack != BossAttack.RETRIEVE_AXE)
@@ -2163,6 +2169,13 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
     private static int attackWeapon(BossAttack attack) {
         return requiresAxe(attack) ? 1 : attack == BossAttack.SWORD_COMBO || attack == BossAttack.SPIN_COMBO ? 2 : 0;
+    }
+
+    private static int weaponFamily(BossAttack attack) {
+        if (requiresAxe(attack) || attack == BossAttack.AXE_THROW) return 1;
+        if (attack == BossAttack.SWORD_COMBO) return 2;
+        return attack == BossAttack.PUNCH_SINGLE || attack == BossAttack.PUNCH_COMBO
+                || attack == BossAttack.GRAB || attack == BossAttack.BACK_KICK ? 0 : -1;
     }
 
     public int pendingWeaponMode() { return attackWeapon(bossAttackState()); }
@@ -2268,7 +2281,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             playSound(SoundEvents.ARMOR_EQUIP_IRON.value(), 1.5F, .55F);
         if (ticks >= weaponSheathTicks() + weaponDrawTicks()) {
             getEntityData().set(DATA_WEAPON, wanted);
-            weaponUsesRemaining = wanted == 0 ? 0 : 4;
+            weaponUsesRemaining = wanted == 0 ? 0 : 2 + random.nextInt(2);
             getEntityData().set(DATA_WEAPON_SWAP, 0);
         }
         return false;
@@ -2439,6 +2452,12 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             airborneCatchTarget = null; airborneCatchWindow = 0;
         }
         if (requiresAxe(attack) && axeInWorld()) attack = BossAttack.RETRIEVE_AXE;
+        int family = weaponFamily(attack);
+        if (family >= 0) {
+            for (int i = 0; i < weaponFamilySinceUse.length; i++)
+                weaponFamilySinceUse[i] = Math.min(12, weaponFamilySinceUse[i] + 1);
+            weaponFamilySinceUse[family] = 0;
+        }
         attackBeforeLast = lastBossAttack;
         lastBossAttack = attack;
         setBossAttack(attack);
@@ -3779,7 +3798,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         playRoar(4.0F, 0.82F, 1.25F);
         level.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + getBbHeight() * 0.5D, getZ(),
                 60, 2.0D, 2.5D, 2.0D, 0.035D);
-        var cinematic = new net.krodark.asterion.network.RoofCollapsePayload(collapseAnchor, 118);
+        // Keep control of the shot through the complete 168-tick collapse/revival state.
+        var cinematic = new net.krodark.asterion.network.RoofCollapsePayload(collapseAnchor, 168);
         for (ServerPlayer viewer : level.players())
             if (viewer.position().horizontalDistanceSqr() < 72.0D * 72.0D
                     && ServerPlayNetworking.canSend(viewer,

@@ -14,6 +14,7 @@ import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
+import net.fabricmc.fabric.api.registry.FlammableBlockRegistry;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.krodark.asterion.network.DimensionTransitionPayload;
@@ -151,7 +152,8 @@ public class Asterion implements ModInitializer {
     public static final Block ANCIENT_PLANK_FENCE = registerBlock("ancient_plank_fence", MapColor.COLOR_BROWN,
             properties -> new FenceBlock(properties.strength(2.0F, 3.0F).sound(SoundType.WOOD)));
     public static final Block DEAD_WOOD = registerBlock("dead_wood", MapColor.COLOR_BROWN,
-            properties -> new RotatedPillarBlock(properties.strength(3.2F, 5.0F).sound(SoundType.WOOD)));
+            properties -> new RotatedPillarBlock(properties.strength(3.2F, 5.0F)
+                    .sound(SoundType.WOOD).ignitedByLava()));
     public static final Block DEAD_WOOD_PLANKS = registerBlock("dead_wood_planks", MapColor.COLOR_BROWN,
             properties -> new Block(properties.strength(2.0F, 3.0F).sound(SoundType.WOOD).ignitedByLava()));
     public static final Block DEAD_WOOD_SLAB = registerBlock("dead_wood_slab", MapColor.COLOR_BROWN,
@@ -167,7 +169,7 @@ public class Asterion implements ModInitializer {
     public static final ShatteredDeadWoodBlock SHATTERED_DEAD_WOOD = (ShatteredDeadWoodBlock)registerBlock(
             "shattered_dead_wood", MapColor.COLOR_BROWN,
             properties -> new ShatteredDeadWoodBlock(properties.noOcclusion()
-                    .strength(3.2F, 5.0F).sound(SoundType.WOOD)));
+                    .strength(3.2F, 5.0F).sound(SoundType.WOOD).ignitedByLava()));
     public static final Block ANCIENT_STONE = registerBlock("ancient_stone", MapColor.TERRACOTTA_BROWN,
             properties -> new Block(properties.strength(2.0F, 6.0F).sound(SoundType.STONE)));
     public static final Block MOSSY_ANCIENT_STONE = registerBlock("mossy_ancient_stone", MapColor.TERRACOTTA_GREEN, Block::new);
@@ -630,8 +632,21 @@ public class Asterion implements ModInitializer {
     private static final ResourceKey<PlacedFeature> TAINTED_PETALS_PLACED = ResourceKey.create(
             Registries.PLACED_FEATURE, id("tainted_petals"));
 
+    private static void registerDeadWoodProperties() {
+        FlammableBlockRegistry fire = FlammableBlockRegistry.getDefaultInstance();
+        fire.add(DEAD_WOOD, 5, 5);
+        fire.add(SHATTERED_DEAD_WOOD, 5, 5);
+        fire.add(DEAD_WOOD_PLANKS, 5, 20);
+        fire.add(DEAD_WOOD_SLAB, 5, 20);
+        fire.add(DEAD_WOOD_STAIRS, 5, 20);
+        fire.add(DEAD_WOOD_FENCE, 5, 20);
+        fire.add(DEAD_WOOD_FENCE_GATE, 5, 20);
+
+    }
+
     @Override
     public void onInitialize() {
+        registerDeadWoodProperties();
         net.krodark.asterion.game.GameplayContent.initialize();
         net.krodark.asterion.game.EncounterKeyRecovery.initialize();
         net.krodark.asterion.game.ArenaDeathRecovery.initialize();

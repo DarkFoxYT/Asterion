@@ -1334,10 +1334,27 @@ public final class DismembermentEngine {
 
     public void forcePlayerTumble(Minecraft client, Vec3 sourcePosition, Vec3 impulse, float force) {
         if (client.player == null || client.level == null
-                || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)
-                || RagdollClientController.isAutomaticRagdollSuppressed(client)) return;
+                || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
         int entityId = client.player.getId();
-        if (!playerTumbles.contains(entityId)) togglePlayerTumble(client);
+        if (!playerTumbles.contains(entityId)) {
+            Vec3 direction = impulse.lengthSqr() > 1.0E-8D
+                    ? impulse.normalize() : client.player.getViewVector(1.0F);
+            // The authoritative state packet normally arrives before this impulse packet.
+            // In that order the body already exists in `ragdolled`, so the manual toggle
+            // deliberately refuses it. Promote that existing body to a player tumble (or
+            // create it when packets arrive in the opposite order) instead of dropping the hit.
+            if (ragdolled.contains(entityId) || ragdoll(client.player, 1,
+                    client.player.getBoundingBox().getCenter(), direction,
+                    Math.max(0.15F, force), false)) {
+                playerTumbles.add(entityId);
+                tumbleStartedAt.put(entityId, traumaDecayTicker);
+                for (RigidBodyPiece part : pieces) if (part.entityId == entityId) {
+                    part.velocity = impulse;
+                    part.angularVelocity = Vec3.ZERO;
+                    part.bounces = 0;
+                }
+            }
+        }
         applyFracturePose(entityId);
         if (playerTumbles.contains(entityId))
             externalDamage(client.player, sourcePosition, impulse, Math.max(0.1f, force), true);

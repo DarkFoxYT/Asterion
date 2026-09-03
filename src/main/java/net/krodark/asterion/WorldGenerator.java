@@ -1794,7 +1794,7 @@ public final class WorldGenerator {
 
     private static void fractureRoofAt(ServerLevel level, BlockPos.MutableBlockPos cursor,
                                        java.util.List<Vec3> launches, Vec3 center, double distance,
-                                       double angle, int width, int roofY) {
+                                       double angle, int roofY, int width) {
         int centerX = Mth.floor(center.x + Math.cos(angle) * distance);
         int centerZ = Mth.floor(center.z + Math.sin(angle) * distance);
         for (int dx = -width; dx <= width; dx++) for (int dz = -width; dz <= width; dz++) {
@@ -1806,7 +1806,7 @@ public final class WorldGenerator {
             for (int y = underside; y <= roofY; y++) {
                 cursor.set(x, y, z);
                 if (level.getBlockState(cursor).isAir()) continue;
-                level.setBlock(cursor, Blocks.AIR.defaultBlockState(), 2);
+                level.setBlock(cursor, Blocks.AIR.defaultBlockState(), 3);
                 removed = true;
             }
             if (removed) launches.add(new Vec3(x + .5D, underside - .15D, z + .5D));

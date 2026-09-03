@@ -21,6 +21,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.entity.MoverType;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -285,6 +286,11 @@ public final class PhysicsDebrisSystem {
 
     private static boolean simulateStep(ClientLevel level, Piece piece, double dt,
                                         List<Piece> fracturedChildren) {
+        boolean playerContact = resolvePlayerContact(level, piece, dt);
+        if (playerContact) {
+            piece.sleeping = false;
+            piece.restingTime = 0;
+        }
         if (piece.sleeping) {
             if (!isWorldClear(level, piece, piece.position.add(0, -.04, 0))) return false;
             piece.sleeping = false;
@@ -310,6 +316,7 @@ public final class PhysicsDebrisSystem {
         Vec3 increment = motion.scale(1.0 / sweeps);
         for (int sweep = 0; sweep < sweeps; sweep++) {
             Vec3 normal = move(level, piece, increment);
+            resolvePlayerContact(level, piece, dt / sweeps);
             if (normal == null) continue;
             double impactSpeed = Math.max(0.0, -piece.velocity.dot(normal));
             triggerImpactShake(level, piece, normal, impactSpeed);
@@ -384,6 +391,11 @@ public final class PhysicsDebrisSystem {
                     door.applyImpulse(lever, tangent.scale(-friction));
                 }
             }
+            if (resolvePlayerContact(level, door, h)) {
+                supported = false;
+                door.sleeping = false;
+                door.restingTime = 0;
+            }
         }
         if (supported) door.angularVelocity.mul((float)Math.pow(.92, dt));
         boolean slow = door.velocity.horizontalDistanceSqr() < .0025 && Math.abs(door.velocity.y) < .09
@@ -408,6 +420,73 @@ public final class PhysicsDebrisSystem {
                         SoundSource.BLOCKS, door.variant == 7 ? 1.6F : .8F, .5F, false);
             }
         }
+    }
+
+    /**
+     * Treats the local player's swept vanilla body as a finite-mass collider. Lightweight rubble
+     * takes most of the separation and momentum; slabs take less, while truly massive pieces
+     * become temporary solid obstacles and can pin the player until their overlap clears.
+     */
+    private static boolean resolvePlayerContact(ClientLevel level, Piece piece, double dt) {
+        Minecraft client = Minecraft.getInstance();
+        var player = client.player;
+        if (player == null || !player.isAlive() || player.isSpectator() || player.noPhysics) return false;
+
+        AABB playerBox = player.getBoundingBox().deflate(0.015D);
+        AABB debrisBox = boundsAt(piece, piece.position).inflate(0.025D);
+        if (!debrisBox.intersects(playerBox)) return false;
+        Vec3 playerHalf = new Vec3(playerBox.getXsize() * 0.5D, playerBox.getYsize() * 0.5D,
+                playerBox.getZsize() * 0.5D);
+        Collision contact = satContact(piece.position, piece.halfExtents(), axes(piece),
+                playerBox.getCenter(), playerHalf, WORLD_AXES);
+        if (contact == null) return false;
+
+        Vec3 towardPlayer = contact.normal;
+        double mass = piece.mass();
+        // One player has unit mass. This naturally ranges from mostly-debris motion for chips
+        // to almost entirely player displacement for a complete door leaf or huge roof slab.
+        double debrisShare = 1.0D / (1.0D + mass);
+        double playerShare = 1.0D - debrisShare;
+        double depth = Math.min(contact.depth + 0.0015D, 0.32D);
+        Vec3 debrisCorrection = towardPlayer.scale(-depth * debrisShare);
+        Vec3 before = piece.position;
+        move(level, piece, debrisCorrection);
+        double moved = piece.position.distanceTo(before);
+        double unresolved = Math.max(0.0D, depth - moved);
+        if (unresolved > 1.0E-5D)
+            player.move(MoverType.SELF, towardPlayer.scale(Math.min(0.24D, unresolved * Math.max(.35D, playerShare))));
+
+        Vec3 playerVelocity = player.getDeltaMovement();
+        Vec3 contactVelocity = piece.velocityAt(playerBox.getCenter());
+        double playerClosingSpeed = Math.max(0.0D,
+                playerVelocity.subtract(contactVelocity).dot(towardPlayer.scale(-1.0D)));
+        if (playerClosingSpeed > 0.002D && mass < 24.0D) {
+            Vec3 impulse = towardPlayer.scale(-Math.min(0.55D, playerClosingSpeed * (0.72D + dt * 0.28D)));
+            piece.applyImpulse(playerBox.getCenter().subtract(piece.position), impulse);
+            piece.angularVelocity.mul(0.96F);
+        }
+
+        double debrisClosingSpeed = Math.max(0.0D, contactVelocity.dot(towardPlayer));
+        if (debrisClosingSpeed > 0.015D) {
+            Vec3 shove = towardPlayer.scale(Math.min(0.42D, debrisClosingSpeed * Math.min(1.0D, mass * 0.12D)));
+            player.setDeltaMovement(playerVelocity.add(shove));
+        }
+
+        boolean overhead = towardPlayer.y < -0.42D;
+        boolean massive = mass >= 18.0D;
+        if (massive && overhead) {
+            // The pin exists only while SAT contact is present; moving/breaking debris releases
+            // the player immediately. Preserve a small downward component so gravity still reads.
+            Vec3 velocity = player.getDeltaMovement();
+            player.setDeltaMovement(velocity.x * 0.08D, Math.min(velocity.y, -0.035D), velocity.z * 0.08D);
+            player.setJumping(false);
+        } else if (massive && Math.abs(towardPlayer.y) < 0.42D) {
+            Vec3 velocity = player.getDeltaMovement();
+            double intoDebris = velocity.dot(towardPlayer.scale(-1.0D));
+            if (intoDebris > 0.0D) velocity = velocity.add(towardPlayer.scale(intoDebris * 0.92D));
+            player.setDeltaMovement(velocity);
+        }
+        return true;
     }
 
     private static void triggerImpactShake(ClientLevel level, Piece piece, Vec3 normal, double impactSpeed) {

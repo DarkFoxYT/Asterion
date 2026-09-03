@@ -79,13 +79,16 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
             var poses = posed.poseStack();
             poses.pushPose();
             if (bone.name().equals("body")) {
-                poses.translate(0, -.2, 1.2);
-                // The axe mesh is authored in hand space. Undo the quarter-turn when
-                // it is mounted across the torso; equipped and thrown poses stay untouched.
-                poses.mulPose(com.mojang.math.Axis.YN.rotationDegrees(90));
-                poses.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(30));
+                // Centre the axe itself on the upper back and turn its authored vertical
+                // axis across the shoulders. Using the grip offset here pushed the entire
+                // weapon sideways and made the fallback body attachment look crooked.
+                poses.translate(0, .55, 1.05);
+                poses.mulPose(com.mojang.math.Axis.XP.rotationDegrees(7));
+                poses.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(90));
+                poses.translate(0, -MinotaurAxeEntity.CENTER_Y, 0);
+            } else {
+                poses.translate(0, -MinotaurAxeEntity.GRIP_Y, 0);
             }
-            poses.translate(0, -MinotaurAxeEntity.GRIP_Y, 0);
             if (name.equals("axe_grip")) MinotaurAxeVisual.captureHand(
                     posed.renderState().getGeckolibData(OWNER), poses, posed.cameraState());
             MinotaurAxeVisual.submit(poses, tasks, posed.cameraState(), posed.packedLight(), 0);

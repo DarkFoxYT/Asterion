@@ -24,7 +24,7 @@ import java.util.function.BiConsumer;
 public final class MinotaurChainLayer extends GeoRenderLayer<MinotaurEntity, Void, EntityRenderState> {
     private static final DataTicket<Chain> CHAIN = DataTickets.create("asterion_minotaur_chain", Chain.class);
     private static final RenderType MATERIAL = RenderTypes.entityCutout(Asterion.id("textures/block/mazesteel_chain.png"));
-    private record Chain(Vec3 target, float ticks) {}
+    private record Chain(Vec3 target, float ticks, int arm) {}
 
     public MinotaurChainLayer(MinotaurGeoRenderer renderer) { super(renderer); }
 
@@ -33,14 +33,18 @@ public final class MinotaurChainLayer extends GeoRenderLayer<MinotaurEntity, Voi
         var target = boss.level().getEntity(boss.grabTargetEntityId());
         float ticks = boss.bossAttackAnimationTicks() + partial;
         if (target != null && target.isAlive() && ticks >= 12 && ticks < 36)
-            state.addGeckolibData(CHAIN, new Chain(target.getPosition(partial).add(0, target.getBbHeight() * .55, 0), ticks));
+            state.addGeckolibData(CHAIN, new Chain(target.getPosition(partial)
+                    .add(0, target.getBbHeight() * .55, 0), ticks, boss.reachArmSide()));
     }
 
     @Override public void addPerBoneRender(RenderPassInfo<EntityRenderState> pass,
             BiConsumer<GeoBone, PerBoneRender<EntityRenderState>> consumer) {
         Chain chain = pass.renderState().getOrDefaultGeckolibData(CHAIN, (Chain)null);
         if (chain == null || !pass.willRender() || pass.renderState().isInvisible) return;
-        pass.model().getBone("weapon_right").ifPresent(bone -> consumer.accept(bone, (posed, ignored, tasks) -> {
+        String forearmAnchor = chain.arm >= 0 ? "right_player_grip" : "left_player_grip";
+        String handFallback = chain.arm >= 0 ? "hand_itemR" : "hand_itemL";
+        pass.model().getBone(forearmAnchor).or(() -> pass.model().getBone(handFallback))
+                .ifPresent(bone -> consumer.accept(bone, (posed, ignored, tasks) -> {
             Vector3f hand = posed.poseStack().last().pose().transformPosition(new Vector3f());
             Vec3 start = new Vec3(hand.x, hand.y, hand.z);
             Vec3 target = chain.target.subtract(posed.cameraState().pos);

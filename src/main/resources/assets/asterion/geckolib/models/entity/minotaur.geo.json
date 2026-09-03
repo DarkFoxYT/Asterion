@@ -372,6 +372,11 @@
 					]
 				},
 				{
+					"name": "left_player_grip",
+					"parent": "lowerleftarm",
+					"pivot": [51, 81.75, 0.5]
+				},
+				{
 					"name": "lefthand",
 					"parent": "lowerleftarm",
 					"pivot": [41.5, 72.75, 0.5],
@@ -483,6 +488,11 @@
 							}
 						}
 					]
+				},
+				{
+					"name": "right_player_grip",
+					"parent": "lowerrightarm",
+					"pivot": [-51, 81.75, 0.5]
 				},
 				{
 					"name": "righthand",

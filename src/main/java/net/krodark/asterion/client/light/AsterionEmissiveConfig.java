@@ -50,8 +50,18 @@ public final class AsterionEmissiveConfig {
             }
             boolean softenVines = legacy || values.version < 6;
             if (softenVines && values.vineGlowStrength == .65F) values.vineGlowStrength = .55F;
+            boolean sharpenBloom = legacy || values.version < 7;
+            if (sharpenBloom) {
+                // The old three-quarter-resolution buffer made small eyes, runes and vines
+                // expand into a soft blob. Preserve customized profiles, but upgrade the
+                // shipped profile to a near-native, narrower fringe.
+                if (values.scale == .75F) values.scale = .95F;
+                if (values.intensity == 3.316F) values.intensity = 2.45F;
+                if (values.threshold == .047F) values.threshold = .075F;
+                if (values.knee == .25F) values.knee = .18F;
+            }
             sanitize();
-            if (upgradeEyes || upgradeFire || restoreAmnetic || softenVines) save();
+            if (upgradeEyes || upgradeFire || restoreAmnetic || softenVines || sharpenBloom) save();
         } catch (Exception exception) {
             Asterion.LOGGER.warn("Unable to load Asterion emissive config {}", PATH, exception);
             values = new Values();
@@ -111,25 +121,25 @@ public final class AsterionEmissiveConfig {
     }
 
     private static void sanitize() {
-        values.version = 6;
-        values.threshold = finiteClamp(values.threshold, 0.0F, 2.0F, 1.1F);
-        values.intensity = finiteClamp(values.intensity, 0.0F, 8.0F, 3.316F);
+        values.version = 7;
+        values.threshold = finiteClamp(values.threshold, 0.0F, 2.0F, .075F);
+        values.intensity = finiteClamp(values.intensity, 0.0F, 8.0F, 2.45F);
         values.levels = Mth.clamp(values.levels, 2, 3);
-        values.scale = finiteClamp(values.scale, 0.5F, 1.0F, 0.75F);
-        values.knee = finiteClamp(values.knee, 0.0F, 1.0F, 0.25F);
+        values.scale = finiteClamp(values.scale, 0.5F, 1.0F, 0.95F);
+        values.knee = finiteClamp(values.knee, 0.0F, 1.0F, 0.18F);
         values.minotaurEyeStrength = finiteClamp(values.minotaurEyeStrength, 0.0F, 1.0F, 1.0F);
         values.beetleFireStrength = finiteClamp(values.beetleFireStrength, 0.0F, 5.0F, 3.2F);
         values.vineGlowStrength = finiteClamp(values.vineGlowStrength, 0.0F, 1.0F, 0.55F);
     }
 
     private static final class Values {
-        private int version = 6;
+        private int version = 7;
         private boolean enabled = true;
-        private float threshold = .047F;
-        private float intensity = 3.316F;
+        private float threshold = .075F;
+        private float intensity = 2.45F;
         private int levels = 2;
-        private float scale = 0.75F;
-        private float knee = 0.25F;
+        private float scale = 0.95F;
+        private float knee = 0.18F;
         private float minotaurEyeStrength = 1.0F;
         private float beetleFireStrength = 3.2F;
         private float vineGlowStrength = 0.55F;
