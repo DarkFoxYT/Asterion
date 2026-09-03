@@ -29,7 +29,7 @@ import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
 
-/** A relentless, Greek-fire construct whose authored attack detonates on frame 186. */
+/** A rare Greek-fire ambusher whose authored attack detonates on frame 186. */
 public final class ConstructEntity extends PathfinderMob implements GeoEntity {
     private static final EntityDataAccessor<Boolean> ATTACKING = SynchedEntityData.defineId(
             ConstructEntity.class, EntityDataSerializers.BOOLEAN);
@@ -41,7 +41,6 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
     public static final int EXPLOSION_TICK = 155;
     private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
     private int attackTicks;
-    private int rageTicks;
 
     public ConstructEntity(EntityType<? extends ConstructEntity> type, Level level) {
         super(type, level);
@@ -79,11 +78,11 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
             Player target = nearestTarget();
             if (target != null) {
                 getLookControl().setLookAt(target, 40.0F, 40.0F);
-                if (attackTicks % 20 == 8) sprayGreekFire(server, target);
+                if (attackTicks % 32 == 12) sprayGreekFire(server, target);
             }
-            if ((attackTicks & 3) == 0)
+            if (attackTicks % 8 == 0)
                 server.sendParticles(Asterion.GREEK_FIRE, getX(), getY() + getBbHeight() * .5D, getZ(),
-                        3, .35D, .45D, .35D, .015D);
+                        1, .12D, .18D, .12D, .006D);
             if (++attackTicks >= EXPLOSION_TICK) {
                 WorldGenerator.queueConstructExplosionRepair(server, blockPosition(), 7);
                 server.explode(this, getX(), getY() + getBbHeight() * 0.45D, getZ(), 3.0F,
@@ -96,7 +95,6 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
             return;
         }
 
-        if (rageTicks > 0) rageTicks--;
         Player target = nearestTarget();
         if (target == null) {
             getNavigation().stop();
@@ -109,9 +107,8 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
             getNavigation().stop();
             playSound(SoundEvents.CREEPER_PRIMED, 1.0F, 0.8F);
         } else {
-            getNavigation().moveTo(target, rageTicks > 0 ? 1.35D : 1.15D);
-            if (tickCount % (rageTicks > 0 ? 10 : 16) == 0 && distanceToSqr(target) < 18.0D * 18.0D)
-                sprayGreekFire(server, target);
+            if (getNavigation().isDone() || tickCount % 10 == 0)
+                getNavigation().moveTo(target, 1.1D);
         }
     }
 
@@ -125,20 +122,16 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
         Vec3 direction = target.getBoundingBox().getCenter().subtract(origin);
         if (direction.lengthSqr() < 1.0E-5D || !hasLineOfSight(target)) return;
         direction = direction.normalize();
-        GasClouds.emitFlamethrower(level, origin, direction.scale(.43D), getUUID());
+        GasClouds.emitCompactFlamethrower(level, origin, direction.scale(.43D), getUUID());
         GasClouds.ignite(level, origin, getUUID());
         level.sendParticles(Asterion.GREEK_FIRE_SOOT, origin.x, origin.y, origin.z,
-                4, .15D, .15D, .15D, .02D);
+                1, .05D, .05D, .05D, .006D);
     }
 
     @Override public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
-        boolean hurt = super.hurtServer(level, source, amount);
-        if (hurt) {
-            rageTicks = Math.max(rageTicks, 120);
-            if (source.getEntity() instanceof Player attacker && !isAttacking())
-                getNavigation().moveTo(attacker, 1.45D);
-        }
-        return hurt;
+        // The closed shell is absolute armor. Its long, clearly telegraphed attack
+        // is the player's damage window, preventing ordinary spam-hit combat.
+        return isAttacking() && super.hurtServer(level, source, amount);
     }
 
     @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
@@ -154,14 +147,12 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
         super.addAdditionalSaveData(output);
         output.putBoolean("Attacking", isAttacking());
         output.putInt("AttackTicks", attackTicks);
-        output.putInt("RageTicks", rageTicks);
     }
 
     @Override protected void readAdditionalSaveData(ValueInput input) {
         super.readAdditionalSaveData(input);
         entityData.set(ATTACKING, input.getBooleanOr("Attacking", false));
         attackTicks = Math.clamp(input.getIntOr("AttackTicks", 0), 0, EXPLOSION_TICK);
-        rageTicks = Math.clamp(input.getIntOr("RageTicks", 0), 0, 120);
     }
 
     @Override public AnimatableInstanceCache getAnimatableInstanceCache() {

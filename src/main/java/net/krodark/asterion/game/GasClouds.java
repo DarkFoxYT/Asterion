@@ -18,15 +18,19 @@ public final class GasClouds {
     private static final Map<ServerLevel, List<Cloud>> CLOUDS = new IdentityHashMap<>();
     private GasClouds() { }
     public static void emit(ServerLevel level, Vec3 origin, Vec3 velocity, UUID owner) {
-        emit(level, origin, velocity, owner, false);
+        emit(level, origin, velocity, owner, false, false);
     }
     public static void emitFlamethrower(ServerLevel level, Vec3 origin, Vec3 velocity, UUID owner) {
-        emit(level, origin, velocity, owner, true);
+        emit(level, origin, velocity, owner, true, false);
     }
-    private static void emit(ServerLevel level, Vec3 origin, Vec3 velocity, UUID owner, boolean flamethrower) {
+    public static void emitCompactFlamethrower(ServerLevel level, Vec3 origin, Vec3 velocity, UUID owner) {
+        emit(level, origin, velocity, owner, true, true);
+    }
+    private static void emit(ServerLevel level, Vec3 origin, Vec3 velocity, UUID owner,
+                             boolean flamethrower, boolean compact) {
         var clouds = CLOUDS.computeIfAbsent(level, ignored -> new ArrayList<>());
         if (clouds.size() >= 256 || clouds.stream().filter(c -> Objects.equals(c.owner, owner)).count() >= 64) return;
-        clouds.add(new Cloud(origin, velocity, owner, flamethrower));
+        clouds.add(new Cloud(origin, velocity, owner, flamethrower, compact));
     }
     public static boolean ignite(ServerLevel level, Vec3 origin, UUID owner) {
         boolean ignited = false;
@@ -86,7 +90,9 @@ public final class GasClouds {
                 if (cloud.age % 4 == 0) level.sendParticles(cloud.flamethrower
                         ? (cloud.burn > 0 ? Asterion.GREEK_FIRE : Asterion.FLAMETHROWER_GAS)
                         : (cloud.burn > 0 ? Asterion.BOMBARDIER_GAS_FIRE : Asterion.BOMBARDIER_STENCH),
-                        cloud.pos.x, cloud.pos.y, cloud.pos.z, 3, .38, .25, .38, .005);
+                        cloud.pos.x, cloud.pos.y, cloud.pos.z, cloud.compact ? 1 : 3,
+                        cloud.compact ? .07 : .38, cloud.compact ? .05 : .25,
+                        cloud.compact ? .07 : .38, cloud.compact ? .002 : .005);
                 if (cloud.age % (cloud.burn>0 ? 10 : 20) != 0) continue;
                 for (var victim : level.getEntitiesOfClass(LivingEntity.class, new AABB(cloud.pos, cloud.pos).inflate(1.2))) {
                     if (!victim.isAlive() || victim.getUUID().equals(cloud.owner) || hit.contains(victim.getUUID())
@@ -115,7 +121,10 @@ public final class GasClouds {
         return ((long)x&0x1fffffL)<<42|((long)y&0x1fffffL)<<21|((long)z&0x1fffffL);
     }
     private static final class Cloud {
-        Vec3 pos, velocity; final UUID owner; final boolean flamethrower; int age, burn;
-        Cloud(Vec3 pos, Vec3 velocity, UUID owner, boolean flamethrower) { this.pos = pos; this.velocity = velocity; this.owner = owner; this.flamethrower = flamethrower; }
+        Vec3 pos, velocity; final UUID owner; final boolean flamethrower, compact; int age, burn;
+        Cloud(Vec3 pos, Vec3 velocity, UUID owner, boolean flamethrower, boolean compact) {
+            this.pos = pos; this.velocity = velocity; this.owner = owner;
+            this.flamethrower = flamethrower; this.compact = compact;
+        }
     }
 }

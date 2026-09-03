@@ -83,7 +83,7 @@ public final class GameplayGameTest implements FabricClientGameTest {
 
                 var scars=SingedScars.get(mc);
                 int before=scars.lostHearts(player);scars.scar(player);
-                check(scars.lostHearts(player)==before+1&&player.getMaxHealth()==18,"Permanent heart scar not applied");
+                check(scars.lostHearts(player)==before+1&&player.getMaxHealth()==18,"Timed heart scar not applied");
                 var value=SingedScars.class.getDeclaredField("CODEC");value.setAccessible(true);
                 @SuppressWarnings("unchecked") var codec=(com.mojang.serialization.Codec<SingedScars>)value.get(null);
                 var encoded=codec.encodeStart(net.minecraft.nbt.NbtOps.INSTANCE,scars).getOrThrow();
@@ -97,7 +97,7 @@ public final class GameplayGameTest implements FabricClientGameTest {
                 var brazier=GameplayContent.CURSED_BRAZIER.create(level,EntitySpawnReason.COMMAND);brazier.setPos(4,121,2);level.addFreshEntity(brazier);
                 level.setBlock(new BlockPos(-3,121,2),GameplayContent.SPEWER.defaultBlockState(),3);
                 player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,new ItemStack(GameplayContent.FLAMETHROWER));
-                Asterion.LOGGER.info("PASS: fixed mining time, portal range, saved trap phase, damage/occlusion, bug support/breathing and persistent Singed scars");
+                Asterion.LOGGER.info("PASS: fixed mining time, portal range, saved trap phase, damage/occlusion, bug support/breathing and timed Singed scars");
             });
             context.waitTicks(20);
             context.takeScreenshot("new-traps-rune-beetle-cursed-brazier");
