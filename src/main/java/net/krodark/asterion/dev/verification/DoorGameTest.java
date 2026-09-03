@@ -280,12 +280,14 @@ public final class DoorGameTest implements FabricClientGameTest {
                         "The player's gate lowered during the cutscene");
                 check(gateIsOpen(maze, Direction.NORTH),
                         "The boss gate closed before the Minotaur could enter");
+                check(maze.getBlockState(MinotaurArenaEntrances.OMEGA_LOCK_POSITION).isAir(),
+                        "The Omega Lock remained visible during the gate cutscene");
                 check(maze.noCollision(player), "The closing gate crushed the player");
             });
             context.takeScreenshot("arena-cinematic-rattle");
-            context.waitTicks(27);
+            context.waitTicks(55);
             context.takeScreenshot("arena-boss-kick");
-            context.waitTicks(15);
+            context.waitTicks(22);
             context.takeScreenshot("arena-boss-breach");
             server.runOnServer(mc -> {
                 var level = mc.getLevel(Asterion.ASTERION_LEVEL);
@@ -306,6 +308,8 @@ public final class DoorGameTest implements FabricClientGameTest {
                         "Boss broke the player's entrance too");
                 check(!level.getBlockState(MinotaurArenaEntrances.door(Direction.NORTH)).is(Asterion.MINOTAUR_DOOR),
                         "Boss entrance door was rebuilt after the cutscene");
+                check(level.getBlockState(MinotaurArenaEntrances.OMEGA_LOCK_POSITION).is(Asterion.OMEGA_LOCK),
+                        "The Omega Lock did not return when the gate cutscene ended");
                 boolean entered = false;
                 for (var entity : level.getAllEntities()) if (entity instanceof MinotaurEntity boss)
                     entered |= boss.behaviorPhase() == MinotaurEntity.BehaviorPhase.BOSS

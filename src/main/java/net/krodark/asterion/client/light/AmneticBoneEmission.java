@@ -88,7 +88,9 @@ public final class AmneticBoneEmission {
                     .extraSampler("TextureSampler", texture, 0, false)
                     .phase(InstancePhase.WORLD_LAST).manual().emissive()
                     .renderState(RenderState.builder().depthTest(true).depthWrite(false)
-                            .backfaceCulling(false).blend(RenderState.BlendMode.ALPHA).build())
+                            // Only exposed, front-facing pixels may seed bloom. Rendering the
+                            // reverse faces let a glow bone illuminate through its enclosing geo.
+                            .backfaceCulling(true).blend(RenderState.BlendMode.ALPHA).build())
                     .onRender((ctx, batch) -> {
                         // Manual mesh: only the official emissive-source hook invokes this draw.
                         for (int i = 0; i < count; i++) batch.add(poses.get(i));

@@ -115,6 +115,12 @@ public abstract class CameraMixin {
             setPosition(brazier.position());
             setRotation(brazier.yaw(), brazier.pitch());
         }
+        net.krodark.asterion.client.RoofCollapseCinematic.CameraPose collapse =
+                net.krodark.asterion.client.RoofCollapseCinematic.cameraPose(position(), partial);
+        if (collapse != null) {
+            setPosition(collapse.position());
+            setRotation(collapse.yaw(), collapse.pitch());
+        }
         DeadSunClientEvents.Sample doorShake = net.krodark.asterion.client.MinotaurDoorShake.sample(position(), partial);
         if (doorShake != DeadSunClientEvents.Sample.NONE) {
             setPosition(position().add(doorShake.cameraOffset()));
@@ -125,7 +131,7 @@ public abstract class CameraMixin {
             setPosition(position().add(sample.cameraOffset()));
             setRotation(yRot() + sample.yawDegrees(), xRot() + sample.pitchDegrees());
         }
-        if (shot == null && finale == null && entrance == null && brazier == null && minecraft.player != null
+        if (shot == null && finale == null && entrance == null && brazier == null && collapse == null && minecraft.player != null
                 && minecraft.player.getVehicle() instanceof ScarletCentipedeEntity centipede) {
             Quaternionf target = SurfaceOrientation.cameraTilt(centipede.passengerNormal(minecraft.player, partial));
             float frameTicks = Math.max(0.05F, tracker.getGameTimeDeltaTicks());
@@ -151,7 +157,7 @@ public abstract class CameraMixin {
             matrixPropertiesDirty |= 3;
             asterion$rebuildCinematicFrustum(minecraft);
         } else asterion$centipedeTilt.identity();
-        if (shot != null || finale != null || entrance != null || brazier != null)
+        if (shot != null || finale != null || entrance != null || brazier != null || collapse != null)
             asterion$rebuildCinematicFrustum(minecraft);
     }
 

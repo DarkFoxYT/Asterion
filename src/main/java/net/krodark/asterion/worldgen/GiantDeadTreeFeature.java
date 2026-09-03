@@ -11,6 +11,8 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
@@ -23,6 +25,58 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
 
     public GiantDeadTreeFeature(Codec<NoneFeatureConfiguration> codec) {
         super(codec);
+    }
+
+    /** Repairs the exact four-layer opening made by the pre-fix centered road carver. */
+    public static void repairLegacyTrunkGaps(ServerLevel level, LevelChunk chunk, boolean legacyChunk) {
+        BlockPos marker = new BlockPos(chunk.getPos().getMinBlockX() + 2, 1,
+                chunk.getPos().getMinBlockZ());
+        if (chunk.getBlockState(marker).is(net.minecraft.world.level.block.Blocks.BEDROCK)) return;
+        if (legacyChunk) {
+            BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+            int minX = chunk.getPos().getMinBlockX(), maxX = chunk.getPos().getMaxBlockX();
+            int minZ = chunk.getPos().getMinBlockZ(), maxZ = chunk.getPos().getMaxBlockZ();
+            long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
+            for (int x = minX; x <= maxX; x++) for (int z = minZ; z <= maxZ; z++) {
+                int floorY = net.krodark.asterion.WorldGenerator.mazeFloorHeight(seed, x, z);
+                if (!isTreeWood(chunk.getBlockState(cursor.set(x, floorY, z)))
+                        || !chunk.getBlockState(cursor.set(x, floorY + 1, z)).isAir()) continue;
+                BlockPos upper = nearestUpperTrunk(chunk, x, floorY + 5, z, minX, maxX, minZ, maxZ);
+                if (upper == null) continue;
+                for (int step = 1; step <= 4; step++) {
+                    double progress = step / 5.0D;
+                    int repairX = Mth.floor(x + (upper.getX() - x) * progress + .5D);
+                    int repairZ = Mth.floor(z + (upper.getZ() - z) * progress + .5D);
+                    cursor.set(repairX, floorY + step, repairZ);
+                    if (chunk.getBlockState(cursor).isAir())
+                        chunk.setBlockState(cursor, Asterion.DEAD_WOOD.defaultBlockState()
+                                .setValue(RotatedPillarBlock.AXIS, Direction.Axis.Y), 0);
+                }
+            }
+        }
+        chunk.setBlockState(marker, net.minecraft.world.level.block.Blocks.BEDROCK.defaultBlockState(), 0);
+    }
+
+    private static BlockPos nearestUpperTrunk(LevelChunk chunk, int x, int y, int z,
+                                               int minX, int maxX, int minZ, int maxZ) {
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        BlockPos closest = null;
+        int closestDistance = Integer.MAX_VALUE;
+        for (int dx = -3; dx <= 3; dx++) for (int dz = -3; dz <= 3; dz++) {
+            int testX = x + dx, testZ = z + dz;
+            if (testX < minX || testX > maxX || testZ < minZ || testZ > maxZ) continue;
+            if (!isTreeWood(chunk.getBlockState(cursor.set(testX, y, testZ)))) continue;
+            int distance = dx * dx + dz * dz;
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closest = cursor.immutable();
+            }
+        }
+        return closest;
+    }
+
+    private static boolean isTreeWood(BlockState state) {
+        return state.is(Asterion.DEAD_WOOD) || state.is(Asterion.SHATTERED_DEAD_WOOD);
     }
 
     @Override
@@ -93,8 +147,9 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
                     apexRadius, random);
         }
 
-        // Preserve a clear maze road through the massive base instead of creating a plug.
-        carveRoad(level, base, tangent, diameter + 5);
+        // Route the walkable lane around the trunk's open side. The old centered lane
+        // cut rises 1-4 out of every trunk and left the crown visibly floating.
+        carveRoad(level, base, tangent, diameter + 5, diameter);
     }
 
     private static void growButtressRoots(WorldGenLevel level, BlockPos base, int diameter,
@@ -244,10 +299,11 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
     }
 
     private static void carveRoad(WorldGenLevel level, BlockPos base, Direction road,
-                                  int length) {
+                                  int length, int trunkDiameter) {
         Direction side = road.getClockWise();
+        int openSideOffset = Math.max(2, (trunkDiameter + 1) / 2 + 1);
         for (int along = -length / 2; along <= length / 2; along++) {
-            for (int across = -1; across <= 1; across++) {
+            for (int across = openSideOffset; across <= openSideOffset + 2; across++) {
                 for (int rise = 1; rise <= 4; rise++) {
                     BlockPos pos = base.relative(road, along).relative(side, across).above(rise);
                     if (!OvergrowthFeatureSupport.canWrite(level, pos)) continue;

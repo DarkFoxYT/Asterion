@@ -125,6 +125,35 @@ public final class AuthoredCatacombs {
         placeCursedBrazierRooms(level, world, chunk, clip, seed);
     }
 
+    /** Opens the new loop seams in pre-loop saves without replacing whole authored rooms. */
+    public static void retrofitWovenConnections(ServerLevel level, LevelChunk chunk) {
+        long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
+        BoundingBox clip = new BoundingBox(chunk.getPos().getMinBlockX(), BASE_Y,
+                chunk.getPos().getMinBlockZ(), chunk.getPos().getMaxBlockX(), BASE_Y + 30,
+                chunk.getPos().getMaxBlockZ());
+        int minTx = Math.floorDiv(chunk.getPos().getMinBlockX() - 1, SIZE);
+        int maxTx = Math.floorDiv(chunk.getPos().getMaxBlockX() + 1, SIZE);
+        int minTz = Math.floorDiv(chunk.getPos().getMinBlockZ() - 1, SIZE);
+        int maxTz = Math.floorDiv(chunk.getPos().getMaxBlockZ() + 1, SIZE);
+        var air = Blocks.AIR.defaultBlockState();
+        for (int tx = minTx; tx <= maxTx; tx++) for (int tz = minTz; tz <= maxTz; tz++) {
+            BlockPos center = new BlockPos(tx * SIZE + 9, CONNECTOR_Y, tz * SIZE + 9);
+            for (Direction side : new Direction[]{Direction.EAST, Direction.SOUTH}) {
+                if (!CatacombLayout.wovenConnection(seed, tx, tz, side)) continue;
+                BlockPos seam = center.relative(side, 9);
+                Direction acrossDirection = side.getClockWise();
+                for (int depth = 0; depth <= 1; depth++)
+                    for (int across = -3; across <= 3; across++)
+                        for (int y = -1; y <= 6; y++) {
+                            BlockPos pos = seam.relative(side, depth)
+                                    .relative(acrossDirection, across).above(y);
+                            if (clip.isInside(pos)) level.setBlock(pos, air, 18);
+                        }
+            }
+        }
+        chunk.markUnsaved();
+    }
+
     private static void placeCursedBrazierRooms(ServerLevel level,
                                                 net.minecraft.world.level.ServerLevelAccessor world,
                                                 ChunkPos chunk, BoundingBox clip, long seed) {

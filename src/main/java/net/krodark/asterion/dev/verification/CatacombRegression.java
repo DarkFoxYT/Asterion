@@ -11,7 +11,7 @@ public final class CatacombRegression {
     private static int checks;
     public static void main(String[] args) throws Exception {
         Set<String> selected = new HashSet<>();
-        int total=0, occupied=0, puzzles=0, deadends=0;
+        int total=0, occupied=0, puzzles=0, deadends=0, wovenLinks=0;
         for (long seed : new long[]{0,-1,894237,Long.MIN_VALUE,Long.MAX_VALUE}) {
             for (int x=-24; x<=24; x++) for(int z=-24; z<=24; z++) {
                 if (CatacombLayout.reserved(x,z)) continue;
@@ -29,6 +29,8 @@ public final class CatacombRegression {
                 require((module.exits() & module.blocked()) == 0,"An active connection was capped");
                 for (Direction side : Direction.Plane.HORIZONTAL)
                     require(CatacombLayout.connected(seed,x,z,side)==CatacombLayout.connected(seed,x+side.getStepX(),z+side.getStepZ(),side.getOpposite()),"Mismatched seam");
+                if (CatacombLayout.wovenConnection(seed, x, z, Direction.EAST)) wovenLinks++;
+                if (CatacombLayout.wovenConnection(seed, x, z, Direction.SOUTH)) wovenLinks++;
                 int px=x,pz=z,steps=0;
                 while(px!=CatacombLayout.ROOT_X || pz!=CatacombLayout.ROOT_Z) {
                     var parent=CatacombLayout.parent(seed,px,pz);
@@ -40,6 +42,10 @@ public final class CatacombRegression {
             }
         }
         require(occupied>total*.30 && occupied<total*.50,"Layout too dense or too sparse: "+occupied+"/"+total);
+        require(deadends < occupied * .18, "Catacomb network regressed to too many dead ends: "
+                + deadends + "/" + occupied);
+        require(wovenLinks > occupied * .04, "Catacomb network has too few alternate links: "
+                + wovenLinks + "/" + occupied);
         require(puzzles>0 && puzzles<deadends*.06,"Puzzle rooms are not rare: "+puzzles+"/"+deadends);
         require(AuthoredCatacombs.BRAZIER_ROOM_ORIGINS.size()==3,
                 "Expected three authored Cursed Brazier chambers");
@@ -59,7 +65,8 @@ public final class CatacombRegression {
                 }
             }
         }
-        System.out.println("Layout sample: "+occupied+" occupied / "+total+" cells; "+puzzles+" puzzles / "+deadends+" dead ends");
+        System.out.println("Layout sample: "+occupied+" occupied / "+total+" cells; "+puzzles
+                +" puzzles / "+deadends+" dead ends / "+wovenLinks+" woven links");
         require(selected.containsAll(AuthoredCatacombs.TEMPLATES),"Unreachable variants: "+AuthoredCatacombs.TEMPLATES.stream().filter(n->!selected.contains(n)).toList());
         for(String name:AuthoredCatacombs.TEMPLATES) template(name,19,31,19);
         for(int part=1;part<=9;part++) template("arena_part"+part,41,48,41);

@@ -595,6 +595,9 @@ public class Asterion implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(DimensionTransitionPayload.TYPE, DimensionTransitionPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(EntryOmenPayload.TYPE, EntryOmenPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(BossFinalePayload.TYPE, BossFinalePayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(
+                net.krodark.asterion.network.RoofCollapsePayload.TYPE,
+                net.krodark.asterion.network.RoofCollapsePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.BossEntrancePayload.TYPE,
                 net.krodark.asterion.network.BossEntrancePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(
@@ -699,9 +702,17 @@ public class Asterion implements ModInitializer {
                 MobCategory.CREATURE, SCARLET_CENTIPEDE, 5, 1, 1);
         BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID),
                 MobCategory.MONSTER, CONSTRUCT, 8, 1, 2);
-        // Crypts and boss rooms are beetle territory. Reject centipedes from every
-        // spawn path there, including natural biome spawning, eggs and commands.
+        // Enforce maze-zone creature restrictions for every spawn path, including
+        // natural biome spawning, eggs and commands.
         ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {
+            if (entity instanceof ConstructEntity
+                    && level.dimension().equals(ASTERION_LEVEL)
+                    && (WorldGenerator.isOvergrowthBiomeAt(entity.getX(), entity.getZ())
+                    || Math.abs((long)entity.getBlockX()) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS
+                    && Math.abs((long)entity.getBlockZ()) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS)) {
+                entity.discard();
+                return;
+            }
             if (entity instanceof ScarletCentipedeEntity
                     && level.dimension().equals(ASTERION_LEVEL)
                     && (!WorldGenerator.isAncientBiomeAt(entity.getX(),entity.getZ())

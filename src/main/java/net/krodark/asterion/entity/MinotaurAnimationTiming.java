@@ -30,7 +30,7 @@ public final class MinotaurAnimationTiming {
     public static final Track SHEATHE_AXE = track(20, 1.0);
     public static final Track ROAR = track(150, 7.4713);
     // Door impact coincides with the jaw opening; the sustained roar plays after the entrance advance.
-    public static final Track ENTRY_ROAR = new Track(new double[]{0, 52, 70, 100, 138, 150},
+    public static final Track ENTRY_ROAR = new Track(new double[]{0, 78, 112, 128, 142, 150},
             new double[]{0, 2.2989, 3.0172, 3.8793, 6.8966, 7.4713});
     public static final Track FIRE_ROAR = new Track(new double[]{0, 18, 24, 78, 92, 108},
             new double[]{0, 2.5862, 3.0172, 5.364, 6.1303, 7.4713});

@@ -11,6 +11,7 @@ import net.krodark.asterion.Asterion;
 import net.krodark.asterion.block.RespawnObelisks;
 import net.krodark.asterion.network.QueenBeetleQuestPayload;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EntityType;
@@ -20,6 +21,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -36,6 +38,7 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
     public QueenBeetleEntity(EntityType<? extends QueenBeetleEntity> type, Level level) {
         super(type, level);
         setPersistenceRequired();
+        setInvulnerable(true);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -50,6 +53,15 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
         goalSelector.addGoal(0, new FloatGoal(this));
         goalSelector.addGoal(1, new WaterAvoidingRandomStrollGoal(this, 0.7D, 0.012F));
         goalSelector.addGoal(2, new RandomLookAroundGoal(this));
+    }
+
+    @Override public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
+        return false;
+    }
+
+    @Override public void kill(ServerLevel level) {
+        // She is a persistent quest NPC, not a combat target. Administrative removal can
+        // still use /data or entity discard paths without exposing a normal death state.
     }
 
     @Override protected InteractionResult mobInteract(Player player, InteractionHand hand) {

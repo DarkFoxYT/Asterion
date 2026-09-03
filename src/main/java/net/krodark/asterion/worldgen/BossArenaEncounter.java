@@ -40,6 +40,7 @@ public final class BossArenaEncounter {
         // control. This also repairs partially closed gates left by an interrupted intro.
         MinotaurArenaEntrances.setGates(level, 0, null);
         active = new Encounter(level, boss.getUUID(), entry.getOpposite(), level.getGameTime());
+        MinotaurArenaEntrances.setOmegaLockVisible(level, false);
         admit(level, trigger, entry);
         // Include the nearby party before anything closes; never pull players from elsewhere in the maze.
         for (ServerPlayer player : List.copyOf(level.players())) {
@@ -104,6 +105,10 @@ public final class BossArenaEncounter {
         var entity = level.getEntity(active.boss);
         if (!(entity instanceof MinotaurEntity boss) || !boss.isAlive()) { finish(level); return; }
         int elapsed = (int)(level.getGameTime() - active.start);
+        if (elapsed >= INTRO_TICKS && !active.omegaLockRestored) {
+            MinotaurArenaEntrances.setOmegaLockVisible(level, true);
+            active.omegaLockRestored = true;
+        }
         tickArenaCreatures(level, elapsed);
         // A late party member in an entrance corridor is admitted safely, never trapped behind a gate.
         for (ServerPlayer player : List.copyOf(level.players())) if (eligible(player) && !active.participants.contains(player.getUUID())) {
@@ -205,6 +210,11 @@ public final class BossArenaEncounter {
 
     public static boolean isSealed(ServerLevel level) { return active != null && active.level == level; }
 
+    public static boolean isIntroCinematic(ServerLevel level) {
+        return active != null && active.level == level
+                && level.getGameTime() - active.start < INTRO_TICKS;
+    }
+
     public static boolean sealsDoor(net.minecraft.world.level.Level level, BlockPos root, Direction facing) {
         return level instanceof ServerLevel server && isSealed(server) && root.equals(MinotaurArenaEntrances.door(facing));
     }
@@ -241,6 +251,8 @@ public final class BossArenaEncounter {
 
     public static void clear() {
         if (active != null) {
+            if (!active.omegaLockRestored)
+                MinotaurArenaEntrances.setOmegaLockVisible(active.level, true);
             for (Lock lock : active.locks.values()) release(lock);
             for (UUID id : active.beetles) {
                 var beetle = active.level.getEntity(id);
@@ -275,6 +287,7 @@ public final class BossArenaEncounter {
         final Set<UUID> participants = new LinkedHashSet<>();
         final Map<UUID, Lock> locks = new HashMap<>();
         final Map<Direction, Integer> closedRows = new EnumMap<>(Direction.class);
+        boolean omegaLockRestored;
         Encounter(ServerLevel level, UUID boss, Direction door, long start) {
             this.level = level; this.boss = boss; this.bossDoor = door; this.start = start;
         }

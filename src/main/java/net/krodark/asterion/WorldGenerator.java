@@ -151,7 +151,9 @@ public final class WorldGenerator {
             MazeNbtStructures.Layout layout = mazeStructureLayout(level);
             layout.onChunkBuilt(chunk);
         }
-        installMazeWallCores(level, chunk);
+        installMazeWallCores(level, chunk, !newlyGenerated);
+        net.krodark.asterion.worldgen.GiantDeadTreeFeature.repairLegacyTrunkGaps(
+                level, chunk, !newlyGenerated);
     }
 
     public static void onChunkGenerate(ServerLevel level, LevelChunk chunk) {
@@ -421,6 +423,33 @@ public final class WorldGenerator {
                 level.getGameTime() + restoreDelay));
     }
 
+    /** Restores only terrain actually removed by a construct blast; mined wall skins stay broken. */
+    public static void queueConstructExplosionRepair(ServerLevel level, BlockPos center, int radius) {
+        if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
+        long dueTick = level.getGameTime() + 80L;
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        int radiusSqr = radius * radius;
+        for (int x = center.getX() - radius; x <= center.getX() + radius; x++)
+            for (int y = center.getY() - radius; y <= center.getY() + radius; y++)
+                for (int z = center.getZ() - radius; z <= center.getZ() + radius; z++) {
+                    int dx = x - center.getX(), dy = y - center.getY(), dz = z - center.getZ();
+                    if (dx * dx + dy * dy + dz * dz > radiusSqr) continue;
+                    cursor.set(x, y, z);
+                    BlockState state = level.getBlockState(cursor);
+                    BlockKey key = new BlockKey(level.dimension(), cursor.immutable());
+                    if (state.isAir() || !state.getFluidState().isEmpty()
+                            || state.is(Asterion.MAZE_WALL_CORE)
+                            || state.getDestroySpeed(level, cursor) < 0.0F
+                            || level.getBlockEntity(cursor) != null
+                            || PLAYER_PLACED_BLOCKS.containsKey(key)
+                            || net.krodark.asterion.worldgen.CatacombProtection.isOre(state)
+                            || isActivePortalProtected(level, cursor)) continue;
+                    RESTORING_BLOCKS.removeIf(entry -> entry.dimension.equals(level.dimension())
+                            && entry.pos.equals(key.pos));
+                    RESTORING_BLOCKS.add(new RestoringBlock(level.dimension(), key.pos, state, dueTick));
+                }
+    }
+
     private static boolean shouldRestoreMazeBreak(ServerLevel level, BlockPos pos) {
         long seed = net.krodark.asterion.worldgen.MazeChunkGenerator
                 .terrainSeed(level.getChunkSource().randomState());
@@ -440,7 +469,7 @@ public final class WorldGenerator {
         return net.krodark.asterion.worldgen.CatacombProtection.contains(level, pos);
     }
 
-    private static void installMazeWallCores(ServerLevel level, LevelChunk chunk) {
+    private static void installMazeWallCores(ServerLevel level, LevelChunk chunk, boolean legacyChunk) {
         long seed = net.krodark.asterion.worldgen.MazeChunkGenerator
                 .terrainSeed(level.getChunkSource().randomState());
         AsterionConfig config = AsterionConfig.INSTANCE;
@@ -450,14 +479,24 @@ public final class WorldGenerator {
         MazeTopology topology = topology(seed, radius, config.mazeLoopChance, config.mazeLandmarkChance);
         MazeNbtStructures.Layout structures = ENABLE_MAZE_NBT_STRUCTURES
                 ? mazeStructureLayout(level) : MazeNbtStructures.emptyLayout();
+        BlockPos migrationMarker = new BlockPos(chunk.getPos().getMinBlockX() + 1, 1,
+                chunk.getPos().getMinBlockZ());
+        boolean expandLegacyShell = legacyChunk && !chunk.getBlockState(migrationMarker).is(Blocks.BEDROCK);
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (int x = chunk.getPos().getMinBlockX(); x <= chunk.getPos().getMaxBlockX(); x++) {
             for (int z = chunk.getPos().getMinBlockZ(); z <= chunk.getPos().getMaxBlockZ(); z++) {
                 if (isPitOpening(x, z) || isPitShaftWall(x, z)) continue;
                 int floorY = structures.floorY(x, z, mazeFloorY(seed, x, z, cell));
                 MazeBiomes.Biome biome = mazeBiomeAt(seed, x, z, cell);
-                if (!isMazeWallCore(topology, structures, seed, biome,
-                        x, z, cell, thickness, radius)) continue;
+                boolean wall = isWall(topology, structures, seed, biome,
+                        x, z, cell, thickness, radius);
+                if (!wall) continue;
+                boolean core = isMazeWallCore(topology, structures, seed, biome,
+                        x, z, cell, thickness, radius);
+                // Version 24 widened old two-block walls by exactly their newly claimed
+                // shell cells. Existing mined openings in the original footprint remain open.
+                boolean newShell = expandLegacyShell && !isWall(topology, structures, seed, biome,
+                        x, z, cell, 2, radius);
                 int wallHeight = biome.kind() == MazeBiomes.Kind.CRIMSON_MARSHLANDS
                         ? Math.min(DIMENSION_CEILING_Y - floorY - 2,
                                 Math.max(config.wallHeight + 28, 56))
@@ -465,11 +504,17 @@ public final class WorldGenerator {
                 for (int rise = 1; rise <= wallHeight; rise++) {
                     cursor.set(x, floorY + rise, z);
                     BlockState current = chunk.getBlockState(cursor);
-                    if (current.is(Asterion.MAZE_WALL_CORE) || !isMazeWallMaterial(current)) continue;
-                    chunk.setBlockState(cursor, Asterion.MAZE_WALL_CORE.defaultBlockState(), 0);
+                    if (core) {
+                        if (!current.is(Asterion.MAZE_WALL_CORE) && isMazeWallMaterial(current))
+                            chunk.setBlockState(cursor, Asterion.MAZE_WALL_CORE.defaultBlockState(), 0);
+                    } else if (newShell && current.isAir()) {
+                        chunk.setBlockState(cursor, patternedWall(seed, x, rise, z, biome, cell, radius), 0);
+                    }
                 }
             }
         }
+        if (!chunk.getBlockState(migrationMarker).is(Blocks.BEDROCK))
+            chunk.setBlockState(migrationMarker, Blocks.BEDROCK.defaultBlockState(), 0);
     }
 
     private static boolean isMazeWallMaterial(BlockState state) {
@@ -1031,7 +1076,8 @@ public final class WorldGenerator {
         if (bossFinale != null) return;
         if (AsterionWorldState.get(maze).minotaurDefeated()) {
             for (Entity entity : maze.getAllEntities())
-                if (entity instanceof MinotaurEntity) entity.discard();
+                if (entity instanceof MinotaurEntity minotaur && !minotaur.isDefeatedBoss())
+                    entity.discard();
             return;
         }
         List<ServerPlayer> players = maze.players().stream()
@@ -1184,8 +1230,6 @@ public final class WorldGenerator {
         if (finale.ticks >= 260 && finale.ticks < 310) for (ServerPlayer player : maze.players())
             player.setDeltaMovement(Vec3.ZERO);
         if (finale.ticks == 310) {
-            Entity boss = maze.getEntityInAnyDimension(finale.bossId);
-            if (boss != null) boss.discard();
             for (ServerPlayer player : new ArrayList<>(maze.players())) {
                 finale.previousInvulnerability.putIfAbsent(player.getUUID(), player.isInvulnerable());
                 player.addItem(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.ECHO_SHARD, 8));
@@ -1552,6 +1596,21 @@ public final class WorldGenerator {
         }
         level.sendParticles(ParticleTypes.EXPLOSION, pillar.x + 0.5D, BOSS_FLOOR_Y + 7.0D,
                 pillar.z + 0.5D, 12, 1.2D, 5.0D, 1.2D, 0.04D);
+        // The roof immediately sheds weight above a failed support, foreshadowing the
+        // phase transition instead of leaving the ceiling visually unaffected.
+        double roofY = net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y + 46.0D;
+        for (int fragment = 0; fragment < 22; fragment++) {
+            Vec3 origin = new Vec3(pillar.x + .5D + (level.getRandom().nextDouble() - .5D) * 8.0D,
+                    roofY - level.getRandom().nextDouble() * 2.0D,
+                    pillar.z + .5D + (level.getRandom().nextDouble() - .5D) * 8.0D);
+            net.krodark.asterion.worldgen.ArenaDebris.queue(level, origin,
+                    new Vec3((level.getRandom().nextDouble() - .5D) * .18D,
+                            -.46D - level.getRandom().nextDouble() * .42D,
+                            (level.getRandom().nextDouble() - .5D) * .18D),
+                    .7F + level.getRandom().nextFloat() * 1.15F);
+        }
+        level.sendParticles(ParticleTypes.DUST_PLUME, pillar.x + .5D, roofY, pillar.z + .5D,
+                48, 4.2D, .7D, 4.2D, .055D);
         level.playSound(null, new BlockPos(pillar.x, BOSS_FLOOR_Y + 2, pillar.z),
                 SoundEvents.GENERIC_EXPLODE.value(), SoundSource.BLOCKS, 2.2F, 0.55F);
     }
@@ -1697,35 +1756,34 @@ public final class WorldGenerator {
             if (rubble.time > 72) rubble.discard();
     }
 
-    public static void collapseBossRoofRing(ServerLevel level, Vec3 origin, int radius) {
+    public static void collapseBossRoofRing(ServerLevel level, Vec3 origin, int step) {
         BossArenaBuild build = bossArenaBuild;
         if ((!net.krodark.asterion.worldgen.AuthoredCatacombs.enabled() && build == null)
-                || radius < 0 || radius > PIT_HALF_WIDTH) return;
+                || step < 0 || step > PIT_HALF_WIDTH) return;
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         java.util.List<Vec3> launches = new java.util.ArrayList<>();
-        int authoredRadius = Math.min(net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS, radius * 2 + 1);
-        int innerRadius = Math.max(-1, authoredRadius - 2);
-        for (int x = -authoredRadius; x <= authoredRadius; x++) for (int z = -authoredRadius; z <= authoredRadius; z++) {
-            int radial = Math.max(Math.abs(x), Math.abs(z));
-            if (radial <= innerRadius) continue;
-            int roofY = net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y + 47;
-            boolean removedRoof = false;
-            for (int y = net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y + 28; y <= roofY; y++) {
-                cursor.set(x, y, z);
-                BlockState state = level.getBlockState(cursor);
-                if (state.isAir()) continue;
-                // Only this scripted phase change removes the roof; ordinary attacks preserve the shell.
-                level.setBlock(cursor, Blocks.AIR.defaultBlockState(), 2);
-                removedRoof = true;
+        int roofY = net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y + 47;
+        double distance = Math.min(net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS,
+                step * 1.78D);
+        // Nine uneven primary faults crawl away from the impact. Alternating branches
+        // split off later, producing forks and missing slabs instead of a geometric ring.
+        for (int fault = 0; fault < 9; fault++) {
+            long faultSeed = mix(level.getSeed() ^ fault * 0x9E3779B97F4A7C15L);
+            double baseAngle = Mth.TWO_PI * fault / 9.0D
+                    + ((faultSeed >>> 11) * 0x1.0p-53 - .5D) * .42D;
+            double bend = Math.sin(step * .41D + fault * 1.73D) * .16D;
+            fractureRoofAt(level, cursor, launches, origin, distance, baseAngle + bend,
+                    roofY, fault % 3 == 0 ? 2 : 1);
+            if (step > 9 && (fault & 1) == 0) {
+                double branchDistance = Math.max(0.0D, distance - (step - 9) * .58D);
+                double split = (fault & 2) == 0 ? .43D : -.47D;
+                fractureRoofAt(level, cursor, launches, origin, branchDistance,
+                        baseAngle + bend + split, roofY, 1);
             }
-            if (removedRoof || net.krodark.asterion.worldgen.AuthoredCatacombs.enabled())
-                launches.add(new Vec3(x + .5, roofY - 1.15, z + .5));
         }
-        // Even angular coverage: a scan-order cap previously emitted mostly from one side.
-        launches.sort(java.util.Comparator.comparingDouble(pos -> Math.atan2(pos.z, pos.x)));
-        int count = Math.min(32, launches.size());
+        int count = Math.min(42, launches.size());
         for (int i = 0; i < count; i++) {
-            Vec3 pos = launches.get(i * launches.size() / count);
+            Vec3 pos = launches.get(i);
             float scale = 1.25F + level.getRandom().nextFloat() * 1.15F;
             net.krodark.asterion.worldgen.ArenaDebris.queue(level, pos,
                     new Vec3((level.getRandom().nextDouble()-.5)*.12, -.48-level.getRandom().nextDouble()*.34,
@@ -1734,8 +1792,28 @@ public final class WorldGenerator {
             if ((i & 1) == 0)
                 level.sendParticles(Asterion.DOOR_SMOKE, pos.x, BOSS_FLOOR_Y + .5, pos.z, 3, 1.4, .35, 1.4, .04);
         }
-        cleanupUnsupportedRoofFixtures(level, authoredRadius, innerRadius,
-                net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y + 47);
+        if (step >= 34) cleanupUnsupportedRoofFixtures(level,
+                net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS, -1, roofY);
+    }
+
+    private static void fractureRoofAt(ServerLevel level, BlockPos.MutableBlockPos cursor,
+                                       java.util.List<Vec3> launches, Vec3 center, double distance,
+                                       double angle, int width, int roofY) {
+        int centerX = Mth.floor(center.x + Math.cos(angle) * distance);
+        int centerZ = Mth.floor(center.z + Math.sin(angle) * distance);
+        for (int dx = -width; dx <= width; dx++) for (int dz = -width; dz <= width; dz++) {
+            if (dx * dx + dz * dz > width * width + 1) continue;
+            int x = centerX + dx, z = centerZ + dz;
+            boolean removed = false;
+            for (int y = net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y + 28;
+                 y <= roofY; y++) {
+                cursor.set(x, y, z);
+                if (level.getBlockState(cursor).isAir()) continue;
+                level.setBlock(cursor, Blocks.AIR.defaultBlockState(), 2);
+                removed = true;
+            }
+            if (removed) launches.add(new Vec3(x + .5D, roofY - 1.15D, z + .5D));
+        }
     }
 
     private static void cleanupUnsupportedRoofFixtures(ServerLevel level, int outerRadius,

@@ -130,8 +130,28 @@ public final class CatacombLayout {
         if (tx == BRAZIER_ROOM_MIN_X - 1 && brazierApproach(tz) && side == Direction.EAST) return true;
         if (tx == BRAZIER_ROOM_MIN_X && brazierApproach(tz) && side == Direction.WEST) return true;
         if (brazierRoom(nx, nz)) return false;
-        return !reserved(tx, tz) && !reserved(nx, nz)
-                && (parent(seed, tx, tz) == side || parent(seed, nx, nz) == side.getOpposite());
+        if (reserved(tx, tz) || reserved(nx, nz)) return false;
+        Direction hereParent = parent(seed, tx, tz);
+        Direction thereParent = parent(seed, nx, nz);
+        if (hereParent == side || thereParent == side.getOpposite()) return true;
+        return wovenConnection(seed, tx, tz, side);
+    }
+
+    /** A secondary edge that turns adjacent side branches into a coherent loop. */
+    public static boolean wovenConnection(long seed, int tx, int tz, Direction side) {
+        if (!side.getAxis().isHorizontal()) return false;
+        int nx = tx + side.getStepX(), nz = tz + side.getStepZ();
+        if (reserved(tx, tz) || reserved(nx, nz) || brazierRoom(tx, tz) || brazierRoom(nx, nz)
+                || !occupied(seed, tx, tz) || !occupied(seed, nx, nz)) return false;
+        if (parent(seed, tx, tz) == side || parent(seed, nx, nz) == side.getOpposite()) return false;
+        // The parent edges guarantee reachability. Weave nearby side branches back into
+        // that tree to create readable loops and alternate routes instead of endless
+        // isolated dead ends. Backbone-only links stay sparse and visually deliberate.
+        if (backboneParent(seed, tx, tz) != null && backboneParent(seed, nx, nz) != null)
+            return false;
+        int edgeX = Math.min(tx, nx), edgeZ = Math.min(tz, nz);
+        long axisSalt = tx == nx ? 0x94D049BB133111EBL : 0xD1B54A32D192ED03L;
+        return (hash(seed ^ axisSalt, edgeX, edgeZ) & 1L) == 0L;
     }
 
     public static void generate(ChunkAccess chunk, long seed) {

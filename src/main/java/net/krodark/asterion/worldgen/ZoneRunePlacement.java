@@ -122,7 +122,17 @@ public final class ZoneRunePlacement {
         var cp = chunk.getPos();
         if (cp.x() >= -4 && cp.x() <= 3 && cp.z() >= -4 && cp.z() <= 3) return;
         BlockPos marker = new BlockPos(cp.getMinBlockX(), 0, cp.getMinBlockZ());
-        if (chunk.getBlockState(marker).is(Blocks.STRUCTURE_VOID)) return;
+        BlockPos linkMarker = new BlockPos(cp.getMinBlockX() + 1, 0, cp.getMinBlockZ());
+        var linkedRevision = Blocks.LIGHT.defaultBlockState().setValue(
+                net.minecraft.world.level.block.LightBlock.LEVEL, 2);
+        if (chunk.getBlockState(marker).is(Blocks.STRUCTURE_VOID)) {
+            if (!chunk.getBlockState(linkMarker).equals(linkedRevision)) {
+                AuthoredCatacombs.retrofitWovenConnections(level, chunk);
+                chunk.setBlockState(linkMarker, linkedRevision, 0);
+                chunk.markUnsaved();
+            }
+            return;
+        }
         AuthoredCatacombs.place(level, cp);
         var registry = level.registryAccess().lookupOrThrow(Registries.PLACED_FEATURE);
         int index = 0;
@@ -139,6 +149,7 @@ public final class ZoneRunePlacement {
                     RandomSource.create(salt), new BlockPos(cp.getMinBlockX(), 50, cp.getMinBlockZ()));
         }
         chunk.setBlockState(marker, Blocks.STRUCTURE_VOID.defaultBlockState(), 0);
+        chunk.setBlockState(linkMarker, linkedRevision, 0);
         chunk.markUnsaved();
     }
     public static void decorate(ServerLevel level, LevelChunk chunk) {

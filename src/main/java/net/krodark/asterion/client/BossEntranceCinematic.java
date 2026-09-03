@@ -75,12 +75,13 @@ public final class BossEntranceCinematic {
     }
 
     private static void playCinematicSounds(Minecraft client) {
-        for (int beat : new int[]{8, 26, 44}) if (lastSoundTick < beat && ticks >= beat)
+        for (int beat : new int[]{14, 44, 78}) if (lastSoundTick < beat && ticks >= beat)
             client.getSoundManager().play(SimpleSoundInstance.forUI(Asterion.METAL_HIT,
-                    beat == 44 ? 0.46F : 0.58F, beat == 44 ? 2.4F : 1.75F));
-        if (lastSoundTick < 70 && ticks >= 70)
+                    beat == 78 ? 0.40F : beat == 44 ? .49F : 0.58F,
+                    beat == 78 ? 3.4F : beat == 44 ? 2.45F : 1.8F));
+        if (lastSoundTick < 112 && ticks >= 112)
             client.getSoundManager().play(SimpleSoundInstance.forUI(Asterion.MINOTAUR_DOOR_OPENCLOSE, 0.72F, 2.6F));
-        if (lastSoundTick < 92 && ticks >= 92)
+        if (lastSoundTick < 132 && ticks >= 132)
             client.getSoundManager().play(SimpleSoundInstance.forUI(Asterion.MINOTAUR_ROAR, 0.68F, 3.2F));
         lastSoundTick = ticks;
     }
@@ -90,14 +91,15 @@ public final class BossEntranceCinematic {
         float time = ticks + partial;
         Vec3 inward = door.getOpposite().getUnitVec3();
         Vec3 doorway = Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(door));
-        float recoil = MinotaurDoorMotion.ease((time - 68) / 20F);
+        float recoil = MinotaurDoorMotion.ease((time - 108) / 24F);
         Vec3 doorShot = doorway.add(inward.scale(10.5 + recoil * 3.0)).add(0, 1.35 + recoil * .45, 0);
         float approach = MinotaurDoorMotion.ease(time / 24F);
         Vec3 camera = (openingEye == null ? playerEye : openingEye).lerp(doorShot, approach);
         float impact = 0;
-        for (int beat : new int[]{8, 26, 44, 70}) {
+        for (int beat : new int[]{14, 44, 78, 112}) {
             float age = time - beat;
-            if (age >= 0 && age < 10) impact += (beat == 70 ? .26F : .075F) * (1 - age / 10F);
+            if (age >= 0 && age < 16) impact += (beat == 112 ? .48F
+                    : beat == 78 ? .22F : .12F) * (1 - age / 16F);
         }
         camera = camera.add(Math.sin(time * 2.7) * impact, Math.cos(time * 3.4) * impact * .65, 0);
         Vec3 focus = doorway.add(inward.scale(1.2)).add(0, 3.15, 0);

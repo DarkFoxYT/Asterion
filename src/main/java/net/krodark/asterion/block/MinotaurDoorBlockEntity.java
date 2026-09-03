@@ -144,15 +144,16 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
         long elapsed = level.getGameTime() - door.motionStart;
         if (level.isClientSide()) { door.scrapeDust(); return; }
         if (door.breaching) {
-            if (elapsed == 8 || elapsed == 26 || elapsed == 44) {
+            if (elapsed == 14 || elapsed == 44 || elapsed == 78) {
                 level.playSound(null, pos, SoundEvents.ZOMBIE_ATTACK_IRON_DOOR, SoundSource.BLOCKS, 2.6F, .5F);
                 if (level instanceof ServerLevel server) {
                     for (var viewer : server.players()) if (viewer.distanceToSqr(Vec3.atCenterOf(pos)) < 64 * 64
                             && ServerPlayNetworking.canSend(viewer, MazeShiftPayload.TYPE))
-                        ServerPlayNetworking.send(viewer, new MazeShiftPayload(pos, 64, elapsed == 44 ? .65F : .38F, 10));
+                        ServerPlayNetworking.send(viewer, new MazeShiftPayload(pos, 72,
+                                elapsed == 78 ? 1.15F : elapsed == 44 ? .72F : .48F, 16));
                     server.sendParticles(Asterion.DOOR_DUST, pos.getX() + .5, pos.getY() + .18, pos.getZ() + .5,
-                            24, 2.4, .12, .4, .035);
-                    door.dropCeilingRubble(server, elapsed == 44 ? 22 : 12);
+                            elapsed == 78 ? 54 : 30, 3.2, .18, .7, .055);
+                    door.dropCeilingRubble(server, elapsed == 78 ? 42 : elapsed == 44 ? 24 : 14);
                 }
             }
             if (elapsed >= MinotaurDoorMotion.BREAK_TICK) door.breakOff();
@@ -184,7 +185,7 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
     }
     private void scrapeDust() {
         long elapsed = level.getGameTime() - motionStart;
-        if (breaching && elapsed >= 44 && elapsed < MinotaurDoorMotion.BREAK_TICK) {
+        if (breaching && elapsed >= 78 && elapsed < MinotaurDoorMotion.BREAK_TICK) {
             Vec3 inward = facing().getOpposite().getUnitVec3();
             for (int i = 0; i < 3; i++) {
                 Vec3 point = Vec3.atBottomCenterOf(worldPosition).add(inward.scale(.65))

@@ -20,7 +20,6 @@ import net.krodark.asterion.game.GameplayContent;
 import net.krodark.asterion.game.GasClouds;
 import net.krodark.asterion.network.CursedBrazierAwakeningPayload;
 import net.krodark.asterion.network.MazeShiftPayload;
-import net.krodark.asterion.network.ragdoll.RagdollImpulsePayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.DustParticleOptions;
@@ -883,20 +882,16 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
     }
 
     private void damagePlayers(ServerLevel level, AABB area, float damage,
-                               int immunityTicks, boolean ragdoll) {
+                               int immunityTicks, boolean heavyImpact) {
         for (ServerPlayer player : level.getEntitiesOfClass(ServerPlayer.class, area, this::canFight)) {
             if (hitCooldowns.containsKey(player.getUUID())) continue;
             if (!player.hurtServer(level, level.damageSources().mobAttack(this), damage)) continue;
-            GreekFireBurn.ignite(player, ragdoll ? 3F : 6F);
+            GreekFireBurn.ignite(player, heavyImpact ? 3F : 6F);
             hitCooldowns.put(player.getUUID(), immunityTicks);
             Vec3 impulse = directionOrForward(player.position().subtract(position()))
-                    .scale(ragdoll ? 1.25 : 0.42).add(0, ragdoll ? 0.42 : 0.12, 0);
+                    .scale(heavyImpact ? 1.25 : 0.42).add(0, heavyImpact ? 0.42 : 0.12, 0);
             player.push(impulse.x, impulse.y, impulse.z);
             player.hurtMarked = true;
-            if (ragdoll && ServerPlayNetworking.canSend(player, RagdollImpulsePayload.TYPE)) {
-                ServerPlayNetworking.send(player,
-                        new RagdollImpulsePayload(position(), impulse, 1.15F));
-            }
         }
     }
 

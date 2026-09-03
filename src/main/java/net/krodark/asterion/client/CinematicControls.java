@@ -9,6 +9,7 @@ public final class CinematicControls {
         return BossEntranceCinematic.isActive()
                 || CursedBrazierCinematic.isActive()
                 || DeadSunEntryCinematic.isActive()
+                || RoofCollapseCinematic.isActive()
                 || BossFinaleOverlay.isActive();
     }
     public static void tick(Minecraft client) {

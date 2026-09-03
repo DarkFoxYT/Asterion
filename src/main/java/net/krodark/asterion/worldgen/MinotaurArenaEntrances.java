@@ -206,12 +206,29 @@ public final class MinotaurArenaEntrances {
 
     /** Repairs saves where the encounter's gate normalization replaced the authored keyhole. */
     private static void ensureOmegaLock(ServerLevel level) {
+        if (BossArenaEncounter.isIntroCinematic(level)) return;
         if(level.getBlockState(OMEGA_LOCK_POSITION).is(Asterion.MAZESTEEL_GATE))
             level.setBlock(OMEGA_LOCK_POSITION,Asterion.OMEGA_LOCK.defaultBlockState()
                     .setValue(net.krodark.asterion.block.OmegaLockBlock.FACING,Direction.NORTH),3);
     }
 
+    public static void setOmegaLockVisible(ServerLevel level, boolean visible) {
+        var state = level.getBlockState(OMEGA_LOCK_POSITION);
+        if (!visible) {
+            if (!state.isAir()) level.removeBlock(OMEGA_LOCK_POSITION, false);
+            return;
+        }
+        if (state.isAir() || state.is(Asterion.MAZESTEEL_GATE)) {
+            level.setBlock(OMEGA_LOCK_POSITION, Asterion.OMEGA_LOCK.defaultBlockState()
+                    .setValue(net.krodark.asterion.block.OmegaLockBlock.FACING, Direction.NORTH), 3);
+        }
+    }
+
     private static boolean preserveOmegaOpening(ServerLevel level,BlockPos pos) {
+        if (BossArenaEncounter.isIntroCinematic(level)) {
+            if (!level.getBlockState(pos).isAir()) level.removeBlock(pos, false);
+            return true;
+        }
         var state=level.getBlockState(pos);
         if(state.isAir())return true;
         if(!state.is(Asterion.OMEGA_LOCK))return false;

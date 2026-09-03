@@ -1535,9 +1535,9 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if (elapsed == MinotaurAnimationTiming.ENTRY_ROAR.roarSoundTick()) playRoar(4F, .72F, .85F);
         if (tick == 1 && level.getBlockEntity(entryDoor) instanceof net.krodark.asterion.block.MinotaurDoorBlockEntity door)
             door.beginBreach();
-        if (elapsed < 70) setDeltaMovement(Vec3.ZERO);
+        if (elapsed < 112) setDeltaMovement(Vec3.ZERO);
         else {
-            if (elapsed == 70) {
+            if (elapsed == 112) {
                 net.krodark.asterion.worldgen.MinotaurArenaEntrances.breakLintel(level, entryFacing, getBbHeight());
                 if (level.getBlockEntity(entryDoor) instanceof net.krodark.asterion.block.MinotaurDoorBlockEntity door)
                     door.breakOff();
@@ -2301,6 +2301,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     @Override public void remove(Entity.RemovalReason reason) {
+        if (isDefeatedBoss() && (reason == Entity.RemovalReason.KILLED
+                || reason == Entity.RemovalReason.DISCARDED)) return;
         // Discard/unload/reset does not call the defeat sequence. Always retire this entity's bars.
         healthBossBar.removeAllPlayers();
         rageBossBar.removeAllPlayers();
@@ -2412,6 +2414,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         try { thrownAxe = id.isEmpty() ? null : UUID.fromString(id); } catch (IllegalArgumentException ignored) { thrownAxe = null; }
         getEntityData().set(DATA_AXE_OUT, thrownAxe != null);
         axeLastPosition = new Vec3(input.getDoubleOr("minotaur_axe_x", getX()), input.getDoubleOr("minotaur_axe_y", getY()), input.getDoubleOr("minotaur_axe_z", getZ()));
+        if (bossStage == BossStage.DEFEATED) setInvulnerable(true);
     }
 
     private void beginBossAttack(ServerPlayer player, BossAttack attack) {
@@ -3771,6 +3774,12 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         playRoar(4.0F, 0.82F, 1.25F);
         level.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + getBbHeight() * 0.5D, getZ(),
                 60, 2.0D, 2.5D, 2.0D, 0.035D);
+        var cinematic = new net.krodark.asterion.network.RoofCollapsePayload(collapseAnchor, 118);
+        for (ServerPlayer viewer : level.players())
+            if (viewer.position().horizontalDistanceSqr() < 72.0D * 72.0D
+                    && ServerPlayNetworking.canSend(viewer,
+                    net.krodark.asterion.network.RoofCollapsePayload.TYPE))
+                ServerPlayNetworking.send(viewer, cinematic);
     }
 
     private void tickCollapse(ServerLevel level, ServerPlayer player) {
@@ -3805,6 +3814,14 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         }
         if (collapseTicks >= 34 && collapseTicks <= 136 && (collapseTicks - 34) % 3 == 0)
             WorldGenerator.collapseBossRoofRing(level, position(), (collapseTicks - 34) / 3);
+        if (collapseTicks >= 36 && collapseTicks <= 108 && collapseTicks % 12 == 0) {
+            float force = 1.4F + (collapseTicks - 36) / 72.0F * 2.2F;
+            broadcastMinotaurImpact(level, collapseAnchor.add(0, 28, 0), 110.0F, force, 18);
+            level.sendParticles(ParticleTypes.DUST_PLUME, collapseAnchor.x,
+                    net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y + 45.0D,
+                    collapseAnchor.z, 34 + collapseTicks / 3, 18.0D, 1.5D, 18.0D, .065D);
+            playSound(SoundEvents.DEEPSLATE_BREAK, 3.5F, .42F + level.getRandom().nextFloat() * .12F);
+        }
         if (collapseTicks == 74) {
             noPhysics = false;
             WorldGenerator.buryBossInRubble(level, position());
@@ -4870,6 +4887,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         getNavigation().stop();
         setDeltaMovement(Vec3.ZERO);
         setHealth(1.0F);
+        setInvulnerable(true);
         getEntityData().set(DATA_BOSS_ATTACK_TICKS, 0);
         noPhysics = false;
         healthBossBar.removeAllPlayers();

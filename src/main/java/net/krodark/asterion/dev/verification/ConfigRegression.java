@@ -66,7 +66,7 @@ public final class ConfigRegression {
     }
 
     private static void migrations(Path file, Method load) throws Exception {
-        for (int version = 0; version <= 23; version++) {
+        for (int version = 0; version <= 24; version++) {
             JsonObject input = new JsonObject();
             if (version > 0) input.addProperty("configVersion", version);
             input.addProperty("underwaterRuinChance", 919);
@@ -77,9 +77,9 @@ public final class ConfigRegression {
             Files.writeString(file, input.toString());
 
             AsterionConfig config = read(load);
-            require(config.configVersion == 23, "version was not upgraded: " + version);
+            require(config.configVersion == 24, "version was not upgraded: " + version);
             require(config.underwaterRuinChance == 919, "migration changed an unrelated setting");
-            require(config.wallThickness == (version < 19 ? 2 : 5), "wall migration: " + version);
+            require(config.wallThickness == (version < 19 ? 3 : 5), "wall migration: " + version);
             require(config.ragdollMashRecovery, "recovery migration: " + version);
             require(config.dustR == (version < 20 ? 0.2607004F : 0.8F), "sky migration: " + version);
             require(config.ambientParticleQuality == (version < 21 ? 2 : 0), "quality migration: " + version);
@@ -93,7 +93,7 @@ public final class ConfigRegression {
 
     private static void currentSettings(Path file, Method load) throws Exception {
         String input = """
-                {"configVersion":23,"cinematicsEnabled":false,"dynamicLightsEnabled":false,
+                {"configVersion":24,"cinematicsEnabled":false,"dynamicLightsEnabled":false,
                  "mechanismChance":0.7,"cellSize":17,"wallThickness":5,
                  "minotaurGazeMinTicks":200,"minotaurGazeMaxTicks":250,"deadSunSize":32}
                 """;

@@ -153,6 +153,9 @@ public final class AsterionClient implements ClientModInitializer {
                         SimpleSoundInstance.forUI(Asterion.MINOTAUR_ROAR, 0.72F, 4.0F))));
         ClientPlayNetworking.registerGlobalReceiver(BossFinalePayload.TYPE, (payload, context) ->
                 context.client().execute(BossFinaleOverlay::begin));
+        ClientPlayNetworking.registerGlobalReceiver(
+                net.krodark.asterion.network.RoofCollapsePayload.TYPE, (payload, context) ->
+                        context.client().execute(() -> RoofCollapseCinematic.begin(payload)));
         ClientPlayNetworking.registerGlobalReceiver(BossEntrancePayload.TYPE, (payload, context) ->
                 context.client().execute(() -> BossEntranceCinematic.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(CursedBrazierAwakeningPayload.TYPE,
@@ -189,6 +192,7 @@ public final class AsterionClient implements ClientModInitializer {
                     MazeZapRenderer.clearTransientCombatEffects();
                     MazeObjectiveOverlay.armAfterBossWipe();
                     BossEntranceCinematic.finish(context.client());
+                    RoofCollapseCinematic.finish(context.client());
                     PhysicsDebrisSystem.clear();
                 }));
         ClientPlayNetworking.registerGlobalReceiver(DazePayload.TYPE, (payload, context) ->
@@ -225,6 +229,7 @@ public final class AsterionClient implements ClientModInitializer {
         DeadSunEntryCinematic.tick(client);
         BossFinaleOverlay.tick(client);
         BossEntranceCinematic.tick(client);
+        RoofCollapseCinematic.tick(client);
         CursedBrazierCinematic.tick(client);
         PressureButtonClient.tick(client);
         CinematicControls.tick(client);

@@ -15,7 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public final class AsterionConfig {
-    private static final int CURRENT_VERSION = 23;
+    private static final int CURRENT_VERSION = 24;
     private static final Logger LOGGER = LoggerFactory.getLogger("asterion.config");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("asterion.json");
@@ -27,7 +27,7 @@ public final class AsterionConfig {
     public int gatewayDistance = 900;
     public int mazeRadiusCells = 80;
     public int cellSize = 13;
-    public int wallThickness = 2;
+    public int wallThickness = 3;
     public int wallHeight = 30;
     public int floorThickness = 4;
     public int mazeLoopChance = 36;
@@ -200,6 +200,7 @@ public final class AsterionConfig {
             performanceTargetFps = 240;
         }
         if (version < 23) ragdollMashRecovery = true;
+        if (version < 24 && wallThickness < 3) wallThickness = 3;
     }
 
     private void applySkyDefaults() {
@@ -239,7 +240,7 @@ public final class AsterionConfig {
         configVersion = CURRENT_VERSION;
         mazeRadiusCells = Math.max(16, Math.min(160, mazeRadiusCells));
         cellSize = Math.max(9, Math.min(21, cellSize | 1));
-        wallThickness = Math.max(2, Math.min(6, wallThickness));
+        wallThickness = Math.max(3, Math.min(6, wallThickness));
         wallThickness = Math.min(wallThickness, cellSize - 5);
         wallHeight = Math.max(16, Math.min(64, wallHeight));
         floorThickness = Math.max(2, Math.min(8, floorThickness));
