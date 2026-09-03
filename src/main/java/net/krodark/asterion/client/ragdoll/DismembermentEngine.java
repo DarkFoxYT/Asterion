@@ -1668,7 +1668,18 @@ public final class DismembermentEngine {
             removeRagdoll(payload.entityId());
             return;
         }
-        if (owner == client.player || !(owner instanceof Player) || !owner.isAlive()) return;
+        if (!(owner instanceof Player) || !owner.isAlive()) return;
+        if (owner == client.player) {
+            // The server state and impulse use separate packets. Build the local body from
+            // either packet so delivery order can never turn a heavy hit into plain knockback.
+            if (!ragdolled.contains(owner.getId()))
+                ragdoll(owner, 1, owner.getBoundingBox().getCenter(), owner.getDeltaMovement(),
+                        Math.max(0.7D, owner.getDeltaMovement().length()), false);
+            playerTumbles.add(owner.getId());
+            tumbleStartedAt.putIfAbsent(owner.getId(), traumaDecayTicker);
+            applyFracturePose(owner.getId());
+            return;
+        }
         if (!ragdolled.contains(owner.getId()))
             ragdoll(owner, 1, owner.getBoundingBox().getCenter(), Vec3.ZERO, 0, false);
         playerTumbles.add(owner.getId());

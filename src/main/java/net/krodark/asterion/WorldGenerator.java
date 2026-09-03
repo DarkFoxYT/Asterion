@@ -124,6 +124,8 @@ public final class WorldGenerator {
     private static final Map<BlockKey, Block> PLAYER_PLACED_BLOCKS = new HashMap<>();
     private static long prewarmSeed = Long.MIN_VALUE;
     private static int prewarmIndex;
+    private static BlockPos sharedPortalArrival;
+    private static long sharedPortalArrivalUntil = Long.MIN_VALUE;
 
     private WorldGenerator() {
     }
@@ -1996,6 +1998,8 @@ public final class WorldGenerator {
         MAZE_TOPOLOGIES.clear();
         prewarmSeed = Long.MIN_VALUE;
         prewarmIndex = 0;
+        sharedPortalArrival = null;
+        sharedPortalArrivalUntil = Long.MIN_VALUE;
         summonedPortal = null;
         MazeNbtStructures.clearRuntimeState();
         MazeBiomes.reset();
@@ -2302,7 +2306,7 @@ public final class WorldGenerator {
             prewarmSeed = maze.getSeed();
             prewarmIndex = 0;
         }
-        BlockPos destination = randomMazeArrival(maze, player.getUUID(), maze.getGameTime());
+        BlockPos destination = sharedMazeArrival(maze, player);
         PendingTransition pending = new PendingTransition(maze, destination,
                 player.isInvulnerable(), player.isNoGravity(), player.noPhysics);
         PENDING_TRANSITIONS.put(player.getUUID(), pending);
@@ -2644,6 +2648,17 @@ public final class WorldGenerator {
         if (lz < thickness) return !topology.openInfinite(gx, gz - 1, gx, gz)
                 && !biomeOpensWall(seed, biome, gx, gz - 1, gx, gz, false);
         return false;
+    }
+
+    /** Players entering through the portal as one group land at one prepared maze opening. */
+    private static BlockPos sharedMazeArrival(ServerLevel maze, ServerPlayer entrant) {
+        long now = maze.getGameTime();
+        if (sharedPortalArrival == null || now > sharedPortalArrivalUntil) {
+            sharedPortalArrival = randomMazeArrival(maze, entrant.getUUID(), now);
+        }
+        // Refresh while party members continue entering; a later expedition may roll a new entrance.
+        sharedPortalArrivalUntil = now + 20L * 10L;
+        return sharedPortalArrival;
     }
 
     private static boolean isMazeWallCore(MazeTopology topology, MazeNbtStructures.Layout structures,

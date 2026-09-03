@@ -59,6 +59,10 @@ import net.minecraft.world.item.Rarity;
 import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.item.ToolMaterial;
 import net.minecraft.world.food.FoodProperties;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.item.component.Consumables;
+import net.minecraft.world.item.consume_effects.ApplyStatusEffectsConsumeEffect;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.effect.MobEffect;
@@ -296,7 +300,9 @@ public class Asterion implements ModInitializer {
             properties -> new LabyrinthVineBlock(properties.noOcclusion().strength(0.4F)
                     .sound(SoundType.VINE).lightLevel(state -> 5)),
             properties -> properties.food(new FoodProperties.Builder().nutrition(1)
-                    .saturationModifier(0.15F).build()));
+                            .saturationModifier(0.15F).build(),
+                    Consumables.defaultFood().onConsume(new ApplyStatusEffectsConsumeEffect(
+                            new MobEffectInstance(MobEffects.GLOWING, 10 * 20))).build()));
     private static final ResourceKey<Item> POPPED_ANCIENT_VINES_KEY = ResourceKey.create(
             Registries.ITEM, id("popped_ancient_vines"));
     public static final Item POPPED_ANCIENT_VINES = Registry.register(BuiltInRegistries.ITEM,
