@@ -7,12 +7,16 @@ import com.geckolib.renderer.base.GeoRenderState;
 import com.geckolib.renderer.base.RenderPassInfo;
 import com.geckolib.constant.DataTickets;
 import com.geckolib.constant.dataticket.DataTicket;
+import com.geckolib.renderer.layer.builtin.CustomBoneTextureGeoLayer;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.client.light.AsterionEmissiveBoneLayer;
 import net.krodark.asterion.client.light.LedAmneticLight;
 import net.krodark.asterion.entity.CursedBrazierEntity;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 
@@ -20,6 +24,8 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
     private static final Identifier MODEL = Asterion.id("entity/cursed_brazier");
     private static final Identifier TEXTURE = Asterion.id("textures/entity/cursed_brazier.png");
     private static final Identifier ANIMATION = Asterion.id("entity/cursed_brazier");
+    private static final Identifier CHARGE_TEXTURE =
+            Identifier.withDefaultNamespace("textures/entity/creeper/creeper_armor.png");
     private static final DataTicket<Boolean> SHIELDED =
             DataTickets.create("asterion_brazier_shielded", Boolean.class);
     private static final DataTicket<Boolean> FLAMES_ACTIVE =
@@ -56,20 +62,24 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
             }
         });
 
-        withRenderLayer(new AsterionEmissiveBoneLayer<>(this, "full", TEXTURE) {
+        // The shield is an overlay, not a replacement draw: the pot remains readable under
+        // the same animated electrical skin used by a charged creeper.
+        withRenderLayer(new CustomBoneTextureGeoLayer<>(this, "full", CHARGE_TEXTURE) {
             @Override
             public boolean shouldRenderBone(EntityRenderState state) {
                 return state.getOrDefaultGeckolibData(SHIELDED, false);
             }
 
             @Override
-            protected float surfaceBrightness(EntityRenderState state) {
-                return 0.9F;
+            public void preRender(RenderPassInfo<EntityRenderState> pass,
+                                  SubmitNodeCollector tasks) {
+                // Do not hide the ordinary model; this layer is additive.
             }
 
             @Override
-            protected int emissiveColor(EntityRenderState state) {
-                return 0xFF55FF72;
+            protected RenderType getRenderType(EntityRenderState state, Identifier texture) {
+                float time = state.getOrDefaultGeckolibData(TIME, 0F);
+                return RenderTypes.energySwirl(texture, time * 0.012F, time * 0.006F);
             }
         });
         for (String glowBone : GLOW_BONES) addGlowLayer(glowBone);
@@ -205,6 +215,13 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
             float brace = smooth(age / 28F) * (1F - smooth((age - 82F) / 10F));
             bone.setRotation(bone.getRotX() - brace * 0.055F,
                     bone.getRotY(), bone.getRotZ());
+        } else if (attack == CursedBrazierEntity.Attack.OVERLOAD_PULSE.ordinal()) {
+            float charge = smooth(age / 24F);
+            float release = 1F - smooth((age - 24F) / 10F);
+            float pulse = charge * release * (0.025F + Math.abs(Mth.sin(age * 0.58F)) * 0.035F);
+            bone.setScale(1F + pulse, 1F + pulse, 1F + pulse);
+            bone.setRotation(bone.getRotX(), bone.getRotY() + charge * 0.12F,
+                    bone.getRotZ());
         }
     }
 

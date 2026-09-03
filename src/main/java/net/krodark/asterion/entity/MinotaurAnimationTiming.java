@@ -6,16 +6,23 @@ public final class MinotaurAnimationTiming {
     public static final double ROAR_SOUND_SECONDS = 60.0 / 24.0;
     public static final int AXE_RELEASE = 15;
     public static final int[] COMBO_HITS = {19, 33, 46};
+    /** Server contacts mapped exactly to authored frames 22 and 50 at 24 FPS. */
+    public static final int[] SWORD_COMBO_HITS = {18, 42};
+    /** Authored frame 30 (1.25 seconds) on punch_single. */
+    public static final int PUNCH_SINGLE_HIT = 25;
     public static final Track CLEAVE = track(48, 2.3864, 18, .9091);
     public static final Track CHOP = track(40, 1.9583, 26, 1.25);
     public static final Track SLAM = track(44, 1.9583, 26, 1.25);
-    public static final Track COMBO = new Track(new double[]{0, 19, 33, 46, 73}, new double[]{0, .9583, 1.6667, 2.2917, 3.625});
+    public static final Track COMBO = new Track(new double[]{0, 19, 33, 46, 73},
+            new double[]{0, .9583, 1.6667, 2.2917, 3.625});
+    public static final Track SWORD_COMBO = new Track(new double[]{0, 18, 42, 73},
+            new double[]{0, 22.0 / 24.0, 50.0 / 24.0, 3.625});
     public static final Track SPIN = track(36, 1.8, 19, .95);
     public static final Track THROW = track(30, 1.25, AXE_RELEASE, .7083);
     public static final Track RUBBLE = track(58, 1.9583, 26, 1.2917);
     public static final Track CHAIN = track(36, 1.7917, 25, 1.25);
     public static final Track ARROWS = track(38, 1.7917, 20, 1.25);
-    public static final Track PUNCH = track(40, 1.9583, 20, 1.0);
+    public static final Track PUNCH = track(40, 1.9583, PUNCH_SINGLE_HIT, 30.0 / 24.0);
     public static final Track BACK_KICK = track(30, 1.5, 15, .75);
     public static final Track DRAW_SWORD = track(34, 1.7083);
     public static final Track DRAW_AXE = track(24, 1.0);

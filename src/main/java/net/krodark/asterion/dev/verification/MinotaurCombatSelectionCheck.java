@@ -47,7 +47,8 @@ final class MinotaurCombatSelectionCheck {
                 }
                 Set<String> missing = new HashSet<>(expected); missing.removeAll(seen);
                 check(missing.isEmpty(), phase + " never selected attacks: " + missing);
-                check(!seen.contains("wall_shove") && !seen.contains("red_lightning_charge") && !seen.contains("arena_sweep"), "Removed attack selected");
+                check(!seen.contains("wall_shove") && !seen.contains("red_lightning_charge")
+                        && !seen.contains("arena_sweep") && !seen.contains("spin_combo"), "Removed attack selected");
                 Asterion.LOGGER.info("PASS: {} arena selected every contextual combat attack: {}", phase, seen);
             }
             field(boss, "storedArrows", 0); field(boss, "closeBurstDamage", 0F); field(boss, "closeBurstTicks", 0);
@@ -58,7 +59,7 @@ final class MinotaurCombatSelectionCheck {
                 for (int roll = 0; roll < 300; roll++) {
                     String selected = choose.invoke(boss, player, boss.distanceTo(player)).toString();
                     if (mode == 1 ? Set.of("CLEAVE", "AXE_CHOP", "SLAM").contains(selected)
-                            : Set.of("SWORD_COMBO", "SPIN_COMBO").contains(selected)) kept++;
+                            : selected.equals("SWORD_COMBO")) kept++;
                 }
                 check(kept > 210, "Drawn weapon was discarded too readily: " + mode + " / " + kept);
                 Asterion.LOGGER.info("PASS: weapon mode {} retained for {}/300 tactical choices", mode, kept);
@@ -76,7 +77,8 @@ final class MinotaurCombatSelectionCheck {
             for (int roll = 0; roll < 150; roll++) {
                 String attack = choose.invoke(boss, player, boss.distanceTo(player)).toString();
                 check(!Set.of("AXE_THROW", "AXE_CHOP", "CLEAVE", "SLAM").contains(attack), "Missing axe reused: " + attack);
-                if (Set.of("SWORD_COMBO", "SPIN_COMBO").contains(attack)) swordsChosen++;
+                check(!attack.equals("SPIN_COMBO"), "Removed sword spin selected");
+                if (attack.equals("SWORD_COMBO")) swordsChosen++;
             }
             check(swordsChosen >= 100, "Swords were not used while the axe was away");
             Asterion.LOGGER.info("PASS: drawn axe thrown in {}/300 ranged choices; swords used {}/150 times with axe in world", throwsChosen, swordsChosen);

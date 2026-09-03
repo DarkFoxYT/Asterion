@@ -6,11 +6,22 @@ import com.geckolib.constant.dataticket.DataTicket;
 import com.geckolib.renderer.base.PerBoneRender;
 import com.geckolib.renderer.base.RenderPassInfo;
 import com.geckolib.renderer.layer.GeoRenderLayer;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.krodark.asterion.client.ragdoll.MinotaurAxeVisual;
 import net.krodark.asterion.client.ragdoll.MinotaurSwordVisual;
 import net.krodark.asterion.entity.MinotaurAxeEntity;
 import net.krodark.asterion.entity.MinotaurEntity;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3f;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
 
 /** One layer owns all custom hand/hip/back weapons, preventing duplicate equipped copies. */
@@ -18,7 +29,10 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
     private static final DataTicket<String> AXE_BONE = DataTickets.create("asterion_axe_bone", String.class);
     private static final DataTicket<Integer> OWNER = DataTickets.create("asterion_weapon_owner", Integer.class);
     private static final DataTicket<Boolean> SWORDS_DRAWN = DataTickets.create("asterion_swords_drawn", Boolean.class);
+    private static final DataTicket<Float> SWORD_TRAIL = DataTickets.create("asterion_sword_trail", Float.class);
+    private static final RenderType TRAIL_MATERIAL = RenderTypes.lightning();
     private static final String[] SIDES = {"right", "left"};
+    private final Map<Long, Trail> trails = new HashMap<>();
 
     public MinotaurWeaponLayer(MinotaurGeoRenderer renderer) { super(renderer); }
 
@@ -27,6 +41,7 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
         state.addGeckolibData(SWORDS_DRAWN, mode == 2);
         state.addGeckolibData(AXE_BONE, boss.axeInWorld() ? "" : mode == 1 ? "axe_grip" : "axe_back");
         state.addGeckolibData(OWNER, boss.getId());
+        state.addGeckolibData(SWORD_TRAIL, boss.swordTrailStrength(partial));
     }
 
     @Override public void addPerBoneRender(RenderPassInfo<EntityRenderState> pass,
@@ -46,6 +61,7 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
                             poses.mulPose(com.mojang.math.Axis.XP.rotationDegrees(168));
                             poses.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(-sign * 6));
                         }
+                        if (drawn) renderSwordTrail(pass, posed, tasks, side, poses);
                         MinotaurSwordVisual.submit(
                                 poses, tasks, posed.cameraState(), posed.packedLight());
                         poses.popPose();
@@ -66,5 +82,73 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
             MinotaurAxeVisual.submit(poses, tasks, posed.cameraState(), posed.packedLight(), 0);
             poses.popPose();
         }));
+    }
+
+    private void renderSwordTrail(RenderPassInfo<EntityRenderState> pass,
+                                  RenderPassInfo<EntityRenderState> posed,
+                                  net.minecraft.client.renderer.SubmitNodeCollector tasks,
+                                  String side, PoseStack poses) {
+        int owner = pass.renderState().getOrDefaultGeckolibData(OWNER, -1);
+        long key = ((long)owner << 1) ^ (side.equals("right") ? 1L : 0L);
+        float strength = pass.renderState().getOrDefaultGeckolibData(SWORD_TRAIL, 0.0F);
+        Trail trail = trails.computeIfAbsent(key, ignored -> new Trail());
+        if (strength <= 0.005F) {
+            trail.samples.clear();
+            trail.lastStamp = Double.NEGATIVE_INFINITY;
+            return;
+        }
+
+        double stamp = pass.renderState().getAnimatableAge();
+        Vector3f rootVector = poses.last().pose().transformPosition(
+                new Vector3f(0.0F, 19.0F / 16.0F, 0.0F));
+        Vector3f tipVector = poses.last().pose().transformPosition(
+                new Vector3f(0.0F, 84.0F / 16.0F, 0.0F));
+        Vec3 camera = posed.cameraState().pos;
+        Sample sample = new Sample(new Vec3(rootVector.x, rootVector.y, rootVector.z).add(camera),
+                new Vec3(tipVector.x, tipVector.y, tipVector.z).add(camera));
+        if (stamp > trail.lastStamp && (trail.samples.isEmpty()
+                || trail.samples.getLast().tip.distanceToSqr(sample.tip) > 0.0004D)) {
+            trail.samples.addLast(sample);
+            trail.lastStamp = stamp;
+            while (trail.samples.size() > 7) trail.samples.removeFirst();
+        }
+        if (trail.samples.size() < 2) return;
+        List<Sample> snapshot = new ArrayList<>(trail.samples);
+        tasks.submitCustomGeometry(new PoseStack(), TRAIL_MATERIAL,
+                (pose, out) -> drawTrail(pose, out, snapshot, camera, strength));
+    }
+
+    private static void drawTrail(PoseStack.Pose pose, VertexConsumer out, List<Sample> samples,
+                                  Vec3 camera, float strength) {
+        int segments = samples.size() - 1;
+        for (int index = 0; index < segments; index++) {
+            Sample from = samples.get(index);
+            Sample to = samples.get(index + 1);
+            float age = (index + 1) / (float)segments;
+            int alpha = Math.round(150.0F * strength * age * age);
+            int red = 255;
+            int green = Math.round(155 + 80 * age);
+            int blue = Math.round(55 + 120 * age);
+            vertex(out, pose, from.root.subtract(camera), red, green, blue, Math.round(alpha * .35F));
+            vertex(out, pose, from.tip.subtract(camera), red, green, blue, alpha);
+            vertex(out, pose, to.tip.subtract(camera), red, green, blue, alpha);
+            vertex(out, pose, to.root.subtract(camera), red, green, blue, Math.round(alpha * .35F));
+            vertex(out, pose, to.root.subtract(camera), red, green, blue, Math.round(alpha * .35F));
+            vertex(out, pose, to.tip.subtract(camera), red, green, blue, alpha);
+            vertex(out, pose, from.tip.subtract(camera), red, green, blue, alpha);
+            vertex(out, pose, from.root.subtract(camera), red, green, blue, Math.round(alpha * .35F));
+        }
+    }
+
+    private static void vertex(VertexConsumer out, PoseStack.Pose pose, Vec3 point,
+                               int red, int green, int blue, int alpha) {
+        out.addVertex(pose, (float)point.x, (float)point.y, (float)point.z)
+                .setColor(red, green, blue, alpha);
+    }
+
+    private record Sample(Vec3 root, Vec3 tip) { }
+    private static final class Trail {
+        final ArrayDeque<Sample> samples = new ArrayDeque<>();
+        double lastStamp = Double.NEGATIVE_INFINITY;
     }
 }

@@ -54,6 +54,7 @@ public final class AsterionClient implements ClientModInitializer {
         CursedBrazierCinematic.register();
         PressureButtonClient.initialize();
         MazeObjectiveOverlay.register();
+        QueenBeetleQuestOverlay.register();
         MazeZapRenderer.register();
         DazeOverlay.register();
         RagdollGetUpOverlay.register();
@@ -66,6 +67,10 @@ public final class AsterionClient implements ClientModInitializer {
         EntityRenderers.register(net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER, net.krodark.asterion.client.render.entity.CursedBrazierRenderer::new);
         EntityRenderers.register(Asterion.RUNE_BEETLE, net.krodark.asterion.client.render.entity.RuneBeetleRenderer::new);
         EntityRenderers.register(Asterion.SCARLET_CENTIPEDE, ScarletCentipedeGeoRenderer::new);
+        EntityRenderers.register(Asterion.CONSTRUCT,
+                net.krodark.asterion.client.render.entity.ConstructGeoRenderer::new);
+        EntityRenderers.register(Asterion.QUEEN_BEETLE,
+                net.krodark.asterion.client.render.entity.QueenBeetleGeoRenderer::new);
         ParticleProviderRegistry.getInstance().register(Asterion.GREEK_FIRE, sprites ->
                 (type, level, x, y, z, vx, vy, vz, random) ->
                         GreekFireParticle.create(level, x, y, z, vx, vy, vz, sprites, random));
@@ -193,6 +198,8 @@ public final class AsterionClient implements ClientModInitializer {
                     AsterionPostEffects.setBiome(payload.biome());
                     BiomeMusic.setBiome(payload.biome());
                 }));
+        ClientPlayNetworking.registerGlobalReceiver(QueenBeetleQuestPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> QueenBeetleQuestOverlay.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(RagdollImpulsePayload.TYPE, (payload, context) ->
                 context.client().execute(() -> DismembermentEngine.INSTANCE.forcePlayerTumble(
                         context.client(), payload.source(), payload.impulse(), payload.force())));
@@ -222,6 +229,7 @@ public final class AsterionClient implements ClientModInitializer {
         PressureButtonClient.tick(client);
         CinematicControls.tick(client);
         MazeObjectiveOverlay.tick(client);
+        QueenBeetleQuestOverlay.tick(client);
         DeadSunClientEvents.tick(client);
         PhysicsDebrisSystem.tick(client);
         DazeOverlay.tick(client);

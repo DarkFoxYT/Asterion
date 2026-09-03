@@ -48,8 +48,10 @@ public final class AsterionEmissiveConfig {
                 if (values.threshold == .95F) values.threshold = .047F;
                 if (values.intensity == .22F) values.intensity = 3.316F;
             }
+            boolean softenVines = legacy || values.version < 6;
+            if (softenVines && values.vineGlowStrength == .65F) values.vineGlowStrength = .55F;
             sanitize();
-            if (upgradeEyes || upgradeFire || restoreAmnetic) save();
+            if (upgradeEyes || upgradeFire || restoreAmnetic || softenVines) save();
         } catch (Exception exception) {
             Asterion.LOGGER.warn("Unable to load Asterion emissive config {}", PATH, exception);
             values = new Values();
@@ -109,7 +111,7 @@ public final class AsterionEmissiveConfig {
     }
 
     private static void sanitize() {
-        values.version = 5;
+        values.version = 6;
         values.threshold = finiteClamp(values.threshold, 0.0F, 2.0F, 1.1F);
         values.intensity = finiteClamp(values.intensity, 0.0F, 8.0F, 3.316F);
         values.levels = Mth.clamp(values.levels, 2, 3);
@@ -117,11 +119,11 @@ public final class AsterionEmissiveConfig {
         values.knee = finiteClamp(values.knee, 0.0F, 1.0F, 0.25F);
         values.minotaurEyeStrength = finiteClamp(values.minotaurEyeStrength, 0.0F, 1.0F, 1.0F);
         values.beetleFireStrength = finiteClamp(values.beetleFireStrength, 0.0F, 5.0F, 3.2F);
-        values.vineGlowStrength = finiteClamp(values.vineGlowStrength, 0.0F, 1.0F, 0.65F);
+        values.vineGlowStrength = finiteClamp(values.vineGlowStrength, 0.0F, 1.0F, 0.55F);
     }
 
     private static final class Values {
-        private int version = 5;
+        private int version = 6;
         private boolean enabled = true;
         private float threshold = .047F;
         private float intensity = 3.316F;
@@ -130,6 +132,6 @@ public final class AsterionEmissiveConfig {
         private float knee = 0.25F;
         private float minotaurEyeStrength = 1.0F;
         private float beetleFireStrength = 3.2F;
-        private float vineGlowStrength = 0.65F;
+        private float vineGlowStrength = 0.55F;
     }
 }

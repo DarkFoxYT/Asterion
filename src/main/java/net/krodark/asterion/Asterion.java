@@ -35,6 +35,8 @@ import net.krodark.asterion.network.ragdoll.*;
 import net.krodark.asterion.entity.MinotaurEntity;
 import net.krodark.asterion.entity.BombadierBeetleEntity;
 import net.krodark.asterion.entity.ScarletCentipedeEntity;
+import net.krodark.asterion.entity.ConstructEntity;
+import net.krodark.asterion.entity.QueenBeetleEntity;
 import net.krodark.asterion.block.ShortGrassBlock;
 import net.krodark.asterion.event.DeadSunEventSystem;
 import net.krodark.asterion.effect.ResolveEffect;
@@ -321,6 +323,32 @@ public class Asterion implements ModInitializer {
                     .sized(0.8F, 0.45F).eyeHeight(0.3F).clientTrackingRange(10)
                     .fireImmune().build(BOMBARDIER_BEETLE_KEY)
     );
+    private static final ResourceKey<EntityType<?>> CONSTRUCT_KEY = ResourceKey.create(
+            Registries.ENTITY_TYPE, id("construct"));
+    public static final EntityType<ConstructEntity> CONSTRUCT = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, CONSTRUCT_KEY,
+            EntityType.Builder.of(ConstructEntity::new, MobCategory.MONSTER)
+                    // Model pixels map 1:16: x/z [-8,8], y [0,35].
+                    .sized(1.0F, 2.1875F).eyeHeight(1.75F).clientTrackingRange(10)
+                    .build(CONSTRUCT_KEY));
+    private static final ResourceKey<EntityType<?>> QUEEN_BEETLE_KEY = ResourceKey.create(
+            Registries.ENTITY_TYPE, id("queen_beetle"));
+    public static final EntityType<QueenBeetleEntity> QUEEN_BEETLE = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, QUEEN_BEETLE_KEY,
+            EntityType.Builder.of(QueenBeetleEntity::new, MobCategory.CREATURE)
+                    // The widest authored span is 42 px and the highest point is 26 px.
+                    .sized(2.625F, 1.625F).eyeHeight(0.9F).clientTrackingRange(12)
+                    .build(QUEEN_BEETLE_KEY));
+    private static final ResourceKey<Item> CONSTRUCT_EGG_KEY = ResourceKey.create(
+            Registries.ITEM, id("construct_spawn_egg"));
+    public static final Item CONSTRUCT_SPAWN_EGG = Registry.register(BuiltInRegistries.ITEM,
+            CONSTRUCT_EGG_KEY, new SpawnEggItem(new Item.Properties().setId(CONSTRUCT_EGG_KEY)
+                    .spawnEgg(CONSTRUCT)));
+    private static final ResourceKey<Item> QUEEN_BEETLE_EGG_KEY = ResourceKey.create(
+            Registries.ITEM, id("queen_beetle_spawn_egg"));
+    public static final Item QUEEN_BEETLE_SPAWN_EGG = Registry.register(BuiltInRegistries.ITEM,
+            QUEEN_BEETLE_EGG_KEY, new SpawnEggItem(new Item.Properties().setId(QUEEN_BEETLE_EGG_KEY)
+                    .spawnEgg(QUEEN_BEETLE)));
     private static final ResourceKey<EntityType<?>> SCARLET_CENTIPEDE_KEY = ResourceKey.create(
             Registries.ENTITY_TYPE, id("scarlet_centipede"));
     public static final EntityType<ScarletCentipedeEntity> SCARLET_CENTIPEDE = Registry.register(
@@ -424,6 +452,8 @@ public class Asterion implements ModInitializer {
                         output.accept(PRESSURE_BUTTON);
                         output.accept(ANTIKYTHERA_BLUEPRINT);
                         output.accept(SCARLET_CENTIPEDE_SPAWN_EGG);
+                        output.accept(CONSTRUCT_SPAWN_EGG);
+                        output.accept(QUEEN_BEETLE_SPAWN_EGG);
                         output.accept(TAINTED_HEART);
                         output.accept(TAINTED_HEART_EATABLE);
                         output.accept(ANCIENT_BRICKS);
@@ -586,6 +616,9 @@ public class Asterion implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(BossEncounterResetPayload.TYPE, BossEncounterResetPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(DazePayload.TYPE, DazePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(BiomeAtmospherePayload.TYPE, BiomeAtmospherePayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(
+                net.krodark.asterion.network.QueenBeetleQuestPayload.TYPE,
+                net.krodark.asterion.network.QueenBeetleQuestPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RagdollImpulsePayload.TYPE, RagdollImpulsePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RagdollPosePayload.TYPE, RagdollPosePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RagdollStatePayload.TYPE, RagdollStatePayload.CODEC);
@@ -615,6 +648,8 @@ public class Asterion implements ModInitializer {
         FabricDefaultAttributeRegistry.register(BOMBARDIER_BEETLE, BombadierBeetleEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(RUNE_BEETLE, net.krodark.asterion.entity.RuneBeetleEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(SCARLET_CENTIPEDE, ScarletCentipedeEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(CONSTRUCT, ConstructEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(QUEEN_BEETLE, QueenBeetleEntity.createAttributes());
         ServerChunkEvents.CHUNK_LOAD.register(WorldGenerator::onChunkLoad);
         ServerChunkEvents.CHUNK_LOAD.register(CatacombFloodState::onChunkLoad);
         ServerChunkEvents.CHUNK_UNLOAD.register(CatacombFloodState::onChunkUnload);
@@ -659,6 +694,8 @@ public class Asterion implements ModInitializer {
                 MobCategory.CREATURE, BOMBARDIER_BEETLE, 12, 1, 3);
         BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID),
                 MobCategory.CREATURE, SCARLET_CENTIPEDE, 5, 1, 1);
+        BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID),
+                MobCategory.MONSTER, CONSTRUCT, 8, 1, 2);
         // Crypts and boss rooms are beetle territory. Reject centipedes from every
         // spawn path there, including natural biome spawning, eggs and commands.
         ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {
@@ -689,6 +726,7 @@ public class Asterion implements ModInitializer {
             handler.getPlayer().awardRecipes(server.getRecipeManager().getRecipes());
             net.krodark.asterion.effect.SingedScars.get(server).apply(handler.getPlayer());
             WorldGenerator.playerConnected(handler.getPlayer());
+            QueenBeetleEntity.syncActiveQuest(handler.getPlayer());
         });
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
             net.krodark.asterion.effect.SingedScars.get(newPlayer.level().getServer()).apply(newPlayer);

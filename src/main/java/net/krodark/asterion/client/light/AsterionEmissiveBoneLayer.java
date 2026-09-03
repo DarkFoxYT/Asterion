@@ -18,8 +18,8 @@ public class AsterionEmissiveBoneLayer<T extends GeoAnimatable, O, R extends Geo
         super(renderer, bone, texture);
     }
 
-    /** Retained for existing layers; halo strength no longer creates an extra rendering pass. */
-    protected float emissiveStrength(R state) { return 0f; }
+    /** Multiplier used only by Amnetic's HDR bloom capture; the visible surface stays color-safe. */
+    protected float emissiveStrength(R state) { return 1f; }
     protected float surfaceBrightness(R state) { return 0.8f; }
     protected boolean enhancedSurface(R state) { return false; }
     protected Identifier amneticEmissionMesh(R state) { return null; }
@@ -53,7 +53,8 @@ public class AsterionEmissiveBoneLayer<T extends GeoAnimatable, O, R extends Geo
                     (pose, buffer) -> {
                         mesh.render(pose, buffer, color, uScale, vScale);
                         if (emissionMesh != null)
-                            AmneticBoneEmission.submit(emissionMesh, mesh, texture, pose.pose(), color, uScale, vScale);
+                            AmneticBoneEmission.submit(emissionMesh, mesh, texture, pose.pose(), color,
+                                    uScale, vScale, emissiveStrength(state));
                     });
         } finally {
             stack.popPose();

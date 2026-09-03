@@ -61,6 +61,12 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
 
             @Override protected boolean enhancedSurface(EntityRenderState state) { return true; }
 
+            @Override protected net.minecraft.resources.Identifier amneticEmissionMesh(EntityRenderState state) {
+                return getGeoModel().getModelResource(state);
+            }
+
+            @Override protected float emissiveStrength(EntityRenderState state) { return 1.35F; }
+
             @Override protected float surfaceBrightness(EntityRenderState state) {
                 float collapse = state.getOrDefaultGeckolibData(COLLAPSE, 0F);
                 if (collapse > 45 && collapse < 118) return .04F;

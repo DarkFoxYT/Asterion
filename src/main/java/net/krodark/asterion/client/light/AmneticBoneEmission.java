@@ -36,7 +36,7 @@ public final class AmneticBoneEmission {
     }
 
     public static void submit(Identifier model, EmissiveBoneMesh geometry, Identifier texture,
-                              Matrix4fc pose, int color, float uScale, float vScale) {
+                              Matrix4fc pose, int color, float uScale, float vScale, float strength) {
         if (!Bloom.settings().isEnabled()) return;
         if (!initialized) {
             EmissiveSources.register(Asterion.id("vine_glow"), AmneticBoneEmission::emit);
@@ -57,8 +57,10 @@ public final class AmneticBoneEmission {
         if (entry.count == entry.poses.size()) entry.poses.add(new Instance());
         Instance instance = entry.poses.get(entry.count++);
         instance.pose.set(pose);
-        instance.color.set((color >>> 16 & 255) / 255f, (color >>> 8 & 255) / 255f,
-                (color & 255) / 255f, (color >>> 24) / 255f);
+        float gain = Float.isFinite(strength) ? Math.clamp(strength, 0.0F, 4.0F) : 1.0F;
+        instance.color.set((color >>> 16 & 255) / 255f * gain,
+                (color >>> 8 & 255) / 255f * gain,
+                (color & 255) / 255f * gain, (color >>> 24) / 255f);
         instance.uv.set(uScale, vScale, 0, 0);
     }
 
