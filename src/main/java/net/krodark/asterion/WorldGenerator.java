@@ -151,6 +151,7 @@ public final class WorldGenerator {
             MazeNbtStructures.Layout layout = mazeStructureLayout(level);
             layout.onChunkBuilt(chunk);
         }
+        installMazeWallCores(level, chunk);
     }
 
     public static void onChunkGenerate(ServerLevel level, LevelChunk chunk) {
@@ -413,10 +414,71 @@ public final class WorldGenerator {
             return;
         }
         RESTORING_BLOCKS.removeIf(entry -> entry.dimension.equals(level.dimension()) && entry.pos.equals(pos));
+        if (!shouldRestoreMazeBreak(level, pos)) return;
         long restoreDelay = net.krodark.asterion.worldgen.CatacombProtection.contains(level, pos)
                 ? 20L : 100L;
         RESTORING_BLOCKS.add(new RestoringBlock(level.dimension(), pos.immutable(), state,
                 level.getGameTime() + restoreDelay));
+    }
+
+    private static boolean shouldRestoreMazeBreak(ServerLevel level, BlockPos pos) {
+        long seed = net.krodark.asterion.worldgen.MazeChunkGenerator
+                .terrainSeed(level.getChunkSource().randomState());
+        AsterionConfig config = AsterionConfig.INSTANCE;
+        int floorY;
+        if (isPitOpening(pos.getX(), pos.getZ())) {
+            floorY = BOSS_FLOOR_Y;
+        } else {
+            MazeNbtStructures.Layout structures = ENABLE_MAZE_NBT_STRUCTURES
+                    ? mazeStructureLayout(level) : MazeNbtStructures.emptyLayout();
+            floorY = structures.floorY(pos.getX(), pos.getZ(),
+                    mazeFloorY(seed, pos.getX(), pos.getZ(), config.cellSize));
+        }
+        int foundationBottom = floorY - config.floorThickness + 1;
+        if (pos.getY() >= foundationBottom) return pos.getY() <= floorY;
+        // Preserve the established fast repair behavior in the separate undercroft.
+        return net.krodark.asterion.worldgen.CatacombProtection.contains(level, pos);
+    }
+
+    private static void installMazeWallCores(ServerLevel level, LevelChunk chunk) {
+        long seed = net.krodark.asterion.worldgen.MazeChunkGenerator
+                .terrainSeed(level.getChunkSource().randomState());
+        AsterionConfig config = AsterionConfig.INSTANCE;
+        int cell = config.cellSize;
+        int thickness = config.wallThickness;
+        int radius = config.mazeRadiusCells;
+        MazeTopology topology = topology(seed, radius, config.mazeLoopChance, config.mazeLandmarkChance);
+        MazeNbtStructures.Layout structures = ENABLE_MAZE_NBT_STRUCTURES
+                ? mazeStructureLayout(level) : MazeNbtStructures.emptyLayout();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int x = chunk.getPos().getMinBlockX(); x <= chunk.getPos().getMaxBlockX(); x++) {
+            for (int z = chunk.getPos().getMinBlockZ(); z <= chunk.getPos().getMaxBlockZ(); z++) {
+                if (isPitOpening(x, z) || isPitShaftWall(x, z)) continue;
+                int floorY = structures.floorY(x, z, mazeFloorY(seed, x, z, cell));
+                MazeBiomes.Biome biome = mazeBiomeAt(seed, x, z, cell);
+                if (!isMazeWallCore(topology, structures, seed, biome,
+                        x, z, cell, thickness, radius)) continue;
+                int wallHeight = biome.kind() == MazeBiomes.Kind.CRIMSON_MARSHLANDS
+                        ? Math.min(DIMENSION_CEILING_Y - floorY - 2,
+                                Math.max(config.wallHeight + 28, 56))
+                        : config.wallHeight;
+                for (int rise = 1; rise <= wallHeight; rise++) {
+                    cursor.set(x, floorY + rise, z);
+                    BlockState current = chunk.getBlockState(cursor);
+                    if (current.is(Asterion.MAZE_WALL_CORE) || !isMazeWallMaterial(current)) continue;
+                    chunk.setBlockState(cursor, Asterion.MAZE_WALL_CORE.defaultBlockState(), 0);
+                }
+            }
+        }
+    }
+
+    private static boolean isMazeWallMaterial(BlockState state) {
+        return state.is(Asterion.ANCIENT_BRICKS)
+                || state.is(Asterion.ANCIENT_MOSSY_BRICKS)
+                || state.is(Asterion.MOSSY_ANCIENT_STONE)
+                || state.is(Asterion.ANCIENT_STONE)
+                || state.is(Asterion.ANCIENT_LEAVES)
+                || state.is(Asterion.TAINTED_LEAVES);
     }
 
     public static boolean isActivePortalProtected(ServerLevel level, BlockPos pos) {
@@ -2319,10 +2381,13 @@ public final class WorldGenerator {
                 boolean wall = isWall(topology, structures, seed, biome,
                         x, z, cell, thickness, radius);
                 if (wall) {
+                    boolean core = isMazeWallCore(topology, structures, seed, biome,
+                            x, z, cell, thickness, radius);
                     for (int y = 1; y <= biomeWallHeight; y++)
                         bufferedSet(chunk, x, floorY + y, z,
-                                patternedWall(seed, x, y, z, biome, cell, radius));
-                    placeBiomeWallDetail(chunk, seed, x, z, biomeWallHeight, biome, floorY);
+                                core ? Asterion.MAZE_WALL_CORE.defaultBlockState()
+                                        : patternedWall(seed, x, y, z, biome, cell, radius));
+                    if (!core) placeBiomeWallDetail(chunk, seed, x, z, biomeWallHeight, biome, floorY);
                 } else {
                     // Reserved footprints and their approaches are already shaped during normal
                     // chunk generation, so NBT placement never needs to rebuild the chunk later.
@@ -2457,6 +2522,59 @@ public final class WorldGenerator {
         if (lz < thickness) return !topology.openInfinite(gx, gz - 1, gx, gz)
                 && !biomeOpensWall(seed, biome, gx, gz - 1, gx, gz, false);
         return false;
+    }
+
+    private static boolean isMazeWallCore(MazeTopology topology, MazeNbtStructures.Layout structures,
+                                          long seed, MazeBiomes.Biome biome, int x, int z,
+                                          int size, int thickness, int radius) {
+        if (!isWall(topology, structures, seed, biome, x, z, size, thickness, radius)) return false;
+        if (biome.kind() == MazeBiomes.Kind.CRIMSON_MARSHLANDS)
+            return isCircularMazeWallCore(seed, x, z, size, thickness);
+
+        int limit = radius * size;
+        int gx = Math.floorDiv(x + limit, size);
+        int gz = Math.floorDiv(z + limit, size);
+        int lx = Math.floorMod(x + limit, size);
+        int lz = Math.floorMod(z + limit, size);
+        int core = Math.min(thickness - 1, thickness / 2);
+        boolean intersection = lx < thickness && lz < thickness;
+        boolean xWall = lx < thickness && (intersection
+                || !topology.openInfinite(gx - 1, gz, gx, gz)
+                && !biomeOpensWall(seed, biome, gx - 1, gz, gx, gz, true));
+        boolean zWall = lz < thickness && (intersection
+                || !topology.openInfinite(gx, gz - 1, gx, gz)
+                && !biomeOpensWall(seed, biome, gx, gz - 1, gx, gz, false));
+        return xWall && lx == core || zWall && lz == core;
+    }
+
+    private static boolean isCircularMazeWallCore(long seed, int x, int z,
+                                                   int cell, int thickness) {
+        MazeBiomes.Catalog catalog = MazeBiomes.current();
+        int regionSize = cell * catalog.regionSizeCells();
+        int regionX = Math.floorDiv(x, regionSize);
+        int regionZ = Math.floorDiv(z, regionSize);
+        double centerX = regionX * (double)regionSize + regionSize * 0.5D;
+        double centerZ = regionZ * (double)regionSize + regionSize * 0.5D;
+        double dx = x + 0.5D - centerX;
+        double dz = z + 0.5D - centerZ;
+        double distance = Math.sqrt(dx * dx + dz * dz);
+        double angle = Math.atan2(dz, dx);
+        if (angle < 0.0D) angle += Math.PI * 2.0D;
+        double ringSpacing = cell * 1.72D;
+        int ring = Math.max(1, Mth.floor(distance / ringSpacing + 0.5D));
+        long regionSeed = mix(seed ^ (long)regionX * 0xD6E8FEB86659FD93L
+                ^ (long)regionZ * 0xA5A3564E27F8862BL);
+        long ringSeed = mix(regionSeed ^ ring * 0x9E3779B97F4A7C15L);
+        double ringCenter = ring * ringSpacing + signedUnitFloat(ringSeed) * ringSpacing * 0.14D;
+        boolean ringCore = Math.abs(distance - ringCenter) < 0.5D;
+
+        int spokes = 12;
+        double spokeStep = Math.PI * 2.0D / spokes;
+        int spoke = Mth.floor(angle / spokeStep + 0.5D) % spokes;
+        double difference = Math.abs(angle - spoke * spokeStep);
+        difference = Math.min(difference, Math.PI * 2.0D - difference);
+        boolean spokeCore = distance * difference < 0.5D;
+        return ringCore || spokeCore;
     }
 
     /** Concentric passages split by short radial partitions, with deterministic gates in

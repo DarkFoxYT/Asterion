@@ -182,6 +182,8 @@ public class Asterion implements ModInitializer {
             properties -> new StairBlock(ANCIENT_STONE.defaultBlockState(), properties) { });
     public static final Block ANCIENT_STONE_WALL = registerBlock("ancient_stone_wall", MapColor.TERRACOTTA_BROWN, WallBlock::new);
     public static final Block MAZESTEEL_BLOCK = registerBlock("mazesteel_block", MapColor.METAL, Block::new);
+    public static final Block MAZE_WALL_CORE = registerBlockWithoutItem("maze_wall_core", MapColor.METAL,
+            properties -> new Block(properties.strength(-1.0F, 3_600_000F).sound(SoundType.METAL)));
     public static final Block MAZESTEEL_SLAB = registerBlock("mazesteel_slab", MapColor.METAL,
             properties -> new SlabBlock(properties.sound(SoundType.METAL)));
     public static final Block MAZESTEEL_STAIRS = registerBlock("mazesteel_stairs", MapColor.METAL,
@@ -656,7 +658,8 @@ public class Asterion implements ModInitializer {
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> CatacombFloodState.clear());
         PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, blockEntity) ->
                 !(level instanceof net.minecraft.server.level.ServerLevel serverLevel)
-                        || !WorldGenerator.isActivePortalProtected(serverLevel, pos));
+                        || !state.is(MAZE_WALL_CORE)
+                        && !WorldGenerator.isActivePortalProtected(serverLevel, pos));
         PlayerBlockBreakEvents.AFTER.register((level, player, pos, state, blockEntity) -> {
             if (level instanceof net.minecraft.server.level.ServerLevel serverLevel
                     && !net.krodark.asterion.worldgen.CatacombProtection.isOre(state))
