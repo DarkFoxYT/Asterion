@@ -347,7 +347,7 @@ public class Asterion implements ModInitializer {
             BuiltInRegistries.ENTITY_TYPE, CONSTRUCT_KEY,
             EntityType.Builder.of(ConstructEntity::new, MobCategory.MONSTER)
                     // Model pixels map 1:16: x/z [-8,8], y [0,35].
-                    .sized(1.0F, 2.1875F).eyeHeight(1.75F).clientTrackingRange(10)
+                    .sized(1.0F, 2.1875F).eyeHeight(1.75F).clientTrackingRange(10).fireImmune()
                     .build(CONSTRUCT_KEY));
     private static final ResourceKey<EntityType<?>> QUEEN_BEETLE_KEY = ResourceKey.create(
             Registries.ENTITY_TYPE, id("queen_beetle"));
@@ -622,6 +622,7 @@ public class Asterion implements ModInitializer {
     public void onInitialize() {
         net.krodark.asterion.game.GameplayContent.initialize();
         net.krodark.asterion.game.EncounterKeyRecovery.initialize();
+        net.krodark.asterion.game.ArenaDeathRecovery.initialize();
         net.krodark.asterion.effect.GreekFireBurn.initialize();
         net.krodark.asterion.effect.SingedEffect.initialize();
         ServerTickEvents.END_SERVER_TICK.register(net.krodark.asterion.effect.SingedScars::tick);

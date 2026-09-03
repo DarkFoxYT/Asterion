@@ -1,6 +1,10 @@
 package net.krodark.asterion.entity;
 
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.krodark.asterion.AsterionConfig;
+import net.krodark.asterion.network.DazePayload;
+import net.krodark.asterion.network.ragdoll.RagdollImpulsePayload;
+import net.krodark.asterion.network.ragdoll.RagdollServerNetworking;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -173,9 +177,18 @@ public final class MinotaurAxeEntity extends Entity {
                     ? damageSources().mobProjectile(this, living) : damageSources().generic();
             if (victim.hurtServer(server, damage, edge ? 20F : 10F)) {
                 hitPlayers.add(victim.getUUID());
-                Vec3 impulse = velocity.normalize().scale(edge ? 1.25 : .65).add(0, .25, 0);
-                victim.setDeltaMovement(victim.getDeltaMovement().add(impulse));
+                Vec3 impulse = velocity.normalize().scale(edge ? 2.8D : 1.35D)
+                        .add(0, edge ? .72D : .42D, 0);
+                victim.setDeltaMovement(impulse);
                 victim.hurtMarked = true;
+                victim.resetFallDistance();
+                RagdollServerNetworking.markRagdolled(victim, 86);
+                RagdollServerNetworking.suppressThrowFallDamage(victim, 100);
+                if (ServerPlayNetworking.canSend(victim, RagdollImpulsePayload.TYPE))
+                    ServerPlayNetworking.send(victim, new RagdollImpulsePayload(
+                            owner == null ? center : owner.position(), impulse, edge ? 1.75F : 1.35F));
+                if (ServerPlayNetworking.canSend(victim, DazePayload.TYPE))
+                    ServerPlayNetworking.send(victim, new DazePayload(edge ? 82 : 68, edge ? 5 : 4));
                 server.playSound(null, victim.blockPosition(), SoundEvents.PLAYER_ATTACK_CRIT, SoundSource.HOSTILE, 1.4F, .7F);
                 server.sendParticles(ParticleTypes.CRIT, closest.x, closest.y, closest.z, 12, .3, .4, .3, .08);
             }

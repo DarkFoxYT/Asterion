@@ -15,6 +15,7 @@ import net.krodark.asterion.entity.MinotaurEntity;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
 import java.util.ArrayDeque;
@@ -55,11 +56,16 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
                         poses.pushPose();
                         if (!drawn) {
                             int sign = side.equals("right") ? -1 : 1;
-                            // Thin edge against the hip, blade trailing behind the thigh.
-                            // The mesh is broad in Z, so a 90-degree yaw made it stick out sideways.
-                            poses.translate(sign * 17.0 / 16, 10.0 / 16, 3.0 / 16);
-                            poses.mulPose(com.mojang.math.Axis.XP.rotationDegrees(168));
-                            poses.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(-sign * 6));
+                            float age = (float)pass.renderState().getAnimatableAge();
+                            float breathe = Mth.sin(age * 0.075F + (sign < 0 ? 0F : 0.65F));
+                            float settle = Mth.sin(age * 0.16F + (sign < 0 ? 0F : Mth.PI));
+                            // Keep the long tips clear of the floor and give the scabbards
+                            // a tiny asynchronous breathing/stride sway instead of a frozen pose.
+                            poses.translate(sign * 17.0 / 16,
+                                    17.0 / 16 + breathe * 0.025F,
+                                    3.0 / 16 + settle * 0.018F);
+                            poses.mulPose(com.mojang.math.Axis.XP.rotationDegrees(168 + breathe * 1.25F));
+                            poses.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(-sign * (6 + settle * 1.1F)));
                         }
                         if (drawn) renderSwordTrail(pass, posed, tasks, side, poses);
                         MinotaurSwordVisual.submit(
@@ -74,6 +80,9 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
             poses.pushPose();
             if (bone.name().equals("body")) {
                 poses.translate(0, -.2, 1.2);
+                // The axe mesh is authored in hand space. Undo the quarter-turn when
+                // it is mounted across the torso; equipped and thrown poses stay untouched.
+                poses.mulPose(com.mojang.math.Axis.YN.rotationDegrees(90));
                 poses.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(30));
             }
             poses.translate(0, -MinotaurAxeEntity.GRIP_Y, 0);

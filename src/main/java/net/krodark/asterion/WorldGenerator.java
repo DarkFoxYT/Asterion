@@ -1777,16 +1777,38 @@ public final class WorldGenerator {
         for (int dx = -width; dx <= width; dx++) for (int dz = -width; dz <= width; dz++) {
             if (dx * dx + dz * dz > width * width + 1) continue;
             int x = centerX + dx, z = centerZ + dz;
+            int underside = findArenaRoofUnderside(level, cursor, x, z, roofY);
+            if (underside < 0) continue;
             boolean removed = false;
-            for (int y = net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y + 28;
-                 y <= roofY; y++) {
+            for (int y = underside; y <= roofY; y++) {
                 cursor.set(x, y, z);
                 if (level.getBlockState(cursor).isAir()) continue;
                 level.setBlock(cursor, Blocks.AIR.defaultBlockState(), 2);
                 removed = true;
             }
-            if (removed) launches.add(new Vec3(x + .5D, roofY - 1.15D, z + .5D));
+            if (removed) launches.add(new Vec3(x + .5D, underside - .15D, z + .5D));
         }
+    }
+
+    /**
+     * Finds the visible underside of the authored vault rather than assuming a flat
+     * ceiling. A short air run below the candidate avoids mistaking furniture and
+     * hanging fixtures for the roof while still following its low outer arches.
+     */
+    private static int findArenaRoofUnderside(ServerLevel level, BlockPos.MutableBlockPos cursor,
+                                              int x, int z, int roofY) {
+        int firstY = BOSS_FLOOR_Y + 8;
+        for (int y = firstY; y <= roofY; y++) {
+            cursor.set(x, y, z);
+            if (level.getBlockState(cursor).isAir()) continue;
+            int clearBelow = 0;
+            for (int below = 1; below <= 4; below++) {
+                cursor.set(x, y - below, z);
+                if (level.getBlockState(cursor).isAir()) clearBelow++;
+            }
+            if (clearBelow >= 3) return y;
+        }
+        return -1;
     }
 
     private static void cleanupUnsupportedRoofFixtures(ServerLevel level, int outerRadius,

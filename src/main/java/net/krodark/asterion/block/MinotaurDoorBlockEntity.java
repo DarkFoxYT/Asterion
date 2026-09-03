@@ -67,7 +67,13 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
         if (insertedKey) {
             unlockedWithKey = true;
             unlocked = true;
-            if (!player.isCreative()) held.shrink(1);
+            if (!player.isCreative()) {
+                held.shrink(1);
+                if(player instanceof net.minecraft.server.level.ServerPlayer serverPlayer
+                        &&worldPosition.equals(net.krodark.asterion.worldgen.MinotaurArenaEntrances.door(
+                        net.krodark.asterion.worldgen.MinotaurArenaEntrances.PLAYER_ENTRANCE)))
+                    net.krodark.asterion.game.EncounterKeyRecovery.markConsumed(serverPlayer,Asterion.MINOTAUR_KEY);
+            }
             if(player instanceof net.minecraft.server.level.ServerPlayer serverPlayer
                     &&worldPosition.equals(net.krodark.asterion.worldgen.MinotaurArenaEntrances.door(
                     net.krodark.asterion.worldgen.MinotaurArenaEntrances.PLAYER_ENTRANCE)))

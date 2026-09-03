@@ -118,21 +118,19 @@ public final class PhysicsDebrisSystem {
         if (client.level == null || client.player == null) return;
         if (trackedLevel != client.level) { clear(); trackedLevel = client.level; }
         Random random = new Random(payload.seed());
-        int fragmentIndex = 0;
         for (var fragment : payload.fragments()) {
             Vec3 pos = fragment.position(), velocity = fragment.velocity();
             if (!Double.isFinite(pos.lengthSqr()) || !Double.isFinite(velocity.lengthSqr())
                     || pos.distanceToSqr(client.player.position()) > 96 * 96) continue;
-            int variant = 2 + random.nextInt(3);
+            // Use the complete masonry debris family: rare heavy slabs plus the
+            // medium chunks and tiny chips, all with their own collision profiles.
+            int variant = random.nextInt(12) == 0 ? 1 : 2 + random.nextInt(5);
             Piece piece = new Piece(pos, variant, fragment.scale(), random);
             piece.velocity = velocity.lengthSqr() > 9 ? velocity.normalize().scale(3) : velocity;
             piece.angularVelocity.mul(.55F);
             piece.arenaRubble = true;
-            if ((fragmentIndex++ & 1) == 0) {
-                piece.blockVisual = (random.nextBoolean() ? net.minecraft.world.level.block.Blocks.COBBLED_DEEPSLATE
-                        : net.minecraft.world.level.block.Blocks.TUFF).defaultBlockState();
+            if ((variant & 1) == 0)
                 piece.angularVelocity.mul(2.8F);
-            }
             if (!isWorldClear(client.level, piece, pos)) continue;
             PIECES.add(piece);
             spawnDebrisSmoke(client.level, pos, random, 3);

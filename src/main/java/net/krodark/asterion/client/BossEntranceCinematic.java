@@ -39,7 +39,7 @@ public final class BossEntranceCinematic {
         if (payload.duration() <= 0 || client.player == null || client.level == null) return;
         door = payload.bossDoor();
         if (!door.getAxis().isHorizontal()) return;
-        duration = Math.clamp(payload.duration(), 1, 200);
+        duration = Math.clamp(payload.duration(), 1, 260);
         finished = false;
         ticks = Math.clamp(payload.elapsed(), 0, duration);
         lastSoundTick = ticks - 1;
@@ -91,9 +91,11 @@ public final class BossEntranceCinematic {
         float time = ticks + partial;
         Vec3 inward = door.getOpposite().getUnitVec3();
         Vec3 doorway = Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(door));
-        float recoil = MinotaurDoorMotion.ease((time - 108) / 24F);
+        float recoil = MinotaurDoorMotion.ease((time - 108) / 32F);
         Vec3 doorShot = doorway.add(inward.scale(10.5 + recoil * 3.0)).add(0, 1.35 + recoil * .45, 0);
-        float approach = MinotaurDoorMotion.ease(time / 24F);
+        // Ease across a longer dolly instead of snapping from the player's eyes to
+        // the reveal angle during the first second of the sequence.
+        float approach = smootherStep(time / 44F);
         Vec3 camera = (openingEye == null ? playerEye : openingEye).lerp(doorShot, approach);
         float impact = 0;
         for (int beat : new int[]{14, 44, 78, 112}) {
@@ -103,12 +105,17 @@ public final class BossEntranceCinematic {
         }
         camera = camera.add(Math.sin(time * 2.7) * impact, Math.cos(time * 3.4) * impact * .65, 0);
         Vec3 focus = doorway.add(inward.scale(1.2)).add(0, 3.15, 0);
-        float returning = MinotaurDoorMotion.ease((time - (duration - 20)) / 20F);
+        float returning = smootherStep((time - (duration - 42)) / 42F);
         camera = camera.lerp(playerEye, returning);
         Vec3 delta = focus.subtract(camera);
         float yaw = (float)Math.toDegrees(Math.atan2(-delta.x, delta.z));
         float pitch = (float)-Math.toDegrees(Math.atan2(delta.y, delta.horizontalDistance()));
         return new CameraPose(camera, Mth.rotLerp(returning, yaw, returnYaw), Mth.lerp(returning, pitch, returnPitch));
+    }
+
+    private static float smootherStep(float value) {
+        float t = Math.clamp(value, 0F, 1F);
+        return t * t * t * (t * (t * 6F - 15F) + 10F);
     }
 
     public static void finish(Minecraft client) {

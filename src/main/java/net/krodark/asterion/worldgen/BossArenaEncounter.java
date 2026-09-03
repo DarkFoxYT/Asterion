@@ -18,7 +18,8 @@ import java.util.*;
 
 /** Owns arena sealing and player safety separately from the boss's combat AI. */
 public final class BossArenaEncounter {
-    public static final int INTRO_TICKS = 170;
+    /** Ten-and-a-half second reveal: enough room for the breach, roar and a gentle camera return. */
+    public static final int INTRO_TICKS = 210;
     private static Encounter active;
     private BossArenaEncounter() { }
 

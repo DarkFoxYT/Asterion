@@ -30,6 +30,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.krodark.asterion.entity.MinotaurEntity;
 import net.krodark.asterion.entity.BombadierBeetleEntity;
 import net.krodark.asterion.entity.ScarletCentipedeEntity;
+import net.krodark.asterion.entity.ConstructEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.BlockItem;
@@ -827,6 +828,7 @@ public final class DismembermentEngine {
     private static BodyGeometry calculateGeometry(Entity entity, int region,
                                                    Vec3 fallbackOffset, Vec3 fallbackHalf,
                                                    boolean applyAnimation, Set<String> excludedPaths) {
+        if (entity instanceof ConstructEntity) return constructGeometry(entity, region);
         try {
             EntityRenderer renderer = Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(entity);
             if (!(renderer instanceof LivingEntityRenderer living))
@@ -1176,6 +1178,8 @@ public final class DismembermentEngine {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static Identifier resolveTexture(Entity entity) {
+        if (entity instanceof ConstructEntity)
+            return Asterion.id("textures/entity/construct.png");
         try {
             EntityRenderer renderer = Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(entity);
             EntityRenderState state = renderer.createRenderState(entity, 1.0f);
@@ -1183,6 +1187,64 @@ public final class DismembermentEngine {
                 return living.getTextureLocation((LivingEntityRenderState) state);
         } catch (RuntimeException ignored) { }
         return Identifier.withDefaultNamespace("textures/block/red_concrete.png");
+    }
+
+    /** GeckoLib is not a vanilla LivingEntityRenderer, so use the authored cube dimensions directly. */
+    private static BodyGeometry constructGeometry(Entity entity, int region) {
+        AABB bounds = entity.getBoundingBox();
+        Vec3 modelCenter = switch (region) {
+            case 0 -> new Vec3(0, 27.0 / 16.0, 0);
+            case 2 -> new Vec3(-5.0 / 16.0, 5.0 / 16.0, -5.0 / 16.0);
+            case 3 -> new Vec3(5.0 / 16.0, 5.0 / 16.0, -5.0 / 16.0);
+            case 4 -> new Vec3(-5.0 / 16.0, 5.0 / 16.0, 5.0 / 16.0);
+            case 5 -> new Vec3(5.0 / 16.0, 5.0 / 16.0, 5.0 / 16.0);
+            default -> new Vec3(0, 18.5 / 16.0, 0);
+        };
+        Vec3 half = switch (region) {
+            case 0 -> new Vec3(.5, .5, .5);
+            case 2, 3, 4, 5 -> new Vec3(3.0 / 16.0, 5.0 / 16.0, 3.0 / 16.0);
+            default -> new Vec3(5.0 / 16.0, 12.5 / 16.0, 5.0 / 16.0);
+        };
+        float yaw = entity instanceof LivingEntity living ? living.getPreciseBodyRotation(1.0F) : entity.getYRot();
+        Vec3 localOffset = modelCenter.subtract(0, bounds.getYsize() * .5, 0);
+        Vec3 offset = RagdollMath.rotateY(localOffset, Math.toRadians(180.0F - yaw));
+        Quaternionf orientation = new Quaternionf().rotationY((float)Math.toRadians(180.0F - yaw));
+        Vec3 joint = switch (region) {
+            case 0 -> new Vec3(0, 19.0 / 16.0 - bounds.getYsize() * .5, 0);
+            case 2 -> new Vec3(-5.0 / 16.0, 10.0 / 16.0 - bounds.getYsize() * .5, -5.0 / 16.0);
+            case 3 -> new Vec3(5.0 / 16.0, 10.0 / 16.0 - bounds.getYsize() * .5, -5.0 / 16.0);
+            case 4 -> new Vec3(-5.0 / 16.0, 10.0 / 16.0 - bounds.getYsize() * .5, 5.0 / 16.0);
+            case 5 -> new Vec3(5.0 / 16.0, 10.0 / 16.0 - bounds.getYsize() * .5, 5.0 / 16.0);
+            default -> Vec3.ZERO;
+        };
+        joint = RagdollMath.rotateY(joint, Math.toRadians(180.0F - yaw));
+        return new BodyGeometry(offset, half, constructUvs(region), null,
+                orientation, "construct/" + region, joint);
+    }
+
+    private static float[][] constructUvs(int region) {
+        return switch (region) {
+            case 0 -> boxUvs(51,0, 0,17, 34,16, 0,34, 0,0, 17,0, 16,16,16);
+            case 2 -> boxUvs(14,68, 14,68, 73,37, 68,24, 68,13, 21,68, 6,10,6);
+            case 3 -> boxUvs(20,68, 73,71, 79,37, 74,24, 74,13, 27,68, -6,10,6);
+            case 4 -> boxUvs(73,71, 20,68, 73,31, 68,30, 27,68, 74,13, -6,10,6);
+            case 5 -> boxUvs(14,68, 67,71, 79,31, 74,30, 21,68, 68,13, 6,10,6);
+            default -> boxUvs(56,48, 51,34, 56,72, 62,34, 34,51, 45,51, 10,13,10);
+        };
+    }
+
+    /** Face order matches the ragdoll box renderer: west, east, down, up, north, south. */
+    private static float[][] boxUvs(float wu,float wv,float eu,float ev,float du,float dv,
+                                    float uu,float uv,float nu,float nv,float su,float sv,
+                                    float width,float height,float depth) {
+        return new float[][] {
+                uvRect(wu,wv,wu+depth,wv+height,128,128),
+                uvRect(eu,ev,eu+depth,ev+height,128,128),
+                uvRect(du,dv,du+width,dv-depth,128,128),
+                uvRect(uu,uv,uu+width,uv+depth,128,128),
+                uvRect(nu,nv,nu+width,nv+height,128,128),
+                uvRect(su,sv,su+width,sv+height,128,128)
+        };
     }
 
     private static boolean isRagdollExcluded(Entity entity) {

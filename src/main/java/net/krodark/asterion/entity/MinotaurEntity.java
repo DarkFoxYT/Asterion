@@ -1563,7 +1563,10 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 if (level.noCollision(this, destination)) setPos(inside.x, inside.y, inside.z);
             }
             getEntityData().set(DATA_DOOR_ENTRY_TICKS, 0);
-            bossAttackCooldown = 40;
+            // The cinematic deliberately lingers after the authored entrance pose.
+            // Do not let combat wake while participants are still camera-locked.
+            bossAttackCooldown = Math.max(40,
+                    net.krodark.asterion.worldgen.BossArenaEncounter.INTRO_TICKS - ROAR_START_TICKS + 10);
             return false;
         }
         getEntityData().set(DATA_DOOR_ENTRY_TICKS, tick + 1);
@@ -2116,7 +2119,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 case SWORD_COMBO -> 7.2;
                 case GRAB -> height > 1.5 ? 11 : 3;
                 case CLEAVE, SPIN_COMBO -> 6.5;
-                case SLAM, AXE_CHOP -> 6.6;
+                case SLAM -> 6.6;
+                case AXE_CHOP -> 8.2;
                 case HORN_RAM -> 10;
                 case CHAIN_GRAPPLE -> 3.3;
                 case LEAP -> clearChargeLane ? 4.3 : 6.3;
@@ -2125,7 +2129,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 case FIRE_RINGS -> 4;
                 case GREEK_FIRE_LASER -> 4.0;
                 case SMOKE_BELCH -> 4.8;
-                case AXE_THROW -> weaponMode() == 1 ? 5.8 : 3.8;
+                case AXE_THROW -> weaponMode() == 1 ? 7.0 : 4.8;
                 case RETRIEVE_AXE -> position().distanceToSqr(axeLastPosition) < 144 ? 8 : 2.5;
                 case CHARGE -> 6.5;
                 case STAMPEDE, PAWING -> 4.5;
@@ -2790,12 +2794,13 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                     }
                     if (attackCooldown <= 0 && getBoundingBox().inflate(0.8D).intersects(player.getBoundingBox())) {
                         float damage = (float)Mth.lerp(acceleration, 6.0D, 15.0D);
-                        // Calibrated to roughly seven blocks at the base, then scaled by momentum.
-                        double knockback = Mth.lerp(acceleration, 1.05D, 2.65D);
+                        // A committed body charge should launch the player well clear of
+                        // the Minotaur instead of reading like an ordinary melee shove.
+                        double knockback = Mth.lerp(acceleration, 2.35D, 4.6D);
                         if (player.hurtServer(level, damageSources().mobAttack(this), damage))
                             ragdollPlayer(player, bossChargeDirection.scale(knockback)
-                                    .add(0.0D, 0.24D + acceleration * 0.34D, 0.0D),
-                                    (float)(1.05D + acceleration * 0.60D));
+                                    .add(0.0D, 0.58D + acceleration * 0.42D, 0.0D),
+                                    (float)(1.55D + acceleration * 0.45D), true);
                         scheduleWallCombo(player, 120);
                         attackCooldown = 18;
                         finishBossAttack(40);
@@ -4890,6 +4895,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         setInvulnerable(true);
         getEntityData().set(DATA_BOSS_ATTACK_TICKS, 0);
         noPhysics = false;
+        settleDefeatedPose(level);
         healthBossBar.removeAllPlayers();
         rageBossBar.removeAllPlayers();
         playRoar(5.0F, 0.58F, 1.65F);
@@ -4899,12 +4905,38 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private void tickDefeated(ServerLevel level) {
         getNavigation().stop();
         setDeltaMovement(Vec3.ZERO);
+        noPhysics = false;
+        if (!level.noCollision(this, getBoundingBox().inflate(1.35D, 0.0D, 1.35D)))
+            settleDefeatedPose(level);
         setTarget(null);
         setAggressive(false);
         getEntityData().set(DATA_BOSS_ATTACK_TICKS, Math.min(85, bossAttackAnimationTicks() + 1));
         if ((phaseTicks & 7) == 0)
             level.sendParticles(ParticleTypes.ELECTRIC_SPARK, getX(), getY() + getBbHeight() * 0.55D,
                     getZ(), 18, 1.0D, 1.6D, 1.0D, 0.12D);
+    }
+
+    /** Finds room for the full death-animation silhouette, not only the live hitbox. */
+    private void settleDefeatedPose(ServerLevel level) {
+        Vec3 origin = combatPoint(position());
+        AABB body = getBoundingBox();
+        for (int ring = 0; ring <= 10; ring++) {
+            int samples = ring == 0 ? 1 : 16;
+            for (int sample = 0; sample < samples; sample++) {
+                double angle = Mth.TWO_PI * sample / samples;
+                Vec3 candidate = ring == 0 ? origin : combatPoint(origin.add(
+                        Math.cos(angle) * ring * 0.75D, 0.0D,
+                        Math.sin(angle) * ring * 0.75D));
+                AABB destination = body.move(candidate.subtract(position()))
+                        .inflate(1.35D, 0.0D, 1.35D);
+                BlockPos feet = BlockPos.containing(candidate).below();
+                if (!level.getBlockState(feet).isFaceSturdy(level, feet, Direction.UP)
+                        || !level.noCollision(this, destination)) continue;
+                setPos(candidate.x, candidate.y, candidate.z);
+                resetFallDistance();
+                return;
+            }
+        }
     }
 
     private void interruptRegeneration() {

@@ -10,11 +10,15 @@ import com.geckolib.util.GeckoLibUtil;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.game.GasClouds;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.PathfinderMob;
@@ -31,17 +35,20 @@ import net.minecraft.world.phys.Vec3;
 public final class ConstructEntity extends PathfinderMob implements GeoEntity {
     private static final EntityDataAccessor<Boolean> ATTACKING = SynchedEntityData.defineId(
             ConstructEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Boolean> RUNNING = SynchedEntityData.defineId(
+            ConstructEntity.class, EntityDataSerializers.BOOLEAN);
     private static final RawAnimation WALK = RawAnimation.begin().thenLoop("walk");
     private static final RawAnimation ATTACK = RawAnimation.begin().thenPlayAndHold("attack");
     private static final double NOTICE_RANGE = 34.0D;
     private static final double IGNITE_RANGE = 3.5D;
     /** Authored animation timing: 24 frames per second, rendered at 20 game ticks per second. */
-    public static final int ATTACK_HIT_TICK = 42; // frame 50
+    public static final int ATTACK_HIT_TICK = 25; // authored frame 30
     public static final int ATTACK_ANIMATION_TICKS = 155; // 7.75 seconds
     public static final int RECOVERY_TICKS = 100; // five seconds armored and lowered
     private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
     private int attackTicks;
     private int recoveryTicks;
+    private int blockedHitCooldown;
 
     public ConstructEntity(EntityType<? extends ConstructEntity> type, Level level) {
         super(type, level);
@@ -59,6 +66,7 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
     @Override protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(ATTACKING, false);
+        builder.define(RUNNING, false);
     }
 
     @Override protected void registerGoals() {
@@ -69,11 +77,21 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
         return entityData.get(ATTACKING);
     }
 
+    public boolean isRunning() {
+        return entityData.get(RUNNING);
+    }
+
+    public boolean isVulnerable() {
+        return isAttacking() && attackTicks >= ATTACK_HIT_TICK;
+    }
+
     @Override public void tick() {
         super.tick();
         if (!(level() instanceof ServerLevel server) || !isAlive()) return;
+        if (blockedHitCooldown > 0) blockedHitCooldown--;
 
         if (isAttacking()) {
+            entityData.set(RUNNING, false);
             getNavigation().stop();
             setDeltaMovement(getDeltaMovement().multiply(0.0D, 1.0D, 0.0D));
             Player target = nearestTarget();
@@ -98,23 +116,28 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
 
         Player target = nearestTarget();
         if (recoveryTicks > 0) {
+            entityData.set(RUNNING, false);
             recoveryTicks--;
             getNavigation().stop();
             if (target != null) getLookControl().setLookAt(target, 20.0F, 20.0F);
             return;
         }
         if (target == null) {
+            entityData.set(RUNNING, false);
             getNavigation().stop();
             return;
         }
         getLookControl().setLookAt(target, 30.0F, 30.0F);
         if (distanceToSqr(target) <= IGNITE_RANGE * IGNITE_RANGE) {
+            entityData.set(RUNNING, false);
             entityData.set(ATTACKING, true);
             attackTicks = 0;
             getNavigation().stop();
         } else {
+            boolean running = distanceToSqr(target) > 10.0D * 10.0D;
+            entityData.set(RUNNING, running);
             if (getNavigation().isDone() || tickCount % 10 == 0)
-                getNavigation().moveTo(target, 1.1D);
+                getNavigation().moveTo(target, running ? 1.5D : 0.85D);
         }
     }
 
@@ -135,16 +158,38 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
     }
 
     @Override public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
-        // The closed shell is absolute armor. Its long, clearly telegraphed attack
-        // is the player's damage window, preventing ordinary spam-hit combat.
-        return isAttacking() && super.hurtServer(level, source, amount);
+        if (source.is(DamageTypeTags.IS_FIRE)) return false;
+        // The shell only opens at authored frame 30. Before that point and throughout
+        // recovery, blocked-hit feedback teaches the timing without a UI prompt.
+        if (!isVulnerable()) {
+            if (blockedHitCooldown == 0) {
+                blockedHitCooldown = 8;
+                playSound(SoundEvents.SHIELD_BLOCK.value(), 0.65F, 0.72F);
+                level.sendParticles(ParticleTypes.WAX_OFF,
+                        getX(), getY() + getBbHeight() * 0.55D, getZ(),
+                        5, 0.28D, 0.38D, 0.28D, 0.045D);
+            }
+            return false;
+        }
+        boolean hurt = super.hurtServer(level, source, amount);
+        if (hurt) {
+            Vec3 hit = getBoundingBox().getCenter();
+            level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK,
+                            Blocks.CUT_COPPER.defaultBlockState()),
+                    hit.x, hit.y, hit.z, 5, 0.22D, 0.32D, 0.22D, 0.08D);
+            level.sendParticles(ParticleTypes.WAX_OFF,
+                    hit.x, hit.y, hit.z, 2, 0.16D, 0.22D, 0.16D, 0.035D);
+        }
+        return hurt;
     }
 
     @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<ConstructEntity>("movement", 2, state -> {
             if (isAttacking()) return state.setAndContinue(ATTACK);
-            if (getDeltaMovement().horizontalDistanceSqr() > 1.0E-4D)
+            if (getDeltaMovement().horizontalDistanceSqr() > 1.0E-4D) {
+                state.setControllerSpeed(isRunning() ? 1.65F : 0.9F);
                 return state.setAndContinue(WALK);
+            }
             return PlayState.STOP;
         }));
     }

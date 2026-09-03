@@ -48,8 +48,6 @@ public final class SingedScars extends SavedData {
                 restoreAt.remove(playerId);
                 setDirty();
                 lost = 0;
-                player.sendSystemMessage(net.minecraft.network.chat.Component.translatable(
-                        "message.asterion.singed_heart_restored"));
             }
         } else {
             restoreAt.remove(playerId);

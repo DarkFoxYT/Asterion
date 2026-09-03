@@ -11,17 +11,42 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
 /** Keeps encounter progression keys visible and recovers ignored drops without duplication. */
 public final class EncounterKeyRecovery {
     private static final long RECOVERY_DELAY=20L*60L;
     private static final Map<UUID,Pending> PENDING=new HashMap<>();
+    private static final String MINOTAUR_KEY_SPENT="asterion_spent_minotaur_key";
+    private static final String CURSED_KEY_SPENT="asterion_spent_cursed_brazier_key";
     private EncounterKeyRecovery() { }
 
     public static void initialize() {
         ServerTickEvents.END_SERVER_TICK.register(EncounterKeyRecovery::tick);
         ServerLifecycleEvents.SERVER_STOPPED.register(server->PENDING.clear());
+    }
+
+    /** Records the exact player who paid an arena entry cost. */
+    public static void markConsumed(ServerPlayer player,Item key) {
+        String marker=spentMarker(key);
+        if(marker!=null)player.addTag(marker);
+    }
+
+    /** Restores a paid key once, without duplicating one the player already recovered elsewhere. */
+    public static boolean restoreConsumed(ServerPlayer player,Item key) {
+        String marker=spentMarker(key);
+        if(marker==null||!player.removeTag(marker))return false;
+        ItemStack stack=new ItemStack(key);
+        if(!player.getInventory().contains(stack))player.getInventory().placeItemBackInInventory(stack);
+        return true;
+    }
+
+    private static String spentMarker(Item key) {
+        if(key==net.krodark.asterion.Asterion.MINOTAUR_KEY)return MINOTAUR_KEY_SPENT;
+        if(key==GameplayContent.CURSED_BRAZIER_KEY)return CURSED_KEY_SPENT;
+        return null;
     }
 
     public static void track(ServerLevel level,ItemEntity key,ServerPlayer intendedPlayer) {

@@ -51,7 +51,12 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
                 return;
             }
             unlocked = true;
-            if (!player.isCreative()) held.shrink(1);
+            if (!player.isCreative()) {
+                held.shrink(1);
+                if(player instanceof net.minecraft.server.level.ServerPlayer serverPlayer)
+                    net.krodark.asterion.game.EncounterKeyRecovery.markConsumed(serverPlayer,
+                            net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER_KEY);
+            }
             level.playSound(null, worldPosition, net.minecraft.sounds.SoundEvents.VAULT_ACTIVATE,
                     net.minecraft.sounds.SoundSource.BLOCKS, 1.3F, .68F);
         }

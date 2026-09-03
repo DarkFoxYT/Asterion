@@ -23,7 +23,7 @@ public final class BiomeMusic {
     public record Track(String group, String sound, String title, String artist) { }
     private static ClientLevel level;
     private static int biome = -1, ticks, notice, gap;
-    private static boolean arena;
+    private static boolean arena, defeatedBossNearby;
     private static String lastGroup = "";
     private static Voice voice;
     private static Track playing, previous;
@@ -73,9 +73,17 @@ public final class BiomeMusic {
         if (!ownsMusic() || client.player == null || !client.player.isAlive()) { stop(client); return; }
         if (client.isPaused()) return;
         if (notice > 0) notice--;
-        if (++ticks % 10 == 0) arena = WorldGenerator.isInsideBossArena(client.player.position())
-                && !level.getEntitiesOfClass(MinotaurEntity.class, client.player.getBoundingBox().inflate(128),
-                    boss -> boss.isAlive() && boss.behaviorPhase() == MinotaurEntity.BehaviorPhase.BOSS).isEmpty();
+        if (++ticks % 10 == 0) {
+            var nearbyBosses = level.getEntitiesOfClass(MinotaurEntity.class,
+                    client.player.getBoundingBox().inflate(128),
+                    boss -> boss.behaviorPhase() == MinotaurEntity.BehaviorPhase.BOSS);
+            defeatedBossNearby = nearbyBosses.stream().anyMatch(MinotaurEntity::isDefeatedBoss);
+            arena = WorldGenerator.isInsideBossArena(client.player.position())
+                    && nearbyBosses.stream().anyMatch(boss -> boss.isAlive() && !boss.isDefeatedBoss());
+        }
+        // The permanent corpse intentionally retains one health point, so isAlive()
+        // alone cannot distinguish victory from an active encounter.
+        if (defeatedBossNearby) { stop(client); return; }
         boolean victory = !arena && WorldGenerator.isInsideBossArena(client.player.position())
                 && AsterionPortalRenderer.isOpen();
         String desired = victory ? "victory" : group(biome, arena);
@@ -121,7 +129,7 @@ public final class BiomeMusic {
         voice = null; playing = null; notice = 0; arena = false; gap = 0;
     }
     private static void reset(Minecraft client) {
-        stop(client); biome = -1; tracks = List.of(); previous = null; lastGroup = "";
+        stop(client); biome = -1; tracks = List.of(); previous = null; lastGroup = ""; defeatedBossNearby = false;
     }
 
     private static final class Voice extends AbstractTickableSoundInstance {

@@ -161,19 +161,10 @@ public final class BarrelDoorBlock extends BaseEntityBlock implements Waterlogge
         Direction facing = state.getValue(FACING);
         for (int column = 0; column < 3; column++) for (int row = 0; row < 4; row++)
             if (!level.isLoaded(part(root, facing, column, row))) return;
-        if (level.getBlockState(root).getValue(OPEN)) {
-            for (int depth = 1; depth <= 3; depth++) for (int row = 0; row < 4; row++)
-                if (!level.isLoaded(wing(root, facing, depth, row))) return;
-            for (int depth = 1; depth <= 3; depth++) for (int row = 0; row < 4; row++) {
-                BlockPos posWing = wing(root, facing, depth, row);
-                BlockState other = level.getBlockState(posWing);
-                if ((!other.is(this) || !other.getValue(WING) || !root(posWing, other).equals(root))
-                        && other.isAir()) {
-                    removeDoor(level, root, facing);
-                    return;
-                }
-            }
-        }
+        // Swing cells are optional collision proxies. prepareSwing deliberately omits
+        // them where scenery or an entity occupies the arc, so a missing proxy must
+        // never be interpreted as a broken door and delete the visible root model.
+        // The original 3x4 plane below remains the authoritative integrity check.
         for (int column = 0; column < 3; column++) for (int row = 0; row < 4; row++) {
             BlockPos part = part(root, facing, column, row);
             BlockState other = level.getBlockState(part);

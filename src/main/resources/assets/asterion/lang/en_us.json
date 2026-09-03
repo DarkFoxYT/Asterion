@@ -218,7 +218,7 @@
   "message.asterion.minotaur_door_locked": "Locked — a Minotaur Door Key is required.",
   "effect.asterion.singed": "Singed",
   "message.asterion.singed_heart": "Greek fire sears away one heart for 30 seconds.",
-  "message.asterion.singed_heart_restored": "The Greek-fire scar fades and your lost hearts return.",
+  "message.asterion.arena_revived": "The arena rejects your death. Your inventory and spent key have been restored.",
   "message.asterion.trap_period": "Trap repeats every %s seconds (sneak + use to decrease).",
   "block.asterion.spewer": "Gas Spewer",
   "block.asterion.fire_burst_trap": "Timed Fire Trap",

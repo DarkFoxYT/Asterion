@@ -485,7 +485,9 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
 
     private void tickSpinTornado(ServerLevel level, ServerPlayer target) {
         int tick = ++attackTicks;
-        double targetHeight = target.getY() + target.getBbHeight() * 0.45;
+        // Match the brazier's base to the player's footing so the ground-level ring
+        // follows stairs and elevation changes without orbiting harmlessly overhead.
+        double targetHeight = target.getY();
         if (tick <= 45) {
             Vec3 next = position().add(0, Math.clamp(targetHeight - getY(), -0.12, 0.12), 0);
             if (canOccupy(level, next)) setPos(next);
@@ -510,10 +512,11 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         setYRot((float) (getYRot() + speed));
         yBodyRot = getYRot();
         int streams = progress < 0.5 ? 2 : 3;
+        Vec3 flameRoot = position().add(0, 0.18, 0);
         for (int stream = 0; tick % 2 == 0 && stream < streams; stream++) {
             double angle = Math.toRadians(getYRot()) + stream * Math.PI * 2 / streams;
             Vec3 direction = new Vec3(Math.cos(angle), 0.015 + progress * 0.025, Math.sin(angle));
-            spawnFlame(level, mouth().add(direction.scale(1.1)),
+            spawnFlame(level, flameRoot.add(direction.scale(1.1)),
                     direction.scale(0.35 + progress * 0.52));
         }
         damagePlayers(level, getBoundingBox().inflate(1.35, 0.55, 1.35),
