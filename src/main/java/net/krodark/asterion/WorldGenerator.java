@@ -401,6 +401,9 @@ public final class WorldGenerator {
     public static void trackPlayerPlacement(ServerLevel level, BlockPos pos, BlockState state) {
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
         PLAYER_PLACED_BLOCKS.put(new BlockKey(level.dimension(), pos.immutable()), state.getBlock());
+        // Surface-maze construction is permanent. Keep provenance so maze attacks can
+        // distinguish it from generated masonry, but never enroll it in decay.
+        if (isPermanentUpperMazeBuild(pos)) return;
         int decayTicks = net.krodark.asterion.worldgen.CatacombProtection.contains(level, pos)
                 ? 20 : AsterionConfig.INSTANCE.playerBlockDecayTicks;
         DECAYING_BLOCKS.add(new DecayingBlock(level.dimension(), pos.immutable(), state.getBlock(),
@@ -519,6 +522,7 @@ public final class WorldGenerator {
                     BlockKey key = new BlockKey(level.dimension(), cursor.immutable());
                     Block expected = PLAYER_PLACED_BLOCKS.get(key);
                     if (expected == null || !level.getBlockState(cursor).is(expected)) continue;
+                    if (isPermanentUpperMazeBuild(cursor)) continue;
                     PLAYER_PLACED_BLOCKS.remove(key);
                     level.destroyBlock(cursor, false, null, 512);
                     broken++;
@@ -541,6 +545,7 @@ public final class WorldGenerator {
                             || state.is(Blocks.IRON_DOOR) || state.is(Blocks.IRON_BARS)
                             || state.is(Blocks.LODESTONE) || state.hasBlockEntity()
                             || isActivePortalProtected(level, cursor)
+                            || isPermanentUpperPlayerBlock(level, cursor, state)
                             || state.getDestroySpeed(level, cursor) < 0.0F
                             || !level.getBlockState(cursor.above()).isAir()) continue;
                     var shape = state.getCollisionShape(level, cursor);
@@ -647,7 +652,8 @@ public final class WorldGenerator {
                             || state.is(Blocks.CRACKED_DEEPSLATE_BRICKS)
                             || state.is(Blocks.COBBLED_DEEPSLATE)
                             || state.is(Blocks.POLISHED_BASALT);
-                    if (!mazeMasonry || isActivePortalProtected(level, cursor)) continue;
+                    if (!mazeMasonry || isActivePortalProtected(level, cursor)
+                            || isPermanentUpperPlayerBlock(level, cursor, state)) continue;
                     trackMazeBreak(level, cursor, state);
                     level.setBlock(cursor, Blocks.AIR.defaultBlockState(), 2);
                     broken++;
@@ -663,6 +669,7 @@ public final class WorldGenerator {
                 continue;
             }
             BlockState current = level.getBlockState(entry.pos);
+            if (isPermanentUpperMazeBuild(entry.pos)) continue;
             if (current.is(entry.expectedBlock)) {
                 level.destroyBlock(entry.pos, false, null, 512);
                 PLAYER_PLACED_BLOCKS.remove(new BlockKey(entry.dimension, entry.pos));
@@ -1771,6 +1778,18 @@ public final class WorldGenerator {
         }
         if (step >= 34) cleanupUnsupportedRoofFixtures(level,
                 net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS, -1, roofY);
+    }
+
+    private static boolean isPermanentUpperMazeBuild(BlockPos pos) {
+        return pos.getY() >= FLOOR_Y + 1
+                && !(Math.abs((long)pos.getX()) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS
+                && Math.abs((long)pos.getZ()) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS);
+    }
+
+    private static boolean isPermanentUpperPlayerBlock(ServerLevel level, BlockPos pos, BlockState state) {
+        if (!isPermanentUpperMazeBuild(pos)) return false;
+        Block expected = PLAYER_PLACED_BLOCKS.get(new BlockKey(level.dimension(), pos.immutable()));
+        return expected != null && state.is(expected);
     }
 
     private static void fractureRoofAt(ServerLevel level, BlockPos.MutableBlockPos cursor,

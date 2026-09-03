@@ -21,15 +21,19 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.util.Mth;
 
 /** A rare Greek-fire ambusher with a readable armored/attack/recovery cycle. */
 public final class ConstructEntity extends PathfinderMob implements GeoEntity {
@@ -61,6 +65,22 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
                 .add(Attributes.MOVEMENT_SPEED, 0.25D)
                 .add(Attributes.FOLLOW_RANGE, NOTICE_RANGE)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 0.35D);
+    }
+
+    public static boolean isAllowedAsterionLocation(BlockPos pos) {
+        return net.krodark.asterion.worldgen.CatacombLayout.contains(pos)
+                && !net.krodark.asterion.worldgen.AuthoredCatacombs.insideCursedBrazierRoom(pos)
+                && !(Math.abs((long)pos.getX()) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS
+                && Math.abs((long)pos.getZ()) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS);
+    }
+
+    @Override
+    public boolean checkSpawnRules(LevelAccessor level, EntitySpawnReason reason) {
+        if (reason == EntitySpawnReason.NATURAL
+                && (!(level instanceof ServerLevel server)
+                || !server.dimension().equals(Asterion.ASTERION_LEVEL)
+                || !isAllowedAsterionLocation(blockPosition()))) return false;
+        return super.checkSpawnRules(level, reason);
     }
 
     @Override protected void defineSynchedData(SynchedEntityData.Builder builder) {
@@ -95,9 +115,7 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
             getNavigation().stop();
             setDeltaMovement(getDeltaMovement().multiply(0.0D, 1.0D, 0.0D));
             Player target = nearestTarget();
-            if (target != null) {
-                getLookControl().setLookAt(target, 40.0F, 40.0F);
-            }
+            updateConstrainedFacing(target);
             if (attackTicks % 8 == 0)
                 server.sendParticles(Asterion.GREEK_FIRE, getX(), getY() + getBbHeight() * .5D, getZ(),
                         1, .12D, .18D, .12D, .006D);
@@ -115,11 +133,11 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
         }
 
         Player target = nearestTarget();
+        updateConstrainedFacing(target);
         if (recoveryTicks > 0) {
             entityData.set(RUNNING, false);
             recoveryTicks--;
             getNavigation().stop();
-            if (target != null) getLookControl().setLookAt(target, 20.0F, 20.0F);
             return;
         }
         if (target == null) {
@@ -127,7 +145,6 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
             getNavigation().stop();
             return;
         }
-        getLookControl().setLookAt(target, 30.0F, 30.0F);
         if (distanceToSqr(target) <= IGNITE_RANGE * IGNITE_RANGE) {
             entityData.set(RUNNING, false);
             entityData.set(ATTACKING, true);
@@ -144,6 +161,30 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
     private Player nearestTarget() {
         return level().getNearestPlayer(getX(), getY(), getZ(), NOTICE_RANGE,
                 net.minecraft.world.entity.EntitySelector.NO_CREATIVE_OR_SPECTATOR);
+    }
+
+    /** Movement turns the chassis; looking only bends the constrained body/head chain. */
+    private void updateConstrainedFacing(Player target) {
+        Vec3 motion = getDeltaMovement();
+        float bodyYaw = yBodyRot;
+        if (motion.horizontalDistanceSqr() > 2.5E-4D) {
+            float travelYaw = (float)(Mth.atan2(motion.z, motion.x) * Mth.RAD_TO_DEG) - 90.0F;
+            bodyYaw = Mth.rotLerp(0.12F, bodyYaw, travelYaw);
+        }
+        setYBodyRot(bodyYaw);
+        setYRot(bodyYaw);
+
+        float desiredHeadYaw = bodyYaw;
+        float desiredPitch = 0.0F;
+        if (target != null) {
+            Vec3 delta = target.getEyePosition().subtract(getEyePosition());
+            float directYaw = (float)(Mth.atan2(delta.z, delta.x) * Mth.RAD_TO_DEG) - 90.0F;
+            desiredHeadYaw = bodyYaw + Mth.clamp(Mth.wrapDegrees(directYaw - bodyYaw), -58.0F, 58.0F);
+            desiredPitch = Mth.clamp((float)-(Mth.atan2(delta.y,
+                    Math.sqrt(delta.x * delta.x + delta.z * delta.z)) * Mth.RAD_TO_DEG), -28.0F, 34.0F);
+        }
+        setYHeadRot(Mth.rotLerp(0.16F, getYHeadRot(), desiredHeadYaw));
+        setXRot(Mth.lerp(0.14F, getXRot(), desiredPitch));
     }
 
     private void sprayGreekFire(ServerLevel level, LivingEntity target) {

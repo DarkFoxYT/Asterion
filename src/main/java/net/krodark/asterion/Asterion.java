@@ -69,6 +69,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
 import net.krodark.asterion.block.RuneBlock;
 import net.krodark.asterion.block.RuneBlockEntity;
+import net.krodark.asterion.block.RuneBlockItem;
 import net.krodark.asterion.block.RuneDoorBlock;
 import net.krodark.asterion.block.DirectionalGateBlock;
 import net.krodark.asterion.block.WinchBlock;
@@ -167,9 +168,12 @@ public class Asterion implements ModInitializer {
             "shattered_dead_wood", MapColor.COLOR_BROWN,
             properties -> new ShatteredDeadWoodBlock(properties.noOcclusion()
                     .strength(3.2F, 5.0F).sound(SoundType.WOOD)));
-    public static final Block ANCIENT_STONE = registerBlock("ancient_stone", MapColor.TERRACOTTA_BROWN, Block::new);
+    public static final Block ANCIENT_STONE = registerBlock("ancient_stone", MapColor.TERRACOTTA_BROWN,
+            properties -> new Block(properties.strength(2.0F, 6.0F).sound(SoundType.STONE)));
     public static final Block MOSSY_ANCIENT_STONE = registerBlock("mossy_ancient_stone", MapColor.TERRACOTTA_GREEN, Block::new);
-    public static final Block ANCIENT_MOSS = registerBlock("ancient_moss", MapColor.TERRACOTTA_GREEN, net.krodark.asterion.block.WaterloggedMossBlock::new);
+    public static final Block ANCIENT_MOSS = registerBlock("ancient_moss", MapColor.TERRACOTTA_GREEN,
+            properties -> new net.krodark.asterion.block.WaterloggedMossBlock(properties.strength(0.1F)
+                    .sound(SoundType.MOSS)));
     public static final Block ANCIENT_MOSS_CARPET = registerBlock(
             "ancient_moss_carpet", MapColor.TERRACOTTA_GREEN,
             properties -> new net.krodark.asterion.block.WaterloggedMossCarpetBlock(properties.noCollision().strength(0.1F)
@@ -288,7 +292,14 @@ public class Asterion implements ModInitializer {
     public static final LabyrinthVineBlock LABYRINTH_VINE = (LabyrinthVineBlock)registerBlock(
             "labyrinth_vine", MapColor.COLOR_BROWN,
             properties -> new LabyrinthVineBlock(properties.noOcclusion().strength(0.4F)
-                    .sound(SoundType.VINE).lightLevel(state -> 5)));
+                    .sound(SoundType.VINE).lightLevel(state -> 5)),
+            properties -> properties.food(new FoodProperties.Builder().nutrition(1)
+                    .saturationModifier(0.15F).build()));
+    private static final ResourceKey<Item> POPPED_ANCIENT_VINES_KEY = ResourceKey.create(
+            Registries.ITEM, id("popped_ancient_vines"));
+    public static final Item POPPED_ANCIENT_VINES = Registry.register(BuiltInRegistries.ITEM,
+            POPPED_ANCIENT_VINES_KEY, new Item(new Item.Properties().setId(POPPED_ANCIENT_VINES_KEY)
+                    .food(new FoodProperties.Builder().nutrition(4).saturationModifier(0.45F).build())));
     public static final SkeletonBlock SKELETON = (SkeletonBlock)registerBlock(
             "skeleton", MapColor.COLOR_LIGHT_GRAY,
             properties -> new SkeletonBlock(properties.noOcclusion().strength(0.45F)
@@ -525,6 +536,7 @@ public class Asterion implements ModInitializer {
                         output.accept(WINCH);
                         output.accept(OMEGA_LOCK);
                         output.accept(LABYRINTH_VINE);
+                        output.accept(POPPED_ANCIENT_VINES);
                         output.accept(GREEK_FIRE_WALL_TORCH);
                         output.accept(GREEK_FIRE_FLOOR_TORCH);
                         output.accept(RED_FIRE_WALL_TORCH);
@@ -744,10 +756,7 @@ public class Asterion implements ModInitializer {
         ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {
             if (entity instanceof ConstructEntity
                     && level.dimension().equals(ASTERION_LEVEL)
-                    && (WorldGenerator.isOvergrowthBiomeAt(entity.getX(), entity.getZ())
-                    || net.krodark.asterion.worldgen.AuthoredCatacombs.insideCursedBrazierRoom(entity.blockPosition())
-                    || Math.abs((long)entity.getBlockX()) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS
-                    && Math.abs((long)entity.getBlockZ()) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS)) {
+                    && !ConstructEntity.isAllowedAsterionLocation(entity.blockPosition())) {
                 entity.discard();
                 return;
             }
@@ -771,6 +780,7 @@ public class Asterion implements ModInitializer {
                                                          damageTaken, blocked) ->
                 ResolveSystem.recordAttack(entity, source, damageTaken));
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
+            QueenBeetleEntity.recordBeetleKill(entity, source);
             if (entity instanceof net.minecraft.server.level.ServerPlayer player)
                 WorldGenerator.prepareRapidRespawn(player);
         });
@@ -832,11 +842,18 @@ public class Asterion implements ModInitializer {
 
     private static Block registerBlock(String name, MapColor color,
                                        java.util.function.Function<BlockBehaviour.Properties, Block> factory) {
+        return registerBlock(name, color, factory, java.util.function.UnaryOperator.identity());
+    }
+
+    private static Block registerBlock(String name, MapColor color,
+                                       java.util.function.Function<BlockBehaviour.Properties, Block> factory,
+                                       java.util.function.UnaryOperator<Item.Properties> itemProperties) {
         Block block = registerBlockWithoutItem(name, color, factory);
         Identifier identifier = id(name);
         ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, identifier);
         Registry.register(BuiltInRegistries.ITEM, itemKey,
-                new BlockItem(block, new Item.Properties().setId(itemKey).useBlockDescriptionPrefix()));
+                new BlockItem(block, itemProperties.apply(new Item.Properties().setId(itemKey))
+                        .useBlockDescriptionPrefix()));
         return block;
     }
 
@@ -872,9 +889,13 @@ public class Asterion implements ModInitializer {
         RuneBlock[] runes = new RuneBlock[GreekRune.values().length];
         for (int index = 0; index < runes.length; index++) {
             final int runeIndex = index;
-            runes[index] = (RuneBlock)registerBlock("rune_" + (index + 1), MapColor.COLOR_BROWN,
+            String name = "rune_" + (index + 1);
+            runes[index] = (RuneBlock)registerBlockWithoutItem(name, MapColor.COLOR_BROWN,
                     properties -> new RuneBlock(runeIndex, properties.noOcclusion().noLootTable()
                             .pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK)));
+            ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, id(name));
+            Registry.register(BuiltInRegistries.ITEM, itemKey, new RuneBlockItem(runes[index], runeIndex,
+                    new Item.Properties().setId(itemKey).useBlockDescriptionPrefix()));
         }
         return runes;
     }

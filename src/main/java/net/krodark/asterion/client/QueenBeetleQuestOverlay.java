@@ -15,6 +15,7 @@ public final class QueenBeetleQuestOverlay {
     private static int stage = -1;
     private static int dialogueTicks;
     private static int target = QueenBeetleEntity.PETAL_TARGET;
+    private static int anger;
 
     private QueenBeetleQuestOverlay() { }
 
@@ -26,6 +27,7 @@ public final class QueenBeetleQuestOverlay {
         stage = payload.stage() == QueenBeetleQuestPayload.RESTORE_ACTIVE
                 ? QueenBeetleQuestPayload.PROGRESS : payload.stage();
         target = payload.target();
+        anger = payload.anger();
         dialogueTicks = payload.stage() == QueenBeetleQuestPayload.RESTORE_ACTIVE ? 0
                 : payload.stage() == QueenBeetleQuestPayload.REWARDED ? 140 : 100;
     }
@@ -104,10 +106,15 @@ public final class QueenBeetleQuestOverlay {
         int left = (graphics.guiWidth() - width) / 2;
         int top = graphics.guiHeight() - height - 24;
         graphics.fill(left, top, left + width, top + height, 0xE00B100A);
-        graphics.fill(left, top, left + width, top + 2, 0xFFE0A936);
+        graphics.fill(left, top, left + width, top + 2, anger == 0 ? 0xFFE0A936 : 0xFFFF563D);
         graphics.centeredText(client.font, speaker, graphics.guiWidth() / 2, top + 8, 0xFFE8C96F);
         for (int index = 0; index < lines.size(); index++)
             graphics.centeredText(client.font, lines.get(index), graphics.guiWidth() / 2,
                     top + 25 + index * 11, 0xFFF5EBD2);
+        if (anger > 0) {
+            Component warning = Component.translatable("quest.asterion.queen_beetle.anger." + anger);
+            graphics.centeredText(client.font, warning, graphics.guiWidth() / 2,
+                    top + height - 10, 0xFFFF7968);
+        }
     }
 }

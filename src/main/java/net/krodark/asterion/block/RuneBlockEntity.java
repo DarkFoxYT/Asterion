@@ -62,7 +62,12 @@ public final class RuneBlockEntity extends BlockEntity implements GeoBlockEntity
                     || !level.getFluidState(pos).isEmpty()) continue;
             var beetle = Asterion.RUNE_BEETLE.create(level, net.minecraft.world.entity.EntitySpawnReason.NATURAL);
             if (beetle == null) return;
-            beetle.setRuneIndex(runeIndex());
+            // Most beetles carry their habitat's rune; a minority are deliberate decoys.
+            int carriedRune = runeIndex();
+            if (level.getRandom().nextFloat() < 0.35F)
+                carriedRune = (carriedRune + 1 + level.getRandom().nextInt(Asterion.RUNE_TABLETS.length - 1))
+                        % Asterion.RUNE_TABLETS.length;
+            beetle.setRuneIndex(carriedRune);
             beetle.setPos(pos.getX() + .5, pos.getY(), pos.getZ() + .5);
             if (!level.noCollision(beetle) || !level.isUnobstructed(beetle)) continue;
             level.addFreshEntity(beetle);

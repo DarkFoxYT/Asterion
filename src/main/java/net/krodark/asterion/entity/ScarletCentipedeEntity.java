@@ -161,6 +161,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
             surfaceForward = new Vec3(heading.x(), heading.y(), heading.z());
             smoothedSurfaceMotion = Vec3.ZERO;
         }
+        keepHeadOutsideWalls();
         bodyChain.tick(chainHeadCenter(), attachmentNormal(), surfaceForward(), chainSegmentCount(), bodyCollision);
         for (Entity passenger : getPassengers()) positionRider(passenger);
         if (!usesSurfaceTravel()) setNoGravity(false);
@@ -222,6 +223,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         Vec3 motion = smoothedSurfaceMotion.add(surface.getUnitVec3().scale(ADHESION));
         setDeltaMovement(motion);
         move(MoverType.SELF, motion);
+        keepHeadOutsideWalls();
         if (smoothedSurfaceMotion.lengthSqr() > 1.0E-5D) updateYaw(smoothedSurfaceMotion);
     }
 
@@ -281,9 +283,29 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
 
     @Override
     protected void positionRider(Entity passenger, Entity.MoveFunction move) {
-        Vec3 point = passengerPosition(passenger, 1);
+        Vec3 point = collisionSafePassengerPosition(passenger, passengerPosition(passenger, 1));
         move.accept(passenger, point.x, point.y, point.z);
         passenger.resetFallDistance();
+    }
+
+    /** Keeps both the rotated shell and its upright rider clear during wall/corner transitions. */
+    private void keepHeadOutsideWalls() {
+        if (!usesSurfaceTravel()) return;
+        Vec3 head = chainHeadCenter();
+        var contact = bodyCollision.followSurface(head, head, attachmentNormal(), surfaceForward());
+        Vec3 correction = contact.position().subtract(head);
+        if (correction.lengthSqr() > 1.0E-8D) move(MoverType.SELF, correction);
+    }
+
+    private Vec3 collisionSafePassengerPosition(Entity passenger, Vec3 wanted) {
+        Vec3 away = attachmentNormal().scale(-1.0D).normalize();
+        for (int step = 0; step <= 12; step++) {
+            Vec3 candidate = wanted.add(away.scale(step * 0.125D));
+            if (level().noCollision(passenger,
+                    passenger.getBoundingBox().move(candidate.subtract(passenger.position())))) return candidate;
+        }
+        // Never teleport a rider into masonry when no valid wall-side position exists.
+        return passenger.position();
     }
 
     public Vec3 passengerPosition(Entity passenger, float partial) {

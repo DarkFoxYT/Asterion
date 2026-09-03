@@ -6,8 +6,6 @@ import net.krodark.asterion.client.BossFinaleOverlay;
 import net.krodark.asterion.client.BossEntranceCinematic;
 import net.krodark.asterion.client.CursedBrazierCinematic;
 import net.krodark.asterion.client.ragdoll.DismembermentEngine;
-import net.krodark.asterion.client.render.entity.SurfaceOrientation;
-import net.krodark.asterion.entity.ScarletCentipedeEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
@@ -25,20 +23,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.joml.Matrix4f;
-import org.joml.Quaternionf;
-import org.joml.Vector3f;
-import org.spongepowered.asm.mixin.Final;
 
 @Mixin(Camera.class)
 public abstract class CameraMixin {
     @Unique private Vec3 asterion$smoothedRagdollCamera;
-    @Unique private final Quaternionf asterion$centipedeTilt = new Quaternionf();
     @Unique private float asterion$flamethrowerFovStrength;
-    @Shadow @Final private Quaternionf rotation;
-    @Shadow @Final private Vector3f forwards;
-    @Shadow @Final private Vector3f up;
-    @Shadow @Final private Vector3f left;
-    @Shadow private int matrixPropertiesDirty;
     @Shadow protected abstract void setPosition(Vec3 position);
     @Shadow protected abstract void setRotation(float yRot, float xRot);
     @Shadow public abstract Vec3 position();
@@ -131,32 +120,6 @@ public abstract class CameraMixin {
             setPosition(position().add(sample.cameraOffset()));
             setRotation(yRot() + sample.yawDegrees(), xRot() + sample.pitchDegrees());
         }
-        if (shot == null && finale == null && entrance == null && brazier == null && collapse == null && minecraft.player != null
-                && minecraft.player.getVehicle() instanceof ScarletCentipedeEntity centipede) {
-            Quaternionf target = SurfaceOrientation.cameraTilt(centipede.passengerNormal(minecraft.player, partial));
-            float frameTicks = Math.max(0.05F, tracker.getGameTimeDeltaTicks());
-            asterion$centipedeTilt.slerp(target,
-                    1.0F - (float)Math.pow(0.70D, frameTicks)).normalize();
-
-            Vec3 vanillaEye = minecraft.player.getEyePosition(partial);
-            Vector3f smoothUp = new Vector3f(0.0F, 1.0F, 0.0F).rotate(asterion$centipedeTilt);
-            Vec3 surfaceUp = new Vec3(smoothUp.x, smoothUp.y, smoothUp.z);
-            Vec3 surfaceEye = centipede.passengerPosition(minecraft.player, partial)
-                    .add(surfaceUp.scale(minecraft.player.getEyeHeight()));
-            Vector3f cameraOffset = new Vector3f((float)(position().x - vanillaEye.x),
-                    (float)(position().y - vanillaEye.y), (float)(position().z - vanillaEye.z));
-            asterion$centipedeTilt.transform(cameraOffset);
-            Vec3 desired = surfaceEye.add(cameraOffset.x, cameraOffset.y, cameraOffset.z);
-            setPosition(asterion$clipCamera(minecraft, surfaceEye, desired));
-
-            Quaternionf tilted = new Quaternionf(asterion$centipedeTilt).mul(rotation).normalize();
-            rotation.set(tilted);
-            new Vector3f(0.0F, 0.0F, -1.0F).rotate(rotation, forwards);
-            new Vector3f(0.0F, 1.0F, 0.0F).rotate(rotation, up);
-            new Vector3f(1.0F, 0.0F, 0.0F).rotate(rotation, left);
-            matrixPropertiesDirty |= 3;
-            asterion$rebuildCinematicFrustum(minecraft);
-        } else asterion$centipedeTilt.identity();
         if (shot != null || finale != null || entrance != null || brazier != null || collapse != null)
             asterion$rebuildCinematicFrustum(minecraft);
     }
