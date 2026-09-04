@@ -16,7 +16,7 @@ import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import net.minecraft.world.level.chunk.LevelChunk;
 
 public final class ZoneRunePlacement {
-    private static final java.util.Map<ServerLevel, java.util.ArrayDeque<net.minecraft.world.level.ChunkPos>> PENDING = new java.util.IdentityHashMap<>();
+    private static final java.util.Map<ServerLevel, java.util.LinkedHashSet<net.minecraft.world.level.ChunkPos>> PENDING = new java.util.IdentityHashMap<>();
     private static final java.util.Map<ServerLevel, java.util.ArrayDeque<ChunkPos>> ARENA_PENDING =
             new java.util.IdentityHashMap<>();
     private static final java.util.Map<ServerLevel, java.util.ArrayDeque<ChunkPos>> BRAZIER_ROOM_PENDING =
@@ -29,7 +29,7 @@ public final class ZoneRunePlacement {
             "overgrowth_bridge_chains", "ancient_ground_vines", "ancient_hanging_vines",
             "tainted_petals");
     public static void enqueue(ServerLevel level, LevelChunk chunk) {
-        PENDING.computeIfAbsent(level, ignored -> new java.util.ArrayDeque<>()).add(chunk.getPos());
+        PENDING.computeIfAbsent(level, ignored -> new java.util.LinkedHashSet<>()).add(chunk.getPos());
     }
     public static java.util.List<ChunkPos> arenaChunks() { return ARENA_CHUNKS; }
     public static void enqueueArena(ServerLevel level) {
@@ -97,12 +97,14 @@ public final class ZoneRunePlacement {
         var queue = PENDING.get(level);
         if (queue == null) return;
         for (int i = 0; i < 2 && !queue.isEmpty(); i++) {
-            var pos = queue.removeFirst();
+            var iterator = queue.iterator();
+            var pos = iterator.next();
+            iterator.remove();
             var chunk = level.getChunkSource().getChunkNow(pos.x(), pos.z());
             if (chunk != null) {
                 AuthoredCatacombs.placeArenaChunk(level,chunk);
-                placeDeferredWorldgen(level,chunk);
-                decorate(level,chunk);
+                boolean newlyGenerated = placeDeferredWorldgen(level,chunk);
+                decorate(level,chunk,newlyGenerated);
             }
         }
         if (queue.isEmpty()) PENDING.remove(level);
@@ -118,9 +120,9 @@ public final class ZoneRunePlacement {
             chunks.add(new ChunkPos(x, z));
         return java.util.List.copyOf(chunks);
     }
-    private static void placeDeferredWorldgen(ServerLevel level, LevelChunk chunk) {
+    private static boolean placeDeferredWorldgen(ServerLevel level, LevelChunk chunk) {
         var cp = chunk.getPos();
-        if (cp.x() >= -4 && cp.x() <= 3 && cp.z() >= -4 && cp.z() <= 3) return;
+        if (cp.x() >= -4 && cp.x() <= 3 && cp.z() >= -4 && cp.z() <= 3) return false;
         BlockPos marker = new BlockPos(cp.getMinBlockX(), 0, cp.getMinBlockZ());
         BlockPos linkMarker = new BlockPos(cp.getMinBlockX() + 1, 0, cp.getMinBlockZ());
         var linkedRevision = Blocks.LIGHT.defaultBlockState().setValue(
@@ -131,7 +133,7 @@ public final class ZoneRunePlacement {
                 chunk.setBlockState(linkMarker, linkedRevision, 0);
                 chunk.markUnsaved();
             }
-            return;
+            return false;
         }
         AuthoredCatacombs.place(level, cp);
         var registry = level.registryAccess().lookupOrThrow(Registries.PLACED_FEATURE);
@@ -151,11 +153,28 @@ public final class ZoneRunePlacement {
         chunk.setBlockState(marker, Blocks.STRUCTURE_VOID.defaultBlockState(), 0);
         chunk.setBlockState(linkMarker, linkedRevision, 0);
         chunk.markUnsaved();
+        return true;
     }
-    public static void decorate(ServerLevel level, LevelChunk chunk) {
+    public static void decorate(ServerLevel level, LevelChunk chunk) { decorate(level, chunk, false); }
+    private static void decorate(ServerLevel level, LevelChunk chunk, boolean newlyGenerated) {
         var cp = chunk.getPos();
+        BlockPos decorationMarker = new BlockPos(cp.getMinBlockX() + 2, 0, cp.getMinBlockZ());
+        var decorated = Blocks.LIGHT.defaultBlockState().setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 3);
+        if (chunk.getBlockState(decorationMarker).equals(decorated)) return;
+        // A pre-fix chunk has already had its decoration pass. Mark it without placing
+        // another rune when it is loaded again after a relog.
+        if (!newlyGenerated && chunk.getBlockState(new BlockPos(cp.getMinBlockX(), 0, cp.getMinBlockZ()))
+                .is(Blocks.STRUCTURE_VOID)) {
+            chunk.setBlockState(decorationMarker, decorated, 0);
+            chunk.markUnsaved();
+            return;
+        }
         if (Math.floorMod(cp.x() * 31L + cp.z() * 17L + level.getSeed(), 7) != 0
-                || Math.abs(cp.getMiddleBlockX()) < 80 && Math.abs(cp.getMiddleBlockZ()) < 80) return;
+                || Math.abs(cp.getMiddleBlockX()) < 80 && Math.abs(cp.getMiddleBlockZ()) < 80) {
+            chunk.setBlockState(decorationMarker, decorated, 0);
+            chunk.markUnsaved();
+            return;
+        }
         for (int x = 3; x < 13; x++) for (int z = 3; z < 13; z++) for (Direction facing : Direction.Plane.HORIZONTAL) {
             for (int y = 50; y <= 57; y++) {
                 BlockPos root = new BlockPos(cp.getMinBlockX() + x, y, cp.getMinBlockZ() + z);
@@ -163,9 +182,13 @@ public final class ZoneRunePlacement {
                 var block = Asterion.RUNE_BLOCKS[GreekRune.forRadius(root.getX(), root.getZ()).ordinal()];
                 block.place(level, root, facing);
                 if (level.getBlockEntity(root) instanceof RuneBlockEntity rune) rune.setWorldGenerated(true);
+                chunk.setBlockState(decorationMarker, decorated, 0);
+                chunk.markUnsaved();
                 return;
             }
         }
+        chunk.setBlockState(decorationMarker, decorated, 0);
+        chunk.markUnsaved();
     }
     private static boolean fits(ServerLevel level, BlockPos root, Direction facing) {
         for (int x = 0; x < 3; x++) for (int y = 0; y < 3; y++) {

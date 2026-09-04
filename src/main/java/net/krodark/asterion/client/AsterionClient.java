@@ -41,6 +41,7 @@ import net.fabricmc.fabric.api.client.particle.v1.ParticleProviderRegistry;
 public final class AsterionClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
+        ForgedTooltipRenderer.initialize();
         net.krodark.asterion.dev.EssentialLaunchSmokeTest.install();
         net.krodark.asterion.client.render.HeavyWaterRendering.initialize();
         AsterionEmissiveConfig.load();
@@ -140,6 +141,10 @@ public final class AsterionClient implements ClientModInitializer {
         BlockEntityRenderers.register(net.krodark.asterion.block.RespawnObelisks.BLOCK_ENTITY,
                 net.krodark.asterion.client.render.block.SanctuaryRenderer::new);
         BlockEntityRenderers.register(Asterion.LABYRINTH_VINE_BLOCK_ENTITY, LabyrinthVineGeoRenderer::new);
+        BlockEntityRenderers.register(Asterion.CRUCIBLE_BLOCK_ENTITY,
+                net.krodark.asterion.client.render.block.CrucibleGaugeRenderer::new);
+        BlockEntityRenderers.register(Asterion.ZIPLINE_ANCHOR_ENTITY,
+                net.krodark.asterion.client.render.block.ZiplineRenderer::new);
         BlockEntityRenderers.register(Asterion.GREEK_FIRE_TORCH_BLOCK_ENTITY,
                 net.krodark.asterion.client.render.block.GreekFireTorchRenderer::new);
         BlockEntityRenderers.register(Asterion.SKELETON_BLOCK_ENTITY, SkeletonGeoRenderer::new);
@@ -204,6 +209,13 @@ public final class AsterionClient implements ClientModInitializer {
                 }));
         ClientPlayNetworking.registerGlobalReceiver(QueenBeetleQuestPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> QueenBeetleQuestOverlay.receive(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(
+                net.krodark.asterion.network.CrucibleScreenPayload.TYPE, (payload, context) ->
+                        context.client().execute(() -> {
+                            if (context.client().screen instanceof CrucibleScreen screen
+                                    && screen.matches(payload.pos())) screen.update(payload);
+                            else context.client().setScreen(new CrucibleScreen(payload));
+                        }));
         ClientPlayNetworking.registerGlobalReceiver(RagdollImpulsePayload.TYPE, (payload, context) ->
                 context.client().execute(() -> DismembermentEngine.INSTANCE.forcePlayerTumble(
                         context.client(), payload.source(), payload.impulse(), payload.force())));

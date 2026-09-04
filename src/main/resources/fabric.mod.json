@@ -26,6 +26,9 @@
     ],
     "modmenu": [
       "net.krodark.asterion.client.AsterionModMenu"
+    ],
+    "rei_client": [
+      "net.krodark.asterion.compat.rei.AsterionReiClientPlugin"
     ]
   },
   "mixins": [
