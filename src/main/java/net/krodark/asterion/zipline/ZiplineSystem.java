@@ -1,87 +1,96 @@
 package net.krodark.asterion.zipline;
 
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.UUID;
 import net.krodark.asterion.Asterion;
-import net.krodark.asterion.block.ZiplineAnchorBlockEntity;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.block.ChainBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
-import java.util.*;
-
-/** Persistent anchors with lightweight, server-authoritative rider motion. */
+/** Server-authoritative sliding directly along ordinary placed chain blocks. */
 public final class ZiplineSystem {
-    private static final Map<net.minecraft.world.level.Level, Set<ZiplineAnchorBlockEntity>> ANCHORS = new WeakHashMap<>();
     private static final Map<UUID, Ride> RIDERS = new HashMap<>();
-    private record Ride(ZiplineAnchorBlockEntity anchor, double progress) {}
-    private ZiplineSystem() {}
-    public static void register(ZiplineAnchorBlockEntity anchor) {
-        if (anchor.getLevel() != null) ANCHORS.computeIfAbsent(anchor.getLevel(), ignored ->
-                Collections.newSetFromMap(new IdentityHashMap<>())).add(anchor);
-    }
-    public static void unregister(ZiplineAnchorBlockEntity anchor) {
-        Set<ZiplineAnchorBlockEntity> set = ANCHORS.get(anchor.getLevel()); if (set != null) set.remove(anchor);
-        RIDERS.entrySet().removeIf(entry -> entry.getValue().anchor == anchor);
-    }
+    private record Ride(BlockPos chain, Vec3 point) { }
+    private ZiplineSystem() { }
+
     public static void begin(Player player) {
-        RIDERS.remove(player.getUUID());
-        Set<ZiplineAnchorBlockEntity> anchors = ANCHORS.get(player.level());
-        if (anchors == null) return;
-        ZiplineAnchorBlockEntity best = null; double bestT = 0, bestDistance = .85D;
         Vec3 eye = player.getEyePosition();
-        Vec3 rayEnd = eye.add(player.getLookAngle().scale(7D));
-        for (ZiplineAnchorBlockEntity anchor : anchors) {
-            if (!anchor.primary() || anchor.other() == null || anchor.isRemoved()) continue;
-            Vec3 a = anchor.attachment(), b = anchor.otherAttachment();
-            for (int sample = 0; sample <= 64; sample++) {
-                double t = sample / 64D;
-                Vec3 cablePoint = point(a, b, t);
-                double distance = distanceToSegment(cablePoint, eye, rayEnd);
-                if (distance < bestDistance) { bestDistance = distance; best = anchor; bestT = t; }
-            }
-        }
-        if (best != null) RIDERS.put(player.getUUID(), new Ride(best, bestT));
+        BlockHitResult hit = player.level().clip(new ClipContext(eye,
+                eye.add(player.getLookAngle().scale(7D)), ClipContext.Block.OUTLINE,
+                ClipContext.Fluid.NONE, player));
+        if (hit.getType() == HitResult.Type.BLOCK) begin(player, hit.getBlockPos());
     }
+
+    public static void begin(Player player, BlockPos position) {
+        RIDERS.remove(player.getUUID());
+        if (!isChain(player.level().getBlockState(position))) return;
+        RIDERS.put(player.getUUID(), new Ride(position.immutable(), position.getCenter()));
+    }
+
     public static void stop(Player player) { RIDERS.remove(player.getUUID()); }
+
     public static void tick(MinecraftServer server) {
         Iterator<Map.Entry<UUID, Ride>> iterator = RIDERS.entrySet().iterator();
         while (iterator.hasNext()) {
-            var entry = iterator.next();
+            Map.Entry<UUID, Ride> entry = iterator.next();
             ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
             Ride ride = entry.getValue();
-            if (player == null || ride.anchor.isRemoved() || ride.anchor.other() == null
-                    || player.isShiftKeyDown() || !player.isUsingItem()
-                    || !player.getUseItem().is(Asterion.ZIPLINE_HOOK)) { iterator.remove(); continue; }
-            Vec3 a = ride.anchor.attachment(), b = ride.anchor.otherAttachment();
-            Vec3 tangent = tangent(a, b, ride.progress).normalize();
-            double facing = player.getLookAngle().dot(tangent);
-            if (Math.abs(facing) < .12D) facing = .12D * (facing < 0 ? -1 : 1);
-            double downhill = -tangent.y * Math.signum(facing);
-            double speed = Math.clamp(.18D + Math.max(0, downhill) * .22D, .12D, .42D);
-            double length = Math.max(1, a.distanceTo(b));
-            double next = ride.progress + Math.signum(facing) * speed / length;
-            if (next <= 0 || next >= 1) { iterator.remove(); continue; }
-            Vec3 position = point(a, b, next).subtract(0, player.getBbHeight() * .72D, 0);
-            player.setPos(position.x, position.y, position.z);
-            player.setDeltaMovement(tangent.scale(Math.signum(facing) * speed));
+            if (player == null || player.isShiftKeyDown() || !player.isUsingItem()
+                    || !player.getUseItem().is(Asterion.ZIPLINE_HOOK)) {
+                iterator.remove();
+                continue;
+            }
+            BlockState state = player.level().getBlockState(ride.chain());
+            if (!isChain(state)) {
+                iterator.remove();
+                continue;
+            }
+            Direction.Axis axis = state.getValue(BlockStateProperties.AXIS);
+            Vec3 along = axisVector(axis);
+            double projection = Math.clamp(player.getLookAngle().dot(along), -1D, 1D);
+            double signedSpeed = .34D * projection;
+            Vec3 nextPoint = ride.point().add(along.scale(signedSpeed));
+            BlockPos nextBlock = ride.chain();
+            double local = coordinate(nextPoint.subtract(ride.chain().getCenter()), axis);
+            if (local > .5D || local < -.5D) {
+                Direction direction = Direction.fromAxisAndDirection(axis,
+                        local > 0 ? Direction.AxisDirection.POSITIVE : Direction.AxisDirection.NEGATIVE);
+                BlockPos candidate = ride.chain().relative(direction);
+                if (!isChain(player.level().getBlockState(candidate))) {
+                    nextPoint = ride.chain().getCenter().add(along.scale(Math.copySign(.48D, local)));
+                    signedSpeed = 0D;
+                } else nextBlock = candidate;
+            }
+            Vec3 playerPosition = nextPoint.subtract(0D, player.getBbHeight() * .72D, 0D);
+            player.setPos(playerPosition.x, playerPosition.y, playerPosition.z);
+            player.setDeltaMovement(along.scale(signedSpeed));
             player.fallDistance = 0;
-            entry.setValue(new Ride(ride.anchor, next));
+            entry.setValue(new Ride(nextBlock, nextPoint));
         }
     }
-    private static double distanceToSegment(Vec3 point, Vec3 a, Vec3 b) {
-        Vec3 segment = b.subtract(a);
-        double lengthSquared = segment.lengthSqr();
-        if (lengthSquared < 1.0E-7D) return point.distanceTo(a);
-        double t = Math.clamp(point.subtract(a).dot(segment) / lengthSquared, 0D, 1D);
-        return point.distanceTo(a.add(segment.scale(t)));
+
+    public static boolean isChain(BlockState state) {
+        return state.getBlock() instanceof ChainBlock && state.hasProperty(BlockStateProperties.AXIS);
     }
-    public static Vec3 point(Vec3 a, Vec3 b, double t) {
-        double distance = a.distanceTo(b);
-        double sag = Math.min(5D, .055D * distance + .0012D * distance * distance);
-        return a.lerp(b, t).subtract(0, sag * 4D * t * (1D - t), 0);
+    private static Vec3 axisVector(Direction.Axis axis) {
+        return switch (axis) {
+            case X -> new Vec3(1D, 0D, 0D);
+            case Y -> new Vec3(0D, 1D, 0D);
+            case Z -> new Vec3(0D, 0D, 1D);
+        };
     }
-    private static Vec3 tangent(Vec3 a, Vec3 b, double t) {
-        double epsilon = .01D;
-        return point(a, b, Math.min(1, t + epsilon)).subtract(point(a, b, Math.max(0, t - epsilon)));
+    private static double coordinate(Vec3 vector, Direction.Axis axis) {
+        return switch (axis) { case X -> vector.x; case Y -> vector.y; case Z -> vector.z; };
     }
 }

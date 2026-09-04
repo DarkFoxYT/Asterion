@@ -91,19 +91,20 @@ public final class CrucibleBlock extends BaseEntityBlock {
                 return InteractionResult.SUCCESS_SERVER;
             }
             if (crucible.insert(serverPlayer, stack)) return InteractionResult.SUCCESS_SERVER;
+            crucible.open(serverPlayer);
+            return InteractionResult.SUCCESS_SERVER;
         }
         return InteractionResult.TRY_WITH_EMPTY_HAND;
     }
 
     @Override protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
                                                           Player player, BlockHitResult hit) {
-        if (!player.isCrouching()) return InteractionResult.PASS;
         BlockPos root = root(pos, state);
         BlockState rootState = level.getBlockState(root);
         if (!rootState.is(this) || !isRoot(rootState)) return InteractionResult.FAIL;
         if (player instanceof ServerPlayer serverPlayer
                 && level.getBlockEntity(root) instanceof CrucibleBlockEntity crucible) {
-            if (hit.getDirection() == Direction.UP) crucible.removeMold(serverPlayer);
+            if (player.isCrouching() && hit.getDirection() == Direction.UP) crucible.removeMold(serverPlayer);
             else crucible.open(serverPlayer);
         }
         return level.isClientSide() ? InteractionResult.SUCCESS : InteractionResult.SUCCESS_SERVER;

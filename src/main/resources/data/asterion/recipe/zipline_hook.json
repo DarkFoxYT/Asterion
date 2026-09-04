@@ -1,1 +1,1 @@
-{"type":"minecraft:crafting_shaped","category":"equipment","pattern":[" I ","ICI"," I "],"key":{"I":"minecraft:iron_ingot","C":"minecraft:iron_chain"},"result":{"count":1,"id":"asterion:zipline_hook"}}
+{"type":"minecraft:crafting_shaped","category":"equipment","pattern":[" I ","ICI"," I "],"key":{"I":"minecraft:iron_ingot","C":"minecraft:chain"},"result":{"count":1,"id":"asterion:zipline_hook"}}

@@ -240,16 +240,6 @@ public class Asterion implements ModInitializer {
             properties -> new WallBlock(properties.sound(SoundType.METAL)));
     public static final Block MAZESTEEL_BARS = registerBlock("mazesteel_bars", MapColor.METAL,
             properties -> new net.minecraft.world.level.block.IronBarsBlock(properties.noOcclusion().sound(SoundType.METAL)));
-    public static final Block ZIPLINE_ANCHOR = registerBlock("zipline_anchor", MapColor.METAL,
-            properties -> new net.krodark.asterion.block.ZiplineAnchorBlock(properties.noOcclusion()
-                    .noCollision().strength(3F, 8F).sound(SoundType.CHAIN).noLootTable()));
-    public static final BlockEntityType<net.krodark.asterion.block.ZiplineAnchorBlockEntity> ZIPLINE_ANCHOR_ENTITY =
-            Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, id("zipline_anchor"),
-                    FabricBlockEntityTypeBuilder.create(net.krodark.asterion.block.ZiplineAnchorBlockEntity::new,
-                            ZIPLINE_ANCHOR).build());
-    private static final ResourceKey<Item> ZIPLINE_CREATOR_KEY = ResourceKey.create(Registries.ITEM, id("zipline_creator"));
-    public static final Item ZIPLINE_CREATOR = Registry.register(BuiltInRegistries.ITEM, ZIPLINE_CREATOR_KEY,
-            new net.krodark.asterion.item.ZiplineCreatorItem(new Item.Properties().setId(ZIPLINE_CREATOR_KEY).stacksTo(1)));
     private static final ResourceKey<Item> ZIPLINE_HOOK_KEY = ResourceKey.create(Registries.ITEM, id("zipline_hook"));
     public static final Item ZIPLINE_HOOK = Registry.register(BuiltInRegistries.ITEM, ZIPLINE_HOOK_KEY,
             new net.krodark.asterion.item.ZiplineHookItem(new Item.Properties().setId(ZIPLINE_HOOK_KEY).stacksTo(1)));
@@ -619,7 +609,6 @@ public class Asterion implements ModInitializer {
                         output.accept(POLISHED_MAZESTEEL_SLAB);
                         output.accept(POLISHED_MAZESTEEL_STAIRS);
                         output.accept(POLISHED_MAZESTEEL_WALL);
-                        output.accept(ZIPLINE_CREATOR);
                         output.accept(ZIPLINE_HOOK);
                         output.accept(MAZESTEEL_BARS);
                         output.accept(MAZESTEEL_CHAIN);

@@ -110,6 +110,12 @@ public abstract class CameraMixin {
             setPosition(collapse.position());
             setRotation(collapse.yaw(), collapse.pitch());
         }
+        net.krodark.asterion.client.CrucibleCamera.CameraPose forge =
+                net.krodark.asterion.client.CrucibleCamera.cameraPose(position(), partial);
+        if (forge != null) {
+            setPosition(forge.position());
+            setRotation(forge.yaw(), forge.pitch());
+        }
         DeadSunClientEvents.Sample doorShake = net.krodark.asterion.client.MinotaurDoorShake.sample(position(), partial);
         if (doorShake != DeadSunClientEvents.Sample.NONE) {
             setPosition(position().add(doorShake.cameraOffset()));
@@ -120,7 +126,7 @@ public abstract class CameraMixin {
             setPosition(position().add(sample.cameraOffset()));
             setRotation(yRot() + sample.yawDegrees(), xRot() + sample.pitchDegrees());
         }
-        if (shot != null || finale != null || entrance != null || brazier != null || collapse != null)
+        if (shot != null || finale != null || entrance != null || brazier != null || collapse != null || forge != null)
             asterion$rebuildCinematicFrustum(minecraft);
     }
 

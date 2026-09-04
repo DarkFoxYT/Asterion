@@ -142,8 +142,6 @@ public final class AsterionClient implements ClientModInitializer {
         BlockEntityRenderers.register(Asterion.LABYRINTH_VINE_BLOCK_ENTITY, LabyrinthVineGeoRenderer::new);
         BlockEntityRenderers.register(Asterion.CRUCIBLE_BLOCK_ENTITY,
                 net.krodark.asterion.client.render.block.CrucibleGaugeRenderer::new);
-        BlockEntityRenderers.register(Asterion.ZIPLINE_ANCHOR_ENTITY,
-                net.krodark.asterion.client.render.block.ZiplineRenderer::new);
         BlockEntityRenderers.register(Asterion.GREEK_FIRE_TORCH_BLOCK_ENTITY,
                 net.krodark.asterion.client.render.block.GreekFireTorchRenderer::new);
         BlockEntityRenderers.register(Asterion.SKELETON_BLOCK_ENTITY, SkeletonGeoRenderer::new);
@@ -236,6 +234,7 @@ public final class AsterionClient implements ClientModInitializer {
     }
 
     private void tick(Minecraft client) {
+        CrucibleCamera.tick(client);
         DimensionTransitionOverlay.tick(client);
         DeadSunEntryCinematic.tick(client);
         BossFinaleOverlay.tick(client);
