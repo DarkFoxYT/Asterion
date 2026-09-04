@@ -14,5 +14,6 @@ public final class ZiplineAnchorBlock extends BaseEntityBlock {
     @Override public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new ZiplineAnchorBlockEntity(pos, state);
     }
-    @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.MODEL; }
+    // The backing block only persists the two endpoints. The complete anchor/cable is custom-rendered.
+    @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
 }

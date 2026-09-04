@@ -32,6 +32,8 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     public static final int MAX_TEMPERATURE = 1000;
     public static final int STEP = 25;
     public static final int TOLERANCE = 25;
+    /** Eight seconds at the calibrated temperature lets the alloy fully melt and settle. */
+    public static final int AUTO_POUR_TICKS = 160;
     private int temperature;
     private int targetTemperature = 350;
     private int fuelTicks;
@@ -583,7 +585,8 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         if (crucible.calibrated() && crucible.materialUnits() > 0 && crucible.pouringTicks == 0) {
             crucible.autoPourTicks++;
             changed = true;
-            if (crucible.autoPourTicks >= 30 && level instanceof net.minecraft.server.level.ServerLevel server) {
+            if (crucible.autoPourTicks >= AUTO_POUR_TICKS
+                    && level instanceof net.minecraft.server.level.ServerLevel server) {
                 net.minecraft.world.entity.player.Player nearest = server.getNearestPlayer(
                         pos.getX() + .5D, pos.getY() + .5D, pos.getZ() + .5D, 8D, false);
                 if (nearest instanceof ServerPlayer player) crucible.pour(player);
@@ -595,9 +598,9 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         }
         // Do not broadcast every idle crucible every tick (fuelTicks == 0 also satisfies
         // `fuelTicks % 20 == 0`). Persist active state cheaply and only send the values used
-        // by the screen/renderer at a smooth 5 Hz, plus the final state transition.
+        // by the screen/renderer at an interpolated 2 Hz, plus the final state transition.
         if (changed) crucible.setChanged();
-        boolean periodicActiveSync = changed && level.getGameTime() % 4L == 0L;
+        boolean periodicActiveSync = changed && level.getGameTime() % 10L == 0L;
         boolean fuelCheckpoint = crucible.fuelTicks > 0 && crucible.fuelTicks % 20 == 0;
         boolean finishedPouring = wasPouring && crucible.pouringTicks == 0;
         if (periodicActiveSync || fuelCheckpoint || finishedPouring) crucible.syncClient();
@@ -609,7 +612,8 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     }
 
     private void syncClient() {
-        if (level != null) level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+        if (level != null) level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(),
+                net.minecraft.world.level.block.Block.UPDATE_CLIENTS);
     }
 
     private CrucibleScreenPayload snapshot() {
@@ -665,7 +669,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         purityPoints = Mth.clamp(input.getIntOr("purityPoints", materialUnits() * 75),
                 0, materialUnits() * 100);
         pouringTicks = Mth.clamp(input.getIntOr("pouringTicks", 0), 0, 40);
-        autoPourTicks = Mth.clamp(input.getIntOr("autoPourTicks", 0), 0, 30);
+        autoPourTicks = Mth.clamp(input.getIntOr("autoPourTicks", 0), 0, AUTO_POUR_TICKS);
         primaryMetal = Mth.clamp(input.getIntOr("primaryMetal", -1), -1, 8);
         secondaryMetal = Mth.clamp(input.getIntOr("secondaryMetal", -1), -1, 8);
         metalSequence = input.getStringOr("metalSequence", "");

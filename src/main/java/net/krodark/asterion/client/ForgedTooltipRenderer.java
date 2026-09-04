@@ -13,6 +13,8 @@ import net.minecraft.resources.Identifier;
 /** Draws one opaque authored base plate and each subsequent material's addition above it. */
 public final class ForgedTooltipRenderer implements ClientTooltipComponent {
     private static final int SIZE = 76;
+    private static final Identifier[] BASE_TEXTURES = textures("base");
+    private static final Identifier[] ADDITION_TEXTURES = textures("addition");
     private final String sequence;
 
     private ForgedTooltipRenderer(String sequence) {
@@ -41,6 +43,15 @@ public final class ForgedTooltipRenderer implements ClientTooltipComponent {
     }
 
     private static Identifier texture(int metal, String role) {
-        return Asterion.id("textures/tooltips/" + CrucibleBlockEntity.metalId(metal) + "_" + role + ".png");
+        Identifier[] textures = role.equals("base") ? BASE_TEXTURES : ADDITION_TEXTURES;
+        return textures[Math.clamp(metal, 0, textures.length - 1)];
+    }
+
+    private static Identifier[] textures(String role) {
+        Identifier[] result = new Identifier[9];
+        for (int metal = 0; metal < result.length; metal++)
+            result[metal] = Asterion.id("textures/tooltips/" + CrucibleBlockEntity.metalId(metal)
+                    + "_" + role + ".png");
+        return result;
     }
 }

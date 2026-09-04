@@ -41,7 +41,6 @@ import net.fabricmc.fabric.api.client.particle.v1.ParticleProviderRegistry;
 public final class AsterionClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
-        ForgedTooltipRenderer.initialize();
         net.krodark.asterion.dev.EssentialLaunchSmokeTest.install();
         net.krodark.asterion.client.render.HeavyWaterRendering.initialize();
         AsterionEmissiveConfig.load();

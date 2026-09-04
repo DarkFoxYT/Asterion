@@ -230,11 +230,19 @@ public class Asterion implements ModInitializer {
             properties -> new StairBlock(MAZESTEEL_BRICKS.defaultBlockState(), properties.sound(SoundType.METAL)) { });
     public static final Block MAZESTEEL_BRICK_WALL = registerBlock("mazesteel_brick_wall", MapColor.METAL,
             properties -> new WallBlock(properties.sound(SoundType.METAL)));
+    public static final Block POLISHED_MAZESTEEL = registerBlock("polished_mazesteel", MapColor.METAL,
+            properties -> new Block(properties.sound(SoundType.METAL)));
+    public static final Block POLISHED_MAZESTEEL_SLAB = registerBlock("polished_mazesteel_slab", MapColor.METAL,
+            properties -> new SlabBlock(properties.sound(SoundType.METAL)));
+    public static final Block POLISHED_MAZESTEEL_STAIRS = registerBlock("polished_mazesteel_stairs", MapColor.METAL,
+            properties -> new StairBlock(POLISHED_MAZESTEEL.defaultBlockState(), properties.sound(SoundType.METAL)) { });
+    public static final Block POLISHED_MAZESTEEL_WALL = registerBlock("polished_mazesteel_wall", MapColor.METAL,
+            properties -> new WallBlock(properties.sound(SoundType.METAL)));
     public static final Block MAZESTEEL_BARS = registerBlock("mazesteel_bars", MapColor.METAL,
             properties -> new net.minecraft.world.level.block.IronBarsBlock(properties.noOcclusion().sound(SoundType.METAL)));
     public static final Block ZIPLINE_ANCHOR = registerBlock("zipline_anchor", MapColor.METAL,
             properties -> new net.krodark.asterion.block.ZiplineAnchorBlock(properties.noOcclusion()
-                    .strength(3F, 8F).sound(SoundType.CHAIN).noLootTable()));
+                    .noCollision().strength(3F, 8F).sound(SoundType.CHAIN).noLootTable()));
     public static final BlockEntityType<net.krodark.asterion.block.ZiplineAnchorBlockEntity> ZIPLINE_ANCHOR_ENTITY =
             Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, id("zipline_anchor"),
                     FabricBlockEntityTypeBuilder.create(net.krodark.asterion.block.ZiplineAnchorBlockEntity::new,
@@ -607,6 +615,10 @@ public class Asterion implements ModInitializer {
                         output.accept(MAZESTEEL_BRICK_SLAB);
                         output.accept(MAZESTEEL_BRICK_STAIRS);
                         output.accept(MAZESTEEL_BRICK_WALL);
+                        output.accept(POLISHED_MAZESTEEL);
+                        output.accept(POLISHED_MAZESTEEL_SLAB);
+                        output.accept(POLISHED_MAZESTEEL_STAIRS);
+                        output.accept(POLISHED_MAZESTEEL_WALL);
                         output.accept(ZIPLINE_CREATOR);
                         output.accept(ZIPLINE_HOOK);
                         output.accept(MAZESTEEL_BARS);
@@ -662,11 +674,11 @@ public class Asterion implements ModInitializer {
                         for (int metal : new int[]{5, 4, 7, 6, 1, 8, 0, 3, 2}) {
                             ItemStack blade = forgePart(FORGED_SWORD_BLADE, metal, "Sword Blade");
                             ItemStack guard = forgePart(FORGED_SWORD_GUARD, metal, "Sword Guard");
-                            output.accept(blade); output.accept(guard);
+                            ItemStack pommel = forgePart(FORGED_SWORD_POMMEL, metal, "Sword Pommel");
+                            output.accept(blade); output.accept(guard); output.accept(pommel);
                             output.accept(new net.krodark.asterion.recipe.ForgedSwordRecipe().assemble(
                                     net.minecraft.world.item.crafting.CraftingInput.of(3, 1,
-                                            java.util.List.of(blade, guard,
-                                                    new ItemStack(net.minecraft.world.item.Items.STICK)))));
+                                            java.util.List.of(blade, guard, pommel))));
                         }
                         output.accept(FORGED_AXE_HEAD);
                         output.accept(CELESTIAL_BRONZE_SWORD);

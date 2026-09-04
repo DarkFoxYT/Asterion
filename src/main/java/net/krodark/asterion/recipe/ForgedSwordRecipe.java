@@ -22,7 +22,7 @@ import net.minecraft.world.level.Level;
 
 import java.util.List;
 
-/** Assembles a forged blade and guard around a regular Minecraft stick handle. */
+/** Assembles three genuinely forged sword components. */
 public final class ForgedSwordRecipe extends CustomRecipe {
     @Override public boolean matches(CraftingInput input, Level level) {
         return parts(input) != null;
@@ -31,14 +31,14 @@ public final class ForgedSwordRecipe extends CustomRecipe {
     @Override public ItemStack assemble(CraftingInput input) {
         ItemStack[] parts = parts(input);
         if (parts == null) return ItemStack.EMPTY;
-        CompoundTag blade = data(parts[0]), guard = data(parts[1]);
+        CompoundTag blade = data(parts[0]), guard = data(parts[1]), pommel = data(parts[2]);
         int edge = value(blade, "edge", 7);
         int hardness = Math.round((value(blade, "hardness", 7) * 2
-                + value(guard, "hardness", 7)) / 3F);
+                + value(guard, "hardness", 7) + value(pommel, "hardness", 7)) / 4F);
         int weight = Math.round((value(blade, "weight", 8) * 2
-                + value(guard, "weight", 8) + 2) / 4F);
+                + value(guard, "weight", 8) + value(pommel, "weight", 8)) / 4F);
         int purity = Math.round((value(blade, "purity", 75) * 2
-                + value(guard, "purity", 75)) / 3F);
+                + value(guard, "purity", 75) + value(pommel, "purity", 75)) / 4F);
         double damage = Math.clamp(2.5D + edge * .62D + purity * .012D, 4D, 14D);
         double attackSpeed = Math.clamp(2.05D - weight * .075D, 1.05D, 1.75D);
         int durability = Math.clamp(100 + hardness * 42 + purity * 3, 250, 1400);
@@ -53,27 +53,29 @@ public final class ForgedSwordRecipe extends CustomRecipe {
                         attackSpeed - 4D, AttributeModifier.Operation.ADD_VALUE), EquipmentSlotGroup.MAINHAND)
                 .build());
         String bladeMaterial = primaryMaterial(blade), guardMaterial = primaryMaterial(guard);
+        String pommelMaterial = primaryMaterial(pommel);
         java.util.ArrayList<String> renderMaterials = new java.util.ArrayList<>(12);
         java.util.ArrayList<Integer> renderColors = new java.util.ArrayList<>(12);
         appendLayers(blade, renderMaterials, renderColors);
         appendLayers(guard, renderMaterials, renderColors);
-        // The guard's finish continues onto the small pommel artwork; the physical handle is a stick.
-        appendLayers(guard, renderMaterials, renderColors);
+        appendLayers(pommel, renderMaterials, renderColors);
         result.set(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(List.of(), List.of(),
                 renderMaterials, renderColors));
-        boolean uniform = bladeMaterial.equals(guardMaterial);
+        boolean uniform = bladeMaterial.equals(guardMaterial) && bladeMaterial.equals(pommelMaterial);
         String title = uniform ? displayName(bladeMaterial) + " Sword" : "Custom Forged Sword";
         result.set(DataComponents.CUSTOM_NAME, Component.literal(title).withStyle(ChatFormatting.WHITE));
         result.set(DataComponents.LORE, new ItemLore(List.of(
                 Component.literal("Blade: " + displayName(bladeMaterial)).withStyle(ChatFormatting.GRAY),
                 Component.literal("Guard: " + displayName(guardMaterial)).withStyle(ChatFormatting.GRAY),
-                Component.literal("Handle: Stick").withStyle(ChatFormatting.GRAY),
+                Component.literal("Pommel: " + displayName(pommelMaterial)).withStyle(ChatFormatting.GRAY),
                 Component.literal("Purity " + purity + "%  Weight " + weight).withStyle(ChatFormatting.DARK_GRAY),
                 Component.literal(String.format(java.util.Locale.ROOT, "Damage %.1f  Speed %.2f", damage, attackSpeed))
                         .withStyle(ChatFormatting.DARK_GRAY))));
         CompoundTag forged = new CompoundTag();
         forged.putString("blade_material", bladeMaterial); forged.putString("guard_material", guardMaterial);
-        forged.putString("handle_material", "stick"); forged.putInt("purity", purity);
+        forged.putString("pommel_material", pommelMaterial);
+        forged.putString("metal_sequence", blade.getStringOr("metal_sequence", ""));
+        forged.putInt("purity", purity);
         forged.putInt("edge", edge); forged.putInt("hardness", hardness); forged.putInt("weight", weight);
         forged.putDouble("attack_damage", damage); forged.putDouble("attack_speed", attackSpeed);
         forged.putInt("durability", durability);
@@ -82,14 +84,14 @@ public final class ForgedSwordRecipe extends CustomRecipe {
     }
 
     private static ItemStack[] parts(CraftingInput input) {
-        ItemStack blade = ItemStack.EMPTY, guard = ItemStack.EMPTY, handle = ItemStack.EMPTY;
+        ItemStack blade = ItemStack.EMPTY, guard = ItemStack.EMPTY, pommel = ItemStack.EMPTY;
         for (ItemStack stack : input.items()) if (!stack.isEmpty()) {
             if (stack.is(Asterion.FORGED_SWORD_BLADE) && blade.isEmpty()) blade = stack;
             else if (stack.is(Asterion.FORGED_SWORD_GUARD) && guard.isEmpty()) guard = stack;
-            else if (stack.is(net.minecraft.world.item.Items.STICK) && handle.isEmpty()) handle = stack;
+            else if (stack.is(Asterion.FORGED_SWORD_POMMEL) && pommel.isEmpty()) pommel = stack;
             else return null;
         }
-        return blade.isEmpty() || guard.isEmpty() || handle.isEmpty() ? null : new ItemStack[]{blade, guard, handle};
+        return blade.isEmpty() || guard.isEmpty() || pommel.isEmpty() ? null : new ItemStack[]{blade, guard, pommel};
     }
     private static CompoundTag data(ItemStack stack) {
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);

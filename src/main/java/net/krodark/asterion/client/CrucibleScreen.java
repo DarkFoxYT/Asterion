@@ -37,6 +37,15 @@ public final class CrucibleScreen extends Screen {
     private float displayedTemperature;
     private int heldControl;
     private int heldTicks;
+    private static final CrucibleBlockEntity.Mold[] MOLDS = CrucibleBlockEntity.Mold.values();
+    private static final ItemStack[] CAST_ICONS = createCastIcons();
+    private static final String[] MATERIAL_NAMES = {
+            "Iron", "Copper", "Tarnished Gold", "Netherite", "Celestial Bronze",
+            "Bone Steel", "Celestial Steel", "Celestial Gold", "Gold"
+    };
+    private ItemStack cachedPreview = ItemStack.EMPTY;
+    private String cachedPreviewSequence = "";
+    private int cachedPreviewMold = Integer.MIN_VALUE;
 
     public CrucibleScreen(CrucibleScreenPayload state) {
         super(Component.translatable("screen.asterion.crucible"));
@@ -49,11 +58,11 @@ public final class CrucibleScreen extends Screen {
         temperature = Mth.clamp(state.temperature(), 0, CrucibleBlockEntity.MAX_TEMPERATURE);
         targetTemperature = Mth.clamp(state.targetTemperature(), 0, CrucibleBlockEntity.MAX_TEMPERATURE);
         fuelTicks = Math.max(0, state.fuelTicks());
-        mold = Mth.clamp(state.mold(), -1, CrucibleBlockEntity.Mold.values().length - 1);
+        mold = Mth.clamp(state.mold(), -1, MOLDS.length - 1);
         mixColor = state.mixColor() & 0xFFFFFF;
         materialUnits = Mth.clamp(state.materialUnits(), 0, 4);
         metalSequence = state.metalSequence();
-        autoPourProgress = Mth.clamp(state.autoPourProgress(), 0, 30);
+        autoPourProgress = Mth.clamp(state.autoPourProgress(), 0, CrucibleBlockEntity.AUTO_POUR_TICKS);
         if (displayedTemperature == 0) displayedTemperature = temperature;
     }
 
@@ -122,7 +131,7 @@ public final class CrucibleScreen extends Screen {
 
     private int moldAt(double mouseX, double mouseY) {
         int panelX = width / 2 - 177, panelY = height / 2 - 119;
-        for (int index = 0; index < CrucibleBlockEntity.Mold.values().length; index++)
+        for (int index = 0; index < MOLDS.length; index++)
             if (inside(mouseX, mouseY, panelX + 190 + index * 30, panelY + 39, 28, 20)) return index;
         return -1;
     }
@@ -173,7 +182,7 @@ public final class CrucibleScreen extends Screen {
         int markerY = trackBottom - Math.round((trackBottom - trackTop) * ratio);
         graphics.fill(gaugeX + 18, markerY - 1, gaugeX + 29, markerY + 2, 0xFFFFB12B);
 
-        CrucibleBlockEntity.Mold selected = mold < 0 ? null : CrucibleBlockEntity.Mold.values()[mold];
+        CrucibleBlockEntity.Mold selected = mold < 0 ? null : MOLDS[mold];
         boolean ready = selected != null
                 && Math.abs(temperature - selected.target()) <= CrucibleBlockEntity.TOLERANCE;
         graphics.centeredText(font, temperature + "°", center - 4, panelY + 128, 0xFFFFFFFF);
@@ -189,19 +198,20 @@ public final class CrucibleScreen extends Screen {
                 : temperature < selected.target() ? "TOO COLD" : "TOO HOT";
         int statusColor = selected == null ? 0xFF9A9187 : ready ? 0xFF65E083
                 : temperature < selected.target() ? 0xFF66B9FF : 0xFFFF725C;
-        String process = ready && materialUnits > 0 ? "AUTO POUR " + Math.round(autoPourProgress / 30F * 100F) + "%" : status;
+        String process = ready && materialUnits > 0 ? "SMELTING "
+                + Math.round(autoPourProgress / (float)CrucibleBlockEntity.AUTO_POUR_TICKS * 100F) + "%" : status;
         graphics.centeredText(font, process, center - 4, panelY + 139, statusColor);
 
         graphics.text(font, "MOLD (requires item)", panelX + 190, panelY + 27, 0xFF9E8C76);
-        for (int index = 0; index < CrucibleBlockEntity.Mold.values().length; index++) {
+        for (int index = 0; index < MOLDS.length; index++) {
             int moldX = panelX + 190 + index * 30;
             boolean hovered = inside(mouseX, mouseY, moldX, panelY + 39, 28, 20);
             graphics.fill(moldX, panelY + 39, moldX + 28, panelY + 59, mold == index ? 0xFF594A34 : 0xFF29231E);
             graphics.outline(moldX, panelY + 39, 28, 20, hovered ? 0xFFE0BD72 : mold == index ? 0xFFFFD078 : 0xFF554A3D);
-            ItemStack cast = new ItemStack(CrucibleBlockEntity.moldItem(index));
+            ItemStack cast = CAST_ICONS[index];
             graphics.item(cast, moldX + 6, panelY + 41);
             if (hovered) graphics.setTooltipForNextFrame(font,
-                    Component.literal(CrucibleBlockEntity.Mold.values()[index].label()), mouseX, mouseY);
+                    Component.literal(MOLDS[index].label()), mouseX, mouseY);
         }
         graphics.text(font, "MIX " + materialUnits + "/4 · click to return", panelX + 190, panelY + 63, 0xFFCAB99F);
         for (int layer = 0; layer < metalSequence.length(); layer++) {
@@ -236,8 +246,16 @@ public final class CrucibleScreen extends Screen {
     }
 
     private ItemStack mixturePreview() {
-        if (metalSequence.isEmpty()) return ItemStack.EMPTY;
-        ItemStack preview = new ItemStack(Asterion.FORGED_INGOT);
+        if (metalSequence.isEmpty() || mold < 0) return ItemStack.EMPTY;
+        if (metalSequence.equals(cachedPreviewSequence) && mold == cachedPreviewMold) return cachedPreview;
+        net.minecraft.world.item.Item output = switch (MOLDS[mold]) {
+            case INGOT -> Asterion.FORGED_INGOT;
+            case SWORD_GUARD -> Asterion.FORGED_SWORD_GUARD;
+            case SWORD_POMMEL -> Asterion.FORGED_SWORD_POMMEL;
+            case SWORD_BLADE -> Asterion.FORGED_SWORD_BLADE;
+            case AXE_HEAD -> Asterion.FORGED_AXE_HEAD;
+        };
+        ItemStack preview = new ItemStack(output);
         ArrayList<String> materials = new ArrayList<>(4);
         ArrayList<Integer> colors = new ArrayList<>(4);
         for (int layer = 0; layer < 4; layer++) {
@@ -248,15 +266,21 @@ public final class CrucibleScreen extends Screen {
         }
         preview.set(DataComponents.CUSTOM_MODEL_DATA,
                 new CustomModelData(List.of(), List.of(), materials, colors));
-        return preview;
+        cachedPreviewSequence = metalSequence;
+        cachedPreviewMold = mold;
+        cachedPreview = preview;
+        return cachedPreview;
     }
 
     private static String materialName(int metal) {
-        String id = CrucibleBlockEntity.metalId(metal);
-        StringBuilder result = new StringBuilder();
-        for (String word : id.split("_")) result.append(result.isEmpty() ? "" : " ")
-                .append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
-        return result.toString();
+        return metal >= 0 && metal < MATERIAL_NAMES.length ? MATERIAL_NAMES[metal] : "Unknown";
+    }
+
+    private static ItemStack[] createCastIcons() {
+        ItemStack[] icons = new ItemStack[MOLDS.length];
+        for (int index = 0; index < icons.length; index++)
+            icons[index] = new ItemStack(CrucibleBlockEntity.moldItem(index));
+        return icons;
     }
 
     private void drawFeedPort(GuiGraphicsExtractor graphics, int x, int y, String label, String value, int color) {

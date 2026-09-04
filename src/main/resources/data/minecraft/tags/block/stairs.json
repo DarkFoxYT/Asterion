@@ -2,6 +2,7 @@
   "replace": false,
   "values": [
     "asterion:mazesteel_stairs",
-    "asterion:mazesteel_brick_stairs"
+    "asterion:mazesteel_brick_stairs",
+    "asterion:polished_mazesteel_stairs"
   ]
 }

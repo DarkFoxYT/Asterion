@@ -23,21 +23,26 @@ public final class ZiplineSystem {
         Set<ZiplineAnchorBlockEntity> set = ANCHORS.get(anchor.getLevel()); if (set != null) set.remove(anchor);
         RIDERS.entrySet().removeIf(entry -> entry.getValue().anchor == anchor);
     }
-    public static void toggle(Player player) {
-        if (RIDERS.remove(player.getUUID()) != null) return;
+    public static void begin(Player player) {
+        RIDERS.remove(player.getUUID());
         Set<ZiplineAnchorBlockEntity> anchors = ANCHORS.get(player.level());
         if (anchors == null) return;
-        ZiplineAnchorBlockEntity best = null; double bestT = 0, bestDistance = 2.75D;
+        ZiplineAnchorBlockEntity best = null; double bestT = 0, bestDistance = .85D;
+        Vec3 eye = player.getEyePosition();
+        Vec3 rayEnd = eye.add(player.getLookAngle().scale(7D));
         for (ZiplineAnchorBlockEntity anchor : anchors) {
             if (!anchor.primary() || anchor.other() == null || anchor.isRemoved()) continue;
-            Vec3 a = anchor.getBlockPos().getCenter(), b = anchor.other().getCenter();
-            for (int sample = 0; sample <= 32; sample++) {
-                double t = sample / 32D, distance = point(a, b, t).distanceTo(player.position());
+            Vec3 a = anchor.attachment(), b = anchor.otherAttachment();
+            for (int sample = 0; sample <= 64; sample++) {
+                double t = sample / 64D;
+                Vec3 cablePoint = point(a, b, t);
+                double distance = distanceToSegment(cablePoint, eye, rayEnd);
                 if (distance < bestDistance) { bestDistance = distance; best = anchor; bestT = t; }
             }
         }
         if (best != null) RIDERS.put(player.getUUID(), new Ride(best, bestT));
     }
+    public static void stop(Player player) { RIDERS.remove(player.getUUID()); }
     public static void tick(MinecraftServer server) {
         Iterator<Map.Entry<UUID, Ride>> iterator = RIDERS.entrySet().iterator();
         while (iterator.hasNext()) {
@@ -45,9 +50,9 @@ public final class ZiplineSystem {
             ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
             Ride ride = entry.getValue();
             if (player == null || ride.anchor.isRemoved() || ride.anchor.other() == null
-                    || player.isShiftKeyDown() || !(player.getMainHandItem().is(Asterion.ZIPLINE_HOOK)
-                    || player.getOffhandItem().is(Asterion.ZIPLINE_HOOK))) { iterator.remove(); continue; }
-            Vec3 a = ride.anchor.getBlockPos().getCenter(), b = ride.anchor.other().getCenter();
+                    || player.isShiftKeyDown() || !player.isUsingItem()
+                    || !player.getUseItem().is(Asterion.ZIPLINE_HOOK)) { iterator.remove(); continue; }
+            Vec3 a = ride.anchor.attachment(), b = ride.anchor.otherAttachment();
             Vec3 tangent = tangent(a, b, ride.progress).normalize();
             double facing = player.getLookAngle().dot(tangent);
             if (Math.abs(facing) < .12D) facing = .12D * (facing < 0 ? -1 : 1);
@@ -62,6 +67,13 @@ public final class ZiplineSystem {
             player.fallDistance = 0;
             entry.setValue(new Ride(ride.anchor, next));
         }
+    }
+    private static double distanceToSegment(Vec3 point, Vec3 a, Vec3 b) {
+        Vec3 segment = b.subtract(a);
+        double lengthSquared = segment.lengthSqr();
+        if (lengthSquared < 1.0E-7D) return point.distanceTo(a);
+        double t = Math.clamp(point.subtract(a).dot(segment) / lengthSquared, 0D, 1D);
+        return point.distanceTo(a.add(segment.scale(t)));
     }
     public static Vec3 point(Vec3 a, Vec3 b, double t) {
         double distance = a.distanceTo(b);

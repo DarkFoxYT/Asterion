@@ -43,6 +43,7 @@
     "SodiumRenderRegionMixin",
     "RagdollLocalPlayerMixin",
     "RagdollItemInHandRendererMixin"
+    ,"ForgedTooltipOutlineMixin"
   ],
   "injectors": {
     "defaultRequire": 1
