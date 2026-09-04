@@ -108,6 +108,7 @@ import net.minecraft.world.level.block.state.properties.WoodType;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import net.minecraft.world.level.levelgen.feature.Feature;
@@ -134,6 +135,10 @@ public class Asterion implements ModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     public static final ResourceKey<Level> ASTERION_LEVEL = ResourceKey.create(
             Registries.DIMENSION, id("asterion_dimension"));
+    private static final ResourceKey<Biome> CATACOMBS_BIOME = ResourceKey.create(
+            Registries.BIOME, id("catacombs"));
+    private static final ResourceKey<Biome> FORGE_BIOME = ResourceKey.create(
+            Registries.BIOME, id("forge"));
     public static final SoundEvent MINOTAUR_ROAR = registerSound("minotaur_roar");
     public static final SoundEvent MINOTAUR_STEP = registerSound("minotaur_step");
     public static final SoundEvent MINOTAUR_DOOR_OPENCLOSE = registerSound("minotaur_door_openclose");
@@ -878,9 +883,11 @@ public class Asterion implements ModInitializer {
         });
         BiomeModifications.addFeature(BiomeSelectors.tag(BiomeTags.IS_OCEAN),
                 GenerationStep.Decoration.SURFACE_STRUCTURES, UNDERWATER_RUIN_PLACED);
-        BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),
+        BiomeModifications.addFeature(BiomeSelectors.includeByKey(
+                        Biomes.THE_VOID, CATACOMBS_BIOME, FORGE_BIOME),
                 // FlatLevelSource drops the two structure-decoration steps; keep this jigsaw
-                // feature in the underground decoration step so it runs in the maze dimension.
+                // feature in the underground decoration step so it runs through every vertical
+                // biome used by the maze dimension, including the lower Forge district.
                 GenerationStep.Decoration.UNDERGROUND_DECORATION,
                 ResourceKey.create(Registries.PLACED_FEATURE, id("catacombs")));
         BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),

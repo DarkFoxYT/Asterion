@@ -57,6 +57,27 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                 check(CatacombEntrances.checkpoint(level,new BlockPos(CatacombLayout.ROOT_CENTER,
                         CatacombLayout.FLOOR_Y,CatacombLayout.ROOT_CENTER))!=null,
                         "Authored crossing lost its safe checkpoint");
+                // Force and inspect the lower authored district itself. Merely resolving
+                // its templates does not prove the biome decoration hook actually ran.
+                var forgeTemplate=level.getStructureManager().get(Asterion.id("forge/forge")).orElseThrow();
+                var forgeRelative=forgeTemplate.getBoundingBox(new StructurePlaceSettings(),BlockPos.ZERO);
+                BlockPos forgeOrigin=new BlockPos(CatacombLayout.ROOT_CENTER
+                        -(forgeRelative.minX()+forgeRelative.maxX())/2,
+                        LabyrinthLevels.FORGE_FLOOR_Y-forgeRelative.minY(),
+                        CatacombLayout.ROOT_CENTER-(forgeRelative.minZ()+forgeRelative.maxZ())/2);
+                var forgeBounds=forgeTemplate.getBoundingBox(new StructurePlaceSettings(),forgeOrigin);
+                for(int cx=forgeBounds.minX()>>4;cx<=forgeBounds.maxX()>>4;cx++)
+                    for(int cz=forgeBounds.minZ()>>4;cz<=forgeBounds.maxZ()>>4;cz++)level.getChunk(cx,cz);
+                int forgedBlocks=0,forgeCrucibles=0;
+                for(BlockPos forgePos:BlockPos.betweenClosed(forgeBounds.minX(),forgeBounds.minY(),forgeBounds.minZ(),
+                        forgeBounds.maxX(),forgeBounds.maxY(),forgeBounds.maxZ())) {
+                    var forgeState=level.getBlockState(forgePos);
+                    if(forgeState.is(Asterion.MAZESTEEL_BLOCK)||forgeState.is(Asterion.MAZESTEEL_BRICKS))forgedBlocks++;
+                    if(forgeState.is(Asterion.CRUCIBLE))forgeCrucibles++;
+                    check(!forgeState.is(Blocks.JIGSAW),"Forge left a live jigsaw at "+forgePos);
+                }
+                check(forgedBlocks>5000,"Authored Forge masonry did not generate: "+forgedBlocks);
+                check(forgeCrucibles>0,"Authored Forge crucibles did not generate");
                 for(int cx=-4;cx<=3;cx++)for(int cz=-4;cz<=3;cz++)
                     check(level.getBlockState(new BlockPos(cx*16,AuthoredCatacombs.ARENA_BASE_Y-1,cz*16))
                             .is(Blocks.LIGHT),"Missing arena reload marker");
