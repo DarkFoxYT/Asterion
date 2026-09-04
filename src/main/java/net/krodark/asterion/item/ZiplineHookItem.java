@@ -20,7 +20,7 @@ public final class ZiplineHookItem extends Item {
         return InteractionResult.CONSUME;
     }
     @Override public InteractionResult useOn(UseOnContext context) {
-        if (!ZiplineSystem.isChain(context.getLevel().getBlockState(context.getClickedPos())))
+        if (!ZiplineSystem.isHorizontalChain(context.getLevel().getBlockState(context.getClickedPos())))
             return InteractionResult.PASS;
         if (context.getPlayer() != null) {
             if (!context.getLevel().isClientSide())

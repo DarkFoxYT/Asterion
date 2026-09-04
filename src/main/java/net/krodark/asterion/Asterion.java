@@ -764,6 +764,16 @@ public class Asterion implements ModInitializer {
     @Override
     public void onInitialize() {
         registerDeadWoodProperties();
+        net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
+            if (!player.getItemInHand(hand).is(ZIPLINE_HOOK)
+                    || !net.krodark.asterion.zipline.ZiplineSystem.isHorizontalChain(
+                            level.getBlockState(hit.getBlockPos())))
+                return net.minecraft.world.InteractionResult.PASS;
+            if (!level.isClientSide())
+                net.krodark.asterion.zipline.ZiplineSystem.begin(player, hit.getBlockPos());
+            return level.isClientSide() ? net.minecraft.world.InteractionResult.SUCCESS
+                    : net.minecraft.world.InteractionResult.SUCCESS_SERVER;
+        });
         net.krodark.asterion.game.GameplayContent.initialize();
         net.krodark.asterion.game.EncounterKeyRecovery.initialize();
         net.krodark.asterion.game.ArenaDeathRecovery.initialize();

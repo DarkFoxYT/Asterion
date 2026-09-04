@@ -111,7 +111,7 @@ public abstract class CameraMixin {
             setRotation(collapse.yaw(), collapse.pitch());
         }
         net.krodark.asterion.client.CrucibleCamera.CameraPose forge =
-                net.krodark.asterion.client.CrucibleCamera.cameraPose(position(), partial);
+                net.krodark.asterion.client.CrucibleCamera.cameraPose(position(), yRot(), xRot(), partial);
         if (forge != null) {
             setPosition(forge.position());
             setRotation(forge.yaw(), forge.pitch());

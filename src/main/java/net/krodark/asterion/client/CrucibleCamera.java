@@ -39,7 +39,8 @@ public final class CrucibleCamera {
         }
     }
 
-    public static CameraPose cameraPose(Vec3 vanilla, float partialTick) {
+    public static CameraPose cameraPose(Vec3 vanilla, float vanillaYaw, float vanillaPitch,
+                                        float partialTick) {
         Minecraft client = Minecraft.getInstance();
         if (crucible == null || client.level == null) return null;
         float amount = smoother(Mth.lerp(partialTick, previousBlend, blend));
@@ -52,7 +53,10 @@ public final class CrucibleCamera {
         Vec3 look = focus.subtract(camera);
         float yaw = (float)(Mth.atan2(look.z, look.x) * Mth.RAD_TO_DEG) - 90F;
         float pitch = (float)(-Mth.atan2(look.y, Math.sqrt(look.x * look.x + look.z * look.z)) * Mth.RAD_TO_DEG);
-        return new CameraPose(camera, yaw, pitch);
+        // Position and view rotation are camera-only. The LocalPlayer's coordinates and
+        // body/head rotations are deliberately never written by this controller.
+        return new CameraPose(camera, Mth.rotLerp(amount, vanillaYaw, yaw),
+                Mth.lerp(amount, vanillaPitch, pitch));
     }
 
     private static float smoother(float value) {

@@ -167,6 +167,8 @@ public final class CrucibleScreen extends Screen {
         graphics.fill(rightX, panelY, rightX + 166, panelY + 238, 0xA0141010);
         graphics.outline(rightX, panelY, 166, 238, 0xCC8B765E);
         graphics.text(font, title, panelX + 10, panelY + 10, 0xFFEAD6B7);
+        graphics.fill(panelX + 9, panelY + 23, panelX + 171, panelY + 24, 0x665E5143);
+        graphics.fill(rightX + 8, panelY + 20, rightX + 158, panelY + 21, 0x665E5143);
 
         int buttonX = panelX + 76;
         int upY = panelY + 31, downY = panelY + 83;
