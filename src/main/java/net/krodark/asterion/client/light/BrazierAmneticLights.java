@@ -15,11 +15,11 @@ public final class BrazierAmneticLights {
 
     public static void tick(Minecraft client) {
         if(client.level==null||client.player==null||--cooldown>0)return;
-        cooldown=10;
+        cooldown=40;
         BlockPos center=client.player.blockPosition();
         BlockPos.MutableBlockPos cursor=new BlockPos.MutableBlockPos();
-        for(int y=-12;y<=12;y++) for(int x=-28;x<=28;x++) for(int z=-28;z<=28;z++) {
-            if(x*x+z*z>784)continue;
+        for(int y=-8;y<=8;y++) for(int x=-16;x<=16;x++) for(int z=-16;z<=16;z++) {
+            if(x*x+z*z>256)continue;
             cursor.set(center.getX()+x,center.getY()+y,center.getZ()+z);
             var state=client.level.getBlockState(cursor);
             if(state.is(Asterion.LAMENTER)&&state.getValue(LamenterBlock.CRYING)) {

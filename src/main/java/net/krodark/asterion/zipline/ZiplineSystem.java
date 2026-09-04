@@ -33,7 +33,7 @@ public final class ZiplineSystem {
     }
 
     public static void begin(Player player, BlockPos position) {
-        RIDERS.remove(player.getUUID());
+        if (RIDERS.remove(player.getUUID()) != null) return;
         if (!isChain(player.level().getBlockState(position))) return;
         RIDERS.put(player.getUUID(), new Ride(position.immutable(), position.getCenter()));
     }
@@ -46,8 +46,7 @@ public final class ZiplineSystem {
             Map.Entry<UUID, Ride> entry = iterator.next();
             ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
             Ride ride = entry.getValue();
-            if (player == null || player.isShiftKeyDown() || !player.isUsingItem()
-                    || !player.getUseItem().is(Asterion.ZIPLINE_HOOK)) {
+            if (player == null || player.isShiftKeyDown()) {
                 iterator.remove();
                 continue;
             }
@@ -68,11 +67,20 @@ public final class ZiplineSystem {
                         local > 0 ? Direction.AxisDirection.POSITIVE : Direction.AxisDirection.NEGATIVE);
                 BlockPos candidate = ride.chain().relative(direction);
                 if (!isChain(player.level().getBlockState(candidate))) {
-                    nextPoint = ride.chain().getCenter().add(along.scale(Math.copySign(.48D, local)));
-                    signedSpeed = 0D;
+                    double best = .12D;
+                    BlockPos turn = null;
+                    for (Direction option : Direction.values()) {
+                        BlockPos neighbor = ride.chain().relative(option);
+                        if (!isChain(player.level().getBlockState(neighbor))) continue;
+                        double score = player.getLookAngle().dot(Vec3.atLowerCornerOf(option.getUnitVec3i()));
+                        if (score > best) { best = score; turn = neighbor; }
+                    }
+                    if (turn == null) { iterator.remove(); continue; }
+                    nextBlock = turn;
+                    nextPoint = turn.getCenter();
                 } else nextBlock = candidate;
             }
-            Vec3 playerPosition = nextPoint.subtract(0D, player.getBbHeight() * .72D, 0D);
+            Vec3 playerPosition = nextPoint.subtract(0D, player.getBbHeight() + .18D, 0D);
             player.setPos(playerPosition.x, playerPosition.y, playerPosition.z);
             player.setDeltaMovement(along.scale(signedSpeed));
             player.fallDistance = 0;

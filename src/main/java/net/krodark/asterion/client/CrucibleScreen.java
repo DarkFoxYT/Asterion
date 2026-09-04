@@ -85,7 +85,7 @@ public final class CrucibleScreen extends Screen {
 
     @Override public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
         int panelY = height / 2 - 119;
-        int x = width / 2 - 72;
+        int x = 8 + 76;
         int upY = panelY + 31;
         int downY = panelY + 83;
         if (event.button() == 0 && inside(event.x(), event.y(), x, upY, 32, 32)) {
@@ -166,9 +166,9 @@ public final class CrucibleScreen extends Screen {
         graphics.outline(panelX, panelY, 180, 238, 0xCC8B765E);
         graphics.fill(rightX, panelY, rightX + 166, panelY + 238, 0xA0141010);
         graphics.outline(rightX, panelY, 166, 238, 0xCC8B765E);
-        graphics.centeredText(font, title, center, panelY + 10, 0xFFEAD6B7);
+        graphics.text(font, title, panelX + 10, panelY + 10, 0xFFEAD6B7);
 
-        int buttonX = center - 72;
+        int buttonX = panelX + 76;
         int upY = panelY + 31, downY = panelY + 83;
         graphics.blit(RenderPipelines.GUI_TEXTURED, BUTTON_UP_TEXTURE, buttonX, upY,
                 0, 0, 32, 32, 32, 32);
@@ -178,7 +178,7 @@ public final class CrucibleScreen extends Screen {
         if (inside(mouseX, mouseY, buttonX, downY, 32, 32)) graphics.outline(buttonX, downY, 32, 32, 0xFFD3B878);
 
         // Native 48x96 draw: resource-pack replacements remain pixel accurate.
-        int gaugeX = center - 28, gaugeY = panelY + 28;
+        int gaugeX = panelX + 118, gaugeY = panelY + 28;
         graphics.blit(RenderPipelines.GUI_TEXTURED, GAUGE_TEXTURE, gaugeX, gaugeY,
                 0, 0, 48, 96, 48, 96);
         float ratio = displayedTemperature / CrucibleBlockEntity.MAX_TEMPERATURE;
@@ -189,7 +189,7 @@ public final class CrucibleScreen extends Screen {
         CrucibleBlockEntity.Mold selected = mold < 0 ? null : MOLDS[mold];
         boolean ready = selected != null
                 && Math.abs(temperature - selected.target()) <= CrucibleBlockEntity.TOLERANCE;
-        graphics.centeredText(font, temperature + "°", center - 4, panelY + 128, 0xFFFFFFFF);
+        graphics.text(font, temperature + "°", panelX + 120, panelY + 128, 0xFFFFFFFF);
         graphics.text(font, selected == null ? "No cast inserted" : selected.label(), panelX + 10, panelY + 34, 0xFFE5D1AE);
         graphics.text(font, selected == null ? "Insert cast on top" : "Target: " + selected.target() + "°",
                 panelX + 10, panelY + 49, 0xFFB9AB94);
@@ -204,7 +204,7 @@ public final class CrucibleScreen extends Screen {
                 : temperature < selected.target() ? 0xFF66B9FF : 0xFFFF725C;
         String process = ready && materialUnits > 0 ? "SMELTING "
                 + Math.round(autoPourProgress / (float)CrucibleBlockEntity.AUTO_POUR_TICKS * 100F) + "%" : status;
-        graphics.centeredText(font, process, center - 4, panelY + 139, statusColor);
+        graphics.text(font, process, panelX + 10, panelY + 103, statusColor);
 
         graphics.text(font, "MOLD (requires item)", rightX + 8, panelY + 27, 0xFF9E8C76);
         for (int index = 0; index < MOLDS.length; index++) {
@@ -307,6 +307,9 @@ public final class CrucibleScreen extends Screen {
     }
 
     @Override public boolean isPauseScreen() { return false; }
+    @Override public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+        // Keep the physical crucible crisp behind the two HUD rails.
+    }
     @Override public void removed() {
         CrucibleCamera.end();
         super.removed();
