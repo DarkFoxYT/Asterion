@@ -764,6 +764,7 @@ public class Asterion implements ModInitializer {
     @Override
     public void onInitialize() {
         registerDeadWoodProperties();
+        net.krodark.asterion.zipline.ZiplineSystem.initialize();
         net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
             if (!player.getItemInHand(hand).is(ZIPLINE_HOOK)
                     || !net.krodark.asterion.zipline.ZiplineSystem.isHorizontalChain(
