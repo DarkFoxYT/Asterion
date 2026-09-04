@@ -36,7 +36,8 @@ public final class AmneticBoneEmission {
     }
 
     public static void submit(Identifier model, EmissiveBoneMesh geometry, Identifier texture,
-                              Matrix4fc pose, int color, float uScale, float vScale, float strength) {
+                              Matrix4fc pose, int color, float uScale, float vScale, float strength,
+                              boolean backfaceCulling) {
         if (!Bloom.settings().isEnabled()) return;
         if (!initialized) {
             EmissiveSources.register(Asterion.id("vine_glow"), AmneticBoneEmission::emit);
@@ -45,13 +46,14 @@ public final class AmneticBoneEmission {
                     ENTRIES.values().forEach(entry -> entry.count = 0));
             initialized = true;
         }
-        MeshKey key = new MeshKey(model, texture);
+        MeshKey key = new MeshKey(model, texture, backfaceCulling);
         Entry entry = ENTRIES.get(key);
         if (entry == null || entry.geometry != geometry) {
             Identifier id = Asterion.id("bone_emission/" + model.getNamespace() + "/" + model.getPath()
-                    + "/" + texture.getNamespace() + "/" + texture.getPath());
+                    + "/" + texture.getNamespace() + "/" + texture.getPath()
+                    + (backfaceCulling ? "/culled" : "/two_sided"));
             if (entry != null) InstanceMeshRegistry.INSTANCE.unregister(id);
-            entry = new Entry(id, geometry, texture);
+            entry = new Entry(id, geometry, texture, backfaceCulling);
             ENTRIES.put(key, entry);
         }
         if (entry.count == entry.poses.size()) entry.poses.add(new Instance());
@@ -69,7 +71,7 @@ public final class AmneticBoneEmission {
         final Vector4f color = new Vector4f(), uv = new Vector4f();
     }
 
-    private record MeshKey(Identifier model, Identifier texture) { }
+    private record MeshKey(Identifier model, Identifier texture, boolean backfaceCulling) { }
 
     private static final class Entry {
         final Identifier id;
@@ -77,7 +79,7 @@ public final class AmneticBoneEmission {
         final Identifier texture;
         final ArrayList<Instance> poses = new ArrayList<>();
         int count;
-        Entry(Identifier id, EmissiveBoneMesh geometry, Identifier texture) {
+        Entry(Identifier id, EmissiveBoneMesh geometry, Identifier texture, boolean backfaceCulling) {
             this.id = id;
             this.geometry = geometry;
             this.texture = texture;
@@ -90,7 +92,7 @@ public final class AmneticBoneEmission {
                     .renderState(RenderState.builder().depthTest(true).depthWrite(false)
                             // Only exposed, front-facing pixels may seed bloom. Rendering the
                             // reverse faces let a glow bone illuminate through its enclosing geo.
-                            .backfaceCulling(true).blend(RenderState.BlendMode.ALPHA).build())
+                            .backfaceCulling(backfaceCulling).blend(RenderState.BlendMode.ALPHA).build())
                     .onRender((ctx, batch) -> {
                         // Manual mesh: only the official emissive-source hook invokes this draw.
                         for (int i = 0; i < count; i++) batch.add(poses.get(i));

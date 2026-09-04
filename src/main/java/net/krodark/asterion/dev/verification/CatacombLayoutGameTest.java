@@ -20,16 +20,20 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                 var level=server.getLevel(Asterion.ASTERION_LEVEL);
                 // Runtime installs arena pieces from completed chunk callbacks. This test
                 // intentionally forces all pieces so it can inspect the entire 123x123 build.
+                WorldGenerator.prepareBossArenaBeforePlayers(level);
                 for(int cx=-4;cx<=3;cx++)for(int cz=-4;cz<=3;cz++)
                     AuthoredCatacombs.placeArenaChunk(level,level.getChunk(cx,cz));
                 for(int cx=-1;cx<=5;cx++)for(int cz=3;cz<=5;cz++)
                     AuthoredCatacombs.placeArenaChunk(level,level.getChunk(cx,cz));
-                check(WorldGenerator.isBossArenaReady(),"Arena not ready");
+                // Chunks may already carry the revision marker from terrain generation;
+                // finish explicitly so a fresh runtime build discovers those authored pieces.
+                check(WorldGenerator.ensureBossArenaReady(level),"Arena not ready");
                 BlockPos centerFloor = new BlockPos(0, AuthoredCatacombs.ARENA_FLOOR_Y - 1, 0);
                 check(!level.getBlockState(centerFloor).getCollisionShape(level, centerFloor).isEmpty(),
                         "Authored arena center floor was not generated");
                 check(level.getBlockState(centerFloor.above()).isAir(), "Arena center obstructed");
-                for(int x=-1;x<=1;x++)for(int y=6;y<=10;y++)
+                for(int x=-1;x<=1;x++)for(int y=AuthoredCatacombs.ARENA_FLOOR_Y;
+                                           y<=AuthoredCatacombs.ARENA_FLOOR_Y+4;y++)
                     check(!level.getBlockState(new BlockPos(x,y,-60)).is(Blocks.CYAN_WOOL),
                             "Arena exit portal marker remained as cyan wool");
                 check(level.getBlockEntity(MinotaurArenaEntrances.door(net.minecraft.core.Direction.SOUTH)) instanceof net.krodark.asterion.block.MinotaurDoorBlockEntity,"Single keyed arena entrance missing");
@@ -37,7 +41,9 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                 check(WorldGenerator.activeBossBraziers(level)>0,"Authored arena braziers were not generated");
                 check(WorldGenerator.bossPillarsRemaining()>0,"Authored arena pillars were not registered");
                 int closedDoorPieces=0;
-                for(int x=-61;x<=61;x++)for(int z=-61;z<=61;z++)for(int y=1;y<=48;y++) {
+                for(int x=-61;x<=61;x++)for(int z=-61;z<=61;z++)
+                    for(int y=AuthoredCatacombs.ARENA_BASE_Y;
+                        y<=AuthoredCatacombs.ARENA_BASE_Y+47;y++) {
                     var state=level.getBlockState(new BlockPos(x,y,z));
                     if(state.is(Asterion.BARREL_DOOR)) {
                         closedDoorPieces++;
@@ -46,24 +52,37 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                                 "Authored arena barrel door was not placed closed");
                     }
                 }
-                level.getChunkAt(new BlockPos(CatacombLayout.ROOT_CENTER,49,CatacombLayout.ROOT_CENTER));
-                check(CatacombEntrances.checkpoint(level,new BlockPos(CatacombLayout.ROOT_CENTER,24,CatacombLayout.ROOT_CENTER))!=null,"Authored crossing lost its safe checkpoint");
+                level.getChunkAt(new BlockPos(CatacombLayout.ROOT_CENTER,AuthoredCatacombs.CONNECTOR_Y,
+                        CatacombLayout.ROOT_CENTER));
+                check(CatacombEntrances.checkpoint(level,new BlockPos(CatacombLayout.ROOT_CENTER,
+                        CatacombLayout.FLOOR_Y,CatacombLayout.ROOT_CENTER))!=null,
+                        "Authored crossing lost its safe checkpoint");
                 for(int cx=-4;cx<=3;cx++)for(int cz=-4;cz<=3;cz++)
-                    check(level.getBlockState(new BlockPos(cx*16,0,cz*16)).is(Blocks.LIGHT),"Missing arena reload marker");
+                    check(level.getBlockState(new BlockPos(cx*16,AuthoredCatacombs.ARENA_BASE_Y-1,cz*16))
+                            .is(Blocks.LIGHT),"Missing arena reload marker");
                 BlockPos playerDoor=MinotaurArenaEntrances.door(MinotaurArenaEntrances.PLAYER_ENTRANCE);
+                int previousFloor=Integer.MIN_VALUE;
                 for(int z=playerDoor.getZ()+1;z<=AuthoredCatacombs.ARENA_RADIUS;z++) {
-                    int floor=Math.min(AuthoredCatacombs.CONNECTOR_Y-1,playerDoor.getY()-1+z-(playerDoor.getZ()+1));
-                    BlockPos step=new BlockPos(0,floor,z);
+                    int expected=Math.min(AuthoredCatacombs.CONNECTOR_Y-1,
+                            playerDoor.getY()-1+z-(playerDoor.getZ()+1));
+                    BlockPos step=new BlockPos(0,expected,z);
+                    if(level.getBlockState(step).getCollisionShape(level,step).isEmpty())step=step.below();
                     check(!level.getBlockState(step).getCollisionShape(level,step).isEmpty(),"Missing arena descent step at "+step);
                     clear(level,step.above());
                     clear(level,step.above(2));
-                    if(z>playerDoor.getZ()+1) {
-                        int previous=Math.min(AuthoredCatacombs.CONNECTOR_Y-1,playerDoor.getY()-1+z-1-(playerDoor.getZ()+1));
-                        check(floor-previous<=1,"Arena descent is too steep at z="+z);
-                    }
+                    if(previousFloor!=Integer.MIN_VALUE)
+                        check(step.getY()>=previousFloor&&step.getY()-previousFloor<=1,
+                                "Arena descent is too steep at z="+z);
+                    previousFloor=step.getY();
                 }
-                for(int z=62;z<=CatacombLayout.ROOT_CENTER;z++) clear(level,new BlockPos(0,AuthoredCatacombs.CONNECTOR_Y+1,z));
-                for(int x=0;x<=CatacombLayout.ROOT_CENTER-10;x++) clear(level,new BlockPos(x,AuthoredCatacombs.CONNECTOR_Y+1,CatacombLayout.ROOT_CENTER));
+                // The current route bends from arena x=0 into module (0,4)'s north
+                // connector at x=9; the old straight hand-carved hall is intentionally sealed.
+                for(int z=AuthoredCatacombs.ARENA_RADIUS+1;z<=76;z++) {
+                    int center=Math.round((z-(AuthoredCatacombs.ARENA_RADIUS+1))*9F
+                            /(76-(AuthoredCatacombs.ARENA_RADIUS+1)));
+                    clear(level,new BlockPos(center,AuthoredCatacombs.CONNECTOR_Y,z));
+                    clear(level,new BlockPos(center,AuthoredCatacombs.CONNECTOR_Y+1,z));
+                }
                 long seed=MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
                 // Force full generation, including modules spanning multiple chunks.
                 for(int cz=19;cz>=16;cz--)for(int cx=19;cx>=16;cx--)level.getChunk(cx,cz);

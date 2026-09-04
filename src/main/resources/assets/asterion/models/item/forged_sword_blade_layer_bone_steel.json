@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/handheld",
+  "textures": {
+    "layer0": "asterion:item/forging/bone_steel/bone_steel_blade"
+  }
+}

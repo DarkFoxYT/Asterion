@@ -24,9 +24,9 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
-/** A shared catacomb flash flood, filling dry galleries through block Y=42. */
+/** A shared catacomb flash flood, filling dry galleries beneath the raised maze. */
 public final class CatacombFloodState extends SavedData {
-    public static final int FLOOD_TOP_Y = 42;
+    public static final int FLOOD_TOP_Y = net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y - 6;
     public static final int MAX_RISE = (FLOOD_TOP_Y - CatacombLayout.WATER_Y) * 8;
     public static final int RISE_PER_STEP = 8;
     public static final int STEP_TICKS = 5;
@@ -95,6 +95,7 @@ public final class CatacombFloodState extends SavedData {
     public static void clear() { LOADED.clear(); }
 
     public static void tick(ServerLevel level) {
+        if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
         var state = get(level);
         long now = level.getGameTime();
         if (state.active && (now >= state.endsAt || net.krodark.asterion.WorldGenerator.isBossEncounterActive(level)))
@@ -206,7 +207,7 @@ public final class CatacombFloodState extends SavedData {
                         setActive(maze, false);
                     }
                     command.getSource().sendSuccess(() -> Component.literal(active
-                            ? "Catacomb flash flood rising rapidly through block Y=42."
+                            ? "Catacomb flash flood rising rapidly through block Y=" + FLOOD_TOP_Y + "."
                             : "Catacomb tide receding to its normal level."), true);
                     return 1;
                 }));

@@ -30,6 +30,7 @@ public final class GreekFireTorchRenderer extends GeoBlockRenderer<GreekFireTorc
                 return texture(state);
             }
             @Override protected boolean enhancedSurface(BlockEntityRenderState state) { return true; }
+            @Override protected boolean backfaceCulling(BlockEntityRenderState state) { return false; }
             @Override protected Identifier amneticEmissionMesh(BlockEntityRenderState state) {
                 // Low quality keeps the regular full-bright flame but skips the extra
                 // bloom capture/instance pass. Medium and high remain visually unchanged.

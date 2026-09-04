@@ -1,5 +1,0 @@
-{
-  "type":"minecraft:crafting_shaped","category":"building",
-  "pattern":["B B","BBB"],"key":{"B":"asterion:ancient_bricks"},
-  "result":{"id":"asterion:mold_holder"}
-}

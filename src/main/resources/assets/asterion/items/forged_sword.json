@@ -1,0 +1,1643 @@
+{
+  "model": {
+    "type": "minecraft:composite",
+    "models": [
+      {
+        "type": "minecraft:model",
+        "model": "minecraft:item/stick"
+      },
+      {
+        "type": "minecraft:select",
+        "property": "minecraft:custom_model_data",
+        "index": 0,
+        "cases": [
+          {
+            "when": "iron",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_iron",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 0,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "copper",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_copper",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 0,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "tarnished_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_tarnished_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 0,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "netherite",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_netherite",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 0,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_bronze",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_celestial_bronze",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 0,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "bone_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_bone_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 0,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_celestial_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 0,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_celestial_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 0,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 0,
+                  "default": -1
+                }
+              ]
+            }
+          }
+        ],
+        "fallback": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:select",
+        "property": "minecraft:custom_model_data",
+        "index": 1,
+        "cases": [
+          {
+            "when": "iron",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_iron",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 1,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "copper",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_copper",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 1,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "tarnished_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_tarnished_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 1,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "netherite",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_netherite",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 1,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_bronze",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_celestial_bronze",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 1,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "bone_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_bone_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 1,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_celestial_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 1,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_celestial_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 1,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 1,
+                  "default": -1
+                }
+              ]
+            }
+          }
+        ],
+        "fallback": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:select",
+        "property": "minecraft:custom_model_data",
+        "index": 2,
+        "cases": [
+          {
+            "when": "iron",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_iron",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 2,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "copper",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_copper",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 2,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "tarnished_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_tarnished_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 2,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "netherite",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_netherite",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 2,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_bronze",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_celestial_bronze",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 2,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "bone_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_bone_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 2,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_celestial_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 2,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_celestial_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 2,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 2,
+                  "default": -1
+                }
+              ]
+            }
+          }
+        ],
+        "fallback": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:select",
+        "property": "minecraft:custom_model_data",
+        "index": 3,
+        "cases": [
+          {
+            "when": "iron",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_iron",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 3,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "copper",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_copper",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 3,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "tarnished_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_tarnished_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 3,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "netherite",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_netherite",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 3,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_bronze",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_celestial_bronze",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 3,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "bone_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_bone_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 3,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_celestial_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 3,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_celestial_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 3,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_blade_layer_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 3,
+                  "default": -1
+                }
+              ]
+            }
+          }
+        ],
+        "fallback": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:select",
+        "property": "minecraft:custom_model_data",
+        "index": 4,
+        "cases": [
+          {
+            "when": "iron",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_iron",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 4,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "copper",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_copper",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 4,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "tarnished_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_tarnished_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 4,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "netherite",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_netherite",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 4,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_bronze",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_celestial_bronze",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 4,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "bone_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_bone_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 4,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_celestial_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 4,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_celestial_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 4,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 4,
+                  "default": -1
+                }
+              ]
+            }
+          }
+        ],
+        "fallback": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:select",
+        "property": "minecraft:custom_model_data",
+        "index": 5,
+        "cases": [
+          {
+            "when": "iron",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_iron",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 5,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "copper",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_copper",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 5,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "tarnished_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_tarnished_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 5,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "netherite",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_netherite",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 5,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_bronze",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_celestial_bronze",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 5,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "bone_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_bone_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 5,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_celestial_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 5,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_celestial_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 5,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 5,
+                  "default": -1
+                }
+              ]
+            }
+          }
+        ],
+        "fallback": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:select",
+        "property": "minecraft:custom_model_data",
+        "index": 6,
+        "cases": [
+          {
+            "when": "iron",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_iron",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 6,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "copper",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_copper",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 6,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "tarnished_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_tarnished_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 6,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "netherite",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_netherite",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 6,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_bronze",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_celestial_bronze",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 6,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "bone_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_bone_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 6,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_celestial_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 6,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_celestial_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 6,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 6,
+                  "default": -1
+                }
+              ]
+            }
+          }
+        ],
+        "fallback": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:select",
+        "property": "minecraft:custom_model_data",
+        "index": 7,
+        "cases": [
+          {
+            "when": "iron",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_iron",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 7,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "copper",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_copper",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 7,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "tarnished_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_tarnished_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 7,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "netherite",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_netherite",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 7,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_bronze",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_celestial_bronze",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 7,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "bone_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_bone_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 7,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_celestial_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 7,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_celestial_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 7,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_guard_layer_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 7,
+                  "default": -1
+                }
+              ]
+            }
+          }
+        ],
+        "fallback": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:select",
+        "property": "minecraft:custom_model_data",
+        "index": 8,
+        "cases": [
+          {
+            "when": "iron",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_iron",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 8,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "copper",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_copper",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 8,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "tarnished_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_tarnished_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 8,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "netherite",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_netherite",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 8,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_bronze",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_celestial_bronze",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 8,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "bone_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_bone_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 8,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_celestial_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 8,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_celestial_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 8,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 8,
+                  "default": -1
+                }
+              ]
+            }
+          }
+        ],
+        "fallback": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:select",
+        "property": "minecraft:custom_model_data",
+        "index": 9,
+        "cases": [
+          {
+            "when": "iron",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_iron",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 9,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "copper",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_copper",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 9,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "tarnished_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_tarnished_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 9,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "netherite",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_netherite",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 9,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_bronze",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_celestial_bronze",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 9,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "bone_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_bone_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 9,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_celestial_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 9,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_celestial_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 9,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 9,
+                  "default": -1
+                }
+              ]
+            }
+          }
+        ],
+        "fallback": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:select",
+        "property": "minecraft:custom_model_data",
+        "index": 10,
+        "cases": [
+          {
+            "when": "iron",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_iron",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 10,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "copper",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_copper",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 10,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "tarnished_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_tarnished_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 10,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "netherite",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_netherite",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 10,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_bronze",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_celestial_bronze",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 10,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "bone_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_bone_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 10,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_celestial_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 10,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_celestial_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 10,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 10,
+                  "default": -1
+                }
+              ]
+            }
+          }
+        ],
+        "fallback": {
+          "type": "minecraft:empty"
+        }
+      },
+      {
+        "type": "minecraft:select",
+        "property": "minecraft:custom_model_data",
+        "index": 11,
+        "cases": [
+          {
+            "when": "iron",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_iron",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 11,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "copper",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_copper",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 11,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "tarnished_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_tarnished_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 11,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "netherite",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_netherite",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 11,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_bronze",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_celestial_bronze",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 11,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "bone_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_bone_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 11,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_steel",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_celestial_steel",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 11,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "celestial_gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_celestial_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 11,
+                  "default": -1
+                }
+              ]
+            }
+          },
+          {
+            "when": "gold",
+            "model": {
+              "type": "minecraft:model",
+              "model": "asterion:item/forged_sword_pommel_layer_gold",
+              "tints": [
+                {
+                  "type": "minecraft:custom_model_data",
+                  "index": 11,
+                  "default": -1
+                }
+              ]
+            }
+          }
+        ],
+        "fallback": {
+          "type": "minecraft:empty"
+        }
+      }
+    ]
+  }
+}

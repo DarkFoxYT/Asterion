@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "asterion:item/forging/celestial_bronze/celestial_bronze_pommel_icon"
+  }
+}

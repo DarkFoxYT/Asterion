@@ -15,7 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public final class AsterionConfig {
-    private static final int CURRENT_VERSION = 24;
+    private static final int CURRENT_VERSION = 25;
     private static final Logger LOGGER = LoggerFactory.getLogger("asterion.config");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("asterion.json");
@@ -53,6 +53,10 @@ public final class AsterionConfig {
     public float minotaurVerticalFov = 70.0f;
     public int minotaurBossPillarCount = 6;
     public boolean cinematicsEnabled = true;
+    /** Master switch for the maze and side-objective HUD cards. */
+    public boolean objectiveHudEnabled = true;
+    /** Seconds shown after arrival or a stage change; zero keeps objectives visible. */
+    public int objectiveHudSeconds = 12;
     /** -1 preserves vanilla brightness; 0 is Moody and 100 is Bright. */
     public int brightnessPercent = 0;
     public int musicVolumePercent = 50;
@@ -201,6 +205,10 @@ public final class AsterionConfig {
         }
         if (version < 23) ragdollMashRecovery = true;
         if (version < 24 && wallThickness < 3) wallThickness = 3;
+        if (version < 25) {
+            objectiveHudEnabled = true;
+            objectiveHudSeconds = 12;
+        }
     }
 
     private void applySkyDefaults() {
@@ -238,7 +246,7 @@ public final class AsterionConfig {
         mechanismChance = clamp(mechanismChance, 0.0f, 1.0f);
         gatewayDistance = Math.max(128, Math.min(1_000, gatewayDistance));
         configVersion = CURRENT_VERSION;
-        mazeRadiusCells = Math.max(16, Math.min(160, mazeRadiusCells));
+        mazeRadiusCells = Math.max(48, Math.min(160, mazeRadiusCells));
         cellSize = Math.max(9, Math.min(21, cellSize | 1));
         wallThickness = Math.max(3, Math.min(6, wallThickness));
         wallThickness = Math.min(wallThickness, cellSize - 5);
@@ -266,6 +274,7 @@ public final class AsterionConfig {
         minotaurVerticalFov = clamp(minotaurVerticalFov, 25.0f, 120.0f);
         minotaurBossPillarCount = Math.max(4, Math.min(16, minotaurBossPillarCount));
         cinematicQuality = Math.max(0, Math.min(2, cinematicQuality));
+        objectiveHudSeconds = Math.max(0, Math.min(120, objectiveHudSeconds));
         brightnessPercent = Math.clamp(brightnessPercent, -1, 100);
         musicVolumePercent = Math.clamp(musicVolumePercent, 0, 100);
         ambientParticleQuality = Math.max(0, Math.min(2, ambientParticleQuality));

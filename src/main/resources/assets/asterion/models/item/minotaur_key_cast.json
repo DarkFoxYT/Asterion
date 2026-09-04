@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "minecraft:item/brick",
+    "layer1": "asterion:item/minotaur_boss_key"
+  }
+}

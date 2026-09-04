@@ -95,7 +95,7 @@ public final class MazeNbtStructures {
                 for (int y = minY; y <= maxY; y++) {
                     cursor.set(x, y, z);
                     if (!isCopper(chunk.getBlockState(cursor).getBlock())) continue;
-                    chunk.setBlockState(cursor, y <= 48
+                    chunk.setBlockState(cursor, y <= LabyrinthLevels.MAZE_FLOOR_Y
                             ? Asterion.ANCIENT_STONE.defaultBlockState()
                             : Asterion.ANCIENT_BRICKS.defaultBlockState(), 0);
                 }
@@ -114,6 +114,7 @@ public final class MazeNbtStructures {
     public static void clearRuntimeState() {
         synchronized (LAYOUTS) { LAYOUTS.clear(); }
         GENERATION_LAYOUTS.clear();
+        AuthoredForge.clearRuntimeState();
     }
 
     private static Layout createLayout(ServerLevel level, int radius, int cell, ReservationFilter filter) {

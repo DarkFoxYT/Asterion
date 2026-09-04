@@ -40,7 +40,9 @@ public record CrucibleViewerRecipe(Identifier id, Item mold, int temperature, Li
                 recipe("sword_blade", CrucibleBlockEntity.Mold.SWORD_BLADE,
                         Asterion.SWORD_BLADE_CAST, Asterion.FORGED_SWORD_BLADE),
                 recipe("axe_head", CrucibleBlockEntity.Mold.AXE_HEAD,
-                        Asterion.AXE_HEAD_CAST, Asterion.FORGED_AXE_HEAD));
+                        Asterion.AXE_HEAD_CAST, Asterion.FORGED_AXE_HEAD),
+                recipe("minotaur_key", CrucibleBlockEntity.Mold.MINOTAUR_KEY,
+                        Asterion.MINOTAUR_KEY_CAST, Asterion.MINOTAUR_KEY));
     }
 
     private static CrucibleViewerRecipe recipe(String name, CrucibleBlockEntity.Mold mold,

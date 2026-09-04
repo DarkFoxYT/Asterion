@@ -14,6 +14,19 @@ public final class MazeChunkData {
         for (var pos : chunk.getBlockEntitiesPos()) {
             var state = chunk.getBlockState(pos);
             var tag = pending.get(pos);
+            // BaseEntityBlock marks every crucible segment as entity-capable, while
+            // only its center/root intentionally constructs the controller entity.
+            // Structure generation can therefore leave deferred placeholders for
+            // the other 99 collision segments; discard them before Minecraft tries
+            // to instantiate an impossible block entity and logs one warning each.
+            if (state.getBlock() instanceof net.krodark.asterion.block.CrucibleBlock
+                    && !net.krodark.asterion.block.CrucibleBlock.isRoot(state)) {
+                if (tag != null) {
+                    pending.remove(pos);
+                    chunk.markUnsaved();
+                }
+                continue;
+            }
             if (!state.hasBlockEntity()) {
                 // Old worldgen placeholders carry no inventory or other saved data.
                 if (tag != null && "DUMMY".equals(tag.getStringOr("id", ""))) {

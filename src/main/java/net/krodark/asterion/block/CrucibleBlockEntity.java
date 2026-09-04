@@ -30,12 +30,15 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
     public static final int MIN_TEMPERATURE = 0;
     public static final int MAX_TEMPERATURE = 1000;
-    public static final int STEP = 25;
-    public static final int TOLERANCE = 25;
-    /** Eight seconds at the calibrated temperature lets the alloy fully melt and settle. */
-    public static final int AUTO_POUR_TICKS = 160;
+    public static final int STEP = 1;
+    public static final int MIN_HEAT_CONTROL = -20;
+    public static final int MAX_HEAT_CONTROL = 20;
+    public static final int TOLERANCE = 12;
+    /** Twelve controlled seconds in the mold's heat band completes the pour. */
+    public static final int AUTO_POUR_TICKS = 240;
     private int temperature;
-    private int targetTemperature = 350;
+    private int heatControl;
+    private float thermalRemainder;
     private int fuelTicks;
     private int mold;
     private boolean moldInserted;
@@ -67,7 +70,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     public enum Mold {
         INGOT("Ingot Cast", 350), SWORD_GUARD("Sword Guard Cast", 500),
         SWORD_POMMEL("Sword Pommel Cast", 425), SWORD_BLADE("Sword Blade Cast", 650),
-        AXE_HEAD("Axe Head Cast", 725);
+        AXE_HEAD("Axe Head Cast", 725), MINOTAUR_KEY("Minotaur Key Mold", 850);
         private final String label;
         private final int target;
         Mold(String label, int target) { this.label = label; this.target = target; }
@@ -76,7 +79,8 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     }
 
     public int temperature() { return temperature; }
-    public int targetTemperature() { return targetTemperature; }
+    public int targetTemperature() { return moldInserted ? mold().target() : 0; }
+    public int heatControl() { return heatControl; }
     public int fuelTicks() { return fuelTicks; }
     public String metalSequence() { return metalSequence; }
     public int autoPourProgress() { return autoPourTicks; }
@@ -118,6 +122,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         if (item == Asterion.SWORD_POMMEL_CAST) return Mold.SWORD_POMMEL.ordinal();
         if (item == Asterion.SWORD_BLADE_CAST) return Mold.SWORD_BLADE.ordinal();
         if (item == Asterion.AXE_HEAD_CAST) return Mold.AXE_HEAD.ordinal();
+        if (item == Asterion.MINOTAUR_KEY_CAST) return Mold.MINOTAUR_KEY.ordinal();
         return -1;
     }
 
@@ -125,7 +130,8 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         return switch (Mth.clamp(index, 0, Mold.values().length - 1)) {
             case 0 -> Asterion.INGOT_CAST; case 1 -> Asterion.SWORD_GUARD_CAST;
             case 2 -> Asterion.SWORD_POMMEL_CAST; case 3 -> Asterion.SWORD_BLADE_CAST;
-            default -> Asterion.AXE_HEAD_CAST;
+            case 4 -> Asterion.AXE_HEAD_CAST;
+            default -> Asterion.MINOTAUR_KEY_CAST;
         };
     }
 
@@ -135,7 +141,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             if (pouringTicks > 0 || moldInserted) return false;
             mold = insertedMold;
             moldInserted = true;
-            targetTemperature = mold().target();
+            heatControl = 0;
             stack.shrink(1);
             changedAndSync();
             return true;
@@ -308,11 +314,11 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             return;
         }
         if (action == CrucibleControlPayload.HEAT)
-            targetTemperature = Math.min(MAX_TEMPERATURE, targetTemperature + STEP);
+            heatControl = Math.min(MAX_HEAT_CONTROL, heatControl + STEP);
         else if (action == CrucibleControlPayload.COOL)
-            targetTemperature = Math.max(MIN_TEMPERATURE, targetTemperature - STEP);
+            heatControl = Math.max(MIN_HEAT_CONTROL, heatControl - STEP);
         else if (action == CrucibleControlPayload.NEXT_MOLD)
-            targetTemperature = moldInserted ? mold().target() : targetTemperature;
+            heatControl = 0;
         else if (action == CrucibleControlPayload.POUR) {
             pour(player);
             return;
@@ -335,7 +341,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         player.getInventory().getItem(foundSlot).shrink(1);
         mold = selected;
         moldInserted = true;
-        targetTemperature = mold().target();
+        heatControl = 0;
         autoPourTicks = 0;
         if (!oldMold.isEmpty()) give(player, oldMold);
         changedAndSync();
@@ -377,13 +383,14 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     }
 
     private void pour(ServerPlayer player) {
-        if (!calibrated() || materialUnits() == 0) return;
+        if (!calibrated() || materialUnits() == 0 || !locationAllowsMold()) return;
         Item output = switch (mold()) {
             case INGOT -> gold == materialUnits() ? Asterion.TARNISHED_GOLD_INGOT : Asterion.FORGED_INGOT;
             case SWORD_GUARD -> Asterion.FORGED_SWORD_GUARD;
             case SWORD_POMMEL -> Asterion.FORGED_SWORD_POMMEL;
             case SWORD_BLADE -> Asterion.FORGED_SWORD_BLADE;
             case AXE_HEAD -> Asterion.FORGED_AXE_HEAD;
+            case MINOTAUR_KEY -> Asterion.MINOTAUR_KEY;
         };
         ItemStack result = new ItemStack(output);
         int error = Math.abs(temperature - mold().target());
@@ -392,10 +399,13 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
                 Component.literal(alloyName() + " " + partName())
                         .withStyle(error <= 5 ? ChatFormatting.GOLD : ChatFormatting.WHITE));
         int total = materialUnits();
-        int hardness = purityScaled(weightedTrait(8, 4, 2, 12, 9, 11, 13, 7, 3));
-        int edge = purityScaled(weightedTrait(9, 5, 3, 13, 10, 12, 14, 8, 4));
-        int conductivity = purityScaled(weightedTrait(3, 10, 9, 2, 8, 2, 11, 15, 12));
-        int weight = weightedTrait(8, 7, 10, 11, 8, 9, 7, 8, 10);
+        int hardness = purityScaled(weightedTrait(9, 6, 4, 15, 17, 24, 20, 18, 5));
+        int edge = purityScaled(weightedTrait(10, 7, 5, 16, 18, 25, 22, 20, 6));
+        int conductivity = purityScaled(weightedTrait(3, 13, 10, 2, 11, 4, 14, 18, 12));
+        int weight = weightedTrait(8, 7, 10, 12, 8, 7, 6, 7, 10);
+        int damageRating = purityScaled(weightedTrait(10, 7, 5, 17, 20, 28, 24, 22, 6));
+        int speedRating = purityScaled(weightedTrait(8, 11, 7, 5, 14, 16, 18, 20, 10));
+        int durabilityRating = purityScaled(weightedTrait(10, 6, 4, 18, 21, 30, 25, 22, 5));
         int baseColor = metalColor(primaryMetal);
         int overlayMetal = secondaryMetal < 0 ? primaryMetal : secondaryMetal;
         int overlayColor = metalSequence.length() < 2 ? 0 : 0x80000000
@@ -409,7 +419,10 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
                 Component.literal("Purity " + purity() + "%").withStyle(
                         purity() == 100 ? ChatFormatting.AQUA : ChatFormatting.GRAY),
                 Component.literal("Hardness " + hardness + "  Edge " + edge).withStyle(ChatFormatting.DARK_GRAY),
+                Component.literal("Power " + damageRating + "  Speed " + speedRating
+                        + "  Endurance " + durabilityRating).withStyle(ChatFormatting.DARK_GRAY),
                 Component.literal("Conductivity " + conductivity + "  Weight " + weight).withStyle(ChatFormatting.DARK_GRAY),
+                Component.literal("Temper: " + materialTrait(primaryMetal)).withStyle(ChatFormatting.BLUE),
                 Component.literal("Pour accuracy: ±" + error + "°").withStyle(
                         error <= 5 ? ChatFormatting.GREEN : ChatFormatting.YELLOW))));
         net.minecraft.nbt.CompoundTag forging = new net.minecraft.nbt.CompoundTag();
@@ -431,6 +444,9 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         forging.putInt("edge", edge);
         forging.putInt("conductivity", conductivity);
         forging.putInt("weight", weight);
+        forging.putInt("damage_rating", damageRating);
+        forging.putInt("speed_rating", speedRating);
+        forging.putInt("durability_rating", durabilityRating);
         forging.putInt("temperature_error", error);
         forging.putString("primary_metal", metalName(primaryMetal));
         forging.putString("secondary_metal", secondaryMetal < 0 ? "none" : metalName(secondaryMetal));
@@ -475,6 +491,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             case SWORD_POMMEL -> "Sword Pommel";
             case SWORD_BLADE -> "Sword Blade";
             case AXE_HEAD -> "Axe Head";
+            case MINOTAUR_KEY -> "Minotaur Key";
         };
     }
 
@@ -486,13 +503,6 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
                 + netherite * netheriteValue + celestialBronze * celestialValue
                 + bonesteel * boneValue + celestialSteel * celestialSteelValue
                 + celestialGold * celestialGoldValue + regularGold * regularGoldValue) / (float) total);
-        // The base metal defines the structure; the later metal behaves as an overlay/coating.
-        if (primaryMetal == 0 && (ironValue == 8 || ironValue == 9)) value += 2;
-        if (primaryMetal == 1 && copperValue == 10) value += 2;
-        if (primaryMetal == 2 && goldValue == 9) value += 2;
-        if (secondaryMetal == 0 && ironValue == 9) value += 1;
-        if (secondaryMetal == 1 && copperValue == 10) value += 1;
-        if (secondaryMetal == 2 && goldValue == 3) value += 1;
         return value;
     }
 
@@ -553,11 +563,32 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     }
 
     public static String metalId(int metal) {
-        return switch (metal) {
-            case 0 -> "iron"; case 1 -> "copper"; case 2 -> "tarnished_gold";
-            case 3 -> "netherite"; case 4 -> "celestial_bronze"; case 5 -> "bone_steel";
-            case 6 -> "celestial_steel"; case 7 -> "celestial_gold"; case 8 -> "gold"; default -> "none";
-        };
+        return net.krodark.asterion.item.ForgeMaterialProfile.id(metal);
+    }
+
+    public static int materialHardness(int metal) {
+        return net.krodark.asterion.item.ForgeMaterialProfile.hardness(metal);
+    }
+    public static int materialEdge(int metal) {
+        return net.krodark.asterion.item.ForgeMaterialProfile.edge(metal);
+    }
+    public static int materialConductivity(int metal) {
+        return net.krodark.asterion.item.ForgeMaterialProfile.conductivity(metal);
+    }
+    public static int materialWeight(int metal) {
+        return net.krodark.asterion.item.ForgeMaterialProfile.weight(metal);
+    }
+    public static int materialDamage(int metal) {
+        return net.krodark.asterion.item.ForgeMaterialProfile.damage(metal);
+    }
+    public static int materialSpeed(int metal) {
+        return net.krodark.asterion.item.ForgeMaterialProfile.speed(metal);
+    }
+    public static int materialDurability(int metal) {
+        return net.krodark.asterion.item.ForgeMaterialProfile.durability(metal);
+    }
+    public static String materialTrait(int metal) {
+        return net.krodark.asterion.item.ForgeMaterialProfile.trait(metal);
     }
 
     public static void tick(net.minecraft.world.level.Level level, BlockPos pos, BlockState state,
@@ -571,18 +602,27 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         }
         if (crucible.fuelTicks > 0) {
             crucible.fuelTicks--;
-            if (crucible.temperature < crucible.targetTemperature && level.getGameTime() % 4L == 0L) {
-                crucible.temperature++;
-                changed = true;
-            } else if (crucible.temperature > crucible.targetTemperature && level.getGameTime() % 3L == 0L) {
-                crucible.temperature--;
+            // Burning fuel always contributes heat. Bellows/vent pressure changes the
+            // slope rather than selecting a thermostat endpoint, so the player must
+            // actively catch and hold the needle inside the mold's narrow band.
+            float radiativeLoss = crucible.temperature / (float) MAX_TEMPERATURE * 0.22F;
+            crucible.thermalRemainder += 0.55F + crucible.heatControl * 0.04F - radiativeLoss;
+        } else {
+            crucible.thermalRemainder -= 0.35F + crucible.temperature
+                    / (float) MAX_TEMPERATURE * 0.15F;
+        }
+        int thermalStep = crucible.thermalRemainder >= 1F ? (int)Math.floor(crucible.thermalRemainder)
+                : crucible.thermalRemainder <= -1F ? (int)Math.ceil(crucible.thermalRemainder) : 0;
+        if (thermalStep != 0) {
+            int next = Mth.clamp(crucible.temperature + thermalStep, MIN_TEMPERATURE, MAX_TEMPERATURE);
+            crucible.thermalRemainder -= thermalStep;
+            if (next != crucible.temperature) {
+                crucible.temperature = next;
                 changed = true;
             }
-        } else if (crucible.temperature > 0 && level.getGameTime() % 8L == 0L) {
-            crucible.temperature--;
-            changed = true;
         }
-        if (crucible.calibrated() && crucible.materialUnits() > 0 && crucible.pouringTicks == 0) {
+        if (crucible.calibrated() && crucible.fuelTicks > 0 && crucible.materialUnits() > 0 && crucible.pouringTicks == 0
+                && crucible.locationAllowsMold()) {
             crucible.autoPourTicks++;
             changed = true;
             if (crucible.autoPourTicks >= AUTO_POUR_TICKS
@@ -593,7 +633,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
                 crucible.autoPourTicks = 0;
             }
         } else if (crucible.autoPourTicks != 0) {
-            crucible.autoPourTicks = 0;
+            crucible.autoPourTicks = Math.max(0, crucible.autoPourTicks - 3);
             changed = true;
         }
         // Do not broadcast every idle crucible every tick (fuelTicks == 0 also satisfies
@@ -611,20 +651,29 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         syncClient();
     }
 
+    /** Ordinary casting works anywhere; the boss key requires reaching the authored Forge. */
+    private boolean locationAllowsMold() {
+        if (!moldInserted || mold() != Mold.MINOTAUR_KEY) return true;
+        return level instanceof net.minecraft.server.level.ServerLevel server
+                && server.dimension() == Asterion.ASTERION_LEVEL
+                && net.krodark.asterion.worldgen.AuthoredForge.contains(server, worldPosition);
+    }
+
     private void syncClient() {
         if (level != null) level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(),
                 net.minecraft.world.level.block.Block.UPDATE_CLIENTS);
     }
 
     private CrucibleScreenPayload snapshot() {
-        return new CrucibleScreenPayload(worldPosition, temperature, targetTemperature, fuelTicks,
+        return new CrucibleScreenPayload(worldPosition, temperature, targetTemperature(), heatControl, fuelTicks,
                 selectedMoldIndex(), mixColor(), materialUnits(), metalSequence, autoPourTicks);
     }
 
     @Override protected void saveAdditional(ValueOutput output) {
         super.saveAdditional(output);
         output.putInt("temperature", temperature);
-        output.putInt("targetTemperature", targetTemperature);
+        output.putInt("heatControl", heatControl);
+        output.putFloat("thermalRemainder", thermalRemainder);
         output.putInt("fuelTicks", fuelTicks);
         output.putInt("mold", mold);
         output.putBoolean("moldInserted", moldInserted);
@@ -677,8 +726,8 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
                 || metalSequence.chars().anyMatch(value -> value < '0' || value > '8'))
             metalSequence = legacySequence();
         if (primaryMetal < 0 && !metalSequence.isEmpty()) primaryMetal = metalSequence.charAt(0) - '0';
-        targetTemperature = Mth.clamp(input.getIntOr("targetTemperature", mold().target()),
-                MIN_TEMPERATURE, MAX_TEMPERATURE);
+        heatControl = Mth.clamp(input.getIntOr("heatControl", 0), MIN_HEAT_CONTROL, MAX_HEAT_CONTROL);
+        thermalRemainder = Mth.clamp(input.getFloatOr("thermalRemainder", 0F), -1F, 1F);
         fuelTicks = Math.max(0, input.getIntOr("fuelTicks", 0));
     }
 

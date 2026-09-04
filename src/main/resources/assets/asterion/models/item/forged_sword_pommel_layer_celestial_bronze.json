@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/handheld",
+  "textures": {
+    "layer0": "asterion:item/forging/celestial_bronze/celestial_bronze_pommel"
+  }
+}

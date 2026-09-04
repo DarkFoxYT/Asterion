@@ -25,6 +25,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.util.Mth;
 
 /** Peaceful quest-giver. She never targets or damages players. */
 public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity {
@@ -72,42 +73,43 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
 
     @Override protected InteractionResult mobInteract(Player player, InteractionHand hand) {
         if (!(player instanceof ServerPlayer serverPlayer)) return InteractionResult.SUCCESS;
-        int petals = countPetals(player);
         int anger = angerTier(player);
+        int target = petalTarget(anger);
+        int petals = countPetals(player, target);
         if (player.entityTags().contains(COMPLETE_TAG)) {
             ServerPlayNetworking.send(serverPlayer,
-                    new QueenBeetleQuestPayload(QueenBeetleQuestPayload.COMPLETE, petals, PETAL_TARGET, anger));
+                    new QueenBeetleQuestPayload(QueenBeetleQuestPayload.COMPLETE, petals, target, anger));
             return InteractionResult.SUCCESS_SERVER;
         }
         if (!player.entityTags().contains(ACTIVE_TAG)) {
             player.addTag(ACTIVE_TAG);
             ServerPlayNetworking.send(serverPlayer,
-                    new QueenBeetleQuestPayload(QueenBeetleQuestPayload.ACCEPTED, petals, PETAL_TARGET, anger));
+                    new QueenBeetleQuestPayload(QueenBeetleQuestPayload.ACCEPTED, petals, target, anger));
             return InteractionResult.SUCCESS_SERVER;
         }
-        if (petals < PETAL_TARGET) {
+        if (petals < target) {
             ServerPlayNetworking.send(serverPlayer,
-                    new QueenBeetleQuestPayload(QueenBeetleQuestPayload.PROGRESS, petals, PETAL_TARGET, anger));
+                    new QueenBeetleQuestPayload(QueenBeetleQuestPayload.PROGRESS, petals, target, anger));
             return InteractionResult.SUCCESS_SERVER;
         }
 
-        consumePetals(player, PETAL_TARGET);
+        consumePetals(player, target);
         player.removeTag(ACTIVE_TAG);
         player.addTag(COMPLETE_TAG);
         ItemStack reward = new ItemStack(RespawnObelisks.CHARGED_RUNE);
         if (!player.getInventory().add(reward)) player.drop(reward, false);
         ServerPlayNetworking.send(serverPlayer,
-                new QueenBeetleQuestPayload(QueenBeetleQuestPayload.REWARDED, PETAL_TARGET, PETAL_TARGET, anger));
+                new QueenBeetleQuestPayload(QueenBeetleQuestPayload.REWARDED, target, target, anger));
         return InteractionResult.SUCCESS_SERVER;
     }
 
-    private static int countPetals(Player player) {
+    private static int countPetals(Player player, int target) {
         int found = 0;
         for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
             ItemStack stack = player.getInventory().getItem(slot);
             if (stack.is(Asterion.TAINTED_PETALS.asItem())) found += stack.getCount();
         }
-        return Math.min(found, PETAL_TARGET);
+        return Math.min(found, target);
     }
 
     private static void consumePetals(Player player, int amount) {
@@ -122,9 +124,12 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
 
     /** Restores the objective HUD after reconnecting without replaying dialogue. */
     public static void syncActiveQuest(ServerPlayer player) {
-        if (player.entityTags().contains(ACTIVE_TAG))
+        if (player.entityTags().contains(ACTIVE_TAG)) {
+            int anger = angerTier(player);
+            int target = petalTarget(anger);
             ServerPlayNetworking.send(player, new QueenBeetleQuestPayload(
-                    QueenBeetleQuestPayload.RESTORE_ACTIVE, countPetals(player), PETAL_TARGET, angerTier(player)));
+                    QueenBeetleQuestPayload.RESTORE_ACTIVE, countPetals(player, target), target, anger));
+        }
     }
 
     public static void recordBeetleKill(net.minecraft.world.entity.LivingEntity victim, DamageSource source) {
@@ -133,6 +138,7 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
         int kills = beetleKills(player);
         player.removeTag(KILLS_TAG + kills);
         player.addTag(KILLS_TAG + Math.min(9999, kills + 1));
+        if (player.entityTags().contains(ACTIVE_TAG)) syncActiveQuest(player);
     }
 
     private static int beetleKills(Player player) {
@@ -146,6 +152,11 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
     public static int angerTier(Player player) {
         int kills = beetleKills(player);
         return kills >= 25 ? 4 : kills >= 10 ? 3 : kills >= 4 ? 2 : kills >= 1 ? 1 : 0;
+    }
+
+    /** Her request remains completable, but slaughtering her brood makes trust costlier. */
+    public static int petalTarget(int anger) {
+        return PETAL_TARGET + Mth.clamp(anger, 0, 4) * 2;
     }
 
     @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {

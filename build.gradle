@@ -213,7 +213,8 @@ tasks.named('processResources').configure {
             file("${itemDir}/forged_sword_${part}.json").text = groovy.json.JsonOutput.toJson(
                     [model: [type: 'minecraft:composite', models: layers]])
         }
-        def swordLayers = []
+        // The regular stick is the physical grip beneath the three forged components.
+        def swordLayers = [[type: 'minecraft:model', model: 'minecraft:item/stick']]
         parts.eachWithIndex { part, partIndex ->
             (0..<4).each { layer ->
                 int index = partIndex * 4 + layer
@@ -476,6 +477,10 @@ def regressionSuites = [
                 entryPoint: "CatacombRegression",
                 summary: "Checks flooded gallery connectivity and authored catacomb structures."
         ],
+        forgingRegression: [
+                entryPoint: "ForgingRegression",
+                summary: "Checks material identity, celestial progression and Bonesteel apex stats."
+        ],
         amneticRegression: [
                 entryPoint: "AmneticRegression",
                 summary: "Checks the pinned Amnetic API, instance visibility and parser dependency.",
@@ -508,7 +513,7 @@ regressionSuites.each { taskName, suite ->
 
 // Keep GPU checks opt-in so ordinary builds also work on headless machines.
 tasks.named("check") {
-    dependsOn "configRegression", "centipedeRegression", "catacombRegression", "amneticRegression"
+    dependsOn "configRegression", "centipedeRegression", "catacombRegression", "forgingRegression", "amneticRegression"
 }
 
 tasks.register("modDistribution", Sync) {

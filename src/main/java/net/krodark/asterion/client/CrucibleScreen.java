@@ -22,12 +22,14 @@ import java.util.List;
 
 /** Roomy forge panel with direct, server-validated access to the player's inventory. */
 public final class CrucibleScreen extends Screen {
+    private static final int PANEL_HEIGHT = 236;
     public static final Identifier GAUGE_TEXTURE = Asterion.id("textures/gui/temp_gauge.png");
     public static final Identifier BUTTON_UP_TEXTURE = Asterion.id("textures/gui/button_up.png");
     public static final Identifier BUTTON_DOWN_TEXTURE = Asterion.id("textures/gui/button_down.png");
     private final BlockPos pos;
     private int temperature;
     private int targetTemperature;
+    private int heatControl;
     private int fuelTicks;
     private int mold;
     private int mixColor;
@@ -35,8 +37,13 @@ public final class CrucibleScreen extends Screen {
     private String metalSequence = "";
     private int autoPourProgress;
     private float displayedTemperature;
+    private float displayedHeatControl;
+    private float displayedPourProgress;
     private int heldControl;
     private int heldTicks;
+    private int screenTicks;
+    private int moldPulseTicks;
+    private int mixPulseTicks;
     private static final CrucibleBlockEntity.Mold[] MOLDS = CrucibleBlockEntity.Mold.values();
     private static final ItemStack[] CAST_ICONS = createCastIcons();
     private static final String[] MATERIAL_NAMES = {
@@ -56,8 +63,12 @@ public final class CrucibleScreen extends Screen {
 
     public boolean matches(BlockPos candidate) { return pos.equals(candidate); }
     public void update(CrucibleScreenPayload state) {
+        int previousMold = mold;
+        String previousSequence = metalSequence;
         temperature = Mth.clamp(state.temperature(), 0, CrucibleBlockEntity.MAX_TEMPERATURE);
         targetTemperature = Mth.clamp(state.targetTemperature(), 0, CrucibleBlockEntity.MAX_TEMPERATURE);
+        heatControl = Mth.clamp(state.heatControl(), CrucibleBlockEntity.MIN_HEAT_CONTROL,
+                CrucibleBlockEntity.MAX_HEAT_CONTROL);
         fuelTicks = Math.max(0, state.fuelTicks());
         mold = Mth.clamp(state.mold(), -1, MOLDS.length - 1);
         mixColor = state.mixColor() & 0xFFFFFF;
@@ -65,29 +76,40 @@ public final class CrucibleScreen extends Screen {
         metalSequence = state.metalSequence();
         autoPourProgress = Mth.clamp(state.autoPourProgress(), 0, CrucibleBlockEntity.AUTO_POUR_TICKS);
         if (displayedTemperature == 0) displayedTemperature = temperature;
+        if (previousMold != mold) moldPulseTicks = 12;
+        if (!previousSequence.equals(metalSequence)) mixPulseTicks = 12;
     }
 
     @Override public void tick() {
+        screenTicks++;
         if (minecraft.level != null
                 && minecraft.level.getBlockEntity(pos) instanceof CrucibleBlockEntity crucible) {
+            int previousMold = mold;
+            String previousSequence = metalSequence;
             temperature = crucible.temperature();
             targetTemperature = crucible.targetTemperature();
+            heatControl = crucible.heatControl();
             fuelTicks = crucible.fuelTicks();
             mold = crucible.selectedMoldIndex();
             mixColor = crucible.mixColor();
             materialUnits = crucible.materialUnits();
             metalSequence = crucible.metalSequence();
             autoPourProgress = crucible.autoPourProgress();
+            if (previousMold != mold) moldPulseTicks = 12;
+            if (!previousSequence.equals(metalSequence)) mixPulseTicks = 12;
         }
-        if (heldControl != 0 && ++heldTicks % 4 == 0) send(heldControl);
+        if (heldControl != 0 && ++heldTicks % 2 == 0) send(heldControl);
         displayedTemperature += (temperature - displayedTemperature) * 0.16F;
+        displayedHeatControl += (heatControl - displayedHeatControl) * 0.22F;
+        displayedPourProgress += (autoPourProgress - displayedPourProgress) * 0.13F;
+        if (moldPulseTicks > 0) moldPulseTicks--;
+        if (mixPulseTicks > 0) mixPulseTicks--;
     }
 
     @Override public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
-        int panelY = height / 2 - 119;
-        int x = 8 + 76;
-        int upY = panelY + 31;
-        int downY = panelY + 83;
+        int x = heatButtonX();
+        int upY = panelY() + 48;
+        int downY = panelY() + 86;
         if (event.button() == 0 && inside(event.x(), event.y(), x, upY, 32, 32)) {
             heldControl = CrucibleControlPayload.HEAT; heldTicks = 0; send(heldControl);
             return true;
@@ -124,30 +146,52 @@ public final class CrucibleScreen extends Screen {
     }
 
     private int materialAt(double mouseX, double mouseY) {
-        int panelX = width - 174, panelY = height / 2 - 119;
+        int panelX = rightPanelX(), panelY = panelY();
         for (int layer = 0; layer < metalSequence.length(); layer++)
-            if (inside(mouseX, mouseY, panelX + 8, panelY + 74 + layer * 18, 154, 17)) return layer;
+            if (inside(mouseX, mouseY, panelX + 8, panelY + 88 + layer * 21,
+                    panelWidth() - 16, 19)) return layer;
         return -1;
     }
 
     private int moldAt(double mouseX, double mouseY) {
-        int panelX = width - 174, panelY = height / 2 - 119;
-        for (int index = 0; index < MOLDS.length; index++)
-            if (inside(mouseX, mouseY, panelX + 8 + index * 30, panelY + 39, 28, 20)) return index;
+        int panelX = rightPanelX(), panelY = panelY();
+        int step = moldStep();
+        for (int index = 0; index < MOLDS.length; index++) {
+            int moldX = panelX + 8 + index * step;
+            if (inside(mouseX, mouseY, moldX, panelY + 43, step - 2, 25)) return index;
+        }
         return -1;
     }
 
     private int inventorySlotAt(double mouseX, double mouseY) {
-        int left = 8, top = height / 2 - 119;
-        int inventoryX = left + 9, inventoryY = top + 151;
+        int size = inventorySlotSize();
+        int inventoryX = inventoryX(), inventoryY = panelY() + 151;
         for (int row = 0; row < 3; row++) for (int column = 0; column < 9; column++)
-            if (inside(mouseX, mouseY, inventoryX + column * 18, inventoryY + row * 18, 18, 18))
+            if (inside(mouseX, mouseY, inventoryX + column * size, inventoryY + row * size, size, size))
                 return 9 + row * 9 + column;
-        int hotbarY = inventoryY + 58;
+        int hotbarY = inventoryY + size * 3 + 5;
         for (int column = 0; column < 9; column++)
-            if (inside(mouseX, mouseY, inventoryX + column * 18, hotbarY, 18, 18)) return column;
+            if (inside(mouseX, mouseY, inventoryX + column * size, hotbarY, size, size)) return column;
         return -1;
     }
+
+    private int panelWidth() {
+        return Mth.clamp((width - 32) / 2, 144, 194);
+    }
+
+    private int panelY() {
+        return Math.max(4, (height - PANEL_HEIGHT) / 2);
+    }
+
+    private int leftPanelX() { return 8; }
+    private int rightPanelX() { return width - panelWidth() - 8; }
+    private int inventorySlotSize() { return panelWidth() >= 178 ? 18 : 16; }
+    private int inventoryX() {
+        return leftPanelX() + (panelWidth() - inventorySlotSize() * 9) / 2;
+    }
+    private int moldStep() { return (panelWidth() - 16) / MOLDS.length; }
+    private int gaugeWidth() { return 48; }
+    private int heatButtonX() { return leftPanelX() + panelWidth() - gaugeWidth() - 40; }
 
     private static boolean inside(double mouseX, double mouseY, int x, int y, int width, int height) {
         return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
@@ -160,94 +204,166 @@ public final class CrucibleScreen extends Screen {
 
     @Override public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
         super.extractRenderState(graphics, mouseX, mouseY, delta);
-        int center = width / 2, panelX = 8, rightX = width - 174, panelY = height / 2 - 119;
-        // Two restrained translucent instrument rails leave the world and crucible unobscured.
-        graphics.fill(panelX, panelY, panelX + 180, panelY + 238, 0xA0141010);
-        graphics.outline(panelX, panelY, 180, 238, 0xCC8B765E);
-        graphics.fill(rightX, panelY, rightX + 166, panelY + 238, 0xA0141010);
-        graphics.outline(rightX, panelY, 166, 238, 0xCC8B765E);
-        graphics.text(font, title, panelX + 10, panelY + 10, 0xFFEAD6B7);
-        graphics.fill(panelX + 9, panelY + 23, panelX + 171, panelY + 24, 0x665E5143);
-        graphics.fill(rightX + 8, panelY + 20, rightX + 158, panelY + 21, 0x665E5143);
-
-        int buttonX = panelX + 76;
-        int upY = panelY + 31, downY = panelY + 83;
-        graphics.blit(RenderPipelines.GUI_TEXTURED, BUTTON_UP_TEXTURE, buttonX, upY,
-                0, 0, 32, 32, 32, 32);
-        graphics.blit(RenderPipelines.GUI_TEXTURED, BUTTON_DOWN_TEXTURE, buttonX, downY,
-                0, 0, 32, 32, 32, 32);
-        if (inside(mouseX, mouseY, buttonX, upY, 32, 32)) graphics.outline(buttonX, upY, 32, 32, 0xFFD3B878);
-        if (inside(mouseX, mouseY, buttonX, downY, 32, 32)) graphics.outline(buttonX, downY, 32, 32, 0xFFD3B878);
-
-        // Native 48x96 draw: resource-pack replacements remain pixel accurate.
-        int gaugeX = panelX + 118, gaugeY = panelY + 28;
-        graphics.blit(RenderPipelines.GUI_TEXTURED, GAUGE_TEXTURE, gaugeX, gaugeY,
-                0, 0, 48, 96, 48, 96);
-        float ratio = displayedTemperature / CrucibleBlockEntity.MAX_TEMPERATURE;
-        int trackBottom = gaugeY + 78, trackTop = gaugeY + 17;
-        int markerY = trackBottom - Math.round((trackBottom - trackTop) * ratio);
-        graphics.fill(gaugeX + 18, markerY - 1, gaugeX + 29, markerY + 2, 0xFFFFB12B);
+        float reveal = smootherstep(Mth.clamp((screenTicks + delta) / 10.0F, 0.0F, 1.0F));
+        int panelW = panelWidth(), panelY = panelY();
+        int panelX = leftPanelX() - Math.round((1.0F - reveal) * 7.0F);
+        int rightX = rightPanelX() + Math.round((1.0F - reveal) * 7.0F);
+        drawPanel(graphics, panelX, panelY, panelW, title);
+        drawPanel(graphics, rightX, panelY, panelW,
+                Component.translatable("screen.asterion.crucible.forge_loadout"));
 
         CrucibleBlockEntity.Mold selected = mold < 0 ? null : MOLDS[mold];
-        boolean ready = selected != null
+        boolean calibrated = selected != null
                 && Math.abs(temperature - selected.target()) <= CrucibleBlockEntity.TOLERANCE;
-        graphics.text(font, temperature + "°", panelX + 120, panelY + 128, 0xFFFFFFFF);
-        graphics.text(font, selected == null ? "No cast inserted" : selected.label(), panelX + 10, panelY + 34, 0xFFE5D1AE);
-        graphics.text(font, selected == null ? "Insert cast on top" : "Target: " + selected.target() + "°",
-                panelX + 10, panelY + 49, 0xFFB9AB94);
-        graphics.text(font, "Regulator: " + targetTemperature + "°", panelX + 10, panelY + 64, 0xFFB9AB94);
+        boolean activelyMelting = calibrated && fuelTicks > 0 && materialUnits > 0;
 
-        drawFeedPort(graphics, rightX + 8, panelY + 150, "FUEL",
-                fuelTicks > 0 ? (fuelTicks / 20 + 1) + "s" : "EMPTY",
-                fuelTicks > 0 ? 0xFFFFB347 : 0xFF9A9187);
-        String status = selected == null ? "WAITING FOR CAST" : ready ? "CALIBRATED"
-                : temperature < selected.target() ? "TOO COLD" : "TOO HOT";
-        int statusColor = selected == null ? 0xFF9A9187 : ready ? 0xFF65E083
-                : temperature < selected.target() ? 0xFF66B9FF : 0xFFFF725C;
-        String process = ready && materialUnits > 0 ? "SMELTING "
-                + Math.round(autoPourProgress / (float)CrucibleBlockEntity.AUTO_POUR_TICKS * 100F) + "%" : status;
-        graphics.text(font, process, panelX + 10, panelY + 103, statusColor);
+        // Heat station: text, controls and gauge each have their own lane.
+        graphics.text(font, Component.translatable("screen.asterion.crucible.heat"),
+                panelX + 10, panelY + 31, 0xFFAA967B);
+        Component fuel = Component.translatable("screen.asterion.crucible.fuel",
+                fuelTicks > 0 ? (fuelTicks / 20 + 1) + "s" : "—");
+        int fuelColor = fuelTicks > 0 ? pulseColor(0xFFFFB347, 0xFFFFD17A, 0.18F) : 0xFF847A70;
+        graphics.text(font, fuel, panelX + panelW - 10 - font.width(fuel), panelY + 31, fuelColor);
 
-        graphics.text(font, "MOLD (requires item)", rightX + 8, panelY + 27, 0xFF9E8C76);
-        for (int index = 0; index < MOLDS.length; index++) {
-            int moldX = rightX + 8 + index * 30;
-            boolean hovered = inside(mouseX, mouseY, moldX, panelY + 39, 28, 20);
-            graphics.fill(moldX, panelY + 39, moldX + 28, panelY + 59, mold == index ? 0xFF594A34 : 0xFF29231E);
-            graphics.outline(moldX, panelY + 39, 28, 20, hovered ? 0xFFE0BD72 : mold == index ? 0xFFFFD078 : 0xFF554A3D);
-            ItemStack cast = CAST_ICONS[index];
-            graphics.item(cast, moldX + 6, panelY + 41);
-            if (hovered) graphics.setTooltipForNextFrame(font,
-                    Component.literal(MOLDS[index].label()), mouseX, mouseY);
-        }
-        graphics.text(font, "MIX " + materialUnits + "/4 · click to return", rightX + 8, panelY + 63, 0xFFCAB99F);
-        for (int layer = 0; layer < metalSequence.length(); layer++) {
-            int rowY = panelY + 74 + layer * 18;
-            graphics.fill(rightX + 8, rowY, rightX + 162, rowY + 17, layer == 0 ? 0xFF41372C : 0xFF2B2520);
-            graphics.outline(rightX + 8, rowY, 154, 17,
-                    inside(mouseX, mouseY, rightX + 8, rowY, 154, 17) ? 0xFFFF7868 : 0xFF655746);
-            String materialName = materialName(metalSequence.charAt(layer) - '0');
-            graphics.text(font, (layer == 0 ? "100%  " : "50%  ") + materialName,
-                    rightX + 13, rowY + 4, layer == 0 ? 0xFFFFDA91 : 0xFFD6C5AD);
-            graphics.text(font, "×", rightX + 149, rowY + 4, 0xFFFF7868);
-        }
-        if (metalSequence.isEmpty()) graphics.text(font, "Click an ingot below", rightX + 14, panelY + 80, 0xFF887C6E);
-        ItemStack preview = mixturePreview();
-        graphics.text(font, "RESULT", rightX + 16, panelY + 181, 0xFF9E8C76);
-        if (!preview.isEmpty()) {
-            graphics.item(preview, rightX + 60, panelY + 177);
-            graphics.itemDecorations(font, preview, rightX + 60, panelY + 177);
-        }
+        int buttonX = panelX + panelW - gaugeWidth() - 40;
+        int upY = panelY + 48, downY = panelY + 86;
+        drawHeatButton(graphics, BUTTON_UP_TEXTURE, buttonX, upY, mouseX, mouseY,
+                heldControl == CrucibleControlPayload.HEAT);
+        drawHeatButton(graphics, BUTTON_DOWN_TEXTURE, buttonX, downY, mouseX, mouseY,
+                heldControl == CrucibleControlPayload.COOL);
 
-        int inventoryX = panelX + 9, inventoryY = panelY + 151;
-        graphics.text(font, "Inventory — click metal or fuel to feed crucible", inventoryX, inventoryY - 12, 0xFFCAB99F);
+        int gaugeX = panelX + panelW - gaugeWidth() - 8, gaugeY = panelY + 39;
+        graphics.blit(RenderPipelines.GUI_TEXTURED, GAUGE_TEXTURE, gaugeX, gaugeY,
+                0, 0, 48, 96, 48, 96);
+        if (selected != null) {
+            float targetRatio = Mth.clamp(selected.target() / (float)CrucibleBlockEntity.MAX_TEMPERATURE, 0F, 1F);
+            int targetY = gaugeY + 78 - Math.round(61 * targetRatio);
+            // The green gate is the temperature window the player must actively hold.
+            graphics.fill(gaugeX + 13, targetY - 2, gaugeX + 34, targetY + 3, 0x905FCB78);
+            graphics.fill(gaugeX + 10, targetY, gaugeX + 37, targetY + 1, 0xFFE5D48B);
+        }
+        float ratio = Mth.clamp(displayedTemperature / CrucibleBlockEntity.MAX_TEMPERATURE, 0.0F, 1.0F);
+        int markerY = gaugeY + 78 - Math.round(61 * ratio);
+        graphics.fill(gaugeX + 18, markerY - 1, gaugeX + 29, markerY + 2, 0xFFFFB12B);
+
+        graphics.text(font, Component.literal(Math.round(displayedTemperature) + "°"),
+                panelX + 10, panelY + 51, 0xFFF5E8D2);
+        Component target = Component.literal("TARGET  " + (selected == null ? "—" : selected.target() + "°"));
+        graphics.text(font, target, panelX + 10, panelY + 68, 0xFFB7A78E);
+
+        String pressure = (displayedHeatControl > 0.4F ? "+" : "") + Math.round(displayedHeatControl);
+        graphics.text(font, Component.literal("AIRFLOW  " + pressure), panelX + 10, panelY + 85,
+                heatControl > 0 ? 0xFFFFB55A : heatControl < 0 ? 0xFF79BDE8 : 0xFF9E9589);
+        int airflowLeft = panelX + 10, airflowRight = Math.max(airflowLeft + 30, buttonX - 7);
+        int airflowMiddle = (airflowLeft + airflowRight) / 2;
+        graphics.fill(airflowLeft, panelY + 101, airflowRight, panelY + 105, 0xFF29231E);
+        graphics.fill(airflowMiddle, panelY + 100, airflowMiddle + 1, panelY + 106, 0xFF8B8175);
+        int airflowMarker = Mth.clamp(Math.round(Mth.map(displayedHeatControl,
+                CrucibleBlockEntity.MIN_HEAT_CONTROL, CrucibleBlockEntity.MAX_HEAT_CONTROL,
+                airflowLeft, airflowRight - 2)), airflowLeft, airflowRight - 2);
+        graphics.fill(airflowMarker, panelY + 99, airflowMarker + 3, panelY + 107, 0xFFE8C881);
+
+        String status;
+        int statusColor;
+        if (selected == null) { status = "INSERT A MOLD"; statusColor = 0xFF9A9187; }
+        else if (materialUnits == 0) { status = "ADD METAL"; statusColor = 0xFFD5B56F; }
+        else if (fuelTicks == 0) { status = "ADD FUEL"; statusColor = 0xFFD5B56F; }
+        else if (activelyMelting) { status = "HOLD THE BAND  " + Math.round(displayedPourProgress
+                / CrucibleBlockEntity.AUTO_POUR_TICKS * 100F) + "%"; statusColor = 0xFF78D18B; }
+        else if (temperature < selected.target()) { status = "TOO COLD — OPEN BELLOWS"; statusColor = 0xFF73BCEE; }
+        else { status = "TOO HOT — VENT HEAT"; statusColor = 0xFFEC7965; }
+        graphics.text(font, status, panelX + 10, panelY + 120, statusColor);
+        int processLeft = panelX + 10, processRight = panelX + panelW - 10;
+        graphics.fill(processLeft, panelY + 133, processRight, panelY + 137, 0xFF29231E);
+        float processRatio = Mth.clamp(displayedPourProgress / CrucibleBlockEntity.AUTO_POUR_TICKS, 0F, 1F);
+        graphics.fill(processLeft, panelY + 133,
+                processLeft + Math.round((processRight - processLeft) * processRatio), panelY + 137,
+                activelyMelting ? 0xFF69C57C : 0xFFC36B45);
+
+        // Inventory stays in a dedicated lower section and scales down cleanly at high GUI scales.
+        graphics.text(font, Component.translatable("screen.asterion.crucible.inventory_hint"),
+                panelX + 10, panelY + 141, 0xFFBFAE94);
+        int slotSize = inventorySlotSize();
+        int inventoryX = panelX + (panelW - slotSize * 9) / 2, inventoryY = panelY + 151;
         if (minecraft.player != null) {
             for (int row = 0; row < 3; row++) for (int column = 0; column < 9; column++)
                 drawInventorySlot(graphics, minecraft.player.getInventory().getItem(9 + row * 9 + column),
-                        inventoryX + column * 18, inventoryY + row * 18, mouseX, mouseY);
-            int hotbarY = inventoryY + 58;
+                        inventoryX + column * slotSize, inventoryY + row * slotSize, slotSize, mouseX, mouseY);
+            int hotbarY = inventoryY + slotSize * 3 + 5;
             for (int column = 0; column < 9; column++)
                 drawInventorySlot(graphics, minecraft.player.getInventory().getItem(column),
-                        inventoryX + column * 18, hotbarY, mouseX, mouseY);
+                        inventoryX + column * slotSize, hotbarY, slotSize, mouseX, mouseY);
+        }
+
+        // Mold choices occupy a full row; their tooltips carry the long names.
+        graphics.text(font, Component.translatable("screen.asterion.crucible.mold"),
+                rightX + 8, panelY + 31, 0xFFAA967B);
+        int moldStep = (panelW - 16) / MOLDS.length;
+        for (int index = 0; index < MOLDS.length; index++) {
+            int moldX = rightX + 8 + index * moldStep;
+            int moldW = moldStep - 2;
+            boolean hovered = inside(mouseX, mouseY, moldX, panelY + 43, moldW, 25);
+            boolean available = mold == index || minecraft.player != null
+                    && minecraft.player.getInventory().contains(new ItemStack(CrucibleBlockEntity.moldItem(index)));
+            graphics.fill(moldX, panelY + 43, moldX + moldW, panelY + 68,
+                    mold == index ? 0xFF594A34 : available ? 0xFF29231E : 0xFF151311);
+            int selectedColor = moldPulseTicks > 0 ? pulseColor(0xFFFFD078, 0xFFFFFFFF, 0.35F) : 0xFFFFD078;
+            graphics.outline(moldX, panelY + 43, moldW, 25,
+                    hovered ? 0xFFE8C881 : mold == index ? selectedColor : 0xFF554A3D);
+            ItemStack cast = CAST_ICONS[index];
+            graphics.item(cast, moldX + Math.max(0, (moldW - 16) / 2), panelY + 47);
+            if (!available) {
+                graphics.fill(moldX + 1, panelY + 44, moldX + moldW - 1, panelY + 67, 0xC8000000);
+                graphics.centeredText(font, Component.literal("×"), moldX + moldW / 2,
+                        panelY + 51, 0xFF81756A);
+            }
+            if (hovered) graphics.setTooltipForNextFrame(font, available
+                    ? Component.literal(MOLDS[index].label())
+                    : Component.translatable("screen.asterion.crucible.mold_locked", MOLDS[index].label()),
+                    mouseX, mouseY);
+        }
+
+        Component mixtureTitle = Component.translatable("screen.asterion.crucible.mixture", materialUnits, 4);
+        graphics.text(font, mixtureTitle, rightX + 8, panelY + 76, 0xFFAA967B);
+        if (!metalSequence.isEmpty()) {
+            int swatchColor = (mixPulseTicks > 0 ? 0xFF : 0xE8) << 24 | mixColor;
+            graphics.fill(rightX + panelW - 28, panelY + 78, rightX + panelW - 8, panelY + 84, swatchColor);
+            graphics.outline(rightX + panelW - 28, panelY + 78, 20, 6, 0xFF8B765E);
+        }
+        for (int layer = 0; layer < metalSequence.length(); layer++) {
+            int rowY = panelY + 88 + layer * 21;
+            int rowX = rightX + 8, rowW = panelW - 16;
+            boolean hovered = inside(mouseX, mouseY, rowX, rowY, rowW, 19);
+            graphics.fill(rowX, rowY, rowX + rowW, rowY + 19, layer == 0 ? 0xFF41372C : 0xFF2B2520);
+            graphics.outline(rowX, rowY, rowW, 19, hovered ? 0xFFE17060 : 0xFF655746);
+            String material = (layer == 0 ? "BASE  " : "+50%  ")
+                    + materialName(metalSequence.charAt(layer) - '0');
+            material = font.plainSubstrByWidth(material, rowW - 29);
+            graphics.text(font, material, rowX + 6, rowY + 5, layer == 0 ? 0xFFFFDA91 : 0xFFD6C5AD);
+            graphics.text(font, "×", rowX + rowW - 13, rowY + 5, hovered ? 0xFFFF9A88 : 0xFFC96658);
+        }
+        if (metalSequence.isEmpty()) {
+            graphics.text(font, Component.translatable("screen.asterion.crucible.empty_mixture"),
+                    rightX + 14, panelY + 94, 0xFF887C6E);
+        }
+
+        graphics.fill(rightX + 8, panelY + 180, rightX + panelW - 8, panelY + 181, 0x665E5143);
+        graphics.text(font, Component.translatable("screen.asterion.crucible.output"),
+                rightX + 8, panelY + 188, 0xFFAA967B);
+        int resultX = rightX + 8, resultY = panelY + 200, resultW = panelW - 16;
+        graphics.fill(resultX, resultY, resultX + resultW, resultY + 29, 0xFF241F1A);
+        graphics.outline(resultX, resultY, resultW, 29, calibrated && materialUnits > 0 ? 0xFF78B884 : 0xFF554A3D);
+        ItemStack preview = mixturePreview();
+        if (!preview.isEmpty()) {
+            int bob = calibrated ? Math.round((float)Math.sin((screenTicks + delta) * 0.18F)) : 0;
+            graphics.item(preview, resultX + 7, resultY + 7 + bob);
+            graphics.itemDecorations(font, preview, resultX + 7, resultY + 7 + bob);
+            var nameLines = font.split(preview.getHoverName(), resultW - 38);
+            for (int line = 0; line < Math.min(2, nameLines.size()); line++)
+                graphics.text(font, nameLines.get(line), resultX + 31, resultY + 5 + line * 10, 0xFFE5D4B9);
+        } else {
+            graphics.text(font, Component.translatable("screen.asterion.crucible.no_output"),
+                    resultX + 8, resultY + 10, 0xFF81786C);
         }
     }
 
@@ -260,6 +376,7 @@ public final class CrucibleScreen extends Screen {
             case SWORD_POMMEL -> Asterion.FORGED_SWORD_POMMEL;
             case SWORD_BLADE -> Asterion.FORGED_SWORD_BLADE;
             case AXE_HEAD -> Asterion.FORGED_AXE_HEAD;
+            case MINOTAUR_KEY -> Asterion.MINOTAUR_KEY;
         };
         ItemStack preview = new ItemStack(output);
         ArrayList<String> materials = new ArrayList<>(4);
@@ -289,23 +406,49 @@ public final class CrucibleScreen extends Screen {
         return icons;
     }
 
-    private void drawFeedPort(GuiGraphicsExtractor graphics, int x, int y, String label, String value, int color) {
-        graphics.fill(x, y, x + 115, y + 23, 0xFF241E1A);
-        graphics.outline(x, y, 115, 23, 0xFF655746);
-        graphics.text(font, label, x + 5, y + 4, 0xFF9E8C76);
-        graphics.text(font, value, x + 78, y + 4, color);
+    private void drawPanel(GuiGraphicsExtractor graphics, int x, int y, int panelWidth, Component heading) {
+        graphics.fill(x, y, x + panelWidth, y + PANEL_HEIGHT, 0xB3141110);
+        graphics.outline(x, y, panelWidth, PANEL_HEIGHT, 0xD08B765E);
+        graphics.fill(x + 1, y + 1, x + panelWidth - 1, y + 3, 0x806F553A);
+        graphics.text(font, heading, x + 10, y + 10, 0xFFEAD6B7);
+        graphics.fill(x + 9, y + 24, x + panelWidth - 9, y + 25, 0x665E5143);
+    }
+
+    private void drawHeatButton(GuiGraphicsExtractor graphics, Identifier texture, int x, int y,
+                                int mouseX, int mouseY, boolean held) {
+        boolean hovered = inside(mouseX, mouseY, x, y, 32, 32);
+        int offset = held ? 1 : 0;
+        graphics.blit(RenderPipelines.GUI_TEXTURED, texture, x, y + offset,
+                0, 0, 32, 32, 32, 32);
+        if (hovered || held) graphics.outline(x, y + offset, 32, 32,
+                held ? 0xFFFFE0A0 : 0xFFD3B878);
     }
 
     private void drawInventorySlot(GuiGraphicsExtractor graphics, net.minecraft.world.item.ItemStack stack,
-                                   int x, int y, int mouseX, int mouseY) {
-        graphics.fill(x, y, x + 18, y + 18, 0xFF29231E);
-        graphics.outline(x, y, 18, 18, inside(mouseX, mouseY, x, y, 18, 18) ? 0xFFE0BD72 : 0xFF554A3D);
+                                   int x, int y, int size, int mouseX, int mouseY) {
+        graphics.fill(x, y, x + size, y + size, 0xFF29231E);
+        graphics.outline(x, y, size, size,
+                inside(mouseX, mouseY, x, y, size, size) ? 0xFFE0BD72 : 0xFF554A3D);
         if (!stack.isEmpty()) {
-            graphics.item(stack, x + 1, y + 1);
-            graphics.itemDecorations(font, stack, x + 1, y + 1);
-            if (inside(mouseX, mouseY, x, y, 18, 18))
+            int inset = Math.max(0, (size - 16) / 2);
+            graphics.item(stack, x + inset, y + inset);
+            graphics.itemDecorations(font, stack, x + inset, y + inset);
+            if (inside(mouseX, mouseY, x, y, size, size))
                 graphics.setTooltipForNextFrame(font, stack, mouseX, mouseY);
         }
+    }
+
+    private int pulseColor(int first, int second, float speed) {
+        float amount = ((float)Math.sin(screenTicks * speed) + 1.0F) * 0.5F;
+        int a = Math.round(Mth.lerp(amount, first >>> 24, second >>> 24));
+        int r = Math.round(Mth.lerp(amount, first >> 16 & 255, second >> 16 & 255));
+        int g = Math.round(Mth.lerp(amount, first >> 8 & 255, second >> 8 & 255));
+        int b = Math.round(Mth.lerp(amount, first & 255, second & 255));
+        return a << 24 | r << 16 | g << 8 | b;
+    }
+
+    private static float smootherstep(float value) {
+        return value * value * value * (value * (value * 6.0F - 15.0F) + 10.0F);
     }
 
     @Override public boolean isPauseScreen() { return false; }

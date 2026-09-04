@@ -60,7 +60,7 @@ public final class BiomeMusic {
 
     public static String group(int biome, boolean arena) {
         return arena ? "arena" : switch (biome) {
-            case 0 -> "ancient"; case 1 -> "overgrown"; case 2 -> "crimsonmarshlands"; default -> "";
+            case 0, 3, 4 -> "ancient"; case 1 -> "overgrown"; case 2 -> "crimsonmarshlands"; default -> "";
         };
     }
 

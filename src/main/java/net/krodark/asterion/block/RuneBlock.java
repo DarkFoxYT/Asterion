@@ -174,7 +174,9 @@ public final class RuneBlock extends BaseEntityBlock {
     }
     @Override protected VoxelShape getOcclusionShape(BlockState state) { return Shapes.empty(); }
     @Override public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return new RuneBlockEntity(pos,state);
+        // Only the lower-centre plaque owns render/persistence state. Creating an
+        // entity for every collision section duplicates the model after chunk reloads.
+        return isRoot(state) ? new RuneBlockEntity(pos,state) : null;
     }
     @Override public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
         return isRoot(state)?createTickerHelper(type,Asterion.RUNE_BLOCK_ENTITY,RuneBlockEntity::tick):null;

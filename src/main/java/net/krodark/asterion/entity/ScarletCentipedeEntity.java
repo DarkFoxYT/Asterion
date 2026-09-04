@@ -143,8 +143,11 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         if (getControllingPassenger() != null) navigation.stop();
         super.tick();
         if (!level().isClientSide() && getControllingPassenger() != null && tickCount - driverFrameTick <= 15) {
-            surfaceForward = driverHeading;
-            smoothedSurfaceMotion = Vec3.ZERO;
+            // Driver packets refine the authoritative surface frame; they must not erase
+            // accumulated tangent velocity every tick or server correction appears as a
+            // repeated stop/start jitter to the rider and every remote observer.
+            surfaceForward = CentipedeMotion.followHeading(surfaceForward, driverHeading,
+                    attachmentNormal(), .45D);
         }
         if (!level().isClientSide() || isLocalInstanceAuthoritative()) updateSurfaceAfterMovement();
         blendAttachmentNormal();

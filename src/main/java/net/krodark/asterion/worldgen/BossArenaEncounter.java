@@ -46,7 +46,8 @@ public final class BossArenaEncounter {
         // Include the nearby party before anything closes; never pull players from elsewhere in the maze.
         for (ServerPlayer player : List.copyOf(level.players())) {
             if (player != trigger && eligible(player) && player.position().horizontalDistance() < 60
-                    && player.getY() >= AuthoredCatacombs.ARENA_FLOOR_Y && player.getY() < 49) admit(level, player, entry);
+                    && player.getY() >= AuthoredCatacombs.ARENA_FLOOR_Y
+                    && player.getY() < LabyrinthLevels.MAZE_FLOOR_Y + 1) admit(level, player, entry);
         }
         for (Direction facing : MinotaurArenaEntrances.DOORS) if (facing != active.bossDoor) {
             moveFromClosure(level, facing);
@@ -162,12 +163,15 @@ public final class BossArenaEncounter {
     }
 
     public static boolean blocksCentipedeSpawn(ServerLevel level, Vec3 position) {
-        return isSealed(level) && position.horizontalDistanceSqr() < 46 * 46 && position.y >= AuthoredCatacombs.ARENA_FLOOR_Y && position.y <= 49;
+        return isSealed(level) && position.horizontalDistanceSqr() < 46 * 46
+                && position.y >= AuthoredCatacombs.ARENA_FLOOR_Y
+                && position.y <= LabyrinthLevels.MAZE_FLOOR_Y + 1;
     }
 
     private static void tickArenaCreatures(ServerLevel level, int elapsed) {
         if (elapsed % 20 != 0) return;
-        var arena = new net.minecraft.world.phys.AABB(-44, AuthoredCatacombs.ARENA_FLOOR_Y, -44, 44, 49, 44);
+        var arena = new net.minecraft.world.phys.AABB(-44, AuthoredCatacombs.ARENA_FLOOR_Y, -44,
+                44, LabyrinthLevels.MAZE_FLOOR_Y + 1, 44);
         // Leave ridden/named centipedes alone; suppress wild arena interference, not player mounts.
         for (var centipede : level.getEntitiesOfClass(net.krodark.asterion.entity.ScarletCentipedeEntity.class, arena))
             if (!centipede.isVehicle() && !centipede.hasCustomName()) centipede.discard();

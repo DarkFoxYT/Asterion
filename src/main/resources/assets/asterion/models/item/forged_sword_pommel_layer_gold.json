@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/handheld",
+  "textures": {
+    "layer0": "asterion:item/forging/gold/gold_pommel"
+  }
+}

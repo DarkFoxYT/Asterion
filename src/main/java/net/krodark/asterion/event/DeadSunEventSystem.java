@@ -510,7 +510,7 @@ public final class DeadSunEventSystem {
 
     private static BlockPos findWallNear(ServerLevel level, BlockPos origin) {
         RandomSource random = level.getRandom();
-        int y = 49;
+        int y = net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y + 1;
         for (int attempt = 0; attempt < 80; attempt++) {
             int dx = random.nextIntBetweenInclusive(-16, 16);
             int dz = random.nextIntBetweenInclusive(-16, 16);
@@ -528,7 +528,7 @@ public final class DeadSunEventSystem {
 
     private static BlockPos findOpenCorridorNear(ServerLevel level, BlockPos origin, BlockPos awayFrom) {
         RandomSource random = level.getRandom();
-        int y = 49;
+        int y = net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y + 1;
         int cell = net.krodark.asterion.AsterionConfig.INSTANCE.cellSize;
         int thickness = net.krodark.asterion.AsterionConfig.INSTANCE.wallThickness;
         int limit = net.krodark.asterion.AsterionConfig.INSTANCE.mazeRadiusCells * cell;

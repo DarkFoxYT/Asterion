@@ -23,6 +23,8 @@ public class AsterionEmissiveBoneLayer<T extends GeoAnimatable, O, R extends Geo
     protected float surfaceBrightness(R state) { return 0.8f; }
     protected boolean enhancedSurface(R state) { return false; }
     protected Identifier amneticEmissionMesh(R state) { return null; }
+    /** Flat crossed flames need their reverse faces; enclosed glow shells keep culling enabled. */
+    protected boolean backfaceCulling(R state) { return true; }
     protected int emissiveColor(R state) { return 0xFFFFFFFF; }
 
     @Override
@@ -54,7 +56,7 @@ public class AsterionEmissiveBoneLayer<T extends GeoAnimatable, O, R extends Geo
                         mesh.render(pose, buffer, color, uScale, vScale);
                         if (emissionMesh != null)
                             AmneticBoneEmission.submit(emissionMesh, mesh, texture, pose.pose(), color,
-                                    uScale, vScale, emissiveStrength(state));
+                                    uScale, vScale, emissiveStrength(state), backfaceCulling(state));
                     });
         } finally {
             stack.popPose();

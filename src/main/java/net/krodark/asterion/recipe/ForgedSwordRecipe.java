@@ -39,9 +39,16 @@ public final class ForgedSwordRecipe extends CustomRecipe {
                 + value(guard, "weight", 8) + value(pommel, "weight", 8)) / 4F);
         int purity = Math.round((value(blade, "purity", 75) * 2
                 + value(guard, "purity", 75) + value(pommel, "purity", 75)) / 4F);
-        double damage = Math.clamp(2.5D + edge * .62D + purity * .012D, 4D, 14D);
-        double attackSpeed = Math.clamp(2.05D - weight * .075D, 1.05D, 1.75D);
-        int durability = Math.clamp(100 + hardness * 42 + purity * 3, 250, 1400);
+        int damageRating = weighted(parts, "damage_rating", 10);
+        int speedRating = weighted(parts, "speed_rating", 8);
+        int durabilityRating = weighted(parts, "durability_rating", 10);
+        // These are real item attributes. Celestial alloys trade upward across all
+        // three axes, while rare Bonesteel is deliberately the uncapped apex tier.
+        double damage = Math.clamp(2D + damageRating * .55D + edge * .12D + purity * .01D, 4D, 22D);
+        double attackSpeed = Math.clamp(.75D + speedRating * .055D - weight * .018D
+                + purity * .0015D, 1.0D, 2.15D);
+        int durability = Math.clamp(180 + durabilityRating * 95 + hardness * 30 + purity * 4,
+                250, 4000);
 
         ItemStack result = new ItemStack(Asterion.FORGED_SWORD);
         result.set(DataComponents.MAX_DAMAGE, durability);
@@ -68,8 +75,11 @@ public final class ForgedSwordRecipe extends CustomRecipe {
                 Component.literal("Blade: " + displayName(bladeMaterial)).withStyle(ChatFormatting.GRAY),
                 Component.literal("Guard: " + displayName(guardMaterial)).withStyle(ChatFormatting.GRAY),
                 Component.literal("Pommel: " + displayName(pommelMaterial)).withStyle(ChatFormatting.GRAY),
+                Component.literal("Temper: " + CrucibleBlockEntity.materialTrait(materialIndex(bladeMaterial)))
+                        .withStyle(ChatFormatting.BLUE),
                 Component.literal("Purity " + purity + "%  Weight " + weight).withStyle(ChatFormatting.DARK_GRAY),
-                Component.literal(String.format(java.util.Locale.ROOT, "Damage %.1f  Speed %.2f", damage, attackSpeed))
+                Component.literal(String.format(java.util.Locale.ROOT,
+                                "Damage %.1f  Speed %.2f  Durability %d", damage, attackSpeed, durability))
                         .withStyle(ChatFormatting.DARK_GRAY))));
         CompoundTag forged = new CompoundTag();
         forged.putString("blade_material", bladeMaterial); forged.putString("guard_material", guardMaterial);
@@ -77,6 +87,8 @@ public final class ForgedSwordRecipe extends CustomRecipe {
         forged.putString("metal_sequence", blade.getStringOr("metal_sequence", ""));
         forged.putInt("purity", purity);
         forged.putInt("edge", edge); forged.putInt("hardness", hardness); forged.putInt("weight", weight);
+        forged.putInt("damage_rating", damageRating); forged.putInt("speed_rating", speedRating);
+        forged.putInt("durability_rating", durabilityRating);
         forged.putDouble("attack_damage", damage); forged.putDouble("attack_speed", attackSpeed);
         forged.putInt("durability", durability);
         result.set(DataComponents.CUSTOM_DATA, CustomData.of(forged));
@@ -98,6 +110,10 @@ public final class ForgedSwordRecipe extends CustomRecipe {
         return data == null ? new CompoundTag() : data.copyTag();
     }
     private static int value(CompoundTag tag, String key, int fallback) { return tag.getIntOr(key, fallback); }
+    private static int weighted(ItemStack[] parts, String key, int fallback) {
+        return Math.round((value(data(parts[0]), key, fallback) * 2
+                + value(data(parts[1]), key, fallback) + value(data(parts[2]), key, fallback)) / 4F);
+    }
     private static String primaryMaterial(CompoundTag tag) {
         String sequence = tag.getStringOr("metal_sequence", "");
         return sequence.isEmpty() ? "iron" : CrucibleBlockEntity.metalId(sequence.charAt(0) - '0');
@@ -117,6 +133,10 @@ public final class ForgedSwordRecipe extends CustomRecipe {
         for (String word : id.split("_")) name.append(name.isEmpty() ? "" : " ")
                 .append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
         return name.toString();
+    }
+    private static int materialIndex(String id) {
+        for (int metal = 0; metal <= 8; metal++) if (CrucibleBlockEntity.metalId(metal).equals(id)) return metal;
+        return -1;
     }
     @Override public RecipeSerializer<? extends CustomRecipe> getSerializer() { return Asterion.FORGED_SWORD_RECIPE; }
 }

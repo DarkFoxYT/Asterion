@@ -1,4 +1,4 @@
 {
   "parent": "minecraft:item/generated",
-  "textures": { "layer0": "asterion:item/vine_item" }
+  "textures": { "layer0": "asterion:item/popped_ancien_vines" }
 }

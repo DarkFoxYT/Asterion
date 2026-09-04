@@ -240,9 +240,6 @@ public class Asterion implements ModInitializer {
             properties -> new WallBlock(properties.sound(SoundType.METAL)));
     public static final Block MAZESTEEL_BARS = registerBlock("mazesteel_bars", MapColor.METAL,
             properties -> new net.minecraft.world.level.block.IronBarsBlock(properties.noOcclusion().sound(SoundType.METAL)));
-    private static final ResourceKey<Item> ZIPLINE_HOOK_KEY = ResourceKey.create(Registries.ITEM, id("zipline_hook"));
-    public static final Item ZIPLINE_HOOK = Registry.register(BuiltInRegistries.ITEM, ZIPLINE_HOOK_KEY,
-            new net.krodark.asterion.item.ZiplineHookItem(new Item.Properties().setId(ZIPLINE_HOOK_KEY).stacksTo(1)));
     public static final Block SLICK_CATACOMB_STONE = registerBlock("slick_catacomb_stone", MapColor.TERRACOTTA_CYAN,
             properties -> new Block(properties.friction(0.985F)));
     public static final Block GREEK_BRAZIER = registerBlock("greek_brazier", MapColor.COLOR_GREEN,
@@ -283,9 +280,6 @@ public class Asterion implements ModInitializer {
     public static final Block CRUCIBLE = registerBlock("crucible", MapColor.METAL,
             properties -> new net.krodark.asterion.block.CrucibleBlock(properties.noOcclusion()
                     .strength(4.5F, 10.0F).sound(SoundType.METAL)));
-    public static final Block MOLD_HOLDER = registerBlock("mold_holder", MapColor.METAL,
-            properties -> new net.krodark.asterion.block.MoldHolderBlock(properties.noOcclusion()
-                    .strength(3.0F, 7.0F).sound(SoundType.METAL)));
     public static final BlockEntityType<net.krodark.asterion.block.CrucibleBlockEntity> CRUCIBLE_BLOCK_ENTITY =
             Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, id("crucible"),
                     FabricBlockEntityTypeBuilder.create(net.krodark.asterion.block.CrucibleBlockEntity::new,
@@ -350,6 +344,7 @@ public class Asterion implements ModInitializer {
     public static final Item SWORD_POMMEL_CAST = registerSimpleItem("sword_pommel_cast");
     public static final Item SWORD_BLADE_CAST = registerSimpleItem("sword_blade_cast");
     public static final Item AXE_HEAD_CAST = registerSimpleItem("axe_head_cast");
+    public static final Item MINOTAUR_KEY_CAST = registerSimpleItem("minotaur_key_cast");
     public static final Item CELESTIAL_BRONZE_INGOT = registerPurityMetalItem("celestial_bronze_ingot");
     public static final Item TARNISHED_GOLD_INGOT = registerPurityMetalItem("tarnished_gold_ingot");
     public static final Item CELESTIAL_GOLD_INGOT = registerPurityMetalItem("celestial_gold_ingot");
@@ -529,6 +524,21 @@ public class Asterion implements ModInitializer {
             new Item(new Item.Properties().setId(CELESTIAL_BRONZE_SWORD_KEY)
                     .sword(CELESTIAL_BRONZE, 3.5F, -2.3F)
                     .rarity(Rarity.RARE).fireResistant()));
+    private static final ResourceKey<Item> AFTERBLOW_KEY = ResourceKey.create(Registries.ITEM, id("afterblow"));
+    public static final Item AFTERBLOW = Registry.register(BuiltInRegistries.ITEM, AFTERBLOW_KEY,
+            new net.krodark.asterion.item.AfterblowItem(new Item.Properties().setId(AFTERBLOW_KEY)
+                    .sword(new ToolMaterial(INCORRECT_FOR_CELESTIAL_BRONZE_TOOL, 2000, 8.0F, 4.0F, 18,
+                            REPAIRS_CELESTIAL_BRONZE_TOOLS), 4.5F, -2.4F)
+                    .rarity(Rarity.EPIC).fireResistant()));
+    private static final ResourceKey<Item> SICKENED_TWINBLADES_KEY = ResourceKey.create(
+            Registries.ITEM, id("sickened_twinblades"));
+    public static final Item SICKENED_TWINBLADES = Registry.register(
+            BuiltInRegistries.ITEM, SICKENED_TWINBLADES_KEY,
+            new net.krodark.asterion.item.SickenedTwinbladesItem(
+                    new Item.Properties().setId(SICKENED_TWINBLADES_KEY)
+                            .sword(new ToolMaterial(INCORRECT_FOR_CELESTIAL_BRONZE_TOOL, 1600, 7.0F, 2.8F, 14,
+                                    REPAIRS_CELESTIAL_BRONZE_TOOLS), 2.7F, -2.0F)
+                            .rarity(Rarity.RARE)));
     private static final ResourceKey<Item> MINOTAUR_KEY_ID = ResourceKey.create(Registries.ITEM, id("minotaur_key"));
     public static final Item MINOTAUR_KEY = Registry.register(BuiltInRegistries.ITEM, MINOTAUR_KEY_ID,
             new Item(new Item.Properties().setId(MINOTAUR_KEY_ID).stacksTo(1).rarity(Rarity.UNCOMMON)));
@@ -558,6 +568,8 @@ public class Asterion implements ModInitializer {
                     .displayItems((parameters, output) -> {
                         output.accept(ANTIKYTHERA_MECHANISM);
                         output.accept(CELESTIAL_BRONZE_SWORD);
+                        output.accept(AFTERBLOW);
+                        output.accept(SICKENED_TWINBLADES);
                         output.accept(net.krodark.asterion.fluid.HeavyWater.BUCKET);
                         output.accept(SLICK_CATACOMB_STONE);
                         output.accept(GREEK_BRAZIER);
@@ -609,7 +621,6 @@ public class Asterion implements ModInitializer {
                         output.accept(POLISHED_MAZESTEEL_SLAB);
                         output.accept(POLISHED_MAZESTEEL_STAIRS);
                         output.accept(POLISHED_MAZESTEEL_WALL);
-                        output.accept(ZIPLINE_HOOK);
                         output.accept(MAZESTEEL_BARS);
                         output.accept(MAZESTEEL_CHAIN);
                         output.accept(MAZESTEEL_GATE);
@@ -641,7 +652,6 @@ public class Asterion implements ModInitializer {
                     .icon(() -> new ItemStack(CRUCIBLE))
                     .displayItems((parameters, output) -> {
                         output.accept(CRUCIBLE);
-                        output.accept(MOLD_HOLDER);
                         output.accept(CELESTIAL_BRONZE_ORE);
                         output.accept(TARNISHED_GOLD_ORE);
                         output.accept(CELESTIAL_GOLD_ORE);
@@ -659,6 +669,7 @@ public class Asterion implements ModInitializer {
                         output.accept(SWORD_POMMEL_CAST);
                         output.accept(SWORD_BLADE_CAST);
                         output.accept(AXE_HEAD_CAST);
+                        output.accept(MINOTAUR_KEY_CAST);
                         output.accept(FORGED_INGOT);
                         for (int metal : new int[]{5, 4, 7, 6, 1, 8, 0, 3, 2}) {
                             ItemStack blade = forgePart(FORGED_SWORD_BLADE, metal, "Sword Blade");
@@ -724,6 +735,9 @@ public class Asterion implements ModInitializer {
     public static final Feature<NoneFeatureConfiguration> TAINTED_PETALS_FEATURE = Registry.register(
             BuiltInRegistries.FEATURE, id("tainted_petals"),
             new TaintedPetalsFeature(NoneFeatureConfiguration.CODEC));
+    public static final com.mojang.serialization.MapCodec<net.krodark.asterion.worldgen.LayeredMazeBiomeSource>
+            LAYERED_MAZE_BIOME_SOURCE = Registry.register(BuiltInRegistries.BIOME_SOURCE,
+            id("layered_maze"), net.krodark.asterion.worldgen.LayeredMazeBiomeSource.CODEC);
     public static final com.mojang.serialization.MapCodec<MazeChunkGenerator> MAZE_CHUNK_GENERATOR =
             Registry.register(BuiltInRegistries.CHUNK_GENERATOR, id("maze"), MazeChunkGenerator.CODEC);
     private static final ResourceKey<PlacedFeature> UNDERWATER_RUIN_PLACED = ResourceKey.create(
@@ -764,17 +778,7 @@ public class Asterion implements ModInitializer {
     @Override
     public void onInitialize() {
         registerDeadWoodProperties();
-        net.krodark.asterion.zipline.ZiplineSystem.initialize();
-        net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
-            if (!player.getItemInHand(hand).is(ZIPLINE_HOOK)
-                    || !net.krodark.asterion.zipline.ZiplineSystem.isHorizontalChain(
-                            level.getBlockState(hit.getBlockPos())))
-                return net.minecraft.world.InteractionResult.PASS;
-            if (!level.isClientSide())
-                net.krodark.asterion.zipline.ZiplineSystem.begin(player, hit.getBlockPos());
-            return level.isClientSide() ? net.minecraft.world.InteractionResult.SUCCESS
-                    : net.minecraft.world.InteractionResult.SUCCESS_SERVER;
-        });
+        net.krodark.asterion.game.WeaponCombatSystem.initialize();
         net.krodark.asterion.game.GameplayContent.initialize();
         net.krodark.asterion.game.EncounterKeyRecovery.initialize();
         net.krodark.asterion.game.ArenaDeathRecovery.initialize();
@@ -931,7 +935,6 @@ public class Asterion implements ModInitializer {
             net.krodark.asterion.worldgen.CatacombArena.clear();
         });
         ServerTickEvents.END_SERVER_TICK.register(ResolveSystem::tick);
-        ServerTickEvents.END_SERVER_TICK.register(net.krodark.asterion.zipline.ZiplineSystem::tick);
         ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, baseDamageTaken,
                                                          damageTaken, blocked) ->
                 ResolveSystem.recordAttack(entity, source, damageTaken));
@@ -1029,10 +1032,6 @@ public class Asterion implements ModInitializer {
         String display = java.util.Arrays.stream(material.split("_"))
                 .map(word -> Character.toUpperCase(word.charAt(0)) + word.substring(1))
                 .collect(java.util.stream.Collectors.joining(" "));
-        int[] hardness = {8, 4, 2, 12, 9, 11, 13, 7, 3};
-        int[] edge = {9, 5, 3, 13, 10, 12, 14, 8, 4};
-        int[] conductivity = {3, 10, 9, 2, 8, 2, 11, 15, 12};
-        int[] weight = {8, 7, 10, 11, 8, 9, 7, 8, 10};
         ItemStack stack = new ItemStack(item);
         stack.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME,
                 Component.literal(display + " " + part));
@@ -1043,8 +1042,14 @@ public class Asterion implements ModInitializer {
         net.minecraft.nbt.CompoundTag data = new net.minecraft.nbt.CompoundTag();
         data.putString("metal_sequence", Integer.toString(metal));
         data.putString("alloy", display); data.putInt("purity", 100);
-        data.putInt("hardness", hardness[metal]); data.putInt("edge", edge[metal]);
-        data.putInt("conductivity", conductivity[metal]); data.putInt("weight", weight[metal]);
+        data.putInt("hardness", net.krodark.asterion.block.CrucibleBlockEntity.materialHardness(metal));
+        data.putInt("edge", net.krodark.asterion.block.CrucibleBlockEntity.materialEdge(metal));
+        data.putInt("conductivity", net.krodark.asterion.block.CrucibleBlockEntity.materialConductivity(metal));
+        data.putInt("weight", net.krodark.asterion.block.CrucibleBlockEntity.materialWeight(metal));
+        data.putInt("damage_rating", net.krodark.asterion.block.CrucibleBlockEntity.materialDamage(metal));
+        data.putInt("speed_rating", net.krodark.asterion.block.CrucibleBlockEntity.materialSpeed(metal));
+        data.putInt("durability_rating", net.krodark.asterion.block.CrucibleBlockEntity.materialDurability(metal));
+        data.putString("temper", net.krodark.asterion.block.CrucibleBlockEntity.materialTrait(metal));
         stack.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA,
                 net.minecraft.world.item.component.CustomData.of(data));
         return stack;

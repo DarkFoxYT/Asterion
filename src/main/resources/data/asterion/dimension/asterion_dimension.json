@@ -2,6 +2,12 @@
   "type": "asterion:asterion",
   "generator": {
     "type": "asterion:maze",
+    "biome_source": {
+      "type": "asterion:layered_maze",
+      "surface": "minecraft:the_void",
+      "catacombs": "asterion:catacombs",
+      "forge": "asterion:forge"
+    },
     "settings": {
       "biome": "minecraft:the_void",
       "features": true,

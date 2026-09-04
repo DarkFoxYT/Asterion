@@ -17,9 +17,9 @@ import java.util.*;
 
 /** Places the author's full-size modules on a deterministic, connected grid. */
 public final class AuthoredCatacombs {
-    public static final int BASE_Y = 19, SIZE = 19, CONNECTOR_Y = BASE_Y + 5;
-    public static final int ARENA_BASE_Y = 1, ARENA_FLOOR_Y = 6, ARENA_RADIUS = 61;
-    private static final int ARENA_CHUNK_MARKER_Y = 0;
+    public static final int BASE_Y = LabyrinthLevels.CATACOMB_BASE_Y, SIZE = 19, CONNECTOR_Y = BASE_Y + 5;
+    public static final int ARENA_BASE_Y = LabyrinthLevels.ARENA_BASE_Y, ARENA_FLOOR_Y = ARENA_BASE_Y + 5, ARENA_RADIUS = 61;
+    private static final int ARENA_CHUNK_MARKER_Y = ARENA_BASE_Y - 1;
     private static final int ARENA_CHUNK_REVISION = 7;
     public static final List<BlockPos> BRAZIER_ROOM_ORIGINS = CatacombLayout.BRAZIER_ROOM_MIN_ZS.stream()
             .map(minZ -> new BlockPos(CatacombLayout.BRAZIER_ROOM_MIN_X * SIZE, BASE_Y, minZ * SIZE + 3))
@@ -36,9 +36,9 @@ public final class AuthoredCatacombs {
     private AuthoredCatacombs() { }
     public static boolean enabled() { return true; }
     private static final List<BlockPos> ARENA_PILLAR_ROOTS=List.of(
-            new BlockPos(-5,6,-25),new BlockPos(5,6,-25),new BlockPos(-25,6,-5),new BlockPos(-25,6,5),
-            new BlockPos(-17,6,-17),new BlockPos(-17,6,17),new BlockPos(17,6,-17),new BlockPos(17,6,17),
-            new BlockPos(25,6,-5),new BlockPos(25,6,5),new BlockPos(-5,6,25),new BlockPos(5,6,25));
+            new BlockPos(-5,ARENA_FLOOR_Y,-25),new BlockPos(5,ARENA_FLOOR_Y,-25),new BlockPos(-25,ARENA_FLOOR_Y,-5),new BlockPos(-25,ARENA_FLOOR_Y,5),
+            new BlockPos(-17,ARENA_FLOOR_Y,-17),new BlockPos(-17,ARENA_FLOOR_Y,17),new BlockPos(17,ARENA_FLOOR_Y,-17),new BlockPos(17,ARENA_FLOOR_Y,17),
+            new BlockPos(25,ARENA_FLOOR_Y,-5),new BlockPos(25,ARENA_FLOOR_Y,5),new BlockPos(-5,ARENA_FLOOR_Y,25),new BlockPos(5,ARENA_FLOOR_Y,25));
     public record Module(String name, Rotation rotation, int exits, int blocked) { }
     private static int bit(Direction side) { return switch(side) {
         case NORTH -> 1; case EAST -> 2; case SOUTH -> 4; case WEST -> 8; default -> 0;
@@ -106,7 +106,7 @@ public final class AuthoredCatacombs {
                 // The last two layers of ordinary modules are an exterior roof cap/air.
                 // Keep the existing maze floor and walls there; only crossings break the surface.
                 BoundingBox roomClip = module.name().startsWith("crossing_") ? clip
-                        : new BoundingBox(clip.minX(), clip.minY(), clip.minZ(), clip.maxX(), 46, clip.maxZ());
+                        : new BoundingBox(clip.minX(), clip.minY(), clip.minZ(), clip.maxX(), BASE_Y + 27, clip.maxZ());
                 var placement=placementSettings(roomClip,module.name().startsWith("crossing_"))
                         .setRotation(module.rotation()).setRotationPivot(new BlockPos(9,0,9));
                 template.placeInWorld(world,origin,origin,placement,
@@ -378,8 +378,10 @@ public final class AuthoredCatacombs {
             int surface=net.krodark.asterion.WorldGenerator.mazeFloorHeight(seed,wx,wz);
             if(radius<=2) {
                 // A small entrance recess, not a cleared plaza. Keep the wall/ceiling
-                // above two-block headroom and retain the authored winch and lever at 49.
-                for(int y=50;y<=Math.max(50,surface+2);y++) {
+                // above two-block headroom and retain the authored winch and lever one
+                // block above the surface datum.
+                int clearanceStart=LabyrinthLevels.MAZE_FLOOR_Y+2;
+                for(int y=clearanceStart;y<=Math.max(clearanceStart,surface+2);y++) {
                     pos.set(wx,y,wz);
                     if(!world.getBlockState(pos).isAir())world.setBlock(pos,air,18);
                 }
@@ -391,8 +393,8 @@ public final class AuthoredCatacombs {
             if(!world.getBlockState(pos).getCollisionShape(world,pos).isEmpty())continue;
             pos.set(wx,surface+2,wz);
             if(!world.getBlockState(pos).getCollisionShape(world,pos).isEmpty())continue;
-            int deck=Math.min(surface,48+radius-2);
-            for(int y=48;y<=deck;y++) {
+            int deck=Math.min(surface,LabyrinthLevels.MAZE_FLOOR_Y+radius-2);
+            for(int y=LabyrinthLevels.MAZE_FLOOR_Y;y<=deck;y++) {
                 pos.set(wx,y,wz);
                 if(world.getBlockState(pos)!=brick)world.setBlock(pos,brick,18);
             }
@@ -561,7 +563,8 @@ public final class AuthoredCatacombs {
                 Asterion.id("chests/arena_vault_treasure"));
         for(var entry:chunk.getBlockEntities().entrySet()) {
                 BlockPos pos=entry.getKey();
-                if(pos.getY()<ARENA_BASE_Y||pos.getY()>48||Math.abs(pos.getX())>61||Math.abs(pos.getZ())>61)continue;
+                if(pos.getY()<ARENA_BASE_Y||pos.getY()>ARENA_BASE_Y+47
+                        ||Math.abs(pos.getX())>61||Math.abs(pos.getZ())>61)continue;
                 if(entry.getValue() instanceof net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity container
                         && container.getLootTable()==null)
                     container.setLootTable(Math.floorMod(pos.asLong()^level.getSeed(),4)==0?treasure:common);
@@ -576,15 +579,20 @@ public final class AuthoredCatacombs {
     private static void placeArenaApproach(ServerLevel level,LevelChunk chunk) {
         ChunkPos cp=chunk.getPos();
         for(int x=cp.getMinBlockX();x<=cp.getMaxBlockX();x++)for(int z=cp.getMinBlockZ();z<=cp.getMaxBlockZ();z++) {
-            // The arena template owns the lobby, descending stair and keyed door. Begin
-            // outside its south-facing jigsaw and join the first 19x19 authored module.
-            if(z<ARENA_RADIUS+1||z>76)continue;
-            int center=Math.round((z-(ARENA_RADIUS+1))*9F/(76-(ARENA_RADIUS+1)));
+            // The authored door opens at z=41. Build a guaranteed traversable stair
+            // through the template's formerly incomplete lobby, then bend it toward
+            // the first 19x19 catacomb module without exceeding a one-block rise.
+            int stairStart=MinotaurArenaEntrances.door(Direction.SOUTH).getZ()+1;
+            if(z<stairStart||z>76)continue;
+            boolean arenaStair=z<=ARENA_RADIUS;
+            int center=arenaStair?0:Math.round((z-(ARENA_RADIUS+1))*9F/(76-(ARENA_RADIUS+1)));
             boolean core=Math.abs(x-center)<=1;
             boolean wall=Math.abs(x-center)==2;
             if(!core&&!wall)continue;
 
-            int floor=CONNECTOR_Y-1;
+            int floor=arenaStair
+                    ?Math.min(CONNECTOR_Y-1,ARENA_FLOOR_Y-1+z-stairStart)
+                    :CONNECTOR_Y-1;
             level.setBlock(new BlockPos(x,floor,z),Asterion.ANCIENT_BRICKS.defaultBlockState(),18);
             for(int y=1;y<=4;y++)level.setBlock(new BlockPos(x,floor+y,z),
                     core?Blocks.AIR.defaultBlockState():Asterion.ANCIENT_BRICKS.defaultBlockState(),18);

@@ -10,7 +10,6 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.*;
 import net.minecraft.world.level.block.state.properties.*;
 import net.minecraft.world.phys.shapes.*;
-import net.minecraft.world.phys.AABB;
 import org.jspecify.annotations.Nullable;
 
 /** One renderer supports a wall sconce and a vertically joinable floor-torch column. */
@@ -22,6 +21,13 @@ public final class GreekFireTorchBlock extends BaseEntityBlock implements Simple
     public static final IntegerProperty RELIGHT = IntegerProperty.create("relight",0,10);
     public final boolean wall;
     public final FireColor fireColor;
+    private static final double[][] WALL_BOXES = {
+            {6,1,13,10,9,16}, {6,5,10,10,11,14}, {6,9,7,10,16,11},
+            {6,14,4,10,20,8}, {3,18,1,13,22,10}
+    };
+    private static final VoxelShape[] WALL_SHAPES = {
+            wallShape(0), wallShape(1), wallShape(2), wallShape(3)
+    };
 
     public GreekFireTorchBlock(Properties properties, boolean wall, FireColor fireColor) {
         super(properties);
@@ -112,26 +118,27 @@ public final class GreekFireTorchBlock extends BaseEntityBlock implements Simple
         if(!wall) return state.getValue(TOP)?box(1,0,1,15,16,15):box(6,0,6,10,16,10);
         // Native model faces north: its support wall is on the south (+Z) edge.
         // Only the metal cup/shaft collides; the animated flame remains passable.
-        VoxelShape north=Shapes.or(
-                box(6,1,13,10,9,16),
-                box(6,5,10,10,11,14),
-                box(6,9,7,10,16,11),
-                box(6,14,4,10,20,8),
-                box(3,18,1,13,22,10));
         return switch(state.getValue(FACING)) {
-            case EAST -> rotateShape(north,1); case SOUTH -> rotateShape(north,2);
-            case WEST -> rotateShape(north,3); default -> north;
+            case EAST -> WALL_SHAPES[1]; case SOUTH -> WALL_SHAPES[2];
+            case WEST -> WALL_SHAPES[3]; default -> WALL_SHAPES[0];
         };
     }
-    private static VoxelShape rotateShape(VoxelShape source,int turns) {
-        VoxelShape result=source;
-        for(int i=0;i<turns;i++) {
-            VoxelShape next=Shapes.empty();
-            for(AABB box:result.toAabbs()) next=Shapes.or(next,Shapes.box(1-box.maxZ,box.minY,box.minX,
-                    1-box.minZ,box.maxY,box.maxX));
-            result=next;
+    private static VoxelShape wallShape(int turns) {
+        VoxelShape[] boxes = new VoxelShape[WALL_BOXES.length];
+        for (int index = 0; index < WALL_BOXES.length; index++) {
+            double[] source = WALL_BOXES[index];
+            double minX=source[0],minZ=source[2],maxX=source[3],maxZ=source[5];
+            for(int turn=0;turn<turns;turn++) {
+                double rotatedMinX=16-maxZ,rotatedMinZ=minX;
+                double rotatedMaxX=16-minZ,rotatedMaxZ=maxX;
+                minX=rotatedMinX;minZ=rotatedMinZ;maxX=rotatedMaxX;maxZ=rotatedMaxZ;
+            }
+            boxes[index]=box(minX,source[1],minZ,maxX,source[4],maxZ);
         }
-        return result.optimize();
+        // Build one normal vararg union, just like the native north shape. Avoid
+        // joining Shapes.empty() to tall ArrayVoxelShapes: 26.1.2 can leave their
+        // internal discrete shape null during eager registry cache initialization.
+        return Shapes.or(boxes[0],boxes[1],boxes[2],boxes[3],boxes[4]);
     }
     @Override public BlockEntity newBlockEntity(BlockPos pos,BlockState state) {
         return new GreekFireTorchBlockEntity(pos,state);

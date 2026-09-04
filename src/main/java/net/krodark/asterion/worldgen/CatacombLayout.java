@@ -10,8 +10,8 @@ import java.util.List;
 /** Stateless, chunk-order-independent undercroft. The surface maze continues infinitely. */
 public final class CatacombLayout {
     public static final int TILE = 19;
-    public static final int FLOOR_Y = 22;
-    public static final int WATER_Y = 23;
+    public static final int FLOOR_Y = LabyrinthLevels.CATACOMB_BASE_Y + 3;
+    public static final int WATER_Y = FLOOR_Y + 1;
     public static final int CLEAR_HEIGHT = 31;
     public static final int ROOF_Y = AuthoredCatacombs.BASE_Y + 30;
     public static final int ROOT_X = 4, ROOT_Z = 4;
@@ -53,7 +53,9 @@ public final class CatacombLayout {
     }
 
     public static boolean contains(BlockPos pos) {
-        return pos.getY() >= 3 && pos.getY() <= Math.min(47, roofAt(pos.getX(), pos.getZ()));
+        return pos.getY() >= AuthoredCatacombs.ARENA_BASE_Y + 2
+                && pos.getY() <= Math.min(LabyrinthLevels.MAZE_FLOOR_Y - 1,
+                roofAt(pos.getX(), pos.getZ()));
     }
 
     // Junctions are three modules apart. Only selected tree edges get corridors;
@@ -160,7 +162,7 @@ public final class CatacombLayout {
         BlockState moss=Asterion.ANCIENT_MOSSY_BRICKS.defaultBlockState();
         for (int x=chunk.getPos().getMinBlockX();x<=chunk.getPos().getMaxBlockX();x++)
             for (int z=chunk.getPos().getMinBlockZ();z<=chunk.getPos().getMaxBlockZ();z++)
-                for (int y=3,roof=roofAt(x,z);y<=roof;y++)
+                for (int y=AuthoredCatacombs.ARENA_BASE_Y+2,roof=roofAt(x,z);y<=roof;y++)
                     chunk.setBlockState(cursor.set(x,y,z),
                             Math.floorMod(x*17L+y*3L+z*31L+seed,9)<3 ? moss : brick,0);
     }

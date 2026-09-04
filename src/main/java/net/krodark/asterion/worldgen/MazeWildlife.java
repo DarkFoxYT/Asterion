@@ -26,7 +26,8 @@ public final class MazeWildlife {
                 int x = (int)Math.floor(player.getX() + Math.cos(angle) * distance);
                 int z = (int)Math.floor(player.getZ() + Math.sin(angle) * distance);
                 if (!level.getChunkSource().hasChunk(x >> 4, z >> 4)) continue;
-                for (int y = sewer ? CatacombLayout.WATER_Y + 3 : 59; y >= (sewer ? CatacombLayout.FLOOR_Y - 1 : 48); y--) {
+                for (int y = sewer ? CatacombLayout.WATER_Y + 3 : LabyrinthLevels.MAZE_FLOOR_Y + 11;
+                     y >= (sewer ? CatacombLayout.FLOOR_Y - 1 : LabyrinthLevels.MAZE_FLOOR_Y); y--) {
                     BlockPos feet = new BlockPos(x, y, z);
                     if (Math.abs(x) < 65 && Math.abs(z) < 65 || WorldGenerator.isNearSafeRune(level, feet)
                             || !BugSurfaces.allowed(level, feet.below())) continue;

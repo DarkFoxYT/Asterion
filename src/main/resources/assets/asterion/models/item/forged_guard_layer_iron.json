@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "asterion:item/forging/iron/iron_guard_icon"
+  }
+}

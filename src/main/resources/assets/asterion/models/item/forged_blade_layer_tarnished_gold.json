@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "asterion:item/forging/tarnished_gold/tarnished_gold_blade_icon"
+  }
+}

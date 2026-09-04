@@ -71,9 +71,38 @@ public final class CatacombRegression {
         for(String name:AuthoredCatacombs.TEMPLATES) template(name,19,31,19);
         for(int part=1;part<=9;part++) template("arena_part"+part,41,48,41);
         for(int part=1;part<=4;part++) brazierTemplate(part);
+        for(String name:AuthoredForge.PIECES) forgeTemplate(name);
         require(AuthoredCatacombs.ARENA_BASE_Y+23==AuthoredCatacombs.CONNECTOR_Y,"Arena exit elevation differs from crypts");
         require(!CatacombLayout.contains(new net.minecraft.core.BlockPos(0,7,0)),"Arena counted as catacombs");
-        System.out.println("Authored catacomb regression: "+checks+" checks passed; all 28 assets validated");
+        System.out.println("Authored catacomb regression: "+checks+" checks passed; all 37 assets validated");
+    }
+    private static void forgeTemplate(String name) throws Exception {
+        CompoundTag root=NbtIo.readCompressed(Path.of(
+                "src/main/resources/data/asterion/structure/forge",name+".nbt"),NbtAccounter.unlimitedHeap());
+        var size=root.getListOrEmpty("size");
+        int sx=integer(size,0),sy=integer(size,1),sz=integer(size,2);
+        require(sx>0&&sy>0&&sz>0,"Empty Forge dimensions: "+name);
+        var palette=root.getListOrEmpty("palette");
+        Set<Integer> positions=new HashSet<>(); int connectors=0;
+        for(var entry:root.getListOrEmpty("blocks")) {
+            var block=(CompoundTag)entry; var pos=block.getListOrEmpty("pos");
+            int x=integer(pos,0),y=integer(pos,1),z=integer(pos,2);
+            require(x>=0&&x<sx&&y>=0&&y<sy&&z>=0&&z<sz,"Out of Forge bounds: "+name);
+            require(positions.add(x+sx*(z+sz*y)),"Duplicate Forge coordinate: "+name);
+            var state=(CompoundTag)palette.get(block.getIntOr("state",-1));
+            if(!state.getStringOr("Name","").equals("minecraft:jigsaw"))continue;
+            connectors++;
+            var data=block.getCompoundOrEmpty("nbt");
+            require(data.getStringOr("name","").equals("asterion:catacombs/door"),"Unconfigured Forge connector name: "+name);
+            require(data.getStringOr("target","").equals("asterion:catacombs/door"),"Unconfigured Forge connector target: "+name);
+            require(data.getStringOr("final_state","").equals("minecraft:air"),"Forge connector does not become air: "+name);
+            require(data.getStringOr("joint","").equals("rollable"),"Forge connector is not rollable: "+name);
+        }
+        int expected=name.startsWith("t_junction_")?3:name.startsWith("corner_")||name.startsWith("hallway_")?2:-1;
+        require(positions.size()==sx*sy*sz,"Forge template does not save its complete air volume: "+name);
+        require(connectors>0,"Forge room has no usable connector: "+name);
+        if(expected>0)require(connectors==expected,"Wrong Forge connector count: "+name+" ("+connectors+", expected "+expected+")");
+        System.out.println("Forge template "+name+": "+sx+"x"+sy+"x"+sz+", "+connectors+" connectors");
     }
     private static void brazierTemplate(int part) throws Exception {
         String name="cursed_brazier_room_part"+part;

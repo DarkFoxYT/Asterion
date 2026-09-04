@@ -3,6 +3,7 @@ package net.krodark.asterion.event;
 import java.util.random.RandomGenerator;
 import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.worldgen.CatacombLayout;
+import net.krodark.asterion.worldgen.LabyrinthLevels;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
@@ -16,7 +17,8 @@ public final class RumbleSources {
     private RumbleSources() { }
     public static @Nullable Source find(Level level, Vec3 observer, RandomGenerator random) {
         boolean catacomb = CatacombLayout.contains(BlockPos.containing(observer));
-        boolean aboveWalls = observer.y >= 49 + AsterionConfig.INSTANCE.wallHeight - 1;
+        boolean aboveWalls = observer.y >= LabyrinthLevels.MAZE_FLOOR_Y + 1
+                + AsterionConfig.INSTANCE.wallHeight - 1;
         for (int attempt = 0; attempt < 6; attempt++) {
             Vec3 start, end;
             if (catacomb || aboveWalls) {

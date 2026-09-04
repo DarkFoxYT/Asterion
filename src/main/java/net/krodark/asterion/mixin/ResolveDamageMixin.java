@@ -15,8 +15,12 @@ public abstract class ResolveDamageMixin {
     private float asterion$applyResolveDamage(float damage, ServerLevel level,
                                                DamageSource source, float originalDamage) {
         if (source.getEntity() instanceof ServerPlayer player
-                && (Object)this instanceof LivingEntity target)
-            return ResolveSystem.amplifyDamage(player, target, damage);
+                && (Object)this instanceof LivingEntity target) {
+            damage = ResolveSystem.amplifyDamage(player, target, damage);
+            damage = net.krodark.asterion.game.WeaponCombatSystem.amplifyTwinbladeDamage(
+                    player, target, source, damage);
+            return damage;
+        }
         return damage;
     }
 }

@@ -1011,8 +1011,8 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
     protected void dropCustomDeathLoot(ServerLevel level, DamageSource source, boolean killedByPlayer) {
         super.dropCustomDeathLoot(level, source, killedByPlayer);
         spawnAtLocation(level, new ItemStack(GameplayContent.CURSED_BRAZIER_KEY));
-        var minotaurKey=spawnAtLocation(level, new ItemStack(Asterion.MINOTAUR_KEY));
-        net.krodark.asterion.game.EncounterKeyRecovery.track(level,minotaurKey,
+        var keyMold=spawnAtLocation(level, new ItemStack(Asterion.MINOTAUR_KEY_CAST));
+        net.krodark.asterion.game.EncounterKeyRecovery.track(level,keyMold,
                 source.getEntity() instanceof ServerPlayer player?player:null);
     }
 

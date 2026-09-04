@@ -75,7 +75,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class WorldGenerator {
     private static final boolean ENABLE_MAZE_NBT_STRUCTURES = true;
-    private static final int FLOOR_Y = 48;
+    private static final int FLOOR_Y = net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y;
     private static final int BOSS_FLOOR_Y = net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_FLOOR_Y;
     // The dimension stores 304 blocks (whole chunk sections); chains end at Y=300.
     private static final int DIMENSION_CEILING_Y = 300;
@@ -115,7 +115,7 @@ public final class WorldGenerator {
     private static boolean bossArenaPrepared;
     private static BossArenaBuild bossArenaBuild;
     private static BossFinale bossFinale;
-    private static final BlockPos ARENA_EXIT_PORTAL = new BlockPos(0, 8, -60);
+    private static final BlockPos ARENA_EXIT_PORTAL = new BlockPos(0, BOSS_FLOOR_Y + 2, -60);
     private static long activeMazeTerrainSeed;
     private static final PriorityQueue<DecayingBlock> DECAYING_BLOCKS = new PriorityQueue<>(
             Comparator.comparingLong(DecayingBlock::dueTick));
@@ -877,10 +877,14 @@ public final class WorldGenerator {
     private static void syncBiomeAtmosphere(ServerPlayer player) {
         int biome = 0;
         if (player.level().dimension().equals(Asterion.ASTERION_LEVEL)) {
-            MazeBiomes.Kind kind = mazeBiomeAt(activeMazeTerrainSeed, player.getBlockX(),
-                    player.getBlockZ(), AsterionConfig.INSTANCE.cellSize).kind();
-            biome = kind == MazeBiomes.Kind.OVERGROWTH ? 1
-                    : kind == MazeBiomes.Kind.CRIMSON_MARSHLANDS ? 2 : 0;
+            if (player.getY() <= net.krodark.asterion.worldgen.LabyrinthLevels.FORGE_ROOF_Y) biome = 4;
+            else if (player.getY() < FLOOR_Y) biome = 3;
+            else {
+                MazeBiomes.Kind kind = mazeBiomeAt(activeMazeTerrainSeed, player.getBlockX(),
+                        player.getBlockZ(), AsterionConfig.INSTANCE.cellSize).kind();
+                biome = kind == MazeBiomes.Kind.OVERGROWTH ? 1
+                        : kind == MazeBiomes.Kind.CRIMSON_MARSHLANDS ? 2 : 0;
+            }
         }
         Integer previous = LAST_BIOME_ATMOSPHERE.get(player.getUUID());
         boolean refresh = player.level().getGameTime() % 100L == 0L;
@@ -2418,16 +2422,21 @@ public final class WorldGenerator {
         int maxOffset = Math.max(6, Math.min(radius - 2,
                 (2000 - config.cellSize) / Math.max(1, config.cellSize)));
         int usable = maxOffset * 2 + 1;
-        int gx = centerCell - maxOffset + (int)Math.floorMod(roll, usable);
-        int gz = centerCell - maxOffset + (int)Math.floorMod(roll >>> 24, usable);
-
-        if (Math.abs(gx - centerCell) <= 2 && Math.abs(gz - centerCell) <= 2)
-            gx = Math.min(centerCell + maxOffset, gx + 4);
-
         int corridorCenter = config.wallThickness
                 + (config.cellSize - config.wallThickness) / 2;
-        int x = -limit + gx * config.cellSize + corridorCenter;
-        int z = -limit + gz * config.cellSize + corridorCenter;
+        // Never drop an expedition into or beside the central arena. Try independent
+        // deterministic cells until the landing is at least 500 blocks from world centre.
+        for (int attempt = 0; attempt < 32; attempt++) {
+            long candidate = mix(roll + attempt * 0x9E3779B97F4A7C15L);
+            int gx = centerCell - maxOffset + (int)Math.floorMod(candidate, usable);
+            int gz = centerCell - maxOffset + (int)Math.floorMod(candidate >>> 24, usable);
+            int x = -limit + gx * config.cellSize + corridorCenter;
+            int z = -limit + gz * config.cellSize + corridorCenter;
+            if ((long)x * x + (long)z * z < 500L * 500L) continue;
+            return new BlockPos(x, mazeFloorY(maze.getSeed(), x, z, config.cellSize) + 1, z);
+        }
+        int x = -limit + (centerCell + maxOffset) * config.cellSize + corridorCenter;
+        int z = -limit + (centerCell + maxOffset) * config.cellSize + corridorCenter;
         return new BlockPos(x, mazeFloorY(maze.getSeed(), x, z, config.cellSize) + 1, z);
     }
 
@@ -2436,20 +2445,9 @@ public final class WorldGenerator {
     }
 
     private static void prepareMazeArrival(ServerLevel maze, BlockPos arrival) {
+        // Terrain generation already guarantees a supported corridor landing. Merely
+        // load it: the old 5x5 stone pad looked artificial and erased nearby detail.
         maze.getChunkAt(arrival);
-        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
-        AsterionConfig config = AsterionConfig.INSTANCE;
-        for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
-            int floorY = mazeFloorY(maze.getSeed(), arrival.getX() + dx, arrival.getZ() + dz,
-                    config.cellSize);
-            for (int depth = 0; depth < config.floorThickness; depth++)
-                maze.setBlock(p.set(arrival.getX() + dx, floorY - depth, arrival.getZ() + dz),
-                        Asterion.ANCIENT_STONE.defaultBlockState(), 2);
-            int clearHeight = Math.abs(dx) <= 1 && Math.abs(dz) <= 1 ? 15 : 5;
-            for (int y = 1; y <= clearHeight; y++)
-                maze.setBlock(p.set(arrival.getX() + dx, floorY + y, arrival.getZ() + dz),
-                        Blocks.AIR.defaultBlockState(), 2);
-        }
     }
 
     private static void buildMazeChunk(ServerLevel level, LevelChunk chunk, BlockPos marker) {
@@ -2457,6 +2455,7 @@ public final class WorldGenerator {
     }
 
     public static void generateMazeChunk(ChunkAccess chunk, long seed) {
+        net.krodark.asterion.worldgen.ForgeDepths.generate(chunk, seed);
         net.krodark.asterion.worldgen.CatacombLayout.generate(chunk, seed);
         AsterionConfig config = AsterionConfig.INSTANCE;
         int radius = config.mazeRadiusCells;
