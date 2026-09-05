@@ -422,6 +422,7 @@ public final class WorldGenerator {
             return;
         }
         RESTORING_BLOCKS.removeIf(entry -> entry.dimension.equals(level.dimension()) && entry.pos.equals(pos));
+        if (state.is(Asterion.SKELETON)) return;
         if (!shouldRestoreMazeBreak(level, pos)) return;
         long restoreDelay = net.krodark.asterion.worldgen.CatacombProtection.contains(level, pos)
                 ? 20L : 100L;
@@ -2827,13 +2828,8 @@ public final class WorldGenerator {
                                               int cell, int thickness, int radius, int wallHeight,
                                               MazeBiomes.Biome biome, int floorY) {
         if (isCenterArena(x, z, cell)) {
-            int offset = cell * 2;
-            boolean arenaPillar = Math.abs(Math.abs(x) - offset) <= 1
-                    && Math.abs(Math.abs(z) - offset) <= 1;
-            if (arenaPillar) {
-                for (int y = 1; y <= wallHeight; y++)
-                    bufferedSet(chunk, x, floorY + y, z, Asterion.ANCIENT_BRICKS.defaultBlockState());
-            }
+            net.krodark.asterion.worldgen.MazeRuins.column(chunk, seed, x, z, floorY,
+                    x + cell * 3, z + cell * 3, 5, cell * 6 - 6);
             return;
         }
         if (structures.reserved(x, z)) return;
@@ -2867,20 +2863,9 @@ public final class WorldGenerator {
         }
 
         if (topology.hasTrait(topologyX, topologyZ, MazeTopology.PILLAR_HALL)
-                && (lx == innerA || lx == innerB) && (lz == innerA || lz == innerB)) {
-            int height = 8 + (int) Math.floorMod(mix(seed ^ ((long) x << 32) ^ z), 7);
-            for (int y = 1; y <= height; y++) {
-                Block block = y == 1 || y == height ? Blocks.CHISELED_DEEPSLATE
-                        : y % 5 == 0 ? Blocks.POLISHED_BASALT : Blocks.POLISHED_DEEPSLATE;
-                bufferedSet(chunk, x, floorY + y, z, block.defaultBlockState());
-            }
-        }
-
-        if (topology.hasTrait(topologyX, topologyZ, MazeTopology.DEAD_END_ALTAR) && lx == center && lz == center) {
-            bufferedSet(chunk, x, floorY + 1, z, Blocks.CHISELED_TUFF_BRICKS.defaultBlockState());
-            bufferedSet(chunk, x, floorY + 2, z, Blocks.POLISHED_BASALT.defaultBlockState());
-            bufferedSet(chunk, x, floorY + 3, z, Blocks.SOUL_LANTERN.defaultBlockState());
-        }
+                || topology.hasTrait(topologyX, topologyZ, MazeTopology.DEAD_END_ALTAR)
+                || topology.hasTrait(topologyX, topologyZ, MazeTopology.PLAZA))
+            net.krodark.asterion.worldgen.MazeRuins.column(chunk, seed, x, z, floorY, lx, lz, innerA, innerB);
 
         if (topology.hasTrait(topologyX, topologyZ, MazeTopology.SAFE_RUNE)) {
             int dx = Math.abs(lx - center), dz = Math.abs(lz - center);
@@ -2912,22 +2897,13 @@ public final class WorldGenerator {
             int rx = thickness + 1 + (int) Math.floorMod(rubble, span);
             int rz = thickness + 1 + (int) Math.floorMod(rubble >>> 12, span);
             if (lx == rx && lz == rz) {
-                Block rubbleBlock = (rubble & 1) == 0 ? Blocks.COBBLED_DEEPSLATE : Blocks.TUFF;
+                Block rubbleBlock = (rubble & 1) == 0 ? Asterion.ANCIENT_BRICK_SLAB : Asterion.SHALE_STAIRS;
                 bufferedSet(chunk, x, floorY + 1, z, rubbleBlock.defaultBlockState());
                 if ((rubble & 7) == 0)
-                    bufferedSet(chunk, x, floorY + 2, z, Blocks.COBBLED_DEEPSLATE.defaultBlockState());
+                    bufferedSet(chunk, x, floorY + 1, z, Asterion.SHALE.defaultBlockState());
             }
         }
 
-        if (topology.hasTrait(topologyX, topologyZ, MazeTopology.PLAZA)) {
-            int distance = Math.max(Math.abs(lx - center), Math.abs(lz - center));
-            if (distance == 2 && (lx == center || lz == center))
-                bufferedSet(chunk, x, floorY + 1, z, Blocks.POLISHED_TUFF.defaultBlockState());
-            if (lx == center && lz == center) {
-                bufferedSet(chunk, x, floorY + 1, z, Blocks.CHISELED_TUFF_BRICKS.defaultBlockState());
-                bufferedSet(chunk, x, floorY + 2, z, Blocks.SOUL_LANTERN.defaultBlockState());
-            }
-        }
 
     }
 

@@ -110,6 +110,15 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
         motionStart = level.getGameTime();
         sync();
     }
+    public void openAfterVictory() {
+        if (level == null || level.isClientSide() || breaching) return;
+        unlocked = true;
+        startAngle = angle(0);
+        targetAngle = MinotaurDoorMotion.OPEN_ANGLE;
+        motionStart = level.getGameTime();
+        MinotaurDoorBlock.setOpen(level, worldPosition, facing(), true);
+        sync();
+    }
     public void beginBreach() {
         if (level == null || level.isClientSide() || breaching) return;
         breaching = true;

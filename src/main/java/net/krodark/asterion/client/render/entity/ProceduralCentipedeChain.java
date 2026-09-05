@@ -17,7 +17,10 @@ public final class ProceduralCentipedeChain {
         Vector3f[] rotations = new Vector3f[positions.length];
         float[] gait = new float[positions.length], speed = new float[positions.length];
         for (int i = 0; i < positions.length; i++) {
-            CentipedeChain.Pose pose = entity.chainPose(i, partialTick);
+            CentipedeChain.Pose raw = entity.chainPose(i, partialTick);
+            Vec3 renderDelta = entity.getPosition(partialTick).subtract(entity.position());
+            CentipedeChain.Pose pose = new CentipedeChain.Pose(raw.position().add(renderDelta),
+                    raw.normal(), raw.forward());
             positions[i] = CentipedeFrame.boneTranslation(pose.position().subtract(renderOrigin));
             rotations[i] = CentipedeFrame.boneAngles(CentipedeFrame.rotation(pose.normal(), pose.forward()));
             gait[i] = entity.segmentGait(i, partialTick);

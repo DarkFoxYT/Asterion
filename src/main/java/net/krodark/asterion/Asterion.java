@@ -697,9 +697,10 @@ public class Asterion implements ModInitializer {
                     .icon(() -> new ItemStack(CRUCIBLE))
                     .displayItems((parameters, output) -> {
                         output.accept(CRUCIBLE);
-                        output.accept(CELESTIAL_BRONZE_ORE);
-                        output.accept(TARNISHED_GOLD_ORE);
-                        output.accept(CELESTIAL_GOLD_ORE);
+                        output.accept(SHALE_CELESTIAL_GOLD_ORE);
+                        output.accept(SHALE_TARNISHED_GOLD_ORE);
+                        output.accept(SHADED_SHALE_CELESTIAL_GOLD_ORE);
+                        output.accept(SHADED_SHALE_TARNISHED_GOLD_ORE);
                         output.accept(CELESTIAL_BRONZE_INGOT);
                         output.accept(TARNISHED_GOLD_INGOT);
                         output.accept(CELESTIAL_GOLD_INGOT);
@@ -1111,9 +1112,10 @@ public class Asterion implements ModInitializer {
         Block block = registerBlockWithoutItem(name, color, factory);
         Identifier identifier = id(name);
         ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, identifier);
-        Registry.register(BuiltInRegistries.ITEM, itemKey,
-                new BlockItem(block, itemProperties.apply(new Item.Properties().setId(itemKey))
-                        .useBlockDescriptionPrefix()));
+        Item.Properties properties = itemProperties.apply(new Item.Properties().setId(itemKey)).useBlockDescriptionPrefix();
+        Registry.register(BuiltInRegistries.ITEM, itemKey, block instanceof net.krodark.asterion.block.CrucibleBlock
+                ? new net.krodark.asterion.block.CrucibleBlockItem(block, properties)
+                : new BlockItem(block, properties));
         return block;
     }
 

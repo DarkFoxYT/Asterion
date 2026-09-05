@@ -26,7 +26,9 @@ public final class RenderPerformanceRegression {
             GLFW.glfwMakeContextCurrent(window); GL.createCapabilities();
             com.mojang.blaze3d.systems.RenderSystem.initRenderThread();
             System.out.println("GPU: " + glGetString(GL_RENDERER));
-            culling(); shaders();
+            boolean sunOnly = Arrays.asList(args).contains("--dead-sun-only");
+            if (!sunOnly) culling();
+            shaders(sunOnly ? List.of("dead_sun") : List.of("dead_sun", "volume_integrate"));
             if (glGetError() != GL_NO_ERROR) throw new AssertionError("OpenGL error");
         } finally { GLFW.glfwDestroyWindow(window); GLFW.glfwTerminate(); }
     }
@@ -78,7 +80,7 @@ public final class RenderPerformanceRegression {
         } finally { glDeleteBuffers(bounds); glDeleteBuffers(input); glDeleteBuffers(output); glDeleteBuffers(command); }
     }
 
-    private static void shaders() throws Exception {
+    private static void shaders(List<String> names) throws Exception {
         String vertex = """
                 #version 330
                 out vec2 texCoord;
@@ -96,7 +98,7 @@ public final class RenderPerformanceRegression {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         float maxError = 0;
         try {
-            for (String name : new String[]{"dead_sun", "volume_integrate"}) {
+            for (String name : names) {
                 int before = program(vertex, Files.readString(Path.of("docs/verification/shader-baselines", name + ".fsh")));
                 int after = program(vertex, source("post/dimension/" + name + ".fsh"));
                 try {
@@ -113,10 +115,39 @@ public final class RenderPerformanceRegression {
                             maxError = Math.max(maxError, error);
                         }
                     }
+                    if (name.equals("dead_sun")) oppositeSun(before, after, depth);
                 } finally { glDeleteProgram(before); glDeleteProgram(after); }
             }
-            System.out.println("PASS: 192 original/optimized shader comparisons; max RGBA error = " + maxError);
+            System.out.println("PASS: " + names.size() * 96 + " original/optimized shader comparisons; max RGBA error = " + maxError);
         } finally { glDeleteTextures(depth); glDeleteTextures(color); glDeleteFramebuffers(fbo); glDeleteVertexArrays(vao); }
+    }
+
+    private static void oppositeSun(int before, int after, int depth) {
+        float[] sky = new float[SIZE * SIZE];
+        Arrays.fill(sky, 1F);
+        glBindTexture(GL_TEXTURE_2D, depth);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, SIZE, SIZE, 0, GL_RED, GL_FLOAT, sky);
+        int comparisons = 0;
+        for (int quality = 0; quality < 3; quality++) for (float eclipse : new float[]{0, .5F, 1})
+            for (float yaw : new float[]{-.5F, 0, .5F}) for (float x : new float[]{0, 29_000_000}) {
+                var values = uniforms(0);
+                float[] world = values.get("WorldData");
+                new Matrix4f().perspective(1.2F, 1, .1F, 256).rotateY(yaw).invert().get(world);
+                world[16] = x;
+                values.put("DeadSunData", new float[]{x, 64, 60, 18});
+                values.put("AsterionQuality", new float[]{quality});
+                values.put("EclipseData", new float[]{eclipse});
+                float[] reference = render(before, values), actual = render(after, values);
+                boolean reproduced = false;
+                for (int pixel = 0; pixel < actual.length; pixel++) {
+                    reproduced |= reference[pixel] > .001F;
+                    check(Float.isFinite(actual[pixel]) && Math.abs(actual[pixel]) < .000001F,
+                            "Opposite-side sun survived: quality=" + quality + ", eclipse=" + eclipse + ", yaw=" + yaw);
+                }
+                check(reproduced, "Opposite-side test did not reproduce the original mirage");
+                comparisons++;
+            }
+        System.out.println("PASS: " + comparisons + " opposite-side sun renders are transparent across quality, eclipse, camera rotation and distant coordinates");
     }
 
     private static Map<String, float[]> uniforms(int scenario) {

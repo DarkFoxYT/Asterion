@@ -190,18 +190,18 @@ public final class AsterionPostEffects {
         AsterionConfig config = AsterionConfig.INSTANCE;
         float eclipse = darkness();
         return new Vector3f(
-                config.dustDensity * mix(1.0F, 0.82F, overgrowthBlend)
+                config.dustDensity * mix(mix(1.0F, 0.82F, overgrowthBlend)
                         * mix(1.0F, 0.92F, crimsonBlend)
                         * mix(1.0F, 1.18F, forgeBlend)
                         * mix(1.0F, 2.80F, eclipse)
                         * mix(1.0F, 1.4F + 2.8F * floodBlend * (1 - arenaBlend), catacombBlend)
-                        * mix(1.0F, .45F, arenaBlend) * mix(1.0F, 3.2F, caveBlend),
-                config.fogStrength * mix(1.0F, 0.90F, overgrowthBlend)
+                        * mix(1.0F, 3.2F, caveBlend), .45F, arenaBlend),
+                config.fogStrength * mix(mix(1.0F, 0.90F, overgrowthBlend)
                         * mix(1.0F, 0.94F, crimsonBlend)
                         * mix(1.0F, 1.12F, forgeBlend)
                         * mix(1.0F, 2.25F, eclipse)
                         * mix(1.0F, 1.1F + .4F * floodBlend * (1 - arenaBlend), catacombBlend)
-                        * mix(1.0F, .38F, arenaBlend) * mix(1.0F, 2.1F, caveBlend),
+                        * mix(1.0F, 2.1F, caveBlend), .38F, arenaBlend),
                 config.shaderAnimationSpeed);
     }
 
@@ -264,10 +264,12 @@ public final class AsterionPostEffects {
             double cameraY = camera.y;
             float caveTarget = Mth.clamp((float)(net.krodark.asterion.worldgen.LabyrinthLevels.CAVE_ROOF_Y - cameraY) / 12F, 0F, 1F);
             caveBlend += (caveTarget - caveBlend) * .04F;
-            // Fade at the arena walls and roof so the maze above keeps its own atmosphere.
-            float arenaTarget = Mth.clamp((float)(42 - Math.max(Math.abs(camera.x), Math.abs(camera.z))) / 6F, 0F, 1F)
-                    * Mth.clamp((float)(net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y + 47 - cameraY) / 5F, 0F, 1F)
-                    * Mth.clamp((float)(cameraY - net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y) / 4F, 0F, 1F);
+            // One volume covers all nine authored arena pieces. Only time, not position
+            // within that volume, blends the transition at an entrance.
+            float arenaTarget = Math.abs(camera.x) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS
+                    && Math.abs(camera.z) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS
+                    && cameraY >= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y
+                    && cameraY < net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y + 47 ? 1F : 0F;
             arenaBlend += (arenaTarget - arenaBlend) * .08F;
             int vaultRoof = Math.min(net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y - 2,
                     net.krodark.asterion.worldgen.CatacombLayout.roofAt(

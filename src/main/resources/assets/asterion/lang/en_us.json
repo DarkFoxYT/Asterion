@@ -1,4 +1,7 @@
 {
+  "message.asterion.minotaur_harvest_hint": "Use shears or an axe to strip the fallen Minotaur's hide.",
+  "message.asterion.minotaur_harvested": "The hide has already been collected.",
+  "message.asterion.minotaur_harvest": "You collected leather and ore caught in the hide.",
   "quest.asterion.queen_beetle.petals.title": "Tainted Petals",
   "quest.asterion.queen_beetle.petals.hint": "Look among the overgrowth.",
   "quest.asterion.queen_beetle.petals.accepted": "Bring me %s tainted petals and I can give you a charged rune.",

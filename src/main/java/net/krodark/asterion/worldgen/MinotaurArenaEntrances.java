@@ -202,6 +202,10 @@ public final class MinotaurArenaEntrances {
         if(chunk.equals(net.minecraft.world.level.ChunkPos.containing(gate(PLAYER_ENTRANCE))))
             setGate(level,PLAYER_ENTRANCE,0);
         if(chunk.z()==-3)setAuthoredBossGate(level,0);
+        if (net.krodark.asterion.AsterionWorldState.get(level).minotaurDefeated()
+                && chunk.equals(net.minecraft.world.level.ChunkPos.containing(door(PLAYER_ENTRANCE)))
+                && level.getBlockEntity(door(PLAYER_ENTRANCE)) instanceof net.krodark.asterion.block.MinotaurDoorBlockEntity door)
+            door.openAfterVictory();
     }
 
     /** Repairs saves where the encounter's gate normalization replaced the authored keyhole. */

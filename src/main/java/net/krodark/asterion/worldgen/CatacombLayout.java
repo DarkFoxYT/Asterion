@@ -4,6 +4,7 @@ import net.krodark.asterion.Asterion;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import java.util.List;
 
@@ -164,8 +165,18 @@ public final class CatacombLayout {
         BlockState moss=Asterion.ANCIENT_MOSSY_BRICKS.defaultBlockState();
         for (int x=chunk.getPos().getMinBlockX();x<=chunk.getPos().getMaxBlockX();x++)
             for (int z=chunk.getPos().getMinBlockZ();z<=chunk.getPos().getMaxBlockZ();z++)
-                for (int y=AuthoredCatacombs.ARENA_BASE_Y+2,roof=roofAt(x,z);y<=roof;y++)
-                    chunk.setBlockState(cursor.set(x,y,z),
-                            Math.floorMod(x*17L+y*3L+z*31L+seed,9)<3 ? moss : brick,0);
+                for (int y=AuthoredCatacombs.ARENA_BASE_Y+2,roof=roofAt(x,z);y<=roof;y++) {
+                    double radius = Math.hypot(x, z);
+                    if (radius < AuthoredCatacombs.ARENA_RADIUS - 4) {
+                        chunk.setBlockState(cursor.set(x,y,z), Blocks.AIR.defaultBlockState(),0);
+                        continue;
+                    }
+                    int band = (int)Math.floor(radius - (AuthoredCatacombs.ARENA_RADIUS - 4));
+                    BlockState rim = band < 2 ? Asterion.SHADED_SHALE.defaultBlockState()
+                            : band < 5 ? Asterion.SHALE.defaultBlockState()
+                            : (Math.floorMod(x*17L+y*3L+z*31L+seed,9)<3 ? moss : brick);
+                    chunk.setBlockState(cursor.set(x,y,z), rim,0);
+                }
     }
 }
+

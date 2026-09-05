@@ -2,5 +2,5 @@
   "textures": {
     "layer0": "asterion:item/afterblow_powered"
   },
-  "parent": "minecraft:item/handheld"
+  "parent": "asterion:item/afterblow"
 }

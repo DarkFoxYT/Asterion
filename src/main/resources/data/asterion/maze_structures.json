@@ -5,11 +5,23 @@
   "templates": [
     {
       "template": "asterion:safe_room",
-      "weight": 3
+      "weight": 21
     },
     {
       "template": "asterion:rune_gate",
       "weight": 1
+    },
+    {
+      "template": "asterion:ruins/gatehouse",
+      "weight": 2
+    },
+    {
+      "template": "asterion:ruins/collapsed_dwelling",
+      "weight": 2
+    },
+    {
+      "template": "asterion:ruins/courtyard",
+      "weight": 2
     }
   ]
 }

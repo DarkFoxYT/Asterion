@@ -48,6 +48,22 @@ public final class SanctuaryBlock extends BaseEntityBlock {
     public BlockPos root(BlockPos pos, BlockState state) {
         return altar ? pos : pos.offset(1-state.getValue(PART_X),-state.getValue(ROW),1-state.getValue(PART_Z));
     }
+    @Override protected BlockState rotate(BlockState state, Rotation rotation) {
+        int x = state.getValue(PART_X), z = state.getValue(PART_Z);
+        return switch (rotation) {
+            case CLOCKWISE_90 -> state.setValue(PART_X, 2 - z).setValue(PART_Z, x);
+            case CLOCKWISE_180 -> state.setValue(PART_X, 2 - x).setValue(PART_Z, 2 - z);
+            case COUNTERCLOCKWISE_90 -> state.setValue(PART_X, z).setValue(PART_Z, 2 - x);
+            default -> state;
+        };
+    }
+    @Override protected BlockState mirror(BlockState state, Mirror mirror) {
+        return switch (mirror) {
+            case LEFT_RIGHT -> state.setValue(PART_Z, 2 - state.getValue(PART_Z));
+            case FRONT_BACK -> state.setValue(PART_X, 2 - state.getValue(PART_X));
+            default -> state;
+        };
+    }
     private static BlockPos part(BlockPos root,int x,int z,int row) { return root.offset(x-1,row,z-1); }
     @Override public BlockState getStateForPlacement(BlockPlaceContext context) {
         if(altar)return defaultBlockState();

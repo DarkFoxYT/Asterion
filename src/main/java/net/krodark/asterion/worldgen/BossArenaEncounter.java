@@ -246,12 +246,14 @@ public final class BossArenaEncounter {
         restoreDoors(level);
     }
 
-    /** Victory cleanup keeps the authored broken doorway and seals its surviving portcullis. */
+    /** Release the entrance while leaving the boss's broken door as it fell. */
     public static void finishDefeated(ServerLevel level) {
         ArenaDebris.clear(level);
         clear();
         net.krodark.asterion.WorldGenerator.clearBossEntryTracking();
-        MinotaurArenaEntrances.setGates(level, MinotaurArenaEntrances.gateHeight(), null);
+        MinotaurArenaEntrances.setGates(level, 0, null);
+        BlockPos entrance = MinotaurArenaEntrances.door(MinotaurArenaEntrances.PLAYER_ENTRANCE);
+        if (level.getBlockEntity(entrance) instanceof MinotaurDoorBlockEntity door) door.openAfterVictory();
     }
 
     public static void clear() {

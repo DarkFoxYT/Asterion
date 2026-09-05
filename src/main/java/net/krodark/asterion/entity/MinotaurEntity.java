@@ -146,6 +146,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private UUID thrownAxe;
     private Vec3 axeLastPosition = Vec3.ZERO;
     private boolean deathWeaponsDropped;
+    private boolean hideHarvested;
     private final java.util.Map<BlockPos, Integer> fireSootTrail = new java.util.LinkedHashMap<>();
     private int axeAge;
     private Vec3 axePickupGoal;
@@ -2417,6 +2418,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         output.putInt("asterion_rage", rage());
         if (thrownAxe != null) output.putString("minotaur_axe_uuid", thrownAxe.toString());
         output.putBoolean("death_weapons_dropped", deathWeaponsDropped);
+        output.putBoolean("hide_harvested", hideHarvested);
         output.putDouble("minotaur_axe_x", axeLastPosition.x);
         output.putDouble("minotaur_axe_y", axeLastPosition.y);
         output.putDouble("minotaur_axe_z", axeLastPosition.z);
@@ -2437,6 +2439,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         collapseTicks = Math.max(0, input.getIntOr("asterion_collapse_ticks", 0));
         String id = input.getStringOr("minotaur_axe_uuid", "");
         deathWeaponsDropped = input.getBooleanOr("death_weapons_dropped", false);
+        hideHarvested = input.getBooleanOr("hide_harvested", false);
         try { thrownAxe = id.isEmpty() ? null : UUID.fromString(id); } catch (IllegalArgumentException ignored) { thrownAxe = null; }
         getEntityData().set(DATA_AXE_OUT, thrownAxe != null);
         axeLastPosition = new Vec3(input.getDoubleOr("minotaur_axe_x", getX()), input.getDoubleOr("minotaur_axe_y", getY()), input.getDoubleOr("minotaur_axe_z", getZ()));
@@ -4938,6 +4941,29 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         level.sendParticles(ParticleTypes.ELECTRIC_SPARK, player.getX(), player.getY() + 1.0D,
                 player.getZ(), 24, 0.55D, 0.9D, 0.55D, 0.14D);
         player.hurtServer(level, damageSources().magic(), 4.0F);
+    }
+
+    @Override
+    public net.minecraft.world.InteractionResult mobInteract(net.minecraft.world.entity.player.Player player,
+                                                            net.minecraft.world.InteractionHand hand) {
+        if (!isDefeatedBoss()) return super.mobInteract(player, hand);
+        ItemStack tool = player.getItemInHand(hand);
+        if (!(level() instanceof ServerLevel server)) return net.minecraft.world.InteractionResult.SUCCESS;
+        if (hideHarvested) {
+            player.sendSystemMessage(Component.translatable("message.asterion.minotaur_harvested"));
+        } else if (!tool.is(Items.SHEARS) && !tool.is(net.minecraft.tags.ItemTags.AXES)) {
+            player.sendSystemMessage(Component.translatable("message.asterion.minotaur_harvest_hint"));
+        } else {
+            // Commit before spawning items so simultaneous interactions cannot duplicate the reward.
+            hideHarvested = true;
+            spawnAtLocation(server, new ItemStack(Items.LEATHER, 6 + random.nextInt(5)));
+            spawnAtLocation(server, new ItemStack(Asterion.SHADED_SHALE_TARNISHED_GOLD_ORE, 2 + random.nextInt(3)));
+            spawnAtLocation(server, new ItemStack(Asterion.SHADED_SHALE_CELESTIAL_GOLD_ORE, 1 + random.nextInt(2)));
+            tool.hurtAndBreak(1, player, hand.asEquipmentSlot());
+            server.playSound(null, blockPosition(), SoundEvents.SHEEP_SHEAR, net.minecraft.sounds.SoundSource.PLAYERS, 1F, .7F);
+            player.sendSystemMessage(Component.translatable("message.asterion.minotaur_harvest"));
+        }
+        return net.minecraft.world.InteractionResult.SUCCESS;
     }
 
     private void beginDefeated(ServerLevel level) {

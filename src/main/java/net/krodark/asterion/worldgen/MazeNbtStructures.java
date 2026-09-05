@@ -342,14 +342,21 @@ public final class MazeNbtStructures {
             int floorY = placement.box.minY();
             int centerX = (placement.box.minX() + placement.box.maxX()) / 2;
             int centerZ = (placement.box.minZ() + placement.box.maxZ()) / 2;
-            carveBridge(level, placement.reserved.minX(), placement.box.minX() + 1,
-                    centerZ, true, floorY);
-            carveBridge(level, placement.box.maxX() - 1, placement.reserved.maxX(),
-                    centerZ, true, floorY);
-            carveBridge(level, placement.reserved.minZ(), placement.box.minZ() + 1,
-                    centerX, false, floorY);
-            carveBridge(level, placement.box.maxZ() - 1, placement.reserved.maxZ(),
-                    centerX, false, floorY);
+            boolean refuge = isSafeRoom(placement.id);
+            boolean turned = placement.settings.getRotation() == Rotation.CLOCKWISE_90
+                    || placement.settings.getRotation() == Rotation.COUNTERCLOCKWISE_90;
+            if (!refuge || turned) {
+                carveBridge(level, placement.reserved.minX(), placement.box.minX() + 1,
+                        centerZ, true, floorY);
+                carveBridge(level, placement.box.maxX() - 1, placement.reserved.maxX(),
+                        centerZ, true, floorY);
+            }
+            if (!refuge || !turned) {
+                carveBridge(level, placement.reserved.minZ(), placement.box.minZ() + 1,
+                        centerX, false, floorY);
+                carveBridge(level, placement.box.maxZ() - 1, placement.reserved.maxZ(),
+                        centerX, false, floorY);
+            }
         }
 
         private static void carveBridge(ServerLevel level, int start, int end, int fixed,
@@ -402,6 +409,11 @@ public final class MazeNbtStructures {
                     for (int z = placement.box.minZ(); z <= placement.box.maxZ(); z++) {
                         cursor.set(x, y, z);
                         if (!level.getBlockState(cursor).is(Blocks.LODESTONE)) continue;
+                        BlockPos pad = cursor.above();
+                        if (level.getBlockState(pad).isAir() && level.getBlockState(pad.above()).isAir()) {
+                            safeCheckpoints.put(placement.origin, pad.immutable());
+                            return;
+                        }
                         // Legacy rooms had a lantern directly over their lodestone. Never cache
                         // that occupied position as a respawn; find a clear, supported neighbor.
                         for (int dy = 1; dy >= 0; dy--) for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {

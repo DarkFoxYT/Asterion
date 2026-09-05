@@ -52,8 +52,8 @@ public final class ShaleCaves {
     }
 
     private static double ground(long seed, double x, double z) {
-        return -47 + noise(seed ^ 743, x / 115, z / 115) * 27
-                + noise(seed ^ 189, x / 39, z / 39) * 6;
+        return -57 + noise(seed ^ 743, x / 100, z / 100) * 48
+                + noise(seed ^ 189, x / 43, z / 43) * 7;
     }
 
     private static Column column(long seed, int x, int z) {
@@ -62,7 +62,7 @@ public final class ShaleCaves {
         int gx = (int)Math.floor(wx / 64), gz = (int)Math.floor(wz / 64);
         double clearance = -100, nearest = Double.MAX_VALUE;
         Chamber closest = null;
-        double width = 3.5 + noise(seed ^ 619, x / 27.0, z / 27.0) * 4;
+        double width = 2.2 + noise(seed ^ 619, x / 27.0, z / 27.0) * 5.5;
         for (int cx = gx - 1; cx <= gx + 1; cx++) for (int cz = gz - 1; cz <= gz + 1; cz++) {
             Chamber room = chamber(seed, cx, cz);
             double distance = Math.hypot(wx - room.x, (wz - room.z) * room.stretch);
@@ -75,13 +75,16 @@ public final class ShaleCaves {
         // Flatten chamber centres, with a smooth transition into the sloping passages.
         double flat = Math.clamp((.85 - nearest / closest.radius) / .5, 0, 1);
         flat = flat * flat * (3 - 2 * flat);
-        double floor = ground(seed, x, z) * (1 - flat) + Math.rint(ground(seed, closest.x, closest.z)) * flat;
+        double floor = ground(seed, x, z) * (1 - flat) + Math.rint(ground(seed, closest.x, closest.z) / 3) * 3 * flat;
         int cx = AuthoredForge.districtCenter(x), cz = AuthoredForge.districtCenter(z);
-        int shaftX = cx - 24;
+        int shaftX = cx - 39;
         Chamber landing = chamber(seed, (int)Math.round(shaftX / 64.0), (int)Math.round(cz / 64.0));
-        clearance = Math.max(clearance, 13 - Math.hypot(x - shaftX, z - cz));
+        clearance = Math.max(clearance, 16 - Math.hypot(x - shaftX, z - cz));
         clearance = Math.max(clearance, 6 - passage(x, z, shaftX, cz, landing.x, landing.z));
-        double height = 8 + noise(seed ^ 6197, x / 58.0, z / 58.0) * 15;
+        double chamberSpace = Math.clamp((closest.radius - nearest) / 9, 0, 1);
+        double height = 4.5 + noise(seed ^ 6197, x / 58.0, z / 58.0) * 4
+                + chamberSpace * (10 + noise(seed ^ 379, x / 83.0, z / 83.0) * 15);
+        height = Math.min(height, LabyrinthLevels.CAVE_ROOF_Y - 1 - floor);
         double round = Math.sqrt(Math.clamp(clearance / 7, 0, 1));
         return new Column(floor + height * (1 - round) * .5, floor + height * (1 + round) * .5, clearance);
     }
@@ -91,14 +94,21 @@ public final class ShaleCaves {
     public static void generate(ChunkAccess chunk, long seed) {
         if (chunk.getMinY() > LabyrinthLevels.CAVE_BOTTOM_Y) return;
         var pos = new BlockPos.MutableBlockPos();
+        int minX = chunk.getPos().getMinBlockX(), minZ = chunk.getPos().getMinBlockZ();
+        // A one-block border supplies all slope and puddle neighbours without resampling
+        // the chamber graph several times for every floor block.
+        Column[][] columns = new Column[18][18];
+        for (int dx = 0; dx < 18; dx++) for (int dz = 0; dz < 18; dz++)
+            columns[dx][dz] = column(seed, minX + dx - 1, minZ + dz - 1);
         for (int x = chunk.getPos().getMinBlockX(); x <= chunk.getPos().getMaxBlockX(); x++)
             for (int z = chunk.getPos().getMinBlockZ(); z <= chunk.getPos().getMaxBlockZ(); z++) {
-                Column cave = column(seed, x, z);
+                int dx = x - minX + 1, dz = z - minZ + 1;
+                Column cave = columns[dx][dz];
                 int floor = (int)Math.floor(cave.floor), roof = (int)Math.ceil(cave.roof);
                 boolean open = cave.clearance > .3 && roof - floor >= 4;
                 boolean puddle = open && cave.clearance > 5 && wet(seed, x, z)
-                        && floorY(seed, x - 1, z) >= floor && floorY(seed, x + 1, z) >= floor
-                        && floorY(seed, x, z - 1) >= floor && floorY(seed, x, z + 1) >= floor;
+                        && columns[dx - 1][dz].floor >= floor && columns[dx + 1][dz].floor >= floor
+                        && columns[dx][dz - 1].floor >= floor && columns[dx][dz + 1].floor >= floor;
                 for (int y = LabyrinthLevels.CAVE_BOTTOM_Y; y <= LabyrinthLevels.CAVE_ROOF_Y; y++) {
                     BlockState state;
                     if (y <= LabyrinthLevels.CAVE_BOTTOM_Y + 2) state = Blocks.BEDROCK.defaultBlockState();
@@ -107,7 +117,7 @@ public final class ShaleCaves {
                         state = rock(seed, x, y, z);
                         if (open && y == floor) {
                             if (puddle) state = Blocks.WATER.defaultBlockState();
-                            else if (!CatacombProtection.isOre(state)) state = smoothFloor(seed, x, z, cave.floor, state);
+                            else if (!CatacombProtection.isOre(state)) state = smoothFloor(seed, x, z, columns, dx, dz, state);
                         } else if (open && y == roof && !CatacombProtection.isOre(state)
                                 && cave.roof - Math.floor(cave.roof) < .5)
                             state = slab(shaded(seed, x, y, z)).defaultBlockState().setValue(SlabBlock.TYPE, SlabType.TOP);
@@ -123,7 +133,7 @@ public final class ShaleCaves {
                         chunk.setBlockState(pos, Asterion.ANCIENT_MOSS.defaultBlockState(), 0);
                         long plant = CatacombLayout.hash(seed ^ 727, x, z);
                         if (Math.floorMod(plant, 9) == 0)
-                            chunk.setBlockState(pos.set(x, floor + 1, z), Blocks.MOSS_CARPET.defaultBlockState(), 0);
+                            chunk.setBlockState(pos.set(x, floor + 1, z), Asterion.ANCIENT_MOSS_CARPET.defaultBlockState(), 0);
                         else if (Math.floorMod(plant, 23) == 0)
                             chunk.setBlockState(pos.set(x, floor + 1, z), Blocks.BROWN_MUSHROOM.defaultBlockState(), 0);
                     }
@@ -157,9 +167,8 @@ public final class ShaleCaves {
     private static BlockState revision() { return Blocks.LIGHT.defaultBlockState().setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 1); }
 
     private static boolean wet(long seed, int x, int z) {
-        double dx = x - Math.rint(x / 64.0) * 64, dz = z - Math.rint(z / 64.0) * 64;
-        return dx * dx + dz * dz < 20
-                || Math.sin(x * .14 + phase(seed)) + Math.cos(z * .12 - phase(seed)) > 1.25;
+        return noise(seed ^ 751, x / 23.0, z / 23.0) > .64
+                && noise(seed ^ 929, x / 7.0, z / 7.0) > .4;
     }
 
     private static boolean shaded(long seed, int x, int y, int z) {
@@ -180,7 +189,8 @@ public final class ShaleCaves {
         return base(dark).defaultBlockState();
     }
 
-    private static BlockState smoothFloor(long seed, int x, int z, double height, BlockState fallback) {
+    private static BlockState smoothFloor(long seed, int x, int z, Column[][] columns, int dx, int dz, BlockState fallback) {
+        double height = columns[dx][dz].floor;
         boolean dark = shaded(seed, x, (int)height, z);
         double fraction = height - Math.floor(height);
         if (fraction < .02) return fallback;
@@ -189,7 +199,7 @@ public final class ShaleCaves {
         Direction uphill = Direction.NORTH;
         double best = height;
         for (Direction direction : Direction.Plane.HORIZONTAL) {
-            double neighbor = column(seed, x + direction.getStepX(), z + direction.getStepZ()).floor;
+            double neighbor = columns[dx + direction.getStepX()][dz + direction.getStepZ()].floor;
             if (neighbor > best) { best = neighbor; uphill = direction; }
         }
         return stairs(dark).defaultBlockState().setValue(StairBlock.FACING, uphill);

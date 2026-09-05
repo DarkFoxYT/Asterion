@@ -1,8 +1,22 @@
 {
-  "type":"minecraft:block",
-  "pools":[{
-    "rolls":1,
-    "entries":[{"type":"minecraft:item","name":"asterion:skeleton"}],
-    "conditions":[{"condition":"minecraft:survives_explosion"}]
-  }]
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [{
+        "type": "minecraft:item",
+        "name": "minecraft:bone",
+        "functions": [{
+          "function": "minecraft:set_count",
+          "count": { "type": "minecraft:uniform", "min": 3, "max": 6 }
+        }]
+      }],
+      "conditions": [{ "condition": "minecraft:survives_explosion" }]
+    },
+    {
+      "rolls": 1,
+      "entries": [{ "type": "minecraft:item", "name": "minecraft:skeleton_skull" }],
+      "conditions": [{ "condition": "minecraft:survives_explosion" }]
+    }
+  ]
 }

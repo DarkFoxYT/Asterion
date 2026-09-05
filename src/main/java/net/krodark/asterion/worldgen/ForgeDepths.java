@@ -6,7 +6,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
@@ -46,8 +45,8 @@ public final class ForgeDepths {
                 : ((net.minecraft.world.level.WorldGenLevel)world).getLevel();
         BlockPos center = AuthoredForge.entranceCenter(level, chunk);
         int cx = center.getX(), cz = center.getZ(), feet = center.getY();
-        if (chunk.getMaxBlockX() < cx - 29 || chunk.getMinBlockX() > cx - 9
-                || chunk.getMaxBlockZ() < cz - 10 || chunk.getMinBlockZ() > cz + 10) return;
+        if (chunk.getMaxBlockX() < cx - 50 || chunk.getMinBlockX() > cx - 9
+                || chunk.getMaxBlockZ() < cz - 11 || chunk.getMinBlockZ() > cz + 11) return;
         var template = level.getStructureManager().get(Asterion.id("forge/staircase")).orElseThrow();
         var bottomPort = template.getJigsaws(BlockPos.ZERO, net.minecraft.world.level.block.Rotation.NONE).stream()
                 .filter(port -> port.info().pos().getY() == 1).findFirst().orElseThrow();
@@ -78,54 +77,10 @@ public final class ForgeDepths {
                 if (clip.isInside(pos)) world.setBlock(pos, Asterion.ANCIENT_BRICKS.defaultBlockState(), 18);
             }
         }
-        var masonry = Asterion.MAZESTEEL_BRICKS.defaultBlockState();
-        var plan = new java.util.HashMap<BlockPos, Cell>();
-        int shaftX = cx - 24;
-        int bottom = ShaleCaves.floorY(seed, shaftX, cz) + 1;
-        for (int x = shaftX - 2; x <= shaftX + 2; x++) for (int z = cz - 2; z <= cz + 2; z++) {
-            if (!inside(chunk, x, z)) continue;
-            for (int y = bottom - 1; y <= feet + 4; y++) {
-                boolean shell = Math.abs(x - shaftX) == 2 || Math.abs(z - cz) == 2 || y == bottom - 1 || y == feet + 4;
-                put(plan, new BlockPos(x, y, z), shell ? masonry : Blocks.AIR.defaultBlockState(), y == bottom - 1 ? 3 : shell ? 1 : 2);
-            }
-        }
-        for (int y = bottom; y <= feet; y++) if (inside(chunk, shaftX - 1, cz))
-            put(plan, new BlockPos(shaftX - 1, y, cz), Blocks.LADDER.defaultBlockState()
-                    .setValue(net.minecraft.world.level.block.LadderBlock.FACING, Direction.EAST), 5);
-
-        // Keep a bridge beside the ladder and open the shaft onto the stair's bottom landing.
-        for (int x = shaftX; x <= shaftX + 3; x++) for (int z = cz - 1; z <= cz + 1; z++) {
-            if (!inside(chunk, x, z)) continue;
-            put(plan, new BlockPos(x, feet - 1, z), Asterion.POLISHED_MAZESTEEL.defaultBlockState(), 4);
-            for (int y = feet; y <= feet + 3; y++) put(plan, new BlockPos(x, y, z), Blocks.AIR.defaultBlockState(), 4);
-        }
-        // Open the lowest landing into the cave instead of leaving a sealed ladder well.
-        for (int x = shaftX; x <= shaftX + 4; x++) for (int z = cz - 1; z <= cz + 1; z++)
-            if (inside(chunk, x, z)) for (int y = bottom; y <= bottom + 3; y++)
-                put(plan, new BlockPos(x, y, z), Blocks.AIR.defaultBlockState(), 4);
-        // Restore the ladder through the upper landing's floor opening.
-        if (inside(chunk, shaftX - 1, cz)) for (int y = bottom; y <= feet; y++)
-            put(plan, new BlockPos(shaftX - 1, y, cz), Blocks.LADDER.defaultBlockState()
-                    .setValue(net.minecraft.world.level.block.LadderBlock.FACING, Direction.EAST), 5);
-        for (var entry : plan.entrySet()) world.setBlock(entry.getKey(), entry.getValue().state(), 18);
+        ForgeCaveEntrance.place(world, chunk, seed, cx, cz, feet);
         world.setBlock(accessMarker(chunk), accessRevision(), 18);
     }
 
-    public static void repairAccess(net.minecraft.server.level.ServerLevel level, net.minecraft.world.level.chunk.LevelChunk chunk) {
-        if (!chunk.getBlockState(accessMarker(chunk.getPos())).equals(accessRevision())) carveAccess(level, chunk.getPos());
-    }
-
     private static BlockPos accessMarker(ChunkPos chunk) { return new BlockPos(chunk.getMinBlockX(), 15, chunk.getMinBlockZ()); }
-    private static BlockState accessRevision() { return Blocks.LIGHT.defaultBlockState().setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 4); }
-
-    private record Cell(BlockState state, int priority) {}
-    private static void put(java.util.Map<BlockPos, Cell> plan, BlockPos pos, BlockState state, int priority) {
-        Cell next = new Cell(state, priority);
-        plan.merge(pos, next, (old, value) -> value.priority() >= old.priority() ? value : old);
-    }
-
-    private static boolean inside(ChunkPos chunk, int x, int z) {
-        return x >= chunk.getMinBlockX() && x <= chunk.getMaxBlockX()
-                && z >= chunk.getMinBlockZ() && z <= chunk.getMaxBlockZ();
-    }
+    private static BlockState accessRevision() { return Blocks.LIGHT.defaultBlockState().setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 5); }
 }

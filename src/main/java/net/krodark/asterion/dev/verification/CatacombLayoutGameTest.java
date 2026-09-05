@@ -22,9 +22,11 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                 PurityRemovalCheck.run();
                 GameplayFixCheck.run(server);
                 MinotaurWeaponDropCheck.run(server.overworld());
+                RefugeAndHarvestCheck.run(server);
                 QueenQuestCheck.run(server);
                 var level=server.getLevel(Asterion.ASTERION_LEVEL);
                 FloodSpreadCheck.run(level);
+                SkeletonLootCheck.run(server);
                 ShaleCavesCheck.run(level);
                 // Runtime installs arena pieces from completed chunk callbacks. This test
                 // intentionally forces all pieces so it can inspect the entire 123x123 build.
@@ -174,6 +176,12 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                 check(player.getY()==AuthoredCatacombs.ARENA_FLOOR_Y,"Party entry used old arena elevation");
                 check(level.noCollision(player),"Party entry placed player in masonry");
                 BossArenaEncounter.finish(level);
+                MinotaurArenaEntrances.setGates(level, MinotaurArenaEntrances.gateHeight(), null);
+                BossArenaEncounter.finishDefeated(level);
+                check(level.getBlockState(MinotaurArenaEntrances.gate(MinotaurArenaEntrances.PLAYER_ENTRANCE))
+                        .getValue(net.krodark.asterion.block.DirectionalGateBlock.OPEN), "Victory left the entry gate closed");
+                check(level.getBlockState(MinotaurArenaEntrances.door(MinotaurArenaEntrances.PLAYER_ENTRANCE))
+                        .getValue(net.krodark.asterion.block.MinotaurDoorBlock.OPEN), "Victory left the keyed door closed");
                 boss.discard();
                 Asterion.LOGGER.info("PASS: authored arena boss spawn, safe party entry without generated arena fixtures");
             });

@@ -67,7 +67,8 @@ public final class AuthoredForge {
         }
         repairEmptyChunk(level, chunk);
         ShaleCaves.repairEmptyChunk(chunk, MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState()));
-        ForgeDepths.repairAccess(level, chunk);
+        // Entrances are placed during generation, after reserving their entire footprint.
+        // Retrofitting the wider spiral on load would cut into older rooms and builds.
     }
 
     public static void repairEmptyChunk(ServerLevel level, net.minecraft.world.level.chunk.LevelChunk chunk) {
@@ -316,6 +317,9 @@ public final class AuthoredForge {
                     // Reserve only the compact stair module beside the west jigsaw.
                     if (bounds.intersects(new BoundingBox(center - 28, 28, center - 9,
                             center - 19, 78, center + 9))) continue;
+                    // Leave rock around the descending cave mouth before attaching rooms.
+                    if (bounds.intersects(new BoundingBox(center - 50, LabyrinthLevels.CAVE_BOTTOM_Y + 3, center - 11,
+                            center - 19, 36, center + 11))) continue;
                     if (placed.stream().anyMatch(other -> other.bounds().intersects(candidate.bounds()))) continue;
                     long centerX = (long)candidate.bounds().minX() + candidate.bounds().maxX();
                     long centerZ = (long)candidate.bounds().minZ() + candidate.bounds().maxZ();

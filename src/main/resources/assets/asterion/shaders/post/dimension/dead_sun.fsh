@@ -160,6 +160,9 @@ void main() {
     // Emissive corona pixels do not intersect the sphere itself, so they need their own
     // scene-depth gate. Without it the Eclipse ring remains visible through maze walls.
     float sunVisibility = step(centerDistance - Sun.w * 1.20, geometryDistance);
+    // Cross-product distance also vanishes directly away from the sun. Restrict the
+    // halo and eclipse mask to the forward ray, just like the sphere intersection.
+    sunVisibility *= step(0.0, dot(direction, toSun));
     float halo = exp(-max(radial - 0.82, 0.0) * (6.5 / max(Tuning.z, 0.08)));
     halo *= 1.0 - smoothstep(1.75 + Tuning.z * 0.3, 2.05 + Tuning.z * 0.3, radial);
     halo *= sunVisibility;

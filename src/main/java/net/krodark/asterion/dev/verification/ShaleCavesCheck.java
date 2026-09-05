@@ -16,7 +16,8 @@ final class ShaleCavesCheck {
         check(level.getMinY() == -64 && level.getMaxY() == 303, "Caves moved the upper world boundary");
         long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
         var ores = new java.util.HashSet<net.minecraft.world.level.block.Block>();
-        int water = 0, stairs = 0, slabs = 0, spikes = 0, air = 0, growth = 0, flats = 0;
+        int water = 0, stairs = 0, slabs = 0, spikes = 0, air = 0, growth = 0, flats = 0, carpets = 0;
+        var floorLevels = new java.util.HashSet<Integer>();
         BlockPos spawn = null;
         for (int cx = 0; cx < 4; cx++) for (int cz = 0; cz < 4; cz++) {
             var chunk = level.getChunk(cx, cz);
@@ -29,6 +30,10 @@ final class ShaleCavesCheck {
                 if (state.getBlock() instanceof WallBlock) spikes++;
                 if (state.isAir()) air++;
                 if (state.is(Asterion.ANCIENT_MOSS)) growth++;
+                if (state.is(Asterion.ANCIENT_MOSS_CARPET)) carpets++;
+                check(!state.is(Blocks.MOSS_CARPET), "Cave used vanilla moss carpet");
+                if (state.isAir() && pos.getY() == ShaleCaves.floorY(seed, pos.getX(), pos.getZ()) + 1)
+                    floorLevels.add(pos.getY());
                 if (state.isAir() && pos.getY() == ShaleCaves.floorY(seed, pos.getX(), pos.getZ()) + 1
                         && ShaleCaves.floorY(seed, pos.getX() + 1, pos.getZ()) == pos.getY() - 1
                         && ShaleCaves.floorY(seed, pos.getX(), pos.getZ() + 1) == pos.getY() - 1) flats++;
@@ -41,6 +46,7 @@ final class ShaleCavesCheck {
         check(air > 5000 && water > 0 && stairs > 50 && slabs > 50 && spikes > 0,
                 "Missing cave detail: " + air + "/" + water + "/" + stairs + "/" + slabs + "/" + spikes);
         check(growth > 0 && flats > 100, "Caves lack growth or flat ground: " + growth + "/" + flats);
+        check(carpets > 0 && floorLevels.size() >= 8, "Missing custom carpets or cave elevations");
         check(spawn != null, "No supported cave floor");
         var centipede = Asterion.SCARLET_CENTIPEDE.create(level, net.minecraft.world.entity.EntitySpawnReason.NATURAL);
         centipede.setPos(spawn.getX() + .5, spawn.getY(), spawn.getZ() + .5);
@@ -64,7 +70,7 @@ final class ShaleCavesCheck {
         level.setBlock(oldSocket, Blocks.STONE.defaultBlockState(), 18);
         ForgeDepths.carveAccess(level, net.minecraft.world.level.ChunkPos.containing(oldSocket));
         check(clear(level, oldSocket), "Stair repair left the old neighbouring socket sealed");
-        int shaftX = center - 24;
+        int shaftX = center - 32;
         int bottom = ShaleCaves.floorY(seed, shaftX, center) + 1;
         check(route(level, door, new BlockPos(shaftX, bottom, center), center), "Forge does not reach its cave landing");
         checkNetwork(level, -4);
@@ -81,10 +87,22 @@ final class ShaleCavesCheck {
             level.getChunkAt(pos);
             check(level.getBlockState(pos.below()).isAir(), "Generated boundary hallway remains at " + pos);
         }
-        for (int cx = (center - 30) >> 4; cx <= (center - 10) >> 4; cx++)
-            for (int cz = (center - 10) >> 4; cz <= (center + 10) >> 4; cz++) level.getChunk(cx, cz);
+        for (int cx = (center - 52) >> 4; cx <= (center - 10) >> 4; cx++)
+            for (int cz = (center - 12) >> 4; cz <= (center + 12) >> 4; cz++) level.getChunk(cx, cz);
         check(route(level, stairEntry(level, center), new BlockPos(center - 18, 29, center), center),
                 "Compact stair does not connect both jigsaws at " + center);
+        long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
+        BlockPos cave = new BlockPos(center - 32, ShaleCaves.floorY(seed, center - 32, center) + 1, center);
+        check(route(level, new BlockPos(center - 18, 29, center), cave, center), "Spiral descent is not walkable at " + center);
+        var stair = level.getStructureManager().get(Asterion.id("forge/staircase")).orElseThrow();
+        var origin = new BlockPos(center - 28, 28, center - 9);
+        for (var block : stair.filterBlocks(origin, new net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings(),
+                Asterion.POLISHED_MAZESTEEL_STAIRS))
+            check(level.getBlockState(block.pos()).equals(block.state()), "Cave entrance cut a Forge stair at " + block.pos());
+        for (var pos : BlockPos.betweenClosed(center - 49, 16, center - 10, center - 29, 35, center + 10)) {
+            check(!level.getBlockState(pos).is(Blocks.LADDER), "Cave descent still uses ladders");
+            check(!AuthoredForge.contains(level, pos), "A Forge room overlaps the spiral reservation");
+        }
         int crucibles = 0, rooms = 0;
         for (BlockPos pos : BlockPos.betweenClosed(center - 18, 16, center - 12, center + 18, 45, center + 12)) {
             level.getChunkAt(pos);
