@@ -28,8 +28,8 @@ import org.joml.Vector3f;
 /** Persistent, server-authoritative weapon body. Never becomes a placed block or collectible item. */
 public final class MinotaurAxeEntity extends Entity {
     public static final double GRIP_Y = 45 / 16.0;
-    private static final double MODEL_MIN_Y = 15 - 6 * Math.sqrt(2);
-    public static final double CENTER_Y = (114 + MODEL_MIN_Y) / 32.0;
+    private static final double MODEL_MIN_Y = -6 * Math.sqrt(2);
+    public static final double CENTER_Y = (99 + MODEL_MIN_Y) / 32.0;
     private static final double SWORD_MIN_Y = -13 - 6 * Math.sqrt(2);
     public static final double SWORD_CENTER_Y = (78 + SWORD_MIN_Y) / 32.0 + 6 / 16.0;
     private static final EntityDataAccessor<Boolean> SWORD = SynchedEntityData.defineId(MinotaurAxeEntity.class, EntityDataSerializers.BOOLEAN);
@@ -232,7 +232,7 @@ public final class MinotaurAxeEntity extends Entity {
     // Include the blade plane and the rotated pommel, rather than using an item-sized hitbox.
     private Vec3 half() {
         return (isSword() ? new Vec3(2.5 / 16, (78 - SWORD_MIN_Y) / 32.0, 14.2 / 16)
-                : new Vec3(2, (114 - MODEL_MIN_Y) / 32.0, 2.75 / 16)).scale(modelScale());
+                : new Vec3(2, (99 - MODEL_MIN_Y) / 32.0, 2.75 / 16)).scale(modelScale());
     }
     private Vec3[] axes() {
         Vec3[] result = new Vec3[3];

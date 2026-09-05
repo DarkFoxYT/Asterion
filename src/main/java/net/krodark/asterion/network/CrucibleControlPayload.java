@@ -12,6 +12,7 @@ public record CrucibleControlPayload(BlockPos pos, int action) implements Custom
     public static final int HEAT = 1;
     public static final int NEXT_MOLD = 2;
     public static final int POUR = 3;
+    public static final int SMELT = 4;
     /** Actions 16-51 feed one item from the matching player inventory slot. */
     public static final int INSERT_SLOT_BASE = 16;
     public static final int REMOVE_MATERIAL_BASE = 64;

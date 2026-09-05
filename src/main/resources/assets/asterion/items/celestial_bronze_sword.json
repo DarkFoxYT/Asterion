@@ -1,1 +1,27 @@
-{"model":{"type":"minecraft:model","model":"asterion:item/celestial_bronze_sword"}}
+{
+  "model": {
+    "type": "minecraft:range_dispatch",
+    "property": "minecraft:custom_model_data",
+    "index": 0,
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "asterion:item/celestial_bronze_sword"
+    },
+    "entries": [
+      {
+        "threshold": 1,
+        "model": {
+          "type": "minecraft:model",
+          "model": "asterion:item/ancient_skeleton_blade"
+        }
+      },
+      {
+        "threshold": 2,
+        "model": {
+          "type": "minecraft:model",
+          "model": "asterion:item/ancient_skeleton_cleaver"
+        }
+      }
+    ]
+  }
+}

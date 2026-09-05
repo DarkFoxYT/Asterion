@@ -1,1 +1,6 @@
-{"parent":"minecraft:item/generated","textures":{"layer0":"minecraft:item/iron_sword"}}
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "asterion:gui/forge/bottom_center/blade_mold"
+  }
+}

@@ -16,7 +16,7 @@ final class MinotaurPoseBlend {
     private static final class History {
         int pose = -1;
         double start, lastAge = -1;
-        Map<String, float[]> last = new HashMap<>(), from = Map.of();
+        final Map<String, float[]> last = new HashMap<>(), from = new HashMap<>();
     }
     static void capture(MinotaurEntity boss, EntityRenderState state, float partial) {
         if (partial == 1) partial = net.minecraft.client.Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
@@ -30,17 +30,19 @@ final class MinotaurPoseBlend {
         double age = Math.max(history.lastAge, frame.age);
         boolean changed = frame.pose != history.pose;
         if (changed) {
-            history.from = history.last;
+            history.from.clear();
+            history.last.forEach((name, values) -> history.from.put(name, values.clone()));
             history.pose = frame.pose;
             history.start = age;
         }
         float t = (float)Math.clamp((age - history.start) / 6, 0, 1);
         float blend = t * t * (3 - 2 * t);
-        Map<String, float[]> next = new HashMap<>();
         for (var bone : pass.model().boneLookup().get().values()) {
             var pose = bones.get(bone);
-            float[] target = {pose.getRotX(), pose.getRotY(), pose.getRotZ(), pose.getTranslateX(),
-                    pose.getTranslateY(), pose.getTranslateZ(), pose.getScaleX(), pose.getScaleY(), pose.getScaleZ()};
+            float[] target = history.last.computeIfAbsent(bone.name(), name -> new float[9]);
+            target[0] = pose.getRotX(); target[1] = pose.getRotY(); target[2] = pose.getRotZ();
+            target[3] = pose.getTranslateX(); target[4] = pose.getTranslateY(); target[5] = pose.getTranslateZ();
+            target[6] = pose.getScaleX(); target[7] = pose.getScaleY(); target[8] = pose.getScaleZ();
             float[] previous = history.from.get(bone.name());
             if (previous != null && t < 1) for (int i = 0; i < 9; i++) {
                 float difference = target[i] - previous[i];
@@ -50,10 +52,8 @@ final class MinotaurPoseBlend {
             pose.setRotation(target[0], target[1], target[2]);
             pose.setTranslation(target[3], target[4], target[5]);
             pose.setScale(target[6], target[7], target[8]);
-            next.put(bone.name(), target);
         }
-        history.last = next;
         history.lastAge = age;
-        if (t >= 1) history.from = Map.of();
+        if (t >= 1) history.from.clear();
     }
 }

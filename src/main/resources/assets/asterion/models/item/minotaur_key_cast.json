@@ -1,7 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "minecraft:item/brick",
-    "layer1": "asterion:item/minotaur_boss_key"
+    "layer0": "asterion:gui/forge/bottom_center/minotaur_key_mold"
   }
 }

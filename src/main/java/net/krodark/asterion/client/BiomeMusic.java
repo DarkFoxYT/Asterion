@@ -61,12 +61,12 @@ public final class BiomeMusic {
 
     public static String group(int biome, boolean arena) {
         return arena ? "arena" : switch (biome) {
-            case 0, 3, 4 -> "ancient"; case 1 -> "overgrown"; case 2 -> "crimsonmarshlands"; default -> "";
+            case 0, 3 -> "ancient"; case 4 -> "forge"; case 1 -> "overgrown"; case 2 -> "crimsonmarshlands"; default -> "";
         };
     }
 
     public static float gain(String group) {
-        return switch (group) { case "ancient" -> .12F; case "arena" -> .55F; default -> .32F; };
+        return switch (group) { case "ancient" -> .12F; case "forge" -> .24F; case "arena" -> .55F; default -> .32F; };
     }
 
     private static void tick(Minecraft client) {
@@ -91,7 +91,9 @@ public final class BiomeMusic {
         // alone cannot distinguish victory from an active encounter.
         boolean victory = !arena && WorldGenerator.isInsideBossArena(client.player.position())
                 && (defeatedBossNearby || AsterionPortalRenderer.isOpen());
-        String desired = victory ? "victory" : group(biome, arena);
+        int musicBiome = biome == 4 && client.player.getY()
+                < net.krodark.asterion.worldgen.LabyrinthLevels.CAVE_ROOF_Y ? 3 : biome;
+        String desired = victory ? "victory" : group(musicBiome, arena);
         if (!desired.equals(lastGroup)) {
             if (victory) stop(client);
             gap = 0;

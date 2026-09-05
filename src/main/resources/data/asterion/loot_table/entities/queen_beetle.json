@@ -1,0 +1,17 @@
+{
+  "type":"minecraft:entity",
+  "pools":[
+    {"rolls":{"type":"minecraft:uniform","min":2,"max":4},"entries":[
+      {"type":"minecraft:item","name":"asterion:ancient_bone","weight":12,"functions":[{"function":"minecraft:set_count","count":{"type":"minecraft:uniform","min":1,"max":3}}]},
+      {"type":"minecraft:item","name":"asterion:deadwood_stick","weight":8,"functions":[{"function":"minecraft:set_count","count":{"type":"minecraft:uniform","min":2,"max":6}}]},
+      {"type":"minecraft:item","name":"asterion:tarnished_gold_ingot","weight":6,"functions":[{"function":"minecraft:set_count","count":{"type":"minecraft:uniform","min":1,"max":2}}]},
+      {"type":"minecraft:item","name":"asterion:bonesteel_ingot","weight":3},
+      {"type":"minecraft:item","name":"asterion:celestial_bronze_ingot","weight":1}
+    ]},
+    {"rolls":1,"conditions":[{"condition":"minecraft:random_chance","chance":0.025}],"entries":[
+      {"type":"minecraft:item","name":"asterion:celestial_gold_ingot","weight":3},
+      {"type":"minecraft:item","name":"asterion:celestial_steel_ingot","weight":1}
+    ]}
+  ],
+  "random_sequence":"asterion:entities/queen_beetle"
+}

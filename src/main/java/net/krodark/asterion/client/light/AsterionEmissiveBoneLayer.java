@@ -25,6 +25,7 @@ public class AsterionEmissiveBoneLayer<T extends GeoAnimatable, O, R extends Geo
     protected Identifier amneticEmissionMesh(R state) { return null; }
     /** Flat crossed flames need their reverse faces; enclosed glow shells keep culling enabled. */
     protected boolean backfaceCulling(R state) { return true; }
+    protected boolean usesModelTextureCoordinates() { return false; }
     protected int emissiveColor(R state) { return 0xFFFFFFFF; }
 
     @Override
@@ -35,7 +36,7 @@ public class AsterionEmissiveBoneLayer<T extends GeoAnimatable, O, R extends Geo
         Identifier base = this.renderer.getTextureLocation(state);
         float widthRatio = 1f, heightRatio = 1f;
         // The current eye/vine/rune layers share their model atlas, avoiding dimension lookups.
-        if (!texture.equals(base)) {
+        if (!texture.equals(base) && !usesModelTextureCoordinates()) {
             var size = RenderUtil.getTextureDimensions(texture);
             var baseSize = RenderUtil.getTextureDimensions(base);
             widthRatio = baseSize.firstInt() / (float) size.firstInt();

@@ -14,6 +14,8 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 public final class BossEntranceCinematic {
+    private static final int[] SOUND_BEATS = {14, 44, 78};
+    private static final int[] IMPACT_BEATS = {14, 44, 78, 112};
     private static boolean active, showShot, finished;
     private static int ticks, duration, lastSoundTick;
     private static Direction door;
@@ -75,7 +77,7 @@ public final class BossEntranceCinematic {
     }
 
     private static void playCinematicSounds(Minecraft client) {
-        for (int beat : new int[]{14, 44, 78}) if (lastSoundTick < beat && ticks >= beat)
+        for (int beat : SOUND_BEATS) if (lastSoundTick < beat && ticks >= beat)
             client.getSoundManager().play(SimpleSoundInstance.forUI(Asterion.METAL_HIT,
                     beat == 78 ? 0.40F : beat == 44 ? .49F : 0.58F,
                     beat == 78 ? 3.4F : beat == 44 ? 2.45F : 1.8F));
@@ -92,25 +94,26 @@ public final class BossEntranceCinematic {
         Vec3 inward = door.getOpposite().getUnitVec3();
         Vec3 doorway = Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(door));
         float recoil = MinotaurDoorMotion.ease((time - 108) / 32F);
-        Vec3 doorShot = doorway.add(inward.scale(10.5 + recoil * 3.0)).add(0, 1.35 + recoil * .45, 0);
+        Vec3 doorShot = doorway.add(inward.scale(10.5 + recoil * 1.2)).add(0, 1.35 + recoil * .2, 0);
         // Ease across a longer dolly instead of snapping from the player's eyes to
         // the reveal angle during the first second of the sequence.
-        float approach = smootherStep(time / 44F);
+        float approach = smootherStep(time / 64F);
         Vec3 camera = (openingEye == null ? playerEye : openingEye).lerp(doorShot, approach);
         float impact = 0;
-        for (int beat : new int[]{14, 44, 78, 112}) {
+        for (int beat : IMPACT_BEATS) {
             float age = time - beat;
-            if (age >= 0 && age < 16) impact += (beat == 112 ? .48F
-                    : beat == 78 ? .22F : .12F) * (1 - age / 16F);
+            if (age >= 0 && age < 16) impact += (beat == 112 ? .15F
+                    : beat == 78 ? .07F : .035F) * (float)Math.pow(Math.sin(Math.PI * age / 16F), 2);
         }
         camera = camera.add(Math.sin(time * 2.7) * impact, Math.cos(time * 3.4) * impact * .65, 0);
         Vec3 focus = doorway.add(inward.scale(1.2)).add(0, 3.15, 0);
-        float returning = smootherStep((time - (duration - 42)) / 42F);
+        float returning = smootherStep((time - (duration - 60)) / 60F);
         camera = camera.lerp(playerEye, returning);
         Vec3 delta = focus.subtract(camera);
         float yaw = (float)Math.toDegrees(Math.atan2(-delta.x, delta.z));
         float pitch = (float)-Math.toDegrees(Math.atan2(delta.y, delta.horizontalDistance()));
-        return new CameraPose(camera, Mth.rotLerp(returning, yaw, returnYaw), Mth.lerp(returning, pitch, returnPitch));
+        return new CameraPose(camera, Mth.rotLerp(returning, Mth.rotLerp(approach, returnYaw, yaw), returnYaw),
+                Mth.lerp(returning, Mth.lerp(approach, returnPitch, pitch), returnPitch));
     }
 
     private static float smootherStep(float value) {

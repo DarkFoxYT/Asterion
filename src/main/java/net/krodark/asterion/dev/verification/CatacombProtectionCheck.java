@@ -22,6 +22,8 @@ final class CatacombProtectionCheck {
         var oldMode = player.gameMode.getGameModeForPlayer();
         ItemStack oldItem = player.getMainHandItem().copy();
         var maze = server.getLevel(Asterion.ASTERION_LEVEL);
+        var clock = (net.minecraft.world.level.storage.ServerLevelData)server.overworld().getLevelData();
+        long originalTime = maze.getGameTime();
         BlockPos pos = new BlockPos(320, net.krodark.asterion.worldgen.CatacombLayout.FLOOR_Y, 320);
         try {
             player.teleportTo(maze,324.5,pos.getY(),320.5,Set.of(),0,0,true);
@@ -36,6 +38,9 @@ final class CatacombProtectionCheck {
                 var hit = new BlockHitResult(Vec3.atCenterOf(pos.below()).add(0,.5,0),Direction.UP,pos.below(),false);
                 ((BlockItem)Items.STONE).place(new BlockPlaceContext(new UseOnContext(player,InteractionHand.MAIN_HAND,hit)));
                 check(maze.getBlockState(pos).is(Blocks.STONE),"Player placement was rejected in catacombs");
+                clock.setGameTime(clock.getGameTime() + 4001);
+                net.krodark.asterion.WorldGenerator.tickServer(server);
+                check(maze.getBlockState(pos).is(Blocks.STONE), "Player block disappeared after the old decay deadline");
                 maze.setBlock(pos,Blocks.DIAMOND_ORE.defaultBlockState(),2);
                 check(player.gameMode.destroyBlock(pos) && maze.getBlockState(pos).isAir(),"Player could not permanently mine catacomb ore in " + mode);
                 check(!((BucketItem)Items.WATER_BUCKET).emptyContents(player,maze,pos,null),"Bucket bypassed protection");
@@ -51,8 +56,9 @@ final class CatacombProtectionCheck {
             player.teleportTo(original,oldPos.x,oldPos.y,oldPos.z,Set.of(),0,0,true);
             original.setBlock(pos,Blocks.STONE.defaultBlockState(),2);
             check(player.gameMode.destroyBlock(pos),"Protection leaked into overworld");
-            Asterion.LOGGER.info("PASS: catacomb masonry can be broken for timed repair; buckets stay protected, ores remain permanent and temporary placement is accepted");
+            Asterion.LOGGER.info("PASS: catacomb masonry can be broken for timed repair; buckets stay protected, ores remain permanent and permanent placement is accepted");
         } finally {
+            clock.setGameTime(originalTime);
             player.teleportTo(original,oldPos.x,oldPos.y,oldPos.z,Set.of(),0,0,true);
             player.setGameMode(oldMode);
             player.setItemInHand(InteractionHand.MAIN_HAND,oldItem);

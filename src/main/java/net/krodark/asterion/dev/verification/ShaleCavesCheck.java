@@ -17,12 +17,15 @@ final class ShaleCavesCheck {
         long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
         var ores = new java.util.HashSet<net.minecraft.world.level.block.Block>();
         int water = 0, stairs = 0, slabs = 0, spikes = 0, air = 0, growth = 0, flats = 0, carpets = 0;
+        int underwaterVines = 0;
         var floorLevels = new java.util.HashSet<Integer>();
         BlockPos spawn = null;
         for (int cx = 0; cx < 4; cx++) for (int cz = 0; cz < 4; cz++) {
             var chunk = level.getChunk(cx, cz);
             for (BlockPos pos : BlockPos.betweenClosed(cx * 16, -61, cz * 16, cx * 16 + 15, 13, cz * 16 + 15)) {
                 var state = chunk.getBlockState(pos);
+                check(!state.is(Blocks.BEDROCK) && !state.is(Blocks.REINFORCED_DEEPSLATE),
+                        "Forbidden vanilla boundary block generated at " + pos);
                 if (CatacombProtection.isOre(state)) ores.add(state.getBlock());
                 if (state.is(Blocks.WATER)) water++;
                 if (state.getBlock() instanceof StairBlock) stairs++;
@@ -31,6 +34,7 @@ final class ShaleCavesCheck {
                 if (state.isAir()) air++;
                 if (state.is(Asterion.ANCIENT_MOSS)) growth++;
                 if (state.is(Asterion.ANCIENT_MOSS_CARPET)) carpets++;
+                if (state.is(Asterion.LABYRINTH_VINE) && state.getFluidState().isSource()) underwaterVines++;
                 check(!state.is(Blocks.MOSS_CARPET), "Cave used vanilla moss carpet");
                 if (state.isAir() && pos.getY() == ShaleCaves.floorY(seed, pos.getX(), pos.getZ()) + 1)
                     floorLevels.add(pos.getY());
@@ -47,6 +51,7 @@ final class ShaleCavesCheck {
                 "Missing cave detail: " + air + "/" + water + "/" + stairs + "/" + slabs + "/" + spikes);
         check(growth > 0 && flats > 100, "Caves lack growth or flat ground: " + growth + "/" + flats);
         check(carpets > 0 && floorLevels.size() >= 8, "Missing custom carpets or cave elevations");
+        check(underwaterVines > 0, "Missing rare underwater cave lights");
         check(spawn != null, "No supported cave floor");
         var centipede = Asterion.SCARLET_CENTIPEDE.create(level, net.minecraft.world.entity.EntitySpawnReason.NATURAL);
         centipede.setPos(spawn.getX() + .5, spawn.getY(), spawn.getZ() + .5);
@@ -85,7 +90,8 @@ final class ShaleCavesCheck {
         for (int offset = 0; offset <= AuthoredForge.DISTRICT_SPACING; offset += 8) {
             BlockPos pos = new BlockPos(edge + offset, 29, edge);
             level.getChunkAt(pos);
-            check(level.getBlockState(pos.below()).isAir(), "Generated boundary hallway remains at " + pos);
+            check(level.getBlockState(pos.below()).is(Asterion.SHALE) || level.getBlockState(pos.below()).is(Asterion.SHADED_SHALE),
+                    "Unbuilt Forge boundary is hollow or contains an artificial hallway at " + pos);
         }
         for (int cx = (center - 52) >> 4; cx <= (center - 10) >> 4; cx++)
             for (int cz = (center - 12) >> 4; cz <= (center + 12) >> 4; cz++) level.getChunk(cx, cz);
@@ -93,6 +99,9 @@ final class ShaleCavesCheck {
                 "Compact stair does not connect both jigsaws at " + center);
         long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
         BlockPos cave = new BlockPos(center - 32, ShaleCaves.floorY(seed, center - 32, center) + 1, center);
+        BlockPos liftAnchor = new BlockPos(center - 39, cave.getY() - 1, center);
+        check(level.getBlockState(liftAnchor).is(net.krodark.asterion.game.ChainLiftContent.ANCHOR), "Missing generated chain lift at " + liftAnchor);
+        check(net.krodark.asterion.block.ChainLiftBlockEntity.findCeiling(level, liftAnchor) == 28, "Generated lift shaft is obstructed");
         check(route(level, new BlockPos(center - 18, 29, center), cave, center), "Spiral descent is not walkable at " + center);
         var stair = level.getStructureManager().get(Asterion.id("forge/staircase")).orElseThrow();
         var origin = new BlockPos(center - 28, 28, center - 9);

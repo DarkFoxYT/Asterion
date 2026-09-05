@@ -38,7 +38,7 @@ final class ForgeCaveEntrance {
             int previousFeet = spiralTop - (int)Math.floor((spiralTop - bottom) * Math.max(0, i - 1) / (double)steps);
             Direction uphill = Direction.getApproximateNearest(previous.getX() - local.getX(), 0,
                     previous.getZ() - local.getZ());
-            boolean dark = feet < -24;
+            boolean dark = ShaleCaves.shaded(seed, x, feet - 1, z);
             BlockState rock = (dark ? Asterion.SHADED_SHALE : Asterion.SHALE).defaultBlockState();
             for (int dx = -4; dx <= 4; dx++) for (int dz = -4; dz <= 4; dz++) {
                 int px = x + dx, pz = z + dz;
@@ -54,7 +54,7 @@ final class ForgeCaveEntrance {
                     boolean stairShell = px >= cx - 28 && px <= cx - 19
                             && Math.abs(pz - cz) <= 9 && y >= 28;
                     if (!stairShell && (y > LabyrinthLevels.CAVE_ROOF_Y || feet > bottom + 5))
-                        put(plan, new BlockPos(px, y, pz), rock, 0);
+                        put(plan, new BlockPos(px, y, pz), rock(seed, px, y, pz), 0);
                 }
                 if (distance > 2) continue;
                 BlockState floor = previousFeet > feet && i > 0 && i < steps
@@ -77,16 +77,51 @@ final class ForgeCaveEntrance {
                 if (Math.abs(side) > 1) {
                     if (feet == upperFeet && x < cx - 28)
                         for (int y = feet - 2; y <= feet + 5 - Math.abs(side); y++)
-                            put(plan, new BlockPos(x, y, z), Asterion.SHALE.defaultBlockState(), 0);
+                            put(plan, new BlockPos(x, y, z), rock(seed, x, y, z), 0);
                     continue;
                 }
-                put(plan, new BlockPos(x, feet - 1, z), (feet < -24 ? Asterion.SHADED_SHALE : Asterion.SHALE).defaultBlockState(), 4);
+                put(plan, new BlockPos(x, feet - 1, z), rock(seed, x, feet - 1, z), 4);
                 for (int y = feet; y < feet + 4; y++) put(plan, new BlockPos(x, y, z), Blocks.AIR.defaultBlockState(), 4);
                 if (feet == upperFeet && x < cx - 28)
-                    put(plan, new BlockPos(x, feet + 4, z), Asterion.SHALE.defaultBlockState(), 0);
+                    put(plan, new BlockPos(x, feet + 4, z), rock(seed, x, feet + 4, z), 0);
             }
         }
         plan.forEach((pos, cell) -> level.setBlock(pos, cell.state, 18));
+        placeLift(level, chunk, seed, cx - 39, cz, bottom, spiralTop);
+    }
+
+    private static void placeLift(ServerLevelAccessor level, ChunkPos chunk, long seed, int cx, int cz, int bottom, int top) {
+        for (int x = cx - 3; x <= cx + 7; x++) for (int z = cz - 3; z <= cz + 3; z++) {
+            if (x < chunk.getMinBlockX() || x > chunk.getMaxBlockX() || z < chunk.getMinBlockZ() || z > chunk.getMaxBlockZ()) continue;
+            int dx = x - cx, dz = z - cz;
+            for (int y = bottom - 1; y <= top + 3; y++) {
+                BlockPos pos = new BlockPos(x, y, z);
+                if (Math.abs(dx) <= 3) {
+                    int radius = 2 + (int)(CatacombLayout.hash(seed + y / 3, x, z) & 1);
+                    boolean interior = Math.abs(dx) <= radius && Math.abs(dz) <= radius && y >= bottom && y < top + 3;
+                    level.setBlock(pos, interior ? Blocks.AIR.defaultBlockState() : rock(seed, x, y, z), 18);
+                }
+                // Two short cave mouths meet the existing spiral landings; the shaft stays open between them.
+                if (dx >= 2 && Math.abs(dz) <= 1) {
+                    if (y == bottom - 1 || y == top - 1) level.setBlock(pos, rock(seed, x, y, z), 18);
+                    else if (y >= bottom && y <= bottom + 2 || y >= top && y <= top + 2)
+                        level.setBlock(pos, Blocks.AIR.defaultBlockState(), 18);
+                }
+            }
+        }
+        BlockPos anchor = new BlockPos(cx, bottom - 1, cz);
+        for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) {
+            BlockPos support = anchor.offset(dx, 0, dz);
+            if (chunk.getMinBlockX() <= support.getX() && support.getX() <= chunk.getMaxBlockX()
+                    && chunk.getMinBlockZ() <= support.getZ() && support.getZ() <= chunk.getMaxBlockZ())
+                level.setBlock(support, Asterion.SHADED_SHALE_SLAB.defaultBlockState(), 18);
+        }
+        if (chunk.getMinBlockX() <= cx && cx <= chunk.getMaxBlockX() && chunk.getMinBlockZ() <= cz && cz <= chunk.getMaxBlockZ())
+            level.setBlock(anchor, net.krodark.asterion.game.ChainLiftContent.ANCHOR.defaultBlockState(), 18);
+    }
+
+    private static BlockState rock(long seed, int x, int y, int z) {
+        return (ShaleCaves.shaded(seed, x, y, z) ? Asterion.SHADED_SHALE : Asterion.SHALE).defaultBlockState();
     }
 
     private static void put(Map<BlockPos, Cell> plan, BlockPos pos, BlockState state, int priority) {

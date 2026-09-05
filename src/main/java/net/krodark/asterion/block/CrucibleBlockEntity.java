@@ -12,7 +12,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.FuelValues;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -51,6 +50,8 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     private int celestialSteel;
     private int celestialGold;
     private int regularGold;
+    private int mazesteel;
+    private int ancientBones;
     private int carbon;
     private int pouringTicks;
     private int autoPourTicks;
@@ -85,8 +86,10 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     public int autoPourProgress() { return autoPourTicks; }
     public int selectedMoldIndex() { return moldInserted ? mold().ordinal() : -1; }
     public int materialUnits() {
-        return iron + copper + gold + netherite + celestialBronze + bonesteel + celestialSteel + celestialGold + regularGold;
+        return iron + copper + gold + netherite + celestialBronze + bonesteel + celestialSteel + celestialGold + regularGold
+                + mazesteel + ancientBones;
     }
+    public boolean hasUnsmeltedIngredients() { return mazesteel > 0 || ancientBones > 0; }
     public int mixColor() {
         if (metalSequence.isEmpty()) return 0x514A43;
         int color = metalColor(metalSequence.charAt(0) - '0');
@@ -104,11 +107,12 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         return r << 16 | g << 8 | b;
     }
 
-    private static int metalColor(int metal) {
+    public static int metalColor(int metal) {
         return switch (metal) {
             case 0 -> 0xD8DCE0; case 1 -> 0xD9784A; case 2 -> 0xFFCD42;
             case 3 -> 0x443A4D; case 4 -> 0xD89A54; case 5 -> 0xAAA49C;
-            case 6 -> 0x91C7D9; case 7 -> 0xFFE47A; case 8 -> 0xFFD24A; default -> 0xFFFFFF;
+            case 6 -> 0x91C7D9; case 7 -> 0xFFE47A; case 8 -> 0xFFD24A;
+            case 9 -> 0x554F47; case 10 -> 0xC4BBA8; default -> 0xFFFFFF;
         };
     }
     public Mold mold() { return Mold.values()[Mth.clamp(mold, 0, Mold.values().length - 1)]; }
@@ -134,6 +138,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     }
 
     public boolean insert(ServerPlayer player, ItemStack stack) {
+        if (stack.isEmpty() || pouringTicks > 0) return false;
         int insertedMold = moldIndex(stack.getItem());
         if (insertedMold >= 0) {
             if (pouringTicks > 0 || moldInserted) return false;
@@ -166,15 +171,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             changedAndSync();
             return true;
         }
-        if (!(level instanceof net.minecraft.server.level.ServerLevel server)) return false;
-        FuelValues fuels = FuelValues.vanillaBurnTimes(server.registryAccess(), server.enabledFeatures());
-        int burn = fuels.burnDuration(stack);
-        if (burn <= 0) return false;
-        if ((stack.is(Items.COAL) || stack.is(Items.CHARCOAL)) && carbon < 4) carbon++;
-        fuelTicks = Math.min(20 * 60 * 10, fuelTicks + burn);
-        stack.shrink(1);
-        changedAndSync();
-        return true;
+        return false;
     }
 
     /** Re-melts a previously poured alloy without flattening its insertion order or ratios. */
@@ -220,6 +217,8 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         else if (stack.is(Asterion.BONESTEEL_INGOT)) { bonesteel++; metal = 5; }
         else if (stack.is(Asterion.CELESTIAL_STEEL_INGOT)) { celestialSteel++; metal = 6; }
         else if (stack.is(Asterion.CELESTIAL_GOLD_INGOT)) { celestialGold++; metal = 7; }
+        else if (stack.is(Asterion.MAZESTEEL_BLOCK.asItem())) { mazesteel++; metal = 9; }
+        else if (stack.is(net.krodark.asterion.game.AncientContent.ANCIENT_BONE)) { ancientBones++; metal = 10; }
         else return false;
         if (primaryMetal < 0) primaryMetal = metal;
         else if (metal != primaryMetal && secondaryMetal < 0) secondaryMetal = metal;
@@ -254,6 +253,23 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         return index < 0 ? sequence : sequence.substring(0, index) + to + sequence.substring(index + 1);
     }
 
+    private boolean smeltBonesteel() {
+        if (temperature < Mold.INGOT.target() || fuelTicks <= 0 || mazesteel == 0 || ancientBones == 0) return false;
+        while (mazesteel > 0 && ancientBones > 0) {
+            mazesteel--; ancientBones--; bonesteel++;
+            int bone = metalSequence.indexOf((char)('0' + 10));
+            metalSequence = metalSequence.substring(0, bone) + metalSequence.substring(bone + 1);
+            metalSequence = replaceFirstMetal(metalSequence, '9', '5');
+        }
+        primaryMetal = metalSequence.charAt(0) - '0';
+        secondaryMetal = -1;
+        for (int i = 1; i < metalSequence.length(); i++) if (metalSequence.charAt(i) - '0' != primaryMetal) {
+            secondaryMetal = metalSequence.charAt(i) - '0'; break;
+        }
+        autoPourTicks = 0;
+        return true;
+    }
+
     public boolean removeMold(ServerPlayer player) {
         if (!moldInserted || pouringTicks > 0) return false;
         give(player, new ItemStack(moldItem(mold)));
@@ -275,7 +291,14 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         if (CrucibleControlPayload.isInsertSlot(action)) {
             int slot = CrucibleControlPayload.inventorySlot(action);
             ItemStack stack = player.getInventory().getItem(slot);
-            if (!stack.isEmpty() && insert(player, stack)) open(player);
+            ItemStack thrown = stack.copyWithCount(1);
+            if (!stack.isEmpty() && insert(player, stack)) {
+                var visual = new net.krodark.asterion.network.ForgeInsertPayload(worldPosition, player.getEyePosition(), thrown);
+                for (var viewer : ((net.minecraft.server.level.ServerLevel)level).players())
+                    if (viewer.distanceToSqr(worldPosition.getCenter()) < 48 * 48)
+                        ServerPlayNetworking.send(viewer, visual);
+                open(player);
+            }
             return;
         }
         if (CrucibleControlPayload.isRemoveMaterial(action)) {
@@ -294,6 +317,14 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             heatControl = Math.max(MIN_HEAT_CONTROL, heatControl - STEP);
         else if (action == CrucibleControlPayload.NEXT_MOLD)
             heatControl = 0;
+        else if (action == CrucibleControlPayload.SMELT) {
+            if (smeltBonesteel()) { changedAndSync(); open(player); }
+            else player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                    fuelTicks <= 0 ? "Place a lit heat source beneath the Forge's center." : hasUnsmeltedIngredients()
+                            ? "Bonesteel needs Mazesteel, Ancient Bone and at least 350° heat."
+                            : "Metals melt as they enter the Forge. Hold the mold temperature to cast."));
+            return;
+        }
         else if (action == CrucibleControlPayload.POUR) {
             pour(player);
             return;
@@ -330,6 +361,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             case 0 -> iron--; case 1 -> copper--; case 2 -> gold--; case 3 -> netherite--;
             case 4 -> celestialBronze--; case 5 -> bonesteel--; case 6 -> celestialSteel--;
             case 7 -> celestialGold--; case 8 -> regularGold--;
+            case 9 -> mazesteel--; case 10 -> ancientBones--;
         }
         primaryMetal = metalSequence.isEmpty() ? -1 : metalSequence.charAt(0) - '0';
         secondaryMetal = -1;
@@ -341,18 +373,24 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         changedAndSync();
     }
 
-    private static ItemStack returnedMetal(int metal) {
+    public static ItemStack returnedMetal(int metal) {
         Item item = switch (metal) {
             case 0 -> Items.IRON_INGOT; case 1 -> Items.COPPER_INGOT; case 2 -> Asterion.TARNISHED_GOLD_INGOT;
             case 3 -> Items.NETHERITE_INGOT; case 4 -> Asterion.CELESTIAL_BRONZE_INGOT;
             case 5 -> Asterion.BONESTEEL_INGOT; case 6 -> Asterion.CELESTIAL_STEEL_INGOT;
-            case 7 -> Asterion.CELESTIAL_GOLD_INGOT; default -> Items.GOLD_INGOT;
+            case 7 -> Asterion.CELESTIAL_GOLD_INGOT; case 9 -> Asterion.MAZESTEEL_BLOCK.asItem();
+            case 10 -> net.krodark.asterion.game.AncientContent.ANCIENT_BONE; default -> Items.GOLD_INGOT;
         };
         return new ItemStack(item);
     }
 
     private void pour(ServerPlayer player) {
-        if (!calibrated() || materialUnits() == 0 || !locationAllowsMold()) return;
+        if (!calibrated() || materialUnits() == 0 || hasUnsmeltedIngredients() || !locationAllowsMold()) return;
+        if (mold() == Mold.INGOT && bonesteel == materialUnits()) {
+            eject(new ItemStack(Asterion.BONESTEEL_INGOT, bonesteel));
+            finishPour(player);
+            return;
+        }
         Item output = switch (mold()) {
             case INGOT -> gold == materialUnits() ? Asterion.TARNISHED_GOLD_INGOT : Asterion.FORGED_INGOT;
             case SWORD_GUARD -> Asterion.FORGED_SWORD_GUARD;
@@ -420,8 +458,28 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         forging.putInt("overlay_color", overlayColor);
         forging.putString("metal_sequence", metalSequence);
         result.set(DataComponents.CUSTOM_DATA, CustomData.of(forging));
-        give(player, result);
+        eject(result);
+        finishPour(player);
+    }
+
+    /** Finished work exits through the front-center chute instead of teleporting into inventory. */
+    private void eject(ItemStack stack) {
+        if (!(level instanceof net.minecraft.server.level.ServerLevel server) || stack.isEmpty()) return;
+        net.minecraft.core.Direction facing = getBlockState().getValue(CrucibleBlock.FACING);
+        double x = worldPosition.getX() + .5D + facing.getStepX() * 2.58D;
+        double y = worldPosition.getY() + 1.18D;
+        double z = worldPosition.getZ() + .5D + facing.getStepZ() * 2.58D;
+        var item = new net.minecraft.world.entity.item.ItemEntity(server, x, y, z, stack);
+        item.setDeltaMovement(facing.getStepX() * .18D, .16D, facing.getStepZ() * .18D);
+        item.setPickUpDelay(10);
+        server.addFreshEntity(item);
+        server.playSound(null, worldPosition, net.minecraft.sounds.SoundEvents.IRON_TRAPDOOR_OPEN,
+                net.minecraft.sounds.SoundSource.BLOCKS, .7F, 1.35F);
+    }
+
+    private void finishPour(ServerPlayer player) {
         iron = copper = gold = netherite = celestialBronze = bonesteel = celestialSteel = celestialGold = regularGold = 0;
+        mazesteel = ancientBones = 0;
         primaryMetal = secondaryMetal = -1;
         metalSequence = "";
         pouringTicks = 40;
@@ -564,13 +622,17 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             crucible.pouringTicks--;
             changed = true;
         }
-        if (crucible.fuelTicks > 0) {
-            crucible.fuelTicks--;
-            // Burning fuel always contributes heat. Bellows/vent pressure changes the
-            // slope rather than selecting a thermostat endpoint, so the player must
-            // actively catch and hold the needle inside the mold's narrow band.
+        float sourceHeat = heatSource(level, pos.below());
+        int sourceTicks = sourceHeat > 0 ? 20 : 0;
+        if (crucible.fuelTicks != sourceTicks) {
+            crucible.fuelTicks = sourceTicks;
+            changed = true;
+        }
+        if (sourceHeat > 0) {
+            // The block below supplies the fire; bellows/vent pressure still controls
+            // the slope, so casting remains an active temperature-balancing step.
             float radiativeLoss = crucible.temperature / (float) MAX_TEMPERATURE * 0.22F;
-            crucible.thermalRemainder += 0.55F + crucible.heatControl * 0.04F - radiativeLoss;
+            crucible.thermalRemainder += sourceHeat + crucible.heatControl * 0.04F - radiativeLoss;
         } else {
             crucible.thermalRemainder -= 0.35F + crucible.temperature
                     / (float) MAX_TEMPERATURE * 0.15F;
@@ -585,7 +647,9 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
                 changed = true;
             }
         }
+        if (crucible.smeltBonesteel()) changed = true;
         if (crucible.calibrated() && crucible.fuelTicks > 0 && crucible.materialUnits() > 0 && crucible.pouringTicks == 0
+                && !crucible.hasUnsmeltedIngredients()
                 && crucible.locationAllowsMold()) {
             crucible.autoPourTicks++;
             changed = true;
@@ -605,9 +669,23 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         // by the screen/renderer at an interpolated 2 Hz, plus the final state transition.
         if (changed) crucible.setChanged();
         boolean periodicActiveSync = changed && level.getGameTime() % 10L == 0L;
-        boolean fuelCheckpoint = crucible.fuelTicks > 0 && crucible.fuelTicks % 20 == 0;
         boolean finishedPouring = wasPouring && crucible.pouringTicks == 0;
-        if (periodicActiveSync || fuelCheckpoint || finishedPouring) crucible.syncClient();
+        if (periodicActiveSync || finishedPouring) crucible.syncClient();
+    }
+
+    /** Environmental forge heat, strongest at lava and soul fire and reusable indefinitely. */
+    private static float heatSource(net.minecraft.world.level.Level level, BlockPos source) {
+        BlockState state = level.getBlockState(source);
+        if (state.is(net.minecraft.world.level.block.Blocks.SOUL_CAMPFIRE)
+                && state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT)) return .72F;
+        if (state.is(net.minecraft.world.level.block.Blocks.CAMPFIRE)
+                && state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT)) return .62F;
+        if (state.getFluidState().is(net.minecraft.tags.FluidTags.LAVA)
+                || state.is(net.minecraft.world.level.block.Blocks.LAVA_CAULDRON)) return .82F;
+        if (state.is(net.minecraft.world.level.block.Blocks.SOUL_FIRE)) return .72F;
+        if (state.is(net.minecraft.tags.BlockTags.FIRE)) return .62F;
+        if (state.is(net.minecraft.world.level.block.Blocks.MAGMA_BLOCK)) return .48F;
+        return 0F;
     }
 
     private void changedAndSync() {
@@ -650,6 +728,8 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         output.putInt("celestialSteel", celestialSteel);
         output.putInt("celestialGold", celestialGold);
         output.putInt("regularGold", regularGold);
+        output.putInt("mazesteel", mazesteel);
+        output.putInt("ancientBones", ancientBones);
         output.putInt("carbon", carbon);
         output.putInt("pouringTicks", pouringTicks);
         output.putInt("autoPourTicks", autoPourTicks);
@@ -677,14 +757,17 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
                 4 - iron - copper - gold - netherite - celestialBronze - bonesteel - celestialSteel);
         regularGold = Mth.clamp(input.getIntOr("regularGold", 0), 0,
                 4 - iron - copper - gold - netherite - celestialBronze - bonesteel - celestialSteel - celestialGold);
+        int remaining = 4 - iron - copper - gold - netherite - celestialBronze - bonesteel - celestialSteel - celestialGold - regularGold;
+        mazesteel = Mth.clamp(input.getIntOr("mazesteel", 0), 0, remaining);
+        ancientBones = Mth.clamp(input.getIntOr("ancientBones", 0), 0, remaining - mazesteel);
         carbon = Mth.clamp(input.getIntOr("carbon", 0), 0, 4);
         pouringTicks = Mth.clamp(input.getIntOr("pouringTicks", 0), 0, 40);
         autoPourTicks = Mth.clamp(input.getIntOr("autoPourTicks", 0), 0, AUTO_POUR_TICKS);
-        primaryMetal = Mth.clamp(input.getIntOr("primaryMetal", -1), -1, 8);
-        secondaryMetal = Mth.clamp(input.getIntOr("secondaryMetal", -1), -1, 8);
+        primaryMetal = Mth.clamp(input.getIntOr("primaryMetal", -1), -1, 10);
+        secondaryMetal = Mth.clamp(input.getIntOr("secondaryMetal", -1), -1, 10);
         metalSequence = input.getStringOr("metalSequence", "");
         if (metalSequence.length() != materialUnits()
-                || metalSequence.chars().anyMatch(value -> value < '0' || value > '8'))
+                || metalSequence.chars().anyMatch(value -> value < '0' || value > '0' + 10))
             metalSequence = legacySequence();
         if (primaryMetal < 0 && !metalSequence.isEmpty()) primaryMetal = metalSequence.charAt(0) - '0';
         heatControl = Mth.clamp(input.getIntOr("heatControl", 0), MIN_HEAT_CONTROL, MAX_HEAT_CONTROL);
@@ -703,6 +786,8 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         sequence.append("6".repeat(celestialSteel));
         sequence.append("7".repeat(celestialGold));
         sequence.append("8".repeat(regularGold));
+        sequence.append("9".repeat(mazesteel));
+        sequence.append(":".repeat(ancientBones));
         return sequence.toString();
     }
 

@@ -89,8 +89,8 @@ public final class CursedBrazierCinematic {
         if (boss == null) return null;
 
         float time = ticks + partialTick;
-        float reveal = smooth(time / 24F);
-        float returning = smooth((time - (duration - 20F)) / 20F);
+        float reveal = smooth(time / 40F);
+        float returning = smooth((time - (duration - 36F)) / 36F);
         Vec3 focus = boss.getPosition(partialTick).add(0, boss.getBbHeight() * 0.55, 0);
         Vec3 fromBoss = (openingEye == null ? playerEye : openingEye).subtract(focus);
         Vec3 horizontal = new Vec3(fromBoss.x, 0, fromBoss.z);
@@ -99,25 +99,25 @@ public final class CursedBrazierCinematic {
 
         Vec3 side = new Vec3(-horizontal.z, 0, horizontal.x);
         float orbit = smooth((time - 18F) / Math.max(1F, duration - 38F));
-        Vec3 revealPosition = focus.add(horizontal.scale(7.2 - orbit * 1.1))
-                .add(side.scale((orbit - 0.5F) * 3.0F))
-                .add(0, 1.5 + Mth.sin(orbit * Mth.PI) * 0.6, 0);
+        Vec3 revealPosition = focus.add(horizontal.scale(7.2 - orbit * .65))
+                .add(side.scale((orbit - 0.5F) * 1.5F))
+                .add(0, 1.5 + Mth.sin(orbit * Mth.PI) * 0.25, 0);
         Vec3 camera = (openingEye == null ? playerEye : openingEye).lerp(revealPosition, reveal);
         camera = camera.lerp(playerEye, returning);
 
         float shakeEnvelope = smooth((time - 30F) / 16F)
                 * (1F - smooth((time - 62F) / 16F)) * (1F - returning);
         camera = camera.add(
-                Mth.sin(time * 2.3F) * 0.055F * shakeEnvelope,
-                Mth.sin(time * 3.1F) * 0.035F * shakeEnvelope,
-                Mth.cos(time * 2.7F) * 0.055F * shakeEnvelope);
+                Mth.sin(time * 2.3F) * 0.02F * shakeEnvelope,
+                Mth.sin(time * 3.1F) * 0.012F * shakeEnvelope,
+                Mth.cos(time * 2.7F) * 0.02F * shakeEnvelope);
 
         Vec3 look = focus.subtract(camera);
         float yaw = (float) Math.toDegrees(Math.atan2(-look.x, look.z));
         float pitch = (float) -Math.toDegrees(Math.atan2(look.y, look.horizontalDistance()));
         return new CameraPose(camera,
-                Mth.rotLerp(returning, yaw, returnYaw),
-                Mth.lerp(returning, pitch, returnPitch));
+                Mth.rotLerp(returning, Mth.rotLerp(reveal, returnYaw, yaw), returnYaw),
+                Mth.lerp(returning, Mth.lerp(reveal, returnPitch, pitch), returnPitch));
     }
 
     public static void finish(Minecraft client) {
@@ -136,7 +136,7 @@ public final class CursedBrazierCinematic {
 
     private static float smooth(float value) {
         value = Math.clamp(value, 0F, 1F);
-        return value * value * (3F - 2F * value);
+        return value * value * value * (value * (value * 6F - 15F) + 10F);
     }
 
     public record CameraPose(Vec3 position, float yaw, float pitch) {

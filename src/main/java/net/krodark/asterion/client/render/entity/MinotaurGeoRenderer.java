@@ -23,6 +23,12 @@ import java.util.Map;
 import java.util.UUID;
 
 public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity, EntityRenderState> {
+    @Override protected net.minecraft.world.phys.AABB getBoundingBoxForCulling(MinotaurEntity boss) {
+        // Fallen limbs and the skull extend well beyond the upright navigation box.
+        return boss.animatedBodyBounds();
+    }
+    private static final DataTicket<Integer> REMOVED_PARTS = DataTickets.create("asterion_minotaur_removed_parts", Integer.class);
+    private static final DataTicket<Boolean> HARVESTED = DataTickets.create("asterion_minotaur_harvested", Boolean.class);
     private static final DataTicket<Float> LOOK_YAW = DataTickets.create("asterion_minotaur_look_yaw", Float.class);
     private static final DataTicket<Float> LOOK_PITCH = DataTickets.create("asterion_minotaur_look_pitch", Float.class);
     private static final DataTicket<Integer> EYE_TINT = DataTickets.create("asterion_minotaur_eye_tint", Integer.class);
@@ -48,6 +54,7 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         super(context, new MinotaurGeoModel());
         withScale(1.0F);
         withRenderLayer(new MinotaurWeaponLayer(this));
+        withRenderLayer(new MinotaurBodyLayer(this));
         withRenderLayer(new MinotaurChainLayer(this));
         // The eye mask sits just outside the head surface, retaining depth occlusion by real geometry.
         withRenderLayer(new AsterionEmissiveBoneLayer<>(this, "glow",
@@ -56,7 +63,7 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
                 Asterion.id("textures/entity/minotaur.png")) {
 
             @Override public boolean shouldRenderBone(EntityRenderState state) {
-                return !state.isInvisible;
+                return !state.isInvisible && !state.getOrDefaultGeckolibData(HARVESTED, false);
             }
 
             @Override protected boolean enhancedSurface(EntityRenderState state) { return true; }
@@ -90,6 +97,8 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
     public void addRenderData(MinotaurEntity minotaur, Void relatedObject,
                               EntityRenderState state, float partialTick) {
         MinotaurPoseBlend.capture(minotaur, state, partialTick);
+        state.addGeckolibData(HARVESTED, minotaur.isHarvested());
+        state.addGeckolibData(REMOVED_PARTS, minotaur.removedParts());
         // Every viewer sees the server's target direction, not a different camera-facing torso.
         float bodyYaw = Mth.rotLerp(partialTick, minotaur.yBodyRotO, minotaur.yBodyRot);
         float headYaw = Mth.rotLerp(partialTick, minotaur.yHeadRotO, minotaur.yHeadRot);
@@ -181,6 +190,16 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
 
     @Override
     public void adjustModelBonesForRender(RenderPassInfo<EntityRenderState> pass, BoneSnapshots bones) {
+        boolean harvested = pass.getOrDefaultGeckolibData(HARVESTED, false);
+        for (var bone : pass.model().boneLookup().get().values()) {
+            String name = bone.name();
+            boolean skeleton = name.startsWith("skeleton") || name.startsWith("skeliton");
+            boolean retained = name.contains("armor") || name.equals("lefthand") || name.equals("righthand")
+                    || name.equals("thing for skirt ig");
+            // Hide only this bone's cubes. Skeleton children retain the animated parent transforms.
+            boolean removed = MinotaurBodyLayer.part(bone).removed(pass.getOrDefaultGeckolibData(REMOVED_PARTS, 0));
+            bones.get(bone).skipRender(removed || (skeleton ? !harvested : harvested && !retained));
+        }
         int held = pass.getOrDefaultGeckolibData(HELD_PLAYER, -1);
         if (held >= 0) pass.addLocatorPositionListener(
                 pass.getOrDefaultGeckolibData(GRAB_ARM, 1) >= 0 ? "right_player_grip" : "left_player_grip",
@@ -259,18 +278,16 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         String shoulder = right ? "rightshoulder" : "leftshoulder";
         String upperArm = right ? "rightarm" : "leftarm";
         String lowerArm = right ? "lowerrightarm" : "lowerleftarm";
-        String hand = right ? "righthand" : "lefthand";
-        float elbowBend = Mth.lerp(extension, 0.78F, 0.16F);
+        float elbowBend = Mth.lerp(extension, 0.22F, 0.08F);
 
         rotateBone3(bones, shoulder, pitch * 0.22F * weight,
                 -yaw * 0.54F * weight, sign * 0.13F * weight);
-        rotateBone3(bones, upperArm, (-0.72F + pitch * 0.72F) * weight,
-                (sign * 0.20F - yaw * 0.58F) * weight, sign * 0.68F * weight);
+        rotateBone3(bones, upperArm, (-1.35F + pitch * 0.72F) * weight,
+                (sign * 0.20F - yaw * 0.58F) * weight, sign * 0.18F * weight);
         rotateBone3(bones, lowerArm, -elbowBend * weight,
                 (sign * 0.13F - yaw * 0.24F) * weight,
                 -sign * (0.28F + (1.0F - extension) * 0.18F) * weight);
-        rotateBone3(bones, hand, (-0.28F + pitch * 0.26F) * weight,
-                (sign * 0.38F - yaw * 0.18F) * weight, -sign * 0.28F * weight);
+
     }
 
     private static void rotateBone(BoneSnapshots bones, String name, float yaw, float pitch) {

@@ -98,6 +98,10 @@ public final class RagdollServerNetworking {
     }
 
     private static void exitTumble(ServerPlayer player, TumbleExitPayload payload) {
+        if (MinotaurEntity.controlsPlayer(player)) {
+            forceAuthority(player, player.getDeltaMovement());
+            return;
+        }
         if (!player.isAlive() || player.isSpectator()) return;
         Vec3 target = new Vec3(payload.x(), payload.y(), payload.z());
         boolean invalidPosition = !finite(target) || player.position().distanceToSqr(target) > 1024;

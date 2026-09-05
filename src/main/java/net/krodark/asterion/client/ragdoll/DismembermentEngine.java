@@ -1304,6 +1304,7 @@ public final class DismembermentEngine {
     }
 
     public void togglePlayerTumble(Minecraft client) {
+        if (client.player != null && net.krodark.asterion.entity.MinotaurEntity.isHeld(client.player)) return;
         if (client.level == null || client.player == null
                 || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) {
             return;
@@ -1385,6 +1386,11 @@ public final class DismembermentEngine {
         if (client.player == null || serverTick <= lastAuthorityTick
                 || !playerTumbles.contains(client.player.getId())) return;
         lastAuthorityTick = serverTick;
+        if (net.krodark.asterion.entity.MinotaurEntity.isHeld(client.player)) {
+            client.player.setPos(position);
+            client.player.setDeltaMovement(Vec3.ZERO);
+            return;
+        }
         int entityId = client.player.getId();
         Vec3 positionalError = position.subtract(client.player.position());
         double errorLength = positionalError.length();
@@ -1447,6 +1453,7 @@ public final class DismembermentEngine {
     }
 
     public void applyPlayerTumbleInput(Minecraft client, float strafe, float forward) {
+        if (client.player != null && net.krodark.asterion.entity.MinotaurEntity.isHeld(client.player)) return;
         if (client.player == null || !playerTumbles.contains(client.player.getId())) return;
         RigidBodyPiece torso = find(client.player.getId(), 1);
         if (torso == null) return;
@@ -1461,6 +1468,7 @@ public final class DismembermentEngine {
     }
 
     public void followPlayerTumble(Minecraft client) {
+        if (client.player != null && net.krodark.asterion.entity.MinotaurEntity.isHeld(client.player)) return;
         if (client.player == null || !playerTumbles.contains(client.player.getId())) return;
         RigidBodyPiece torso = find(client.player.getId(), 1);
         Vec3 trackingPosition = findSafeTumbleExit(client, client.player.getId());
@@ -1554,6 +1562,8 @@ public final class DismembermentEngine {
 
     public void releaseRagdoll(int entityId) {
         Minecraft client = Minecraft.getInstance();
+        if (client.level != null && client.level.getEntity(entityId) instanceof Player player
+                && net.krodark.asterion.entity.MinotaurEntity.isHeld(player)) return;
         if (client.player != null && client.player.getId() == entityId && playerTumbles.contains(entityId)) {
             Vec3 exit = findSafeTumbleExit(client, entityId);
             if (exit == null) exit = client.player.position();
@@ -1597,14 +1607,15 @@ public final class DismembermentEngine {
         if (!playerTumbles.contains(entityId)) return null;
         RigidBodyPiece head = find(entityId, 0);
         RigidBodyPiece target = head == null ? find(entityId, 1) : head;
-        return target == null ? null : target.previous.lerp(target.position, Mth.clamp(partialTick, 0, 1));
+        return target == null ? null : target.previous.lerp(target.position, Mth.clamp(partialTick, 0, 1))
+                .add(heldRenderOffset(entityId, partialTick));
     }
 
     public Vec3 tumbleCameraAnchor(int entityId, float partialTick) {
         if (!playerTumbles.contains(entityId)) return null;
         RigidBodyPiece torso = find(entityId, 1);
         return torso == null ? null : torso.previous.lerp(torso.position,
-                Mth.clamp(partialTick, 0, 1));
+                Mth.clamp(partialTick, 0, 1)).add(heldRenderOffset(entityId, partialTick));
     }
 
     public Vec3 pushCameraOutsideRagdoll(int entityId, Vec3 camera) {
@@ -1753,6 +1764,36 @@ public final class DismembermentEngine {
                 ClientPlayNetworking.send(new RagdollPosePayload(entityId, ++poseSequence,
                         List.copyOf(snapshot)));
         }
+    }
+
+    private void pinHeldPlayers(ClientLevel level) {
+        for (int id : playerTumbles) {
+            Entity player = level.getEntity(id);
+            if (player == null || remoteDriven.contains(id)
+                    || !net.krodark.asterion.entity.MinotaurEntity.isHeld(player)) continue;
+            RigidBodyPiece torso = find(id, 1);
+            if (torso == null) continue;
+            Vec3 target = player.position().add(0, player.getBbHeight() * .52, 0);
+            Vec3 correction = target.subtract(torso.position);
+            for (RigidBodyPiece part : pieces) if (part.entityId == id) {
+                part.position = part.position.add(correction);
+                part.previous = part.previous.add(correction);
+                part.physicsBlend = 1;
+                part.sleeping = false;
+            }
+            torso.velocity = Vec3.ZERO;
+        }
+    }
+
+    public Vec3 heldRenderOffset(int entityId, float partial) {
+        var level = Minecraft.getInstance().level;
+        Entity player = level == null ? null : level.getEntity(entityId);
+        if (player == null || !net.krodark.asterion.entity.MinotaurEntity.isHeld(player)) return Vec3.ZERO;
+        RigidBodyPiece torso = find(entityId, 1);
+        if (torso == null) return Vec3.ZERO;
+        Vec3 feet = net.krodark.asterion.client.render.entity.MinotaurHandAttachment.feet(player);
+        Vec3 hand = (feet == null ? player.getPosition(partial) : feet).add(0, player.getBbHeight() * .52, 0);
+        return hand.subtract(torso.previous.lerp(torso.position, partial));
     }
 
     public void tick(ClientLevel level, Entity collisionContext) {
@@ -1944,6 +1985,7 @@ public final class DismembermentEngine {
             resolveAttachmentWorldCollisions(level, active);
             resolveAttachmentBodyCollisions(level, active);
             resolveIslandPenetration(level, active);
+            pinHeldPlayers(level);
         }
 
         applyGroundedDrag(

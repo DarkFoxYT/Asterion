@@ -72,7 +72,7 @@ final class MinotaurPolishCheck {
                 check(age < ignite ? lost == 0 : lost <= 4.001F, "Smoke damaged early or overlapping fire stacked damage");
                 if (age == ignite) {
                     check(lost > 0, "Greek fire did not damage a player inside the ignited cloud");
-                    check(player.hasEffect(net.krodark.asterion.effect.GreekFireBurn.TYPE), "Greek fire source not synced for overlay");
+                    check(player.isOnFire(), "Fire attack did not ignite player");
                 }
             }
             check(clouds.isEmpty(), "Expired smoke hazards remained active");
@@ -92,11 +92,7 @@ final class MinotaurPolishCheck {
             }
             Asterion.LOGGER.info("PASS: charge, horn ram, stampede and smoke belch face their target");
             player.clearFire();
-            check(!net.krodark.asterion.effect.GreekFireBurn.TYPE.value().applyEffectTick(level, player, 0),
-                    "Extinguished Greek fire marker stayed active");
-            player.removeEffect(net.krodark.asterion.effect.GreekFireBurn.TYPE);
-            player.igniteForSeconds(2);
-            check(!player.hasEffect(net.krodark.asterion.effect.GreekFireBurn.TYPE), "Ordinary fire acquired green overlay");
+            check(!player.isOnFire(), "Fire did not clear");
 
             boss.setPos(0, 121, 0); boss.horizontalCollision = true;
             var wall = new net.minecraft.core.BlockPos(0, 122, 2);

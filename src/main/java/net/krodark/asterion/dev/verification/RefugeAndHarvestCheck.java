@@ -35,22 +35,31 @@ final class RefugeAndHarvestCheck {
         tag.putInt("asterion_boss_stage", 3);
         corpse.load(TagValueInput.create(ProblemReporter.DISCARDING, level.registryAccess(), tag));
         corpse.setPos(80, 180, 0);
+        try {
+            var ai = MinotaurEntity.class.getDeclaredMethod("customServerAiStep", net.minecraft.server.level.ServerLevel.class);
+            ai.setAccessible(true);
+            var position = corpse.position();
+            for (int i = 0; i < 100; i++) ai.invoke(corpse, level);
+            check(corpse.position().equals(position) && corpse.getNavigation().isDone(), "Dead Minotaur resumed movement with no nearby target");
+        } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
         var area = new AABB(75, 175, -5, 85, 190, 5);
         try {
-            player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
-            corpse.mobInteract(player, InteractionHand.MAIN_HAND);
-            check(level.getEntitiesOfClass(ItemEntity.class, area).isEmpty(), "Empty hand harvested the corpse");
-            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.SHEARS));
+            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.STICK));
             corpse.mobInteract(player, InteractionHand.MAIN_HAND);
             var drops = level.getEntitiesOfClass(ItemEntity.class, area);
-            check(drops.size() == 3 && drops.stream().anyMatch(item -> item.getItem().is(Items.LEATHER)), "Missing hide rewards");
-            check(player.getMainHandItem().getDamageValue() == 1, "Harvest did not wear the tool");
+            check(corpse.isHarvested(), "Harvested skeleton appearance was not synchronized");
+            check(drops.size() == 4 && drops.stream().anyMatch(item -> item.getItem().is(Items.LEATHER)), "Missing hide rewards");
+            check(drops.stream().anyMatch(item -> item.getItem().is(net.krodark.asterion.game.AncientContent.ANCIENT_BONE)
+                    && item.getItem().getCount() >= 16 && item.getItem().getCount() <= 24), "Missing Ancient Bone harvest");
+            check(player.getMainHandItem().is(Items.STICK) && player.getMainHandItem().getCount() == 1, "Harvest consumed a non-tool item");
+            player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
             corpse.mobInteract(player, InteractionHand.MAIN_HAND);
             var saved = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, level.registryAccess());
             corpse.saveWithoutId(saved);
             corpse.load(TagValueInput.create(ProblemReporter.DISCARDING, level.registryAccess(), saved.buildResult()));
+            check(corpse.isHarvested(), "Harvested skeleton appearance was lost on reload");
             corpse.mobInteract(player, InteractionHand.MAIN_HAND);
-            check(level.getEntitiesOfClass(ItemEntity.class, area).size() == 3, "Repeated or reloaded harvest duplicated rewards");
+            check(level.getEntitiesOfClass(ItemEntity.class, area).size() == 4, "Repeated or reloaded harvest duplicated rewards");
             drops.forEach(ItemEntity::discard);
         } finally {
             player.setItemInHand(InteractionHand.MAIN_HAND, originalHand);

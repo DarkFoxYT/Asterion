@@ -4,7 +4,7 @@
     "models": [
       {
         "type": "minecraft:model",
-        "model": "minecraft:item/stick"
+        "model": "asterion:item/forged_sword_handle"
       },
       {
         "type": "minecraft:select",

@@ -34,6 +34,7 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
     private static final DataTicket<Float> SWORD_TRAIL = DataTickets.create("asterion_sword_trail", Float.class);
     private static final RenderType TRAIL_MATERIAL = RenderTypes.lightning();
     private static final String[] SIDES = {"right", "left"};
+    private static final double BACK_MOUNT_CENTER_Y = (129 - 6 * Math.sqrt(2)) / 32.0;
     private final Map<Long, Trail> trails = new HashMap<>();
 
     public MinotaurWeaponLayer(MinotaurGeoRenderer renderer) { super(renderer); }
@@ -87,7 +88,7 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
                 poses.translate(0, .82, 1.42);
                 poses.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(45));
                 poses.mulPose(com.mojang.math.Axis.YP.rotationDegrees(90));
-                poses.translate(0, -MinotaurAxeEntity.CENTER_Y, 0);
+                poses.translate(0, -BACK_MOUNT_CENTER_Y, 0);
             } else {
                 if (name.equals("axe_back")) {
                     poses.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(45));
@@ -97,7 +98,9 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
             }
             if (name.equals("axe_grip")) MinotaurAxeVisual.captureHand(
                     posed.renderState().getGeckolibData(OWNER), poses, posed.cameraState());
-            MinotaurAxeVisual.submit(poses, tasks, posed.cameraState(), posed.packedLight(), 0);
+            if (name.equals("axe_grip"))
+                MinotaurAxeVisual.submitAligned(poses, tasks, posed.cameraState(), posed.packedLight(), 0);
+            else MinotaurAxeVisual.submit(poses, tasks, posed.cameraState(), posed.packedLight(), 0);
             poses.popPose();
         }));
     }

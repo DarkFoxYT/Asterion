@@ -41,17 +41,26 @@ public abstract class CameraMixin {
     @Shadow private Vector3f left;
     @Shadow private int matrixPropertiesDirty;
 
-    @Inject(method = "alignWithEntity", at = @At("TAIL"))
+    @Inject(method = "alignWithEntity", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/CameraType;isFirstPerson()Z"))
     private void asterion$followCentipedeSeat(float partial, CallbackInfo ci) {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null || ((Camera)(Object)this).entity() != client.player
-                || !client.options.getCameraType().isFirstPerson()
                 || !(client.player.getVehicle() instanceof net.krodark.asterion.entity.ScarletCentipedeEntity mount)) return;
         Vec3 normal = mount.passengerNormal(client.player, partial);
         Vec3 eyes = mount.passengerPosition(client.player, partial)
                 .add(normal.scale(-client.player.getEyeHeight()));
         setPosition(asterion$clipCamera(client, mount.passengerPosition(client.player, partial), eyes));
 
+    }
+
+    @Inject(method = "alignWithEntity", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/Camera;setRotation(FF)V", shift = At.Shift.AFTER))
+    private void asterion$tiltCentipedeView(float partial, CallbackInfo ci) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || ((Camera)(Object)this).entity() != client.player
+                || !(client.player.getVehicle() instanceof net.krodark.asterion.entity.ScarletCentipedeEntity mount)) return;
+        Vec3 normal = mount.passengerNormal(client.player, partial);
         // Apply the same surface tilt used by steering. Keep the player's yaw/pitch
         // as local input; feeding world-space angles back into steering causes drift.
         Quaternionf tilt = new Quaternionf().rotationTo(new Vector3f(0, 1, 0),

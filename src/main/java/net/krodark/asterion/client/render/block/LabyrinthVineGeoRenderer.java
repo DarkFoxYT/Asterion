@@ -14,6 +14,26 @@ import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 /** Uses each variant's authored pose; only the end segment's glow bone is emissive. */
 public final class LabyrinthVineGeoRenderer
         extends GeoBlockRenderer<LabyrinthVineBlockEntity, BlockEntityRenderState> {
+    private final java.util.Map<com.geckolib.cache.model.BakedGeoModel, StaticVineMesh[]> meshes =
+            new com.google.common.collect.MapMaker().weakKeys().makeMap();
+
+    @Override public void submitRenderTasks(RenderPassInfo<BlockEntityRenderState> pass,
+            net.minecraft.client.renderer.OrderedSubmitNodeCollector tasks,
+            net.minecraft.client.renderer.rendertype.RenderType type) {
+        if (type == null) return;
+        if (pass.model().isMissingno()) { super.submitRenderTasks(pass, tasks, type); return; }
+        var variants = meshes.computeIfAbsent(pass.model(), model -> new StaticVineMesh[2]);
+        int variant = pass.getOrDefaultGeckolibData(LabyrinthVineGeoModel.END, true) ? 1 : 0;
+        if (variants[variant] == null) {
+            variants[variant] = StaticVineMesh.bake(pass);
+            if (Boolean.getBoolean("asterion.verifyStaticVines")) variants[variant].verify(pass);
+        }
+        var mesh = variants[variant];
+        int color = pass.renderColor(), light = pass.packedLight(), overlay = pass.packedOverlay();
+        tasks.submitCustomGeometry(pass.poseStack(), type,
+                (pose, out) -> mesh.render(pose, out, color, light, overlay));
+    }
+
     public LabyrinthVineGeoRenderer(BlockEntityRendererProvider.Context context) {
         super(context, new LabyrinthVineGeoModel());
         withRenderLayer(new AsterionEmissiveBoneLayer<>(this, "glow",

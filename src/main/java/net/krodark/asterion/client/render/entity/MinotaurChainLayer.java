@@ -24,17 +24,18 @@ import java.util.function.BiConsumer;
 public final class MinotaurChainLayer extends GeoRenderLayer<MinotaurEntity, Void, EntityRenderState> {
     private static final DataTicket<Chain> CHAIN = DataTickets.create("asterion_minotaur_chain", Chain.class);
     private static final RenderType MATERIAL = RenderTypes.entityCutout(Asterion.id("textures/block/mazesteel_chain.png"));
-    private record Chain(Vec3 target, float ticks, int arm) {}
+    private record Chain(Vec3 target, float ticks, int arm, boolean held) {}
 
     public MinotaurChainLayer(MinotaurGeoRenderer renderer) { super(renderer); }
 
     @Override public void addRenderData(MinotaurEntity boss, Void ignored, EntityRenderState state, float partial) {
-        if (!boss.isChainGrappleActive()) return;
+        if (!boss.isChainGrappleActive() && !boss.isPerformingGrab()) return;
         var target = boss.level().getEntity(boss.grabTargetEntityId());
         float ticks = boss.bossAttackAnimationTicks() + partial;
-        if (target != null && target.isAlive() && ticks >= 12 && ticks < 36)
+        boolean held = boss.heldPlayerId() >= 0;
+        if (target != null && target.isAlive() && (held || ticks >= 8 && ticks < 36))
             state.addGeckolibData(CHAIN, new Chain(target.getPosition(partial)
-                    .add(0, target.getBbHeight() * .55, 0), ticks, boss.reachArmSide()));
+                    .add(0, target.getBbHeight() * .55, 0), ticks, boss.reachArmSide(), held));
     }
 
     @Override public void addPerBoneRender(RenderPassInfo<EntityRenderState> pass,
@@ -48,9 +49,9 @@ public final class MinotaurChainLayer extends GeoRenderLayer<MinotaurEntity, Voi
             Vector3f hand = posed.poseStack().last().pose().transformPosition(new Vector3f());
             Vec3 start = new Vec3(hand.x, hand.y, hand.z);
             Vec3 target = chain.target.subtract(posed.cameraState().pos);
-            float extension = Mth.clamp((chain.ticks - 12) / 7, 0, 1)
+            float extension = chain.held ? 1 : Mth.clamp((chain.ticks - 12) / 7, 0, 1)
                     * Mth.clamp((36 - chain.ticks) / 9, 0, 1);
-            Vec3 end = start.lerp(target, extension);
+            Vec3 end = chain.held ? start.add(0, -.35, 0) : start.lerp(target, extension);
             double length = start.distanceTo(end);
             if (length < .05 || length > 40) return;
             // Slack draws out, snaps taut on the one server-authoritative yank, then reels back in.
@@ -60,11 +61,12 @@ public final class MinotaurChainLayer extends GeoRenderLayer<MinotaurEntity, Voi
         }));
     }
 
-    private static void draw(VertexConsumer out, Vec3 start, Vec3 end, double slack, int light) {
+    static void draw(VertexConsumer out, Vec3 start, Vec3 end, double slack, int light) {
         Vec3 axis = end.subtract(start).normalize();
         Vec3 across = axis.cross(Math.abs(axis.y) > .95 ? new Vec3(1, 0, 0) : new Vec3(0, 1, 0)).normalize();
+        across = across.add(axis.cross(across)).normalize();
         Vec3 other = axis.cross(across).normalize();
-        int links = Math.min(96, Math.max(1, Mth.ceil(start.distanceTo(end) / .45)));
+        int links = Math.min(288, Math.max(1, Mth.ceil(start.distanceTo(end) / .45)));
         Vec3 a = start;
         for (int i = 1; i <= links; i++) {
             double t = i / (double)links;

@@ -24,6 +24,7 @@ public final class CrucibleCamera {
     }
 
     public static void end() { }
+    public static boolean active() { return crucible != null; }
 
     public static void tick(Minecraft client) {
         previousBlend = blend;
@@ -48,7 +49,7 @@ public final class CrucibleCamera {
         var state = client.level.getBlockState(crucible);
         Direction facing = state.is(Asterion.CRUCIBLE) ? state.getValue(CrucibleBlock.FACING) : Direction.NORTH;
         Vec3 focus = crucible.getCenter().add(0D, 1.35D, 0D);
-        Vec3 desired = focus.add(facing.getStepX() * 5.4D, 4.7D, facing.getStepZ() * 5.4D);
+        Vec3 desired = focus.add(facing.getStepX() * 6.35D, 5.45D, facing.getStepZ() * 6.35D);
         Vec3 camera = vanilla.lerp(desired, amount);
         Vec3 look = focus.subtract(camera);
         float yaw = (float)(Mth.atan2(look.z, look.x) * Mth.RAD_TO_DEG) - 90F;

@@ -82,7 +82,7 @@ public final class RagdollClientController {
 
         boolean recovery = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_SPACE) == GLFW.GLFW_PRESS;
         boolean tumbling = engine.isPlayerTumbling(client.player.getId());
-        if (!tumbling || DazeOverlay.isActive()) {
+        if (!tumbling || DazeOverlay.isActive() || net.krodark.asterion.entity.MinotaurEntity.isHeld(client.player)) {
             resetRecovery();
             DazeOverlay.hideRagdollRecovery();
         }

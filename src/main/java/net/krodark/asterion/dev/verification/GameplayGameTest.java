@@ -60,7 +60,7 @@ public final class GameplayGameTest implements FabricClientGameTest {
                 for(int i=0;i<4;i++)TimedTrapBlockEntity.tick(level,trapPos,state,restored);
                 check(victim.getHealth()==100,"Trap phase changed on reload");
                 TimedTrapBlockEntity.tick(level,trapPos,state,restored);
-                check(victim.getHealth()==86&&victim.hasEffect(SingedEffect.TYPE),"Fire burst failed damage/Singed contact");
+                check(victim.getHealth()==86&&victim.isOnFire(),"Fire burst failed damage/fire contact");
                 for(int i=0;i<7;i++){victim.invulnerableTime=0;TimedTrapBlockEntity.tick(level,trapPos,state,restored);}
                 check(victim.getHealth()==86,"Single burst damaged more than once");
                 level.setBlock(trapPos.south(2),Blocks.STONE.defaultBlockState(),3);victim.invulnerableTime=0;victim.clearFire();
@@ -81,23 +81,18 @@ public final class GameplayGameTest implements FabricClientGameTest {
                 for(var type:new EntityType<?>[]{Asterion.BOMBARDIER_BEETLE,Asterion.RUNE_BEETLE,Asterion.SCARLET_CENTIPEDE})
                     check(((LivingEntity)type.create(level,EntitySpawnReason.COMMAND)).canBreatheUnderwater(),"Bug can drown");
 
-                var scars=SingedScars.get(mc);
-                int before=scars.lostHearts(player);scars.scar(player);
-                check(scars.lostHearts(player)==before+1&&player.getMaxHealth()==18,"Timed heart scar not applied");
-                var value=SingedScars.class.getDeclaredField("CODEC");value.setAccessible(true);
-                @SuppressWarnings("unchecked") var codec=(com.mojang.serialization.Codec<SingedScars>)value.get(null);
-                var encoded=codec.encodeStart(net.minecraft.nbt.NbtOps.INSTANCE,scars).getOrThrow();
-                var reload=codec.parse(net.minecraft.nbt.NbtOps.INSTANCE,encoded).getOrThrow();
-                check(reload.lostHearts(player)==scars.lostHearts(player),"Scars lost when saved");
-                for(int i=0;i<20;i++)scars.scar(player);
-                check(player.getMaxHealth()==2,"Scars reduced health below one heart");
+                check(net.minecraft.core.registries.BuiltInRegistries.MOB_EFFECT.keySet().stream()
+                        .noneMatch(id -> id.getNamespace().equals("asterion")), "Custom mob effects still registered");
+                float maximum = player.getMaxHealth();
+                GreekFireBurn.ignite(player, 2);
+                check(player.getMaxHealth() == maximum, "Fire reduced maximum health");
                 player.setGameMode(GameType.CREATIVE);
                 check(Asterion.RUNE_BEETLE.create(level,EntitySpawnReason.COMMAND)!=null,"Rune beetle not registered");
                 var beetle=Asterion.RUNE_BEETLE.create(level,EntitySpawnReason.COMMAND);beetle.setRuneIndex(17);beetle.setPos(-2,121,-1);level.addFreshEntity(beetle);
                 var brazier=GameplayContent.CURSED_BRAZIER.create(level,EntitySpawnReason.COMMAND);brazier.setPos(4,121,2);level.addFreshEntity(brazier);
                 level.setBlock(new BlockPos(-3,121,2),GameplayContent.SPEWER.defaultBlockState(),3);
                 player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,new ItemStack(GameplayContent.FLAMETHROWER));
-                Asterion.LOGGER.info("PASS: fixed mining time, portal range, saved trap phase, damage/occlusion, bug support/breathing and timed Singed scars");
+                Asterion.LOGGER.info("PASS: fixed mining time, portal range, saved trap phase, damage/occlusion, bug support/breathing and no custom status effects");
             });
             context.waitTicks(20);
             context.takeScreenshot("new-traps-rune-beetle-cursed-brazier");
@@ -127,7 +122,7 @@ public final class GameplayGameTest implements FabricClientGameTest {
             context.getInput().releaseKey(options -> options.keyUse);
             context.waitTicks(18);
             server.runOnServer(mc -> {
-                check(gasTarget.get().getHealth() < 100 && gasTarget.get().hasEffect(SingedEffect.TYPE),
+                check(gasTarget.get().getHealth() < 100 && gasTarget.get().isOnFire(),
                         "Left click while spraying did not ignite gas and damage the target");
                 Asterion.LOGGER.info("PASS: matching rune-beetle loot and actual right-click spray / left-click ignition");
             });

@@ -38,8 +38,14 @@ public final class GameplayFixCheck {
             if (block == GameplayContent.REWARD_SPAWNER) {
                 for (Mob mob : mobs) mob.hurtServer(level, level.damageSources().genericKill(), Float.MAX_VALUE);
                 ChallengeSpawnerBlockEntity.tick(level, pos, state, spawner);
-                check(level.getBlockState(pos).isAir(), "Completed reward spawner remained active");
-                check(level.getEntitiesOfClass(ItemEntity.class, area).stream().anyMatch(e -> e.getItem().is(Items.EMERALD)), "No encounter reward");
+                check(level.getBlockState(pos).is(block), "Completed reward spawner disappeared");
+                check(level.getEntitiesOfClass(ItemEntity.class, area).stream().anyMatch(e -> e.getItem().is(Asterion.TARNISHED_GOLD_INGOT)), "No mod encounter reward");
+                check(level.getEntitiesOfClass(ItemEntity.class, area).stream().noneMatch(e -> e.getItem().is(Items.EMERALD)), "Spawner dropped emeralds");
+                int drops = level.getEntitiesOfClass(ItemEntity.class, area).size();
+                var restored = (ChallengeSpawnerBlockEntity)BlockEntity.loadStatic(pos, state,
+                        spawner.saveWithFullMetadata(level.registryAccess()), level.registryAccess());
+                for (int i = 0; i < 100; i++) ChallengeSpawnerBlockEntity.tick(level, pos, state, restored);
+                check(level.getEntitiesOfClass(ItemEntity.class, area).size() == drops, "Reloaded spawner paid twice");
                 mobs.forEach(Entity::discard);
             } else {
                 for (int i = 0; i < 39; i++) ChallengeSpawnerBlockEntity.tick(level, pos, state, spawner);
@@ -50,7 +56,7 @@ public final class GameplayFixCheck {
                         && "58".equals(e.getCustomName().getString())
                         && e.getCustomName().getStyle().getColor().getValue() == 0xFF5555), "Missing red countdown");
                 for (int i = 0; i < 1160; i++) ChallengeSpawnerBlockEntity.tick(level, pos, state, restored);
-                check(level.getBlockState(pos).isAir(), "Expired explosive spawner remained");
+                check(level.getBlockState(pos).is(block), "Expired explosive spawner destroyed itself");
                 check(level.getEntitiesOfClass(ArmorStand.class, area).isEmpty(), "Countdown survived explosion");
                 mobs.forEach(Entity::discard);
             }

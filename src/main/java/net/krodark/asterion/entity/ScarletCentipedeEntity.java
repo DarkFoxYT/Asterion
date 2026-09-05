@@ -61,6 +61,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     private static final double RIDDEN_SPEED = 0.31D;
     private static final double SURFACE_BLEND = 0.18D;
     private int lastSurfaceSwitchTick = -100;
+    private Direction localDriverSurface;
 
     private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
     private Vec3 surfaceForward = new Vec3(0.0D, 0.0D, -1.0D);
@@ -151,9 +152,11 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
             // accumulated tangent velocity every tick or server correction appears as a
             // repeated stop/start jitter to the rider and every remote observer.
             surfaceForward = CentipedeMotion.followHeading(surfaceForward, driverHeading,
-                    attachmentNormal(), .45D);
+                    attachedSurface().getUnitVec3(), .45D);
         }
-        if (!level().isClientSide() || isLocalInstanceAuthoritative()) updateSurfaceAfterMovement();
+        // Vanilla gives the driver ownership of vehicle movement. The server follows its
+        // validated vehicle/face packets instead of applying a second wall correction.
+        if (isLocalInstanceAuthoritative()) updateSurfaceAfterMovement();
         blendAttachmentNormal();
         if (!level().isClientSide()) {
             getEntityData().set(DATA_FORWARD, vector(surfaceForward()));
@@ -194,7 +197,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
 
         setNoGravity(usesSurfaceTravel());
         resetFallDistance();
-        Vec3 normal = attachmentNormal();
+        Vec3 normal = attachedSurface().getUnitVec3();
         Vec3 up = normal.scale(-1.0D);
         Vec3 forward = projectOntoSurface(surfaceForward, normal);
         if (forward.lengthSqr() < 1.0E-5D) forward = fallbackForward(up);
@@ -219,8 +222,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
             if (speed > 0) surfaceForward = tangent;
         }
 
-        // Tangent movement uses the blended plane while adhesion targets the real block face.
-        // During a corner transition this makes the in-between pose behave like a diagonal wall.
+        // Movement follows the contacted face. Only the rendered body blends around corners.
         Vec3 desiredTangent = tangent.scale(speed);
         double response = desiredTangent.lengthSqr() > 1.0E-5D ? 0.20D : 0.30D;
         smoothedSurfaceMotion = smoothedSurfaceMotion.lerp(desiredTangent, response);
@@ -243,7 +245,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
             surfaceForward = Vec3.directionFromRotation(0.0F, getYRot());
             return;
         }
-        surfaceForward = riderForward(player, attachmentNormal().scale(-1.0D));
+        surfaceForward = riderForward(player, attachedSurface().getUnitVec3().scale(-1.0D));
     }
 
     @Override
@@ -299,10 +301,10 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     private void keepHeadOutsideWalls() {
         // Remote entities already interpolate authoritative positions. Local collision
         // correction fights that interpolation and produces a snap on every packet.
-        if (level().isClientSide() && !isLocalInstanceAuthoritative()) return;
+        if (!isLocalInstanceAuthoritative()) return;
         if (!usesSurfaceTravel()) return;
         Vec3 head = chainHeadCenter();
-        var contact = bodyCollision.followSurface(head, head, attachmentNormal(), surfaceForward());
+        var contact = bodyCollision.followSurface(head, head, attachedSurface().getUnitVec3(), surfaceForward());
         Vec3 correction = contact.position().subtract(head);
         if (correction.lengthSqr() > 1.0E-8D) move(MoverType.SELF, correction);
     }
@@ -369,7 +371,10 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
 
     @Override
     protected void removePassenger(Entity passenger) {
-        if (seatIndex(passenger) == 0) driverFrameTick = -100;
+        if (seatIndex(passenger) == 0) {
+            driverFrameTick = -100;
+            localDriverSurface = null;
+        }
         super.removePassenger(passenger);
         if (!level().isClientSide()) {
             seatTable().release(passenger.getUUID());
@@ -394,7 +399,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     public float segmentSpeed(int index, float partial) { return bodyChain.initialized() ? bodyChain.smoothedSpeed(index, partial) : 0; }
 
     private Vec3 chainHeadCenter() {
-        Vec3 normal = attachmentNormal();
+        Vec3 normal = attachedSurface().getUnitVec3();
         double halfHeight = getBbHeight() * 0.5D;
         double boxReach = (Math.abs(normal.x) + Math.abs(normal.z)) * getBbWidth() * 0.5D
                 + Math.abs(normal.y) * halfHeight;
@@ -465,7 +470,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
             }
             if (wall != null) return wall;
         }
-        Vec3 motion = getDeltaMovement();
+        Vec3 motion = projectOntoSurface(smoothedSurfaceMotion, current.getUnitVec3());
         Direction best = null;
         double bestScore = 0.025D;
         for (Direction candidate : SURFACES) {
@@ -493,7 +498,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         if (isInWater() || isInLava() || tickCount - lastSurfaceSwitchTick < 6) return;
         Vec3 motion;
         if (getControllingPassenger() instanceof Player player) {
-            Vec3 up = attachmentNormal().scale(-1);
+            Vec3 up = attachedSurface().getUnitVec3().scale(-1);
             Vec3 forward = riderForward(player, up);
             motion = forward.scale(input.z).subtract(up.cross(forward).scale(input.x)).scale(RIDDEN_SPEED);
         } else motion = isNoAi() ? Vec3.ZERO : wildHeading.scale(wildSpeed);
@@ -519,8 +524,9 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         if (projected.lengthSqr() < 1.0E-5D)
             projected = fallbackForward(nextNormal.scale(-1.0D));
         wildHeading = projected.normalize();
-        // Momentum is transported gradually by blendAttachmentNormal, not snapped to the
-        // final wall direction while the body is still facing the old surface.
+        surfaceForward = wildHeading;
+        double speed = smoothedSurfaceMotion.length();
+        smoothedSurfaceMotion = wildHeading.scale(speed);
         setAttachedSurface(next);
         lastSurfaceSwitchTick = tickCount;
         setNoGravity(next != Direction.DOWN);
@@ -539,15 +545,9 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     }
 
     private void blendAttachmentNormal() {
-        Vec3 oldNormal = smoothedAttachmentNormal;
         Vec3 target = attachedSurface().getUnitVec3();
         Vec3 blended = smoothedAttachmentNormal.lerp(target, SURFACE_BLEND);
         smoothedAttachmentNormal = blended.lengthSqr() < 1.0E-6D ? target : blended.normalize();
-        Quaternionf turn = new Quaternionf().rotationTo(vector(oldNormal), vector(smoothedAttachmentNormal));
-        Vector3f heading = turn.transform(vector(surfaceForward));
-        surfaceForward = new Vec3(heading.x, heading.y, heading.z);
-        Vector3f motion = turn.transform(vector(smoothedSurfaceMotion));
-        smoothedSurfaceMotion = new Vec3(motion.x, motion.y, motion.z);
     }
 
     private boolean usesSurfaceTravel() {
@@ -592,10 +592,19 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
 
     public Direction attachedSurface() {
         int ordinal = Mth.clamp(getEntityData().get(DATA_ATTACHED_SURFACE), 0, SURFACES.length - 1);
+        if (level().isClientSide() && getControllingPassenger() != null && isLocalInstanceAuthoritative()) {
+            // A delayed acknowledgement must not roll a predicted corner transition back
+            // to the previous face for one frame, then rotate it forward again.
+            if (localDriverSurface == null) localDriverSurface = SURFACES[ordinal];
+            return localDriverSurface;
+        }
+        localDriverSurface = null;
         return SURFACES[ordinal];
     }
 
     private void setAttachedSurface(Direction direction) {
+        if (level().isClientSide() && getControllingPassenger() != null && isLocalInstanceAuthoritative())
+            localDriverSurface = direction;
         getEntityData().set(DATA_ATTACHED_SURFACE, direction.ordinal());
     }
 

@@ -54,8 +54,8 @@ public final class RoofCollapseCinematic {
     public static CameraPose cameraPose(Vec3 playerEye, float partial) {
         if (!active || !showShot || center == null) return null;
         float time = ticks + partial;
-        float enter = smoother(time / 24F);
-        float leave = smoother((time - (duration - 18F)) / 18F);
+        float enter = smoother(time / 40F);
+        float leave = smoother((time - (duration - 36F)) / 36F);
         Vec3 source = openingEye == null ? playerEye : openingEye;
         Vec3 outward = source.subtract(center).multiply(1, 0, 1);
         if (outward.lengthSqr() < 1.0E-5D) outward = new Vec3(0, 0, 1);
@@ -67,7 +67,7 @@ public final class RoofCollapseCinematic {
         float descend = smoother((time - 26F) / 64F);
         float recover = smoother((time - 120F) / 30F);
         Vec3 shot = wide.lerp(impact, descend).lerp(revival, recover)
-                .add(side.scale(Math.sin(time * .025D) * 1.15D));
+                .add(side.scale(Math.sin(time * .012D) * .4D));
         Vec3 position = source.lerp(shot, enter).lerp(playerEye, leave);
         float fall = smoother((time - 28F) / 66F);
         Vec3 roof = center.add(0, 39.0D, 0);
@@ -76,7 +76,7 @@ public final class RoofCollapseCinematic {
         float pressure = smoother((time - 24F) / 54F) * (1F - smoother((time - 112F) / 25F));
         float crush = 1F - Mth.clamp(Math.abs(time - 76F) / 13F, 0F, 1F);
         float revivalPulse = 1F - Mth.clamp(Math.abs(time - 140F) / 10F, 0F, 1F);
-        double force = pressure * .10D + smoother(crush) * .42D + smoother(revivalPulse) * .22D;
+        double force = pressure * .015D + smoother(crush) * .16D + smoother(revivalPulse) * .08D;
         double sx = (Math.sin(time * 2.31D) + Math.sin(time * .67D + 1.4D) * .55D) * force;
         double sy = (Math.sin(time * 2.77D + .8D) + Math.sin(time * .83D) * .45D) * force * .55D;
         position = position.add(sx, sy, -sx * .48D);
@@ -84,8 +84,8 @@ public final class RoofCollapseCinematic {
         float yaw = (float)Math.toDegrees(Math.atan2(-delta.x, delta.z)) + (float)(sx * 2.6D);
         float pitch = (float)-Math.toDegrees(Math.atan2(delta.y, delta.horizontalDistance()))
                 + (float)(sy * 2.2D);
-        return new CameraPose(position, Mth.rotLerp(leave, yaw, returnYaw),
-                Mth.lerp(leave, pitch, returnPitch));
+        return new CameraPose(position, Mth.rotLerp(leave, Mth.rotLerp(enter, returnYaw, yaw), returnYaw),
+                Mth.lerp(leave, Mth.lerp(enter, returnPitch, pitch), returnPitch));
     }
 
     public static boolean isActive() { return active; }

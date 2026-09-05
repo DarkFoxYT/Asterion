@@ -3,7 +3,6 @@ package net.krodark.asterion.game;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.WorldGenerator;
-import net.krodark.asterion.effect.GreekFireBurn;
 import net.krodark.asterion.worldgen.AuthoredCatacombs;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -29,7 +28,6 @@ public final class ArenaDeathRecovery {
             player.setHealth(player.getMaxHealth());
             player.getFoodData().setFoodLevel(20);
             player.clearFire();
-            player.removeEffect(GreekFireBurn.TYPE);
             player.invulnerableTime=60;
 
             if(minotaurArena)

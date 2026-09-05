@@ -29,6 +29,12 @@
     ],
     "rei_client": [
       "net.krodark.asterion.compat.rei.AsterionReiClientPlugin"
+    ],
+    "rei_common": [
+      "net.krodark.asterion.compat.rei.AsterionReiCommonPlugin"
+    ],
+    "jade": [
+      "net.krodark.asterion.compat.jade.AsterionJadePlugin"
     ]
   },
   "mixins": [

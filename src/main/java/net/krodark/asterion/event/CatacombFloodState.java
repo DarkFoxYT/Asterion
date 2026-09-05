@@ -28,7 +28,7 @@ public final class CatacombFloodState extends SavedData {
     public static final int FLOOD_TOP_Y = net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y - 6;
     public static final int MAX_RISE = (FLOOD_TOP_Y - CatacombLayout.WATER_Y) * 8;
     public static final int RISE_PER_STEP = 1;
-    public static final int STEP_TICKS = 20;
+    public static final int STEP_TICKS = 80;
     public static final int RISE_DURATION_TICKS = MAX_RISE / RISE_PER_STEP * STEP_TICKS;
     public static final Codec<CatacombFloodState> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.BOOL.optionalFieldOf("active", false).forGetter(s -> s.active),
@@ -111,7 +111,7 @@ public final class CatacombFloodState extends SavedData {
         }
         // Revisit the flooded volume even at a steady tide: opened doors and new chunks can admit water.
         if (state.rise > 0 && now % 100 == 0) loaded.pending.addAll(loaded.chunks);
-        if (now % 4 == 0) spread(level, state.rise);
+        if (now % 16 == 0) spread(level, state.rise);
         int budget=0;
         // Keep the flood visibly synchronized around players before background chunks.
         for(var player:level.players())for(int dx=-1;dx<=1 && budget<8;dx++)for(int dz=-1;dz<=1 && budget<8;dz++) {

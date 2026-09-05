@@ -20,6 +20,11 @@
     "asterion:tarnished_gold_ore",
     "asterion:celestial_gold_ore",
     "asterion:mazesteel_block",
+    "asterion:celestial_bronze_block",
+    "asterion:tarnished_gold_block",
+    "asterion:celestial_gold_block",
+    "asterion:bonesteel_block",
+    "asterion:celestial_steel_block",
     "asterion:mazesteel_chain",
     "asterion:mazesteel_gate",
     "asterion:winch",
@@ -83,6 +88,8 @@
     "asterion:shale_celestial_gold_ore",
     "asterion:shale_tarnished_gold_ore",
     "asterion:shaded_shale_celestial_gold_ore",
-    "asterion:shaded_shale_tarnished_gold_ore"
+    "asterion:shaded_shale_tarnished_gold_ore",
+    "asterion:shale_formation",
+    "asterion:shaded_shale_formation"
   ]
 }

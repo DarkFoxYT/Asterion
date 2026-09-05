@@ -17,10 +17,11 @@ import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.level.Level;
 
-/** A forty-tick guard that converts blocked damage into one retaliatory strike. */
+/** A short guard with one counterattack charge and a shared item cooldown. */
 public final class AfterblowItem extends Item {
     private static final String STORED_DAMAGE = "afterblow_damage";
     private static final String STORED_AT = "afterblow_stored_at";
+    private static final int BLOCK_COOLDOWN_TICKS = 40;
     private static final int FULL_STRENGTH_TICKS = 100;
     private static final int EXPIRES_TICKS = 200;
 
@@ -31,6 +32,7 @@ public final class AfterblowItem extends Item {
     @Override
     public InteractionResult use(Level level, net.minecraft.world.entity.player.Player player,
                                  InteractionHand hand) {
+        if (player.getCooldowns().isOnCooldown(player.getItemInHand(hand))) return InteractionResult.FAIL;
         player.startUsingItem(hand);
         return InteractionResult.CONSUME;
     }
@@ -38,15 +40,33 @@ public final class AfterblowItem extends Item {
     @Override public int getUseDuration(ItemStack stack, LivingEntity user) { return 40; }
     @Override public ItemUseAnimation getUseAnimation(ItemStack stack) { return ItemUseAnimation.BLOCK; }
 
-    public static boolean tryBlock(ServerPlayer player, float damage) {
-        if (!player.isUsingItem() || player.getTicksUsingItem() >= 40 || damage <= 0) return false;
+    @Override
+    public boolean releaseUsing(ItemStack stack, Level level, LivingEntity user, int remaining) {
+        if (user instanceof ServerPlayer player)
+            player.getCooldowns().addCooldown(stack, BLOCK_COOLDOWN_TICKS);
+        return false;
+    }
+
+    @Override
+    public ItemStack finishUsingItem(ItemStack stack, Level level, LivingEntity user) {
+        if (user instanceof ServerPlayer player)
+            player.getCooldowns().addCooldown(stack, BLOCK_COOLDOWN_TICKS);
+        return stack;
+    }
+
+    public static boolean tryBlock(ServerPlayer player, net.minecraft.world.damagesource.DamageSource source, float damage) {
+        if (!player.isUsingItem() || player.getTicksUsingItem() >= 40 || !Float.isFinite(damage) || damage <= 0
+                || source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_SHIELD)
+                || source.getDirectEntity() == null) return false;
         ItemStack stack = player.getUseItem();
-        if (!(stack.getItem() instanceof AfterblowItem)) return false;
+        if (!(stack.getItem() instanceof AfterblowItem) || player.getCooldowns().isOnCooldown(stack)) return false;
 
         long now = player.level().getGameTime();
-        writeStored(stack, storedAt(stack, now) + damage, now);
+        writeStored(stack, Math.clamp(12F - damage * .5F, 2F, 12F), now);
+        player.getCooldowns().addCooldown(stack, BLOCK_COOLDOWN_TICKS);
         int durability = Math.max(1, (int)Math.ceil(damage));
         InteractionHand hand = player.getUsedItemHand();
+        player.stopUsingItem();
         stack.hurtAndBreak(durability, player, hand);
         player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
                 net.minecraft.sounds.SoundEvents.SHIELD_BLOCK,
@@ -61,11 +81,12 @@ public final class AfterblowItem extends Item {
         return stored;
     }
 
-    private static float storedAt(ItemStack stack, long now) {
+    public static float storedAt(ItemStack stack, long now) {
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
         if (data == null) return 0;
         CompoundTag tag = data.copyTag();
-        float value = Math.max(0, tag.getFloatOr(STORED_DAMAGE, 0));
+        float raw = tag.getFloatOr(STORED_DAMAGE, 0);
+        float value = Float.isFinite(raw) ? Math.clamp(raw, 0, 12) : 0;
         long elapsed = Math.max(0, now - tag.getLongOr(STORED_AT, now));
         if (elapsed <= FULL_STRENGTH_TICKS) return value;
         if (elapsed >= EXPIRES_TICKS) return 0;

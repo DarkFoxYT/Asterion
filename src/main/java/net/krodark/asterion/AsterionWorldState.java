@@ -34,10 +34,15 @@ public final class AsterionWorldState extends SavedData {
             Codec.STRING.optionalFieldOf("summoned_portal_dimension", "minecraft:overworld")
                     .forGetter(state -> state.summonedPortalDimension),
             Codec.INT.optionalFieldOf("boss_arena_revision", 0).forGetter(state -> state.bossArenaRevision),
-            Codec.BOOL.optionalFieldOf("arena_lamenters_installed", false).forGetter(state -> state.arenaLamentersInstalled)
+            Codec.BOOL.optionalFieldOf("arena_lamenters_installed", false).forGetter(state -> state.arenaLamentersInstalled),
+            Codec.BOOL.optionalFieldOf("omega_gate_unlocked", false).forGetter(state -> state.omegaGateUnlocked)
     ).apply(instance, AsterionWorldState::new));
     private static final SavedDataType<AsterionWorldState> TYPE = new SavedDataType<>(
             Asterion.id("world_state"), AsterionWorldState::new, CODEC, DataFixTypes.LEVEL);
+
+    private boolean omegaGateUnlocked;
+    public boolean omegaGateUnlocked() { return omegaGateUnlocked; }
+    public void markOmegaGateUnlocked() { omegaGateUnlocked = true; setDirty(); }
 
     private boolean minotaurDefeated;
     private boolean cursedBrazierDefeated;
@@ -51,14 +56,15 @@ public final class AsterionWorldState extends SavedData {
     private boolean arenaLamentersInstalled;
 
     public AsterionWorldState() {
-        this(false, false, java.util.List.of(), Map.of(), Long.MIN_VALUE, 0, 0L, "minecraft:overworld", 0, false);
+        this(false, false, java.util.List.of(), Map.of(), Long.MIN_VALUE, 0, 0L, "minecraft:overworld", 0, false, false);
     }
     private AsterionWorldState(boolean minotaurDefeated, boolean cursedBrazierDefeated,
                                java.util.List<Integer> cursedBrazierDefeatedRooms,
                                Map<String, Long> runeCheckpoints,
                                long summonedPortalCenter, int summonedPortalY,
                                long summonedPortalSeed, String summonedPortalDimension, int bossArenaRevision,
-                               boolean arenaLamentersInstalled) {
+                               boolean arenaLamentersInstalled, boolean omegaGateUnlocked) {
+        this.omegaGateUnlocked = omegaGateUnlocked;
         this.minotaurDefeated = minotaurDefeated;
         this.cursedBrazierDefeated = cursedBrazierDefeated;
         this.cursedBrazierDefeatedRooms = new java.util.HashSet<>(cursedBrazierDefeatedRooms);
@@ -118,6 +124,7 @@ public final class AsterionWorldState extends SavedData {
 
     public void resetMinotaurEncounter() {
         minotaurDefeated = false;
+        omegaGateUnlocked = false;
         setDirty();
     }
 

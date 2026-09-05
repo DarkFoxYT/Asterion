@@ -37,7 +37,7 @@ public final class WeaponCombatSystem {
         if (initialized) return;
         initialized = true;
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) ->
-                !(entity instanceof ServerPlayer player) || !AfterblowItem.tryBlock(player, amount));
+                !(entity instanceof ServerPlayer player) || !AfterblowItem.tryBlock(player, source, amount));
         ServerLivingEntityEvents.AFTER_DAMAGE.register(WeaponCombatSystem::afterDamage);
         ServerTickEvents.END_SERVER_TICK.register(WeaponCombatSystem::tick);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> COMBOS.clear());
@@ -56,11 +56,8 @@ public final class WeaponCombatSystem {
         ItemStack weapon = attacker.getMainHandItem();
         if (weapon.is(Asterion.SICKENED_TWINBLADES)) recordTwinbladeHit(attacker);
 
-        if (weapon.is(Asterion.AFTERBLOW)) {
-            float discharge = AfterblowItem.consumeStored(weapon, attacker.level().getGameTime());
-            if (discharge > .001F && victim.isAlive())
-                victim.hurtServer((ServerLevel)attacker.level(), source, discharge);
-        }
+        if (weapon.is(Asterion.AFTERBLOW))
+            AfterblowItem.consumeStored(weapon, attacker.level().getGameTime());
     }
 
     /** Applied before a landed melee hit; hit three arms the bonus for hit four onward. */

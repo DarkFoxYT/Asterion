@@ -10,6 +10,7 @@ import net.krodark.asterion.client.light.AmneticBoneEmission;
 
 public final class VineEmissionGameTest implements FabricClientGameTest {
     @Override public void runTest(ClientGameTestContext context) {
+        System.setProperty("asterion.verifyStaticVines", "true");
         PortalEmissionGameTest.Probe[] probe = new PortalEmissionGameTest.Probe[1];
         context.runOnClient(client -> org.lwjgl.glfw.GLFW.glfwHideWindow(client.getWindow().handle()));
         try (var world = context.worldBuilder().create()) {
@@ -45,6 +46,7 @@ public final class VineEmissionGameTest implements FabricClientGameTest {
             context.waitFor(client -> probe[0].darkFrames >= 5, 300);
             Asterion.LOGGER.info("PASS: Amnetic vine emission in both orientations, reload, occlusion and middle-segment rejection");
         } finally {
+            System.clearProperty("asterion.verifyStaticVines");
             context.runOnClient(client -> {
                 if (probe[0] != null) probe[0].close();
                 AsterionEmissiveConfig.apply();

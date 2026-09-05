@@ -32,7 +32,6 @@ public final class AsterionConfig {
     public int floorThickness = 4;
     public int mazeLoopChance = 36;
     public int mazeLandmarkChance = 28;
-    public int playerBlockDecayTicks = 400;
     public int wallZapDelayTicks = 60;
     public int minotaurStalkDistance = 43;
     public int minotaurApproachDistance = 20;
@@ -146,7 +145,6 @@ public final class AsterionConfig {
             gatewayDistance = 900;
         }
         if (version < 8) {
-            playerBlockDecayTicks = 400;
             wallZapDelayTicks = 60;
         }
         if (version < 10) {
@@ -255,7 +253,6 @@ public final class AsterionConfig {
         floorThickness = Math.max(2, Math.min(8, floorThickness));
         mazeLoopChance = Math.max(16, Math.min(96, mazeLoopChance));
         mazeLandmarkChance = Math.max(12, Math.min(96, mazeLandmarkChance));
-        playerBlockDecayTicks = Math.max(40, Math.min(3_600, playerBlockDecayTicks));
         wallZapDelayTicks = Math.max(20, Math.min(200, wallZapDelayTicks));
         minotaurStalkDistance = Math.max(28, Math.min(56, minotaurStalkDistance));
         minotaurApproachDistance = Math.max(14, Math.min(minotaurStalkDistance - 6, minotaurApproachDistance));

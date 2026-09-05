@@ -21,6 +21,7 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                 RuneOwnershipCheck.run(server.overworld());
                 PurityRemovalCheck.run();
                 GameplayFixCheck.run(server);
+                AfterblowCombatCheck.run(server);
                 MinotaurWeaponDropCheck.run(server.overworld());
                 RefugeAndHarvestCheck.run(server);
                 QueenQuestCheck.run(server);
@@ -28,6 +29,10 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                 FloodSpreadCheck.run(level);
                 SkeletonLootCheck.run(server);
                 ShaleCavesCheck.run(level);
+                ProgressionStabilityCheck.run(server);
+                AncientContentCheck.run(server);
+                AncientBoneCheck.run(server);
+                ChainLiftCheck.run(server);
                 // Runtime installs arena pieces from completed chunk callbacks. This test
                 // intentionally forces all pieces so it can inspect the entire 123x123 build.
                 WorldGenerator.prepareBossArenaBeforePlayers(level);

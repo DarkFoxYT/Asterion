@@ -38,6 +38,7 @@ repositories {
     maven { name = "Terraformers"; url = "https://maven.terraformersmc.com/releases/" }
     maven { name = "BlameJared"; url = "https://maven.blamejared.com/" }
     maven { name = "Shedaniel"; url = "https://maven.shedaniel.me/" }
+    maven { name = "Modrinth"; url = "https://api.modrinth.com/maven" }
 }
 
 dependencies {
@@ -54,6 +55,7 @@ dependencies {
     compileOnly "me.shedaniel:RoughlyEnoughItems-api-fabric:${project.rei_version}"
     compileOnly "dev.architectury:architectury-fabric:${project.architectury_version}"
     compileOnly "me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}"
+    compileOnly "maven.modrinth:jade:${project.jade_version}"
 
     // Keep the pinned renderer and its parser in the distributed mod jar.
     implementation "com.meekdev:amnetic:${project.amnetic_version}"
@@ -76,6 +78,16 @@ def resourceProperties = [
 ]
 
 processResources {
+    from('src/main/resources/assets/asterion/textures/armor') {
+        include '*_top.png'
+        into 'assets/asterion/textures/entity/equipment/humanoid'
+        rename { it.replace('_top.png', '.png') }
+    }
+    from('src/main/resources/assets/asterion/textures/armor') {
+        include '*_bottom.png'
+        into 'assets/asterion/textures/entity/equipment/humanoid_leggings'
+        rename { it.replace('_bottom.png', '.png') }
+    }
     inputs.properties resourceProperties
     filteringCharset = "UTF-8"
 
@@ -92,7 +104,7 @@ processResources {
         def seen = new HashSet<String>()
         fileTree('src/main/resources/assets/asterion/sounds/music').matching { include '**/*.ogg' }.files.sort().each { track ->
             def group = track.parentFile.name
-            if (!(group in ['ancient', 'overgrown', 'crimsonmarshlands', 'arena'])) return
+            if (!(group in ['ancient', 'overgrown', 'crimsonmarshlands', 'arena', 'forge'])) return
             def stem = track.name.substring(0, track.name.length() - 4)
             def split = stem.lastIndexOf(' - ')
             def title = split < 0 ? stem : stem.substring(0, split).trim()
@@ -406,7 +418,28 @@ def clientGameTests = [
         [run: "LamenterTest", folder: "lamenter-testmod", id: "asterion_lamenter_test",
          classes: ["net.krodark.asterion.dev.verification.LamenterGameTest"]],
         [run: "CatacombTest", folder: "catacomb-testmod", id: "asterion_catacomb_test",
-         classes: ["net.krodark.asterion.dev.verification.CatacombLayoutGameTest"]],
+         classes: providers.gradleProperty("shaleFormationOnly").isPresent()
+                   ? ["net.krodark.asterion.dev.verification.ShaleFormationGameTest"]
+                   : providers.gradleProperty("forgeInteractionOnly").isPresent()
+                   ? ["net.krodark.asterion.dev.verification.ForgeInteractionGameTest"]
+                   : providers.gradleProperty("armorOnly").isPresent()
+                   ? ["net.krodark.asterion.dev.verification.ArmorGameTest"]
+                   : providers.gradleProperty("forgeScreenOnly").isPresent()
+                   ? ["net.krodark.asterion.dev.verification.ForgeScreenGameTest"]
+                   : providers.gradleProperty("minotaurRemainsOnly").isPresent()
+                 ? ["net.krodark.asterion.dev.verification.MinotaurRemainsGameTest"]
+                 : providers.gradleProperty("centipedeRideOnly").isPresent()
+                 ? ["net.krodark.asterion.dev.verification.CentipedeRideGameTest"]
+                 : providers.gradleProperty("minotaurBodyOnly").isPresent()
+                 ? ["net.krodark.asterion.dev.verification.MinotaurBodyGameTest"]
+                 : providers.gradleProperty("liftOnly").isPresent()
+                 ? ["net.krodark.asterion.dev.verification.ChainLiftGameTest"]
+                 : providers.gradleProperty("grabOnly").isPresent()
+                 ? ["net.krodark.asterion.dev.verification.MinotaurGrabGameTest"]
+                 : ["net.krodark.asterion.dev.verification.CatacombLayoutGameTest",
+                    "net.krodark.asterion.dev.verification.ChainLiftGameTest",
+                    "net.krodark.asterion.dev.verification.MinotaurBodyGameTest",
+                    "net.krodark.asterion.dev.verification.CentipedeRideGameTest"]],
         [run: "BiomeTest", folder: "biome-testmod", id: "asterion_biome_test",
          classes: ["net.krodark.asterion.worldgen.BiomeFeatureGameTest"]],
         [run: "RenderPerformanceTest", folder: "renderer-testmod", id: "asterion_renderer_test",

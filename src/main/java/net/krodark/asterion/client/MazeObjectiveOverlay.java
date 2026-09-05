@@ -27,6 +27,8 @@ public final class MazeObjectiveOverlay {
     private static boolean sawMinotaurMold;
     private static boolean sawMinotaurKey;
     private static boolean sawOmegaKey;
+    private static boolean sawOre;
+    private static boolean sawIngots;
     private static boolean wasInMaze;
 
     private enum Stage {
@@ -34,6 +36,8 @@ public final class MazeObjectiveOverlay {
         GET_BRAZIER_KEY("get_brazier_key"),
         DEFEAT_BRAZIER("defeat_brazier"),
         REACH_FORGE("reach_forge"),
+        GATHER_ORE("gather_ore"),
+        PREPARE_INGOTS("prepare_ingots"),
         FORGE_MINOTAUR_KEY("forge_minotaur_key"),
         REACH_ARENA_DOORS("reach_arena_doors"),
         DEFEAT_DEAD_SUN("defeat_dead_sun"),
@@ -97,10 +101,15 @@ public final class MazeObjectiveOverlay {
             }
         }
         if (!visible) return;
-        visibleTicks++;
+        if (!bossFightActive(client)) visibleTicks++;
+        sawOre |= hasCaveOre(client);
+        sawIngots |= hasIngots(client);
         sawBrazierKey |= client.player.getInventory().contains(new net.minecraft.world.item.ItemStack(GameplayContent.CURSED_BRAZIER_KEY));
         sawMinotaurMold |= has(client, Asterion.MINOTAUR_KEY_CAST);
-        sawMinotaurKey |= client.player.getInventory().contains(new net.minecraft.world.item.ItemStack(Asterion.MINOTAUR_KEY));
+        sawMinotaurKey |= client.player.getInventory().contains(new net.minecraft.world.item.ItemStack(Asterion.MINOTAUR_KEY))
+                || !client.level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
+                        client.player.getBoundingBox().inflate(10.0D), entity -> entity.getItem().is(Asterion.MINOTAUR_KEY))
+                        .isEmpty();
         sawOmegaKey |= client.player.getInventory().contains(new net.minecraft.world.item.ItemStack(Asterion.OMEGA_KEY));
 
         boolean complete = switch (stage) {
@@ -108,6 +117,8 @@ public final class MazeObjectiveOverlay {
             case GET_BRAZIER_KEY -> sawBrazierKey;
             case DEFEAT_BRAZIER -> sawMinotaurMold || sawMinotaurKey || sawOmegaKey;
             case REACH_FORGE -> client.player.getY() <= net.krodark.asterion.worldgen.LabyrinthLevels.FORGE_ROOF_Y;
+            case GATHER_ORE -> sawOre || sawIngots || sawMinotaurKey || sawOmegaKey;
+            case PREPARE_INGOTS -> sawIngots || sawMinotaurKey || sawOmegaKey;
             case FORGE_MINOTAUR_KEY -> sawMinotaurKey || sawOmegaKey;
             case REACH_ARENA_DOORS -> client.player.position().distanceToSqr(
                     MinotaurArenaEntrances.door(MinotaurArenaEntrances.PLAYER_ENTRANCE).getCenter()) <= 24.0D * 24.0D;
@@ -127,8 +138,14 @@ public final class MazeObjectiveOverlay {
         }
     }
 
+    private static boolean bossFightActive(Minecraft client) {
+        return !((net.krodark.asterion.mixin.BossHealthOverlayAccessor)client.gui.getBossOverlay())
+                .asterion$bossEvents().isEmpty();
+    }
+
     private static void render(GuiGraphicsExtractor graphics, net.minecraft.client.DeltaTracker tracker) {
         if (!visible || CinematicHud.isHidden() || !AsterionConfig.INSTANCE.objectiveHudEnabled) return;
+        if (bossFightActive(Minecraft.getInstance())) return;
         int displaySeconds = AsterionConfig.INSTANCE.objectiveHudSeconds;
         if (displaySeconds > 0 && visibleTicks > displaySeconds * 20) return;
         Minecraft client = Minecraft.getInstance();
@@ -146,10 +163,10 @@ public final class MazeObjectiveOverlay {
                                 + Math.pow(waypoint.z - client.player.getZ(), 2)))));
         Component progress = Component.translatable("objective.asterion.progress",
                 stage.ordinal() + 1, Stage.values().length);
-        int contentWidth = Math.max(Math.max(client.font.width(objective), client.font.width(hint)),
-                client.font.width(waypointText) + 22);
-        int panelWidth = Math.min(graphics.guiWidth() - 24, Math.max(208, contentWidth + 24));
-        int panelHeight = waypoint == null ? 48 : 61;
+        int panelWidth = Math.min(graphics.guiWidth() - 24, 286);
+        var hintLines = client.font.split(hint, panelWidth - 24);
+        int waypointY = 35 + hintLines.size() * 10;
+        int panelHeight = waypointY + (waypoint == null ? 4 : 17);
         int left = Math.round(Mth.lerp(appear, -panelWidth - 4.0F, 12.0F));
         int panelTop = 12;
         graphics.fill(left, panelTop, left + panelWidth, panelTop + panelHeight,
@@ -165,17 +182,18 @@ public final class MazeObjectiveOverlay {
                 Math.round(alpha * 0.58F) << 24 | 0xA89185, false);
         graphics.text(client.font, objective, textLeft, panelTop + 20,
                 alpha << 24 | 0xF2DED0, false);
-        graphics.text(client.font, hint, textLeft, panelTop + 33,
-                Math.round(alpha * 0.68F) << 24 | 0xB8A49A, false);
+        for (int line = 0; line < hintLines.size(); line++)
+            graphics.text(client.font, hintLines.get(line), textLeft, panelTop + 33 + line * 10,
+                    Math.round(alpha * 0.68F) << 24 | 0xB8A49A, false);
         if (waypoint != null) {
             double dx = waypoint.x - client.player.getX();
             double dz = waypoint.z - client.player.getZ();
             float targetYaw = (float)Math.toDegrees(Math.atan2(-dx, dz));
             float relative = Mth.wrapDegrees(targetYaw - client.player.getYRot());
             String arrow = Math.abs(relative) < 18.0F ? "◆" : relative < 0.0F ? "◀" : "▶";
-            graphics.text(client.font, Component.literal(arrow), textLeft, panelTop + 47,
+            graphics.text(client.font, Component.literal(arrow), textLeft, panelTop + waypointY,
                     alpha << 24 | 0xE8B94A, false);
-            graphics.text(client.font, waypointText, textLeft + 13, panelTop + 47,
+            graphics.text(client.font, waypointText, textLeft + 13, panelTop + waypointY,
                     Math.round(alpha * 0.84F) << 24 | 0xD8C7A2, false);
         }
     }
@@ -194,12 +212,16 @@ public final class MazeObjectiveOverlay {
         sawMinotaurMold = false;
         sawMinotaurKey = false;
         sawOmegaKey = false;
+        sawOre = false;
+        sawIngots = false;
     }
 
     private static void recoverProgress(Minecraft client) {
         waitTicks = completionTicks = 0;
         visibleTicks = 0;
         visible = true;
+        sawOre = hasCaveOre(client);
+        sawIngots = hasIngots(client);
         sawBrazierKey = has(client, GameplayContent.CURSED_BRAZIER_KEY);
         sawMinotaurMold = has(client, Asterion.MINOTAUR_KEY_CAST);
         sawMinotaurKey = has(client, Asterion.MINOTAUR_KEY);
@@ -212,13 +234,26 @@ public final class MazeObjectiveOverlay {
         else if (sawMinotaurKey) stage = Stage.REACH_ARENA_DOORS;
         else if (sawMinotaurMold
                 && pos.getY() <= net.krodark.asterion.worldgen.LabyrinthLevels.FORGE_ROOF_Y)
-            stage = Stage.FORGE_MINOTAUR_KEY;
+            stage = sawIngots ? Stage.FORGE_MINOTAUR_KEY : sawOre ? Stage.PREPARE_INGOTS : Stage.GATHER_ORE;
         else if (sawMinotaurMold) stage = Stage.REACH_FORGE;
         else if (net.krodark.asterion.worldgen.AuthoredCatacombs.insideCursedBrazierRoom(pos))
             stage = Stage.DEFEAT_BRAZIER;
         else if (sawBrazierKey) stage = Stage.DEFEAT_BRAZIER;
         else if (CatacombLayout.contains(pos)) stage = Stage.GET_BRAZIER_KEY;
         else stage = Stage.ENTER_CATACOMBS;
+    }
+
+    private static boolean hasCaveOre(Minecraft client) {
+        return has(client, Asterion.SHALE_TARNISHED_GOLD_ORE.asItem())
+                || has(client, Asterion.SHADED_SHALE_TARNISHED_GOLD_ORE.asItem())
+                || has(client, Asterion.SHALE_CELESTIAL_GOLD_ORE.asItem())
+                || has(client, Asterion.SHADED_SHALE_CELESTIAL_GOLD_ORE.asItem());
+    }
+
+    private static boolean hasIngots(Minecraft client) {
+        return has(client, Asterion.TARNISHED_GOLD_INGOT) || has(client, Asterion.CELESTIAL_GOLD_INGOT)
+                || has(client, Asterion.FORGED_INGOT) || has(client, Asterion.CELESTIAL_BRONZE_INGOT)
+                || has(client, Asterion.CELESTIAL_STEEL_INGOT) || has(client, Asterion.BONESTEEL_INGOT);
     }
 
     private static boolean has(Minecraft client, net.minecraft.world.item.Item item) {

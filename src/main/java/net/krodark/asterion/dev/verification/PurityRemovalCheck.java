@@ -35,7 +35,8 @@ final class PurityRemovalCheck {
             var data = new CompoundTag(); data.putInt("purity", purity); data.putString("metal_sequence", "4");
             stack.set(DataComponents.CUSTOM_DATA, CustomData.of(data)); result.add(stack);
         }
-        return CraftingInput.of(3, 1, result);
+        result.add(new ItemStack(Asterion.DEADWOOD_STICK));
+        return CraftingInput.of(2, 2, result);
     }
     private static void check(boolean value, String message) { if (!value) throw new AssertionError(message); }
 }

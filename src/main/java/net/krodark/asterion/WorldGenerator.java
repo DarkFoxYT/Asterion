@@ -117,8 +117,7 @@ public final class WorldGenerator {
     private static BossFinale bossFinale;
     private static final BlockPos ARENA_EXIT_PORTAL = new BlockPos(0, BOSS_FLOOR_Y + 2, -60);
     private static long activeMazeTerrainSeed;
-    private static final PriorityQueue<DecayingBlock> DECAYING_BLOCKS = new PriorityQueue<>(
-            Comparator.comparingLong(DecayingBlock::dueTick));
+
     private static final PriorityQueue<RestoringBlock> RESTORING_BLOCKS = new PriorityQueue<>(
             Comparator.comparingLong(RestoringBlock::dueTick));
     private static final Map<BlockKey, Block> PLAYER_PLACED_BLOCKS = new HashMap<>();
@@ -162,14 +161,14 @@ public final class WorldGenerator {
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
         ChunkPos pos = chunk.getPos();
         BlockPos marker = new BlockPos(pos.getMinBlockX(), 1, pos.getMinBlockZ());
-        if (!chunk.getBlockState(marker).is(Blocks.BEDROCK)) buildMazeChunk(level, chunk, marker);
+        if (!chunk.getBlockState(marker).is(Blocks.BEDROCK)
+                && !chunk.getBlockState(marker).is(Blocks.LIGHT)) buildMazeChunk(level, chunk, marker);
         MazeNbtStructures.markCopperClean(chunk);
     }
 
     public static void tickServer(MinecraftServer server) {
         restoreSavedPortal(server);
         DeadSunEventSystem.tick(server);
-        tickDecayingBlocks(server);
         tickRestoringBlocks(server);
         ServerLevel maze = server.getLevel(Asterion.ASTERION_LEVEL);
         if (maze != null) {
@@ -369,8 +368,7 @@ public final class WorldGenerator {
                     || fireball.entityTags().contains("asterion_catacomb_fireball"))) && arena.intersects(entity.getBoundingBox()))
                 entity.discard();
         }
-        DECAYING_BLOCKS.removeIf(entry -> entry.dimension.equals(level.dimension())
-                && arena.contains(Vec3.atCenterOf(entry.pos)));
+
         RESTORING_BLOCKS.removeIf(entry -> entry.dimension.equals(level.dimension())
                 && arena.contains(Vec3.atCenterOf(entry.pos)));
     }
@@ -404,13 +402,7 @@ public final class WorldGenerator {
     public static void trackPlayerPlacement(ServerLevel level, BlockPos pos, BlockState state) {
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
         PLAYER_PLACED_BLOCKS.put(new BlockKey(level.dimension(), pos.immutable()), state.getBlock());
-        // Surface-maze construction is permanent. Keep provenance so maze attacks can
-        // distinguish it from generated masonry, but never enroll it in decay.
-        if (isPermanentUpperMazeBuild(pos)) return;
-        int decayTicks = net.krodark.asterion.worldgen.CatacombProtection.contains(level, pos)
-                ? 20 : AsterionConfig.INSTANCE.playerBlockDecayTicks;
-        DECAYING_BLOCKS.add(new DecayingBlock(level.dimension(), pos.immutable(), state.getBlock(),
-                level.getGameTime() + decayTicks));
+        RESTORING_BLOCKS.removeIf(entry -> entry.dimension.equals(level.dimension()) && entry.pos.equals(pos));
     }
 
     public static void trackMazeBreak(ServerLevel level, BlockPos pos, BlockState state) {
@@ -422,7 +414,7 @@ public final class WorldGenerator {
             return;
         }
         RESTORING_BLOCKS.removeIf(entry -> entry.dimension.equals(level.dimension()) && entry.pos.equals(pos));
-        if (state.is(Asterion.SKELETON)) return;
+        if (state.is(Asterion.SKELETON) || state.is(net.krodark.asterion.game.ChainLiftContent.ANCHOR)) return;
         if (!shouldRestoreMazeBreak(level, pos)) return;
         long restoreDelay = net.krodark.asterion.worldgen.CatacombProtection.contains(level, pos)
                 ? 20L : 100L;
@@ -461,7 +453,8 @@ public final class WorldGenerator {
                 ? mazeStructureLayout(level) : MazeNbtStructures.emptyLayout();
         BlockPos migrationMarker = new BlockPos(chunk.getPos().getMinBlockX() + 1, 1,
                 chunk.getPos().getMinBlockZ());
-        boolean expandLegacyShell = legacyChunk && !chunk.getBlockState(migrationMarker).is(Blocks.BEDROCK);
+        boolean expandLegacyShell = legacyChunk && !chunk.getBlockState(migrationMarker).is(Blocks.BEDROCK)
+                && !chunk.getBlockState(migrationMarker).is(Blocks.LIGHT);
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (int x = chunk.getPos().getMinBlockX(); x <= chunk.getPos().getMaxBlockX(); x++) {
             for (int z = chunk.getPos().getMinBlockZ(); z <= chunk.getPos().getMaxBlockZ(); z++) {
@@ -493,8 +486,10 @@ public final class WorldGenerator {
                 }
             }
         }
-        if (!chunk.getBlockState(migrationMarker).is(Blocks.BEDROCK))
-            chunk.setBlockState(migrationMarker, Blocks.BEDROCK.defaultBlockState(), 0);
+        if (!chunk.getBlockState(migrationMarker).is(Blocks.BEDROCK)
+                && !chunk.getBlockState(migrationMarker).is(Blocks.LIGHT))
+            chunk.setBlockState(migrationMarker, Blocks.LIGHT.defaultBlockState()
+                    .setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 0), 0);
     }
 
     private static boolean isMazeWallMaterial(BlockState state) {
@@ -663,22 +658,6 @@ public final class WorldGenerator {
                     broken++;
                 }
         return broken;
-    }
-
-    private static void tickDecayingBlocks(MinecraftServer server) {
-        while (!DECAYING_BLOCKS.isEmpty() && DECAYING_BLOCKS.peek().dueTick <= server.overworld().getGameTime()) {
-            DecayingBlock entry = DECAYING_BLOCKS.poll();
-            ServerLevel level = server.getLevel(entry.dimension);
-            if (level == null || !level.getChunkSource().hasChunk(entry.pos.getX() >> 4, entry.pos.getZ() >> 4)) {
-                continue;
-            }
-            BlockState current = level.getBlockState(entry.pos);
-            if (isPermanentUpperMazeBuild(entry.pos)) continue;
-            if (current.is(entry.expectedBlock)) {
-                level.destroyBlock(entry.pos, false, null, 512);
-                PLAYER_PLACED_BLOCKS.remove(new BlockKey(entry.dimension, entry.pos));
-            }
-        }
     }
 
     private static void tickRestoringBlocks(MinecraftServer server) {
@@ -1986,7 +1965,6 @@ public final class WorldGenerator {
         LAST_BIOME_ATMOSPHERE.clear();
         GATEWAY_SURFACE_Y.clear();
         PLAYER_PLACED_BLOCKS.clear();
-        DECAYING_BLOCKS.clear();
         RESTORING_BLOCKS.clear();
         MAZE_TOPOLOGIES.clear();
         prewarmSeed = Long.MIN_VALUE;
@@ -2430,7 +2408,7 @@ public final class WorldGenerator {
     }
 
     private static int skyfallY() {
-        return FLOOR_Y + AsterionConfig.INSTANCE.wallHeight + SKYFALL_CLEARANCE;
+        return Math.max(200, FLOOR_Y + AsterionConfig.INSTANCE.wallHeight + SKYFALL_CLEARANCE);
     }
 
     private static void prepareMazeArrival(ServerLevel maze, BlockPos arrival) {
@@ -2528,7 +2506,8 @@ public final class WorldGenerator {
             }
         }
 
-        bufferedSet(chunk, marker.getX(), marker.getY(), marker.getZ(), Blocks.BEDROCK.defaultBlockState());
+        bufferedSet(chunk, marker.getX(), marker.getY(), marker.getZ(), Blocks.LIGHT.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 0));
         for (LevelChunkSection section : chunk.getSections())
             if (!section.hasOnlyAir()) section.recalcBlockCounts();
         Heightmap.primeHeightmaps(chunk, EnumSet.allOf(Heightmap.Types.class));
@@ -3127,9 +3106,6 @@ public final class WorldGenerator {
     }
 
     private record MazeKey(long seed, int radius, int loopChance, int landmarkChance) {
-    }
-
-    private record DecayingBlock(ResourceKey<Level> dimension, BlockPos pos, Block expectedBlock, long dueTick) {
     }
 
     private record RestoringBlock(ResourceKey<Level> dimension, BlockPos pos, BlockState state, long dueTick) {

@@ -8,10 +8,11 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 
-/** A single streamed background loop for the whole dimension, independent of biome music. */
+/** Streamed regional ambience, independent of music, with a short crossfade at cave entrances. */
 public final class MazeAmbience {
-    private static Loop loop;
-    private static int ticks, started;
+    private static Loop maze, cave;
+    private static int ticks;
+    private static net.minecraft.client.multiplayer.ClientLevel level;
     private MazeAmbience() { }
 
     public static void initialize() {
@@ -19,10 +20,12 @@ public final class MazeAmbience {
     }
 
     private static void tick(Minecraft client) {
-        if (client.level == null || client.player == null) {
-            if (loop != null) client.getSoundManager().stop(loop);
-            loop = null;
-            return;
+        if (level != client.level || client.level == null || client.player == null) {
+            if (maze != null) client.getSoundManager().stop(maze);
+            if (cave != null) client.getSoundManager().stop(cave);
+            maze = cave = null;
+            level = client.level;
+            if (level == null || client.player == null) return;
         }
         if (client.isPaused()) return;
         ticks++;
@@ -30,22 +33,29 @@ public final class MazeAmbience {
                 && client.player.isAlive()
                 && client.options.getSoundSourceVolume(SoundSource.AMBIENT) > 0
                 && client.options.getSoundSourceVolume(SoundSource.MASTER) > 0;
+        boolean underground = client.player.getY()
+                < net.krodark.asterion.worldgen.LabyrinthLevels.CAVE_ROOF_Y;
+        maze = update(client, maze, "maze_ambience", active && !underground);
+        cave = update(client, cave, "cave_ambience", active && underground);
+    }
+
+    private static Loop update(Minecraft client, Loop loop, String sound, boolean active) {
         if (loop != null) {
             loop.target = active ? .10F : 0;
-            // Sound reloads and dimension changes can stop the engine's voice externally.
-            if (ticks - started > 40 && !client.getSoundManager().isActive(loop)) loop = null;
+            if (ticks - loop.started > 40 && !client.getSoundManager().isActive(loop)) loop = null;
         }
         if (loop == null && active) {
-            loop = new Loop();
-            started = ticks;
+            loop = new Loop(sound);
             client.getSoundManager().play(loop);
         }
+        return loop;
     }
 
     private static final class Loop extends AbstractTickableSoundInstance {
+        private final int started = ticks;
         private float target = .10F;
-        private Loop() {
-            super(SoundEvent.createVariableRangeEvent(Asterion.id("maze_ambience")),
+        private Loop(String sound) {
+            super(SoundEvent.createVariableRangeEvent(Asterion.id(sound)),
                     SoundSource.AMBIENT, RandomSource.create());
             relative = true;
             attenuation = Attenuation.NONE;

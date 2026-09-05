@@ -31,7 +31,8 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
     public static void repairLegacyTrunkGaps(ServerLevel level, LevelChunk chunk, boolean legacyChunk) {
         BlockPos marker = new BlockPos(chunk.getPos().getMinBlockX() + 2, 1,
                 chunk.getPos().getMinBlockZ());
-        if (chunk.getBlockState(marker).is(net.minecraft.world.level.block.Blocks.BEDROCK)) return;
+        if (chunk.getBlockState(marker).is(net.minecraft.world.level.block.Blocks.BEDROCK)
+                || chunk.getBlockState(marker).is(net.minecraft.world.level.block.Blocks.LIGHT)) return;
         if (legacyChunk) {
             BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
             int minX = chunk.getPos().getMinBlockX(), maxX = chunk.getPos().getMaxBlockX();
@@ -54,7 +55,8 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
                 }
             }
         }
-        chunk.setBlockState(marker, net.minecraft.world.level.block.Blocks.BEDROCK.defaultBlockState(), 0);
+        chunk.setBlockState(marker, net.minecraft.world.level.block.Blocks.LIGHT.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 0), 0);
     }
 
     private static BlockPos nearestUpperTrunk(LevelChunk chunk, int x, int y, int z,

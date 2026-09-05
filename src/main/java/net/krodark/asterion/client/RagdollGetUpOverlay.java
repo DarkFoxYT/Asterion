@@ -24,6 +24,7 @@ public final class RagdollGetUpOverlay {
                 || CinematicHud.isHidden() || DazeOverlay.isActive()) return;
         DismembermentEngine engine = DismembermentEngine.INSTANCE;
         if (!engine.isPlayerTumbling(client.player.getId())) return;
+        if (net.krodark.asterion.entity.MinotaurEntity.isHeld(client.player)) return;
 
         float age = engine.ragdollElapsedTicks(client.player.getId())
                 + Mth.clamp(delta.getGameTimeDeltaPartialTick(false), 0.0F, 1.0F);

@@ -58,8 +58,9 @@ public abstract class ForgedTooltipOutlineMixin {
         GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object)this;
         Vector2ic point = positioner.positionTooltip(graphics.guiWidth(), graphics.guiHeight(),
                 mouseX, mouseY, width, height);
-        int x = point.x() - 4, y = point.y() - 4;
-        int frameWidth = width + 8, frameHeight = height + 8;
+        // Keep the authored bevel outside the text rather than painting through it.
+        int x = point.x() - 8, y = point.y() - 8;
+        int frameWidth = width + 16, frameHeight = height + 16;
         asterion$draw(graphics, ASTERION_BASE[asterion$metalSequence.charAt(0) - '0'],
                 x, y, frameWidth, frameHeight);
         for (int layer = 1; layer < asterion$metalSequence.length(); layer++)
@@ -71,8 +72,41 @@ public abstract class ForgedTooltipOutlineMixin {
     @Unique
     private static void asterion$draw(GuiGraphicsExtractor graphics, Identifier texture,
                                        int x, int y, int width, int height) {
-        graphics.blit(RenderPipelines.GUI_TEXTURED, texture, x, y, 0, 0,
-                width, height, ASTERION_TEXTURE_SIZE, ASTERION_TEXTURE_SIZE);
+        // The source is an authored square frame. Drawing `width x height` as source UVs
+        // sampled past its 76px bounds, producing the repeated boxes seen on wide tooltips.
+        // Preserve the real corners and stretch only the straight edge segments.
+        int corner = 12;
+        int middle = ASTERION_TEXTURE_SIZE - corner * 2;
+        int horizontal = Math.max(1, width - corner * 2);
+        int vertical = Math.max(1, height - corner * 2);
+        asterion$region(graphics, texture, x, y, 0, 0, corner, corner, corner, corner);
+        asterion$region(graphics, texture, x + width - corner, y,
+                ASTERION_TEXTURE_SIZE - corner, 0, corner, corner, corner, corner);
+        asterion$region(graphics, texture, x, y + height - corner,
+                0, ASTERION_TEXTURE_SIZE - corner, corner, corner, corner, corner);
+        asterion$region(graphics, texture, x + width - corner, y + height - corner,
+                ASTERION_TEXTURE_SIZE - corner, ASTERION_TEXTURE_SIZE - corner,
+                corner, corner, corner, corner);
+        asterion$region(graphics, texture, x + corner, y, corner, 0,
+                middle, corner, horizontal, corner);
+        asterion$region(graphics, texture, x + corner, y + height - corner,
+                corner, ASTERION_TEXTURE_SIZE - corner, middle, corner, horizontal, corner);
+        asterion$region(graphics, texture, x, y + corner, 0, corner,
+                corner, middle, corner, vertical);
+        asterion$region(graphics, texture, x + width - corner, y + corner,
+                ASTERION_TEXTURE_SIZE - corner, corner, corner, middle, corner, vertical);
+    }
+
+    @Unique
+    private static void asterion$region(GuiGraphicsExtractor graphics, Identifier texture,
+                                        int x, int y, int u, int v, int sourceWidth, int sourceHeight,
+                                        int width, int height) {
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(x, y);
+        graphics.pose().scale(width / (float)sourceWidth, height / (float)sourceHeight);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, texture, 0, 0, u, v,
+                sourceWidth, sourceHeight, ASTERION_TEXTURE_SIZE, ASTERION_TEXTURE_SIZE);
+        graphics.pose().popMatrix();
     }
 
     @Unique

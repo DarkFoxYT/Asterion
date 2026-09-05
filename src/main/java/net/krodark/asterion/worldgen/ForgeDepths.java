@@ -23,6 +23,9 @@ public final class ForgeDepths {
         for (int x = minX; x <= maxX; x++) for (int z = minZ; z <= maxZ; z++) {
             for (int y = FLOOR_Y - 2; y <= FLOOR_Y; y++)
                 chunk.setBlockState(cursor.set(x, y, z), floor(seed, x, y, z), 0);
+            for (int y = FLOOR_Y + 1; y < ROOF_Y - 2; y++)
+                chunk.setBlockState(cursor.set(x, y, z),
+                        (ShaleCaves.shaded(seed, x, y, z) ? Asterion.SHADED_SHALE : Asterion.SHALE).defaultBlockState(), 0);
             for (int y = ROOF_Y - 2; y <= ROOF_Y; y++)
                 chunk.setBlockState(cursor.set(x, y, z), Asterion.MAZESTEEL_BRICKS.defaultBlockState(), 0);
         }

@@ -22,6 +22,6 @@ public final class MinotaurHandAttachment {
         Anchor anchor = ANCHORS.get(player.getId());
         if (anchor == null || anchor.level != player.level() || player.level().getGameTime() - anchor.tick > 2
                 || !MinotaurEntity.isHeld(player)) return null;
-        return anchor.hand.add(0, -player.getBbHeight() * .52, 0);
+        return anchor.hand.add(0, -player.getBbHeight() * .52 - .35, 0);
     }
 }

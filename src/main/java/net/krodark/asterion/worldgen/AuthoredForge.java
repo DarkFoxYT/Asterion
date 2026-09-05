@@ -4,6 +4,8 @@ import net.krodark.asterion.Asterion;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.ChunkPos;
@@ -16,6 +18,8 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlac
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessor;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessorType;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -33,6 +37,10 @@ import java.util.WeakHashMap;
  * from the NBT's real bounds; Forge rooms do not have a prescribed block size.
  */
 public final class AuthoredForge {
+    private static final ResourceKey<LootTable> FORGE_CACHE = ResourceKey.create(
+            Registries.LOOT_TABLE, Identifier.fromNamespaceAndPath("asterion", "chests/forge_cache"));
+    private static final ResourceKey<LootTable> FORGE_GOLD_RESERVE = ResourceKey.create(
+            Registries.LOOT_TABLE, Identifier.fromNamespaceAndPath("asterion", "chests/forge_gold_reserve"));
     private static final int DISTRICT_ROOMS = 52;
     public static final int DISTRICT_SPACING = 228;
     private static final Map<ServerLevel, Map<Integer, Layout>> VARIANTS = new WeakHashMap<>();
@@ -110,6 +118,19 @@ public final class AuthoredForge {
         var settings = AuthoredCatacombs.settings(clip).setRotation(placement.rotation()).addProcessor(CRUCIBLE_PART_DATA);
         placement.template().placeInWorld(world, placement.origin(), placement.origin(), settings,
                 RandomSource.create(placement.origin().asLong()), 18);
+        ResourceKey<LootTable> loot = placement.id().getPath().endsWith("gold_reserves")
+                ? FORGE_GOLD_RESERVE : FORGE_CACHE;
+        BoundingBox room = placement.bounds();
+        int minX = Math.max(room.minX(), clip.minX()), maxX = Math.min(room.maxX(), clip.maxX());
+        int minY = Math.max(room.minY(), clip.minY()), maxY = Math.min(room.maxY(), clip.maxY());
+        int minZ = Math.max(room.minZ(), clip.minZ()), maxZ = Math.min(room.maxZ(), clip.maxZ());
+        for (BlockPos pos : BlockPos.betweenClosed(minX, minY, minZ, maxX, maxY, maxZ)) {
+            if (world.getBlockEntity(pos) instanceof RandomizableContainerBlockEntity container) {
+                container.setLootTable(loot);
+                container.setLootTableSeed(CatacombLayout.hash(placement.origin().asLong(), pos.getX(), pos.getZ()) ^ pos.getY());
+                container.setChanged();
+            }
+        }
     }
 
     public static int districtCenter(int coordinate) {

@@ -18,6 +18,20 @@ public final class EmissiveBoneMesh {
     // xyz + uv. Normals/lightmaps/overlays are unused by the full-bright material.
     private final float[] vertices;
 
+    public static EmissiveBoneMesh horizontalPlane(float radius, float y) {
+        return new EmissiveBoneMesh(new float[]{
+                .5F-radius,y,.5F-radius,.5F,.5F, .5F-radius,y,.5F+radius,.5F,.5F,
+                .5F+radius,y,.5F+radius,.5F,.5F, .5F+radius,y,.5F-radius,.5F,.5F});
+    }
+
+    public static EmissiveBoneMesh verticalPlane(float halfWidth, float halfHeight, float z) {
+        return new EmissiveBoneMesh(new float[]{
+                -halfWidth,-halfHeight,z,.5F,.5F, halfWidth,-halfHeight,z,.5F,.5F,
+                halfWidth,halfHeight,z,.5F,.5F, -halfWidth,halfHeight,z,.5F,.5F});
+    }
+
+    private EmissiveBoneMesh(float[] vertices) { this.vertices = vertices; }
+
     public static EmissiveBoneMesh of(CuboidGeoBone bone) {
         return CACHE.computeIfAbsent(bone, EmissiveBoneMesh::new);
     }

@@ -21,8 +21,6 @@ public final class ShaleCaves {
         return pos.getY() > LabyrinthLevels.CAVE_BOTTOM_Y + 3 && pos.getY() <= LabyrinthLevels.CAVE_ROOF_Y;
     }
 
-    private static double phase(long seed) { return (seed & 65535) / 65535.0 * Math.PI * 2; }
-
     private record Chamber(double x, double z, double radius, double stretch) {}
 
     private static double unit(long seed, int x, int z) {
@@ -40,9 +38,11 @@ public final class ShaleCaves {
     }
 
     private static Chamber chamber(long seed, int x, int z) {
+        double scale = unit(seed ^ 0xC4A7E2L, x, z) > .87 ? 1.65 : 1.0;
         return new Chamber(x * 64 + (unit(seed, x, z) - .5) * 28,
                 z * 64 + (unit(seed ^ 371, x, z) - .5) * 28,
-                13 + unit(seed ^ 817, x, z) * 17, .7 + unit(seed ^ 991, x, z) * .7);
+                (13 + unit(seed ^ 817, x, z) * 17) * scale,
+                (.7 + unit(seed ^ 991, x, z) * .7) / Math.sqrt(scale));
     }
 
     private static double passage(double x, double z, double ax, double az, double bx, double bz) {
@@ -71,6 +71,15 @@ public final class ShaleCaves {
             Chamber east = chamber(seed, cx + 1, cz), south = chamber(seed, cx, cz + 1);
             clearance = Math.max(clearance, width - passage(wx, wz, room.x, room.z, east.x, east.z));
             clearance = Math.max(clearance, width - passage(wx, wz, room.x, room.z, south.x, south.z));
+            // Each node also throws a deterministic, oblique branch. This breaks the grid silhouette
+            // into long diagonal tunnels while retaining the guaranteed east/south cave network.
+            long branch = CatacombLayout.hash(seed ^ 0x7A11E15L, cx, cz);
+            int bx = cx + (((branch & 1L) == 0) ? 1 : -1);
+            int bz = cz + (((branch & 2L) == 0) ? 1 : -1);
+            Chamber diagonal = chamber(seed, bx, bz);
+            double branchWidth = 2.0 + Math.floorMod(branch >>> 8, 6);
+            clearance = Math.max(clearance,
+                    branchWidth - passage(wx, wz, room.x, room.z, diagonal.x, diagonal.z));
         }
         // Flatten chamber centres, with a smooth transition into the sloping passages.
         double flat = Math.clamp((.85 - nearest / closest.radius) / .5, 0, 1);
@@ -82,8 +91,8 @@ public final class ShaleCaves {
         clearance = Math.max(clearance, 16 - Math.hypot(x - shaftX, z - cz));
         clearance = Math.max(clearance, 6 - passage(x, z, shaftX, cz, landing.x, landing.z));
         double chamberSpace = Math.clamp((closest.radius - nearest) / 9, 0, 1);
-        double height = 4.5 + noise(seed ^ 6197, x / 58.0, z / 58.0) * 4
-                + chamberSpace * (10 + noise(seed ^ 379, x / 83.0, z / 83.0) * 15);
+        double height = 5.5 + noise(seed ^ 6197, x / 58.0, z / 58.0) * 6
+                + chamberSpace * (13 + noise(seed ^ 379, x / 83.0, z / 83.0) * 22);
         height = Math.min(height, LabyrinthLevels.CAVE_ROOF_Y - 1 - floor);
         double round = Math.sqrt(Math.clamp(clearance / 7, 0, 1));
         return new Column(floor + height * (1 - round) * .5, floor + height * (1 + round) * .5, clearance);
@@ -106,13 +115,16 @@ public final class ShaleCaves {
                 Column cave = columns[dx][dz];
                 int floor = (int)Math.floor(cave.floor), roof = (int)Math.ceil(cave.roof);
                 boolean open = cave.clearance > .3 && roof - floor >= 4;
-                boolean puddle = open && cave.clearance > 5 && wet(seed, x, z)
+                boolean flooded = open && cave.clearance > 4 && floodRegion(seed, x, z);
+                int waterLine = Math.min(roof - 2, flooded ? floodLevel(seed, x, z, floor) : floor);
+                boolean puddle = !flooded && open && cave.clearance > 5 && wet(seed, x, z)
                         && columns[dx - 1][dz].floor >= floor && columns[dx + 1][dz].floor >= floor
                         && columns[dx][dz - 1].floor >= floor && columns[dx][dz + 1].floor >= floor;
                 for (int y = LabyrinthLevels.CAVE_BOTTOM_Y; y <= LabyrinthLevels.CAVE_ROOF_Y; y++) {
                     BlockState state;
-                    if (y <= LabyrinthLevels.CAVE_BOTTOM_Y + 2) state = Blocks.BEDROCK.defaultBlockState();
-                    else if (open && y > floor && y < roof) state = Blocks.AIR.defaultBlockState();
+                    if (y <= LabyrinthLevels.CAVE_BOTTOM_Y + 2) state = base(shaded(seed, x, y, z)).defaultBlockState();
+                    else if (open && y > floor && y < roof)
+                        state = y <= waterLine ? Blocks.WATER.defaultBlockState() : Blocks.AIR.defaultBlockState();
                     else {
                         state = rock(seed, x, y, z);
                         if (open && y == floor) {
@@ -122,12 +134,9 @@ public final class ShaleCaves {
                                 && cave.roof - Math.floor(cave.roof) < .5)
                             state = slab(shaded(seed, x, y, z)).defaultBlockState().setValue(SlabBlock.TYPE, SlabType.TOP);
                     }
-                    // Keep the old terrain-generation sentinel, buried in the roof rock.
-                    if (y == 1 && x == chunk.getPos().getMinBlockX() && z == chunk.getPos().getMinBlockZ())
-                        state = Blocks.BEDROCK.defaultBlockState();
                     chunk.setBlockState(pos.set(x, y, z), state, 0);
                 }
-                if (open && !puddle && cave.clearance > 4
+                if (open && !puddle && !flooded && cave.clearance > 4
                         && noise(seed ^ 7119, x / 31.0, z / 31.0) > .56) {
                     if (!CatacombProtection.isOre(chunk.getBlockState(pos.set(x, floor, z)))) {
                         chunk.setBlockState(pos, Asterion.ANCIENT_MOSS.defaultBlockState(), 0);
@@ -138,7 +147,8 @@ public final class ShaleCaves {
                             chunk.setBlockState(pos.set(x, floor + 1, z), Blocks.BROWN_MUSHROOM.defaultBlockState(), 0);
                     }
                 }
-                if (open && !puddle) spikes(chunk, seed, x, z, floor, roof, cave.clearance);
+                if (open && !puddle && !flooded) spikes(chunk, seed, x, z, floor, roof, cave.clearance);
+                if (flooded) underwaterVines(chunk, seed, x, z, floor, waterLine, cave.clearance);
                 if (open && roof + 2 <= LabyrinthLevels.CAVE_ROOF_Y && wet(seed ^ 0xD21FL, x, z)
                         && Math.floorMod(CatacombLayout.hash(seed, x, z), 5) == 0) {
                     // A sealed water pocket above one full ceiling block produces vanilla drips.
@@ -155,7 +165,7 @@ public final class ShaleCaves {
                 chunk.getPos().getMinBlockZ(), chunk.getPos().getMaxBlockX(), LabyrinthLevels.CAVE_ROOF_Y,
                 chunk.getPos().getMaxBlockZ())) {
             var state = chunk.getBlockState(pos);
-            if (!state.isAir() && !(pos.getY() == 1 && state.is(Blocks.BEDROCK))) return;
+            if (!state.isAir()) return;
         }
         generate(chunk, seed);
         chunk.markUnsaved();
@@ -164,16 +174,44 @@ public final class ShaleCaves {
     private static BlockPos marker(ChunkAccess chunk) {
         return new BlockPos(chunk.getPos().getMinBlockX(), LabyrinthLevels.CAVE_BOTTOM_Y + 1, chunk.getPos().getMinBlockZ());
     }
-    private static BlockState revision() { return Blocks.LIGHT.defaultBlockState().setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 1); }
+    private static BlockState revision() { return Blocks.LIGHT.defaultBlockState().setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 2); }
 
     private static boolean wet(long seed, int x, int z) {
         return noise(seed ^ 751, x / 23.0, z / 23.0) > .64
                 && noise(seed ^ 929, x / 7.0, z / 7.0) > .4;
     }
 
-    private static boolean shaded(long seed, int x, int y, int z) {
-        double band = 7 * Math.sin(x * .055 + phase(seed)) + 5 * Math.cos(z * .06 - phase(seed));
-        return y < -24 + band;
+    /** Broad coherent basins, with smaller noisy shorelines, produce lakes and fully flooded galleries. */
+    private static boolean floodRegion(long seed, int x, int z) {
+        double basin = noise(seed ^ 0xF100D5L, x / 118.0, z / 118.0);
+        double shore = noise(seed ^ 0xA911L, x / 29.0, z / 29.0);
+        return basin * .78 + shore * .22 > .69;
+    }
+
+    private static int floodLevel(long seed, int x, int z, int floor) {
+        int depth = 3 + (int)Math.floor(noise(seed ^ 0xB451L, x / 51.0, z / 51.0) * 9);
+        return floor + depth;
+    }
+
+    private static void underwaterVines(ChunkAccess chunk, long seed, int x, int z,
+                                        int floor, int waterLine, double clearance) {
+        if (clearance < 7 || waterLine - floor < 3
+                || Math.floorMod(CatacombLayout.hash(seed ^ 0x11A7L, x, z), 173) != 0) return;
+        int length = Math.min(waterLine - floor, 2 + Math.floorMod(
+                CatacombLayout.hash(seed ^ 0x61A0L, x, z), 4));
+        for (int offset = 1; offset <= length; offset++) {
+            chunk.setBlockState(new BlockPos(x, floor + offset, z), Asterion.LABYRINTH_VINE.defaultBlockState()
+                    .setValue(net.krodark.asterion.block.LabyrinthVineBlock.FACING, Direction.UP)
+                    .setValue(net.krodark.asterion.block.LabyrinthVineBlock.END, offset == length)
+                    .setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED, true), 0);
+        }
+    }
+
+    static boolean shaded(long seed, int x, int y, int z) {
+        double depth = Math.clamp((13.0 - y) / 77.0, 0.0, 1.0);
+        double patches = noise(seed ^ 0x5A1EL, x / 5.0 + y / 9.0, z / 5.0 - y / 11.0);
+        double grain = unit(seed ^ (long)y * 0x51EDL, x, z);
+        return patches * .55 + grain * .45 < .29 + depth * .42;
     }
 
     private static BlockState rock(long seed, int x, int y, int z) {
@@ -207,20 +245,25 @@ public final class ShaleCaves {
 
     private static void spikes(ChunkAccess chunk, long seed, int x, int z, int floor, int roof, double clearance) {
         long roll = CatacombLayout.hash(seed ^ 0x51A6EL, Math.floorDiv(x, 11), Math.floorDiv(z, 11));
-        if (Math.floorMod(roll, 3) != 0 || clearance < 8 || roof - floor < 9) return;
+        long field = CatacombLayout.hash(seed ^ 0x5F1E1DL, Math.floorDiv(x, 37), Math.floorDiv(z, 37));
+        boolean spikeField = Math.floorMod(field, 5) == 0;
+        if ((!spikeField && Math.floorMod(roll, 3) != 0) || clearance < 8 || roof - floor < 9) return;
         double distance = Math.hypot(Math.floorMod(x, 11) - (2 + Math.floorMod(roll >>> 8, 7)),
                 Math.floorMod(z, 11) - (2 + Math.floorMod(roll >>> 16, 7)));
-        int height = (int)Math.floor(3 + Math.floorMod(roll >>> 24, 4) - distance * 1.7);
+        int height = (int)Math.floor((spikeField ? 10 : 6) + Math.floorMod(roll >>> 24, 7)
+                - distance * (spikeField ? 1.55 : 3.0));
+        height = Math.min(height, roof - floor - 4);
         if (height <= 0) return;
         boolean hanging = (roll & 1) != 0;
         for (int offset = 1; offset <= height; offset++) {
             int y = hanging ? roof - offset : floor + offset;
             boolean dark = shaded(seed, x, y, z);
             BlockState state = base(dark).defaultBlockState();
-            if (offset == height) state = (dark ? Asterion.SHADED_SHALE_WALL : Asterion.SHALE_WALL).defaultBlockState();
-            else if (offset == height - 1) state = stairs(dark).defaultBlockState()
-                    .setValue(StairBlock.FACING, Direction.from2DDataValue((int)(roll & 3)))
-                    .setValue(StairBlock.HALF, hanging ? Half.TOP : Half.BOTTOM);
+            int remaining = height - offset + 1;
+            if (remaining <= 8) state = (dark ? Asterion.SHADED_SHALE_FORMATION : Asterion.SHALE_FORMATION)
+                    .defaultBlockState()
+                    .setValue(net.krodark.asterion.block.ShaleFormationBlock.THICKNESS, (remaining + 1) / 2)
+                    .setValue(net.krodark.asterion.block.ShaleFormationBlock.HANGING, hanging);
             chunk.setBlockState(new BlockPos(x, y, z), state, 0);
         }
     }

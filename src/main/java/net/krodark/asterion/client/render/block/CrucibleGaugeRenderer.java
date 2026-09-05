@@ -1,5 +1,8 @@
 package net.krodark.asterion.client.render.block;
 
+import net.krodark.asterion.client.light.AsterionEmissiveBuffer;
+import net.krodark.asterion.client.light.AmneticBoneEmission;
+import net.krodark.asterion.client.light.EmissiveBoneMesh;
 import com.geckolib.constant.DataTickets;
 import com.geckolib.constant.dataticket.DataTicket;
 import com.geckolib.model.GeoModel;
@@ -26,21 +29,69 @@ import net.minecraft.world.phys.HitResult;
 
 /** Renders the authored five-block-wide crucible and its contextual temperature gauge. */
 public final class CrucibleGaugeRenderer extends GeoBlockRenderer<CrucibleBlockEntity, BlockEntityRenderState> {
-    private static final Identifier GAUGE = Asterion.id("textures/gui/temp_gauge_highres.png");
+    private static final Identifier GAUGE = Asterion.id("textures/gui/forge/temp_gauge_highres.png");
     private static final DataTicket<Float> TEMPERATURE = DataTickets.create("asterion_crucible_temperature", Float.class);
     private static final DataTicket<Boolean> GAUGE_VISIBLE = DataTickets.create("asterion_crucible_gauge_visible", Boolean.class);
-    private float displayedTemperature;
-    private boolean initialized;
+    private static final DataTicket<String> MATERIALS = DataTickets.create("asterion_forge_materials", String.class);
+    private static final Identifier VENT_MASK = Asterion.id("dynamic/forge_vent_emission");
+    private static final DataTicket<Integer> MIX_COLOR = DataTickets.create("asterion_forge_mix_color", Integer.class);
+    private static final Identifier VENT_MESH = Asterion.id("forge/vents");
+    private static final Identifier FILL = Asterion.id("textures/gui/forge/left/temp_gauge_fill.png");
+    private static final EmissiveBoneMesh GAUGE_MARKER = EmissiveBoneMesh.verticalPlane(.115F, .009F, -.006F);
+    private static final Identifier GAUGE_MARKER_ID = Asterion.id("forge/gauge_marker");
 
-    public CrucibleGaugeRenderer(BlockEntityRendererProvider.Context context) { super(context, new Model()); }
+    private static final EmissiveBoneMesh[] LIQUID = new EmissiveBoneMesh[4];
+    private static final Identifier[] LIQUID_IDS = new Identifier[4];
+    static {
+        for (int i = 0; i < 4; i++) {
+            LIQUID[i] = EmissiveBoneMesh.horizontalPlane(1.9F - i * .3F, 3.15F + i * .12F);
+            LIQUID_IDS[i] = Asterion.id("forge_liquid/" + i);
+        }
+    }
+
+    public CrucibleGaugeRenderer(BlockEntityRendererProvider.Context context) {
+        super(context, new Model());
+        loadVentMask();
+        withRenderLayer(new net.krodark.asterion.client.light.AsterionEmissiveBoneLayer<>(this, "vent_glow", VENT_MASK) {
+            @Override protected boolean usesModelTextureCoordinates() { return true; }
+            @Override public boolean shouldRenderBone(BlockEntityRenderState state) {
+                return !state.getOrDefaultGeckolibData(MATERIALS, "").isEmpty()
+                        && state.getOrDefaultGeckolibData(TEMPERATURE, 0F) > 100;
+            }
+            @Override protected int emissiveColor(BlockEntityRenderState state) {
+                return 0xFF000000 | state.getOrDefaultGeckolibData(MIX_COLOR, 0xFFAA44);
+            }
+            @Override protected float surfaceBrightness(BlockEntityRenderState state) {
+                return Math.clamp((state.getOrDefaultGeckolibData(TEMPERATURE, 0F) - 100) / 500F, 0, 1);
+            }
+            @Override protected float emissiveStrength(BlockEntityRenderState state) {
+                return surfaceBrightness(state) * .35F;
+            }
+            @Override protected Identifier amneticEmissionMesh(BlockEntityRenderState state) { return VENT_MESH; }
+        });
+    }
+
+    private static void loadVentMask() {
+        var client = Minecraft.getInstance();
+        // Build one frame-sized mask during renderer loading; no per-frame pixel scans.
+        try (var stream = client.getResourceManager().open(Asterion.id("textures/block/crucible.png"));
+             var source = com.mojang.blaze3d.platform.NativeImage.read(stream)) {
+            var mask = new com.mojang.blaze3d.platform.NativeImage(1024, 1024, true);
+            // Follow the transparent vent openings on the four outer wall faces.
+            int[][] faces = {{243, 162}, {243, 227}, {243, 292}, {0, 324}};
+            for (int[] face : faces) for (int y = 29; y <= 48; y++) for (int x = 0; x < 80; x++) {
+                int u = face[0] + x, v = face[1] + y;
+                if ((source.getPixel(u, v) >>> 24) == 0) mask.setPixel(u, v, 0xFFFFFFFF);
+            }
+            client.getTextureManager().register(VENT_MASK,
+                    new net.minecraft.client.renderer.texture.DynamicTexture(() -> "Forge vent mask", mask));
+        } catch (java.io.IOException error) {
+            Asterion.LOGGER.warn("Could not load Forge vent mask", error);
+        }
+    }
 
     @Override public void addRenderData(CrucibleBlockEntity crucible, Void related,
                                         BlockEntityRenderState state, float partialTick) {
-        if (!initialized) {
-            displayedTemperature = crucible.temperature();
-            initialized = true;
-        }
-        displayedTemperature += (crucible.temperature() - displayedTemperature) * .14F;
         Minecraft client = Minecraft.getInstance();
         boolean visible = false;
         if (client.screen == null && client.hitResult instanceof BlockHitResult hit
@@ -49,16 +100,59 @@ public final class CrucibleGaugeRenderer extends GeoBlockRenderer<CrucibleBlockE
             visible = hitState != null && hitState.is(Asterion.CRUCIBLE)
                     && CrucibleBlock.root(hit.getBlockPos(), hitState).equals(crucible.getBlockPos());
         }
-        state.addGeckolibData(TEMPERATURE, displayedTemperature);
+        state.addGeckolibData(TEMPERATURE, (float)crucible.temperature());
+        state.addGeckolibData(MATERIALS, crucible.metalSequence());
+        state.addGeckolibData(MIX_COLOR, crucible.mixColor());
         state.addGeckolibData(GAUGE_VISIBLE, visible);
     }
 
     @Override public void submit(BlockEntityRenderState state, PoseStack poses, SubmitNodeCollector collector,
                                  CameraRenderState camera) {
         super.submit(state, poses, collector, camera);
+        submitContents(state, poses, collector);
         if (!state.getOrDefaultGeckolibData(GAUGE_VISIBLE, false)) return;
         float shown = state.getOrDefaultGeckolibData(TEMPERATURE, 0F);
         for (Direction side : Direction.Plane.HORIZONTAL) submitGauge(poses, collector, side, shown);
+    }
+
+    private static void submitContents(BlockEntityRenderState state, PoseStack poses, SubmitNodeCollector out) {
+        String materials = state.getOrDefaultGeckolibData(MATERIALS, "");
+        if (materials.isEmpty()) return;
+        float heat = state.getOrDefaultGeckolibData(TEMPERATURE, 0F) / CrucibleBlockEntity.MAX_TEMPERATURE;
+        for (int i = 0; i < materials.length(); i++) {
+            int base = CrucibleBlockEntity.metalColor(materials.charAt(i) - '0');
+            int color = net.minecraft.util.ARGB.linearLerp(heat * .85F, 0xFF000000 | base, 0xFFFFA347);
+            float radius = 1.9F - i * .3F;
+            float y = 3.15F + i * .12F;
+            var mesh = LIQUID[i];
+            var meshId = LIQUID_IDS[i];
+            out.submitCustomGeometry(poses, AsterionEmissiveBuffer.renderType(FILL), (pose, vertices) -> {
+                mesh.render(pose, vertices, color, 1, 1);
+                if (heat > .2F) AmneticBoneEmission.submit(meshId, mesh, FILL, pose.pose(), color,
+                        1, 1, heat * 1.4F, true);
+            });
+            if (i == materials.length() - 1) {
+                int edge = net.minecraft.util.ARGB.linearLerp(.4F, color, 0xFF33271C);
+                int shine = net.minecraft.util.ARGB.linearLerp(.22F, color, 0xFFFFE0A0);
+                out.submitCustomGeometry(poses, RenderTypes.entityTranslucent(FILL, false), (pose, vertices) -> {
+                    float rim = radius - .05F;
+                    // Narrow strips stay inside the liquid, clear of the crucible walls.
+                    strip(pose, vertices, .5F - rim, .5F + rim, y + .003F, .5F - rim, .5F - rim + .045F, edge);
+                    strip(pose, vertices, .5F - rim, .5F + rim, y + .003F, .5F + rim - .045F, .5F + rim, edge);
+                    strip(pose, vertices, .5F - rim * .72F, .5F + rim * .22F, y + .005F, .5F - rim * .38F, .5F - rim * .35F, shine);
+                    strip(pose, vertices, .5F - rim * .12F, .5F + rim * .64F, y + .005F, .5F + rim * .34F, .5F + rim * .37F, shine);
+                });
+            }
+        }
+    }
+    private static void strip(PoseStack.Pose pose, VertexConsumer out, float left, float right,
+                              float y, float back, float front, int color) {
+        surfaceVertex(pose, out, left, y, back, color); surfaceVertex(pose, out, left, y, front, color);
+        surfaceVertex(pose, out, right, y, front, color); surfaceVertex(pose, out, right, y, back, color);
+    }
+    private static void surfaceVertex(PoseStack.Pose pose, VertexConsumer out, float x, float y, float z, int color) {
+        out.addVertex(pose, x, y, z).setColor(color).setUv(.5F, .5F)
+                .setOverlay(OverlayTexture.NO_OVERLAY).setLight(0x00F000F0).setNormal(pose, 0, 1, 0);
     }
 
     private static void submitGauge(PoseStack poses, SubmitNodeCollector collector,
@@ -79,6 +173,13 @@ public final class CrucibleGaugeRenderer extends GeoBlockRenderer<CrucibleBlockE
             lineVertex(pose, vertices, -width * .32F, markerY);
             lineVertex(pose, vertices, width * .32F, markerY);
         });
+        poses.pushPose();
+        poses.translate(0, markerY, 0);
+        collector.submitCustomGeometry(poses, AsterionEmissiveBuffer.renderType(FILL),
+                (pose, vertices) -> GAUGE_MARKER.render(pose, vertices, 0xFFFFAE30, 1, 1));
+        AmneticBoneEmission.submit(GAUGE_MARKER_ID, GAUGE_MARKER, FILL,
+                poses.last().pose(), 0xFFFFAE30, 1, 1, 1.15F, false);
+        poses.popPose();
         poses.popPose();
     }
 

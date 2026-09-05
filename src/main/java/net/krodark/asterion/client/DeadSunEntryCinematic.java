@@ -8,9 +8,10 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 public final class DeadSunEntryCinematic {
-    private static final int END_TICKS = 190;
+    private static final int END_TICKS = 260;
     private static final int CINEMATIC_RENDER_DISTANCE = 12;
     private static final int REQUIRED_CHUNK_RADIUS = 6;
+    private static Vec3 openingPosition;
     private static boolean active;
     private static int ticks;
     private static float returnYaw;
@@ -46,6 +47,7 @@ public final class DeadSunEntryCinematic {
         client.options.setCameraType(CameraType.FIRST_PERSON);
         CinematicHud.begin(client);
         client.levelRenderer.getSectionOcclusionGraph().invalidate();
+        openingPosition = client.player.getEyePosition();
         ticks = 0;
         active = true;
     }
@@ -107,16 +109,23 @@ public final class DeadSunEntryCinematic {
         float progress = smoother(linear);
         AsterionConfig config = AsterionConfig.INSTANCE;
         Vec3 sun = new Vec3(config.deadSunX, config.deadSunHeight, config.deadSunZ);
-        Vec3 towardSun = sun.subtract(basePosition);
+        Vec3 anchor = openingPosition == null ? basePosition : openingPosition;
+        Vec3 towardSun = sun.subtract(anchor);
         double heading = Mth.atan2(towardSun.z, towardSun.x);
-        double angle = heading + Mth.lerp(progress, 2.58D, 3.62D);
-        double radius = Mth.lerp(progress, 62.0D, 48.0D);
-        double height = 118.0D + Math.sin(progress * Math.PI) * 20.0D;
-        Vec3 railPosition = new Vec3(basePosition.x + Math.cos(angle) * radius,
-                height, basePosition.z + Math.sin(angle) * radius);
-        float returnWeight = smoother(Mth.clamp((linear - 0.78F) / 0.22F, 0.0F, 1.0F));
-        Vec3 position = railPosition.lerp(basePosition, returnWeight);
-        Vec3 localMaze = new Vec3(basePosition.x, 68.0D, basePosition.z);
+        double angle = heading + Mth.lerp(progress, 2.72D, 3.38D);
+        double radius = Mth.lerp(progress, 58.0D, 50.0D);
+        double height = Math.max(200.0D,
+                net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y + config.wallHeight + 42.0D)
+                + Math.sin(progress * Math.PI) * 8.0D;
+        Vec3 railPosition = new Vec3(anchor.x + Math.cos(angle) * radius,
+                height, anchor.z + Math.sin(angle) * radius);
+        // Reach the player's column above the walls before descending to first person.
+        float returnWeight = smoother(Mth.clamp((linear - 0.60F) / 0.18F, 0.0F, 1.0F));
+        float descent = smoother(Mth.clamp((linear - 0.78F) / 0.22F, 0.0F, 1.0F));
+        Vec3 position = railPosition.lerp(new Vec3(basePosition.x, height, basePosition.z), returnWeight);
+        position = new Vec3(position.x, Mth.lerp(descent, height, basePosition.y), position.z);
+        Vec3 localMaze = new Vec3(basePosition.x,
+                net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y, basePosition.z);
         float sunFocus = smoother(Mth.clamp((linear - 0.08F) / 0.34F, 0.0F, 1.0F));
         Vec3 focus = localMaze.lerp(sun.add(0.0D, -config.deadSunSize * 0.16D, 0.0D),
                 Mth.lerp(sunFocus, 0.60D, 0.94D));
@@ -124,13 +133,13 @@ public final class DeadSunEntryCinematic {
         double horizontal = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
         float shotYaw = (float)(Mth.atan2(delta.z, delta.x) * Mth.RAD_TO_DEG) - 90.0F;
         float shotPitch = (float)-(Mth.atan2(delta.y, horizontal) * Mth.RAD_TO_DEG);
-        float viewReturn = smoother(Mth.clamp((linear - 0.90F) / 0.10F, 0.0F, 1.0F));
+        float viewReturn = smoother(Mth.clamp((linear - 0.78F) / 0.22F, 0.0F, 1.0F));
         shotYaw = Mth.rotLerp(viewReturn, shotYaw, returnYaw);
         shotPitch = Mth.lerp(viewReturn, shotPitch, returnPitch);
         float radiance = radianceStrength();
         if (radiance > 0.001F) {
-            double shake = radiance * (0.13D * Math.sin(time * 1.73D)
-                    + 0.07D * Math.sin(time * 0.61D + 1.4D));
+            double shake = radiance * (0.018D * Math.sin(time * .43D)
+                    + 0.010D * Math.sin(time * .27D + 1.4D));
             position = position.add(shake, shake * 0.42D, -shake * 0.76D);
             shotYaw += (float)(shake * 0.34D);
             shotPitch += (float)(shake * 0.20D);
@@ -140,7 +149,7 @@ public final class DeadSunEntryCinematic {
 
     public static float radianceStrength() {
         if (!active) return 0.0F;
-        float time = ticks;
+        float time = ticks * (190F / END_TICKS);
         if (time < 18.0F) return 0.0F;
         if (time < 42.0F) return smoother((time - 18.0F) / 24.0F);
         if (time < 128.0F) return 1.0F;

@@ -50,6 +50,20 @@ final class CentipedeCameraCheck {
                 if (Math.abs(camera.forwardVector().dot(camera.upVector())) > .001)
                     throw new AssertionError("Camera basis is not orthogonal");
             }
+            for (CameraType type : new CameraType[]{CameraType.THIRD_PERSON_BACK, CameraType.THIRD_PERSON_FRONT}) {
+                client.options.setCameraType(type);
+                for (var direction : net.minecraft.core.Direction.values()) {
+                    Vec3 normal = direction.getUnitVec3();
+                    surface.set(mount, normal);
+                    align.invoke(camera, .5F);
+                    Vec3 seatEye = mount.passengerPosition(player, .5F).add(normal.scale(-player.getEyeHeight()));
+                    var forward = camera.forwardVector();
+                    Vec3 cameraAnchor = camera.position().add(forward.x() * 4, forward.y() * 4, forward.z() * 4);
+                    if (cameraAnchor.distanceTo(seatEye) > .002)
+                        throw new AssertionError("Third-person camera is not following the rendered seat: " + type + "/" + direction);
+                }
+            }
+            client.options.setCameraType(CameraType.FIRST_PERSON);
             surface.set(mount, new Vec3(0, -1, 0));
             var chainField = ScarletCentipedeEntity.class.getDeclaredField("bodyChain");
             chainField.setAccessible(true);

@@ -25,6 +25,13 @@ public final class MinotaurAxeVisual {
         var level = net.minecraft.client.Minecraft.getInstance().level;
         return value != null && value.level == level && level != null && level.getGameTime() - value.tick < 8 ? value : null;
     }
+    /** The exported mesh has a quarter-turn on its root; physics and grips use the blade's XY plane. */
+    public static void submitAligned(PoseStack poses, SubmitNodeCollector tasks, CameraRenderState camera, int light, float partial) {
+        poses.pushPose();
+        poses.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-90));
+        submit(poses, tasks, camera, light, partial);
+        poses.popPose();
+    }
     public static void submit(PoseStack poses, SubmitNodeCollector tasks, CameraRenderState camera, int light, float partial) {
         RENDERER.performRenderPass(AXE, null, poses, tasks, camera, light, partial);
     }

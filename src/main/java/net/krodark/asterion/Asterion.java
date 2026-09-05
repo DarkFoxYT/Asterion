@@ -42,8 +42,6 @@ import net.krodark.asterion.entity.ConstructEntity;
 import net.krodark.asterion.entity.QueenBeetleEntity;
 import net.krodark.asterion.block.ShortGrassBlock;
 import net.krodark.asterion.event.DeadSunEventSystem;
-import net.krodark.asterion.effect.ResolveEffect;
-import net.krodark.asterion.effect.ResolveSystem;
 import net.krodark.asterion.game.light.DynamicBlockLights;
 import net.krodark.asterion.command.PortalCommands;
 import net.minecraft.core.Registry;
@@ -67,7 +65,6 @@ import net.minecraft.world.item.component.Consumables;
 import net.minecraft.world.item.consume_effects.ApplyStatusEffectsConsumeEffect;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.effect.MobEffect;
 import net.minecraft.sounds.SoundEvent;
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.fabricmc.fabric.api.particle.v1.FabricParticleTypes;
@@ -143,8 +140,6 @@ public class Asterion implements ModInitializer {
     public static final SoundEvent MINOTAUR_STEP = registerSound("minotaur_step");
     public static final SoundEvent MINOTAUR_DOOR_OPENCLOSE = registerSound("minotaur_door_openclose");
     public static final SoundEvent METAL_HIT = registerSound("metal_hit_sound");
-    public static final Holder.Reference<MobEffect> RESOLVE = Registry.registerForHolder(
-            BuiltInRegistries.MOB_EFFECT, id("resolve"), new ResolveEffect());
 
     public static final Block ANCIENT_BRICKS = registerBlock("ancient_bricks", MapColor.COLOR_BROWN, Block::new);
     public static final Block ANCIENT_MOSSY_BRICKS = registerBlock(
@@ -192,6 +187,7 @@ public class Asterion implements ModInitializer {
     public static final Block SHALE = registerBlock("shale", MapColor.DEEPSLATE, p -> new Block(p.requiresCorrectToolForDrops()));
     public static final Block SHALE_SLAB = registerBlock("shale_slab", MapColor.DEEPSLATE, p -> new SlabBlock(p.requiresCorrectToolForDrops()));
     public static final Block SHALE_STAIRS = registerBlock("shale_stairs", MapColor.DEEPSLATE, p -> new StairBlock(SHALE.defaultBlockState(), p.requiresCorrectToolForDrops()));
+    public static final Block SHALE_FORMATION = registerBlock("shale_formation", MapColor.DEEPSLATE, p -> new net.krodark.asterion.block.ShaleFormationBlock(p.requiresCorrectToolForDrops().noOcclusion()));
     public static final Block SHALE_WALL = registerBlock("shale_wall", MapColor.DEEPSLATE, p -> new WallBlock(p.requiresCorrectToolForDrops()));
     public static final Block SHALE_BRICKS = registerBlock("shale_bricks", MapColor.DEEPSLATE, p -> new Block(p.requiresCorrectToolForDrops()));
     public static final Block SHALE_BRICK_SLAB = registerBlock("shale_brick_slab", MapColor.DEEPSLATE, p -> new SlabBlock(p.requiresCorrectToolForDrops()));
@@ -200,6 +196,7 @@ public class Asterion implements ModInitializer {
     public static final Block SHADED_SHALE = registerBlock("shaded_shale", MapColor.DEEPSLATE, p -> new Block(p.requiresCorrectToolForDrops()));
     public static final Block SHADED_SHALE_SLAB = registerBlock("shaded_shale_slab", MapColor.DEEPSLATE, p -> new SlabBlock(p.requiresCorrectToolForDrops()));
     public static final Block SHADED_SHALE_STAIRS = registerBlock("shaded_shale_stairs", MapColor.DEEPSLATE, p -> new StairBlock(SHADED_SHALE.defaultBlockState(), p.requiresCorrectToolForDrops()));
+    public static final Block SHADED_SHALE_FORMATION = registerBlock("shaded_shale_formation", MapColor.DEEPSLATE, p -> new net.krodark.asterion.block.ShaleFormationBlock(p.requiresCorrectToolForDrops().noOcclusion()));
     public static final Block SHADED_SHALE_WALL = registerBlock("shaded_shale_wall", MapColor.DEEPSLATE, p -> new WallBlock(p.requiresCorrectToolForDrops()));
     public static final Block SHADED_SHALE_BRICKS = registerBlock("shaded_shale_bricks", MapColor.DEEPSLATE, p -> new Block(p.requiresCorrectToolForDrops()));
     public static final Block SHADED_SHALE_BRICK_SLAB = registerBlock("shaded_shale_brick_slab", MapColor.DEEPSLATE, p -> new SlabBlock(p.requiresCorrectToolForDrops()));
@@ -241,6 +238,11 @@ public class Asterion implements ModInitializer {
             properties -> new StairBlock(ANCIENT_STONE.defaultBlockState(), properties) { });
     public static final Block ANCIENT_STONE_WALL = registerBlock("ancient_stone_wall", MapColor.TERRACOTTA_BROWN, WallBlock::new);
     public static final Block MAZESTEEL_BLOCK = registerBlock("mazesteel_block", MapColor.METAL, Block::new);
+    public static final Block CELESTIAL_BRONZE_BLOCK = metalStorageBlock("celestial_bronze_block", MapColor.COLOR_ORANGE);
+    public static final Block TARNISHED_GOLD_BLOCK = metalStorageBlock("tarnished_gold_block", MapColor.GOLD);
+    public static final Block CELESTIAL_GOLD_BLOCK = metalStorageBlock("celestial_gold_block", MapColor.GOLD);
+    public static final Block BONESTEEL_BLOCK = metalStorageBlock("bonesteel_block", MapColor.COLOR_LIGHT_GRAY);
+    public static final Block CELESTIAL_STEEL_BLOCK = metalStorageBlock("celestial_steel_block", MapColor.METAL);
     public static final Block MAZE_WALL_CORE = registerBlockWithoutItem("maze_wall_core", MapColor.METAL,
             properties -> new Block(properties.strength(-1.0F, 3_600_000F).sound(SoundType.METAL)));
     public static final Block MAZESTEEL_SLAB = registerBlock("mazesteel_slab", MapColor.METAL,
@@ -375,6 +377,7 @@ public class Asterion implements ModInitializer {
     public static final Item CELESTIAL_GOLD_INGOT = registerMetalItem("celestial_gold_ingot");
     public static final Item BONESTEEL_INGOT = registerMetalItem("bonesteel_ingot");
     public static final Item CELESTIAL_STEEL_INGOT = registerMetalItem("celestial_steel_ingot");
+    public static final Item DEADWOOD_STICK = registerSimpleItem("deadwood_stick");
     public static final Item FORGED_INGOT = registerForgedComponentItem("forged_ingot");
     public static final Item FORGED_SWORD_GUARD = registerForgedComponentItem("forged_sword_guard");
     public static final Item FORGED_SWORD_POMMEL = registerForgedComponentItem("forged_sword_pommel");
@@ -619,6 +622,7 @@ public class Asterion implements ModInitializer {
                         output.accept(ANCIENT_PLANK_FENCE);
                         output.accept(DEAD_WOOD);
                         output.accept(DEAD_WOOD_PLANKS);
+                        output.accept(DEADWOOD_STICK);
                         output.accept(DEAD_WOOD_SLAB);
                         output.accept(DEAD_WOOD_STAIRS);
                         output.accept(DEAD_WOOD_FENCE);
@@ -629,6 +633,7 @@ public class Asterion implements ModInitializer {
                         output.accept(SHALE_SLAB);
                         output.accept(SHALE_STAIRS);
                         output.accept(SHALE_WALL);
+                        output.accept(SHALE_FORMATION);
                         output.accept(SHALE_BRICKS);
                         output.accept(SHALE_BRICK_SLAB);
                         output.accept(SHALE_BRICK_STAIRS);
@@ -637,6 +642,7 @@ public class Asterion implements ModInitializer {
                         output.accept(SHADED_SHALE_SLAB);
                         output.accept(SHADED_SHALE_STAIRS);
                         output.accept(SHADED_SHALE_WALL);
+                        output.accept(SHADED_SHALE_FORMATION);
                         output.accept(SHADED_SHALE_BRICKS);
                         output.accept(SHADED_SHALE_BRICK_SLAB);
                         output.accept(SHADED_SHALE_BRICK_STAIRS);
@@ -706,10 +712,16 @@ public class Asterion implements ModInitializer {
                         output.accept(CELESTIAL_GOLD_INGOT);
                         output.accept(BONESTEEL_INGOT);
                         output.accept(CELESTIAL_STEEL_INGOT);
+                        output.accept(CELESTIAL_BRONZE_BLOCK);
+                        output.accept(TARNISHED_GOLD_BLOCK);
+                        output.accept(CELESTIAL_GOLD_BLOCK);
+                        output.accept(BONESTEEL_BLOCK);
+                        output.accept(CELESTIAL_STEEL_BLOCK);
                         output.accept(net.minecraft.world.item.Items.IRON_INGOT);
                         output.accept(net.minecraft.world.item.Items.COPPER_INGOT);
                         output.accept(net.minecraft.world.item.Items.GOLD_INGOT);
                         output.accept(net.minecraft.world.item.Items.NETHERITE_INGOT);
+                        output.accept(DEADWOOD_STICK);
                         output.accept(INGOT_CAST);
                         output.accept(SWORD_GUARD_CAST);
                         output.accept(SWORD_POMMEL_CAST);
@@ -723,8 +735,8 @@ public class Asterion implements ModInitializer {
                             ItemStack pommel = forgePart(FORGED_SWORD_POMMEL, metal, "Sword Pommel");
                             output.accept(blade); output.accept(guard); output.accept(pommel);
                             output.accept(new net.krodark.asterion.recipe.ForgedSwordRecipe().assemble(
-                                    net.minecraft.world.item.crafting.CraftingInput.of(3, 1,
-                                            java.util.List.of(blade, guard, pommel))));
+                                    net.minecraft.world.item.crafting.CraftingInput.of(2, 2,
+                                            java.util.List.of(blade, guard, pommel, new ItemStack(DEADWOOD_STICK)))));
                         }
                         output.accept(FORGED_AXE_HEAD);
                         output.accept(CELESTIAL_BRONZE_SWORD);
@@ -826,11 +838,11 @@ public class Asterion implements ModInitializer {
         registerDeadWoodProperties();
         net.krodark.asterion.game.WeaponCombatSystem.initialize();
         net.krodark.asterion.game.GameplayContent.initialize();
+        net.krodark.asterion.game.AncientContent.initialize();
+        net.krodark.asterion.game.ArmorContent.initialize();
+        net.krodark.asterion.game.ChainLiftContent.initialize();
         net.krodark.asterion.game.EncounterKeyRecovery.initialize();
         net.krodark.asterion.game.ArenaDeathRecovery.initialize();
-        net.krodark.asterion.effect.GreekFireBurn.initialize();
-        net.krodark.asterion.effect.SingedEffect.initialize();
-        ServerTickEvents.END_SERVER_TICK.register(net.krodark.asterion.effect.SingedScars::tick);
         ServerTickEvents.END_SERVER_TICK.register(net.krodark.asterion.forging.LegacyPurityCleanup::tick);
         net.krodark.asterion.fluid.HeavyWater.initialize();
         net.krodark.asterion.block.RespawnObelisks.initialize();
@@ -865,6 +877,7 @@ public class Asterion implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(DazePayload.TYPE, DazePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(BiomeAtmospherePayload.TYPE, BiomeAtmospherePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(CrucibleScreenPayload.TYPE, CrucibleScreenPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.ForgeInsertPayload.TYPE, net.krodark.asterion.network.ForgeInsertPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(CrucibleControlPayload.TYPE, CrucibleControlPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(
                 net.krodark.asterion.network.QueenBeetleQuestPayload.TYPE,
@@ -883,6 +896,7 @@ public class Asterion implements ModInitializer {
         PayloadTypeRegistry.serverboundPlay().register(RagdollPosePayload.TYPE, RagdollPosePayload.CODEC);
         RagdollServerNetworking.initialize();
         net.krodark.asterion.network.CentipedeNetworking.initialize();
+        net.krodark.asterion.network.MinotaurBodyPayload.initialize();
         PressureButtonNetworking.initialize();
         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(
                 CrucibleControlPayload.TYPE, (payload, context) -> context.server().execute(() -> {
@@ -984,10 +998,6 @@ public class Asterion implements ModInitializer {
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
             net.krodark.asterion.worldgen.CatacombArena.clear();
         });
-        ServerTickEvents.END_SERVER_TICK.register(ResolveSystem::tick);
-        ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, baseDamageTaken,
-                                                         damageTaken, blocked) ->
-                ResolveSystem.recordAttack(entity, source, damageTaken));
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
             QueenBeetleEntity.recordBeetleKill(entity, source);
             if (entity instanceof net.minecraft.server.level.ServerPlayer player)
@@ -995,13 +1005,13 @@ public class Asterion implements ModInitializer {
         });
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             handler.getPlayer().awardRecipes(server.getRecipeManager().getRecipes());
-            net.krodark.asterion.effect.SingedScars.get(server).apply(handler.getPlayer());
+            net.krodark.asterion.effect.GreekFireBurn.clearLegacyScar(handler.getPlayer());
             WorldGenerator.playerConnected(handler.getPlayer());
             QueenBeetleEntity.syncActiveQuest(handler.getPlayer());
         });
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
             QueenBeetleEntity.copyQuests(oldPlayer, newPlayer);
-            net.krodark.asterion.effect.SingedScars.get(newPlayer.level().getServer()).apply(newPlayer);
+            net.krodark.asterion.effect.GreekFireBurn.clearLegacyScar(newPlayer);
             net.krodark.asterion.fluid.HeavyWaterFatigue.reset(newPlayer);
             if (oldPlayer.level().dimension().equals(ASTERION_LEVEL)) {
                 BlockPos deathPosition = oldPlayer.blockPosition().immutable();
@@ -1026,7 +1036,6 @@ public class Asterion implements ModInitializer {
                     net.krodark.asterion.worldgen.BossArenaEncounter.initialize(maze);
             }
         });
-        ServerLifecycleEvents.SERVER_STOPPING.register(server -> ResolveSystem.clear());
         LOGGER.info("Asterion loaded");
     }
 
@@ -1048,6 +1057,11 @@ public class Asterion implements ModInitializer {
                         .strength(.4F).sound(SoundType.METAL)
                         .lightLevel(state -> state.getValue(net.krodark.asterion.block.GreekFireTorchBlock.LIT)
                                 &&(wall||state.getValue(net.krodark.asterion.block.GreekFireTorchBlock.TOP))?14:0),wall,color));
+    }
+
+    private static Block metalStorageBlock(String name, MapColor color) {
+        return registerBlock(name, color, properties -> new Block(properties.strength(5.0F, 6.0F)
+                .requiresCorrectToolForDrops().sound(SoundType.METAL)));
     }
 
     private static Block registerBlock(String name, MapColor color,

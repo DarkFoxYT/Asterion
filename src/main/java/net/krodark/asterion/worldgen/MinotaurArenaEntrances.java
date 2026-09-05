@@ -59,7 +59,13 @@ public final class MinotaurArenaEntrances {
         }
         for (Direction facing : DOORS) if (facing != except) setGate(level, facing, closedRows);
     }
+    private static boolean omegaGateLocked(ServerLevel level) {
+        return !BossArenaEncounter.isIntroCinematic(level)
+                && !net.krodark.asterion.AsterionWorldState.get(level).omegaGateUnlocked();
+    }
+
     public static void setAuthoredBossGate(ServerLevel level,int closedRows) {
+        if (omegaGateLocked(level)) closedRows = 6;
         var base=Asterion.MAZESTEEL_GATE.defaultBlockState().setValue(DirectionalGateBlock.FACE,AttachFace.FLOOR)
                 .setValue(DirectionalGateBlock.FACING,Direction.SOUTH);
         for(int row=0;row<6;row++)for(int side=-3;side<=3;side++) {
@@ -74,7 +80,8 @@ public final class MinotaurArenaEntrances {
         if (AuthoredCatacombs.enabled()) {
             BlockPos center = facing == BOSS_ENTRANCE ? AUTHORED_BOSS_GATE : gate(PLAYER_ENTRANCE);
             int authoredHeight = facing == BOSS_ENTRANCE ? 6 : 5;
-            int normalizedClosed = Math.clamp(closedRows, 0, gateHeight()) * authoredHeight / gateHeight();
+            int normalizedClosed = facing == BOSS_ENTRANCE && omegaGateLocked(level) ? authoredHeight
+                    : Math.clamp(closedRows, 0, gateHeight()) * authoredHeight / gateHeight();
             var base = Asterion.MAZESTEEL_GATE.defaultBlockState()
                     .setValue(DirectionalGateBlock.FACE, AttachFace.FLOOR)
                     .setValue(DirectionalGateBlock.FACING, facing.getOpposite());

@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "I I",
+    "III",
+    "III"
+  ],
+  "key": {
+    "I": "asterion:celestial_gold_ingot"
+  },
+  "result": {
+    "id": "asterion:celestial_gold_chestplate",
+    "count": 1
+  }
+}

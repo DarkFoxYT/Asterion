@@ -1,0 +1,64 @@
+{
+  "sources": [
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:entity/minotaur"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:armor/tarnished_gold_top"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:armor/tarnished_gold_bottom"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:armor/celestial_bronze_top"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:armor/celestial_bronze_bottom"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:armor/celestial_gold_top"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:armor/celestial_gold_bottom"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:armor/celestial_steel_top"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:armor/celestial_steel_bottom"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:gui/forge/bottom_center/ingot_mold"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:gui/forge/bottom_center/guard_mold"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:gui/forge/bottom_center/pomel_mold"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:gui/forge/bottom_center/blade_mold"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:gui/forge/bottom_center/minotaur_key_mold"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/deadwood_stick/deadwood_stick"
+    }
+  ]
+}

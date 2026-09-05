@@ -146,7 +146,17 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private UUID thrownAxe;
     private Vec3 axeLastPosition = Vec3.ZERO;
     private boolean deathWeaponsDropped;
+    private static final EntityDataAccessor<Boolean> DATA_HARVESTED = SynchedEntityData.defineId(
+            MinotaurEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Integer> DATA_REMOVED_PARTS = SynchedEntityData.defineId(
+            MinotaurEntity.class, EntityDataSerializers.INT);
+    private long nextDismemberTick;
+    public int removedParts() { return getEntityData().get(DATA_REMOVED_PARTS); }
+    public AABB animatedBodyBounds() {
+        return getBoundingBox().inflate(8 * .47 * AsterionConfig.INSTANCE.minotaurScale);
+    }
     private boolean hideHarvested;
+    public boolean isHarvested() { return getEntityData().get(DATA_HARVESTED); }
     private final java.util.Map<BlockPos, Integer> fireSootTrail = new java.util.LinkedHashMap<>();
     private int axeAge;
     private Vec3 axePickupGoal;
@@ -518,6 +528,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
+        builder.define(DATA_HARVESTED, false);
+        builder.define(DATA_REMOVED_PARTS, 0);
         builder.define(DATA_PHASE, BehaviorPhase.DORMANT.ordinal());
         builder.define(DATA_RAGE, 0);
         builder.define(DATA_BOSS_ATTACK, BossAttack.NONE.ordinal());
@@ -684,6 +696,11 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
     @Override
     protected void customServerAiStep(ServerLevel level) {
+        if (isDefeatedBoss()) {
+            phaseTicks++;
+            tickDefeated(level);
+            return;
+        }
         super.customServerAiStep(level);
         if (behaviorPhase() != BehaviorPhase.BOSS && behaviorPhase() != BehaviorPhase.RETREATING
                 && behaviorPhase() != BehaviorPhase.DORMANT && !DeadSunEventSystem.isEclipseActive(level)) {
@@ -1304,7 +1321,12 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             return;
         }
         if (mazeGrabTicks < 37) {
-            if (grabbedReachDirection.lengthSqr() < 0.01D) lockReachTo(grabbed);
+            if (grabbedReachDirection.lengthSqr() < 0.01D) {
+                lockReachTo(grabbed);
+                grabbed.stopRiding();
+                getEntityData().set(DATA_HELD_PLAYER, grabbed.getId());
+                RagdollServerNetworking.markRagdolled(grabbed, 86);
+            }
             float hold = Mth.clamp((mazeGrabTicks - 10) / 27.0F, 0.0F, 1.0F);
             double swing = Math.sin(hold * Math.PI) * 0.62D;
             Vec3 hand = reachHandPosition(grabbed, 0.12D + swing * 0.10D,
@@ -1319,6 +1341,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             return;
         }
         if (mazeGrabTicks == 37) {
+            getEntityData().set(DATA_HELD_PLAYER, -1);
             Vec3 direction = bestMazeThrowDirection(level, grabbed);
             Vec3 impulse = direction.scale(1.72D + random.nextDouble() * 0.42D)
                     .add(0.0D, 1.82D + random.nextDouble() * 0.42D, 0.0D);
@@ -1332,6 +1355,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     private void finishMazeGrab() {
+        getEntityData().set(DATA_HELD_PLAYER, -1);
         mazeGrabTicks = 0;
         mazeGrabbedPlayer = null;
         setBossAttack(BossAttack.NONE);
@@ -1404,7 +1428,11 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     private static void placePlayerInHand(ServerPlayer player, Vec3 hand) {
-        player.teleportTo(hand.x, hand.y - player.getBbHeight() * 0.52D, hand.z);
+        player.setPos(hand.x, hand.y - player.getBbHeight() * 0.52D, hand.z);
+        player.setDeltaMovement(Vec3.ZERO);
+        player.resetFallDistance();
+        RagdollServerNetworking.markRagdolled(player, 60);
+        RagdollServerNetworking.forceAuthority(player, Vec3.ZERO);
     }
 
     private boolean isPlayerPinned(ServerLevel level, ServerPlayer player) {
@@ -2326,12 +2354,12 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     @Override public void remove(Entity.RemovalReason reason) {
-        if (isDefeatedBoss() && (reason == Entity.RemovalReason.KILLED
+        if (isDefeatedBoss() && removedParts() != MinotaurRemains.ALL && (reason == Entity.RemovalReason.KILLED
                 || reason == Entity.RemovalReason.DISCARDED)) return;
         // Discard/unload/reset does not call the defeat sequence. Always retire this entity's bars.
         healthBossBar.removeAllPlayers();
         rageBossBar.removeAllPlayers();
-        if ((reason == Entity.RemovalReason.KILLED || reason == Entity.RemovalReason.DISCARDED)
+        if (!isDefeatedBoss() && (reason == Entity.RemovalReason.KILLED || reason == Entity.RemovalReason.DISCARDED)
                 && thrownAxe != null && level() instanceof ServerLevel server) {
             var axe = server.getEntity(thrownAxe); if (axe != null) axe.discard();
         }
@@ -2419,6 +2447,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if (thrownAxe != null) output.putString("minotaur_axe_uuid", thrownAxe.toString());
         output.putBoolean("death_weapons_dropped", deathWeaponsDropped);
         output.putBoolean("hide_harvested", hideHarvested);
+        output.putInt("removed_parts", removedParts());
+        output.putLong("next_dismember_tick", nextDismemberTick);
         output.putDouble("minotaur_axe_x", axeLastPosition.x);
         output.putDouble("minotaur_axe_y", axeLastPosition.y);
         output.putDouble("minotaur_axe_z", axeLastPosition.z);
@@ -2440,6 +2470,9 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         String id = input.getStringOr("minotaur_axe_uuid", "");
         deathWeaponsDropped = input.getBooleanOr("death_weapons_dropped", false);
         hideHarvested = input.getBooleanOr("hide_harvested", false);
+        getEntityData().set(DATA_HARVESTED, hideHarvested);
+        getEntityData().set(DATA_REMOVED_PARTS, input.getIntOr("removed_parts", 0) & MinotaurRemains.ALL);
+        nextDismemberTick = input.getLongOr("next_dismember_tick", 0);
         try { thrownAxe = id.isEmpty() ? null : UUID.fromString(id); } catch (IllegalArgumentException ignored) { thrownAxe = null; }
         getEntityData().set(DATA_AXE_OUT, thrownAxe != null);
         axeLastPosition = new Vec3(input.getDoubleOr("minotaur_axe_x", getX()), input.getDoubleOr("minotaur_axe_y", getY()), input.getDoubleOr("minotaur_axe_z", getZ()));
@@ -2960,6 +2993,11 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         return false;
     }
 
+    @Override protected void pushEntities() {
+        // The fallen body's old upright box must not shove players away from its bones.
+        if (!isDefeatedBoss()) super.pushEntities();
+    }
+
     /**
      * Vanilla entity collision is symmetric. Replace it with a small one-way shove
      * owned by the server, while scripted grabs/throws retain their own movement authority.
@@ -3339,6 +3377,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 grabbedPlayer = target.getUUID();
                 target.stopRiding();
                 getEntityData().set(DATA_HELD_PLAYER, target.getId());
+                RagdollServerNetworking.markRagdolled(target, 86);
                 lockReachTo(target);
                 bossAttackTicks = 8;
                 getEntityData().set(DATA_BOSS_ATTACK_TICKS, 8);
@@ -4102,6 +4141,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             grabbedPlayer = player.getUUID();
             player.stopRiding();
             getEntityData().set(DATA_HELD_PLAYER, player.getId());
+            RagdollServerNetworking.markRagdolled(player, 86);
             lockReachTo(player);
         }
         Player foundGrabbed = grabbedPlayer == null ? null : level.getPlayerByUUID(grabbedPlayer);
@@ -4124,7 +4164,6 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             grabbed.setXRot(Mth.lerp(0.28F, grabbed.getXRot(), -12.0F - hold * 18.0F));
             grabbed.setDeltaMovement(Vec3.ZERO);
             grabbed.resetFallDistance();
-            RagdollServerNetworking.forceAuthority(grabbed, Vec3.ZERO);
             if ((bossAttackTicks & 3) == 0)
                 level.sendParticles(ParticleTypes.LARGE_SMOKE, hand.x, hand.y, hand.z,
                         3, 0.35D, 0.5D, 0.35D, 0.02D);
@@ -4950,12 +4989,12 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         ItemStack tool = player.getItemInHand(hand);
         if (!(level() instanceof ServerLevel server)) return net.minecraft.world.InteractionResult.SUCCESS;
         if (hideHarvested) {
-            player.sendSystemMessage(Component.translatable("message.asterion.minotaur_harvested"));
-        } else if (!tool.is(Items.SHEARS) && !tool.is(net.minecraft.tags.ItemTags.AXES)) {
-            player.sendSystemMessage(Component.translatable("message.asterion.minotaur_harvest_hint"));
+            dismember(player, hand, null);
         } else {
             // Commit before spawning items so simultaneous interactions cannot duplicate the reward.
             hideHarvested = true;
+            getEntityData().set(DATA_HARVESTED, true);
+            spawnAtLocation(server, new ItemStack(net.krodark.asterion.game.AncientContent.ANCIENT_BONE, 16 + random.nextInt(9)));
             spawnAtLocation(server, new ItemStack(Items.LEATHER, 6 + random.nextInt(5)));
             spawnAtLocation(server, new ItemStack(Asterion.SHADED_SHALE_TARNISHED_GOLD_ORE, 2 + random.nextInt(3)));
             spawnAtLocation(server, new ItemStack(Asterion.SHADED_SHALE_CELESTIAL_GOLD_ORE, 1 + random.nextInt(2)));
@@ -4964,6 +5003,46 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             player.sendSystemMessage(Component.translatable("message.asterion.minotaur_harvest"));
         }
         return net.minecraft.world.InteractionResult.SUCCESS;
+    }
+
+    public void dismember(Player player, net.minecraft.world.InteractionHand hand, MinotaurRemains selected) {
+        dismember(player, hand, selected, position().add(0, .5, 0));
+    }
+
+    public void dismember(Player player, net.minecraft.world.InteractionHand hand, MinotaurRemains selected, Vec3 point) {
+        if (!(level() instanceof ServerLevel server) || !isAlive() || !isDefeatedBoss() || !isHarvested()) return;
+        ItemStack tool = player.getItemInHand(hand);
+        if (!tool.is(net.minecraft.tags.ItemTags.SWORDS) && !tool.is(net.minecraft.tags.ItemTags.AXES)) {
+            player.sendSystemMessage(Component.translatable("message.asterion.minotaur_dismember_tool"));
+            return;
+        }
+        if (server.getGameTime() < nextDismemberTick) return;
+        int removed = removedParts();
+        MinotaurRemains part = selected == null ? MinotaurRemains.next(removed) : selected;
+        if (part == null || part.removed(removed)) return;
+        if (part == MinotaurRemains.TORSO && (removed & MinotaurRemains.LIMBS) != MinotaurRemains.LIMBS
+                || part == MinotaurRemains.HEAD && (removed & MinotaurRemains.BODY) != MinotaurRemains.BODY) {
+            player.sendSystemMessage(Component.translatable("message.asterion.minotaur_dismember_order"));
+            return;
+        }
+        // Commit first: another player or repeated packet cannot harvest the same part twice.
+        getEntityData().set(DATA_REMOVED_PARTS, removed | part.bit());
+        nextDismemberTick = server.getGameTime() + 12;
+        tool.hurtAndBreak(1, player, hand.asEquipmentSlot());
+        if (part == MinotaurRemains.HEAD) {
+            dropRemains(server, new ItemStack(net.krodark.asterion.game.AncientContent.MINOTAUR_TROPHY_ITEM), point);
+            discard();
+        } else {
+            dropRemains(server, new ItemStack(net.krodark.asterion.game.AncientContent.ANCIENT_BONE,
+                    part.minimumBones + random.nextInt(part.boneVariation)), point);
+        }
+        server.playSound(null, blockPosition(), SoundEvents.SKELETON_HURT, net.minecraft.sounds.SoundSource.PLAYERS, 1F, .65F);
+    }
+
+    private void dropRemains(ServerLevel server, ItemStack stack, Vec3 point) {
+        var drop = new net.minecraft.world.entity.item.ItemEntity(server, point.x, point.y + .05, point.z, stack);
+        drop.setDefaultPickUpDelay();
+        server.addFreshEntity(drop);
     }
 
     private void beginDefeated(ServerLevel level) {
@@ -4985,12 +5064,11 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     private void tickDefeated(ServerLevel level) {
+        if (removedParts() == MinotaurRemains.ALL) { discard(); return; }
         dropDeathWeapons(level);
         getNavigation().stop();
         setDeltaMovement(Vec3.ZERO);
         noPhysics = false;
-        if (!level.noCollision(this, getBoundingBox().inflate(1.35D, 0.0D, 1.35D)))
-            settleDefeatedPose(level);
         setTarget(null);
         setAggressive(false);
         getEntityData().set(DATA_BOSS_ATTACK_TICKS, Math.min(85, bossAttackAnimationTicks() + 1));

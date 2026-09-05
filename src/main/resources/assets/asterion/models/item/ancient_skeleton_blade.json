@@ -1,0 +1,44 @@
+{
+  "parent": "minecraft:item/handheld",
+  "textures": {
+    "layer0": "asterion:item/forging/celestial_bronze/celestial_bronze_blade",
+    "layer1": "asterion:item/forging/celestial_bronze/celestial_bronze_guard",
+    "layer2": "asterion:item/forging/celestial_bronze/celestial_bronze_pommel"
+  },
+  "display": {
+    "thirdperson_righthand": {
+      "rotation": [
+        0,
+        -90,
+        55
+      ],
+      "translation": [
+        0,
+        4,
+        0.5
+      ],
+      "scale": [
+        1,
+        1.2,
+        1
+      ]
+    },
+    "thirdperson_lefthand": {
+      "rotation": [
+        0,
+        -90,
+        55
+      ],
+      "translation": [
+        0,
+        4,
+        0.5
+      ],
+      "scale": [
+        1,
+        1.2,
+        1
+      ]
+    }
+  }
+}

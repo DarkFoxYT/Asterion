@@ -37,6 +37,8 @@ public final class OmegaLockBlockEntity extends BlockEntity implements GeoBlockE
         gates = findNearbyGates(server, worldPosition);
         if (gates.isEmpty()) return false;
         openingTicks = 1;
+        if (worldPosition.equals(net.krodark.asterion.worldgen.MinotaurArenaEntrances.OMEGA_LOCK_POSITION))
+            net.krodark.asterion.AsterionWorldState.get(server).markOmegaGateUnlocked();
         server.setBlock(worldPosition, getBlockState().setValue(OmegaLockBlock.UNLOCKED, true), Block.UPDATE_ALL);
         server.playSound(null, worldPosition, SoundEvents.VAULT_ACTIVATE, SoundSource.BLOCKS, 1.5F, .55F);
         for (var viewer : server.players()) if (viewer.distanceToSqr(worldPosition.getCenter()) < 64 * 64

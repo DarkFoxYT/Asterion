@@ -4,6 +4,7 @@
   "package": "net.krodark.asterion.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
+    "ChainLiftMovementMixin",
     "MazesteelMiningMixin",
     "HeavyWaterMovementMixin",
     "HeavyWaterRedstoneMixin",
@@ -24,14 +25,21 @@
     "ChunkAccessAccessor",
     "CinematicServerMovementMixin",
     "PrimaryLevelDataMixin",
-    "ResolveDamageMixin",
     "StructureTemplateAccessor",
     "WorldGenRegionAccessor"
   ],
   "client": [
+    "ForgeHudMixin",
+    "ForgeToastMixin",
+    "ForgePlayerRendererMixin",
+    "GeckoAnimationCacheMixin",
+    "GeckoAnimationFrameAccessor",
+    "GeckoTextureCacheLifecycleMixin",
+    "GeckoInterpolationBufferAccessor",
+    "BossHealthOverlayAccessor",
+    "MinotaurBodyPickingMixin",
     "FlamethrowerInputMixin",
     "BiomeMusicMixin",
-    "GreekFireOverlayMixin",
     "MoodyBrightnessMixin",
     "TidalWaterSurfaceMixin",
     "AmneticParticleCullingMixin",
@@ -45,8 +53,8 @@
     "RagdollLevelRendererMixin",
     "SodiumRenderRegionMixin",
     "RagdollLocalPlayerMixin",
-    "RagdollItemInHandRendererMixin"
-    ,"ForgedTooltipOutlineMixin"
+    "RagdollItemInHandRendererMixin",
+    "ForgedTooltipOutlineMixin"
   ],
   "injectors": {
     "defaultRequire": 1

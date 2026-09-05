@@ -61,6 +61,8 @@ public final class AsterionClient implements ClientModInitializer {
         RagdollClientController.initialize();
         CentipedeInteractionClient.initialize();
         EntityRenderers.register(Asterion.MINOTAUR, MinotaurGeoRenderer::new);
+        EntityRenderers.register(net.krodark.asterion.game.AncientContent.SKELETON, net.krodark.asterion.client.render.entity.AncientSkeletonRenderer::new);
+        EntityRenderers.register(net.krodark.asterion.game.ChainLiftContent.LIFT, net.krodark.asterion.client.render.entity.ChainLiftRenderer::new);
         EntityRenderers.register(Asterion.MINOTAUR_AXE, net.krodark.asterion.client.render.entity.MinotaurAxeRenderer::new);
         EntityRenderers.register(Asterion.BOMBARDIER_BEETLE, BombadierBeetleGeoRenderer::new);
         // Animated beetle placeholder until the dedicated model is supplied.
@@ -213,6 +215,8 @@ public final class AsterionClient implements ClientModInitializer {
                                     && screen.matches(payload.pos())) screen.update(payload);
                             else context.client().setScreen(new CrucibleScreen(payload));
                         }));
+        ClientPlayNetworking.registerGlobalReceiver(net.krodark.asterion.network.ForgeInsertPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> ForgeItemFlights.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(RagdollImpulsePayload.TYPE, (payload, context) ->
                 context.client().execute(() -> DismembermentEngine.INSTANCE.forcePlayerTumble(
                         context.client(), payload.source(), payload.impulse(), payload.force())));
@@ -229,6 +233,7 @@ public final class AsterionClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(RagdollStatePayload.TYPE, (payload, context) ->
                 context.client().execute(() -> DismembermentEngine.INSTANCE.applyRemoteState(context.client(), payload)));
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(ForgeItemFlights::tick);
         BiomeMusic.initialize();
         MazeAmbience.initialize();
     }

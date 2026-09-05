@@ -22,7 +22,7 @@ import net.minecraft.world.level.Level;
 
 import java.util.List;
 
-/** Assembles three genuinely forged sword components. */
+/** Assembles forged components around a deadwood handle. */
 public final class ForgedSwordRecipe extends CustomRecipe {
     @Override public boolean matches(CraftingInput input, Level level) {
         return parts(input) != null;
@@ -94,13 +94,15 @@ public final class ForgedSwordRecipe extends CustomRecipe {
 
     private static ItemStack[] parts(CraftingInput input) {
         ItemStack blade = ItemStack.EMPTY, guard = ItemStack.EMPTY, pommel = ItemStack.EMPTY;
+        boolean handle = false;
         for (ItemStack stack : input.items()) if (!stack.isEmpty()) {
             if (stack.is(Asterion.FORGED_SWORD_BLADE) && blade.isEmpty()) blade = stack;
             else if (stack.is(Asterion.FORGED_SWORD_GUARD) && guard.isEmpty()) guard = stack;
             else if (stack.is(Asterion.FORGED_SWORD_POMMEL) && pommel.isEmpty()) pommel = stack;
+            else if (stack.is(Asterion.DEADWOOD_STICK) && !handle) handle = true;
             else return null;
         }
-        return blade.isEmpty() || guard.isEmpty() || pommel.isEmpty() ? null : new ItemStack[]{blade, guard, pommel};
+        return !handle || blade.isEmpty() || guard.isEmpty() || pommel.isEmpty() ? null : new ItemStack[]{blade, guard, pommel};
     }
     private static CompoundTag data(ItemStack stack) {
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);

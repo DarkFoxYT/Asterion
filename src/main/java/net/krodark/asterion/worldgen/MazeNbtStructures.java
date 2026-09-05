@@ -88,7 +88,8 @@ public final class MazeNbtStructures {
 
     public static void cleanLegacyCopper(LevelChunk chunk, int minY, int maxY) {
         BlockPos marker = new BlockPos(chunk.getPos().getMinBlockX(), 2, chunk.getPos().getMinBlockZ());
-        if (chunk.getBlockState(marker).is(Blocks.REINFORCED_DEEPSLATE)) return;
+        if (chunk.getBlockState(marker).is(Blocks.REINFORCED_DEEPSLATE)
+                || chunk.getBlockState(marker).is(Blocks.LIGHT)) return;
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (int x = chunk.getPos().getMinBlockX(); x <= chunk.getPos().getMaxBlockX(); x++) {
             for (int z = chunk.getPos().getMinBlockZ(); z <= chunk.getPos().getMaxBlockZ(); z++) {
@@ -101,13 +102,15 @@ public final class MazeNbtStructures {
                 }
             }
         }
-        chunk.setBlockState(marker, Blocks.REINFORCED_DEEPSLATE.defaultBlockState(), 0);
+        chunk.setBlockState(marker, Blocks.LIGHT.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 0), 0);
         chunk.markUnsaved();
     }
 
     public static void markCopperClean(LevelChunk chunk) {
         BlockPos marker = new BlockPos(chunk.getPos().getMinBlockX(), 2, chunk.getPos().getMinBlockZ());
-        chunk.setBlockState(marker, Blocks.REINFORCED_DEEPSLATE.defaultBlockState(), 0);
+        chunk.setBlockState(marker, Blocks.LIGHT.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 0), 0);
         chunk.markUnsaved();
     }
 
@@ -314,7 +317,8 @@ public final class MazeNbtStructures {
                 pending.addLast(placement);
                 return;
             }
-            if (level.getBlockState(marker).is(Blocks.REINFORCED_DEEPSLATE)) {
+            if (level.getBlockState(marker).is(Blocks.REINFORCED_DEEPSLATE)
+                    || level.getBlockState(marker).is(Blocks.LIGHT)) {
                 carveAccessibilityBridges(level, placement);
                 configureSafeRoom(level, placement, false);
                 cacheSafeCheckpoint(level, placement);
@@ -334,7 +338,8 @@ public final class MazeNbtStructures {
             carveAccessibilityBridges(level, placement);
             configureSafeRoom(level, placement, true);
             cacheSafeCheckpoint(level, placement);
-            level.setBlock(marker, Blocks.REINFORCED_DEEPSLATE.defaultBlockState(), 2);
+            level.setBlock(marker, Blocks.LIGHT.defaultBlockState()
+                    .setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 0), 2);
         }
 
         // Rotated template doorways do not necessarily line up with the maze grid.
@@ -486,7 +491,8 @@ public final class MazeNbtStructures {
             for (Placement placement : placements) {
                 if (!isSafeRoom(placement.id) || !placement.box.isInside(checkpoint.below())) continue;
                 BlockPos marker = new BlockPos(placement.origin.getX(), 3, placement.origin.getZ());
-                if (level.getBlockState(marker).is(Blocks.REINFORCED_DEEPSLATE)) {
+                if (level.getBlockState(marker).is(Blocks.REINFORCED_DEEPSLATE)
+                        || level.getBlockState(marker).is(Blocks.LIGHT)) {
                     safeCheckpoints.put(placement.origin, checkpoint.immutable());
                     return true;
                 }

@@ -1,6 +1,7 @@
 package net.krodark.asterion.block;
 
 import java.util.*;
+import net.krodark.asterion.Asterion;
 import net.krodark.asterion.game.GameplayContent;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -44,7 +45,7 @@ public final class ChallengeSpawnerBlockEntity extends BlockEntity {
                     && p.distanceToSqr(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5) < 64).findFirst().orElse(null);
             if (player == null || level.getDifficulty() == net.minecraft.world.Difficulty.PEACEFUL) return;
             for (int attempt = 0; attempt < 24 && spawner.mobs.size() < 3; attempt++) {
-                Mob mob = (attempt % 2 == 0 ? EntityType.ZOMBIE : EntityType.SKELETON).create(level, EntitySpawnReason.SPAWNER);
+                Mob mob = Asterion.BOMBARDIER_BEETLE.create(level, EntitySpawnReason.SPAWNER);
                 if (mob == null) continue;
                 BlockPos spawn = pos.offset(level.getRandom().nextInt(7) - 3, 0, level.getRandom().nextInt(7) - 3);
                 mob.setPos(spawn.getX() + .5, spawn.getY(), spawn.getZ() + .5);
@@ -62,14 +63,13 @@ public final class ChallengeSpawnerBlockEntity extends BlockEntity {
         if (spawner.mobs.isEmpty()) {
             spawner.complete = true;
             spawner.removeLabel(level);
-            Block.popResource(level, pos.above(), new ItemStack(Items.EMERALD, 3 + level.getRandom().nextInt(4)));
+            Block.popResource(level, pos.above(), new ItemStack(Asterion.TARNISHED_GOLD_INGOT, 3 + level.getRandom().nextInt(4)));
+            Block.popResource(level, pos.above(), new ItemStack(Asterion.CELESTIAL_BRONZE_INGOT, 1 + level.getRandom().nextInt(3)));
             ExperienceOrb.award(level, pos.getCenter().add(0, 1, 0), 20);
-            level.removeBlock(pos, false);
         } else if (explosive) {
             if (--spawner.remaining <= 0) {
                 spawner.complete = true; spawner.removeLabel(level);
-                level.removeBlock(pos, false);
-                level.explode(null, pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5, 3F, Level.ExplosionInteraction.MOB);
+                level.explode(null, pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5, 3F, Level.ExplosionInteraction.NONE);
             } else if (spawner.remaining % 20 == 0) {
                 ArmorStand display = spawner.label == null ? null : level.getEntity(spawner.label) instanceof ArmorStand stand ? stand : null;
                 if (display == null) {
