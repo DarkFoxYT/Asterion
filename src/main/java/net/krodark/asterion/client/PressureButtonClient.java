@@ -83,14 +83,13 @@ public final class PressureButtonClient {
     }
     private static void scan(Minecraft client) {
         BUTTONS.clear();
-        BlockPos center=client.player.blockPosition();
-        int radius=36,minY=Math.max(client.level.getMinY(),center.getY()-10),
-                maxY=Math.min(client.level.getMaxY(),center.getY()+10);
-        for(BlockPos pos:BlockPos.betweenClosed(center.getX()-radius,minY,center.getZ()-radius,
-                center.getX()+radius,maxY,center.getZ()+radius)) {
-            if(client.level.getBlockState(pos).is(Asterion.PRESSURE_BUTTON)) BUTTONS.add(pos.immutable());
-            if(BUTTONS.size()>=12) break;
-        }
+        BlockPos center = client.player.blockPosition();
+        var matches = net.krodark.asterion.util.LoadedBlockSearch.find(client.level,
+                center.offset(-36, -10, -36), center.offset(36, 10, 36), state -> state.is(Asterion.PRESSURE_BUTTON));
+        // Keep the original BlockPos iteration order, including its twelve-marker limit.
+        matches.sort(java.util.Comparator.<BlockPos>comparingInt(BlockPos::getZ)
+                .thenComparingInt(BlockPos::getY).thenComparingInt(BlockPos::getX));
+        BUTTONS.addAll(matches.subList(0, Math.min(12, matches.size())));
     }
     private static void render(net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext context) {
         Minecraft client=Minecraft.getInstance();
@@ -102,6 +101,8 @@ public final class PressureButtonClient {
         for(BlockPos pos:BUTTONS) {
             if(!client.level.getBlockState(pos).is(Asterion.PRESSURE_BUTTON)) continue;
             Vec3 button=Vec3.atCenterOf(pos),target=button.add(0,.95,0);
+            if (!context.levelState().cameraRenderState.cullFrustum.isVisible(
+                    new net.minecraft.world.phys.AABB(target, target).inflate(.4))) continue;
             double distance=client.player.position().distanceTo(button);
             if(distance<=4||distance>48||occluded(client,camera,target,pos)) continue;
             double pulse=.22+(.5+.5*Math.sin(time*.16))*0.07;

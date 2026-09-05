@@ -194,6 +194,7 @@ public final class WorldGenerator {
     }
 
     private static void tickMaze(ServerLevel maze) {
+        net.krodark.asterion.worldgen.AuthoredForge.tickRepairs(maze);
         net.krodark.asterion.worldgen.ZoneRunePlacement.tick(maze);
         net.krodark.asterion.worldgen.AuthoredCatacombs.tickCursedBrazierRoom(maze);
         finishBossArenaBuildIfReady(maze);
@@ -1117,19 +1118,6 @@ public final class WorldGenerator {
         }
         ARENA_PREVIOUS_POSITIONS.keySet().removeIf(id -> players.stream().noneMatch(player -> player.getUUID().equals(id)));
 
-        if (minotaurs.isEmpty() && !DeadSunEventSystem.isEclipseActive(maze)) {
-            ServerPlayer candidate = players.stream()
-                    .filter(player -> !player.isCreative())
-                    .filter(player -> !WorldGenerator.isApproachingCenter(player.position()))
-                    .filter(player -> !WorldGenerator.isOvergrowthBiomeAt(
-                            player.getX(), player.getZ()))
-                    .min(Comparator.comparingLong(player -> roamerRevealTick(maze, player))).orElse(null);
-            if (candidate != null && maze.getGameTime() >= roamerRevealTick(maze, candidate)) {
-                MinotaurEntity spawned = MinotaurEntity.spawnRoamer(maze, candidate);
-                ROAMER_REVEAL_TICKS.put(candidate.getUUID(), maze.getGameTime()
-                        + (spawned == null ? 20L * 18L : 20L * 150L));
-            }
-        }
         ROAMER_REVEAL_TICKS.keySet().removeIf(id -> maze.getPlayerByUUID(id) == null);
     }
 

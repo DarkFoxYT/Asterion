@@ -1,1 +1,6 @@
-{"parent":"minecraft:item/handheld","textures":{"layer0":"asterion:item/afterblow"}}
+{
+  "textures": {
+    "layer0": "asterion:item/afterblow"
+  },
+  "parent": "minecraft:item/handheld"
+}

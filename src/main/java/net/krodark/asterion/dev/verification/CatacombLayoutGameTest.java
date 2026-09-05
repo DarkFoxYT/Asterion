@@ -17,7 +17,11 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
         context.runOnClient(client -> org.lwjgl.glfw.GLFW.glfwHideWindow(client.getWindow().handle()));
         try(var world=context.worldBuilder().create()) {
             world.getServer().runOnServer(server -> {
+                BackgroundSearchCheck.run(server.overworld());
+                GameplayFixCheck.run(server);
+                QueenQuestCheck.run(server);
                 var level=server.getLevel(Asterion.ASTERION_LEVEL);
+                FloodSpreadCheck.run(level);
                 // Runtime installs arena pieces from completed chunk callbacks. This test
                 // intentionally forces all pieces so it can inspect the entire 123x123 build.
                 WorldGenerator.prepareBossArenaBeforePlayers(level);
@@ -78,6 +82,23 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                 }
                 check(forgedBlocks>5000,"Authored Forge masonry did not generate: "+forgedBlocks);
                 check(forgeCrucibles>0,"Authored Forge crucibles did not generate");
+                var repairChunk = level.getChunk(CatacombLayout.ROOT_CENTER >> 4, CatacombLayout.ROOT_CENTER >> 4);
+                for (BlockPos p : BlockPos.betweenClosed(repairChunk.getPos().getMinBlockX(), LabyrinthLevels.FORGE_FLOOR_Y + 1,
+                        repairChunk.getPos().getMinBlockZ(), repairChunk.getPos().getMaxBlockX(), LabyrinthLevels.FORGE_ROOF_Y - 3,
+                        repairChunk.getPos().getMaxBlockZ())) level.setBlock(p, Blocks.AIR.defaultBlockState(), 18);
+                BlockPos protectedBlock = new BlockPos(CatacombLayout.ROOT_CENTER, LabyrinthLevels.FORGE_FLOOR_Y + 2,
+                        CatacombLayout.ROOT_CENTER);
+                level.setBlock(protectedBlock, Blocks.DIAMOND_BLOCK.defaultBlockState(), 18);
+                AuthoredForge.repairEmptyChunk(level, repairChunk);
+                check(level.getBlockState(protectedBlock).is(Blocks.DIAMOND_BLOCK), "Forge repair overwrote occupied chunk");
+                level.setBlock(protectedBlock, Blocks.AIR.defaultBlockState(), 18);
+                AuthoredForge.repairEmptyChunk(level, repairChunk);
+                int repaired = 0;
+                for (BlockPos p : BlockPos.betweenClosed(repairChunk.getPos().getMinBlockX(), LabyrinthLevels.FORGE_FLOOR_Y + 1,
+                        repairChunk.getPos().getMinBlockZ(), repairChunk.getPos().getMaxBlockX(), LabyrinthLevels.FORGE_ROOF_Y - 3,
+                        repairChunk.getPos().getMaxBlockZ())) if (!level.getBlockState(p).isAir()) repaired++;
+                check(repaired > 100, "Empty legacy Forge slice was not repaired");
+                Asterion.LOGGER.info("PASS: Forge generation, empty legacy chunk repair and occupied chunk preservation");
                 for(int cx=-4;cx<=3;cx++)for(int cz=-4;cz<=3;cz++)
                     check(level.getBlockState(new BlockPos(cx*16,AuthoredCatacombs.ARENA_BASE_Y-1,cz*16))
                             .is(Blocks.LIGHT),"Missing arena reload marker");

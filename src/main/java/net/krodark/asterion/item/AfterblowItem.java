@@ -88,6 +88,19 @@ public final class AfterblowItem extends Item {
             tag.putLong(STORED_AT, now);
         }
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        updateModel(stack, value > .001F);
+    }
+
+    @Override
+    public void inventoryTick(ItemStack stack, net.minecraft.server.level.ServerLevel level,
+                              net.minecraft.world.entity.Entity entity, net.minecraft.world.entity.EquipmentSlot slot) {
+        updateModel(stack, storedAt(stack, level.getGameTime()) > .001F);
+    }
+
+    private static void updateModel(ItemStack stack, boolean powered) {
+        var model = new net.minecraft.world.item.component.CustomModelData(
+                java.util.List.of(), java.util.List.of(powered), java.util.List.of(), java.util.List.of());
+        if (!model.equals(stack.get(DataComponents.CUSTOM_MODEL_DATA))) stack.set(DataComponents.CUSTOM_MODEL_DATA, model);
     }
 
     @Override

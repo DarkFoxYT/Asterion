@@ -71,67 +71,94 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
         // still use /data or entity discard paths without exposing a normal death state.
     }
 
+    private static final String INDEX_TAG = "asterion.queen_beetle_quest.index.";
+
+    public static int questIndex(Player player) {
+        for (String tag : player.entityTags()) if (tag.startsWith(INDEX_TAG)) {
+            try { return Math.clamp(Integer.parseInt(tag.substring(INDEX_TAG.length())), 0, QueenBeetleQuests.ALL.size()); }
+            catch (NumberFormatException ignored) { }
+        }
+        // Old saves finished only the petal introduction. They can continue at request two.
+        return player.entityTags().contains(COMPLETE_TAG) ? 1 : 0;
+    }
+
+    private static void setQuestIndex(Player player, int index) {
+        for (String tag : java.util.List.copyOf(player.entityTags())) if (tag.startsWith(INDEX_TAG)) player.removeTag(tag);
+        player.addTag(INDEX_TAG + index);
+    }
+
     @Override protected InteractionResult mobInteract(Player player, InteractionHand hand) {
         if (!(player instanceof ServerPlayer serverPlayer)) return InteractionResult.SUCCESS;
+        int index = questIndex(player);
         int anger = angerTier(player);
-        int target = petalTarget(anger);
-        int petals = countPetals(player, target);
-        if (player.entityTags().contains(COMPLETE_TAG)) {
-            ServerPlayNetworking.send(serverPlayer,
-                    new QueenBeetleQuestPayload(QueenBeetleQuestPayload.COMPLETE, petals, target, anger));
+        if (index >= QueenBeetleQuests.ALL.size()) {
+            sendQuest(serverPlayer, QueenBeetleQuestPayload.COMPLETE, index - 1, 0, 1, anger);
             return InteractionResult.SUCCESS_SERVER;
         }
+        var quest = QueenBeetleQuests.get(index);
+        int target = index == 0 ? petalTarget(anger) : quest.count();
+        int progress = countItems(player, quest.item().asItem(), target);
+        setQuestIndex(player, index);
+        player.removeTag(COMPLETE_TAG);
         if (!player.entityTags().contains(ACTIVE_TAG)) {
             player.addTag(ACTIVE_TAG);
-            ServerPlayNetworking.send(serverPlayer,
-                    new QueenBeetleQuestPayload(QueenBeetleQuestPayload.ACCEPTED, petals, target, anger));
-            return InteractionResult.SUCCESS_SERVER;
+            sendQuest(serverPlayer, QueenBeetleQuestPayload.ACCEPTED, index, progress, target, anger);
+        } else if (progress < target) {
+            sendQuest(serverPlayer, QueenBeetleQuestPayload.PROGRESS, index, progress, target, anger);
+        } else {
+            consumeItems(player, quest.item().asItem(), target);
+            player.removeTag(ACTIVE_TAG);
+            setQuestIndex(player, index + 1);
+            if (index + 1 == QueenBeetleQuests.ALL.size()) player.addTag(COMPLETE_TAG);
+            ItemStack reward = new ItemStack(quest.reward(), quest.rewardCount());
+            if (!player.getInventory().add(reward)) player.drop(reward, false);
+            sendQuest(serverPlayer, QueenBeetleQuestPayload.REWARDED, index, target, target, anger);
         }
-        if (petals < target) {
-            ServerPlayNetworking.send(serverPlayer,
-                    new QueenBeetleQuestPayload(QueenBeetleQuestPayload.PROGRESS, petals, target, anger));
-            return InteractionResult.SUCCESS_SERVER;
-        }
-
-        consumePetals(player, target);
-        player.removeTag(ACTIVE_TAG);
-        player.addTag(COMPLETE_TAG);
-        ItemStack reward = new ItemStack(RespawnObelisks.CHARGED_RUNE);
-        if (!player.getInventory().add(reward)) player.drop(reward, false);
-        ServerPlayNetworking.send(serverPlayer,
-                new QueenBeetleQuestPayload(QueenBeetleQuestPayload.REWARDED, target, target, anger));
         return InteractionResult.SUCCESS_SERVER;
     }
 
-    private static int countPetals(Player player, int target) {
+    private static void sendQuest(ServerPlayer player, int stage, int index, int progress, int target, int anger) {
+        ServerPlayNetworking.send(player, new QueenBeetleQuestPayload(stage, progress, target, anger, index));
+    }
+
+    public static int countItems(Player player, net.minecraft.world.item.Item item, int target) {
         int found = 0;
         for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
             ItemStack stack = player.getInventory().getItem(slot);
-            if (stack.is(Asterion.TAINTED_PETALS.asItem())) found += stack.getCount();
+            if (stack.is(item)) found += stack.getCount();
         }
         return Math.min(found, target);
     }
 
-    private static void consumePetals(Player player, int amount) {
+    private static void consumeItems(Player player, net.minecraft.world.item.Item item, int amount) {
         for (int slot = 0; slot < player.getInventory().getContainerSize() && amount > 0; slot++) {
             ItemStack stack = player.getInventory().getItem(slot);
-            if (!stack.is(Asterion.TAINTED_PETALS.asItem())) continue;
+            if (!stack.is(item)) continue;
             int removed = Math.min(amount, stack.getCount());
             stack.shrink(removed);
             amount -= removed;
         }
     }
 
-    /** Restores the objective HUD after reconnecting without replaying dialogue. */
+    /** Restores the exact request after reconnecting without replaying dialogue. */
     public static void syncActiveQuest(ServerPlayer player) {
-        if (player.entityTags().contains(ACTIVE_TAG)) {
+        int index = questIndex(player);
+        if (player.entityTags().contains(ACTIVE_TAG) && index < QueenBeetleQuests.ALL.size()) {
             int anger = angerTier(player);
-            int target = petalTarget(anger);
-            ServerPlayNetworking.send(player, new QueenBeetleQuestPayload(
-                    QueenBeetleQuestPayload.RESTORE_ACTIVE, countPetals(player, target), target, anger));
+            var quest = QueenBeetleQuests.get(index);
+            int target = index == 0 ? petalTarget(anger) : quest.count();
+            sendQuest(player, QueenBeetleQuestPayload.RESTORE_ACTIVE, index,
+                    countItems(player, quest.item().asItem(), target), target, anger);
         }
     }
 
+    public static void copyQuests(ServerPlayer oldPlayer, ServerPlayer newPlayer) {
+        for (String tag : java.util.List.copyOf(newPlayer.entityTags()))
+            if (tag.startsWith("asterion.queen_beetle_quest.") || tag.startsWith(KILLS_TAG)) newPlayer.removeTag(tag);
+        for (String tag : oldPlayer.entityTags())
+            if (tag.startsWith("asterion.queen_beetle_quest.") || tag.startsWith(KILLS_TAG)) newPlayer.addTag(tag);
+        syncActiveQuest(newPlayer);
+    }
     public static void recordBeetleKill(net.minecraft.world.entity.LivingEntity victim, DamageSource source) {
         if (!(victim instanceof BombadierBeetleEntity || victim instanceof RuneBeetleEntity)
                 || !(source.getEntity() instanceof ServerPlayer player)) return;

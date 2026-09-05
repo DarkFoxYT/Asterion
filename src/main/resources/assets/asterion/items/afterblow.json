@@ -1,1 +1,39 @@
-{"model":{"type":"minecraft:model","model":"asterion:item/afterblow"}}
+{
+  "model": {
+    "property": "minecraft:display_context",
+    "type": "minecraft:select",
+    "cases": [
+      {
+        "model": {
+          "property": "minecraft:custom_model_data",
+          "type": "minecraft:condition",
+          "index": 0,
+          "on_true": {
+            "type": "minecraft:model",
+            "model": "asterion:item/afterblow_icon_powered"
+          },
+          "on_false": {
+            "type": "minecraft:model",
+            "model": "asterion:item/afterblow_icon"
+          }
+        },
+        "when": [
+          "gui"
+        ]
+      }
+    ],
+    "fallback": {
+      "property": "minecraft:custom_model_data",
+      "type": "minecraft:condition",
+      "index": 0,
+      "on_true": {
+        "type": "minecraft:model",
+        "model": "asterion:item/afterblow_powered"
+      },
+      "on_false": {
+        "type": "minecraft:model",
+        "model": "asterion:item/afterblow"
+      }
+    }
+  }
+}

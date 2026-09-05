@@ -15,7 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public final class AsterionConfig {
-    private static final int CURRENT_VERSION = 25;
+    private static final int CURRENT_VERSION = 26;
     private static final Logger LOGGER = LoggerFactory.getLogger("asterion.config");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("asterion.json");
@@ -56,7 +56,7 @@ public final class AsterionConfig {
     /** Master switch for the maze and side-objective HUD cards. */
     public boolean objectiveHudEnabled = true;
     /** Seconds shown after arrival or a stage change; zero keeps objectives visible. */
-    public int objectiveHudSeconds = 12;
+    public int objectiveHudSeconds = 0;
     /** -1 preserves vanilla brightness; 0 is Moody and 100 is Bright. */
     public int brightnessPercent = 0;
     public int musicVolumePercent = 50;
@@ -205,9 +205,10 @@ public final class AsterionConfig {
         }
         if (version < 23) ragdollMashRecovery = true;
         if (version < 24 && wallThickness < 3) wallThickness = 3;
+        if (version < 26 && objectiveHudSeconds == 12) objectiveHudSeconds = 0;
         if (version < 25) {
             objectiveHudEnabled = true;
-            objectiveHudSeconds = 12;
+            objectiveHudSeconds = 0;
         }
     }
 

@@ -293,6 +293,9 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
 
     /** Keeps both the rotated shell and its upright rider clear during wall/corner transitions. */
     private void keepHeadOutsideWalls() {
+        // Remote entities already interpolate authoritative positions. Local collision
+        // correction fights that interpolation and produces a snap on every packet.
+        if (level().isClientSide() && !isLocalInstanceAuthoritative()) return;
         if (!usesSurfaceTravel()) return;
         Vec3 head = chainHeadCenter();
         var contact = bodyCollision.followSurface(head, head, attachmentNormal(), surfaceForward());

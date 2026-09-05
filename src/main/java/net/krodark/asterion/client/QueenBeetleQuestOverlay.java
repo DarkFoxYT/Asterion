@@ -4,6 +4,8 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.entity.QueenBeetleEntity;
+import net.krodark.asterion.entity.QueenBeetleQuests;
+import net.minecraft.world.item.ItemStack;
 import net.krodark.asterion.network.QueenBeetleQuestPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -20,7 +22,12 @@ public final class QueenBeetleQuestOverlay {
     private static int objectiveTicks;
     private static int target = QueenBeetleEntity.PETAL_TARGET;
     private static int anger;
+    private static int questIndex;
     private static float displayedProgress;
+    private static Component questTitle = Component.empty();
+    private static Component questItem = Component.empty();
+    private static Component questHint = Component.empty();
+    private static Component questReward = Component.empty();
 
     private QueenBeetleQuestOverlay() { }
 
@@ -30,7 +37,14 @@ public final class QueenBeetleQuestOverlay {
 
     public static void receive(QueenBeetleQuestPayload payload) {
         boolean restoring = payload.stage() == QueenBeetleQuestPayload.RESTORE_ACTIVE;
-        boolean wasActive = isActive();
+        boolean wasActive = isActive() && questIndex == payload.questIndex();
+        questIndex = Math.clamp(payload.questIndex(), 0, QueenBeetleQuests.ALL.size() - 1);
+        var request = quest();
+        questTitle = Component.translatable(request.key("title"));
+        questItem = new ItemStack(request.item()).getHoverName();
+        questHint = Component.translatable(request.key("hint"));
+        questReward = Component.translatable("quest.asterion.queen_beetle.reward_item",
+                request.rewardCount(), new ItemStack(request.reward()).getHoverName());
         stage = restoring ? QueenBeetleQuestPayload.PROGRESS : payload.stage();
         target = Math.max(1, payload.target());
         anger = Mth.clamp(payload.anger(), 0, 4);
@@ -50,7 +64,7 @@ public final class QueenBeetleQuestOverlay {
         }
         if (isActive()) {
             objectiveTicks++;
-            displayedProgress += (countPetals(client) - displayedProgress) * 0.18F;
+            displayedProgress += (countItems(client) - displayedProgress) * 0.18F;
         }
     }
 
@@ -86,17 +100,17 @@ public final class QueenBeetleQuestOverlay {
         graphics.centeredText(client.font, prompt, graphics.guiWidth() / 2 + 1, top + 5, 0xFFF2E5C4);
     }
 
-    private static int countPetals(Minecraft client) {
+    private static int countItems(Minecraft client) {
         int count = 0;
         for (int slot = 0; slot < client.player.getInventory().getContainerSize(); slot++) {
             var stack = client.player.getInventory().getItem(slot);
-            if (stack.is(Asterion.TAINTED_PETALS.asItem())) count += stack.getCount();
+            if (stack.is(quest().item().asItem())) count += stack.getCount();
         }
         return Math.min(count, target);
     }
 
     private static void renderObjective(GuiGraphicsExtractor graphics, Minecraft client) {
-        int actualProgress = countPetals(client);
+        int actualProgress = countItems(client);
         int width = Math.min(CARD_WIDTH, graphics.guiWidth() - 24);
         int height = 67;
         float appear = smootherstep(Mth.clamp(objectiveTicks / 12.0F, 0.0F, 1.0F));
@@ -107,15 +121,15 @@ public final class QueenBeetleQuestOverlay {
         graphics.fill(left, top, left + 3, top + height, alpha(0xD5A53E, Math.round(255 * appear)));
         graphics.fill(left + 3, top, left + width, top + 1, alpha(0x836B38, Math.round(150 * appear)));
 
-        Component title = Component.translatable("quest.asterion.queen_beetle.title");
+        Component title = questTitle;
         Component temper = Component.translatable("quest.asterion.queen_beetle.temper." + anger);
-        graphics.text(client.font, title, left + 11, top + 7, alpha(0xDDBB6D, Math.round(255 * appear)), false);
+        graphics.text(client.font, client.font.plainSubstrByWidth(title.getString(), width - 32 - client.font.width(temper)), left + 11, top + 7, alpha(0xDDBB6D, Math.round(255 * appear)), false);
         graphics.text(client.font, temper, left + width - 10 - client.font.width(temper), top + 7,
                 alpha(anger == 0 ? 0x8EBB7C : 0xD7745E, Math.round(220 * appear)), false);
 
-        Component objective = Component.translatable("quest.asterion.queen_beetle.objective");
+        Component objective = questItem;
         Component count = Component.literal(actualProgress + " / " + target);
-        graphics.text(client.font, objective, left + 11, top + 22, alpha(0xF2E9D5, Math.round(255 * appear)), false);
+        graphics.text(client.font, client.font.plainSubstrByWidth(objective.getString(), width - 32 - client.font.width(count)), left + 11, top + 22, alpha(0xF2E9D5, Math.round(255 * appear)), false);
         graphics.text(client.font, count, left + width - 10 - client.font.width(count), top + 22,
                 alpha(0xF2E9D5, Math.round(255 * appear)), false);
 
@@ -127,11 +141,11 @@ public final class QueenBeetleQuestOverlay {
         graphics.fill(barLeft, barTop, barLeft + filled, barTop + 4,
                 alpha(actualProgress >= target ? 0x82B76B : 0xC99432, Math.round(255 * appear)));
 
-        Component hint = Component.translatable(actualProgress >= target
-                ? "quest.asterion.queen_beetle.return" : "quest.asterion.queen_beetle.hint");
-        graphics.text(client.font, hint, left + 11, top + 45, alpha(0xB8AD91, Math.round(230 * appear)), false);
-        Component reward = Component.translatable("quest.asterion.queen_beetle.reward");
-        graphics.text(client.font, reward, left + 11, top + 56, alpha(0x817A67, Math.round(205 * appear)), false);
+        Component hint = actualProgress >= target
+                ? Component.translatable("quest.asterion.queen_beetle.return") : questHint;
+        graphics.text(client.font, client.font.plainSubstrByWidth(hint.getString(), width - 22), left + 11, top + 45, alpha(0xB8AD91, Math.round(230 * appear)), false);
+        Component reward = questReward;
+        graphics.text(client.font, client.font.plainSubstrByWidth(reward.getString(), width - 22), left + 11, top + 56, alpha(0x817A67, Math.round(205 * appear)), false);
     }
 
     private static void renderDialogue(GuiGraphicsExtractor graphics, Minecraft client) {
@@ -141,15 +155,15 @@ public final class QueenBeetleQuestOverlay {
         Component speaker = Component.translatable("entity.asterion.queen_beetle");
         Component line = switch (stage) {
             case QueenBeetleQuestPayload.ACCEPTED -> Component.translatable(
-                    "quest.asterion.queen_beetle.accepted", target);
+                    quest().key("accepted"), target);
             case QueenBeetleQuestPayload.PROGRESS -> Component.translatable(
-                    "quest.asterion.queen_beetle.progress", countPetals(client), target);
-            case QueenBeetleQuestPayload.REWARDED -> Component.translatable("quest.asterion.queen_beetle.rewarded");
+                    "quest.asterion.queen_beetle.progress", countItems(client), target);
+            case QueenBeetleQuestPayload.REWARDED -> Component.translatable(quest().key("rewarded"));
             default -> Component.translatable("quest.asterion.queen_beetle.complete");
         };
         int width = Math.min(graphics.guiWidth() - 32, 404);
         var lines = client.font.split(line, width - 28);
-        boolean showTemperLine = anger > 0 && stage != QueenBeetleQuestPayload.REWARDED;
+        boolean showTemperLine = questIndex == 0 && anger > 0 && stage != QueenBeetleQuestPayload.REWARDED;
         int height = 31 + lines.size() * 11 + (showTemperLine ? 13 : 0);
         int left = (graphics.guiWidth() - width) / 2;
         int top = graphics.guiHeight() - height - 48;
@@ -167,6 +181,10 @@ public final class QueenBeetleQuestOverlay {
             graphics.text(client.font, warning, left + 13, top + height - 12,
                     alpha(0xD7745E, Math.round(245 * opacity)), false);
         }
+    }
+
+    private static QueenBeetleQuests.Quest quest() {
+        return QueenBeetleQuests.get(questIndex);
     }
 
     private static int alpha(int rgb, int alpha) {

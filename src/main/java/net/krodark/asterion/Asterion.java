@@ -189,6 +189,26 @@ public class Asterion implements ModInitializer {
             properties -> new Block(properties.strength(3.5F, 7.0F).sound(SoundType.DEEPSLATE)));
     public static final Block CELESTIAL_GOLD_ORE = registerBlock("celestial_gold_ore", MapColor.GOLD,
             properties -> new Block(properties.strength(4.5F, 9.0F).sound(SoundType.DEEPSLATE)));
+    public static final Block SHALE = registerBlock("shale", MapColor.DEEPSLATE, p -> new Block(p.requiresCorrectToolForDrops()));
+    public static final Block SHALE_SLAB = registerBlock("shale_slab", MapColor.DEEPSLATE, p -> new SlabBlock(p.requiresCorrectToolForDrops()));
+    public static final Block SHALE_STAIRS = registerBlock("shale_stairs", MapColor.DEEPSLATE, p -> new StairBlock(SHALE.defaultBlockState(), p.requiresCorrectToolForDrops()));
+    public static final Block SHALE_WALL = registerBlock("shale_wall", MapColor.DEEPSLATE, p -> new WallBlock(p.requiresCorrectToolForDrops()));
+    public static final Block SHALE_BRICKS = registerBlock("shale_bricks", MapColor.DEEPSLATE, p -> new Block(p.requiresCorrectToolForDrops()));
+    public static final Block SHALE_BRICK_SLAB = registerBlock("shale_brick_slab", MapColor.DEEPSLATE, p -> new SlabBlock(p.requiresCorrectToolForDrops()));
+    public static final Block SHALE_BRICK_STAIRS = registerBlock("shale_brick_stairs", MapColor.DEEPSLATE, p -> new StairBlock(SHALE_BRICKS.defaultBlockState(), p.requiresCorrectToolForDrops()));
+    public static final Block SHALE_BRICK_WALL = registerBlock("shale_brick_wall", MapColor.DEEPSLATE, p -> new WallBlock(p.requiresCorrectToolForDrops()));
+    public static final Block SHADED_SHALE = registerBlock("shaded_shale", MapColor.DEEPSLATE, p -> new Block(p.requiresCorrectToolForDrops()));
+    public static final Block SHADED_SHALE_SLAB = registerBlock("shaded_shale_slab", MapColor.DEEPSLATE, p -> new SlabBlock(p.requiresCorrectToolForDrops()));
+    public static final Block SHADED_SHALE_STAIRS = registerBlock("shaded_shale_stairs", MapColor.DEEPSLATE, p -> new StairBlock(SHADED_SHALE.defaultBlockState(), p.requiresCorrectToolForDrops()));
+    public static final Block SHADED_SHALE_WALL = registerBlock("shaded_shale_wall", MapColor.DEEPSLATE, p -> new WallBlock(p.requiresCorrectToolForDrops()));
+    public static final Block SHADED_SHALE_BRICKS = registerBlock("shaded_shale_bricks", MapColor.DEEPSLATE, p -> new Block(p.requiresCorrectToolForDrops()));
+    public static final Block SHADED_SHALE_BRICK_SLAB = registerBlock("shaded_shale_brick_slab", MapColor.DEEPSLATE, p -> new SlabBlock(p.requiresCorrectToolForDrops()));
+    public static final Block SHADED_SHALE_BRICK_STAIRS = registerBlock("shaded_shale_brick_stairs", MapColor.DEEPSLATE, p -> new StairBlock(SHADED_SHALE_BRICKS.defaultBlockState(), p.requiresCorrectToolForDrops()));
+    public static final Block SHADED_SHALE_BRICK_WALL = registerBlock("shaded_shale_brick_wall", MapColor.DEEPSLATE, p -> new WallBlock(p.requiresCorrectToolForDrops()));
+    public static final Block SHALE_CELESTIAL_GOLD_ORE = registerBlock("shale_celestial_gold_ore", MapColor.DEEPSLATE, p -> new Block(p.strength(4.5F, 9F).requiresCorrectToolForDrops()));
+    public static final Block SHALE_TARNISHED_GOLD_ORE = registerBlock("shale_tarnished_gold_ore", MapColor.DEEPSLATE, p -> new Block(p.strength(4.5F, 9F).requiresCorrectToolForDrops()));
+    public static final Block SHADED_SHALE_CELESTIAL_GOLD_ORE = registerBlock("shaded_shale_celestial_gold_ore", MapColor.DEEPSLATE, p -> new Block(p.strength(4.5F, 9F).requiresCorrectToolForDrops()));
+    public static final Block SHADED_SHALE_TARNISHED_GOLD_ORE = registerBlock("shaded_shale_tarnished_gold_ore", MapColor.DEEPSLATE, p -> new Block(p.strength(4.5F, 9F).requiresCorrectToolForDrops()));
     public static final Block MOSSY_ANCIENT_STONE = registerBlock("mossy_ancient_stone", MapColor.TERRACOTTA_GREEN, Block::new);
     public static final Block ANCIENT_MOSS = registerBlock("ancient_moss", MapColor.TERRACOTTA_GREEN,
             properties -> new net.krodark.asterion.block.WaterloggedMossBlock(properties.strength(0.1F)
@@ -605,6 +625,26 @@ public class Asterion implements ModInitializer {
                         output.accept(DEAD_WOOD_FENCE_GATE);
                         output.accept(SHATTERED_DEAD_WOOD);
                         output.accept(ANCIENT_STONE);
+                        output.accept(SHALE);
+                        output.accept(SHALE_SLAB);
+                        output.accept(SHALE_STAIRS);
+                        output.accept(SHALE_WALL);
+                        output.accept(SHALE_BRICKS);
+                        output.accept(SHALE_BRICK_SLAB);
+                        output.accept(SHALE_BRICK_STAIRS);
+                        output.accept(SHALE_BRICK_WALL);
+                        output.accept(SHADED_SHALE);
+                        output.accept(SHADED_SHALE_SLAB);
+                        output.accept(SHADED_SHALE_STAIRS);
+                        output.accept(SHADED_SHALE_WALL);
+                        output.accept(SHADED_SHALE_BRICKS);
+                        output.accept(SHADED_SHALE_BRICK_SLAB);
+                        output.accept(SHADED_SHALE_BRICK_STAIRS);
+                        output.accept(SHADED_SHALE_BRICK_WALL);
+                        output.accept(SHALE_CELESTIAL_GOLD_ORE);
+                        output.accept(SHALE_TARNISHED_GOLD_ORE);
+                        output.accept(SHADED_SHALE_CELESTIAL_GOLD_ORE);
+                        output.accept(SHADED_SHALE_TARNISHED_GOLD_ORE);
                         output.accept(MOSSY_ANCIENT_STONE);
                         output.accept(ANCIENT_MOSS);
                         output.accept(ANCIENT_MOSS_CARPET);
@@ -870,6 +910,7 @@ public class Asterion implements ModInitializer {
         FabricDefaultAttributeRegistry.register(QUEEN_BEETLE, QueenBeetleEntity.createAttributes());
         ServerChunkEvents.CHUNK_LOAD.register(WorldGenerator::onChunkLoad);
         ServerChunkEvents.CHUNK_LOAD.register(CatacombFloodState::onChunkLoad);
+        ServerChunkEvents.CHUNK_LOAD.register(net.krodark.asterion.worldgen.AuthoredForge::onChunkLoad);
         ServerChunkEvents.CHUNK_UNLOAD.register(CatacombFloodState::onChunkUnload);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> CatacombFloodState.clear());
         PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, blockEntity) ->
@@ -957,6 +998,7 @@ public class Asterion implements ModInitializer {
             QueenBeetleEntity.syncActiveQuest(handler.getPlayer());
         });
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
+            QueenBeetleEntity.copyQuests(oldPlayer, newPlayer);
             net.krodark.asterion.effect.SingedScars.get(newPlayer.level().getServer()).apply(newPlayer);
             net.krodark.asterion.fluid.HeavyWaterFatigue.reset(newPlayer);
             if (oldPlayer.level().dimension().equals(ASTERION_LEVEL)) {

@@ -3,6 +3,10 @@
   "values": [
     "asterion:mazesteel_slab",
     "asterion:mazesteel_brick_slab",
-    "asterion:polished_mazesteel_slab"
+    "asterion:polished_mazesteel_slab",
+    "asterion:shale_slab",
+    "asterion:shale_brick_slab",
+    "asterion:shaded_shale_slab",
+    "asterion:shaded_shale_brick_slab"
   ]
 }

@@ -5,7 +5,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
-public record QueenBeetleQuestPayload(int stage, int progress, int target, int anger) implements CustomPacketPayload {
+public record QueenBeetleQuestPayload(int stage, int progress, int target, int anger, int questIndex) implements CustomPacketPayload {
     public static final int ACCEPTED = 0;
     public static final int PROGRESS = 1;
     public static final int REWARDED = 2;
@@ -18,9 +18,10 @@ public record QueenBeetleQuestPayload(int stage, int progress, int target, int a
                 buffer.writeVarInt(payload.progress);
                 buffer.writeVarInt(payload.target);
                 buffer.writeVarInt(payload.anger);
+                buffer.writeVarInt(payload.questIndex);
             },
             buffer -> new QueenBeetleQuestPayload(buffer.readVarInt(), buffer.readVarInt(),
-                    buffer.readVarInt(), buffer.readVarInt()));
+                    buffer.readVarInt(), buffer.readVarInt(), buffer.readVarInt()));
 
     @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
 }

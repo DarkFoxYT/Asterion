@@ -29,7 +29,7 @@ public final class AsterionModMenu implements ModMenuApi {
             AsterionConfig config = AsterionConfig.INSTANCE;
             int left = width / 2 - 155;
             int right = width / 2 + 5;
-            int y = Math.max(20, (height - 253) / 2);
+            int y = Math.max(20, (height - 274) / 2);
             addRenderableOnly(new StringWidget(width / 2 - 100, y - 20, 200, 20,
                     Component.literal("Cinematics and performance"), font));
             addRenderableWidget(CycleButton.onOffBuilder(config.cinematicsEnabled).create(
@@ -114,6 +114,16 @@ public final class AsterionModMenu implements ModMenuApi {
                 }
                 @Override protected void applyValue() { config.musicVolumePercent = (int)Math.round(value * 100); }
             });
+            y += 24;
+            addRenderableWidget(CycleButton.onOffBuilder(config.objectiveHudEnabled).create(
+                    left, y, 150, 20, Component.literal("Objectives"),
+                    (button, value) -> config.objectiveHudEnabled = value));
+            var durations = new java.util.TreeSet<Integer>(java.util.List.of(0, 5, 12, 25, 60, 120));
+            durations.add(config.objectiveHudSeconds);
+            addRenderableWidget(CycleButton.<Integer>builder(value -> Component.literal(value == 0 ? "Always" : value + "s"),
+                    config.objectiveHudSeconds).withValues(java.util.List.copyOf(durations)).create(
+                    right, y, 150, 20, Component.literal("Objective display"),
+                    (button, value) -> config.objectiveHudSeconds = value));
             y += 24;
             addRenderableWidget(Button.builder(Component.literal("Save and return"), button -> {
                 config.save();

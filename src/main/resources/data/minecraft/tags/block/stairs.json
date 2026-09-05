@@ -3,6 +3,10 @@
   "values": [
     "asterion:mazesteel_stairs",
     "asterion:mazesteel_brick_stairs",
-    "asterion:polished_mazesteel_stairs"
+    "asterion:polished_mazesteel_stairs",
+    "asterion:shale_stairs",
+    "asterion:shale_brick_stairs",
+    "asterion:shaded_shale_stairs",
+    "asterion:shaded_shale_brick_stairs"
   ]
 }

@@ -24,6 +24,11 @@ public final class RareMazeEvents extends SavedData {
         RareMazeEvents state = level.getDataStorage().computeIfAbsent(TYPE);
         if (state.eclipse < 0) state.schedule(level, DeadSunEventSystem.ECLIPSE, 0);
         if (state.flood < 0) state.schedule(level, DeadSunEventSystem.FLOOD, 0);
+        // Migrate the old 3-6 hour wait so existing saves also see the slow tide.
+        if (state.flood > level.getGameTime() + HOUR / 2) {
+            state.flood = level.getGameTime() + HOUR / 2;
+            state.setDirty();
+        }
         return state;
     }
     public boolean ready(Identifier event, long now) {
@@ -36,7 +41,7 @@ public final class RareMazeEvents extends SavedData {
         if (event.equals(DeadSunEventSystem.ECLIPSE))
             eclipse = level.getGameTime() + duration + level.getRandom().nextIntBetweenInclusive(2 * HOUR, 4 * HOUR);
         else if (event.equals(DeadSunEventSystem.FLOOD))
-            flood = level.getGameTime() + duration + level.getRandom().nextIntBetweenInclusive(3 * HOUR, 6 * HOUR);
+            flood = level.getGameTime() + duration + level.getRandom().nextIntBetweenInclusive(HOUR / 3, HOUR / 2);
         else return;
         setDirty();
     }

@@ -90,6 +90,7 @@ public final class BiomeMusic {
         if (defeatedBossNearby) { stop(client); return; }
         boolean victory = !arena && WorldGenerator.isInsideBossArena(client.player.position())
                 && AsterionPortalRenderer.isOpen();
+        if (victory) { stop(client); return; }
         String desired = victory ? "victory" : group(biome, arena);
         if (!desired.equals(lastGroup)) { gap = 0; lastGroup = desired; }
         float volume = AsterionConfig.INSTANCE.musicVolumePercent / 100F;

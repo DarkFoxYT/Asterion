@@ -623,6 +623,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     public boolean isRoaming() { return behaviorPhase() == BehaviorPhase.ROAMING; }
 
     public void beginHunting(ServerPlayer player) {
+        if (!(level() instanceof ServerLevel server) || !DeadSunEventSystem.isEclipseActive(server)) return;
         eclipseTarget = player.getUUID();
         setBehaviorPhase(BehaviorPhase.HUNTING);
         setTarget(null);
@@ -682,6 +683,10 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     @Override
     protected void customServerAiStep(ServerLevel level) {
         super.customServerAiStep(level);
+        if (behaviorPhase() != BehaviorPhase.BOSS && behaviorPhase() != BehaviorPhase.RETREATING
+                && behaviorPhase() != BehaviorPhase.DORMANT && !DeadSunEventSystem.isEclipseActive(level)) {
+            beginRetreat(false);
+        }
         phaseTicks++;
         if (closeBurstTicks > 0 && --closeBurstTicks == 0) closeBurstDamage = 0;
         tickWorldAxe(level);
@@ -4269,9 +4274,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
     public void endEclipse() {
         if (behaviorPhase() == BehaviorPhase.BOSS) return;
-        Player found = eclipseTarget == null ? null : level().getPlayerByUUID(eclipseTarget);
-        if (found instanceof ServerPlayer player && player.isAlive()) beginRoaming(player);
-        else beginRetreat(false);
+        beginRetreat(false);
     }
 
     private void tickRetreat() {
@@ -5009,7 +5012,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     public boolean isDefeatedBoss() {
-        return behaviorPhase() == BehaviorPhase.BOSS && bossStage == BossStage.DEFEATED;
+        return behaviorPhase() == BehaviorPhase.BOSS
+                && getEntityData().get(DATA_BOSS_STAGE) == BossStage.DEFEATED.ordinal();
     }
 
     public int collapseAnimationTicks() {

@@ -6,6 +6,10 @@
     "asterion:ancient_stone_wall",
     "asterion:ancient_stone_wall",
     "asterion:mazesteel_brick_wall",
-    "asterion:polished_mazesteel_wall"
+    "asterion:polished_mazesteel_wall",
+    "asterion:shale_wall",
+    "asterion:shale_brick_wall",
+    "asterion:shaded_shale_wall",
+    "asterion:shaded_shale_brick_wall"
   ]
 }

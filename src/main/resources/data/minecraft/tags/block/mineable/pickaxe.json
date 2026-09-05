@@ -63,6 +63,26 @@
     "asterion:red_fire_wall_torch",
     "asterion:red_fire_floor_torch",
     "asterion:orange_fire_wall_torch",
-    "asterion:orange_fire_floor_torch"
+    "asterion:orange_fire_floor_torch",
+    "asterion:shale",
+    "asterion:shale_slab",
+    "asterion:shale_stairs",
+    "asterion:shale_wall",
+    "asterion:shale_bricks",
+    "asterion:shale_brick_slab",
+    "asterion:shale_brick_stairs",
+    "asterion:shale_brick_wall",
+    "asterion:shaded_shale",
+    "asterion:shaded_shale_slab",
+    "asterion:shaded_shale_stairs",
+    "asterion:shaded_shale_wall",
+    "asterion:shaded_shale_bricks",
+    "asterion:shaded_shale_brick_slab",
+    "asterion:shaded_shale_brick_stairs",
+    "asterion:shaded_shale_brick_wall",
+    "asterion:shale_celestial_gold_ore",
+    "asterion:shale_tarnished_gold_ore",
+    "asterion:shaded_shale_celestial_gold_ore",
+    "asterion:shaded_shale_tarnished_gold_ore"
   ]
 }

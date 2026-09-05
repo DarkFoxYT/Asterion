@@ -120,7 +120,8 @@ public final class HeavyWaterGameTest implements FabricClientGameTest {
                             maze.setChunkForced(-20, -20, false);
                             finished.set(true);
                         }
-                        check(tick < 3400, "Tide failed to complete a rise/recede cycle within the bounded test window");
+                        check(tick < CatacombFloodState.RISE_DURATION_TICKS * 2 + 2000,
+                                "Tide failed to complete a rise/recede cycle within the bounded test window");
                         elapsed.set(tick);
                     } catch (Throwable error) { failure.set(error); finished.set(true); }
                 });
@@ -129,7 +130,7 @@ public final class HeavyWaterGameTest implements FabricClientGameTest {
             if (failure.get() != null) throw new AssertionError("Heavy Water integration failed", failure.get());
             context.runOnClient(client -> client.options.hideGui = true);
             context.takeScreenshot("heavy-water-eight-layers-and-flow");
-            context.waitFor(client -> finished.get(), 3600);
+            context.waitFor(client -> finished.get(), CatacombFloodState.RISE_DURATION_TICKS * 2 + 2200);
             if (failure.get() != null) throw new AssertionError("Heavy Water integration failed", failure.get());
             Asterion.LOGGER.info("PASS: Heavy Water flow, eight stationary heights, bucket/tag registration, fatigue/recovery, flood reconciliation, persisted rarity and actual wall/roof rumble sources");
         }
@@ -150,7 +151,8 @@ public final class HeavyWaterGameTest implements FabricClientGameTest {
         var timing = RareMazeEvents.get(maze);
         long now = maze.getGameTime();
         check(timing.nextEclipseTick() - now >= 2L * RareMazeEvents.HOUR, "Eclipse is too common");
-        check(timing.nextFloodTick() - now >= 3L * RareMazeEvents.HOUR, "Flood is too common");
+        check(timing.nextFloodTick() - now >= RareMazeEvents.HOUR / 3
+                && timing.nextFloodTick() - now <= RareMazeEvents.HOUR / 2, "Flood quiet period is not 20-30 minutes");
         var saved = RareMazeEvents.CODEC.encodeStart(JsonOps.INSTANCE, timing).getOrThrow();
         var restored = RareMazeEvents.CODEC.parse(JsonOps.INSTANCE, saved).getOrThrow();
         check(restored.nextFloodTick() == timing.nextFloodTick() && restored.nextEclipseTick() == timing.nextEclipseTick(), "Rare deadlines changed on save");

@@ -1,0 +1,6 @@
+{
+  "textures": {
+    "layer0": "asterion:item/afterblow_icon_powered"
+  },
+  "parent": "minecraft:item/generated"
+}

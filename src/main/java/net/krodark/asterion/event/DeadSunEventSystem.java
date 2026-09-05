@@ -89,20 +89,6 @@ public final class DeadSunEventSystem {
             }
         });
         register(new Definition() {
-            @Override public Identifier id() { return DEAD_SUN_BARRAGE; }
-            @Override public int weight() { return 1; }
-            @Override public int minDurationTicks() { return 20 * 18; }
-            @Override public int maxDurationTicks() { return 20 * 26; }
-            @Override public float intensity(RandomSource random) { return 0.8F + random.nextFloat() * 0.2F; }
-            @Override public void onTick(ServerLevel level, int elapsedTicks) {
-                tickPendingStrikes(level);
-                if (elapsedTicks >= 30 && elapsedTicks % 72 == 0) scheduleStrikes(level);
-            }
-            @Override public void onEnd(ServerLevel level) {
-                PENDING_STRIKES.clear();
-            }
-        });
-        register(new Definition() {
             @Override public Identifier id() { return POISON_GEYSERS; }
             @Override public int weight() { return 5; }
             @Override public int minDurationTicks() { return 20 * 18; }
@@ -131,8 +117,8 @@ public final class DeadSunEventSystem {
         register(new Definition() {
             @Override public Identifier id() { return FLOOD; }
             @Override public int weight() { return 1; }
-            @Override public int minDurationTicks() { return 20 * 120; }
-            @Override public int maxDurationTicks() { return 20 * 180; }
+            @Override public int minDurationTicks() { return CatacombFloodState.RISE_DURATION_TICKS + 800; }
+            @Override public int maxDurationTicks() { return CatacombFloodState.RISE_DURATION_TICKS + 1600; }
             @Override public float intensity(RandomSource random) { return .35F; }
             @Override public void onStart(ServerLevel level, long seed, int duration, float intensity) {
                 CatacombFloodState.start(level, duration);

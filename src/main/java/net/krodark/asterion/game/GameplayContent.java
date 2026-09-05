@@ -19,6 +19,10 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 
 public final class GameplayContent {
+    public static final Block EXPLOSIVE_SPAWNER = block("explosive_spawner", p -> new ChallengeSpawnerBlock(true, p));
+    public static final Block REWARD_SPAWNER = block("reward_spawner", p -> new ChallengeSpawnerBlock(false, p));
+    public static final BlockEntityType<ChallengeSpawnerBlockEntity> CHALLENGE_SPAWNER_ENTITY = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE,
+            Asterion.id("challenge_spawner"), FabricBlockEntityTypeBuilder.create(ChallengeSpawnerBlockEntity::new, EXPLOSIVE_SPAWNER, REWARD_SPAWNER).build());
     public static final Block SPEWER = block("spewer", p -> new TimedTrapBlock(true, p));
     public static final Block FIRE_BURST_TRAP = block("fire_burst_trap", p -> new TimedTrapBlock(false, p));
     public static final BlockEntityType<TimedTrapBlockEntity> TRAP_ENTITY = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE,
@@ -47,9 +51,14 @@ public final class GameplayContent {
         return Registry.register(BuiltInRegistries.ITEM, key, factory.apply(new Item.Properties().setId(key)));
     }
     public static void initialize() {
+        net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.AFTER_DEATH.register((entity, damage) -> {
+            if (entity.entityTags().contains(ChallengeDeaths.TAG) && entity.level() instanceof net.minecraft.server.level.ServerLevel level)
+                ChallengeDeaths.get(level).record(entity.getUUID());
+        });
         FabricDefaultAttributeRegistry.register(CURSED_BRAZIER, CursedBrazierEntity.createAttributes());
         CreativeModeTabEvents.modifyOutputEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Asterion.id("asterion"))).register(output -> {
             output.accept(SPEWER); output.accept(FIRE_BURST_TRAP);
+            output.accept(EXPLOSIVE_SPAWNER); output.accept(REWARD_SPAWNER);
             output.accept(FLAMETHROWER); output.accept(CURSED_BRAZIER_EGG);
             output.accept(CURSED_BRAZIER_KEY); output.accept(RUNE_BEETLE_EGG);
         });

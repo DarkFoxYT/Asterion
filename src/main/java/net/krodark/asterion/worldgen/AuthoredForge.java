@@ -39,8 +39,42 @@ public final class AuthoredForge {
             "corner_1", "corner_2", "hallway_1", "hallway_2", "gold_reserves");
     public static final Identifier DOOR = Identifier.fromNamespaceAndPath("asterion", "catacombs/door");
     private static final Map<ServerLevel, Layout> LAYOUTS = new WeakHashMap<>();
+    private static final Map<ServerLevel, java.util.ArrayDeque<ChunkPos>> REPAIRS = new WeakHashMap<>();
 
     private AuthoredForge() { }
+
+    /** Older saves already passed decoration before Forge rooms were installed.
+     * Fill only wholly empty slices of the planned district, preserving occupied rooms. */
+    public static void onChunkLoad(ServerLevel level, net.minecraft.world.level.chunk.LevelChunk chunk, boolean newlyGenerated) {
+        if (newlyGenerated || !level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
+        REPAIRS.computeIfAbsent(level, ignored -> new java.util.ArrayDeque<>()).add(chunk.getPos());
+    }
+
+    public static void tickRepairs(ServerLevel level) {
+        var pending = REPAIRS.get(level);
+        if (pending == null || pending.isEmpty()) return;
+        // CHUNK_LOAD precedes completion of the FULL future: place on the next tick.
+        ChunkPos pos = pending.removeFirst();
+        var chunk = level.getChunkSource().getChunkNow(pos.x(), pos.z());
+        if (chunk == null) return;
+        repairEmptyChunk(level, chunk);
+    }
+
+    public static void repairEmptyChunk(ServerLevel level, net.minecraft.world.level.chunk.LevelChunk chunk) {
+        Layout layout;
+        synchronized (LAYOUTS) { layout = LAYOUTS.computeIfAbsent(level, AuthoredForge::createLayout); }
+        BoundingBox slice = new BoundingBox(chunk.getPos().getMinBlockX(), LabyrinthLevels.FORGE_FLOOR_Y + 1,
+                chunk.getPos().getMinBlockZ(), chunk.getPos().getMaxBlockX(), LabyrinthLevels.FORGE_ROOF_Y - 3,
+                chunk.getPos().getMaxBlockZ());
+        if (layout.placements().stream().noneMatch(p -> p.bounds().intersects(slice))) return;
+        for (BlockPos pos : BlockPos.betweenClosed(slice.minX(), slice.minY(), slice.minZ(),
+                slice.maxX(), slice.maxY(), slice.maxZ())) {
+            if (!chunk.getBlockState(pos).isAir()) return;
+        }
+        place(level, chunk.getPos());
+        ForgeDepths.carveAccess(level, chunk.getPos());
+        chunk.markUnsaved();
+    }
 
     public static void place(ServerLevelAccessor world, ChunkPos chunk) {
         ServerLevel level = world instanceof ServerLevel server ? server : ((WorldGenLevel) world).getLevel();
@@ -66,6 +100,7 @@ public final class AuthoredForge {
 
     public static void clearRuntimeState() {
         synchronized (LAYOUTS) { LAYOUTS.clear(); }
+        REPAIRS.clear();
     }
 
     /** True only inside one of the authored rooms that make up this world's Forge district. */
