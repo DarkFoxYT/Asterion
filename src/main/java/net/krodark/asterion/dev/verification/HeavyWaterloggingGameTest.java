@@ -45,9 +45,14 @@ public final class HeavyWaterloggingGameTest implements FabricClientGameTest {
                 var player = mc.getPlayerList().getPlayers().getFirst();
                 CatacombProtectionCheck.run(mc, player);
                 BlockPos decorationPos = new BlockPos(22, 122, 0);
-                level.setBlock(decorationPos.below(), Blocks.DIRT.defaultBlockState(), 3);
+                level.setBlock(decorationPos.below(), Blocks.MYCELIUM.defaultBlockState(), 3);
+                for (Direction side : Direction.Plane.HORIZONTAL)
+                    level.setBlock(decorationPos.relative(side), Blocks.STONE.defaultBlockState(), 3);
                 for (var block : new net.minecraft.world.level.block.Block[]{Asterion.SKELETON, Asterion.LABYRINTH_VINE,
-                        Asterion.SHORT_GRASS, Asterion.ANCIENT_MOSS, Asterion.ANCIENT_MOSS_CARPET, Asterion.BARREL_DOOR}) {
+                        Asterion.SHORT_GRASS, Asterion.ANCIENT_MOSS, Asterion.ANCIENT_MOSS_CARPET, Asterion.BARREL_DOOR,
+                        Blocks.TORCH, Blocks.WALL_TORCH, Blocks.SOUL_TORCH, Blocks.SOUL_WALL_TORCH,
+                        Blocks.BROWN_MUSHROOM, Blocks.RED_MUSHROOM, Blocks.DANDELION, Blocks.SHORT_GRASS,
+                        Blocks.OAK_SAPLING, Blocks.MOSS_CARPET, Blocks.FLOWER_POT, Asterion.RUNE_BLOCKS[0]}) {
                     BlockState dry = block.defaultBlockState();
                     if (block == Asterion.LABYRINTH_VINE) dry = dry.setValue(net.krodark.asterion.block.LabyrinthVineBlock.FACING, Direction.UP);
                     check(!dry.getValue(BlockStateProperties.WATERLOGGED), "Decoration defaults to wet");
@@ -206,6 +211,7 @@ public final class HeavyWaterloggingGameTest implements FabricClientGameTest {
         maze.setBlock(preWet, Blocks.OAK_FENCE.defaultBlockState().setValue(BlockStateProperties.WATERLOGGED, true), 3);
         for (int step = 1; step <= 8; step++) {
             CatacombFloodState.reconcile(maze, maze.getChunkAt(base), step);
+            for (int wave = 0; wave < 20; wave++) CatacombFloodState.spread(maze, step);
             for (int i = 0; i < shapes.length; i++) {
                 BlockState state = maze.getBlockState(base.east(i).above());
                 check(state.is(shapes[i].getBlock()), "Flood destroyed a container");
@@ -214,6 +220,7 @@ public final class HeavyWaterloggingGameTest implements FabricClientGameTest {
         }
         for (int step = 7; step >= 0; step--) {
             CatacombFloodState.reconcile(maze, maze.getChunkAt(base), step);
+            for (int wave = 0; wave < 20; wave++) CatacombFloodState.spread(maze, step);
             for (int i = 0; i < shapes.length; i++) {
                 BlockState state = maze.getBlockState(base.east(i).above());
                 check(state.is(shapes[i].getBlock()), "Recession destroyed a container");

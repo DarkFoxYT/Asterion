@@ -22,9 +22,9 @@ final class CatacombProtectionCheck {
         var oldMode = player.gameMode.getGameModeForPlayer();
         ItemStack oldItem = player.getMainHandItem().copy();
         var maze = server.getLevel(Asterion.ASTERION_LEVEL);
-        BlockPos pos = new BlockPos(320, 8, 320);
+        BlockPos pos = new BlockPos(320, net.krodark.asterion.worldgen.CatacombLayout.FLOOR_Y, 320);
         try {
-            player.teleportTo(maze,324.5,8,320.5,Set.of(),0,0,true);
+            player.teleportTo(maze,324.5,pos.getY(),320.5,Set.of(),0,0,true);
             for (GameType mode : new GameType[]{GameType.SURVIVAL, GameType.CREATIVE}) {
                 player.setGameMode(mode);
                 player.setItemInHand(InteractionHand.MAIN_HAND,new ItemStack(Items.STONE,16));

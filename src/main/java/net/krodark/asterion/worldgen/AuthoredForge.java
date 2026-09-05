@@ -34,12 +34,16 @@ import java.util.WeakHashMap;
  */
 public final class AuthoredForge {
     private static final int DISTRICT_ROOMS = 52;
+    public static final int DISTRICT_SPACING = 228;
+    private static final Map<ServerLevel, Map<Integer, Layout>> VARIANTS = new WeakHashMap<>();
     public static final List<String> PIECES = List.of(
             "forge", "t_junction_1", "t_junction_2", "t_junction_3",
             "corner_1", "corner_2", "hallway_1", "hallway_2", "gold_reserves");
     public static final Identifier DOOR = Identifier.fromNamespaceAndPath("asterion", "catacombs/door");
-    private static final Map<ServerLevel, Layout> LAYOUTS = new WeakHashMap<>();
-    private static final Map<ServerLevel, java.util.ArrayDeque<ChunkPos>> REPAIRS = new WeakHashMap<>();
+    private static final Map<ServerLevel, Map<Long, Layout>> LAYOUTS = new WeakHashMap<>();
+    private static final Map<ServerLevel, java.util.ArrayDeque<PendingChunk>> REPAIRS = new WeakHashMap<>();
+
+    private record PendingChunk(ChunkPos pos, int attempts) {}
 
     private AuthoredForge() { }
 
@@ -47,24 +51,27 @@ public final class AuthoredForge {
      * Fill only wholly empty slices of the planned district, preserving occupied rooms. */
     public static void onChunkLoad(ServerLevel level, net.minecraft.world.level.chunk.LevelChunk chunk, boolean newlyGenerated) {
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
-        REPAIRS.computeIfAbsent(level, ignored -> new java.util.ArrayDeque<>()).add(chunk.getPos());
+        REPAIRS.computeIfAbsent(level, ignored -> new java.util.ArrayDeque<>()).add(new PendingChunk(chunk.getPos(), 0));
     }
 
     public static void tickRepairs(ServerLevel level) {
         var pending = REPAIRS.get(level);
         if (pending == null || pending.isEmpty()) return;
         // CHUNK_LOAD precedes completion of the FULL future: place on the next tick.
-        ChunkPos pos = pending.removeFirst();
+        PendingChunk entry = pending.removeFirst();
+        ChunkPos pos = entry.pos();
         var chunk = level.getChunkSource().getChunkNow(pos.x(), pos.z());
-        if (chunk == null) return;
+        if (chunk == null) {
+            if (entry.attempts() < 3) pending.addLast(new PendingChunk(pos, entry.attempts() + 1));
+            return;
+        }
         repairEmptyChunk(level, chunk);
         ShaleCaves.repairEmptyChunk(chunk, MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState()));
         ForgeDepths.repairAccess(level, chunk);
     }
 
     public static void repairEmptyChunk(ServerLevel level, net.minecraft.world.level.chunk.LevelChunk chunk) {
-        Layout layout;
-        synchronized (LAYOUTS) { layout = LAYOUTS.computeIfAbsent(level, AuthoredForge::createLayout); }
+        Layout layout = layoutFor(level, chunk.getPos());
         for (Placement placement : placements(level, layout, chunk.getPos())) {
             BoundingBox bounds = placement.bounds();
             BoundingBox slice = new BoundingBox(Math.max(chunk.getPos().getMinBlockX(), bounds.minX()), bounds.minY() + 1,
@@ -80,24 +87,19 @@ public final class AuthoredForge {
             placeRoom(level, placement, clip);
             for (Port seam : layout.seams()) openSeam(level, seam, clip);
             for (Port cap : layout.caps()) sealPort(level, cap, clip);
-            capOutpost(level, placement, clip);
             chunk.markUnsaved();
         }
     }
 
     public static void place(ServerLevelAccessor world, ChunkPos chunk) {
         ServerLevel level = world instanceof ServerLevel server ? server : ((WorldGenLevel) world).getLevel();
-        Layout layout;
-        synchronized (LAYOUTS) {
-            layout = LAYOUTS.computeIfAbsent(level, AuthoredForge::createLayout);
-        }
+        Layout layout = layoutFor(level, chunk);
         if (layout.placements().isEmpty()) return;
 
         BoundingBox clip = new BoundingBox(chunk.getMinBlockX(), level.getMinY(), chunk.getMinBlockZ(),
                 chunk.getMaxBlockX(), level.getMaxY() - 1, chunk.getMaxBlockZ());
         for (Placement placement : placements(level, layout, chunk)) {
             placeRoom(world, placement, clip);
-            capOutpost(world, placement, clip);
         }
         for (Port seam : layout.seams()) openSeam(world, seam, clip);
         for (Port cap : layout.caps()) sealPort(world, cap, clip);
@@ -110,68 +112,61 @@ public final class AuthoredForge {
     }
 
     public static int districtCenter(int coordinate) {
-        return CatacombLayout.ROOT_CENTER + Math.floorDiv(coordinate - CatacombLayout.ROOT_CENTER + 285, 570) * 570;
-    }
-
-    /** Remote outposts sit below guaranteed catacomb junctions, every thirty modules. */
-    private static Placement outpost(ServerLevel level, Layout layout, int x, int z) {
-        int cx = districtCenter(x), cz = districtCenter(z);
-        if (cx == CatacombLayout.ROOT_CENTER && cz == cx) return null;
-        var root = layout.placements().getFirst();
-        BlockPos origin = root.origin().offset(cx - CatacombLayout.ROOT_CENTER, 0, cz - CatacombLayout.ROOT_CENTER);
-        var bounds = root.template().getBoundingBox(new StructurePlaceSettings(), origin);
-        if (layout.placements().stream().anyMatch(p -> p.bounds().intersects(bounds))) return null;
-        return new Placement(root.id(), root.template(), Rotation.NONE, origin, bounds);
+        return CatacombLayout.ROOT_CENTER + Math.floorDiv(coordinate - CatacombLayout.ROOT_CENTER
+                + DISTRICT_SPACING / 2, DISTRICT_SPACING) * DISTRICT_SPACING;
     }
 
     public static BlockPos entranceCenter(ServerLevel level, ChunkPos chunk) {
-        Layout layout;
-        synchronized (LAYOUTS) { layout = LAYOUTS.computeIfAbsent(level, AuthoredForge::createLayout); }
-        if (layout.placements().isEmpty()) return null;
-        int x = districtCenter(chunk.getMiddleBlockX()), z = districtCenter(chunk.getMiddleBlockZ());
-        if (x == CatacombLayout.ROOT_CENTER && z == x || outpost(level, layout, x, z) != null)
-            return new BlockPos(x, LabyrinthLevels.FORGE_FLOOR_Y + 13, z);
-        return null;
+        return new BlockPos(districtCenter(chunk.getMiddleBlockX()), LabyrinthLevels.FORGE_FLOOR_Y + 13,
+                districtCenter(chunk.getMiddleBlockZ()));
+    }
+
+    private static Layout layoutFor(ServerLevel level, ChunkPos chunk) {
+        int cx = districtCenter(chunk.getMiddleBlockX()), cz = districtCenter(chunk.getMiddleBlockZ());
+        int dx = cx - CatacombLayout.ROOT_CENTER, dz = cz - CatacombLayout.ROOT_CENTER;
+        long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
+        int variant = dx == 0 && dz == 0 ? 0 : 1 + (int)Math.floorMod(CatacombLayout.hash(seed, cx, cz), 7);
+        synchronized (LAYOUTS) {
+            var districts = LAYOUTS.computeIfAbsent(level, ignored -> new LinkedHashMap<>(64, .75F, true) {
+                @Override protected boolean removeEldestEntry(Map.Entry<Long, Layout> eldest) { return size() > 64; }
+            });
+            long key = ((long)cx << 32) | (cz & 0xffffffffL);
+            Layout cached = districts.get(key);
+            if (cached != null) return cached;
+            Layout base = VARIANTS.computeIfAbsent(level, ignored -> new java.util.HashMap<>())
+                    .computeIfAbsent(variant, id -> createLayout(level, id));
+            Layout result = dx == 0 && dz == 0 ? base : new Layout(
+                    base.placements().stream().map(p -> new Placement(p.id(), p.template(), p.rotation(),
+                            p.origin().offset(dx, 0, dz), p.bounds().moved(dx, 0, dz))).toList(),
+                    base.caps().stream().map(p -> shift(p, dx, dz)).toList(),
+                    base.seams().stream().map(p -> shift(p, dx, dz)).toList());
+            districts.put(key, result);
+            return result;
+        }
+    }
+
+    private static Port shift(Port port, int x, int z) {
+        return new Port(port.position().offset(x, 0, z), port.front(), port.name(), port.target());
     }
 
     private static List<Placement> placements(ServerLevel level, Layout layout, ChunkPos chunk) {
         BoundingBox column = new BoundingBox(chunk.getMinBlockX(), level.getMinY(), chunk.getMinBlockZ(),
-                chunk.getMaxBlockX(), level.getMaxY() - 1, chunk.getMaxBlockZ());
-        var result = new ArrayList<Placement>();
-        for (var placement : layout.placements()) if (placement.bounds().intersects(column)) result.add(placement);
-        if (!layout.placements().isEmpty()) {
-            var remote = outpost(level, layout, chunk.getMiddleBlockX(), chunk.getMiddleBlockZ());
-            if (remote != null && remote.bounds().intersects(column)) result.add(remote);
-        }
-        return result;
-    }
-
-    private static void capOutpost(ServerLevelAccessor world, Placement placement, BoundingBox clip) {
-        if (!placement.id().getPath().endsWith("/forge")) return;
-        int cx = placement.origin().getX() + 18, cz = placement.origin().getZ() + 12;
-        if (cx == CatacombLayout.ROOT_CENTER && cz == cx) return;
-        // Repeated rooms inside the original district keep their assembled seams.
-        if (cx != districtCenter(cx) || cz != districtCenter(cz)) return;
-        var piece = new ResolvedPiece("forge", placement.id(), placement.template());
-        for (var port : ports(piece, placement.rotation(), placement.origin()))
-            if (port.front() != Direction.WEST) sealPort(world, port, clip);
+                chunk.getMaxBlockX(), level.getMaxY(), chunk.getMaxBlockZ());
+        return layout.placements().stream().filter(p -> p.bounds().intersects(column)).toList();
     }
 
     public static void clearRuntimeState() {
-        synchronized (LAYOUTS) { LAYOUTS.clear(); }
+        synchronized (LAYOUTS) { LAYOUTS.clear(); VARIANTS.clear(); }
         REPAIRS.clear();
     }
 
     /** True only inside one of the authored rooms that make up this world's Forge district. */
     public static boolean contains(ServerLevel level, BlockPos pos) {
-        Layout layout;
-        synchronized (LAYOUTS) {
-            layout = LAYOUTS.computeIfAbsent(level, AuthoredForge::createLayout);
-        }
+        Layout layout = layoutFor(level, ChunkPos.containing(pos));
         return placements(level, layout, ChunkPos.containing(pos)).stream().anyMatch(placement -> placement.bounds().isInside(pos));
     }
 
-    private static Layout createLayout(ServerLevel level) {
+    private static Layout createLayout(ServerLevel level, int variant) {
         Map<String, ResolvedPiece> loaded = new LinkedHashMap<>();
         for (String name : PIECES) resolve(level, name).ifPresent(piece -> loaded.put(name, piece));
         ResolvedPiece root = loaded.remove("forge");
@@ -197,7 +192,7 @@ public final class AuthoredForge {
         // Junctions go first so the graph gains enough free ends for all authored rooms.
         List<ResolvedPiece> remaining = new ArrayList<>(loaded.values());
         remaining.sort(Comparator.comparingInt((ResolvedPiece piece) -> connectorCount(piece.template())).reversed());
-        long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
+        long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState()) ^ variant * 0x9E3779B97F4A7C15L;
         int salt = 0;
         for (ResolvedPiece piece : remaining) {
             Attachment attachment = findAttachment(piece, open, placed, seed ^ ++salt * 0x9E3779B97F4A7C15L);
@@ -307,6 +302,13 @@ public final class AuthoredForge {
                     BlockPos desired = parent.position().relative(parent.front());
                     BlockPos origin = desired.subtract(child.position());
                     Placement candidate = placement(piece, rotation, origin);
+                    BoundingBox bounds = candidate.bounds();
+                    int center = CatacombLayout.ROOT_CENTER;
+                    if (bounds.minX() < center - 96 || bounds.maxX() > center + 96
+                            || bounds.minZ() < center - 96 || bounds.maxZ() > center + 96) continue;
+                    // Keep the west approach clear for the stairs, mine and district thoroughfare.
+                    if (bounds.minX() < center - 18 && bounds.maxZ() >= center - 12
+                            && bounds.minZ() <= center + 4) continue;
                     if (placed.stream().anyMatch(other -> other.bounds().intersects(candidate.bounds()))) continue;
                     long centerX = (long)candidate.bounds().minX() + candidate.bounds().maxX();
                     long centerZ = (long)candidate.bounds().minZ() + candidate.bounds().maxZ();

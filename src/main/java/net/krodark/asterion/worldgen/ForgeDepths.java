@@ -40,10 +40,18 @@ public final class ForgeDepths {
         var level = world instanceof net.minecraft.server.level.ServerLevel server ? server
                 : ((net.minecraft.world.level.WorldGenLevel)world).getLevel();
         BlockPos center = AuthoredForge.entranceCenter(level, chunk);
-        if (center == null || !accessChunk(chunk, center)) return;
+        if (center == null) return;
         int cx = center.getX(), cz = center.getZ(), feet = center.getY();
         var masonry = Asterion.MAZESTEEL_BRICKS.defaultBlockState();
         var plan = new java.util.HashMap<BlockPos, Cell>();
+        // Boundary halls continue into the neighbouring district on both axes.
+        int half = AuthoredForge.DISTRICT_SPACING / 2;
+        for (int edge : new int[]{-half, half}) {
+            hall(plan, chunk, chunk.getMinBlockX() - 2, chunk.getMaxBlockX() + 2, cz + edge, feet, masonry);
+            for (int z = chunk.getMinBlockZ() - 2; z <= chunk.getMaxBlockZ() + 2; z++)
+                tunnel(plan, chunk, cx + edge, z, feet, masonry, null, true);
+        }
+        hall(plan, chunk, cx - half, cx - 20, cz, feet, masonry);
         // Separate the rising staircase from the mine landing so their headroom never overlaps.
         hall(plan, chunk, cx - 20, cx - 18, cz, feet, masonry);
         for (int z = cz - 8; z <= cz; z++) tunnel(plan, chunk, cx - 20, z, feet, masonry, null, true);
@@ -85,14 +93,8 @@ public final class ForgeDepths {
         if (!chunk.getBlockState(accessMarker(chunk.getPos())).equals(accessRevision())) carveAccess(level, chunk.getPos());
     }
 
-    private static boolean accessChunk(ChunkPos chunk, BlockPos center) {
-        int left = Math.min(center.getX() - 65, Math.floorDiv(center.getX() - 24, 64) * 64 - 2);
-        return chunk.getMaxBlockX() >= left && chunk.getMinBlockX() <= center.getX() - 16
-                && chunk.getMaxBlockZ() >= center.getZ() - 10 && chunk.getMinBlockZ() <= center.getZ() + 2;
-    }
-
     private static BlockPos accessMarker(ChunkPos chunk) { return new BlockPos(chunk.getMinBlockX(), 15, chunk.getMinBlockZ()); }
-    private static BlockState accessRevision() { return Blocks.LIGHT.defaultBlockState().setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 2); }
+    private static BlockState accessRevision() { return Blocks.LIGHT.defaultBlockState().setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 3); }
 
     private static void hall(java.util.Map<BlockPos, Cell> plan, ChunkPos chunk, int minX, int maxX, int z, int feet, BlockState masonry) {
         for (int x = Math.min(minX, maxX); x <= Math.max(minX, maxX); x++) tunnel(plan, chunk, x, z, feet, masonry, null, false);
@@ -105,7 +107,14 @@ public final class ForgeDepths {
             if (!inside(chunk, px, pz)) continue;
             for (int dy = -1; dy <= 4; dy++) {
                 BlockState state = Math.abs(side) == 2 || dy == 4 || dy == -1 ? masonry : Blocks.AIR.defaultBlockState();
-                if (dy == -1 && Math.abs(side) < 2 && step != null) state = step;
+                int distance = alongZ ? z : x;
+                if (dy == -1 && Math.abs(side) < 2) state = step != null ? step
+                        : Asterion.POLISHED_MAZESTEEL.defaultBlockState();
+                if (step == null && Math.floorMod(distance, 12) == 0) {
+                    if (Math.abs(side) == 2) state = Asterion.MAZESTEEL_BLOCK.defaultBlockState();
+                    if (side == 0 && dy == 3) state = Blocks.LANTERN.defaultBlockState()
+                            .setValue(net.minecraft.world.level.block.LanternBlock.HANGING, true);
+                }
                 put(plan, new BlockPos(px, feet + dy, pz), state, dy == -1 ? 3 : state.isAir() ? 2 : 1);
             }
         }

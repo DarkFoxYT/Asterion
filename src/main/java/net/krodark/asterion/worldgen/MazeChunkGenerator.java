@@ -56,6 +56,16 @@ public final class MazeChunkGenerator extends net.minecraft.world.level.chunk.Ch
     @Override public void applyCarvers(net.minecraft.server.level.WorldGenRegion region, long seed, RandomState random,
                                        net.minecraft.world.level.biome.BiomeManager biomes, StructureManager structures,
                                        ChunkAccess chunk) { flat.applyCarvers(region, seed, random, biomes, structures, chunk); }
+    @Override
+    public void applyBiomeDecoration(net.minecraft.world.level.WorldGenLevel world, ChunkAccess chunk,
+                                     StructureManager structures) {
+        super.applyBiomeDecoration(world, chunk, structures);
+        // Authored rooms are part of the dimension, even when a saved flat configuration disables features.
+        AuthoredCatacombs.place(world, chunk.getPos());
+        AuthoredForge.place(world, chunk.getPos());
+        ForgeDepths.carveAccess(world, chunk.getPos());
+    }
+
     @Override public void spawnOriginalMobs(net.minecraft.server.level.WorldGenRegion region) { flat.spawnOriginalMobs(region); }
     @Override public int getSpawnHeight(net.minecraft.world.level.LevelHeightAccessor level) { return flat.getSpawnHeight(level); }
     @Override public int getMinY() { return flat.getMinY(); }

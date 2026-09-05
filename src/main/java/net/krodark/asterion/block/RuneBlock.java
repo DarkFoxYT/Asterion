@@ -22,7 +22,7 @@ import net.minecraft.world.phys.shapes.*;
 import org.jspecify.annotations.Nullable;
 
 /** Nine collision and redstone sections surrounding one rendered 3x3 rune anchor. */
-public final class RuneBlock extends BaseEntityBlock {
+public final class RuneBlock extends BaseEntityBlock implements WaterloggedDecoration {
     public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
     public static final IntegerProperty COLUMN = IntegerProperty.create("column", 0, 2);
@@ -67,10 +67,12 @@ public final class RuneBlock extends BaseEntityBlock {
     }
     public void place(Level level, BlockPos root, Direction facing) {
         BlockState base = defaultBlockState().setValue(FACING, facing);
-        level.setBlock(root, base, UPDATE_ALL);
+        level.setBlock(root, WaterloggedDecoration.retain(base, level.getFluidState(root)), UPDATE_ALL);
         for (int column = 0; column < 3; column++) for (int row = 0; row < 3; row++) {
             if (column == 1 && row == 0) continue;
-            level.setBlock(part(root, facing, column, row), base.setValue(COLUMN, column).setValue(ROW, row), UPDATE_ALL);
+            BlockPos pos = part(root, facing, column, row);
+            level.setBlock(pos, WaterloggedDecoration.retain(base.setValue(COLUMN, column).setValue(ROW, row),
+                    level.getFluidState(pos)), UPDATE_ALL);
         }
     }
     public static void setPowered(Level level, BlockPos root, Direction facing, boolean powered) {
@@ -94,7 +96,7 @@ public final class RuneBlock extends BaseEntityBlock {
             BlockPos pos = part(root, facing, column, row);
             BlockState state = level.getBlockState(pos);
             if (state.getBlock() instanceof RuneBlock && root(pos, state).equals(root))
-                level.setBlock(pos, Blocks.AIR.defaultBlockState(), UPDATE_CLIENTS);
+                level.setBlock(pos, state.getFluidState().createLegacyBlock(), UPDATE_CLIENTS);
         }
         for (int column = 0; column < 3; column++) for (int row = 0; row < 3; row++) {
             BlockPos pos = part(root, facing, column, row);

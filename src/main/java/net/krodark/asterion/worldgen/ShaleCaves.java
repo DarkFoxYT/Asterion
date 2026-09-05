@@ -23,23 +23,65 @@ public final class ShaleCaves {
 
     private static double phase(long seed) { return (seed & 65535) / 65535.0 * Math.PI * 2; }
 
+    private record Chamber(double x, double z, double radius, double stretch) {}
+
+    private static double unit(long seed, int x, int z) {
+        return (CatacombLayout.hash(seed, x, z) >>> 11) * 0x1.0p-53;
+    }
+
+    private static double noise(long seed, double x, double z) {
+        int ix = (int)Math.floor(x), iz = (int)Math.floor(z);
+        double fx = x - ix, fz = z - iz;
+        fx = fx * fx * (3 - 2 * fx);
+        fz = fz * fz * (3 - 2 * fz);
+        double north = unit(seed, ix, iz) * (1 - fx) + unit(seed, ix + 1, iz) * fx;
+        double south = unit(seed, ix, iz + 1) * (1 - fx) + unit(seed, ix + 1, iz + 1) * fx;
+        return north * (1 - fz) + south * fz;
+    }
+
+    private static Chamber chamber(long seed, int x, int z) {
+        return new Chamber(x * 64 + (unit(seed, x, z) - .5) * 28,
+                z * 64 + (unit(seed ^ 371, x, z) - .5) * 28,
+                13 + unit(seed ^ 817, x, z) * 17, .7 + unit(seed ^ 991, x, z) * .7);
+    }
+
+    private static double passage(double x, double z, double ax, double az, double bx, double bz) {
+        double vx = bx - ax, vz = bz - az;
+        double t = Math.clamp(((x - ax) * vx + (z - az) * vz) / Math.max(1, vx * vx + vz * vz), 0, 1);
+        return Math.hypot(x - ax - vx * t, z - az - vz * t);
+    }
+
+    private static double ground(long seed, double x, double z) {
+        return -47 + noise(seed ^ 743, x / 115, z / 115) * 27
+                + noise(seed ^ 189, x / 39, z / 39) * 6;
+    }
+
     private static Column column(long seed, int x, int z) {
-        double phase = phase(seed);
-        double wx = x + Math.sin(z * .018 + phase) * 8;
-        double wz = z + Math.sin(x * .017 - phase) * 8;
-        double dx = Math.abs(wx - Math.rint(wx / 64) * 64);
-        double dz = Math.abs(wz - Math.rint(wz / 64) * 64);
-        double radius = 20 + 4 * Math.sin(x * .009 + z * .011 + phase);
-        double room = Math.hypot(dx, dz * 1.12) - radius;
-        double passage = Math.min(dx, dz) - (5 + Math.sin((x + z) * .025 + phase));
-        double overlap = Math.max(0, 6 - Math.abs(room - passage)) / 6;
-        double clearance = -(Math.min(room, passage) - overlap * overlap * 1.5);
-        // Each mine ladder opens into a widened section of the nearest north/south passage.
+        double wx = x + (noise(seed ^ 41, x / 38.0, z / 38.0) - .5) * 10;
+        double wz = z + (noise(seed ^ 87, x / 43.0, z / 43.0) - .5) * 10;
+        int gx = (int)Math.floor(wx / 64), gz = (int)Math.floor(wz / 64);
+        double clearance = -100, nearest = Double.MAX_VALUE;
+        Chamber closest = null;
+        double width = 3.5 + noise(seed ^ 619, x / 27.0, z / 27.0) * 4;
+        for (int cx = gx - 1; cx <= gx + 1; cx++) for (int cz = gz - 1; cz <= gz + 1; cz++) {
+            Chamber room = chamber(seed, cx, cz);
+            double distance = Math.hypot(wx - room.x, (wz - room.z) * room.stretch);
+            if (distance < nearest) { nearest = distance; closest = room; }
+            clearance = Math.max(clearance, room.radius - distance);
+            Chamber east = chamber(seed, cx + 1, cz), south = chamber(seed, cx, cz + 1);
+            clearance = Math.max(clearance, width - passage(wx, wz, room.x, room.z, east.x, east.z));
+            clearance = Math.max(clearance, width - passage(wx, wz, room.x, room.z, south.x, south.z));
+        }
+        // Flatten chamber centres, with a smooth transition into the sloping passages.
+        double flat = Math.clamp((.85 - nearest / closest.radius) / .5, 0, 1);
+        flat = flat * flat * (3 - 2 * flat);
+        double floor = ground(seed, x, z) * (1 - flat) + Math.rint(ground(seed, closest.x, closest.z)) * flat;
         int cx = AuthoredForge.districtCenter(x), cz = AuthoredForge.districtCenter(z);
         int shaftX = Math.floorDiv(cx - 24, 64) * 64;
+        Chamber landing = chamber(seed, (int)Math.round(shaftX / 64.0), (int)Math.round(cz / 64.0));
         clearance = Math.max(clearance, 13 - Math.hypot(x - shaftX, z - cz));
-        double floor = -33 + 11 * Math.sin(x * .012 + phase) + 8 * Math.cos(z * .014 - phase);
-        double height = 13 + 4 * Math.sin(x * .015 - z * .019 + phase);
+        clearance = Math.max(clearance, 6 - passage(x, z, shaftX, cz, landing.x, landing.z));
+        double height = 8 + noise(seed ^ 6197, x / 58.0, z / 58.0) * 15;
         double round = Math.sqrt(Math.clamp(clearance / 7, 0, 1));
         return new Column(floor + height * (1 - round) * .5, floor + height * (1 + round) * .5, clearance);
     }
@@ -74,6 +116,17 @@ public final class ShaleCaves {
                     if (y == 1 && x == chunk.getPos().getMinBlockX() && z == chunk.getPos().getMinBlockZ())
                         state = Blocks.BEDROCK.defaultBlockState();
                     chunk.setBlockState(pos.set(x, y, z), state, 0);
+                }
+                if (open && !puddle && cave.clearance > 4
+                        && noise(seed ^ 7119, x / 31.0, z / 31.0) > .56) {
+                    if (!CatacombProtection.isOre(chunk.getBlockState(pos.set(x, floor, z)))) {
+                        chunk.setBlockState(pos, Asterion.ANCIENT_MOSS.defaultBlockState(), 0);
+                        long plant = CatacombLayout.hash(seed ^ 727, x, z);
+                        if (Math.floorMod(plant, 9) == 0)
+                            chunk.setBlockState(pos.set(x, floor + 1, z), Blocks.MOSS_CARPET.defaultBlockState(), 0);
+                        else if (Math.floorMod(plant, 23) == 0)
+                            chunk.setBlockState(pos.set(x, floor + 1, z), Blocks.BROWN_MUSHROOM.defaultBlockState(), 0);
+                    }
                 }
                 if (open && !puddle) spikes(chunk, seed, x, z, floor, roof, cave.clearance);
                 if (open && roof + 2 <= LabyrinthLevels.CAVE_ROOF_Y && wet(seed ^ 0xD21FL, x, z)
@@ -133,6 +186,7 @@ public final class ShaleCaves {
     private static BlockState smoothFloor(long seed, int x, int z, double height, BlockState fallback) {
         boolean dark = shaded(seed, x, (int)height, z);
         double fraction = height - Math.floor(height);
+        if (fraction < .02) return fallback;
         if (fraction < .3) return slab(dark).defaultBlockState();
         if (fraction > .8) return fallback;
         Direction uphill = Direction.NORTH;
@@ -147,8 +201,9 @@ public final class ShaleCaves {
     private static void spikes(ChunkAccess chunk, long seed, int x, int z, int floor, int roof, double clearance) {
         long roll = CatacombLayout.hash(seed ^ 0x51A6EL, Math.floorDiv(x, 11), Math.floorDiv(z, 11));
         if (Math.floorMod(roll, 3) != 0 || clearance < 8 || roof - floor < 9) return;
-        double distance = Math.hypot(Math.floorMod(x, 11) - 5, Math.floorMod(z, 11) - 5);
-        int height = (int)Math.floor(4.8 - distance * 2);
+        double distance = Math.hypot(Math.floorMod(x, 11) - (2 + Math.floorMod(roll >>> 8, 7)),
+                Math.floorMod(z, 11) - (2 + Math.floorMod(roll >>> 16, 7)));
+        int height = (int)Math.floor(3 + Math.floorMod(roll >>> 24, 4) - distance * 1.7);
         if (height <= 0) return;
         boolean hanging = (roll & 1) != 0;
         for (int offset = 1; offset <= height; offset++) {

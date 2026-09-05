@@ -29,6 +29,14 @@ public final class FloodSpreadCheck {
         level.setBlock(sealed, Blocks.AIR.defaultBlockState(), 18);
         BlockPos slab = new BlockPos(333, base + 3, 320);
         level.setBlock(slab, Blocks.STONE_SLAB.defaultBlockState(), 18);
+        var decorations = new net.minecraft.world.level.block.Block[]{Blocks.TORCH, Blocks.BROWN_MUSHROOM, Asterion.RUNE_BLOCKS[0]};
+        for (int i = 0; i < decorations.length; i++) {
+            BlockPos pos = new BlockPos(323 + i, base + 3, 320);
+            level.setBlock(pos.below(), Blocks.MYCELIUM.defaultBlockState(), 18);
+            level.setBlock(pos, decorations[i].defaultBlockState(), 18);
+        }
+        BlockPos rune = new BlockPos(325, base + 3, 320);
+        var runeEntity = level.getBlockEntity(rune);
         reconcile(level, 32);
         check(level.getBlockState(new BlockPos(327, base + 3, 320)).isAir(), "Raised room filled instantly instead of spreading");
         for (int wave = 0; wave < 100; wave++) CatacombFloodState.spread(level, 32);
@@ -41,6 +49,13 @@ public final class FloodSpreadCheck {
         for (int wave = 0; wave < 100; wave++) CatacombFloodState.spread(level, 32);
         check(level.getBlockState(new BlockPos(337, base + 3, 320)).is(HeavyWater.BLOCK), "Newly opened room remained dry");
         check(HeavyWaterlogging.isTidal(level.getBlockState(slab)), "Water did not enter the slab");
+        for (int i = 0; i < decorations.length; i++) {
+            var state = level.getBlockState(new BlockPos(323 + i, base + 3, 320));
+            check(state.is(decorations[i]) && HeavyWaterlogging.isTidal(state), "Flood destroyed or skipped decoration " + decorations[i]);
+        }
+        net.krodark.asterion.block.RuneBlock.setPowered(level, rune, net.minecraft.core.Direction.NORTH, true);
+        check(level.getBlockEntity(rune) == runeEntity && runeEntity != null, "Flood replaced rune data");
+        check(level.getBlockState(rune).getValue(net.krodark.asterion.block.RuneBlock.POWERED), "Wet rune could not power on");
         check(level.getBlockState(sealed).isAir(), "Flood crossed sealed room walls");
         // Reconciliation at an unchanged tide must catch a newly accessible/reloaded room edge.
         BlockPos late = new BlockPos(337, base + 3, 321);
@@ -54,6 +69,10 @@ public final class FloodSpreadCheck {
         check(level.getBlockState(new BlockPos(320, base - 3, 320)).isAir(), "Recession left pocket water behind");
         check(!HeavyWaterlogging.isTidal(level.getBlockState(slab)), "Slab stayed flooded");
         check(level.getBlockState(inlet).is(HeavyWater.WATER_BLOCK), "Recession erased original water");
+        for (int i = 0; i < decorations.length; i++) {
+            var state = level.getBlockState(new BlockPos(323 + i, base + 3, 320));
+            check(state.is(decorations[i]) && !HeavyWaterlogging.isTidal(state), "Recession damaged decoration");
+        }
         Asterion.LOGGER.info("PASS: gradual lateral flood, raised floors, lower pockets, chunk seams, closed/open passages, waterlogging and recession");
     }
     private static void reconcile(ServerLevel level, int rise) {

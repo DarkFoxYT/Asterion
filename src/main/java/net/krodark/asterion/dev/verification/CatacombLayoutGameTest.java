@@ -18,6 +18,7 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
         try(var world=context.worldBuilder().create()) {
             world.getServer().runOnServer(server -> {
                 BackgroundSearchCheck.run(server.overworld());
+                RuneOwnershipCheck.run(server.overworld());
                 GameplayFixCheck.run(server);
                 MinotaurWeaponDropCheck.run(server.overworld());
                 QueenQuestCheck.run(server);

@@ -202,7 +202,7 @@ public final class AsterionPostEffects {
                         * mix(1.0F, 2.25F, eclipse)
                         * mix(1.0F, 1.1F + .4F * floodBlend * (1 - arenaBlend), catacombBlend)
                         * mix(1.0F, .38F, arenaBlend) * mix(1.0F, 2.1F, caveBlend),
-                config.shaderAnimationSpeed * mix(1.0F, .7F, arenaBlend) * mix(1.0F, .42F, caveBlend));
+                config.shaderAnimationSpeed);
     }
 
     private static Vector3f dustColor() {
@@ -263,7 +263,7 @@ public final class AsterionPostEffects {
             Vec3 camera = AmneticCamera.isReady() ? AmneticCamera.position() : client.player.getEyePosition();
             double cameraY = camera.y;
             float caveTarget = Mth.clamp((float)(net.krodark.asterion.worldgen.LabyrinthLevels.CAVE_ROOF_Y - cameraY) / 12F, 0F, 1F);
-            caveBlend += (caveTarget - caveBlend) * .055F;
+            caveBlend += (caveTarget - caveBlend) * .04F;
             // Fade at the arena walls and roof so the maze above keeps its own atmosphere.
             float arenaTarget = Mth.clamp((float)(42 - Math.max(Math.abs(camera.x), Math.abs(camera.z))) / 6F, 0F, 1F)
                     * Mth.clamp((float)(net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y + 47 - cameraY) / 5F, 0F, 1F)

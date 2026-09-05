@@ -12,6 +12,7 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 public abstract class HeavyWaterRedstoneDefaultsMixin {
     @ModifyVariable(method = "registerDefaultState", at = @At("HEAD"), argsOnly = true)
     private BlockState asterion$dryCircuitDefault(BlockState state) {
-        return (Object)this instanceof HeavyWaterRedstone ? HeavyWaterlogging.dry(state) : state;
+        return (Object)this instanceof HeavyWaterRedstone
+                || (Object)this instanceof net.krodark.asterion.block.WaterloggedDecoration ? HeavyWaterlogging.dry(state) : state;
     }
 }
