@@ -55,7 +55,6 @@ public record CrucibleViewerRecipe(Identifier id, Item mold, int temperature, Li
         ItemStack stack = new ItemStack(Asterion.FORGED_INGOT);
         net.minecraft.nbt.CompoundTag alloy = new net.minecraft.nbt.CompoundTag();
         alloy.putString("metal_sequence", "0");
-        alloy.putInt("purity", 75);
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(alloy));
         return stack;
     }

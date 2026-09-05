@@ -36,8 +36,7 @@ final class ShaleCavesCheck {
                         && level.getBlockState(pos.below()).is(Asterion.SHADED_SHALE)) spawn = pos.immutable();
             }
         }
-        check(ores.containsAll(java.util.List.of(Asterion.CELESTIAL_BRONZE_ORE, Asterion.TARNISHED_GOLD_ORE,
-                Asterion.CELESTIAL_GOLD_ORE, Asterion.SHALE_CELESTIAL_GOLD_ORE, Asterion.SHALE_TARNISHED_GOLD_ORE,
+        check(ores.equals(java.util.Set.of(Asterion.SHALE_CELESTIAL_GOLD_ORE, Asterion.SHALE_TARNISHED_GOLD_ORE,
                 Asterion.SHADED_SHALE_CELESTIAL_GOLD_ORE, Asterion.SHADED_SHALE_TARNISHED_GOLD_ORE)), "Missing cave ores: " + ores);
         check(air > 5000 && water > 0 && stairs > 50 && slabs > 50 && spikes > 0,
                 "Missing cave detail: " + air + "/" + water + "/" + stairs + "/" + slabs + "/" + spikes);
@@ -60,32 +59,32 @@ final class ShaleCavesCheck {
         check(crucibles > 0, "Remote Forge did not generate");
         BlockPos door = new BlockPos(center - 18, 29, center);
         check(clear(level, door), "West Forge socket is blocked");
-        check(route(level, new BlockPos(center - 57, 72, center), door, center), "Catacomb stairs do not reach the Forge socket");
-        int shaftX = Math.floorDiv(center - 24, 64) * 64;
+        check(route(level, stairEntry(level, center), door, center), "Catacomb stairs do not reach the Forge socket");
+        BlockPos oldSocket = stairEntry(level, center);
+        level.setBlock(oldSocket, Blocks.STONE.defaultBlockState(), 18);
+        ForgeDepths.carveAccess(level, net.minecraft.world.level.ChunkPos.containing(oldSocket));
+        check(clear(level, oldSocket), "Stair repair left the old neighbouring socket sealed");
+        int shaftX = center - 24;
         int bottom = ShaleCaves.floorY(seed, shaftX, center) + 1;
         check(route(level, door, new BlockPos(shaftX, bottom, center), center), "Forge does not reach its cave landing");
         checkNetwork(level, -4);
         checkNetwork(level, 103);
-        Asterion.LOGGER.info("PASS: infinite Forge districts, cross-district halls, negative and distant coordinates, cave growth and flat ground");
-        Asterion.LOGGER.info("PASS: shale caves, all seven ores, water, slabs/stairs/spikes, centipedes and remote Forge-to-catacomb-to-cave routes");
+        Asterion.LOGGER.info("PASS: infinite Forge districts, compact jigsaw stair modules, negative and distant coordinates, cave growth and flat ground");
+        Asterion.LOGGER.info("PASS: shale caves, only four shale ores, water, slabs/stairs/spikes, centipedes and remote Forge-to-catacomb-to-cave routes");
     }
 
     private static void checkNetwork(ServerLevel level, int district) {
         int center = CatacombLayout.ROOT_CENTER + district * AuthoredForge.DISTRICT_SPACING;
         int edge = center - AuthoredForge.DISTRICT_SPACING / 2;
-        for (int offset = -2; offset <= AuthoredForge.DISTRICT_SPACING + 2; offset++) {
-            for (BlockPos pos : new BlockPos[]{new BlockPos(edge + offset, 29, edge),
-                    new BlockPos(edge, 29, edge + offset)}) {
-                level.getChunkAt(pos);
-                check(clear(level, pos), "District hall blocked at " + pos);
-                check(!level.getBlockState(pos.below()).isAir(), "District hall floor missing at " + pos);
-            }
-        }
-        for (int x = edge; x <= center - 18; x++) {
-            BlockPos pos = new BlockPos(x, 29, center);
+        for (int offset = 0; offset <= AuthoredForge.DISTRICT_SPACING; offset += 8) {
+            BlockPos pos = new BlockPos(edge + offset, 29, edge);
             level.getChunkAt(pos);
-            check(clear(level, pos), "Forge entrance disconnected from district hall at " + pos);
+            check(level.getBlockState(pos.below()).isAir(), "Generated boundary hallway remains at " + pos);
         }
+        for (int cx = (center - 30) >> 4; cx <= (center - 10) >> 4; cx++)
+            for (int cz = (center - 10) >> 4; cz <= (center + 10) >> 4; cz++) level.getChunk(cx, cz);
+        check(route(level, stairEntry(level, center), new BlockPos(center - 18, 29, center), center),
+                "Compact stair does not connect both jigsaws at " + center);
         int crucibles = 0, rooms = 0;
         for (BlockPos pos : BlockPos.betweenClosed(center - 18, 16, center - 12, center + 18, 45, center + 12)) {
             level.getChunkAt(pos);
@@ -101,6 +100,16 @@ final class ShaleCavesCheck {
         check(crucibles > 0 && rooms > 15, "Forge district contains only an isolated room: " + center + "/" + rooms);
     }
 
+    private static BlockPos stairEntry(ServerLevel level, int center) {
+        long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
+        int exits = AuthoredCatacombs.exits(seed, Math.floorDiv(center - 19, 19), Math.floorDiv(center, 19));
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            int bit = switch (side) { case NORTH -> 1; case EAST -> 2; case SOUTH -> 4; case WEST -> 8; default -> 0; };
+            if ((exits & bit) != 0) return new BlockPos(center - 19, 72, center).relative(side, 10);
+        }
+        throw new AssertionError("Stair module has no catacomb socket");
+    }
+
     private static boolean route(ServerLevel level, BlockPos start, BlockPos target, int center) {
         var queue = new java.util.ArrayDeque<BlockPos>();
         var seen = new java.util.HashSet<BlockPos>();
@@ -110,7 +119,7 @@ final class ShaleCavesCheck {
             if (pos.equals(target)) return true;
             for (Direction side : Direction.Plane.HORIZONTAL) for (int dy = -1; dy <= 1; dy++) {
                 BlockPos next = pos.relative(side).above(dy);
-                if (Math.abs(next.getZ() - center) > 12 || next.getX() < center - 100 || next.getX() > center - 16
+                if (Math.abs(next.getZ() - center) > 12 || next.getX() < center - 100 || next.getX() > center + 2
                         || next.getY() < -60 || next.getY() > 74 || seen.contains(next) || !clear(level, next)) continue;
                 if (level.getBlockState(next.below()).getCollisionShape(level, next.below()).isEmpty()
                         && !level.getBlockState(next).is(Blocks.LADDER)) continue;

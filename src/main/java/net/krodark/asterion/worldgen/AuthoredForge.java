@@ -121,6 +121,13 @@ public final class AuthoredForge {
                 districtCenter(chunk.getMiddleBlockZ()));
     }
 
+    public static BlockPos westSocket(ServerLevel level, ChunkPos chunk) {
+        var root = layoutFor(level, chunk).placements().getFirst();
+        return root.template().getJigsaws(root.origin(), root.rotation()).stream()
+                .filter(port -> JigsawBlock.getFrontFacing(port.info().state()) == Direction.WEST
+                        && port.name().equals(DOOR)).findFirst().orElseThrow().info().pos();
+    }
+
     private static Layout layoutFor(ServerLevel level, ChunkPos chunk) {
         int cx = districtCenter(chunk.getMiddleBlockX()), cz = districtCenter(chunk.getMiddleBlockZ());
         int dx = cx - CatacombLayout.ROOT_CENTER, dz = cz - CatacombLayout.ROOT_CENTER;
@@ -306,9 +313,9 @@ public final class AuthoredForge {
                     int center = CatacombLayout.ROOT_CENTER;
                     if (bounds.minX() < center - 96 || bounds.maxX() > center + 96
                             || bounds.minZ() < center - 96 || bounds.maxZ() > center + 96) continue;
-                    // Keep the west approach clear for the stairs, mine and district thoroughfare.
-                    if (bounds.minX() < center - 18 && bounds.maxZ() >= center - 12
-                            && bounds.minZ() <= center + 4) continue;
+                    // Reserve only the compact stair module beside the west jigsaw.
+                    if (bounds.intersects(new BoundingBox(center - 28, 28, center - 9,
+                            center - 19, 78, center + 9))) continue;
                     if (placed.stream().anyMatch(other -> other.bounds().intersects(candidate.bounds()))) continue;
                     long centerX = (long)candidate.bounds().minX() + candidate.bounds().maxX();
                     long centerZ = (long)candidate.bounds().minZ() + candidate.bounds().maxZ();

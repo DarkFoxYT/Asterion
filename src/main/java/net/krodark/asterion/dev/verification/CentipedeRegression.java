@@ -47,6 +47,7 @@ public final class CentipedeRegression {
         stableSeats();
         segmentPickingAndSaddles();
         smoothMotion();
+        presentationSmoothness();
         collisionCache();
         modelContract();
         System.out.println("Centipede regression: " + checks + " checks passed");
@@ -171,6 +172,9 @@ public final class CentipedeRegression {
                 for (AABB block : blocks) require(!body.intersects(block), "climbing intersection tick=" + tick + " link=" + i);
                 require(Math.abs(pose.normal().dot(pose.forward())) < 1e-6, "heading leaves surface plane");
                 for (float partial : new float[]{0.125F, 0.25F, 0.375F, 0.5F, 0.625F, 0.75F, 0.875F}) {
+                    var display = chain.sampleSmoothed(i, partial);
+                    AABB displayBody = CentipedeCollision.volume(display.position(), CentipedeFrame.extents(display.normal(), display.forward()));
+                    for (AABB block : blocks) require(!displayBody.intersects(block), "smoothed shell intersects terrain");
                     var interpolated = chain.sample(i, partial);
                     require(Math.abs(interpolated.normal().dot(interpolated.forward())) < 1e-6,
                             "interpolated heading leaves surface plane");
@@ -402,6 +406,41 @@ public final class CentipedeRegression {
         for (int tick = 0; tick < 100; tick++) chain.tick(head, DOWN, NORTH.scale(-1), 7, EMPTY);
         near(chain.sample(0, 1).forward(), NORTH.scale(-1), 1e-7, "exact reversal must not get stuck in normalized lerp");
         near(chain.sample(0, 1).position(), head, 0, "stationary reversal moved the head");
+    }
+
+    private static void presentationSmoothness() {
+        var chain = new CentipedeChain();
+        double rawJerk = 0, smoothJerk = 0, rawLast = 0, rawBefore = 0, smoothLast = 0, smoothBefore = 0;
+        for (int tick = 0; tick < 100; tick++) {
+            Vec3 end = tick == 0 ? null : chain.sampleSmoothed(0, 1).position();
+            Vec3 velocity = tick == 0 ? null : end.subtract(chain.sampleSmoothed(0, .999F).position()).scale(1000);
+            double y = 2 + (tick % 2 == 0 ? .03 : -.03);
+            chain.tick(new Vec3(0, y, -.2 * tick), DOWN, NORTH, 7, EMPTY);
+            if (tick > 5) {
+                near(chain.sampleSmoothed(0, 0).position(), end, 1e-8, "presentation jumps at tick boundary");
+                Vec3 nextVelocity = chain.sampleSmoothed(0, .001F).position().subtract(end).scale(1000);
+                near(nextVelocity, velocity, .0003, "presentation velocity jumps at tick boundary");
+            }
+            double smooth = chain.sampleSmoothed(0, 1).position().y;
+            if (tick > 10) {
+                rawJerk += Math.abs(y - 2 * rawLast + rawBefore);
+                smoothJerk += Math.abs(smooth - 2 * smoothLast + smoothBefore);
+            }
+            rawBefore = rawLast; rawLast = y; smoothBefore = smoothLast; smoothLast = smooth;
+        }
+        require(smoothJerk < rawJerk * .4, "presentation did not suppress alternating tick jitter");
+        Vec3 fixed = chain.sampleSmoothed(3, .5F).position();
+        for (int i = 0; i < 200; i++) chain.sampleSmoothed(3, i % 100 / 100F);
+        near(chain.sampleSmoothed(3, .5F).position(), fixed, 0, "render frame count changes presentation");
+        for (int tick = 0; tick < 10; tick++) chain.tick(new Vec3(0, 2, -20), DOWN, NORTH, 7, EMPTY);
+        near(chain.sampleSmoothed(0, .4F).position(), new Vec3(0, 2, -20), 1e-8, "smoothing drifts after stopping");
+        require(CentipedeFrame.LINK_LENGTH > CentipedeFrame.HALF_LENGTH * 2 + .2, "segments lack a visible gap");
+        chain.tick(new Vec3(100, 50, 100), DOWN, NORTH, 7, EMPTY);
+        near(chain.sampleSmoothed(0, 0).position(), chain.sample(0, 1).position(), 1e-8, "teleport dragged presentation through the world");
+        chain.tick(new Vec3(100, 50, 100), DOWN, NORTH, 2, EMPTY);
+        chain.tick(new Vec3(101, 50, 100), DOWN, NORTH, 7, EMPTY);
+        near(chain.sampleSmoothed(6, 0).position(), chain.sample(6, 1).position(), 1e-8, "restored segment reused stale history");
+        System.out.println("Presentation jitter ratio: " + smoothJerk / rawJerk);
     }
 
     private static void collisionCache() {

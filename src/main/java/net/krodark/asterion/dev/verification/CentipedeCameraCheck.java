@@ -50,6 +50,28 @@ final class CentipedeCameraCheck {
                 if (Math.abs(camera.forwardVector().dot(camera.upVector())) > .001)
                     throw new AssertionError("Camera basis is not orthogonal");
             }
+            surface.set(mount, new Vec3(0, -1, 0));
+            var chainField = ScarletCentipedeEntity.class.getDeclaredField("bodyChain");
+            chainField.setAccessible(true);
+            var chain = (net.krodark.asterion.entity.CentipedeChain)chainField.get(mount);
+            var empty = new net.krodark.asterion.entity.CentipedeCollision(area -> java.util.List.of());
+            for (int tick = 0; tick < 50; tick++) {
+                align.invoke(camera, 1F);
+                Vec3 previousEye = camera.position();
+                chain.tick(new Vec3(original.x, 220 + (tick % 2 == 0 ? .03 : -.03), original.z - tick * .2),
+                        new Vec3(0, -1, 0), new Vec3(0, 0, -1), 7, empty);
+                align.invoke(camera, 0F);
+                if (tick > 4 && camera.position().distanceTo(previousEye) > .0001)
+                    throw new AssertionError("Mounted camera jumps between smoothed ticks");
+                for (float partial : new float[]{.1F, .4F, .75F, 1F}) {
+                    align.invoke(camera, partial);
+                    Vec3 expected = mount.passengerPosition(player, partial)
+                            .add(mount.passengerNormal(player, partial).scale(-player.getEyeHeight()));
+                    if (camera.position().distanceTo(expected) > .001)
+                        throw new AssertionError("Moving rider camera detached from smoothed seat");
+                }
+            }
+            Asterion.LOGGER.info("PASS: continuous moving centipede camera, shared smoothed seats and body poses");
             Asterion.LOGGER.info("PASS: mounted first-person camera eyes, view direction and basis on all six surfaces");
         } catch (ReflectiveOperationException error) {
             throw new AssertionError(error);

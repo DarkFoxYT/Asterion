@@ -13,6 +13,8 @@ public final class CentipedeChain {
     public record Pose(Vec3 position, Vec3 normal, Vec3 forward) {}
     private final Pose[] current = new Pose[MAX_SEGMENTS];
     private final Pose[] previous = new Pose[MAX_SEGMENTS];
+    private final Pose[][] displayHistory = new Pose[4][MAX_SEGMENTS];
+    private final float[][] displayGait = new float[4][MAX_SEGMENTS], displaySpeed = new float[4][MAX_SEGMENTS];
     private final Pose[][] steps = new Pose[SUBSTEPS + 1][MAX_SEGMENTS];
     private final float[] gait = new float[MAX_SEGMENTS], previousGait = new float[MAX_SEGMENTS];
     private final float[] speed = new float[MAX_SEGMENTS], previousSpeed = new float[MAX_SEGMENTS];
@@ -36,6 +38,7 @@ public final class CentipedeChain {
             var contact = collision.resolve(initial, initial, normal, facing);
             current[i] = new Pose(contact.position(), contact.normal(), facing);
             previous[i] = current[i];
+            for (Pose[] frame : displayHistory) frame[i] = null;
             gait[i] = previousGait[i] = speed[i] = previousSpeed[i] = 0;
         }
         count = active;
@@ -62,12 +65,27 @@ public final class CentipedeChain {
             for (Pose[] step : steps) System.arraycopy(current, 0, step, 0, count);
         }
         for (int i = 0; i < count; i++) {
+            boolean newDisplay = reset || displayHistory[0][i] == null;
+            if (newDisplay) {
+                for (Pose[] frame : displayHistory) frame[i] = current[i];
+            } else {
+                for (int frame = 0; frame < 3; frame++) displayHistory[frame][i] = displayHistory[frame + 1][i];
+                displayHistory[3][i] = current[i];
+            }
             Pose a = previous[i], b = current[i];
             Vec3 movement = b.position.subtract(a.position);
             gait[i] += (float)Math.min(.6, movement.length()) * 3F;
             speed[i] = Mth.lerp(.3F, speed[i], (float)Mth.clamp(movement.length() / .31, 0, 1));
+            for (int frame = 0; frame < 4; frame++) {
+                displayGait[frame][i] = newDisplay || frame == 3 ? gait[i] : displayGait[frame + 1][i];
+                displaySpeed[frame][i] = newDisplay || frame == 3 ? speed[i] : displaySpeed[frame + 1][i];
+            }
             AABB area = CentipedeCollision.volume(a.position, CentipedeFrame.extents(a.normal, a.forward))
                     .minmax(CentipedeCollision.volume(b.position, CentipedeFrame.extents(b.normal, b.forward))).inflate(0.8);
+            for (Pose[] frame : displayHistory) {
+                Pose pose = frame[i];
+                area = area.minmax(CentipedeCollision.volume(pose.position, CentipedeFrame.extents(pose.normal, pose.forward)));
+            }
             interpolationBlocks.set(i, tickCollision[i].collect(area));
         }
     }
@@ -128,6 +146,42 @@ public final class CentipedeChain {
         if (alpha > 0 && alpha < 1)
             position = CentipedeCollision.keepOutside(position, normal, forward, interpolationBlocks.get(link));
         return new Pose(position, normal, forward);
+    }
+
+    /** One extra tick of presentation history removes tick and packet cadence from the body and seats.
+     * Cubic B-spline weights share both position and velocity at tick boundaries, never extrapolate,
+     * and are independent of frame rate or the number of cameras/render passes sampling the chain. */
+    public Pose sampleSmoothed(int index, float partialTick) {
+        if (count == 0) throw new IllegalStateException("Chain not initialized");
+        int link = Mth.clamp(index, 0, count - 1);
+        double t = Mth.clamp(partialTick, 0, 1), t2 = t * t, t3 = t2 * t;
+        double a = (1 - 3 * t + 3 * t2 - t3) / 6;
+        double b = (4 - 6 * t2 + 3 * t3) / 6;
+        double c = (1 + 3 * t + 3 * t2 - 3 * t3) / 6;
+        double d = t3 / 6;
+        Pose p = displayHistory[0][link], q = displayHistory[1][link];
+        Pose r = displayHistory[2][link], s = displayHistory[3][link];
+        Vec3 normal = CentipedeFrame.unit(blend(p.normal, q.normal, r.normal, s.normal, a, b, c, d), r.normal);
+        Vec3 forward = CentipedeFrame.tangent(blend(p.forward, q.forward, r.forward, s.forward, a, b, c, d), normal, r.forward);
+        Vec3 position = blend(p.position, q.position, r.position, s.position, a, b, c, d);
+        position = CentipedeCollision.keepOutside(position, normal, forward, interpolationBlocks.get(link));
+        return new Pose(position, normal, forward);
+    }
+
+    private static Vec3 blend(Vec3 p, Vec3 q, Vec3 r, Vec3 s, double a, double b, double c, double d) {
+        return new Vec3(p.x * a + q.x * b + r.x * c + s.x * d,
+                p.y * a + q.y * b + r.y * c + s.y * d,
+                p.z * a + q.z * b + r.z * c + s.z * d);
+    }
+
+    public float smoothedGait(int index, float partial) { return sampleAnimation(displayGait, index, partial); }
+    public float smoothedSpeed(int index, float partial) { return sampleAnimation(displaySpeed, index, partial); }
+
+    private float sampleAnimation(float[][] frames, int index, float partial) {
+        int link = Mth.clamp(index, 0, count - 1);
+        float t = Mth.clamp(partial, 0, 1), t2 = t * t, t3 = t2 * t;
+        return (frames[0][link] * (1 - 3 * t + 3 * t2 - t3) + frames[1][link] * (4 - 6 * t2 + 3 * t3)
+                + frames[2][link] * (1 + 3 * t + 3 * t2 - 3 * t3) + frames[3][link] * t3) / 6;
     }
 
     public boolean initialized() { return count > 0; }

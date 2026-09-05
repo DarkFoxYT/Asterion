@@ -390,8 +390,8 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
 
     public int seatIndex(Entity passenger) { return seatTable().seatOf(passenger.getUUID()); }
 
-    public float segmentGait(int index, float partial) { return bodyChain.initialized() ? bodyChain.gait(index, partial) : 0; }
-    public float segmentSpeed(int index, float partial) { return bodyChain.initialized() ? bodyChain.speed(index, partial) : 0; }
+    public float segmentGait(int index, float partial) { return bodyChain.initialized() ? bodyChain.smoothedGait(index, partial) : 0; }
+    public float segmentSpeed(int index, float partial) { return bodyChain.initialized() ? bodyChain.smoothedSpeed(index, partial) : 0; }
 
     private Vec3 chainHeadCenter() {
         Vec3 normal = attachmentNormal();
@@ -403,7 +403,8 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     }
 
     public CentipedeChain.Pose chainPose(int index, float partialTick) {
-        if (bodyChain.initialized()) return bodyChain.sample(index, partialTick);
+        if (bodyChain.initialized()) return level().isClientSide()
+                ? bodyChain.sampleSmoothed(index, partialTick) : bodyChain.sample(index, partialTick);
         return new CentipedeChain.Pose(chainHeadCenter().subtract(surfaceForward().scale(index * CentipedeFrame.LINK_LENGTH)),
                 attachmentNormal(), surfaceForward());
     }

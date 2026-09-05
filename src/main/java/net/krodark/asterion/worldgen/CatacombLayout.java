@@ -109,6 +109,8 @@ public final class CatacombLayout {
         }
         Direction spine=backboneParent(seed,x,z);
         if (spine!=null) return spine;
+        // A stair replaces this module when present, or adds a leaf to the adjacent junction.
+        if (ForgeDepths.isStairModule(x, z)) return Direction.EAST;
         if (Math.floorMod(x-ROOT_X,SPACING)==0 || Math.floorMod(z-ROOT_Z,SPACING)==0) return null;
         long roll=hash(seed ^ 0xD1B54A32D192ED03L,x,z);
         if (Math.floorMod(roll,6)!=0) return null;

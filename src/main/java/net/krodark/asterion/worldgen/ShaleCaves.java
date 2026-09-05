@@ -77,7 +77,7 @@ public final class ShaleCaves {
         flat = flat * flat * (3 - 2 * flat);
         double floor = ground(seed, x, z) * (1 - flat) + Math.rint(ground(seed, closest.x, closest.z)) * flat;
         int cx = AuthoredForge.districtCenter(x), cz = AuthoredForge.districtCenter(z);
-        int shaftX = Math.floorDiv(cx - 24, 64) * 64;
+        int shaftX = cx - 24;
         Chamber landing = chamber(seed, (int)Math.round(shaftX / 64.0), (int)Math.round(cz / 64.0));
         clearance = Math.max(clearance, 13 - Math.hypot(x - shaftX, z - cz));
         clearance = Math.max(clearance, 6 - passage(x, z, shaftX, cz, landing.x, landing.z));
@@ -171,13 +171,10 @@ public final class ShaleCaves {
         boolean dark = shaded(seed, x, y, z);
         long vein = CatacombLayout.hash(seed ^ Math.floorDiv(y, 4) * 0x51EDL, Math.floorDiv(x, 4), Math.floorDiv(z, 4));
         if (Math.floorMod(vein, 17) == 0 && Math.floorMod(x, 4) != 3 && Math.floorMod(z, 4) != 3 && Math.floorMod(y, 4) != 3) {
-            Block ore = switch ((int)Math.floorMod(vein >>> 8, 10)) {
-                case 0, 1, 2, 3 -> Asterion.CELESTIAL_BRONZE_ORE;
-                case 4 -> Asterion.TARNISHED_GOLD_ORE;
-                case 5 -> Asterion.CELESTIAL_GOLD_ORE;
-                case 6, 7 -> dark ? Asterion.SHADED_SHALE_TARNISHED_GOLD_ORE : Asterion.SHALE_TARNISHED_GOLD_ORE;
-                default -> dark ? Asterion.SHADED_SHALE_CELESTIAL_GOLD_ORE : Asterion.SHALE_CELESTIAL_GOLD_ORE;
-            };
+            boolean celestial = Math.floorMod(vein >>> 8, 4) == 0;
+            Block ore = celestial
+                    ? (dark ? Asterion.SHADED_SHALE_CELESTIAL_GOLD_ORE : Asterion.SHALE_CELESTIAL_GOLD_ORE)
+                    : (dark ? Asterion.SHADED_SHALE_TARNISHED_GOLD_ORE : Asterion.SHALE_TARNISHED_GOLD_ORE);
             return ore.defaultBlockState();
         }
         return base(dark).defaultBlockState();

@@ -96,7 +96,7 @@ public final class AuthoredCatacombs {
                 chunk.getMaxBlockX(), BASE_Y + 30, chunk.getMaxBlockZ());
         for (int tx = Math.floorDiv(chunk.getMinBlockX(), SIZE); tx <= Math.floorDiv(chunk.getMaxBlockX(), SIZE); tx++)
             for (int tz = Math.floorDiv(chunk.getMinBlockZ(), SIZE); tz <= Math.floorDiv(chunk.getMaxBlockZ(), SIZE); tz++) {
-                if (!CatacombLayout.occupied(seed, tx, tz)) continue;
+                if (!CatacombLayout.occupied(seed, tx, tz) || ForgeDepths.isStairModule(tx, tz)) continue;
                 Module module = module(seed, tx, tz);
                 BlockPos origin = new BlockPos(tx * SIZE, BASE_Y, tz * SIZE);
                 var template = level.getStructureManager().get(Asterion.id("catacombs/" + module.name()))

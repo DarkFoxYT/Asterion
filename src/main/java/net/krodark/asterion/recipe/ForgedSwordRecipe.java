@@ -37,17 +37,15 @@ public final class ForgedSwordRecipe extends CustomRecipe {
                 + value(guard, "hardness", 7) + value(pommel, "hardness", 7)) / 4F);
         int weight = Math.round((value(blade, "weight", 8) * 2
                 + value(guard, "weight", 8) + value(pommel, "weight", 8)) / 4F);
-        int purity = Math.round((value(blade, "purity", 75) * 2
-                + value(guard, "purity", 75) + value(pommel, "purity", 75)) / 4F);
         int damageRating = weighted(parts, "damage_rating", 10);
         int speedRating = weighted(parts, "speed_rating", 8);
         int durabilityRating = weighted(parts, "durability_rating", 10);
         // These are real item attributes. Celestial alloys trade upward across all
         // three axes, while rare Bonesteel is deliberately the uncapped apex tier.
-        double damage = Math.clamp(2D + damageRating * .55D + edge * .12D + purity * .01D, 4D, 22D);
+        double damage = Math.clamp(2D + damageRating * .55D + edge * .12D + 1D, 4D, 22D);
         double attackSpeed = Math.clamp(.75D + speedRating * .055D - weight * .018D
-                + purity * .0015D, 1.0D, 2.15D);
-        int durability = Math.clamp(180 + durabilityRating * 95 + hardness * 30 + purity * 4,
+                + .15D, 1.0D, 2.15D);
+        int durability = Math.clamp(180 + durabilityRating * 95 + hardness * 30 + 400,
                 250, 4000);
 
         ItemStack result = new ItemStack(Asterion.FORGED_SWORD);
@@ -77,7 +75,7 @@ public final class ForgedSwordRecipe extends CustomRecipe {
                 Component.literal("Pommel: " + displayName(pommelMaterial)).withStyle(ChatFormatting.GRAY),
                 Component.literal("Temper: " + CrucibleBlockEntity.materialTrait(materialIndex(bladeMaterial)))
                         .withStyle(ChatFormatting.BLUE),
-                Component.literal("Purity " + purity + "%  Weight " + weight).withStyle(ChatFormatting.DARK_GRAY),
+                Component.literal("Weight " + weight).withStyle(ChatFormatting.DARK_GRAY),
                 Component.literal(String.format(java.util.Locale.ROOT,
                                 "Damage %.1f  Speed %.2f  Durability %d", damage, attackSpeed, durability))
                         .withStyle(ChatFormatting.DARK_GRAY))));
@@ -85,7 +83,6 @@ public final class ForgedSwordRecipe extends CustomRecipe {
         forged.putString("blade_material", bladeMaterial); forged.putString("guard_material", guardMaterial);
         forged.putString("pommel_material", pommelMaterial);
         forged.putString("metal_sequence", blade.getStringOr("metal_sequence", ""));
-        forged.putInt("purity", purity);
         forged.putInt("edge", edge); forged.putInt("hardness", hardness); forged.putInt("weight", weight);
         forged.putInt("damage_rating", damageRating); forged.putInt("speed_rating", speedRating);
         forged.putInt("durability_rating", durabilityRating);

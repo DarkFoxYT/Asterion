@@ -52,7 +52,6 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     private int celestialGold;
     private int regularGold;
     private int carbon;
-    private int purityPoints;
     private int pouringTicks;
     private int autoPourTicks;
     /** IDs follow the artist folders; 2 is tarnished_gold and 8 is ordinary gold. */
@@ -88,7 +87,6 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     public int materialUnits() {
         return iron + copper + gold + netherite + celestialBronze + bonesteel + celestialSteel + celestialGold + regularGold;
     }
-    public int purity() { return materialUnits() == 0 ? 0 : Math.round(purityPoints / (float)materialUnits()); }
     public int mixColor() {
         if (metalSequence.isEmpty()) return 0x514A43;
         int color = metalColor(metalSequence.charAt(0) - '0');
@@ -193,7 +191,6 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         }
         if (sequence.isEmpty() || materialUnits() + sequence.length() > 4
                 || sequence.chars().anyMatch(value -> value < '0' || value > '8')) return false;
-        int storedPurity = player.isCreative() ? 100 : Mth.clamp(tag.getIntOr("purity", 75), 1, 100);
         for (int index = 0; index < sequence.length(); index++) {
             int metal = sequence.charAt(index) - '0';
             if (metal == 0) iron++;
@@ -205,7 +202,6 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             else if (metal == 6) celestialSteel++;
             else if (metal == 7) celestialGold++;
             else regularGold++;
-            purityPoints += storedPurity;
             if (primaryMetal < 0) primaryMetal = metal;
             else if (metal != primaryMetal && secondaryMetal < 0) secondaryMetal = metal;
             metalSequence += (char)('0' + metal);
@@ -218,24 +214,13 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         if (stack.is(Items.IRON_INGOT)) { iron++; metal = 0; }
         else if (stack.is(Items.COPPER_INGOT)) { copper++; metal = 1; }
         else if (stack.is(Asterion.TARNISHED_GOLD_INGOT)) { gold++; metal = 2; }
-        else if (stack.is(Items.GOLD_INGOT)) {
-            int purity = materialPurity(stack, player);
-            if (purity < 50) { gold++; metal = 2; }
-            else if (purity > 90) { celestialGold++; metal = 7; }
-            else { regularGold++; metal = 8; }
-            purityPoints += purity;
-            if (primaryMetal < 0) primaryMetal = metal;
-            else if (metal != primaryMetal && secondaryMetal < 0) secondaryMetal = metal;
-            metalSequence += (char)('0' + metal);
-            return true;
-        }
+        else if (stack.is(Items.GOLD_INGOT)) { regularGold++; metal = 8; }
         else if (stack.is(Items.NETHERITE_INGOT)) { netherite++; metal = 3; }
         else if (stack.is(Asterion.CELESTIAL_BRONZE_INGOT)) { celestialBronze++; metal = 4; }
         else if (stack.is(Asterion.BONESTEEL_INGOT)) { bonesteel++; metal = 5; }
         else if (stack.is(Asterion.CELESTIAL_STEEL_INGOT)) { celestialSteel++; metal = 6; }
         else if (stack.is(Asterion.CELESTIAL_GOLD_INGOT)) { celestialGold++; metal = 7; }
         else return false;
-        purityPoints += materialPurity(stack, player);
         if (primaryMetal < 0) primaryMetal = metal;
         else if (metal != primaryMetal && secondaryMetal < 0) secondaryMetal = metal;
         metalSequence += (char)('0' + metal);
@@ -267,16 +252,6 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     private static String replaceFirstMetal(String sequence, char from, char to) {
         int index = sequence.indexOf(from);
         return index < 0 ? sequence : sequence.substring(0, index) + to + sequence.substring(index + 1);
-    }
-
-    private static int materialPurity(ItemStack stack, ServerPlayer player) {
-        if (player.isCreative()) return 100;
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data != null) {
-            int stored = data.copyTag().getIntOr("purity", 0);
-            if (stored > 0) return Mth.clamp(stored, 1, 100);
-        }
-        return 55 + player.getRandom().nextInt(46);
     }
 
     public boolean removeMold(ServerPlayer player) {
@@ -350,36 +325,30 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     private void removeMaterial(ServerPlayer player, int layer) {
         if (pouringTicks > 0 || layer < 0 || layer >= metalSequence.length()) return;
         int metal = metalSequence.charAt(layer) - '0';
-        int returnedPurity = purity();
         metalSequence = metalSequence.substring(0, layer) + metalSequence.substring(layer + 1);
         switch (metal) {
             case 0 -> iron--; case 1 -> copper--; case 2 -> gold--; case 3 -> netherite--;
             case 4 -> celestialBronze--; case 5 -> bonesteel--; case 6 -> celestialSteel--;
             case 7 -> celestialGold--; case 8 -> regularGold--;
         }
-        purityPoints = Math.max(0, purityPoints - returnedPurity);
         primaryMetal = metalSequence.isEmpty() ? -1 : metalSequence.charAt(0) - '0';
         secondaryMetal = -1;
         for (int i = 1; i < metalSequence.length(); i++) if (metalSequence.charAt(i) - '0' != primaryMetal) {
             secondaryMetal = metalSequence.charAt(i) - '0'; break;
         }
         autoPourTicks = 0;
-        give(player, returnedMetal(metal, returnedPurity));
+        give(player, returnedMetal(metal));
         changedAndSync();
     }
 
-    private static ItemStack returnedMetal(int metal, int purity) {
+    private static ItemStack returnedMetal(int metal) {
         Item item = switch (metal) {
             case 0 -> Items.IRON_INGOT; case 1 -> Items.COPPER_INGOT; case 2 -> Asterion.TARNISHED_GOLD_INGOT;
             case 3 -> Items.NETHERITE_INGOT; case 4 -> Asterion.CELESTIAL_BRONZE_INGOT;
             case 5 -> Asterion.BONESTEEL_INGOT; case 6 -> Asterion.CELESTIAL_STEEL_INGOT;
             case 7 -> Asterion.CELESTIAL_GOLD_INGOT; default -> Items.GOLD_INGOT;
         };
-        ItemStack stack = new ItemStack(item);
-        net.minecraft.nbt.CompoundTag tag = new net.minecraft.nbt.CompoundTag();
-        tag.putInt("purity", Mth.clamp(purity, 1, 100));
-        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
-        return stack;
+        return new ItemStack(item);
     }
 
     private void pour(ServerPlayer player) {
@@ -399,25 +368,23 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
                 Component.literal(alloyName() + " " + partName())
                         .withStyle(error <= 5 ? ChatFormatting.GOLD : ChatFormatting.WHITE));
         int total = materialUnits();
-        int hardness = purityScaled(weightedTrait(9, 6, 4, 15, 17, 24, 20, 18, 5));
-        int edge = purityScaled(weightedTrait(10, 7, 5, 16, 18, 25, 22, 20, 6));
-        int conductivity = purityScaled(weightedTrait(3, 13, 10, 2, 11, 4, 14, 18, 12));
+        int hardness = weightedTrait(9, 6, 4, 15, 17, 24, 20, 18, 5);
+        int edge = weightedTrait(10, 7, 5, 16, 18, 25, 22, 20, 6);
+        int conductivity = weightedTrait(3, 13, 10, 2, 11, 4, 14, 18, 12);
         int weight = weightedTrait(8, 7, 10, 12, 8, 7, 6, 7, 10);
-        int damageRating = purityScaled(weightedTrait(10, 7, 5, 17, 20, 28, 24, 22, 6));
-        int speedRating = purityScaled(weightedTrait(8, 11, 7, 5, 14, 16, 18, 20, 10));
-        int durabilityRating = purityScaled(weightedTrait(10, 6, 4, 18, 21, 30, 25, 22, 5));
+        int damageRating = weightedTrait(10, 7, 5, 17, 20, 28, 24, 22, 6);
+        int speedRating = weightedTrait(8, 11, 7, 5, 14, 16, 18, 20, 10);
+        int durabilityRating = weightedTrait(10, 6, 4, 18, 21, 30, 25, 22, 5);
         int baseColor = metalColor(primaryMetal);
         int overlayMetal = secondaryMetal < 0 ? primaryMetal : secondaryMetal;
         int overlayColor = metalSequence.length() < 2 ? 0 : 0x80000000
                 | metalColor(metalSequence.charAt(metalSequence.length() - 1) - '0');
         result.set(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(
-                java.util.List.of(purity() / 100.0F), java.util.List.of(),
+                java.util.List.of(), java.util.List.of(),
                 layerMaterials(),
                 layerColors()));
         result.set(DataComponents.LORE, new ItemLore(java.util.List.of(
                 Component.literal(compositionLine(total)).withStyle(ChatFormatting.GRAY),
-                Component.literal("Purity " + purity() + "%").withStyle(
-                        purity() == 100 ? ChatFormatting.AQUA : ChatFormatting.GRAY),
                 Component.literal("Hardness " + hardness + "  Edge " + edge).withStyle(ChatFormatting.DARK_GRAY),
                 Component.literal("Power " + damageRating + "  Speed " + speedRating
                         + "  Endurance " + durabilityRating).withStyle(ChatFormatting.DARK_GRAY),
@@ -438,7 +405,6 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         forging.putInt("celestial_steel", celestialSteel);
         forging.putInt("celestial_gold", celestialGold);
         forging.putInt("regular_gold", regularGold);
-        forging.putInt("purity", purity());
         forging.putInt("mix_color", mixColor());
         forging.putInt("hardness", hardness);
         forging.putInt("edge", edge);
@@ -455,7 +421,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         forging.putString("metal_sequence", metalSequence);
         result.set(DataComponents.CUSTOM_DATA, CustomData.of(forging));
         give(player, result);
-        iron = copper = gold = netherite = celestialBronze = bonesteel = celestialSteel = celestialGold = regularGold = purityPoints = 0;
+        iron = copper = gold = netherite = celestialBronze = bonesteel = celestialSteel = celestialGold = regularGold = 0;
         primaryMetal = secondaryMetal = -1;
         metalSequence = "";
         pouringTicks = 40;
@@ -506,9 +472,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         return value;
     }
 
-    private int purityScaled(int value) {
-        return Math.max(1, Math.round(value * (0.65F + purity() * 0.0035F)));
-    }
+
 
     private String compositionLine(int total) {
         java.util.List<String> parts = new java.util.ArrayList<>();
@@ -527,13 +491,13 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     private String alloyName() {
         if (iron > 0 && materialUnits() == iron) return "Iron";
         if (copper > 0 && materialUnits() == copper) return "Copper";
-        if (gold > 0 && materialUnits() == gold) return purity() > 90 ? "Pure Gold" : "Tarnished Gold";
+        if (gold > 0 && materialUnits() == gold) return "Tarnished Gold";
         if (netherite > 0 && materialUnits() == netherite) return "Netherite";
         if (celestialBronze > 0 && materialUnits() == celestialBronze) return "Celestial Bronze";
         if (bonesteel > 0 && materialUnits() == bonesteel) return "Bonesteel";
         if (celestialSteel > 0 && materialUnits() == celestialSteel) return "Celestial Steel";
         if (celestialGold > 0 && materialUnits() == celestialGold) return "Celestial Gold";
-        if (regularGold > 0 && materialUnits() == regularGold) return purity() > 90 ? "Pure Gold" : "Gold";
+        if (regularGold > 0 && materialUnits() == regularGold) return "Gold";
         if (materialUnits() > 0 && secondaryMetal >= 0 && distinctMetals() == 2)
             return metalName(secondaryMetal) + "-Plated " + metalName(primaryMetal);
         return distinctMetals() == 3 ? "Triune Alloy" : "Composite Alloy";
@@ -687,7 +651,6 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         output.putInt("celestialGold", celestialGold);
         output.putInt("regularGold", regularGold);
         output.putInt("carbon", carbon);
-        output.putInt("purityPoints", purityPoints);
         output.putInt("pouringTicks", pouringTicks);
         output.putInt("autoPourTicks", autoPourTicks);
         output.putInt("primaryMetal", primaryMetal);
@@ -715,8 +678,6 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         regularGold = Mth.clamp(input.getIntOr("regularGold", 0), 0,
                 4 - iron - copper - gold - netherite - celestialBronze - bonesteel - celestialSteel - celestialGold);
         carbon = Mth.clamp(input.getIntOr("carbon", 0), 0, 4);
-        purityPoints = Mth.clamp(input.getIntOr("purityPoints", materialUnits() * 75),
-                0, materialUnits() * 100);
         pouringTicks = Mth.clamp(input.getIntOr("pouringTicks", 0), 0, 40);
         autoPourTicks = Mth.clamp(input.getIntOr("autoPourTicks", 0), 0, AUTO_POUR_TICKS);
         primaryMetal = Mth.clamp(input.getIntOr("primaryMetal", -1), -1, 8);

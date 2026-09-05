@@ -370,11 +370,11 @@ public class Asterion implements ModInitializer {
     public static final Item SWORD_BLADE_CAST = registerSimpleItem("sword_blade_cast");
     public static final Item AXE_HEAD_CAST = registerSimpleItem("axe_head_cast");
     public static final Item MINOTAUR_KEY_CAST = registerSimpleItem("minotaur_key_cast");
-    public static final Item CELESTIAL_BRONZE_INGOT = registerPurityMetalItem("celestial_bronze_ingot");
-    public static final Item TARNISHED_GOLD_INGOT = registerPurityMetalItem("tarnished_gold_ingot");
-    public static final Item CELESTIAL_GOLD_INGOT = registerPurityMetalItem("celestial_gold_ingot");
-    public static final Item BONESTEEL_INGOT = registerPurityMetalItem("bonesteel_ingot");
-    public static final Item CELESTIAL_STEEL_INGOT = registerPurityMetalItem("celestial_steel_ingot");
+    public static final Item CELESTIAL_BRONZE_INGOT = registerMetalItem("celestial_bronze_ingot");
+    public static final Item TARNISHED_GOLD_INGOT = registerMetalItem("tarnished_gold_ingot");
+    public static final Item CELESTIAL_GOLD_INGOT = registerMetalItem("celestial_gold_ingot");
+    public static final Item BONESTEEL_INGOT = registerMetalItem("bonesteel_ingot");
+    public static final Item CELESTIAL_STEEL_INGOT = registerMetalItem("celestial_steel_ingot");
     public static final Item FORGED_INGOT = registerForgedComponentItem("forged_ingot");
     public static final Item FORGED_SWORD_GUARD = registerForgedComponentItem("forged_sword_guard");
     public static final Item FORGED_SWORD_POMMEL = registerForgedComponentItem("forged_sword_pommel");
@@ -830,7 +830,7 @@ public class Asterion implements ModInitializer {
         net.krodark.asterion.effect.GreekFireBurn.initialize();
         net.krodark.asterion.effect.SingedEffect.initialize();
         ServerTickEvents.END_SERVER_TICK.register(net.krodark.asterion.effect.SingedScars::tick);
-        ServerTickEvents.END_SERVER_TICK.register(net.krodark.asterion.forging.OrePuritySystem::tick);
+        ServerTickEvents.END_SERVER_TICK.register(net.krodark.asterion.forging.LegacyPurityCleanup::tick);
         net.krodark.asterion.fluid.HeavyWater.initialize();
         net.krodark.asterion.block.RespawnObelisks.initialize();
         AsterionConfig.INSTANCE.sanitize();
@@ -1065,10 +1065,10 @@ public class Asterion implements ModInitializer {
                 new net.krodark.asterion.item.ForgedComponentItem(new Item.Properties().setId(key)));
     }
 
-    private static Item registerPurityMetalItem(String name) {
+    private static Item registerMetalItem(String name) {
         ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id(name));
         return Registry.register(BuiltInRegistries.ITEM, key,
-                new net.krodark.asterion.item.PurityMetalItem(new Item.Properties().setId(key)));
+                new Item(new Item.Properties().setId(key)));
     }
 
     private static Item registerForgedSwordItem(String name) {
@@ -1091,7 +1091,7 @@ public class Asterion implements ModInitializer {
                         java.util.List.of(0xFFFFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF)));
         net.minecraft.nbt.CompoundTag data = new net.minecraft.nbt.CompoundTag();
         data.putString("metal_sequence", Integer.toString(metal));
-        data.putString("alloy", display); data.putInt("purity", 100);
+        data.putString("alloy", display);
         data.putInt("hardness", net.krodark.asterion.block.CrucibleBlockEntity.materialHardness(metal));
         data.putInt("edge", net.krodark.asterion.block.CrucibleBlockEntity.materialEdge(metal));
         data.putInt("conductivity", net.krodark.asterion.block.CrucibleBlockEntity.materialConductivity(metal));
