@@ -6,7 +6,8 @@
       "type": "asterion:layered_maze",
       "surface": "minecraft:the_void",
       "catacombs": "asterion:catacombs",
-      "forge": "asterion:forge"
+      "forge": "asterion:forge",
+      "caves": "asterion:shale_caves"
     },
     "settings": {
       "biome": "minecraft:the_void",

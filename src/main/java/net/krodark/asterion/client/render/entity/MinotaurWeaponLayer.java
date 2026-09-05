@@ -28,6 +28,7 @@ import java.util.function.BiConsumer;
 /** One layer owns all custom hand/hip/back weapons, preventing duplicate equipped copies. */
 public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Void, EntityRenderState> {
     private static final DataTicket<String> AXE_BONE = DataTickets.create("asterion_axe_bone", String.class);
+    private static final DataTicket<Boolean> DEFEATED = DataTickets.create("asterion_weapons_dropped", Boolean.class);
     private static final DataTicket<Integer> OWNER = DataTickets.create("asterion_weapon_owner", Integer.class);
     private static final DataTicket<Boolean> SWORDS_DRAWN = DataTickets.create("asterion_swords_drawn", Boolean.class);
     private static final DataTicket<Float> SWORD_TRAIL = DataTickets.create("asterion_sword_trail", Float.class);
@@ -39,6 +40,7 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
 
     @Override public void addRenderData(MinotaurEntity boss, Void ignored, EntityRenderState state, float partial) {
         int mode = boss.renderedWeaponMode();
+        state.addGeckolibData(DEFEATED, boss.isDefeatedBoss());
         state.addGeckolibData(SWORDS_DRAWN, mode == 2);
         state.addGeckolibData(AXE_BONE, boss.axeInWorld() ? "" : mode == 1 ? "axe_grip" : "axe_back");
         state.addGeckolibData(OWNER, boss.getId());
@@ -48,6 +50,7 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
     @Override public void addPerBoneRender(RenderPassInfo<EntityRenderState> pass,
             BiConsumer<GeoBone, PerBoneRender<EntityRenderState>> consumer) {
         if (!pass.willRender() || pass.renderState().isInvisible) return;
+        if (pass.renderState().getOrDefaultGeckolibData(DEFEATED, false)) return;
         boolean drawn = pass.renderState().getOrDefaultGeckolibData(SWORDS_DRAWN, false);
         for (String side : SIDES)
             pass.model().getBone(drawn ? (side.equals("right") ? "hand_itemR" : "hand_itemL") : "lowerbody").ifPresent(bone ->
@@ -79,16 +82,17 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
             var poses = posed.poseStack();
             poses.pushPose();
             if (bone.name().equals("body")) {
-                // Centre the axe itself on the upper back and turn its authored vertical
-                // axis across the shoulders. Using the grip offset here pushed the entire
-                // weapon sideways and made the fallback body attachment look crooked.
-                // The torso's rear face reaches roughly Z=1.1 in this bone's space.
-                // Leave clearance for the axe head/handle thickness instead of placing
-                // its centre directly on that face and letting it cut through the body.
+                // Centre the axe diagonally on the back, with the blade turned clear
+                // of the torso's rear face (roughly Z=1.1 in this bone's space).
                 poses.translate(0, .82, 1.42);
-                poses.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(90));
+                poses.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(45));
+                poses.mulPose(com.mojang.math.Axis.YP.rotationDegrees(90));
                 poses.translate(0, -MinotaurAxeEntity.CENTER_Y, 0);
             } else {
+                if (name.equals("axe_back")) {
+                    poses.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(45));
+                    poses.mulPose(com.mojang.math.Axis.YP.rotationDegrees(90));
+                }
                 poses.translate(0, -MinotaurAxeEntity.GRIP_Y, 0);
             }
             if (name.equals("axe_grip")) MinotaurAxeVisual.captureHand(

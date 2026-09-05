@@ -30,6 +30,9 @@ public final class MinotaurAxeEntity extends Entity {
     public static final double GRIP_Y = 45 / 16.0;
     private static final double MODEL_MIN_Y = 15 - 6 * Math.sqrt(2);
     public static final double CENTER_Y = (114 + MODEL_MIN_Y) / 32.0;
+    private static final double SWORD_MIN_Y = -13 - 6 * Math.sqrt(2);
+    public static final double SWORD_CENTER_Y = (78 + SWORD_MIN_Y) / 32.0 + 6 / 16.0;
+    private static final EntityDataAccessor<Boolean> SWORD = SynchedEntityData.defineId(MinotaurAxeEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Quaternionfc> ROTATION = SynchedEntityData.defineId(MinotaurAxeEntity.class, EntityDataSerializers.QUATERNION);
     private static final EntityDataAccessor<Float> SCALE = SynchedEntityData.defineId(MinotaurAxeEntity.class, EntityDataSerializers.FLOAT);
     private static final EntityDataAccessor<Integer> THROWER = SynchedEntityData.defineId(MinotaurAxeEntity.class, EntityDataSerializers.INT);
@@ -39,6 +42,7 @@ public final class MinotaurAxeEntity extends Entity {
     private Vec3 spin = Vec3.ZERO;
     private int quietTicks, impactCooldown;
     private boolean sleeping;
+    private boolean harmless;
     private final java.util.Set<java.util.UUID> hitPlayers = new java.util.HashSet<>();
 
     public MinotaurAxeEntity(EntityType<? extends MinotaurAxeEntity> type, Level level) { super(type, level); }
@@ -46,8 +50,23 @@ public final class MinotaurAxeEntity extends Entity {
         data.define(ROTATION, new Quaternionf());
         data.define(SCALE, .47F * AsterionConfig.INSTANCE.minotaurScale);
         data.define(THROWER, -1);
+        data.define(SWORD, false);
     }
     public float modelScale() { return entityData.get(SCALE); }
+    public boolean isSword() { return entityData.get(SWORD); }
+    public double modelCenterY() { return isSword() ? SWORD_CENTER_Y : CENTER_Y; }
+    public void disarm() { harmless = true; }
+    public void drop(Vec3 origin, Vec3 velocity, float yaw, boolean sword, int side) {
+        entityData.set(SWORD, sword);
+        launch(origin, velocity, yaw);
+        harmless = true;
+        rotation.rotateZ((float)Math.toRadians(sword ? side * 18 : 45));
+        if (!sword) rotation.rotateY((float)Math.PI / 2);
+        previousRotation.set(rotation);
+        entityData.set(ROTATION, new Quaternionf(rotation));
+        spin = new Vec3(.06 * side, .025, .09 * side);
+        setPos(origin);
+    }
     public Quaternionf renderRotation(float partial) { return new Quaternionf(previousRotation).slerp(rotation, partial); }
     public boolean sleeping() { return sleeping; }
     public int throwerId() { return entityData.get(THROWER); }
@@ -108,7 +127,7 @@ public final class MinotaurAxeEntity extends Entity {
         boolean supported = false;
         Vec3 center = position();
         var server = (ServerLevel)level();
-        var victims = velocity.lengthSqr() > .10 ? server.getEntitiesOfClass(net.minecraft.server.level.ServerPlayer.class,
+        var victims = !harmless && velocity.lengthSqr() > .10 ? server.getEntitiesOfClass(net.minecraft.server.level.ServerPlayer.class,
                 bounds(center).inflate(velocity.length() + half().length()), p -> p.isAlive() && !p.isCreative() && !p.isSpectator())
                 : java.util.List.<net.minecraft.server.level.ServerPlayer>of();
         for (int step = 0; step < steps; step++) {
@@ -211,7 +230,10 @@ public final class MinotaurAxeEntity extends Entity {
     }
 
     // Include the blade plane and the rotated pommel, rather than using an item-sized hitbox.
-    private Vec3 half() { return new Vec3(2, (114 - MODEL_MIN_Y) / 32.0, 2.75 / 16).scale(modelScale()); }
+    private Vec3 half() {
+        return (isSword() ? new Vec3(2.5 / 16, (78 - SWORD_MIN_Y) / 32.0, 14.2 / 16)
+                : new Vec3(2, (114 - MODEL_MIN_Y) / 32.0, 2.75 / 16)).scale(modelScale());
+    }
     private Vec3[] axes() {
         Vec3[] result = new Vec3[3];
         for (int i = 0; i < 3; i++) {
@@ -275,8 +297,11 @@ public final class MinotaurAxeEntity extends Entity {
         out.putFloat("qx", rotation.x); out.putFloat("qy", rotation.y); out.putFloat("qz", rotation.z); out.putFloat("qw", rotation.w);
         out.putDouble("spin_x", spin.x); out.putDouble("spin_y", spin.y); out.putDouble("spin_z", spin.z);
         out.putFloat("axe_scale", modelScale()); out.putBoolean("sleeping", sleeping);
+        out.putBoolean("sword", isSword()); out.putBoolean("harmless", harmless);
     }
     @Override protected void readAdditionalSaveData(ValueInput in) {
+        entityData.set(SWORD, in.getBooleanOr("sword", false));
+        harmless = in.getBooleanOr("harmless", false);
         rotation.set(in.getFloatOr("qx", 0), in.getFloatOr("qy", 0), in.getFloatOr("qz", 0), in.getFloatOr("qw", 1));
         if (!rotation.isFinite() || rotation.lengthSquared() < .001) rotation.identity(); else rotation.normalize();
         previousRotation.set(rotation);

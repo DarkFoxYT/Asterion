@@ -24,6 +24,7 @@ public final class BiomeMusic {
     private static ClientLevel level;
     private static int biome = -1, ticks, notice, gap;
     private static boolean arena, defeatedBossNearby;
+    private static int victoryTrack;
     private static String lastGroup = "";
     private static Voice voice;
     private static Track playing, previous;
@@ -84,15 +85,18 @@ public final class BiomeMusic {
             defeatedBossNearby = !activeBossNearby
                     && nearbyBosses.stream().anyMatch(MinotaurEntity::isDefeatedBoss);
             arena = WorldGenerator.isInsideBossArena(client.player.position()) && activeBossNearby;
+            if (activeBossNearby) victoryTrack = 0;
         }
         // The permanent corpse intentionally retains one health point, so isAlive()
         // alone cannot distinguish victory from an active encounter.
-        if (defeatedBossNearby) { stop(client); return; }
         boolean victory = !arena && WorldGenerator.isInsideBossArena(client.player.position())
-                && AsterionPortalRenderer.isOpen();
-        if (victory) { stop(client); return; }
+                && (defeatedBossNearby || AsterionPortalRenderer.isOpen());
         String desired = victory ? "victory" : group(biome, arena);
-        if (!desired.equals(lastGroup)) { gap = 0; lastGroup = desired; }
+        if (!desired.equals(lastGroup)) {
+            if (victory) stop(client);
+            gap = 0;
+            lastGroup = desired;
+        }
         float volume = AsterionConfig.INSTANCE.musicVolumePercent / 100F;
         boolean audible = volume > 0 && client.options.getSoundSourceVolume(SoundSource.MUSIC) > 0
                 && client.options.getSoundSourceVolume(SoundSource.MASTER) > 0;
@@ -101,25 +105,30 @@ public final class BiomeMusic {
             if (!client.getSoundManager().isActive(voice) && ticks - voice.started > 40) {
                 boolean changed = !compatible(playing,desired);
                 previous = playing; voice = null; playing = null; notice = 0;
-                gap = changed ? 0 : 100 + level.getRandom().nextInt(201);
+                gap = changed ? 0 : victory ? 40 : 100 + level.getRandom().nextInt(201);
             }
             return;
         }
         if (!audible || desired.isEmpty()) return;
         if (gap > 0) { gap--; return; }
         if (tracks.isEmpty()) loadTracks(client);
-        var choices = tracks.stream().filter(t -> desired.equals("victory")
-                ? !t.group().equals("arena") && !t.group().equals("crypts")
-                : t.group().equals(desired)).toList();
+        var choices = tracks.stream().filter(t -> compatible(t, desired))
+                .sorted(Comparator.comparing(Track::title)).toList();
         if (choices.isEmpty()) { gap = 200; return; }
-        var candidates = choices.size() > 1 ? choices.stream().filter(t -> !t.equals(previous)).toList() : choices;
-        playing = candidates.get(level.getRandom().nextInt(candidates.size()));
+        if (victory) {
+            if (victoryTrack >= choices.size()) return;
+            playing = choices.get(victoryTrack++);
+        } else {
+            var candidates = choices.size() > 1 ? choices.stream().filter(t -> !t.equals(previous)).toList() : choices;
+            playing = candidates.get(level.getRandom().nextInt(candidates.size()));
+        }
         voice = new Voice(playing, ticks, gain(desired) * volume);
         client.getSoundManager().play(voice);
         notice = 120;
     }
     private static boolean compatible(Track track,String desired) {
-        return desired.equals("victory") ? !track.group().equals("arena") && !track.group().equals("crypts")
+        return desired.equals("victory") ? track.title().equals("if we could roll back the credits, one last time")
+                || track.title().equals("ill see you, at the edge of the world")
                 : track.group().equals(desired);
     }
 
@@ -134,7 +143,7 @@ public final class BiomeMusic {
         voice = null; playing = null; notice = 0; arena = false; gap = 0;
     }
     private static void reset(Minecraft client) {
-        stop(client); biome = -1; tracks = List.of(); previous = null; lastGroup = ""; defeatedBossNearby = false;
+        stop(client); biome = -1; tracks = List.of(); previous = null; lastGroup = ""; defeatedBossNearby = false; victoryTrack = 0;
     }
 
     private static final class Voice extends AbstractTickableSoundInstance {

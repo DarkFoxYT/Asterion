@@ -14,14 +14,17 @@ public final class MinotaurAxeRenderer extends EntityRenderer<MinotaurAxeEntity,
     public MinotaurAxeRenderer(EntityRendererProvider.Context context) { super(context); shadowRadius = .6F; }
     public static final class State extends EntityRenderState {
         Quaternionf rotation = new Quaternionf(); float scale, partial;
+        boolean sword;
+        double centerY;
         net.minecraft.world.phys.Vec3 releaseOffset = net.minecraft.world.phys.Vec3.ZERO;
     }
     @Override public State createRenderState() { return new State(); }
     @Override public void extractRenderState(MinotaurAxeEntity axe, State state, float partial) {
         super.extractRenderState(axe, state, partial);
         state.rotation.set(axe.renderRotation(partial)); state.scale = axe.modelScale(); state.partial = partial;
+        state.sword = axe.isSword(); state.centerY = axe.modelCenterY();
         state.releaseOffset = net.minecraft.world.phys.Vec3.ZERO;
-        var release = axe.tickCount < 4 ? MinotaurAxeVisual.release(axe.throwerId()) : null;
+        var release = !state.sword && axe.tickCount < 4 ? MinotaurAxeVisual.release(axe.throwerId()) : null;
         if (release != null) {
             float blend = Math.clamp((axe.tickCount + partial) / 4F, 0, 1);
             blend = blend * blend * (3 - 2 * blend);
@@ -34,8 +37,9 @@ public final class MinotaurAxeRenderer extends EntityRenderer<MinotaurAxeEntity,
         poses.translate(state.releaseOffset.x, state.releaseOffset.y, state.releaseOffset.z);
         poses.mulPose(state.rotation);
         poses.scale(state.scale, state.scale, state.scale);
-        poses.translate(0, -MinotaurAxeEntity.CENTER_Y, 0);
-        MinotaurAxeVisual.submit(poses, tasks, camera, state.lightCoords, state.partial);
+        poses.translate(0, -state.centerY, 0);
+        if (state.sword) net.krodark.asterion.client.ragdoll.MinotaurSwordVisual.submit(poses, tasks, camera, state.lightCoords);
+        else MinotaurAxeVisual.submit(poses, tasks, camera, state.lightCoords, state.partial);
         poses.popPose();
         super.submit(state, poses, tasks, camera);
     }

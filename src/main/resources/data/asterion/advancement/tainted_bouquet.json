@@ -1,0 +1,39 @@
+{
+  "parent": "asterion:living_stone",
+  "criteria": {
+    "milestone": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "asterion:tainted_petals"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "asterion:tainted_petals"
+    },
+    "title": {
+      "translate": "advancement.asterion.tainted_bouquet.title"
+    },
+    "description": {
+      "translate": "advancement.asterion.tainted_bouquet.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "milestone"
+    ]
+  ],
+  "rewards": {
+    "experience": 10
+  },
+  "sends_telemetry_event": false
+}

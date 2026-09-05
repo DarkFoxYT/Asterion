@@ -99,6 +99,10 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
 
     @Override
     public boolean checkSpawnRules(LevelAccessor level, EntitySpawnReason reason) {
+        if (level instanceof ServerLevel server && server.dimension().equals(Asterion.ASTERION_LEVEL)
+                && net.krodark.asterion.worldgen.ShaleCaves.contains(blockPosition()))
+            return !net.krodark.asterion.WorldGenerator.isNearSafeRune(server, blockPosition())
+                    && BugSurfaces.allowed(level, blockPosition().below());
         if (reason == EntitySpawnReason.NATURAL
                 && (!(level instanceof ServerLevel serverLevel)
                 || !serverLevel.dimension().equals(Asterion.ASTERION_LEVEL)
@@ -329,7 +333,11 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
                 || player.isSecondaryUseActive() || player.isPassenger()
                 || !seatTable().claim(player.getUUID(), seat, chainSegmentCount())) return false;
         syncSeats();
-        if (player.startRiding(this)) return true;
+        if (player.startRiding(this)) {
+            if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer)
+                net.krodark.asterion.game.AsterionAdvancements.award(serverPlayer, "many_legged_mount");
+            return true;
+        }
         seatTable().release(player.getUUID());
         syncSeats();
         return false;

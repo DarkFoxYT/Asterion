@@ -1,0 +1,39 @@
+{
+  "parent": "asterion:shale_collector",
+  "criteria": {
+    "milestone": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "asterion:shaded_shale"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "asterion:shaded_shale"
+    },
+    "title": {
+      "translate": "advancement.asterion.shaded_stone.title"
+    },
+    "description": {
+      "translate": "advancement.asterion.shaded_stone.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "milestone"
+    ]
+  ],
+  "rewards": {
+    "experience": 10
+  },
+  "sends_telemetry_event": false
+}

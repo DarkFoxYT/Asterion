@@ -969,6 +969,7 @@ public class Asterion implements ModInitializer {
             }
             if (entity instanceof ScarletCentipedeEntity
                     && level.dimension().equals(ASTERION_LEVEL)
+                    && !net.krodark.asterion.worldgen.ShaleCaves.contains(entity.blockPosition())
                     && (!WorldGenerator.isAncientBiomeAt(entity.getX(),entity.getZ())
                     || net.krodark.asterion.worldgen.CatacombLayout.contains(entity.blockPosition())
                     || net.krodark.asterion.worldgen.AuthoredCatacombs.insideCursedBrazierRoom(entity.blockPosition())

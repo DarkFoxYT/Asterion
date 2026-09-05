@@ -109,6 +109,7 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
             consumeItems(player, quest.item().asItem(), target);
             player.removeTag(ACTIVE_TAG);
             setQuestIndex(player, index + 1);
+            net.krodark.asterion.game.AsterionAdvancements.queenProgress(serverPlayer, index + 1);
             if (index + 1 == QueenBeetleQuests.ALL.size()) player.addTag(COMPLETE_TAG);
             ItemStack reward = new ItemStack(quest.reward(), quest.rewardCount());
             if (!player.getInventory().add(reward)) player.drop(reward, false);
@@ -143,6 +144,7 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
     /** Restores the exact request after reconnecting without replaying dialogue. */
     public static void syncActiveQuest(ServerPlayer player) {
         int index = questIndex(player);
+        net.krodark.asterion.game.AsterionAdvancements.queenProgress(player, index);
         if (player.entityTags().contains(ACTIVE_TAG) && index < QueenBeetleQuests.ALL.size()) {
             int anger = angerTier(player);
             var quest = QueenBeetleQuests.get(index);

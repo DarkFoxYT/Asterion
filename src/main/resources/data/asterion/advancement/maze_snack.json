@@ -1,0 +1,39 @@
+{
+  "parent": "asterion:hanging_by_a_thread",
+  "criteria": {
+    "milestone": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "asterion:popped_ancient_vines"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "asterion:popped_ancient_vines"
+    },
+    "title": {
+      "translate": "advancement.asterion.maze_snack.title"
+    },
+    "description": {
+      "translate": "advancement.asterion.maze_snack.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "milestone"
+    ]
+  ],
+  "rewards": {
+    "experience": 10
+  },
+  "sends_telemetry_event": false
+}

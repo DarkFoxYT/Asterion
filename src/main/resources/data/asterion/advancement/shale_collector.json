@@ -1,0 +1,39 @@
+{
+  "parent": "asterion:fallen_timber",
+  "criteria": {
+    "milestone": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "asterion:shale"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "asterion:shale"
+    },
+    "title": {
+      "translate": "advancement.asterion.shale_collector.title"
+    },
+    "description": {
+      "translate": "advancement.asterion.shale_collector.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "milestone"
+    ]
+  ],
+  "rewards": {
+    "experience": 10
+  },
+  "sends_telemetry_event": false
+}

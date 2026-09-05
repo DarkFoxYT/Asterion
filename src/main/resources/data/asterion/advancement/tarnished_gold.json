@@ -1,0 +1,39 @@
+{
+  "parent": "asterion:celestial_bronze",
+  "criteria": {
+    "milestone": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "asterion:tarnished_gold_ingot"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "asterion:tarnished_gold_ingot"
+    },
+    "title": {
+      "translate": "advancement.asterion.tarnished_gold.title"
+    },
+    "description": {
+      "translate": "advancement.asterion.tarnished_gold.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "milestone"
+    ]
+  ],
+  "rewards": {
+    "experience": 10
+  },
+  "sends_telemetry_event": false
+}

@@ -23,6 +23,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 @Mixin(Camera.class)
 public abstract class CameraMixin {
@@ -33,6 +35,33 @@ public abstract class CameraMixin {
     @Shadow public abstract Vec3 position();
     @Shadow public abstract float xRot();
     @Shadow public abstract float yRot();
+    @Shadow private Quaternionf rotation;
+    @Shadow private Vector3f forwards;
+    @Shadow private Vector3f up;
+    @Shadow private Vector3f left;
+    @Shadow private int matrixPropertiesDirty;
+
+    @Inject(method = "alignWithEntity", at = @At("TAIL"))
+    private void asterion$followCentipedeSeat(float partial, CallbackInfo ci) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || ((Camera)(Object)this).entity() != client.player
+                || !client.options.getCameraType().isFirstPerson()
+                || !(client.player.getVehicle() instanceof net.krodark.asterion.entity.ScarletCentipedeEntity mount)) return;
+        Vec3 normal = mount.passengerNormal(client.player, partial);
+        Vec3 eyes = mount.passengerPosition(client.player, partial)
+                .add(normal.scale(-client.player.getEyeHeight()));
+        setPosition(asterion$clipCamera(client, mount.passengerPosition(client.player, partial), eyes));
+
+        // Apply the same surface tilt used by steering. Keep the player's yaw/pitch
+        // as local input; feeding world-space angles back into steering causes drift.
+        Quaternionf tilt = new Quaternionf().rotationTo(new Vector3f(0, 1, 0),
+                new Vector3f((float)-normal.x, (float)-normal.y, (float)-normal.z));
+        rotation.premul(tilt);
+        forwards.rotate(tilt);
+        up.rotate(tilt);
+        left.rotate(tilt);
+        matrixPropertiesDirty |= 3;
+    }
 
     @Inject(method = "update", at = @At("HEAD"))
     private void asterion$lockRagdollPerspective(DeltaTracker tracker, CallbackInfo ci) {

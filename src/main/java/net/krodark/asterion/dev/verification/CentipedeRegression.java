@@ -170,7 +170,7 @@ public final class CentipedeRegression {
                         "corner pulled chain apart tick=" + tick + " link=" + i + " gap=" + pose.position().distanceTo(chain.sample(i - 1, 1).position()));
                 for (AABB block : blocks) require(!body.intersects(block), "climbing intersection tick=" + tick + " link=" + i);
                 require(Math.abs(pose.normal().dot(pose.forward())) < 1e-6, "heading leaves surface plane");
-                for (float partial : new float[]{0.25F, 0.5F, 0.75F}) {
+                for (float partial : new float[]{0.125F, 0.25F, 0.375F, 0.5F, 0.625F, 0.75F, 0.875F}) {
                     var interpolated = chain.sample(i, partial);
                     require(Math.abs(interpolated.normal().dot(interpolated.forward())) < 1e-6,
                             "interpolated heading leaves surface plane");
@@ -178,6 +178,12 @@ public final class CentipedeRegression {
                             CentipedeFrame.extents(interpolated.normal(), interpolated.forward()));
                     for (AABB block : blocks) require(!interpolatedBody.intersects(block),
                             "interpolated collision tick=" + tick + " link=" + i + " partial=" + partial);
+                }
+                for (float boundary : new float[]{.25F, .5F, .75F}) {
+                    Vec3 before = chain.sample(i, boundary - .00001F).position();
+                    Vec3 after = chain.sample(i, boundary + .00001F).position();
+                    require(before.distanceTo(after) < .002,
+                            "render pose jumps at substep boundary tick=" + tick + " link=" + i);
                 }
             }
         }

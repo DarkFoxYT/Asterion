@@ -9,11 +9,11 @@ import java.util.ArrayList;
 /** One persistent chain per entity; ticked on both sides and only sampled by render passes. */
 public final class CentipedeChain {
     public static final int MAX_SEGMENTS = 32;
+    private static final int SUBSTEPS = 4;
     public record Pose(Vec3 position, Vec3 normal, Vec3 forward) {}
     private final Pose[] current = new Pose[MAX_SEGMENTS];
     private final Pose[] previous = new Pose[MAX_SEGMENTS];
-    private final Vec3[] velocity = new Vec3[MAX_SEGMENTS];
-    private final Vec3[] previousVelocity = new Vec3[MAX_SEGMENTS];
+    private final Pose[][] steps = new Pose[SUBSTEPS + 1][MAX_SEGMENTS];
     private final float[] gait = new float[MAX_SEGMENTS], previousGait = new float[MAX_SEGMENTS];
     private final float[] speed = new float[MAX_SEGMENTS], previousSpeed = new float[MAX_SEGMENTS];
     private final List<List<AABB>> interpolationBlocks = new ArrayList<>();
@@ -36,28 +36,34 @@ public final class CentipedeChain {
             var contact = collision.resolve(initial, initial, normal, facing);
             current[i] = new Pose(contact.position(), contact.normal(), facing);
             previous[i] = current[i];
-            velocity[i] = previousVelocity[i] = Vec3.ZERO;
             gait[i] = previousGait[i] = speed[i] = previousSpeed[i] = 0;
         }
         count = active;
         if (reset) trail.reset(current[0]);
         System.arraycopy(current, 0, previous, 0, count);
-        System.arraycopy(velocity, 0, previousVelocity, 0, count);
         System.arraycopy(gait, 0, previousGait, 0, count);
         System.arraycopy(speed, 0, previousSpeed, 0, count);
         // Smaller constraint steps reduce the visible stop/pull cadence without dragging the
         // whole tail around the head or weakening collision. Links retain their world positions.
         Vec3 start = current[0].position;
+        Vec3 startNormal = current[0].normal;
         double reach = 4 + start.distanceTo(head);
         for (int i = 0; i < count; i++) tickCollision[i] = collision.cachedIn(
                 new AABB(current[i].position, i == 0 ? head : current[i - 1].position).inflate(reach));
-        for (int step = 1; step <= 4; step++)
-            solve(start.lerp(head, step / 4.0), normal, facing);
-        if (reset) System.arraycopy(current, 0, previous, 0, count);
+        System.arraycopy(current, 0, steps[0], 0, count);
+        for (int step = 1; step <= SUBSTEPS; step++) {
+            double fraction = step / (double)SUBSTEPS;
+            Vec3 stepNormal = CentipedeFrame.unit(startNormal.lerp(normal, fraction), normal);
+            solve(start.lerp(head, fraction), stepNormal, facing);
+            System.arraycopy(current, 0, steps[step], 0, count);
+        }
+        if (reset) {
+            System.arraycopy(current, 0, previous, 0, count);
+            for (Pose[] step : steps) System.arraycopy(current, 0, step, 0, count);
+        }
         for (int i = 0; i < count; i++) {
             Pose a = previous[i], b = current[i];
             Vec3 movement = b.position.subtract(a.position);
-            velocity[i] = velocity[i].lerp(movement, .5);
             gait[i] += (float)Math.min(.6, movement.length()) * 3F;
             speed[i] = Mth.lerp(.3F, speed[i], (float)Mth.clamp(movement.length() / .31, 0, 1));
             AABB area = CentipedeCollision.volume(a.position, CentipedeFrame.extents(a.normal, a.forward))
@@ -110,11 +116,15 @@ public final class CentipedeChain {
     public Pose sample(int index, float partialTick) {
         if (count == 0) throw new IllegalStateException("Chain not initialized");
         int link = Mth.clamp(index, 0, count - 1);
-        Pose a = previous[link], b = current[link];
-        double alpha = Mth.clamp(partialTick, 0, 1);
+        // Interpolate along the swept route, not a tick-long chord that cuts through
+        // corners and then jumps outward when the render collision guard corrects it.
+        double progress = Mth.clamp(partialTick, 0, 1) * SUBSTEPS;
+        int step = Math.min((int)progress, SUBSTEPS - 1);
+        double alpha = progress - step;
+        Pose a = steps[step][link], b = steps[step + 1][link];
         Vec3 normal = CentipedeFrame.unit(a.normal.lerp(b.normal, alpha), b.normal);
         Vec3 forward = CentipedeFrame.tangent(a.forward.lerp(b.forward, alpha), normal, b.forward);
-        Vec3 position = CentipedeMotion.interpolate(a.position, b.position, previousVelocity[link], velocity[link], alpha);
+        Vec3 position = a.position.lerp(b.position, alpha);
         if (alpha > 0 && alpha < 1)
             position = CentipedeCollision.keepOutside(position, normal, forward, interpolationBlocks.get(link));
         return new Pose(position, normal, forward);

@@ -19,9 +19,11 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
             world.getServer().runOnServer(server -> {
                 BackgroundSearchCheck.run(server.overworld());
                 GameplayFixCheck.run(server);
+                MinotaurWeaponDropCheck.run(server.overworld());
                 QueenQuestCheck.run(server);
                 var level=server.getLevel(Asterion.ASTERION_LEVEL);
                 FloodSpreadCheck.run(level);
+                ShaleCavesCheck.run(level);
                 // Runtime installs arena pieces from completed chunk callbacks. This test
                 // intentionally forces all pieces so it can inspect the entire 123x123 build.
                 WorldGenerator.prepareBossArenaBeforePlayers(level);
@@ -103,20 +105,15 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                     check(level.getBlockState(new BlockPos(cx*16,AuthoredCatacombs.ARENA_BASE_Y-1,cz*16))
                             .is(Blocks.LIGHT),"Missing arena reload marker");
                 BlockPos playerDoor=MinotaurArenaEntrances.door(MinotaurArenaEntrances.PLAYER_ENTRANCE);
-                int previousFloor=Integer.MIN_VALUE;
-                for(int z=playerDoor.getZ()+1;z<=AuthoredCatacombs.ARENA_RADIUS;z++) {
-                    int expected=Math.min(AuthoredCatacombs.CONNECTOR_Y-1,
-                            playerDoor.getY()-1+z-(playerDoor.getZ()+1));
-                    BlockPos step=new BlockPos(0,expected,z);
-                    if(level.getBlockState(step).getCollisionShape(level,step).isEmpty())step=step.below();
-                    check(!level.getBlockState(step).getCollisionShape(level,step).isEmpty(),"Missing arena descent step at "+step);
-                    clear(level,step.above());
-                    clear(level,step.above(2));
-                    if(previousFloor!=Integer.MIN_VALUE)
-                        check(step.getY()>=previousFloor&&step.getY()-previousFloor<=1,
-                                "Arena descent is too steep at z="+z);
-                    previousFloor=step.getY();
-                }
+                // The external passage must not carve a shortcut through the saved lobby.
+                check(level.getBlockState(new BlockPos(0, AuthoredCatacombs.ARENA_BASE_Y + 22, 44))
+                        .is(Asterion.ANCIENT_BRICKS), "Approach carved through authored lobby masonry");
+                check(level.getBlockState(new BlockPos(0, AuthoredCatacombs.ARENA_BASE_Y + 22, 57))
+                        .is(Asterion.MAZESTEEL_STAIRS), "Approach replaced the authored staircase");
+                check(level.getBlockState(new BlockPos(0, AuthoredCatacombs.CONNECTOR_Y, 60))
+                        .is(Asterion.BARREL_DOOR), "Approach removed the authored barrel door");
+                clear(level,new BlockPos(0,AuthoredCatacombs.CONNECTOR_Y,61));
+                clear(level,new BlockPos(0,AuthoredCatacombs.CONNECTOR_Y+1,61));
                 // The current route bends from arena x=0 into module (0,4)'s north
                 // connector at x=9; the old straight hand-carved hall is intentionally sealed.
                 for(int z=AuthoredCatacombs.ARENA_RADIUS+1;z<=76;z++) {
@@ -178,6 +175,8 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                 boss.discard();
                 Asterion.LOGGER.info("PASS: authored arena boss spawn, safe party entry without generated arena fixtures");
             });
+            context.runOnClient(CentipedeCameraCheck::run);
+            context.runOnClient(EndingMusicCheck::run);
         }
     }
     private static void clear(net.minecraft.server.level.ServerLevel level,BlockPos pos){check(level.getBlockState(pos).getCollisionShape(level,pos).isEmpty(),"Blocked connection at "+pos+": "+level.getBlockState(pos));}

@@ -10,8 +10,6 @@ import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
-import java.util.ArrayList;
-import java.util.List;
 
 /** Foundation shell for the authored Forge-biome NBT network beneath the catacombs. */
 public final class ForgeDepths {
@@ -37,73 +35,86 @@ public final class ForgeDepths {
                 : Asterion.POLISHED_MAZESTEEL.defaultBlockState();
     }
 
-    /** Enclosed spiral stair and landings link the root catacomb to the Forge district. */
-    public static void carveAccess(ServerLevelAccessor level, ChunkPos chunk) {
-        int center = CatacombLayout.ROOT_CENTER;
-        int shaftX = center + 30, shaftZ = center;
-        int bottom = FLOOR_Y + 1, top = AuthoredCatacombs.CONNECTOR_Y;
-        BlockState masonry = Asterion.MAZESTEEL_BRICKS.defaultBlockState();
+    /** The saved west socket is thirteen blocks above the template's base. */
+    public static void carveAccess(ServerLevelAccessor world, ChunkPos chunk) {
+        var level = world instanceof net.minecraft.server.level.ServerLevel server ? server
+                : ((net.minecraft.world.level.WorldGenLevel)world).getLevel();
+        BlockPos center = AuthoredForge.entranceCenter(level, chunk);
+        if (center == null || !accessChunk(chunk, center)) return;
+        int cx = center.getX(), cz = center.getZ(), feet = center.getY();
+        var masonry = Asterion.MAZESTEEL_BRICKS.defaultBlockState();
+        var plan = new java.util.HashMap<BlockPos, Cell>();
+        // Separate the rising staircase from the mine landing so their headroom never overlaps.
+        hall(plan, chunk, cx - 20, cx - 18, cz, feet, masonry);
+        for (int z = cz - 8; z <= cz; z++) tunnel(plan, chunk, cx - 20, z, feet, masonry, null, true);
+        int rise = AuthoredCatacombs.CONNECTOR_Y - feet;
+        for (int step = 0; step <= rise; step++)
+            tunnel(plan, chunk, cx - 20 - step, cz - 8, feet + step, masonry,
+                    Asterion.POLISHED_MAZESTEEL_STAIRS.defaultBlockState().setValue(StairBlock.FACING, Direction.WEST), false);
+        int topX = cx - 20 - rise;
+        for (int z = cz - 8; z <= cz; z++) tunnel(plan, chunk, topX, z, AuthoredCatacombs.CONNECTOR_Y, masonry, null, true);
+        hall(plan, chunk, topX, cx - 57, cz, AuthoredCatacombs.CONNECTOR_Y, masonry);
 
-        // A solid outer shell and central pier prevent falls into the biome void.
-        for (int x = shaftX - 4; x <= shaftX + 4; x++)
-            for (int z = shaftZ - 4; z <= shaftZ + 4; z++) {
-                if (!inside(chunk, x, z)) continue;
-                for (int y = FLOOR_Y; y <= top + 4; y++) {
-                    boolean floorOrRoof = y == FLOOR_Y || y == top + 4;
-                    boolean outer = Math.abs(x - shaftX) == 4 || Math.abs(z - shaftZ) == 4;
-                    boolean pier = Math.abs(x - shaftX) <= 1 && Math.abs(z - shaftZ) <= 1;
-                    level.setBlock(new BlockPos(x, y, z), floorOrRoof || outer || pier
-                            ? masonry : Blocks.AIR.defaultBlockState(), 18);
-                }
-            }
-
-        List<BlockPos> ring = spiralRing();
-        int horizontalSteps = (top - bottom) * 2 + 1;
-        for (int step = 0; step < horizontalSteps; step++) {
-            BlockPos local = ring.get(step % ring.size());
-            BlockPos next = ring.get((step + 1) % ring.size());
-            int x = shaftX + local.getX(), z = shaftZ + local.getZ();
+        int shaftX = Math.floorDiv(cx - 24, 64) * 64;
+        long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
+        int bottom = ShaleCaves.floorY(seed, shaftX, cz) + 1;
+        for (int x = shaftX - 2; x <= shaftX + 2; x++) for (int z = cz - 2; z <= cz + 2; z++) {
             if (!inside(chunk, x, z)) continue;
-            Direction facing = direction(next.getX() - local.getX(), next.getZ() - local.getZ());
-            BlockPos stair = new BlockPos(x, bottom + step / 2, z);
-            level.setBlock(stair, Asterion.POLISHED_MAZESTEEL_STAIRS.defaultBlockState()
-                    .setValue(StairBlock.FACING, facing), 18);
-            level.setBlock(stair.above(), Blocks.AIR.defaultBlockState(), 18);
-            level.setBlock(stair.above(2), Blocks.AIR.defaultBlockState(), 18);
-        }
-
-        // The lower landing enters the authored Forge; the upper one opens directly
-        // into the guaranteed root catacomb, so generation order cannot strand it.
-        carveHall(level, chunk, center + 17, shaftX - 4, shaftZ, bottom, masonry);
-        carveHall(level, chunk, center, shaftX - 4, shaftZ, top, masonry);
-    }
-
-    private static void carveHall(ServerLevelAccessor level, ChunkPos chunk, int minX, int maxX,
-                                  int centerZ, int feetY, BlockState masonry) {
-        for (int x = Math.min(minX, maxX); x <= Math.max(minX, maxX); x++)
-            for (int dz = -3; dz <= 3; dz++) {
-                int z = centerZ + dz;
-                if (!inside(chunk, x, z)) continue;
-                for (int y = feetY - 1; y <= feetY + 4; y++) {
-                    boolean shell = Math.abs(dz) == 3 || y == feetY - 1 || y == feetY + 4;
-                    level.setBlock(new BlockPos(x, y, z), shell ? masonry : Blocks.AIR.defaultBlockState(), 18);
-                }
+            for (int y = bottom - 1; y <= feet + 4; y++) {
+                boolean shell = Math.abs(x - shaftX) == 2 || Math.abs(z - cz) == 2 || y == bottom - 1 || y == feet + 4;
+                put(plan, new BlockPos(x, y, z), shell ? masonry : Blocks.AIR.defaultBlockState(), y == bottom - 1 ? 3 : shell ? 1 : 2);
             }
+        }
+        for (int y = bottom; y <= feet; y++) if (inside(chunk, shaftX - 1, cz))
+            put(plan, new BlockPos(shaftX - 1, y, cz), Blocks.LADDER.defaultBlockState()
+                    .setValue(net.minecraft.world.level.block.LadderBlock.FACING, Direction.EAST), 5);
+        hall(plan, chunk, shaftX, cx - 20, cz, feet, masonry);
+        // Open the lowest landing into the cave instead of leaving a sealed ladder well.
+        for (int x = shaftX; x <= shaftX + 4; x++) for (int z = cz - 1; z <= cz + 1; z++)
+            if (inside(chunk, x, z)) for (int y = bottom; y <= bottom + 3; y++)
+                put(plan, new BlockPos(x, y, z), Blocks.AIR.defaultBlockState(), 4);
+        // Restore the ladder through the upper landing's floor opening.
+        if (inside(chunk, shaftX - 1, cz)) for (int y = bottom; y <= feet; y++)
+            put(plan, new BlockPos(shaftX - 1, y, cz), Blocks.LADDER.defaultBlockState()
+                    .setValue(net.minecraft.world.level.block.LadderBlock.FACING, Direction.EAST), 5);
+        for (var entry : plan.entrySet()) world.setBlock(entry.getKey(), entry.getValue().state(), 18);
+        world.setBlock(accessMarker(chunk), accessRevision(), 18);
     }
 
-    private static List<BlockPos> spiralRing() {
-        List<BlockPos> ring = new ArrayList<>(24);
-        for (int x = -3; x <= 3; x++) ring.add(new BlockPos(x, 0, -3));
-        for (int z = -2; z <= 3; z++) ring.add(new BlockPos(3, 0, z));
-        for (int x = 2; x >= -3; x--) ring.add(new BlockPos(x, 0, 3));
-        for (int z = 2; z >= -2; z--) ring.add(new BlockPos(-3, 0, z));
-        return ring;
+    public static void repairAccess(net.minecraft.server.level.ServerLevel level, net.minecraft.world.level.chunk.LevelChunk chunk) {
+        if (!chunk.getBlockState(accessMarker(chunk.getPos())).equals(accessRevision())) carveAccess(level, chunk.getPos());
     }
 
-    private static Direction direction(int dx, int dz) {
-        if (dx > 0) return Direction.EAST;
-        if (dx < 0) return Direction.WEST;
-        return dz > 0 ? Direction.SOUTH : Direction.NORTH;
+    private static boolean accessChunk(ChunkPos chunk, BlockPos center) {
+        int left = Math.min(center.getX() - 65, Math.floorDiv(center.getX() - 24, 64) * 64 - 2);
+        return chunk.getMaxBlockX() >= left && chunk.getMinBlockX() <= center.getX() - 16
+                && chunk.getMaxBlockZ() >= center.getZ() - 10 && chunk.getMinBlockZ() <= center.getZ() + 2;
+    }
+
+    private static BlockPos accessMarker(ChunkPos chunk) { return new BlockPos(chunk.getMinBlockX(), 15, chunk.getMinBlockZ()); }
+    private static BlockState accessRevision() { return Blocks.LIGHT.defaultBlockState().setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 2); }
+
+    private static void hall(java.util.Map<BlockPos, Cell> plan, ChunkPos chunk, int minX, int maxX, int z, int feet, BlockState masonry) {
+        for (int x = Math.min(minX, maxX); x <= Math.max(minX, maxX); x++) tunnel(plan, chunk, x, z, feet, masonry, null, false);
+    }
+
+    private static void tunnel(java.util.Map<BlockPos, Cell> plan, ChunkPos chunk, int x, int z, int feet,
+                               BlockState masonry, BlockState step, boolean alongZ) {
+        for (int side = -2; side <= 2; side++) {
+            int px = x + (alongZ ? side : 0), pz = z + (alongZ ? 0 : side);
+            if (!inside(chunk, px, pz)) continue;
+            for (int dy = -1; dy <= 4; dy++) {
+                BlockState state = Math.abs(side) == 2 || dy == 4 || dy == -1 ? masonry : Blocks.AIR.defaultBlockState();
+                if (dy == -1 && Math.abs(side) < 2 && step != null) state = step;
+                put(plan, new BlockPos(px, feet + dy, pz), state, dy == -1 ? 3 : state.isAir() ? 2 : 1);
+            }
+        }
+    }
+
+    private record Cell(BlockState state, int priority) {}
+    private static void put(java.util.Map<BlockPos, Cell> plan, BlockPos pos, BlockState state, int priority) {
+        Cell next = new Cell(state, priority);
+        plan.merge(pos, next, (old, value) -> value.priority() >= old.priority() ? value : old);
     }
 
     private static boolean inside(ChunkPos chunk, int x, int z) {

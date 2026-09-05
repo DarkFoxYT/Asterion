@@ -145,6 +145,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private static final EntityDataAccessor<Boolean> DATA_AXE_OUT = SynchedEntityData.defineId(MinotaurEntity.class, EntityDataSerializers.BOOLEAN);
     private UUID thrownAxe;
     private Vec3 axeLastPosition = Vec3.ZERO;
+    private boolean deathWeaponsDropped;
     private final java.util.Map<BlockPos, Integer> fireSootTrail = new java.util.LinkedHashMap<>();
     private int axeAge;
     private Vec3 axePickupGoal;
@@ -2415,6 +2416,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         output.putInt("asterion_boss_animation_ticks", bossAttackAnimationTicks());
         output.putInt("asterion_rage", rage());
         if (thrownAxe != null) output.putString("minotaur_axe_uuid", thrownAxe.toString());
+        output.putBoolean("death_weapons_dropped", deathWeaponsDropped);
         output.putDouble("minotaur_axe_x", axeLastPosition.x);
         output.putDouble("minotaur_axe_y", axeLastPosition.y);
         output.putDouble("minotaur_axe_z", axeLastPosition.z);
@@ -2434,6 +2436,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         phaseTicks = Math.max(0, input.getIntOr("asterion_behavior_ticks", 0));
         collapseTicks = Math.max(0, input.getIntOr("asterion_collapse_ticks", 0));
         String id = input.getStringOr("minotaur_axe_uuid", "");
+        deathWeaponsDropped = input.getBooleanOr("death_weapons_dropped", false);
         try { thrownAxe = id.isEmpty() ? null : UUID.fromString(id); } catch (IllegalArgumentException ignored) { thrownAxe = null; }
         getEntityData().set(DATA_AXE_OUT, thrownAxe != null);
         axeLastPosition = new Vec3(input.getDoubleOr("minotaur_axe_x", getX()), input.getDoubleOr("minotaur_axe_y", getY()), input.getDoubleOr("minotaur_axe_z", getZ()));
@@ -4948,6 +4951,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         getEntityData().set(DATA_BOSS_ATTACK_TICKS, 0);
         noPhysics = false;
         settleDefeatedPose(level);
+        dropDeathWeapons(level);
         healthBossBar.removeAllPlayers();
         rageBossBar.removeAllPlayers();
         playRoar(5.0F, 0.58F, 1.65F);
@@ -4955,6 +4959,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     private void tickDefeated(ServerLevel level) {
+        dropDeathWeapons(level);
         getNavigation().stop();
         setDeltaMovement(Vec3.ZERO);
         noPhysics = false;
@@ -4966,6 +4971,34 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if ((phaseTicks & 7) == 0)
             level.sendParticles(ParticleTypes.ELECTRIC_SPARK, getX(), getY() + getBbHeight() * 0.55D,
                     getZ(), 18, 1.0D, 1.6D, 1.0D, 0.12D);
+    }
+
+    private void dropDeathWeapons(ServerLevel level) {
+        boolean axeAlreadyDropped = axeInWorld() || thrownAxe != null;
+        // A thrown axe remains the same physical object, even if its chunk loads later.
+        if (thrownAxe != null && level.getEntity(thrownAxe) instanceof MinotaurAxeEntity axe) {
+            axe.disarm();
+            thrownAxe = null;
+        }
+        if (deathWeaponsDropped) return;
+        float scale = .47F * AsterionConfig.INSTANCE.minotaurScale;
+        Vec3 forward = Vec3.directionFromRotation(0, yBodyRot);
+        Vec3 right = new Vec3(-forward.z, 0, forward.x);
+        for (int side : new int[]{-1, 1}) {
+            var sword = new MinotaurAxeEntity(Asterion.MINOTAUR_AXE, level);
+            Vec3 origin = position().add(right.scale(side * 1.2 * scale))
+                    .add(0, getBbHeight() * .55, 0).add(forward.scale(.4 * scale));
+            sword.drop(origin, right.scale(side * .13).add(0, .04, 0), yBodyRot, true, side);
+            level.addFreshEntity(sword);
+        }
+        if (!axeAlreadyDropped) {
+            var axe = new MinotaurAxeEntity(Asterion.MINOTAUR_AXE, level);
+            axe.drop(position().add(0, getBbHeight() * .7, 0).subtract(forward.scale(1.5 * scale)),
+                    forward.scale(-.12).add(0, .03, 0), yBodyRot, false, 1);
+            level.addFreshEntity(axe);
+        }
+        deathWeaponsDropped = true;
+        getEntityData().set(DATA_AXE_OUT, true);
     }
 
     /** Finds room for the full death-animation silhouette, not only the live hitbox. */

@@ -24,6 +24,8 @@ public final class AsterionPostEffects {
     private static float overgrowthBlend;
     private static float crimsonBlend;
     private static float catacombBlend;
+    private static float arenaBlend;
+    private static float caveBlend;
     private static float forgeBlend;
     private static float floodBlend;
     private static final Matrix4f lastInverseViewProjection = new Matrix4f();
@@ -192,13 +194,15 @@ public final class AsterionPostEffects {
                         * mix(1.0F, 0.92F, crimsonBlend)
                         * mix(1.0F, 1.18F, forgeBlend)
                         * mix(1.0F, 2.80F, eclipse)
-                        * mix(1.0F, 1.4F + 2.8F * floodBlend, catacombBlend),
+                        * mix(1.0F, 1.4F + 2.8F * floodBlend * (1 - arenaBlend), catacombBlend)
+                        * mix(1.0F, .45F, arenaBlend) * mix(1.0F, 3.2F, caveBlend),
                 config.fogStrength * mix(1.0F, 0.90F, overgrowthBlend)
                         * mix(1.0F, 0.94F, crimsonBlend)
                         * mix(1.0F, 1.12F, forgeBlend)
                         * mix(1.0F, 2.25F, eclipse)
-                        * mix(1.0F, 1.1F + .4F * floodBlend, catacombBlend),
-                config.shaderAnimationSpeed);
+                        * mix(1.0F, 1.1F + .4F * floodBlend * (1 - arenaBlend), catacombBlend)
+                        * mix(1.0F, .38F, arenaBlend) * mix(1.0F, 2.1F, caveBlend),
+                config.shaderAnimationSpeed * mix(1.0F, .7F, arenaBlend) * mix(1.0F, .42F, caveBlend));
     }
 
     private static Vector3f dustColor() {
@@ -217,9 +221,9 @@ public final class AsterionPostEffects {
         green = mix(green, 0.34F, forgeBlend);
         blue = mix(blue, 0.12F, forgeBlend);
         return new Vector3f(
-                mix(mix(red, 0.15F, eclipse), .70F, catacombBlend),
-                mix(mix(green, 0.018F, eclipse), .81F, catacombBlend),
-                mix(mix(blue, 0.012F, eclipse), .90F, catacombBlend));
+                mix(mix(mix(mix(red, 0.15F, eclipse), .70F, catacombBlend), .82F, arenaBlend), .025F, caveBlend),
+                mix(mix(mix(mix(green, 0.018F, eclipse), .81F, catacombBlend), .52F, arenaBlend), .028F, caveBlend),
+                mix(mix(mix(mix(blue, 0.012F, eclipse), .90F, catacombBlend), .25F, arenaBlend), .032F, caveBlend));
     }
 
     private static Vector3f fogColor() {
@@ -235,9 +239,9 @@ public final class AsterionPostEffects {
         green = mix(green, 0.085F, forgeBlend);
         blue = mix(blue, 0.045F, forgeBlend);
         return new Vector3f(
-                mix(mix(red, 0.018F, eclipse), .64F, catacombBlend),
-                mix(mix(green, 0.003F, eclipse), .76F, catacombBlend),
-                mix(mix(blue, 0.002F, eclipse), .86F, catacombBlend));
+                mix(mix(mix(mix(red, 0.018F, eclipse), .64F, catacombBlend), .20F, arenaBlend), .003F, caveBlend),
+                mix(mix(mix(mix(green, 0.003F, eclipse), .76F, catacombBlend), .13F, arenaBlend), .004F, caveBlend),
+                mix(mix(mix(mix(blue, 0.002F, eclipse), .86F, catacombBlend), .085F, arenaBlend), .006F, caveBlend));
     }
 
     public static void setBiome(int biome) {
@@ -251,10 +255,20 @@ public final class AsterionPostEffects {
     public static void tickBiomeAtmosphere(Minecraft client) {
         if (!isInsideAsterion() || client.player == null) {
             catacombBlend = 0;
+            arenaBlend = 0;
+            caveBlend = 0;
             forgeBlend = 0;
             floodBlend = 0;
         } else {
-            double cameraY = AmneticCamera.isReady() ? AmneticCamera.position().y : client.player.getEyeY();
+            Vec3 camera = AmneticCamera.isReady() ? AmneticCamera.position() : client.player.getEyePosition();
+            double cameraY = camera.y;
+            float caveTarget = Mth.clamp((float)(net.krodark.asterion.worldgen.LabyrinthLevels.CAVE_ROOF_Y - cameraY) / 12F, 0F, 1F);
+            caveBlend += (caveTarget - caveBlend) * .055F;
+            // Fade at the arena walls and roof so the maze above keeps its own atmosphere.
+            float arenaTarget = Mth.clamp((float)(42 - Math.max(Math.abs(camera.x), Math.abs(camera.z))) / 6F, 0F, 1F)
+                    * Mth.clamp((float)(net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y + 47 - cameraY) / 5F, 0F, 1F)
+                    * Mth.clamp((float)(cameraY - net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y) / 4F, 0F, 1F);
+            arenaBlend += (arenaTarget - arenaBlend) * .08F;
             int vaultRoof = Math.min(net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y - 2,
                     net.krodark.asterion.worldgen.CatacombLayout.roofAt(
                             client.player.getBlockX(), client.player.getBlockZ()));
@@ -263,7 +277,7 @@ public final class AsterionPostEffects {
                     - net.krodark.asterion.worldgen.LabyrinthLevels.FORGE_ROOF_Y), 0F, 1F);
             if (biomeTarget == 3) underground = 1F;
             catacombBlend += (underground - catacombBlend) * .04F;
-            float forgeTarget = biomeTarget == 4 ? 1F : 0F;
+            float forgeTarget = biomeTarget == 4 ? 1F - caveTarget : 0F;
             forgeBlend += (forgeTarget - forgeBlend) * .04F;
             float floodTarget = DeadSunClientEvents.floodStrength();
             floodBlend += (floodTarget - floodBlend) * .025F;

@@ -1,0 +1,32 @@
+{
+  "parent": "asterion:queens_favor",
+  "criteria": {
+    "milestone": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "asterion:charged_respawn_rune"
+    },
+    "title": {
+      "translate": "advancement.asterion.trusted_supplier.title"
+    },
+    "description": {
+      "translate": "advancement.asterion.trusted_supplier.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "milestone"
+    ]
+  ],
+  "rewards": {
+    "experience": 75
+  },
+  "sends_telemetry_event": false
+}

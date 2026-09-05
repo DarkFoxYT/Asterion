@@ -20,7 +20,7 @@ public final class AuthoredCatacombs {
     public static final int BASE_Y = LabyrinthLevels.CATACOMB_BASE_Y, SIZE = 19, CONNECTOR_Y = BASE_Y + 5;
     public static final int ARENA_BASE_Y = LabyrinthLevels.ARENA_BASE_Y, ARENA_FLOOR_Y = ARENA_BASE_Y + 5, ARENA_RADIUS = 61;
     private static final int ARENA_CHUNK_MARKER_Y = ARENA_BASE_Y - 1;
-    private static final int ARENA_CHUNK_REVISION = 7;
+    private static final int ARENA_CHUNK_REVISION = 8;
     public static final List<BlockPos> BRAZIER_ROOM_ORIGINS = CatacombLayout.BRAZIER_ROOM_MIN_ZS.stream()
             .map(minZ -> new BlockPos(CatacombLayout.BRAZIER_ROOM_MIN_X * SIZE, BASE_Y, minZ * SIZE + 3))
             .toList();
@@ -579,20 +579,15 @@ public final class AuthoredCatacombs {
     private static void placeArenaApproach(ServerLevel level,LevelChunk chunk) {
         ChunkPos cp=chunk.getPos();
         for(int x=cp.getMinBlockX();x<=cp.getMaxBlockX();x++)for(int z=cp.getMinBlockZ();z<=cp.getMaxBlockZ();z++) {
-            // The authored door opens at z=41. Build a guaranteed traversable stair
-            // through the template's formerly incomplete lobby, then bend it toward
-            // the first 19x19 catacomb module without exceeding a one-block rise.
-            int stairStart=MinotaurArenaEntrances.door(Direction.SOUTH).getZ()+1;
-            if(z<stairStart||z>76)continue;
-            boolean arenaStair=z<=ARENA_RADIUS;
-            int center=arenaStair?0:Math.round((z-(ARENA_RADIUS+1))*9F/(76-(ARENA_RADIUS+1)));
+            // Part 8's south jigsaw is (0,72,61). Its lobby, stairs and barrel door
+            // already belong to the template; join only the space outside that socket.
+            if(z<=ARENA_RADIUS||z>76)continue;
+            int center=Math.round((z-(ARENA_RADIUS+1))*9F/(76-(ARENA_RADIUS+1)));
             boolean core=Math.abs(x-center)<=1;
             boolean wall=Math.abs(x-center)==2;
             if(!core&&!wall)continue;
 
-            int floor=arenaStair
-                    ?Math.min(CONNECTOR_Y-1,ARENA_FLOOR_Y-1+z-stairStart)
-                    :CONNECTOR_Y-1;
+            int floor=CONNECTOR_Y-1;
             level.setBlock(new BlockPos(x,floor,z),Asterion.ANCIENT_BRICKS.defaultBlockState(),18);
             for(int y=1;y<=4;y++)level.setBlock(new BlockPos(x,floor+y,z),
                     core?Blocks.AIR.defaultBlockState():Asterion.ANCIENT_BRICKS.defaultBlockState(),18);

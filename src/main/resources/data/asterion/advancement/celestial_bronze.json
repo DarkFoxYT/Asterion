@@ -1,0 +1,39 @@
+{
+  "parent": "asterion:root",
+  "criteria": {
+    "milestone": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "asterion:celestial_bronze_ingot"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "asterion:celestial_bronze_ingot"
+    },
+    "title": {
+      "translate": "advancement.asterion.celestial_bronze.title"
+    },
+    "description": {
+      "translate": "advancement.asterion.celestial_bronze.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "milestone"
+    ]
+  ],
+  "rewards": {
+    "experience": 10
+  },
+  "sends_telemetry_event": false
+}

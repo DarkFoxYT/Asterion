@@ -34,6 +34,13 @@ public final class QueenQuestCheck {
             QueenBeetleEntity.syncActiveQuest(player);
             queen.interact(player, InteractionHand.MAIN_HAND, net.minecraft.world.phys.Vec3.ZERO);
             check(QueenBeetleEntity.questIndex(player) == index + 1, "Request did not advance: " + quest.id());
+            for (String milestone : new String[]{"queens_favor", "trusted_supplier", "queens_covenant"}) {
+                var advancement = server.getAdvancements().get(Asterion.id(milestone));
+                check(advancement != null, "Missing advancement: " + milestone);
+                int threshold = milestone.equals("queens_favor") ? 1 : milestone.equals("trusted_supplier") ? 10 : 21;
+                check(player.getAdvancements().getOrStartProgress(advancement).isDone() == (index + 1 >= threshold),
+                        "Queen advancement fired at wrong request: " + milestone);
+            }
             check(QueenBeetleEntity.countItems(player, quest.item().asItem(), 100) == 2, "Wrong tribute consumption: " + quest.id());
             check(QueenBeetleEntity.countItems(player, quest.reward().asItem(), 100) == quest.rewardCount(), "Wrong reward: " + quest.id());
             check(player.entityTags().contains("asterion.queen_beetle_quest.index." + (index + 1)), "Progress was not persisted");

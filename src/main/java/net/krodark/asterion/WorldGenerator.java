@@ -2443,6 +2443,7 @@ public final class WorldGenerator {
     }
 
     public static void generateMazeChunk(ChunkAccess chunk, long seed) {
+        net.krodark.asterion.worldgen.ShaleCaves.generate(chunk, seed);
         net.krodark.asterion.worldgen.ForgeDepths.generate(chunk, seed);
         net.krodark.asterion.worldgen.CatacombLayout.generate(chunk, seed);
         AsterionConfig config = AsterionConfig.INSTANCE;
