@@ -15,7 +15,7 @@ import net.minecraft.world.phys.EntityHitResult;
 
 /** A compact objective card and restrained dialogue treatment for the Queen's quest. */
 public final class QueenBeetleQuestOverlay {
-    private static final int CARD_WIDTH = 224;
+    private static final int CARD_WIDTH = 202;
     private static int stage = -1;
     private static int dialogueTicks;
     private static int dialogueDuration;
@@ -49,7 +49,9 @@ public final class QueenBeetleQuestOverlay {
         target = Math.max(1, payload.target());
         anger = Mth.clamp(payload.anger(), 0, 4);
         if (!wasActive || restoring) displayedProgress = payload.progress();
-        objectiveTicks = restoring ? 12 : 0;
+        // Talking to the Queen about an objective that is already on screen may refresh
+        // the dialogue, but must not replay the objective card's entrance or display timer.
+        if (!wasActive) objectiveTicks = restoring ? 12 : 0;
         dialogueDuration = payload.stage() == QueenBeetleQuestPayload.REWARDED ? 150 : 120;
         dialogueTicks = restoring ? 0 : dialogueDuration;
     }
@@ -112,7 +114,7 @@ public final class QueenBeetleQuestOverlay {
     private static void renderObjective(GuiGraphicsExtractor graphics, Minecraft client) {
         int actualProgress = countItems(client);
         int width = Math.min(CARD_WIDTH, graphics.guiWidth() - 24);
-        int height = 67;
+        int height = 58;
         float appear = smootherstep(Mth.clamp(objectiveTicks / 12.0F, 0.0F, 1.0F));
         int left = graphics.guiWidth() - width - 12 + Math.round((1.0F - appear) * 18.0F);
         int top = 12;
@@ -123,29 +125,29 @@ public final class QueenBeetleQuestOverlay {
 
         Component title = questTitle;
         Component temper = Component.translatable("quest.asterion.queen_beetle.temper." + anger);
-        graphics.text(client.font, client.font.plainSubstrByWidth(title.getString(), width - 32 - client.font.width(temper)), left + 11, top + 7, alpha(0xDDBB6D, Math.round(255 * appear)), false);
-        graphics.text(client.font, temper, left + width - 10 - client.font.width(temper), top + 7,
+        graphics.text(client.font, client.font.plainSubstrByWidth(title.getString(), width - 30 - client.font.width(temper)), left + 9, top + 5, alpha(0xDDBB6D, Math.round(255 * appear)), false);
+        graphics.text(client.font, temper, left + width - 8 - client.font.width(temper), top + 5,
                 alpha(anger == 0 ? 0x8EBB7C : 0xD7745E, Math.round(220 * appear)), false);
 
         Component objective = questItem;
         Component count = Component.literal(actualProgress + " / " + target);
-        graphics.text(client.font, client.font.plainSubstrByWidth(objective.getString(), width - 32 - client.font.width(count)), left + 11, top + 22, alpha(0xF2E9D5, Math.round(255 * appear)), false);
-        graphics.text(client.font, count, left + width - 10 - client.font.width(count), top + 22,
+        graphics.text(client.font, client.font.plainSubstrByWidth(objective.getString(), width - 28 - client.font.width(count)), left + 9, top + 18, alpha(0xF2E9D5, Math.round(255 * appear)), false);
+        graphics.text(client.font, count, left + width - 8 - client.font.width(count), top + 18,
                 alpha(0xF2E9D5, Math.round(255 * appear)), false);
 
-        int barLeft = left + 11;
-        int barRight = left + width - 10;
-        int barTop = top + 35;
-        graphics.fill(barLeft, barTop, barRight, barTop + 4, alpha(0x2A251A, Math.round(255 * appear)));
+        int barLeft = left + 9;
+        int barRight = left + width - 8;
+        int barTop = top + 30;
+        graphics.fill(barLeft, barTop, barRight, barTop + 3, alpha(0x2A251A, Math.round(255 * appear)));
         int filled = Math.round((barRight - barLeft) * Mth.clamp(displayedProgress / target, 0.0F, 1.0F));
-        graphics.fill(barLeft, barTop, barLeft + filled, barTop + 4,
+        graphics.fill(barLeft, barTop, barLeft + filled, barTop + 3,
                 alpha(actualProgress >= target ? 0x82B76B : 0xC99432, Math.round(255 * appear)));
 
         Component hint = actualProgress >= target
                 ? Component.translatable("quest.asterion.queen_beetle.return") : questHint;
-        graphics.text(client.font, client.font.plainSubstrByWidth(hint.getString(), width - 22), left + 11, top + 45, alpha(0xB8AD91, Math.round(230 * appear)), false);
+        graphics.text(client.font, client.font.plainSubstrByWidth(hint.getString(), width - 17), left + 9, top + 37, alpha(0xB8AD91, Math.round(230 * appear)), false);
         Component reward = questReward;
-        graphics.text(client.font, client.font.plainSubstrByWidth(reward.getString(), width - 22), left + 11, top + 56, alpha(0x817A67, Math.round(205 * appear)), false);
+        graphics.text(client.font, client.font.plainSubstrByWidth(reward.getString(), width - 17), left + 9, top + 47, alpha(0x817A67, Math.round(205 * appear)), false);
     }
 
     private static void renderDialogue(GuiGraphicsExtractor graphics, Minecraft client) {
@@ -159,6 +161,8 @@ public final class QueenBeetleQuestOverlay {
             case QueenBeetleQuestPayload.PROGRESS -> Component.translatable(
                     "quest.asterion.queen_beetle.progress", countItems(client), target);
             case QueenBeetleQuestPayload.REWARDED -> Component.translatable(quest().key("rewarded"));
+            case QueenBeetleQuestPayload.COOLDOWN -> Component.translatable(
+                    "quest.asterion.queen_beetle.cooldown", formatTime(Math.round(displayedProgress)));
             default -> Component.translatable("quest.asterion.queen_beetle.complete");
         };
         int width = Math.min(graphics.guiWidth() - 32, 404);
@@ -189,6 +193,11 @@ public final class QueenBeetleQuestOverlay {
 
     private static int alpha(int rgb, int alpha) {
         return Mth.clamp(alpha, 0, 255) << 24 | rgb;
+    }
+
+    private static String formatTime(int totalSeconds) {
+        int seconds = Math.max(0, totalSeconds);
+        return String.format(java.util.Locale.ROOT, "%d:%02d", seconds / 60, seconds % 60);
     }
 
     private static float smootherstep(float value) {

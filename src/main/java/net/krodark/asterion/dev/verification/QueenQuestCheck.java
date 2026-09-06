@@ -34,6 +34,17 @@ public final class QueenQuestCheck {
             QueenBeetleEntity.syncActiveQuest(player);
             queen.interact(player, InteractionHand.MAIN_HAND, net.minecraft.world.phys.Vec3.ZERO);
             check(QueenBeetleEntity.questIndex(player) == index + 1, "Request did not advance: " + quest.id());
+            if (index + 1 < QueenBeetleQuests.ALL.size()) {
+                check(QueenBeetleEntity.cooldownSeconds(player) == 150,
+                        "Quest cooldown was not set to 2.5 minutes: " + quest.id());
+                queen.interact(player, InteractionHand.MAIN_HAND, net.minecraft.world.phys.Vec3.ZERO);
+                check(!player.entityTags().contains("asterion.queen_beetle_quest.active")
+                                && QueenBeetleEntity.questIndex(player) == index + 1,
+                        "Cooldown allowed the next request early: " + quest.id());
+                // Advance the deterministic verification without waiting 2.5 real minutes.
+                for (String tag : java.util.List.copyOf(player.entityTags()))
+                    if (tag.startsWith("asterion.queen_beetle_quest.cooldown_until.")) player.removeTag(tag);
+            }
             for (String milestone : new String[]{"queens_favor", "trusted_supplier", "queens_covenant"}) {
                 var advancement = server.getAdvancements().get(Asterion.id(milestone));
                 check(advancement != null, "Missing advancement: " + milestone);
@@ -49,7 +60,7 @@ public final class QueenQuestCheck {
         queen.interact(player, InteractionHand.MAIN_HAND, net.minecraft.world.phys.Vec3.ZERO);
         check(QueenBeetleEntity.countItems(player, last.reward().asItem(), 100) == last.rewardCount(), "Final reward could be claimed twice");
         player.getInventory().clearContent();
-        Asterion.LOGGER.info("PASS: all 21 Queen quests, exact tribute/rewards, legacy migration, persisted progression and one-time completion");
+        Asterion.LOGGER.info("PASS: all 21 Queen quests, 2.5-minute cooldown, exact tribute/rewards, legacy migration, persisted progression and one-time completion");
     }
     private static void check(boolean passed, String message) { if (!passed) throw new AssertionError(message); }
 }

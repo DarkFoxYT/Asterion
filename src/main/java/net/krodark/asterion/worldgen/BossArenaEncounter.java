@@ -107,7 +107,8 @@ public final class BossArenaEncounter {
         var entity = level.getEntity(active.boss);
         if (!(entity instanceof MinotaurEntity boss) || !boss.isAlive()) { finish(level); return; }
         int elapsed = (int)(level.getGameTime() - active.start);
-        if (elapsed >= INTRO_TICKS && !active.omegaLockRestored) {
+        if (isIntroCinematic(level)) MinotaurArenaEntrances.setOmegaLockVisible(level, false);
+        if (!isIntroCinematic(level) && !active.omegaLockRestored) {
             MinotaurArenaEntrances.setOmegaLockVisible(level, true);
             active.omegaLockRestored = true;
         }
@@ -217,7 +218,8 @@ public final class BossArenaEncounter {
 
     public static boolean isIntroCinematic(ServerLevel level) {
         return active != null && active.level == level
-                && level.getGameTime() - active.start < INTRO_TICKS;
+                && (level.getGameTime() - active.start < INTRO_TICKS
+                || level.getEntity(active.boss) instanceof MinotaurEntity boss && boss.doorEntryTicks() > 0);
     }
 
     public static boolean sealsDoor(net.minecraft.world.level.Level level, BlockPos root, Direction facing) {

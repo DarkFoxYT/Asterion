@@ -184,7 +184,7 @@ public final class MazeNbtStructures {
     private static final BlockPos QUEEN_MARKER = new BlockPos(37, 26, 27);
 
     private static int placementFloor(Placement placement) {
-        return placement.box.minY() + (placement.id.equals(QUEEN_TREE) ? 25 : 0);
+        return placement.box.minY();
     }
 
     private static void addQueenTrees(ServerLevel level, List<Placement> placements, long seed,
@@ -204,7 +204,7 @@ public final class MazeNbtStructures {
         candidates.sort(java.util.Comparator.comparingLong(p -> mix(seed ^ p.asLong())));
         for (BlockPos center : candidates) {
             var origin = new BlockPos(center.getX() - 28,
-                    WorldGenerator.mazeFloorHeight(seed, center.getX(), center.getZ()) - 25, center.getZ() - 33);
+                    WorldGenerator.mazeFloorHeight(seed, center.getX(), center.getZ()), center.getZ() - 33);
             var settings = new StructurePlaceSettings().setIgnoreEntities(true);
             var box = template.getBoundingBox(settings, origin);
             var reserved = box.inflatedBy(5, 0, 5);

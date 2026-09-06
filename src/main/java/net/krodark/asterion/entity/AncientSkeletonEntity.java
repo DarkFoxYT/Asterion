@@ -49,12 +49,7 @@ public final class AncientSkeletonEntity extends Skeleton {
 
     public static boolean canSpawn(EntityType<AncientSkeletonEntity> type, ServerLevelAccessor level,
                                    EntitySpawnReason reason, BlockPos pos, RandomSource random) {
-        if (!level.getLevel().dimension().equals(Asterion.ASTERION_LEVEL)) return false;
-        boolean cave = net.krodark.asterion.worldgen.ShaleCaves.contains(pos);
-        boolean catacomb = net.krodark.asterion.worldgen.CatacombLayout.contains(pos)
-                && !net.krodark.asterion.WorldGenerator.isInsideBossArena(pos.getCenter());
-        boolean ancient = pos.getY() >= net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y
-                && net.krodark.asterion.WorldGenerator.isAncientBiomeAt(pos.getX(), pos.getZ());
-        return (cave || catacomb || ancient) && checkMonsterSpawnRules(type, level, reason, pos, random);
+        return reason == EntitySpawnReason.SPAWNER
+                && checkMonsterSpawnRules(type, level, reason, pos, random);
     }
 }

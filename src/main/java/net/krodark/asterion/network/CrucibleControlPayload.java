@@ -24,7 +24,7 @@ public record CrucibleControlPayload(BlockPos pos, int action) implements Custom
     public static int inventorySlot(int action) { return action - INSERT_SLOT_BASE; }
     public static int removeMaterial(int layer) { return REMOVE_MATERIAL_BASE + layer; }
     public static boolean isRemoveMaterial(int action) {
-        return action >= REMOVE_MATERIAL_BASE && action < REMOVE_MATERIAL_BASE + 4;
+        return action >= REMOVE_MATERIAL_BASE && action < REMOVE_MATERIAL_BASE + 5;
     }
     public static int materialLayer(int action) { return action - REMOVE_MATERIAL_BASE; }
     public static int selectMold(int mold) { return SELECT_MOLD_BASE + mold; }

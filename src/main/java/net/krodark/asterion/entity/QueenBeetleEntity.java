@@ -30,6 +30,8 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
     public static final int PETAL_TARGET = 8;
     private static final String ACTIVE_TAG = "asterion.queen_beetle_quest.active";
     private static final String COMPLETE_TAG = "asterion.queen_beetle_quest.complete";
+    private static final String COOLDOWN_TAG = "asterion.queen_beetle_quest.cooldown_until.";
+    public static final int QUEST_COOLDOWN_TICKS = 20 * 60 * 2 + 20 * 30;
     private static final String KILLS_TAG = "asterion.queen_beetle_kills.";
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("idle");
     private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
@@ -100,6 +102,14 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
             sendQuest(serverPlayer, QueenBeetleQuestPayload.COMPLETE, index - 1, 0, 1, anger);
             return InteractionResult.SUCCESS_SERVER;
         }
+        int cooldown = cooldownSeconds(serverPlayer);
+        if (!player.entityTags().contains(ACTIVE_TAG) && cooldown > 0) {
+            // Progress carries remaining seconds for this response; target carries the full
+            // cooldown so the existing compact packet stays backwards-simple.
+            sendQuest(serverPlayer, QueenBeetleQuestPayload.COOLDOWN, index, cooldown,
+                    QUEST_COOLDOWN_TICKS / 20, anger);
+            return InteractionResult.SUCCESS_SERVER;
+        }
         var quest = QueenBeetleQuests.get(index);
         int target = index == 0 ? petalTarget(anger) : quest.count();
         int progress = countItems(player, quest.item().asItem(), target);
@@ -114,6 +124,7 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
             consumeItems(player, quest.item().asItem(), target);
             player.removeTag(ACTIVE_TAG);
             setQuestIndex(player, index + 1);
+            if (index + 1 < QueenBeetleQuests.ALL.size()) startCooldown(serverPlayer);
             net.krodark.asterion.game.AsterionAdvancements.queenProgress(serverPlayer, index + 1);
             if (index + 1 == QueenBeetleQuests.ALL.size()) player.addTag(COMPLETE_TAG);
             ItemStack reward = new ItemStack(quest.reward(), quest.rewardCount());
@@ -125,6 +136,34 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
 
     private static void sendQuest(ServerPlayer player, int stage, int index, int progress, int target, int anger) {
         ServerPlayNetworking.send(player, new QueenBeetleQuestPayload(stage, progress, target, anger, index));
+    }
+
+    private static long questClock(ServerPlayer player) {
+        return player.level().getServer().overworld().getGameTime();
+    }
+
+    private static void startCooldown(ServerPlayer player) {
+        clearCooldownTag(player);
+        player.addTag(COOLDOWN_TAG + (questClock(player) + QUEST_COOLDOWN_TICKS));
+    }
+
+    public static int cooldownSeconds(ServerPlayer player) {
+        long until = 0;
+        for (String tag : player.entityTags()) if (tag.startsWith(COOLDOWN_TAG)) {
+            try { until = Math.max(until, Long.parseLong(tag.substring(COOLDOWN_TAG.length()))); }
+            catch (NumberFormatException ignored) { }
+        }
+        long ticks = until - questClock(player);
+        if (ticks <= 0) {
+            if (until != 0) clearCooldownTag(player);
+            return 0;
+        }
+        return (int)Math.min(Integer.MAX_VALUE, (ticks + 19) / 20);
+    }
+
+    private static void clearCooldownTag(Player player) {
+        for (String tag : java.util.List.copyOf(player.entityTags()))
+            if (tag.startsWith(COOLDOWN_TAG)) player.removeTag(tag);
     }
 
     public static int countItems(Player player, net.minecraft.world.item.Item item, int target) {

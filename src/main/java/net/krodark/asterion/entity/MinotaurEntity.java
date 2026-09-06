@@ -659,6 +659,18 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 AsterionConfig.INSTANCE.minotaurDamageMin, AsterionConfig.INSTANCE.minotaurDamageMax);
     }
 
+    @Override public boolean isPushedByFluid() { return false; }
+
+    @Override protected float getWaterSlowDown() { return .96F; }
+
+    @Override public void travel(Vec3 input) {
+        super.travel(input);
+        if (isAlive() && !isDefeatedBoss() && isInWater() && horizontalCollision) {
+            Vec3 motion = getDeltaMovement();
+            setDeltaMovement(motion.x, Math.max(motion.y, .3D), motion.z);
+        }
+    }
+
     public boolean isAssignedTo(Player player) {
         return eclipseTarget != null && eclipseTarget.equals(player.getUUID()) && !isRemoved();
     }
@@ -850,7 +862,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 sightings++;
                 if ((sightings & 1) == 0) increaseRage(1);
                 sightingCooldown = 50;
-                playSound(SoundEvents.GOAT_AMBIENT, 1.8F, 0.45F + random.nextFloat() * 0.08F);
+                playSound(Asterion.MINOTAUR_AGGRO, 1.8F, 1.0F);
                 if (sightings > 3 || random.nextInt(rage() >= 12 ? 3 : 6) == 0) {
                     beginWarning();
                     return;
@@ -862,7 +874,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             }
         } else {
             if (wasObserved && gazeTicks > 15 && random.nextBoolean()) {
-                playSound(SoundEvents.RAVAGER_STUNNED, 1.25F, 0.55F);
+                playSound(Asterion.MINOTAUR_AGGRO, 1.25F, .95F);
                 relocateTicks = random.nextIntBetweenInclusive(25, 50);
             }
             gazeTicks = Math.max(0, gazeTicks - 1);
@@ -902,7 +914,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         }
 
         if (observed && stalkMode == StalkMode.OBSERVING && gazeTicks > 5 && random.nextInt(55) == 0) {
-            playSound(SoundEvents.RAVAGER_STUNNED, 1.45F, 0.48F);
+            playSound(Asterion.MINOTAUR_AGGRO, 1.45F, .95F);
             enterStalkMode(StalkMode.VANISHING);
         }
 
@@ -1322,7 +1334,6 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 lockReachTo(grabbed);
                 grabbed.stopRiding();
                 getEntityData().set(DATA_HELD_PLAYER, grabbed.getId());
-                RagdollServerNetworking.markRagdolled(grabbed, 86);
             }
             float hold = Mth.clamp((mazeGrabTicks - 10) / 27.0F, 0.0F, 1.0F);
             double swing = Math.sin(hold * Math.PI) * 0.62D;
@@ -1428,7 +1439,6 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         player.setPos(hand.x, hand.y - player.getBbHeight() * 0.52D, hand.z);
         player.setDeltaMovement(Vec3.ZERO);
         player.resetFallDistance();
-        RagdollServerNetworking.markRagdolled(player, 60);
         RagdollServerNetworking.forceAuthority(player, Vec3.ZERO);
     }
 
@@ -2151,7 +2161,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 case CHAIN_GRAPPLE -> 3.3;
                 case LEAP -> clearChargeLane ? 4.3 : 6.3;
                 case RUBBLE_THROW -> distance > 16 ? 5 : 3;
-                case BACK_KICK -> facing < -.18 ? 8 : -8;
+                case BACK_KICK -> facing < -.18 ? 20 : -8;
                 case FIRE_RINGS -> 4;
                 case GREEK_FIRE_LASER -> 4.0;
                 case SMOKE_BELCH -> 4.8;
@@ -2829,7 +2839,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                         scarArena(level, position(), 4);
                         playSound(SoundEvents.RAVAGER_ATTACK, 2.5F, 0.42F);
                         riposteTicks = 28;
-                        bossStunTicks = 58;
+                        bossStunTicks = 24;
                         finishBossAttack(44);
                         return;
                     }
@@ -2839,7 +2849,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                         setDeltaMovement(Vec3.ZERO);
                 resetFallDistance();
                         riposteTicks = 30;
-                        bossStunTicks = 58;
+                        bossStunTicks = 24;
                         finishBossAttack(44);
                         return;
                     }
@@ -3064,7 +3074,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                         5, 1.1D, 0.8D, 1.1D, 0.08D);
                 riposteTicks = 34;
                 bossStunTicks = 62;
-                finishBossAttack(58);
+                finishBossAttack(32);
                 return;
             }
             if (attackCooldown <= 0 && impact.intersects(player.getBoundingBox())) {
@@ -3125,10 +3135,10 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 setDeltaMovement(Vec3.ZERO);
                 resetFallDistance();
                 scarArena(level, position(), 4);
-                bossStunTicks = 66;
-                riposteTicks = 66;
+                bossStunTicks = 28;
+                riposteTicks = 28;
                 playSound(SoundEvents.GENERIC_EXPLODE.value(), 3.2F, 0.40F);
-                finishBossAttack(58);
+                finishBossAttack(32);
                 return;
             }
             for (ServerPlayer victim : level.getEntitiesOfClass(ServerPlayer.class, horns)) {
@@ -3162,7 +3172,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         }
         if (bossAttackTicks >= 96) {
             riposteTicks = 48;
-            finishBossAttack(58);
+            finishBossAttack(32);
         }
     }
 
@@ -3318,7 +3328,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             scarArena(level, position().add(bossChargeDirection.scale(12.0D)), 12);
             playSound(SoundEvents.GENERIC_EXPLODE.value(), 4.0F, 0.52F);
         }
-        if (bossAttackTicks >= 52) finishBossAttack(58);
+        if (bossAttackTicks >= 52) finishBossAttack(32);
     }
 
     public boolean isChainGrappleActive() { return bossAttackState() == BossAttack.CHAIN_GRAPPLE && weaponSwapTicks() == 0; }
@@ -3364,7 +3374,6 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 grabbedPlayer = target.getUUID();
                 target.stopRiding();
                 getEntityData().set(DATA_HELD_PLAYER, target.getId());
-                RagdollServerNetworking.markRagdolled(target, 86);
                 lockReachTo(target);
                 bossAttackTicks = 8;
                 getEntityData().set(DATA_BOSS_ATTACK_TICKS, 8);
@@ -3760,7 +3769,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         }
         if (bossAttackTicks >= 78) {
             riposteTicks = 38;
-            finishBossAttack(58);
+            finishBossAttack(32);
         }
     }
 
@@ -4084,7 +4093,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         }
         if (elapsed >= 23) {
             riposteTicks = 56;
-            finishBossAttack(58);
+            finishBossAttack(32);
         }
     }
 
@@ -4128,7 +4137,6 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             grabbedPlayer = player.getUUID();
             player.stopRiding();
             getEntityData().set(DATA_HELD_PLAYER, player.getId());
-            RagdollServerNetworking.markRagdolled(player, 86);
             lockReachTo(player);
         }
         Player foundGrabbed = grabbedPlayer == null ? null : level.getPlayerByUUID(grabbedPlayer);
@@ -4931,6 +4939,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
     private void applyBossCollisionDamage(ServerLevel level, boolean pillar) {
         increaseRage(pillar ? 2 : 1);
+        playSound(Asterion.MINOTAUR_STAGGER, 2.2F, 1.0F);
         level.sendParticles(ParticleTypes.DAMAGE_INDICATOR, getX(), getY() + getBbHeight() * 0.58D,
                 getZ(), pillar ? 20 : 10, 0.9D, 1.2D, 0.9D, 0.08D);
     }

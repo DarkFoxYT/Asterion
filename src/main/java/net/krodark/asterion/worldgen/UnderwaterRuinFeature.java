@@ -4,8 +4,6 @@ import com.mojang.serialization.Codec;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.entity.BarrelBlockEntity;
@@ -44,10 +42,9 @@ public final class UnderwaterRuinFeature extends Feature<NoneFeatureConfiguratio
 
         BlockPos barrelPos = StructurePlaceSettingsTransform.transformBarrel(corner, settings);
         if (context.level().getBlockEntity(barrelPos) instanceof BarrelBlockEntity barrel) {
-            barrel.setItem(4, new ItemStack(Items.PRISMARINE_SHARD, 3 + context.random().nextInt(6)));
-            barrel.setItem(10, new ItemStack(Items.GOLD_NUGGET, 2 + context.random().nextInt(8)));
-            if (context.random().nextFloat() < AsterionConfig.INSTANCE.mechanismChance)
-                barrel.setItem(13, Asterion.ANTIKYTHERA_MECHANISM.getDefaultInstance());
+            barrel.setLootTable(net.minecraft.resources.ResourceKey.create(
+                    net.minecraft.core.registries.Registries.LOOT_TABLE,
+                    Asterion.id("chests/underwater_ruin")));
             barrel.setChanged();
         }
         return true;

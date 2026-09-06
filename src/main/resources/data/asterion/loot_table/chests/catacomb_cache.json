@@ -161,7 +161,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:iron_ingot",
+          "name": "minecraft:raw_iron",
           "weight": 2
         },
         {

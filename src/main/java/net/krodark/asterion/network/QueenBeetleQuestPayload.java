@@ -11,6 +11,7 @@ public record QueenBeetleQuestPayload(int stage, int progress, int target, int a
     public static final int REWARDED = 2;
     public static final int COMPLETE = 3;
     public static final int RESTORE_ACTIVE = 4;
+    public static final int COOLDOWN = 5;
     public static final Type<QueenBeetleQuestPayload> TYPE = new Type<>(Asterion.id("queen_beetle_quest"));
     public static final StreamCodec<RegistryFriendlyByteBuf, QueenBeetleQuestPayload> CODEC = StreamCodec.of(
             (buffer, payload) -> {

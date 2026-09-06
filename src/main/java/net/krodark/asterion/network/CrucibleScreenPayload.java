@@ -21,11 +21,11 @@ public record CrucibleScreenPayload(BlockPos pos, int temperature, int targetTem
                 buffer.writeVarInt(payload.mold);
                 buffer.writeInt(payload.mixColor);
                 buffer.writeVarInt(payload.materialUnits);
-                buffer.writeUtf(payload.metalSequence, 4);
+                buffer.writeUtf(payload.metalSequence, 5);
                 buffer.writeVarInt(payload.autoPourProgress);
             }, buffer -> new CrucibleScreenPayload(buffer.readBlockPos(), buffer.readVarInt(),
                     buffer.readVarInt(), buffer.readVarInt(), buffer.readVarInt(), buffer.readVarInt(), buffer.readInt(),
-                    buffer.readVarInt(), buffer.readUtf(4), buffer.readVarInt()));
+                    buffer.readVarInt(), buffer.readUtf(5), buffer.readVarInt()));
 
     @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
 }

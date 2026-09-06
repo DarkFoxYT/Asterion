@@ -59,6 +59,9 @@ public final class OmegaLockBlock extends BaseEntityBlock {
         return state.getValue(FACING).getAxis() == Direction.Axis.Z ? NORTH_SOUTH : EAST_WEST;
     }
     @Override protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        if (context instanceof net.minecraft.world.phys.shapes.EntityCollisionContext entityContext
+                && entityContext.getEntity() instanceof net.krodark.asterion.entity.MinotaurEntity boss
+                && boss.doorEntryTicks() > 0) return net.minecraft.world.phys.shapes.Shapes.empty();
         return state.getValue(UNLOCKED) ? net.minecraft.world.phys.shapes.Shapes.empty() : getShape(state, level, pos, context);
     }
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {

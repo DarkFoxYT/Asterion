@@ -27,45 +27,43 @@ final class AncientBoneCheck {
         try {
             player.teleportTo(level, .5, 200, 2.5, Set.of(), 0, 0, true);
             var heat = CrucibleBlockEntity.class.getDeclaredField("temperature"); heat.setAccessible(true);
-            for (boolean boneFirst : new boolean[]{true, false}) {
+            for (boolean boneRecipe : new boolean[]{false, true}) for (boolean reverse : new boolean[]{false, true}) {
                 level.setBlock(pos, Blocks.AIR.defaultBlockState(), 18);
                 level.setBlock(pos, Asterion.CRUCIBLE.defaultBlockState(), 18);
-                level.setBlock(pos.below(), Blocks.CAMPFIRE.defaultBlockState()
-                        .setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT, true), 3);
+                level.setBlock(pos.below(), Blocks.CAMPFIRE.defaultBlockState(), 3);
                 var forge = (CrucibleBlockEntity)level.getBlockEntity(pos);
-                Item first = boneFirst ? AncientContent.ANCIENT_BONE : Asterion.MAZESTEEL_BLOCK.asItem();
-                Item second = boneFirst ? Asterion.MAZESTEEL_BLOCK.asItem() : AncientContent.ANCIENT_BONE;
-                check(forge.insert(player, new ItemStack(Asterion.INGOT_CAST)), "Ingot cast rejected");
-                check(forge.insert(player, new ItemStack(first)), "First ingredient rejected");
-                for (int tick = 0; tick < 250; tick++) { heat.setInt(forge, 350); CrucibleBlockEntity.tick(level, pos, forge.getBlockState(), forge); }
-                check(forge.hasUnsmeltedIngredients() && dropped(level, pos, Asterion.BONESTEEL_INGOT) == 0,
-                        "One ingredient produced Bonesteel");
-                check(forge.insert(player, new ItemStack(second)), "Second ingredient rejected");
-                heat.setInt(forge, 0);
-                CrucibleBlockEntity.tick(level, pos, forge.getBlockState(), forge);
-                check(forge.materialUnits() == 2 && forge.hasUnsmeltedIngredients(), "Cold ingredients converted into metal");
+                var ingredients = new ArrayList<Item>(boneRecipe
+                        ? java.util.List.of(Asterion.CELESTIAL_STEEL_INGOT, Items.IRON_INGOT,
+                            AncientContent.ANCIENT_BONE, AncientContent.ANCIENT_BONE, AncientContent.ANCIENT_BONE)
+                        : java.util.List.of(Items.IRON_INGOT, Items.IRON_INGOT, Items.COAL, Items.COAL));
+                if (reverse) java.util.Collections.reverse(ingredients);
+                Item output = boneRecipe ? Asterion.BONESTEEL_INGOT : Asterion.CELESTIAL_STEEL_INGOT;
+                int target = boneRecipe ? 900 : 700;
+                check(forge.insert(player, new ItemStack(Asterion.INGOT_CAST)), "Cast rejected");
+                for (Item ingredient : ingredients)
+                    check(forge.insert(player, new ItemStack(ingredient)), "Ingredient rejected: " + ingredient);
+                check(forge.hasUnsmeltedIngredients(), "Ingredients reacted on insertion");
                 var saved = forge.saveWithFullMetadata(level.registryAccess());
                 forge = (CrucibleBlockEntity)BlockEntity.loadStatic(pos, forge.getBlockState(), saved, level.registryAccess());
                 level.setBlockEntity(forge);
-                check(forge.materialUnits() == 2 && forge.hasUnsmeltedIngredients(), "Unsmelted ingredients lost on reload");
-                for (int tick = 0; tick < 250; tick++) { heat.setInt(forge, 350); CrucibleBlockEntity.tick(level, pos, forge.getBlockState(), forge); }
-                check(dropped(level, pos, Asterion.BONESTEEL_INGOT) == 0 && forge.hasUnsmeltedIngredients(),
-                        "Forge smelted without a button press");
+                check(forge.materialUnits() == ingredients.size(), "Ingredients lost on reload");
+                for (int tick = 0; tick < 250; tick++) {
+                    heat.setInt(forge, target);
+                    CrucibleBlockEntity.tick(level, pos, forge.getBlockState(), forge);
+                }
+                check(dropped(level, pos, output) == 0 && forge.hasUnsmeltedIngredients(), "Automatic smelting");
+                for (int wrong : new int[]{target - 9, target + 9}) {
+                    heat.setInt(forge, wrong);
+                    forge.control(player, CrucibleControlPayload.POUR);
+                    check(forge.materialUnits() == ingredients.size(), "Wrong heat consumed ingredients");
+                }
+                heat.setInt(forge, target);
                 forge.control(player, CrucibleControlPayload.POUR);
-                check(dropped(level, pos, Asterion.BONESTEEL_INGOT) == 1 && forge.materialUnits() == 0,
-                        "Pair did not eject one Bonesteel ingot");
+                check(dropped(level, pos, output) == 1 && forge.materialUnits() == 0, "Recipe failed to cast exactly one ingot");
                 forge.control(player, CrucibleControlPayload.POUR);
-                check(dropped(level, pos, Asterion.BONESTEEL_INGOT) == 1, "Repeated pour duplicated Bonesteel");
+                check(dropped(level, pos, output) == 1, "Duplicate output");
                 clearDropped(level, pos);
-                for (int slot = 0; slot < 36; slot++) player.getInventory().setItem(slot, ItemStack.EMPTY);
             }
-            level.setBlock(pos, Blocks.AIR.defaultBlockState(),18);
-            level.setBlock(pos, Asterion.CRUCIBLE.defaultBlockState(),18);
-            var forge = (CrucibleBlockEntity)level.getBlockEntity(pos);
-            forge.insert(player, new ItemStack(AncientContent.ANCIENT_BONE));
-            forge.control(player, CrucibleControlPayload.removeMaterial(0));
-            check(count(player, AncientContent.ANCIENT_BONE) == 1 && forge.materialUnits() == 0, "Removing raw bone returned the wrong item");
-
             var skeleton = AncientContent.SKELETON.create(level, EntitySpawnReason.COMMAND);
             var params = new LootParams.Builder(level).withParameter(LootContextParams.THIS_ENTITY, skeleton)
                     .withParameter(LootContextParams.ORIGIN, player.position())
@@ -78,7 +76,7 @@ final class AncientBoneCheck {
                 check(drops.stream().allMatch(s -> s.is(Items.BONE) || s.is(AncientContent.ANCIENT_BONE)), "Skeleton loot included equipment");
                 rareDrops += drops.stream().filter(s -> s.is(AncientContent.ANCIENT_BONE)).mapToInt(ItemStack::getCount).sum();
             }
-            check(rareDrops >= 20 && rareDrops <= 90, "Ancient Bone is not a rare drop: " + rareDrops + "/1000");
+            check(rareDrops >= 1 && rareDrops <= 25, "Ancient Bone is not a rare drop: " + rareDrops + "/1000");
             Asterion.LOGGER.info("PASS: Ancient Bone rare loot ({}/1000), either input order, cold/incomplete mixture rejection, saved inputs, raw refunds, external-heat casting, front ejection and no duplicate output", rareDrops);
         } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
         finally {

@@ -44,8 +44,11 @@ public final class ChallengeSpawnerBlockEntity extends BlockEntity {
             var player = level.players().stream().filter(p -> p.isAlive() && !p.isCreative() && !p.isSpectator()
                     && p.distanceToSqr(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5) < 64).findFirst().orElse(null);
             if (player == null || level.getDifficulty() == net.minecraft.world.Difficulty.PEACEFUL) return;
-            for (int attempt = 0; attempt < 24 && spawner.mobs.size() < 3; attempt++) {
-                Mob mob = Asterion.BOMBARDIER_BEETLE.create(level, EntitySpawnReason.SPAWNER);
+            int groupSize = 2 + level.getRandom().nextInt(3);
+            for (int attempt = 0; attempt < 24 && spawner.mobs.size() < groupSize; attempt++) {
+                EntityType<? extends Mob> type = level.getRandom().nextBoolean()
+                        ? net.krodark.asterion.game.AncientContent.SKELETON : Asterion.BOMBARDIER_BEETLE;
+                Mob mob = type.create(level, EntitySpawnReason.SPAWNER);
                 if (mob == null) continue;
                 BlockPos spawn = pos.offset(level.getRandom().nextInt(7) - 3, 0, level.getRandom().nextInt(7) - 3);
                 mob.setPos(spawn.getX() + .5, spawn.getY(), spawn.getZ() + .5);
@@ -63,8 +66,9 @@ public final class ChallengeSpawnerBlockEntity extends BlockEntity {
         if (spawner.mobs.isEmpty()) {
             spawner.complete = true;
             spawner.removeLabel(level);
-            Block.popResource(level, pos.above(), new ItemStack(Asterion.TARNISHED_GOLD_INGOT, 3 + level.getRandom().nextInt(4)));
-            Block.popResource(level, pos.above(), new ItemStack(Asterion.CELESTIAL_BRONZE_INGOT, 1 + level.getRandom().nextInt(3)));
+            Block.popResource(level, pos.above(), new ItemStack(Asterion.SHALE_TARNISHED_GOLD_ORE, 3 + level.getRandom().nextInt(4)));
+            if (level.getRandom().nextInt(100) == 0)
+                Block.popResource(level, pos.above(), new ItemStack(net.krodark.asterion.game.AncientContent.ANCIENT_BONE));
             ExperienceOrb.award(level, pos.getCenter().add(0, 1, 0), 20);
         } else if (explosive) {
             if (--spawner.remaining <= 0) {

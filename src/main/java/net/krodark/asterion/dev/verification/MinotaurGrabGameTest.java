@@ -53,25 +53,12 @@ public final class MinotaurGrabGameTest implements FabricClientGameTest {
             server.runOnServer(mc -> {
                 var player = mc.getPlayerList().getPlayers().getFirst();
                 check(bossRef.get().heldPlayerId() == player.getId(), "Player was not held");
-                check(RagdollServerNetworking.isRagdolled(player), "Grab did not start server ragdoll");
-                try {
-                    var exit = RagdollServerNetworking.class.getDeclaredMethod("exitTumble",
-                            net.minecraft.server.level.ServerPlayer.class, net.krodark.asterion.network.ragdoll.TumbleExitPayload.class);
-                    exit.setAccessible(true);
-                    Vec3 position = player.position();
-                    exit.invoke(null, player, new net.krodark.asterion.network.ragdoll.TumbleExitPayload(
-                            position.x + 2, position.y, position.z, 0, 0, 0));
-                    check(player.position().equals(position) && RagdollServerNetworking.isRagdolled(player),
-                            "Client recovery escaped the grab");
-                } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
+                check(!RagdollServerNetworking.isRagdolled(player), "Holding started ragdoll before the throw");
             });
             context.runOnClient(client -> {
                 var engine = DismembermentEngine.INSTANCE;
-                check(engine.isPlayerTumbling(client.player.getId()), "Held player is still using vanilla rendering");
+                check(!engine.isPlayerTumbling(client.player.getId()), "Held player started tumbling");
                 try {
-                    var pieces = DismembermentEngine.class.getDeclaredField("pieces");
-                    pieces.setAccessible(true);
-                    check(((java.util.List<?>)pieces.get(engine)).size() >= 6, "Held player is missing body parts");
                     var method = MazeObjectiveOverlay.class.getDeclaredMethod("bossFightActive", net.minecraft.client.Minecraft.class);
                     method.setAccessible(true);
                     check((boolean)method.invoke(null, client), "Objectives did not detect the boss fight");
@@ -79,7 +66,7 @@ public final class MinotaurGrabGameTest implements FabricClientGameTest {
                 client.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
             });
             context.waitTicks(2);
-            context.takeScreenshot("grab-ragdoll-third-person");
+            context.takeScreenshot("grab-held-third-person");
             AtomicReference<Vec3> start = new AtomicReference<>();
             server.runOnServer(mc -> start.set(mc.getPlayerList().getPlayers().getFirst().position()));
             context.waitTicks(35);
@@ -90,7 +77,7 @@ public final class MinotaurGrabGameTest implements FabricClientGameTest {
                 check(player.position().distanceTo(start.get()) > 5, "Throw did not move the player");
                 barRef.get().removeAllPlayers();
             });
-            Asterion.LOGGER.info("PASS: boss objectives hidden, immediate full-body grab ragdoll, release and authoritative throw");
+            Asterion.LOGGER.info("PASS: boss objectives hidden, held player without ragdoll, release and authoritative throw");
         }
     }
 

@@ -224,7 +224,7 @@ public final class ShaleCaves {
         double oz = Math.floorMod(z, 7) - (2 + Math.floorMod(vein >>> 24, 3));
         double radius = 1.35 + Math.floorMod(vein >>> 32, 8) * .1;
         if (Math.floorMod(vein, 7) == 0 && ox * ox + oy * oy * 1.8 + oz * oz < radius * radius) {
-            boolean celestial = Math.floorMod(vein >>> 40, 16) == 0;
+            boolean celestial = Math.floorMod(vein >>> 40, 14) == 0;
             Block ore = celestial
                     ? (dark ? Asterion.SHADED_SHALE_CELESTIAL_GOLD_ORE : Asterion.SHALE_CELESTIAL_GOLD_ORE)
                     : (dark ? Asterion.SHADED_SHALE_TARNISHED_GOLD_ORE : Asterion.SHALE_TARNISHED_GOLD_ORE);

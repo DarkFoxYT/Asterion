@@ -1,19 +1,174 @@
 {
-  "type":"minecraft:chest",
-  "pools":[
-    {"rolls":{"type":"minecraft:uniform","min":4,"max":7},"entries":[
-      {"type":"minecraft:item","name":"minecraft:gold_nugget","weight":16,"functions":[{"function":"minecraft:set_count","count":{"type":"minecraft:uniform","min":4,"max":14}}]},
-      {"type":"minecraft:item","name":"minecraft:raw_gold","weight":12,"functions":[{"function":"minecraft:set_count","count":{"type":"minecraft:uniform","min":1,"max":5}}]},
-      {"type":"minecraft:item","name":"minecraft:gold_ingot","weight":8,"functions":[{"function":"minecraft:set_count","count":{"type":"minecraft:uniform","min":1,"max":3}}]},
-      {"type":"minecraft:item","name":"asterion:tarnished_gold_ingot","weight":7,"functions":[{"function":"minecraft:set_count","count":{"type":"minecraft:uniform","min":1,"max":2}}]},
-      {"type":"minecraft:item","name":"asterion:ancient_bone","weight":4},
-      {"type":"minecraft:item","name":"minecraft:iron_ingot","weight":6,"functions":[{"function":"minecraft:set_count","count":{"type":"minecraft:uniform","min":1,"max":4}}]}
-    ]},
-    {"rolls":1,"conditions":[{"condition":"minecraft:random_chance","chance":0.035}],"entries":[
-      {"type":"minecraft:item","name":"asterion:celestial_bronze_ingot","weight":5},
-      {"type":"minecraft:item","name":"asterion:celestial_gold_ingot","weight":2},
-      {"type":"minecraft:item","name":"asterion:celestial_steel_ingot","weight":1}
-    ]}
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": {
+        "type": "minecraft:uniform",
+        "min": 4,
+        "max": 7
+      },
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:gold_nugget",
+          "weight": 16,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 4,
+                "max": 14
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:raw_gold",
+          "weight": 12,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 5
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:raw_gold",
+          "weight": 8,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 3
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "asterion:shale_tarnished_gold_ore",
+          "weight": 7,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 2
+              }
+            }
+          ],
+          "conditions": [
+            {
+              "condition": "minecraft:random_chance",
+              "chance": 0.5
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:raw_iron",
+          "weight": 6,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 4
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "conditions": [
+        {
+          "condition": "minecraft:random_chance",
+          "chance": 0.035
+        }
+      ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "asterion:shale_tarnished_gold_ore",
+          "weight": 5,
+          "conditions": [
+            {
+              "condition": "minecraft:random_chance",
+              "chance": 0.5
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "asterion:shale_celestial_gold_ore",
+          "weight": 2
+        },
+        {
+          "type": "minecraft:item",
+          "name": "asterion:shaded_shale_celestial_gold_ore",
+          "weight": 1
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "conditions": [
+        {
+          "condition": "minecraft:random_chance",
+          "chance": 0.01
+        }
+      ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "asterion:ancient_bone"
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "conditions": [
+        {
+          "condition": "minecraft:random_chance",
+          "chance": 0.1
+        }
+      ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "asterion:ingot_cast",
+          "weight": 5
+        },
+        {
+          "type": "minecraft:item",
+          "name": "asterion:sword_guard_cast",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "asterion:sword_pommel_cast",
+          "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "asterion:sword_blade_cast",
+          "weight": 2
+        }
+      ]
+    }
   ],
-  "random_sequence":"asterion:chests/forge_gold_reserve"
+  "random_sequence": "asterion:chests/forge_gold_reserve"
 }

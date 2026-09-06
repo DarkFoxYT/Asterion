@@ -76,10 +76,18 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
 
     @Override
     public boolean checkSpawnRules(LevelAccessor level, EntitySpawnReason reason) {
-        if (reason == EntitySpawnReason.NATURAL
-                && (!(level instanceof ServerLevel server)
-                || !server.dimension().equals(Asterion.ASTERION_LEVEL)
-                || !isAllowedAsterionLocation(blockPosition()))) return false;
+        if (reason == EntitySpawnReason.NATURAL) {
+            if (!(level instanceof ServerLevel server)
+                    || !server.dimension().equals(Asterion.ASTERION_LEVEL)
+                    || !isAllowedAsterionLocation(blockPosition())) return false;
+            int tile = net.krodark.asterion.worldgen.CatacombLayout.TILE;
+            var module = net.krodark.asterion.worldgen.AuthoredCatacombs.module(server.getSeed(),
+                    Math.floorDiv(getBlockX(), tile), Math.floorDiv(getBlockZ(), tile));
+            if (module.exits() == 0 || !module.name().startsWith("corridor_")
+                    || server.getRandom().nextInt(8) != 0) return false;
+            if (!server.getEntitiesOfClass(ConstructEntity.class, getBoundingBox().inflate(48),
+                    other -> other != this && other.isAlive()).isEmpty()) return false;
+        }
         return super.checkSpawnRules(level, reason);
     }
 

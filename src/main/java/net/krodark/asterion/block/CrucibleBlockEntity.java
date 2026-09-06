@@ -53,6 +53,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     private int mazesteel;
     private int ancientBones;
     private int carbon;
+    private int brazierKeys;
     private int pouringTicks;
     private int autoPourTicks;
     /** IDs follow the artist folders; 2 is tarnished_gold and 8 is ordinary gold. */
@@ -79,7 +80,10 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     }
 
     public int temperature() { return temperature; }
-    public int targetTemperature() { return moldInserted ? mold().target() : 0; }
+    public int targetTemperature() { if (!moldInserted) return 0;
+        if (ancientBones > 0 || mold() == Mold.INGOT && bonesteel > 0) return 900;
+        if (carbon > 0 || mold() == Mold.INGOT && celestialSteel > 0) return 700;
+        return mold().target(); }
     public int heatControl() { return heatControl; }
     public int fuelTicks() { return fuelTicks; }
     public String metalSequence() { return metalSequence; }
@@ -87,9 +91,9 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     public int selectedMoldIndex() { return moldInserted ? mold().ordinal() : -1; }
     public int materialUnits() {
         return iron + copper + gold + netherite + celestialBronze + bonesteel + celestialSteel + celestialGold + regularGold
-                + mazesteel + ancientBones;
+                + mazesteel + ancientBones + carbon + brazierKeys;
     }
-    public boolean hasUnsmeltedIngredients() { return mazesteel > 0 || ancientBones > 0; }
+    public boolean hasUnsmeltedIngredients() { return mazesteel > 0 || ancientBones > 0 || carbon > 0; }
     public int mixColor() {
         if (metalSequence.isEmpty()) return 0x514A43;
         int color = metalColor(metalSequence.charAt(0) - '0');
@@ -112,11 +116,11 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             case 0 -> 0xD8DCE0; case 1 -> 0xD9784A; case 2 -> 0xFFCD42;
             case 3 -> 0x443A4D; case 4 -> 0xD89A54; case 5 -> 0xAAA49C;
             case 6 -> 0x91C7D9; case 7 -> 0xFFE47A; case 8 -> 0xFFD24A;
-            case 9 -> 0x554F47; case 10 -> 0xC4BBA8; default -> 0xFFFFFF;
+            case 9 -> 0x554F47; case 10 -> 0xC4BBA8; case 11 -> 0x252529; default -> 0xFFFFFF;
         };
     }
     public Mold mold() { return Mold.values()[Mth.clamp(mold, 0, Mold.values().length - 1)]; }
-    public boolean calibrated() { return moldInserted && Math.abs(temperature - mold().target()) <= TOLERANCE; }
+    public boolean calibrated() { return moldInserted && Math.abs(temperature - targetTemperature()) <= (targetTemperature() >= 700 ? 8 : TOLERANCE); }
 
     public static int moldIndex(Item item) {
         if (item == Asterion.INGOT_CAST) return Mold.INGOT.ordinal();
@@ -154,19 +158,8 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             changedAndSync();
             return true;
         }
-        if ((stack.is(Items.COAL) || stack.is(Items.CHARCOAL)) && iron > 0) {
-            iron--;
-            celestialSteel++;
-            metalSequence = replaceFirstMetal(metalSequence, '0', '6');
-            if (primaryMetal == 0) primaryMetal = 6;
-            if (secondaryMetal == 0) secondaryMetal = 6;
-            stack.shrink(1);
-            changedAndSync();
-            return true;
-        }
-        if (materialUnits() < 4 && insertMaterial(stack, player)) {
-            reactIronAndCarbon();
-            reactIronAndCopper();
+        if (materialUnits() < (ancientBones > 0 || stack.is(net.krodark.asterion.game.AncientContent.ANCIENT_BONE) ? 5 : 4) && insertMaterial(stack, player)) {
+            if (ancientBones == 0 && carbon == 0) reactIronAndCopper();
             stack.shrink(1);
             changedAndSync();
             return true;
@@ -219,6 +212,8 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         else if (stack.is(Asterion.CELESTIAL_GOLD_INGOT)) { celestialGold++; metal = 7; }
         else if (stack.is(Asterion.MAZESTEEL_BLOCK.asItem())) { mazesteel++; metal = 9; }
         else if (stack.is(net.krodark.asterion.game.AncientContent.ANCIENT_BONE)) { ancientBones++; metal = 10; }
+        else if (stack.is(net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER_KEY) && brazierKeys == 0) { brazierKeys++; metal = 12; }
+        else if (stack.is(Items.COAL)) { carbon++; metal = 11; }
         else return false;
         if (primaryMetal < 0) primaryMetal = metal;
         else if (metal != primaryMetal && secondaryMetal < 0) secondaryMetal = metal;
@@ -240,32 +235,24 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         }
     }
 
-    private void reactIronAndCarbon() {
-        while (iron > 0 && carbon > 0) {
-            iron--; carbon--; celestialSteel++;
-            metalSequence = replaceFirstMetal(metalSequence, '0', '6');
-        }
-        if (!metalSequence.isEmpty()) primaryMetal = metalSequence.charAt(0) - '0';
-    }
-
     private static String replaceFirstMetal(String sequence, char from, char to) {
         int index = sequence.indexOf(from);
         return index < 0 ? sequence : sequence.substring(0, index) + to + sequence.substring(index + 1);
     }
 
     private boolean smeltBonesteel() {
-        if (temperature < Mold.INGOT.target() || fuelTicks <= 0 || mazesteel == 0 || ancientBones == 0) return false;
-        while (mazesteel > 0 && ancientBones > 0) {
-            mazesteel--; ancientBones--; bonesteel++;
-            int bone = metalSequence.indexOf((char)('0' + 10));
-            metalSequence = metalSequence.substring(0, bone) + metalSequence.substring(bone + 1);
-            metalSequence = replaceFirstMetal(metalSequence, '9', '5');
-        }
+        if (!calibrated() || fuelTicks <= 0 || mold() != Mold.INGOT) return false;
+        if (ancientBones == 3 && iron == 1 && celestialSteel == 1 && materialUnits() == 5) {
+            ancientBones = iron = celestialSteel = 0;
+            bonesteel = 1;
+            metalSequence = "5";
+        } else if (carbon == 2 && iron == 2 && materialUnits() == 4) {
+            carbon = iron = 0;
+            celestialSteel = 1;
+            metalSequence = "6";
+        } else return false;
         primaryMetal = metalSequence.charAt(0) - '0';
         secondaryMetal = -1;
-        for (int i = 1; i < metalSequence.length(); i++) if (metalSequence.charAt(i) - '0' != primaryMetal) {
-            secondaryMetal = metalSequence.charAt(i) - '0'; break;
-        }
         autoPourTicks = 0;
         return true;
     }
@@ -321,7 +308,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             if (smeltBonesteel()) { changedAndSync(); open(player); }
             else net.krodark.asterion.game.PlayerNotices.show(player, net.minecraft.network.chat.Component.literal(
                     fuelTicks <= 0 ? "Place a lit heat source beneath the Forge's center." : hasUnsmeltedIngredients()
-                            ? "Bonesteel needs Mazesteel, Ancient Bone and at least 350° heat."
+                            ? "Steel: 2 iron + 2 coal at 700° ±8. Bonesteel: 1 steel + 1 iron + 3 Ancient Bones at 900° ±8. Use an ingot cast."
                             : "Metals melt as they enter the Forge. Set the mold temperature, then press Smelt to cast."));
             return;
         }
@@ -362,7 +349,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             case 0 -> iron--; case 1 -> copper--; case 2 -> gold--; case 3 -> netherite--;
             case 4 -> celestialBronze--; case 5 -> bonesteel--; case 6 -> celestialSteel--;
             case 7 -> celestialGold--; case 8 -> regularGold--;
-            case 9 -> mazesteel--; case 10 -> ancientBones--;
+            case 9 -> mazesteel--; case 10 -> ancientBones--; case 11 -> carbon--; case 12 -> brazierKeys--;
         }
         primaryMetal = metalSequence.isEmpty() ? -1 : metalSequence.charAt(0) - '0';
         secondaryMetal = -1;
@@ -380,15 +367,26 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             case 3 -> Items.NETHERITE_INGOT; case 4 -> Asterion.CELESTIAL_BRONZE_INGOT;
             case 5 -> Asterion.BONESTEEL_INGOT; case 6 -> Asterion.CELESTIAL_STEEL_INGOT;
             case 7 -> Asterion.CELESTIAL_GOLD_INGOT; case 9 -> Asterion.MAZESTEEL_BLOCK.asItem();
-            case 10 -> net.krodark.asterion.game.AncientContent.ANCIENT_BONE; default -> Items.GOLD_INGOT;
+            case 10 -> net.krodark.asterion.game.AncientContent.ANCIENT_BONE; case 11 -> Items.COAL; case 12 -> net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER_KEY; default -> Items.GOLD_INGOT;
         };
         return new ItemStack(item);
     }
 
     private void pour(ServerPlayer player) {
         if (!calibrated() || materialUnits() == 0 || hasUnsmeltedIngredients() || !locationAllowsMold()) return;
-        if (mold() == Mold.MINOTAUR_KEY && (materialUnits() != 1 || bonesteel != 1)) {
-            net.krodark.asterion.game.PlayerNotices.show(player, Component.literal("The Minotaur Key requires exactly one pure Bonesteel ingot."));
+        if (mold() == Mold.MINOTAUR_KEY && (materialUnits() != 4 || bonesteel != 3 || brazierKeys != 1)) {
+            net.krodark.asterion.game.PlayerNotices.show(player, Component.literal("The Minotaur Key requires 3 Bonesteel ingots and 1 Cursed Brazier Key."));
+            return;
+        }
+        if (mold() == Mold.MINOTAUR_KEY) {
+            eject(new ItemStack(Asterion.MINOTAUR_KEY));
+            finishPour(player);
+            return;
+        }
+        if (brazierKeys > 0) return;
+        if (mold() == Mold.INGOT && celestialSteel == materialUnits()) {
+            eject(new ItemStack(Asterion.CELESTIAL_STEEL_INGOT, celestialSteel));
+            finishPour(player);
             return;
         }
         if (mold() == Mold.INGOT && bonesteel == materialUnits()) {
@@ -405,7 +403,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             case MINOTAUR_KEY -> Asterion.MINOTAUR_KEY;
         };
         ItemStack result = new ItemStack(output);
-        int error = Math.abs(temperature - mold().target());
+        int error = Math.abs(temperature - targetTemperature());
         String quality = error <= 5 ? "Masterwork" : error <= 15 ? "Fine" : "Serviceable";
         result.set(DataComponents.CUSTOM_NAME,
                 Component.literal(alloyName() + " " + partName())
@@ -484,7 +482,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
 
     private void finishPour(ServerPlayer player) {
         iron = copper = gold = netherite = celestialBronze = bonesteel = celestialSteel = celestialGold = regularGold = 0;
-        mazesteel = ancientBones = 0;
+        mazesteel = ancientBones = carbon = brazierKeys = 0;
         primaryMetal = secondaryMetal = -1;
         metalSequence = "";
         pouringTicks = 40;
@@ -724,6 +722,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         output.putInt("mazesteel", mazesteel);
         output.putInt("ancientBones", ancientBones);
         output.putInt("carbon", carbon);
+        output.putInt("brazierKeys", brazierKeys);
         output.putInt("pouringTicks", pouringTicks);
         output.putInt("autoPourTicks", autoPourTicks);
         output.putInt("primaryMetal", primaryMetal);
@@ -750,17 +749,18 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
                 4 - iron - copper - gold - netherite - celestialBronze - bonesteel - celestialSteel);
         regularGold = Mth.clamp(input.getIntOr("regularGold", 0), 0,
                 4 - iron - copper - gold - netherite - celestialBronze - bonesteel - celestialSteel - celestialGold);
-        int remaining = 4 - iron - copper - gold - netherite - celestialBronze - bonesteel - celestialSteel - celestialGold - regularGold;
+        int remaining = 5 - iron - copper - gold - netherite - celestialBronze - bonesteel - celestialSteel - celestialGold - regularGold;
         mazesteel = Mth.clamp(input.getIntOr("mazesteel", 0), 0, remaining);
         ancientBones = Mth.clamp(input.getIntOr("ancientBones", 0), 0, remaining - mazesteel);
-        carbon = Mth.clamp(input.getIntOr("carbon", 0), 0, 4);
+        carbon = Mth.clamp(input.getIntOr("carbon", 0), 0, Math.max(0, remaining - mazesteel - ancientBones));
+        brazierKeys = Mth.clamp(input.getIntOr("brazierKeys", 0), 0, Math.min(1, Math.max(0, remaining - mazesteel - ancientBones - carbon)));
         pouringTicks = Mth.clamp(input.getIntOr("pouringTicks", 0), 0, 40);
         autoPourTicks = Mth.clamp(input.getIntOr("autoPourTicks", 0), 0, AUTO_POUR_TICKS);
-        primaryMetal = Mth.clamp(input.getIntOr("primaryMetal", -1), -1, 10);
-        secondaryMetal = Mth.clamp(input.getIntOr("secondaryMetal", -1), -1, 10);
+        primaryMetal = Mth.clamp(input.getIntOr("primaryMetal", -1), -1, 12);
+        secondaryMetal = Mth.clamp(input.getIntOr("secondaryMetal", -1), -1, 12);
         metalSequence = input.getStringOr("metalSequence", "");
         if (metalSequence.length() != materialUnits()
-                || metalSequence.chars().anyMatch(value -> value < '0' || value > '0' + 10))
+                || metalSequence.chars().anyMatch(value -> value < '0' || value > '0' + 12))
             metalSequence = legacySequence();
         if (primaryMetal < 0 && !metalSequence.isEmpty()) primaryMetal = metalSequence.charAt(0) - '0';
         heatControl = Mth.clamp(input.getIntOr("heatControl", 0), MIN_HEAT_CONTROL, MAX_HEAT_CONTROL);
@@ -781,6 +781,8 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         sequence.append("8".repeat(regularGold));
         sequence.append("9".repeat(mazesteel));
         sequence.append(":".repeat(ancientBones));
+        sequence.append(";".repeat(carbon));
+        sequence.append("<".repeat(brazierKeys));
         return sequence.toString();
     }
 

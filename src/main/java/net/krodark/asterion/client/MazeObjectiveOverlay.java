@@ -58,6 +58,7 @@ public final class MazeObjectiveOverlay {
     }
 
     public static void armAfterArrival() {
+        if (armed || visible) return;
         armed = true;
         sawTumble = false;
         visible = false;
@@ -163,10 +164,11 @@ public final class MazeObjectiveOverlay {
                                 + Math.pow(waypoint.z - client.player.getZ(), 2)))));
         Component progress = Component.translatable("objective.asterion.progress",
                 stage.ordinal() + 1, Stage.values().length);
-        int panelWidth = Math.min(graphics.guiWidth() - 24, 286);
-        var hintLines = client.font.split(hint, panelWidth - 24);
-        int waypointY = 35 + hintLines.size() * 10;
-        int panelHeight = waypointY + (waypoint == null ? 4 : 17);
+        int panelWidth = Math.min(graphics.guiWidth() - 20, 236);
+        var splitHint = client.font.split(hint, panelWidth - 18);
+        var hintLines = splitHint.size() > 2 ? splitHint.subList(0, 2) : splitHint;
+        int waypointY = 31 + hintLines.size() * 9;
+        int panelHeight = waypointY + (waypoint == null ? 3 : 14);
         int left = Math.round(Mth.lerp(appear, -panelWidth - 4.0F, 12.0F));
         int panelTop = 12;
         graphics.fill(left, panelTop, left + panelWidth, panelTop + panelHeight,
@@ -175,15 +177,15 @@ public final class MazeObjectiveOverlay {
                 alpha << 24 | (stage.ordinal() >= Stage.DEFEAT_BRAZIER.ordinal() ? 0xC34635 : 0xA36745));
         graphics.fill(left + 3, panelTop, left + panelWidth, panelTop + 1,
                 Math.round(alpha * 0.35F) << 24 | 0x8B4A3C);
-        int textLeft = left + 11;
-        graphics.text(client.font, INTRO, textLeft, panelTop + 7,
+        int textLeft = left + 9;
+        graphics.text(client.font, INTRO, textLeft, panelTop + 5,
                 Math.round(alpha * 0.74F) << 24 | 0xC18468, false);
-        graphics.text(client.font, progress, left + panelWidth - 10 - client.font.width(progress), panelTop + 7,
+        graphics.text(client.font, progress, left + panelWidth - 8 - client.font.width(progress), panelTop + 5,
                 Math.round(alpha * 0.58F) << 24 | 0xA89185, false);
-        graphics.text(client.font, objective, textLeft, panelTop + 20,
+        graphics.text(client.font, client.font.plainSubstrByWidth(objective.getString(), panelWidth - 17), textLeft, panelTop + 17,
                 alpha << 24 | 0xF2DED0, false);
         for (int line = 0; line < hintLines.size(); line++)
-            graphics.text(client.font, hintLines.get(line), textLeft, panelTop + 33 + line * 10,
+            graphics.text(client.font, hintLines.get(line), textLeft, panelTop + 29 + line * 9,
                     Math.round(alpha * 0.68F) << 24 | 0xB8A49A, false);
         if (waypoint != null) {
             double dx = waypoint.x - client.player.getX();

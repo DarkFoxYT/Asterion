@@ -981,7 +981,8 @@ public class Asterion implements ModInitializer {
                 MobCategory.CREATURE, BOMBARDIER_BEETLE, 12, 1, 3);
         BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID),
                 MobCategory.CREATURE, SCARLET_CENTIPEDE, 5, 1, 1);
-        BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID),
+        BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID,
+                ResourceKey.create(Registries.BIOME, id("catacombs"))),
                 MobCategory.MONSTER, CONSTRUCT, 1, 1, 1);
         // Enforce maze-zone creature restrictions for every spawn path, including
         // natural biome spawning, eggs and commands.

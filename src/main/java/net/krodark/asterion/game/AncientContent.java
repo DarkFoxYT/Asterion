@@ -1,7 +1,5 @@
 package net.krodark.asterion.game;
 
-import net.fabricmc.fabric.api.biome.v1.BiomeModifications;
-import net.fabricmc.fabric.api.biome.v1.BiomeSelectors;
 import net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents;
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.krodark.asterion.Asterion;
@@ -11,7 +9,6 @@ import net.minecraft.core.registries.*;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.item.*;
-import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 public final class AncientContent {
@@ -43,8 +40,6 @@ public final class AncientContent {
     public static void initialize() {
         FabricDefaultAttributeRegistry.register(SKELETON, AncientSkeletonEntity.attributes());
         SpawnPlacements.register(SKELETON, SpawnPlacementTypes.ON_GROUND, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, AncientSkeletonEntity::canSpawn);
-        BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID, ResourceKey.create(Registries.BIOME, Asterion.id("catacombs")), ResourceKey.create(Registries.BIOME, Asterion.id("forge"))),
-                MobCategory.MONSTER, SKELETON, 35, 1, 2);
         CreativeModeTabEvents.modifyOutputEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Asterion.id("asterion")))
                 .register(output -> { output.accept(EGG); output.accept(ANCIENT_BONE); output.accept(MINOTAUR_TROPHY_ITEM); });
     }

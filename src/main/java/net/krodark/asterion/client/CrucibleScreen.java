@@ -46,9 +46,9 @@ public final class CrucibleScreen extends Screen {
     private static final int[] VISIBLE_MOLDS = {0, 1, 2, 3, 4, 5};
     private static final String[] MATERIAL_NAMES = {
             "Iron", "Copper", "Tarnished Gold", "Netherite", "Celestial Bronze",
-            "Bonesteel", "Celestial Steel", "Celestial Gold", "Gold", "Mazesteel", "Ancient Bone"
+            "Bonesteel", "Celestial Steel", "Celestial Gold", "Gold", "Mazesteel", "Ancient Bone", "Coal", "Cursed Brazier Key"
     };
-    private static final ItemStack[] METAL_ICONS = java.util.stream.IntStream.range(0, 11)
+    private static final ItemStack[] METAL_ICONS = java.util.stream.IntStream.range(0, 13)
             .mapToObj(CrucibleBlockEntity::returnedMetal).toArray(ItemStack[]::new);
     private ItemStack cachedPreview = ItemStack.EMPTY;
     private String cachedPreviewSequence = "";
@@ -73,7 +73,7 @@ public final class CrucibleScreen extends Screen {
         fuelTicks = Math.max(0, state.fuelTicks());
         mold = Mth.clamp(state.mold(), -1, MOLDS.length - 1);
         mixColor = state.mixColor() & 0xFFFFFF;
-        materialUnits = Mth.clamp(state.materialUnits(), 0, 4);
+        materialUnits = Mth.clamp(state.materialUnits(), 0, 5);
         metalSequence = state.metalSequence();
         autoPourProgress = Mth.clamp(state.autoPourProgress(), 0, CrucibleBlockEntity.AUTO_POUR_TICKS);
         if (displayedTemperature == 0) displayedTemperature = temperature;
@@ -146,8 +146,8 @@ public final class CrucibleScreen extends Screen {
     private int rightX() { return Math.round(width / scale()) - 132 + Math.round(128 * (1 - forgePanel.value(framePartial))); }
     private int bottomX() { return Math.round(width / scale()) / 2 - 128; }
     private int bottomY() { return Math.round(height / scale()) - GUI_Y - 68 + Math.round(64 * (1 - moldPanel.value(framePartial))); }
-    private int ingredientX(int index) { return rightX() + (index == 0 ? 56 : 16 + (index - 1) * 40); }
-    private int ingredientY(int index) { return index == 0 ? 16 : index == 2 ? 91 : 86; }
+    private int ingredientX(int index) { return rightX() + (index == 4 ? 64 : index == 0 ? 56 : 16 + (index - 1) * 40); }
+    private int ingredientY(int index) { return index == 4 ? 20 : index == 0 ? 16 : index == 2 ? 91 : 86; }
     private int inventoryX() { return Math.round(width / scale()) / 2 - 85; }
     private int inventoryY() { return 22 - Math.round((1 - Mth.lerp(framePartial, previousInventoryReveal, inventoryReveal)) * 112); }
     private int inventoryTabX() { return Math.round(width / scale()) / 2 - 22; }
@@ -188,7 +188,7 @@ public final class CrucibleScreen extends Screen {
         else if (inside(heatX, y, 84, 84, 32, 32)) { send(CrucibleControlPayload.NEXT_MOLD); return true; }
         else if (inside(x, y, rightX() + 24, 44, 80, 32)) {
             controlNotice = materialUnits == 0 ? "ADD METAL" : fuelTicks <= 0 ? "HEAT BELOW"
-                    : hasUnsmeltedIngredients() ? "HEAT TO 350°" : "METAL READY";
+                    : hasUnsmeltedIngredients() ? "CHECK RECIPE / HEAT" : "METAL READY";
             noticeTicks = 60;
             send(CrucibleControlPayload.SMELT); return true;
         } else if (inside(x, y, rightX() + 16, 138, 96, 32)) {
@@ -398,9 +398,13 @@ public final class CrucibleScreen extends Screen {
         if (mold < 0) return ItemStack.EMPTY;
         if (metalSequence.isEmpty()) return MOLD_OUTPUT_ICONS[mold];
         if (hasUnsmeltedIngredients()) return ItemStack.EMPTY;
-        if (MOLDS[mold] == CrucibleBlockEntity.Mold.MINOTAUR_KEY && !metalSequence.equals("5"))
+        if (MOLDS[mold] == CrucibleBlockEntity.Mold.MINOTAUR_KEY && !(metalSequence.length() == 4 && metalSequence.chars().filter(value -> value == '5').count() == 3 && metalSequence.indexOf('<') >= 0))
             return ItemStack.EMPTY;
+        if (metalSequence.indexOf('<') >= 0) return MOLDS[mold] == CrucibleBlockEntity.Mold.MINOTAUR_KEY
+                ? new ItemStack(Asterion.MINOTAUR_KEY) : ItemStack.EMPTY;
         if (metalSequence.equals(cachedPreviewSequence) && mold == cachedPreviewMold) return cachedPreview;
+        if (MOLDS[mold] == CrucibleBlockEntity.Mold.INGOT && metalSequence.chars().allMatch(value -> value == '6'))
+            return new ItemStack(Asterion.CELESTIAL_STEEL_INGOT, metalSequence.length());
         if (MOLDS[mold] == CrucibleBlockEntity.Mold.INGOT && metalSequence.chars().allMatch(value -> value == '5')) {
             cachedPreviewSequence = metalSequence;
             cachedPreviewMold = mold;
@@ -435,7 +439,7 @@ public final class CrucibleScreen extends Screen {
         return metal >= 0 && metal < MATERIAL_NAMES.length ? MATERIAL_NAMES[metal] : "Unknown";
     }
 
-    private boolean hasUnsmeltedIngredients() { return metalSequence.indexOf('9') >= 0 || metalSequence.indexOf(':') >= 0; }
+    private boolean hasUnsmeltedIngredients() { return metalSequence.indexOf('9') >= 0 || metalSequence.indexOf(':') >= 0 || metalSequence.indexOf(';') >= 0; }
 
     private static ItemStack[] createMoldOutputIcons() {
         ItemStack[] icons = new ItemStack[MOLDS.length];
