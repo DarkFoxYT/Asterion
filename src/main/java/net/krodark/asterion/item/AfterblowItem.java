@@ -140,7 +140,9 @@ public final class AfterblowItem extends Item {
         if (stored > .01F)
             tooltip.accept(Component.translatable("tooltip.asterion.afterblow.stored", stored)
                     .withStyle(ChatFormatting.GOLD));
-        tooltip.accept(Component.translatable("tooltip.asterion.afterblow.guard")
-                .withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.accept(Component.translatable("tooltip.asterion.afterblow.guard.1").withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.accept(Component.translatable("tooltip.asterion.afterblow.guard.2").withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.accept(Component.translatable("tooltip.asterion.afterblow.guard.3").withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.accept(Component.translatable("tooltip.asterion.afterblow.guard.4").withStyle(ChatFormatting.DARK_GRAY));
     }
 }

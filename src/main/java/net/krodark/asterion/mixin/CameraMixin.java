@@ -74,8 +74,9 @@ public abstract class CameraMixin {
 
     @Inject(method = "update", at = @At("HEAD"))
     private void asterion$lockRagdollPerspective(DeltaTracker tracker, CallbackInfo ci) {
-        net.krodark.asterion.client.ragdoll.RagdollClientController
-                .enforceRagdollCamera(Minecraft.getInstance());
+        Minecraft client = Minecraft.getInstance();
+        if (client.player != null && ((Camera)(Object)this).entity() == client.player)
+            net.krodark.asterion.client.ragdoll.RagdollClientController.enforceRagdollCamera(client);
     }
 
     @Inject(method = "getFov", at = @At("RETURN"), cancellable = true)
@@ -95,7 +96,7 @@ public abstract class CameraMixin {
     private void asterion$followRagdollHead(DeltaTracker tracker, CallbackInfo ci) {
         Minecraft minecraft = Minecraft.getInstance();
         float partial = tracker.getGameTimeDeltaPartialTick(true);
-        if (minecraft.player != null) {
+        if (minecraft.player != null && ((Camera)(Object)this).entity() == minecraft.player) {
             Vec3 handFeet = net.krodark.asterion.client.render.entity.MinotaurHandAttachment.feet(minecraft.player);
             if (handFeet != null) setPosition(position().add(handFeet.subtract(minecraft.player.getPosition(partial))));
         }
@@ -123,34 +124,35 @@ public abstract class CameraMixin {
             }
         }
         DeadSunEntryCinematic.CameraPose shot = DeadSunEntryCinematic.cameraPose(position(), partial);
-        if (shot != null) {
+        boolean localCamera = minecraft.player != null && ((Camera)(Object)this).entity() == minecraft.player;
+        if (localCamera && shot != null) {
             setPosition(shot.position());
             setRotation(shot.yaw(), shot.pitch());
         }
         BossFinaleOverlay.CameraPose finale = BossFinaleOverlay.cameraPose(position(), partial);
-        if (finale != null) {
+        if (localCamera && finale != null) {
             setPosition(finale.position());
             setRotation(finale.yaw(), finale.pitch());
         }
         BossEntranceCinematic.CameraPose entrance = BossEntranceCinematic.cameraPose(position(), partial);
-        if (entrance != null) {
+        if (localCamera && entrance != null) {
             setPosition(entrance.position());
             setRotation(entrance.yaw(), entrance.pitch());
         }
         CursedBrazierCinematic.CameraPose brazier = CursedBrazierCinematic.cameraPose(position(), partial);
-        if (brazier != null) {
+        if (localCamera && brazier != null) {
             setPosition(brazier.position());
             setRotation(brazier.yaw(), brazier.pitch());
         }
         net.krodark.asterion.client.RoofCollapseCinematic.CameraPose collapse =
                 net.krodark.asterion.client.RoofCollapseCinematic.cameraPose(position(), partial);
-        if (collapse != null) {
+        if (localCamera && collapse != null) {
             setPosition(collapse.position());
             setRotation(collapse.yaw(), collapse.pitch());
         }
         net.krodark.asterion.client.CrucibleCamera.CameraPose forge =
                 net.krodark.asterion.client.CrucibleCamera.cameraPose(position(), yRot(), xRot(), partial);
-        if (forge != null) {
+        if (localCamera && forge != null) {
             setPosition(forge.position());
             setRotation(forge.yaw(), forge.pitch());
         }
@@ -164,7 +166,7 @@ public abstract class CameraMixin {
             setPosition(position().add(sample.cameraOffset()));
             setRotation(yRot() + sample.yawDegrees(), xRot() + sample.pitchDegrees());
         }
-        if (shot != null || finale != null || entrance != null || brazier != null || collapse != null || forge != null)
+        if (localCamera && (shot != null || finale != null || entrance != null || brazier != null || collapse != null || forge != null))
             asterion$rebuildCinematicFrustum(minecraft);
     }
 

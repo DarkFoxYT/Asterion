@@ -3,6 +3,7 @@ package net.krodark.asterion.client;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.entity.MinotaurEntity;
+import net.krodark.asterion.WorldGenerator;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -16,6 +17,7 @@ public final class MinotaurBossBar {
     private static final Identifier FRAME = Asterion.id("textures/gui/bossbar/minotaur.png");
     private static final Identifier FILL = Asterion.id("dynamic/minotaur_bar_fill");
     private static final Identifier EYES = Asterion.id("dynamic/minotaur_bar_eyes");
+    private static final Identifier PILLARS = Asterion.id("textures/gui/bossbar/minotaur_pillars.png");
     private static boolean loaded;
     private static MinotaurEntity boss;
     private static long nextScan;
@@ -91,6 +93,9 @@ public final class MinotaurBossBar {
             g.blit(RenderPipelines.GUI_TEXTURED, FILL, 46, 21 + row,
                     46, 53 + row, filled, 1, 256, 112, blood[row]);
         g.blit(RenderPipelines.GUI_TEXTURED, FRAME, 0, 0, 0, 32, 256, 48, 256, 112);
+        g.blit(RenderPipelines.GUI_TEXTURED, PILLARS, 112, 34, 112, 34, 32, 14, 256, 112);
+        String pillarCount = Integer.toString(Math.max(0, WorldGenerator.bossPillarsRemaining()));
+        g.text(client.font, pillarCount, 128 - client.font.width(pillarCount) / 2, 10, 0xFFFF263D, true);
         for (int offset = 2; offset >= 1; offset--) {
             int glow = (45 / offset) << 24 | eyeColor & 0xFFFFFF;
             eyes(g, -offset, 0, glow); eyes(g, offset, 0, glow);

@@ -332,6 +332,11 @@ public final class PhysicsDebrisSystem {
             boolean shouldBreak = !piece.unbreakable() && (impactSpeed > piece.breakSpeed()
                     || piece.impacts >= piece.maxImpacts());
             boolean floorContact = normal.y > 0.55D;
+            if (floorContact && impactSpeed > .25D && (piece.impacts & 3) == 1) {
+                var sound = switch (piece.variant % 3) { case 0 -> Asterion.DEBRIS_1; case 1 -> Asterion.DEBRIS_2; default -> Asterion.DEBRIS_3; };
+                level.playLocalSound(piece.position.x, piece.position.y, piece.position.z, sound, SoundSource.BLOCKS,
+                        (float)Math.min(0.7, 0.18 + impactSpeed * .08), .88F + level.getRandom().nextFloat() * .18F, false);
+            }
             if (shouldBreak && piece.consumeSurfaceSurvival(floorContact)) {
                 piece.impacts = Math.max(0, piece.impacts - 2);
                 shouldBreak = false;

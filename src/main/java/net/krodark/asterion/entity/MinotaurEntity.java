@@ -1587,13 +1587,15 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 net.krodark.asterion.worldgen.MinotaurArenaEntrances.breakLintel(level, entryFacing, getBbHeight());
                 if (level.getBlockEntity(entryDoor) instanceof net.krodark.asterion.block.MinotaurDoorBlockEntity door)
                     door.breakOff();
+                level.playSound(null, entryDoor, Asterion.MINOTAUR_DOOR_BREAK,
+                        net.minecraft.sounds.SoundSource.HOSTILE, 1.2F, .9F);
             }
             setNoGravity(false);
             Vec3 clearGate = Vec3.atBottomCenterOf(net.krodark.asterion.worldgen.MinotaurArenaEntrances.gate(entryFacing))
                     .add(inward.scale(getBbWidth() * .5 + 1.25));
             double remaining = clearGate.subtract(position()).dot(inward);
              
-            setDeltaMovement(inward.scale(elapsed < 112 ? Math.clamp(remaining, 0, .42) : 0)
+            setDeltaMovement(inward.scale(Math.clamp(remaining, 0, .42))
                     .add(0, getDeltaMovement().y, 0));
         }
         if (elapsed >= ROAR_START_TICKS) {
@@ -1601,13 +1603,6 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
              
              
             net.krodark.asterion.block.MinotaurDoorBlock.removeDoor(level, entryDoor, entryFacing);
-            Vec3 inside = Vec3.atBottomCenterOf(
-                    net.krodark.asterion.worldgen.MinotaurArenaEntrances.gate(entryFacing))
-                    .add(inward.scale(getBbWidth() * .5D + 2.25D));
-            if (position().subtract(inside).dot(inward) < 0.0D) {
-                AABB destination = getBoundingBox().move(inside.subtract(position()));
-                if (level.noCollision(this, destination)) setPos(inside.x, inside.y, inside.z);
-            }
             getEntityData().set(DATA_DOOR_ENTRY_TICKS, 0);
              
              

@@ -93,7 +93,9 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         return iron + copper + gold + netherite + celestialBronze + bonesteel + celestialSteel + celestialGold + regularGold
                 + mazesteel + ancientBones + carbon + brazierKeys;
     }
-    public boolean hasUnsmeltedIngredients() { return mazesteel > 0 || ancientBones > 0 || carbon > 0; }
+    public boolean hasUnsmeltedIngredients() {
+        return mazesteel > 0 || ancientBones > 0 || carbon > 0 && !(carbon == 2 && iron == 2);
+    }
     public int mixColor() {
         if (metalSequence.isEmpty()) return 0x514A43;
         int color = metalColor(metalSequence.charAt(0) - '0');
@@ -120,7 +122,11 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         };
     }
     public Mold mold() { return Mold.values()[Mth.clamp(mold, 0, Mold.values().length - 1)]; }
-    public boolean calibrated() { return moldInserted && Math.abs(temperature - targetTemperature()) <= (targetTemperature() >= 700 ? 8 : TOLERANCE); }
+    public boolean calibrated() {
+        if (!moldInserted) return false;
+        int tolerance = mold() == Mold.MINOTAUR_KEY ? 20 : targetTemperature() >= 700 ? 8 : TOLERANCE;
+        return Math.abs(temperature - targetTemperature()) <= tolerance;
+    }
 
     public static int moldIndex(Item item) {
         if (item == Asterion.INGOT_CAST) return Mold.INGOT.ordinal();
@@ -159,7 +165,6 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             return true;
         }
         if (materialUnits() < (ancientBones > 0 || stack.is(net.krodark.asterion.game.AncientContent.ANCIENT_BONE) ? 5 : 4) && insertMaterial(stack, player)) {
-            if (ancientBones == 0 && carbon == 0) reactIronAndCopper();
             stack.shrink(1);
             changedAndSync();
             return true;
@@ -222,9 +227,11 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     }
 
     private void reactIronAndCopper() {
-        while (iron > 0 && copper > 0) {
-            iron--; copper--; celestialBronze += 2;
-            metalSequence = replaceFirstMetal(replaceFirstMetal(metalSequence, '0', '4'), '1', '4');
+        while (copper > 0 && (gold > 0 || regularGold > 0)) {
+            copper--;
+            if (gold > 0) gold--; else regularGold--;
+            celestialBronze++;
+            metalSequence = replaceFirstMetal(replaceFirstMetal(metalSequence, '1', '4'), gold > 0 ? '2' : '8', '4');
         }
         if (!metalSequence.isEmpty()) {
             primaryMetal = metalSequence.charAt(0) - '0';
@@ -250,6 +257,11 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             carbon = iron = 0;
             celestialSteel = 1;
             metalSequence = "6";
+        } else if (copper > 0 && (gold > 0 || regularGold > 0) && materialUnits() == 2) {
+            copper--;
+            if (gold > 0) gold--; else regularGold--;
+            celestialBronze = 1;
+            metalSequence = "4";
         } else return false;
         primaryMetal = metalSequence.charAt(0) - '0';
         secondaryMetal = -1;

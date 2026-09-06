@@ -23,6 +23,16 @@
       "asterion:minotaur_door_openclose"
     ]
   },
+  "minotaur_door_break": {
+    "subtitle": "subtitles.asterion.minotaur_door_break",
+    "sounds": [
+      "asterion:sfx/mino/minotaur.door_break"
+    ]
+  },
+  "debris_1": { "sounds": ["asterion:sfx/misc/debris_1"] },
+  "debris_2": { "sounds": ["asterion:sfx/misc/debris_2"] },
+  "debris_3": { "sounds": ["asterion:sfx/misc/debris_3"] },
+  "arena_ceiling_fall": { "subtitle": "subtitles.asterion.arena_ceiling_fall", "sounds": ["asterion:sfx/misc/arena.ceiling_fall"] },
   "minotaur_door_bang": {
     "subtitle": "subtitles.asterion.minotaur_door_bang",
     "sounds": [

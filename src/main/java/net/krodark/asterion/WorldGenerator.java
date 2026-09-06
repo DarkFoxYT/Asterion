@@ -736,17 +736,7 @@ public final class WorldGenerator {
 
     private static void buildSummonedWell(ServerLevel level, int centerX, int surfaceY, int centerZ, int portalY) {
         clearAboveGateway(level, centerX, surfaceY, centerZ, 8);
-        placePortalBlueprint(level, centerX, surfaceY, centerZ);
-        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-        for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
-            int edge = Math.max(Math.abs(dx), Math.abs(dz));
-            for (int y = portalY - 3; y < surfaceY; y++) {
-                BlockState state = edge == 2 || y == portalY - 3
-                        ? (Math.floorMod(surfaceY - y, 4) == 0 ? Asterion.SHADED_SHALE_BRICKS : Asterion.ANCIENT_STONE).defaultBlockState()
-                        : Blocks.AIR.defaultBlockState();
-                level.setBlock(cursor.set(centerX + dx, y, centerZ + dz), state, 2);
-            }
-        }
+        placePortalBlueprint(level, centerX, surfaceY - 63, centerZ);
     }
 
     public static void buildGateway(ServerLevel level, BlockPos horizontalTarget) {
@@ -757,23 +747,7 @@ public final class WorldGenerator {
         int portalY = y - GATEWAY_PORTAL_DEPTH;
         GATEWAY_SURFACE_Y.put(level.getSeed(), portalY);
         clearAboveGateway(level, x, y, z, 8);
-        placePortalBlueprint(level, x, y, z);
-        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
-        int shaftBottom = level.getMinY() + 5;
-        for (int shaftY = y - 1; shaftY >= shaftBottom; shaftY--) for (int dx = -3; dx <= 3; dx++) for (int dz = -3; dz <= 3; dz++) {
-            int edge = Math.max(Math.abs(dx), Math.abs(dz));
-            if (edge <= 2)
-                level.setBlock(p.set(x + dx, shaftY, z + dz), Blocks.AIR.defaultBlockState(), 2);
-            else if (edge == 3) {
-                int depth = y - shaftY;
-                Block lining = depth % 9 == 0 || ((dx + dz + depth) & 15) == 0
-                        ? Asterion.ANCIENT_STONE : Asterion.ANCIENT_BRICKS;
-                level.setBlock(p.set(x + dx, shaftY, z + dz), lining.defaultBlockState(), 2);
-            }
-        }
-        for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++)
-            level.setBlock(p.set(x + dx, shaftBottom - 1, z + dz), Asterion.ANCIENT_STONE.defaultBlockState(), 2);
-        level.setBlock(p.set(x, shaftBottom, z), Blocks.SOUL_LANTERN.defaultBlockState(), 2);
+        placePortalBlueprint(level, x, y - 63, z);
     }
 
      
@@ -1554,7 +1528,7 @@ public final class WorldGenerator {
         level.sendParticles(ParticleTypes.DUST_PLUME, pillar.x + .5D, roofY, pillar.z + .5D,
                 48, 4.2D, .7D, 4.2D, .055D);
         level.playSound(null, root,
-                Asterion.ARENA_PILLAR_BREAK, SoundSource.BLOCKS, 2.2F, 1.0F);
+                    Asterion.ARENA_PILLAR_BREAK, SoundSource.BLOCKS, 0.8F, 1.0F);
     }
 
     public static Vec3 bossPillarChargeTarget(Vec3 boss, Vec3 player) {

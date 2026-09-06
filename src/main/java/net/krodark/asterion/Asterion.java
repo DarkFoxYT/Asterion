@@ -132,9 +132,9 @@ public class Asterion implements ModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     public static final ResourceKey<Level> ASTERION_LEVEL = ResourceKey.create(
             Registries.DIMENSION, id("asterion_dimension"));
-    private static final ResourceKey<Biome> CATACOMBS_BIOME = ResourceKey.create(
+    public static final ResourceKey<Biome> CATACOMBS_BIOME = ResourceKey.create(
             Registries.BIOME, id("catacombs"));
-    private static final ResourceKey<Biome> FORGE_BIOME = ResourceKey.create(
+    public static final ResourceKey<Biome> FORGE_BIOME = ResourceKey.create(
             Registries.BIOME, id("forge"));
     public static final SoundEvent MINOTAUR_ROAR = registerSound("minotaur_roar");
     public static final SoundEvent AFTERBLOW_PEDESTAL_PULL = registerSound("afterblow_pedestal_pull");
@@ -155,6 +155,11 @@ public class Asterion implements ModInitializer {
     public static final SoundEvent MINOTAUR_HURT_EXPOSED = registerSound("minotaur_hurt_exposed");
     public static final SoundEvent MINOTAUR_STEP = registerSound("minotaur_step");
     public static final SoundEvent MINOTAUR_DOOR_OPENCLOSE = registerSound("minotaur_door_openclose");
+    public static final SoundEvent MINOTAUR_DOOR_BREAK = registerSound("minotaur_door_break");
+    public static final SoundEvent DEBRIS_1 = registerSound("debris_1");
+    public static final SoundEvent DEBRIS_2 = registerSound("debris_2");
+    public static final SoundEvent DEBRIS_3 = registerSound("debris_3");
+    public static final SoundEvent ARENA_CEILING_FALL = registerSound("arena_ceiling_fall");
     public static final SoundEvent BARREL_DOOR_OPEN = registerSound("barrel_door_open");
     public static final SoundEvent BARREL_DOOR_CLOSE = registerSound("barrel_door_close");
     public static final SoundEvent METAL_HIT = registerSound("metal_hit_sound");
