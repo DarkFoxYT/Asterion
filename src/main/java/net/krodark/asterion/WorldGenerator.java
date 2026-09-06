@@ -736,7 +736,7 @@ public final class WorldGenerator {
 
     private static void buildSummonedWell(ServerLevel level, int centerX, int surfaceY, int centerZ, int portalY) {
         clearAboveGateway(level, centerX, surfaceY, centerZ, 8);
-        placePortalBlueprint(level, centerX, surfaceY - 12, centerZ);
+        placePortalBlueprint(level, centerX, surfaceY, centerZ);
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
             int edge = Math.max(Math.abs(dx), Math.abs(dz));
@@ -757,7 +757,7 @@ public final class WorldGenerator {
         int portalY = y - GATEWAY_PORTAL_DEPTH;
         GATEWAY_SURFACE_Y.put(level.getSeed(), portalY);
         clearAboveGateway(level, x, y, z, 8);
-        placePortalBlueprint(level, x, y - 12, z);
+        placePortalBlueprint(level, x, y, z);
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         int shaftBottom = level.getMinY() + 5;
         for (int shaftY = y - 1; shaftY >= shaftBottom; shaftY--) for (int dx = -3; dx <= 3; dx++) for (int dz = -3; dz <= 3; dz++) {

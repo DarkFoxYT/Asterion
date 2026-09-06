@@ -724,7 +724,7 @@ public class Asterion implements ModInitializer {
             ResourceKey.create(Registries.CREATIVE_MODE_TAB, id("forging")),
             FabricCreativeModeTab.builder()
                     .title(Component.translatable("itemGroup.asterion.forging"))
-                    .icon(() -> new ItemStack(CRUCIBLE))
+                    .icon(() -> new ItemStack(FORGED_INGOT))
                     .displayItems((parameters, output) -> {
                         output.accept(CRUCIBLE);
                         output.accept(SHALE_CELESTIAL_GOLD_ORE);
