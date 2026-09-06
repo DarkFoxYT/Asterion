@@ -1,7 +1,7 @@
 package net.krodark.asterion.worldgen;
 
 import net.krodark.asterion.Asterion;
-import net.krodark.asterion.WorldGenerator;
+import net.krodark.asterion.worldgen.WorldGenerator;
 import net.krodark.asterion.mixin.WorldGenRegionAccessor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.WorldGenRegion;

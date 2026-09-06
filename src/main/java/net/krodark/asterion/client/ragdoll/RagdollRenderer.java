@@ -26,7 +26,7 @@ import net.minecraft.world.item.component.DyedItemColor;
 import net.minecraft.world.item.equipment.Equippable;
 import net.minecraft.core.component.DataComponents;
 import net.krodark.asterion.AsterionConfig;
-import net.krodark.asterion.client.DeadSunEntryCinematic;
+import net.krodark.asterion.client.cinematic.DeadSunEntryCinematic;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;

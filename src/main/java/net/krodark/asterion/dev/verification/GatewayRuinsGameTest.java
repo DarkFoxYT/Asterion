@@ -1,7 +1,7 @@
 package net.krodark.asterion.dev.verification;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
-import net.krodark.asterion.WorldGenerator;
+import net.krodark.asterion.worldgen.WorldGenerator;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
 public final class GatewayRuinsGameTest implements FabricClientGameTest {

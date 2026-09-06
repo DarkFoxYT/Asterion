@@ -1,7 +1,7 @@
 package net.krodark.asterion.dev.verification;
 
 import net.krodark.asterion.Asterion;
-import net.krodark.asterion.WorldGenerator;
+import net.krodark.asterion.worldgen.WorldGenerator;
 import net.krodark.asterion.block.GreekBrazierBlock;
 import net.krodark.asterion.entity.MinotaurAnimationTiming;
 import net.krodark.asterion.entity.MinotaurEntity;

@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.krodark.asterion.Asterion;
-import net.krodark.asterion.client.MazeObjectiveOverlay;
+import net.krodark.asterion.client.hud.MazeObjectiveOverlay;
 import net.krodark.asterion.client.ragdoll.DismembermentEngine;
 import net.krodark.asterion.entity.MinotaurEntity;
 import net.krodark.asterion.network.ragdoll.RagdollServerNetworking;

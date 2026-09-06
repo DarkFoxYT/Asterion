@@ -1,7 +1,7 @@
 package net.krodark.asterion.network.ragdoll;
 
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.krodark.asterion.WorldGenerator;
+import net.krodark.asterion.worldgen.WorldGenerator;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;

@@ -97,7 +97,7 @@ public final class CatacombFloodState extends SavedData {
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
         var state = get(level);
         long now = level.getGameTime();
-        if (state.active && (now >= state.endsAt || net.krodark.asterion.WorldGenerator.isBossEncounterActive(level)))
+        if (state.active && (now >= state.endsAt || net.krodark.asterion.worldgen.WorldGenerator.isBossEncounterActive(level)))
             setActive(level, false);
         var loaded = LOADED.computeIfAbsent(level, ignored -> new LoadedTide());
         int target = state.active ? MAX_RISE : 0;

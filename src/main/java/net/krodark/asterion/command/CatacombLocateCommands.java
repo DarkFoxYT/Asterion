@@ -48,7 +48,7 @@ public final class CatacombLocateCommands {
             net.krodark.asterion.game.PlayerNotices.failure(source, Component.literal("The Asterion dimension is not available."));
             return 0;
         }
-        BlockPos target = net.krodark.asterion.WorldGenerator.nearestQueenTree(level, source.getPosition());
+        BlockPos target = net.krodark.asterion.worldgen.WorldGenerator.nearestQueenTree(level, source.getPosition());
         if (target == null) {
             net.krodark.asterion.game.PlayerNotices.failure(source, Component.literal("No Queen tree fits this world's maze and overgrowth settings."));
             return 0;

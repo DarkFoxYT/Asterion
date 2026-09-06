@@ -2,7 +2,7 @@ package net.krodark.asterion.game;
 
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.krodark.asterion.Asterion;
-import net.krodark.asterion.WorldGenerator;
+import net.krodark.asterion.worldgen.WorldGenerator;
 import net.krodark.asterion.worldgen.AuthoredCatacombs;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;

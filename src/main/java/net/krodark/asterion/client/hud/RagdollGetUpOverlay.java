@@ -1,4 +1,6 @@
-package net.krodark.asterion.client;
+package net.krodark.asterion.client.hud;
+
+import net.krodark.asterion.client.cinematic.CinematicHud;
 
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.krodark.asterion.Asterion;

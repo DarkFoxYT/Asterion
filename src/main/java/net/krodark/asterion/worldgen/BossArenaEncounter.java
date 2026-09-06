@@ -100,7 +100,7 @@ public final class BossArenaEncounter {
         for (UUID id : List.copyOf(active.participants)) {
             ServerPlayer player = level.getServer().getPlayerList().getPlayer(id);
             if (player != null && !player.isAlive() && player.level() == level) {
-                net.krodark.asterion.WorldGenerator.resetBossEncounterAfterDeath(player);
+                net.krodark.asterion.worldgen.WorldGenerator.resetBossEncounterAfterDeath(player);
                 return;
             }
         }
@@ -243,7 +243,7 @@ public final class BossArenaEncounter {
     public static void finish(ServerLevel level) {
         ArenaDebris.clear(level);
         clear();
-        net.krodark.asterion.WorldGenerator.clearBossEntryTracking();
+        net.krodark.asterion.worldgen.WorldGenerator.clearBossEntryTracking();
         MinotaurArenaEntrances.setGates(level, 0, null);
         restoreDoors(level);
     }
@@ -252,7 +252,7 @@ public final class BossArenaEncounter {
     public static void finishDefeated(ServerLevel level) {
         ArenaDebris.clear(level);
         clear();
-        net.krodark.asterion.WorldGenerator.clearBossEntryTracking();
+        net.krodark.asterion.worldgen.WorldGenerator.clearBossEntryTracking();
         MinotaurArenaEntrances.setGates(level, 0, null);
         BlockPos entrance = MinotaurArenaEntrances.door(MinotaurArenaEntrances.PLAYER_ENTRANCE);
         if (level.getBlockEntity(entrance) instanceof MinotaurDoorBlockEntity door) door.openAfterVictory();

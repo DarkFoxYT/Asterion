@@ -1,11 +1,11 @@
-package net.krodark.asterion.client;
+package net.krodark.asterion.client.audio;
 
 import com.google.gson.Gson;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
-import net.krodark.asterion.WorldGenerator;
+import net.krodark.asterion.worldgen.WorldGenerator;
 import net.krodark.asterion.entity.MinotaurEntity;
 import net.krodark.asterion.client.render.portal.AsterionPortalRenderer;
 import net.minecraft.client.Minecraft;

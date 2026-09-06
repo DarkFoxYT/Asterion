@@ -1,4 +1,4 @@
-package net.krodark.asterion.client;
+package net.krodark.asterion.client.cinematic;
 
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;

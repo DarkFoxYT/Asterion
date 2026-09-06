@@ -28,7 +28,7 @@ public final class ManualForgeGameTest implements FabricClientGameTest {
             });
             context.waitTicks(50);
             context.runOnClient(client -> {
-                if (!(client.screen instanceof net.krodark.asterion.client.CrucibleScreen))
+                if (!(client.screen instanceof net.krodark.asterion.client.forge.CrucibleScreen))
                     throw new AssertionError("Four-ingredient Forge did not open");
             });
             world.getServer().runOnServer(server -> {

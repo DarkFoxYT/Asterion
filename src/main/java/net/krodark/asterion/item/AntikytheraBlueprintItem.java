@@ -1,4 +1,4 @@
-package net.krodark.asterion;
+package net.krodark.asterion.item;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;

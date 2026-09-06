@@ -375,7 +375,7 @@ public final class AuthoredCatacombs {
         for(int x=minX;x<=maxX;x++)for(int z=minZ;z<=maxZ;z++) {
             int wx=origin.getX()+x,wz=origin.getZ()+z;
             int radius=Math.max(Math.abs(x-9),Math.abs(z-9));
-            int surface=net.krodark.asterion.WorldGenerator.mazeFloorHeight(seed,wx,wz);
+            int surface=net.krodark.asterion.worldgen.WorldGenerator.mazeFloorHeight(seed,wx,wz);
             if(radius<=2) {
                  
                  
@@ -486,7 +486,7 @@ public final class AuthoredCatacombs {
         if(retiredApproach&&!arena)place(level,cp);
         repairArenaApproach(level,chunk);
         markGeneratedRunes(chunk,chunkBounds);
-        net.krodark.asterion.WorldGenerator.registerAuthoredArenaPillars(level,chunk);
+        net.krodark.asterion.worldgen.WorldGenerator.registerAuthoredArenaPillars(level,chunk);
         configureArenaLoot(level,chunk);
         MinotaurArenaEntrances.buildForChunk(level,cp);
          
@@ -494,7 +494,7 @@ public final class AuthoredCatacombs {
         chunk.setBlockState(marker,revisionMarker,0);
         MazeNbtStructures.markCopperClean(chunk);
         chunk.markUnsaved();
-        net.krodark.asterion.WorldGenerator.arenaChunkPlaced(level);
+        net.krodark.asterion.worldgen.WorldGenerator.arenaChunkPlaced(level);
     }
 
     private static void sealRetiredApproach(ServerLevel level, LevelChunk chunk) {

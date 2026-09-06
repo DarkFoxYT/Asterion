@@ -1,5 +1,9 @@
 package net.krodark.asterion.dev.verification;
 
+import net.krodark.asterion.client.cinematic.CrucibleCamera;
+import net.krodark.asterion.client.forge.CrucibleScreen;
+import net.krodark.asterion.client.forge.ForgeItemFlights;
+
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.krodark.asterion.Asterion;

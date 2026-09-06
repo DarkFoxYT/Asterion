@@ -25,7 +25,7 @@ final class PillarCheck {
                 var maze=server.getLevel(Asterion.ASTERION_LEVEL);
                 arena(maze);
                 var root=firstArenaRoot(maze);
-                check(net.krodark.asterion.WorldGenerator.breakBossPillar(maze,new AABB(root)),"Boss could not destroy new pillar");
+                check(net.krodark.asterion.worldgen.WorldGenerator.breakBossPillar(maze,new AABB(root)),"Boss could not destroy new pillar");
                 for(int y=0;y<27;y++) check(!maze.getBlockState(root.above(y)).is(Asterion.PILLAR),"Boss left upper pillar fragments");
                 Asterion.LOGGER.info("PASS: authored arena pillar generation and boss destruction");
             });

@@ -1,4 +1,4 @@
-package net.krodark.asterion.client;
+package net.krodark.asterion.client.forge;
 
 import net.krodark.asterion.compat.CrucibleViewerRecipe;
 import net.minecraft.client.gui.Font;

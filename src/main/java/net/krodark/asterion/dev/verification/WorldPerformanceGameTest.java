@@ -35,7 +35,7 @@ public final class WorldPerformanceGameTest implements FabricClientGameTest {
             var ready = new java.util.concurrent.atomic.AtomicBoolean();
             for (int attempt = 0; attempt < 20 && !ready.get(); attempt++) {
                 context.waitTicks(40);
-                world.getServer().runOnServer(server -> ready.set(net.krodark.asterion.WorldGenerator.isBossArenaReady()));
+                world.getServer().runOnServer(server -> ready.set(net.krodark.asterion.worldgen.WorldGenerator.isBossArenaReady()));
             }
             if (!ready.get()) throw new AssertionError("Asynchronous arena preparation never completed");
             world.getServer().runOnServer(server -> {
@@ -49,7 +49,7 @@ public final class WorldPerformanceGameTest implements FabricClientGameTest {
                 player.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
                 player.noPhysics = false;
                 try {
-                    var begin = net.krodark.asterion.WorldGenerator.class.getDeclaredMethod("beginTransition",
+                    var begin = net.krodark.asterion.worldgen.WorldGenerator.class.getDeclaredMethod("beginTransition",
                             net.minecraft.server.level.ServerPlayer.class, net.minecraft.server.level.ServerLevel.class);
                     begin.setAccessible(true);
                     begin.invoke(null, player, server.getLevel(Asterion.ASTERION_LEVEL));

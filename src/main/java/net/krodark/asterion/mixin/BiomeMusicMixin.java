@@ -1,6 +1,6 @@
 package net.krodark.asterion.mixin;
 
-import net.krodark.asterion.client.BiomeMusic;
+import net.krodark.asterion.client.audio.BiomeMusic;
 import net.minecraft.client.sounds.MusicManager;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;

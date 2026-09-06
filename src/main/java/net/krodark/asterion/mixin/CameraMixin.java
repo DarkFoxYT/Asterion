@@ -1,10 +1,10 @@
 package net.krodark.asterion.mixin;
 
 import net.krodark.asterion.client.event.DeadSunClientEvents;
-import net.krodark.asterion.client.DeadSunEntryCinematic;
-import net.krodark.asterion.client.BossFinaleOverlay;
-import net.krodark.asterion.client.BossEntranceCinematic;
-import net.krodark.asterion.client.CursedBrazierCinematic;
+import net.krodark.asterion.client.cinematic.DeadSunEntryCinematic;
+import net.krodark.asterion.client.cinematic.BossFinaleOverlay;
+import net.krodark.asterion.client.cinematic.BossEntranceCinematic;
+import net.krodark.asterion.client.cinematic.CursedBrazierCinematic;
 import net.krodark.asterion.client.ragdoll.DismembermentEngine;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Camera;
@@ -145,19 +145,19 @@ public abstract class CameraMixin {
             setPosition(brazier.position());
             setRotation(brazier.yaw(), brazier.pitch());
         }
-        net.krodark.asterion.client.RoofCollapseCinematic.CameraPose collapse =
-                net.krodark.asterion.client.RoofCollapseCinematic.cameraPose(position(), partial);
+        net.krodark.asterion.client.cinematic.RoofCollapseCinematic.CameraPose collapse =
+                net.krodark.asterion.client.cinematic.RoofCollapseCinematic.cameraPose(position(), partial);
         if (localCamera && collapse != null) {
             setPosition(collapse.position());
             setRotation(collapse.yaw(), collapse.pitch());
         }
-        net.krodark.asterion.client.CrucibleCamera.CameraPose forge =
-                net.krodark.asterion.client.CrucibleCamera.cameraPose(position(), yRot(), xRot(), partial);
+        net.krodark.asterion.client.cinematic.CrucibleCamera.CameraPose forge =
+                net.krodark.asterion.client.cinematic.CrucibleCamera.cameraPose(position(), yRot(), xRot(), partial);
         if (localCamera && forge != null) {
             setPosition(forge.position());
             setRotation(forge.yaw(), forge.pitch());
         }
-        DeadSunClientEvents.Sample doorShake = net.krodark.asterion.client.MinotaurDoorShake.sample(position(), partial);
+        DeadSunClientEvents.Sample doorShake = net.krodark.asterion.client.audio.MinotaurDoorShake.sample(position(), partial);
         if (doorShake != DeadSunClientEvents.Sample.NONE) {
             setPosition(position().add(doorShake.cameraOffset()));
             setRotation(yRot() + doorShake.yawDegrees(), xRot() + doorShake.pitchDegrees());

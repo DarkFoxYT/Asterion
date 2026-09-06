@@ -1,5 +1,9 @@
 package net.krodark.asterion;
 
+import net.krodark.asterion.item.AntikytheraBlueprintItem;
+import net.krodark.asterion.item.AntikytheraMechanismItem;
+import net.krodark.asterion.worldgen.WorldGenerator;
+
 import net.minecraft.core.BlockPos;
 
 import net.fabricmc.api.ModInitializer;

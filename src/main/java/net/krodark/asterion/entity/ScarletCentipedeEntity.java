@@ -102,13 +102,13 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     public boolean checkSpawnRules(LevelAccessor level, EntitySpawnReason reason) {
         if (level instanceof ServerLevel server && server.dimension().equals(Asterion.ASTERION_LEVEL)
                 && net.krodark.asterion.worldgen.ShaleCaves.contains(blockPosition()))
-            return !net.krodark.asterion.WorldGenerator.isNearSafeRune(server, blockPosition())
+            return !net.krodark.asterion.worldgen.WorldGenerator.isNearSafeRune(server, blockPosition())
                     && BugSurfaces.allowed(level, blockPosition().below());
         if (reason == EntitySpawnReason.NATURAL
                 && (!(level instanceof ServerLevel serverLevel)
                 || !serverLevel.dimension().equals(Asterion.ASTERION_LEVEL)
                 || getY() >= net.krodark.asterion.worldgen.CatacombLayout.ROOF_Y
-                || net.krodark.asterion.WorldGenerator.isNearSafeRune(serverLevel, blockPosition()))) return false;
+                || net.krodark.asterion.worldgen.WorldGenerator.isNearSafeRune(serverLevel, blockPosition()))) return false;
         if (level instanceof ServerLevel server && reason != EntitySpawnReason.SPAWN_ITEM_USE
                 && net.krodark.asterion.worldgen.BossArenaEncounter.blocksCentipedeSpawn(server, position())) return false;
         return super.checkSpawnRules(level, reason);

@@ -1,5 +1,24 @@
 package net.krodark.asterion.client;
 
+import net.krodark.asterion.client.audio.BiomeMusic;
+import net.krodark.asterion.client.audio.MazeAmbience;
+import net.krodark.asterion.client.cinematic.BossEntranceCinematic;
+import net.krodark.asterion.client.cinematic.BossFinaleOverlay;
+import net.krodark.asterion.client.cinematic.CinematicControls;
+import net.krodark.asterion.client.cinematic.CinematicDebugCommands;
+import net.krodark.asterion.client.cinematic.CinematicHud;
+import net.krodark.asterion.client.cinematic.CrucibleCamera;
+import net.krodark.asterion.client.cinematic.CursedBrazierCinematic;
+import net.krodark.asterion.client.cinematic.DeadSunEntryCinematic;
+import net.krodark.asterion.client.cinematic.DimensionTransitionOverlay;
+import net.krodark.asterion.client.cinematic.RoofCollapseCinematic;
+import net.krodark.asterion.client.forge.CrucibleScreen;
+import net.krodark.asterion.client.forge.ForgeItemFlights;
+import net.krodark.asterion.client.hud.DazeOverlay;
+import net.krodark.asterion.client.hud.MazeObjectiveOverlay;
+import net.krodark.asterion.client.hud.QueenBeetleQuestOverlay;
+import net.krodark.asterion.client.hud.RagdollGetUpOverlay;
+
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;

@@ -14,7 +14,7 @@ abstract class ForgePlayerRendererMixin {
     @Inject(method = "shouldRender", at = @At("HEAD"), cancellable = true)
     private void asterion$hideLocalPlayer(Entity entity, Frustum frustum, double x, double y, double z,
                                          CallbackInfoReturnable<Boolean> ci) {
-        if (entity == Minecraft.getInstance().player && net.krodark.asterion.client.CrucibleCamera.active())
+        if (entity == Minecraft.getInstance().player && net.krodark.asterion.client.cinematic.CrucibleCamera.active())
             ci.setReturnValue(false);
     }
 }

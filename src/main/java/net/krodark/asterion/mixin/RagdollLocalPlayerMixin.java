@@ -16,6 +16,6 @@ abstract class RagdollLocalPlayerMixin {
         LocalPlayer self = (LocalPlayer)(Object)this;
         if (DismembermentEngine.INSTANCE.isPlayerTumbling(self.getId())
                 || net.krodark.asterion.entity.MinotaurEntity.isHeld(self)
-                || net.krodark.asterion.client.CinematicControls.locked()) ci.cancel();
+                || net.krodark.asterion.client.cinematic.CinematicControls.locked()) ci.cancel();
     }
 }

@@ -1,4 +1,4 @@
-package net.krodark.asterion.client;
+package net.krodark.asterion.client.cinematic;
 
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;

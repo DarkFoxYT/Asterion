@@ -1,5 +1,7 @@
 package net.krodark.asterion.dev.verification;
 
+import net.krodark.asterion.worldgen.WorldGenerator;
+
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.krodark.asterion.*;

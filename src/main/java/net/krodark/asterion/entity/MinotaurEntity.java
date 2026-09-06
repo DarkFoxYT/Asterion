@@ -10,7 +10,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.GreekRune;
-import net.krodark.asterion.WorldGenerator;
+import net.krodark.asterion.worldgen.WorldGenerator;
 import net.krodark.asterion.event.DeadSunEventSystem;
 import net.krodark.asterion.network.MazeZapPayload;
 import net.krodark.asterion.network.MazeShiftPayload;

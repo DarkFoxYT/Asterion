@@ -1,5 +1,7 @@
 package net.krodark.asterion.client;
 
+import net.krodark.asterion.client.cinematic.BossEntranceCinematic;
+
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;

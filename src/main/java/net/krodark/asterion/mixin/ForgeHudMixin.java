@@ -10,6 +10,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 abstract class ForgeHudMixin {
     @Inject(method = "extractRenderState", at = @At("HEAD"), cancellable = true)
     private void asterion$hideForgeHud(CallbackInfo ci) {
-        if (net.krodark.asterion.client.CrucibleCamera.active()) ci.cancel();
+        if (net.krodark.asterion.client.cinematic.CrucibleCamera.active()) ci.cancel();
     }
 }

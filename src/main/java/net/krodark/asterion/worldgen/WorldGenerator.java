@@ -1,4 +1,9 @@
-package net.krodark.asterion;
+package net.krodark.asterion.worldgen;
+
+import net.krodark.asterion.Asterion;
+import net.krodark.asterion.AsterionConfig;
+import net.krodark.asterion.AsterionWorldState;
+import net.krodark.asterion.GreekRune;
 
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;

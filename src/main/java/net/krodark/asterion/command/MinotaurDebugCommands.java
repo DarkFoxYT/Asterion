@@ -136,7 +136,7 @@ public final class MinotaurDebugCommands {
             net.krodark.asterion.game.PlayerNotices.failure(source, Component.literal("Arena pillars only exist in the Asterion dimension."));
             return 0;
         }
-        int destroyed = net.krodark.asterion.WorldGenerator.destroyAllBossPillars(source.getLevel());
+        int destroyed = net.krodark.asterion.worldgen.WorldGenerator.destroyAllBossPillars(source.getLevel());
         if (destroyed == 0) {
             net.krodark.asterion.game.PlayerNotices.failure(source, Component.literal("No active arena pillars were found."));
             return 0;

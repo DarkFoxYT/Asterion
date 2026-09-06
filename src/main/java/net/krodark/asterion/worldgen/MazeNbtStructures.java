@@ -6,7 +6,7 @@ import com.google.gson.JsonParser;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.GreekRune;
-import net.krodark.asterion.WorldGenerator;
+import net.krodark.asterion.worldgen.WorldGenerator;
 import net.krodark.asterion.block.RuneDoorBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;

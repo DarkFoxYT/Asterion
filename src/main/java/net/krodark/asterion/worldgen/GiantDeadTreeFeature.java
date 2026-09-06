@@ -39,7 +39,7 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
             int minZ = chunk.getPos().getMinBlockZ(), maxZ = chunk.getPos().getMaxBlockZ();
             long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
             for (int x = minX; x <= maxX; x++) for (int z = minZ; z <= maxZ; z++) {
-                int floorY = net.krodark.asterion.WorldGenerator.mazeFloorHeight(seed, x, z);
+                int floorY = net.krodark.asterion.worldgen.WorldGenerator.mazeFloorHeight(seed, x, z);
                 if (!isTreeWood(chunk.getBlockState(cursor.set(x, floorY, z)))
                         || !chunk.getBlockState(cursor.set(x, floorY + 1, z)).isAir()) continue;
                 BlockPos upper = nearestUpperTrunk(chunk, x, floorY + 5, z, minX, maxX, minZ, maxZ);

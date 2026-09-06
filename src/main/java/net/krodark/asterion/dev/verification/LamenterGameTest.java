@@ -6,7 +6,7 @@ import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.krodark.asterion.Asterion;
-import net.krodark.asterion.WorldGenerator;
+import net.krodark.asterion.worldgen.WorldGenerator;
 import net.krodark.asterion.block.LamenterBlock;
 import net.krodark.asterion.block.LamenterBlockEntity;
 import net.krodark.asterion.event.CatacombFloodState;

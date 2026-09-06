@@ -6,7 +6,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.server.permissions.Permissions;
 import com.mojang.brigadier.Command;
 import net.krodark.asterion.Asterion;
-import net.krodark.asterion.WorldGenerator;
+import net.krodark.asterion.worldgen.WorldGenerator;
 import net.krodark.asterion.network.DeadSunEventPayload;
 import net.krodark.asterion.network.MazeShiftPayload;
 import net.krodark.asterion.network.DeadSunStrikePayload;
@@ -560,7 +560,7 @@ public final class DeadSunEventSystem {
             BlockPos candidate = new BlockPos(-limit + gx * cell + centerOffset, y,
                     -limit + gz * cell + centerOffset);
             if (awayFrom != null && candidate.distSqr(awayFrom) < 36.0D) continue;
-            if (net.krodark.asterion.WorldGenerator.isCenterAccessProtected(candidate)) continue;
+            if (net.krodark.asterion.worldgen.WorldGenerator.isCenterAccessProtected(candidate)) continue;
             if (!level.getBlockState(candidate).isAir() || !level.getBlockState(candidate.above(4)).isAir()) continue;
             int half = (cell - thickness) / 2;
             AABB barrier = new AABB(candidate.getX() - half, y, candidate.getZ() - half,
@@ -841,7 +841,7 @@ public final class DeadSunEventSystem {
                 }
                 int x = net.minecraft.util.Mth.floor(player.getX() + offsetX);
                 int z = net.minecraft.util.Mth.floor(player.getZ() + offsetZ);
-                BlockPos target = net.krodark.asterion.WorldGenerator.findDeadSunStrikeTarget(
+                BlockPos target = net.krodark.asterion.worldgen.WorldGenerator.findDeadSunStrikeTarget(
                         level, x, z, net.minecraft.util.Mth.floor(player.getY()));
                 float radius = 3.0F + random.nextFloat() * 1.15F;
                 if (PENDING_STRIKES.stream().anyMatch(existing ->
@@ -863,7 +863,7 @@ public final class DeadSunEventSystem {
         while (iterator.hasNext()) {
             PendingStrike strike = iterator.next();
             if (--strike.ticks > 0) continue;
-            net.krodark.asterion.WorldGenerator.applyDeadSunBarrageImpact(
+            net.krodark.asterion.worldgen.WorldGenerator.applyDeadSunBarrageImpact(
                     level, strike.target, strike.radius);
             iterator.remove();
         }

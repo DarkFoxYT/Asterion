@@ -40,7 +40,7 @@ final class CatacombProtectionCheck {
                 check(maze.getBlockState(pos).is(Blocks.STONE),"Player placement was rejected in catacombs");
                 clock.setGameTime(clock.getGameTime() + 4001);
                 try {
-                    var restore = net.krodark.asterion.WorldGenerator.class.getDeclaredMethod("tickRestoringBlocks", MinecraftServer.class);
+                    var restore = net.krodark.asterion.worldgen.WorldGenerator.class.getDeclaredMethod("tickRestoringBlocks", MinecraftServer.class);
                     restore.setAccessible(true); restore.invoke(null, server);
                 } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
                 check(maze.getBlockState(pos).is(Blocks.STONE), "Player block disappeared after the old decay deadline");

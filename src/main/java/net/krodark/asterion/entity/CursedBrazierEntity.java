@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import net.krodark.asterion.Asterion;
-import net.krodark.asterion.WorldGenerator;
+import net.krodark.asterion.worldgen.WorldGenerator;
 import net.krodark.asterion.block.GreekBrazierBlock;
 import net.krodark.asterion.effect.GreekFireBurn;
 import net.krodark.asterion.game.GameplayContent;

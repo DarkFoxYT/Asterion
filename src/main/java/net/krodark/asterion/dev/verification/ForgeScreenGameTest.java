@@ -3,7 +3,7 @@ package net.krodark.asterion.dev.verification;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.krodark.asterion.Asterion;
-import net.krodark.asterion.client.CrucibleScreen;
+import net.krodark.asterion.client.forge.CrucibleScreen;
 import net.krodark.asterion.network.CrucibleScreenPayload;
 import net.minecraft.core.BlockPos;
 import java.util.Set;

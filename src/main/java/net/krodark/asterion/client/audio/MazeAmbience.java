@@ -1,4 +1,4 @@
-package net.krodark.asterion.client;
+package net.krodark.asterion.client.audio;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.krodark.asterion.Asterion;

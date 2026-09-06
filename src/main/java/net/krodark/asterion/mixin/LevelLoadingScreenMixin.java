@@ -1,6 +1,6 @@
 package net.krodark.asterion.mixin;
 
-import net.krodark.asterion.client.DimensionTransitionOverlay;
+import net.krodark.asterion.client.cinematic.DimensionTransitionOverlay;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.LevelLoadingScreen;
 import org.spongepowered.asm.mixin.Mixin;

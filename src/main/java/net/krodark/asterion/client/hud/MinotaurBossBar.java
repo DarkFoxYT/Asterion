@@ -1,4 +1,4 @@
-package net.krodark.asterion.client;
+package net.krodark.asterion.client.hud;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import net.krodark.asterion.Asterion;

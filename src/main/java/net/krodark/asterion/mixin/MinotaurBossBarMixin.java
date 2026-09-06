@@ -1,6 +1,6 @@
 package net.krodark.asterion.mixin;
 
-import net.krodark.asterion.client.MinotaurBossBar;
+import net.krodark.asterion.client.hud.MinotaurBossBar;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.BossHealthOverlay;
 import net.minecraft.world.BossEvent;

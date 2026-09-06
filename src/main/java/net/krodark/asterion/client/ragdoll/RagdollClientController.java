@@ -10,8 +10,8 @@ import net.minecraft.world.entity.LivingEntity;
 import net.krodark.asterion.entity.MinotaurEntity;
 import net.krodark.asterion.entity.BombadierBeetleEntity;
 import net.krodark.asterion.entity.ScarletCentipedeEntity;
-import net.krodark.asterion.client.DazeOverlay;
-import net.krodark.asterion.client.BossFinaleOverlay;
+import net.krodark.asterion.client.hud.DazeOverlay;
+import net.krodark.asterion.client.cinematic.BossFinaleOverlay;
 import org.lwjgl.glfw.GLFW;
 
 public final class RagdollClientController {

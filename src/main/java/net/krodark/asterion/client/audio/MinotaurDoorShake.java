@@ -1,4 +1,4 @@
-package net.krodark.asterion.client;
+package net.krodark.asterion.client.audio;
 
 import net.krodark.asterion.block.MinotaurDoorBlockEntity;
 import net.krodark.asterion.client.event.DeadSunClientEvents;

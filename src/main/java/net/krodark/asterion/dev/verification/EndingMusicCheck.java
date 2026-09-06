@@ -2,7 +2,7 @@ package net.krodark.asterion.dev.verification;
 
 import com.google.gson.Gson;
 import net.krodark.asterion.Asterion;
-import net.krodark.asterion.client.BiomeMusic;
+import net.krodark.asterion.client.audio.BiomeMusic;
 import net.minecraft.client.Minecraft;
 import java.util.Arrays;
 import java.util.Comparator;

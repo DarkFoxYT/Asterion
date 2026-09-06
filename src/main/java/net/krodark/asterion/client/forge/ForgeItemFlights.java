@@ -1,4 +1,4 @@
-package net.krodark.asterion.client;
+package net.krodark.asterion.client.forge;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;

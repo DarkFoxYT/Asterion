@@ -182,7 +182,7 @@ public final class DeadSunClientEvents {
         Vec3 offset = base.cameraOffset;
         float yaw = base.yawDegrees, pitch = base.pitchDegrees;
         for (LocalRumble rumble : LOCAL_RUMBLES) {
-            double distance = (net.krodark.asterion.client.BossEntranceCinematic.isActive()
+            double distance = (net.krodark.asterion.client.cinematic.BossEntranceCinematic.isActive()
                     ? client.gameRenderer.getMainCamera().position() : client.player.position()).distanceTo(rumble.center);
             double proximity = 1.0D - Mth.clamp(distance / Math.max(1.0F, rumble.radius), 0.0D, 1.0D);
             double elapsed = now - rumble.startTick;

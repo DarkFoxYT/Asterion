@@ -1,4 +1,7 @@
-package net.krodark.asterion;
+package net.krodark.asterion.item;
+
+import net.krodark.asterion.Asterion;
+import net.krodark.asterion.worldgen.WorldGenerator;
 
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.BlockPos;

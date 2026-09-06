@@ -1,4 +1,6 @@
-package net.krodark.asterion.client;
+package net.krodark.asterion.client.cinematic;
+
+import net.krodark.asterion.client.hud.MazeObjectiveOverlay;
 
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.krodark.asterion.Asterion;

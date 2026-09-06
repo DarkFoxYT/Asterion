@@ -3,7 +3,7 @@ package net.krodark.asterion.dev.verification;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.krodark.asterion.Asterion;
-import net.krodark.asterion.WorldGenerator;
+import net.krodark.asterion.worldgen.WorldGenerator;
 import net.krodark.asterion.block.*;
 import net.krodark.asterion.entity.*;
 import net.krodark.asterion.game.*;
