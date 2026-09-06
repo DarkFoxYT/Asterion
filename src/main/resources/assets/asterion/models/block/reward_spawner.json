@@ -1,8 +1,6 @@
 {
-  "parent": "minecraft:block/cube_bottom_top",
+  "parent": "minecraft:block/cube_all",
   "textures": {
-    "top": "asterion:block/spawner_top",
-    "side": "asterion:block/spawner_sides",
-    "bottom": "asterion:block/spawner_top"
+    "all": "asterion:block/reward_spawner"
   }
 }

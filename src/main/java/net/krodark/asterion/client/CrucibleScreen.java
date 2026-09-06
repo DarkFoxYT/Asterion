@@ -187,8 +187,7 @@ public final class CrucibleScreen extends Screen {
         else if (inside(heatX, y, 84, 132, 32, 32)) heldControl = CrucibleControlPayload.COOL;
         else if (inside(heatX, y, 84, 84, 32, 32)) { send(CrucibleControlPayload.NEXT_MOLD); return true; }
         else if (inside(x, y, rightX() + 24, 44, 80, 32)) {
-            controlNotice = materialUnits == 0 ? "ADD METAL" : fuelTicks <= 0 ? "HEAT BELOW"
-                    : hasUnsmeltedIngredients() ? "CHECK RECIPE / HEAT" : "METAL READY";
+            controlNotice = smeltHint();
             noticeTicks = 60;
             send(CrucibleControlPayload.SMELT); return true;
         } else if (inside(x, y, rightX() + 16, 138, 96, 32)) {
@@ -253,7 +252,7 @@ public final class CrucibleScreen extends Screen {
         }
         shadowCentered(g, Integer.toString(heatControl), 100, 96, 0xFFBDA88A);
         var selected = mold < 0 ? null : MOLDS[mold];
-        boolean ready = selected != null && Math.abs(temperature - selected.target()) <= CrucibleBlockEntity.TOLERANCE;
+        boolean ready = selected != null && Math.abs(temperature - targetTemperature) <= (targetTemperature >= 700 ? 8 : CrucibleBlockEntity.TOLERANCE);
         String status = selected == null ? "NO MOLD" : ready ? "READY" : temperature > selected.target() ? "TOO HOT" : "TOO COLD";
         g.blit(RenderPipelines.GUI_TEXTURED, STATUS, 32, 187, 0, 0, 72, 18, 80, 32, 80, 32);
         shadowCentered(g, status, 68, 192,
@@ -276,7 +275,11 @@ public final class CrucibleScreen extends Screen {
         shadowCentered(g, "SMELT", rx + 64, 150, 0xFFC5AE8E);
         if (inside(mx, my, rx + 24, 44, 80, 32)) g.outline(rx + 24, 44, 80, 32, 0xFFD0B68C);
         if (inside(mx, my, rx + 16, 138, 96, 32)) g.outline(rx + 16, 138, 96, 32, 0xFFD0B68C);
-        if (noticeTicks > 0) shadowCentered(g, controlNotice, rx + 64, 126, 0xFFE5B77B);
+        g.pose().pushMatrix();
+        g.pose().translate(rx + 64, 165);
+        g.pose().scale(.65F, .65F);
+        shadowCentered(g, smeltHint(), 0, 0, 0xFFE5B77B);
+        g.pose().popMatrix();
         image(g, INPUT, rx + 48, 174, 32, 32);
         if (mold >= 0 && mold != 4) {
             image(g, MOLD_TEXTURES[mold], rx + 48, 174, 32, 32);
@@ -290,7 +293,7 @@ public final class CrucibleScreen extends Screen {
                 Math.round(displayedPourProgress * 100F / CrucibleBlockEntity.AUTO_POUR_TICKS) + "%",
                 rx + 64, 126, 0xFFBDA88A);
         if (inside(mx, my, rx + 48, 8, 32, 32) || inside(mx, my, rx + 8, 78, 112, 37))
-            g.setTooltipForNextFrame(font, Component.literal("Open inventory — add ingots or molds"), mouseX, mouseY);
+            g.setTooltipForNextFrame(font, Component.literal("Open inventory — add metal, coal, bones, keys or molds"), mouseX, mouseY);
         for (int i = 0; i < metalSequence.length(); i++) {
             int x = ingredientX(i);
             int y = ingredientY(i);
@@ -437,6 +440,27 @@ public final class CrucibleScreen extends Screen {
 
     private static String materialName(int metal) {
         return metal >= 0 && metal < MATERIAL_NAMES.length ? MATERIAL_NAMES[metal] : "Unknown";
+    }
+
+    private String smeltHint() {
+        if (materialUnits == 0) return "POUR METAL FIRST";
+        if (mold < 0) return "INSERT A MOLD";
+        if (hasUnsmeltedIngredients() && fuelTicks <= 0) return "LIGHT HEAT SOURCE BELOW";
+        int tolerance = targetTemperature >= 700 ? 8 : CrucibleBlockEntity.TOLERANCE;
+        if (temperature < targetTemperature - tolerance) return "HEAT TO " + targetTemperature + "°";
+        if (temperature > targetTemperature + tolerance) return "COOL TO " + targetTemperature + "°";
+        if (metalSequence.indexOf(':') >= 0 && !(countMaterial(':') == 3
+                && countMaterial('6') == 1 && countMaterial('0') == 1 && materialUnits == 5))
+            return "NEED 3 BONES + STEEL + IRON";
+        if (metalSequence.indexOf(';') >= 0 && !(countMaterial(';') == 2
+                && countMaterial('0') == 2 && materialUnits == 4)) return "NEED 2 COAL + 2 IRON";
+        if (hasUnsmeltedIngredients() && mold != CrucibleBlockEntity.Mold.INGOT.ordinal()) return "USE AN INGOT CAST";
+        if (metalSequence.indexOf('9') >= 0) return "REMOVE MAZESTEEL";
+        return "READY TO SMELT";
+    }
+
+    private long countMaterial(char material) {
+        return metalSequence.chars().filter(value -> value == material).count();
     }
 
     private boolean hasUnsmeltedIngredients() { return metalSequence.indexOf('9') >= 0 || metalSequence.indexOf(':') >= 0 || metalSequence.indexOf(';') >= 0; }

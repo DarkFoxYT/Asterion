@@ -60,6 +60,17 @@ public final class WeaponCombatSystem {
             AfterblowItem.consumeStored(weapon, attacker.level().getGameTime());
     }
 
+    /** Adds a live charge to the original melee hit. Consumption remains in AFTER_DAMAGE,
+     * so a rejected, invulnerable or fully blocked attack does not waste the counter. */
+    public static float afterblowDamage(DamageSource source, float damage, long gameTime) {
+        if (!(source.getEntity() instanceof ServerPlayer attacker) || source.getDirectEntity() != attacker)
+            return damage;
+        ItemStack weapon = attacker.getMainHandItem();
+        if (!weapon.is(Asterion.AFTERBLOW)) return damage;
+        float stored = AfterblowItem.storedAt(weapon, gameTime);
+        return stored > 0 && Float.isFinite(damage) ? damage + stored : damage;
+    }
+
     /** Applied before a landed melee hit; hit three arms the bonus for hit four onward. */
     public static float amplifyTwinbladeDamage(ServerPlayer attacker, LivingEntity target,
                                                DamageSource source, float damage) {

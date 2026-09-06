@@ -41,8 +41,9 @@ public final class MinotaurGrabGameTest implements FabricClientGameTest {
                 bossRef.set(boss);
                 var bar = new net.minecraft.server.level.ServerBossEvent(
                         java.util.UUID.randomUUID(),
-                        net.minecraft.network.chat.Component.literal("Grab test"),
+                        net.minecraft.network.chat.Component.literal("THE MINOTAUR"),
                         net.minecraft.world.BossEvent.BossBarColor.RED, net.minecraft.world.BossEvent.BossBarOverlay.PROGRESS);
+                bar.setProgress(.65F);
                 bar.addPlayer(player);
                 barRef.set(bar);
                 player.teleportTo(boss.getX() + 2, boss.getY() + 2, boss.getZ());

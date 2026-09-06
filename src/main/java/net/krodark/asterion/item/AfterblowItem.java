@@ -22,8 +22,7 @@ public final class AfterblowItem extends Item {
     private static final String STORED_DAMAGE = "afterblow_damage";
     private static final String STORED_AT = "afterblow_stored_at";
     private static final int BLOCK_COOLDOWN_TICKS = 40;
-    private static final int FULL_STRENGTH_TICKS = 100;
-    private static final int EXPIRES_TICKS = 200;
+    private static final int EXPIRES_TICKS = 100;
 
     public AfterblowItem(Properties properties) {
         super(properties);
@@ -32,7 +31,11 @@ public final class AfterblowItem extends Item {
     @Override
     public InteractionResult use(Level level, net.minecraft.world.entity.player.Player player,
                                  InteractionHand hand) {
-        if (player.getCooldowns().isOnCooldown(player.getItemInHand(hand))) return InteractionResult.FAIL;
+        ItemStack stack = player.getItemInHand(hand);
+        // A charged Afterblow is committed to its counterattack. It cannot guard again
+        // until that charge is discharged by a landed hit or expires after five seconds.
+        if (player.getCooldowns().isOnCooldown(stack) || storedAt(stack, level.getGameTime()) > .001F)
+            return InteractionResult.FAIL;
         player.startUsingItem(hand);
         return InteractionResult.CONSUME;
     }
@@ -59,25 +62,28 @@ public final class AfterblowItem extends Item {
                 || source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_SHIELD)
                 || source.getDirectEntity() == null) return false;
         ItemStack stack = player.getUseItem();
-        if (!(stack.getItem() instanceof AfterblowItem) || player.getCooldowns().isOnCooldown(stack)) return false;
+        if (!(stack.getItem() instanceof AfterblowItem) || player.getCooldowns().isOnCooldown(stack)
+                || storedAt(stack, player.level().getGameTime()) > .001F) return false;
 
         long now = player.level().getGameTime();
-        writeStored(stack, Math.clamp(12F - damage * .5F, 2F, 12F), now);
+        writeStored(stack, damage, now);
         player.getCooldowns().addCooldown(stack, BLOCK_COOLDOWN_TICKS);
         int durability = Math.max(1, (int)Math.ceil(damage));
         InteractionHand hand = player.getUsedItemHand();
         player.stopUsingItem();
         stack.hurtAndBreak(durability, player, hand);
         player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
-                net.minecraft.sounds.SoundEvents.SHIELD_BLOCK,
-                net.minecraft.sounds.SoundSource.PLAYERS, 0.9F, 0.78F + player.getRandom().nextFloat() * .15F);
+                net.krodark.asterion.Asterion.AFTERBLOW_PARRY,
+                net.minecraft.sounds.SoundSource.PLAYERS, 0.9F, 1.0F);
         return true;
     }
 
     /** Removes and returns the still-live charge; every successful attack gets one discharge. */
     public static float consumeStored(ItemStack stack, long now) {
         float stored = storedAt(stack, now);
-        if (stored > 0) writeStored(stack, 0, now);
+        // Clear even an expired raw value. It must never survive a swing and become visible
+        // again through a later timestamp/model update.
+        if (rawStored(stack) > 0) writeStored(stack, 0, now);
         return stored;
     }
 
@@ -86,16 +92,10 @@ public final class AfterblowItem extends Item {
         if (data == null) return 0;
         CompoundTag tag = data.copyTag();
         float raw = tag.getFloatOr(STORED_DAMAGE, 0);
-        float value = Float.isFinite(raw) ? Math.clamp(raw, 0, 12) : 0;
+        float value = Float.isFinite(raw) ? Math.max(0, raw) : 0;
         long elapsed = Math.max(0, now - tag.getLongOr(STORED_AT, now));
-        if (elapsed <= FULL_STRENGTH_TICKS) return value;
         if (elapsed >= EXPIRES_TICKS) return 0;
-
-        // Normalized exponential falloff: exactly 100% at five seconds and 0% at ten.
-        double progress = (elapsed - FULL_STRENGTH_TICKS)
-                / (double)(EXPIRES_TICKS - FULL_STRENGTH_TICKS);
-        double floor = Math.exp(-4D);
-        return (float)(value * (Math.exp(-4D * progress) - floor) / (1D - floor));
+        return value;
     }
 
     private static void writeStored(ItemStack stack, float value, long now) {
@@ -115,7 +115,16 @@ public final class AfterblowItem extends Item {
     @Override
     public void inventoryTick(ItemStack stack, net.minecraft.server.level.ServerLevel level,
                               net.minecraft.world.entity.Entity entity, net.minecraft.world.entity.EquipmentSlot slot) {
-        updateModel(stack, storedAt(stack, level.getGameTime()) > .001F);
+        float stored = storedAt(stack, level.getGameTime());
+        if (stored <= .001F && rawStored(stack) > 0) writeStored(stack, 0, level.getGameTime());
+        else updateModel(stack, stored > .001F);
+    }
+
+    private static float rawStored(ItemStack stack) {
+        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        if (data == null) return 0;
+        float value = data.copyTag().getFloatOr(STORED_DAMAGE, 0);
+        return Float.isFinite(value) ? Math.max(0, value) : 0;
     }
 
     private static void updateModel(ItemStack stack, boolean powered) {
@@ -127,8 +136,7 @@ public final class AfterblowItem extends Item {
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, TooltipDisplay display,
                                 Consumer<Component> tooltip, TooltipFlag flag) {
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        float stored = data == null ? 0 : data.copyTag().getFloatOr(STORED_DAMAGE, 0);
+        float stored = rawStored(stack);
         if (stored > .01F)
             tooltip.accept(Component.translatable("tooltip.asterion.afterblow.stored", stored)
                     .withStyle(ChatFormatting.GOLD));

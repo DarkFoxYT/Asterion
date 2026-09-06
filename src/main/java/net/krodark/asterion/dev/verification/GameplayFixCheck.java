@@ -70,7 +70,7 @@ public final class GameplayFixCheck {
         check(sword.get(DataComponents.CUSTOM_MODEL_DATA).flags().getFirst(), "Charge did not power texture");
         check(AfterblowItem.consumeStored(sword, level.getGameTime()) == 12, "Charge damage lost");
         check(!sword.get(DataComponents.CUSTOM_MODEL_DATA).flags().getFirst(), "Discharge left powered texture");
-        tag.putLong("afterblow_stored_at", level.getGameTime() - 201);
+        tag.putLong("afterblow_stored_at", level.getGameTime() - 101);
         sword.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
         item.inventoryTick(sword, level, player, EquipmentSlot.MAINHAND);
         check(!sword.get(DataComponents.CUSTOM_MODEL_DATA).flags().getFirst(), "Expired charge stayed powered");

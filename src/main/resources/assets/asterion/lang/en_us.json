@@ -174,7 +174,7 @@
   "item.asterion.afterblow": "Afterblow",
   "item.asterion.sickened_twinblades": "Sickened Twinblades",
   "tooltip.asterion.afterblow.stored": "Next counterattack: %.1f damage",
-  "tooltip.asterion.afterblow.guard": "Guards one hit; 2-second cooldown. Light hits strengthen the counter, heavy hits weaken it. Charge fades after 5 seconds.",
+  "tooltip.asterion.afterblow.guard": "Guards one hit and stores its damage. Cannot block while charged; the next hit discharges it. Charge expires after 5 seconds.",
   "item.asterion.tainted_heart": "Passion Bloom",
   "item.asterion.tainted_heart_eatable": "Tainted Heart",
   "block.asterion.tainted_heart": "Passion Bloom",
@@ -532,5 +532,13 @@
   "subtitles.asterion.minotaur_aggro": "Minotaur growls",
   "subtitles.asterion.minotaur_stagger": "Minotaur staggers",
   "subtitles.asterion.minotaur_hurt_light": "Minotaur hurts",
-  "subtitles.asterion.minotaur_hurt_exposed": "Minotaur cries out"
+  "subtitles.asterion.minotaur_hurt_exposed": "Minotaur cries out",
+  "tooltip.asterion.minotaur_key.ingredients": "3 Bonesteel ingots + 1 Cursed Brazier Key",
+  "tooltip.asterion.minotaur_key.forge": "Use a Minotaur Key Mold in the underground Forge area.",
+  "tooltip.asterion.minotaur_key.heat": "Keep the Forge heated to 850°C (±8°C), then press Smelt.",
+  "subtitles.asterion.minotaur_charge_warning": "Minotaur prepares to charge",
+  "subtitles.asterion.minotaur_charge_roar": "Minotaur charges",
+  "subtitles.asterion.minotaur_charge_hit_player": "Minotaur charge impacts",
+  "subtitles.asterion.afterblow_parry": "Afterblow parries",
+  "subtitles.asterion.eclipse_event": "An eclipse begins"
 }

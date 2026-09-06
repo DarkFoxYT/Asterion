@@ -38,8 +38,9 @@ final class AfterblowCombatCheck {
             float health = player.getHealth();
             player.hurtServer(level, level.damageSources().playerAttack(opponent), 2);
             check(player.getHealth() == health, "Guard did not cancel incoming PvP damage");
-            check(AfterblowItem.storedAt(sword, now) == 11, "Light hit did not arm the counter: "
+            check(AfterblowItem.storedAt(sword, now) == 2, "Blocked damage was not stored exactly: "
                     + AfterblowItem.storedAt(sword, now) + ", PvP=" + level.isPvpAllowed());
+            check(sword.getDamageValue() == 2, "Blocked damage was not applied as durability");
             check(!player.isUsingItem(), "Guard continued after blocking a hit");
             check(item.use(level, player, InteractionHand.MAIN_HAND) == InteractionResult.FAIL, "Cooldown allowed another guard");
             check(!opponent.getCooldowns().isOnCooldown(otherSword), "Cooldown leaked between players");
@@ -48,19 +49,23 @@ final class AfterblowCombatCheck {
             check(player.getCooldowns().isOnCooldown(sword), "Cooldown ended before two seconds");
             player.getCooldowns().tick();
             check(!player.getCooldowns().isOnCooldown(sword), "Cooldown exceeded two seconds");
-            item.use(level, player, InteractionHand.MAIN_HAND);
-            player.hurtServer(level, level.damageSources().playerAttack(opponent), 20);
-            check(AfterblowItem.storedAt(sword, now) == 2, "Heavy hit stacked charge or failed to weaken it");
-            check(sword.getDamageValue() == 22, "Heavy block did not cost more durability");
+            check(item.use(level, player, InteractionHand.MAIN_HAND) == InteractionResult.FAIL,
+                    "Charged sword was allowed to block again");
 
             opponent.setHealth(20);
             opponent.invulnerableTime = 0;
             check(opponent.hurtServer(level, level.damageSources().playerAttack(player), 9), "Counterattack was rejected");
-            check(Math.abs(opponent.getHealth() - 18) < .001F, "Counter added normal damage or became an immune second hit");
+            check(Math.abs(opponent.getHealth() - 9) < .001F, "Counter did not add all stored damage to one hit");
             check(AfterblowItem.storedAt(sword, now) == 0, "Counterattack did not consume charge");
             opponent.invulnerableTime = 0;
             opponent.hurtServer(level, level.damageSources().playerAttack(player), 3);
-            check(Math.abs(opponent.getHealth() - 15) < .001F, "Charge was used twice");
+            check(Math.abs(opponent.getHealth() - 6) < .001F, "Charge was used twice");
+
+            check(item.use(level, player, InteractionHand.MAIN_HAND) == InteractionResult.CONSUME,
+                    "Sword could not block again after discharge");
+            player.hurtServer(level, level.damageSources().playerAttack(opponent), 8);
+            check(AfterblowItem.storedAt(sword, now) == 8, "Second cycle did not store exact blocked damage");
+            check(sword.getDamageValue() == 10, "Second block used the wrong durability amount");
 
             item.use(level, opponent, InteractionHand.MAIN_HAND);
             opponent.releaseUsingItem();
@@ -68,7 +73,7 @@ final class AfterblowCombatCheck {
             for (int tick = 0; tick < 40; tick++) opponent.getCooldowns().tick();
             item.finishUsingItem(otherSword, level, opponent);
             check(opponent.getCooldowns().isOnCooldown(otherSword), "Guard expiry skipped cooldown");
-            Asterion.LOGGER.info("PASS: Afterblow PvP guard, separate player state, single replacement counter, inverse damage scaling and 40-tick cooldown");
+            Asterion.LOGGER.info("PASS: Afterblow exact stored damage, charged guard lockout, five-second expiry, durability cost and single-hit discharge");
         } finally {
             player.stopUsingItem();
             for (int tick = 0; tick < 40; tick++) player.getCooldowns().tick();

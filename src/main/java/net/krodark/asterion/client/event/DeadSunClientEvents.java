@@ -123,7 +123,12 @@ public final class DeadSunClientEvents {
         }
         activeId = pending.eventId();
         activeSeed = pending.seed();
-        if (newEvent && activeId.equals(DeadSunEventSystem.ECLIPSE)) eclipseIntroTicks = 0;
+        if (newEvent && activeId.equals(DeadSunEventSystem.ECLIPSE)) {
+            eclipseIntroTicks = 0;
+            if (pending.elapsedTicks() <= 40)
+                client.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                        net.krodark.asterion.Asterion.ECLIPSE_EVENT_SOUND, 1.0F, 1.0F));
+        }
         active = factory.create(pending.seed(), client.level.getGameTime() - pending.elapsedTicks(),
                 pending.durationTicks(), pending.intensity());
         if (newEvent && activeId.equals(DeadSunEventSystem.RUMBLE) && client.player != null)

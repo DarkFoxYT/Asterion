@@ -54,6 +54,7 @@ public final class BossFinaleOverlay {
         client.options.setCameraType(CameraType.FIRST_PERSON);
         CinematicHud.begin(client);
         if (client.level != null) client.levelRenderer.getSectionOcclusionGraph().invalidate();
+        BiomeMusic.beginCredits();
         active = true;
         overworldReady = false;
         ticks = 0;
@@ -189,6 +190,7 @@ public final class BossFinaleOverlay {
     }
 
     public static void finish(Minecraft client) {
+        if (active) BiomeMusic.endCredits();
         active = false;
         overworldReady = false;
         fadeTicks = 0;

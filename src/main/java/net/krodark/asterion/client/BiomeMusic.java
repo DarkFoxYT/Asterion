@@ -24,6 +24,7 @@ public final class BiomeMusic {
     private static ClientLevel level;
     private static int biome = -1, ticks, notice, gap;
     private static boolean arena, defeatedBossNearby;
+    private static boolean credits;
     private static int victoryTrack;
     private static String lastGroup = "";
     private static Voice voice;
@@ -49,14 +50,14 @@ public final class BiomeMusic {
 
     public static void setBiome(int value) {
         var client = Minecraft.getInstance();
-        if (level != client.level) reset(client);
+        if (level != client.level && !credits) reset(client);
         level = client.level;
         biome = value;
     }
 
     public static boolean ownsMusic() {
         var client = Minecraft.getInstance();
-        return client.level != null && client.level.dimension().equals(Asterion.ASTERION_LEVEL);
+        return credits || client.level != null && client.level.dimension().equals(Asterion.ASTERION_LEVEL);
     }
 
     public static String group(int biome, boolean arena) {
@@ -69,7 +70,24 @@ public final class BiomeMusic {
         return switch (group) { case "ancient" -> .12F; case "forge" -> .24F; case "arena" -> .55F; default -> .32F; };
     }
 
+    public static void beginCredits() {
+        credits = true;
+        notice = 0;
+    }
+
+    public static void endCredits() {
+        credits = false;
+        reset(Minecraft.getInstance());
+    }
+
     private static void tick(Minecraft client) {
+        if (credits) {
+            if (client.level == null || client.player == null) { endCredits(); return; }
+            level = client.level;
+            if (voice != null && playing != null)
+                voice.target = gain(playing.group()) * AsterionConfig.INSTANCE.musicVolumePercent / 100F;
+            return;
+        }
         if (level != client.level) { reset(client); level = client.level; }
         if (!ownsMusic() || client.player == null || !client.player.isAlive()) { stop(client); return; }
         if (client.isPaused()) return;

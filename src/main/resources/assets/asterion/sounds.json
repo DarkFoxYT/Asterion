@@ -1,11 +1,15 @@
 {
   "respawn_obelisk_activate": {
     "subtitle": "subtitles.asterion.respawn_obelisk_activate",
-    "sounds": ["asterion:sfx/misc/respawn_obelisk.activate"]
+    "sounds": [
+      "asterion:sfx/misc/respawn_obelisk.activate"
+    ]
   },
   "respawn_obelisk_revive": {
     "subtitle": "subtitles.asterion.respawn_obelisk_revive",
-    "sounds": ["asterion:sfx/misc/respawn_obelisk.revive"]
+    "sounds": [
+      "asterion:sfx/misc/respawn_obelisk.revive"
+    ]
   },
   "metal_hit_sound": {
     "subtitle": "subtitles.asterion.metal_hit",
@@ -73,6 +77,36 @@
     "sounds": [
       "asterion:sfx/mino/minotaur.hurt_exposed_1",
       "asterion:sfx/mino/minotaur.hurt_exposed_2"
+    ]
+  },
+  "minotaur_charge_warning": {
+    "subtitle": "subtitles.asterion.minotaur_charge_warning",
+    "sounds": [
+      "asterion:sfx/mino/minotaur.charge_warning"
+    ]
+  },
+  "minotaur_charge_roar": {
+    "subtitle": "subtitles.asterion.minotaur_charge_roar",
+    "sounds": [
+      "asterion:sfx/mino/minotaur.charge_roar"
+    ]
+  },
+  "minotaur_charge_hit_player": {
+    "subtitle": "subtitles.asterion.minotaur_charge_hit_player",
+    "sounds": [
+      "asterion:sfx/mino/minotaur.charge_hit_player"
+    ]
+  },
+  "afterblow_parry": {
+    "subtitle": "subtitles.asterion.afterblow_parry",
+    "sounds": [
+      "asterion:sfx/misc/afterblow.parry"
+    ]
+  },
+  "eclipse_event": {
+    "subtitle": "subtitles.asterion.eclipse_event",
+    "sounds": [
+      "asterion:sfx/event/eclipse.event"
     ]
   }
 }

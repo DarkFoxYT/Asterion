@@ -137,6 +137,11 @@ public class Asterion implements ModInitializer {
     private static final ResourceKey<Biome> FORGE_BIOME = ResourceKey.create(
             Registries.BIOME, id("forge"));
     public static final SoundEvent MINOTAUR_ROAR = registerSound("minotaur_roar");
+    public static final SoundEvent MINOTAUR_CHARGE_HIT_PLAYER = registerSound("minotaur_charge_hit_player");
+    public static final SoundEvent ECLIPSE_EVENT_SOUND = registerSound("eclipse_event");
+    public static final SoundEvent AFTERBLOW_PARRY = registerSound("afterblow_parry");
+    public static final SoundEvent MINOTAUR_CHARGE_ROAR = registerSound("minotaur_charge_roar");
+    public static final SoundEvent MINOTAUR_CHARGE_WARNING = registerSound("minotaur_charge_warning");
     public static final SoundEvent MINOTAUR_AGGRO = registerSound("minotaur_aggro");
     public static final SoundEvent MINOTAUR_STAGGER = registerSound("minotaur_stagger");
     public static final SoundEvent MINOTAUR_HURT_LIGHT = registerSound("minotaur_hurt_light");
@@ -380,7 +385,7 @@ public class Asterion implements ModInitializer {
     public static final Item SWORD_POMMEL_CAST = registerSimpleItem("sword_pommel_cast");
     public static final Item SWORD_BLADE_CAST = registerSimpleItem("sword_blade_cast");
     public static final Item AXE_HEAD_CAST = registerSimpleItem("axe_head_cast");
-    public static final Item MINOTAUR_KEY_CAST = registerSimpleItem("minotaur_key_cast");
+    public static final Item MINOTAUR_KEY_CAST = registerMinotaurKeyCast();
     public static final Item CELESTIAL_BRONZE_INGOT = registerMetalItem("celestial_bronze_ingot");
     public static final Item TARNISHED_GOLD_INGOT = registerMetalItem("tarnished_gold_ingot");
     public static final Item CELESTIAL_GOLD_INGOT = registerMetalItem("celestial_gold_ingot");
@@ -578,7 +583,8 @@ public class Asterion implements ModInitializer {
                             .rarity(Rarity.RARE)));
     private static final ResourceKey<Item> MINOTAUR_KEY_ID = ResourceKey.create(Registries.ITEM, id("minotaur_key"));
     public static final Item MINOTAUR_KEY = Registry.register(BuiltInRegistries.ITEM, MINOTAUR_KEY_ID,
-            new Item(new Item.Properties().setId(MINOTAUR_KEY_ID).stacksTo(1).rarity(Rarity.UNCOMMON)));
+            new Item(new Item.Properties().setId(MINOTAUR_KEY_ID).stacksTo(1).rarity(Rarity.UNCOMMON)
+                    .component(net.minecraft.core.component.DataComponents.LORE, minotaurKeyInstructions())));
     private static final ResourceKey<Item> OMEGA_KEY_ID = ResourceKey.create(Registries.ITEM, id("omega_key"));
     public static final Item OMEGA_KEY = Registry.register(BuiltInRegistries.ITEM, OMEGA_KEY_ID,
             new Item(new Item.Properties().setId(OMEGA_KEY_ID).stacksTo(1).rarity(Rarity.EPIC).fireResistant()));
@@ -1078,6 +1084,19 @@ public class Asterion implements ModInitializer {
     private static Block registerBlock(String name, MapColor color,
                                        java.util.function.Function<BlockBehaviour.Properties, Block> factory) {
         return registerBlock(name, color, factory, java.util.function.UnaryOperator.identity());
+    }
+
+    private static net.minecraft.world.item.component.ItemLore minotaurKeyInstructions() {
+        return new net.minecraft.world.item.component.ItemLore(java.util.List.of(
+                Component.translatable("tooltip.asterion.minotaur_key.ingredients"),
+                Component.translatable("tooltip.asterion.minotaur_key.forge"),
+                Component.translatable("tooltip.asterion.minotaur_key.heat")));
+    }
+
+    private static Item registerMinotaurKeyCast() {
+        ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id("minotaur_key_cast"));
+        return Registry.register(BuiltInRegistries.ITEM, key, new Item(new Item.Properties().setId(key)
+                .component(net.minecraft.core.component.DataComponents.LORE, minotaurKeyInstructions())));
     }
 
     private static Item registerSimpleItem(String name) {

@@ -5,6 +5,7 @@
   "compatibilityLevel": "JAVA_25",
   "mixins": [
     "ChainLiftMovementMixin",
+    "AfterblowDamageMixin",
     "MazesteelMiningMixin",
     "HeavyWaterMovementMixin",
     "HeavyWaterRedstoneMixin",
@@ -37,6 +38,7 @@
     "GeckoTextureCacheLifecycleMixin",
     "GeckoInterpolationBufferAccessor",
     "BossHealthOverlayAccessor",
+    "MinotaurBossBarMixin",
     "MinotaurBodyPickingMixin",
     "FlamethrowerInputMixin",
     "BiomeMusicMixin",

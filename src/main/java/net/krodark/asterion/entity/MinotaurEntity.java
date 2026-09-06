@@ -1236,7 +1236,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         getNavigation().stop();
         setDeltaMovement(Vec3.ZERO);
         getLookControl().setLookAt(player, 10.0F, 5.0F);
-        playSound(SoundEvents.GOAT_PREPARE_RAM, 3.0F, 0.34F);
+        playSound(Asterion.MINOTAUR_CHARGE_WARNING, 3.0F, 1.0F);
         return true;
     }
 
@@ -1257,7 +1257,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                         7, 0.7D, 0.08D, 0.7D, 0.04D);
             return;
         }
-        if (corridorChargeTicks == 18) playRoar(3.4F, 0.72F, 0.92F);
+        if (corridorChargeTicks == 18) playSound(Asterion.MINOTAUR_CHARGE_ROAR, 3.4F, 1.0F);
         double speed = 0.64D + rage() * 0.014D;
         setDeltaMovement(corridorChargeDirection.x * speed, getDeltaMovement().y,
                 corridorChargeDirection.z * speed);
@@ -2558,8 +2558,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                     if (ServerPlayNetworking.canSend(viewer, DeadSunStrikePayload.TYPE))
                         ServerPlayNetworking.send(viewer, strike);
                 playSound(SoundEvents.LIGHTNING_BOLT_THUNDER, 3.8F, 0.48F);
-            } else playSound(SoundEvents.GOAT_PREPARE_RAM, attack == BossAttack.PAWING ? 3.2F : 2.8F,
-                    attack == BossAttack.PAWING ? 0.31F : 0.38F);
+            } else playSound(Asterion.MINOTAUR_CHARGE_WARNING, attack == BossAttack.PAWING ? 3.2F : 2.8F, 1.0F);
         } else if (attack == BossAttack.LEAP) {
             Vec3 landing = player.position().add(player.getDeltaMovement().multiply(4, 0, 4));
             bossLeapTarget = behaviorPhase() == BehaviorPhase.BOSS ? combatPoint(landing) : landing;
@@ -2799,6 +2798,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                     // The run phase clears the swept body volume before collision is resolved.
                 } else {
                     int runTicks = bossAttackTicks - windupTicks;
+                    if (runTicks == 1) playSound(Asterion.MINOTAUR_CHARGE_ROAR, 4.0F, 1.0F);
                     double acceleration = smootherStep(Mth.clamp(runTicks / 34.0D, 0.0D, 1.0D));
                     double minimumSpeed = 0.38D;
                     double maximumSpeed = 1.62D + rage() * 0.016D;
@@ -3048,7 +3048,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 playSound(SoundEvents.RAVAGER_STEP, 2.4F,
                         0.36F + bossAttackTicks / 300.0F);
             }
-            if (bossAttackTicks == 30) playRoar(4.0F, 0.68F, 1.05F);
+            if (bossAttackTicks == 30) playSound(Asterion.MINOTAUR_CHARGE_ROAR, 4.0F, 1.0F);
             return;
         }
         int runTicks = bossAttackTicks - 30;
@@ -3105,7 +3105,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                         12, 0.45D, 0.08D, 0.45D, 0.05D);
                 playSound(SoundEvents.RAVAGER_STEP, 2.5F, 0.34F + bossAttackTicks * 0.004F);
             }
-            if (bossAttackTicks == 24) playRoar(3.8F, 0.70F, 0.9F);
+            if (bossAttackTicks == 24) playSound(Asterion.MINOTAUR_CHARGE_ROAR, 3.8F, 1.0F);
             return;
         }
 
@@ -4209,6 +4209,10 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     private void ragdollPlayer(ServerPlayer player, Vec3 impulse, float force, boolean guaranteed) {
+        if (corridorChargeTicks > 0 || bossAttack == BossAttack.CHARGE
+                || bossAttack == BossAttack.HORN_RAM || bossAttack == BossAttack.STAMPEDE)
+            level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                    Asterion.MINOTAUR_CHARGE_HIT_PLAYER, net.minecraft.sounds.SoundSource.HOSTILE, 2.5F, 1.0F);
         player.setDeltaMovement(impulse);
         player.hurtMarked = true;
         player.resetFallDistance();
