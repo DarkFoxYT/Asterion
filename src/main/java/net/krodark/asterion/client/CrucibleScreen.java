@@ -106,7 +106,8 @@ public final class CrucibleScreen extends Screen {
         displayedPourProgress += (autoPourProgress - displayedPourProgress) * 0.13F;
     }
 
-    private boolean inventoryOpen, closing;
+    private boolean inventoryOpen, closing, recipesOpen;
+    private final ForgeRecipePanel recipes = new ForgeRecipePanel();
     private float inventoryReveal, previousInventoryReveal, framePartial = 1;
     private final Panel heatPanel = new Panel(), forgePanel = new Panel(), moldPanel = new Panel();
     private static final class Panel {
@@ -118,7 +119,7 @@ public final class CrucibleScreen extends Screen {
     private int leftOffset() { return Math.round(-128 * (1 - heatPanel.value(framePartial))); }
     @Override public void onClose() {
         closing = true;
-        inventoryOpen = false;
+        inventoryOpen = recipesOpen = false;
         heatPanel.open = forgePanel.open = moldPanel.open = false;
         heldControl = 0;
     }
@@ -146,12 +147,19 @@ public final class CrucibleScreen extends Screen {
     private int rightX() { return Math.round(width / scale()) - 132 + Math.round(128 * (1 - forgePanel.value(framePartial))); }
     private int bottomX() { return Math.round(width / scale()) / 2 - 128; }
     private int bottomY() { return Math.round(height / scale()) - GUI_Y - 68 + Math.round(64 * (1 - moldPanel.value(framePartial))); }
-    private int ingredientX(int index) { return rightX() + (index == 4 ? 64 : index == 0 ? 56 : 16 + (index - 1) * 40); }
-    private int ingredientY(int index) { return index == 4 ? 20 : index == 0 ? 16 : index == 2 ? 91 : 86; }
+    private int ingredientX(int index) { return rightX() + (index == 4 ? 56 : index == 0 ? 56 : 16 + (index - 1) * 40); }
+    private int ingredientY(int index) { return index == 4 ? 116 : index == 0 ? 16 : index == 2 ? 91 : 86; }
     private int inventoryX() { return Math.round(width / scale()) / 2 - 85; }
     private int inventoryY() { return 22 - Math.round((1 - Mth.lerp(framePartial, previousInventoryReveal, inventoryReveal)) * 112); }
     private int inventoryTabX() { return Math.round(width / scale()) / 2 - 22; }
     private int inventoryTabY() { return 0; }
+    private int recipesTabX() { return inventoryTabX() + 48; }
+    private int recipesX() { return Math.round(width / scale()) / 2 - ForgeRecipePanel.WIDTH / 2; }
+    private void updateRecipes() {
+        recipes.update(item -> mold >= 0 && CrucibleBlockEntity.moldItem(mold) == item
+                || minecraft.player != null && java.util.stream.IntStream.range(0, 36)
+                .anyMatch(slot -> minecraft.player.getInventory().getItem(slot).is(item)));
+    }
     private static boolean inside(double x, double y, int left, int top, int w, int h) {
         return x >= left && x < left + w && y >= top && y < top + h;
     }
@@ -167,6 +175,19 @@ public final class CrucibleScreen extends Screen {
     @Override public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
         if (closing) return true;
         double x = event.x() / scale(), y = event.y() / scale() - GUI_Y;
+        if (event.button() == 0 && inside(x, y, recipesTabX(), 0, 60, 14)) {
+            recipesOpen = !recipesOpen;
+            if (recipesOpen) { inventoryOpen = false; inventoryReveal = previousInventoryReveal = 0; updateRecipes(); }
+            heldControl = 0;
+            clickSound(); return true;
+        }
+        if (recipesOpen) {
+            updateRecipes();
+            if (inside(x, y, recipesX(), 22, ForgeRecipePanel.WIDTH, ForgeRecipePanel.HEIGHT)) {
+                if (event.button() == 0) { recipes.click(x, y, recipesX(), 22); clickSound(); }
+                return true;
+            }
+        }
         if (!inventoryOpen && (event.button() == 0 || event.button() == 1)) {
             for (int i = metalSequence.length() - 1; i >= 0; i--) {
                 if (inside(x, y, ingredientX(i), ingredientY(i), 16, 16)) {
@@ -175,10 +196,12 @@ public final class CrucibleScreen extends Screen {
             }
         }
         if (event.button() != 0) return super.mouseClicked(event, doubled);
-        if (inside(x, y, 132 + leftOffset(), 90, 18, 34)) { heatPanel.open = !heatPanel.open; heldControl = 0; return true; }
-        if (inside(x, y, rightX() - 18, 90, 18, 34)) { forgePanel.open = !forgePanel.open; return true; }
-        if (inside(x, y, bottomX() + 95, bottomY() - 14, 66, 14)) { moldPanel.open = !moldPanel.open; return true; }
-        if (inside(x, y, inventoryTabX(), inventoryTabY(), 44, 14)) { inventoryOpen = !inventoryOpen; return true; }
+        if (inside(x, y, 132 + leftOffset(), 90, 18, 34)) { clickSound(); heatPanel.open = !heatPanel.open; heldControl = 0; return true; }
+        if (inside(x, y, rightX() - 18, 90, 18, 34)) { clickSound(); forgePanel.open = !forgePanel.open; return true; }
+        if (inside(x, y, bottomX() + 95, bottomY() - 14, 66, 14)) { clickSound(); moldPanel.open = !moldPanel.open; return true; }
+        if (inside(x, y, inventoryTabX(), inventoryTabY(), 44, 14)) { inventoryOpen = !inventoryOpen; recipesOpen = false;
+            clickSound();
+            return true; }
         double heatX = x - leftOffset();
         int slot = inventorySlotAt(x, y);
         if (slot >= 0) { send(CrucibleControlPayload.insertSlot(slot)); inventoryOpen = false; return true; }
@@ -193,7 +216,9 @@ public final class CrucibleScreen extends Screen {
             send(CrucibleControlPayload.POUR); return true;
         } else if (inside(x, y, rightX() + 48, 8, 32, 32)
                 || inside(x, y, rightX() + 8, 78, 112, 37)) {
-            inventoryOpen = !inventoryOpen; return true;
+            inventoryOpen = !inventoryOpen; recipesOpen = false;
+            clickSound();
+            return true;
         } else {
             for (int i = 0; i < VISIBLE_MOLDS.length; i++) if (inside(x, y, bottomX() + 8 + i * 40, bottomY() + 16, 32, 32)) {
                 send(CrucibleControlPayload.selectMold(VISIBLE_MOLDS[i])); return true;
@@ -208,7 +233,12 @@ public final class CrucibleScreen extends Screen {
         heldControl = heldTicks = 0;
         return super.mouseReleased(event);
     }
+    private void clickSound() {
+        minecraft.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1F));
+    }
     private void send(int action) {
+        clickSound();
         if (ClientPlayNetworking.canSend(CrucibleControlPayload.TYPE))
             ClientPlayNetworking.send(new CrucibleControlPayload(pos, action));
     }
@@ -251,7 +281,7 @@ public final class CrucibleScreen extends Screen {
         }
         shadowCentered(g, Integer.toString(heatControl), 100, 96, 0xFFBDA88A);
         var selected = mold < 0 ? null : MOLDS[mold];
-        boolean ready = selected != null && Math.abs(temperature - targetTemperature) <= (targetTemperature >= 700 ? 8 : CrucibleBlockEntity.TOLERANCE);
+        boolean ready = selected != null && Math.abs(temperature - targetTemperature) <= (mold == CrucibleBlockEntity.Mold.MINOTAUR_KEY.ordinal() ? 20 : targetTemperature >= 700 ? 8 : CrucibleBlockEntity.TOLERANCE);
         String status = selected == null ? "NO MOLD" : ready ? "READY" : temperature > targetTemperature ? "TOO HOT" : "TOO COLD";
         g.blit(RenderPipelines.GUI_TEXTURED, STATUS, 32, 187, 0, 0, 72, 18, 80, 32, 80, 32);
         shadowCentered(g, status, 68, 192,
@@ -284,7 +314,7 @@ public final class CrucibleScreen extends Screen {
             g.pose().popMatrix();
         }
         if (inside(mx, my, rx + 16, 138, 96, 32))
-            g.setTooltipForNextFrame(font, Component.literal("Celestial steel: 2 iron ingots + 2 coal. Use an ingot mold, heat to 700° ±8, then press Smelt. Coal cannot be cast on its own."), mouseX, mouseY);
+            g.setTooltipForNextFrame(font, Component.literal("Steel: 2 iron + 2 coal at 700° ±8. Bone Steel: 1 Celestial Steel + 3 Ancient Bones at 900° ±8. Gold ore: preheat an ingot mold to 350° ±12, then add ore and press Smelt."), mouseX, mouseY);
         image(g, INPUT, rx + 48, 174, 32, 32);
         if (mold >= 0 && mold != 4) {
             image(g, MOLD_TEXTURES[mold], rx + 48, 174, 32, 32);
@@ -329,12 +359,15 @@ public final class CrucibleScreen extends Screen {
             } else g.fill(x + 4, y + 4, x + 28, y + 28, 0xA0100E0D);
             if (mold == i || inside(mx, my, x, y, 32, 32)) g.outline(x, y, 32, 32, 0xFFD0B68C);
             if (inside(mx, my, x, y, 32, 32)) g.setTooltipForNextFrame(font,
-                    Component.literal(MOLDS[i].label() + (owned ? "" : " — not in inventory")), mouseX, mouseY);
+                    new ItemStack(CrucibleBlockEntity.moldItem(i)), mouseX, mouseY);
         }
         tab(g, 132 + leftOffset(), 90, 18, 34, heatPanel.open ? "‹" : "›");
         tab(g, rx - 18, 90, 18, 34, forgePanel.open ? "›" : "‹");
         tab(g, bottomX() + 95, bottomY() - 14, 66, 14, moldPanel.open ? "MOLDS ▾" : "MOLDS ▴");
         tab(g, inventoryTabX(), inventoryTabY(), 44, 14, inventoryOpen ? "INV ▾" : "INV ▴");
+        tab(g, recipesTabX(), 0, 60, 14, Component.translatable("screen.asterion.forge.recipes").getString());
+        if (recipesOpen || inside(mx, my, recipesTabX(), 0, 60, 14))
+            g.outline(recipesTabX(), 0, 60, 14, 0xFFD0B68C);
         if (inventoryReveal > .01F && minecraft.player != null) {
             int ix = inventoryX(), iy = inventoryY();
             g.fill(ix - 5, iy - 4, ix + 176, iy + 94, 0xF0181513);
@@ -345,6 +378,11 @@ public final class CrucibleScreen extends Screen {
                 drawInventorySlot(g, minecraft.player.getInventory().getItem(slot), ix + col * 19,
                         iy + 16 + row * 18 + (row == 3 ? 4 : 0), 18, mx, my);
             }
+        }
+        if (recipesOpen) {
+            updateRecipes();
+            recipes.render(g, font, recipesX(), 22, mx, my, mouseX, mouseY,
+                    minecraft.level == null ? 0 : minecraft.level.getGameTime());
         }
         g.pose().popMatrix();
     }
@@ -411,6 +449,10 @@ public final class CrucibleScreen extends Screen {
         if (metalSequence.indexOf('<') >= 0) return MOLDS[mold] == CrucibleBlockEntity.Mold.MINOTAUR_KEY
                 ? new ItemStack(Asterion.MINOTAUR_KEY) : ItemStack.EMPTY;
         if (metalSequence.equals(cachedPreviewSequence) && mold == cachedPreviewMold) return cachedPreview;
+        if (MOLDS[mold] == CrucibleBlockEntity.Mold.INGOT && metalSequence.chars().allMatch(value -> value == '7'))
+            return new ItemStack(Asterion.CELESTIAL_GOLD_INGOT, metalSequence.length());
+        if (MOLDS[mold] == CrucibleBlockEntity.Mold.INGOT && metalSequence.chars().allMatch(value -> value == '4'))
+            return new ItemStack(Asterion.CELESTIAL_BRONZE_INGOT, metalSequence.length());
         if (MOLDS[mold] == CrucibleBlockEntity.Mold.INGOT && metalSequence.chars().allMatch(value -> value == '6'))
             return new ItemStack(Asterion.CELESTIAL_STEEL_INGOT, metalSequence.length());
         if (MOLDS[mold] == CrucibleBlockEntity.Mold.INGOT && metalSequence.chars().allMatch(value -> value == '5')) {
@@ -451,12 +493,12 @@ public final class CrucibleScreen extends Screen {
         if (materialUnits == 0) return "POUR METAL FIRST";
         if (mold < 0) return "INSERT A MOLD";
         if (hasUnsmeltedIngredients() && fuelTicks <= 0) return "LIGHT HEAT SOURCE BELOW";
-        int tolerance = targetTemperature >= 700 ? 8 : CrucibleBlockEntity.TOLERANCE;
+        int tolerance = mold == CrucibleBlockEntity.Mold.MINOTAUR_KEY.ordinal() ? 20 : targetTemperature >= 700 ? 8 : CrucibleBlockEntity.TOLERANCE;
         if (temperature < targetTemperature - tolerance) return "HEAT TO " + targetTemperature + "°";
         if (temperature > targetTemperature + tolerance) return "COOL TO " + targetTemperature + "°";
         if (metalSequence.indexOf(':') >= 0 && !(countMaterial(':') == 3
-                && countMaterial('6') == 1 && countMaterial('0') == 1 && materialUnits == 5))
-            return "NEED 3 BONES + STEEL + IRON";
+                && countMaterial('6') == 1 && materialUnits == 4))
+            return "NEED 3 BONES + STEEL";
         if (metalSequence.indexOf(';') >= 0 && !(countMaterial(';') == 2
                 && countMaterial('0') == 2 && materialUnits == 4)) return "NEED 2 COAL + 2 IRON";
         if (hasUnsmeltedIngredients() && mold != CrucibleBlockEntity.Mold.INGOT.ordinal()) return "USE AN INGOT CAST";

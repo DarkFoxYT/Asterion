@@ -35,7 +35,10 @@ public final class AsterionWorldState extends SavedData {
                     .forGetter(state -> state.summonedPortalDimension),
             Codec.INT.optionalFieldOf("boss_arena_revision", 0).forGetter(state -> state.bossArenaRevision),
             Codec.BOOL.optionalFieldOf("arena_lamenters_installed", false).forGetter(state -> state.arenaLamentersInstalled),
-            Codec.BOOL.optionalFieldOf("omega_gate_unlocked", false).forGetter(state -> state.omegaGateUnlocked)
+            Codec.BOOL.optionalFieldOf("omega_gate_unlocked", false).forGetter(state -> state.omegaGateUnlocked),
+            Codec.INT.optionalFieldOf("portal_layout_version", 0).forGetter(state -> state.portalLayoutVersion),
+            Codec.INT.optionalFieldOf("gateway_rift_y", Integer.MIN_VALUE).forGetter(state -> state.gatewayRiftY),
+            Codec.LONG.optionalFieldOf("gateway_center", Long.MIN_VALUE).forGetter(state -> state.gatewayCenter)
     ).apply(instance, AsterionWorldState::new));
     private static final SavedDataType<AsterionWorldState> TYPE = new SavedDataType<>(
             Asterion.id("world_state"), AsterionWorldState::new, CODEC, DataFixTypes.LEVEL);
@@ -54,16 +57,25 @@ public final class AsterionWorldState extends SavedData {
     private String summonedPortalDimension;
     private int bossArenaRevision;
     private boolean arenaLamentersInstalled;
+    private int portalLayoutVersion;
+    private int gatewayRiftY;
+    private long gatewayCenter;
+    public int portalLayoutVersion() { return portalLayoutVersion; }
+    public int gatewayRiftY(net.minecraft.core.BlockPos center) { return center.asLong() == gatewayCenter ? gatewayRiftY : Integer.MIN_VALUE; }
+    public void setGatewayRiftY(net.minecraft.core.BlockPos center, int y) { gatewayCenter = center.asLong(); gatewayRiftY = y; setDirty(); }
 
     public AsterionWorldState() {
-        this(false, false, java.util.List.of(), Map.of(), Long.MIN_VALUE, 0, 0L, "minecraft:overworld", 0, false, false);
+        this(false, false, java.util.List.of(), Map.of(), Long.MIN_VALUE, 0, 0L, "minecraft:overworld", 0, false, false, 1, Integer.MIN_VALUE, Long.MIN_VALUE);
     }
     private AsterionWorldState(boolean minotaurDefeated, boolean cursedBrazierDefeated,
                                java.util.List<Integer> cursedBrazierDefeatedRooms,
                                Map<String, Long> runeCheckpoints,
                                long summonedPortalCenter, int summonedPortalY,
                                long summonedPortalSeed, String summonedPortalDimension, int bossArenaRevision,
-                               boolean arenaLamentersInstalled, boolean omegaGateUnlocked) {
+                               boolean arenaLamentersInstalled, boolean omegaGateUnlocked, int portalLayoutVersion, int gatewayRiftY, long gatewayCenter) {
+        this.portalLayoutVersion = portalLayoutVersion;
+        this.gatewayRiftY = gatewayRiftY;
+        this.gatewayCenter = gatewayCenter;
         this.omegaGateUnlocked = omegaGateUnlocked;
         this.minotaurDefeated = minotaurDefeated;
         this.cursedBrazierDefeated = cursedBrazierDefeated;
@@ -116,6 +128,7 @@ public final class AsterionWorldState extends SavedData {
         summonedPortalY = surfaceY;
         summonedPortalSeed = visualSeed;
         summonedPortalDimension = dimension.identifier().toString();
+        portalLayoutVersion = 1;
         setDirty();
     }
 

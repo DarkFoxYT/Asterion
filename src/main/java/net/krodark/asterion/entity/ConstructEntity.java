@@ -84,7 +84,7 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
             var module = net.krodark.asterion.worldgen.AuthoredCatacombs.module(server.getSeed(),
                     Math.floorDiv(getBlockX(), tile), Math.floorDiv(getBlockZ(), tile));
             if (module.exits() == 0 || !module.name().startsWith("corridor_")
-                    || server.getRandom().nextInt(8) != 0) return false;
+                    || server.getRandom().nextInt(24) != 0) return false;
             if (!server.getEntitiesOfClass(ConstructEntity.class, getBoundingBox().inflate(48),
                     other -> other != this && other.isAlive()).isEmpty()) return false;
         }

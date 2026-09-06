@@ -136,6 +136,7 @@ public class Asterion implements ModInitializer {
             Registries.BIOME, id("catacombs"));
     public static final ResourceKey<Biome> FORGE_BIOME = ResourceKey.create(
             Registries.BIOME, id("forge"));
+    public static final SoundEvent MINOTAUR_ENTRY_ROAR = registerSound("minotaur_entry_roar");
     public static final SoundEvent MINOTAUR_ROAR = registerSound("minotaur_roar");
     public static final SoundEvent AFTERBLOW_PEDESTAL_PULL = registerSound("afterblow_pedestal_pull");
     public static final SoundEvent ARENA_PILLAR_BREAK = registerSound("arena_pillar_break");
@@ -1007,11 +1008,15 @@ public class Asterion implements ModInitializer {
         BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID,
                 ResourceKey.create(Registries.BIOME, id("catacombs"))),
                 MobCategory.MONSTER, CONSTRUCT, 1, 1, 1);
+        BiomeModifications.addSpawn(BiomeSelectors.includeByKey(CATACOMBS_BIOME, FORGE_BIOME,
+                        ResourceKey.create(Registries.BIOME, id("shale_caves"))),
+                MobCategory.MONSTER, net.krodark.asterion.game.AncientContent.SKELETON, 30, 1, 3);
          
          
         ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {
             if (entity instanceof ConstructEntity
                     && level.dimension().equals(ASTERION_LEVEL)
+                    && !entity.entityTags().contains(net.krodark.asterion.game.ChallengeDeaths.TAG)
                     && !ConstructEntity.isAllowedAsterionLocation(entity.blockPosition())) {
                 entity.discard();
                 return;
@@ -1134,7 +1139,7 @@ public class Asterion implements ModInitializer {
             case "celestial_bronze_ingot" -> "Forge: 1 copper ingot + 1 gold ingot";
             case "tarnished_gold_ingot" -> "Forge: 1 tarnished gold ore";
             case "celestial_gold_ingot" -> "Forge: 1 celestial gold ore";
-            case "bonesteel_ingot" -> "Forge: 3 Ancient Bones + 1 Celestial Steel + 1 Iron";
+            case "bonesteel_ingot" -> "Forge: 3 Ancient Bones + 1 Celestial Steel";
             case "celestial_steel_ingot" -> "Forge: 2 iron ingots + 2 coal";
             default -> "";
         };
@@ -1148,7 +1153,7 @@ public class Asterion implements ModInitializer {
     private static Item registerForgedSwordItem(String name) {
         ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id(name));
         return Registry.register(BuiltInRegistries.ITEM, key,
-                new net.krodark.asterion.item.ForgedSwordItem(new Item.Properties().setId(key).stacksTo(1).durability(1)));
+                new net.krodark.asterion.item.ForgedSwordItem(new Item.Properties().setId(key).sword(ToolMaterial.IRON, 3.5F, -2.3F).enchantable(18)));
     }
 
     private static ItemStack forgePart(Item item, int metal, String part) {

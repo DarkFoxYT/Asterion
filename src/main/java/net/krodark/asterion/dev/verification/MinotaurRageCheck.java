@@ -22,7 +22,7 @@ final class MinotaurRageCheck {
         try {
             for (var track : List.of(MinotaurAnimationTiming.ROAR, MinotaurAnimationTiming.ENTRY_ROAR, MinotaurAnimationTiming.FIRE_ROAR)) {
                 int tick = track.roarSoundTick();
-                check(track.seconds(tick - 1) < 2.5 && track.seconds(tick) >= 2.5, "Sound not on frame-60 crossing");
+                check(track.seconds(tick - 1) < 2.75 && track.seconds(tick) >= 2.75, "Sound not on frame-66 crossing");
             }
             boss.setPos(0, 37, 0);
             call(boss, "beginBossIntercept", new Class[]{ServerPlayer.class}, player);
@@ -69,7 +69,7 @@ final class MinotaurRageCheck {
             check(fragments.size()==32 && quadrants.size()==4,"Roof debris is not distributed across every quadrant");
             check(fragments.stream().allMatch(fragment -> fragment.scale() >= 1.25F),
                     "Roof collapse did not use heavy rubble pieces");
-            Asterion.LOGGER.info("PASS: roar frame 60, once-only combat roar, brazier weakening/timed relight and maximum phase-two rage");
+            Asterion.LOGGER.info("PASS: roar frame 66, once-only combat roar, brazier weakening/timed relight and maximum phase-two rage");
             Asterion.LOGGER.info("PASS: submerged braziers stay extinguished and bounded roof debris covers all quadrants");
         } catch(ReflectiveOperationException error) { throw new AssertionError(error); }
         finally { saved.forEach((pos,state)->level.setBlock(pos,state,2));boss.discard(); }

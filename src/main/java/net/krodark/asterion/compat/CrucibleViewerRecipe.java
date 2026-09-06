@@ -48,20 +48,24 @@ public record CrucibleViewerRecipe(Identifier id, List<List<ItemStack>> inputs, 
                 recipe("axe_head", CrucibleBlockEntity.Mold.AXE_HEAD,
                         Asterion.AXE_HEAD_CAST, Asterion.FORGED_AXE_HEAD),
                 new CrucibleViewerRecipe(Asterion.id("crucible/minotaur_key"),
-                        List.of(List.of(new ItemStack(Asterion.BONESTEEL_INGOT))),
+                        List.of(List.of(new ItemStack(Asterion.BONESTEEL_INGOT, 3)),
+                                List.of(new ItemStack(net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER_KEY))),
                         Asterion.MINOTAUR_KEY_CAST, CrucibleBlockEntity.Mold.MINOTAUR_KEY.target(),
                         List.of(new ItemStack(Asterion.MINOTAUR_KEY)),
                         "recipe.asterion.crucible.minotaur_key"),
-                reaction("celestial_bronze", List.of(List.of(new ItemStack(Items.IRON_INGOT)),
+                reaction("celestial_bronze", List.of(List.of(new ItemStack(Items.GOLD_INGOT), new ItemStack(Asterion.TARNISHED_GOLD_INGOT)),
                                 List.of(new ItemStack(Items.COPPER_INGOT))),
-                        sampleIngot(4, "Celestial Bronze Ingot"), "recipe.asterion.crucible.bronze"),
-                reaction("celestial_steel", List.of(List.of(new ItemStack(Items.IRON_INGOT)),
-                                List.of(new ItemStack(Items.COAL), new ItemStack(Items.CHARCOAL))),
-                        sampleIngot(6, "Celestial Steel Ingot"), "recipe.asterion.crucible.steel"),
+                        new ItemStack(Asterion.CELESTIAL_BRONZE_INGOT), "recipe.asterion.crucible.bronze"),
+                reaction("celestial_steel", List.of(List.of(new ItemStack(Items.IRON_INGOT, 2)),
+                                List.of(new ItemStack(Items.COAL, 2))),
+                        new ItemStack(Asterion.CELESTIAL_STEEL_INGOT), "recipe.asterion.crucible.steel"),
+                reaction("celestial_gold", List.of(List.of(new ItemStack(Asterion.CELESTIAL_GOLD_ORE),
+                                new ItemStack(Asterion.SHALE_CELESTIAL_GOLD_ORE), new ItemStack(Asterion.SHADED_SHALE_CELESTIAL_GOLD_ORE))),
+                        new ItemStack(Asterion.CELESTIAL_GOLD_INGOT), "recipe.asterion.crucible.gold"),
                 new CrucibleViewerRecipe(Asterion.id("crucible/bonesteel"),
-                        List.of(List.of(new ItemStack(Asterion.MAZESTEEL_BLOCK)),
-                                List.of(new ItemStack(net.krodark.asterion.game.AncientContent.ANCIENT_BONE))),
-                        Asterion.INGOT_CAST, CrucibleBlockEntity.Mold.INGOT.target(),
+                        List.of(List.of(new ItemStack(Asterion.CELESTIAL_STEEL_INGOT)),
+                                List.of(new ItemStack(net.krodark.asterion.game.AncientContent.ANCIENT_BONE, 3))),
+                        Asterion.INGOT_CAST, 900,
                         List.of(new ItemStack(Asterion.BONESTEEL_INGOT)),
                         "recipe.asterion.crucible.bonesteel"));
     }
@@ -76,7 +80,7 @@ public record CrucibleViewerRecipe(Identifier id, List<List<ItemStack>> inputs, 
     private static CrucibleViewerRecipe reaction(String name, List<List<ItemStack>> inputs,
                                                    ItemStack output, String instructionKey) {
         return new CrucibleViewerRecipe(Asterion.id("crucible/" + name), inputs, Asterion.INGOT_CAST,
-                CrucibleBlockEntity.Mold.INGOT.target(), List.of(output), instructionKey);
+                name.equals("celestial_steel") ? 700 : CrucibleBlockEntity.Mold.INGOT.target(), List.of(output), instructionKey);
     }
 
     private static ItemStack sampleIngot(int metal, String name) {

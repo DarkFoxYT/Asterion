@@ -81,11 +81,26 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
     @Override public boolean hurtServer(ServerLevel level, DamageSource source, float amount) { return false; }
     @Override public boolean ignoreExplosion(net.minecraft.world.level.Explosion explosion) { return true; }
 
-    public static int travelTicks(double distance) { return Math.max(1, (int)Math.ceil(Math.abs(distance) / .06)); }
+    private static final double START_SPEED = .03, MAX_SPEED = .45, ACCELERATION = .06;
+    private static final double RAMP_TICKS = Math.log(MAX_SPEED / START_SPEED) / ACCELERATION;
+    private static final double RAMP_DISTANCE = (MAX_SPEED - START_SPEED) / ACCELERATION;
+
+    private static double acceleratedDistance(double ticks) {
+        return ticks <= RAMP_TICKS ? START_SPEED * Math.expm1(ACCELERATION * ticks) / ACCELERATION
+                : RAMP_DISTANCE + (ticks - RAMP_TICKS) * MAX_SPEED;
+    }
+    public static int travelTicks(double distance) {
+        double half = Math.abs(distance) / 2;
+        double ramp = half <= RAMP_DISTANCE ? Math.log1p(half * ACCELERATION / START_SPEED) / ACCELERATION
+                : RAMP_TICKS + (half - RAMP_DISTANCE) / MAX_SPEED;
+        return Math.max(2, (int)Math.ceil(ramp) * 2);
+    }
     public double scheduledY(long time) {
         double from = entityData.get(FROM), to = entityData.get(TO);
-        double t = Math.clamp((time - entityData.get(START)) / (double)travelTicks(to - from), 0, 1);
-        return from + (to - from) * t * t * (3 - 2 * t);
+        double duration = travelTicks(to - from), half = duration / 2;
+        double elapsed = Math.clamp(time - entityData.get(START), 0, duration);
+        double fraction = .5 * acceleratedDistance(Math.min(elapsed, duration - elapsed)) / acceleratedDistance(half);
+        return from + (to - from) * (elapsed <= half ? fraction : 1 - fraction);
     }
     public boolean supports(Entity entity) {
          

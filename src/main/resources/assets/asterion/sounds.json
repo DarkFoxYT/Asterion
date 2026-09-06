@@ -14,13 +14,13 @@
   "metal_hit_sound": {
     "subtitle": "subtitles.asterion.metal_hit",
     "sounds": [
-      "asterion:metal_hit_sound"
+      "asterion:sfx/mino/minotaur.door_bang"
     ]
   },
   "minotaur_door_openclose": {
     "subtitle": "subtitles.asterion.minotaur_door_openclose",
     "sounds": [
-      "asterion:minotaur_door_openclose"
+      "asterion:sfx/mino/minotaur.door_break"
     ]
   },
   "minotaur_door_break": {
@@ -29,10 +29,27 @@
       "asterion:sfx/mino/minotaur.door_break"
     ]
   },
-  "debris_1": { "sounds": ["asterion:sfx/misc/debris_1"] },
-  "debris_2": { "sounds": ["asterion:sfx/misc/debris_2"] },
-  "debris_3": { "sounds": ["asterion:sfx/misc/debris_3"] },
-  "arena_ceiling_fall": { "subtitle": "subtitles.asterion.arena_ceiling_fall", "sounds": ["asterion:sfx/misc/arena.ceiling_fall"] },
+  "debris_1": {
+    "sounds": [
+      "asterion:sfx/misc/debris_1"
+    ]
+  },
+  "debris_2": {
+    "sounds": [
+      "asterion:sfx/misc/debris_2"
+    ]
+  },
+  "debris_3": {
+    "sounds": [
+      "asterion:sfx/misc/debris_3"
+    ]
+  },
+  "arena_ceiling_fall": {
+    "subtitle": "subtitles.asterion.arena_ceiling_fall",
+    "sounds": [
+      "asterion:sfx/misc/arena.ceiling_fall"
+    ]
+  },
   "minotaur_door_bang": {
     "subtitle": "subtitles.asterion.minotaur_door_bang",
     "sounds": [
@@ -177,6 +194,12 @@
     "subtitle": "subtitles.asterion.minotaur_sword_swing",
     "sounds": [
       "asterion:sfx/mino/minotaur.sword_swing"
+    ]
+  },
+  "minotaur_entry_roar": {
+    "subtitle": "subtitles.asterion.minotaur_roar",
+    "sounds": [
+      "asterion:sfx/mino/minotaur.roar"
     ]
   }
 }

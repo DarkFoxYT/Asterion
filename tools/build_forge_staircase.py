@@ -25,15 +25,14 @@ for block in source['blocks']:
 
 path=[(7,9)]
 heights=[1]
-while heights[-4:] != [44]*4:
- for target in [(7,3),(2,3),(2,15),(7,15),(7,9)]:
-  while path[-1]!=target and heights[-4:] != [44]*4:
-   x,z=path[-1]; tx,tz=target
-   nx,nz=x+(tx>x)-(tx<x),z+(tz>z)-(tz<z)
-   
-   near_corner=any(abs(nx-cx)+abs(nz-cz)<=1 for cx,cz in [(7,3),(2,3),(2,15),(7,15)])
-   heights.append(min(44,heights[-1]+(0 if near_corner else 1)))
-   path.append((nx,nz))
+# Finish against the west edge, keeping the junction's central pillars intact.
+for target in [(7,3),(2,3),(2,15),(7,15),(7,9),(7,1),(2,1),(2,9)]:
+ while path[-1] != target:
+  x,z=path[-1]; tx,tz=target
+  path.append((x+(tx>x)-(tx<x),z+(tz>z)-(tz<z)))
+last_turn = len(path)-9
+for i in range(1,len(path)):
+ heights.append(1 + (35*i//last_turn) if i <= last_turn else 36+i-last_turn)
 plan={}
 def cell(x,y,z,s,priority):
  if (x,y,z) not in plan or priority>=plan[x,y,z][1]: plan[x,y,z]=(s,priority)
@@ -52,9 +51,8 @@ for i,(x,z) in enumerate(path):
  walk(x,z,heights[i],dx,dz,i>0 and i<len(path)-1 and heights[i]>heights[i-1] and not corner)
 
 for x in range(4,10): walk(x,9,1,1,0)
-x,z=path[-1]
-for px in range(x,10): walk(px,z,44,1,0)
-for pz in range(z,10): walk(9,pz,44,0,1)
+# Short landing into the existing west arm.
+for px in range(2,5): walk(px,9,44,1,0)
 for (x,y,z),(s,_) in plan.items(): put(x,y,z,s)
 
 jigsaw=state('minecraft:jigsaw',orientation='east_up')

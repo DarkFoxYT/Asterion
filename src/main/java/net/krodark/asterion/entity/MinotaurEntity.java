@@ -238,6 +238,11 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private Vec3 greekFireAim = Vec3.ZERO;
     private Vec3 collapseAnchor = Vec3.ZERO;
     private BossStage bossStage = BossStage.PILLARS;
+    private static final EntityDataAccessor<Integer> DATA_PILLARS_REMAINING = SynchedEntityData.defineId(
+            MinotaurEntity.class, EntityDataSerializers.INT);
+
+    public boolean isPillarPhase() { return getEntityData().get(DATA_BOSS_STAGE) == BossStage.PILLARS.ordinal(); }
+    public int pillarsRemaining() { return getEntityData().get(DATA_PILLARS_REMAINING); }
     private int collapseTicks;
     private int riposteTicks;
     private int bossStunTicks;
@@ -532,6 +537,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         builder.define(DATA_RAGE, 0);
         builder.define(DATA_BOSS_ATTACK, BossAttack.NONE.ordinal());
         builder.define(DATA_BOSS_STAGE, BossStage.PILLARS.ordinal());
+        builder.define(DATA_PILLARS_REMAINING, 12);
         builder.define(DATA_BOSS_ATTACK_TICKS, 0);
         builder.define(DATA_CORRIDOR_CHARGE_TICKS, 0);
         builder.define(DATA_DOOR_ENTRY_TICKS, 0);
@@ -1558,11 +1564,13 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             if (!(level().getBlockEntity(entryDoor) instanceof net.krodark.asterion.block.MinotaurDoorBlockEntity)) return;
         }
         doorEntryStarted = true;
-        noPhysics = true;
+        noPhysics = false;
+        setNoGravity(false);
          
         Vec3 behind = Vec3.atBottomCenterOf(entryDoor)
-                .add(entryFacing.getUnitVec3().scale(Math.max(5.5, getBbWidth() * .5 + 3.5)))
-                .add(0, net.krodark.asterion.worldgen.AuthoredCatacombs.enabled() ? 1 : 0, 0);
+                .add(entryFacing.getUnitVec3().scale(Math.max(5.5, getBbWidth() * .5 + 3.5)));
+        net.krodark.asterion.worldgen.MinotaurArenaEntrances.clearBossEntryPath(
+                (ServerLevel)level(), getBbWidth(), getBbHeight(), false);
         setPos(behind.x, behind.y, behind.z);
         setDeltaMovement(Vec3.ZERO);
         getEntityData().set(DATA_DOOR_ENTRY_TICKS, 1);
@@ -1571,7 +1579,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private boolean tickDoorEntry(ServerLevel level) {
         int tick = doorEntryTicks();
         if (tick <= 0 || entryDoor == null || entryFacing == null) return false;
-        noPhysics = true;
+        noPhysics = false;
         getNavigation().stop();
         setTarget(null);
         setAggressive(false);
@@ -1580,16 +1588,19 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         setYRot(yaw); setYHeadRot(yaw); yBodyRot = yaw;
         if (!WorldGenerator.isBossArenaReady()) { setDeltaMovement(Vec3.ZERO); return true; }
         int elapsed = tick - 1;
-        if (elapsed == MinotaurAnimationTiming.ENTRY_ROAR.roarSoundTick()) playRoar(4F, .72F, .85F);
-        if (tick == 1 && level.getBlockEntity(entryDoor) instanceof net.krodark.asterion.block.MinotaurDoorBlockEntity door)
+        if (elapsed == MinotaurAnimationTiming.ENTRY_ROAR.roarSoundTick())
+            playSound(Asterion.MINOTAUR_ENTRY_ROAR, 6F, MinotaurAnimationTiming.ENTRY_ROAR_PITCH);
+        if (elapsed == MinotaurAnimationTiming.ENTRY_CAMERA_TICKS && level.getBlockEntity(entryDoor) instanceof net.krodark.asterion.block.MinotaurDoorBlockEntity door)
             door.beginBreach();
-        if (elapsed < 112) setDeltaMovement(Vec3.ZERO);
+        if (elapsed < MinotaurAnimationTiming.ENTRY_BREAK_TICK) setDeltaMovement(Vec3.ZERO);
         else {
-            if (elapsed == 112) {
+            if (elapsed == MinotaurAnimationTiming.ENTRY_BREAK_TICK) {
                 net.krodark.asterion.worldgen.MinotaurArenaEntrances.breakLintel(level, entryFacing, getBbHeight());
                 if (level.getBlockEntity(entryDoor) instanceof net.krodark.asterion.block.MinotaurDoorBlockEntity door)
                     door.breakOff();
                 net.krodark.asterion.block.MinotaurDoorBlock.removeDoor(level, entryDoor, entryFacing);
+                net.krodark.asterion.worldgen.MinotaurArenaEntrances.clearBossEntryPath(
+                        level, getBbWidth(), getBbHeight(), true);
                 level.sendParticles(Asterion.DOOR_SMOKE, getX(), getY() + 1.2, getZ(), 80, 1.4, 1.1, 1.4, .08);
                 level.playSound(null, entryDoor, Asterion.MINOTAUR_DOOR_BREAK,
                         net.minecraft.sounds.SoundSource.HOSTILE, 1.2F, .9F);
@@ -1602,7 +1613,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             setDeltaMovement(inward.scale(Math.clamp(remaining, 0, .42))
                     .add(0, getDeltaMovement().y, 0));
         }
-        if (elapsed >= ROAR_START_TICKS) {
+        if (elapsed >= MinotaurAnimationTiming.ENTRY_END_TICK) {
              
              
              
@@ -1611,11 +1622,13 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             noPhysics = false;
             Vec3 fallback = Vec3.atBottomCenterOf(net.krodark.asterion.worldgen.MinotaurArenaEntrances.gate(entryFacing))
                     .add(inward.scale(getBbWidth() * .5D + 2.25D));
-            if (!WorldGenerator.isInsideBossArena(position())) setPos(fallback.x, fallback.y, fallback.z);
+            if (!WorldGenerator.isInsideBossArena(position())
+                    && level.noCollision(this, getBoundingBox().move(fallback.subtract(position()))))
+                setPos(fallback.x, fallback.y, fallback.z);
              
              
             bossAttackCooldown = Math.max(40,
-                    net.krodark.asterion.worldgen.BossArenaEncounter.INTRO_TICKS - ROAR_START_TICKS + 10);
+                    net.krodark.asterion.worldgen.BossArenaEncounter.INTRO_TICKS - MinotaurAnimationTiming.ENTRY_END_TICK + 10);
             return false;
         }
         getEntityData().set(DATA_DOOR_ENTRY_TICKS, tick + 1);
@@ -2024,12 +2037,13 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     private void syncBossBars(ServerLevel level) {
+        getEntityData().set(DATA_PILLARS_REMAINING, bossStage == BossStage.PILLARS ? WorldGenerator.bossPillarsRemaining() : 0);
         for (ServerPlayer old : java.util.List.copyOf(healthBossBar.getPlayers()))
             if (!old.isAlive() || old.isRemoved() || !level.players().contains(old)) healthBossBar.removePlayer(old);
         healthBossBar.setVisible(bossStage != BossStage.DEFEATED);
         float healthProgress = bossStage == BossStage.PILLARS
                 ? WorldGenerator.bossPillarsRemaining()
-                        / (float)Math.max(1, AsterionConfig.INSTANCE.minotaurBossPillarCount)
+                        / (float)Math.max(1, net.krodark.asterion.worldgen.AuthoredCatacombs.enabled() ? 12 : AsterionConfig.INSTANCE.minotaurBossPillarCount)
                 : bossStage == BossStage.COLLAPSE ? 0.0F : getHealth() / getMaxHealth();
         healthBossBar.setProgress(Mth.clamp(healthProgress, 0.0F, 1.0F));
         for (ServerPlayer viewer : level.players()) {
@@ -5407,7 +5421,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             case RUBBLE -> MinotaurAnimationTiming.RUBBLE.seconds(tick);
             case WARNING -> MinotaurAnimationTiming.chargeSeconds(tick, chargeAnimationWindup());
             case ROAR_START -> doorEntryTicks() > 0
-                    ? MinotaurAnimationTiming.ENTRY_ROAR.seconds(tick * .78)
+                    ? MinotaurAnimationTiming.ENTRY_ROAR.seconds(tick)
                     : (bossAttackState() == BossAttack.GREEK_FIRE_LASER || bossAttackState() == BossAttack.FIRE_RINGS
                     ? MinotaurAnimationTiming.FIRE_ROAR : MinotaurAnimationTiming.ROAR).seconds(tick);
             case BELCH -> MinotaurAnimationTiming.BELCH.seconds(tick);

@@ -103,6 +103,7 @@ public final class WorldGenerator {
     private static final Map<UUID, PendingTransition> PENDING_TRANSITIONS = new HashMap<>();
     private static final Map<UUID, Optional<ServerPlayer.RespawnConfig>> PRE_MAZE_RESPAWNS = new HashMap<>();
     private static final Map<UUID, Long> LAST_PORTAL_SYNC = new HashMap<>();
+    private static final java.util.Set<BlockPos> CLEARED_PORTAL_ENTRANCES = new java.util.HashSet<>();
     private static final Map<UUID, Integer> LAST_BIOME_ATMOSPHERE = new HashMap<>();
     private static final Map<UUID, PhasingEntity> PHASING_ENTITIES = new HashMap<>();
     private static SummonedPortal summonedPortal;
@@ -188,10 +189,17 @@ public final class WorldGenerator {
 
     private static void restoreSavedPortal(MinecraftServer server) {
         if (summonedPortal != null) return;
-        AsterionWorldState.SavedPortal saved = AsterionWorldState.get(server.overworld()).summonedPortal();
-        if (saved != null)
+        AsterionWorldState state = AsterionWorldState.get(server.overworld());
+        AsterionWorldState.SavedPortal saved = state.summonedPortal();
+        if (saved != null) {
+            // Older saves stored the blueprint corner, eight blocks from the actual shaft.
+            if (state.portalLayoutVersion() == 0 && saved.dimension().equals(Level.OVERWORLD)) {
+                state.setSummonedPortal(saved.dimension(), saved.center().offset(8, 0, 8), saved.surfaceY(), saved.visualSeed());
+                saved = state.summonedPortal();
+            }
             summonedPortal = new SummonedPortal(saved.dimension(), saved.center(),
                     saved.surfaceY(), saved.visualSeed());
+        }
     }
 
     private static void tickMaze(ServerLevel maze) {
@@ -739,20 +747,47 @@ public final class WorldGenerator {
         for (int sy = origin.getY() + 63; sy <= origin.getY() + 65; sy++)
             for (int sx = 7; sx <= 9; sx++) for (int sz = 7; sz <= 9; sz++)
                 level.setBlock(shaft.set(origin.getX() + sx, sy, origin.getZ() + sz), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+        BlockPos entrance = origin.offset(8, 63, 8);
+        CLEARED_PORTAL_ENTRANCES.remove(entrance);
+        clearPortalEntrance(level, entrance);
+    }
+
+    private static void clearPortalEntrance(ServerLevel level, BlockPos riftCenter) {
+        if (!level.dimension().equals(Level.OVERWORLD) || CLEARED_PORTAL_ENTRANCES.contains(riftCenter)) return;
+        for (int cx = (riftCenter.getX() - 1) >> 4; cx <= (riftCenter.getX() + 1) >> 4; cx++)
+            for (int cz = (riftCenter.getZ() - 1) >> 4; cz <= (riftCenter.getZ() + 1) >> 4; cz++) level.getChunk(cx, cz);
+        // The blueprint omits air in this part of the hole, so terrain survives placement.
+        // Clear only the central 3x3 through blueprint Y=92 (three blocks above the entrance).
+        int bottom = Math.max(level.getMinY(), riftCenter.getY() + 3);
+        int top = Math.min(level.getMaxY() - 1, riftCenter.getY() + 29);
+        for (int y = bottom; y <= top; y++) for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) {
+            BlockPos pos = new BlockPos(riftCenter.getX() + dx, y, riftCenter.getZ() + dz);
+            if (!level.getBlockState(pos).isAir()) level.setBlock(pos, Blocks.AIR.defaultBlockState(), 18);
+        }
+        CLEARED_PORTAL_ENTRANCES.add(riftCenter);
     }
 
     private static void buildSummonedWell(ServerLevel level, int centerX, int surfaceY, int centerZ, int portalY) {
-        placePortalBlueprint(level, centerX, surfaceY - 89, centerZ);
+        placePortalBlueprint(level, centerX - 8, portalY - 63, centerZ - 8);
     }
 
     public static void buildGateway(ServerLevel level, BlockPos horizontalTarget) {
+        int savedY = AsterionWorldState.get(level).gatewayRiftY(horizontalTarget);
+        if (savedY != Integer.MIN_VALUE) {
+            GATEWAY_SURFACE_Y.put(level.getSeed(), savedY);
+            clearPortalEntrance(level, new BlockPos(horizontalTarget.getX(), savedY, horizontalTarget.getZ()));
+            return;
+        }
         int x = horizontalTarget.getX();
         int z = horizontalTarget.getZ();
-        level.getChunk(x >> 4, z >> 4);
+        // Height sampling must include loaded neighbours, especially at chunk corners.
+        for (int cx = (x - 8) >> 4; cx <= (x + 8) >> 4; cx++)
+            for (int cz = (z - 8) >> 4; cz <= (z + 8) >> 4; cz++) level.getChunk(cx, cz);
         int y = net.krodark.asterion.worldgen.GatewayRuins.surface(level, x, z);
-        int portalY = y - 20;
+        int portalY = y - 26;
         GATEWAY_SURFACE_Y.put(level.getSeed(), portalY);
-        placePortalBlueprint(level, x, y - 89, z);
+        placePortalBlueprint(level, x - 8, y - 89, z - 8);
+        AsterionWorldState.get(level).setGatewayRiftY(horizontalTarget, portalY);
     }
 
      
@@ -906,6 +941,8 @@ public final class WorldGenerator {
         double dz = player.getZ() - (portal.center.getZ() + 0.5D);
         double distanceSquared = dx * dx + dz * dz;
         long now = player.level().getGameTime();
+        if (distanceSquared < 144.0D * 144.0D)
+            clearPortalEntrance(player.level(), new BlockPos(portal.center.getX(), portal.surfaceY, portal.center.getZ()));
         Long lastSync = LAST_PORTAL_SYNC.get(player.getUUID());
         if (distanceSquared < 144.0D * 144.0D && (lastSync == null || now - lastSync >= 100L)
                 && ServerPlayNetworking.canSend(player, GatewayPortalPayload.TYPE)) {
@@ -1533,7 +1570,7 @@ public final class WorldGenerator {
         level.sendParticles(ParticleTypes.DUST_PLUME, pillar.x + .5D, roofY, pillar.z + .5D,
                 48, 4.2D, .7D, 4.2D, .055D);
         level.playSound(null, root,
-                    Asterion.ARENA_PILLAR_BREAK, SoundSource.BLOCKS, 0.8F, 1.0F);
+                    Asterion.ARENA_PILLAR_BREAK, SoundSource.BLOCKS, 0.8F, 0.65F);
     }
 
     public static Vec3 bossPillarChargeTarget(Vec3 boss, Vec3 player) {
@@ -1925,6 +1962,7 @@ public final class WorldGenerator {
         ABOVE_WALL_TICKS.clear();
         WARD_FALL_PROTECTION.clear();
         LAST_PORTAL_SYNC.clear();
+        CLEARED_PORTAL_ENTRANCES.clear();
         LAST_BIOME_ATMOSPHERE.clear();
         GATEWAY_SURFACE_Y.clear();
         PLAYER_PLACED_BLOCKS.clear();

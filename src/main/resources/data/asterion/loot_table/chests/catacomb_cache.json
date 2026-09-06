@@ -4,8 +4,8 @@
     {
       "rolls": {
         "type": "minecraft:uniform",
-        "min": 1,
-        "max": 2
+        "min": 2,
+        "max": 4
       },
       "entries": [
         {
@@ -132,12 +132,27 @@
           "type": "minecraft:item",
           "name": "minecraft:carrot",
           "weight": 3
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:cooked_beef",
+          "weight": 12,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 2,
+                "max": 5
+              }
+            }
+          ]
         }
       ],
       "conditions": [
         {
           "condition": "minecraft:random_chance",
-          "chance": 0.25
+          "chance": 0.8
         }
       ]
     },
@@ -146,34 +161,54 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecraft:iron_nugget",
-          "weight": 7,
+          "name": "minecraft:iron_ingot",
+          "weight": 8,
           "functions": [
             {
               "function": "minecraft:set_count",
               "count": {
                 "type": "minecraft:uniform",
                 "min": 1,
-                "max": 4
+                "max": 3
               }
             }
           ]
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:raw_iron",
-          "weight": 2
+          "name": "minecraft:coal",
+          "weight": 8,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 2,
+                "max": 5
+              }
+            }
+          ]
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:iron_chain",
-          "weight": 1
+          "name": "minecraft:torch",
+          "weight": 8,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 4,
+                "max": 12
+              }
+            }
+          ]
         }
       ],
       "conditions": [
         {
           "condition": "minecraft:random_chance",
-          "chance": 0.08
+          "chance": 0.3
         }
       ]
     },
@@ -189,6 +224,83 @@
         {
           "condition": "minecraft:random_chance",
           "chance": 0.05
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "conditions": [
+        {
+          "condition": "minecraft:random_chance",
+          "chance": 0.05
+        }
+      ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:golden_apple",
+          "weight": 1
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "conditions": [
+        {
+          "condition": "minecraft:random_chance",
+          "chance": 0.12
+        }
+      ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:iron_sword",
+          "weight": 1
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:iron_helmet",
+          "weight": 1
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:iron_chestplate",
+          "weight": 1
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:iron_leggings",
+          "weight": 1
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:iron_boots",
+          "weight": 1
+        },
+        {
+          "type": "minecraft:item",
+          "name": "asterion:celestial_bronze_sword",
+          "weight": 1
+        },
+        {
+          "type": "minecraft:item",
+          "name": "asterion:celestial_bronze_helmet",
+          "weight": 1
+        },
+        {
+          "type": "minecraft:item",
+          "name": "asterion:celestial_bronze_chestplate",
+          "weight": 1
+        },
+        {
+          "type": "minecraft:item",
+          "name": "asterion:celestial_bronze_leggings",
+          "weight": 1
+        },
+        {
+          "type": "minecraft:item",
+          "name": "asterion:celestial_bronze_boots",
+          "weight": 1
         }
       ]
     }

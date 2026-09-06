@@ -55,16 +55,17 @@ public final class ForgeDepths {
                 .filter(port -> port.info().pos().getY() == 1).findFirst().orElseThrow();
         BlockPos socket = AuthoredForge.westSocket(level, chunk);
         BlockPos origin = socket.west().subtract(bottomPort.info().pos());
+        var bounds = template.getBoundingBox(new net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings(), origin);
          
          
         var clip = new net.minecraft.world.level.levelgen.structure.BoundingBox(chunk.getMinBlockX(), level.getMinY(),
-                chunk.getMinBlockZ(), chunk.getMaxBlockX(), LabyrinthLevels.MAZE_FLOOR_Y - 2, chunk.getMaxBlockZ());
-        if (chunk.getMaxBlockX() >= origin.getX() && chunk.getMinBlockX() <= origin.getX() + 18
-                && chunk.getMaxBlockZ() >= origin.getZ() && chunk.getMinBlockZ() <= origin.getZ() + 18) {
+                chunk.getMinBlockZ(), chunk.getMaxBlockX(), level.getMaxY() - 1, chunk.getMaxBlockZ());
+        if (bounds.intersects(clip)) {
+            // Clip at chunk borders, not the maze floor: the authored landing includes its own roof.
             var stairClip = new net.minecraft.world.level.levelgen.structure.BoundingBox(
-                    Math.max(chunk.getMinBlockX(), origin.getX()), level.getMinY(), Math.max(chunk.getMinBlockZ(), origin.getZ()),
-                    Math.min(chunk.getMaxBlockX(), origin.getX() + 18), LabyrinthLevels.MAZE_FLOOR_Y - 2,
-                    Math.min(chunk.getMaxBlockZ(), origin.getZ() + 18));
+                    Math.max(clip.minX(), bounds.minX()), Math.max(clip.minY(), bounds.minY()), Math.max(clip.minZ(), bounds.minZ()),
+                    Math.min(clip.maxX(), bounds.maxX()), Math.min(clip.maxY(), bounds.maxY()),
+                    Math.min(clip.maxZ(), bounds.maxZ()));
             template.placeInWorld(world, origin, origin, AuthoredCatacombs.settings(stairClip),
                     net.minecraft.util.RandomSource.create(origin.asLong()), 18);
         }
@@ -94,7 +95,7 @@ public final class ForgeDepths {
                 && chunk.getMaxBlockZ() >= origin.getZ() && chunk.getMinBlockZ() <= origin.getZ() + 18)
         for (BlockPos pos : BlockPos.betweenClosed(Math.max(chunk.getMinBlockX(), origin.getX()), origin.getY(),
                 Math.max(chunk.getMinBlockZ(), origin.getZ()), Math.min(chunk.getMaxBlockX(), socket.getX() + 2),
-                Math.min(origin.getY() + 69, LabyrinthLevels.MAZE_FLOOR_Y - 2), Math.min(chunk.getMaxBlockZ(), origin.getZ() + 18))) {
+                Math.min(bounds.maxY(), level.getMaxY() - 1), Math.min(chunk.getMaxBlockZ(), bounds.maxZ()))) {
             var state = world.getBlockState(pos);
             if (state.getBlock() instanceof net.krodark.asterion.block.DirectionalGateBlock
                     && !state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.OPEN))

@@ -247,6 +247,21 @@ public final class MinotaurArenaEntrances {
         return true;
     }
 
+    /** Clear only the boss's entrance lane; keep the sealed doorway until its impact beat. */
+    public static void clearBossEntryPath(ServerLevel level, double width, double height, boolean breached) {
+        BlockPos root = door(BOSS_ENTRANCE);
+        int halfWidth = (int)Math.ceil(width / 2 + .5);
+        int back = (int)Math.ceil(Math.max(5.5, width / 2 + 3.5) + width / 2);
+        int front = breached ? -(int)Math.ceil(width + 3) : 2;
+        for (int depth = front; depth <= back; depth++) for (int side = -halfWidth; side <= halfWidth; side++) {
+            BlockPos base = root.relative(BOSS_ENTRANCE, depth).relative(BOSS_ENTRANCE.getClockWise(), side);
+            for (int y = 0; y <= Math.ceil(height); y++)
+                level.setBlock(base.above(y), Blocks.AIR.defaultBlockState(), 18);
+            if (depth >= 1 && !level.getBlockState(base.below()).isFaceSturdy(level, base.below(), Direction.UP))
+                level.setBlock(base.below(), Asterion.ANCIENT_STONE.defaultBlockState(), 18);
+        }
+    }
+
     public static void breakLintel(ServerLevel level, Direction facing, double bossHeight) {
          
          

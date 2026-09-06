@@ -2,6 +2,7 @@ package net.krodark.asterion.client;
 
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.krodark.asterion.Asterion;
+import net.krodark.asterion.entity.MinotaurAnimationTiming;
 import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.block.MinotaurDoorMotion;
 import net.krodark.asterion.network.BossEntrancePayload;
@@ -14,8 +15,10 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 public final class BossEntranceCinematic {
-    private static final int[] SOUND_BEATS = {14, 44, 78};
-    private static final int[] IMPACT_BEATS = {14, 44, 78, 112};
+    private static final int APPROACH_TICKS = MinotaurAnimationTiming.ENTRY_CAMERA_TICKS;
+    private static final int BREAK_TICK = MinotaurAnimationTiming.ENTRY_BREAK_TICK;
+    private static final int[] SOUND_BEATS = {APPROACH_TICKS + 14, APPROACH_TICKS + 44, APPROACH_TICKS + 78};
+    private static final int[] IMPACT_BEATS = {SOUND_BEATS[0], SOUND_BEATS[1], SOUND_BEATS[2], BREAK_TICK};
     private static boolean active, showShot, finished;
     private static int ticks, duration, lastSoundTick;
     private static Direction door;
@@ -41,7 +44,7 @@ public final class BossEntranceCinematic {
         if (payload.duration() <= 0 || client.player == null || client.level == null) return;
         door = payload.bossDoor();
         if (!door.getAxis().isHorizontal()) return;
-        duration = Math.clamp(payload.duration(), 1, 260);
+        duration = Math.clamp(payload.duration(), 1, net.krodark.asterion.worldgen.BossArenaEncounter.INTRO_TICKS);
         finished = false;
         ticks = Math.clamp(payload.elapsed(), 0, duration);
         lastSoundTick = ticks - 1;
@@ -79,12 +82,10 @@ public final class BossEntranceCinematic {
     private static void playCinematicSounds(Minecraft client) {
         for (int beat : SOUND_BEATS) if (lastSoundTick < beat && ticks >= beat)
             client.getSoundManager().play(SimpleSoundInstance.forUI(Asterion.METAL_HIT,
-                    beat == 78 ? 0.40F : beat == 44 ? .49F : 0.58F,
-                    beat == 78 ? 3.4F : beat == 44 ? 2.45F : 1.8F));
-        if (lastSoundTick < 112 && ticks >= 112)
+                    beat == SOUND_BEATS[2] ? 0.40F : beat == SOUND_BEATS[1] ? .49F : 0.58F,
+                    beat == SOUND_BEATS[2] ? 3.4F : beat == SOUND_BEATS[1] ? 2.45F : 1.8F));
+        if (lastSoundTick < BREAK_TICK && ticks >= BREAK_TICK)
             client.getSoundManager().play(SimpleSoundInstance.forUI(Asterion.MINOTAUR_DOOR_OPENCLOSE, 0.72F, 2.6F));
-        if (lastSoundTick < 132 && ticks >= 132)
-            client.getSoundManager().play(SimpleSoundInstance.forUI(Asterion.MINOTAUR_ROAR, 0.68F, 3.2F));
         lastSoundTick = ticks;
     }
 
@@ -93,17 +94,17 @@ public final class BossEntranceCinematic {
         float time = ticks + partial;
         Vec3 inward = door.getOpposite().getUnitVec3();
         Vec3 doorway = Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(door));
-        float recoil = MinotaurDoorMotion.ease((time - 108) / 32F);
+        float recoil = MinotaurDoorMotion.ease((time - (BREAK_TICK - 4)) / 32F);
         Vec3 doorShot = doorway.add(inward.scale(10.5 + recoil * 1.2)).add(0, 1.35 + recoil * .2, 0);
          
          
-        float approach = smootherStep(time / 80F);
+        float approach = smootherStep(time / APPROACH_TICKS);
         Vec3 camera = (openingEye == null ? playerEye : openingEye).lerp(doorShot, approach);
         float impact = 0;
         for (int beat : IMPACT_BEATS) {
             float age = time - beat;
-            if (age >= 0 && age < 16) impact += (beat == 112 ? .15F
-                    : beat == 78 ? .07F : .035F) * (float)Math.pow(Math.sin(Math.PI * age / 16F), 2);
+            if (age >= 0 && age < 16) impact += (beat == BREAK_TICK ? .15F
+                    : beat == SOUND_BEATS[2] ? .07F : .035F) * (float)Math.pow(Math.sin(Math.PI * age / 16F), 2);
         }
         camera = camera.add(Math.sin(time * .7) * impact, Math.cos(time * .9) * impact * .65, 0);
         Vec3 focus = doorway.add(inward.scale(1.2)).add(0, 3.15, 0);

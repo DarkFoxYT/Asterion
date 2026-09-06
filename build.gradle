@@ -422,7 +422,13 @@ def clientGameTests = [
         [run: "LamenterTest", folder: "lamenter-testmod", id: "asterion_lamenter_test",
          classes: ["net.krodark.asterion.dev.verification.LamenterGameTest"]],
         [run: "CatacombTest", folder: "catacomb-testmod", id: "asterion_catacomb_test",
-         classes: providers.gradleProperty("pedestalOnly").isPresent()
+         classes: providers.gradleProperty("forgeRecipesOnly").isPresent()
+                   ? ["net.krodark.asterion.dev.verification.ForgeRecipesGameTest"]
+                   : providers.gradleProperty("forgeGenerationOnly").isPresent()
+                   ? ["net.krodark.asterion.dev.verification.ForgeGenerationGameTest"]
+                   : providers.gradleProperty("gameplayFixesOnly").isPresent()
+                   ? ["net.krodark.asterion.dev.verification.GameplayFixesGameTest"]
+                   : providers.gradleProperty("pedestalOnly").isPresent()
                    ? ["net.krodark.asterion.dev.verification.PedestalGameTest"]
                    : providers.gradleProperty("liftForgeFixesOnly").isPresent()
                    ? ["net.krodark.asterion.dev.verification.LiftForgeFixesGameTest"]

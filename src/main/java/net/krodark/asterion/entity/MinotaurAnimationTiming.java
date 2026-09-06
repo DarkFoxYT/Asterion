@@ -3,7 +3,7 @@ package net.krodark.asterion.entity;
  
 public final class MinotaurAnimationTiming {
      
-    public static final double ROAR_SOUND_SECONDS = 60.0 / 24.0;
+    public static final double ROAR_SOUND_SECONDS = 66.0 / 24.0;
     public static final int AXE_RELEASE = 15;
     public static final int[] COMBO_HITS = {19, 33, 46};
      
@@ -30,8 +30,13 @@ public final class MinotaurAnimationTiming {
     public static final Track SHEATHE_AXE = track(20, 1.0);
     public static final Track ROAR = track(150, 7.4713);
      
-    public static final Track ENTRY_ROAR = new Track(new double[]{0, 78, 112, 128, 142, 150},
-            new double[]{0, 2.2989, 3.0172, 3.8793, 6.8966, 7.4713});
+    public static final int ENTRY_CAMERA_TICKS = 80;
+    public static final int ENTRY_BREAK_TICK = ENTRY_CAMERA_TICKS + 112;
+    public static final int ENTRY_END_TICK = 330;
+    public static final float ENTRY_ROAR_PITCH = .8F;
+    // Frame 66 starts the six-second sound at tick 180; at .8 pitch it ends at 330.
+    public static final Track ENTRY_ROAR = new Track(new double[]{0, 80, 158, 180, 192, 230, 310, 330},
+            new double[]{0, 0, 2.2989, 66.0 / 24.0, 3.0172, 3.8793, 6.8966, 7.4713});
     public static final Track FIRE_ROAR = new Track(new double[]{0, 18, 24, 78, 92, 108},
             new double[]{0, 2.5862, 3.0172, 5.364, 6.1303, 7.4713});
     public static final Track BELCH = track(65, 3.25);
@@ -56,7 +61,7 @@ public final class MinotaurAnimationTiming {
         public int roarSoundTick() {
             for (int tick = 1; tick <= ticks[ticks.length - 1]; tick++)
                 if (seconds(tick) >= ROAR_SOUND_SECONDS) return tick;
-            throw new IllegalStateException("Roar clip does not reach frame 60");
+            throw new IllegalStateException("Roar clip does not reach frame 66");
         }
         public double seconds(double tick) {
             if (tick <= 0) return 0;

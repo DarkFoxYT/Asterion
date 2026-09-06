@@ -694,8 +694,15 @@ public final class PhysicsDebrisSystem {
         level.playLocalSound(piece.position.x, piece.position.y, piece.position.z,
                 SoundEvents.DEEPSLATE_BREAK, SoundSource.BLOCKS,
                 Mth.clamp((0.18F + piece.scale * 0.85F) * piece.massFactor(), 0.14F, 0.65F),
-                0.72F + (1.0F - piece.massFactor()) * 0.44F
-                        + random.nextFloat() * 0.20F, false);
+                debrisImpactPitch(piece), false);
+    }
+
+    private static float debrisImpactPitch(Piece piece) {
+        Vec3 half = piece.halfExtents();
+        double size = Math.cbrt(8.0D * half.x * half.y * half.z);
+        // Use actual fragment dimensions; larger pieces approach the engine's .5 pitch floor.
+        // No random upward pitch offset, so size consistently determines the depth.
+        return (float)(.5D + .20D * Math.exp(-size));
     }
 
     private static AABB boundsAt(Piece piece, Vec3 center) {

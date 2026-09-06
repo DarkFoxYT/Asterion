@@ -19,7 +19,7 @@ import java.util.*;
  
 public final class BossArenaEncounter {
      
-    public static final int INTRO_TICKS = 250;
+    public static final int INTRO_TICKS = 420;
     private static Encounter active;
     private BossArenaEncounter() { }
 

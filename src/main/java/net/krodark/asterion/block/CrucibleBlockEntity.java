@@ -94,7 +94,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
                 + mazesteel + ancientBones + carbon + brazierKeys;
     }
     public boolean hasUnsmeltedIngredients() {
-        return mazesteel > 0 || ancientBones > 0 || carbon > 0 && !(carbon == 2 && iron == 2);
+        return mazesteel > 0 || ancientBones > 0 || carbon > 0;
     }
     public int mixColor() {
         if (metalSequence.isEmpty()) return 0x514A43;
@@ -164,7 +164,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             changedAndSync();
             return true;
         }
-        if (materialUnits() < (ancientBones > 0 || stack.is(net.krodark.asterion.game.AncientContent.ANCIENT_BONE) ? 5 : 4) && insertMaterial(stack, player)) {
+        if (materialUnits() < 4 && insertMaterial(stack, player)) {
             stack.shrink(1);
             changedAndSync();
             return true;
@@ -205,16 +205,26 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     }
 
     private boolean insertMaterial(ItemStack stack, ServerPlayer player) {
+        boolean ore = stack.is(Asterion.TARNISHED_GOLD_ORE.asItem()) || stack.is(Asterion.SHALE_TARNISHED_GOLD_ORE.asItem())
+                || stack.is(Asterion.SHADED_SHALE_TARNISHED_GOLD_ORE.asItem()) || stack.is(Asterion.CELESTIAL_GOLD_ORE.asItem())
+                || stack.is(Asterion.SHALE_CELESTIAL_GOLD_ORE.asItem()) || stack.is(Asterion.SHADED_SHALE_CELESTIAL_GOLD_ORE.asItem());
+        if (ore && (!calibrated() || fuelTicks <= 0 || mold() != Mold.INGOT)) {
+            net.krodark.asterion.game.PlayerNotices.show(player, Component.literal(
+                    "To smelt ore, insert an ingot mold and heat the Forge to 350° ±12 first."));
+            return false;
+        }
         int metal;
         if (stack.is(Items.IRON_INGOT)) { iron++; metal = 0; }
         else if (stack.is(Items.COPPER_INGOT)) { copper++; metal = 1; }
-        else if (stack.is(Asterion.TARNISHED_GOLD_INGOT)) { gold++; metal = 2; }
+        else if (stack.is(Asterion.TARNISHED_GOLD_INGOT) || stack.is(Asterion.TARNISHED_GOLD_ORE.asItem())
+                || stack.is(Asterion.SHALE_TARNISHED_GOLD_ORE.asItem()) || stack.is(Asterion.SHADED_SHALE_TARNISHED_GOLD_ORE.asItem())) { gold++; metal = 2; }
         else if (stack.is(Items.GOLD_INGOT)) { regularGold++; metal = 8; }
         else if (stack.is(Items.NETHERITE_INGOT)) { netherite++; metal = 3; }
         else if (stack.is(Asterion.CELESTIAL_BRONZE_INGOT)) { celestialBronze++; metal = 4; }
         else if (stack.is(Asterion.BONESTEEL_INGOT)) { bonesteel++; metal = 5; }
         else if (stack.is(Asterion.CELESTIAL_STEEL_INGOT)) { celestialSteel++; metal = 6; }
-        else if (stack.is(Asterion.CELESTIAL_GOLD_INGOT)) { celestialGold++; metal = 7; }
+        else if (stack.is(Asterion.CELESTIAL_GOLD_INGOT) || stack.is(Asterion.CELESTIAL_GOLD_ORE.asItem())
+                || stack.is(Asterion.SHALE_CELESTIAL_GOLD_ORE.asItem()) || stack.is(Asterion.SHADED_SHALE_CELESTIAL_GOLD_ORE.asItem())) { celestialGold++; metal = 7; }
         else if (stack.is(Asterion.MAZESTEEL_BLOCK.asItem())) { mazesteel++; metal = 9; }
         else if (stack.is(net.krodark.asterion.game.AncientContent.ANCIENT_BONE)) { ancientBones++; metal = 10; }
         else if (stack.is(net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER_KEY) && brazierKeys == 0) { brazierKeys++; metal = 12; }
@@ -249,8 +259,8 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
 
     private boolean smeltBonesteel() {
         if (!calibrated() || fuelTicks <= 0 || mold() != Mold.INGOT) return false;
-        if (ancientBones == 3 && iron == 1 && celestialSteel == 1 && materialUnits() == 5) {
-            ancientBones = iron = celestialSteel = 0;
+        if (ancientBones == 3 && celestialSteel == 1 && materialUnits() == 4) {
+            ancientBones = celestialSteel = 0;
             bonesteel = 1;
             metalSequence = "5";
         } else if (carbon == 2 && iron == 2 && materialUnits() == 4) {
@@ -320,7 +330,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             if (smeltBonesteel()) { changedAndSync(); open(player); }
             else net.krodark.asterion.game.PlayerNotices.show(player, net.minecraft.network.chat.Component.literal(
                     fuelTicks <= 0 ? "Place a lit heat source beneath the Forge's center." : hasUnsmeltedIngredients()
-                            ? "Steel: 2 iron + 2 coal at 700° ±8. Bonesteel: 1 steel + 1 iron + 3 Ancient Bones at 900° ±8. Use an ingot cast."
+                            ? "Steel: 2 iron + 2 coal at 700° ±8. Bonesteel: 1 steel + 3 Ancient Bones at 900° ±8. Use an ingot cast."
                             : "Metals melt as they enter the Forge. Set the mold temperature, then press Smelt to cast."));
             return;
         }
@@ -403,6 +413,11 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         }
         if (mold() == Mold.INGOT && bonesteel == materialUnits()) {
             eject(new ItemStack(Asterion.BONESTEEL_INGOT, bonesteel));
+            finishPour(player);
+            return;
+        }
+        if (mold() == Mold.INGOT && (celestialGold == materialUnits() || celestialBronze == materialUnits())) {
+            eject(new ItemStack(celestialGold > 0 ? Asterion.CELESTIAL_GOLD_INGOT : Asterion.CELESTIAL_BRONZE_INGOT, materialUnits()));
             finishPour(player);
             return;
         }

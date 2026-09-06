@@ -3,7 +3,6 @@ package net.krodark.asterion.client;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.entity.MinotaurEntity;
-import net.krodark.asterion.WorldGenerator;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -93,9 +92,11 @@ public final class MinotaurBossBar {
             g.blit(RenderPipelines.GUI_TEXTURED, FILL, 46, 21 + row,
                     46, 53 + row, filled, 1, 256, 112, blood[row]);
         g.blit(RenderPipelines.GUI_TEXTURED, FRAME, 0, 0, 0, 32, 256, 48, 256, 112);
-        g.blit(RenderPipelines.GUI_TEXTURED, PILLARS, 0, -16, 0, 0, 256, 112, 256, 112);
-        String pillarCount = Integer.toString(Math.max(0, WorldGenerator.bossPillarsRemaining()));
-        g.text(client.font, pillarCount, 128 - client.font.width(pillarCount) / 2, 18, 0xFFFF263D, true);
+        if (boss != null && boss.isPillarPhase()) {
+            g.blit(RenderPipelines.GUI_TEXTURED, PILLARS, 0, -28, 0, 0, 256, 112, 256, 112);
+            String pillarCount = Integer.toString(Math.max(0, boss.pillarsRemaining()));
+            g.text(client.font, pillarCount, 128 - client.font.width(pillarCount) / 2, 34, 0xFFFF263D, true);
+        }
         for (int offset = 2; offset >= 1; offset--) {
             int glow = (45 / offset) << 24 | eyeColor & 0xFFFFFF;
             eyes(g, -offset, 0, glow); eyes(g, offset, 0, glow);

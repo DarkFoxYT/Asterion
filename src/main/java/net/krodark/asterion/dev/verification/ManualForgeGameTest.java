@@ -20,7 +20,7 @@ public final class ManualForgeGameTest implements FabricClientGameTest {
                 forge.insert(player, new net.minecraft.world.item.ItemStack(net.krodark.asterion.Asterion.INGOT_CAST));
                 for (var item : java.util.List.of(net.krodark.asterion.game.AncientContent.ANCIENT_BONE,
                         net.krodark.asterion.game.AncientContent.ANCIENT_BONE, net.krodark.asterion.game.AncientContent.ANCIENT_BONE,
-                        net.krodark.asterion.Asterion.CELESTIAL_STEEL_INGOT, net.minecraft.world.item.Items.IRON_INGOT))
+                        net.krodark.asterion.Asterion.CELESTIAL_STEEL_INGOT))
                     forge.insert(player, new net.minecraft.world.item.ItemStack(item));
                 player.teleportTo(level, .5, 200, -4, java.util.Set.of(), 0, 0, true);
                 player.setNoGravity(true);
@@ -29,14 +29,14 @@ public final class ManualForgeGameTest implements FabricClientGameTest {
             context.waitTicks(50);
             context.runOnClient(client -> {
                 if (!(client.screen instanceof net.krodark.asterion.client.CrucibleScreen))
-                    throw new AssertionError("Five-ingredient Forge did not open");
+                    throw new AssertionError("Four-ingredient Forge did not open");
             });
             world.getServer().runOnServer(server -> {
                 var forge = server.overworld().getBlockEntity(new net.minecraft.core.BlockPos(0, 200, 0));
-                if (!(forge instanceof net.krodark.asterion.block.CrucibleBlockEntity contents) || contents.materialUnits() != 5)
-                    throw new AssertionError("Five-ingredient Forge disappeared before rendering");
+                if (!(forge instanceof net.krodark.asterion.block.CrucibleBlockEntity contents) || contents.materialUnits() != 4)
+                    throw new AssertionError("Four-ingredient Forge disappeared before rendering");
             });
-            context.takeScreenshot("forge-five-ingredients");
+            context.takeScreenshot("forge-four-ingredients");
         }
     }
 }

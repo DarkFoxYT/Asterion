@@ -19,18 +19,21 @@ import net.minecraft.world.level.storage.*;
 
 public final class ChallengeSpawnerBlockEntity extends BlockEntity {
     private boolean started, complete;
+    private int spawnVersion = 1;
     private int remaining = 60 * 20;
     private final List<UUID> mobs = new ArrayList<>();
     private UUID label;
     public ChallengeSpawnerBlockEntity(BlockPos pos, BlockState state) { super(GameplayContent.CHALLENGE_SPAWNER_ENTITY, pos, state); }
     @Override protected void saveAdditional(ValueOutput out) {
         super.saveAdditional(out);
+        out.putInt("SpawnVersion", spawnVersion);
         out.putBoolean("Started", started); out.putBoolean("Complete", complete); out.putInt("Remaining", remaining);
         out.putString("Mobs", String.join(",", mobs.stream().map(UUID::toString).toList()));
         if (label != null) out.putString("Label", label.toString());
     }
     @Override protected void loadAdditional(ValueInput in) {
         super.loadAdditional(in);
+        spawnVersion = in.getIntOr("SpawnVersion", 0);
         started = in.getBooleanOr("Started", false); complete = in.getBooleanOr("Complete", false);
         remaining = Math.clamp(in.getIntOr("Remaining", 1200), 0, 1200);
         mobs.clear();
@@ -38,26 +41,39 @@ public final class ChallengeSpawnerBlockEntity extends BlockEntity {
         String id = in.getStringOr("Label", ""); label = id.isEmpty() ? null : UUID.fromString(id);
     }
     public static void tick(Level world, BlockPos pos, BlockState state, ChallengeSpawnerBlockEntity spawner) {
-        if (!(world instanceof ServerLevel level) || spawner.complete) return;
+        if (!(world instanceof ServerLevel level)) return;
+        if (spawner.spawnVersion == 0) {
+            // The old location filter deleted every construct spawned in the Forge,
+            // leaving active challenges (and expired timers) with unreachable UUIDs.
+            if (level.dimension().equals(Asterion.ASTERION_LEVEL) && level.getBiome(pos).is(Asterion.FORGE_BIOME)
+                    && spawner.started && !spawner.mobs.isEmpty()
+                    && spawner.mobs.stream().allMatch(id -> level.getEntity(id) == null)) {
+                spawner.started = spawner.complete = false;
+                spawner.mobs.clear();
+                spawner.remaining = 1200;
+                spawner.removeLabel(level);
+            }
+            spawner.spawnVersion = 1;
+            spawner.setChanged();
+        }
+        if (spawner.complete) return;
         boolean explosive = ((ChallengeSpawnerBlock)state.getBlock()).explosive();
         if (!spawner.started) {
-            var player = level.players().stream().filter(p -> p.isAlive() && !p.isCreative() && !p.isSpectator()
+            var player = level.players().stream().filter(p -> p.isAlive() && !p.isSpectator()
                     && p.distanceToSqr(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5) < 64).findFirst().orElse(null);
             if (player == null || level.getDifficulty() == net.minecraft.world.Difficulty.PEACEFUL) return;
             int groupSize = 2 + level.getRandom().nextInt(3);
-            for (int attempt = 0; attempt < 24 && spawner.mobs.size() < groupSize; attempt++) {
-                EntityType<? extends Mob> type = level.getBiome(pos).is(Asterion.FORGE_BIOME)
-                        ? Asterion.CONSTRUCT
-                        : (level.getRandom().nextBoolean()
-                        ? net.krodark.asterion.game.AncientContent.SKELETON : Asterion.CONSTRUCT);
+            for (int attempt = 0; attempt < 64 && spawner.mobs.size() < groupSize; attempt++) {
+                EntityType<? extends Mob> type = Asterion.CONSTRUCT;
                 Mob mob = type.create(level, EntitySpawnReason.SPAWNER);
                 if (mob == null) continue;
-                BlockPos spawn = pos.offset(level.getRandom().nextInt(7) - 3, 0, level.getRandom().nextInt(7) - 3);
+                BlockPos spawn = pos.offset(level.getRandom().nextInt(9) - 4, level.getRandom().nextInt(5) - 2, level.getRandom().nextInt(9) - 4);
                 mob.setPos(spawn.getX() + .5, spawn.getY(), spawn.getZ() + .5);
                 if (!level.noCollision(mob) || !level.getBlockState(spawn.below()).isFaceSturdy(level, spawn.below(), net.minecraft.core.Direction.UP)) continue;
+                mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawn), EntitySpawnReason.SPAWNER, null);
                 mob.setPersistenceRequired(); mob.setTarget(player);
                 mob.addTag(net.krodark.asterion.game.ChallengeDeaths.TAG);
-                if (level.addFreshEntity(mob)) spawner.mobs.add(mob.getUUID());
+                if (level.addFreshEntity(mob) && !mob.isRemoved()) spawner.mobs.add(mob.getUUID());
             }
             if (spawner.mobs.isEmpty()) return;
             spawner.started = true;

@@ -583,8 +583,8 @@ public final class AuthoredCatacombs {
              
             if(z<=ARENA_RADIUS||z>76)continue;
             int center=Math.round((z-(ARENA_RADIUS+1))*9F/(76-(ARENA_RADIUS+1)));
-            boolean core=Math.abs(x-center)<=1;
-            boolean wall=Math.abs(x-center)==2;
+            boolean core=Math.abs(x-center)<=2;
+            boolean wall=Math.abs(x-center)==3;
             if(!core&&!wall)continue;
 
             int floor=CONNECTOR_Y-1;

@@ -59,6 +59,18 @@
     {
       "type": "minecraft:single",
       "resource": "asterion:forging/deadwood_stick/deadwood_stick"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/celestial_bronze/celestial_bronze_blade"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/celestial_bronze/celestial_bronze_guard"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/celestial_bronze/celestial_bronze_pommel"
     }
   ]
 }

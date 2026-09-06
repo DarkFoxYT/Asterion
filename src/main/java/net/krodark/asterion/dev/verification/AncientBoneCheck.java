@@ -33,7 +33,7 @@ final class AncientBoneCheck {
                 level.setBlock(pos.below(), Blocks.CAMPFIRE.defaultBlockState(), 3);
                 var forge = (CrucibleBlockEntity)level.getBlockEntity(pos);
                 var ingredients = new ArrayList<Item>(boneRecipe
-                        ? java.util.List.of(Asterion.CELESTIAL_STEEL_INGOT, Items.IRON_INGOT,
+                        ? java.util.List.of(Asterion.CELESTIAL_STEEL_INGOT,
                             AncientContent.ANCIENT_BONE, AncientContent.ANCIENT_BONE, AncientContent.ANCIENT_BONE)
                         : java.util.List.of(Items.IRON_INGOT, Items.IRON_INGOT, Items.COAL, Items.COAL));
                 if (reverse) java.util.Collections.reverse(ingredients);
