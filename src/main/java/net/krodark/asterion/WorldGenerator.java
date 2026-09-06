@@ -28,6 +28,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundSource;
@@ -722,9 +724,19 @@ public final class WorldGenerator {
         });
     }
 
+    private static void placePortalBlueprint(ServerLevel level, int x, int y, int z) {
+        var template = level.getServer().getStructureManager().get(Asterion.id("portal")).orElse(null);
+        if (template == null) return;
+        BlockPos origin = new BlockPos(x, y, z);
+        template.placeInWorld(level, origin, origin, new StructurePlaceSettings(), level.getRandom(), 18);
+        for (BlockPos pos : BlockPos.betweenClosed(origin.offset(-8, -51, -8), origin.offset(8, 51, 8)))
+            if (level.getBlockState(pos).is(net.minecraft.world.level.block.Blocks.CYAN_WOOL))
+                level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+    }
+
     private static void buildSummonedWell(ServerLevel level, int centerX, int surfaceY, int centerZ, int portalY) {
         clearAboveGateway(level, centerX, surfaceY, centerZ, 8);
-        net.krodark.asterion.worldgen.GatewayRuins.build(level, centerX, surfaceY, centerZ, 2);
+        placePortalBlueprint(level, centerX, surfaceY - 12, centerZ);
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
             int edge = Math.max(Math.abs(dx), Math.abs(dz));
@@ -745,7 +757,7 @@ public final class WorldGenerator {
         int portalY = y - GATEWAY_PORTAL_DEPTH;
         GATEWAY_SURFACE_Y.put(level.getSeed(), portalY);
         clearAboveGateway(level, x, y, z, 8);
-        net.krodark.asterion.worldgen.GatewayRuins.build(level, x, y, z);
+        placePortalBlueprint(level, x, y - 12, z);
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         int shaftBottom = level.getMinY() + 5;
         for (int shaftY = y - 1; shaftY >= shaftBottom; shaftY--) for (int dx = -3; dx <= 3; dx++) for (int dz = -3; dz <= 3; dz++) {
