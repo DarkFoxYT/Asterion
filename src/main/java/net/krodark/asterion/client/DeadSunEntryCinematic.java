@@ -117,7 +117,7 @@ public final class DeadSunEntryCinematic {
         Vec3 anchor = openingPosition == null ? basePosition : openingPosition;
         Vec3 towardSun = sun.subtract(anchor);
         double heading = Mth.atan2(towardSun.z, towardSun.x);
-        double angle = heading + Mth.lerp(progress, 2.72D, 3.38D);
+        double angle = heading + Mth.lerp(progress, 3.05D, 3.23D);
         double radius = Mth.lerp(progress, 58.0D, 50.0D);
         double height = Math.max(200.0D,
                 net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y + config.wallHeight + 42.0D)
@@ -135,21 +135,22 @@ public final class DeadSunEntryCinematic {
         float sunReveal = smoother((linear - .10F) / .18F);
         float playerFocus = smoother((linear - .43F) / .21F);
         Vec3 focus = basePosition.add(0, -.7, 0).lerp(
-                sun.add(0, -config.deadSunSize * .16, 0), sunReveal * (1 - playerFocus));
+                sun.add(0, -config.deadSunSize * .16, 0), (.65F + .35F * sunReveal) * (1 - playerFocus));
         Vec3 delta = focus.subtract(position);
         double horizontal = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
-        float shotYaw = (float)(Mth.atan2(delta.z, delta.x) * Mth.RAD_TO_DEG) - 90.0F;
+        // Keep a stable heading as the camera approaches directly above the player.
+        float approachYaw = (float)(heading * Mth.RAD_TO_DEG) - 90.0F;
+        float lookYaw = (float)(Mth.atan2(delta.z, delta.x) * Mth.RAD_TO_DEG) - 90.0F;
+        float shotYaw = Mth.rotLerp(smoother((float)horizontal / 8.0F), approachYaw, lookYaw);
         float shotPitch = (float)-(Mth.atan2(delta.y, horizontal) * Mth.RAD_TO_DEG);
-        float viewReturn = smoother(Mth.clamp((linear - 0.88F) / 0.12F, 0.0F, 1.0F));
+        float viewReturn = smoother(Mth.clamp((linear - 0.68F) / 0.32F, 0.0F, 1.0F));
         shotYaw = Mth.rotLerp(viewReturn, shotYaw, returnYaw);
         shotPitch = Mth.lerp(viewReturn, shotPitch, returnPitch);
         // Coherent gusts build during acceleration and settle completely before control returns.
         double wind = Math.sin(Math.PI * smoother((linear - .60F) / .40F));
-        double gust = wind * (.035 * Math.sin(time * .19) + .018 * Math.sin(time * .37));
+        double gust = wind * (.010 * Math.sin(time * .09) + .005 * Math.sin(time * .17));
         if (position.y > net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y + config.wallHeight + 3)
             position = position.add(gust, gust * .3, -gust * .6);
-        shotYaw += (float)(gust * 4 * (1 - viewReturn));
-        shotPitch += (float)(wind * .35 * Math.sin(time * .23) * (1 - viewReturn));
         externalShot = position.distanceToSqr(basePosition) > 4;
         return new CameraPose(position, shotYaw, shotPitch);
     }
