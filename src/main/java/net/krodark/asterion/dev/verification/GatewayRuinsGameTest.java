@@ -14,13 +14,15 @@ public final class GatewayRuinsGameTest implements FabricClientGameTest {
      level.setBlock(new BlockPos(x,y,z),(y==78+Math.floorDiv(x,8)?Blocks.GRASS_BLOCK:Blocks.STONE).defaultBlockState(),2);
     int surface=net.krodark.asterion.worldgen.GatewayRuins.surface(level,0,0);
     WorldGenerator.buildGateway(level,BlockPos.ZERO);
-    for(int x=-2;x<=2;x++)for(int z=-2;z<=2;z++)for(int y=surface-5;y<=surface;y++)
-     if(!level.getBlockState(new BlockPos(x,y,z)).isAir())throw new AssertionError("Portal shaft obstructed");
-    for(int x=-8;x<=8;x++)for(int z=-8;z<=8;z++) {
-     if(Math.max(Math.abs(x),Math.abs(z))<=2||Math.abs(x)+Math.abs(z)>13)continue;
-     BlockPos support=new BlockPos(x,surface-2,z);
-     if(level.getBlockState(support).isAir())throw new AssertionError("Floating gateway paving");
+    for(int x=-1;x<=1;x++)for(int z=-1;z<=1;z++)for(int y=surface-26;y<=surface+3;y++)
+     if(!level.getBlockState(new BlockPos(x,y,z)).isAir())throw new AssertionError("Portal shaft obstructed at "+new BlockPos(x,y,z));
+    int masonry=0;
+    for(BlockPos block:BlockPos.betweenClosed(-8,surface-89,-8,8,surface+13,8)) {
+     var state=level.getBlockState(block);
+     if(state.is(Blocks.CYAN_WOOL))throw new AssertionError("Portal marker remained in the blueprint");
+     if(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()).getNamespace().equals("asterion"))masonry++;
     }
+    if(masonry<500)throw new AssertionError("Authored gateway structure missing");
     var p=server.getPlayerList().getPlayers().getFirst();p.setGameMode(net.minecraft.world.level.GameType.SPECTATOR);
     p.teleportTo(level,17,surface+13,22,java.util.Set.of(),142,25,true);
    });

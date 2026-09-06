@@ -49,9 +49,17 @@ public final class MinotaurRemainsGameTest implements FabricClientGameTest {
             context.waitTicks(6);
             server.runOnServer(mc -> {
                 var boss = (MinotaurEntity)mc.overworld().getEntity(id.get());
-                check(boss.isHarvested(), "Right-click with a stick did not skin the corpse");
+                check(!boss.isHarvested(), "A stick skinned the corpse without shears");
+                mc.getPlayerList().getPlayers().getFirst().setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.SHEARS));
+            });
+            context.waitTicks(3);
+            context.getInput().pressKey(o -> o.keyUse);
+            context.waitTicks(6);
+            server.runOnServer(mc -> {
+                var boss = (MinotaurEntity)mc.overworld().getEntity(id.get());
+                check(boss.isHarvested(), "Right-click with shears did not skin the corpse");
                 boss.dismember(mc.getPlayerList().getPlayers().getFirst(), InteractionHand.MAIN_HAND, MinotaurRemains.LEFT_ARM);
-                check(boss.removedParts() == 0, "Stick removed a limb");
+                check(boss.removedParts() == 0, "Shears removed a limb");
                 mc.getPlayerList().getPlayers().getFirst().setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Asterion.CELESTIAL_BRONZE_SWORD));
                 boss.dismember(mc.getPlayerList().getPlayers().getFirst(), InteractionHand.MAIN_HAND, MinotaurRemains.HEAD);
                 check(boss.removedParts() == 0, "Skull could be taken before limbs");

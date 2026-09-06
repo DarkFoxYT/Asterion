@@ -46,12 +46,18 @@ final class RefugeAndHarvestCheck {
         try {
             player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.STICK));
             corpse.mobInteract(player, InteractionHand.MAIN_HAND);
+            check(!corpse.isHarvested() && level.getEntitiesOfClass(ItemEntity.class, area).isEmpty(), "A stick harvested hide");
+            player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+            corpse.mobInteract(player, InteractionHand.MAIN_HAND);
+            check(!corpse.isHarvested(), "Empty hand harvested hide");
+            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.SHEARS));
+            corpse.mobInteract(player, InteractionHand.MAIN_HAND);
             var drops = level.getEntitiesOfClass(ItemEntity.class, area);
             check(corpse.isHarvested(), "Harvested skeleton appearance was not synchronized");
-            check(drops.size() == 4 && drops.stream().anyMatch(item -> item.getItem().is(Items.LEATHER)), "Missing hide rewards");
+            check(drops.size() == 4 && drops.stream().anyMatch(item -> item.getItem().is(net.krodark.asterion.game.AncientContent.MINOTAUR_HIDE)), "Missing hide rewards");
             check(drops.stream().anyMatch(item -> item.getItem().is(net.krodark.asterion.game.AncientContent.ANCIENT_BONE)
                     && item.getItem().getCount() >= 16 && item.getItem().getCount() <= 24), "Missing Ancient Bone harvest");
-            check(player.getMainHandItem().is(Items.STICK) && player.getMainHandItem().getCount() == 1, "Harvest consumed a non-tool item");
+            check(player.getMainHandItem().is(Items.SHEARS) && player.getMainHandItem().getDamageValue() == 1, "Harvest did not damage shears exactly once");
             player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
             corpse.mobInteract(player, InteractionHand.MAIN_HAND);
             var saved = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, level.registryAccess());

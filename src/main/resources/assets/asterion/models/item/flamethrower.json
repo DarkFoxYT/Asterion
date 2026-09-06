@@ -1,6 +1,6 @@
 {
   "credit": "Made with Blockbench",
-  "parent": "builtin/entity",
+  "textures": { "particle": "asterion:item/beetle_flamethrower" },
   "texture_size": [
     64,
     64

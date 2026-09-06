@@ -36,7 +36,8 @@ final class PillarCheck {
         net.krodark.asterion.worldgen.AuthoredCatacombs.ensureArenaPillars(level);
         int found = 0;
         for (int x = -61; x <= 61; x++) for (int z = -61; z <= 61; z++)
-            for (int y = 1; y <= 48; y++) {
+            for (int y = net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y;
+                 y <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_FLOOR_Y + 2; y++) {
                 BlockPos root = new BlockPos(x, y, z);
                 var state = level.getBlockState(root);
                 if (!state.is(Asterion.PILLAR) || !PillarBlock.isRoot(state)) continue;
@@ -46,7 +47,8 @@ final class PillarCheck {
     }
     static BlockPos firstArenaRoot(ServerLevel level) {
         for (int x = -61; x <= 61; x++) for (int z = -61; z <= 61; z++)
-            for (int y = 1; y <= 48; y++) {
+            for (int y = net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y;
+                 y <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_FLOOR_Y + 2; y++) {
                 BlockPos pos = new BlockPos(x, y, z);
                 if (level.getBlockState(pos).is(Asterion.PILLAR)
                         && PillarBlock.isRoot(level.getBlockState(pos))) return pos;

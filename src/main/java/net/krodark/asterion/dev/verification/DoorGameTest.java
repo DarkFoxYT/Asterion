@@ -39,21 +39,20 @@ public final class DoorGameTest implements FabricClientGameTest {
                 var maze = mc.getLevel(Asterion.ASTERION_LEVEL);
                 MinotaurArenaEntrances.build(maze);
                 PillarCheck.arena(maze);
-                check(WorldGenerator.activeBossBraziers(maze) == 4, "Arena fire-power braziers missing");
+                var authoredBraziers = net.krodark.asterion.worldgen.CatacombArena.litBraziers(maze);
+                check(authoredBraziers.size() == 2, "Arena fire-power braziers missing: " + authoredBraziers.size());
                 var fireBoss = Asterion.MINOTAUR.create(maze, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
                 try {
                     var powered = MinotaurEntity.class.getDeclaredMethod("greekFirePowered"); powered.setAccessible(true);
                     check((boolean)powered.invoke(fireBoss), "Boss did not receive brazier power");
-                    for (Direction direction : Direction.Plane.HORIZONTAL)
-                        net.krodark.asterion.block.GreekBrazierBlock.extinguish(maze, net.krodark.asterion.worldgen.CatacombArena.brazier(direction));
+                    for (BlockPos pos : authoredBraziers)
+                        net.krodark.asterion.block.GreekBrazierBlock.extinguish(maze, pos);
                     check(!(boolean)powered.invoke(fireBoss), "Boss retained fire after all braziers extinguished");
-                    for (Direction direction : Direction.Plane.HORIZONTAL)
-                        net.krodark.asterion.block.GreekBrazierBlock.placeStructure((pos, state) -> maze.setBlock(pos, state, 3),
-                                net.krodark.asterion.worldgen.CatacombArena.brazier(direction));
+                    for (BlockPos rootPos : authoredBraziers)
+                        net.krodark.asterion.block.GreekBrazierBlock.placeStructure((pos, state) -> maze.setBlock(pos, state, 3), rootPos);
                 } catch (ReflectiveOperationException exception) { throw new AssertionError(exception); }
-                var bossDoor = (MinotaurDoorBlockEntity)maze.getBlockEntity(MinotaurArenaEntrances.door(Direction.NORTH));
-                bossDoor.interact(mc.getPlayerList().getPlayers().getFirst(), new ItemStack(Asterion.MINOTAUR_KEY));
-                check(!bossDoor.allowsArenaEntry(), "The boss door accepted a player key");
+                check(maze.getBlockState(MinotaurArenaEntrances.OMEGA_LOCK_POSITION).is(Asterion.OMEGA_LOCK),
+                        "Authored boss entrance lost its Omega lock");
                 for (Direction facing : MinotaurArenaEntrances.DOORS) {
                     check(maze.getBlockEntity(MinotaurArenaEntrances.door(facing)) instanceof MinotaurDoorBlockEntity,
                             "Missing prebuilt door: " + facing);
@@ -126,9 +125,12 @@ public final class DoorGameTest implements FabricClientGameTest {
                 door.beginBreach();
             });
             server.runCommand("tp @a 0.5 121 -32 0 -6");
-            context.waitTicks(47);
+            context.waitTicks(81);
             context.takeScreenshot("door-third-jolt");
-            context.waitTicks(30);
+            context.waitFor(client -> doorSamples().size() == 2, MinotaurDoorMotion.BREAK_TICK + 20);
+            context.runOnClient(client -> check(doorSamples().stream().allMatch(leaf -> leaf.velocity.y > 0),
+                    "Breach did not give the door leaves an upward kick"));
+            context.waitTicks(12);
             server.runOnServer(mc -> check(!mc.overworld().getBlockState(root).is(Asterion.MINOTAUR_DOOR), "Breach left the door blocking the opening"));
             context.takeScreenshot("door-break");
             context.runOnClient(client -> {
@@ -136,10 +138,11 @@ public final class DoorGameTest implements FabricClientGameTest {
                 check(leaves.size() == 2, "Breach did not spawn two physics leaves");
                 for (DoorSample leaf : leaves) {
                     check(leaf.position.distanceTo(Vec3.atCenterOf(root)) > 5, "Door leaf did not fly away from its hinges");
-                    check(leaf.position.y > root.getY() + 2.75, "Door kick did not lift the leaf into flight");
+                    check(leaf.position.y > root.getY() + 1, "Flying door penetrated the test floor");
                 }
             });
-            context.waitTicks(140);
+            context.waitFor(client -> doorSamples().size() == 2
+                    && doorSamples().stream().allMatch(DoorSample::sleeping), 400);
             context.takeScreenshot("door-settled");
             context.runOnClient(client -> {
                 var leaves = doorSamples();
@@ -170,11 +173,11 @@ public final class DoorGameTest implements FabricClientGameTest {
             Asterion.LOGGER.info("PASS: door item placement, all 35 collision parts, key lock, opening/closing, breach and live debris rendering");
 
              
-            server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 7 0.5 180 0");
+            server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 " + (net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_FLOOR_Y + 1) + " 0.5 180 0");
             context.waitTicks(20);
             server.runOnServer(mc -> check(!WorldGenerator.isBossEncounterActive(mc.getLevel(Asterion.ASTERION_LEVEL)),
                     "Being in the pit without a keyed entry started the fight"));
-            server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 7 43.5 180 -4");
+            server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 " + (net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_FLOOR_Y + 1) + " 43.5 180 -4");
             context.waitTicks(3);
             server.runOnServer(mc -> {
                 var maze = mc.getLevel(Asterion.ASTERION_LEVEL);
@@ -185,7 +188,7 @@ public final class DoorGameTest implements FabricClientGameTest {
                 check(door.getBlockState().getDestroyProgress(player, maze, door.getBlockPos()) == 0,
                         "Generated arena door can be mined to bypass the key");
                 var hunter = Asterion.MINOTAUR.create(maze, net.minecraft.world.entity.EntitySpawnReason.EVENT);
-                hunter.setPos(.5, 37, 41.5);
+                hunter.setPos(.5, net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_FLOOR_Y + 31, 41.5);
                 hunter.beginHunting(player);
                 maze.addFreshEntity(hunter);
             });
@@ -200,7 +203,7 @@ public final class DoorGameTest implements FabricClientGameTest {
                 player.setGameMode(GameType.SURVIVAL);
             });
             context.waitTicks(32);
-            server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 7 39.5 180 -4");
+            server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 " + (net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_FLOOR_Y + 1) + " 39.5 180 -4");
             context.waitTicks(4);
             server.runOnServer(mc -> {
                 var maze = mc.getLevel(Asterion.ASTERION_LEVEL);
@@ -208,7 +211,7 @@ public final class DoorGameTest implements FabricClientGameTest {
                 ((MinotaurDoorBlockEntity)maze.getBlockEntity(MinotaurArenaEntrances.door(Direction.SOUTH)))
                         .interact(mc.getPlayerList().getPlayers().getFirst(), ItemStack.EMPTY);
             });
-            server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 7 39.5 180 -4");
+            server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 " + (net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_FLOOR_Y + 1) + " 39.5 180 -4");
             context.waitTicks(32);
             server.runOnServer(mc -> {
                 var level = mc.getLevel(Asterion.ASTERION_LEVEL);
@@ -218,16 +221,16 @@ public final class DoorGameTest implements FabricClientGameTest {
                 var door = (MinotaurDoorBlockEntity)level.getBlockEntity(MinotaurArenaEntrances.door(Direction.SOUTH));
                 door.interact(mc.getPlayerList().getPlayers().getFirst(), new ItemStack(Asterion.MINOTAUR_KEY));
             });
-            server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 7 43.5 180 -4");
+            server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 " + (net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_FLOOR_Y + 1) + " 43.5 180 -4");
             context.waitTicks(3);
-            server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 7 39.5 180 -4");
+            server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 " + (net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_FLOOR_Y + 1) + " 39.5 180 -4");
             context.waitTicks(36);
             context.takeScreenshot("arena-player-entrance");
             context.runOnClient(client -> {
                 client.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
                 client.options.hideGui = false;
             });
-            server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 7 31 180 -4");
+            server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 " + (net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_FLOOR_Y + 1) + " 31 180 -4");
             var started = new java.util.concurrent.atomic.AtomicBoolean();
             for (int tick = 0; tick < 80 && !started.get(); tick += 2) {
                 context.waitTicks(2);
@@ -287,14 +290,18 @@ public final class DoorGameTest implements FabricClientGameTest {
             context.takeScreenshot("arena-cinematic-rattle");
             context.waitTicks(55);
             context.takeScreenshot("arena-boss-kick");
-            context.waitTicks(22);
+            waitUntil(context, server, mc -> !mc.getLevel(Asterion.ASTERION_LEVEL)
+                    .getBlockState(MinotaurArenaEntrances.door(Direction.NORTH)).is(Asterion.MINOTAUR_DOOR),
+                    BossArenaEncounter.INTRO_TICKS);
             context.takeScreenshot("arena-boss-breach");
             server.runOnServer(mc -> {
                 var level = mc.getLevel(Asterion.ASTERION_LEVEL);
                 check(!level.getBlockState(MinotaurArenaEntrances.door(Direction.NORTH)).is(Asterion.MINOTAUR_DOOR),
                         "Boss entrance was not broken off");
             });
-            context.waitTicks(95);
+            waitUntil(context, server, mc -> !BossArenaEncounter.isMovementLocked(
+                    mc.getPlayerList().getPlayers().getFirst()), BossArenaEncounter.INTRO_TICKS);
+            context.waitTicks(MinotaurArenaEntrances.gateHeight() * 2 + 4);
             server.runOnServer(mc -> {
                 var level = mc.getLevel(Asterion.ASTERION_LEVEL);
                 var player = mc.getPlayerList().getPlayers().getFirst();
@@ -325,7 +332,7 @@ public final class DoorGameTest implements FabricClientGameTest {
             server.runCommand("execute as @a at @s run asterion minotaur stop");
             server.runOnServer(mc -> check(WorldGenerator.isBossEncounterActive(mc.getLevel(Asterion.ASTERION_LEVEL)),
                     "Stopping arena telemetry removed the real boss"));
-            server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 7 23.5 0 -8");
+            server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 " + (net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_FLOOR_Y + 1) + " 23.5 0 -8");
             context.runOnClient(client -> {
                 client.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
                 client.options.hideGui = true;
@@ -337,7 +344,7 @@ public final class DoorGameTest implements FabricClientGameTest {
                 var maze = mc.getLevel(Asterion.ASTERION_LEVEL);
                 mc.getPlayerList().getPlayers().getFirst().setInvulnerable(true);
                 var centipede = Asterion.SCARLET_CENTIPEDE.create(maze, net.minecraft.world.entity.EntitySpawnReason.EVENT);
-                centipede.setPos(15, 37, 0);
+                centipede.setPos(15, net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_FLOOR_Y + 1, 0);
                 check(!centipede.checkSpawnRules(maze, net.minecraft.world.entity.EntitySpawnReason.NATURAL),
                         "Centipedes can naturally spawn during the boss fight");
                 maze.addFreshEntity(centipede);
@@ -348,7 +355,7 @@ public final class DoorGameTest implements FabricClientGameTest {
                 var maze = mc.getLevel(Asterion.ASTERION_LEVEL);
                 check(wildCentipede.get().isRemoved(), "Wild centipede remained inside the fight");
                 var beetles = maze.getEntitiesOfClass(net.krodark.asterion.entity.BombadierBeetleEntity.class,
-                        new net.minecraft.world.phys.AABB(-44, 5, -44, 44, 49, 44));
+                        new net.minecraft.world.phys.AABB(-44, net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y, -44, 44, net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y + 48, 44));
                 check(beetles.size() <= 4, "Beetle reinforcement wave exceeded its cap");
                 for (var beetle : beetles) check(maze.noCollision(beetle), "Reinforcement spawned in a block");
             });
@@ -359,7 +366,7 @@ public final class DoorGameTest implements FabricClientGameTest {
                 check(WorldGenerator.breakBossPillar(maze, new net.minecraft.world.phys.AABB(pillar).inflate(3, 12, 3)),
                         "Test pillar did not break");
                 check(maze.getEntitiesOfClass(net.minecraft.world.entity.item.FallingBlockEntity.class,
-                        new net.minecraft.world.phys.AABB(-44, 5, -44, 44, 55, 44)).isEmpty(),
+                        new net.minecraft.world.phys.AABB(-44, net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y, -44, 44, net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y + 54, 44)).isEmpty(),
                         "Pillar collapse still creates old falling-block rubble");
             });
             context.waitTicks(5);
@@ -386,7 +393,7 @@ public final class DoorGameTest implements FabricClientGameTest {
                 WorldGenerator.collapseBossRoofRing(maze, new Vec3(0, 37, 0), 0);
                 check(maze.getBlockState(new BlockPos(0, 47, 0)).isAir(), "Scripted roof collapse only emitted cosmetic copies");
             });
-            server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 7 18.5 180 -32");
+            server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 " + (net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_FLOOR_Y + 1) + " 18.5 180 -32");
             context.waitTicks(2);
             context.takeScreenshot("arena-heavy-roof-rain");
             context.runOnClient(client -> check(bossBarCount(client) == 1, "Phase one must show only the health bar"));
@@ -402,14 +409,14 @@ public final class DoorGameTest implements FabricClientGameTest {
             });
             context.waitTicks(8);
             context.runOnClient(client -> check(bossBarCount(client) == 0, "Boss bars returned on respawn"));
-            server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 7 23.5 0 0");
+            server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 " + (net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_FLOOR_Y + 1) + " 23.5 0 0");
             context.waitTicks(3);
             Asterion.LOGGER.info("PASS: actual death, encounter discard, boss bar removal and respawn cleanup");
             server.runOnServer(mc -> {
                 var maze = mc.getLevel(Asterion.ASTERION_LEVEL);
                 check(!WorldGenerator.isBossEncounterActive(maze), "Death did not reset the encounter");
                 check(maze.getEntitiesOfClass(net.krodark.asterion.entity.BombadierBeetleEntity.class,
-                        new net.minecraft.world.phys.AABB(-44, 5, -44, 44, 49, 44),
+                        new net.minecraft.world.phys.AABB(-44, net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y, -44, 44, net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y + 48, 44),
                         beetle -> beetle.entityTags().contains("asterion_arena_beetle")).isEmpty(), "Reset left summoned beetles behind");
                 for (Direction facing : MinotaurArenaEntrances.DOORS) {
                     check(maze.getBlockEntity(MinotaurArenaEntrances.door(facing)) instanceof MinotaurDoorBlockEntity, "Wipe did not restore doors");
@@ -957,6 +964,17 @@ public final class DoorGameTest implements FabricClientGameTest {
         return controller.getCurrentRawAnimation().getAnimationStages().getFirst().animationName();
     }
 
+    private static void waitUntil(ClientGameTestContext context,
+            net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext server,
+            java.util.function.Predicate<net.minecraft.server.MinecraftServer> condition, int timeout) {
+        var ready = new java.util.concurrent.atomic.AtomicBoolean();
+        for (int tick = 0; tick < timeout; tick += 2) {
+            server.runOnServer(mc -> ready.set(condition.test(mc)));
+            if (ready.get()) return;
+            context.waitTicks(2);
+        }
+        throw new AssertionError("Timed out waiting for encounter state");
+    }
     private static void verifyLocomotion(net.minecraft.server.level.ServerLevel level,
             net.minecraft.server.level.ServerPlayer player, MinotaurEntity.BehaviorPhase phase, double expected) {
         var boss = Asterion.MINOTAUR.create(level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);

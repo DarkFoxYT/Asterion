@@ -24,6 +24,16 @@ public abstract class GeckoAnimationCacheMixin {
     @Unique private final java.util.Set<Long> asterion$verified = new java.util.HashSet<>();
 
     @WrapOperation(method = "tick", at = @At(value = "INVOKE",
+            target = "Lcom/mojang/blaze3d/platform/NativeImage;copyRect(Lcom/mojang/blaze3d/platform/NativeImage;IIIIIIZZ)V"))
+    private void asterion$copyFrame(NativeImage source, NativeImage target, int sx, int sy,
+            int tx, int ty, int width, int height, boolean flipX, boolean flipY, Operation<Void> original) {
+        if (!this$0.resourceId().getNamespace().equals("asterion")
+                || !net.krodark.asterion.client.render.TextureFrameCopy.tryCopy(
+                        source, target, sx, sy, tx, ty, width, height, flipX, flipY))
+            original.call(source, target, sx, sy, tx, ty, width, height, flipX, flipY);
+    }
+
+    @WrapOperation(method = "tick", at = @At(value = "INVOKE",
             target = "Lcom/geckolib/renderer/texture/GeckoLibAnimatedTexture$AnimationInfo$InterpolationData;tickAndUpload(Lcom/mojang/blaze3d/platform/NativeImage;Lcom/mojang/blaze3d/textures/GpuTexture;)V"))
     private void asterion$reuseFrame(@Coerce Object interpolation, NativeImage source, GpuTexture texture,
                                     Operation<Void> original) {
@@ -58,7 +68,9 @@ public abstract class GeckoAnimationCacheMixin {
          
         if (asterion$bytes + bytes > 32L * 1024 * 1024) return;
         cached = new NativeImage(buffer.getWidth(), buffer.getHeight(), false);
-        buffer.copyRect(cached, 0, 0, 0, 0, buffer.getWidth(), buffer.getHeight(), false, false);
+        if (!net.krodark.asterion.client.render.TextureFrameCopy.tryCopy(buffer, cached,
+                0, 0, 0, 0, buffer.getWidth(), buffer.getHeight(), false, false))
+            buffer.copyRect(cached, 0, 0, 0, 0, buffer.getWidth(), buffer.getHeight(), false, false);
         asterion$frames.put(key, cached);
         asterion$bytes += bytes;
     }

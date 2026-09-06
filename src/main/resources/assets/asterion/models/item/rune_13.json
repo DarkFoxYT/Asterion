@@ -1,1 +1,6 @@
-{ "parent": "asterion:item/rune_geo" }
+{
+  "parent": "asterion:item/rune_geo",
+  "textures": {
+    "particle": "asterion:block/runes/13"
+  }
+}

@@ -53,6 +53,11 @@ public final class QueenBeetleQuestOverlay {
          
         if (!wasActive) objectiveTicks = restoring ? 12 : 0;
         dialogueDuration = payload.stage() == QueenBeetleQuestPayload.REWARDED ? 150 : 120;
+        if (stage == QueenBeetleQuestPayload.ACCEPTED || stage == QueenBeetleQuestPayload.REWARDED) {
+            String line = Component.translatable(request.key(
+                    stage == QueenBeetleQuestPayload.ACCEPTED ? "accepted" : "rewarded"), target).getString();
+            dialogueDuration = Mth.clamp(40 + line.codePointCount(0, line.length()), 120, 360);
+        }
         dialogueTicks = restoring ? 0 : dialogueDuration;
     }
 
@@ -75,7 +80,7 @@ public final class QueenBeetleQuestOverlay {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null || MazeObjectiveOverlay.bossFightActive(client)) return;
 
-        if (client.hitResult instanceof EntityHitResult hit
+        if (dialogueTicks == 0 && client.hitResult instanceof EntityHitResult hit
                 && hit.getEntity() instanceof QueenBeetleEntity
                 && client.player.distanceToSqr(hit.getEntity()) <= 36.0D) {
             renderPrompt(graphics, client);
@@ -114,7 +119,11 @@ public final class QueenBeetleQuestOverlay {
     private static void renderObjective(GuiGraphicsExtractor graphics, Minecraft client) {
         int actualProgress = countItems(client);
         int width = Math.min(CARD_WIDTH, graphics.guiWidth() - 24);
-        int height = 58;
+        Component hint = actualProgress >= target
+                ? Component.translatable("quest.asterion.queen_beetle.return") : questHint;
+        var hintLines = client.font.split(hint, width - 17);
+        int rewardY = 37 + Math.max(1, hintLines.size()) * 11;
+        int height = rewardY + 11;
         float appear = smootherstep(Mth.clamp(objectiveTicks / 12.0F, 0.0F, 1.0F));
         int left = graphics.guiWidth() - width - 12 + Math.round((1.0F - appear) * 18.0F);
         int top = 12;
@@ -143,11 +152,11 @@ public final class QueenBeetleQuestOverlay {
         graphics.fill(barLeft, barTop, barLeft + filled, barTop + 3,
                 alpha(actualProgress >= target ? 0x82B76B : 0xC99432, Math.round(255 * appear)));
 
-        Component hint = actualProgress >= target
-                ? Component.translatable("quest.asterion.queen_beetle.return") : questHint;
-        graphics.text(client.font, client.font.plainSubstrByWidth(hint.getString(), width - 17), left + 9, top + 37, alpha(0xB8AD91, Math.round(230 * appear)), false);
+        for (int line = 0; line < hintLines.size(); line++)
+            graphics.text(client.font, hintLines.get(line), left + 9, top + 37 + line * 11,
+                    alpha(0xB8AD91, Math.round(230 * appear)), false);
         Component reward = questReward;
-        graphics.text(client.font, client.font.plainSubstrByWidth(reward.getString(), width - 17), left + 9, top + 47, alpha(0x817A67, Math.round(205 * appear)), false);
+        graphics.text(client.font, client.font.plainSubstrByWidth(reward.getString(), width - 17), left + 9, top + rewardY, alpha(0x817A67, Math.round(205 * appear)), false);
     }
 
     private static void renderDialogue(GuiGraphicsExtractor graphics, Minecraft client) {

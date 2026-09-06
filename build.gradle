@@ -381,6 +381,7 @@ loom {
             ideConfigGenerated = false
         }
         catacombTest {
+            vmArg "-Dasterion.audit.tests=${providers.gradleProperty('auditTests').getOrElse('')}"
             client()
             name = "Catacomb layout integration test"
             vmArg "-Dfabric.client.gametest"
@@ -423,7 +424,9 @@ def clientGameTests = [
         [run: "LamenterTest", folder: "lamenter-testmod", id: "asterion_lamenter_test",
          classes: ["net.krodark.asterion.dev.verification.LamenterGameTest"]],
         [run: "CatacombTest", folder: "catacomb-testmod", id: "asterion_catacomb_test",
-         classes: providers.gradleProperty("performanceOnly").isPresent()
+         classes: providers.gradleProperty("auditOnly").isPresent()
+                   ? ["net.krodark.asterion.dev.verification.ModAuditGameTest"]
+                   : providers.gradleProperty("performanceOnly").isPresent()
                    ? ["net.krodark.asterion.dev.verification.WorldPerformanceGameTest"]
                    : providers.gradleProperty("forgeRecipesOnly").isPresent()
                    ? ["net.krodark.asterion.dev.verification.ForgeRecipesGameTest"]
@@ -520,8 +523,12 @@ tasks.withType(JavaExec).configureEach {
         if (providers.gradleProperty('asterionSafeJvm').getOrElse('true').toBoolean()
                 && allJvmArgs.any { it == '-Dfabric.dli.env=client' }) {
             setJvmArgs(jvmArgs.findAll { !it.startsWith('-XX:TieredStopAtLevel=') })
-            jvmArgs '-XX:TieredStopAtLevel=3'
-            logger.lifecycle('Asterion client stability mode: C1 compilation enabled, crash-prone C2 tier disabled.')
+            def safeTier = providers.gradleProperty('asterionSafeJvmTier').getOrElse('1')
+            if (!(safeTier in ['1', '3'])) throw new GradleException('asterionSafeJvmTier must be 1 or 3')
+            // Tier 3 keeps collecting profiles for a C2 compiler that will never run.
+            // Pure C1 retains the crash workaround without that permanent profiling cost.
+            jvmArgs "-XX:TieredStopAtLevel=${safeTier}"
+            logger.lifecycle("Asterion client stability mode: C1 tier ${safeTier}; crash-prone C2 tier disabled.")
         }
     }
     if (name == 'net.fabricmc.devlaunchinjector.Main.main()') {

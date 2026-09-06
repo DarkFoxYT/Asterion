@@ -31,10 +31,13 @@ final class StaticVineMesh implements VertexConsumer {
                 throw new AssertionError("Static vine position, UV or normal changed at " + i);
     }
     void render(PoseStack.Pose pose, VertexConsumer out, int color, int light, int overlay) {
+        var position = new org.joml.Vector3f();
+        var normal = new org.joml.Vector3f();
         for (int i = 0; i < size; i += 8) {
-            out.addVertex(pose, data[i], data[i + 1], data[i + 2]).setColor(color)
-                    .setUv(data[i + 3], data[i + 4]).setOverlay(overlay).setLight(light)
-                    .setNormal(pose, data[i + 5], data[i + 6], data[i + 7]);
+            pose.pose().transformPosition(data[i], data[i + 1], data[i + 2], position);
+            pose.transformNormal(data[i + 5], data[i + 6], data[i + 7], normal);
+            out.addVertex(position.x, position.y, position.z, color, data[i + 3], data[i + 4],
+                    overlay, light, normal.x, normal.y, normal.z);
         }
     }
     @Override public VertexConsumer addVertex(float x, float y, float z) {

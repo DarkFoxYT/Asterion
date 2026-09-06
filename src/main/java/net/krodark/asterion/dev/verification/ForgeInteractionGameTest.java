@@ -56,11 +56,11 @@ public final class ForgeInteractionGameTest implements FabricClientGameTest {
                 if (net.krodark.asterion.client.light.AmneticBoneEmission.submissions() == 0)
                     throw new AssertionError("Forge contents did not reach Amnetic emission capture");
             });
-            context.runOnClient(c -> click(c, right(c) + 10, 74));
+            context.runOnClient(c -> click(c, Math.round(c.screen.width / scale(c)) / 2, 7));
             context.waitTicks(15);
             context.runOnClient(c -> {
                 int x = Math.round(c.screen.width / scale(c)) / 2 - 85;
-                int y = Math.max(8, Math.round(c.screen.height / scale(c)) - 162);
+                int y = 22;
                 click(c, x + 8, y + 82);
             });
             context.waitTicks(11);
@@ -77,7 +77,7 @@ public final class ForgeInteractionGameTest implements FabricClientGameTest {
             context.waitTicks(16);
             context.takeScreenshot("forge-item-melting");
             context.waitTicks(9);
-            context.runOnClient(c -> click(c, right(c) + 19, 86));
+            context.runOnClient(c -> click(c, right(c) + 66, 101));
             context.waitTicks(3);
             world.getServer().runOnServer(server -> {
                 var forge = (CrucibleBlockEntity)server.overworld().getBlockEntity(pos);

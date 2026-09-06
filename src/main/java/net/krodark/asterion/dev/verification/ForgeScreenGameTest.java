@@ -35,17 +35,16 @@ public final class ForgeScreenGameTest implements FabricClientGameTest {
             context.takeScreenshot("forge-new-layout");
             context.runOnClient(c -> {
                 float scale = Math.min(1.5F, Math.min(c.screen.width / 544F, c.screen.height / 224F));
-                int right = Math.round(c.screen.width / scale) - 132;
-                click(c, right + 24, 88, scale);
+                click(c, Math.round(c.screen.width / scale) / 2, 7, scale);
             });
             context.waitTicks(15);
             context.takeScreenshot("forge-inventory-open");
             context.runOnClient(c -> {
                 float scale = Math.min(1.5F, Math.min(c.screen.width / 544F, c.screen.height / 224F));
                 int x = Math.round(c.screen.width / scale) / 2 - 85;
-                int y = Math.max(8, Math.round(c.screen.height / scale) - 68 - 94);
+                int y = 22;
                 click(c, x + 8, y + 82, scale);
-                click(c, 100, 68, scale);
+                click(c, 100, 52, scale);
             });
             context.waitTicks(5);
             world.getServer().runOnServer(server -> {

@@ -59,7 +59,8 @@ public final class LamenterGameTest implements FabricClientGameTest {
                                 level.getBlockState(pos).useWithoutItem(level, mc.getPlayerList().getPlayers().getFirst(),
                                         new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(pos),
                                                 directions[i], pos, false));
-                                check(level.getBlockState(pos).getValue(LamenterBlock.ACTIVE), "Empty-hand interaction failed");
+                                check(!level.getBlockState(pos).getValue(LamenterBlock.ACTIVE), "Empty-hand interaction bypassed redstone activation");
+                                activate(level, pos, true);
                             }
                             if (tick == 260) activate(level, pos, true);
                             if (tick == 159 || tick == 250 || tick == 509) check(lit(level, bowl), "Premature extinction at " + tick);
@@ -74,11 +75,11 @@ public final class LamenterGameTest implements FabricClientGameTest {
                         }
                         if (tick == 520) {
                             ServerLevel maze = mc.getLevel(Asterion.ASTERION_LEVEL);
-                            BlockPos floodFace = new BlockPos(0, 12, 0);
+                            BlockPos floodFace = new BlockPos(320, net.krodark.asterion.worldgen.CatacombLayout.WATER_Y + 2, 320);
                             maze.setBlock(floodFace, Asterion.LAMENTER.defaultBlockState(), 3);
                             CatacombFloodState.setActive(maze, true);
                             check(CatacombFloodState.isFlooding(maze, floodFace), "Catacomb missed flood");
-                            check(!CatacombFloodState.isFlooding(maze, new BlockPos(70, 70, 70)), "Flood leaked onto surface");
+                            check(!CatacombFloodState.isFlooding(maze, new BlockPos(320, net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y + 1, 320)), "Flood leaked onto surface");
                             check(!CatacombFloodState.isFlooding(level, new BlockPos(0, 12, 0)), "Flood leaked into Overworld");
                             var blockEntity = (LamenterBlockEntity)maze.getBlockEntity(floodFace);
                             LamenterBlockEntity.tick(maze, floodFace, maze.getBlockState(floodFace), blockEntity);
@@ -86,7 +87,8 @@ public final class LamenterGameTest implements FabricClientGameTest {
                             CatacombFloodState.setActive(maze, false);
                             LamenterBlockEntity.tick(maze, floodFace, maze.getBlockState(floodFace), blockEntity);
                             check(!maze.getBlockState(floodFace).getValue(LamenterBlock.CRYING), "Lamenter did not stop after flood");
-                            check(WorldGenerator.activeBossBraziers(maze) == 4, "Prepared arena should have four powered braziers");
+                            WorldGenerator.ensureBossArenaReady(maze);
+                            check(WorldGenerator.activeBossBraziers(maze) == 2, "Prepared arena should have two authored powered braziers");
                         }
                         elapsed.set(tick);
                     } catch (Throwable error) { failure.set(error); elapsed.set(521); }

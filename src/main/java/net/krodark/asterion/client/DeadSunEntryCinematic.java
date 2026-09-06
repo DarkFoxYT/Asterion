@@ -9,7 +9,6 @@ import net.minecraft.world.phys.Vec3;
 
 public final class DeadSunEntryCinematic {
     private static final int END_TICKS = 260;
-    private static final int CINEMATIC_RENDER_DISTANCE = 12;
     private static final int REQUIRED_CHUNK_RADIUS = 6;
     private static Vec3 openingPosition;
     private static boolean active;
@@ -18,21 +17,15 @@ public final class DeadSunEntryCinematic {
     private static float returnYaw;
     private static float returnPitch;
     private static CameraType previousCamera;
-    private static Integer previousRenderDistance;
     private static Boolean previousSmartCull;
 
     private DeadSunEntryCinematic() { }
 
-    public static void prepareForArrival(Minecraft client) {
-        if (!AsterionConfig.INSTANCE.cinematicsEnabled) return;
-        int current = client.options.renderDistance().get();
-        if (previousRenderDistance == null) previousRenderDistance = current;
-        if (current < CINEMATIC_RENDER_DISTANCE)
-            client.options.renderDistance().set(CINEMATIC_RENDER_DISTANCE);
-    }
-
     public static int requiredChunkRadius() {
-        return AsterionConfig.INSTANCE.cinematicsEnabled ? REQUIRED_CHUNK_RADIUS : 0;
+        // Never wait for terrain outside the player or server's view distance.
+        return AsterionConfig.INSTANCE.cinematicsEnabled
+                ? Math.min(REQUIRED_CHUNK_RADIUS,
+                        Math.max(0, Minecraft.getInstance().options.getEffectiveRenderDistance() - 1)) : 0;
     }
 
     public static void begin() {
@@ -89,19 +82,7 @@ public final class DeadSunEntryCinematic {
         if (previousSmartCull != null) client.smartCull = previousSmartCull;
         previousSmartCull = null;
         if (client.level != null) client.levelRenderer.getSectionOcclusionGraph().invalidate();
-        restoreRenderDistance(client);
         CinematicHud.end(client);
-    }
-
-    public static void cancelPreparedArrival(Minecraft client) {
-        if (!active) restoreRenderDistance(client);
-    }
-
-    private static void restoreRenderDistance(Minecraft client) {
-        if (previousRenderDistance == null) return;
-        if (!client.options.renderDistance().get().equals(previousRenderDistance))
-            client.options.renderDistance().set(previousRenderDistance);
-        previousRenderDistance = null;
     }
 
     public static boolean isActive() { return active; }

@@ -125,11 +125,11 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                 clear(level,new BlockPos(0,AuthoredCatacombs.CONNECTOR_Y+1,61));
                  
                  
-                for(int z=AuthoredCatacombs.ARENA_RADIUS+1;z<=76;z++) {
-                    int center=Math.round((z-(AuthoredCatacombs.ARENA_RADIUS+1))*9F
-                            /(76-(AuthoredCatacombs.ARENA_RADIUS+1)));
-                    clear(level,new BlockPos(center,AuthoredCatacombs.CONNECTOR_Y,z));
-                    clear(level,new BlockPos(center,AuthoredCatacombs.CONNECTOR_Y+1,z));
+                for(int z=AuthoredCatacombs.ARENA_RADIUS+1;z<=CatacombLayout.ROOT_CENTER;z++) {
+                    for (int x=-2;x<=2;x++) {
+                        clear(level,new BlockPos(x,AuthoredCatacombs.CONNECTOR_Y,z));
+                        clear(level,new BlockPos(x,AuthoredCatacombs.CONNECTOR_Y+1,z));
+                    }
                 }
                 long seed=MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
                  
@@ -176,7 +176,7 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                 var player=server.getPlayerList().getPlayers().getFirst();
                 player.teleportTo(level,.5,AuthoredCatacombs.CONNECTOR_Y,63.5,java.util.Set.of(),180,0,true);
                 var boss=net.krodark.asterion.entity.MinotaurEntity.activateCenterBoss(level,player,null,net.minecraft.core.Direction.SOUTH);
-                check(boss!=null && boss.getY()==AuthoredCatacombs.ARENA_FLOOR_Y+1,"Boss did not spawn on authored floor");
+                check(boss!=null && boss.getY()==AuthoredCatacombs.ARENA_FLOOR_Y,"Boss did not spawn on authored floor");
                 BossArenaEncounter.begin(level,player,boss,net.minecraft.core.Direction.SOUTH);
                 check(player.getY()==AuthoredCatacombs.ARENA_FLOOR_Y,"Party entry used old arena elevation");
                 check(level.noCollision(player),"Party entry placed player in masonry");

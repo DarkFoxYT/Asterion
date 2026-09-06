@@ -94,13 +94,14 @@ void main() {
     vec3 direction = worldRay(texCoord);
     float geometryDistance = length(reconstructWorld(depth) - CameraPos);
     float travel = depth >= 0.9999 ? 112.0 : min(geometryDistance, 112.0);
-    int sampleCount = Quality < 0.5 ? 4 : (Quality < 1.5 ? 7 : 10);
+    // Match the current quality budgets; keep the unoptimized integration as the reference.
+    int sampleCount = Quality < 0.5 ? 3 : (Quality < 1.5 ? 5 : 7);
     float stepLength = travel / float(sampleCount);
 
     float opticalDepth = 0.0;
     vec3 scattering = vec3(0.0);
 
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < 7; ++i) {
         if (i >= sampleCount) break;
         float distanceAlongRay = (float(i) + 0.5) * stepLength;
         vec3 sampleWorld = CameraPos + direction * distanceAlongRay;

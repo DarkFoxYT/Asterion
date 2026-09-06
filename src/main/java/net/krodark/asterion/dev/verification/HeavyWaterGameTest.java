@@ -102,16 +102,25 @@ public final class HeavyWaterGameTest implements FabricClientGameTest {
                             player.setGameMode(net.minecraft.world.level.GameType.CREATIVE);
                         }
                         var maze = mc.getLevel(Asterion.ASTERION_LEVEL);
+                        if (tick >= 680) {
+                            // Exercise every tide step without spending the real event's many-minute interval idle.
+                            var next = CatacombFloodState.class.getDeclaredField("nextStep");
+                            next.setAccessible(true); next.setLong(CatacombFloodState.get(maze), 0L);
+                            CatacombFloodState.spread(maze, CatacombFloodState.get(maze).riseSteps());
+                        }
                         if (tick >= 680 && highTideAt.get() < 0 && CatacombFloodState.get(maze).riseSteps() == CatacombFloodState.MAX_RISE) {
                             highTideAt.set(tick);
                             maze.setChunkForced(-20, -20, true);
                             maze.getChunk(-20, -20);
                         }
-                        if (highTideAt.get() >= 0 && tick == highTideAt.get() + 120) {
-                            check(maze.getBlockState(new BlockPos(320, CatacombFloodState.FLOOD_TOP_Y, 320)).is(HeavyWater.BLOCK), "Live tide did not update loaded basin");
-                            check(maze.getBlockState(new BlockPos(-320, CatacombFloodState.FLOOD_TOP_Y, -320)).is(HeavyWater.BLOCK), "Reloaded chunk missed the shared high tide");
-                            DeadSunEventSystem.stop(maze);
-                            stoppedAt.set(tick);
+                        if (highTideAt.get() >= 0 && stoppedAt.get() < 0 && tick >= highTideAt.get() + 120) {
+                            var loadedSurface = maze.getBlockState(new BlockPos(320, CatacombFloodState.FLOOD_TOP_Y, 320));
+                            var reloadedSurface = maze.getBlockState(new BlockPos(-320, CatacombFloodState.FLOOD_TOP_Y, -320));
+                            if (loadedSurface.is(HeavyWater.BLOCK) && reloadedSurface.is(HeavyWater.BLOCK)) {
+                                DeadSunEventSystem.stop(maze);
+                                stoppedAt.set(tick);
+                            } else check(tick < highTideAt.get() + 1200,
+                                    "Gradual tide did not reach loaded/reloaded basins: " + loadedSurface + "/" + reloadedSurface);
                         }
                         if (stoppedAt.get() >= 0 && tick > stoppedAt.get() + 640 && CatacombFloodState.get(maze).riseSteps() == 0
                                 && maze.getBlockState(new BlockPos(320, CatacombLayout.WATER_Y, 320)).is(HeavyWater.WATER_BLOCK)) {
@@ -176,10 +185,11 @@ public final class HeavyWaterGameTest implements FabricClientGameTest {
         maze.setBlock(protectedBlock, Blocks.DIAMOND_BLOCK.defaultBlockState(), 3);
         for (int step : new int[]{1,8,72,CatacombFloodState.MAX_RISE}) {
             for (BlockPos base : bases) CatacombFloodState.reconcile(maze, maze.getChunkAt(base), step);
+            for (int wave=0;wave<200;wave++) CatacombFloodState.spread(maze,step);
             int surfaceY=CatacombLayout.WATER_Y+1+(step-1)/8;
             for (BlockPos base : bases) {
                 BlockPos surface=new BlockPos(base.getX(),surfaceY,base.getZ());
-                check(maze.getFluidState(surface).getType()==HeavyWater.FLUID,"Flood surface missing");
+                check(maze.getFluidState(surface).getType()==HeavyWater.FLUID,"Flood surface missing at " + surface + ": " + maze.getBlockState(surface));
                 check(Math.abs(surfaceY+maze.getFluidState(surface).getOwnHeight()
                         -(CatacombLayout.WATER_Y+1+step/8.0))<1e-6,
                         "Flood desynchronized across dry/wet and negative-coordinate columns");

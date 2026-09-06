@@ -1,5 +1,4 @@
 {
-  "parent": "builtin/entity",
   "textures": { "particle": "asterion:block/crucible" },
   "display": {
     "gui": { "rotation": [25, 135, 0], "translation": [0, -5, 0], "scale": [0.18, 0.18, 0.18] },

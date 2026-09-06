@@ -5031,6 +5031,12 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                                                             net.minecraft.world.InteractionHand hand) {
         if (!isDefeatedBoss()) return super.mobInteract(player, hand);
         ItemStack tool = player.getItemInHand(hand);
+        if (!isHarvested() && !tool.is(net.minecraft.world.item.Items.SHEARS)) {
+            if (level() instanceof ServerLevel)
+                net.krodark.asterion.game.PlayerNotices.show(player,
+                        Component.translatable("message.asterion.minotaur_harvest_hint"));
+            return net.minecraft.world.InteractionResult.PASS;
+        }
         if (!(level() instanceof ServerLevel server)) return net.minecraft.world.InteractionResult.SUCCESS;
         if (hideHarvested) {
             dismember(player, hand, null);

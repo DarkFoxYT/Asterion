@@ -15,16 +15,22 @@ final class AncientContentCheck {
         var level = server.overworld();
         level.getChunkAt(new BlockPos(0, 200, 0));
         var variants = new java.util.HashSet<Float>();
-        boolean armored = false, bare = false;
+        boolean fullArmor = false, partialArmor = false;
+        int armored = 0;
+        var seeds = net.minecraft.util.RandomSource.create(0xA57E000L);
         for (int i = 0; i < 48; i++) {
             var skeleton = AncientContent.SKELETON.create(level, EntitySpawnReason.COMMAND);
             skeleton.setPos(0, 200, 0);
+            skeleton.getRandom().setSeed(seeds.nextLong());
             skeleton.finalizeSpawn(level, level.getCurrentDifficultyAt(new BlockPos(0,200,0)), EntitySpawnReason.COMMAND, null);
             check(skeleton.getMaxHealth() == 36 && !skeleton.canPickUpLoot(), "Ancient skeleton attributes/pickup incorrect");
             check(skeleton.getMainHandItem().is(Asterion.CELESTIAL_BRONZE_SWORD), "Skeleton equipped vanilla weapon");
             variants.add(skeleton.getMainHandItem().get(DataComponents.CUSTOM_MODEL_DATA).floats().getFirst());
-            boolean armor = !skeleton.getItemBySlot(EquipmentSlot.HEAD).isEmpty() || !skeleton.getItemBySlot(EquipmentSlot.CHEST).isEmpty();
-            armored |= armor; bare |= !armor;
+            int pieces = 0;
+            for (var slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET})
+                if (!skeleton.getItemBySlot(slot).isEmpty()) pieces++;
+            if (pieces > 0) armored++;
+            fullArmor |= pieces == 4; partialArmor |= pieces > 0 && pieces < 4;
             if (i == 0) {
                 skeleton.setItemSlot(EquipmentSlot.CHEST, new ItemStack(Items.IRON_CHESTPLATE));
                 skeleton.setDropChance(EquipmentSlot.CHEST, 2);
@@ -42,8 +48,8 @@ final class AncientContentCheck {
             }
             skeleton.discard();
         }
-        check(variants.size() == 2 && armored && bare, "Missing sword/armor variation");
-        Asterion.LOGGER.info("PASS: Ancient Skeleton has 36 health, two bronze swords, occasional armor, no pickup and bones-only death loot even with guaranteed gear drops");
+        check(variants.size() == 2 && armored >= 40 && fullArmor && partialArmor, "Missing sword/armor variation");
+        Asterion.LOGGER.info("PASS: Ancient Skeleton has 36 health, two bronze swords, frequent varied armor, no pickup and bones-only death loot even with guaranteed gear drops");
     }
     private static void check(boolean condition, String message) { if (!condition) throw new AssertionError(message); }
 }

@@ -25,6 +25,7 @@ public final class RenderPerformanceRegression {
         try {
             GLFW.glfwMakeContextCurrent(window); GL.createCapabilities();
             com.mojang.blaze3d.systems.RenderSystem.initRenderThread();
+            TextureFrameCopyCheck.run();
             System.out.println("GPU: " + glGetString(GL_RENDERER));
             boolean sunOnly = Arrays.asList(args).contains("--dead-sun-only");
             if (!sunOnly) culling();

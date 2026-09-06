@@ -21,7 +21,7 @@ public final class EssentialLaunchSmokeTest {
             if (loader.isDevelopmentEnvironment()) throw new AssertionError("Essential launch is still using the legacy dev remapper");
             if (startup) {
                 var vm = java.lang.management.ManagementFactory.getPlatformMXBean(com.sun.management.HotSpotDiagnosticMXBean.class);
-                if (!vm.getVMOption("TieredStopAtLevel").getValue().equals("3"))
+                if (!vm.getVMOption("TieredStopAtLevel").getValue().equals("1"))
                     throw new AssertionError("Client stability JVM setting was not applied");
                 net.krodark.asterion.Asterion.LOGGER.info("PASS: C1 startup stability, 600 client ticks, current runtime mods loaded: {}", loader.getAllMods().size());
             } else net.krodark.asterion.Asterion.LOGGER.info("PASS: Essential, Asterion, GeckoLib and Amnetic initialized together in normal runtime mode");

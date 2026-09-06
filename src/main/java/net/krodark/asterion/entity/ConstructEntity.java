@@ -207,6 +207,8 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
     }
 
     @Override public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
+        if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY))
+            return super.hurtServer(level, source, amount);
         if (source.is(DamageTypeTags.IS_FIRE)) return false;
          
          

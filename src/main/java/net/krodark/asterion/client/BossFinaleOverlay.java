@@ -11,7 +11,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
 public final class BossFinaleOverlay {
-    private static final int CINEMATIC_RENDER_DISTANCE = 12;
     private static final int CREDIT_CARD_TICKS = 140;
     private static final int RETURN_FADE_TICKS = 52;
     private static final String[][] CREDITS = {
@@ -31,7 +30,6 @@ public final class BossFinaleOverlay {
     private static float returnPitch;
     private static CameraType previousCamera;
     private static Boolean previousSmartCull;
-    private static Integer previousRenderDistance;
 
     private BossFinaleOverlay() { }
 
@@ -47,10 +45,7 @@ public final class BossFinaleOverlay {
         }
         previousCamera = client.options.getCameraType();
         previousSmartCull = client.smartCull;
-        previousRenderDistance = client.options.renderDistance().get();
         client.smartCull = false;
-        if (previousRenderDistance < CINEMATIC_RENDER_DISTANCE)
-            client.options.renderDistance().set(CINEMATIC_RENDER_DISTANCE);
         client.options.setCameraType(CameraType.FIRST_PERSON);
         CinematicHud.begin(client);
         if (client.level != null) client.levelRenderer.getSectionOcclusionGraph().invalidate();
@@ -199,10 +194,6 @@ public final class BossFinaleOverlay {
         previousCamera = null;
         if (previousSmartCull != null) client.smartCull = previousSmartCull;
         previousSmartCull = null;
-        if (previousRenderDistance != null
-                && !client.options.renderDistance().get().equals(previousRenderDistance))
-            client.options.renderDistance().set(previousRenderDistance);
-        previousRenderDistance = null;
         if (client.level != null) client.levelRenderer.getSectionOcclusionGraph().invalidate();
         CinematicHud.end(client);
         DeadSunClientEvents.clearTransientEffects();

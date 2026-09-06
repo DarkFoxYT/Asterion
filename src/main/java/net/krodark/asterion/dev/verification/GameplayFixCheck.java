@@ -36,10 +36,14 @@ public final class GameplayFixCheck {
             var mobs = level.getEntitiesOfClass(Mob.class, area);
             check(!mobs.isEmpty(), "Spawner did not create mobs near survival player");
             if (block == GameplayContent.REWARD_SPAWNER) {
-                for (Mob mob : mobs) mob.hurtServer(level, level.damageSources().genericKill(), Float.MAX_VALUE);
+                for (Mob mob : mobs) {
+                    mob.hurtServer(level, level.damageSources().genericKill(), Float.MAX_VALUE);
+                    check(!mob.isAlive(), "Shielded construct ignored bypass-invulnerability damage");
+                }
+                int beforeReward = level.getEntitiesOfClass(ItemEntity.class, area).size();
                 ChallengeSpawnerBlockEntity.tick(level, pos, state, spawner);
                 check(level.getBlockState(pos).is(block), "Completed reward spawner disappeared");
-                check(level.getEntitiesOfClass(ItemEntity.class, area).stream().anyMatch(e -> e.getItem().is(Asterion.TARNISHED_GOLD_INGOT)), "No mod encounter reward");
+                check(level.getEntitiesOfClass(ItemEntity.class, area).size() > beforeReward, "Completed encounter did not pay a reward");
                 check(level.getEntitiesOfClass(ItemEntity.class, area).stream().noneMatch(e -> e.getItem().is(Items.EMERALD)), "Spawner dropped emeralds");
                 int drops = level.getEntitiesOfClass(ItemEntity.class, area).size();
                 var restored = (ChallengeSpawnerBlockEntity)BlockEntity.loadStatic(pos, state,

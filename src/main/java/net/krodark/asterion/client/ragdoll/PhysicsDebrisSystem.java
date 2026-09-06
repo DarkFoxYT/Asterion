@@ -415,7 +415,9 @@ public final class PhysicsDebrisSystem {
             door.velocity = new Vec3(door.velocity.x * Math.pow(.85, dt), door.velocity.y,
                     door.velocity.z * Math.pow(.85, dt));
         }
-        boolean slow = door.velocity.horizontalDistanceSqr() < .0025 && Math.abs(door.velocity.y) < .09
+        // Contact resolution can retain about two gravity steps of vertical speed on a flat leaf.
+        // Require sustained support and low rotation, but do not keep resting doors awake for that jitter.
+        boolean slow = door.velocity.horizontalDistanceSqr() < .0025 && Math.abs(door.velocity.y) < .16
                 && door.angularVelocity.lengthSquared() < .004;
          
         if (slow && !supported) supported = !isWorldClear(level, door, door.position.add(0, -.06, 0));

@@ -31,7 +31,6 @@ public final class DimensionTransitionOverlay {
     }
 
     public static void begin(int requestedFadeIn, int requestedHold) {
-        DeadSunEntryCinematic.prepareForArrival(Minecraft.getInstance());
         fadeInTicks = Math.max(1, requestedFadeIn);
         holdTicks = Math.max(0, requestedHold);
         stableTicks = 0;

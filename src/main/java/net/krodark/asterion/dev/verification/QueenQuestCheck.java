@@ -15,6 +15,12 @@ public final class QueenQuestCheck {
         var queen = Asterion.QUEEN_BEETLE.create(server.overworld(), EntitySpawnReason.COMMAND);
         check(queen != null, "Missing Queen");
         check(QueenBeetleQuests.ALL.size() == 21, "Expected original quest plus 20 new requests");
+        check(QueenBeetleQuests.get(0).reward() == net.krodark.asterion.game.AncientContent.ANCIENT_BONE
+                        && QueenBeetleQuests.get(9).reward() == net.krodark.asterion.game.AncientContent.ANCIENT_BONE
+                        && QueenBeetleQuests.get(14).reward() == Asterion.BONESTEEL_INGOT
+                        && QueenBeetleQuests.get(19).reward() == net.minecraft.world.item.Items.GOLDEN_APPLE
+                        && QueenBeetleQuests.get(20).reward() == Asterion.CELESTIAL_STEEL_INGOT,
+                "Queen rewards disagree with the revised dialogue");
         check(QueenBeetleQuests.ALL.stream().map(QueenBeetleQuests.Quest::id).distinct().count() == 21, "Duplicate quest IDs");
         player.addTag("asterion.queen_beetle_quest.complete");
         check(QueenBeetleEntity.questIndex(player) == 1, "Legacy completion did not advance to new quests");

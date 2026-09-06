@@ -39,7 +39,10 @@ final class CatacombProtectionCheck {
                 ((BlockItem)Items.STONE).place(new BlockPlaceContext(new UseOnContext(player,InteractionHand.MAIN_HAND,hit)));
                 check(maze.getBlockState(pos).is(Blocks.STONE),"Player placement was rejected in catacombs");
                 clock.setGameTime(clock.getGameTime() + 4001);
-                net.krodark.asterion.WorldGenerator.tickServer(server);
+                try {
+                    var restore = net.krodark.asterion.WorldGenerator.class.getDeclaredMethod("tickRestoringBlocks", MinecraftServer.class);
+                    restore.setAccessible(true); restore.invoke(null, server);
+                } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
                 check(maze.getBlockState(pos).is(Blocks.STONE), "Player block disappeared after the old decay deadline");
                 maze.setBlock(pos,Blocks.DIAMOND_ORE.defaultBlockState(),2);
                 check(player.gameMode.destroyBlock(pos) && maze.getBlockState(pos).isAir(),"Player could not permanently mine catacomb ore in " + mode);
