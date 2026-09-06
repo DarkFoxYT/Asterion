@@ -15,6 +15,8 @@ import net.krodark.asterion.entity.CentipedeCollision;
 
 public final class ScarletCentipedeGeoRenderer
         extends GeoEntityRenderer<ScarletCentipedeEntity, EntityRenderState> {
+    private final java.util.Map<ScarletCentipedeEntity, Bounds> boundsCache = new java.util.WeakHashMap<>();
+    private record Bounds(int tick, int segments, Vec3 position, AABB box) { }
     private static final DataTicket<ProceduralCentipedeChain.Pose> CHAIN_POSE = DataTickets.create(
             "asterion_centipede_chain_pose", ProceduralCentipedeChain.Pose.class);
 
@@ -25,11 +27,15 @@ public final class ScarletCentipedeGeoRenderer
 
     @Override
     protected AABB getBoundingBoxForCulling(ScarletCentipedeEntity entity) {
+        Bounds cached = boundsCache.get(entity);
+        if (cached != null && cached.tick() == entity.tickCount && cached.segments() == entity.chainSegmentCount()
+                && cached.position().equals(entity.position())) return cached.box();
         AABB bounds = entity.getBoundingBox().inflate(2);
         for (int i = 0; i < entity.chainSegmentCount(); i++) {
             var pose = entity.chainPose(i, 1);
             bounds = bounds.minmax(CentipedeCollision.volume(pose.position(), new Vec3(2, 2, 2)));
         }
+        boundsCache.put(entity, new Bounds(entity.tickCount, entity.chainSegmentCount(), entity.position(), bounds));
         return bounds;
     }
 

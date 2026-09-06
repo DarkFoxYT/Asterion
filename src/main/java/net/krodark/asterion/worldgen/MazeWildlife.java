@@ -17,7 +17,7 @@ public final class MazeWildlife {
         for (var player : level.players()) {
             if (player.isSpectator() || !player.isAlive()) continue;
             if (ShaleCaves.contains(player.blockPosition())) {
-                spawnCaveCentipede(level, player);
+                if (level.getGameTime() % 600 == 0) spawnCaveCentipede(level, player);
                 continue;
             }
             boolean sewer = CatacombLayout.contains(player.blockPosition());
@@ -49,17 +49,18 @@ public final class MazeWildlife {
     }
 
     private static void spawnCaveCentipede(ServerLevel level, net.minecraft.server.level.ServerPlayer player) {
-        if (level.getEntitiesOfClass(ScarletCentipedeEntity.class, player.getBoundingBox().inflate(80)).size() >= 3) return;
+        if (level.getEntitiesOfClass(ScarletCentipedeEntity.class, player.getBoundingBox().inflate(96)).size() >= 1) return;
         for (int attempt = 0; attempt < 12; attempt++) {
             double angle = level.getRandom().nextDouble() * Math.PI * 2;
             int distance = 28 + level.getRandom().nextInt(21);
             int x = (int)Math.floor(player.getX() + Math.cos(angle) * distance);
             int z = (int)Math.floor(player.getZ() + Math.sin(angle) * distance);
             if (!level.getChunkSource().hasChunk(x >> 4, z >> 4)) continue;
-            for (int y = Math.min(12, player.getBlockY() + 14); y >= Math.max(-59, player.getBlockY() - 18); y--) {
+            for (int y = Math.min(12, player.getBlockY() + 6); y >= Math.max(-59, player.getBlockY() - 6); y--) {
                 BlockPos feet = new BlockPos(x, y, z);
                 if (!level.getBlockState(feet).isAir() || !BugSurfaces.allowed(level, feet.below())
-                        || WorldGenerator.isNearSafeRune(level, feet)) continue;
+                        || WorldGenerator.isNearSafeRune(level, feet)
+                        || !CaveSpawnSpace.nearOccupiedChamber(level, feet)) continue;
                 var mob = Asterion.SCARLET_CENTIPEDE.create(level, EntitySpawnReason.NATURAL);
                 if (mob == null) return;
                 mob.setPos(x + .5, y, z + .5);

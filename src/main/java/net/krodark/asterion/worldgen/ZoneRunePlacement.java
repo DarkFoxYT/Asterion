@@ -74,6 +74,8 @@ public final class ZoneRunePlacement {
             if (queued.add(chunk)) queue.add(chunk);
         }
     }
+    private static final java.util.Map<ServerLevel, java.util.Map<ChunkPos, int[]>> GENERATING = new java.util.IdentityHashMap<>();
+
     public static void tick(ServerLevel level) {
         long deadline = System.nanoTime() + 4_000_000L;
         if (!level.players().isEmpty()) prepareStructures(level);
@@ -94,51 +96,54 @@ public final class ZoneRunePlacement {
             var chunk = level.getChunkSource().getChunkNow(pos.x(), pos.z());
             if (chunk != null) {
                 AuthoredCatacombs.placeArenaChunk(level,chunk);
-                boolean newlyGenerated = placeDeferredWorldgen(level,chunk);
-                decorate(level,chunk,newlyGenerated);
+                Boolean newlyGenerated = placeDeferredWorldgen(level, chunk);
+                if (newlyGenerated == null) queue.add(pos);
+                else decorate(level, chunk, newlyGenerated);
+            } else {
+                var progress = GENERATING.get(level);
+                if (progress != null) {
+                    progress.remove(pos);
+                    if (progress.isEmpty()) GENERATING.remove(level);
+                }
             }
         }
         if (queue.isEmpty()) PENDING.remove(level);
     }
 
     private static void prepareStructures(ServerLevel level) {
-        // Keep completed arena sections loaded until the final readiness check can see them all.
-        var held = PREPARING.get(level);
-        if (held != null) for (ChunkPos pos : held)
-            level.getChunkSource().addTicketWithRadius(net.minecraft.server.level.TicketType.PORTAL, pos, 0);
+        boolean cinematic = BossArenaEncounter.isIntroCinematic(level);
+        if (!cinematic) releasePreparationTickets(level);
         var arena = ARENA_PENDING.get(level);
-
-
-        if (arena != null && !arena.isEmpty()) {
-            ChunkPos pos = arena.peekFirst();
-
-
-            var chunk = requestReadyChunk(level, pos);
-            if (chunk != null) {
-                arena.removeFirst();
-                AuthoredCatacombs.placeArenaChunk(level, chunk);
-            }
+        LevelChunk chunk = nextReadyChunk(level, arena, cinematic);
+        if (chunk != null) {
+            AuthoredCatacombs.placeArenaChunk(level, chunk);
             return;
         }
         if (arena != null && arena.isEmpty()) ARENA_PENDING.remove(level);
-
-        var room=BRAZIER_ROOM_PENDING.get(level);
-        if(room!=null&&!room.isEmpty()) {
-            ChunkPos pos=room.peekFirst();
-            if (requestReadyChunk(level, pos) == null) return;
-            room.removeFirst();
-            if(!AuthoredCatacombs.cursedBrazierRoomChunkReady(level,pos))
-                AuthoredCatacombs.placeCursedBrazierRoomChunk(level,pos);
+        var rooms = BRAZIER_ROOM_PENDING.get(level);
+        chunk = nextReadyChunk(level, rooms, false);
+        if (chunk != null) {
+            if (!AuthoredCatacombs.cursedBrazierRoomChunkReady(level, chunk.getPos()))
+                AuthoredCatacombs.placeCursedBrazierRoomChunk(level, chunk.getPos());
             return;
         }
-        if(room!=null&&room.isEmpty())BRAZIER_ROOM_PENDING.remove(level);
-
-        releasePreparationTickets(level);
+        if (rooms != null && rooms.isEmpty()) BRAZIER_ROOM_PENDING.remove(level);
     }
-    private static LevelChunk requestReadyChunk(ServerLevel level, ChunkPos pos) {
-        PREPARING.computeIfAbsent(level, ignored -> new java.util.HashSet<>()).add(pos);
-        level.getChunkSource().addTicketWithRadius(net.minecraft.server.level.TicketType.PORTAL, pos, 0);
-        return level.getChunkSource().getChunkNow(pos.x(), pos.z());
+
+    private static LevelChunk nextReadyChunk(ServerLevel level, java.util.ArrayDeque<ChunkPos> queue, boolean cinematic) {
+        if (queue == null) return null;
+        int remaining = queue.size();
+        while (remaining-- > 0) {
+            ChunkPos pos = queue.removeFirst();
+            LevelChunk chunk = level.getChunkSource().getChunkNow(pos.x(), pos.z());
+            if (chunk != null) return chunk;
+            queue.addLast(pos);
+            if (cinematic && remaining == 0) {
+                PREPARING.computeIfAbsent(level, ignored -> new java.util.HashSet<>()).add(pos);
+                level.getChunkSource().addTicketWithRadius(net.minecraft.server.level.TicketType.PORTAL, pos, 0);
+            }
+        }
+        return null;
     }
     private static void releasePreparationTickets(ServerLevel level) {
         var held = PREPARING.remove(level);
@@ -147,7 +152,7 @@ public final class ZoneRunePlacement {
     }
     public static void clear() {
         for (ServerLevel level : java.util.List.copyOf(PREPARING.keySet())) releasePreparationTickets(level);
-        PENDING.clear(); ARENA_PENDING.clear(); BRAZIER_ROOM_PENDING.clear();
+        PENDING.clear(); ARENA_PENDING.clear(); BRAZIER_ROOM_PENDING.clear(); GENERATING.clear();
     }
     private static java.util.List<ChunkPos> createArenaChunks() {
         java.util.LinkedHashSet<ChunkPos> chunks = new java.util.LinkedHashSet<>();
@@ -159,7 +164,7 @@ public final class ZoneRunePlacement {
             chunks.add(new ChunkPos(x, z));
         return java.util.List.copyOf(chunks);
     }
-    private static boolean placeDeferredWorldgen(ServerLevel level, LevelChunk chunk) {
+    private static Boolean placeDeferredWorldgen(ServerLevel level, LevelChunk chunk) {
         var cp = chunk.getPos();
         if (cp.x() >= -4 && cp.x() <= 3 && cp.z() >= -4 && cp.z() <= 3) return false;
         BlockPos marker = new BlockPos(cp.getMinBlockX(), 0, cp.getMinBlockZ());
@@ -174,10 +179,17 @@ public final class ZoneRunePlacement {
             }
             return false;
         }
-        AuthoredCatacombs.place(level, cp);
+        var progress = GENERATING.computeIfAbsent(level, ignored -> new java.util.HashMap<>());
+        int[] stage = progress.get(cp);
+        if (stage == null) {
+            AuthoredCatacombs.place(level, cp);
+            progress.put(cp, new int[2]);
+            return null;
+        }
         var registry = level.registryAccess().lookupOrThrow(Registries.PLACED_FEATURE);
-        int index = 0;
-        for (String name : MAZE_FEATURES) {
+        int end = Math.min(MAZE_FEATURES.size(), stage[0] + 1);
+        while (stage[0] < end) {
+            String name = MAZE_FEATURES.get(stage[0]++);
             ResourceKey<PlacedFeature> key = ResourceKey.create(Registries.PLACED_FEATURE, Asterion.id(name));
             var feature = registry.get(key);
             if (feature.isEmpty()) {
@@ -185,10 +197,13 @@ public final class ZoneRunePlacement {
                 continue;
             }
             long salt = level.getSeed() ^ ChunkPos.pack(cp.x(), cp.z())
-                    ^ (long) ++index * 0x9E3779B97F4A7C15L;
+                    ^ (long) ++stage[1] * 0x9E3779B97F4A7C15L;
             feature.get().value().place(level, level.getChunkSource().getGenerator(),
                     RandomSource.create(salt), new BlockPos(cp.getMinBlockX(), 50, cp.getMinBlockZ()));
         }
+        if (stage[0] < MAZE_FEATURES.size()) return null;
+        progress.remove(cp);
+        if (progress.isEmpty()) GENERATING.remove(level);
         chunk.setBlockState(marker, Blocks.STRUCTURE_VOID.defaultBlockState(), 0);
         chunk.setBlockState(linkMarker, linkedRevision, 0);
         chunk.markUnsaved();

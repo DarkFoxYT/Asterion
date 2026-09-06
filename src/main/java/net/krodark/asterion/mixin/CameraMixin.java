@@ -167,7 +167,7 @@ public abstract class CameraMixin {
             setPosition(position().add(sample.cameraOffset()));
             setRotation(yRot() + sample.yawDegrees(), xRot() + sample.pitchDegrees());
         }
-        if (localCamera && (shot != null || finale != null || entrance != null || brazier != null || collapse != null || forge != null))
+        if (localCamera && (shot != null || finale != null || entrance != null || brazier != null || collapse != null))
             asterion$rebuildCinematicFrustum(minecraft);
     }
 

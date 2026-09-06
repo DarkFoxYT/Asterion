@@ -20,6 +20,8 @@ public final class CentipedeChain {
     private final float[] speed = new float[MAX_SEGMENTS], previousSpeed = new float[MAX_SEGMENTS];
     private final List<List<AABB>> interpolationBlocks = new ArrayList<>();
     private final CentipedeCollision[] tickCollision = new CentipedeCollision[MAX_SEGMENTS];
+    private final Pose[] sampledPoses = new Pose[MAX_SEGMENTS];
+    private final float[] sampledPartial = new float[MAX_SEGMENTS];
     private int count;
     private final CentipedeTrail trail = new CentipedeTrail();
 
@@ -28,6 +30,7 @@ public final class CentipedeChain {
     }
 
     public void tick(Vec3 head, Vec3 normal, Vec3 facing, int requestedCount, CentipedeCollision collision) {
+        java.util.Arrays.fill(sampledPoses, null);
         int active = Mth.clamp(requestedCount, 1, MAX_SEGMENTS);
         normal = CentipedeFrame.unit(normal, CentipedeFrame.DOWN);
         facing = CentipedeFrame.tangent(facing, normal, new Vec3(0, 0, -1));
@@ -154,7 +157,9 @@ public final class CentipedeChain {
     public Pose sampleSmoothed(int index, float partialTick) {
         if (count == 0) throw new IllegalStateException("Chain not initialized");
         int link = Mth.clamp(index, 0, count - 1);
-        double t = Mth.clamp(partialTick, 0, 1), t2 = t * t, t3 = t2 * t;
+        float partial = Mth.clamp(partialTick, 0, 1);
+        if (sampledPoses[link] != null && sampledPartial[link] == partial) return sampledPoses[link];
+        double t = partial, t2 = t * t, t3 = t2 * t;
         double a = (1 - 3 * t + 3 * t2 - t3) / 6;
         double b = (4 - 6 * t2 + 3 * t3) / 6;
         double c = (1 + 3 * t + 3 * t2 - 3 * t3) / 6;
@@ -165,7 +170,8 @@ public final class CentipedeChain {
         Vec3 forward = CentipedeFrame.tangent(blend(p.forward, q.forward, r.forward, s.forward, a, b, c, d), normal, r.forward);
         Vec3 position = blend(p.position, q.position, r.position, s.position, a, b, c, d);
         position = CentipedeCollision.keepOutside(position, normal, forward, interpolationBlocks.get(link));
-        return new Pose(position, normal, forward);
+        sampledPartial[link] = partial;
+        return sampledPoses[link] = new Pose(position, normal, forward);
     }
 
     private static Vec3 blend(Vec3 p, Vec3 q, Vec3 r, Vec3 s, double a, double b, double c, double d) {

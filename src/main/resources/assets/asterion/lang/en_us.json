@@ -292,7 +292,7 @@
   "objective.asterion.key_destination": "%s blocks — follow the key",
   "advancement.asterion.root.title": "The Labyrinth",
   "advancement.asterion.root.description": "Enter Asterion's maze",
-  "advancement.asterion.find_mechanism.title": "So That's What Its Used For",
+  "advancement.asterion.find_mechanism.title": "So That's What It's Used For",
   "advancement.asterion.find_mechanism.description": "Recover the Antikythera Mechanism",
   "advancement.asterion.find_brazier_key.title": "A Key in the Dark",
   "advancement.asterion.find_brazier_key.description": "Find the Cursed Brazier Key",
@@ -445,6 +445,7 @@
   "item.asterion.forged_sword_guard": "Forged Sword Guard",
   "item.asterion.forged_sword_pommel": "Forged Sword Pommel",
   "item.asterion.forged_sword": "Forged Sword",
+
   "advancement.asterion.living_stone.title": "Living Stone",
   "advancement.asterion.living_stone.description": "Collect Ancient Moss from the labyrinth.",
   "advancement.asterion.hanging_by_a_thread.title": "Hanging by a Thread",

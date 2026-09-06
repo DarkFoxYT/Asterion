@@ -79,6 +79,12 @@ public final class AncientSkeletonEntity extends Skeleton {
         if (insideArena(level.getLevel(), pos) || onForgeRoof(level.getLevel(), pos)) return false;
         if (reason == EntitySpawnReason.SPAWNER)
             return checkMonsterSpawnRules(type, level, reason, pos, random);
+        if (reason == EntitySpawnReason.NATURAL && net.krodark.asterion.worldgen.ShaleCaves.contains(pos)) {
+            if (random.nextInt(3) != 0 || !checkMonsterSpawnRules(type, level, reason, pos, random)) return false;
+            if (!net.krodark.asterion.worldgen.CaveSpawnSpace.nearOccupiedChamber(level.getLevel(), pos)) return false;
+            return level.getLevel().getEntitiesOfClass(AncientSkeletonEntity.class,
+                    new net.minecraft.world.phys.AABB(pos).inflate(48, 12, 48)).size() < 4;
+        }
         return reason == EntitySpawnReason.NATURAL
                 && (level.getBiome(pos).is(Asterion.CATACOMBS_BIOME)
                     || net.krodark.asterion.worldgen.ShaleCaves.contains(pos))

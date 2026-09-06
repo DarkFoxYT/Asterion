@@ -50,7 +50,8 @@ abstract class RagdollLivingEntityRendererMixin {
     private void asterion$restoreBody(LivingEntityRenderState state, PoseStack poses,
                                         SubmitNodeCollector output, CameraRenderState camera, CallbackInfo ci) {
         Integer id = ((FabricRenderState) state).getData(RagdollRenderData.ENTITY_ID);
-        if (id != null) DismembermentEngine.INSTANCE.captureRenderedPose(id);
+        if (id != null && !Boolean.TRUE.equals(((FabricRenderState)state).getData(RagdollRenderData.GUI_PREVIEW)))
+            DismembermentEngine.INSTANCE.captureRenderedPose(id);
         asterion$visibility.forEach((part, visible) -> part.visible = visible);
         asterion$visibility.clear();
     }

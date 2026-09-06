@@ -43,6 +43,7 @@ public final class AuthoredForge {
             Registries.LOOT_TABLE, Identifier.fromNamespaceAndPath("asterion", "chests/forge_gold_reserve"));
     private static final int DISTRICT_ROOMS = 52;
     public static final int DISTRICT_SPACING = 228;
+    private static final Map<ServerLevel, Map<String, Optional<ResolvedPiece>>> PIECE_CACHE = new WeakHashMap<>();
     private static final Map<ServerLevel, Map<Integer, Layout>> VARIANTS = new WeakHashMap<>();
     public static final List<String> PIECES = List.of(
             "forge", "t_junction_1", "t_junction_2", "t_junction_3",
@@ -124,11 +125,17 @@ public final class AuthoredForge {
         int minX = Math.max(room.minX(), clip.minX()), maxX = Math.min(room.maxX(), clip.maxX());
         int minY = Math.max(room.minY(), clip.minY()), maxY = Math.min(room.maxY(), clip.maxY());
         int minZ = Math.max(room.minZ(), clip.minZ()), maxZ = Math.min(room.maxZ(), clip.maxZ());
-        for (BlockPos pos : BlockPos.betweenClosed(minX, minY, minZ, maxX, maxY, maxZ)) {
-            if (world.getBlockEntity(pos) instanceof RandomizableContainerBlockEntity container) {
-                container.setLootTable(loot);
-                container.setLootTableSeed(CatacombLayout.hash(placement.origin().asLong(), pos.getX(), pos.getZ()) ^ pos.getY());
-                container.setChanged();
+        for (int cx = minX >> 4; cx <= maxX >> 4; cx++) for (int cz = minZ >> 4; cz <= maxZ >> 4; cz++) {
+            var chunk = world.getChunk(cx, cz, net.minecraft.world.level.chunk.status.ChunkStatus.EMPTY, false);
+            if (chunk == null) continue;
+            for (BlockPos pos : chunk.getBlockEntitiesPos()) {
+                if (pos.getX() < minX || pos.getX() > maxX || pos.getY() < minY || pos.getY() > maxY
+                        || pos.getZ() < minZ || pos.getZ() > maxZ) continue;
+                if (world.getBlockEntity(pos) instanceof RandomizableContainerBlockEntity container) {
+                    container.setLootTable(loot);
+                    container.setLootTableSeed(CatacombLayout.hash(placement.origin().asLong(), pos.getX(), pos.getZ()) ^ pos.getY());
+                    container.setChanged();
+                }
             }
         }
     }
@@ -185,7 +192,7 @@ public final class AuthoredForge {
     }
 
     public static void clearRuntimeState() {
-        synchronized (LAYOUTS) { LAYOUTS.clear(); VARIANTS.clear(); }
+        synchronized (LAYOUTS) { LAYOUTS.clear(); VARIANTS.clear(); PIECE_CACHE.clear(); }
         REPAIRS.clear();
     }
 
@@ -296,6 +303,11 @@ public final class AuthoredForge {
     }
 
     private static Optional<ResolvedPiece> resolve(ServerLevel level, String name) {
+        return PIECE_CACHE.computeIfAbsent(level, ignored -> new java.util.HashMap<>())
+                .computeIfAbsent(name, key -> loadPiece(level, key));
+    }
+
+    private static Optional<ResolvedPiece> loadPiece(ServerLevel level, String name) {
         Set<String> candidates = new HashSet<>();
         candidates.add(name);
         candidates.add(name.replace("_1", "1").replace("_2", "2").replace("_3", "3"));

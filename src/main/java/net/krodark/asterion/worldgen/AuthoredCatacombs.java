@@ -412,13 +412,17 @@ public final class AuthoredCatacombs {
         ZoneRunePlacement.enqueueArena(level);
     }
 
+    private static final Map<ServerLevel, Set<ChunkPos>> COMPLETED_ARENA_CHUNKS = new WeakHashMap<>();
+
     public static boolean arenaComplete(ServerLevel level) {
+        Set<ChunkPos> completed = COMPLETED_ARENA_CHUNKS.computeIfAbsent(level, ignored -> new HashSet<>());
         for (ChunkPos pos : ZoneRunePlacement.arenaChunks()) {
             LevelChunk chunk = level.getChunkSource().getChunkNow(pos.x(), pos.z());
-            if (chunk == null || !chunk.getBlockState(arenaMarker(pos)).equals(arenaRevisionMarker()))
-                return false;
+            if (chunk == null) continue;
+            if (chunk.getBlockState(arenaMarker(pos)).equals(arenaRevisionMarker())) completed.add(pos);
+            else completed.remove(pos);
         }
-        return true;
+        return completed.containsAll(ZoneRunePlacement.arenaChunks());
     }
 
     private static BlockPos arenaMarker(ChunkPos pos) {

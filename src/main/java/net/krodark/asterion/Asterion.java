@@ -1006,7 +1006,7 @@ public class Asterion implements ModInitializer {
                 MobCategory.MONSTER, net.krodark.asterion.game.AncientContent.SKELETON, 36, 1, 3);
         BiomeModifications.addSpawn(BiomeSelectors.includeByKey(FORGE_BIOME,
                         ResourceKey.create(Registries.BIOME, id("shale_caves"))),
-                MobCategory.MONSTER, net.krodark.asterion.game.AncientContent.SKELETON, 30, 1, 3);
+                MobCategory.MONSTER, net.krodark.asterion.game.AncientContent.SKELETON, 12, 1, 1);
          
          
         ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {
