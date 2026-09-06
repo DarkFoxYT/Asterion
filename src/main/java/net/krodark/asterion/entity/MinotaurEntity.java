@@ -1587,6 +1587,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 net.krodark.asterion.worldgen.MinotaurArenaEntrances.breakLintel(level, entryFacing, getBbHeight());
                 if (level.getBlockEntity(entryDoor) instanceof net.krodark.asterion.block.MinotaurDoorBlockEntity door)
                     door.breakOff();
+                net.krodark.asterion.block.MinotaurDoorBlock.removeDoor(level, entryDoor, entryFacing);
+                level.sendParticles(Asterion.DOOR_SMOKE, getX(), getY() + 1.2, getZ(), 80, 1.4, 1.1, 1.4, .08);
                 level.playSound(null, entryDoor, Asterion.MINOTAUR_DOOR_BREAK,
                         net.minecraft.sounds.SoundSource.HOSTILE, 1.2F, .9F);
             }

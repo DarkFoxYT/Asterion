@@ -190,6 +190,7 @@ public final class RagdollServerNetworking {
     }
 
     public static void markRagdolled(ServerPlayer player, int ticks) {
+        if (player.isSpectator()) return;
         long expires = player.level().getServer().getTickCount() + Math.max(1, ticks);
         boolean started = !isRagdolled(player);
         ACTIVE_RAGDOLLS.merge(player.getUUID(), expires, Math::max);

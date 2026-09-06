@@ -707,7 +707,7 @@ public final class WorldGenerator {
     }
 
     public static void summonPortal(ServerLevel level, BlockPos center, int surfaceY) {
-        int riftY = surfaceY - SUMMONED_PORTAL_DEPTH;
+        int riftY = surfaceY - 20;
         buildSummonedWell(level, center.getX(), surfaceY, center.getZ(), riftY);
         long visualSeed = mix(level.getSeed() ^ center.asLong() ^ level.getGameTime()
                 ^ 0xA0761D6478BD642FL);
@@ -729,14 +729,13 @@ public final class WorldGenerator {
         if (template == null) return;
         BlockPos origin = new BlockPos(x, y, z);
         template.placeInWorld(level, origin, origin, new StructurePlaceSettings(), level.getRandom(), 18);
-        for (BlockPos pos : BlockPos.betweenClosed(origin.offset(-8, -51, -8), origin.offset(8, 51, 8)))
+        for (BlockPos pos : BlockPos.betweenClosed(origin, origin.offset(16, 102, 16)))
             if (level.getBlockState(pos).is(net.minecraft.world.level.block.Blocks.CYAN_WOOL))
                 level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
     }
 
     private static void buildSummonedWell(ServerLevel level, int centerX, int surfaceY, int centerZ, int portalY) {
-        clearAboveGateway(level, centerX, surfaceY, centerZ, 8);
-        placePortalBlueprint(level, centerX, surfaceY - 63, centerZ);
+        placePortalBlueprint(level, centerX, surfaceY - 83, centerZ);
     }
 
     public static void buildGateway(ServerLevel level, BlockPos horizontalTarget) {
@@ -744,10 +743,9 @@ public final class WorldGenerator {
         int z = horizontalTarget.getZ();
         level.getChunk(x >> 4, z >> 4);
         int y = net.krodark.asterion.worldgen.GatewayRuins.surface(level, x, z);
-        int portalY = y - GATEWAY_PORTAL_DEPTH;
+        int portalY = y - 20;
         GATEWAY_SURFACE_Y.put(level.getSeed(), portalY);
-        clearAboveGateway(level, x, y, z, 8);
-        placePortalBlueprint(level, x, y - 63, z);
+        placePortalBlueprint(level, x, y - 83, z);
     }
 
      

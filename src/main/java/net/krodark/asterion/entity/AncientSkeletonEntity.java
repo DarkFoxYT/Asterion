@@ -49,7 +49,11 @@ public final class AncientSkeletonEntity extends Skeleton {
 
     public static boolean canSpawn(EntityType<AncientSkeletonEntity> type, ServerLevelAccessor level,
                                    EntitySpawnReason reason, BlockPos pos, RandomSource random) {
-        return reason == EntitySpawnReason.SPAWNER
+        if (reason == EntitySpawnReason.SPAWNER)
+            return checkMonsterSpawnRules(type, level, reason, pos, random);
+        return reason == EntitySpawnReason.NATURAL
+                && level.getBiome(pos).is(net.krodark.asterion.Asterion.CATACOMBS_BIOME)
+                && random.nextInt(12) == 0
                 && checkMonsterSpawnRules(type, level, reason, pos, random);
     }
 }

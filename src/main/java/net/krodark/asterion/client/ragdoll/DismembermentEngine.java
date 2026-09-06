@@ -1334,7 +1334,7 @@ public final class DismembermentEngine {
     }
 
     public void forcePlayerTumble(Minecraft client, Vec3 sourcePosition, Vec3 impulse, float force) {
-        if (client.player == null || client.level == null
+        if (client.player == null || client.player.isSpectator() || client.level == null
                 || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
         int entityId = client.player.getId();
         if (!playerTumbles.contains(entityId)) {

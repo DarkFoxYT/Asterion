@@ -1130,11 +1130,18 @@ public class Asterion implements ModInitializer {
     private static Item registerMetalItem(String name) {
         ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id(name));
         Item.Properties properties = new Item.Properties().setId(key);
-        if (name.equals("celestial_steel_ingot")) properties.component(net.minecraft.core.component.DataComponents.LORE,
+        String recipe = switch (name) {
+            case "celestial_bronze_ingot" -> "Forge: 1 copper ingot + 1 gold ingot";
+            case "tarnished_gold_ingot" -> "Forge: 1 tarnished gold ore";
+            case "celestial_gold_ingot" -> "Forge: 1 celestial gold ore";
+            case "bonesteel_ingot" -> "Forge: 3 Ancient Bones + 1 Celestial Steel + 1 Iron";
+            case "celestial_steel_ingot" -> "Forge: 2 iron ingots + 2 coal";
+            default -> "";
+        };
+        properties.component(net.minecraft.core.component.DataComponents.LORE,
                 new net.minecraft.world.item.component.ItemLore(java.util.List.of(
-                        net.minecraft.network.chat.Component.literal("Forge: 2 iron ingots + 2 coal"),
-                        net.minecraft.network.chat.Component.literal("Ingot mold • 700° ±8 • Press Smelt"),
-                        net.minecraft.network.chat.Component.literal("Keep a lit heat source beneath the Forge."))));
+                        net.minecraft.network.chat.Component.literal(recipe),
+                        net.minecraft.network.chat.Component.literal("Use an ingot mold, heat to the Forge temperature, then press Smelt."))));
         return Registry.register(BuiltInRegistries.ITEM, key, new Item(properties));
     }
 

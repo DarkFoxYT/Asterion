@@ -170,15 +170,15 @@ public final class AsterionClient implements ClientModInitializer {
                 context.client().execute(() -> context.client().getSoundManager().play(
                         SimpleSoundInstance.forUI(Asterion.MINOTAUR_ROAR, 0.72F, 4.0F))));
         ClientPlayNetworking.registerGlobalReceiver(BossFinalePayload.TYPE, (payload, context) ->
-                context.client().execute(BossFinaleOverlay::begin));
+                context.client().execute(() -> { if (!isPlayback(context.client())) BossFinaleOverlay.begin(); }));
         ClientPlayNetworking.registerGlobalReceiver(
                 net.krodark.asterion.network.RoofCollapsePayload.TYPE, (payload, context) ->
-                        context.client().execute(() -> RoofCollapseCinematic.begin(payload)));
+                        context.client().execute(() -> { if (!isPlayback(context.client())) RoofCollapseCinematic.begin(payload); }));
         ClientPlayNetworking.registerGlobalReceiver(BossEntrancePayload.TYPE, (payload, context) ->
-                context.client().execute(() -> BossEntranceCinematic.receive(payload)));
+                context.client().execute(() -> { if (!isPlayback(context.client())) BossEntranceCinematic.receive(payload); }));
         ClientPlayNetworking.registerGlobalReceiver(CursedBrazierAwakeningPayload.TYPE,
                 (payload, context) -> context.client().execute(
-                        () -> CursedBrazierCinematic.receive(payload)));
+                        () -> { if (!isPlayback(context.client())) CursedBrazierCinematic.receive(payload); }));
         ClientPlayNetworking.registerGlobalReceiver(GatewayPortalPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> AsterionPortalRenderer.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(MazeZapPayload.TYPE, (payload, context) ->
@@ -227,13 +227,16 @@ public final class AsterionClient implements ClientModInitializer {
                         context.client().execute(() -> {
                             if (context.client().screen instanceof CrucibleScreen screen
                                     && screen.matches(payload.pos())) screen.update(payload);
-                            else context.client().setScreen(new CrucibleScreen(payload));
+                            else if (!isPlayback(context.client())) context.client().setScreen(new CrucibleScreen(payload));
                         }));
         ClientPlayNetworking.registerGlobalReceiver(net.krodark.asterion.network.ForgeInsertPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> ForgeItemFlights.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(RagdollImpulsePayload.TYPE, (payload, context) ->
-                context.client().execute(() -> DismembermentEngine.INSTANCE.forcePlayerTumble(
-                        context.client(), payload.source(), payload.impulse(), payload.force())));
+                context.client().execute(() -> {
+                    var client = context.client();
+                    if (client.player != null && !client.player.isSpectator() && !isPlayback(client))
+                        DismembermentEngine.INSTANCE.forcePlayerTumble(client, payload.source(), payload.impulse(), payload.force());
+                }));
         ClientPlayNetworking.registerGlobalReceiver(RagdollExplosionPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> {
                     DismembermentEngine.INSTANCE.applyExplosion(context.client(), payload.center(), payload.radius());
@@ -250,6 +253,10 @@ public final class AsterionClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(ForgeItemFlights::tick);
         BiomeMusic.initialize();
         MazeAmbience.initialize();
+    }
+
+    private static boolean isPlayback(Minecraft client) {
+        return client.player != null && client.gameRenderer.getMainCamera().entity() != client.player;
     }
 
     private void tick(Minecraft client) {
