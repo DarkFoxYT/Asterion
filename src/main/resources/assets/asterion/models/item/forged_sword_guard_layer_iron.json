@@ -1,6 +1,6 @@
 {
-  "parent": "minecraft:item/handheld",
+  "parent": "asterion:item/forged_sword_layer",
   "textures": {
-    "layer0": "asterion:item/forging/iron/iron_guard"
+    "layer0": "asterion:forging/iron/iron_guard"
   }
 }

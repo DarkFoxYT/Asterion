@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
+    "asterion:crystalized_pupae",
     "asterion:shale_formation",
     "asterion:shaded_shale_formation"
   ]

@@ -121,7 +121,7 @@ public final class CrucibleGaugeRenderer extends GeoBlockRenderer<CrucibleBlockE
         float heat = state.getOrDefaultGeckolibData(TEMPERATURE, 0F) / CrucibleBlockEntity.MAX_TEMPERATURE;
         for (int i = 0; i < materials.length(); i++) {
             int base = CrucibleBlockEntity.metalColor(materials.charAt(i) - '0');
-            int color = net.minecraft.util.ARGB.linearLerp(heat * .85F, 0xFF000000 | base, 0xFFFFA347);
+            int color = net.minecraft.util.ARGB.linearLerp(heat * .4F, 0xFF000000 | base, 0xFFFFA347);
             float radius = 1.9F - i * .3F;
             float y = 3.15F + i * .12F;
             var mesh = LIQUID[i];
@@ -129,7 +129,7 @@ public final class CrucibleGaugeRenderer extends GeoBlockRenderer<CrucibleBlockE
             out.submitCustomGeometry(poses, AsterionEmissiveBuffer.renderType(FILL), (pose, vertices) -> {
                 mesh.render(pose, vertices, color, 1, 1);
                 if (heat > .2F) AmneticBoneEmission.submit(meshId, mesh, FILL, pose.pose(), color,
-                        1, 1, heat * 1.4F, true);
+                        1, 1, heat * .35F, true);
             });
             if (i == materials.length() - 1) {
                 int edge = net.minecraft.util.ARGB.linearLerp(.4F, color, 0xFF33271C);

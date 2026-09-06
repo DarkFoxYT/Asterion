@@ -1,6 +1,6 @@
 {
-  "parent": "minecraft:item/handheld",
+  "parent": "asterion:item/forged_sword_layer",
   "textures": {
-    "layer0": "asterion:item/forging/copper/copper_pommel"
+    "layer0": "asterion:forging/copper/copper_pommel"
   }
 }

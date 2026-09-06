@@ -18,9 +18,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.ai.goal.FloatGoal;
-import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
-import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
+import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -34,7 +32,6 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
     private static final String COMPLETE_TAG = "asterion.queen_beetle_quest.complete";
     private static final String KILLS_TAG = "asterion.queen_beetle_kills.";
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("idle");
-    private static final RawAnimation WALK = RawAnimation.begin().thenLoop("walk");
     private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
 
     public QueenBeetleEntity(EntityType<? extends QueenBeetleEntity> type, Level level) {
@@ -46,15 +43,23 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
     public static AttributeSupplier.Builder createAttributes() {
         return createMobAttributes()
                 .add(Attributes.MAX_HEALTH, 80.0D)
-                .add(Attributes.MOVEMENT_SPEED, 0.12D)
+                .add(Attributes.MOVEMENT_SPEED, 0.0D)
                 .add(Attributes.FOLLOW_RANGE, 12.0D)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 0.8D);
     }
 
     @Override protected void registerGoals() {
-        goalSelector.addGoal(0, new FloatGoal(this));
-        goalSelector.addGoal(1, new WaterAvoidingRandomStrollGoal(this, 0.7D, 0.012F));
-        goalSelector.addGoal(2, new RandomLookAroundGoal(this));
+        // Deliberately no navigation, combat, panic, floating, or idle-look behavior.
+        // The Queen is a stationary quest NPC whose sole awareness is facing visitors.
+        goalSelector.addGoal(0, new LookAtPlayerGoal(this, Player.class, 12.0F, 1.0F));
+    }
+
+    @Override public boolean isPushable() {
+        return false;
+    }
+
+    @Override protected void doPush(net.minecraft.world.entity.Entity entity) {
+        // Players and mobs cannot slide the stationary quest giver away from her post.
     }
 
     @Override public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
@@ -190,8 +195,7 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
 
     @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<QueenBeetleEntity>("movement", 4,
-                state -> state.setAndContinue(getDeltaMovement().horizontalDistanceSqr() > 1.0E-4D
-                        ? WALK : IDLE)));
+                state -> state.setAndContinue(IDLE)));
     }
 
     @Override public AnimatableInstanceCache getAnimatableInstanceCache() {

@@ -39,8 +39,8 @@ public final class BossArenaEncounter {
         if (active != null) { admit(level, trigger, entry); return; }
         // The authored portcullises must be completely raised before the camera takes
         // control. This also repairs partially closed gates left by an interrupted intro.
-        MinotaurArenaEntrances.setGates(level, 0, null);
         active = new Encounter(level, boss.getUUID(), entry.getOpposite(), level.getGameTime());
+        MinotaurArenaEntrances.setGates(level, 0, null);
         MinotaurArenaEntrances.setOmegaLockVisible(level, false);
         admit(level, trigger, entry);
         // Include the nearby party before anything closes; never pull players from elsewhere in the maze.

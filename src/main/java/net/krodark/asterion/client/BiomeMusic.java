@@ -91,9 +91,9 @@ public final class BiomeMusic {
         // alone cannot distinguish victory from an active encounter.
         boolean victory = !arena && WorldGenerator.isInsideBossArena(client.player.position())
                 && (defeatedBossNearby || AsterionPortalRenderer.isOpen());
-        int musicBiome = biome == 4 && client.player.getY()
-                < net.krodark.asterion.worldgen.LabyrinthLevels.CAVE_ROOF_Y ? 3 : biome;
-        String desired = victory ? "victory" : group(musicBiome, arena);
+        boolean cave = client.player.getY() <= net.krodark.asterion.worldgen.LabyrinthLevels.CAVE_ROOF_Y;
+        String desired = cave ? "" : victory ? "victory" : group(biome, arena);
+        if (cave && voice != null) stop(client);
         if (!desired.equals(lastGroup)) {
             if (victory) stop(client);
             gap = 0;

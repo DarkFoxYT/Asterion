@@ -52,8 +52,8 @@ public final class ShaleCaves {
     }
 
     private static double ground(long seed, double x, double z) {
-        return -57 + noise(seed ^ 743, x / 100, z / 100) * 48
-                + noise(seed ^ 189, x / 43, z / 43) * 7;
+        return -57 + noise(seed ^ 743, x / 140, z / 140) * 42
+                + noise(seed ^ 189, x / 64, z / 64) * 3;
     }
 
     private static Column column(long seed, int x, int z) {
@@ -138,7 +138,8 @@ public final class ShaleCaves {
                 }
                 if (open && !puddle && !flooded && cave.clearance > 4
                         && noise(seed ^ 7119, x / 31.0, z / 31.0) > .56) {
-                    if (!CatacombProtection.isOre(chunk.getBlockState(pos.set(x, floor, z)))) {
+                    if (!CatacombProtection.isOre(chunk.getBlockState(pos.set(x, floor, z)))
+                            && chunk.getBlockState(pos).isCollisionShapeFullBlock(chunk, pos)) {
                         chunk.setBlockState(pos, Asterion.ANCIENT_MOSS.defaultBlockState(), 0);
                         long plant = CatacombLayout.hash(seed ^ 727, x, z);
                         if (Math.floorMod(plant, 9) == 0)
@@ -216,9 +217,14 @@ public final class ShaleCaves {
 
     private static BlockState rock(long seed, int x, int y, int z) {
         boolean dark = shaded(seed, x, y, z);
-        long vein = CatacombLayout.hash(seed ^ Math.floorDiv(y, 4) * 0x51EDL, Math.floorDiv(x, 4), Math.floorDiv(z, 4));
-        if (Math.floorMod(vein, 17) == 0 && Math.floorMod(x, 4) != 3 && Math.floorMod(z, 4) != 3 && Math.floorMod(y, 4) != 3) {
-            boolean celestial = Math.floorMod(vein >>> 8, 4) == 0;
+        int vx = Math.floorDiv(x, 7), vy = Math.floorDiv(y, 7), vz = Math.floorDiv(z, 7);
+        long vein = CatacombLayout.hash(seed ^ vy * 0x51EDL, vx, vz);
+        double ox = Math.floorMod(x, 7) - (2 + Math.floorMod(vein >>> 8, 3));
+        double oy = Math.floorMod(y, 7) - (2 + Math.floorMod(vein >>> 16, 3));
+        double oz = Math.floorMod(z, 7) - (2 + Math.floorMod(vein >>> 24, 3));
+        double radius = 1.35 + Math.floorMod(vein >>> 32, 8) * .1;
+        if (Math.floorMod(vein, 7) == 0 && ox * ox + oy * oy * 1.8 + oz * oz < radius * radius) {
+            boolean celestial = Math.floorMod(vein >>> 40, 16) == 0;
             Block ore = celestial
                     ? (dark ? Asterion.SHADED_SHALE_CELESTIAL_GOLD_ORE : Asterion.SHALE_CELESTIAL_GOLD_ORE)
                     : (dark ? Asterion.SHADED_SHALE_TARNISHED_GOLD_ORE : Asterion.SHALE_TARNISHED_GOLD_ORE);
@@ -240,18 +246,17 @@ public final class ShaleCaves {
             double neighbor = columns[dx + direction.getStepX()][dz + direction.getStepZ()].floor;
             if (neighbor > best) { best = neighbor; uphill = direction; }
         }
+        if (best - height < .15) return fraction < .55 ? slab(dark).defaultBlockState() : fallback;
         return stairs(dark).defaultBlockState().setValue(StairBlock.FACING, uphill);
     }
 
     private static void spikes(ChunkAccess chunk, long seed, int x, int z, int floor, int roof, double clearance) {
-        long roll = CatacombLayout.hash(seed ^ 0x51A6EL, Math.floorDiv(x, 11), Math.floorDiv(z, 11));
-        long field = CatacombLayout.hash(seed ^ 0x5F1E1DL, Math.floorDiv(x, 37), Math.floorDiv(z, 37));
-        boolean spikeField = Math.floorMod(field, 5) == 0;
-        if ((!spikeField && Math.floorMod(roll, 3) != 0) || clearance < 8 || roof - floor < 9) return;
-        double distance = Math.hypot(Math.floorMod(x, 11) - (2 + Math.floorMod(roll >>> 8, 7)),
-                Math.floorMod(z, 11) - (2 + Math.floorMod(roll >>> 16, 7)));
-        int height = (int)Math.floor((spikeField ? 10 : 6) + Math.floorMod(roll >>> 24, 7)
-                - distance * (spikeField ? 1.55 : 3.0));
+        long roll = CatacombLayout.hash(seed ^ 0x51A6EL, Math.floorDiv(x, 18), Math.floorDiv(z, 18));
+        if (Math.floorMod(roll, 3) != 0 || clearance < 9 || roof - floor < 10) return;
+        int dx = Math.floorMod(x, 18) - (3 + (int)Math.floorMod(roll >>> 8, 12));
+        int dz = Math.floorMod(z, 18) - (3 + (int)Math.floorMod(roll >>> 16, 12));
+        if (dx != 0 || dz != 0) return;
+        int height = 4 + (int)Math.floorMod(roll >>> 24, 6);
         height = Math.min(height, roof - floor - 4);
         if (height <= 0) return;
         boolean hanging = (roll & 1) != 0;

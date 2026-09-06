@@ -243,6 +243,9 @@ public class Asterion implements ModInitializer {
     public static final Block CELESTIAL_GOLD_BLOCK = metalStorageBlock("celestial_gold_block", MapColor.GOLD);
     public static final Block BONESTEEL_BLOCK = metalStorageBlock("bonesteel_block", MapColor.COLOR_LIGHT_GRAY);
     public static final Block CELESTIAL_STEEL_BLOCK = metalStorageBlock("celestial_steel_block", MapColor.METAL);
+    public static final Block CRYSTALIZED_PUPAE = registerBlock("crystalized_pupae", MapColor.COLOR_LIGHT_BLUE,
+            properties -> new Block(properties.strength(1.2F, 2.0F).sound(SoundType.HONEY_BLOCK).noOcclusion()
+                    .lightLevel(state -> 12)));
     public static final Block MAZE_WALL_CORE = registerBlockWithoutItem("maze_wall_core", MapColor.METAL,
             properties -> new Block(properties.strength(-1.0F, 3_600_000F).sound(SoundType.METAL)));
     public static final Block MAZESTEEL_SLAB = registerBlock("mazesteel_slab", MapColor.METAL,
@@ -717,6 +720,7 @@ public class Asterion implements ModInitializer {
                         output.accept(CELESTIAL_GOLD_BLOCK);
                         output.accept(BONESTEEL_BLOCK);
                         output.accept(CELESTIAL_STEEL_BLOCK);
+                        output.accept(CRYSTALIZED_PUPAE);
                         output.accept(net.minecraft.world.item.Items.IRON_INGOT);
                         output.accept(net.minecraft.world.item.Items.COPPER_INGOT);
                         output.accept(net.minecraft.world.item.Items.GOLD_INGOT);

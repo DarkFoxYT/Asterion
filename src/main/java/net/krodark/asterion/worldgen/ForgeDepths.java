@@ -55,10 +55,19 @@ public final class ForgeDepths {
                 .filter(port -> port.info().pos().getY() == 1).findFirst().orElseThrow();
         BlockPos socket = AuthoredForge.westSocket(level, chunk);
         BlockPos origin = socket.west().subtract(bottomPort.info().pos());
+        // The stair's upper room owns one catacomb grid cell. Never let template air
+        // or a changed template footprint overwrite an adjacent authored room.
         var clip = new net.minecraft.world.level.levelgen.structure.BoundingBox(chunk.getMinBlockX(), level.getMinY(),
                 chunk.getMinBlockZ(), chunk.getMaxBlockX(), LabyrinthLevels.MAZE_FLOOR_Y - 2, chunk.getMaxBlockZ());
-        template.placeInWorld(world, origin, origin, AuthoredCatacombs.settings(clip),
-                net.minecraft.util.RandomSource.create(origin.asLong()), 18);
+        if (chunk.getMaxBlockX() >= origin.getX() && chunk.getMinBlockX() <= origin.getX() + 18
+                && chunk.getMaxBlockZ() >= origin.getZ() && chunk.getMinBlockZ() <= origin.getZ() + 18) {
+            var stairClip = new net.minecraft.world.level.levelgen.structure.BoundingBox(
+                    Math.max(chunk.getMinBlockX(), origin.getX()), level.getMinY(), Math.max(chunk.getMinBlockZ(), origin.getZ()),
+                    Math.min(chunk.getMaxBlockX(), origin.getX() + 18), LabyrinthLevels.MAZE_FLOOR_Y - 2,
+                    Math.min(chunk.getMaxBlockZ(), origin.getZ() + 18));
+            template.placeInWorld(world, origin, origin, AuthoredCatacombs.settings(stairClip),
+                    net.minecraft.util.RandomSource.create(origin.asLong()), 18);
+        }
         long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
         int tx = Math.floorDiv(origin.getX(), 19), tz = Math.floorDiv(origin.getZ(), 19);
         int exits = AuthoredCatacombs.exits(seed, tx, tz);
@@ -79,6 +88,17 @@ public final class ForgeDepths {
                 BlockPos pos = port.info().pos().relative(face.getClockWise(), side).above(y);
                 if (clip.isInside(pos)) world.setBlock(pos, Asterion.ANCIENT_BRICKS.defaultBlockState(), 18);
             }
+        }
+        // Open authored stair gates and the Forge landing without removing their frames.
+        if (chunk.getMaxBlockX() >= origin.getX() && chunk.getMinBlockX() <= socket.getX() + 2
+                && chunk.getMaxBlockZ() >= origin.getZ() && chunk.getMinBlockZ() <= origin.getZ() + 18)
+        for (BlockPos pos : BlockPos.betweenClosed(Math.max(chunk.getMinBlockX(), origin.getX()), origin.getY(),
+                Math.max(chunk.getMinBlockZ(), origin.getZ()), Math.min(chunk.getMaxBlockX(), socket.getX() + 2),
+                Math.min(origin.getY() + 69, LabyrinthLevels.MAZE_FLOOR_Y - 2), Math.min(chunk.getMaxBlockZ(), origin.getZ() + 18))) {
+            var state = world.getBlockState(pos);
+            if (state.getBlock() instanceof net.krodark.asterion.block.DirectionalGateBlock
+                    && !state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.OPEN))
+                world.setBlock(pos, state.setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.OPEN, true), 18);
         }
         ForgeCaveEntrance.place(world, chunk, seed, cx, cz, feet);
         world.setBlock(accessMarker(chunk), accessRevision(), 18);

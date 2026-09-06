@@ -141,12 +141,13 @@ public final class CrucibleScreen extends Screen {
     private static final ItemStack[] MOLD_OUTPUT_ICONS = createMoldOutputIcons();
     private static Identifier texture(String name) { return Asterion.id("textures/gui/forge/" + name + ".png"); }
     // One coordinate system drives drawing and hit testing, including small windows.
+    private static final int GUI_Y = 4;
     private float scale() { return Math.min(1.5F, Math.min(width / 544F, height / 224F)); }
     private int rightX() { return Math.round(width / scale()) - 132 + Math.round(128 * (1 - forgePanel.value(framePartial))); }
     private int bottomX() { return Math.round(width / scale()) / 2 - 128; }
-    private int bottomY() { return Math.round(height / scale()) - 68 + Math.round(64 * (1 - moldPanel.value(framePartial))); }
+    private int bottomY() { return Math.round(height / scale()) - GUI_Y - 68 + Math.round(64 * (1 - moldPanel.value(framePartial))); }
     private int ingredientX(int index) { return rightX() + (index == 0 ? 56 : 16 + (index - 1) * 40); }
-    private int ingredientY(int index) { return index == 0 ? 16 : 86; }
+    private int ingredientY(int index) { return index == 0 ? 16 : index == 2 ? 91 : 86; }
     private int inventoryX() { return Math.round(width / scale()) / 2 - 85; }
     private int inventoryY() { return 22 - Math.round((1 - Mth.lerp(framePartial, previousInventoryReveal, inventoryReveal)) * 112); }
     private int inventoryTabX() { return Math.round(width / scale()) / 2 - 22; }
@@ -165,7 +166,7 @@ public final class CrucibleScreen extends Screen {
     }
     @Override public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
         if (closing) return true;
-        double x = event.x() / scale(), y = event.y() / scale();
+        double x = event.x() / scale(), y = event.y() / scale() - GUI_Y;
         if (!inventoryOpen && (event.button() == 0 || event.button() == 1)) {
             for (int i = metalSequence.length() - 1; i >= 0; i--) {
                 if (inside(x, y, ingredientX(i), ingredientY(i), 16, 16)) {
@@ -193,7 +194,7 @@ public final class CrucibleScreen extends Screen {
         } else if (inside(x, y, rightX() + 16, 138, 96, 32)) {
             send(CrucibleControlPayload.POUR); return true;
         } else if (inside(x, y, rightX() + 48, 8, 32, 32)
-                || inside(x, y, rightX() + 8, 78, 112, 32)) {
+                || inside(x, y, rightX() + 8, 78, 112, 37)) {
             inventoryOpen = !inventoryOpen; return true;
         } else {
             for (int i = 0; i < VISIBLE_MOLDS.length; i++) if (inside(x, y, bottomX() + 8 + i * 40, bottomY() + 16, 32, 32)) {
@@ -219,9 +220,10 @@ public final class CrucibleScreen extends Screen {
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
         super.extractRenderState(g, mouseX, mouseY, delta);
         framePartial = Mth.clamp(delta, 0, 1);
-        int mx = (int)(mouseX / scale()), my = (int)(mouseY / scale());
+        int mx = (int)(mouseX / scale()), my = (int)(mouseY / scale() - GUI_Y);
         g.pose().pushMatrix();
         g.pose().scale(scale(), scale());
+        g.pose().translate(0, GUI_Y);
         g.pose().pushMatrix();
         g.pose().translate(leftOffset(), 0);
         g.fill(4, 4, 132, 212, 0xE8100E0D);
@@ -264,16 +266,18 @@ public final class CrucibleScreen extends Screen {
         image(g, RIGHT, rx, 4, 128, 208);
         // Keep the channels, but omit the baked output-slot frame: the mold is the output background.
         g.blit(RenderPipelines.GUI_TEXTURED, CENTER, rx, 4, 0, 0, 128, 160, 128, 208);
+        g.fill(rx + 46, 78, rx + 82, 116, 0xFF100E0D);
         drawMetalFlow(g, rx);
         image(g, INPUT, rx + 48, 8, 32, 32);
         image(g, POUR, rx + 24, 44, 80, 32);
-        for (int i = 0; i < 3; i++) image(g, INPUT, rx + 8 + i * 40, 78, 32, 32);
+        for (int i = 0; i < 3; i++) image(g, INPUT, rx + 8 + i * 40, i == 1 ? 83 : 78, 32, 32);
         image(g, SMELT, rx + 16, 138, 96, 32);
         shadowCentered(g, "POUR", rx + 64, 56, 0xFFC5AE8E);
         shadowCentered(g, "SMELT", rx + 64, 150, 0xFFC5AE8E);
         if (inside(mx, my, rx + 24, 44, 80, 32)) g.outline(rx + 24, 44, 80, 32, 0xFFD0B68C);
         if (inside(mx, my, rx + 16, 138, 96, 32)) g.outline(rx + 16, 138, 96, 32, 0xFFD0B68C);
         if (noticeTicks > 0) shadowCentered(g, controlNotice, rx + 64, 126, 0xFFE5B77B);
+        image(g, INPUT, rx + 48, 174, 32, 32);
         if (mold >= 0 && mold != 4) {
             image(g, MOLD_TEXTURES[mold], rx + 48, 174, 32, 32);
         }
@@ -285,7 +289,7 @@ public final class CrucibleScreen extends Screen {
         if (autoPourProgress > 0 && noticeTicks == 0) shadowCentered(g,
                 Math.round(displayedPourProgress * 100F / CrucibleBlockEntity.AUTO_POUR_TICKS) + "%",
                 rx + 64, 126, 0xFFBDA88A);
-        if (inside(mx, my, rx + 48, 8, 32, 32) || inside(mx, my, rx + 8, 78, 112, 32))
+        if (inside(mx, my, rx + 48, 8, 32, 32) || inside(mx, my, rx + 8, 78, 112, 37))
             g.setTooltipForNextFrame(font, Component.literal("Open inventory — add ingots or molds"), mouseX, mouseY);
         for (int i = 0; i < metalSequence.length(); i++) {
             int x = ingredientX(i);
@@ -391,7 +395,9 @@ public final class CrucibleScreen extends Screen {
     }
 
     private ItemStack mixturePreview() {
-        if (metalSequence.isEmpty() || mold < 0 || hasUnsmeltedIngredients()) return ItemStack.EMPTY;
+        if (mold < 0) return ItemStack.EMPTY;
+        if (metalSequence.isEmpty()) return MOLD_OUTPUT_ICONS[mold];
+        if (hasUnsmeltedIngredients()) return ItemStack.EMPTY;
         if (MOLDS[mold] == CrucibleBlockEntity.Mold.MINOTAUR_KEY && !metalSequence.equals("5"))
             return ItemStack.EMPTY;
         if (metalSequence.equals(cachedPreviewSequence) && mold == cachedPreviewMold) return cachedPreview;

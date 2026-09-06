@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "asterion:item/forging/celestial_gold/celestial_gold_guard_icon"
+    "layer0": "asterion:forging/celestial_gold/celestial_gold_guard_icon"
   }
 }
