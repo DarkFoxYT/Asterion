@@ -48,7 +48,7 @@ public final class AuthoredCatacombs {
         for (Direction side : Direction.Plane.HORIZONTAL)
             if (CatacombLayout.connected(seed, tx, tz, side)) mask |= bit(side);
          
-        if (tx == 0 && tz == CatacombLayout.ROOT_Z) mask |= 1;
+        if (tx == 0 && tz == CatacombLayout.ROOT_Z) mask |= 8;
         return mask;
     }
     public static Module module(long seed, int tx, int tz) {
@@ -448,8 +448,8 @@ public final class AuthoredCatacombs {
     public static void placeArenaChunk(ServerLevel level,LevelChunk chunk) {
         ChunkPos cp=chunk.getPos();
         boolean arena=cp.x()>=-4&&cp.x()<=3&&cp.z()>=-4&&cp.z()<=3;
-        boolean approach=cp.getMaxBlockX()>=-2&&cp.getMinBlockX()<=11
-                && cp.getMaxBlockZ()>=62&&cp.getMinBlockZ()<=76;
+        boolean approach=cp.getMaxBlockX()>=-3&&cp.getMinBlockX()<=3
+                && cp.getMaxBlockZ()>=62&&cp.getMinBlockZ()<=CatacombLayout.ROOT_CENTER;
         boolean retiredApproach=cp.getMaxBlockX()>=-2&&cp.getMinBlockX()<=CatacombLayout.ROOT_CENTER
                 &&cp.getMaxBlockZ()>=62&&cp.getMinBlockZ()<=CatacombLayout.ROOT_CENTER+2;
         if(!arena&&!approach&&!retiredApproach)return;
@@ -476,8 +476,8 @@ public final class AuthoredCatacombs {
                     ARENA_BASE_Y+47,Math.min(maxZ,chunkBounds.maxZ()));
             placeArenaPart(level,template,origin,clip,part);
         }
-        placeArenaApproach(level,chunk);
         if(retiredApproach&&!arena)place(level,cp);
+        placeArenaApproach(level,chunk);
         markGeneratedRunes(chunk,chunkBounds);
         net.krodark.asterion.WorldGenerator.registerAuthoredArenaPillars(level,chunk);
         configureArenaLoot(level,chunk);
@@ -581,10 +581,10 @@ public final class AuthoredCatacombs {
         for(int x=cp.getMinBlockX();x<=cp.getMaxBlockX();x++)for(int z=cp.getMinBlockZ();z<=cp.getMaxBlockZ();z++) {
              
              
-            if(z<=ARENA_RADIUS||z>76)continue;
-            int center=Math.round((z-(ARENA_RADIUS+1))*9F/(76-(ARENA_RADIUS+1)));
-            boolean core=Math.abs(x-center)<=2;
-            boolean wall=Math.abs(x-center)==3;
+            if(z<=ARENA_RADIUS||z>CatacombLayout.ROOT_CENTER)continue;
+            // Stay on the arena axis, then meet the west doorway of the existing catacomb room.
+            boolean core=Math.abs(x)<=2 || x==3 && z>=CatacombLayout.ROOT_CENTER-2;
+            boolean wall=Math.abs(x)==3 && !core;
             if(!core&&!wall)continue;
 
             int floor=CONNECTOR_Y-1;

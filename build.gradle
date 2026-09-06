@@ -321,6 +321,7 @@ loom {
         client {
             mainClass = "net.krodark.asterion.dev.EssentialClientLaunch"
             vmArg "-Dasterion.essential.modJar=${essentialRuntimeJar.absolutePath}"
+            if (project.hasProperty('startupSmokeTest')) vmArg '-Dasterion.startup.smokeTest=true'
             ideConfigGenerated = false
         }
         essentialClient {
@@ -511,6 +512,16 @@ tasks.matching { it.name in ["runClient", "runEssentialClient", "runEssentialTes
  
  
 tasks.withType(JavaExec).configureEach {
+    doFirst {
+        // Saved hs_err reports fail inside C2 on unrelated methods, not in recoverable game code.
+        // Restrict the workaround to client launches; Gradle and dedicated servers are unaffected.
+        if (providers.gradleProperty('asterionSafeJvm').getOrElse('true').toBoolean()
+                && allJvmArgs.any { it == '-Dfabric.dli.env=client' }) {
+            setJvmArgs(jvmArgs.findAll { !it.startsWith('-XX:TieredStopAtLevel=') })
+            jvmArgs '-XX:TieredStopAtLevel=3'
+            logger.lifecycle('Asterion client stability mode: C1 compilation enabled, crash-prone C2 tier disabled.')
+        }
+    }
     if (name == 'net.fabricmc.devlaunchinjector.Main.main()') {
         dependsOn 'stageEssentialRuntimeJar'
         doFirst {

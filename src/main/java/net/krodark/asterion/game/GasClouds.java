@@ -47,7 +47,8 @@ public final class GasClouds {
                 net.minecraft.world.phys.shapes.CollisionContext.empty())).getType() == HitResult.Type.MISS;
     }
     public static void tick(MinecraftServer server) {
-        for (var entry : CLOUDS.entrySet()) {
+        // Damage callbacks can emit clouds or clear an owner's clouds during this tick.
+        for (var entry : List.copyOf(CLOUDS.entrySet())) {
             var level = entry.getKey(); var clouds = entry.getValue();
             Set<UUID> hit = new HashSet<>();
              
@@ -68,11 +69,11 @@ public final class GasClouds {
                         net.minecraft.sounds.SoundEvents.FIRECHARGE_USE, net.minecraft.sounds.SoundSource.BLOCKS,
                         .45F, 1.05F + level.getRandom().nextFloat() * .2F);
             }
-            for (var iterator = clouds.iterator(); iterator.hasNext();) {
-                var cloud = iterator.next();
+            for (var cloud : List.copyOf(clouds)) {
+                if (cloud.removed) continue;
                 var block = net.minecraft.core.BlockPos.containing(cloud.pos);
                 if (++cloud.age > 200 || cloud.burn == 1 || !level.getChunkSource().hasChunk(block.getX() >> 4, block.getZ() >> 4)
-                        || !level.getFluidState(block).isEmpty()) { iterator.remove(); continue; }
+                        || !level.getFluidState(block).isEmpty()) { cloud.removed = true; clouds.remove(cloud); continue; }
                 if (cloud.burn > 0) cloud.burn--;
                 else {
                     var state = level.getBlockState(block);
@@ -95,6 +96,7 @@ public final class GasClouds {
                         cloud.compact ? .07 : .38, cloud.compact ? .002 : .005);
                 if (cloud.age % (cloud.burn>0 ? 10 : 20) != 0) continue;
                 for (var victim : level.getEntitiesOfClass(LivingEntity.class, new AABB(cloud.pos, cloud.pos).inflate(1.2))) {
+                    if (cloud.removed) break;
                     if (!victim.isAlive() || victim.getUUID().equals(cloud.owner) || hit.contains(victim.getUUID())
                             || victim instanceof ServerPlayer player && (player.isCreative() || player.isSpectator())
                             || !visible(level, cloud.pos, victim.getBoundingBox().getCenter())) continue;
@@ -111,17 +113,24 @@ public final class GasClouds {
         }
         CLOUDS.values().removeIf(List::isEmpty);
     }
-    public static void clear() { CLOUDS.clear(); }
+    public static void clear() {
+        CLOUDS.values().forEach(clouds -> clouds.forEach(cloud -> cloud.removed = true));
+        CLOUDS.clear();
+    }
     public static void clearOwner(ServerLevel level, UUID owner) {
         var clouds = CLOUDS.get(level);
-        if (clouds != null) clouds.removeIf(cloud -> owner.equals(cloud.owner));
+        if (clouds != null) clouds.removeIf(cloud -> {
+            if (!Objects.equals(owner, cloud.owner)) return false;
+            cloud.removed = true;
+            return true;
+        });
     }
     private static long cell(Vec3 pos){return cell(Mth.floor(pos.x/3),Mth.floor(pos.y/3),Mth.floor(pos.z/3));}
     private static long cell(int x,int y,int z){
         return ((long)x&0x1fffffL)<<42|((long)y&0x1fffffL)<<21|((long)z&0x1fffffL);
     }
     private static final class Cloud {
-        Vec3 pos, velocity; final UUID owner; final boolean flamethrower, compact; int age, burn;
+        Vec3 pos, velocity; final UUID owner; final boolean flamethrower, compact; int age, burn; boolean removed;
         Cloud(Vec3 pos, Vec3 velocity, UUID owner, boolean flamethrower, boolean compact) {
             this.pos = pos; this.velocity = velocity; this.owner = owner;
             this.flamethrower = flamethrower; this.compact = compact;

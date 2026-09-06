@@ -4843,6 +4843,12 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     @Override
+    public float getSecondsToDisableBlocking() {
+        // Vanilla applies the shield cooldown and sound only when a hit is actually blocked.
+        return 5.0F;
+    }
+
+    @Override
     public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
         if (amount > 0 && source.getEntity() instanceof ServerPlayer attacker && behaviorPhase() == BehaviorPhase.BOSS
                 && doorEntryTicks() == 0 && bossStage != BossStage.DEFEATED && bossStage != BossStage.COLLAPSE)

@@ -137,7 +137,7 @@ final class ShaleCavesCheck {
         throw new AssertionError("Stair module has no catacomb socket");
     }
 
-    private static boolean route(ServerLevel level, BlockPos start, BlockPos target, int center) {
+    static boolean route(ServerLevel level, BlockPos start, BlockPos target, int center) {
         var queue = new java.util.ArrayDeque<BlockPos>();
         var seen = new java.util.HashSet<BlockPos>();
         queue.add(start); seen.add(start);

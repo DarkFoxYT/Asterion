@@ -22,7 +22,7 @@ public final class ForgeGenerationGameTest implements FabricClientGameTest {
                 var stairStates = new java.util.HashMap<BlockPos, net.minecraft.world.level.block.state.BlockState>();
                 for (var info : blocks) stairStates.put(info.pos(), info.state());
                 for (var info : ((StructureTemplateAccessor)(Object)original).asterion$getPalettes().getFirst().blocks())
-                    if (info.pos().getX() >= 5 && !info.state().equals(stairStates.get(info.pos().above(39))))
+                    if ((info.pos().getX() >= 9 || info.pos().getZ() >= 8) && !info.state().equals(stairStates.get(info.pos().above(39))))
                         throw new AssertionError("Staircase cuts through junction interior at " + info.pos());
                 int checked = 0;
                 for (int district : new int[]{-1, 0, 1}) {
@@ -37,6 +37,8 @@ public final class ForgeGenerationGameTest implements FabricClientGameTest {
                         for (int z = bounds.minZ() >> 4; z <= bounds.maxZ() >> 4; z++) {
                             level.getChunk(x, z); chunks.add(new ChunkPos(x, z));
                         }
+                    // This test uses an overworld: place the destination room as worldgen would.
+                    for (var chunk : chunks) AuthoredForge.place(level, chunk);
                     BlockPos sentinel = new BlockPos(bounds.maxX() + 1, bounds.maxY(), bounds.maxZ());
                     level.setBlock(sentinel, Blocks.DIAMOND_BLOCK.defaultBlockState(), 18);
                     for (boolean reverse : new boolean[]{false, true}) {
@@ -50,12 +52,33 @@ public final class ForgeGenerationGameTest implements FabricClientGameTest {
                                 throw new AssertionError("Forge staircase cut at " + pos + ": expected " + info.state() + ", got " + level.getBlockState(pos));
                             checked++;
                         }
+                        if (!ShaleCavesCheck.route(level, origin.offset(9, 44, 9), socket, center))
+                            throw new AssertionError("Wall staircase has no walkable route to Forge at " + center);
                         if (!level.getBlockState(sentinel).is(Blocks.DIAMOND_BLOCK))
                             throw new AssertionError("Staircase placement changed its neighbour");
                     }
                 }
+                for (int cx = -1; cx <= 0; cx++) for (int cz = 3; cz <= 5; cz++)
+                    AuthoredCatacombs.placeArenaChunk(level, level.getChunk(cx, cz));
+                for (int x = -2; x <= 2; x++) for (int z = 62; z <= CatacombLayout.ROOT_CENTER; z++) {
+                    BlockPos feet = new BlockPos(x, AuthoredCatacombs.CONNECTOR_Y, z);
+                    if (!level.noCollision(new net.minecraft.world.phys.AABB(feet.getX() + .2, feet.getY(), feet.getZ() + .2,
+                            feet.getX() + .8, feet.getY() + 1.8, feet.getZ() + .8))
+                            || level.getBlockState(feet.below()).getCollisionShape(level, feet.below()).isEmpty())
+                        throw new AssertionError("Straight arena approach obstructed at " + feet);
+                }
+                if ((AuthoredCatacombs.exits(level.getSeed(), 0, CatacombLayout.ROOT_Z) & 8) == 0)
+                    throw new AssertionError("Arena approach has no side doorway into catacombs");
+                var player = server.getPlayerList().getPlayers().getFirst();
+                int center = CatacombLayout.ROOT_CENTER + AuthoredForge.DISTRICT_SPACING;
+                player.teleportTo(level, center - 17.5, 73, center - 6.5, java.util.Set.of(), 90, 25, true);
+                player.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.NIGHT_VISION, 200));
+                player.setNoGravity(true);
+                Asterion.LOGGER.info("PASS: straight five-wide arena approach connects to the west catacomb doorway");
                 Asterion.LOGGER.info("PASS: {} Forge upper-layer blocks preserved across positive/negative districts and both chunk orders; neighbouring structure untouched", checked);
             });
+            context.waitTicks(35);
+            context.takeScreenshot("forge-stair-wall-doorway");
         }
     }
 }

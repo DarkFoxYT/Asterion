@@ -46,7 +46,10 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
     }
     public void callTo(boolean upper) {
         if (level().isClientSide()) return;
-        requestedStop = upper ? 1 : 0;
+        // Resolve at button-press time: a queued call must not reverse the lift on arrival.
+        double landing = upper ? topY() : bottomY();
+        boolean depart = !moving() && Math.abs(getY() - landing) < .02;
+        requestedStop = (depart ? !upper : upper) ? 1 : 0;
     }
     private void ensureCallRunes(ServerLevel level) {
         for (boolean upper : new boolean[]{false, true}) {
@@ -81,7 +84,7 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
     @Override public boolean hurtServer(ServerLevel level, DamageSource source, float amount) { return false; }
     @Override public boolean ignoreExplosion(net.minecraft.world.level.Explosion explosion) { return true; }
 
-    private static final double START_SPEED = .03, MAX_SPEED = .45, ACCELERATION = .06;
+    private static final double START_SPEED = .03, MAX_SPEED = .32, ACCELERATION = .05;
     private static final double RAMP_TICKS = Math.log(MAX_SPEED / START_SPEED) / ACCELERATION;
     private static final double RAMP_DISTANCE = (MAX_SPEED - START_SPEED) / ACCELERATION;
 

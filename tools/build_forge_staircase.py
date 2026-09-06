@@ -24,15 +24,22 @@ for block in source['blocks']:
  x,y,z=map(int,block['pos']); put(x,y+39,z,int(block['state']),deepcopy(block.get('nbt')))
 
 path=[(7,9)]
-heights=[1]
-# Finish against the west edge, keeping the junction's central pillars intact.
-for target in [(7,3),(2,3),(2,15),(7,15),(7,9),(7,1),(2,1),(2,9)]:
+# Two flights wrap below the room. The last flight rises inside its northwest wall.
+for target in [(7,15),(2,15),(2,3),(7,3),(7,15),(2,15),(2,2)]:
  while path[-1] != target:
   x,z=path[-1]; tx,tz=target
   path.append((x+(tx>x)-(tx<x),z+(tz>z)-(tz<z)))
-last_turn = len(path)-9
+corners={i for i in range(1,len(path)-1)
+ if (path[i][0]-path[i-1][0],path[i][1]-path[i-1][1]) !=
+    (path[i+1][0]-path[i][0],path[i+1][1]-path[i][1])}
+corners.add(len(path)-1)
+eligible=[i for i in range(1,len(path)) if i not in corners and i-1 not in corners]
+heights=[1]; rise=0
 for i in range(1,len(path)):
- heights.append(1 + (35*i//last_turn) if i <= last_turn else 36+i-last_turn)
+ if i in eligible: rise+=1
+ heights.append(1 + 38*rise//len(eligible))
+for x,feet in [(3,40),(4,41),(5,42),(6,43),(7,44)]:
+ path.append((x,2)); heights.append(feet)
 plan={}
 def cell(x,y,z,s,priority):
  if (x,y,z) not in plan or priority>=plan[x,y,z][1]: plan[x,y,z]=(s,priority)
@@ -48,12 +55,20 @@ for i,(x,z) in enumerate(path):
  dx,dz=nx-x,nz-z
  if not dx and not dz: dx=1
  corner=i>0 and (x-path[i-1][0],z-path[i-1][1])!=(dx,dz)
- walk(x,z,heights[i],dx,dz,i>0 and i<len(path)-1 and heights[i]>heights[i-1] and not corner)
+ walk(x,z,heights[i],dx,dz,i>0 and heights[i]>heights[i-1] and not corner)
 
 for x in range(4,10): walk(x,9,1,1,0)
-# Short landing into the existing west arm.
-for px in range(2,5): walk(px,9,44,1,0)
 for (x,y,z),(s,_) in plan.items(): put(x,y,z,s)
+# An intentional recessed doorway in the north corridor's side wall, not a floor trench.
+trim=state('asterion:ancient_bricks')
+for z in (0,4):
+ for y in range(43,49): put(7,y,z,trim)
+for z in range(5): put(7,48,z,trim)
+put(6,47,2,trim)
+put(7,47,2,state('minecraft:wall_torch',facing='east'))
+# A raised, stepped sill keeps the corridor's water out of the stairwell.
+for z in range(1,4):
+ put(8,43,z,state('asterion:polished_mazesteel_stairs',facing='west',half='bottom',shape='straight',waterlogged='false'))
 
 jigsaw=state('minecraft:jigsaw',orientation='east_up')
 put(9,1,9,jigsaw,n.Compound({k:n.String(v) for k,v in {
