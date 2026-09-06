@@ -50,7 +50,11 @@ public final class MinotaurBossBar {
         }
         if (client.level == null || client.player == null) return;
         long tick = client.level.getGameTime();
-        if (boss == null || boss.isRemoved() || boss.level() != client.level || tick >= nextScan) {
+        if (boss != null && (boss.isRemoved() || boss.level() != client.level)) {
+            boss = null;
+            nextScan = 0;
+        }
+        if (tick >= nextScan) {
             boss = client.level.getEntitiesOfClass(MinotaurEntity.class, client.player.getBoundingBox().inflate(160),
                     entity -> entity.behaviorPhase() == MinotaurEntity.BehaviorPhase.BOSS && !entity.isDefeatedBoss())
                     .stream().min(java.util.Comparator.comparingDouble(entity -> entity.distanceToSqr(client.player))).orElse(null);

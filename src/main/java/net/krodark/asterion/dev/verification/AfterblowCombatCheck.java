@@ -54,12 +54,14 @@ final class AfterblowCombatCheck {
 
             opponent.setHealth(20);
             opponent.invulnerableTime = 0;
-            check(opponent.hurtServer(level, level.damageSources().playerAttack(player), 9), "Counterattack was rejected");
-            check(Math.abs(opponent.getHealth() - 9) < .001F, "Counter did not add all stored damage to one hit");
+            opponent.hurtServer(level, level.damageSources().generic(), 9);
+            opponent.setHealth(20);
+            check(opponent.hurtServer(level, level.damageSources().playerAttack(player), 1), "Rapid counterattack was rejected during hurt immunity");
+            check(Math.abs(opponent.getHealth() - 17) < .001F, "Rapid counter did not add all stored damage to one hit");
             check(AfterblowItem.storedAt(sword, now) == 0, "Counterattack did not consume charge");
             opponent.invulnerableTime = 0;
             opponent.hurtServer(level, level.damageSources().playerAttack(player), 3);
-            check(Math.abs(opponent.getHealth() - 6) < .001F, "Charge was used twice");
+            check(Math.abs(opponent.getHealth() - 14) < .001F, "Charge was used twice");
 
             check(item.use(level, player, InteractionHand.MAIN_HAND) == InteractionResult.CONSUME,
                     "Sword could not block again after discharge");

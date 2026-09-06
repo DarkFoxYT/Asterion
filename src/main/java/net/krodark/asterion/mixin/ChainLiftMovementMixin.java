@@ -21,7 +21,8 @@ public abstract class ChainLiftMovementMixin {
     private Vec3 asterion$moveOnDeck(Vec3 movement) {
         asterion$supportingLift = null;
         Entity entity = (Entity)(Object)this;
-        if (!(entity instanceof Player) || entity.noPhysics || movement.y > .2) return movement;
+        if (!(entity instanceof Player) || entity.noPhysics
+                || entity.getDeltaMovement().y > .08 || movement.y > .65) return movement;
         ChainLiftEntity lift = ChainLiftEntity.supporting(entity);
         if (lift == null) return movement;
          

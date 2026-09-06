@@ -271,6 +271,10 @@ public final class BossArenaEncounter {
         active = null;
     }
 
+    public static boolean isParticipant(ServerPlayer player) {
+        return active != null && active.level == player.level() && active.participants.contains(player.getUUID());
+    }
+
     public static void releasePlayer(ServerPlayer player) {
         if (active == null) return;
         Lock lock = active.locks.remove(player.getUUID());

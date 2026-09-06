@@ -2,41 +2,5 @@
   "parent": "minecraft:item/handheld",
   "textures": {
     "layer0": "asterion:item/celestial_bronze_sword"
-  },
-  "display": {
-    "thirdperson_righthand": {
-      "rotation": [
-        0,
-        -90,
-        55
-      ],
-      "translation": [
-        0,
-        4,
-        0.5
-      ],
-      "scale": [
-        1.35,
-        0.8,
-        1
-      ]
-    },
-    "thirdperson_lefthand": {
-      "rotation": [
-        0,
-        -90,
-        55
-      ],
-      "translation": [
-        0,
-        4,
-        0.5
-      ],
-      "scale": [
-        1.35,
-        0.8,
-        1
-      ]
-    }
   }
 }

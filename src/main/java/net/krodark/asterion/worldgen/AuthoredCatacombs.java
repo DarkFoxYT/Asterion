@@ -458,7 +458,10 @@ public final class AuthoredCatacombs {
          
          
          
-        if(chunk.getBlockState(marker).equals(revisionMarker))return;
+        if(chunk.getBlockState(marker).equals(revisionMarker)) {
+            repairArenaApproach(level, chunk);
+            return;
+        }
         if(retiredApproach)sealRetiredApproach(level,chunk);
         BoundingBox chunkBounds=new BoundingBox(cp.getMinBlockX(),ARENA_BASE_Y,cp.getMinBlockZ(),
                 cp.getMaxBlockX(),ARENA_BASE_Y+47,cp.getMaxBlockZ());
@@ -477,7 +480,7 @@ public final class AuthoredCatacombs {
             placeArenaPart(level,template,origin,clip,part);
         }
         if(retiredApproach&&!arena)place(level,cp);
-        placeArenaApproach(level,chunk);
+        repairArenaApproach(level,chunk);
         markGeneratedRunes(chunk,chunkBounds);
         net.krodark.asterion.WorldGenerator.registerAuthoredArenaPillars(level,chunk);
         configureArenaLoot(level,chunk);
@@ -576,22 +579,34 @@ public final class AuthoredCatacombs {
                     && entry.getValue() instanceof net.krodark.asterion.block.RuneBlockEntity rune
                     && !rune.isWorldGenerated())rune.setWorldGenerated(true);
     }
-    private static void placeArenaApproach(ServerLevel level,LevelChunk chunk) {
-        ChunkPos cp=chunk.getPos();
-        for(int x=cp.getMinBlockX();x<=cp.getMaxBlockX();x++)for(int z=cp.getMinBlockZ();z<=cp.getMaxBlockZ();z++) {
-             
-             
-            if(z<=ARENA_RADIUS||z>CatacombLayout.ROOT_CENTER)continue;
-            // Stay on the arena axis, then meet the west doorway of the existing catacomb room.
-            boolean core=Math.abs(x)<=2 || x==3 && z>=CatacombLayout.ROOT_CENTER-2;
-            boolean wall=Math.abs(x)==3 && !core;
-            if(!core&&!wall)continue;
+    private static void repairArenaApproach(ServerLevel level, LevelChunk chunk) {
+        BlockPos marker = new BlockPos(chunk.getPos().getMinBlockX(), ARENA_BASE_Y - 2, chunk.getPos().getMinBlockZ());
+        var complete = Blocks.LIGHT.defaultBlockState().setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 2);
+        if (chunk.getBlockState(marker).equals(complete)) return;
+        placeArenaApproach(level, chunk);
+        chunk.setBlockState(marker, complete, 0);
+        chunk.markUnsaved();
+    }
 
-            int floor=CONNECTOR_Y-1;
-            level.setBlock(new BlockPos(x,floor,z),Asterion.ANCIENT_BRICKS.defaultBlockState(),18);
-            for(int y=1;y<=4;y++)level.setBlock(new BlockPos(x,floor+y,z),
-                    core?Blocks.AIR.defaultBlockState():Asterion.ANCIENT_BRICKS.defaultBlockState(),18);
-            level.setBlock(new BlockPos(x,floor+5,z),Asterion.ANCIENT_BRICKS.defaultBlockState(),18);
-        }
+    private static boolean arenaApproachFloor(int x, int z) {
+        return Math.abs(x) <= 2 && z >= ARENA_RADIUS && z <= CatacombLayout.ROOT_CENTER + 2
+                || x >= -2 && x <= 9 && Math.abs(z - CatacombLayout.ROOT_CENTER) <= 2;
+    }
+
+    private static void placeArenaApproach(ServerLevel level, LevelChunk chunk) {
+        ChunkPos cp = chunk.getPos();
+        for (int x = cp.getMinBlockX(); x <= cp.getMaxBlockX(); x++)
+            for (int z = cp.getMinBlockZ(); z <= cp.getMaxBlockZ(); z++) {
+                if (z < ARENA_RADIUS || x > 9) continue;
+                boolean core = arenaApproachFloor(x, z);
+                boolean wall = !core && (arenaApproachFloor(x - 1, z) || arenaApproachFloor(x + 1, z)
+                        || arenaApproachFloor(x, z - 1) || arenaApproachFloor(x, z + 1));
+                if (!core && !wall) continue;
+                int floor = CONNECTOR_Y - 1;
+                level.setBlock(new BlockPos(x, floor, z), Asterion.ANCIENT_BRICKS.defaultBlockState(), 18);
+                for (int y = 1; y <= 4; y++) level.setBlock(new BlockPos(x, floor + y, z),
+                        core ? Blocks.AIR.defaultBlockState() : Asterion.ANCIENT_BRICKS.defaultBlockState(), 18);
+                level.setBlock(new BlockPos(x, floor + 5, z), Asterion.ANCIENT_BRICKS.defaultBlockState(), 18);
+            }
     }
 }

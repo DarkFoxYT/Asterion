@@ -43,7 +43,7 @@ public final class CrucibleScreen extends Screen {
     private int heldTicks, noticeTicks;
     private String controlNotice = "";
     private static final CrucibleBlockEntity.Mold[] MOLDS = CrucibleBlockEntity.Mold.values();
-    private static final int[] VISIBLE_MOLDS = {0, 1, 2, 3, 4, 5};
+    private static final int[] VISIBLE_MOLDS = {0, 1, 2, 3, 4};
     private static final String[] MATERIAL_NAMES = {
             "Iron", "Copper", "Tarnished Gold", "Netherite", "Celestial Bronze",
             "Bonesteel", "Celestial Steel", "Celestial Gold", "Gold", "Mazesteel", "Ancient Bone", "Coal", "Cursed Brazier Key"
@@ -135,7 +135,7 @@ public final class CrucibleScreen extends Screen {
     private static final Identifier[] MOLD_TEXTURES = {
             texture("bottom_center/ingot_mold"), texture("bottom_center/guard_mold"),
             texture("bottom_center/pomel_mold"), texture("bottom_center/blade_mold"),
-            texture("bottom_center/blade_mold"), texture("bottom_center/minotaur_key_mold")
+            texture("bottom_center/minotaur_key_mold")
     };
     private static final Identifier GAUGE_FILL = texture("left/temp_gauge_fill");
     private static final Identifier STATUS = texture("left/too_hot");
@@ -316,7 +316,7 @@ public final class CrucibleScreen extends Screen {
         if (inside(mx, my, rx + 16, 138, 96, 32))
             g.setTooltipForNextFrame(font, Component.literal("Steel: 2 iron + 2 coal at 700° ±8. Bone Steel: 1 Celestial Steel + 3 Ancient Bones at 900° ±8. Gold ore: preheat an ingot mold to 350° ±12, then add ore and press Smelt."), mouseX, mouseY);
         image(g, INPUT, rx + 48, 174, 32, 32);
-        if (mold >= 0 && mold != 4) {
+        if (mold >= 0) {
             image(g, MOLD_TEXTURES[mold], rx + 48, 174, 32, 32);
         }
         ItemStack preview = mixturePreview();
@@ -460,12 +460,15 @@ public final class CrucibleScreen extends Screen {
             cachedPreviewMold = mold;
             return cachedPreview = new ItemStack(Asterion.BONESTEEL_INGOT, metalSequence.length());
         }
+        if (MOLDS[mold] == CrucibleBlockEntity.Mold.INGOT && !metalSequence.isEmpty()) {
+            return CrucibleBlockEntity.returnedMetal(metalSequence.charAt(0) - '0');
+        }
         net.minecraft.world.item.Item output = switch (MOLDS[mold]) {
-            case INGOT -> Asterion.FORGED_INGOT;
+            case INGOT -> net.minecraft.world.item.Items.IRON_INGOT;
             case SWORD_GUARD -> Asterion.FORGED_SWORD_GUARD;
             case SWORD_POMMEL -> Asterion.FORGED_SWORD_POMMEL;
             case SWORD_BLADE -> Asterion.FORGED_SWORD_BLADE;
-            case AXE_HEAD -> Asterion.FORGED_AXE_HEAD;
+
             case MINOTAUR_KEY -> Asterion.MINOTAUR_KEY;
         };
         ItemStack preview = new ItemStack(output);
@@ -516,11 +519,11 @@ public final class CrucibleScreen extends Screen {
         ItemStack[] icons = new ItemStack[MOLDS.length];
         for (int index = 0; index < icons.length; index++) {
             net.minecraft.world.item.Item item = switch (MOLDS[index]) {
-                case INGOT -> Asterion.FORGED_INGOT;
+                case INGOT -> net.minecraft.world.item.Items.IRON_INGOT;
                 case SWORD_GUARD -> Asterion.FORGED_SWORD_GUARD;
                 case SWORD_POMMEL -> Asterion.FORGED_SWORD_POMMEL;
                 case SWORD_BLADE -> Asterion.FORGED_SWORD_BLADE;
-                case AXE_HEAD -> Asterion.FORGED_AXE_HEAD;
+
                 case MINOTAUR_KEY -> Asterion.MINOTAUR_KEY;
             };
             ItemStack icon = new ItemStack(item);

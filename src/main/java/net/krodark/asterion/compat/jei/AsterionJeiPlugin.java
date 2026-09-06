@@ -36,11 +36,9 @@ public final class AsterionJeiPlugin implements IModPlugin {
     }
 
     @Override public void registerItemSubtypes(ISubtypeRegistration registration) {
-        registration.registerFromDataComponentTypes(Asterion.FORGED_INGOT, DataComponents.CUSTOM_DATA);
         registration.registerFromDataComponentTypes(Asterion.FORGED_SWORD_GUARD, DataComponents.CUSTOM_DATA);
         registration.registerFromDataComponentTypes(Asterion.FORGED_SWORD_POMMEL, DataComponents.CUSTOM_DATA);
         registration.registerFromDataComponentTypes(Asterion.FORGED_SWORD_BLADE, DataComponents.CUSTOM_DATA);
-        registration.registerFromDataComponentTypes(Asterion.FORGED_AXE_HEAD, DataComponents.CUSTOM_DATA);
         registration.registerFromDataComponentTypes(Asterion.FORGED_SWORD, DataComponents.CUSTOM_DATA);
     }
 
@@ -56,8 +54,7 @@ public final class AsterionJeiPlugin implements IModPlugin {
         registration.addRecipes(SWORD_ASSEMBLY, java.util.List.of(ForgedSwordViewerRecipe.create()));
         registration.addItemStackInfo(CrucibleViewerRecipe.metals(),
                 Component.translatable("recipe.asterion.crucible.metals"),
-                Component.translatable("recipe.asterion.crucible.heat_source"),
-                Component.translatable("recipe.asterion.crucible.remelting"));
+                Component.translatable("recipe.asterion.crucible.heat_source"));
         registration.addItemStackInfo(new net.minecraft.world.item.ItemStack(Asterion.CRUCIBLE),
                 Component.translatable("recipe.asterion.crucible.how_to.heat"),
                 Component.translatable("recipe.asterion.crucible.how_to.load"),

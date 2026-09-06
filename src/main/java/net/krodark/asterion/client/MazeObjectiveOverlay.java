@@ -254,7 +254,7 @@ public final class MazeObjectiveOverlay {
 
     private static boolean hasIngots(Minecraft client) {
         return has(client, Asterion.TARNISHED_GOLD_INGOT) || has(client, Asterion.CELESTIAL_GOLD_INGOT)
-                || has(client, Asterion.FORGED_INGOT) || has(client, Asterion.CELESTIAL_BRONZE_INGOT)
+                || has(client, Asterion.CELESTIAL_BRONZE_INGOT)
                 || has(client, Asterion.CELESTIAL_STEEL_INGOT) || has(client, Asterion.BONESTEEL_INGOT);
     }
 

@@ -72,7 +72,7 @@ final class AncientBoneCheck {
             heat.setInt(coalForge, 700);
             CrucibleBlockEntity.tick(level, pos, coalForge.getBlockState(), coalForge);
             coalForge.control(player, CrucibleControlPayload.POUR);
-            check(coalForge.materialUnits() == 1 && dropped(level, pos, Asterion.FORGED_INGOT) == 0,
+            check(coalForge.materialUnits() == 1 && dropped(level, pos, net.minecraft.world.item.Items.IRON_INGOT) == 0,
                     "Coal was cast into an ingot");
             var skeleton = AncientContent.SKELETON.create(level, EntitySpawnReason.COMMAND);
             var params = new LootParams.Builder(level).withParameter(LootContextParams.THIS_ENTITY, skeleton)

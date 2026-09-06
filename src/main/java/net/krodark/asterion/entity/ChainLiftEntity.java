@@ -84,7 +84,7 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
     @Override public boolean hurtServer(ServerLevel level, DamageSource source, float amount) { return false; }
     @Override public boolean ignoreExplosion(net.minecraft.world.level.Explosion explosion) { return true; }
 
-    private static final double START_SPEED = .03, MAX_SPEED = .32, ACCELERATION = .05;
+    private static final double START_SPEED = .03, MAX_SPEED = .18, ACCELERATION = .05;
     private static final double RAMP_TICKS = Math.log(MAX_SPEED / START_SPEED) / ACCELERATION;
     private static final double RAMP_DISTANCE = (MAX_SPEED - START_SPEED) / ACCELERATION;
 
@@ -107,7 +107,7 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
     }
     public boolean supports(Entity entity) {
          
-        double tolerance = !level().isClientSide() && entity instanceof Player ? .65 : .16;
+        double tolerance = entity instanceof Player ? .65 : .25;
         return entity.isAlive() && !entity.isSpectator() && !entity.isPassenger()
                 && (!(entity instanceof Player player) || !player.getAbilities().flying)
                 && Math.abs(entity.getY() - (getY() + .5)) < tolerance && entity.getDeltaMovement().y <= .08;

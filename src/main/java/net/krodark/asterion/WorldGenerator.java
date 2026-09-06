@@ -843,7 +843,7 @@ public final class WorldGenerator {
                         player.level().getHeight(Heightmap.Types.WORLD_SURFACE, gateway.getX(), gateway.getZ()));
                 if (player.getY() > surface + 0.4D || player.getY() < surface - 2.2D) return;
                 ServerLevel maze = player.level().getServer().getLevel(Asterion.ASTERION_LEVEL);
-                if (maze != null) beginTransition(player, maze);
+                if (maze != null) beginPartyTransition(player, maze);
             }
         } else if (player.level().dimension().equals(Asterion.ASTERION_LEVEL)) {
             if (rescueFromMazeVoid(player)) return;
@@ -962,7 +962,7 @@ public final class WorldGenerator {
                 || Math.abs(player.getY() - portal.surfaceY) > 2.0D) return false;
         ServerLevel maze = player.level().getServer().getLevel(Asterion.ASTERION_LEVEL);
         if (maze == null) return false;
-        beginTransition(player, maze);
+        beginPartyTransition(player, maze);
         return true;
     }
 
@@ -2281,6 +2281,14 @@ public final class WorldGenerator {
                     config.mazeRadiusCells)) return true;
         }
         return false;
+    }
+
+    private static void beginPartyTransition(ServerPlayer entrant, ServerLevel maze) {
+        for (ServerPlayer member : java.util.List.copyOf(entrant.level().players())) {
+            if (!member.isAlive() || member.isSpectator() || PENDING_TRANSITIONS.containsKey(member.getUUID())) continue;
+            member.stopRiding();
+            beginTransition(member, maze);
+        }
     }
 
     private static void beginTransition(ServerPlayer player, ServerLevel maze) {

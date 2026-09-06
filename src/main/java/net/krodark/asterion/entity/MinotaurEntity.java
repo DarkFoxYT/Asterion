@@ -4251,6 +4251,16 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                     Mth.clamp(2 + Mth.ceil(force * 1.45F), 3, 6)));
     }
 
+    public void withdrawParticipant(ServerPlayer player) {
+        if (player.getUUID().equals(grabbedPlayer) || player.getId() == getEntityData().get(DATA_HELD_PLAYER)
+                || getTarget() == player) {
+            finishBossAttack(80);
+            grabbedPlayer = null;
+            setTarget(null);
+            getNavigation().stop();
+        }
+    }
+
     private void finishBossAttack(int cooldown) {
         leapPlan = null;
         getEntityData().set(DATA_WEAPON_SWAP, 0);

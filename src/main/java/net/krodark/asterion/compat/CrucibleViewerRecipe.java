@@ -23,8 +23,7 @@ public record CrucibleViewerRecipe(Identifier id, List<List<ItemStack>> inputs, 
             new ItemStack(Asterion.CELESTIAL_BRONZE_INGOT),
             new ItemStack(Asterion.BONESTEEL_INGOT),
             new ItemStack(Asterion.CELESTIAL_STEEL_INGOT),
-            new ItemStack(Asterion.CELESTIAL_GOLD_INGOT),
-            remeltableIngot());
+            new ItemStack(Asterion.CELESTIAL_GOLD_INGOT));
 
     public static List<ItemStack> metals() {
         return METALS.stream().map(ItemStack::copy).toList();
@@ -38,15 +37,13 @@ public record CrucibleViewerRecipe(Identifier id, List<List<ItemStack>> inputs, 
     public static List<CrucibleViewerRecipe> all() {
         return List.of(
                 recipe("ingot", CrucibleBlockEntity.Mold.INGOT, Asterion.INGOT_CAST,
-                        Asterion.FORGED_INGOT, Asterion.TARNISHED_GOLD_INGOT),
+                        Items.IRON_INGOT, Items.COPPER_INGOT, Items.GOLD_INGOT, Items.NETHERITE_INGOT, Asterion.TARNISHED_GOLD_INGOT),
                 recipe("sword_guard", CrucibleBlockEntity.Mold.SWORD_GUARD,
                         Asterion.SWORD_GUARD_CAST, Asterion.FORGED_SWORD_GUARD),
                 recipe("sword_pommel", CrucibleBlockEntity.Mold.SWORD_POMMEL,
                         Asterion.SWORD_POMMEL_CAST, Asterion.FORGED_SWORD_POMMEL),
                 recipe("sword_blade", CrucibleBlockEntity.Mold.SWORD_BLADE,
                         Asterion.SWORD_BLADE_CAST, Asterion.FORGED_SWORD_BLADE),
-                recipe("axe_head", CrucibleBlockEntity.Mold.AXE_HEAD,
-                        Asterion.AXE_HEAD_CAST, Asterion.FORGED_AXE_HEAD),
                 new CrucibleViewerRecipe(Asterion.id("crucible/minotaur_key"),
                         List.of(List.of(new ItemStack(Asterion.BONESTEEL_INGOT, 3)),
                                 List.of(new ItemStack(net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER_KEY))),
@@ -83,21 +80,4 @@ public record CrucibleViewerRecipe(Identifier id, List<List<ItemStack>> inputs, 
                 name.equals("celestial_steel") ? 700 : CrucibleBlockEntity.Mold.INGOT.target(), List.of(output), instructionKey);
     }
 
-    private static ItemStack sampleIngot(int metal, String name) {
-        ItemStack stack = new ItemStack(Asterion.FORGED_INGOT);
-        stack.set(DataComponents.CUSTOM_NAME, net.minecraft.network.chat.Component.literal(name));
-        net.minecraft.nbt.CompoundTag alloy = new net.minecraft.nbt.CompoundTag();
-        alloy.putString("metal_sequence", Integer.toString(metal));
-        alloy.putString("alloy", name.substring(0, name.length() - " Ingot".length()));
-        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(alloy));
-        return stack;
-    }
-
-    private static ItemStack remeltableIngot() {
-        ItemStack stack = new ItemStack(Asterion.FORGED_INGOT);
-        net.minecraft.nbt.CompoundTag alloy = new net.minecraft.nbt.CompoundTag();
-        alloy.putString("metal_sequence", "0");
-        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(alloy));
-        return stack;
-    }
 }

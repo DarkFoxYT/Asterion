@@ -33,9 +33,13 @@ final class StaticVineMesh implements VertexConsumer {
     void render(PoseStack.Pose pose, VertexConsumer out, int color, int light, int overlay) {
         var position = new org.joml.Vector3f();
         var normal = new org.joml.Vector3f();
+        float nx = Float.NaN, ny = Float.NaN, nz = Float.NaN;
         for (int i = 0; i < size; i += 8) {
             pose.pose().transformPosition(data[i], data[i + 1], data[i + 2], position);
-            pose.transformNormal(data[i + 5], data[i + 6], data[i + 7], normal);
+            if (nx != data[i + 5] || ny != data[i + 6] || nz != data[i + 7]) {
+                nx = data[i + 5]; ny = data[i + 6]; nz = data[i + 7];
+                pose.transformNormal(nx, ny, nz, normal);
+            }
             out.addVertex(position.x, position.y, position.z, color, data[i + 3], data[i + 4],
                     overlay, light, normal.x, normal.y, normal.z);
         }

@@ -828,6 +828,14 @@ public final class DismembermentEngine {
     private static BodyGeometry calculateGeometry(Entity entity, int region,
                                                    Vec3 fallbackOffset, Vec3 fallbackHalf,
                                                    boolean applyAnimation, Set<String> excludedPaths) {
+        return calculateGeometry(entity, region, fallbackOffset, fallbackHalf, applyAnimation, excludedPaths, new ArrayList<>());
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static BodyGeometry calculateGeometry(Entity entity, int region,
+                                                   Vec3 fallbackOffset, Vec3 fallbackHalf,
+                                                   boolean applyAnimation, Set<String> excludedPaths,
+                                                   List<ModelCube> cubes) {
         if (entity instanceof ConstructEntity) return constructGeometry(entity, region);
         try {
             EntityRenderer renderer = Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(entity);
@@ -838,8 +846,7 @@ public final class DismembermentEngine {
                 EntityRenderState liveState = renderer.createRenderState(entity, 1.0f);
                 model.setupAnim(liveState);
             }
-            List<ModelCube> cubes = new ArrayList<>();
-            model.root().visit(new PoseStack(), (pose, path, index, cube) ->
+            if (cubes.isEmpty()) model.root().visit(new PoseStack(), (pose, path, index, cube) ->
                     cubes.add(new ModelCube(cube, pose.copy(), path, transformedBounds(pose, cube))));
             if (cubes.isEmpty()) return new BodyGeometry(fallbackOffset, fallbackHalf,
                     resolveFaceUvs(entity, region), null, new Quaternionf());
@@ -969,18 +976,20 @@ public final class DismembermentEngine {
     }
 
     private static float[] transformedBounds(PoseStack.Pose pose, ModelPart.Cube cube) {
-        float minX = Float.POSITIVE_INFINITY, minY = Float.POSITIVE_INFINITY, minZ = Float.POSITIVE_INFINITY;
-        float maxX = Float.NEGATIVE_INFINITY, maxY = Float.NEGATIVE_INFINITY, maxZ = Float.NEGATIVE_INFINITY;
-        for (int xi = 0; xi < 2; xi++) for (int yi = 0; yi < 2; yi++) for (int zi = 0; zi < 2; zi++) {
-            Vector3f point = new Vector3f((xi == 0 ? cube.minX : cube.maxX) / 16.0f,
-                    (yi == 0 ? cube.minY : cube.maxY) / 16.0f,
-                    (zi == 0 ? cube.minZ : cube.maxZ) / 16.0f);
-            pose.pose().transformPosition(point);
-            minX = Math.min(minX, point.x); maxX = Math.max(maxX, point.x);
-            minY = Math.min(minY, point.y); maxY = Math.max(maxY, point.y);
-            minZ = Math.min(minZ, point.z); maxZ = Math.max(maxZ, point.z);
-        }
-        return new float[] { minX, maxX, minY, maxY, minZ, maxZ };
+        var matrix = pose.pose();
+        float cx = (cube.minX + cube.maxX) / 32.0F;
+        float cy = (cube.minY + cube.maxY) / 32.0F;
+        float cz = (cube.minZ + cube.maxZ) / 32.0F;
+        float hx = (cube.maxX - cube.minX) / 32.0F;
+        float hy = (cube.maxY - cube.minY) / 32.0F;
+        float hz = (cube.maxZ - cube.minZ) / 32.0F;
+        float x = matrix.m00() * cx + matrix.m10() * cy + matrix.m20() * cz + matrix.m30();
+        float y = matrix.m01() * cx + matrix.m11() * cy + matrix.m21() * cz + matrix.m31();
+        float z = matrix.m02() * cx + matrix.m12() * cy + matrix.m22() * cz + matrix.m32();
+        float ex = Math.abs(matrix.m00()) * hx + Math.abs(matrix.m10()) * hy + Math.abs(matrix.m20()) * hz;
+        float ey = Math.abs(matrix.m01()) * hx + Math.abs(matrix.m11()) * hy + Math.abs(matrix.m21()) * hz;
+        float ez = Math.abs(matrix.m02()) * hx + Math.abs(matrix.m12()) * hy + Math.abs(matrix.m22()) * hz;
+        return new float[]{x - ex, x + ex, y - ey, y + ey, z - ez, z + ez};
     }
 
     private record ModelCube(ModelPart.Cube cube, PoseStack.Pose pose, String path, float[] bounds) { }
@@ -1000,6 +1009,8 @@ public final class DismembermentEngine {
         AABB box = entity.getBoundingBox();
         double width = box.getXsize(), height = box.getYsize(), depth = box.getZsize();
         Map<Integer, BodyGeometry> pose = new HashMap<>();
+        List<ModelCube> cubes = new ArrayList<>();
+        Set<String> usedPaths = new HashSet<>();
         for (int region = 0; region <= 5; region++) {
             Vec3 fallbackOffset = switch (region) {
                 case 0 -> new Vec3(0, height * 0.39, 0);
@@ -1016,9 +1027,9 @@ public final class DismembermentEngine {
                 default -> new Vec3(width * 0.38, height * 0.22, depth * 0.28);
             };
             BodyGeometry geometry = calculateGeometry(entity, region, fallbackOffset, fallbackHalf,
-                    false, pose.values().stream().map(BodyGeometry::modelPath)
-                            .filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet()));
+                    false, usedPaths, cubes);
             pose.put(region, geometry);
+            if (geometry.modelPath() != null) usedPaths.add(geometry.modelPath());
         }
         renderedPoseCache.put(entityId, pose);
     }
@@ -1080,7 +1091,14 @@ public final class DismembermentEngine {
         return fullFaceUvs();
     }
 
+    private static final Map<ModelPart.Cube, float[][]> CUBE_UVS =
+            new com.google.common.collect.MapMaker().weakKeys().makeMap();
+
     static float[][] uvFaces(ModelPart.Cube cube) {
+        return CUBE_UVS.computeIfAbsent(cube, DismembermentEngine::buildUvFaces);
+    }
+
+    private static float[][] buildUvFaces(ModelPart.Cube cube) {
         float[][] result = new float[6][];
         int[][] cornerOrder = {
                 {0, 4, 6, 2}, {1, 3, 7, 5}, {0, 1, 5, 4},

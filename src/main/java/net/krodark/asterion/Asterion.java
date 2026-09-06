@@ -399,7 +399,6 @@ public class Asterion implements ModInitializer {
     public static final Item SWORD_GUARD_CAST = registerSimpleItem("sword_guard_cast");
     public static final Item SWORD_POMMEL_CAST = registerSimpleItem("sword_pommel_cast");
     public static final Item SWORD_BLADE_CAST = registerSimpleItem("sword_blade_cast");
-    public static final Item AXE_HEAD_CAST = registerSimpleItem("axe_head_cast");
     public static final Item MINOTAUR_KEY_CAST = registerMinotaurKeyCast();
     public static final Item CELESTIAL_BRONZE_INGOT = registerMetalItem("celestial_bronze_ingot");
     public static final Item TARNISHED_GOLD_INGOT = registerMetalItem("tarnished_gold_ingot");
@@ -407,12 +406,10 @@ public class Asterion implements ModInitializer {
     public static final Item BONESTEEL_INGOT = registerMetalItem("bonesteel_ingot");
     public static final Item CELESTIAL_STEEL_INGOT = registerMetalItem("celestial_steel_ingot");
     public static final Item DEADWOOD_STICK = registerSimpleItem("deadwood_stick");
-    public static final Item FORGED_INGOT = registerForgedComponentItem("forged_ingot");
     public static final Item FORGED_SWORD_GUARD = registerForgedComponentItem("forged_sword_guard");
     public static final Item FORGED_SWORD_POMMEL = registerForgedComponentItem("forged_sword_pommel");
     public static final Item FORGED_SWORD_BLADE = registerForgedComponentItem("forged_sword_blade");
     public static final Item FORGED_SWORD = registerForgedSwordItem("forged_sword");
-    public static final Item FORGED_AXE_HEAD = registerForgedComponentItem("forged_axe_head");
     public static final net.minecraft.world.item.crafting.RecipeSerializer<net.krodark.asterion.recipe.ForgedSwordRecipe>
             FORGED_SWORD_RECIPE = Registry.register(BuiltInRegistries.RECIPE_SERIALIZER, id("forged_sword"),
             new net.minecraft.world.item.crafting.RecipeSerializer<>(
@@ -730,7 +727,7 @@ public class Asterion implements ModInitializer {
             ResourceKey.create(Registries.CREATIVE_MODE_TAB, id("forging")),
             FabricCreativeModeTab.builder()
                     .title(Component.translatable("itemGroup.asterion.forging"))
-                    .icon(() -> new ItemStack(FORGED_INGOT))
+                    .icon(() -> new ItemStack(CELESTIAL_STEEL_INGOT))
                     .displayItems((parameters, output) -> {
                         output.accept(CRUCIBLE);
                         output.accept(SHALE_CELESTIAL_GOLD_ORE);
@@ -757,9 +754,7 @@ public class Asterion implements ModInitializer {
                         output.accept(SWORD_GUARD_CAST);
                         output.accept(SWORD_POMMEL_CAST);
                         output.accept(SWORD_BLADE_CAST);
-                        output.accept(AXE_HEAD_CAST);
                         output.accept(MINOTAUR_KEY_CAST);
-                        output.accept(FORGED_INGOT);
                         for (int metal : new int[]{5, 4, 7, 6, 1, 8, 0, 3, 2}) {
                             ItemStack blade = forgePart(FORGED_SWORD_BLADE, metal, "Sword Blade");
                             ItemStack guard = forgePart(FORGED_SWORD_GUARD, metal, "Sword Guard");
@@ -769,7 +764,6 @@ public class Asterion implements ModInitializer {
                                     net.minecraft.world.item.crafting.CraftingInput.of(2, 2,
                                             java.util.List.of(blade, guard, pommel, new ItemStack(DEADWOOD_STICK)))));
                         }
-                        output.accept(FORGED_AXE_HEAD);
                         output.accept(CELESTIAL_BRONZE_SWORD);
                     }).build());
     public static final CreativeModeTab RUNE_ITEM_GROUP = Registry.register(
@@ -1008,7 +1002,9 @@ public class Asterion implements ModInitializer {
         BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID,
                 ResourceKey.create(Registries.BIOME, id("catacombs"))),
                 MobCategory.MONSTER, CONSTRUCT, 1, 1, 1);
-        BiomeModifications.addSpawn(BiomeSelectors.includeByKey(CATACOMBS_BIOME, FORGE_BIOME,
+        BiomeModifications.addSpawn(BiomeSelectors.includeByKey(CATACOMBS_BIOME),
+                MobCategory.MONSTER, net.krodark.asterion.game.AncientContent.SKELETON, 36, 1, 3);
+        BiomeModifications.addSpawn(BiomeSelectors.includeByKey(FORGE_BIOME,
                         ResourceKey.create(Registries.BIOME, id("shale_caves"))),
                 MobCategory.MONSTER, net.krodark.asterion.game.AncientContent.SKELETON, 30, 1, 3);
          

@@ -352,6 +352,10 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         return locked!=null&&canFight(locked)?locked:tacticalTarget(level);
     }
 
+    public boolean isParticipant(ServerPlayer player) {
+        return bossBar.getPlayers().contains(player);
+    }
+
     private boolean canFight(ServerPlayer player) {
         return player.isAlive()
                 && !player.isCreative()

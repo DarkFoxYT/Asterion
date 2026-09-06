@@ -94,7 +94,6 @@ public final class CrucibleBlock extends BaseEntityBlock {
                 else crucible.open(serverPlayer);
                 return InteractionResult.SUCCESS_SERVER;
             }
-            if (crucible.insert(serverPlayer, stack)) return InteractionResult.SUCCESS_SERVER;
             crucible.open(serverPlayer);
             return InteractionResult.SUCCESS_SERVER;
         }

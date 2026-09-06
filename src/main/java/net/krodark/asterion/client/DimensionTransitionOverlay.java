@@ -22,6 +22,7 @@ public final class DimensionTransitionOverlay {
     private static boolean fadingOut;
     private static boolean readySent;
     private static int totalTicks;
+    private static int deathMessage;
 
     private DimensionTransitionOverlay() {
     }
@@ -31,6 +32,11 @@ public final class DimensionTransitionOverlay {
     }
 
     public static void begin(int requestedFadeIn, int requestedHold) {
+        begin(requestedFadeIn, requestedHold, 0);
+    }
+
+    public static void begin(int requestedFadeIn, int requestedHold, int message) {
+        deathMessage = message;
         fadeInTicks = Math.max(1, requestedFadeIn);
         holdTicks = Math.max(0, requestedHold);
         stableTicks = 0;
@@ -74,14 +80,18 @@ public final class DimensionTransitionOverlay {
     }
 
     private static void sendReady() {
+        if (deathMessage != 0) return;
         if (readySent || !ClientPlayNetworking.canSend(TransitionReadyPayload.TYPE)) return;
         ClientPlayNetworking.send(TransitionReadyPayload.INSTANCE);
         readySent = true;
     }
 
     private static void clear() {
-        DeadSunEntryCinematic.begin();
-        MazeObjectiveOverlay.armAfterArrival();
+        if (deathMessage == 0) {
+            DeadSunEntryCinematic.begin();
+            MazeObjectiveOverlay.armAfterArrival();
+        }
+        deathMessage = 0;
         stableTicks = 0;
         fadeOutProgress = 0;
         totalTicks = 0;
@@ -117,6 +127,12 @@ public final class DimensionTransitionOverlay {
 
     private static void renderDescent(GuiGraphicsExtractor graphics, int alpha) {
         Minecraft client = Minecraft.getInstance();
+        if (deathMessage != 0) {
+            graphics.centeredText(client.font, Component.translatable(deathMessage == 1
+                    ? "death.asterion.you_died" : "death.asterion.teammate_died"),
+                    graphics.guiWidth() / 2, graphics.guiHeight() / 2 - 4, alpha << 24 | 0xD82B32);
+            return;
+        }
         long frame = totalTicks;
         float pulse = 0.5F + 0.5F * Mth.sin(frame * 0.19F);
         int edgeAlpha = Math.round(alpha * (0.10F + pulse * 0.08F));

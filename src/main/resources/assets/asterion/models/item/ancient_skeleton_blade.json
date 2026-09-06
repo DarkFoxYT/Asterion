@@ -1,44 +1,9 @@
 {
   "parent": "minecraft:item/handheld",
   "textures": {
-    "layer0": "asterion:forging/celestial_bronze/celestial_bronze_blade",
-    "layer1": "asterion:forging/celestial_bronze/celestial_bronze_guard",
-    "layer2": "asterion:forging/celestial_bronze/celestial_bronze_pommel"
-  },
-  "display": {
-    "thirdperson_righthand": {
-      "rotation": [
-        0,
-        -90,
-        55
-      ],
-      "translation": [
-        0,
-        4,
-        0.5
-      ],
-      "scale": [
-        1,
-        1.2,
-        1
-      ]
-    },
-    "thirdperson_lefthand": {
-      "rotation": [
-        0,
-        -90,
-        55
-      ],
-      "translation": [
-        0,
-        4,
-        0.5
-      ],
-      "scale": [
-        1,
-        1.2,
-        1
-      ]
-    }
+    "layer0": "asterion:forging/deadwood_stick/deadwood_stick",
+    "layer1": "asterion:forging/celestial_bronze/celestial_bronze_blade",
+    "layer2": "asterion:forging/celestial_bronze/celestial_bronze_guard",
+    "layer3": "asterion:forging/celestial_bronze/celestial_bronze_pommel"
   }
 }

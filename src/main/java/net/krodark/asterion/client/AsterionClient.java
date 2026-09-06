@@ -165,7 +165,7 @@ public final class AsterionClient implements ClientModInitializer {
                 ShatteredDeadWoodGeoRenderer::new);
         ClientPlayNetworking.registerGlobalReceiver(DimensionTransitionPayload.TYPE, (payload, context) ->
                 context.client().execute(() ->
-                        DimensionTransitionOverlay.begin(payload.fadeInTicks(), payload.holdTicks())));
+                        { if (!isPlayback(context.client())) DimensionTransitionOverlay.begin(payload.fadeInTicks(), payload.holdTicks(), payload.deathMessage()); }));
         ClientPlayNetworking.registerGlobalReceiver(EntryOmenPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> context.client().getSoundManager().play(
                         SimpleSoundInstance.forUI(Asterion.MINOTAUR_ROAR, 0.72F, 4.0F))));
@@ -210,6 +210,7 @@ public final class AsterionClient implements ClientModInitializer {
                     MazeZapRenderer.clearTransientCombatEffects();
                     MazeObjectiveOverlay.armAfterBossWipe();
                     BossEntranceCinematic.finish(context.client());
+                    CursedBrazierCinematic.finish(context.client());
                     RoofCollapseCinematic.finish(context.client());
                     PhysicsDebrisSystem.clear();
                 }));
@@ -255,19 +256,34 @@ public final class AsterionClient implements ClientModInitializer {
         MazeAmbience.initialize();
     }
 
+    private static final class PlaybackProbes {
+        private static final java.util.List<java.lang.reflect.Method> METHODS = find();
+
+        private static java.util.List<java.lang.reflect.Method> find() {
+            var probes = new java.util.ArrayList<java.lang.reflect.Method>();
+            for (String name : new String[]{"com.moulberry.flashback.Flashback", "com.moulberry.flashback.FlashbackClient", "com.moulberry.flashback.ReplayManager"}) {
+                try {
+                    Class<?> type = Class.forName(name, false, AsterionClient.class.getClassLoader());
+                    for (String method : new String[]{"isInReplay", "isReplaying", "isPlayback"}) {
+                        try {
+                            var probe = type.getDeclaredMethod(method);
+                            if (java.lang.reflect.Modifier.isStatic(probe.getModifiers())
+                                    && java.lang.reflect.Modifier.isPublic(probe.getModifiers())
+                                    && probe.getReturnType() == boolean.class) probes.add(probe);
+                        } catch (NoSuchMethodException ignored) { }
+                    }
+                } catch (ClassNotFoundException ignored) { }
+            }
+            return java.util.List.copyOf(probes);
+        }
+    }
+
     public static boolean isPlayback(Minecraft client) {
         if (client.player != null && client.gameRenderer.getMainCamera().entity() != client.player) return true;
-        for (String name : new String[]{"com.moulberry.flashback.Flashback", "com.moulberry.flashback.FlashbackClient", "com.moulberry.flashback.ReplayManager"}) {
+        for (var probe : PlaybackProbes.METHODS) {
             try {
-                Class<?> type = Class.forName(name);
-                for (String method : new String[]{"isInReplay", "isReplaying", "isPlayback"}) {
-                    try {
-                        var probe = type.getDeclaredMethod(method);
-                        if (java.lang.reflect.Modifier.isStatic(probe.getModifiers()) && probe.getReturnType() == boolean.class
-                                && (boolean)probe.invoke(null)) return true;
-                    } catch (ReflectiveOperationException ignored) { }
-                }
-            } catch (ClassNotFoundException ignored) { }
+                if ((boolean)probe.invoke(null)) return true;
+            } catch (ReflectiveOperationException ignored) { }
         }
         return false;
     }

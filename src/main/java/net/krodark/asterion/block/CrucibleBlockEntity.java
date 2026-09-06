@@ -71,7 +71,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     public enum Mold {
         INGOT("Ingot Cast", 350), SWORD_GUARD("Sword Guard Cast", 500),
         SWORD_POMMEL("Sword Pommel Cast", 425), SWORD_BLADE("Sword Blade Cast", 650),
-        AXE_HEAD("Axe Head Cast", 725), MINOTAUR_KEY("Minotaur Key Mold", 850);
+        MINOTAUR_KEY("Minotaur Key Mold", 850);
         private final String label;
         private final int target;
         Mold(String label, int target) { this.label = label; this.target = target; }
@@ -133,7 +133,6 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         if (item == Asterion.SWORD_GUARD_CAST) return Mold.SWORD_GUARD.ordinal();
         if (item == Asterion.SWORD_POMMEL_CAST) return Mold.SWORD_POMMEL.ordinal();
         if (item == Asterion.SWORD_BLADE_CAST) return Mold.SWORD_BLADE.ordinal();
-        if (item == Asterion.AXE_HEAD_CAST) return Mold.AXE_HEAD.ordinal();
         if (item == Asterion.MINOTAUR_KEY_CAST) return Mold.MINOTAUR_KEY.ordinal();
         return -1;
     }
@@ -142,7 +141,6 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         return switch (Mth.clamp(index, 0, Mold.values().length - 1)) {
             case 0 -> Asterion.INGOT_CAST; case 1 -> Asterion.SWORD_GUARD_CAST;
             case 2 -> Asterion.SWORD_POMMEL_CAST; case 3 -> Asterion.SWORD_BLADE_CAST;
-            case 4 -> Asterion.AXE_HEAD_CAST;
             default -> Asterion.MINOTAUR_KEY_CAST;
         };
     }
@@ -174,7 +172,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
 
      
     private boolean insertForgedAlloy(ItemStack stack, ServerPlayer player) {
-        if (!stack.is(Asterion.FORGED_INGOT) && !stack.is(Asterion.TARNISHED_GOLD_INGOT)) return false;
+        if (!stack.is(Asterion.TARNISHED_GOLD_INGOT)) return false;
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
         if (data == null || data.isEmpty()) return false;
         net.minecraft.nbt.CompoundTag tag = data.copyTag();
@@ -406,27 +404,18 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             return;
         }
         if (brazierKeys > 0) return;
-        if (mold() == Mold.INGOT && celestialSteel == materialUnits()) {
-            eject(new ItemStack(Asterion.CELESTIAL_STEEL_INGOT, celestialSteel));
-            finishPour(player);
-            return;
-        }
-        if (mold() == Mold.INGOT && bonesteel == materialUnits()) {
-            eject(new ItemStack(Asterion.BONESTEEL_INGOT, bonesteel));
-            finishPour(player);
-            return;
-        }
-        if (mold() == Mold.INGOT && (celestialGold == materialUnits() || celestialBronze == materialUnits())) {
-            eject(new ItemStack(celestialGold > 0 ? Asterion.CELESTIAL_GOLD_INGOT : Asterion.CELESTIAL_BRONZE_INGOT, materialUnits()));
+        if (mold() == Mold.INGOT) {
+            for (int i = 0; i < metalSequence.length(); i++) {
+                eject(returnedMetal(metalSequence.charAt(i) - '0'));
+            }
             finishPour(player);
             return;
         }
         Item output = switch (mold()) {
-            case INGOT -> gold == materialUnits() ? Asterion.TARNISHED_GOLD_INGOT : Asterion.FORGED_INGOT;
+            case INGOT -> Items.IRON_INGOT;
             case SWORD_GUARD -> Asterion.FORGED_SWORD_GUARD;
             case SWORD_POMMEL -> Asterion.FORGED_SWORD_POMMEL;
             case SWORD_BLADE -> Asterion.FORGED_SWORD_BLADE;
-            case AXE_HEAD -> Asterion.FORGED_AXE_HEAD;
             case MINOTAUR_KEY -> Asterion.MINOTAUR_KEY;
         };
         ItemStack result = new ItemStack(output);
@@ -544,7 +533,6 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             case SWORD_GUARD -> "Sword Guard";
             case SWORD_POMMEL -> "Sword Pommel";
             case SWORD_BLADE -> "Sword Blade";
-            case AXE_HEAD -> "Axe Head";
             case MINOTAUR_KEY -> "Minotaur Key";
         };
     }
@@ -736,6 +724,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         output.putFloat("thermalRemainder", thermalRemainder);
         output.putInt("fuelTicks", fuelTicks);
         output.putInt("mold", mold);
+        output.putInt("moldVersion", 1);
         output.putBoolean("moldInserted", moldInserted);
         output.putInt("iron", iron);
         output.putInt("copper", copper);
@@ -762,6 +751,11 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         temperature = Mth.clamp(input.getIntOr("temperature", 0), MIN_TEMPERATURE, MAX_TEMPERATURE);
         mold = Mth.clamp(input.getIntOr("mold", 0), 0, Mold.values().length - 1);
         moldInserted = input.getBooleanOr("moldInserted", false);
+        if (input.getIntOr("moldVersion", 0) == 0) {
+            int oldMold = input.getIntOr("mold", 0);
+            if (oldMold == 4) { mold = 0; moldInserted = false; }
+            else if (oldMold == 5) mold = Mold.MINOTAUR_KEY.ordinal();
+        }
         iron = Mth.clamp(input.getIntOr("iron", 0), 0, 4);
         copper = Mth.clamp(input.getIntOr("copper", 0), 0, 4 - iron);
         gold = Mth.clamp(input.getIntOr("gold", 0), 0, 4 - iron - copper);

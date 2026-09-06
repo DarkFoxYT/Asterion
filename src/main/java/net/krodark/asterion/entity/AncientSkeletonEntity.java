@@ -29,8 +29,10 @@ public final class AncientSkeletonEntity extends Skeleton {
         setItemSlot(EquipmentSlot.MAINHAND, sword);
         var armor = net.krodark.asterion.game.ArmorContent.SETS.get(random.nextInt(2)).pieces();
         EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
-        for (int i = 0; i < slots.length; i++) if (random.nextFloat() < .85F)
-            setItemSlot(slots[i], new ItemStack(armor.get(i)));
+        if (random.nextFloat() < .35F) {
+            int piece = random.nextInt(slots.length);
+            setItemSlot(slots[piece], new ItemStack(armor.get(piece)));
+        }
         for (EquipmentSlot slot : EquipmentSlot.values()) setDropChance(slot, 0);
         setCanPickUpLoot(false);
     }
@@ -47,6 +49,12 @@ public final class AncientSkeletonEntity extends Skeleton {
     }
     @Override public boolean canFreeze() { return false; }
 
+    private static boolean onForgeRoof(ServerLevel level, BlockPos pos) {
+        return level.dimension().equals(Asterion.ASTERION_LEVEL)
+                && pos.getY() >= net.krodark.asterion.worldgen.LabyrinthLevels.FORGE_ROOF_Y
+                && pos.getY() < net.krodark.asterion.worldgen.LabyrinthLevels.CATACOMB_BASE_Y;
+    }
+
     private static boolean insideArena(ServerLevel level, BlockPos pos) {
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return false;
         return Math.abs((long)pos.getX()) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS
@@ -56,13 +64,19 @@ public final class AncientSkeletonEntity extends Skeleton {
     }
 
     @Override public boolean checkSpawnRules(net.minecraft.world.level.LevelAccessor level, EntitySpawnReason reason) {
-        if (level instanceof ServerLevel server && insideArena(server, blockPosition())) return false;
+        if (level instanceof ServerLevel server && (insideArena(server, blockPosition()) || onForgeRoof(server, blockPosition()))) return false;
         return super.checkSpawnRules(level, reason);
+    }
+
+    @Override public boolean checkSpawnObstruction(net.minecraft.world.level.LevelReader level) {
+        if (level instanceof ServerLevel server
+                && (insideArena(server, blockPosition()) || onForgeRoof(server, blockPosition()))) return false;
+        return super.checkSpawnObstruction(level);
     }
 
     public static boolean canSpawn(EntityType<AncientSkeletonEntity> type, ServerLevelAccessor level,
                                    EntitySpawnReason reason, BlockPos pos, RandomSource random) {
-        if (insideArena(level.getLevel(), pos)) return false;
+        if (insideArena(level.getLevel(), pos) || onForgeRoof(level.getLevel(), pos)) return false;
         if (reason == EntitySpawnReason.SPAWNER)
             return checkMonsterSpawnRules(type, level, reason, pos, random);
         return reason == EntitySpawnReason.NATURAL

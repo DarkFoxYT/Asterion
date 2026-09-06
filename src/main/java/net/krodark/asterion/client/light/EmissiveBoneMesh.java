@@ -17,6 +17,11 @@ public final class EmissiveBoneMesh {
     private static final ThreadLocal<Vector3f> POSITION = ThreadLocal.withInitial(Vector3f::new);
      
     private final float[] vertices;
+    private final int[] positionIndices;
+    private final float[] positions;
+    private static final ThreadLocal<float[]> TRANSFORMED = ThreadLocal.withInitial(() -> new float[384]);
+    private record Position(float x, float y, float z) { }
+
 
     public static EmissiveBoneMesh horizontalPlane(float radius, float y) {
         return new EmissiveBoneMesh(new float[]{
@@ -36,19 +41,35 @@ public final class EmissiveBoneMesh {
                 .32F,.32F,0,1,0, -.32F,.32F,0,0,0});
     }
 
-    private EmissiveBoneMesh(float[] vertices) { this.vertices = vertices; }
+    private EmissiveBoneMesh(float[] vertices) {
+        this.vertices = vertices;
+        positionIndices = new int[vertices.length / 5];
+        var unique = new java.util.LinkedHashMap<Position, Integer>();
+        for (int i = 0; i < vertices.length; i += 5) {
+            Position position = new Position(vertices[i], vertices[i + 1], vertices[i + 2]);
+            positionIndices[i / 5] = unique.computeIfAbsent(position, ignored -> unique.size()) * 3;
+        }
+        positions = new float[unique.size() * 3];
+        unique.forEach((position, index) -> {
+            positions[index * 3] = position.x();
+            positions[index * 3 + 1] = position.y();
+            positions[index * 3 + 2] = position.z();
+        });
+    }
 
     public static EmissiveBoneMesh of(CuboidGeoBone bone) {
         return CACHE.computeIfAbsent(bone, EmissiveBoneMesh::new);
     }
 
-    private EmissiveBoneMesh(CuboidGeoBone bone) {
+    private EmissiveBoneMesh(CuboidGeoBone bone) { this(bakeVertices(bone)); }
+
+    private static float[] bakeVertices(CuboidGeoBone bone) {
         int count = 0;
         for (GeoCube cube : bone.cubes) {
             if (cube.quads() == null) continue;
             for (GeoQuad quad : cube.quads()) if (quad != null) count += quad.vertices().length;
         }
-        vertices = new float[count * 5];
+        float[] vertices = new float[count * 5];
         PoseStack stack = new PoseStack();
         Vector3f pos = new Vector3f();
         int i = 0;
@@ -71,6 +92,7 @@ public final class EmissiveBoneMesh {
             }
             stack.popPose();
         }
+        return vertices;
     }
 
      
@@ -90,9 +112,18 @@ public final class EmissiveBoneMesh {
      
     public void render(PoseStack.Pose pose, VertexConsumer buffer, int color, float uScale, float vScale) {
         Vector3f position = POSITION.get();
+        float[] transformed = TRANSFORMED.get();
+        if (transformed.length < positions.length) {
+            transformed = new float[Math.max(positions.length, transformed.length * 2)];
+            TRANSFORMED.set(transformed);
+        }
+        for (int i = 0; i < positions.length; i += 3) {
+            pose.pose().transformPosition(positions[i], positions[i + 1], positions[i + 2], position);
+            transformed[i] = position.x; transformed[i + 1] = position.y; transformed[i + 2] = position.z;
+        }
         for (int i = 0; i < vertices.length; i += 5) {
-            pose.pose().transformPosition(vertices[i], vertices[i + 1], vertices[i + 2], position);
-            buffer.addVertex(position.x, position.y, position.z, color,
+            int index = positionIndices[i / 5];
+            buffer.addVertex(transformed[index], transformed[index + 1], transformed[index + 2], color,
                     vertices[i + 3] * uScale, vertices[i + 4] * vScale,
                     0, 0x00F000F0, 0, 1, 0);
         }
