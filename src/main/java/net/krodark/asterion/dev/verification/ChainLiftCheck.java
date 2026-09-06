@@ -51,7 +51,7 @@ final class ChainLiftCheck {
             long start = level.getGameTime();
             for (int tick = 0; tick < 180; tick++) {
                 clock.setGameTime(start + tick);
-                // Independent horizontal movement must survive the deck's vertical support.
+                 
                 double x = 0.05 + .15 * Math.sin(tick * .03);
                 first.setPos(x, first.getY(), first.getZ());
                 lift.tick();

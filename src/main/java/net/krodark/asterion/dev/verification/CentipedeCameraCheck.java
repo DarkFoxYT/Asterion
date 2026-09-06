@@ -10,7 +10,7 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-/** Exercises the injected camera against a mounted client player on every surface. */
+ 
 final class CentipedeCameraCheck {
     static void run(Minecraft client) {
         var player = client.player;

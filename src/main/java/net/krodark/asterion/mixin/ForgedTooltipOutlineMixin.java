@@ -21,7 +21,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Composites forged metal artwork over the tooltip border, never inside its contents. */
+ 
 @Mixin(GuiGraphicsExtractor.class)
 public abstract class ForgedTooltipOutlineMixin {
     @Unique private static final int ASTERION_TEXTURE_SIZE = 76;
@@ -58,7 +58,7 @@ public abstract class ForgedTooltipOutlineMixin {
         GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object)this;
         Vector2ic point = positioner.positionTooltip(graphics.guiWidth(), graphics.guiHeight(),
                 mouseX, mouseY, width, height);
-        // Keep the authored bevel outside the text rather than painting through it.
+         
         int x = point.x() - 8, y = point.y() - 8;
         int frameWidth = width + 16, frameHeight = height + 16;
         asterion$draw(graphics, ASTERION_BASE[asterion$metalSequence.charAt(0) - '0'],
@@ -72,9 +72,9 @@ public abstract class ForgedTooltipOutlineMixin {
     @Unique
     private static void asterion$draw(GuiGraphicsExtractor graphics, Identifier texture,
                                        int x, int y, int width, int height) {
-        // The source is an authored square frame. Drawing `width x height` as source UVs
-        // sampled past its 76px bounds, producing the repeated boxes seen on wide tooltips.
-        // Preserve the real corners and stretch only the straight edge segments.
+         
+         
+         
         int corner = 12;
         int middle = ASTERION_TEXTURE_SIZE - corner * 2;
         int horizontal = Math.max(1, width - corner * 2);

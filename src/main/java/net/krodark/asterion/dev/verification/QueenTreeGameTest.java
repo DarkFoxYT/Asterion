@@ -23,7 +23,7 @@ public final class QueenTreeGameTest implements FabricClientGameTest {
       BlockPos origin=(BlockPos)accessor.invoke(placement);
       BlockPos spawn=origin.offset(37,26,27);
       double distance=Math.hypot(spawn.getX(),spawn.getZ());
-      if(distance<500||distance>1000)throw new AssertionError("Queen outside requested range");
+      if(distance<300||distance>500)throw new AssertionError("Queen outside requested range");
       var boundsMethod=placement.getClass().getDeclaredMethod("reserved");boundsMethod.setAccessible(true);
       var bounds=(net.minecraft.world.level.levelgen.structure.BoundingBox)boundsMethod.invoke(placement);
       bounds.intersectingChunks().forEach(cp->level.getChunk(cp.x(),cp.z()));

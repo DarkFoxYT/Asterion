@@ -43,7 +43,7 @@ public final class RespawnObelisks {
         return block;
     }
 
-    /** Bounded search of loaded terrain only; each altar holds one non-duplicating reward. */
+     
     public static boolean chargeNearest(ServerLevel level, BlockPos origin) {
         BlockPos nearest = nearestUnchargedAltar(level, origin);
         if (nearest == null) return false;
@@ -69,7 +69,7 @@ public final class RespawnObelisks {
         return nearest;
     }
 
-    /** Add fixtures alongside existing safe-room markers without replacing floors or decorations. */
+     
     public static void ensureRoomFixtures(ServerLevel level, BlockPos rune) {
         BlockPos marker = null;
         boolean hasAltar = false;

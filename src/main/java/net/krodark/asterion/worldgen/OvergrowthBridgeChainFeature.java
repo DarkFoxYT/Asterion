@@ -10,7 +10,7 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 
-/** Hanging bridge chains; every chain must begin beneath ancient wood. */
+ 
 public final class OvergrowthBridgeChainFeature extends Feature<NoneFeatureConfiguration> {
     public OvergrowthBridgeChainFeature(Codec<NoneFeatureConfiguration> codec) {
         super(codec);

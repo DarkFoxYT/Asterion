@@ -9,7 +9,7 @@ import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.*;
 import net.minecraft.world.level.block.state.BlockState;
 
-/** Single-use proximity encounter; creative players do not activate it. */
+ 
 public final class ChallengeSpawnerBlock extends BaseEntityBlock {
     private final boolean explosive;
     public ChallengeSpawnerBlock(boolean explosive, Properties properties) { super(properties); this.explosive = explosive; }

@@ -8,7 +8,7 @@ import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL;
 import static org.lwjgl.opengl.GL33.*;
 
-/** Tests the vanilla full-bright shader used locally by Asterion in a hidden GPU context. */
+ 
 public final class EmissiveRegression {
     private static final int SIZE = 16;
     private static final Pattern IMPORT = Pattern.compile("#moj_import <([^>]+)>");

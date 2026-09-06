@@ -24,7 +24,7 @@ import java.util.UUID;
 
 public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity, EntityRenderState> {
     @Override protected net.minecraft.world.phys.AABB getBoundingBoxForCulling(MinotaurEntity boss) {
-        // Fallen limbs and the skull extend well beyond the upright navigation box.
+         
         return boss.animatedBodyBounds();
     }
     private static final DataTicket<Integer> REMOVED_PARTS = DataTickets.create("asterion_minotaur_removed_parts", Integer.class);
@@ -56,10 +56,10 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         withRenderLayer(new MinotaurWeaponLayer(this));
         withRenderLayer(new MinotaurBodyLayer(this));
         withRenderLayer(new MinotaurChainLayer(this));
-        // The eye mask sits just outside the head surface, retaining depth occlusion by real geometry.
+         
         withRenderLayer(new AsterionEmissiveBoneLayer<>(this, "glow",
-                // The current 512px atlas contains the glow bone's isolated eye islands.
-                // The legacy 256px eye masks address a different UV layout and sample empty texels.
+                 
+                 
                 Asterion.id("textures/entity/minotaur.png")) {
 
             @Override public boolean shouldRenderBone(EntityRenderState state) {
@@ -99,7 +99,7 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         MinotaurPoseBlend.capture(minotaur, state, partialTick);
         state.addGeckolibData(HARVESTED, minotaur.isHarvested());
         state.addGeckolibData(REMOVED_PARTS, minotaur.removedParts());
-        // Every viewer sees the server's target direction, not a different camera-facing torso.
+         
         float bodyYaw = Mth.rotLerp(partialTick, minotaur.yBodyRotO, minotaur.yBodyRot);
         float headYaw = Mth.rotLerp(partialTick, minotaur.yHeadRotO, minotaur.yHeadRot);
         float targetYaw = Mth.clamp(Mth.wrapDegrees(headYaw - bodyYaw), -72F, 72F);
@@ -118,8 +118,8 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         state.addGeckolibData(LOOK_PITCH, pose.pitch * Mth.DEG_TO_RAD);
         state.addGeckolibData(IDLE_PHASE, (minotaur.tickCount + partialTick) * 0.055F);
         state.addGeckolibData(IDLE_WEIGHT, pose.idleWeight);
-        // Procedural rage/head/torso offsets snapped on as soon as an action became locomotion,
-        // bypassing the controller's crossfade. Keep authored poses authoritative except the grab IK.
+         
+         
         state.addGeckolibData(AUTHORED_POSE, !minotaur.isPerformingGrab());
         state.addGeckolibData(HORN_WEIGHT, minotaur.isSpineCharging() ? 1.0F : 0.0F);
         state.addGeckolibData(RAGE_WEIGHT, minotaur.rage() / 12.0F);
@@ -173,7 +173,7 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         if (minotaur.doorEntryTicks() > 0) {
             state.addGeckolibData(EYE_TINT, 0xFFD8FFFF);
         } else if (rage > 0.001F) {
-            // Calm cyan hardens through furnace-orange into a saturated, fully enraged red.
+             
             float pulse = 0.88F + 0.12F * Mth.sin((minotaur.tickCount + partialTick)
                     * (0.18F + rage * 0.38F));
             int red = 255;
@@ -196,7 +196,7 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
             boolean skeleton = name.startsWith("skeleton") || name.startsWith("skeliton");
             boolean retained = name.contains("armor") || name.equals("lefthand") || name.equals("righthand")
                     || name.equals("thing for skirt ig");
-            // Hide only this bone's cubes. Skeleton children retain the animated parent transforms.
+             
             boolean removed = MinotaurBodyLayer.part(bone).removed(pass.getOrDefaultGeckolibData(REMOVED_PARTS, 0));
             bones.get(bone).skipRender(removed || (skeleton ? !harvested : harvested && !retained));
         }
@@ -204,14 +204,14 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         if (held >= 0) pass.addLocatorPositionListener(
                 pass.getOrDefaultGeckolibData(GRAB_ARM, 1) >= 0 ? "right_player_grip" : "left_player_grip",
                 (world, model, local) -> MinotaurHandAttachment.capture(held, world));
-        // Let the action clips own their full pose; camera tracking and old charge/grab offsets would distort them.
+         
         if (pass.getOrDefaultGeckolibData(AUTHORED_POSE, false)) {
             MinotaurPoseBlend.apply(pass, bones);
             return;
         }
         float yaw = pass.getOrDefaultGeckolibData(LOOK_YAW, 0.0F);
         float pitch = pass.getOrDefaultGeckolibData(LOOK_PITCH, 0.0F);
-        // Camera-facing torso offsets would change the weapon's attack plane for every viewer.
+         
         if (!pass.getOrDefaultGeckolibData(AXE_ACTION, false))
             rotateBone(bones, "body", -yaw * 0.18F, -pitch * 0.14F);
         rotateBone(bones, "neck", -yaw * 0.32F, -pitch * 0.31F);

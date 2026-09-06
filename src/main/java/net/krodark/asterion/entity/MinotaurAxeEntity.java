@@ -25,7 +25,7 @@ import org.joml.Quaternionf;
 import org.joml.Quaternionfc;
 import org.joml.Vector3f;
 
-/** Persistent, server-authoritative weapon body. Never becomes a placed block or collectible item. */
+ 
 public final class MinotaurAxeEntity extends Entity {
     public static final double GRIP_Y = 45 / 16.0;
     private static final double MODEL_MIN_Y = -6 * Math.sqrt(2);
@@ -73,7 +73,7 @@ public final class MinotaurAxeEntity extends Entity {
     public void setThrower(MinotaurEntity boss) { entityData.set(THROWER, boss.getId()); }
     @Override public InterpolationHandler getInterpolation() { return interpolation; }
     @Override public boolean hurtServer(ServerLevel level, DamageSource source, float damage) { return false; }
-    // The recoverable weapon must not be launched away by environmental/boss blasts.
+     
     @Override public boolean ignoreExplosion(net.minecraft.world.level.Explosion explosion) { return true; }
 
     public void launch(Vec3 origin, Vec3 velocity, float yaw) {
@@ -82,7 +82,7 @@ public final class MinotaurAxeEntity extends Entity {
         setDeltaMovement(velocity);
         rotation.rotationY((float)Math.toRadians(-yaw));
         previousRotation.set(rotation);
-        // End-over-end rotation in the blade's plane, with a small natural wobble.
+         
         Vector3f axis = rotation.transform(new Vector3f(0, 0, .56F));
         spin = new Vec3(axis.x, .025, axis.z);
         entityData.set(ROTATION, new Quaternionf(rotation));
@@ -95,11 +95,11 @@ public final class MinotaurAxeEntity extends Entity {
         Vec3 velocity = target.subtract(origin).add(0, .075 * (flightTicks - travel) / drag, 0).scale(1 / travel);
         launch(origin, velocity, yaw);
         Vec3 direction = target.subtract(origin);
-        // Put the blade's plane along its flight, so it tumbles edge-first rather than like a propeller.
+         
         rotation.rotationY((float)(Math.atan2(direction.x, direction.z) - Math.PI / 2));
         previousRotation.set(rotation);
         entityData.set(ROTATION, new Quaternionf(rotation));
-        // Arrive with the cutting head pointing down at chest height, rather than burying the handle early.
+         
         double spinTravel = (1 - Math.pow(.994, flightTicks)) / -Math.log(.994);
         int turns = Math.max(0, (int)Math.round((.56 * spinTravel - Math.PI) / (Math.PI * 2)));
         float angularSpeed = (float)((Math.PI + turns * Math.PI * 2) / spinTravel);
@@ -116,7 +116,7 @@ public final class MinotaurAxeEntity extends Entity {
             return;
         }
         if (impactCooldown > 0) impactCooldown--;
-        // A removed support wakes a settled weapon; a sleeping body otherwise costs one query.
+         
         if (sleeping && getDeltaMovement().lengthSqr() < 1e-8 && contact(position().add(0, -.04, 0)) != null) return;
         sleeping = false;
         Vec3 velocity = getDeltaMovement();
@@ -180,7 +180,7 @@ public final class MinotaurAxeEntity extends Entity {
         if (velocity.lengthSqr() < .10) return;
         Vec3[] axes = axes();
         float scale = modelScale();
-        // Separate the broad cutting head from the narrow handle; sample every physics substep.
+         
         Vec3 blade = center.add(axes[1].scale(2.05 * scale));
         Vec3 handle = center.add(axes[1].scale(-1.25 * scale));
         for (var victim : victims) {
@@ -229,7 +229,7 @@ public final class MinotaurAxeEntity extends Entity {
         return true;
     }
 
-    // Include the blade plane and the rotated pommel, rather than using an item-sized hitbox.
+     
     private Vec3 half() {
         return (isSword() ? new Vec3(2.5 / 16, (78 - SWORD_MIN_Y) / 32.0, 14.2 / 16)
                 : new Vec3(2, (99 - MODEL_MIN_Y) / 32.0, 2.75 / 16)).scale(modelScale());

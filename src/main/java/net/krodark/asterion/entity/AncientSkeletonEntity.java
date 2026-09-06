@@ -12,7 +12,7 @@ import net.minecraft.world.item.*;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
 
-/** A recurring melee skeleton. Equipment belongs to the enemy, not its loot table. */
+ 
 public final class AncientSkeletonEntity extends Skeleton {
     public AncientSkeletonEntity(EntityType<? extends Skeleton> type, Level level) { super(type, level); }
 
@@ -35,7 +35,7 @@ public final class AncientSkeletonEntity extends Skeleton {
         setCanPickUpLoot(false);
     }
 
-    // The loot table supplies bones; bypass vanilla equipment and charged-creeper skull drops.
+     
     @Override protected void dropCustomDeathLoot(ServerLevel level, net.minecraft.world.damagesource.DamageSource source,
                                                  boolean killedByPlayer) { }
     @Override public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty,

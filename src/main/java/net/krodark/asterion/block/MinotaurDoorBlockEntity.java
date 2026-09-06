@@ -58,7 +58,7 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
     }
     public void interact(Player player, ItemStack held) {
         if (level == null || breaching) return;
-        // The arena's north door is a boss exit, never a second keyed player entrance.
+         
         if (level.dimension().equals(Asterion.ASTERION_LEVEL)
                 && worldPosition.equals(net.krodark.asterion.worldgen.MinotaurArenaEntrances.door(
                         net.krodark.asterion.worldgen.MinotaurArenaEntrances.BOSS_ENTRANCE))) return;
@@ -94,7 +94,7 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
         startAngle = angle(0);
         targetAngle = targetAngle > 0 ? 0 : MinotaurDoorMotion.OPEN_ANGLE;
         motionStart = level.getGameTime();
-        // Keep the passage passable throughout closing; occupancy is checked again before latching.
+         
         MinotaurDoorBlock.setOpen(level, worldPosition, facing(), true);
         sync();
     }

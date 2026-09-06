@@ -26,7 +26,7 @@ void main() {
     vec4 world=InvViewProj*vec4(texCoord*2.0-1.0,z,1.0);
     world.xyz/=max(abs(world.w),.00001);
     float travel=depth>=.9999 ? 112.0 : min(length(world.xyz-CameraData.xyz),112.0);
-    // One stable world-space sample replaces the ten-step ray march when under load.
+     
     vec2 cell=floor((world.xz+CameraData.xz)*.035+Time*.002);
     float variation=.82+hash(cell)*.28;
     float optical=clamp(travel*.0065*Settings.x*Settings.y*variation,0.0,.88);

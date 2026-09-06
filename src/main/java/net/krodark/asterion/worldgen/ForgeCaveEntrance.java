@@ -14,7 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** A rock passage winding around an uncut core, entered from the Forge's west landing. */
+ 
 final class ForgeCaveEntrance {
     private record Cell(BlockState state, int priority) {}
     private static final List<BlockPos> LOOP = loop();
@@ -49,8 +49,8 @@ final class ForgeCaveEntrance {
                 if (distance > edge) continue;
                 int ceiling = feet + (distance <= 2 ? 5 : 4);
                 for (int y = feet - 3; y <= ceiling + 1; y++) {
-                    // The lower mouth opens into the existing chamber; the upper turns
-                    // have their own rock shell without filling the authored stairwell.
+                     
+                     
                     boolean stairShell = px >= cx - 28 && px <= cx - 19
                             && Math.abs(pz - cz) <= 9 && y >= 28;
                     if (!stairShell && (y > LabyrinthLevels.CAVE_ROOF_Y || feet > bottom + 5))
@@ -65,8 +65,8 @@ final class ForgeCaveEntrance {
                 for (int y = feet; y <= ceiling; y++) put(plan, new BlockPos(px, y, pz), Blocks.AIR.defaultBlockState(), 2);
             }
         }
-        // Short mouths join the existing landing and the natural chamber. Neither extends
-        // beyond the west socket into the authored Forge room.
+         
+         
         for (int depth = 0; depth <= 8; depth++) for (int side = -3; side <= 3; side++) {
             int x = mouthX + depth, z = cz + side;
             if (x < chunk.getMinBlockX() || x > chunk.getMaxBlockX()
@@ -101,7 +101,7 @@ final class ForgeCaveEntrance {
                     boolean interior = Math.abs(dx) <= radius && Math.abs(dz) <= radius && y >= bottom && y < top + 3;
                     level.setBlock(pos, interior ? Blocks.AIR.defaultBlockState() : rock(seed, x, y, z), 18);
                 }
-                // Two short cave mouths meet the existing spiral landings; the shaft stays open between them.
+                 
                 if (dx >= 2 && Math.abs(dz) <= 1) {
                     if (y == bottom - 1 || y == top - 1) level.setBlock(pos, rock(seed, x, y, z), 18);
                     else if (y >= bottom && y <= bottom + 2 || y >= top && y <= top + 2)

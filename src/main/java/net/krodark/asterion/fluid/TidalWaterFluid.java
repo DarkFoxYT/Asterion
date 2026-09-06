@@ -15,11 +15,11 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.WaterFluid;
 import net.minecraft.world.phys.Vec3;
 
-/** Water immersion/extinguishing, but the tide controller alone changes its level. */
+ 
 public final class TidalWaterFluid extends WaterFluid {
     public TidalWaterFluid() { registerDefaultState(stateDefinition.any().setValue(LEVEL, 8)); }
     @Override protected void createFluidStateDefinition(StateDefinition.Builder<Fluid, FluidState> builder) {
-        // Deliberately omit FALLING: this liquid has exactly eight states, never waterfalls.
+         
         builder.add(LEVEL);
     }
     @Override public Fluid getSource() { return this; }

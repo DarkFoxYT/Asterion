@@ -74,8 +74,8 @@ public final class AsterionPostEffects {
                 .uniform("EclipseData", DeadSunClientEvents::eclipseStrength)
                 .uniformRaw("WorldData", AsterionPostEffects::worldData));
 
-        // High quality runs the volume at the actual window size. The old fixed
-        // 640x360 target was then enlarged over the scene and made the fog visibly blocky.
+         
+         
         PostEffects.register(Asterion.id("dimension/dusty_air_high"), config -> config
                 .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.dustyAirEnabled
                         && effectQuality() >= 2)
@@ -106,8 +106,8 @@ public final class AsterionPostEffects {
                 .uniform("EclipseData", DeadSunClientEvents::eclipseStrength)
                 .uniformRaw("WorldData", AsterionPostEffects::worldData));
 
-        // Under sustained frame pressure these retain the same world-space colors,
-        // depth occlusion and animation with fewer full-resolution passes/ray samples.
+         
+         
         PostEffects.register(Asterion.id("dimension/dead_sun_fast"), config -> config
                 .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.deadSunEnabled
                         && effectQuality() <= 0)
@@ -135,8 +135,8 @@ public final class AsterionPostEffects {
     }
 
     private static boolean isPostProcessingReady() {
-        // Start only once a real camera snapshot exists. Afterwards, a transient missed
-        // snapshot reuses the last valid matrices instead of blinking or projecting with identity.
+         
+         
         if (!isInsideAsterion()) {
             hasCameraSnapshot = false;
             return false;
@@ -145,8 +145,8 @@ public final class AsterionPostEffects {
     }
 
     private static double effectQuality() {
-        // Changing post chains at runtime makes both chains fade across one another and
-        // intermittently drops the volume. The configured quality remains stable per session.
+         
+         
         return Mth.clamp(AsterionConfig.INSTANCE.cinematicQuality, 0, 2);
     }
 
@@ -208,9 +208,9 @@ public final class AsterionPostEffects {
     private static Vector3f dustColor() {
         AsterionConfig config = AsterionConfig.INSTANCE;
         float eclipse = darkness();
-        // Bright ember-orange shafts, kept luminous rather than muddy brown.
-        // Pale-Garden-like stone and lichen tint: cool, soft and readable without changing
-        // Minecraft's biome tinting itself.
+         
+         
+         
         float red = mix(config.dustR, 0.43F, overgrowthBlend);
         float green = mix(config.dustG, 0.46F, overgrowthBlend);
         float blue = mix(config.dustB, 0.40F, overgrowthBlend);
@@ -264,8 +264,8 @@ public final class AsterionPostEffects {
             double cameraY = camera.y;
             float caveTarget = Mth.clamp((float)(net.krodark.asterion.worldgen.LabyrinthLevels.CAVE_ROOF_Y - cameraY) / 12F, 0F, 1F);
             caveBlend += (caveTarget - caveBlend) * .04F;
-            // One volume covers all nine authored arena pieces. Only time, not position
-            // within that volume, blends the transition at an entrance.
+             
+             
             float arenaTarget = Math.abs(camera.x) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS
                     && Math.abs(camera.z) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS
                     && cameraY >= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y
@@ -288,7 +288,7 @@ public final class AsterionPostEffects {
             biomeTarget = 0;
         float target = biomeTarget == 1 ? 1.0F : 0.0F;
         float crimsonTarget = biomeTarget == 2 ? 1.0F : 0.0F;
-        // About two seconds of easing at 20 TPS prevents a visible biome seam.
+         
         overgrowthBlend += (target - overgrowthBlend) * 0.026F;
         if (Math.abs(target - overgrowthBlend) < 0.001F) overgrowthBlend = target;
         crimsonBlend += (crimsonTarget - crimsonBlend) * 0.026F;

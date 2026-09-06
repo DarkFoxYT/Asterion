@@ -22,7 +22,7 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
-/** No scheduled block ticks, block entities or vanilla fluid neighbor updates. */
+ 
 public final class TidalWaterBlock extends Block implements BucketPickup {
     public static final MapCodec<TidalWaterBlock> CODEC = simpleCodec(TidalWaterBlock::new);
     public static final IntegerProperty LEVEL = IntegerProperty.create("level", 1, 8);

@@ -1,6 +1,6 @@
 package net.krodark.asterion.item;
 
-/** One authoritative progression table shared by pouring, creative previews and assembly. */
+ 
 public final class ForgeMaterialProfile {
     private ForgeMaterialProfile() { }
 

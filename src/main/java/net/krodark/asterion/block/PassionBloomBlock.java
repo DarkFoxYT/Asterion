@@ -20,7 +20,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-/** A rare edible fruit which hangs directly beneath tainted leaves. */
+ 
 public final class PassionBloomBlock extends Block {
     public static final MapCodec<PassionBloomBlock> CODEC = simpleCodec(PassionBloomBlock::new);
     private static final VoxelShape SHAPE = Block.box(4.0D, 3.0D, 4.0D, 12.0D, 16.0D, 12.0D);

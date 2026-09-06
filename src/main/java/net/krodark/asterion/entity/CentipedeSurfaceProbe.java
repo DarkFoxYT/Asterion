@@ -5,7 +5,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
 
-/** Short-range, collision-shape-based surface hand-offs, never speculative wall climbing. */
+ 
 public final class CentipedeSurfaceProbe {
     public record Approach(Direction face, double gap, Vec3 normal) {}
     private CentipedeSurfaceProbe() {}
@@ -44,7 +44,7 @@ public final class CentipedeSurfaceProbe {
         if (motion.lengthSqr() < .000225) return null;
         Vec3 heading = CentipedeFrame.tangent(motion, support.getUnitVec3(), motion);
         AABB nextSupport = body.move(heading.scale(.4)).move(support.getUnitVec3().scale(.34));
-        // Neighboring blocks continue the same wall: their seams are not outside corners.
+         
         for (AABB block : blocks) if (nextSupport.intersects(block)) return null;
         for (Direction travel : Direction.values()) {
             if (heading.dot(travel.getUnitVec3()) < .7

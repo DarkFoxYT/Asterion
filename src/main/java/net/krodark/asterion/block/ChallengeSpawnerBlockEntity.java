@@ -47,7 +47,7 @@ public final class ChallengeSpawnerBlockEntity extends BlockEntity {
             int groupSize = 2 + level.getRandom().nextInt(3);
             for (int attempt = 0; attempt < 24 && spawner.mobs.size() < groupSize; attempt++) {
                 EntityType<? extends Mob> type = level.getRandom().nextBoolean()
-                        ? net.krodark.asterion.game.AncientContent.SKELETON : Asterion.BOMBARDIER_BEETLE;
+                        ? net.krodark.asterion.game.AncientContent.SKELETON : Asterion.CONSTRUCT;
                 Mob mob = type.create(level, EntitySpawnReason.SPAWNER);
                 if (mob == null) continue;
                 BlockPos spawn = pos.offset(level.getRandom().nextInt(7) - 3, 0, level.getRandom().nextInt(7) - 3);
@@ -60,7 +60,7 @@ public final class ChallengeSpawnerBlockEntity extends BlockEntity {
             if (spawner.mobs.isEmpty()) return;
             spawner.started = true;
         }
-        // Missing entities may be in unloaded chunks: only a witnessed death counts.
+         
         var deaths = net.krodark.asterion.game.ChallengeDeaths.get(level);
         spawner.mobs.removeIf(deaths::consume);
         if (spawner.mobs.isEmpty()) {

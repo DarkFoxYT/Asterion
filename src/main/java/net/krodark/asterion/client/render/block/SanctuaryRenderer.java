@@ -75,7 +75,7 @@ public final class SanctuaryRenderer extends GeoBlockRenderer<SanctuaryBlockEnti
         boolean altar = pass.getOrDefaultGeckolibData(ALTAR, false);
         float time = pass.getOrDefaultGeckolibData(TIME, 0F);
         bones.ifPresent("glow", bone -> {
-            // The obelisk glow is rendered only by the alpha-capable emissive layer.
+             
             bone.skipRender(!altar || pass.getOrDefaultGeckolibData(CHARGE, 0) == 2);
             bone.skipChildrenRender(altar && pass.getOrDefaultGeckolibData(CHARGE, 0) == 2);
             if (altar) {

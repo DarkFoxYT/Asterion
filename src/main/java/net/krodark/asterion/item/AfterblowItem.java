@@ -17,7 +17,7 @@ import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.level.Level;
 
-/** A short guard with one counterattack charge and a shared item cooldown. */
+ 
 public final class AfterblowItem extends Item {
     private static final String STORED_DAMAGE = "afterblow_damage";
     private static final String STORED_AT = "afterblow_stored_at";
@@ -32,8 +32,8 @@ public final class AfterblowItem extends Item {
     public InteractionResult use(Level level, net.minecraft.world.entity.player.Player player,
                                  InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
-        // A charged Afterblow is committed to its counterattack. It cannot guard again
-        // until that charge is discharged by a landed hit or expires after five seconds.
+         
+         
         if (player.getCooldowns().isOnCooldown(stack) || storedAt(stack, level.getGameTime()) > .001F)
             return InteractionResult.FAIL;
         player.startUsingItem(hand);
@@ -78,11 +78,11 @@ public final class AfterblowItem extends Item {
         return true;
     }
 
-    /** Removes and returns the still-live charge; every successful attack gets one discharge. */
+     
     public static float consumeStored(ItemStack stack, long now) {
         float stored = storedAt(stack, now);
-        // Clear even an expired raw value. It must never survive a swing and become visible
-        // again through a later timestamp/model update.
+         
+         
         if (rawStored(stack) > 0) writeStored(stack, 0, now);
         return stored;
     }

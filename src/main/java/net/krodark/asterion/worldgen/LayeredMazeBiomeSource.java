@@ -8,7 +8,7 @@ import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.biome.Climate;
 
-/** Real quart-biome assignment for the vertically stacked labyrinth levels. */
+ 
 public final class LayeredMazeBiomeSource extends BiomeSource {
     public static final MapCodec<LayeredMazeBiomeSource> CODEC = RecordCodecBuilder.mapCodec(instance ->
             instance.group(

@@ -1,1 +1,6 @@
-{"parent":"minecraft:block/cube_all","textures":{"all":"asterion:block/celestial_gold_block"}}
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "asterion:block/tarnished_gold_block"
+  }
+}

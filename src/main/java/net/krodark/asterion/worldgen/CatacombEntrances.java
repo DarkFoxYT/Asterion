@@ -10,12 +10,12 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
-/** A dry sanctuary under a flush grate, connected by ladder to the sewer galleries. */
+ 
 public final class CatacombEntrances {
     private CatacombEntrances() { }
     public static boolean selected(ChunkPos chunk) { return Math.floorMod(chunk.x(), 8) == 4 && Math.floorMod(chunk.z(), 8) == 4; }
     public static void place(WorldGenLevel world, ChunkPos chunk, long seed) {
-        // Every intersecting chunk writes its own section, regardless of generation order.
+         
         for (int cx = chunk.x() - 2; cx <= chunk.x() + 2; cx++)
             for (int cz = chunk.z() - 2; cz <= chunk.z() + 2; cz++) {
                 ChunkPos candidate = new ChunkPos(cx, cz);
@@ -39,7 +39,7 @@ public final class CatacombEntrances {
                 world.setBlock(new BlockPos(x + dx, y, z + dz), state, 2);
             }
         }
-        // Flush walking deck; only the entrance arches protrude above the local maze floor.
+         
         for (Direction side : Direction.Plane.HORIZONTAL) for (int r = 6; r <= 7; r++) for (int width = -1; width <= 1; width++) {
             BlockPos step = new BlockPos(x, surface, z).relative(side, r).relative(side.getClockWise(), width);
             world.setBlock(step, stone, 2);

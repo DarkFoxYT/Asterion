@@ -10,7 +10,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
 
-/** Foundation shell for the authored Forge-biome NBT network beneath the catacombs. */
+ 
 public final class ForgeDepths {
     public static final int FLOOR_Y = LabyrinthLevels.FORGE_FLOOR_Y;
     public static final int ROOF_Y = LabyrinthLevels.FORGE_ROOF_Y;
@@ -42,7 +42,7 @@ public final class ForgeDepths {
         return x == AuthoredForge.districtCenter(x) - 19 && z == AuthoredForge.districtCenter(z);
     }
 
-    /** Align the template's bottom jigsaw directly with the authored Forge's west jigsaw. */
+     
     public static void carveAccess(ServerLevelAccessor world, ChunkPos chunk) {
         var level = world instanceof net.minecraft.server.level.ServerLevel server ? server
                 : ((net.minecraft.world.level.WorldGenLevel)world).getLevel();
@@ -55,8 +55,8 @@ public final class ForgeDepths {
                 .filter(port -> port.info().pos().getY() == 1).findFirst().orElseThrow();
         BlockPos socket = AuthoredForge.westSocket(level, chunk);
         BlockPos origin = socket.west().subtract(bottomPort.info().pos());
-        // The stair's upper room owns one catacomb grid cell. Never let template air
-        // or a changed template footprint overwrite an adjacent authored room.
+         
+         
         var clip = new net.minecraft.world.level.levelgen.structure.BoundingBox(chunk.getMinBlockX(), level.getMinY(),
                 chunk.getMinBlockZ(), chunk.getMaxBlockX(), LabyrinthLevels.MAZE_FLOOR_Y - 2, chunk.getMaxBlockZ());
         if (chunk.getMaxBlockX() >= origin.getX() && chunk.getMinBlockX() <= origin.getX() + 18
@@ -76,7 +76,7 @@ public final class ForgeDepths {
             Direction face = net.minecraft.world.level.block.JigsawBlock.getFrontFacing(port.info().state());
             int bit = switch (face) { case NORTH -> 1; case EAST -> 2; case SOUTH -> 4; case WEST -> 8; default -> 0; };
             if ((exits & bit) != 0) {
-                // Open both saved socket faces, including the neighbour in older chunks.
+                 
                 for (int depth = 0; depth <= 1; depth++) for (int side = -2; side <= 2; side++)
                     for (int y = 0; y <= 5; y++) {
                         BlockPos pos = port.info().pos().relative(face, depth).relative(face.getClockWise(), side).above(y);
@@ -89,7 +89,7 @@ public final class ForgeDepths {
                 if (clip.isInside(pos)) world.setBlock(pos, Asterion.ANCIENT_BRICKS.defaultBlockState(), 18);
             }
         }
-        // Open authored stair gates and the Forge landing without removing their frames.
+         
         if (chunk.getMaxBlockX() >= origin.getX() && chunk.getMinBlockX() <= socket.getX() + 2
                 && chunk.getMaxBlockZ() >= origin.getZ() && chunk.getMinBlockZ() <= origin.getZ() + 18)
         for (BlockPos pos : BlockPos.betweenClosed(Math.max(chunk.getMinBlockX(), origin.getX()), origin.getY(),

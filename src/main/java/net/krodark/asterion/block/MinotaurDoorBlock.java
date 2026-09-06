@@ -21,7 +21,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.*;
 import org.jspecify.annotations.Nullable;
 
-/** One rendered anchor and 34 invisible interaction/collision parts, occupying the authored 7x5 opening. */
+ 
 public final class MinotaurDoorBlock extends BaseEntityBlock {
     public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty OPEN = BlockStateProperties.OPEN;
@@ -142,7 +142,7 @@ public final class MinotaurDoorBlock extends BaseEntityBlock {
     @Override protected float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
         if (!player.isCreative() && player.level().dimension().equals(Asterion.ASTERION_LEVEL)
                 && root(pos, state).equals(net.krodark.asterion.worldgen.MinotaurArenaEntrances.door(state.getValue(FACING))))
-            return 0; // Generated arena gates require their key; ordinary placed doors remain mineable.
+            return 0;  
         return super.getDestroyProgress(state, player, level, pos);
     }
     @Override protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {

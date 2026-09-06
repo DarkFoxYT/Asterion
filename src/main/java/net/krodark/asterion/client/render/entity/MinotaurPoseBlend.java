@@ -8,7 +8,7 @@ import net.krodark.asterion.entity.MinotaurEntity;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import java.util.*;
 
-/** Crossfades from the last pose actually shown, including an interrupted transition. */
+ 
 final class MinotaurPoseBlend {
     private static final DataTicket<Frame> FRAME = DataTickets.create("asterion_pose_blend", Frame.class);
     private static final Map<MinotaurEntity, History> HISTORIES = new WeakHashMap<>();

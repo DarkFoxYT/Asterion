@@ -27,7 +27,7 @@ public final class AsterionJadePlugin implements IWailaPlugin {
     private static final Identifier CRUCIBLE_STATE = Asterion.id("crucible_state");
 
     @Override public void register(IWailaCommonRegistration registration) {
-        // Register against the block so every part of the 5x4x5 multiblock resolves to its root state.
+         
         registration.registerBlockDataProvider(CrucibleDataProvider.INSTANCE, CrucibleBlock.class);
     }
 

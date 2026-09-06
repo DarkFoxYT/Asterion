@@ -24,6 +24,12 @@ public final class AncientContent {
                     .component(net.minecraft.core.component.DataComponents.LORE, new net.minecraft.world.item.component.ItemLore(
                             java.util.List.of(net.minecraft.network.chat.Component.translatable("tooltip.asterion.ancient_bone"))))));
 
+    private static final ResourceKey<Item> HIDE_KEY = ResourceKey.create(Registries.ITEM, Asterion.id("minotaur_hide"));
+    public static final Item MINOTAUR_HIDE = Registry.register(BuiltInRegistries.ITEM, HIDE_KEY,
+            new Item(new Item.Properties().setId(HIDE_KEY).rarity(Rarity.UNCOMMON)
+                    .component(net.minecraft.core.component.DataComponents.LORE, new net.minecraft.world.item.component.ItemLore(
+                            java.util.List.of(net.minecraft.network.chat.Component.translatable("tooltip.asterion.minotaur_hide"))))));
+
     private static final ResourceKey<net.minecraft.world.level.block.Block> TROPHY_BLOCK_KEY = ResourceKey.create(Registries.BLOCK, Asterion.id("minotaur_skull_trophy"));
     public static final net.minecraft.world.level.block.Block MINOTAUR_TROPHY = Registry.register(BuiltInRegistries.BLOCK, TROPHY_BLOCK_KEY,
             new net.krodark.asterion.block.MinotaurTrophyBlock(net.minecraft.world.level.block.state.BlockBehaviour.Properties.of()
@@ -41,6 +47,6 @@ public final class AncientContent {
         FabricDefaultAttributeRegistry.register(SKELETON, AncientSkeletonEntity.attributes());
         SpawnPlacements.register(SKELETON, SpawnPlacementTypes.ON_GROUND, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, AncientSkeletonEntity::canSpawn);
         CreativeModeTabEvents.modifyOutputEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Asterion.id("asterion")))
-                .register(output -> { output.accept(EGG); output.accept(ANCIENT_BONE); output.accept(MINOTAUR_TROPHY_ITEM); });
+                .register(output -> { output.accept(EGG); output.accept(ANCIENT_BONE); output.accept(MINOTAUR_HIDE); output.accept(MINOTAUR_TROPHY_ITEM); });
     }
 }

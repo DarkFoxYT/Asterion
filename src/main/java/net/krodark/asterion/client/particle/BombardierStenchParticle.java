@@ -10,7 +10,7 @@ import java.util.Collections;
 import java.util.WeakHashMap;
 import java.util.Set;
 
-/** Dusty beige campfire smoke that switches to custom emissive sprites when ignited. */
+ 
 public final class BombardierStenchParticle extends AnimatedEmissiveParticle {
     private static final Set<BombardierStenchParticle> ACTIVE = Collections.newSetFromMap(new WeakHashMap<>());
     private float targetSize;
@@ -61,8 +61,8 @@ public final class BombardierStenchParticle extends AnimatedEmissiveParticle {
         smoke.sizeMultiplier = 4;
         smoke.quadSize *= smoke.sizeMultiplier;
         smoke.targetSize *= smoke.sizeMultiplier;
-        // The Minotaur's belch is Greek fire, so its smoke must only react to
-        // the dedicated Greek-fire ignition particles.
+         
+         
         smoke.flamethrower = true;
         return smoke;
     }
@@ -146,7 +146,7 @@ public final class BombardierStenchParticle extends AnimatedEmissiveParticle {
 
     private void updateSprite() {
         if (burning) setSpriteFromAge(fireSprites);
-        // Preserve all twelve original smoke frames; custom fire has eight frames.
+         
         else if (isAlive()) setSprite(sprites.get(Math.min(11, age * 12 / Math.max(1, lifetime)), 11));
     }
 

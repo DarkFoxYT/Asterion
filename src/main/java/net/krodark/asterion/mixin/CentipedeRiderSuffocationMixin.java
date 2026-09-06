@@ -7,7 +7,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** A wall-climbing mount may visually rotate its rider through an axis-aligned wall check. */
+ 
 @Mixin(Entity.class)
 public abstract class CentipedeRiderSuffocationMixin {
     @Inject(method = "isInWall", at = @At("HEAD"), cancellable = true)

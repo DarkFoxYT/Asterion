@@ -7,7 +7,7 @@ import org.joml.Matrix3f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-/** Shared wall-local frame math for surface-bound mobs, their riders, and the camera. */
+ 
 public final class SurfaceOrientation {
     private SurfaceOrientation() {
     }
@@ -27,9 +27,9 @@ public final class SurfaceOrientation {
                     : up.cross(new Vec3(1.0D, 0.0D, 0.0D));
         forward = forward.normalize();
 
-        // Build the complete desired world frame directly: local +X is right, +Y is away
-        // from the surface, and -Z is the direction of travel. Then remove the vanilla
-        // renderer's yaw, leaving only the pose-local correction.
+         
+         
+         
         Vec3 right = forward.cross(up).normalize();
         Matrix3f frame = new Matrix3f()
                 .setColumn(0, vec(right))
@@ -40,7 +40,7 @@ public final class SurfaceOrientation {
         return baseYaw.conjugate().mul(desiredWorld).normalize();
     }
 
-    /** The same two-stage local-frame solve used by the Bombardier Beetle renderer. */
+     
     public static Quaternionf beetleSurfaceRotation(Vec3 normal, Vec3 forward, float renderYaw) {
         Vec3 surfaceUp = normal.scale(-1.0D);
         Quaternionf baseYaw = new Quaternionf().rotationY((180.0F - renderYaw) * Mth.DEG_TO_RAD);

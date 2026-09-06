@@ -4,7 +4,7 @@ import com.meekdev.amnetic.client.particle.ParticleMaterial;
 import com.meekdev.amnetic.client.particle.Particles;
 import net.krodark.asterion.Asterion;
 
-/** Short-lived emissive cores for fireflies. Animated fire uses the shared atlas batch. */
+ 
 public final class AsterionEmissiveParticles {
     private static ParticleMaterial fireflyCore;
 

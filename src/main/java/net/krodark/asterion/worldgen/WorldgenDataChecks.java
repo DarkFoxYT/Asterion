@@ -25,7 +25,7 @@ final class WorldgenDataChecks {
         BlockPos savedChest = base.east(4);
         for (int i = 0; i < 5; i++) level.setBlock(base.east(i), Blocks.AIR.defaultBlockState(), 2);
 
-        // Reproduce deferred worldgen entities without first creating live instances.
+         
         var section = chunk.getSection(chunk.getSectionIndex(base.getY()));
         section.setBlockState(barrel.getX() & 15, barrel.getY() & 15, barrel.getZ() & 15,
                 Blocks.BARREL.defaultBlockState(), false);

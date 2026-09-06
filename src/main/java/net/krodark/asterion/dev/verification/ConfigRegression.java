@@ -17,7 +17,7 @@ public final class ConfigRegression {
         Path configDirectory = directory.resolve("config");
         Path file = configDirectory.resolve("asterion.json");
         try {
-            // Standalone checks need the config directory normally supplied by Fabric's launcher.
+             
             Object loader = FabricLoader.getInstance();
             Method setGameDir = loader.getClass().getDeclaredMethod("setGameDir", Path.class);
             setGameDir.setAccessible(true);

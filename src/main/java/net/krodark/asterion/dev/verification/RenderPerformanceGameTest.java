@@ -6,7 +6,7 @@ import net.krodark.asterion.Asterion;
 import net.krodark.asterion.client.render.ParticleCulling;
 import net.minecraft.client.Minecraft;
 
-/** Exercises the actual Amnetic integration, including fallback and shader reload. */
+ 
 public final class RenderPerformanceGameTest implements FabricClientGameTest {
     @Override public void runTest(ClientGameTestContext context) {
         boolean previous = net.krodark.asterion.AsterionConfig.INSTANCE.potatoParticleCulling;
@@ -47,7 +47,7 @@ public final class RenderPerformanceGameTest implements FabricClientGameTest {
     }
 
     private static void emit(Minecraft client) {
-        // Spread both in front of and behind the camera; keep the same sorted alpha renderer.
+         
         var origin = client.player.position();
         for (int i = 0; i < 512; i++) {
             double x = (i % 16 - 7.5) * .5;

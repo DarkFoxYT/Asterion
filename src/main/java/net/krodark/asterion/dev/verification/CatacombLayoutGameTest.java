@@ -11,7 +11,7 @@ import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.levelgen.structure.templatesystem.*;
 import net.minecraft.util.RandomSource;
 
-/** Tests the imported assets in a disposable game world, not just their filenames. */
+ 
 public final class CatacombLayoutGameTest implements FabricClientGameTest {
     @Override public void runTest(ClientGameTestContext context) {
         context.runOnClient(client -> org.lwjgl.glfw.GLFW.glfwHideWindow(client.getWindow().handle()));
@@ -33,15 +33,15 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                 AncientContentCheck.run(server);
                 AncientBoneCheck.run(server);
                 ChainLiftCheck.run(server);
-                // Runtime installs arena pieces from completed chunk callbacks. This test
-                // intentionally forces all pieces so it can inspect the entire 123x123 build.
+                 
+                 
                 WorldGenerator.prepareBossArenaBeforePlayers(level);
                 for(int cx=-4;cx<=3;cx++)for(int cz=-4;cz<=3;cz++)
                     AuthoredCatacombs.placeArenaChunk(level,level.getChunk(cx,cz));
                 for(int cx=-1;cx<=5;cx++)for(int cz=3;cz<=5;cz++)
                     AuthoredCatacombs.placeArenaChunk(level,level.getChunk(cx,cz));
-                // Chunks may already carry the revision marker from terrain generation;
-                // finish explicitly so a fresh runtime build discovers those authored pieces.
+                 
+                 
                 check(WorldGenerator.ensureBossArenaReady(level),"Arena not ready");
                 BlockPos centerFloor = new BlockPos(0, AuthoredCatacombs.ARENA_FLOOR_Y - 1, 0);
                 check(!level.getBlockState(centerFloor).getCollisionShape(level, centerFloor).isEmpty(),
@@ -72,8 +72,8 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                 check(CatacombEntrances.checkpoint(level,new BlockPos(CatacombLayout.ROOT_CENTER,
                         CatacombLayout.FLOOR_Y,CatacombLayout.ROOT_CENTER))!=null,
                         "Authored crossing lost its safe checkpoint");
-                // Force and inspect the lower authored district itself. Merely resolving
-                // its templates does not prove the biome decoration hook actually ran.
+                 
+                 
                 var forgeTemplate=level.getStructureManager().get(Asterion.id("forge/forge")).orElseThrow();
                 var forgeRelative=forgeTemplate.getBoundingBox(new StructurePlaceSettings(),BlockPos.ZERO);
                 BlockPos forgeOrigin=new BlockPos(CatacombLayout.ROOT_CENTER
@@ -114,7 +114,7 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                     check(level.getBlockState(new BlockPos(cx*16,AuthoredCatacombs.ARENA_BASE_Y-1,cz*16))
                             .is(Blocks.LIGHT),"Missing arena reload marker");
                 BlockPos playerDoor=MinotaurArenaEntrances.door(MinotaurArenaEntrances.PLAYER_ENTRANCE);
-                // The external passage must not carve a shortcut through the saved lobby.
+                 
                 check(level.getBlockState(new BlockPos(0, AuthoredCatacombs.ARENA_BASE_Y + 22, 44))
                         .is(Asterion.ANCIENT_BRICKS), "Approach carved through authored lobby masonry");
                 check(level.getBlockState(new BlockPos(0, AuthoredCatacombs.ARENA_BASE_Y + 22, 57))
@@ -123,8 +123,8 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                         .is(Asterion.BARREL_DOOR), "Approach removed the authored barrel door");
                 clear(level,new BlockPos(0,AuthoredCatacombs.CONNECTOR_Y,61));
                 clear(level,new BlockPos(0,AuthoredCatacombs.CONNECTOR_Y+1,61));
-                // The current route bends from arena x=0 into module (0,4)'s north
-                // connector at x=9; the old straight hand-carved hall is intentionally sealed.
+                 
+                 
                 for(int z=AuthoredCatacombs.ARENA_RADIUS+1;z<=76;z++) {
                     int center=Math.round((z-(AuthoredCatacombs.ARENA_RADIUS+1))*9F
                             /(76-(AuthoredCatacombs.ARENA_RADIUS+1)));
@@ -132,7 +132,7 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                     clear(level,new BlockPos(center,AuthoredCatacombs.CONNECTOR_Y+1,z));
                 }
                 long seed=MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
-                // Force full generation, including modules spanning multiple chunks.
+                 
                 for(int cz=19;cz>=16;cz--)for(int cx=19;cx>=16;cx--)level.getChunk(cx,cz);
                 for(int tx=14;tx<=15;tx++)for(int tz=14;tz<=15;tz++) {
                     if(!CatacombLayout.occupied(seed,tx,tz))continue;
@@ -145,7 +145,7 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                         clear(level,seam); clear(level,seam.relative(side));
                     }
                 }
-                // Every variant is also loaded and placed, catching missing blocks and bad NBT.
+                 
                 int index=0;
                 for(String name:AuthoredCatacombs.TEMPLATES) {
                     var template=level.getStructureManager().get(Asterion.id("catacombs/"+name)).orElseThrow();

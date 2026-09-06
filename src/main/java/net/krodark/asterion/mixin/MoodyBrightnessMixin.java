@@ -6,7 +6,7 @@ import net.minecraft.client.renderer.LightmapRenderStateExtractor;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
-/** Override only rendered gamma, preserving options.txt and vanilla darkness/night-vision effects. */
+ 
 @Mixin(LightmapRenderStateExtractor.class)
 public abstract class MoodyBrightnessMixin {
     @ModifyExpressionValue(method = "extract", at = @At(value = "INVOKE",

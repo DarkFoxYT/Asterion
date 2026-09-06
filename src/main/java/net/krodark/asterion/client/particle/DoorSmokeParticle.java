@@ -4,7 +4,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.*;
 import net.minecraft.util.RandomSource;
 
-/** Expanding warm dust billows; translucent, world-lit and buoyant rather than floor grit. */
+ 
 public final class DoorSmokeParticle extends SingleQuadParticle {
     private final SpriteSet sprites;
     private final float opacity, growth;
@@ -41,7 +41,7 @@ public final class DoorSmokeParticle extends SingleQuadParticle {
     }
     @Override protected int getLightCoords(float partialTick) {
         int light = super.getLightCoords(partialTick);
-        // A little bounced light keeps the cloud readable in the unlit staging room.
+         
         return (light & 0xFFFF0000) | Math.max(light & 0xFFFF, 112);
     }
     @Override protected Layer getLayer() { return Layer.TRANSLUCENT; }

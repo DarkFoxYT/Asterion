@@ -6,7 +6,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Swept, conservative body volumes against actual block-shape boxes (including slabs/stairs). */
+ 
 public final class CentipedeCollision {
     private static final double SKIN = 0.025D;
     private static final double REACH = 0.45D;
@@ -24,8 +24,8 @@ public final class CentipedeCollision {
         return List.copyOf(blocks);
     }
 
-    /** Reuse the world's voxel shapes through all substeps of one tick. Outlier moves
-     * fall back to the live geometry rather than silently losing collisions. */
+     
+
     public CentipedeCollision cachedIn(AABB area) {
         List<AABB> blocks = collect(area);
         return new CentipedeCollision(query -> query.minX >= area.minX && query.maxX <= area.maxX
@@ -33,7 +33,7 @@ public final class CentipedeCollision {
                 && query.minZ >= area.minZ && query.maxZ <= area.maxZ ? blocks : geometry.boxes(query));
     }
 
-    /** Stateless render interpolation guard, using geometry captured by the last game tick. */
+     
     public static Vec3 keepOutside(Vec3 position, Vec3 normal, Vec3 forward, List<AABB> blocks) {
         return pushOut(position, CentipedeFrame.extents(normal, forward), blocks, normal.scale(-1));
     }
@@ -49,7 +49,7 @@ public final class CentipedeCollision {
         double best = Double.MAX_VALUE;
         double gapToSurface = 0;
 
-        // Prefer the current support at corners; steering never supplies the belly normal.
+         
         for (AABB block : blocks) for (int axis = 0; axis < 3; axis++) for (int sign : new int[]{-1, 1}) {
             int other = (axis + 1) % 3, last = (axis + 2) % 3;
             if (component(position, other) < min(block, other) - component(extents, other) * 0.7
@@ -72,7 +72,7 @@ public final class CentipedeCollision {
 
         if (best != Double.MAX_VALUE) {
             Vec3 newExtents = CentipedeFrame.extents(contactNormal, forward);
-            // Close a small contact gap with a swept move, never teleport through the surface.
+             
             Vec3 snap = contactNormal.scale(Math.max(0, gapToSurface - SKIN));
             position = sweep(position, snap, newExtents, blocks);
             position = pushOut(position, newExtents, blocks, contactNormal.scale(-1));
@@ -80,8 +80,8 @@ public final class CentipedeCollision {
         return new Contact(position, contactNormal);
     }
 
-    /** Follow a validated, delayed surface frame without snapping its blend back to a
-     * cardinal face. The full rotated volume is still swept and kept outside blocks. */
+     
+
     public Contact followSurface(Vec3 from, Vec3 wanted, Vec3 normal, Vec3 forward) {
         Vec3 half = CentipedeFrame.extents(normal, forward);
         List<AABB> blocks = collect(volume(from, half).minmax(volume(wanted, half)).inflate(2));

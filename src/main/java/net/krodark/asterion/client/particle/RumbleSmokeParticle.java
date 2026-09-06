@@ -7,7 +7,7 @@ import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 
-/** A dense, short-lived rubble cloud which conceals debris as it detaches. */
+ 
 public final class RumbleSmokeParticle extends SingleQuadParticle {
     private final SpriteSet sprites;
     private final float baseAlpha;

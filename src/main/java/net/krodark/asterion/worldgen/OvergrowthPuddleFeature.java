@@ -43,7 +43,7 @@ public final class OvergrowthPuddleFeature extends Feature<NoneFeatureConfigurat
 
     private static boolean hasCleanBasin(WorldGenLevel level, BlockPos center, boolean marsh) {
         for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) {
-            // Marshes can fit curved corridors without a square footprint.
+             
             if (marsh && Math.abs(dx) + Math.abs(dz) > 1) continue;
             BlockPos floor = center.offset(dx, 0, dz);
             if (!OvergrowthFeatureSupport.isMazeFloor(level, floor)
@@ -90,7 +90,7 @@ public final class OvergrowthPuddleFeature extends Feature<NoneFeatureConfigurat
             }
         }
 
-        // Keep the wall seep over the recessed basin.
+         
         if (wallFeed != null && random.nextFloat() < (marsh ? 0.76F : 0.58F)) {
             BlockPos lip = center.relative(wallFeed.direction, wallFeed.distance - 1);
             BlockPos backing = center.relative(wallFeed.direction, wallFeed.distance);

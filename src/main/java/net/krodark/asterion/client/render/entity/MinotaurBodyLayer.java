@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
-/** Reuses the evaluated animation instead of ticking invisible hitbox entities. */
+ 
 public final class MinotaurBodyLayer extends GeoRenderLayer<MinotaurEntity, Void, EntityRenderState> {
     private static final DataTicket<MinotaurBodyPicking.Body> BODY = DataTickets.create("asterion_body_pick", MinotaurBodyPicking.Body.class);
     private static final Map<CuboidGeoBone, List<AABB>> SHAPES = new com.google.common.collect.MapMaker().weakKeys().makeMap();
@@ -32,7 +32,7 @@ public final class MinotaurBodyLayer extends GeoRenderLayer<MinotaurEntity, Void
 
     @Override public void submitRenderTask(RenderPassInfo<EntityRenderState> pass,
             net.minecraft.client.renderer.SubmitNodeCollector tasks) {
-        // Publish after all bone callbacks, so picking cannot observe a half-built frame.
+         
         MinotaurBodyPicking.publish(pass.getOrDefaultGeckolibData(BODY, (MinotaurBodyPicking.Body)null));
     }
 

@@ -25,7 +25,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
-/** Runs only with Fabric client gametests enabled; creates an isolated disposable world. */
+ 
 public final class DoorGameTest implements FabricClientGameTest {
     @Override public void runTest(ClientGameTestContext context) {
         context.runOnClient(client -> org.lwjgl.glfw.GLFW.glfwHideWindow(client.getWindow().handle()));
@@ -169,7 +169,7 @@ public final class DoorGameTest implements FabricClientGameTest {
             });
             Asterion.LOGGER.info("PASS: door item placement, all 35 collision parts, key lock, opening/closing, breach and live debris rendering");
 
-            // Arriving directly in the pit is no longer an encounter trigger.
+             
             server.runCommand("execute in asterion:asterion_dimension run tp @a 0.5 7 0.5 180 0");
             context.waitTicks(20);
             server.runOnServer(mc -> check(!WorldGenerator.isBossEncounterActive(mc.getLevel(Asterion.ASTERION_LEVEL)),
@@ -378,8 +378,8 @@ public final class DoorGameTest implements FabricClientGameTest {
                 for (int x : new int[]{-32, 32}) check(maze.getBlockState(new BlockPos(x, 45, 0)).isAir(), "Obsolete side corridor projects into the arena");
                 for (Direction side : MinotaurArenaEntrances.DOORS)
                     check(gateExists(maze, side), "Authored gate hardware missing");
-                // Use a known roof sample so this behavior check does not depend on
-                // which center tiles the authored retractable ceiling leaves open.
+                 
+                 
                 maze.setBlock(new BlockPos(0, 47, 0), Asterion.MAZESTEEL_BLOCK.defaultBlockState(), 2);
                 MinotaurCombatSelectionCheck.run(maze, mc.getPlayerList().getPlayers().getFirst());
                 MinotaurRageCheck.run(maze, mc.getPlayerList().getPlayers().getFirst());
@@ -517,7 +517,7 @@ public final class DoorGameTest implements FabricClientGameTest {
             server.runOnServer(mc -> {
                 var player = mc.getPlayerList().getPlayers().getFirst();
                 var boss = debugBoss.get();
-                // Clear the earlier door fixture out of this charge lane.
+                 
                 for (int x = -6; x < 18; x++) for (int y = 121; y < 136; y++) for (int z = -8; z <= 8; z++)
                     mc.overworld().setBlock(new BlockPos(x, y, z), Blocks.AIR.defaultBlockState(), 2);
                 boss.setPos(0, 121, 0);
@@ -621,7 +621,7 @@ public final class DoorGameTest implements FabricClientGameTest {
             Asterion.LOGGER.info("PASS: weapon draw/sheath, physical axe throw/retrieval, missing-axe gating, removed attack rejection and rage cooldown scaling");
             server.runOnServer(mc -> {
                 var level = mc.overworld();
-                // A spinning body must hit a one-block wall, settle above the floor and remain retrievable.
+                 
                 for (int y = 121; y <= 140; y++) for (int z = -26; z <= -14; z++)
                     level.setBlock(new BlockPos(12, y, z), Blocks.STONE.defaultBlockState(), 2);
                 var axe = new net.krodark.asterion.entity.MinotaurAxeEntity(Asterion.MINOTAUR_AXE, level);
@@ -657,7 +657,7 @@ public final class DoorGameTest implements FabricClientGameTest {
                 var boss = Asterion.MINOTAUR.create(mc.overworld(), net.minecraft.world.entity.EntitySpawnReason.COMMAND);
                 boss.setPos(0, 121, -30); boss.beginDebug(player); boss.setDebugRunning(false);
                 mc.overworld().addFreshEntity(boss); debugBoss.set(boss);
-                // The trigger counts actual health loss, after the Minotaur's armor.
+                 
                 boss.hurtServer(mc.overworld(), player.damageSources().playerAttack(player), 24);
                 try {
                     var trigger = MinotaurEntity.class.getDeclaredMethod("shouldHornRam", net.minecraft.server.level.ServerPlayer.class);
@@ -864,7 +864,7 @@ public final class DoorGameTest implements FabricClientGameTest {
                 double gap = player.position().subtract(boss.position()).horizontalDistance();
                 check(gap >= 2.8 && gap <= 3.2, "Yank did not arrive within the boss's catch range: " + gap);
                 check(!MinotaurEntity.controlsPlayer(player), "Yank did not release movement at arrival");
-                // Resolve landing, then transfer the single yank into the hand without another impulse.
+                 
                 player.teleportTo(player.getX(), 121, player.getZ()); player.setDeltaMovement(Vec3.ZERO);
                 tickWeaponAttack(boss, player, 6);
                 check(boss.debugStatus().contains("attack=GRAB"), "Close grapple did not combo into grab");
@@ -969,7 +969,7 @@ public final class DoorGameTest implements FabricClientGameTest {
             for (int tick = 0; tick < 60; tick++) {
                 boss.getMoveControl().setWantedPosition(-20, 121, 20, 1.4);
                 boss.getMoveControl().tick();
-                // Vanilla applies input damping immediately before travel; exercise native collisions and drag.
+                 
                 boss.travel(new Vec3(0, 0, boss.zza * .98F));
                 if (tick == 19) start = boss.getZ();
             }

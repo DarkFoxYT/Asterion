@@ -9,7 +9,7 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 
-/** Organic moss islands with plants restricted to the moss-covered part of each clump. */
+ 
 public final class AncientMossPatchFeature extends Feature<NoneFeatureConfiguration> {
     public AncientMossPatchFeature(Codec<NoneFeatureConfiguration> codec) {
         super(codec);
@@ -37,7 +37,7 @@ public final class AncientMossPatchFeature extends Feature<NoneFeatureConfigurat
                     long texture = mix(level.getSeed() ^ (long)(centerX + dx) * 0x9E3779B97F4A7C15L
                             ^ (long)(centerZ + dz) * 0xD1B54A32D192ED03L);
                     double roughness = (Math.floorMod(texture, 1000L) / 1000.0D - 0.5D) * 0.24D;
-                    // Broken islands leave generous ancient-stone paths between clumps.
+                     
                     if (Math.min(main, lobe) + roughness > 0.82D
                             || Math.floorMod(texture >>> 21, 9L) == 0L) continue;
                     int x = centerX + dx;

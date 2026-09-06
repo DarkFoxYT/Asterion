@@ -26,6 +26,10 @@ public final class ChainLiftContent {
     public static final EntityType<ChainLiftEntity> LIFT = Registry.register(BuiltInRegistries.ENTITY_TYPE, ENTITY_KEY,
             EntityType.Builder.of(ChainLiftEntity::new, MobCategory.MISC).sized(3, .5F)
                     .clientTrackingRange(16).updateInterval(1).fireImmune().build(ENTITY_KEY));
+    private static final ResourceKey<EntityType<?>> RUNE_KEY = ResourceKey.create(Registries.ENTITY_TYPE, Asterion.id("lift_call_rune"));
+    public static final EntityType<net.krodark.asterion.entity.LiftCallRuneEntity> CALL_RUNE = Registry.register(BuiltInRegistries.ENTITY_TYPE, RUNE_KEY,
+            EntityType.Builder.of(net.krodark.asterion.entity.LiftCallRuneEntity::new, MobCategory.MISC).sized(.7F, .7F)
+                    .clientTrackingRange(10).updateInterval(20).fireImmune().build(RUNE_KEY));
     private ChainLiftContent() {}
     public static void initialize() {
         CreativeModeTabEvents.modifyOutputEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Asterion.id("asterion")))

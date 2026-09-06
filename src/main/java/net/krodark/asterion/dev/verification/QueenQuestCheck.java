@@ -8,7 +8,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.item.ItemStack;
 
-/** Real interactions verify all requests consume exactly once and advance saved progress. */
+ 
 public final class QueenQuestCheck {
     public static void run(MinecraftServer server) {
         var player = server.getPlayerList().getPlayers().getFirst();
@@ -41,7 +41,7 @@ public final class QueenQuestCheck {
                 check(!player.entityTags().contains("asterion.queen_beetle_quest.active")
                                 && QueenBeetleEntity.questIndex(player) == index + 1,
                         "Cooldown allowed the next request early: " + quest.id());
-                // Advance the deterministic verification without waiting 2.5 real minutes.
+                 
                 for (String tag : java.util.List.copyOf(player.entityTags()))
                     if (tag.startsWith("asterion.queen_beetle_quest.cooldown_until.")) player.removeTag(tag);
             }

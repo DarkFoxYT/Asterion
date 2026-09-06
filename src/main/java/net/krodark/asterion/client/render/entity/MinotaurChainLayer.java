@@ -20,7 +20,7 @@ import org.joml.Vector3f;
 
 import java.util.function.BiConsumer;
 
-/** The block's crossed chain links, stretched from the evaluated hand to the hooked player's chest. */
+ 
 public final class MinotaurChainLayer extends GeoRenderLayer<MinotaurEntity, Void, EntityRenderState> {
     private static final DataTicket<Chain> CHAIN = DataTickets.create("asterion_minotaur_chain", Chain.class);
     private static final RenderType MATERIAL = RenderTypes.entityCutout(Asterion.id("textures/block/mazesteel_chain.png"));
@@ -54,7 +54,7 @@ public final class MinotaurChainLayer extends GeoRenderLayer<MinotaurEntity, Voi
             Vec3 end = chain.held ? start.add(0, -.35, 0) : start.lerp(target, extension);
             double length = start.distanceTo(end);
             if (length < .05 || length > 40) return;
-            // Slack draws out, snaps taut on the one server-authoritative yank, then reels back in.
+             
             double slack = Math.min(1.3, length * .09) * Mth.clamp(Math.abs(chain.ticks - 25) / 7, .06F, 1);
             int light = posed.packedLight();
             tasks.submitCustomGeometry(new PoseStack(), MATERIAL, (pose, out) -> draw(out, start, end, slack, light));
@@ -71,7 +71,7 @@ public final class MinotaurChainLayer extends GeoRenderLayer<MinotaurEntity, Voi
         for (int i = 1; i <= links; i++) {
             double t = i / (double)links;
             Vec3 b = start.lerp(end, t).add(0, -4 * slack * t * (1 - t), 0);
-            // Same two UV islands as models/block/mazesteel_chain.json; no generic leash texture.
+             
             quad(out, a, b, across.scale(.20), other, 0, .25F, light);
             quad(out, a, b, other.scale(.20), across, 4.25F / 16, 8.25F / 16, light);
             a = b;

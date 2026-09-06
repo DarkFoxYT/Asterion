@@ -26,10 +26,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Six-way redstone winch. Connected gate panels are discovered without configuration and
- * advanced one projected layer at a time in the direction the winch was placed.
- */
+ 
+
+
+
 public final class WinchBlock extends Block {
     public static final EnumProperty<Direction> FACING = BlockStateProperties.FACING;
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
@@ -59,8 +59,8 @@ public final class WinchBlock extends Block {
     @Override
     protected void affectNeighborsAfterRemoval(BlockState state, ServerLevel level, BlockPos pos,
                                                boolean movedByPiston) {
-        // The open state belongs to the winch, not to the panels themselves. If the
-        // controller is removed, fail closed so an open gate cannot be left floating.
+         
+         
         boolean closedAny = false;
         for (BlockPos gatePos : findConnectedGates(level, pos)) {
             if (level.dimension().equals(Asterion.ASTERION_LEVEL)
@@ -84,8 +84,8 @@ public final class WinchBlock extends Block {
         if (powerChanged) {
             level.setBlock(pos, state.setValue(POWERED, powered), Block.UPDATE_ALL);
         }
-        // Also wake on analog strength changes while the winch remains powered.
-        // Gate updates themselves are ignored here so they cannot bypass the chosen delay.
+         
+         
         if (powerChanged || neighborBlock != Asterion.MAZESTEEL_GATE)
             level.scheduleTick(pos, this, 1);
     }
@@ -103,7 +103,7 @@ public final class WinchBlock extends Block {
 
         Direction direction = state.getValue(FACING);
         List<BlockPos> candidates = gates.stream()
-                // Arena gates belong to the encounter, including when idle; nearby winches must not trap entrants.
+                 
                 .filter(gatePos -> !level.dimension().equals(Asterion.ASTERION_LEVEL)
                         || !net.krodark.asterion.worldgen.MinotaurArenaEntrances.isGate(gatePos))
                 .filter(gatePos -> level.getBlockState(gatePos).getValue(DirectionalGateBlock.OPEN) != powered)
@@ -111,7 +111,7 @@ public final class WinchBlock extends Block {
         if (candidates.isEmpty()) return;
 
         Comparator<BlockPos> alongWinch = Comparator.comparingInt(gatePos -> projection(pos, gatePos, direction));
-        // Inverted: opening travels against the placed face; closing returns the other way.
+         
         BlockPos layerAnchor = (powered
                 ? candidates.stream().max(alongWinch)
                 : candidates.stream().min(alongWinch)).orElseThrow();

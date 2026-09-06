@@ -36,8 +36,8 @@ public final class LedAmneticLight {
             LedAmneticPointLights.clear();
             return;
         }
-        // Block-entity renderers can be briefly culled when the camera crosses their
-        // bounds. A short grace period keeps static bulb lights from blinking nearby.
+         
+         
         long stale = client.level.getGameTime() - 40L;
         Iterator<Map.Entry<Object, Long>> iterator = UPDATED.entrySet().iterator();
         while (iterator.hasNext()) {
@@ -59,7 +59,7 @@ public final class LedAmneticLight {
         return AsterionEmissiveBuffer.renderType(texture);
     }
 
-    /** Returns the strongest useful nearby live light for light-seeking ambient creatures. */
+     
     public static Vec3 nearestAttractor(Vec3 origin, double maxDistance) {
         return origin == null ? null : LedAmneticPointLights.nearestAttractor(origin, maxDistance);
     }

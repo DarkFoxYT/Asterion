@@ -116,13 +116,13 @@ public final class RagdollServerNetworking {
         var destination = player.getBoundingBox().move(target.subtract(player.position())).deflate(.001);
         if (!player.level().hasChunk(pos.getX() >> 4, pos.getZ() >> 4)
                 || !player.level().noCollision(player, destination)) {
-            // Physics can put the torso too close to a wall for the standing player
-            // box. Keep the server's already-safe tracked position and still complete
-            // recovery instead of leaving the client in an orphaned ragdoll forever.
+             
+             
+             
             target = player.position();
         }
 
-        // Following a ragdoll is movement, not a teleport/stand-up on every frame.
+         
         if (payload.finished()) player.teleportTo(target.x, target.y, target.z);
         else player.setPos(target);
         Vec3 velocity = new Vec3(payload.vx(), payload.vy(), payload.vz());
@@ -148,8 +148,8 @@ public final class RagdollServerNetworking {
             LAST_POSE.entrySet().removeIf(entry -> now - entry.getValue() > 200);
         }
         String key = sender.getUUID() + ":" + payload.entityId();
-        // Owner clients publish once per game tick; accepting that cadence avoids the
-        // stop/start appearance produced by a 10 Hz ragdoll pose stream.
+         
+         
         if (now - LAST_POSE.getOrDefault(key, -1000L) < 1) {
             return;
         }
@@ -164,7 +164,7 @@ public final class RagdollServerNetworking {
         if (!finite(center) || sender.distanceToSqr(center) > 96 * 96) {
             return;
         }
-        // Validate every body transform before it can reach another client's renderer.
+         
         for (var part : payload.parts()) {
             Vec3 point = new Vec3(part.x(), part.y(), part.z());
             Vec3 velocity = new Vec3(part.vx(), part.vy(), part.vz());
@@ -203,9 +203,9 @@ public final class RagdollServerNetworking {
     }
 
     public static void finishRagdoll(ServerPlayer player) {
-        // Idempotent by design: a fast client can finish its mash before the first
-        // owner pose has populated ACTIVE_RAGDOLLS. It still needs an explicit false
-        // state or its hidden player body and third-person ragdoll remain orphaned.
+         
+         
+         
         ACTIVE_RAGDOLLS.remove(player.getUUID());
         RAGDOLL_LEVELS.remove(player.getUUID());
         LAST_POSE.keySet().removeIf(key -> key.startsWith(player.getUUID() + ":"));

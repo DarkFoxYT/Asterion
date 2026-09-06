@@ -8,7 +8,7 @@ import net.minecraft.world.phys.AABB;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Support is restricted independently of physical collisions, so fences still block bugs. */
+ 
 public final class BugSurfaces {
     private BugSurfaces() { }
     public static boolean allowed(BlockGetter level, BlockPos pos) {

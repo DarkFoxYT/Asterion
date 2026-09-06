@@ -8,7 +8,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
 
-/** Render-only adapter. The entity owns the world positions, contacts and rider poses. */
+ 
 public final class ProceduralCentipedeChain {
     public static final int MAX_SEGMENTS = CentipedeChain.MAX_SEGMENTS;
 
@@ -31,7 +31,7 @@ public final class ProceduralCentipedeChain {
 
     public record Pose(Vector3f[] positions, Vector3f[] rotations, float[] gaitPhase, float[] speed) {
         public void apply(BoneSnapshots bones) {
-            // Position and rotate the complete head rig about its body origin, not the neck pivot.
+             
             applyAnchor(bones, "head_anchor", 0);
             for (int i = 0; i < MAX_SEGMENTS; i++) {
                 applyAnchor(bones, "segment_anchor_" + i, i);

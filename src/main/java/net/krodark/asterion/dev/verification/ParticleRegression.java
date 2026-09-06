@@ -10,7 +10,7 @@ import javax.imageio.ImageIO;
 import org.lwjgl.BufferUtils;
 import static org.lwjgl.opengl.GL33.*;
 
-/** Pixel checks against the supplied sprites, using the production shader in a hidden GPU context. */
+ 
 final class ParticleRegression {
     static void run() throws Exception {
         int program = glCreateProgram();
@@ -47,7 +47,7 @@ final class ParticleRegression {
             glColorMask(true, true, true, true);
             glActiveTexture(GL_TEXTURE0);
 
-            // Unlit beetle/belch smoke intentionally uses vanilla's twelve-frame campfire animation.
+             
             for (String smoke : new String[]{"bombardier_stench", "minotaur_belch_smoke"}) {
                 var frames = JsonParser.parseString(text("assets/asterion/particles/" + smoke + ".json"))
                         .getAsJsonObject().getAsJsonArray("textures");

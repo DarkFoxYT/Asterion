@@ -17,7 +17,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-/** Each block is one straight-sided section of a longer rock formation. */
+ 
 public final class ShaleFormationBlock extends Block implements WaterloggedDecoration {
     public static final IntegerProperty THICKNESS = IntegerProperty.create("thickness", 1, 4);
     public static final BooleanProperty HANGING = BooleanProperty.create("hanging");

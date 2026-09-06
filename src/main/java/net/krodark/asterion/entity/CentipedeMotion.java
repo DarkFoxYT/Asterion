@@ -3,7 +3,7 @@ package net.krodark.asterion.entity;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
-/** Tick-rate steering and bounded interpolation; no render-frame physics. */
+ 
 public final class CentipedeMotion {
     private CentipedeMotion() {}
 
@@ -20,8 +20,8 @@ public final class CentipedeMotion {
         from = CentipedeFrame.tangent(from, normal, toward);
         toward = CentipedeFrame.tangent(toward, normal, from);
         double angle = Math.acos(Mth.clamp(from.dot(toward), -1, 1));
-        // Normalized vector lerp gets stuck forever when facing exactly backwards.
-        // Angular easing takes a real arc while preserving belly-down orientation.
+         
+         
         return steer(from, toward, normal, Math.min(.105, angle * response));
     }
 

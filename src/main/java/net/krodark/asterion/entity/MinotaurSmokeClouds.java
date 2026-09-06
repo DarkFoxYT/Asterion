@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.UUID;
 
-/** Finite, owner-scoped hazards: smoke drifts against terrain, then burns without changing blocks. */
+ 
 final class MinotaurSmokeClouds {
     private final ArrayList<Cloud> clouds = new ArrayList<>();
 
@@ -30,7 +30,7 @@ final class MinotaurSmokeClouds {
 
     void tick(ServerLevel level, MinotaurEntity owner) {
         if (!owner.greekFirePowered()) { clear(); return; }
-        // Multiple overlapping clouds must never multiply a single fire pulse's damage.
+         
         var damaged = new HashSet<UUID>();
         for (var iterator = clouds.iterator(); iterator.hasNext();) {
             Cloud cloud = iterator.next();

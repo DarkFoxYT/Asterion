@@ -7,7 +7,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Visual attachment to the evaluated hand bone; gameplay remains server-authoritative. */
+ 
 public final class MinotaurHandAttachment {
     private record Anchor(Object level, long tick, Vec3 hand) { }
     private static final Map<Integer, Anchor> ANCHORS = new HashMap<>();

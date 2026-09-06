@@ -13,7 +13,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.util.Mth;
 import java.util.*;
 
-/** Shared finite gas hazards for spewers, cursed braziers and player weapons. */
+ 
 public final class GasClouds {
     private static final Map<ServerLevel, List<Cloud>> CLOUDS = new IdentityHashMap<>();
     private GasClouds() { }
@@ -50,7 +50,7 @@ public final class GasClouds {
         for (var entry : CLOUDS.entrySet()) {
             var level = entry.getKey(); var clouds = entry.getValue();
             Set<UUID> hit = new HashSet<>();
-            // Delayed propagation makes ignition visibly travel away from the weapon.
+             
             if (level.getGameTime() % 3 == 0) {
                 Vec3 spreadSound = null;
                 Map<Long,List<Vec3>> burning=new HashMap<>();

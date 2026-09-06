@@ -52,11 +52,11 @@ public final class AsterionConfig {
     public float minotaurVerticalFov = 70.0f;
     public int minotaurBossPillarCount = 6;
     public boolean cinematicsEnabled = true;
-    /** Master switch for the maze and side-objective HUD cards. */
+     
     public boolean objectiveHudEnabled = true;
-    /** Seconds shown after arrival or a stage change; zero keeps objectives visible. */
+     
     public int objectiveHudSeconds = 0;
-    /** -1 preserves vanilla brightness; 0 is Moody and 100 is Bright. */
+     
     public int brightnessPercent = 0;
     public int musicVolumePercent = 50;
     public int cinematicQuality = 2;

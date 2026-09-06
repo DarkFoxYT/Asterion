@@ -24,7 +24,7 @@ import org.lwjgl.system.MemoryUtil;
 import java.lang.reflect.Field;
 import java.nio.FloatBuffer;
 
-/** Reads Amnetic's real emission target, without scene extraction masking a broken portal capture. */
+ 
 public final class PortalEmissionGameTest implements FabricClientGameTest {
     @Override public void runTest(ClientGameTestContext context) {
         Probe[] probe = new Probe[1];
@@ -35,7 +35,7 @@ public final class PortalEmissionGameTest implements FabricClientGameTest {
             world.getServer().runCommand("time set midnight");
             context.waitTicks(10);
             context.runOnClient(client -> {
-                // Zero disables the scene-brightness prefilter, not explicit emissive mesh capture.
+                 
                 Bloom.settings().enabled(true).all(false).occlude(true).threshold(0);
                 probe[0] = new Probe();
                 AsterionPortalRenderer.receive(new GatewayPortalPayload(true, new BlockPos(0, 140, 0), 140, 42L));
@@ -49,7 +49,7 @@ public final class PortalEmissionGameTest implements FabricClientGameTest {
             });
             context.waitFor(client -> probe[0].visible(), 600);
 
-            // A solid ceiling must suppress both layers in the actual depth-tested emission target.
+             
             world.getServer().runCommand("fill -5 142 -5 5 142 5 stone");
             context.runOnClient(client -> probe[0].reset());
             context.waitFor(client -> probe[0].darkFrames >= 5, 600);
@@ -122,7 +122,7 @@ public final class PortalEmissionGameTest implements FabricClientGameTest {
                     for (int i = 0; i < packNames.length; i++) GL11.glPixelStorei(packNames[i], packValues[i]);
                 }
                 core = sample(frame.camera(), buffer, first[0], first[1], first[2]);
-                // Outside the new 3x3 core, inside its restrained square halo.
+                 
                 halo = sample(frame.camera(), buffer, second[0], second[1], second[2]);
                 visibleFrames = core > 0.01F && halo > 0.001F ? visibleFrames + 1 : 0;
                 darkFrames = core < 0.00001F && halo < 0.00001F ? darkFrames + 1 : 0;

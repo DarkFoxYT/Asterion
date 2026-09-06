@@ -18,7 +18,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 import java.util.*;
 
-/** Operator-only, per-player sandbox sessions; telemetry describes actual state, never inferred thoughts. */
+ 
 public final class MinotaurDebugCommands {
     private static final Map<UUID, Session> SESSIONS = new HashMap<>();
     private MinotaurDebugCommands() { }
@@ -44,12 +44,12 @@ public final class MinotaurDebugCommands {
                 ServerPlayer owner = server.getPlayerList().getPlayer(entry.getKey());
                 if (owner == null || owner.level() != session.boss.level() || session.boss.isRemoved()) {
                     if (session.owned) session.boss.stopDebug(); it.remove();
-                    if (owner != null) owner.sendSystemMessage(Component.literal("[Minotaur debug] Session ended."));
+                    if (owner != null) net.krodark.asterion.game.PlayerNotices.show(owner, Component.literal("[Minotaur debug] Session ended."));
                     continue;
                 }
                 String key = session.boss.debugStateKey();
                 if (!key.equals(session.lastKey) || server.getTickCount() - session.lastReport >= 40) {
-                    owner.sendSystemMessage(Component.literal("[Minotaur debug] " + session.boss.debugStatus()));
+                    net.krodark.asterion.game.PlayerNotices.show(owner, Component.literal("[Minotaur debug] " + session.boss.debugStatus()));
                     session.lastKey = key; session.lastReport = server.getTickCount();
                 }
             }
@@ -71,16 +71,16 @@ public final class MinotaurDebugCommands {
                     entity -> entity.isAlive() && entity.behaviorPhase() == MinotaurEntity.BehaviorPhase.BOSS)
                     .stream().min(Comparator.comparingDouble(entity -> entity.distanceToSqr(owner))).orElse(null);
             if (boss == null) {
-                source.sendFailure(Component.literal("No active arena Minotaur nearby."));
+                net.krodark.asterion.game.PlayerNotices.failure(source, Component.literal("No active arena Minotaur nearby."));
                 return 0;
             }
             SESSIONS.put(owner.getUUID(), new Session(boss, false));
-            source.sendSuccess(() -> Component.literal(
+            net.krodark.asterion.game.PlayerNotices.success(source, () -> Component.literal(
                     "[Minotaur debug] Watching the arena boss. Use status to inspect it or stop to leave."), false);
             return 1;
         }
         if (!owner.level().dimension().equals(Level.OVERWORLD)) {
-            source.sendFailure(Component.literal(
+            net.krodark.asterion.game.PlayerNotices.failure(source, Component.literal(
                     "Use debug in the Overworld or during the maze arena fight."));
             return 0;
         }
@@ -100,22 +100,22 @@ public final class MinotaurDebugCommands {
                     .getCollisionShape(level, BlockPos.containing(boss.position()).below()).isEmpty()) spawn = boss.position();
         }
         if (spawn == null) {
-            source.sendFailure(Component.literal("No clear space ahead for the Minotaur. Try an open area."));
+            net.krodark.asterion.game.PlayerNotices.failure(source, Component.literal("No clear space ahead for the Minotaur. Try an open area."));
             return 0;
         }
         boss.setPos(spawn);
         boss.beginDebug(owner);
         if (!level.addFreshEntity(boss)) return 0;
         SESSIONS.put(owner.getUUID(), new Session(boss, true));
-        source.sendSuccess(() -> Component.literal("[Minotaur debug] Active. Attacks can hurt: use Creative for safe observation. "
+        net.krodark.asterion.game.PlayerNotices.success(source, () -> Component.literal("[Minotaur debug] Active. Attacks can hurt: use Creative for safe observation. "
                 + "Commands: /asterion minotaur attack <name>, pause, auto, status, stop. No arena construction or finale; the test boss is not saved."), false);
         return 1;
     }
     private static int control(CommandSourceStack source, String action) throws CommandSyntaxException {
         var owner = source.getPlayerOrException(); Session session = SESSIONS.get(owner.getUUID());
-        if (session == null || session.boss.isRemoved()) { source.sendFailure(Component.literal("Start with /asterion minotaur debug.")); return 0; }
+        if (session == null || session.boss.isRemoved()) { net.krodark.asterion.game.PlayerNotices.failure(source, Component.literal("Start with /asterion minotaur debug.")); return 0; }
         if (!session.owned && !action.equals("status") && !action.equals("stop")) {
-            source.sendFailure(Component.literal("Arena debug observes the live fight. Use Overworld debug to force or pause attacks.")); return 0;
+            net.krodark.asterion.game.PlayerNotices.failure(source, Component.literal("Arena debug observes the live fight. Use Overworld debug to force or pause attacks.")); return 0;
         }
         switch (action) {
             case "stop" -> { if (session.owned) session.boss.stopDebug(); SESSIONS.remove(owner.getUUID()); }
@@ -124,24 +124,24 @@ public final class MinotaurDebugCommands {
             case "status" -> { }
             default -> {
                 if (!session.boss.forceDebugAttack(owner, action)) {
-                    source.sendFailure(Component.literal("Unknown attack or an attack is still running. Use autocomplete, or resume and let it finish.")); return 0;
+                    net.krodark.asterion.game.PlayerNotices.failure(source, Component.literal("Unknown attack or an attack is still running. Use autocomplete, or resume and let it finish.")); return 0;
                 }
             }
         }
-        source.sendSuccess(() -> Component.literal("[Minotaur debug] " + (action.equals("stop") ? "Stopped." : session.boss.debugStatus())), false);
+        net.krodark.asterion.game.PlayerNotices.success(source, () -> Component.literal("[Minotaur debug] " + (action.equals("stop") ? "Stopped." : session.boss.debugStatus())), false);
         return 1;
     }
     private static int destroyPillars(CommandSourceStack source) {
         if (!source.getLevel().dimension().equals(Asterion.ASTERION_LEVEL)) {
-            source.sendFailure(Component.literal("Arena pillars only exist in the Asterion dimension."));
+            net.krodark.asterion.game.PlayerNotices.failure(source, Component.literal("Arena pillars only exist in the Asterion dimension."));
             return 0;
         }
         int destroyed = net.krodark.asterion.WorldGenerator.destroyAllBossPillars(source.getLevel());
         if (destroyed == 0) {
-            source.sendFailure(Component.literal("No active arena pillars were found."));
+            net.krodark.asterion.game.PlayerNotices.failure(source, Component.literal("No active arena pillars were found."));
             return 0;
         }
-        source.sendSuccess(() -> Component.literal("[Minotaur debug] Destroyed " + destroyed
+        net.krodark.asterion.game.PlayerNotices.success(source, () -> Component.literal("[Minotaur debug] Destroyed " + destroyed
                 + " active arena pillar" + (destroyed == 1 ? "." : "s.")), true);
         return destroyed;
     }

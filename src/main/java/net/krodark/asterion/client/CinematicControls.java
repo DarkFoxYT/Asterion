@@ -2,7 +2,7 @@ package net.krodark.asterion.client;
 
 import net.minecraft.client.Minecraft;
 
-/** Shared input lock: physical key repeats cannot move the body during any cinematic. */
+ 
 public final class CinematicControls {
     private CinematicControls() { }
     public static boolean locked() {

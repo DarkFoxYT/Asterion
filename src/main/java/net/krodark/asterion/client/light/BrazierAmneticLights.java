@@ -10,7 +10,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.Vec3;
 
-/** Finds nearby luminous fixtures without walking unrelated block sections. */
+ 
 public final class BrazierAmneticLights {
     private static final int SCAN_INTERVAL = 40;
     private static final int RADIUS = 16;

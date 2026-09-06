@@ -9,7 +9,7 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.WeakHashMap;
 
-/** Local camera feedback from synchronized door motion, independent of the maze dimension. */
+ 
 public final class MinotaurDoorShake {
     private static final Set<MinotaurDoorBlockEntity> DOORS = Collections.newSetFromMap(new WeakHashMap<>());
     private MinotaurDoorShake() { }
@@ -38,7 +38,7 @@ public final class MinotaurDoorShake {
             double proximity = Math.max(0, 1 - distance / 18);
             strength += door.movementRumble(partialTick) * proximity * proximity;
         }
-        // Nearby doors never stack into an aggressive camera effect.
+         
         strength = Math.min(1, strength);
         if (strength <= 0) return DeadSunClientEvents.Sample.NONE;
         double time = level.getGameTime() + partialTick;

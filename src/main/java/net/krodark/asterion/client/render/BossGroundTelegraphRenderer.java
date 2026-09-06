@@ -23,7 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Ground-projected, depth-tested warning surfaces. Cached geometry; no particles, textures or bloom. */
+ 
 public final class BossGroundTelegraphRenderer {
     private static final RenderType SURFACE = AmneticRenderTypeAccess.create("asterion/boss_ground_warning",
             RenderSetup.builder(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
@@ -107,7 +107,7 @@ public final class BossGroundTelegraphRenderer {
             builder.line(right.scale(-width), forward.scale(shape.radius()).add(right.scale(-width)));
             builder.line(right.scale(width), forward.scale(shape.radius()).add(right.scale(width)));
             builder.line(forward.scale(shape.radius()).add(right.scale(-width)), forward.scale(shape.radius()).add(right.scale(width)));
-            // Chevrons make the committed travel direction readable at a glance.
+             
             for (double d = 3; d < shape.radius(); d += 4) {
                 builder.line(forward.scale(d - 1).add(right.scale(-width * .6)), forward.scale(d));
                 builder.line(forward.scale(d - 1).add(right.scale(width * .6)), forward.scale(d));
@@ -164,7 +164,7 @@ public final class BossGroundTelegraphRenderer {
             a = project(a); b = project(b); c = project(c); d = project(d);
             double min = Math.min(Math.min(a.y, b.y), Math.min(c.y, d.y));
             double max = Math.max(Math.max(a.y, b.y), Math.max(c.y, d.y));
-            // Never bridge pits or stretch a warning up a wall; the surface stays on walkable ground.
+             
             if (!Double.isFinite(min) || !Double.isFinite(max) || max - min > .65) return;
             quads.add(new Quad(a, b, c, d, rim));
         }

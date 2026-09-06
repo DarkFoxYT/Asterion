@@ -8,7 +8,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 
-/** Searches loaded sections, rejecting unrelated palettes before visiting individual blocks. */
+ 
 public final class LoadedBlockSearch {
     private LoadedBlockSearch() { }
 

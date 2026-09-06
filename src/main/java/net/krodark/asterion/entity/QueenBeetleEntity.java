@@ -25,7 +25,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.util.Mth;
 
-/** Peaceful quest-giver. She never targets or damages players. */
+ 
 public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity {
     public static final int PETAL_TARGET = 8;
     private static final String ACTIVE_TAG = "asterion.queen_beetle_quest.active";
@@ -51,8 +51,8 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
     }
 
     @Override protected void registerGoals() {
-        // Deliberately no navigation, combat, panic, floating, or idle-look behavior.
-        // The Queen is a stationary quest NPC whose sole awareness is facing visitors.
+         
+         
         goalSelector.addGoal(0, new LookAtPlayerGoal(this, Player.class, 12.0F, 1.0F));
     }
 
@@ -61,7 +61,7 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
     }
 
     @Override protected void doPush(net.minecraft.world.entity.Entity entity) {
-        // Players and mobs cannot slide the stationary quest giver away from her post.
+         
     }
 
     @Override public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
@@ -74,8 +74,8 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
     }
 
     @Override public void kill(ServerLevel level) {
-        // She is a persistent quest NPC, not a combat target. Administrative removal can
-        // still use /data or entity discard paths without exposing a normal death state.
+         
+         
     }
 
     private static final String INDEX_TAG = "asterion.queen_beetle_quest.index.";
@@ -85,7 +85,7 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
             try { return Math.clamp(Integer.parseInt(tag.substring(INDEX_TAG.length())), 0, QueenBeetleQuests.ALL.size()); }
             catch (NumberFormatException ignored) { }
         }
-        // Old saves finished only the petal introduction. They can continue at request two.
+         
         return player.entityTags().contains(COMPLETE_TAG) ? 1 : 0;
     }
 
@@ -104,8 +104,8 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
         }
         int cooldown = cooldownSeconds(serverPlayer);
         if (!player.entityTags().contains(ACTIVE_TAG) && cooldown > 0) {
-            // Progress carries remaining seconds for this response; target carries the full
-            // cooldown so the existing compact packet stays backwards-simple.
+             
+             
             sendQuest(serverPlayer, QueenBeetleQuestPayload.COOLDOWN, index, cooldown,
                     QUEST_COOLDOWN_TICKS / 20, anger);
             return InteractionResult.SUCCESS_SERVER;
@@ -185,7 +185,7 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
         }
     }
 
-    /** Restores the exact request after reconnecting without replaying dialogue. */
+     
     public static void syncActiveQuest(ServerPlayer player) {
         int index = questIndex(player);
         net.krodark.asterion.game.AsterionAdvancements.queenProgress(player, index);
@@ -227,7 +227,7 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
         return kills >= 25 ? 4 : kills >= 10 ? 3 : kills >= 4 ? 2 : kills >= 1 ? 1 : 0;
     }
 
-    /** Her request remains completable, but slaughtering her brood makes trust costlier. */
+     
     public static int petalTarget(int anger) {
         return PETAL_TARGET + Mth.clamp(anger, 0, 4) * 2;
     }

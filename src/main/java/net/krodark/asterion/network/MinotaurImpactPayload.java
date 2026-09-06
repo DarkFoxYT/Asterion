@@ -6,7 +6,7 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.world.phys.Vec3;
 
-/** One wall impact; clients attenuate the shake from this world position. */
+ 
 public record MinotaurImpactPayload(Vec3 position, float radius, float strength, int duration)
         implements CustomPacketPayload {
     public static final Type<MinotaurImpactPayload> TYPE = new Type<>(Asterion.id("minotaur_impact"));

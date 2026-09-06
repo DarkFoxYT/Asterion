@@ -10,7 +10,7 @@ import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
-/** Runs the real attack and native travel code over open ground, a vaultable wall and a blocked ceiling. */
+ 
 final class MinotaurMotionCheck {
     static void run(ServerLevel level, ServerPlayer player) {
         Vec3 previous = player.position();

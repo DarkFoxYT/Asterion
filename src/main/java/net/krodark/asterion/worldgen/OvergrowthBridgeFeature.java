@@ -15,7 +15,7 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 
-/** A rotated walkway which is only built when two real, opposing wall faces are found. */
+ 
 public final class OvergrowthBridgeFeature extends Feature<NoneFeatureConfiguration> {
     public OvergrowthBridgeFeature(Codec<NoneFeatureConfiguration> codec) {
         super(codec);
@@ -34,8 +34,8 @@ public final class OvergrowthBridgeFeature extends Feature<NoneFeatureConfigurat
         int firstCellZ = Math.floorDiv(minZ - cell / 2, cell);
         int lastCellZ = Math.floorDiv(maxZ - cell / 2, cell);
 
-        // Scan the actual maze-cell centers owned by this chunk. This avoids the old
-        // random-origin mismatch that made valid bridges almost never receive a try.
+         
+         
         for (int gridX = firstCellX; gridX <= lastCellX; gridX++) {
             for (int gridZ = firstCellZ; gridZ <= lastCellZ; gridZ++) {
                 int cellX = gridX * cell, cellZ = gridZ * cell;
@@ -106,7 +106,7 @@ public final class OvergrowthBridgeFeature extends Feature<NoneFeatureConfigurat
                         && OvergrowthFeatureSupport.isOpen(level, deck.above()))
                     level.setBlock(deck.above(), Asterion.ANCIENT_MOSS_CARPET.defaultBlockState(), 2);
 
-                // Foliage grows from the underside edges in broad runs, not isolated leaf pixels.
+                 
                 if (!anchor && width != 0 && foliage > 0.43D
                         && OvergrowthFeatureSupport.isOpen(level, deck.below())) {
                     level.setBlock(deck.below(), leaves, 2);
@@ -116,7 +116,7 @@ public final class OvergrowthBridgeFeature extends Feature<NoneFeatureConfigurat
             }
         }
 
-        // Deep wood sockets plus rotated brackets visibly lock both ends into masonry.
+         
         placeAnchor(level, span.first, span.direction);
         placeAnchor(level, span.second, span.direction.getOpposite());
         return placed;

@@ -6,7 +6,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
-/** Broken masonry stays beside the walking lanes instead of filling their intersections. */
+ 
 public final class MazeRuins {
     private MazeRuins() {}
 

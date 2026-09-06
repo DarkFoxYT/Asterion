@@ -15,8 +15,8 @@ public abstract class RuneChunkDataMixin {
     @Inject(method = "promotePendingBlockEntity", at = @At("HEAD"), cancellable = true)
     private void asterion$discardOuterRuneData(BlockPos pos, CompoundTag tag, CallbackInfoReturnable<BlockEntity> result) {
         var state = ((LevelChunk)(Object)this).getBlockState(pos);
-        // Old chunks may contain DUMMY entries or copied rune data for these non-owning sections.
-        // The caller removes the pending entry; keep the actual rune anchor untouched.
+         
+         
         if (state.getBlock() instanceof RuneBlock && !RuneBlock.isRoot(state)) result.setReturnValue(null);
     }
 }

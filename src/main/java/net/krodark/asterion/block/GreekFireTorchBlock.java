@@ -12,7 +12,7 @@ import net.minecraft.world.level.block.state.properties.*;
 import net.minecraft.world.phys.shapes.*;
 import org.jspecify.annotations.Nullable;
 
-/** One renderer supports a wall sconce and a vertically joinable floor-torch column. */
+ 
 public final class GreekFireTorchBlock extends BaseEntityBlock implements SimpleWaterloggedBlock {
     public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty TOP = BooleanProperty.create("top");
@@ -116,8 +116,8 @@ public final class GreekFireTorchBlock extends BaseEntityBlock implements Simple
     @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
     @Override protected VoxelShape getShape(BlockState state,BlockGetter level,BlockPos pos,CollisionContext context) {
         if(!wall) return state.getValue(TOP)?box(1,0,1,15,16,15):box(6,0,6,10,16,10);
-        // Native model faces north: its support wall is on the south (+Z) edge.
-        // Only the metal cup/shaft collides; the animated flame remains passable.
+         
+         
         return switch(state.getValue(FACING)) {
             case EAST -> WALL_SHAPES[1]; case SOUTH -> WALL_SHAPES[2];
             case WEST -> WALL_SHAPES[3]; default -> WALL_SHAPES[0];
@@ -135,9 +135,9 @@ public final class GreekFireTorchBlock extends BaseEntityBlock implements Simple
             }
             boxes[index]=box(minX,source[1],minZ,maxX,source[4],maxZ);
         }
-        // Build one normal vararg union, just like the native north shape. Avoid
-        // joining Shapes.empty() to tall ArrayVoxelShapes: 26.1.2 can leave their
-        // internal discrete shape null during eager registry cache initialization.
+         
+         
+         
         return Shapes.or(boxes[0],boxes[1],boxes[2],boxes[3],boxes[4]);
     }
     @Override public BlockEntity newBlockEntity(BlockPos pos,BlockState state) {

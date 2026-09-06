@@ -126,7 +126,7 @@ public final class DeadSunEventSystem {
             @Override public void onTick(ServerLevel level, int elapsed) {
                 if (elapsed % 20 != 0 || CatacombFloodState.get(level).riseSteps() >= CatacombFloodState.MAX_RISE) return;
                 ActiveEvent event = STATES.get(level.getServer()).active;
-                // Large/multiplayer loaded areas still get a complete rise and forty seconds at high tide.
+                 
                 if (event.durationTicks < elapsed + 800) {
                     event.durationTicks = elapsed + 800;
                     CatacombFloodState.ensureRemainingTicks(level, 800);
@@ -183,22 +183,22 @@ public final class DeadSunEventSystem {
                 start.then(Commands.literal(name).executes(command -> {
                     ServerLevel level = command.getSource().getServer().getLevel(Asterion.ASTERION_LEVEL);
                     if (level == null) {
-                        command.getSource().sendFailure(Component.literal("The Asterion dimension is not loaded."));
+                        net.krodark.asterion.game.PlayerNotices.failure(command.getSource(), Component.literal("The Asterion dimension is not loaded."));
                         return 0;
                     }
                     if (level.players().isEmpty()) {
-                        command.getSource().sendFailure(Component.literal(
+                        net.krodark.asterion.game.PlayerNotices.failure(command.getSource(), Component.literal(
                                 "No players are inside the Asterion. Enter the dimension before testing this event."));
                         return 0;
                     }
                     if (!trigger(level, definition.id())) {
-                        command.getSource().sendFailure(Component.literal(
+                        net.krodark.asterion.game.PlayerNotices.failure(command.getSource(), Component.literal(
                                 "That event cannot start here right now; biome events require an eligible player."));
                         return 0;
                     }
                     SchedulerState state = STATES.get(level.getServer());
                     ActiveEvent active = state == null ? null : state.active;
-                    command.getSource().sendSuccess(() -> Component.literal(
+                    net.krodark.asterion.game.PlayerNotices.success(command.getSource(), () -> Component.literal(
                             "Started " + definition.id() + " for " + active.durationTicks
                                     + " ticks (seed=" + active.seed + ", intensity=" + active.intensity + ")."), true);
                     return Command.SINGLE_SUCCESS;
@@ -207,17 +207,17 @@ public final class DeadSunEventSystem {
             root.then(start);
             root.then(Commands.literal("list").executes(command -> {
                 String names = String.join(", ", DEFINITIONS.keySet().stream().map(Identifier::getPath).toList());
-                command.getSource().sendSuccess(() -> Component.literal("Available Asterion events: " + names), false);
+                net.krodark.asterion.game.PlayerNotices.success(command.getSource(), () -> Component.literal("Available Asterion events: " + names), false);
                 return Command.SINGLE_SUCCESS;
             }));
             root.then(Commands.literal("status").executes(command -> showStatus(command.getSource())));
             root.then(Commands.literal("stop").executes(command -> {
                 ServerLevel level = command.getSource().getServer().getLevel(Asterion.ASTERION_LEVEL);
                 if (level == null || !stop(level)) {
-                    command.getSource().sendFailure(Component.literal("No Asterion event is active."));
+                    net.krodark.asterion.game.PlayerNotices.failure(command.getSource(), Component.literal("No Asterion event is active."));
                     return 0;
                 }
-                command.getSource().sendSuccess(() -> Component.literal("Stopped the active Asterion event."), true);
+                net.krodark.asterion.game.PlayerNotices.success(command.getSource(), () -> Component.literal("Stopped the active Asterion event."), true);
                 return Command.SINGLE_SUCCESS;
             }));
             dispatcher.register(root);
@@ -227,11 +227,11 @@ public final class DeadSunEventSystem {
     private static int showStatus(net.minecraft.commands.CommandSourceStack source) {
         SchedulerState state = STATES.get(source.getServer());
         if (state == null || state.active == null) {
-            source.sendSuccess(() -> Component.literal("No Asterion event is active."), false);
+            net.krodark.asterion.game.PlayerNotices.success(source, () -> Component.literal("No Asterion event is active."), false);
             return Command.SINGLE_SUCCESS;
         }
         ActiveEvent event = state.active;
-        source.sendSuccess(() -> Component.literal("Active: " + event.definition.id()
+        net.krodark.asterion.game.PlayerNotices.success(source, () -> Component.literal("Active: " + event.definition.id()
                 + " | elapsed=" + event.elapsed + "/" + event.durationTicks
                 + " | remaining=" + Math.max(0, event.durationTicks - event.elapsed)
                 + " | seed=" + event.seed + " | intensity=" + event.intensity), false);
@@ -294,8 +294,8 @@ public final class DeadSunEventSystem {
             mixed ^= mixed >>> 30;
             mixed *= 0xbf58476d1ce4e5b9L;
             mixed ^= mixed >>> 27;
-            // The eclipse should become dangerous promptly; the longer delay made a substantial
-            // portion of short encounters look as though the hunter never activated.
+             
+             
             return 20 * (3 + (int)Math.floorMod(mixed, 5L));
         });
         return elapsedTicks >= reveal;
@@ -378,8 +378,8 @@ public final class DeadSunEventSystem {
             state.nextEventTick = scheduleNext(random, level.getGameTime());
             return;
         }
-        // A ready eclipse has already waited through its quiet period. Do not let
-        // repeated common-event rolls starve it for another several hours.
+         
+         
         for (Definition definition : eligible) if (definition.id().equals(ECLIPSE)) {
             start(level, state, definition);
             return;
@@ -490,7 +490,7 @@ public final class DeadSunEventSystem {
     }
 
     private static void tickRumbleDebris(ServerLevel level) {
-        // Geometry and dust are bounded client-side rigid bodies; never destroy or place maze blocks.
+         
         for (var player : level.players()) {
             if (!player.isAlive() || player.isSpectator()) continue;
             var source = RumbleSources.find(level, player.position(), new java.util.Random(level.getRandom().nextLong()));

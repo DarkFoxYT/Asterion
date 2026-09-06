@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Adds tumbling only to the short-lived debris inside Asterion's boss arena. */
+ 
 @Mixin(FallingBlockRenderer.class)
 abstract class FallingBlockRendererMixin {
     @Inject(method = "submit(Lnet/minecraft/client/renderer/entity/state/FallingBlockRenderState;"
@@ -32,7 +32,7 @@ abstract class FallingBlockRendererMixin {
         float speed = 0.72F + (float)Math.floorMod(seed >>> 9, 29L) * 0.026F;
         float age = Math.max(0.0F, state.ageInTicks);
         float dampedAngle = speed * (float)(18.0D * Math.log1p(age / 18.0D));
-        // Vanilla renders from the block's bottom-center. Rotate around its center of mass.
+         
         poseStack.translate(0.0D, 0.5D, 0.0D);
         poseStack.mulPose(Axis.XP.rotationDegrees(dampedAngle * direction));
         poseStack.mulPose(Axis.ZP.rotationDegrees(dampedAngle * 0.54F));

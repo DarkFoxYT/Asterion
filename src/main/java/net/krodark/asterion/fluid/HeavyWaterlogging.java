@@ -13,11 +13,11 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 import org.jspecify.annotations.Nullable;
 
-/** Stored in normal block palettes: 0 = vanilla/dry, 1–8 = tide, 9 = ordinary Heavy Water. */
+ 
 public final class HeavyWaterlogging {
     public static final IntegerProperty LEVEL = IntegerProperty.create("heavy_water", 0, 9);
     public static final int NORMAL = 9;
-    // Vanilla block caches are constructed before mod fluid registration.
+     
     public static boolean ready;
     private HeavyWaterlogging() { }
 
@@ -57,7 +57,7 @@ public final class HeavyWaterlogging {
             return true;
         }
         var container = (LiquidBlockContainer)state.getBlock();
-        // Retain vanilla side effects, e.g. extinguishing a campfire or candle, before retaining the custom fluid.
+         
         if (!container.placeLiquid(level, pos, state, Fluids.WATER.defaultFluidState())) return false;
         if (!level.isClientSide()) {
             BlockState placed = level.getBlockState(pos);

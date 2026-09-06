@@ -2,7 +2,7 @@ package net.krodark.asterion.dev.verification;
 
 import net.krodark.asterion.item.ForgeMaterialProfile;
 
-/** Pure material-table contracts, kept outside Minecraft startup for fast build validation. */
+ 
 public final class ForgingRegression {
     private static int checks;
 

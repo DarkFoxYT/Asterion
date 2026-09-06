@@ -6,7 +6,7 @@ import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.util.RandomSource;
 import net.minecraft.util.Mth;
 
-/** The same eight-frame green flame is used by braziers and the boss beam. */
+ 
 public final class GreekFireParticle extends AnimatedEmissiveParticle {
     private boolean brazierFlame;
     private GreekFireParticle(ClientLevel level, double x, double y, double z,
@@ -20,7 +20,7 @@ public final class GreekFireParticle extends AnimatedEmissiveParticle {
         hasPhysics = false;
         lifetime = 16 + random.nextInt(9);
         quadSize = 1.0F + random.nextFloat() * 0.35F;
-        // Preserve the supplied green edges and white-hot center without a second tint.
+         
         setColor(1.08F, 1.04F, .80F);
         setAlpha(0.88F);
         setSpriteFromAge(sprites);
@@ -29,8 +29,8 @@ public final class GreekFireParticle extends AnimatedEmissiveParticle {
     public static Particle create(ClientLevel level, double x, double y, double z,
                                   double vx, double vy, double vz, SpriteSet sprites, RandomSource random) {
         GreekFireParticle flame = new GreekFireParticle(level, x, y, z, vx, vy, vz, sprites, random);
-        // A lit player gas cloud is Greek fire: convert its existing smoke to the
-        // same dedicated flame sprites so no ordinary gas-fire frames remain.
+         
+         
         BombardierStenchParticle.igniteNearby(level, x, y, z, 2.25D, sprites, true);
         return flame;
     }
@@ -50,7 +50,7 @@ public final class GreekFireParticle extends AnimatedEmissiveParticle {
 
     @Override public float getQuadSize(float partialTick) {
         float size = super.getQuadSize(partialTick);
-        // Narrow as the flame rises rather than expanding into an explosive cloud.
+         
         return brazierFlame ? size * (1F - .45F * Math.min(1F, (age + partialTick) / lifetime)) : size;
     }
 

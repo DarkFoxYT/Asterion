@@ -21,7 +21,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.*;
 import org.jspecify.annotations.Nullable;
 
-/** Nine collision and redstone sections surrounding one rendered 3x3 rune anchor. */
+ 
 public final class RuneBlock extends BaseEntityBlock implements WaterloggedDecoration {
     public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
@@ -82,8 +82,8 @@ public final class RuneBlock extends BaseEntityBlock implements WaterloggedDecor
             if (state.getBlock() instanceof RuneBlock && root(pos, state).equals(root))
                 level.setBlock(pos, state.setValue(POWERED, powered), UPDATE_CLIENTS);
         }
-        // Notify only after ALL nine signal sources have changed. Otherwise the backing
-        // conductor can read a still-powered section and keep adjacent circuitry latched.
+         
+         
         for (int column = 0; column < 3; column++) for (int row = 0; row < 3; row++) {
             BlockPos pos = part(root, facing, column, row);
             BlockState state = level.getBlockState(pos);
@@ -176,8 +176,8 @@ public final class RuneBlock extends BaseEntityBlock implements WaterloggedDecor
     }
     @Override protected VoxelShape getOcclusionShape(BlockState state) { return Shapes.empty(); }
     @Override public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        // Only the lower-centre plaque owns render/persistence state. Creating an
-        // entity for every collision section duplicates the model after chunk reloads.
+         
+         
         return isRoot(state) ? new RuneBlockEntity(pos,state) : null;
     }
     @Override public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {

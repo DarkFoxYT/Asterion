@@ -6,7 +6,7 @@ import net.minecraft.client.particle.SingleQuadParticle;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.util.RandomSource;
 
-/** Short-lived red firefly trail driven by the authoritative server swarm. */
+ 
 public final class HostileFireflyParticle extends SingleQuadParticle {
     private static final int FRAMES = 4;
     private final SpriteSet sprites;

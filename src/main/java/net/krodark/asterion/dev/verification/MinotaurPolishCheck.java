@@ -11,7 +11,7 @@ import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.List;
 
-/** Native-world regressions for interruptible healing, finite gas hazards and authoritative attack facing. */
+ 
 final class MinotaurPolishCheck {
     static void run(ServerLevel level, ServerPlayer player) {
         Vec3 previous = player.position();
@@ -57,7 +57,7 @@ final class MinotaurPolishCheck {
             Object cloud = clouds.getFirst();
             int ignite = (int)field(cloud, "igniteAt");
             check(ignite >= 100 && ignite <= 160, "Smoke ignition escaped 5â€“8 seconds");
-            // Two identical clouds occupy the same ground: damage must not stack within a pulse.
+             
             boss.getRandom().setSeed(409);
             emit.invoke(smoke, boss, new Vec3(0, 123, 8), new Vec3(0, 0, 1));
             for (int age = 1; age <= ignite + 80; age++) {

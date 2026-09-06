@@ -15,7 +15,7 @@ import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.templatesystem.*;
 import java.util.*;
 
-/** Places the author's full-size modules on a deterministic, connected grid. */
+ 
 public final class AuthoredCatacombs {
     public static final int BASE_Y = LabyrinthLevels.CATACOMB_BASE_Y, SIZE = 19, CONNECTOR_Y = BASE_Y + 5;
     public static final int ARENA_BASE_Y = LabyrinthLevels.ARENA_BASE_Y, ARENA_FLOOR_Y = ARENA_BASE_Y + 5, ARENA_RADIUS = 61;
@@ -24,7 +24,7 @@ public final class AuthoredCatacombs {
     public static final List<BlockPos> BRAZIER_ROOM_ORIGINS = CatacombLayout.BRAZIER_ROOM_MIN_ZS.stream()
             .map(minZ -> new BlockPos(CatacombLayout.BRAZIER_ROOM_MIN_X * SIZE, BASE_Y, minZ * SIZE + 3))
             .toList();
-    /** Original chamber retained for commands and saved-world compatibility. */
+     
     public static final BlockPos BRAZIER_ROOM_ORIGIN = BRAZIER_ROOM_ORIGINS.getFirst();
     private static final int BRAZIER_PART_SIZE = 25;
     private static final int BRAZIER_ROOM_SIZE = BRAZIER_PART_SIZE * 2;
@@ -47,7 +47,7 @@ public final class AuthoredCatacombs {
         int mask = 0;
         for (Direction side : Direction.Plane.HORIZONTAL)
             if (CatacombLayout.connected(seed, tx, tz, side)) mask |= bit(side);
-        // The first module accepts the arena's south-facing jigsaw connector.
+         
         if (tx == 0 && tz == CatacombLayout.ROOT_Z) mask |= 1;
         return mask;
     }
@@ -72,7 +72,7 @@ public final class AuthoredCatacombs {
         } else {
             name = (hash & 1) == 0 ? "corridor_cross_01" : "corridor_cross_02"; nativeMask = 15;
         }
-        // Crossings are the authored surface-entry modules, not generic puzzle rooms.
+         
         boolean bossApproachCrossing=tx==CatacombLayout.BRAZIER_APPROACH_CROSSING_X
                 &&tz==CatacombLayout.BRAZIER_APPROACH_Z;
         if ((tx == CatacombLayout.ROOT_X && tz == CatacombLayout.ROOT_Z)
@@ -103,8 +103,8 @@ public final class AuthoredCatacombs {
                         .orElseThrow(() -> new IllegalStateException("Missing authored crypt: " + module.name()));
                 if (!template.getSize().equals(new net.minecraft.core.Vec3i(19, 31, 19)))
                     throw new IllegalStateException("Unexpected crypt size: " + module.name());
-                // The last two layers of ordinary modules are an exterior roof cap/air.
-                // Keep the existing maze floor and walls there; only crossings break the surface.
+                 
+                 
                 BoundingBox roomClip = module.name().startsWith("crossing_") ? clip
                         : new BoundingBox(clip.minX(), clip.minY(), clip.minZ(), clip.maxX(), BASE_Y + 27, clip.maxZ());
                 var placement=placementSettings(roomClip,module.name().startsWith("crossing_"))
@@ -113,7 +113,7 @@ public final class AuthoredCatacombs {
                         RandomSource.create(seed^origin.asLong()),18);
                 markTemplateRunes(world,template,origin,placement,roomClip);
                 if (module.name().startsWith("crossing_")) surfaceApproach(world, chunk, origin, seed);
-                // No corner asset was supplied: rotate a T and close only its unused connector.
+                 
                 for (Direction side : Direction.Plane.HORIZONTAL) if ((module.blocked() & bit(side)) != 0) {
                     BlockPos door = origin.offset(9, 5, 9).relative(side, 9);
                     for (int across = -3; across <= 3; across++) for (int y = -1; y <= 6; y++) {
@@ -125,7 +125,7 @@ public final class AuthoredCatacombs {
         placeCursedBrazierRooms(level, world, chunk, clip, seed);
     }
 
-    /** Opens the new loop seams in pre-loop saves without replacing whole authored rooms. */
+     
     public static void retrofitWovenConnections(ServerLevel level, LevelChunk chunk) {
         long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
         BoundingBox clip = new BoundingBox(chunk.getPos().getMinBlockX(), BASE_Y,
@@ -202,8 +202,8 @@ public final class AuthoredCatacombs {
     }
 
     public static void placeCursedBrazierRoomChunk(ServerLevel level,ChunkPos chunk) {
-        // Re-run ordinary authored placement too: this retrofits the new straight hall
-        // modules into already-generated saves as their room queue reaches each chunk.
+         
+         
         place(level, chunk);
     }
 
@@ -227,7 +227,7 @@ public final class AuthoredCatacombs {
         return new BlockPos(origin.getX(), CONNECTOR_Y, origin.getZ() + BRAZIER_PART_SIZE);
     }
 
-    /** Waits for every intersecting chunk before consuming each boss marker. */
+     
     public static void tickCursedBrazierRoom(ServerLevel level) {
         if (level.getGameTime() % 20 != 0) return;
         for (int roomIndex = 0; roomIndex < BRAZIER_ROOM_ORIGINS.size(); roomIndex++)
@@ -291,13 +291,13 @@ public final class AuthoredCatacombs {
     }
     public static StructurePlaceSettings settings(BoundingBox clip) {
         return new StructurePlaceSettings().setBoundingBox(clip).setIgnoreEntities(true)
-                // Preserve saved circuitry and shape across chunk boundaries; do not flood
-                // dry components with the destination's old fluid or notify every brick.
+                 
+                 
                 .setKnownShape(true).setLiquidSettings(LiquidSettings.IGNORE_WATERLOGGING)
                 .addProcessor(BlockIgnoreProcessor.STRUCTURE_BLOCK).addProcessor(JigsawReplacementProcessor.INSTANCE)
                 .addProcessor(CLOSED_BARREL_DOORS);
     }
-    // Runtime-only processor: upper template air must never erase the surrounding maze.
+     
     private static final StructureProcessor CROSSING_SURFACE = new StructureProcessor() {
         @Override public StructureTemplate.StructureBlockInfo processBlock(
                 net.minecraft.world.level.LevelReader world, BlockPos origin, BlockPos reference,
@@ -314,9 +314,9 @@ public final class AuthoredCatacombs {
                 StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed,
                 StructurePlaceSettings settings) {
             var state = transformed.state();
-            // Multipart template NBT can target a section that another rotated piece
-            // later occupies. Both entities only need runtime defaults, so strip their
-            // saved tags and initialize surviving rune roots after the chunk is placed.
+             
+             
+             
             if (state.getBlock() instanceof net.krodark.asterion.block.RuneBlock)
                 return new StructureTemplate.StructureBlockInfo(transformed.pos(), state, null);
             if (state.is(Asterion.CURSED_BRAZIER_DOOR)) {
@@ -324,8 +324,8 @@ public final class AuthoredCatacombs {
                 return new StructureTemplate.StructureBlockInfo(transformed.pos(),closed,null);
             }
             if (!state.is(Asterion.BARREL_DOOR)) return transformed;
-            // Open doors save a second 3x4 collision wing. Drop that moved copy and
-            // retain the original plane below as the closed door.
+             
+             
             if (state.getValue(net.krodark.asterion.block.BarrelDoorBlock.WING)) return null;
             net.minecraft.world.level.block.state.BlockState closed = state
                     .setValue(net.krodark.asterion.block.BarrelDoorBlock.OPEN, false)
@@ -350,9 +350,9 @@ public final class AuthoredCatacombs {
                 net.minecraft.world.level.LevelReader world, BlockPos origin, BlockPos reference,
                 StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed,
                 StructurePlaceSettings settings) {
-            // Door animation angles in a structure save describe the builder's last
-            // preview frame. Keep the already-placed closed state and its fresh block
-            // entity defaults instead of restoring a visually open angle from disk.
+             
+             
+             
             if (transformed.state().is(Asterion.MINOTAUR_DOOR)) return null;
             return transformed.nbt()==null ? null : transformed;
         }
@@ -363,8 +363,8 @@ public final class AuthoredCatacombs {
         return crossing ? settings.addProcessor(CROSSING_SURFACE) : settings;
     }
     public static void surfaceApproach(net.minecraft.world.level.ServerLevelAccessor world, ChunkPos chunk, BlockPos origin, long seed) {
-        // Only visit the current chunk's intersection with the compact approach. No
-        // neighboring chunk loads, topology searches, or whole-room clearance pass.
+         
+         
         int minX=Math.max(1,chunk.getMinBlockX()-origin.getX());
         int maxX=Math.min(17,chunk.getMaxBlockX()-origin.getX());
         int minZ=Math.max(1,chunk.getMinBlockZ()-origin.getZ());
@@ -377,9 +377,9 @@ public final class AuthoredCatacombs {
             int radius=Math.max(Math.abs(x-9),Math.abs(z-9));
             int surface=net.krodark.asterion.WorldGenerator.mazeFloorHeight(seed,wx,wz);
             if(radius<=2) {
-                // A small entrance recess, not a cleared plaza. Keep the wall/ceiling
-                // above two-block headroom and retain the authored winch and lever one
-                // block above the surface datum.
+                 
+                 
+                 
                 int clearanceStart=LabyrinthLevels.MAZE_FLOOR_Y+2;
                 for(int y=clearanceStart;y<=Math.max(clearanceStart,surface+2);y++) {
                     pos.set(wx,y,wz);
@@ -387,8 +387,8 @@ public final class AuthoredCatacombs {
                 }
                 continue;
             }
-            // Inspect the existing column before grading. Solid wall/decor columns
-            // remain entirely untouched, including their foundations at the maze floor.
+             
+             
             pos.set(wx,surface+1,wz);
             if(!world.getBlockState(pos).getCollisionShape(world,pos).isEmpty())continue;
             pos.set(wx,surface+2,wz);
@@ -398,7 +398,7 @@ public final class AuthoredCatacombs {
                 pos.set(wx,y,wz);
                 if(world.getBlockState(pos)!=brick)world.setBlock(pos,brick,18);
             }
-            // Lower ground only; never clear the walls or decorations above it.
+             
             for(int y=deck+1;y<=surface;y++) {
                 pos.set(wx,y,wz);
                 if(!world.getBlockState(pos).isAir())world.setBlock(pos,air,18);
@@ -406,9 +406,9 @@ public final class AuthoredCatacombs {
         }
     }
     public static void placeArena(ServerLevel level) {
-        // SERVER_STARTED cannot synchronously request its own chunk futures. Queue the
-        // complete authored footprint and let the normal server tick install a small
-        // number of FULL chunks at a time before the encounter reports itself ready.
+         
+         
+         
         ZoneRunePlacement.enqueueArena(level);
     }
 
@@ -436,9 +436,9 @@ public final class AuthoredCatacombs {
                     (pos,part)->level.setBlock(pos,part,18),root,
                     net.krodark.asterion.block.PillarBlock.MODEL_HEIGHT);
         }
-        // Arena parts 4 and 6 contain the only two intended Greek-fire braziers.
-        // Remove fixtures created by the retired four-direction procedural layout so
-        // existing saves converge to the authored structure instead of keeping extras.
+         
+         
+         
         for(Direction direction:Direction.Plane.HORIZONTAL) {
             net.krodark.asterion.block.GreekBrazierBlock.removeStructure(
                     level,CatacombArena.brazier(direction));
@@ -455,9 +455,9 @@ public final class AuthoredCatacombs {
         if(!arena&&!approach&&!retiredApproach)return;
         BlockPos marker=arenaMarker(cp);
         var revisionMarker=arenaRevisionMarker();
-        // LIGHT is the current invisible revision marker. Previous arena revisions used
-        // BARRIER and STRUCTURE_VOID, so every affected chunk is rebuilt once as one
-        // coherent copy of the nine authored templates instead of retaining mixed parts.
+         
+         
+         
         if(chunk.getBlockState(marker).equals(revisionMarker))return;
         if(retiredApproach)sealRetiredApproach(level,chunk);
         BoundingBox chunkBounds=new BoundingBox(cp.getMinBlockX(),ARENA_BASE_Y,cp.getMinBlockZ(),
@@ -482,8 +482,8 @@ public final class AuthoredCatacombs {
         net.krodark.asterion.WorldGenerator.registerAuthoredArenaPillars(level,chunk);
         configureArenaLoot(level,chunk);
         MinotaurArenaEntrances.buildForChunk(level,cp);
-        // Keep the visible arena volume entirely authored by the NBT files. The marker
-        // lives below that volume and has no collision or rendered model.
+         
+         
         chunk.setBlockState(marker,revisionMarker,0);
         MazeNbtStructures.markCopperClean(chunk);
         chunk.markUnsaved();
@@ -502,8 +502,8 @@ public final class AuthoredCatacombs {
         }
     }
     private static void clearOldArenaChunk(LevelChunk chunk,BoundingBox bounds) {
-        // A template's air is meaningful. Clear the complete authored volume first so no
-        // dome, floor, furniture or collision from the retired generated arena can survive.
+         
+         
         var air=Blocks.AIR.defaultBlockState();
         BlockPos.MutableBlockPos cursor=new BlockPos.MutableBlockPos();
         for(int x=bounds.minX();x<=bounds.maxX();x++)for(int z=bounds.minZ();z<=bounds.maxZ();z++)
@@ -531,9 +531,9 @@ public final class AuthoredCatacombs {
                 level.setBlock(pos.below(), Asterion.MAZESTEEL_BLOCK.defaultBlockState(), 18);
                 pillarRoots.add(pos.immutable());
             }
-            // Only the small set requiring lifecycle/light work uses Level#setBlock.
-            // Plain masonry goes directly into its already-loaded chunk, avoiding
-            // hundreds of thousands of repeated world lookups and neighbor checks.
+             
+             
+             
             if(state.hasBlockEntity()||state.getLightEmission()>0||!state.getFluidState().isEmpty())
                 level.setBlock(pos,state,18);
             else {
@@ -542,14 +542,14 @@ public final class AuthoredCatacombs {
                 chunk.setBlockState(pos,state,0);
             }
         }
-        // Let vanilla deserialize the few authored block entities after the fast
-        // block batch. Multipart rune/barrel tags were intentionally stripped above.
+         
+         
         template.placeInWorld(level,origin,origin,settings(bounds)
                 .addProcessor(REMOVE_ARENA_MARKERS).addProcessor(ARENA_NBT_ONLY),
                 RandomSource.create(part),18);
-        // Structure saves omit cells occupied by the model's empty collision slices.
-        // Rebuild each saved root into the complete linked volume so its integrity tick
-        // cannot mistake those omitted cells for damage and delete the pillar.
+         
+         
+         
         for(BlockPos root:pillarRoots)
             net.krodark.asterion.block.PillarBlock.placeStructure(
                     (pos,state)->level.setBlock(pos,state,18),root,
@@ -579,8 +579,8 @@ public final class AuthoredCatacombs {
     private static void placeArenaApproach(ServerLevel level,LevelChunk chunk) {
         ChunkPos cp=chunk.getPos();
         for(int x=cp.getMinBlockX();x<=cp.getMaxBlockX();x++)for(int z=cp.getMinBlockZ();z<=cp.getMaxBlockZ();z++) {
-            // Part 8's south jigsaw is (0,72,61). Its lobby, stairs and barrel door
-            // already belong to the template; join only the space outside that socket.
+             
+             
             if(z<=ARENA_RADIUS||z>76)continue;
             int center=Math.round((z-(ARENA_RADIUS+1))*9F/(76-(ARENA_RADIUS+1)));
             boolean core=Math.abs(x-center)<=1;

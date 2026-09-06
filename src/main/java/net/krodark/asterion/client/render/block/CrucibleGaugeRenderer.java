@@ -27,7 +27,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 
-/** Renders the authored five-block-wide crucible and its contextual temperature gauge. */
+ 
 public final class CrucibleGaugeRenderer extends GeoBlockRenderer<CrucibleBlockEntity, BlockEntityRenderState> {
     private static final Identifier GAUGE = Asterion.id("textures/gui/forge/temp_gauge_highres.png");
     private static final DataTicket<Float> TEMPERATURE = DataTickets.create("asterion_crucible_temperature", Float.class);
@@ -40,10 +40,10 @@ public final class CrucibleGaugeRenderer extends GeoBlockRenderer<CrucibleBlockE
     private static final EmissiveBoneMesh GAUGE_MARKER = EmissiveBoneMesh.verticalPlane(.115F, .009F, -.006F);
     private static final Identifier GAUGE_MARKER_ID = Asterion.id("forge/gauge_marker");
 
-    private static final EmissiveBoneMesh[] LIQUID = new EmissiveBoneMesh[4];
-    private static final Identifier[] LIQUID_IDS = new Identifier[4];
+    private static final EmissiveBoneMesh[] LIQUID = new EmissiveBoneMesh[5];
+    private static final Identifier[] LIQUID_IDS = new Identifier[5];
     static {
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < LIQUID.length; i++) {
             LIQUID[i] = EmissiveBoneMesh.horizontalPlane(1.9F - i * .3F, 3.15F + i * .12F);
             LIQUID_IDS[i] = Asterion.id("forge_liquid/" + i);
         }
@@ -73,11 +73,11 @@ public final class CrucibleGaugeRenderer extends GeoBlockRenderer<CrucibleBlockE
 
     private static void loadVentMask() {
         var client = Minecraft.getInstance();
-        // Build one frame-sized mask during renderer loading; no per-frame pixel scans.
+         
         try (var stream = client.getResourceManager().open(Asterion.id("textures/block/crucible.png"));
              var source = com.mojang.blaze3d.platform.NativeImage.read(stream)) {
             var mask = new com.mojang.blaze3d.platform.NativeImage(1024, 1024, true);
-            // Follow the transparent vent openings on the four outer wall faces.
+             
             int[][] faces = {{243, 162}, {243, 227}, {243, 292}, {0, 324}};
             for (int[] face : faces) for (int y = 29; y <= 48; y++) for (int x = 0; x < 80; x++) {
                 int u = face[0] + x, v = face[1] + y;
@@ -119,7 +119,8 @@ public final class CrucibleGaugeRenderer extends GeoBlockRenderer<CrucibleBlockE
         String materials = state.getOrDefaultGeckolibData(MATERIALS, "");
         if (materials.isEmpty()) return;
         float heat = state.getOrDefaultGeckolibData(TEMPERATURE, 0F) / CrucibleBlockEntity.MAX_TEMPERATURE;
-        for (int i = 0; i < materials.length(); i++) {
+        int layers = Math.min(materials.length(), LIQUID.length);
+        for (int i = 0; i < layers; i++) {
             int base = CrucibleBlockEntity.metalColor(materials.charAt(i) - '0');
             int color = net.minecraft.util.ARGB.linearLerp(heat * .4F, 0xFF000000 | base, 0xFFFFA347);
             float radius = 1.9F - i * .3F;
@@ -131,12 +132,12 @@ public final class CrucibleGaugeRenderer extends GeoBlockRenderer<CrucibleBlockE
                 if (heat > .2F) AmneticBoneEmission.submit(meshId, mesh, FILL, pose.pose(), color,
                         1, 1, heat * .35F, true);
             });
-            if (i == materials.length() - 1) {
+            if (i == layers - 1) {
                 int edge = net.minecraft.util.ARGB.linearLerp(.4F, color, 0xFF33271C);
                 int shine = net.minecraft.util.ARGB.linearLerp(.22F, color, 0xFFFFE0A0);
                 out.submitCustomGeometry(poses, RenderTypes.entityTranslucent(FILL, false), (pose, vertices) -> {
                     float rim = radius - .05F;
-                    // Narrow strips stay inside the liquid, clear of the crucible walls.
+                     
                     strip(pose, vertices, .5F - rim, .5F + rim, y + .003F, .5F - rim, .5F - rim + .045F, edge);
                     strip(pose, vertices, .5F - rim, .5F + rim, y + .003F, .5F + rim - .045F, .5F + rim, edge);
                     strip(pose, vertices, .5F - rim * .72F, .5F + rim * .22F, y + .005F, .5F - rim * .38F, .5F - rim * .35F, shine);

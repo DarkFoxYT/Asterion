@@ -50,7 +50,7 @@ public final class ConstructGeoRenderer extends GeoEntityRenderer<ConstructEntit
         super.adjustModelBonesForRender(pass, bones);
         float yaw = pass.getOrDefaultGeckolibData(LOOK_YAW, 0.0F);
         float pitch = pass.getOrDefaultGeckolibData(LOOK_PITCH, 0.0F);
-        // Spread gaze over the nested body -> head hierarchy instead of swivelling one cube.
+         
         bones.ifPresent("body", bone -> bone.setRotation(
                 bone.getRotX() + pitch * 0.30F, bone.getRotY() + yaw * 0.32F, bone.getRotZ()));
         bones.ifPresent("head", bone -> bone.setRotation(

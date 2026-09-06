@@ -14,7 +14,7 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
-/** A rendered limb can extend beyond the entity's navigation box. */
+ 
 public record MinotaurBodyPayload(int entityId, Vec3 point, boolean attack, int part) implements CustomPacketPayload {
     public MinotaurBodyPayload(int entityId, Vec3 point, boolean attack) { this(entityId, point, attack, -1); }
     public static final Type<MinotaurBodyPayload> TYPE = new Type<>(Asterion.id("minotaur_body"));
@@ -40,7 +40,7 @@ public record MinotaurBodyPayload(int entityId, Vec3 point, boolean attack, int 
         Vec3 eye = player.getEyePosition(), point = request.point;
         double reach = player.entityInteractionRange() + .35;
         if (!Double.isFinite(point.lengthSqr()) || eye.distanceToSqr(point) > reach * reach) return;
-        // Bound the client pose to the authored body's maximum extension. Do not expand movement collision.
+         
         if (!boss.animatedBodyBounds().contains(point)) return;
         var block = player.level().clip(new ClipContext(eye, point, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
         if (block.getType() != HitResult.Type.MISS && eye.distanceToSqr(block.getLocation()) + .0025 < eye.distanceToSqr(point)) return;

@@ -1,14 +1,14 @@
 package net.krodark.asterion.entity;
 
-/** Maps server action ticks to authored keyframes, including release and recovery rather than only clip length. */
+ 
 public final class MinotaurAnimationTiming {
-    // Authored animation frames are 24 fps, independently of Minecraft's 20 server ticks/sec.
+     
     public static final double ROAR_SOUND_SECONDS = 60.0 / 24.0;
     public static final int AXE_RELEASE = 15;
     public static final int[] COMBO_HITS = {19, 33, 46};
-    /** Server contacts mapped exactly to authored frames 22 and 50 at 24 FPS. */
+     
     public static final int[] SWORD_COMBO_HITS = {18, 42};
-    /** Authored frame 30 (1.25 seconds) on punch_single. */
+     
     public static final int PUNCH_SINGLE_HIT = 25;
     public static final Track CLEAVE = track(48, 2.3864, 18, .9091);
     public static final Track CHOP = track(40, 1.9583, 26, 1.25);
@@ -29,7 +29,7 @@ public final class MinotaurAnimationTiming {
     public static final Track SHEATHE_SWORD = track(24, 1.5417);
     public static final Track SHEATHE_AXE = track(20, 1.0);
     public static final Track ROAR = track(150, 7.4713);
-    // Door impact coincides with the jaw opening; the sustained roar plays after the entrance advance.
+     
     public static final Track ENTRY_ROAR = new Track(new double[]{0, 78, 112, 128, 142, 150},
             new double[]{0, 2.2989, 3.0172, 3.8793, 6.8966, 7.4713});
     public static final Track FIRE_ROAR = new Track(new double[]{0, 18, 24, 78, 92, 108},

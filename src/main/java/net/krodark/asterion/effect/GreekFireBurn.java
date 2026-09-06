@@ -3,7 +3,7 @@ package net.krodark.asterion.effect;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.effect.MobEffects;
 
-/** Fire attacks use ordinary burning, without custom status effects or health penalties. */
+ 
 public final class GreekFireBurn {
     private GreekFireBurn() { }
 

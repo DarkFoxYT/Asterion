@@ -15,7 +15,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
-/** Keeps encounter progression keys visible and recovers ignored drops without duplication. */
+ 
 public final class EncounterKeyRecovery {
     private static final long RECOVERY_DELAY=20L*60L;
     private static final Map<UUID,Pending> PENDING=new HashMap<>();
@@ -28,13 +28,13 @@ public final class EncounterKeyRecovery {
         ServerLifecycleEvents.SERVER_STOPPED.register(server->PENDING.clear());
     }
 
-    /** Records the exact player who paid an arena entry cost. */
+     
     public static void markConsumed(ServerPlayer player,Item key) {
         String marker=spentMarker(key);
         if(marker!=null)player.addTag(marker);
     }
 
-    /** Restores a paid key once, without duplicating one the player already recovered elsewhere. */
+     
     public static boolean restoreConsumed(ServerPlayer player,Item key) {
         String marker=spentMarker(key);
         if(marker==null||!player.removeTag(marker))return false;

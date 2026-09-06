@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-/** Data-driven catalog for the visual biomes used inside the labyrinth. */
+ 
 public final class MazeBiomes {
     private static final Identifier CATALOG = Asterion.id("maze_biomes.json");
     private static final Catalog FALLBACK = new Catalog(20, 7, 2.0F, 4.0F, List.of(

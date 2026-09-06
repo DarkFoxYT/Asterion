@@ -63,10 +63,20 @@ public final class AsterionClient implements ClientModInitializer {
         CentipedeInteractionClient.initialize();
         EntityRenderers.register(Asterion.MINOTAUR, MinotaurGeoRenderer::new);
         EntityRenderers.register(net.krodark.asterion.game.AncientContent.SKELETON, net.krodark.asterion.client.render.entity.AncientSkeletonRenderer::new);
+        EntityRenderers.register(net.krodark.asterion.game.ChainLiftContent.CALL_RUNE, net.krodark.asterion.client.render.entity.LiftCallRuneRenderer::new);
+        net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(Asterion.id("lift_call_prompt"), (graphics, tracker) -> {
+            var client = net.minecraft.client.Minecraft.getInstance();
+            if (client.player == null || client.screen != null || CinematicHud.isHidden()) return;
+            if (client.hitResult instanceof net.minecraft.world.phys.EntityHitResult hit
+                    && hit.getEntity() instanceof net.krodark.asterion.entity.LiftCallRuneEntity
+                    && client.player.distanceToSqr(hit.getEntity()) <= 36)
+                graphics.text(client.font, net.minecraft.network.chat.Component.translatable("interaction.asterion.call_lift"),
+                        graphics.guiWidth() / 2 + 12, graphics.guiHeight() / 2 - 4, 0xFFB4ECFF, true);
+        });
         EntityRenderers.register(net.krodark.asterion.game.ChainLiftContent.LIFT, net.krodark.asterion.client.render.entity.ChainLiftRenderer::new);
         EntityRenderers.register(Asterion.MINOTAUR_AXE, net.krodark.asterion.client.render.entity.MinotaurAxeRenderer::new);
         EntityRenderers.register(Asterion.BOMBARDIER_BEETLE, BombadierBeetleGeoRenderer::new);
-        // Animated beetle placeholder until the dedicated model is supplied.
+         
         EntityRenderers.register(net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER, net.krodark.asterion.client.render.entity.CursedBrazierRenderer::new);
         EntityRenderers.register(Asterion.RUNE_BEETLE, net.krodark.asterion.client.render.entity.RuneBeetleRenderer::new);
         EntityRenderers.register(Asterion.SCARLET_CENTIPEDE, ScarletCentipedeGeoRenderer::new);
@@ -145,6 +155,7 @@ public final class AsterionClient implements ClientModInitializer {
         BlockEntityRenderers.register(Asterion.LABYRINTH_VINE_BLOCK_ENTITY, LabyrinthVineGeoRenderer::new);
         BlockEntityRenderers.register(net.krodark.asterion.game.AncientContent.TROPHY_BLOCK_ENTITY,
                 net.krodark.asterion.client.render.block.MinotaurTrophyRenderer::new);
+        BlockEntityRenderers.register(net.krodark.asterion.game.PedestalContent.BLOCK_ENTITY, net.krodark.asterion.client.render.block.PedestalRenderer::new);
         BlockEntityRenderers.register(Asterion.CRUCIBLE_BLOCK_ENTITY,
                 net.krodark.asterion.client.render.block.CrucibleGaugeRenderer::new);
         BlockEntityRenderers.register(Asterion.GREEK_FIRE_TORCH_BLOCK_ENTITY,

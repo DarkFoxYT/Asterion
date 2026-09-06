@@ -40,7 +40,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.EnumSet;
 
-/** A directly controllable mount that keeps its feet attached across surface corners. */
+ 
 public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEntity {
     private static final RawAnimation WALK_ANIMATION = RawAnimation.begin().thenLoop("walk");
     private static final EntityDataAccessor<Integer> DATA_ATTACHED_SURFACE = SynchedEntityData.defineId(
@@ -148,19 +148,19 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         if (getControllingPassenger() != null) navigation.stop();
         super.tick();
         if (!level().isClientSide() && getControllingPassenger() != null && tickCount - driverFrameTick <= 15) {
-            // Driver packets refine the authoritative surface frame; they must not erase
-            // accumulated tangent velocity every tick or server correction appears as a
-            // repeated stop/start jitter to the rider and every remote observer.
+             
+             
+             
             surfaceForward = CentipedeMotion.followHeading(surfaceForward, driverHeading,
                     attachedSurface().getUnitVec3(), .45D);
         }
-        // Vanilla gives the driver ownership of vehicle movement. The server follows its
-        // validated vehicle/face packets instead of applying a second wall correction.
+         
+         
         if (isLocalInstanceAuthoritative()) updateSurfaceAfterMovement();
         blendAttachmentNormal();
         if (!level().isClientSide()) {
             getEntityData().set(DATA_FORWARD, vector(surfaceForward()));
-            // Saved reservations may outlive a disconnected player, but never reshuffle seats.
+             
             if (tickCount == 60) {
                 CentipedeSeats live = new CentipedeSeats();
                 for (Entity rider : getPassengers()) live.claim(rider.getUUID(), seatIndex(rider), chainSegmentCount());
@@ -208,7 +208,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         double speed;
         if (controller instanceof Player) {
             forward = riderForward((Player)controller, up);
-            // Minecraft's xxa axis is positive-left, not positive-right.
+             
             Vec3 left = up.cross(forward).normalize();
             tangent = forward.scale(input.z).subtract(left.scale(input.x));
             speed = RIDDEN_SPEED * Math.min(1.0D, tangent.length());
@@ -222,7 +222,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
             if (speed > 0) surfaceForward = tangent;
         }
 
-        // Movement follows the contacted face. Only the rendered body blends around corners.
+         
         Vec3 desiredTangent = tangent.scale(speed);
         double response = desiredTangent.lengthSqr() > 1.0E-5D ? 0.20D : 0.30D;
         smoothedSurfaceMotion = smoothedSurfaceMotion.lerp(desiredTangent, response);
@@ -274,7 +274,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     @Override
     protected InteractionResult mobInteract(Player player, InteractionHand hand) {
         if (!player.isSecondaryUseActive() && !player.isPassenger()) {
-            // Vanilla interactions with the main entity still use the actual clicked section.
+             
             Vec3 eye = player.getEyePosition();
             var hit = CentipedeInteraction.pick(eye, eye.add(player.getViewVector(1).scale(player.entityInteractionRange())),
                     chainSegmentCount(), i -> chainPose(i, 1));
@@ -297,10 +297,10 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         passenger.resetFallDistance();
     }
 
-    /** Keeps both the rotated shell and its upright rider clear during wall/corner transitions. */
+     
     private void keepHeadOutsideWalls() {
-        // Remote entities already interpolate authoritative positions. Local collision
-        // correction fights that interpolation and produces a snap on every packet.
+         
+         
         if (!isLocalInstanceAuthoritative()) return;
         if (!usesSurfaceTravel()) return;
         Vec3 head = chainHeadCenter();
@@ -316,15 +316,15 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
             if (level().noCollision(passenger,
                     passenger.getBoundingBox().move(candidate.subtract(passenger.position())))) return candidate;
         }
-        // Never teleport a rider into masonry when no valid wall-side position exists.
+         
         return passenger.position();
     }
 
     public Vec3 passengerPosition(Entity passenger, float partial) {
         int seat = Math.max(0, seatIndex(passenger));
         var pose = chainPose(seat, partial);
-        // Vanilla's VEHICLE attachment is a feet-to-seat offset. Rotate that offset with
-        // the shell too; subtracting it along world Y made riders float beside walls.
+         
+         
         Vec3 attachment = passenger.getVehicleAttachmentPoint(this);
         Vec3 rotated = CentipedeInteraction.toWorld(attachment, pose).subtract(pose.position());
         return CentipedeInteraction.saddle(pose, seat).subtract(rotated);
@@ -351,7 +351,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
                 || !Double.isFinite(heading.x) || !Double.isFinite(heading.y) || !Double.isFinite(heading.z)
                 || heading.lengthSqr() < .5 || heading.lengthSqr() > 1.5) return;
         Direction face = SURFACES[surface];
-        // A rear passenger cannot send steering, and even the driver cannot invent a wall.
+         
         if (face != Direction.DOWN && !touchingSurface(face)) return;
         if (face != attachedSurface()) lastSurfaceSwitchTick = tickCount;
         setAttachedSurface(face);
@@ -448,14 +448,14 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
                 attachTo(replacement, current);
                 return;
             }
-            // Only a short grace period for block seams; a missing wall restores gravity.
+             
             if (surfaceContactGrace-- <= 0) detachFromSurface();
         }
     }
 
     private Direction bestTransitionSurface(Direction current) {
-        // Keep the selected face through the overlap zone instead of ping-ponging between
-        // the two touching walls. Losing support still permits an immediate replacement.
+         
+         
         if (tickCount - lastSurfaceSwitchTick < 6 && touchingSurface(current)) return null;
         if (current == Direction.DOWN && horizontalCollision) {
             Direction wall = null;
@@ -508,8 +508,8 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         if (approach == null)
             approach = CentipedeSurfaceProbe.aroundEdge(getBoundingBox(), motion, attachedSurface(), blocks);
         if (approach == null) return;
-        // No speculative tilt or gravity changes: the new face must already be within
-        // contact tolerance. Blend the pose only after this confirmed hand-off.
+         
+         
         if (approach.gap() <= .08 && touchingSurface(approach.face())) attachTo(approach.face(), attachedSurface());
     }
 
@@ -518,7 +518,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         Vec3 nextNormal = next.getUnitVec3();
         Vec3 projected = projectOntoSurface(surfaceForward, nextNormal);
         if (projected.lengthSqr() < 1.0E-5D) {
-            // Rolling over a 90-degree edge continues away from the old surface.
+             
             projected = projectOntoSurface(previous.getUnitVec3().scale(-1.0D), nextNormal);
         }
         if (projected.lengthSqr() < 1.0E-5D)
@@ -551,12 +551,12 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     }
 
     private boolean usesSurfaceTravel() {
-        // Visual settling after detachment must never keep the mount levitating.
+         
         return attachedSurface() != Direction.DOWN;
     }
 
-    /** Matches the camera transform: player yaw is evaluated on a flat plane, then tilted
-     * onto the current blended surface. This keeps forward and strafe controls uninverted. */
+     
+
     private static Vec3 riderForward(Player player, Vec3 surfaceUp) {
         Vec3 flat = Vec3.directionFromRotation(0.0F, player.getYRot());
         Quaternionf tilt = new Quaternionf().rotationTo(
@@ -593,8 +593,8 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     public Direction attachedSurface() {
         int ordinal = Mth.clamp(getEntityData().get(DATA_ATTACHED_SURFACE), 0, SURFACES.length - 1);
         if (level().isClientSide() && getControllingPassenger() != null && isLocalInstanceAuthoritative()) {
-            // A delayed acknowledgement must not roll a predicted corner transition back
-            // to the previous face for one frame, then rotate it forward again.
+             
+             
             if (localDriverSurface == null) localDriverSurface = SURFACES[ordinal];
             return localDriverSurface;
         }
@@ -630,7 +630,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
             if (seatIndex(rider) >= chainSegmentCount()) rider.stopRiding();
     }
 
-    /** Wandering in the current surface plane, not ground navigation projected onto a wall. */
+     
     private final class SurfaceWanderGoal extends Goal {
         private Vec3 wanted = new Vec3(0, 0, -1);
         private Vec3 lastPosition = Vec3.ZERO;
@@ -670,8 +670,8 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
             double moved = position().distanceToSqr(lastPosition);
             lastPosition = position();
             stuckTicks = wildSpeed > .08 && moved < .0004 ? stuckTicks + 1 : 0;
-            // Look ahead for unsupported edges. A solid face ahead is deliberately allowed:
-            // the existing attachment solver will roll the head up onto that wall.
+             
+             
             Vec3 ahead = wildHeading.scale(.95);
             boolean supportedAhead = !level().noCollision(ScarletCentipedeEntity.this,
                     getBoundingBox().move(ahead).move(normal.scale(.8)));

@@ -9,7 +9,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Blocks;
 
-/** Raised floors, chunk seams, newly opened passages and complete recession in real block palettes. */
+ 
 public final class FloodSpreadCheck {
     public static void run(ServerLevel level) {
         int base = CatacombLayout.WATER_Y;
@@ -20,7 +20,7 @@ public final class FloodSpreadCheck {
         for (int y = base; y <= base + 4; y++) level.setBlock(new BlockPos(319, y, 320), Blocks.AIR.defaultBlockState(), 18);
         BlockPos inlet = new BlockPos(319, base, 320);
         level.setBlock(inlet, Blocks.WATER.defaultBlockState(), 18);
-        // A lower pocket also needs to fill, not retain an air bubble below the old baseline.
+         
         for (int y = base - 3; y <= base + 3; y++) level.setBlock(new BlockPos(320, y, 320), Blocks.AIR.defaultBlockState(), 18);
         BlockPos door = new BlockPos(329, base + 3, 320);
         level.setBlock(door, Blocks.STONE.defaultBlockState(), 18);
@@ -57,7 +57,7 @@ public final class FloodSpreadCheck {
         check(level.getBlockEntity(rune) == runeEntity && runeEntity != null, "Flood replaced rune data");
         check(level.getBlockState(rune).getValue(net.krodark.asterion.block.RuneBlock.POWERED), "Wet rune could not power on");
         check(level.getBlockState(sealed).isAir(), "Flood crossed sealed room walls");
-        // Reconciliation at an unchanged tide must catch a newly accessible/reloaded room edge.
+         
         BlockPos late = new BlockPos(337, base + 3, 321);
         level.setBlock(late, Blocks.AIR.defaultBlockState(), 18);
         reconcile(level, 32);

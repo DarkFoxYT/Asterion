@@ -8,7 +8,7 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 
-/** Streamed regional ambience, independent of music, with a short crossfade at cave entrances. */
+ 
 public final class MazeAmbience {
     private static Loop maze, cave;
     private static int ticks;
@@ -60,7 +60,7 @@ public final class MazeAmbience {
             relative = true;
             attenuation = Attenuation.NONE;
             looping = true;
-            delay = 0; // Let the streaming engine wrap the audio, without a scheduled replay gap.
+            delay = 0;  
             volume = .001F;
         }
         @Override public void tick() {

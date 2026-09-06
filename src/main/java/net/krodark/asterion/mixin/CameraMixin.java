@@ -61,8 +61,8 @@ public abstract class CameraMixin {
         if (client.player == null || ((Camera)(Object)this).entity() != client.player
                 || !(client.player.getVehicle() instanceof net.krodark.asterion.entity.ScarletCentipedeEntity mount)) return;
         Vec3 normal = mount.passengerNormal(client.player, partial);
-        // Apply the same surface tilt used by steering. Keep the player's yaw/pitch
-        // as local input; feeding world-space angles back into steering causes drift.
+         
+         
         Quaternionf tilt = new Quaternionf().rotationTo(new Vector3f(0, 1, 0),
                 new Vector3f((float)-normal.x, (float)-normal.y, (float)-normal.z));
         rotation.premul(tilt);
@@ -105,8 +105,8 @@ public abstract class CameraMixin {
             Vec3 torso = DismembermentEngine.INSTANCE.tumbleCameraAnchor(minecraft.player.getId(), partial);
             if (head == null && torso == null) asterion$smoothedRagdollCamera = null;
             else {
-                // The head is a fast, light rigid body and made the view whip on every impact.
-                // Follow the torso, lifted toward the head, while vanilla still owns yaw and pitch.
+                 
+                 
                 Vec3 anchor = torso != null ? torso : head;
                 Vec3 visualEye = torso != null && head != null ? torso.lerp(head, 0.38).add(0, 0.18, 0)
                         : anchor.add(0, 0.35, 0);
@@ -168,10 +168,10 @@ public abstract class CameraMixin {
             asterion$rebuildCinematicFrustum(minecraft);
     }
 
-    /** Camera.update creates its culling frustum before this tail injection moves the camera.
-     * Rebuild it from the actual cutscene pose so terrain visibility follows the shot, not the
-     * frozen player body's facing direction. The slightly wider culling FOV avoids edge pop-in
-     * during fast orbit shots without rendering beyond the configured cinematic distance. */
+     
+
+
+
     @Unique private void asterion$rebuildCinematicFrustum(Minecraft minecraft) {
         int width = Math.max(1, minecraft.getWindow().getWidth());
         int height = Math.max(1, minecraft.getWindow().getHeight());

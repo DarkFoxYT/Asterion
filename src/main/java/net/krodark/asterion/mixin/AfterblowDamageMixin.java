@@ -8,8 +8,8 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
-/** Makes the stored counter part of the original hit so armor, attribution,
- * invulnerability frames and multiplayer all observe one damage transaction. */
+ 
+
 @Mixin(LivingEntity.class)
 public abstract class AfterblowDamageMixin {
     @ModifyVariable(method = "hurtServer", at = @At("HEAD"), argsOnly = true, ordinal = 0)

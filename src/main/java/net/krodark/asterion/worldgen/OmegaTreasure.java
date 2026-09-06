@@ -9,7 +9,7 @@ import net.minecraft.world.item.Items;
 
 public final class OmegaTreasure {
     private OmegaTreasure() { }
-    /** A 23-block Omega inlay keeps the center readable without obstructing boss movement. */
+     
     public static boolean inlay(int x, int z) {
         int r2 = x * x + z * z;
         return z <= 5 && r2 >= 56 && r2 <= 90
@@ -17,7 +17,7 @@ public final class OmegaTreasure {
                 || z >= 8 && z <= 10 && Math.abs(x) >= 4 && Math.abs(x) <= 11;
     }
     public static void reward(ServerLevel level) {
-        // The supplied structure can replace this fallback without changing combat code.
+         
         var authored = level.getStructureManager().get(Asterion.id("omega_treasure"));
         if (authored.isPresent()) {
             var structure = authored.get(); var size = structure.getSize();

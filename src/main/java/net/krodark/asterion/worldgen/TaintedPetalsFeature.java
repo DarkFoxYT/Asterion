@@ -12,7 +12,7 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 
-/** Crimson leaf litter which can cling to floors, ceilings, and maze walls. */
+ 
 public final class TaintedPetalsFeature extends Feature<NoneFeatureConfiguration> {
     public TaintedPetalsFeature(Codec<NoneFeatureConfiguration> codec) {
         super(codec);
@@ -74,7 +74,7 @@ public final class TaintedPetalsFeature extends Feature<NoneFeatureConfiguration
         return true;
     }
 
-    /** Places the thin petal plane immediately over a marsh pool instead of using a leaf block. */
+     
     static boolean placeOnWaterSurface(WorldGenLevel level, BlockPos pos) {
         if (!OvergrowthFeatureSupport.canWrite(level, pos) || !level.getBlockState(pos).isAir()
                 || !level.getFluidState(pos.below()).is(net.minecraft.tags.FluidTags.WATER)) return false;

@@ -6,7 +6,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.core.registries.BuiltInRegistries;
 
-/** Protect player edits, not generation, puzzle updates, or the flooding event. */
+ 
 public final class CatacombProtection {
     private CatacombProtection() { }
 
@@ -15,7 +15,7 @@ public final class CatacombProtection {
                 && CatacombLayout.contains(pos);
     }
 
-    /** Convention-tagged and vanilla-named ores are permanent player edits. */
+     
     public static boolean isOre(BlockState state) {
         var id = BuiltInRegistries.BLOCK.getKey(state.getBlock());
         return state.is(net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.BLOCK,

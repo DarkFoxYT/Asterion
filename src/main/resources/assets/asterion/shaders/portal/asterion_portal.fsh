@@ -11,19 +11,19 @@ out vec4 FragColor;
 void main() {
     vec2 view = vEffect.xy;
     float viewAmount = clamp(length(view), 0.0, 1.6);
-    // Compress the far side and expand the near side to make the flat surface read as a window.
+     
     vec2 centered = vUv - 0.5;
     float squareDistance = max(abs(centered.x), abs(centered.y)) * 2.0;
     float haloLayer = step(0.5, vEffect.w);
     float exitPortal = step(0.5, vPortal.z);
     if (haloLayer > 0.5) {
-        // The Overworld portal is a clean destination window, not a rift with a second ring.
+         
         if (exitPortal > 0.5) {
             FragColor = vec4(0.0);
             return;
         }
-        // Square dust wake using the same oxblood/dirty-ochre palette as the volume shader.
-        // This layer performs no texture or relief samples.
+         
+         
         float ring = smoothstep(0.62, 0.76, squareDistance)
                 * (1.0 - smoothstep(0.84, 0.98, squareDistance));
         float gridPhase = (centered.x + centered.y) * 18.0 - vEffect.z * 0.38;
@@ -36,8 +36,8 @@ void main() {
         return;
     }
     if (exitPortal > 0.5) {
-        // The physical doorway is 3:5. Crop the square vista horizontally instead of
-        // stretching it into the tall mesh, leaving extra room for camera parallax.
+         
+         
         vec2 uv = vec2(0.5 + centered.x * 0.60, vUv.y);
         vec2 stepUv = view * 0.036 / 10.0;
         float depth = 0.0;
@@ -55,7 +55,7 @@ void main() {
     }
     float perspective = 1.0 + dot(centered, normalize(view + vec2(0.0001))) * viewAmount * 0.12;
     vec2 uv = centered / perspective + 0.5;
-    // Only the square central shaft moves; the rectilinear maze remains stable.
+     
     float abyss = 1.0 - smoothstep(0.12, 0.43, squareDistance);
     uv += vec2(sin(centered.y * 28.0 - vEffect.z * 0.48),
             cos(centered.x * 28.0 + vEffect.z * 0.42)) * 0.0045 * abyss;
@@ -65,7 +65,7 @@ void main() {
     float sampledHeight = 0.0;
     for (int i = 0; i < 8; ++i) {
         vec4 probe = texture(PortalSampler, clamp(uv, 0.001, 0.999));
-        // Opaque artwork still gets depth: brightness, not alpha, is the height map.
+         
         float height = dot(probe.rgb, vec3(0.2126, 0.7152, 0.0722));
         sampledHeight = height;
         depth += 1.0 / layers;
@@ -74,7 +74,7 @@ void main() {
     }
     vec4 image = texture(PortalSampler, clamp(uv, 0.001, 0.999));
 
-    // Derive a small normal map from the same image for readable raised edges and cavities.
+     
     vec2 texel = 1.0 / vec2(textureSize(PortalSampler, 0));
     float hL = dot(texture(PortalSampler, clamp(uv-vec2(texel.x,0.0),0.001,0.999)).rgb,
                    vec3(0.2126,0.7152,0.0722));

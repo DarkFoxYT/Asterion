@@ -88,8 +88,8 @@ public final class MazeObjectiveOverlay {
         }
         if (!wasInMaze) {
             wasInMaze = true;
-            // Arrival packets handle a fresh descent. A normal join/rejoin has no such
-            // packet, so rebuild the most useful stage from durable world/inventory facts.
+             
+             
             if (!armed) recoverProgress(client);
         }
         boolean tumbling = DismembermentEngine.INSTANCE.isPlayerTumbling(client.player.getId());
@@ -139,7 +139,7 @@ public final class MazeObjectiveOverlay {
         }
     }
 
-    private static boolean bossFightActive(Minecraft client) {
+    public static boolean bossFightActive(Minecraft client) {
         return !((net.krodark.asterion.mixin.BossHealthOverlayAccessor)client.gui.getBossOverlay())
                 .asterion$bossEvents().isEmpty();
     }
@@ -262,7 +262,7 @@ public final class MazeObjectiveOverlay {
         return client.player.getInventory().contains(new net.minecraft.world.item.ItemStack(item));
     }
 
-    /** Exact key destinations. Omega deliberately has no waypoint. */
+     
     private static Vec3 keyWaypoint(Minecraft client) {
         if (stage == Stage.REACH_ARENA_DOORS && has(client, Asterion.MINOTAUR_KEY))
             return MinotaurArenaEntrances.door(MinotaurArenaEntrances.PLAYER_ENTRANCE).getCenter();

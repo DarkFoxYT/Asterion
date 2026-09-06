@@ -17,7 +17,7 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 
-/** Monumental dead mangroves which physically interrupt and pierce Overgrowth walls. */
+ 
 public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration> {
     private static final Direction[] HORIZONTAL = {
             Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST
@@ -27,7 +27,7 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
         super(codec);
     }
 
-    /** Repairs the exact four-layer opening made by the pre-fix centered road carver. */
+     
     public static void repairLegacyTrunkGaps(ServerLevel level, LevelChunk chunk, boolean legacyChunk) {
         BlockPos marker = new BlockPos(chunk.getPos().getMinBlockX() + 2, 1,
                 chunk.getPos().getMinBlockZ());
@@ -115,7 +115,7 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
 
     private static void grow(WorldGenLevel level, BlockPos base, WallAttachment wall,
                              RandomSource random, long seed, TreeBounds bounds, boolean bonsai) {
-        // Crimson trees should frame the enormous ring walls, not compete with them.
+         
         int diameter = bonsai ? 1 + random.nextInt(2) : 3 + random.nextInt(4);
         int wallHeight = AsterionConfig.INSTANCE.wallHeight;
         int height = bonsai ? 8 + random.nextInt(6)
@@ -149,8 +149,8 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
                     apexRadius, random);
         }
 
-        // Route the walkable lane around the trunk's open side. The old centered lane
-        // cut rises 1-4 out of every trunk and left the crown visibly floating.
+         
+         
         carveRoad(level, base, tangent, diameter + 5, diameter);
     }
 
@@ -189,7 +189,7 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
             if (bonsai) placeTaintedCanopy(level, bounds.clamp(tip.position, canopyRadius),
                     canopyRadius, random);
 
-            // Large branches fork once, giving a mangrove silhouette without leaf blobs.
+             
             if ((branch & 1) == 0) {
                 double forkAngle = angle + (branch % 4 == 0 ? 0.58D : -0.58D);
                 int forkReach = bonsai ? 2 + random.nextInt(3) : 6 + random.nextInt(7);
@@ -212,8 +212,8 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
                                             RandomSource random) {
         int verticalRadius = Math.max(2, radius / 2);
         for (int dx = -radius; dx <= radius; dx++) {
-            // A bonsai crown begins on one clean horizontal plane and only domes upward.
-            // This removes the round, hanging underside produced by a full ellipsoid.
+             
+             
             for (int dy = 0; dy <= verticalRadius; dy++) {
                 for (int dz = -radius; dz <= radius; dz++) {
                     BlockPos pos = center.offset(dx, dy, dz);
@@ -231,8 +231,8 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
                 }
             }
         }
-        // Fruit only occupies exposed points on the flat underside. Keeping this pass
-        // separate guarantees every bloom is visibly attached to a leaf and never floats.
+         
+         
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
                 if (random.nextFloat() >= 0.006F) continue;

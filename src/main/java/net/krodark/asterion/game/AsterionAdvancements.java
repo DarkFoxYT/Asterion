@@ -3,7 +3,7 @@ package net.krodark.asterion.game;
 import net.krodark.asterion.Asterion;
 import net.minecraft.server.level.ServerPlayer;
 
-/** Event-driven milestones; vanilla owns persistence, notifications and one-time rewards. */
+ 
 public final class AsterionAdvancements {
     private AsterionAdvancements() {}
 

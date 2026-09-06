@@ -4,7 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 
-/** The same authored physics mesh is used at the hand, on the back and in flight. */
+ 
 public final class MinotaurAxeVisual {
     public record Release(net.minecraft.world.phys.Vec3 center, org.joml.Quaternionf rotation, long tick, Object level) { }
     private static final java.util.Map<Integer, Release> RELEASES = new java.util.HashMap<>();
@@ -25,7 +25,7 @@ public final class MinotaurAxeVisual {
         var level = net.minecraft.client.Minecraft.getInstance().level;
         return value != null && value.level == level && level != null && level.getGameTime() - value.tick < 8 ? value : null;
     }
-    /** Aligns the standalone physics entity; hand and back attachments use their authored bones. */
+     
     public static void submitAligned(PoseStack poses, SubmitNodeCollector tasks, CameraRenderState camera, int light, float partial) {
         poses.pushPose();
         poses.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-90));

@@ -10,7 +10,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.levelgen.Heightmap;
 
-/** A supported, weathered shrine around the original open descent shaft. */
+ 
 public final class GatewayRuins {
     private GatewayRuins() {}
 
@@ -39,7 +39,7 @@ public final class GatewayRuins {
                     : edge == 8 && Math.floorMod(hash, 5) == 0 ? Asterion.ANCIENT_MOSS
                     : edge >= 7 ? Asterion.SHALE_BRICKS : Asterion.ANCIENT_BRICKS;
             level.setBlock(pos.set(x + dx, y - 1, z + dz), paving.defaultBlockState(), 2);
-            // Continue the footing through air and water until it meets solid ground.
+             
             for (int support = y - 2; support > level.getMinY(); support--) {
                 pos.set(x + dx, support, z + dz);
                 if (level.getBlockState(pos).isCollisionShapeFullBlock(level, pos)
@@ -59,7 +59,7 @@ public final class GatewayRuins {
                 level.setBlock(pos.set(x + dx, y, z + dz), Asterion.SHADED_SHALE_BRICK_SLAB.defaultBlockState(), 2);
             }
         }
-        // One surviving arch and a broken return wall leave the well visible from the approach.
+         
         for (int side : new int[]{-1, 1}) {
             for (int rise = 0; rise < 6; rise++) for (int depth = 0; depth < 2; depth++)
                 level.setBlock(new BlockPos(x + side * 5, y + rise, z - 5 + depth),
@@ -73,7 +73,7 @@ public final class GatewayRuins {
             }
         }
         for (int side : new int[]{-1, 1}) {
-            // Broad bases and corbels give the arch weight without four isolated pillars.
+             
             for (int dz = -6; dz <= -4; dz++)
                 level.setBlock(new BlockPos(x + side * 5, y, z + dz), Asterion.SHADED_SHALE_BRICKS.defaultBlockState(), 2);
             level.setBlock(new BlockPos(x + side * 5, y + 1, z - 6), Asterion.ANCIENT_STONE_STAIRS.defaultBlockState()

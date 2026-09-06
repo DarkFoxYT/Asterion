@@ -8,7 +8,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
 
-/** Arena mechanics kept separate from the replaceable arena shell. */
+ 
 public final class CatacombArena {
     private static final java.util.Map<java.util.UUID, Motion> MOTION = new java.util.HashMap<>();
     private static final java.util.Map<net.minecraft.server.level.ServerLevel, BrazierScan> BRAZIER_SCANS =
@@ -36,7 +36,7 @@ public final class CatacombArena {
         return brazier(direction).above(2).relative(direction);
     }
 
-    /** Finds the actual authored/placed brazier roots instead of assuming four generated fixtures. */
+     
     public static java.util.List<BlockPos> braziers(net.minecraft.server.level.ServerLevel level) {
         long now = level.getGameTime();
         BrazierScan cached = BRAZIER_SCANS.get(level);
@@ -76,7 +76,7 @@ public final class CatacombArena {
         for (BlockPos source : litBraziers(level)) {
             var start = net.minecraft.world.phys.Vec3.atCenterOf(source).add(0, .65, 0);
             var velocity = target.subtract(start).normalize().scale(.65);
-            // Initial velocity only: short packets of flame leave the brazier; no sampled beam.
+             
             for (int i = 0; i < 5; i++) level.sendParticles(Asterion.GREEK_FIRE,
                     start.x + level.getRandom().nextGaussian() * .12, start.y, start.z + level.getRandom().nextGaussian() * .12,
                     0, velocity.x, velocity.y, velocity.z, 1);
@@ -106,8 +106,8 @@ public final class CatacombArena {
             if (movement.lengthSqr() > 1) { MOTION.remove(player.getUUID()); continue; }
             if (previous != null && previous.drift.lengthSqr() > 0.004
                     && (level.getGameTime() & 1) == 0) {
-                // Vanilla water bypasses ground friction. Preserve a little momentum when a
-                // grounded player brakes or reverses direction in a puddle; sneaking gives grip.
+                 
+                 
                 var slip = previous.drift.scale(0.72).add(movement.scale(0.28));
                 if (slip.lengthSqr() > 0.16) slip = slip.normalize().scale(0.4);
                 if (slip.subtract(movement).lengthSqr() > 0.0016) {

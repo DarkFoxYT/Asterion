@@ -12,7 +12,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 
-/** Crossing placement must not cut the nearby wall or clear its upper lintel. */
+ 
 final class CrossingSurfaceCheck {
     static void run(ServerLevel level) {
         int index=0,checked=0;
@@ -26,7 +26,7 @@ final class CrossingSurfaceCheck {
                 int floor=WorldGenerator.mazeFloorHeight(seed,wx,wz);
                 for(int y=LabyrinthLevels.MAZE_FLOOR_Y;y<=floor;y++)
                     level.setBlock(new BlockPos(wx,y,wz),Blocks.STONE.defaultBlockState(),18);
-                // Two flanking walls and a wall directly above the hatch recess.
+                 
                 if(x==4 || x==14 || x>=8 && x<=10 && z==9)
                     for(int y=floor+1;y<=LabyrinthLevels.MAZE_FLOOR_Y+17;y++) {
                     BlockPos pos=new BlockPos(wx,y,wz);

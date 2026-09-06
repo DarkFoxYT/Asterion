@@ -3,7 +3,7 @@ package net.krodark.asterion.entity;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayDeque;
 
-/** Distance-spaced world history: a corner stays in the trail until the tail has passed it. */
+ 
 public final class CentipedeTrail {
     private record Point(double distance, CentipedeChain.Pose pose) {}
     private final ArrayDeque<Point> points = new ArrayDeque<>();
@@ -20,7 +20,7 @@ public final class CentipedeTrail {
         if (points.isEmpty()) { reset(pose); return; }
         Point last = points.getLast();
         double moved = last.pose.position().distanceTo(pose.position());
-        // Looking around must never advance the path or spin the stationary tail.
+         
         if (moved < 1e-6) return;
         if (points.size() > 2) {
             var iterator = points.descendingIterator();

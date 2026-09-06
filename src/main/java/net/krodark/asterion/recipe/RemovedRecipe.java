@@ -7,7 +7,7 @@ import net.minecraft.world.item.crafting.CustomRecipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.level.Level;
 
-/** Save-compatible tombstone for recipe IDs removed from older Asterion worlds. */
+ 
 public final class RemovedRecipe extends CustomRecipe {
     @Override public boolean matches(CraftingInput input, Level level) { return false; }
     @Override public ItemStack assemble(CraftingInput input) { return ItemStack.EMPTY; }

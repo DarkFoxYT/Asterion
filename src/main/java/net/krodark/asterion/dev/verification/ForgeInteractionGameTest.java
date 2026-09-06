@@ -48,7 +48,7 @@ public final class ForgeInteractionGameTest implements FabricClientGameTest {
             context.runOnClient(c -> {
                 if (!(c.screen instanceof CrucibleScreen)) throw new AssertionError("Forge did not open");
                 c.player.setNoGravity(true);
-                // Explicit HUD suppression must also work if another feature changes hideGui.
+                 
                 c.options.hideGui = false;
             });
             context.takeScreenshot("forge-gradient-and-contents");

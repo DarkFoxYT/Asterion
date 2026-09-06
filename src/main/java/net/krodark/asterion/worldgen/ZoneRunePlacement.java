@@ -54,8 +54,8 @@ public final class ZoneRunePlacement {
             ChunkPos chunk = new ChunkPos(x,z);
             if (queued.add(chunk)) queue.add(chunk);
         }
-        // Include every chunk crossed by this room's axis-aligned crypt-module hall so
-        // existing worlds receive the same clean connection as newly generated worlds.
+         
+         
         int hallMinChunkX = (CatacombLayout.ROOT_X * CatacombLayout.TILE) >> 4;
         int hallMaxChunkX = (CatacombLayout.BRAZIER_ROOM_MIN_X * CatacombLayout.TILE - 1) >> 4;
         int hallMinChunkZ = (hallZ * CatacombLayout.TILE) >> 4;
@@ -75,12 +75,12 @@ public final class ZoneRunePlacement {
     }
     public static void tick(ServerLevel level) {
         var arena = ARENA_PENDING.get(level);
-        // Finish the arena before a newly connected player can reach its keyed door.
-        // Eight chunks per tick completes the authored footprint in roughly half a second.
+         
+         
         for (int i = 0; i < 8 && arena != null && !arena.isEmpty(); i++) {
             ChunkPos pos = arena.removeFirst();
-            // This runs from the ordinary server tick, after chunk scheduling startup,
-            // so requesting FULL here cannot wait on the callback currently executing.
+             
+             
             AuthoredCatacombs.placeArenaChunk(level, level.getChunk(pos.x(), pos.z()));
         }
         if (arena != null && arena.isEmpty()) ARENA_PENDING.remove(level);
@@ -114,8 +114,8 @@ public final class ZoneRunePlacement {
         java.util.LinkedHashSet<ChunkPos> chunks = new java.util.LinkedHashSet<>();
         for (int x = -4; x <= 3; x++) for (int z = -4; z <= 3; z++)
             chunks.add(new ChunkPos(x, z));
-        // Include the retired approach footprint once so existing saves have the old
-        // hand-carved hall sealed and replaced by ordinary authored modules.
+         
+         
         for (int x = -1; x <= 5; x++) for (int z = 3; z <= 5; z++)
             chunks.add(new ChunkPos(x, z));
         return java.util.List.copyOf(chunks);
@@ -161,8 +161,8 @@ public final class ZoneRunePlacement {
         BlockPos decorationMarker = new BlockPos(cp.getMinBlockX() + 2, 0, cp.getMinBlockZ());
         var decorated = Blocks.LIGHT.defaultBlockState().setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 3);
         if (chunk.getBlockState(decorationMarker).equals(decorated)) return;
-        // A pre-fix chunk has already had its decoration pass. Mark it without placing
-        // another rune when it is loaded again after a relog.
+         
+         
         if (!newlyGenerated && chunk.getBlockState(new BlockPos(cp.getMinBlockX(), 0, cp.getMinBlockZ()))
                 .is(Blocks.STRUCTURE_VOID)) {
             chunk.setBlockState(decorationMarker, decorated, 0);

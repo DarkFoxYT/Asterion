@@ -9,7 +9,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 
-/** Arena-only rescue: cancel death before vanilla drops inventory, reset the fight and refund paid keys. */
+ 
 public final class ArenaDeathRecovery {
     private ArenaDeathRecovery() { }
 
@@ -23,8 +23,8 @@ public final class ArenaDeathRecovery {
             boolean cursedArena=AuthoredCatacombs.insideCursedBrazierRoom(deathPosition);
             if(!minotaurArena&&!cursedArena)return true;
 
-            // ALLOW_DEATH runs before loot/inventory drops. Restoring positive health and
-            // cancelling here gives arena-local keep inventory without changing the gamerule.
+             
+             
             player.setHealth(player.getMaxHealth());
             player.getFoodData().setFoodLevel(20);
             player.clearFire();

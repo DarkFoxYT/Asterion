@@ -22,7 +22,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
-/** A deliberately simple vertical vine: it either grows up from a floor or down from a ceiling. */
+ 
 public final class LabyrinthVineBlock extends BaseEntityBlock implements WaterloggedDecoration {
     public static final EnumProperty<Direction> FACING = EnumProperty.create(
             "facing", Direction.class, direction -> direction.getAxis() == Direction.Axis.Y);

@@ -23,7 +23,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Input and depth-tested arena guidance for pressure buttons. */
+ 
 public final class PressureButtonClient {
     private static final RenderType MARKER=AsterionEmissiveBuffer.renderType(
             Asterion.id("textures/pin/pin_buttonhold.png"));
@@ -86,7 +86,7 @@ public final class PressureButtonClient {
         BlockPos center = client.player.blockPosition();
         var matches = net.krodark.asterion.util.LoadedBlockSearch.find(client.level,
                 center.offset(-36, -10, -36), center.offset(36, 10, 36), state -> state.is(Asterion.PRESSURE_BUTTON));
-        // Keep the original BlockPos iteration order, including its twelve-marker limit.
+         
         matches.sort(java.util.Comparator.<BlockPos>comparingInt(BlockPos::getZ)
                 .thenComparingInt(BlockPos::getY).thenComparingInt(BlockPos::getX));
         BUTTONS.addAll(matches.subList(0, Math.min(12, matches.size())));

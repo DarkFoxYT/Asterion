@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Only waterloggable blocks gain a property; ordinary solid blocks retain their existing palettes. */
+ 
 @Mixin(StateDefinition.Builder.class)
 public abstract class HeavyWaterStateDefinitionMixin {
     @Shadow @Final private Object owner;

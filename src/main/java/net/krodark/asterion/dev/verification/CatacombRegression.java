@@ -6,7 +6,7 @@ import net.minecraft.nbt.*;
 import java.nio.file.Path;
 import java.util.*;
 
-/** Contracts for the supplied full-size templates and their infinite rooted layout. */
+ 
 public final class CatacombRegression {
     private static int checks;
     public static void main(String[] args) throws Exception {
@@ -152,8 +152,8 @@ public final class CatacombRegression {
                 require(data.getStringOr("name","").equals("asterion:catacombs/door"),"Unconfigured connector: "+name);
                 require(data.getStringOr("target","").equals("asterion:catacombs/door"),"Unconfigured target: "+name);
                 require(data.getStringOr("final_state","").equals("minecraft:air"),"Unexpected connector replacement");
-                // Arena parts are installed at fixed world coordinates and never pass through
-                // jigsaw rotation; procedural 19x19 crypt modules must remain aligned.
+                 
+                 
                 if(!name.startsWith("arena_part"))
                     require(data.getStringOr("joint","").equals("aligned"),"Rollable module: "+name);
                 require(y==(name.startsWith("arena_part")?23:5),"Misaligned doorway");

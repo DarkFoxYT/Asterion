@@ -672,14 +672,14 @@ public final class DismembermentEngine {
                 : entity.getBbHeight() / 1.8;
         scale = Math.max(.55, Math.min(2.4, scale));
         double fraction = switch (region) {
-            case 0 -> .075;      // head; neck should not outweigh the torso
-            case 1 -> .43;       // torso/pelvis
-            case 2, 3 -> .036;   // upper arms
-            case 4, 5 -> .070;   // thighs
-            case 9, 10 -> .039;  // forearms
-            case 11, 12 -> .075; // shins
-            case 6 -> .032;      // cape/cloth
-            case 7, 8 -> .024;   // independent elytra wings
+            case 0 -> .075;       
+            case 1 -> .43;        
+            case 2, 3 -> .036;    
+            case 4, 5 -> .070;    
+            case 9, 10 -> .039;   
+            case 11, 12 -> .075;  
+            case 6 -> .032;       
+            case 7, 8 -> .024;    
             default -> .10;
         };
         double armor = entity instanceof Player player ? armorMassForRegion(player, region) : 0.0;
@@ -1189,7 +1189,7 @@ public final class DismembermentEngine {
         return Identifier.withDefaultNamespace("textures/block/red_concrete.png");
     }
 
-    /** GeckoLib is not a vanilla LivingEntityRenderer, so use the authored cube dimensions directly. */
+     
     private static BodyGeometry constructGeometry(Entity entity, int region) {
         AABB bounds = entity.getBoundingBox();
         Vec3 modelCenter = switch (region) {
@@ -1233,7 +1233,7 @@ public final class DismembermentEngine {
         };
     }
 
-    /** Face order matches the ragdoll box renderer: west, east, down, up, north, south. */
+     
     private static float[][] boxUvs(float wu,float wv,float eu,float ev,float du,float dv,
                                     float uu,float uv,float nu,float nv,float su,float sv,
                                     float width,float height,float depth) {
@@ -1340,10 +1340,10 @@ public final class DismembermentEngine {
         if (!playerTumbles.contains(entityId)) {
             Vec3 direction = impulse.lengthSqr() > 1.0E-8D
                     ? impulse.normalize() : client.player.getViewVector(1.0F);
-            // The authoritative state packet normally arrives before this impulse packet.
-            // In that order the body already exists in `ragdolled`, so the manual toggle
-            // deliberately refuses it. Promote that existing body to a player tumble (or
-            // create it when packets arrive in the opposite order) instead of dropping the hit.
+             
+             
+             
+             
             if (ragdolled.contains(entityId) || ragdoll(client.player, 1,
                     client.player.getBoundingBox().getCenter(), direction,
                     Math.max(0.15F, force), false)) {
@@ -1473,9 +1473,9 @@ public final class DismembermentEngine {
         RigidBodyPiece torso = find(client.player.getId(), 1);
         Vec3 trackingPosition = findSafeTumbleExit(client, client.player.getId());
         if (trackingPosition != null) {
-            // The hidden vanilla player remains attached to the physical torso even
-            // while the server is acknowledging get-up. Stopping here used to leave
-            // the real entity behind and made the final exit packet fail validation.
+             
+             
+             
             client.player.setPos(trackingPosition.x, trackingPosition.y, trackingPosition.z);
             if (torso != null && ClientPlayNetworking.canSend(TumbleExitPayload.TYPE))
                 ClientPlayNetworking.send(new TumbleExitPayload(
@@ -1681,8 +1681,8 @@ public final class DismembermentEngine {
         }
         if (!(owner instanceof Player) || !owner.isAlive()) return;
         if (owner == client.player) {
-            // The server state and impulse use separate packets. Build the local body from
-            // either packet so delivery order can never turn a heavy hit into plain knockback.
+             
+             
             if (!ragdolled.contains(owner.getId()))
                 ragdoll(owner, 1, owner.getBoundingBox().getCenter(), owner.getDeltaMovement(),
                         Math.max(0.7D, owner.getDeltaMovement().length()), false);
@@ -1726,9 +1726,9 @@ public final class DismembermentEngine {
             if (part == null) continue;
             Vec3 transmittedVelocity = new Vec3(snapshot.vx(), snapshot.vy(), snapshot.vz());
             double speed = transmittedVelocity.length();
-            // Snap toward the owner's authoritative simulated pose. Rendering already
-            // interpolates previous/current transforms, so predicting here as well caused
-            // remote limbs to overshoot and then pop back on the next packet.
+             
+             
+             
             Vec3 target = new Vec3(snapshot.x(), snapshot.y(), snapshot.z());
             double error = part.position.distanceTo(target);
             double positionBlend = Mth.clamp(0.58 + speed * 0.10 + error * 0.16, 0.58, 0.94);
@@ -1812,7 +1812,7 @@ public final class DismembermentEngine {
             }
             return;
         }
-        // A missing owner or stale stream must remove the body, not hand it to local physics.
+         
         for (int id : new ArrayList<>(remotePoseTicks.keySet()))
             if (level.getEntity(id) == null || traumaDecayTicker - remotePoseTicks.get(id) > 60) removeRagdoll(id);
         Set<Integer> departedPlayers = new HashSet<>();
@@ -1864,8 +1864,8 @@ public final class DismembermentEngine {
                 break;
             }
         }
-        // Ragdoll stability must follow the explicit ragdoll setting. Dynamically reducing
-        // solver substeps changes joint stiffness and was the source of the degraded feel.
+         
+         
         final int configuredSubsteps = switch (net.krodark.asterion.AsterionConfig.INSTANCE.ragdollPhysicsQuality) {
             case 0 -> 2;
             case 1 -> 3;
@@ -2859,7 +2859,7 @@ public final class DismembermentEngine {
             AABB box = entity.getBoundingBox();
             ObbContact contact = obbContact(part, part.position, box);
             if (contact == null) continue;
-            Vec3 normal = contact.normal.scale(-1); // solid entity -> rigid body
+            Vec3 normal = contact.normal.scale(-1);  
             double correctionDistance = Math.min(0.085, contact.depth + 0.002);
             Vec3 correction = normal.scale(correctionDistance);
             boolean articulated = ragdolled.contains(part.entityId);

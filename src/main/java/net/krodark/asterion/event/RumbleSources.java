@@ -11,7 +11,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
-/** Bounded surface probes shared by server sounds and client debris. No sky fallback or chunk loading. */
+ 
 public final class RumbleSources {
     public record Source(Vec3 position, Vec3 normal, BlockPos block) { }
     private RumbleSources() { }

@@ -8,7 +8,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 
-/** Contextual recovery hint shown while the local player is physically ragdolled. */
+ 
 public final class RagdollGetUpOverlay {
     private static final Component MESSAGE = Component.translatable("hud.asterion.ragdoll_get_up");
 

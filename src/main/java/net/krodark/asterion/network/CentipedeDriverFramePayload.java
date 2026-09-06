@@ -6,7 +6,7 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.world.phys.Vec3;
 
-/** Only orientation; ordinary Minecraft vehicle packets remain responsible for movement. */
+ 
 public record CentipedeDriverFramePayload(int entityId, int surface, Vec3 forward) implements CustomPacketPayload {
     public static final Type<CentipedeDriverFramePayload> TYPE = new Type<>(Asterion.id("centipede_driver_frame"));
     public static final StreamCodec<RegistryFriendlyByteBuf, CentipedeDriverFramePayload> CODEC = CustomPacketPayload.codec(

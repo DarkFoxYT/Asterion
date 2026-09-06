@@ -8,7 +8,7 @@ import net.minecraft.world.item.crafting.CraftingInput;
 
 import java.util.List;
 
-/** Viewer representation for the component-sensitive shapeless sword assembly recipe. */
+ 
 public record ForgedSwordViewerRecipe(Identifier id, List<ItemStack> inputs, ItemStack output) {
     public static ForgedSwordViewerRecipe create() {
         List<ItemStack> parts = List.of(

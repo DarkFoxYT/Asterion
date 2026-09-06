@@ -64,6 +64,16 @@ final class AncientBoneCheck {
                 check(dropped(level, pos, output) == 1, "Duplicate output");
                 clearDropped(level, pos);
             }
+            level.setBlock(pos, Blocks.AIR.defaultBlockState(), 18);
+            level.setBlock(pos, Asterion.CRUCIBLE.defaultBlockState(), 18);
+            var coalForge = (CrucibleBlockEntity)level.getBlockEntity(pos);
+            coalForge.insert(player, new ItemStack(Asterion.INGOT_CAST));
+            coalForge.insert(player, new ItemStack(Items.COAL));
+            heat.setInt(coalForge, 700);
+            CrucibleBlockEntity.tick(level, pos, coalForge.getBlockState(), coalForge);
+            coalForge.control(player, CrucibleControlPayload.POUR);
+            check(coalForge.materialUnits() == 1 && dropped(level, pos, Asterion.FORGED_INGOT) == 0,
+                    "Coal was cast into an ingot");
             var skeleton = AncientContent.SKELETON.create(level, EntitySpawnReason.COMMAND);
             var params = new LootParams.Builder(level).withParameter(LootContextParams.THIS_ENTITY, skeleton)
                     .withParameter(LootContextParams.ORIGIN, player.position())

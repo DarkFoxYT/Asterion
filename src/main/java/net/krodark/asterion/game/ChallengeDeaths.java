@@ -6,7 +6,7 @@ import net.krodark.asterion.Asterion;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.*;
 
-/** Death receipts survive unloading the spawner's chunk while its mobs are being fought. */
+ 
 public final class ChallengeDeaths extends SavedData {
     public static final String TAG = "asterion_challenge_mob";
     private static final Codec<ChallengeDeaths> CODEC = Codec.STRING.listOf().xmap(ChallengeDeaths::new,

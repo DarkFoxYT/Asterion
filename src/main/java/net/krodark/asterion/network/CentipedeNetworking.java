@@ -32,8 +32,8 @@ public final class CentipedeNetworking {
         double reach = player.entityInteractionRange() + .35;
         if (!Double.isFinite(point.x) || !Double.isFinite(point.y) || !Double.isFinite(point.z)
                 || eye.distanceToSqr(point) > reach * reach) return;
-        // Validate against actual moving segment geometry, not distance to the head (a long
-        // centipede's last seat can legitimately be sixty blocks from its entity origin).
+         
+         
         boolean inside = false;
         for (float partial : new float[]{0, .5F, 1})
             inside |= CentipedeInteraction.contains(point, request.seat(), centipede.chainPose(request.seat(), partial), .35);

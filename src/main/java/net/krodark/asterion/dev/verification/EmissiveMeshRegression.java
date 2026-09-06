@@ -51,7 +51,7 @@ final class EmissiveMeshRegression {
     }
 
     private static void verifyLinkedBoneCache(GeoCube cube) {
-        // Baked models link both directions. Structural GeoBone.hashCode recurses forever here.
+         
         GeoBone[] children = new GeoBone[1];
         var parent = new CuboidGeoBone(null, "bulb", children, new GeoCube[0],
                 new GeoLocator[0], 0, 0, 0, 0, 0, 0);
@@ -64,7 +64,7 @@ final class EmissiveMeshRegression {
         if (parentMesh != EmissiveBoneMesh.of(parent) || parentMesh == mesh)
             throw new AssertionError("Parent and child cache identity mismatch");
 
-        // Resource reloads create new bones, even when their geometry and names are identical.
+         
         var replacement = new CuboidGeoBone(parent, "glow", new GeoBone[0], new GeoCube[] {cube},
                 new GeoLocator[0], 0, 0, 0, 0, 0, 0);
         var replacementMesh = EmissiveBoneMesh.of(replacement);

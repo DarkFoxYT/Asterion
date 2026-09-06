@@ -20,7 +20,7 @@ import net.minecraft.client.renderer.state.level.QuadParticleRenderState;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 
-/** Minecraft owns lifetime; Amnetic batches the nearby animated sprites and their emission. */
+ 
 public abstract class AnimatedEmissiveParticle extends SingleQuadParticle {
     public static final Identifier MESH_ID = Asterion.id("animated_emissive_particles");
     private static final Identifier PARTICLE_ATLAS_TEXTURE =
@@ -28,7 +28,7 @@ public abstract class AnimatedEmissiveParticle extends SingleQuadParticle {
     private static boolean gpuFrame;
     public static int trackedCount() { return ACTIVE.size(); }
     public static void setGpuFrame(boolean enabled) { gpuFrame = enabled; }
-    // Weak keys also release particles evicted by Minecraft without a remove() callback.
+     
     private static final Set<AnimatedEmissiveParticle> ACTIVE =
             Collections.newSetFromMap(new WeakHashMap<>());
     private static final ArrayList<AnimatedEmissiveParticle> VISIBLE = new ArrayList<>();
@@ -58,11 +58,11 @@ public abstract class AnimatedEmissiveParticle extends SingleQuadParticle {
                 .geometry(MeshData.texturedQuad())
                 .shaders(Asterion.id("particle/animated_emissive"),
                         Identifier.fromNamespaceAndPath("amnetic", "particle/default_textured"))
-                // Amnetic binds TextureManager keys, not logical AtlasIds; keep atlas registration disabled.
+                 
                 .extraSampler("TextureSampler", PARTICLE_ATLAS_TEXTURE, 0, false)
                 .renderState(RenderState.builder().depthTest(true).depthWrite(false)
                         .backfaceCulling(false).blend(RenderState.BlendMode.ALPHA).build())
-                // A scoped bridge preserves CPU alpha ordering during GPU compaction.
+                 
                 .gpuCull()
                 .phase(InstancePhase.WORLD_LAST)
                 .emissive(AsterionEmissiveConfig.beetleFireStrength())
@@ -89,14 +89,14 @@ public abstract class AnimatedEmissiveParticle extends SingleQuadParticle {
                                 + particle.renderY * particle.renderY + particle.renderZ * particle.renderZ;
                         if (culling && particle.distanceSquared > 64 * 64) continue;
                         particle.renderSize = particle.getQuadSize(partialTick) * 2.0F;
-                        // Include all four billboard corners so large sprites do not pop at the edge.
+                         
                         float radius = Math.abs(particle.renderSize) * 0.707107F + 0.01F;
                         if (culling && !gpuFrame && !batch.visible(camera.x + particle.renderX, camera.y + particle.renderY,
                                 camera.z + particle.renderZ, radius)) continue;
                         VISIBLE.add(particle);
                     }
                     VISIBLE.sort(BACK_TO_FRONT);
-                    // Keep the nearest particles when the scene exceeds the emission budget.
+                     
                     for (int i = culling ? Math.max(0, VISIBLE.size() - 2048) : 0; i < VISIBLE.size(); i++) {
                         var p = VISIBLE.get(i);
                         if (gpuFrame) batch.add(p, p.renderX, p.renderY, p.renderZ,
@@ -114,7 +114,7 @@ public abstract class AnimatedEmissiveParticle extends SingleQuadParticle {
 
     @Override
     public void setSpriteFromAge(SpriteSet sprites) {
-        // Vanilla reaches the last sprite only at age == lifetime, when our fade is already zero.
+         
         if (isAlive()) setSprite(sprites.get(Math.min(7, age * 8 / Math.max(1, lifetime)), 7));
     }
 

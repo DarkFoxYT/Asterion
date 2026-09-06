@@ -6,7 +6,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-/** A bounded, terrain-checked arc. Execution uses normal entity movement/collision, never teleportation. */
+ 
 public record MinotaurLeapPlan(Vec3 start, Vec3 landing, double rise, int ticks) {
     public Vec3 point(double tick) {
         double t = Math.clamp(tick / ticks, 0, 1);
@@ -42,7 +42,7 @@ public record MinotaurLeapPlan(Vec3 start, Vec3 landing, double rise, int ticks)
     }
 
     private static Vec3 supportedLanding(ServerLevel level, MinotaurEntity boss, AABB local, Vec3 target) {
-        // Search near the target's feet, then progressively lower surfaces. Do not choose a ceiling above them.
+         
         for (int offset = 1; offset >= -9; offset--) {
             BlockPos floor = BlockPos.containing(target).offset(0, offset - 1, 0);
             if (!level.hasChunk(floor.getX() >> 4, floor.getZ() >> 4)) continue;

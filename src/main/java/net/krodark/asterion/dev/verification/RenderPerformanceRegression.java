@@ -11,7 +11,7 @@ import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL;
 import static org.lwjgl.opengl.GL43.*;
 
-/** Real GPU checks: stable compaction and pixel comparisons with the pre-optimization shaders. */
+ 
 public final class RenderPerformanceRegression {
     private static final int SIZE = 64;
     public static void main(String[] args) throws Exception {
@@ -50,7 +50,7 @@ public final class RenderPerformanceRegression {
                     float y = mode == 0 ? random.nextFloat() * 40 - 20 : 0;
                     float z = mode == 2 ? 50 : -20;
                     float radius = .5F + i % 4;
-                    // Use the same large-coordinate subtraction that fills the production payload.
+                     
                     x = (float)((29_000_000D + x) - 29_000_000D);
                     spheres[i * 4] = x; spheres[i * 4 + 1] = y;
                     spheres[i * 4 + 2] = z; spheres[i * 4 + 3] = radius;

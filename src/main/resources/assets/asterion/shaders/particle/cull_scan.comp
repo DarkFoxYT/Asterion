@@ -10,7 +10,7 @@ void main() {
     uint lane = gl_LocalInvocationID.x;
     bool visible = i < uint(Count);
     if (visible) {
-        vec4 sphere = bounds[i]; // Already camera relative; never truncate large world coordinates.
+        vec4 sphere = bounds[i];  
         for (int p = 0; p < 6; p++)
             if (dot(Planes[p].xyz, sphere.xyz) + Planes[p].w < -sphere.w) visible = false;
     }

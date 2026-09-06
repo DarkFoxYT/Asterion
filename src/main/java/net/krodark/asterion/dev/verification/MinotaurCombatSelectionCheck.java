@@ -11,7 +11,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.HashSet;
 import java.util.Set;
 
-/** Samples the real selector in the arena, including conditional counters and drawn-weapon preference. */
+ 
 final class MinotaurCombatSelectionCheck {
     @SuppressWarnings({"unchecked", "rawtypes"})
     static void run(ServerLevel level, ServerPlayer player) {
@@ -28,8 +28,8 @@ final class MinotaurCombatSelectionCheck {
             var weapon = MinotaurEntity.class.getDeclaredField("DATA_WEAPON"); weapon.setAccessible(true);
             var weaponKey = (EntityDataAccessor<Integer>)weapon.get(null);
             Set<String> expected = new HashSet<>(MinotaurEntity.debugAttackNames());
-            expected.remove("retrieve_axe"); // Pickup is exercised using the actual thrown object in the game test.
-            expected.remove("rage_roar"); // Triggered once by max rage, never randomly selected.
+            expected.remove("retrieve_axe");  
+            expected.remove("rage_roar");  
             for (String phase : new String[]{"PILLARS", "EXTREME"}) {
                 stage.set(boss, Enum.valueOf((Class)stage.getType(), phase));
                 Set<String> seen = new HashSet<>();

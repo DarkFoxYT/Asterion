@@ -3,7 +3,7 @@ package net.krodark.asterion.client;
 import net.krodark.asterion.AsterionConfig;
 import net.minecraft.client.Minecraft;
 
-/** Slow, hysteretic quality governor driven by actual rendered frame time. */
+ 
 public final class PerformanceGovernor {
     private static long previousFrame;
     private static double frameMillis = 6.0;
@@ -28,7 +28,7 @@ public final class PerformanceGovernor {
             if(++slowFrames>=45){quality--;slowFrames=0;}
         } else if(wanted>quality) {
             slowFrames=0;
-            // Upgrades are deliberately slow, preventing alternating long/short frames.
+             
             if(++fastFrames>=600){quality++;fastFrames=0;}
         } else slowFrames=fastFrames=0;
     }

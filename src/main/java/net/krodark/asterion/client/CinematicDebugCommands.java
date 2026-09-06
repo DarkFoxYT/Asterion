@@ -7,7 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.krodark.asterion.Asterion;
 
-/** Local previews never start fights, destroy blocks or advance quest progress. */
+ 
 public final class CinematicDebugCommands {
     private static int previewTicks;
     private CinematicDebugCommands() {}

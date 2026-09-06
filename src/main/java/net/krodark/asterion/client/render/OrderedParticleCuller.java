@@ -7,7 +7,7 @@ import org.joml.Vector4f;
 import org.lwjgl.system.MemoryStack;
 import static org.lwjgl.opengl.GL43.*;
 
-/** Stable compaction into Amnetic's existing instance and indirect-draw buffers. Render thread only. */
+ 
 public final class OrderedParticleCuller implements AutoCloseable {
     private final int scan, scatter, scanCount, planes, scatterCount, stride;
     private final int scratch = glGenBuffers();

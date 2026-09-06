@@ -12,7 +12,7 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 
-/** A small, native-material refuge that gives Overgrowth a quiet lived-in landmark. */
+ 
 public final class OvergrowthRestSiteFeature extends Feature<NoneFeatureConfiguration> {
     public OvergrowthRestSiteFeature(Codec<NoneFeatureConfiguration> codec) {
         super(codec);
@@ -54,7 +54,7 @@ public final class OvergrowthRestSiteFeature extends Feature<NoneFeatureConfigur
     }
 
     private static void build(WorldGenLevel level, BlockPos center, Direction benchAxis) {
-        // A restrained five-block mosaic identifies the refuge without carpeting paths.
+         
         level.setBlock(center, Asterion.ANCIENT_MOSS.defaultBlockState(), 2);
         for (Direction direction : Direction.Plane.HORIZONTAL)
             level.setBlock(center.relative(direction),
@@ -70,7 +70,7 @@ public final class OvergrowthRestSiteFeature extends Feature<NoneFeatureConfigur
                     .setValue(BlockStateProperties.HORIZONTAL_FACING, benchAxis), 2);
         }
 
-        // Two segments produce one warm bulb while leaving an uncluttered ring around it.
+         
         level.setBlock(center.above(), Asterion.LABYRINTH_VINE.defaultBlockState()
                 .setValue(LabyrinthVineBlock.FACING, Direction.UP)
                 .setValue(LabyrinthVineBlock.END, false), 2);

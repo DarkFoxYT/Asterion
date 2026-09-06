@@ -8,7 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
-/** Short arena phase-change shot: roof fractures, falls, and buries the Minotaur. */
+ 
 public final class RoofCollapseCinematic {
     private static boolean active, showShot;
     private static int ticks, duration;

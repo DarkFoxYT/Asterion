@@ -108,5 +108,59 @@
     "sounds": [
       "asterion:sfx/event/eclipse.event"
     ]
+  },
+  "minotaur_charge_hit_wall": {
+    "subtitle": "subtitles.asterion.minotaur_charge_hit_wall",
+    "sounds": [
+      "asterion:sfx/mino/minotaur.charge_hit_wall"
+    ]
+  },
+  "barrel_door_open": {
+    "subtitle": "subtitles.asterion.barrel_door_open",
+    "sounds": [
+      "asterion:sfx/misc/barreldoor.open"
+    ]
+  },
+  "barrel_door_close": {
+    "subtitle": "subtitles.asterion.barrel_door_close",
+    "sounds": [
+      "asterion:sfx/misc/barreldoor.close"
+    ]
+  },
+  "minotaur_land_slam": {
+    "subtitle": "subtitles.asterion.minotaur_land_slam",
+    "sounds": [
+      "asterion:sfx/mino/minotaur.land_slam"
+    ]
+  },
+  "minotaur_land_light": {
+    "subtitle": "subtitles.asterion.minotaur_land_light",
+    "sounds": [
+      "asterion:sfx/mino/minotaur.land_light"
+    ]
+  },
+  "arena_pillar_break": {
+    "subtitle": "subtitles.asterion.arena_pillar_break",
+    "sounds": [
+      "asterion:sfx/misc/arena.pillar_break"
+    ]
+  },
+  "afterblow_pedestal_pull": {
+    "subtitle": "subtitles.asterion.afterblow_pedestal_pull",
+    "sounds": [
+      "asterion:sfx/misc/afterblow.pedestal_pull"
+    ]
+  },
+  "minotaur_sword_sheathe": {
+    "subtitle": "subtitles.asterion.minotaur_sword_sheathe",
+    "sounds": [
+      "asterion:sfx/mino/minotaur.sword_sheathe"
+    ]
+  },
+  "minotaur_sword_swing": {
+    "subtitle": "subtitles.asterion.minotaur_sword_swing",
+    "sounds": [
+      "asterion:sfx/mino/minotaur.sword_swing"
+    ]
   }
 }

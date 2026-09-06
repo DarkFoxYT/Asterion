@@ -32,8 +32,8 @@ public final class GreekFireTorchRenderer extends GeoBlockRenderer<GreekFireTorc
             @Override protected boolean enhancedSurface(BlockEntityRenderState state) { return true; }
             @Override protected boolean backfaceCulling(BlockEntityRenderState state) { return false; }
             @Override protected Identifier amneticEmissionMesh(BlockEntityRenderState state) {
-                // Low quality keeps the regular full-bright flame but skips the extra
-                // bloom capture/instance pass. Medium and high remain visually unchanged.
+                 
+                 
                 return net.krodark.asterion.AsterionConfig.INSTANCE.cinematicQuality == 0
                         ? null : getGeoModel().getModelResource(state);
             }
@@ -64,8 +64,8 @@ public final class GreekFireTorchRenderer extends GeoBlockRenderer<GreekFireTorc
         bones.ifPresent("shaft",bone->bone.skipRender(!wall&&top));
         bones.ifPresent("top",bone->{bone.skipRender(!wall&&!top);bone.skipChildrenRender(!wall&&!top);});
         bones.ifPresent("flame",bone->bone.skipRender(true));
-        // GeoBlockRenderer already reads HORIZONTAL_FACING and rotates the whole
-        // render pose once. Rotating the root bone here as well doubled every yaw.
+         
+         
     }
     private static final class Model extends GeoModel<GreekFireTorchBlockEntity> {
         @Override public Identifier getModelResource(GeoRenderState state) {

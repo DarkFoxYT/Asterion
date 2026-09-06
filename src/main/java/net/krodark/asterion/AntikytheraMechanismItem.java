@@ -29,15 +29,15 @@ public final class AntikytheraMechanismItem extends CompassItem {
 
     @Override
     public Component getName(ItemStack stack) {
-        // CompassItem renames every stack with a lodestone tracker. The tracker here is
-        // internal bearing data and must never turn the custom item into a lodestone compass.
+         
+         
         return Component.translatable(getDescriptionId());
     }
 
     @Override
     public boolean isFoil(ItemStack stack) {
-        // Binding the mechanism should not masquerade as an enchantment; retain glint only
-        // when the stack actually carries enchantments.
+         
+         
         return stack.isEnchanted();
     }
 

@@ -13,7 +13,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
-/** Native packet delivery to an observer, plus server lifecycle and room-miniboss checks. */
+ 
 public final class RagdollMultiplayerGameTest implements FabricClientGameTest {
     private static final int REMOTE_ID = 900001;
     private static final UUID REMOTE_UUID = UUID.fromString("8e293820-3204-4aca-b794-0b80b4878eba");

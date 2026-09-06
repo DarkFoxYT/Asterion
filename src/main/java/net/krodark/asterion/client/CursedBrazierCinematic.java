@@ -10,7 +10,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 
-/** A short room-local reveal that remains safe when the future crypt room moves. */
+ 
 public final class CursedBrazierCinematic {
     private static boolean active;
     private static boolean showShot;

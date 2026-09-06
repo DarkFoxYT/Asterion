@@ -22,7 +22,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 
-/** Multiplayer-safe combat state for Afterblow and the Sickened Twinblades. */
+ 
 public final class WeaponCombatSystem {
     private static final Identifier TWIN_SPEED = Asterion.id("sickened_twinblades_combo_speed");
     private static final int COMBO_TIMEOUT = 30;
@@ -47,8 +47,8 @@ public final class WeaponCombatSystem {
                                     float damageTaken, boolean blocked) {
         if (damageTaken <= 0) return;
 
-        // Taking a real hit ends an active Twinblades chain. A nullified Afterblow hit never
-        // reaches this callback, so a successful guard does not count as being hit.
+         
+         
         if (victim instanceof ServerPlayer wounded) endCombo(wounded, true);
 
         if (!(source.getEntity() instanceof ServerPlayer attacker)
@@ -60,18 +60,18 @@ public final class WeaponCombatSystem {
             AfterblowItem.consumeStored(weapon, attacker.level().getGameTime());
     }
 
-    /** Adds a live charge to the original melee hit. Consumption remains in AFTER_DAMAGE,
-     * so a rejected, invulnerable or fully blocked attack does not waste the counter. */
+     
+
     public static float afterblowDamage(DamageSource source, float damage, long gameTime) {
         if (!(source.getEntity() instanceof ServerPlayer attacker) || source.getDirectEntity() != attacker)
             return damage;
         ItemStack weapon = attacker.getMainHandItem();
         if (!weapon.is(Asterion.AFTERBLOW)) return damage;
-        float stored = AfterblowItem.storedAt(weapon, gameTime);
+        float stored = damage > 0 && Float.isFinite(damage) ? AfterblowItem.consumeStored(weapon, gameTime) : 0;
         return stored > 0 && Float.isFinite(damage) ? damage + stored : damage;
     }
 
-    /** Applied before a landed melee hit; hit three arms the bonus for hit four onward. */
+     
     public static float amplifyTwinbladeDamage(ServerPlayer attacker, LivingEntity target,
                                                DamageSource source, float damage) {
         if (source.getDirectEntity() != attacker || !attacker.getMainHandItem().is(Asterion.SICKENED_TWINBLADES))
@@ -88,8 +88,8 @@ public final class WeaponCombatSystem {
         int hits = old == null || now - old.lastDamageTick > COMBO_TIMEOUT ? 1 : old.hits + 1;
         COMBOS.put(player.getUUID(), new Combo(hits, now));
 
-        // Force the successful strike's visible arm, replacing the normal main-hand swing
-        // on alternating hits. This is broadcast so other players see the same cadence.
+         
+         
         player.swing((hits & 1) == 0 ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND, true);
         updateSpeed(player, hits);
     }

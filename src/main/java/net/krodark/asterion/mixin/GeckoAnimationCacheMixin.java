@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Cache exact interpolated frames; texture timing and GPU uploads remain GeckoLib's. */
+ 
 @Mixin(targets = "com.geckolib.renderer.texture.GeckoLibAnimatedTexture$AnimationInfo", remap = false)
 public abstract class GeckoAnimationCacheMixin {
     @Shadow @Final java.util.List<?> frames;
@@ -55,7 +55,7 @@ public abstract class GeckoAnimationCacheMixin {
         original.call(interpolation, source, texture);
         NativeImage buffer = ((GeckoInterpolationBufferAccessor)interpolation).asterion$buffer();
         long bytes = (long)buffer.getWidth() * buffer.getHeight() * 4;
-        // Resource packs can supply enormous animations. Fall back once this texture reaches 32 MiB.
+         
         if (asterion$bytes + bytes > 32L * 1024 * 1024) return;
         cached = new NativeImage(buffer.getWidth(), buffer.getHeight(), false);
         buffer.copyRect(cached, 0, 0, 0, 0, buffer.getWidth(), buffer.getHeight(), false, false);

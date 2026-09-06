@@ -10,7 +10,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
 import java.util.HashSet;
 
-/** Uses vanilla lazy container loot generation to check tables, rarity and one-time rolls. */
+ 
 final class CatacombLootCheck {
     static void run(ServerLevel level) {
         int ordinaryIron=0, ordinaryFood=0, puzzleGold=0;
@@ -42,7 +42,7 @@ final class CatacombLootCheck {
                 for(int slot=0;slot<container.getContainerSize();slot++)secondTotal+=container.getItem(slot).getCount();
                 check(secondTotal==total,"Opening a container rerolled its contents");
                 outcomes.add(signature.toString());
-                container.clearContent(); // Do not spill thousands of test items when swapping container blocks.
+                container.clearContent();  
                 if(table.equals("catacomb_cache")){ordinaryIron+=iron;check(gold==0,"Regular loot contains gold ingots");}
                 if(table.equals("catacomb_puzzle_supplies"))puzzleGold+=gold;
                 if(table.equals("catacomb_puzzle_reward"))check(gold>=2&&gold<=5&&iron>=1&&iron<=3,"Puzzle reward out of bounds");

@@ -21,7 +21,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.*;
 import org.jspecify.annotations.Nullable;
 
-/** A single rendered anchor backed by a 3x5 interaction and collision plane. */
+ 
 public final class CursedBrazierDoorBlock extends BaseEntityBlock {
     public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty OPEN = BlockStateProperties.OPEN;
@@ -121,9 +121,9 @@ public final class CursedBrazierDoorBlock extends BaseEntityBlock {
     @Override protected BlockState rotate(BlockState state, Rotation rotation) { return state.setValue(FACING, rotation.rotate(state.getValue(FACING))); }
     @Override protected BlockState mirror(BlockState state, Mirror mirror) { return rotate(state, mirror.getRotation(state.getValue(FACING))); }
     @Override public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        // BaseEntityBlock marks every part of this multiblock as block-entity capable.
-        // Supplying an inert entity for the non-root parts keeps chunk loading valid;
-        // only the root is ticked and rendered.
+         
+         
+         
         return new CursedBrazierDoorBlockEntity(pos, state);
     }
     @Override public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {

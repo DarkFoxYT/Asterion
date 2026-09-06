@@ -31,11 +31,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.WeakHashMap;
 
-/**
- * Builds the lower Forge district from the author's jigsaw-marked rooms.
- * Unlike the ordinary crypt grid, every transform and intersection is calculated
- * from the NBT's real bounds; Forge rooms do not have a prescribed block size.
- */
+ 
+
+
+
+
 public final class AuthoredForge {
     private static final ResourceKey<LootTable> FORGE_CACHE = ResourceKey.create(
             Registries.LOOT_TABLE, Identifier.fromNamespaceAndPath("asterion", "chests/forge_cache"));
@@ -55,8 +55,8 @@ public final class AuthoredForge {
 
     private AuthoredForge() { }
 
-    /** Older saves already passed decoration before Forge rooms were installed.
-     * Fill only wholly empty slices of the planned district, preserving occupied rooms. */
+     
+
     public static void onChunkLoad(ServerLevel level, net.minecraft.world.level.chunk.LevelChunk chunk, boolean newlyGenerated) {
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
         REPAIRS.computeIfAbsent(level, ignored -> new java.util.ArrayDeque<>()).add(new PendingChunk(chunk.getPos(), 0));
@@ -65,7 +65,7 @@ public final class AuthoredForge {
     public static void tickRepairs(ServerLevel level) {
         var pending = REPAIRS.get(level);
         if (pending == null || pending.isEmpty()) return;
-        // CHUNK_LOAD precedes completion of the FULL future: place on the next tick.
+         
         PendingChunk entry = pending.removeFirst();
         ChunkPos pos = entry.pos();
         var chunk = level.getChunkSource().getChunkNow(pos.x(), pos.z());
@@ -75,8 +75,8 @@ public final class AuthoredForge {
         }
         repairEmptyChunk(level, chunk);
         ShaleCaves.repairEmptyChunk(chunk, MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState()));
-        // Entrances are placed during generation, after reserving their entire footprint.
-        // Retrofitting the wider spiral on load would cut into older rooms and builds.
+         
+         
     }
 
     public static void repairEmptyChunk(ServerLevel level, net.minecraft.world.level.chunk.LevelChunk chunk) {
@@ -189,7 +189,7 @@ public final class AuthoredForge {
         REPAIRS.clear();
     }
 
-    /** True only inside one of the authored rooms that make up this world's Forge district. */
+     
     public static boolean contains(ServerLevel level, BlockPos pos) {
         Layout layout = layoutFor(level, ChunkPos.containing(pos));
         return placements(level, layout, ChunkPos.containing(pos)).stream().anyMatch(placement -> placement.bounds().isInside(pos));
@@ -216,9 +216,9 @@ public final class AuthoredForge {
         Placement rootPlacement = placement(root, Rotation.NONE, rootOrigin);
         placed.add(rootPlacement);
         open.addAll(ports(root, Rotation.NONE, rootOrigin));
-        open.removeIf(port -> port.front() == Direction.WEST); // Reserved for the catacomb stairway.
+        open.removeIf(port -> port.front() == Direction.WEST);  
 
-        // Junctions go first so the graph gains enough free ends for all authored rooms.
+         
         List<ResolvedPiece> remaining = new ArrayList<>(loaded.values());
         remaining.sort(Comparator.comparingInt((ResolvedPiece piece) -> connectorCount(piece.template())).reversed());
         long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState()) ^ variant * 0x9E3779B97F4A7C15L;
@@ -237,9 +237,9 @@ public final class AuthoredForge {
             children.removeIf(port -> port.position().equals(attachment.childPosition()));
             open.addAll(children);
         }
-        // These NBTs are the biome's actual room palette, not decorations over the
-        // old generated grid. Reuse the authored variants to grow a proper district;
-        // working forges stay rare and gold reserves are rarer still.
+         
+         
+         
         List<ResolvedPiece> palette = new ArrayList<>(loaded.values());
         palette.add(root);
         int attempts = 0;
@@ -274,7 +274,7 @@ public final class AuthoredForge {
         return choices.get((int)Math.floorMod(roll >>> 8, choices.size()));
     }
 
-    /** A connected jigsaw seam is always a five-wide, six-high traversable opening. */
+     
     private static void openSeam(ServerLevelAccessor world, Port port, BoundingBox clip) {
         Direction across = port.front().getClockWise();
         for (int depth = 0; depth <= 1; depth++) for (int side = -2; side <= 2; side++)
@@ -285,7 +285,7 @@ public final class AuthoredForge {
             }
     }
 
-    /** Unused authored exits receive a complete wall instead of the old one-block plug. */
+     
     private static void sealPort(ServerLevelAccessor world, Port port, BoundingBox clip) {
         Direction across = port.front().getClockWise();
         for (int depth = 0; depth <= 1; depth++) for (int side = -3; side <= 3; side++)
@@ -335,10 +335,10 @@ public final class AuthoredForge {
                     int center = CatacombLayout.ROOT_CENTER;
                     if (bounds.minX() < center - 96 || bounds.maxX() > center + 96
                             || bounds.minZ() < center - 96 || bounds.maxZ() > center + 96) continue;
-                    // Reserve only the compact stair module beside the west jigsaw.
+                     
                     if (bounds.intersects(new BoundingBox(center - 28, 28, center - 9,
                             center - 19, 78, center + 9))) continue;
-                    // Leave rock around the descending cave mouth before attaching rooms.
+                     
                     if (bounds.intersects(new BoundingBox(center - 50, LabyrinthLevels.CAVE_BOTTOM_Y + 3, center - 11,
                             center - 19, 36, center + 11))) continue;
                     if (placed.stream().anyMatch(other -> other.bounds().intersects(candidate.bounds()))) continue;
@@ -346,8 +346,8 @@ public final class AuthoredForge {
                     long centerZ = (long)candidate.bounds().minZ() + candidate.bounds().maxZ();
                     long root = CatacombLayout.ROOT_CENTER * 2L;
                     long dx = centerX - root, dz = centerZ - root;
-                    // Grow toward the frontier instead of accepting the first inward fit;
-                    // this avoids surrounding all remaining ports with earlier rooms.
+                     
+                     
                     long score = (dx * dx + dz * dz) * 1024L
                             + Math.floorMod(CatacombLayout.hash(seed, origin.getX(), origin.getZ()), 1024L);
                     if (score > bestScore) {
@@ -378,9 +378,9 @@ public final class AuthoredForge {
         for (StructureTemplate.JigsawBlockInfo jigsaw : piece.template().getJigsaws(origin, rotation)) {
             Direction front = JigsawBlock.getFrontFacing(jigsaw.info().state());
             if (!front.getAxis().isHorizontal()) continue;
-            // This intentionally ignores target_pool. The supplied in-game setup uses
-            // minecraft:empty; our bounded assembler owns selection and still honors
-            // the configured name, target, orientation and final-state replacement.
+             
+             
+             
             if (!jigsaw.name().equals(DOOR) || !jigsaw.target().equals(DOOR)) continue;
             ports.add(new Port(jigsaw.info().pos(), front, jigsaw.name(), jigsaw.target()));
         }
@@ -394,15 +394,19 @@ public final class AuthoredForge {
                 .count();
     }
 
-    /** Only the 5x4x5 crucible controller owns a block entity; structure saves tag every part. */
+     
     private static final StructureProcessor CRUCIBLE_PART_DATA = new StructureProcessor() {
         @Override public StructureTemplate.StructureBlockInfo processBlock(
                 net.minecraft.world.level.LevelReader world, BlockPos origin, BlockPos reference,
                 StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed,
                 StructurePlaceSettings settings) {
-            if (!(transformed.state().getBlock() instanceof net.krodark.asterion.block.CrucibleBlock)
-                    || net.krodark.asterion.block.CrucibleBlock.isRoot(transformed.state())) return transformed;
-            return new StructureTemplate.StructureBlockInfo(transformed.pos(), transformed.state(), null);
+            if (!(transformed.state().getBlock() instanceof net.krodark.asterion.block.CrucibleBlock)) return transformed;
+            net.minecraft.nbt.CompoundTag data = null;
+            if (net.krodark.asterion.block.CrucibleBlock.isRoot(transformed.state())) {
+                data = new net.minecraft.nbt.CompoundTag();
+                data.putString("id", "asterion:crucible");
+            }
+            return new StructureTemplate.StructureBlockInfo(transformed.pos(), transformed.state(), data);
         }
         @Override protected StructureProcessorType<?> getType() { return StructureProcessorType.BLOCK_IGNORE; }
     };

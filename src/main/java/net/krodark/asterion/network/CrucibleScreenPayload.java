@@ -6,7 +6,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
-/** Authoritative snapshot used both to open and refresh the crucible panel. */
+ 
 public record CrucibleScreenPayload(BlockPos pos, int temperature, int targetTemperature,
                                     int heatControl, int fuelTicks, int mold, int mixColor, int materialUnits,
                                     String metalSequence, int autoPourProgress) implements CustomPacketPayload {

@@ -35,7 +35,7 @@ import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.util.Mth;
 
-/** A rare Greek-fire ambusher with a readable armored/attack/recovery cycle. */
+ 
 public final class ConstructEntity extends PathfinderMob implements GeoEntity {
     private static final EntityDataAccessor<Boolean> ATTACKING = SynchedEntityData.defineId(
             ConstructEntity.class, EntityDataSerializers.BOOLEAN);
@@ -45,10 +45,10 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
     private static final RawAnimation ATTACK = RawAnimation.begin().thenPlayAndHold("attack");
     private static final double NOTICE_RANGE = 34.0D;
     private static final double IGNITE_RANGE = 3.5D;
-    /** Authored animation timing: 24 frames per second, rendered at 20 game ticks per second. */
-    public static final int ATTACK_HIT_TICK = 25; // authored frame 30
-    public static final int ATTACK_ANIMATION_TICKS = 155; // 7.75 seconds
-    public static final int RECOVERY_TICKS = 100; // five seconds armored and lowered
+     
+    public static final int ATTACK_HIT_TICK = 25;  
+    public static final int ATTACK_ANIMATION_TICKS = 155;  
+    public static final int RECOVERY_TICKS = 100;  
     private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
     private int attackTicks;
     private int recoveryTicks;
@@ -171,7 +171,7 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
                 net.minecraft.world.entity.EntitySelector.NO_CREATIVE_OR_SPECTATOR);
     }
 
-    /** Movement turns the chassis; looking only bends the constrained body/head chain. */
+     
     private void updateConstrainedFacing(Player target) {
         Vec3 motion = getDeltaMovement();
         float bodyYaw = yBodyRot;
@@ -208,8 +208,8 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
 
     @Override public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
         if (source.is(DamageTypeTags.IS_FIRE)) return false;
-        // The shell only opens at authored frame 30. Before that point and throughout
-        // recovery, blocked-hit feedback teaches the timing without a UI prompt.
+         
+         
         if (!isVulnerable()) {
             if (blockedHitCooldown == 0) {
                 blockedHitCooldown = 8;

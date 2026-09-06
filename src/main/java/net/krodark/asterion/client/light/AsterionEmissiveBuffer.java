@@ -8,7 +8,7 @@ import net.minecraft.client.renderer.rendertype.AmneticRenderTypeAccess;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.resources.Identifier;
-/** Full-bright surfaces rendered against Minecraft's real scene depth. */
+ 
 public final class AsterionEmissiveBuffer {
     private static final Map<Identifier, RenderType> TEXTURED = new HashMap<>();
     private static final Map<CustomKey, RenderType> CUSTOM = new HashMap<>();
@@ -56,11 +56,11 @@ public final class AsterionEmissiveBuffer {
 
     public static RenderType customRenderType(String name, RenderPipeline pipeline, Identifier texture) {
         return CUSTOM.computeIfAbsent(new CustomKey(name, pipeline, texture), key -> {
-            // Keep the visible surface in Minecraft's main target. Redirecting it into the
-            // HDR attachment also redirected depth handling through a framebuffer alias;
-            // some drivers then accepted color while rejecting scene depth, making every
-            // emissive surface visible through floors. Amnetic's official emission pass
-            // supplies the optional bloom copy with an explicit scene-depth blit.
+             
+             
+             
+             
+             
             var setup = RenderSetup.builder(pipeline);
             if (texture != null) {
                 setup.withTexture("Sampler0", texture).useLightmap().useOverlay();

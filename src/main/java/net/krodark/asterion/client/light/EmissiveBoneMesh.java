@@ -9,13 +9,13 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import java.util.Map;
 import org.joml.Vector3f;
 
-/** Shared immutable vertex buffers; old baked models can be collected after resource reload. */
+ 
 public final class EmissiveBoneMesh {
-    // GeoBone.hashCode traverses parent/child cycles. Weak identity keys avoid that recursion
-    // while still allowing obsolete baked models to be collected after a resource reload.
+     
+     
     private static final Map<CuboidGeoBone, EmissiveBoneMesh> CACHE = new MapMaker().weakKeys().makeMap();
     private static final ThreadLocal<Vector3f> POSITION = ThreadLocal.withInitial(Vector3f::new);
-    // xyz + uv. Normals/lightmaps/overlays are unused by the full-bright material.
+     
     private final float[] vertices;
 
     public static EmissiveBoneMesh horizontalPlane(float radius, float y) {
@@ -28,6 +28,12 @@ public final class EmissiveBoneMesh {
         return new EmissiveBoneMesh(new float[]{
                 -halfWidth,-halfHeight,z,.5F,.5F, halfWidth,-halfHeight,z,.5F,.5F,
                 halfWidth,halfHeight,z,.5F,.5F, -halfWidth,halfHeight,z,.5F,.5F});
+    }
+
+    public static EmissiveBoneMesh texturedRune() {
+        return new EmissiveBoneMesh(new float[]{
+                -.32F,-.32F,0,0,1, .32F,-.32F,0,1,1,
+                .32F,.32F,0,1,0, -.32F,.32F,0,0,0});
     }
 
     private EmissiveBoneMesh(float[] vertices) { this.vertices = vertices; }
@@ -67,7 +73,7 @@ public final class EmissiveBoneMesh {
         }
     }
 
-    /** Built once per baked bone for Amnetic; the cached quad UVs and positions remain identical. */
+     
     public com.meekdev.amnetic.client.instanced.MeshData amneticGeometry() {
         int count = vertices.length / 5;
         int[] indices = new int[count / 4 * 6];
@@ -81,7 +87,7 @@ public final class EmissiveBoneMesh {
         return geometry;
     }
 
-    /** Only the animated pose and tint change each draw; no cube traversal or per-vertex allocation. */
+     
     public void render(PoseStack.Pose pose, VertexConsumer buffer, int color, float uScale, float vScale) {
         Vector3f position = POSITION.get();
         for (int i = 0; i < vertices.length; i += 5) {
@@ -92,7 +98,7 @@ public final class EmissiveBoneMesh {
         }
     }
 
-    /** Brightness changes RGB, not coverage, so dimming cannot make a bulb see-through. */
+     
     public static int dimColor(int argb, float strength) {
         float brightness = Float.isFinite(strength) ? Math.clamp(strength, 0f, 1f) : 0.8f;
         int red = Math.round(((argb >>> 16) & 255) * brightness);

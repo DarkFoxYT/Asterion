@@ -1,11 +1,11 @@
 package net.krodark.asterion.dev;
 
-/** Runs after Loom's dev-launch injector, which otherwise overwrites the VM property. */
+ 
 public final class EssentialClientLaunch {
     private EssentialClientLaunch() { }
     public static void main(String[] args) throws Exception {
-        // Production Fabric does not discover mod dependencies from Loom's classpath.
-        // Supply their real jars explicitly, plus the freshly built Asterion jar.
+         
+         
         var mods = new java.util.LinkedHashSet<String>();
         String existing = System.getProperty("fabric.addMods", "");
         if (!existing.isEmpty()) mods.add(existing);

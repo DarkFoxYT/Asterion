@@ -7,12 +7,12 @@ import org.spongepowered.asm.mixin.injection.Coerce;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Sodium 0.9.1 can queue the same asynchronous chunk-removal event twice after
- * long sessions or rapid world changes. The second event is harmless: its
- * section has already been detached. Keep that one path idempotent while still
- * allowing Sodium's "wrong section" check to expose real region corruption.
- */
+ 
+
+
+
+
+
 @Pseudo
 @Mixin(targets = "net.caffeinemc.mods.sodium.client.render.chunk.region.RenderRegion", remap = false)
 abstract class SodiumRenderRegionMixin {

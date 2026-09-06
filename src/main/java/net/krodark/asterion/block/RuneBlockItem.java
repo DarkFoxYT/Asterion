@@ -14,7 +14,7 @@ import net.minecraft.world.item.BlockItem;
 
 import java.util.function.Consumer;
 
-/** Inventory/hand renderer for the same authored 3D rune plaque used by the block entity. */
+ 
 public final class RuneBlockItem extends BlockItem implements GeoItem {
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private final int runeIndex;

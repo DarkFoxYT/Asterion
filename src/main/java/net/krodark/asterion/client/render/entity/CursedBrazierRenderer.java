@@ -62,8 +62,8 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
             }
         });
 
-        // The shield is an overlay, not a replacement draw: the pot remains readable under
-        // the same animated electrical skin used by a charged creeper.
+         
+         
         withRenderLayer(new CustomBoneTextureGeoLayer<>(this, "full", CHARGE_TEXTURE) {
             @Override
             public boolean shouldRenderBone(EntityRenderState state) {
@@ -73,7 +73,7 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
             @Override
             public void preRender(RenderPassInfo<EntityRenderState> pass,
                                   SubmitNodeCollector tasks) {
-                // Do not hide the ordinary model; this layer is additive.
+                 
             }
 
             @Override
@@ -158,8 +158,8 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
         float phaseAge = pass.getOrDefaultGeckolibData(PHASE_AGE, 0F);
         float time = pass.getOrDefaultGeckolibData(TIME, 0F);
 
-        // Keep the cores out of the ordinary opaque model pass. Their dedicated emissive
-        // layers control alpha during awakening and submit the exact same bones to Amnetic.
+         
+         
         for (String glowBone : GLOW_BONES)
             bones.ifPresent(glowBone, bone -> bone.skipRender(true)
                     .skipChildrenRender(false).setScale(1F, 1F, 1F));

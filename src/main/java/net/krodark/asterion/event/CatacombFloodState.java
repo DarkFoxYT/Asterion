@@ -23,7 +23,7 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
-/** A shared catacomb flash flood, filling dry galleries beneath the raised maze. */
+ 
 public final class CatacombFloodState extends SavedData {
     public static final int FLOOD_TOP_Y = net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y - 6;
     public static final int MAX_RISE = (FLOOD_TOP_Y - CatacombLayout.WATER_Y) * 8;
@@ -101,7 +101,7 @@ public final class CatacombFloodState extends SavedData {
             setActive(level, false);
         var loaded = LOADED.computeIfAbsent(level, ignored -> new LoadedTide());
         int target = state.active ? MAX_RISE : 0;
-        // Rise one eighth of a block per second; background chunks catch up to the shared tide.
+         
         if (state.rise != target && now >= state.nextStep) {
             state.rise += Integer.signum(target-state.rise)
                     * Math.min(RISE_PER_STEP,Math.abs(target-state.rise));
@@ -109,11 +109,11 @@ public final class CatacombFloodState extends SavedData {
             loaded.pending.addAll(loaded.chunks);
             state.setDirty();
         }
-        // Revisit the flooded volume even at a steady tide: opened doors and new chunks can admit water.
+         
         if (state.rise > 0 && now % 100 == 0) loaded.pending.addAll(loaded.chunks);
         if (now % 16 == 0) spread(level, state.rise);
         int budget=0;
-        // Keep the flood visibly synchronized around players before background chunks.
+         
         for(var player:level.players())for(int dx=-1;dx<=1 && budget<8;dx++)for(int dz=-1;dz<=1 && budget<8;dz++) {
             long packed=ChunkPos.pack(player.chunkPosition().x()+dx,player.chunkPosition().z()+dz);
             if(loaded.pending.remove(packed) && reconcileLoaded(level,loaded,packed,state.rise))budget++;
@@ -131,7 +131,7 @@ public final class CatacombFloodState extends SavedData {
         return true;
     }
 
-    /** Reconcile existing water and seed the advancing edge; dry rooms fill through their openings. */
+     
     public static void reconcile(ServerLevel level, LevelChunk chunk, int riseSteps) {
         var loaded = LOADED.computeIfAbsent(level, ignored -> new LoadedTide());
         int surface = (CatacombLayout.WATER_Y + 1) * 8 + Math.clamp(riseSteps, 0, MAX_RISE);
@@ -151,7 +151,7 @@ public final class CatacombFloodState extends SavedData {
             } else if (pos.getY() == CatacombLayout.WATER_Y && old.is(Blocks.WATER)) {
                 level.setBlock(pos, HeavyWater.WATER_BLOCK.defaultBlockState(), 2);
             } else if (amount > 0 && pos.getY() == CatacombLayout.WATER_Y && fillable(level, pos, old)) {
-                // Distributed floor-level inlets also let completely dry galleries join the event.
+                 
                 fill(level, pos, old, amount);
             }
             if (amount > 0 && wet(chunk.getBlockState(pos))) enqueueNeighbours(level, loaded, pos, surface);
@@ -163,12 +163,12 @@ public final class CatacombFloodState extends SavedData {
     private static final int MIN_FLOOD_Y = net.krodark.asterion.worldgen.AuthoredCatacombs.BASE_Y;
     private static final int SPREAD_BUDGET = 1024;
 
-    /** One bounded wave; never loads a neighbouring chunk or replaces a solid block. */
+     
     public static void spread(ServerLevel level, int riseSteps) {
         var loaded = LOADED.computeIfAbsent(level, ignored -> new LoadedTide());
         if (riseSteps <= 0) { loaded.frontier.clear(); return; }
         int surface = (CatacombLayout.WATER_Y + 1) * 8 + Math.clamp(riseSteps, 0, MAX_RISE);
-        // Newly discovered neighbours wait for the next wave, so the edge visibly travels.
+         
         int count = Math.min(SPREAD_BUDGET, loaded.frontier.size());
         for (int i = 0; i < count; i++) {
             BlockPos pos = BlockPos.of(loaded.frontier.removeFirst());
@@ -237,14 +237,14 @@ public final class CatacombFloodState extends SavedData {
                     if (maze == null) return 0;
                     if (active) {
                         if (!DeadSunEventSystem.trigger(maze, DeadSunEventSystem.FLOOD)) {
-                            command.getSource().sendFailure(Component.literal("Flooding is disabled during the boss encounter."));
+                            net.krodark.asterion.game.PlayerNotices.failure(command.getSource(), Component.literal("Flooding is disabled during the boss encounter."));
                             return 0;
                         }
                     } else {
                         if (DeadSunEventSystem.isActive(maze, DeadSunEventSystem.FLOOD)) DeadSunEventSystem.stop(maze);
                         setActive(maze, false);
                     }
-                    command.getSource().sendSuccess(() -> Component.literal(active
+                    net.krodark.asterion.game.PlayerNotices.success(command.getSource(), () -> Component.literal(active
                             ? "Catacomb tide rising slowly through block Y=" + FLOOD_TOP_Y + "."
                             : "Catacomb tide receding to its normal level."), true);
                     return 1;

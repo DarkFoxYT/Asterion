@@ -11,7 +11,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 
-/** Ordinary tinted water, plus eight stationary layers reserved for the flood controller. */
+ 
 public final class HeavyWater {
     public static final int COLOR = 0xFF579FAD;
     public static final HeavyWaterFluid STILL = Registry.register(BuiltInRegistries.FLUID,

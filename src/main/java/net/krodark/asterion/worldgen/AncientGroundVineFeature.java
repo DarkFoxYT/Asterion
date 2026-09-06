@@ -11,7 +11,7 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 
-/** Luminous tendrils growing upward only from moss-covered maze floor. */
+ 
 public final class AncientGroundVineFeature extends Feature<NoneFeatureConfiguration> {
     public AncientGroundVineFeature(Codec<NoneFeatureConfiguration> codec) {
         super(codec);

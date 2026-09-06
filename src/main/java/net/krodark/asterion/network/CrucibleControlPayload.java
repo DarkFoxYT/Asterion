@@ -6,14 +6,14 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
-/** A small command, validated against the block and player distance on the server. */
+ 
 public record CrucibleControlPayload(BlockPos pos, int action) implements CustomPacketPayload {
     public static final int COOL = -1;
     public static final int HEAT = 1;
     public static final int NEXT_MOLD = 2;
     public static final int POUR = 3;
     public static final int SMELT = 4;
-    /** Actions 16-51 feed one item from the matching player inventory slot. */
+     
     public static final int INSERT_SLOT_BASE = 16;
     public static final int REMOVE_MATERIAL_BASE = 64;
     public static final int SELECT_MOLD_BASE = 80;

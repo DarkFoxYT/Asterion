@@ -88,11 +88,11 @@ public final class BombadierBeetleGeoRenderer extends GeoEntityRenderer<Bombadie
         }
     }
 
-    /**
-     * Builds a complete wall-local frame instead of guessing two Euler angles from a wall side.
-     * Model +Y is kept opposite the attachment normal (the stomach faces the surface), while
-     * model -Z follows the beetle's velocity projected onto that surface.
-     */
+     
+
+
+
+
     private Quaternionf calculateSurfaceRotation(BombadierBeetleEntity beetle, float partialTick) {
         Direction surface = beetle.attachedSurface();
         if (surface == Direction.DOWN)
@@ -103,7 +103,7 @@ public final class BombadierBeetleGeoRenderer extends GeoEntityRenderer<Bombadie
         Vec3 motion = beetle.getDeltaMovement();
         Vec3 surfaceForward = motion.subtract(attachmentNormal.scale(motion.dot(attachmentNormal)));
 
-        // Match the exact yaw transform applied by GeoEntityRenderer before adding our local pose.
+         
         float renderYaw = calculateYRot(beetle, 0.0F, partialTick);
         Quaternionf baseYaw = new Quaternionf().rotationY((180.0F - renderYaw) * Mth.DEG_TO_RAD);
         if (surfaceForward.lengthSqr() < 1.0E-5D) {
@@ -125,7 +125,7 @@ public final class BombadierBeetleGeoRenderer extends GeoEntityRenderer<Bombadie
                 (float)surfaceUp.x, (float)surfaceUp.y, (float)surfaceUp.z)).normalize();
         Vector3f localForward = inverseBaseYaw.transform(new Vector3f(
                 (float)surfaceForward.x, (float)surfaceForward.y, (float)surfaceForward.z));
-        // Re-project after float conversion so the frame remains exactly orthogonal.
+         
         localForward.sub(new Vector3f(localUp).mul(localForward.dot(localUp))).normalize();
 
         Quaternionf alignUp = new Quaternionf().rotationTo(new Vector3f(0.0F, 1.0F, 0.0F), localUp);

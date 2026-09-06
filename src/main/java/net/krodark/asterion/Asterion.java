@@ -137,6 +137,13 @@ public class Asterion implements ModInitializer {
     private static final ResourceKey<Biome> FORGE_BIOME = ResourceKey.create(
             Registries.BIOME, id("forge"));
     public static final SoundEvent MINOTAUR_ROAR = registerSound("minotaur_roar");
+    public static final SoundEvent AFTERBLOW_PEDESTAL_PULL = registerSound("afterblow_pedestal_pull");
+    public static final SoundEvent ARENA_PILLAR_BREAK = registerSound("arena_pillar_break");
+    public static final SoundEvent MINOTAUR_SWORD_SWING = registerSound("minotaur_sword_swing");
+    public static final SoundEvent MINOTAUR_SWORD_SHEATHE = registerSound("minotaur_sword_sheathe");
+    public static final SoundEvent MINOTAUR_LAND_LIGHT = registerSound("minotaur_land_light");
+    public static final SoundEvent MINOTAUR_LAND_SLAM = registerSound("minotaur_land_slam");
+    public static final SoundEvent MINOTAUR_CHARGE_HIT_WALL = registerSound("minotaur_charge_hit_wall");
     public static final SoundEvent MINOTAUR_CHARGE_HIT_PLAYER = registerSound("minotaur_charge_hit_player");
     public static final SoundEvent ECLIPSE_EVENT_SOUND = registerSound("eclipse_event");
     public static final SoundEvent AFTERBLOW_PARRY = registerSound("afterblow_parry");
@@ -148,6 +155,8 @@ public class Asterion implements ModInitializer {
     public static final SoundEvent MINOTAUR_HURT_EXPOSED = registerSound("minotaur_hurt_exposed");
     public static final SoundEvent MINOTAUR_STEP = registerSound("minotaur_step");
     public static final SoundEvent MINOTAUR_DOOR_OPENCLOSE = registerSound("minotaur_door_openclose");
+    public static final SoundEvent BARREL_DOOR_OPEN = registerSound("barrel_door_open");
+    public static final SoundEvent BARREL_DOOR_CLOSE = registerSound("barrel_door_close");
     public static final SoundEvent METAL_HIT = registerSound("metal_hit_sound");
     public static final SoundEvent RESPAWN_OBELISK_ACTIVATE = registerSound("respawn_obelisk_activate");
     public static final SoundEvent RESPAWN_OBELISK_REVIVE = registerSound("respawn_obelisk_revive");
@@ -465,7 +474,7 @@ public class Asterion implements ModInitializer {
     public static final EntityType<ConstructEntity> CONSTRUCT = Registry.register(
             BuiltInRegistries.ENTITY_TYPE, CONSTRUCT_KEY,
             EntityType.Builder.of(ConstructEntity::new, MobCategory.MONSTER)
-                    // Model pixels map 1:16: x/z [-8,8], y [0,35].
+                     
                     .sized(1.0F, 2.1875F).eyeHeight(1.75F).clientTrackingRange(10).fireImmune()
                     .build(CONSTRUCT_KEY));
     private static final ResourceKey<EntityType<?>> QUEEN_BEETLE_KEY = ResourceKey.create(
@@ -473,7 +482,7 @@ public class Asterion implements ModInitializer {
     public static final EntityType<QueenBeetleEntity> QUEEN_BEETLE = Registry.register(
             BuiltInRegistries.ENTITY_TYPE, QUEEN_BEETLE_KEY,
             EntityType.Builder.of(QueenBeetleEntity::new, MobCategory.CREATURE)
-                    // The widest authored span is 42 px and the highest point is 26 px.
+                     
                     .sized(2.625F, 1.625F).eyeHeight(0.9F).clientTrackingRange(12)
                     .build(QUEEN_BEETLE_KEY));
     private static final ResourceKey<Item> CONSTRUCT_EGG_KEY = ResourceKey.create(
@@ -851,12 +860,15 @@ public class Asterion implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        net.fabricmc.fabric.api.registry.FuelValueEvents.BUILD.register((builder, context) ->
+                builder.add(DEADWOOD_STICK, context.baseSmeltTime() / 2));
         registerDeadWoodProperties();
         net.krodark.asterion.game.WeaponCombatSystem.initialize();
         net.krodark.asterion.game.GameplayContent.initialize();
         net.krodark.asterion.game.AncientContent.initialize();
         net.krodark.asterion.game.ArmorContent.initialize();
         net.krodark.asterion.game.ChainLiftContent.initialize();
+        net.krodark.asterion.game.PedestalContent.initialize();
         net.krodark.asterion.game.EncounterKeyRecovery.initialize();
         net.krodark.asterion.game.ArenaDeathRecovery.initialize();
         ServerTickEvents.END_SERVER_TICK.register(net.krodark.asterion.forging.LegacyPurityCleanup::tick);
@@ -957,16 +969,16 @@ public class Asterion implements ModInitializer {
                 GenerationStep.Decoration.SURFACE_STRUCTURES, UNDERWATER_RUIN_PLACED);
         BiomeModifications.addFeature(BiomeSelectors.includeByKey(
                         Biomes.THE_VOID, CATACOMBS_BIOME, FORGE_BIOME),
-                // FlatLevelSource drops the two structure-decoration steps; keep this jigsaw
-                // feature in the underground decoration step so it runs through every vertical
-                // biome used by the maze dimension, including the lower Forge district.
+                 
+                 
+                 
                 GenerationStep.Decoration.UNDERGROUND_DECORATION,
                 ResourceKey.create(Registries.PLACED_FEATURE, id("catacombs")));
         BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),
                 GenerationStep.Decoration.VEGETAL_DECORATION, ANCIENT_MOSS_PATCH_PLACED);
         BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),
                 GenerationStep.Decoration.VEGETAL_DECORATION, GIANT_DEAD_TREE_PLACED);
-        // Ordering matters: supports are generated before the chains and vines that use them.
+         
         BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),
                 GenerationStep.Decoration.VEGETAL_DECORATION, ANCIENT_LEAVES_CLUSTER_PLACED);
         BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),
@@ -990,8 +1002,8 @@ public class Asterion implements ModInitializer {
         BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID,
                 ResourceKey.create(Registries.BIOME, id("catacombs"))),
                 MobCategory.MONSTER, CONSTRUCT, 1, 1, 1);
-        // Enforce maze-zone creature restrictions for every spawn path, including
-        // natural biome spawning, eggs and commands.
+         
+         
         ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {
             if (entity instanceof ConstructEntity
                     && level.dimension().equals(ASTERION_LEVEL)
@@ -1112,8 +1124,13 @@ public class Asterion implements ModInitializer {
 
     private static Item registerMetalItem(String name) {
         ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id(name));
-        return Registry.register(BuiltInRegistries.ITEM, key,
-                new Item(new Item.Properties().setId(key)));
+        Item.Properties properties = new Item.Properties().setId(key);
+        if (name.equals("celestial_steel_ingot")) properties.component(net.minecraft.core.component.DataComponents.LORE,
+                new net.minecraft.world.item.component.ItemLore(java.util.List.of(
+                        net.minecraft.network.chat.Component.literal("Forge: 2 iron ingots + 2 coal"),
+                        net.minecraft.network.chat.Component.literal("Ingot mold • 700° ±8 • Press Smelt"),
+                        net.minecraft.network.chat.Component.literal("Keep a lit heat source beneath the Forge."))));
+        return Registry.register(BuiltInRegistries.ITEM, key, new Item(properties));
     }
 
     private static Item registerForgedSwordItem(String name) {
@@ -1182,7 +1199,7 @@ public class Asterion implements ModInitializer {
         return tablets;
     }
 
-    /** Full decorative cubes, kept separate from the interactive Greek rune puzzle pieces. */
+     
     private static Block[] registerRuneStoneBlocks() {
         Block[] blocks = new Block[24];
         for (int index = 0; index < blocks.length; index++) {
@@ -1206,3 +1223,4 @@ public class Asterion implements ModInitializer {
         return runes;
     }
 }
+

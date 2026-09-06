@@ -14,7 +14,7 @@ public final class ChainLiftBlockEntity extends BlockEntity {
     public static final int NO_CEILING = Integer.MIN_VALUE;
     private boolean spawned;
     public ChainLiftBlockEntity(BlockPos pos, BlockState state) { super(ChainLiftContent.BLOCK_ENTITY, pos, state); }
-    /** Every column must have room for the whole frame; only the central chain needs a ceiling anchor. */
+     
     public static int findCeiling(Level level, BlockPos base) {
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         int limit = Math.min(level.getMaxY(), base.getY() + 128);

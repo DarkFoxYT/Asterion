@@ -11,7 +11,7 @@ import net.krodark.asterion.client.light.AsterionEmissiveConfig;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 
-/** Uses each variant's authored pose; only the end segment's glow bone is emissive. */
+ 
 public final class LabyrinthVineGeoRenderer
         extends GeoBlockRenderer<LabyrinthVineBlockEntity, BlockEntityRenderState> {
     private final java.util.Map<com.geckolib.cache.model.BakedGeoModel, StaticVineMesh[]> meshes =
@@ -50,7 +50,7 @@ public final class LabyrinthVineGeoRenderer
 
             @Override protected void renderBone(RenderPassInfo<BlockEntityRenderState> pass,
                     com.geckolib.cache.model.GeoBone bone, net.minecraft.client.renderer.SubmitNodeCollector tasks) {
-                // Never include the head shell or inherit emissiveness along the parent hierarchy.
+                 
                 if (bone.name().equals("glow")) super.renderBone(pass, bone, tasks);
             }
 
@@ -68,12 +68,12 @@ public final class LabyrinthVineGeoRenderer
             snapshot.skipRender(!end);
             snapshot.skipChildrenRender(!end);
         });
-        // The inner core has its own full-bright pass. Drawing it here as well creates competing
-        // shaded/emissive surfaces, particularly noticeable on the rotated hanging variant.
+         
+         
         snapshots.ifPresent("glow", snapshot -> snapshot.skipRender(true));
         snapshots.ifPresent("head", snapshot -> snapshot.skipRender(!end));
-        // The upright asset already includes its root rotation and pivot.
-        // Overriding "full" here would flip it again and misalign the bulb with the stem.
+         
+         
     }
 
     @Override

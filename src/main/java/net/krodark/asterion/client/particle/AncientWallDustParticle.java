@@ -7,7 +7,7 @@ import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 
-/** Fine, heavy-looking dust shaken loose from the maze's ancient masonry. */
+ 
 public final class AncientWallDustParticle extends SingleQuadParticle {
     private final SpriteSet sprites;
     private final float baseAlpha;

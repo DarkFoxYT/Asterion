@@ -166,7 +166,7 @@ public final class RagdollClientController {
             client.options.setCameraType(CameraType.THIRD_PERSON_BACK);
     }
 
-    /** Enforced from the camera update as well as client ticks so F5 can never win for a render frame. */
+     
     public static void enforceRagdollCamera(Minecraft client) {
         if (client.player != null
                 && DismembermentEngine.INSTANCE.isPlayerTumbling(client.player.getId())) {

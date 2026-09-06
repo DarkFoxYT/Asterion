@@ -27,11 +27,11 @@ public final class CentipedeCommands {
                                                             changed++;
                                                         }
                                                     if (changed == 0) {
-                                                        context.getSource().sendFailure(Component.literal("No scarlet centipedes matched those targets."));
+                                                        net.krodark.asterion.game.PlayerNotices.failure(context.getSource(), Component.literal("No scarlet centipedes matched those targets."));
                                                         return 0;
                                                     }
                                                     int affected = changed;
-                                                    context.getSource().sendSuccess(() -> Component.literal(
+                                                    net.krodark.asterion.game.PlayerNotices.success(context.getSource(), () -> Component.literal(
                                                             "Set " + affected + " scarlet centipede(s) to " + count + " segments."), true);
                                                     return changed;
                                                 }))))));

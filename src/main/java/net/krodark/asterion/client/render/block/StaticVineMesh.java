@@ -5,7 +5,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import java.util.Arrays;
 
-/** Local-space vertices baked by GeckoLib itself, with the original UVs and normals. */
+ 
 final class StaticVineMesh implements VertexConsumer {
     private float[] data = new float[192 * 8];
     private int size, vertex;

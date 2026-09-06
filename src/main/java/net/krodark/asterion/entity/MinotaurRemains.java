@@ -1,6 +1,6 @@
 package net.krodark.asterion.entity;
 
-/** Saved bit positions; keep their order stable for existing corpses. */
+ 
 public enum MinotaurRemains {
     LEFT_ARM(4, 3), RIGHT_ARM(4, 3), LEFT_LEG(6, 4), RIGHT_LEG(6, 4), TORSO(8, 5), HEAD(0, 0);
 
@@ -20,7 +20,7 @@ public enum MinotaurRemains {
     }
     public static MinotaurRemains fromId(int id) { return id >= 0 && id < values().length ? values()[id] : null; }
 
-    /** Walk a model bone's ancestry until one of these attachment roots is reached. */
+     
     public static MinotaurRemains root(String name) {
         return switch (name) {
             case "leftshoulder" -> LEFT_ARM;

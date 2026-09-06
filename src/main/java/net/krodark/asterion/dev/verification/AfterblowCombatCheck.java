@@ -21,7 +21,7 @@ final class AfterblowCombatCheck {
         boolean wasInvulnerable = player.isInvulnerable();
         var opponent = new ServerPlayer(server, level, new GameProfile(UUID.randomUUID(), "AfterblowTest"),
                 ClientInformation.createDefault());
-        // Share only the disposable client's packet sink; combat and cooldown state are separate.
+         
         opponent.connection = player.connection;
         var sword = new ItemStack(Asterion.AFTERBLOW);
         var otherSword = new ItemStack(Asterion.AFTERBLOW);

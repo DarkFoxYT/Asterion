@@ -10,7 +10,7 @@ import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.resources.Identifier;
 
-/** Small animated beetle placeholder, ready to swap for the authored rune beetle model. */
+ 
 public final class RuneBeetleRenderer extends GeoEntityRenderer<RuneBeetleEntity, EntityRenderState> {
     public RuneBeetleRenderer(EntityRendererProvider.Context context) {
         super(context, new GeoModel<>() {

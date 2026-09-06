@@ -8,7 +8,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 
-/** Visual acknowledgement only: the server has already consumed the ingredient. */
+ 
 public record ForgeInsertPayload(BlockPos pos, Vec3 from, ItemStack item) implements CustomPacketPayload {
     public static final Type<ForgeInsertPayload> TYPE = new Type<>(Asterion.id("forge_insert"));
     public static final StreamCodec<RegistryFriendlyByteBuf, ForgeInsertPayload> CODEC = StreamCodec.of(

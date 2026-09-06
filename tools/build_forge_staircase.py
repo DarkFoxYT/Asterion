@@ -16,13 +16,13 @@ def put(x,y,z,s,tag=None):
     value=n.Compound({'pos':n.List[n.Int]([x,y,z]),'state':n.Int(s)})
     if tag is not None: value['nbt']=tag
     blocks[x,y,z]=value
-# The lower half occupies only the space west of the Forge's real socket.
+
 for x in range(10):
  for y in range(39):
   for z in range(19): put(x,y,z,brick)
 for block in source['blocks']:
  x,y,z=map(int,block['pos']); put(x,y+39,z,int(block['state']),deepcopy(block.get('nbt')))
-# A compact rising loop, with full landings at its corners.
+
 path=[(7,9)]
 heights=[1]
 while heights[-4:] != [44]*4:
@@ -30,7 +30,7 @@ while heights[-4:] != [44]*4:
   while path[-1]!=target and heights[-4:] != [44]*4:
    x,z=path[-1]; tx,tz=target
    nx,nz=x+(tx>x)-(tx<x),z+(tz>z)-(tz<z)
-   # Three level steps around each turn leave a full-width landing.
+   
    near_corner=any(abs(nx-cx)+abs(nz-cz)<=1 for cx,cz in [(7,3),(2,3),(2,15),(7,15)])
    heights.append(min(44,heights[-1]+(0 if near_corner else 1)))
    path.append((nx,nz))
@@ -50,13 +50,13 @@ for i,(x,z) in enumerate(path):
  if not dx and not dz: dx=1
  corner=i>0 and (x-path[i-1][0],z-path[i-1][1])!=(dx,dz)
  walk(x,z,heights[i],dx,dz,i>0 and i<len(path)-1 and heights[i]>heights[i-1] and not corner)
-# Three-block bottom landing; the upper landing retains the authored cross-room ports.
+
 for x in range(4,10): walk(x,9,1,1,0)
 x,z=path[-1]
 for px in range(x,10): walk(px,z,44,1,0)
 for pz in range(z,10): walk(9,pz,44,0,1)
 for (x,y,z),(s,_) in plan.items(): put(x,y,z,s)
-# The saved socket faces the Forge's west socket directly, without a bridging hallway.
+
 jigsaw=state('minecraft:jigsaw',orientation='east_up')
 put(9,1,9,jigsaw,n.Compound({k:n.String(v) for k,v in {
  'name':'asterion:catacombs/door','target':'asterion:catacombs/door','pool':'minecraft:empty',

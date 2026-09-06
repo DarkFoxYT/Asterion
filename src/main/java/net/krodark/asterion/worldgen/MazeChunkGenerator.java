@@ -34,7 +34,7 @@ public final class MazeChunkGenerator extends net.minecraft.world.level.chunk.Ch
 
     public FlatLevelGeneratorSettings settings() { return settings; }
 
-    /** Keep the established terrain layout; features must use this same derived seed. */
+     
     public static long terrainSeed(RandomState randomState) {
         TerrainSeed cached = cachedTerrainSeed;
         if (cached != null && cached.state == randomState) return cached.seed;
@@ -60,7 +60,7 @@ public final class MazeChunkGenerator extends net.minecraft.world.level.chunk.Ch
     public void applyBiomeDecoration(net.minecraft.world.level.WorldGenLevel world, ChunkAccess chunk,
                                      StructureManager structures) {
         super.applyBiomeDecoration(world, chunk, structures);
-        // Authored rooms are part of the dimension, even when a saved flat configuration disables features.
+         
         AuthoredCatacombs.place(world, chunk.getPos());
         AuthoredForge.place(world, chunk.getPos());
         ForgeDepths.carveAccess(world, chunk.getPos());

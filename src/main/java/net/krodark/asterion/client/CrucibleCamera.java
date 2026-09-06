@@ -9,7 +9,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
-/** Smooth elevated forge camera that keeps the physical crucible visible behind its HUD. */
+ 
 public final class CrucibleCamera {
     private static BlockPos crucible;
     private static float blend, previousBlend;
@@ -54,8 +54,8 @@ public final class CrucibleCamera {
         Vec3 look = focus.subtract(camera);
         float yaw = (float)(Mth.atan2(look.z, look.x) * Mth.RAD_TO_DEG) - 90F;
         float pitch = (float)(-Mth.atan2(look.y, Math.sqrt(look.x * look.x + look.z * look.z)) * Mth.RAD_TO_DEG);
-        // Position and view rotation are camera-only. The LocalPlayer's coordinates and
-        // body/head rotations are deliberately never written by this controller.
+         
+         
         return new CameraPose(camera, Mth.rotLerp(amount, vanillaYaw, yaw),
                 Mth.lerp(amount, vanillaPitch, pitch));
     }

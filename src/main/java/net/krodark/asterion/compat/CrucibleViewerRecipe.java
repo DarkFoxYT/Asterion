@@ -11,7 +11,7 @@ import net.minecraft.world.item.component.CustomData;
 
 import java.util.List;
 
-/** Viewer-neutral descriptions of the Crucible's dynamic forging rules. */
+ 
 public record CrucibleViewerRecipe(Identifier id, List<List<ItemStack>> inputs, Item mold,
                                    int temperature, List<ItemStack> outputs, String instructionKey) {
     private static final List<ItemStack> METALS = List.of(

@@ -8,7 +8,7 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.WaterFluid;
 
-/** Vanilla water spreading, buckets, swimming and extinguishing, with a separate visual tint. */
+ 
 public abstract class HeavyWaterFluid extends WaterFluid {
     @Override protected void spreadTo(net.minecraft.world.level.LevelAccessor level, net.minecraft.core.BlockPos pos,
                                        BlockState state, net.minecraft.core.Direction direction, FluidState fluid) {

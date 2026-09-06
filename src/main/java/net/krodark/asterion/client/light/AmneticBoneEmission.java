@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Reuses the exact rendered bone poses in Amnetic's depth-tested emissive capture. */
+ 
 public final class AmneticBoneEmission {
     private static final InstanceLayout LAYOUT = InstanceLayout.builder().mat4(2).vec4(6).vec4(7).build();
     private static final Map<MeshKey, Entry> ENTRIES = new HashMap<>();
@@ -41,7 +41,7 @@ public final class AmneticBoneEmission {
         if (!Bloom.settings().isEnabled()) return;
         if (!initialized) {
             EmissiveSources.register(Asterion.id("vine_glow"), AmneticBoneEmission::emit);
-            // Also clear when bloom is disabled or a capture fails; never reuse last frame's poses.
+             
             Pipeline.add(RenderStage.POST, 11, "Clear bone emission submissions", ctx ->
                     ENTRIES.values().forEach(entry -> entry.count = 0));
             initialized = true;
@@ -90,11 +90,11 @@ public final class AmneticBoneEmission {
                     .extraSampler("TextureSampler", texture, 0, false)
                     .phase(InstancePhase.WORLD_LAST).manual().emissive()
                     .renderState(RenderState.builder().depthTest(true).depthWrite(false)
-                            // Only exposed, front-facing pixels may seed bloom. Rendering the
-                            // reverse faces let a glow bone illuminate through its enclosing geo.
+                             
+                             
                             .backfaceCulling(backfaceCulling).blend(RenderState.BlendMode.ALPHA).build())
                     .onRender((ctx, batch) -> {
-                        // Manual mesh: only the official emissive-source hook invokes this draw.
+                         
                         for (int i = 0; i < count; i++) batch.add(poses.get(i));
                         submissions += count;
                     }).register(id);

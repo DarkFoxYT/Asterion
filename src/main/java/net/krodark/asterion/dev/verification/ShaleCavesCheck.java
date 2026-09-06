@@ -51,7 +51,7 @@ final class ShaleCavesCheck {
                 "Missing cave detail: " + air + "/" + water + "/" + stairs + "/" + slabs + "/" + spikes);
         check(growth > 0 && flats > 100, "Caves lack growth or flat ground: " + growth + "/" + flats);
         check(carpets > 0 && floorLevels.size() >= 8, "Missing custom carpets or cave elevations");
-        // Rare flooded-basin decorations are not guaranteed in this finite terrain sample.
+         
         check(spawn != null, "No supported cave floor");
         var centipede = Asterion.SCARLET_CENTIPEDE.create(level, net.minecraft.world.entity.EntitySpawnReason.NATURAL);
         centipede.setPos(spawn.getX() + .5, spawn.getY(), spawn.getZ() + .5);
@@ -60,7 +60,7 @@ final class ShaleCavesCheck {
         check(!centipede.isRemoved(), "Underground centipede was deleted on load");
         centipede.discard();
 
-        // A remote Forge must actually be placed, with a usable west socket and stair route.
+         
         int center = CatacombLayout.ROOT_CENTER + 4 * AuthoredForge.DISTRICT_SPACING;
         for (int cx = (center - 90) >> 4; cx <= (center + 20) >> 4; cx++)
             for (int cz = (center - 14) >> 4; cz <= (center + 14) >> 4; cz++) level.getChunk(cx, cz);

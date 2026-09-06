@@ -11,19 +11,19 @@ import com.geckolib.util.RenderUtil;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.resources.Identifier;
 
-/** One batched full-bright draw per selected bone, backed by reusable local-space vertex data. */
+ 
 public class AsterionEmissiveBoneLayer<T extends GeoAnimatable, O, R extends GeoRenderState>
         extends CustomBoneTextureGeoLayer<T, O, R> {
     public AsterionEmissiveBoneLayer(GeoRenderer<T, O, R> renderer, String bone, Identifier texture) {
         super(renderer, bone, texture);
     }
 
-    /** Multiplier used only by Amnetic's HDR bloom capture; the visible surface stays color-safe. */
+     
     protected float emissiveStrength(R state) { return 1f; }
     protected float surfaceBrightness(R state) { return 0.8f; }
     protected boolean enhancedSurface(R state) { return false; }
     protected Identifier amneticEmissionMesh(R state) { return null; }
-    /** Flat crossed flames need their reverse faces; enclosed glow shells keep culling enabled. */
+     
     protected boolean backfaceCulling(R state) { return true; }
     protected boolean usesModelTextureCoordinates() { return false; }
     protected int emissiveColor(R state) { return 0xFFFFFFFF; }
@@ -35,7 +35,7 @@ public class AsterionEmissiveBoneLayer<T extends GeoAnimatable, O, R extends Geo
         Identifier texture = getTextureResource(state);
         Identifier base = this.renderer.getTextureLocation(state);
         float widthRatio = 1f, heightRatio = 1f;
-        // The current eye/vine/rune layers share their model atlas, avoiding dimension lookups.
+         
         if (!texture.equals(base) && !usesModelTextureCoordinates()) {
             var size = RenderUtil.getTextureDimensions(texture);
             var baseSize = RenderUtil.getTextureDimensions(base);
@@ -47,7 +47,7 @@ public class AsterionEmissiveBoneLayer<T extends GeoAnimatable, O, R extends Geo
         var mesh = EmissiveBoneMesh.of(cuboid);
         float uScale = widthRatio, vScale = heightRatio;
         Identifier emissionMesh = amneticEmissionMesh(state);
-        // SubmitNodeCollector snapshots the animated pose; mesh data never stores per-entity state.
+         
         var stack = pass.poseStack();
         stack.pushPose();
         try {

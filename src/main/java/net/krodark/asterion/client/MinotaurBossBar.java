@@ -79,7 +79,7 @@ public final class MinotaurBossBar {
         float scale = scale(g);
         g.pose().translate(x + 91 - 128 * scale + shakeX, y - 5 + shakeY);
         g.pose().scale(scale, scale);
-        // The original PNGs share a canvas; crop only the empty vertical padding.
+         
         int filled = Math.round(164 * progress);
         for (int offset = 3; offset >= 1; offset--) {
             int glow = (30 / offset) << 24 | 0xA40920;

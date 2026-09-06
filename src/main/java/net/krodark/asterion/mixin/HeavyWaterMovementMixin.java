@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Apply identical resistance in client prediction and server-side travel, without teleport corrections. */
+ 
 @Mixin(LivingEntity.class)
 public abstract class HeavyWaterMovementMixin {
     @Unique private boolean asterion$heavySwimming;
@@ -29,7 +29,7 @@ public abstract class HeavyWaterMovementMixin {
         if (!asterion$heavySwimming) return;
         var entity = (LivingEntity)(Object)this;
         Vec3 motion = entity.getDeltaMovement();
-        // Resist rising more than sinking, but keep upward movement possible; no forced downward pull.
+         
         entity.setDeltaMovement(motion.multiply(.88, motion.y > 0 ? .78 : .94, .88));
     }
 }

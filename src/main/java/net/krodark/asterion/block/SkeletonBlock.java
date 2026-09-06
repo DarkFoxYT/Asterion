@@ -22,7 +22,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
-/** A floor skeleton that can only face one of the four horizontal directions. */
+ 
 public final class SkeletonBlock extends BaseEntityBlock implements WaterloggedDecoration {
     public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     private static final VoxelShape NORTH_SOUTH_SHAPE = box(2.0D, 0.0D, 0.0D, 14.0D, 2.5D, 16.0D);
@@ -70,7 +70,7 @@ public final class SkeletonBlock extends BaseEntityBlock implements WaterloggedD
 
         Direction facing = state.getValue(FACING);
         double forward = (random.nextDouble() - 0.5D) * 1.7D;
-        // Spawn beside the bones instead of inside their collision/model volume.
+         
         double sideways = (random.nextBoolean() ? 1.0D : -1.0D) * (0.58D + random.nextDouble() * 0.22D);
         double x = pos.getX() + 0.5D + facing.getStepX() * forward - facing.getStepZ() * sideways;
         double y = pos.getY() + 0.32D + random.nextDouble() * 0.48D;

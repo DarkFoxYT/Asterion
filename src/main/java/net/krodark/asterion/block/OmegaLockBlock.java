@@ -29,11 +29,11 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
-/** Keyed arena lock. It drives nearby gate panels directly, without a winch. */
+ 
 public final class OmegaLockBlock extends BaseEntityBlock {
     public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty UNLOCKED = BooleanProperty.create("unlocked");
-    // Match the supplied Blockbench model exactly so wall placement and selection feel solid.
+     
     private static final VoxelShape NORTH_SOUTH = box(0, 0, 5, 16, 16, 11);
     private static final VoxelShape EAST_WEST = box(5, 0, 0, 11, 16, 16);
 
@@ -60,8 +60,7 @@ public final class OmegaLockBlock extends BaseEntityBlock {
     }
     @Override protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         if (context instanceof net.minecraft.world.phys.shapes.EntityCollisionContext entityContext
-                && entityContext.getEntity() instanceof net.krodark.asterion.entity.MinotaurEntity boss
-                && boss.doorEntryTicks() > 0) return net.minecraft.world.phys.shapes.Shapes.empty();
+                && entityContext.getEntity() instanceof net.krodark.asterion.entity.MinotaurEntity) return net.minecraft.world.phys.shapes.Shapes.empty();
         return state.getValue(UNLOCKED) ? net.minecraft.world.phys.shapes.Shapes.empty() : getShape(state, level, pos, context);
     }
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {

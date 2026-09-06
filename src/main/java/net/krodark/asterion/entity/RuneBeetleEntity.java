@@ -13,7 +13,7 @@ import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.level.Level;
 
-/** Passive rune wildlife, using the small beetle model until its own GeckoLib model is supplied. */
+ 
 public final class RuneBeetleEntity extends PathfinderMob implements GeoEntity {
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private int runeIndex;

@@ -4,7 +4,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.*;
 import net.minecraft.util.RandomSource;
 
-/** Low, brown campfire-style billows: retain world lighting and settle into the floor. */
+ 
 public final class DoorDustParticle extends SingleQuadParticle {
     private final SpriteSet sprites;
     private final float opacity;

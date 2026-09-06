@@ -12,7 +12,7 @@ import net.minecraft.world.level.block.state.properties.Half;
 import net.minecraft.world.level.block.state.properties.SlabType;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
-/** Connected, rounded chambers under the Forge. Every sample uses world coordinates. */
+ 
 public final class ShaleCaves {
     private ShaleCaves() {}
     private record Column(double floor, double roof, double clearance) {}
@@ -71,8 +71,8 @@ public final class ShaleCaves {
             Chamber east = chamber(seed, cx + 1, cz), south = chamber(seed, cx, cz + 1);
             clearance = Math.max(clearance, width - passage(wx, wz, room.x, room.z, east.x, east.z));
             clearance = Math.max(clearance, width - passage(wx, wz, room.x, room.z, south.x, south.z));
-            // Each node also throws a deterministic, oblique branch. This breaks the grid silhouette
-            // into long diagonal tunnels while retaining the guaranteed east/south cave network.
+             
+             
             long branch = CatacombLayout.hash(seed ^ 0x7A11E15L, cx, cz);
             int bx = cx + (((branch & 1L) == 0) ? 1 : -1);
             int bz = cz + (((branch & 2L) == 0) ? 1 : -1);
@@ -81,7 +81,7 @@ public final class ShaleCaves {
             clearance = Math.max(clearance,
                     branchWidth - passage(wx, wz, room.x, room.z, diagonal.x, diagonal.z));
         }
-        // Flatten chamber centres, with a smooth transition into the sloping passages.
+         
         double flat = Math.clamp((.85 - nearest / closest.radius) / .5, 0, 1);
         flat = flat * flat * (3 - 2 * flat);
         double floor = ground(seed, x, z) * (1 - flat) + Math.rint(ground(seed, closest.x, closest.z) / 3) * 3 * flat;
@@ -104,8 +104,8 @@ public final class ShaleCaves {
         if (chunk.getMinY() > LabyrinthLevels.CAVE_BOTTOM_Y) return;
         var pos = new BlockPos.MutableBlockPos();
         int minX = chunk.getPos().getMinBlockX(), minZ = chunk.getPos().getMinBlockZ();
-        // A one-block border supplies all slope and puddle neighbours without resampling
-        // the chamber graph several times for every floor block.
+         
+         
         Column[][] columns = new Column[18][18];
         for (int dx = 0; dx < 18; dx++) for (int dz = 0; dz < 18; dz++)
             columns[dx][dz] = column(seed, minX + dx - 1, minZ + dz - 1);
@@ -152,7 +152,7 @@ public final class ShaleCaves {
                 if (flooded) underwaterVines(chunk, seed, x, z, floor, waterLine, cave.clearance);
                 if (open && roof + 2 <= LabyrinthLevels.CAVE_ROOF_Y && wet(seed ^ 0xD21FL, x, z)
                         && Math.floorMod(CatacombLayout.hash(seed, x, z), 5) == 0) {
-                    // A sealed water pocket above one full ceiling block produces vanilla drips.
+                     
                     chunk.setBlockState(pos.set(x, roof, z), base(shaded(seed, x, roof, z)).defaultBlockState(), 0);
                     chunk.setBlockState(pos.set(x, roof + 1, z), Blocks.WATER.defaultBlockState(), 0);
                 }
@@ -182,7 +182,7 @@ public final class ShaleCaves {
                 && noise(seed ^ 929, x / 7.0, z / 7.0) > .4;
     }
 
-    /** Broad coherent basins, with smaller noisy shorelines, produce lakes and fully flooded galleries. */
+     
     private static boolean floodRegion(long seed, int x, int z) {
         double basin = noise(seed ^ 0xF100D5L, x / 118.0, z / 118.0);
         double shore = noise(seed ^ 0xA911L, x / 29.0, z / 29.0);

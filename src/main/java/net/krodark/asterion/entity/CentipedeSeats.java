@@ -3,7 +3,7 @@ package net.krodark.asterion.entity;
 import java.util.Arrays;
 import java.util.UUID;
 
-/** Stable segment ownership. Removing the driver never promotes a rear passenger. */
+ 
 public final class CentipedeSeats {
     private final UUID[] occupants = new UUID[CentipedeChain.MAX_SEGMENTS];
 
@@ -43,7 +43,7 @@ public final class CentipedeSeats {
             String[] pair = entry.split("=", 2);
             if (pair.length != 2) continue;
             try { claim(UUID.fromString(pair[1]), Integer.parseInt(pair[0]), occupants.length); }
-            catch (IllegalArgumentException ignored) { /* Ignore invalid saved reservations. */ }
+            catch (IllegalArgumentException ignored) {   }
         }
     }
 }

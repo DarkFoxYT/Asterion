@@ -33,7 +33,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     public static final int MIN_HEAT_CONTROL = -20;
     public static final int MAX_HEAT_CONTROL = 20;
     public static final int TOLERANCE = 12;
-    /** Retained for decoding progress from older saves and clients. */
+     
     public static final int AUTO_POUR_TICKS = 240;
     private int temperature;
     private int heatControl;
@@ -56,7 +56,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     private int brazierKeys;
     private int pouringTicks;
     private int autoPourTicks;
-    /** IDs follow the artist folders; 2 is tarnished_gold and 8 is ordinary gold. */
+     
     private int primaryMetal = -1;
     private int secondaryMetal = -1;
     private String metalSequence = "";
@@ -97,8 +97,8 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     public int mixColor() {
         if (metalSequence.isEmpty()) return 0x514A43;
         int color = metalColor(metalSequence.charAt(0) - '0');
-        // Every later pour is treated as a half-transparent coat over what is already molten.
-        // This intentionally makes A→B different from B→A.
+         
+         
         for (int index = 1; index < metalSequence.length(); index++)
             color = overlay(color, metalColor(metalSequence.charAt(index) - '0'), 0.5F);
         return color;
@@ -167,7 +167,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         return false;
     }
 
-    /** Re-melts a previously poured alloy without flattening its insertion order or ratios. */
+     
     private boolean insertForgedAlloy(ItemStack stack, ServerPlayer player) {
         if (!stack.is(Asterion.FORGED_INGOT) && !stack.is(Asterion.TARNISHED_GOLD_INGOT)) return false;
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
@@ -465,7 +465,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         finishPour(player);
     }
 
-    /** Finished work exits through the front-center chute instead of teleporting into inventory. */
+     
     private void eject(ItemStack stack) {
         if (!(level instanceof net.minecraft.server.level.ServerLevel server) || stack.isEmpty()) return;
         net.minecraft.core.Direction facing = getBlockState().getValue(CrucibleBlock.FACING);
@@ -491,14 +491,14 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         open(player);
     }
 
-    /** Four real render layers: the first metal is opaque and every later pour is a 50% coat. */
+     
     private java.util.List<Integer> layerColors() {
         java.util.ArrayList<Integer> colors = new java.util.ArrayList<>(4);
         for (int layer = 0; layer < 4; layer++) {
             if (layer >= metalSequence.length()) colors.add(0x00FFFFFF);
-            // Every material already has an artist-authored, correctly colored texture.
-            // Keep RGB neutral so gold remains gold, iron remains grey, etc.; only alpha
-            // participates in the procedural stack.
+             
+             
+             
             else colors.add(layer == 0 ? 0xFFFFFFFF : 0x80FFFFFF);
         }
         return colors;
@@ -632,8 +632,8 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             changed = true;
         }
         if (sourceHeat > 0) {
-            // The block below supplies the fire; bellows/vent pressure still controls
-            // the slope, so casting remains an active temperature-balancing step.
+             
+             
             float radiativeLoss = crucible.temperature / (float) MAX_TEMPERATURE * 0.22F;
             crucible.thermalRemainder += sourceHeat + crucible.heatControl * 0.04F - radiativeLoss;
         } else {
@@ -650,21 +650,21 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
                 changed = true;
             }
         }
-        // Legacy progress must never finish a cast after loading an older save.
+         
         if (crucible.autoPourTicks != 0) {
             crucible.autoPourTicks = 0;
             changed = true;
         }
-        // Do not broadcast every idle crucible every tick (fuelTicks == 0 also satisfies
-        // `fuelTicks % 20 == 0`). Persist active state cheaply and only send the values used
-        // by the screen/renderer at an interpolated 2 Hz, plus the final state transition.
+         
+         
+         
         if (changed) crucible.setChanged();
         boolean periodicActiveSync = changed && level.getGameTime() % 10L == 0L;
         boolean finishedPouring = wasPouring && crucible.pouringTicks == 0;
         if (periodicActiveSync || finishedPouring) crucible.syncClient();
     }
 
-    /** Environmental forge heat, strongest at lava and soul fire and reusable indefinitely. */
+     
     private static float heatSource(net.minecraft.world.level.Level level, BlockPos source) {
         BlockState state = level.getBlockState(source);
         if (state.is(net.minecraft.world.level.block.Blocks.SOUL_CAMPFIRE)
@@ -684,7 +684,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         syncClient();
     }
 
-    /** Ordinary casting works anywhere; the boss key requires reaching the authored Forge. */
+     
     private boolean locationAllowsMold() {
         if (!moldInserted || mold() != Mold.MINOTAUR_KEY) return true;
         return level instanceof net.minecraft.server.level.ServerLevel server

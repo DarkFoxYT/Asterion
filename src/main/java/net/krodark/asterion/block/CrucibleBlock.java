@@ -71,10 +71,14 @@ public final class CrucibleBlock extends BaseEntityBlock {
         if (!level.isClientSide()) placeStructure(level, pos, state.getValue(FACING));
     }
     @Override protected BlockState rotate(BlockState state, Rotation rotation) {
-        return state.setValue(FACING, rotation.rotate(state.getValue(FACING)));
+        BlockPos offset = new BlockPos(state.getValue(PART_X) - 2, 0, state.getValue(PART_Z) - 2).rotate(rotation);
+        return state.setValue(FACING, rotation.rotate(state.getValue(FACING)))
+                .setValue(PART_X, offset.getX() + 2).setValue(PART_Z, offset.getZ() + 2);
     }
     @Override protected BlockState mirror(BlockState state, Mirror mirror) {
-        return rotate(state, mirror.getRotation(state.getValue(FACING)));
+        return state.setValue(FACING, mirror.mirror(state.getValue(FACING)))
+                .setValue(PART_X, mirror == Mirror.FRONT_BACK ? 4 - state.getValue(PART_X) : state.getValue(PART_X))
+                .setValue(PART_Z, mirror == Mirror.LEFT_RIGHT ? 4 - state.getValue(PART_Z) : state.getValue(PART_Z));
     }
 
     @Override protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
@@ -189,7 +193,7 @@ public final class CrucibleBlock extends BaseEntityBlock {
         VoxelShape[] shapes = new VoxelShape[100];
         for (int x = 0; x < 5; x++) for (int y = 0; y < 4; y++) for (int z = 0; z < 5; z++) {
             VoxelShape shape = Shapes.empty();
-            // Bedrock model units mapped exactly: a 70x30x70 lower body plus four 12x44 walls.
+             
             shape = addClipped(shape, x, y, z, .3125, .25, .3125, 4.6875, 2.125, 4.6875);
             shape = addClipped(shape, x, y, z, 0, 1.25, 0, 5, 4, .75);
             shape = addClipped(shape, x, y, z, 0, 1.25, 4.25, 5, 4, 5);

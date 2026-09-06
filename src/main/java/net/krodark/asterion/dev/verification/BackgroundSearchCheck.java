@@ -10,7 +10,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 
-/** Compare the optimized search with the old full-volume scan, including edits and chunk edges. */
+ 
 public final class BackgroundSearchCheck {
     public static void run(ServerLevel level) {
         BlockPos center = new BlockPos(-8, 224, -8);

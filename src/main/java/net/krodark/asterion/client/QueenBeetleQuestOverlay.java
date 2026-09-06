@@ -13,7 +13,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.EntityHitResult;
 
-/** A compact objective card and restrained dialogue treatment for the Queen's quest. */
+ 
 public final class QueenBeetleQuestOverlay {
     private static final int CARD_WIDTH = 202;
     private static int stage = -1;
@@ -49,8 +49,8 @@ public final class QueenBeetleQuestOverlay {
         target = Math.max(1, payload.target());
         anger = Mth.clamp(payload.anger(), 0, 4);
         if (!wasActive || restoring) displayedProgress = payload.progress();
-        // Talking to the Queen about an objective that is already on screen may refresh
-        // the dialogue, but must not replay the objective card's entrance or display timer.
+         
+         
         if (!wasActive) objectiveTicks = restoring ? 12 : 0;
         dialogueDuration = payload.stage() == QueenBeetleQuestPayload.REWARDED ? 150 : 120;
         dialogueTicks = restoring ? 0 : dialogueDuration;
@@ -64,7 +64,7 @@ public final class QueenBeetleQuestOverlay {
             objectiveTicks = 0;
             return;
         }
-        if (isActive()) {
+        if (isActive() && !MazeObjectiveOverlay.bossFightActive(client)) {
             objectiveTicks++;
             displayedProgress += (countItems(client) - displayedProgress) * 0.18F;
         }
@@ -73,7 +73,7 @@ public final class QueenBeetleQuestOverlay {
     private static void render(GuiGraphicsExtractor graphics, net.minecraft.client.DeltaTracker tracker) {
         if (CinematicHud.isHidden()) return;
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) return;
+        if (client.player == null || MazeObjectiveOverlay.bossFightActive(client)) return;
 
         if (client.hitResult instanceof EntityHitResult hit
                 && hit.getEntity() instanceof QueenBeetleEntity

@@ -23,7 +23,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.*;
 import org.jspecify.annotations.Nullable;
 
-/** One visible bowl and eight linked collision parts, all contained in a 3x3 footprint. */
+ 
 public final class GreekBrazierBlock extends Block implements SimpleWaterloggedBlock {
     private static final int RELIGHT_DELAY = 20 * 30;
     private static final java.util.Map<ServerLevel, java.util.Map<Long, Long>> RELIGHT_AT =
@@ -31,7 +31,7 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
     public static final IntegerProperty COLUMN = IntegerProperty.create("column", 0, 2);
     public static final IntegerProperty ROW = IntegerProperty.create("row", 0, 2);
     public static final BooleanProperty FORMED = BooleanProperty.create("formed");
-    // Exact unrotated cubes from brazier.geo.json, translated by +8 on X/Z to block space.
+     
     private static final double[][] CUBES = {
             {-11,4,-11,27,13,27}, {-13,13,-13,29,16,29},
             {0,2,0,16,4,16}, {-6,0,-6,22,2,22}
@@ -86,7 +86,7 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
         if(wet) extinguish(level,center);
         return true;
     }
-    /** Used by buffered arena generation, which does not run ordinary item-placement callbacks. */
+     
     public static void placeStructure(java.util.function.BiConsumer<BlockPos,BlockState> place, BlockPos center) {
         for(int x=0;x<3;x++) for(int z=0;z<3;z++)
             place.accept(part(center,x,z),Asterion.GREEK_BRAZIER.defaultBlockState()
@@ -100,7 +100,7 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
                     ? Blocks.WATER.defaultBlockState() : Blocks.AIR.defaultBlockState(),UPDATE_ALL);
         }
     }
-    /** Removes a complete linked brazier without drops, used by authored-room migrations. */
+     
     public static void removeStructure(Level level,BlockPos center) {
         BlockState state=level.getBlockState(center);
         if(state.getBlock() instanceof GreekBrazierBlock)center=root(center,state);

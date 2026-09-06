@@ -75,7 +75,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private static final RawAnimation ROAR_START_ANIMATION = RawAnimation.begin().thenPlayAndHold("roar_start");
     private static final RawAnimation CHARGE_RUN_ANIMATION = RawAnimation.begin().thenLoop("run charge attack");
     private static final RawAnimation PUNCH_SINGLE_ANIMATION = RawAnimation.begin().thenPlayAndHold("punch_single");
-    public static final int GRAPPLE_YANK_TICK = 25; // Authored frame 30 at 24 fps.
+    public static final int GRAPPLE_YANK_TICK = 25;  
     private static final double GRAPPLE_CATCH_DISTANCE = 3.0;
     public static final int ROAR_START_TICKS = 150;
     public static final double WALK_BLOCKS_PER_SECOND = 4, RUN_BLOCKS_PER_SECOND = 7;
@@ -162,7 +162,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private Vec3 axePickupGoal;
     private double axePickupBest = Double.MAX_VALUE;
     private int axePickupStall;
-    public int weaponMode() { return getEntityData().get(DATA_WEAPON); } // 0: free hands, 1: axe, 2: swords
+    public int weaponMode() { return getEntityData().get(DATA_WEAPON); }  
     public int weaponSwapTicks() { return getEntityData().get(DATA_WEAPON_SWAP); }
     public boolean axeInWorld() { return getEntityData().get(DATA_AXE_OUT); }
     public boolean isAxeAttackActive() { return weaponSwapTicks() == 0 && requiresAxe(bossAttackState()); }
@@ -298,7 +298,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private Vec3 previousPosition = Vec3.ZERO;
     private boolean wasObserved;
 
-    /** Debug encounters never save, consume arena state, or trigger the real boss finale. */
+     
     @Override public boolean shouldBeSaved() { return !debugMode && super.shouldBeSaved(); }
     public boolean isDebugMinotaur() { return debugMode; }
     public void beginDebug(ServerPlayer owner) {
@@ -395,7 +395,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         playHeavySteps();
     }
     private int clearCombatObstacle(ServerLevel level, AABB bounds) {
-        return 0; // Arena architecture remains intact during combat.
+        return 0;  
     }
     private Vec3 combatPoint(Vec3 point) { return debugMode ? point : WorldGenerator.clampBossArena(point); }
     private Vec3 combatCenter() { return debugMode ? debugOrigin : WorldGenerator.bossArenaCenter(); }
@@ -429,8 +429,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         }
         if (emitted) {
             lastWallDebrisTick = tickCount;
-            // Push the body clear immediately. Waiting for horizontalCollision lets one more charge
-            // step run into the wall and is the source of the visible wall-clipping continuation.
+             
+             
             setDeltaMovement(Vec3.ZERO);
             Vec3 impact = primarySurface == null ? bounds.getCenter() : primarySurface;
             if (primaryNormal.lengthSqr() > .01) {
@@ -440,7 +440,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             broadcastMinotaurImpact(level, impact, 34F, 1.35F, 18);
             playSound(SoundEvents.GENERIC_EXPLODE.value(), 3.0F, .42F);
         }
-        return emitted ? 1 : 0; // Visual fragments only: preserve arena blocks and collision.
+        return emitted ? 1 : 0;  
     }
     private void broadcastMinotaurImpact(ServerLevel level, Vec3 impact, float radius,
                                          float strength, int duration) {
@@ -504,8 +504,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                         || getEntityData().get(DATA_CORRIDOR_CHARGE_TICKS) > 0) {
                     yBodyRot = getYRot(); return;
                 }
-                // Movement control owns travel yaw. Vanilla's idle head-following body
-                // control fought it and made the torso face away from the path.
+                 
+                 
                 yBodyRot = Mth.approachDegrees(yBodyRot, getYRot(), 10F);
             }
         };
@@ -603,7 +603,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         MinotaurEntity minotaur = existing == null
                 ? Asterion.MINOTAUR.create(level, EntitySpawnReason.EVENT) : existing;
         if (minotaur == null) return null;
-        // Additional party members must not teleport or restart an already active boss.
+         
         if (minotaur.doorEntryStarted) return minotaur;
         net.krodark.asterion.worldgen.MinotaurArenaEntrances.build(level);
         Vec3 center = WorldGenerator.bossArenaCenter();
@@ -712,6 +712,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             return;
         }
         super.customServerAiStep(level);
+        tickLightLanding();
         if (behaviorPhase() != BehaviorPhase.BOSS && behaviorPhase() != BehaviorPhase.RETREATING
                 && behaviorPhase() != BehaviorPhase.DORMANT && !DeadSunEventSystem.isEclipseActive(level)) {
             beginRetreat(false);
@@ -775,7 +776,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
         if (behaviorPhase() != BehaviorPhase.BOSS && behaviorPhase() != BehaviorPhase.RETREATING
                 && WorldGenerator.isApproachingCenter(player.position())) {
-            // The arena encounter can only be activated by crossing a keyed entrance.
+             
             beginRetreat(false);
         }
 
@@ -1285,6 +1286,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             level.sendParticles(ParticleTypes.DUST_PLUME, getX(), getY() + 0.08D, getZ(),
                     7, 0.9D, 0.08D, 0.9D, 0.05D);
         if (corridorChargeTicks >= 58 || (horizontalCollision && broken == 0)) {
+            if (horizontalCollision) playSound(Asterion.MINOTAUR_CHARGE_HIT_WALL, 3.0F, 1.0F);
             armHeavyJump();
             heavyJumpWasAirborne = true;
             tickHeavyLanding(level);
@@ -1556,7 +1558,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             if (!(level().getBlockEntity(entryDoor) instanceof net.krodark.asterion.block.MinotaurDoorBlockEntity)) return;
         }
         doorEntryStarted = true;
-        // Leave room for the authored neck/head lunge as well as the collision body.
+         
         Vec3 behind = Vec3.atBottomCenterOf(entryDoor)
                 .add(entryFacing.getUnitVec3().scale(Math.max(5.5, getBbWidth() * .5 + 3.5)))
                 .add(0, net.krodark.asterion.worldgen.AuthoredCatacombs.enabled() ? 1 : 0, 0);
@@ -1590,14 +1592,14 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             Vec3 clearGate = Vec3.atBottomCenterOf(net.krodark.asterion.worldgen.MinotaurArenaEntrances.gate(entryFacing))
                     .add(inward.scale(getBbWidth() * .5 + 1.25));
             double remaining = clearGate.subtract(position()).dot(inward);
-            // Finish the short entrance advance, then plant his feet for the sustained roar.
+             
             setDeltaMovement(inward.scale(elapsed < 112 ? Math.clamp(remaining, 0, .42) : 0)
                     .add(0, getDeltaMovement().y, 0));
         }
         if (elapsed >= ROAR_START_TICKS) {
-            // The animation and block-entity ticker normally remove the complete door
-            // at the impact beat. Enforce the final state before combat navigation starts
-            // so a delayed/unloaded door part can never trap the boss in the reveal room.
+             
+             
+             
             net.krodark.asterion.block.MinotaurDoorBlock.removeDoor(level, entryDoor, entryFacing);
             Vec3 inside = Vec3.atBottomCenterOf(
                     net.krodark.asterion.worldgen.MinotaurArenaEntrances.gate(entryFacing))
@@ -1607,8 +1609,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 if (level.noCollision(this, destination)) setPos(inside.x, inside.y, inside.z);
             }
             getEntityData().set(DATA_DOOR_ENTRY_TICKS, 0);
-            // The cinematic deliberately lingers after the authored entrance pose.
-            // Do not let combat wake while participants are still camera-locked.
+             
+             
             bossAttackCooldown = Math.max(40,
                     net.krodark.asterion.worldgen.BossArenaEncounter.INTRO_TICKS - ROAR_START_TICKS + 10);
             return false;
@@ -1962,7 +1964,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if (!(found instanceof ServerPlayer player) || !player.isAlive() || player.isSpectator()
                 || ++throwFlightTicks > (grapplePull ? 14 : 60)) { thrownPlayer = null; grapplePull = false; return; }
         if (grapplePull) {
-            // One launch, then ordinary drag/collision. Clamp the last step so the yank cannot pass through the boss.
+             
             double remaining = Math.max(0, player.position().subtract(position()).horizontalDistance() - GRAPPLE_CATCH_DISTANCE);
             double step = throwVelocity.horizontalDistance();
             if (step > remaining && step > .001)
@@ -1975,7 +1977,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             grapplePull = false;
             return;
         }
-        // Swept entity collision prevents tunnelling through thin walls at throw speed.
+         
         if (hornKnockback) {
             double remaining = Math.max(0, hornTravelLimit - hornTravel);
             double horizontal = throwVelocity.horizontalDistance();
@@ -1997,7 +1999,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             throwVelocity = Vec3.ZERO;
             if (wall && !hornKnockback && !grapplePull) {
                 throwWallImpact = player.position();
-                // A nearby wall can be reached inside the release hit's immunity window.
+                 
                 player.invulnerableTime = 0;
                 player.hurtServer(level, damageSources().mobAttack(this), 10.0F);
                 scheduleWallCombo(player, 150);
@@ -2105,14 +2107,14 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private BossAttack chooseCombatAttack(ServerPlayer player, double distance) {
         if (shouldHornRam(player)) return BossAttack.HORN_RAM;
         if (shouldPrioritizeGrab(player) && (player.getY() - getY() > 1.2 || weaponMode() == 0)) return BossAttack.GRAB;
-        // Once the thrown axe has settled, deliberately recover it instead of circling
-        // through unrelated attacks forever. Nearby pickups are taken quickly; distant
-        // ones become mandatory only after enough time for the player to punish the throw.
+         
+         
+         
         if (axeInWorld() && attackReady(BossAttack.RETRIEVE_AXE)
                 && (axeAge >= 240 || axeAge >= 80 && position().distanceToSqr(axeLastPosition) <= 144.0D))
             return BossAttack.RETRIEVE_AXE;
         List<BossAttack> choices = new ArrayList<>();
-        // Both arena phases have the full moveset. Context gates only moves that need a specific target state.
+         
         if (distance < 6.2) addReady(choices, BossAttack.GRAB, BossAttack.PUNCH_SINGLE, BossAttack.PUNCH_COMBO, BossAttack.BACK_KICK);
         if (distance < 8) addReady(choices, BossAttack.CLEAVE, BossAttack.AXE_CHOP, BossAttack.SWORD_COMBO);
         if (distance < 11) addReady(choices, BossAttack.SLAM);
@@ -2187,7 +2189,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             if (attack != BossAttack.AXE_THROW && attack != BossAttack.RETRIEVE_AXE)
                 score += Math.min(12, attacksSinceUse[attack.ordinal()]) * .18;
             if (height > 1.5 && attack == BossAttack.LEAP) score += 2;
-            // Weighted selection keeps lower-priority moves possible instead of always choosing the same maximum.
+             
             double weight = Math.exp(Math.clamp(score / 2, -6, 8));
             totalWeight += weight;
             if (random.nextDouble() * totalWeight < weight) selected = attack;
@@ -2196,7 +2198,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     private static boolean enabledAttack(BossAttack attack) {
-        // Retain old ordinals for tracked-data compatibility, but never schedule or expose removed attacks.
+         
         return attack != BossAttack.NONE && attack != BossAttack.RED_LIGHTNING_CHARGE
                 && attack != BossAttack.WALL_SHOVE && attack != BossAttack.ARENA_SWEEP
                 && attack != BossAttack.SPIN_COMBO;
@@ -2221,7 +2223,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 player -> player.isAlive() && !player.isCreative() && !player.isSpectator()).size();
     }
 
-    /** Charge needs an open corridor for the Minotaur's entire body, not merely eye contact. */
+     
     private boolean hasClearChargeLane(Player player) {
         return hasClearChargeLane(player, false);
     }
@@ -2236,7 +2238,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         AABB body = getBoundingBox().deflate(0.16D, 0.10D, 0.16D).move(0.0D, 0.08D, 0.0D);
         double laneLength = Math.max(0.0D, distance - (getBbWidth() + player.getBbWidth()) * .5D - .25D);
         AABB sweptLane = body.expandTowards(direction.scale(laneLength)).inflate(0.10D, 0.0D, 0.10D);
-        // The target is intentionally in the charge lane; only terrain should block selection.
+         
         return !level().getBlockCollisions(this, sweptLane).iterator().hasNext()
                 || level() instanceof ServerLevel serverLevel
                 && WorldGenerator.isBreakableBossPath(serverLevel, sweptLane);
@@ -2286,7 +2288,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         return weaponSwapTicks() <= weaponSheathTicks() ? getEntityData().get(DATA_WEAPON_FROM) : pendingWeaponMode();
     }
     public boolean isSheathingWeapon() { return weaponSwapTicks() > 0 && weaponSwapTicks() <= weaponSheathTicks(); }
-    /** Attachment changes at the authored hand contact, separately from permission to deal damage. */
+     
     public int renderedWeaponMode() {
         if (weaponSwapTicks() == 0) return weaponMode();
         if (isSheathingWeapon()) {
@@ -2310,7 +2312,9 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         getEntityData().set(DATA_WEAPON_SWAP, ticks);
         if (ticks == weaponSheathTicks() && weaponSheathTicks() > 0) {
             getEntityData().set(DATA_WEAPON, 0);
-            playSound(SoundEvents.ARMOR_EQUIP_IRON.value(), 1.4F, .65F);
+            if (getEntityData().get(DATA_WEAPON_FROM) == 2)
+                playSound(Asterion.MINOTAUR_SWORD_SHEATHE, 1.4F, 1.0F);
+            else playSound(SoundEvents.ARMOR_EQUIP_IRON.value(), 1.4F, .65F);
         }
         if (ticks == weaponSheathTicks() + Math.max(1, weaponDrawTicks() / 2))
             playSound(SoundEvents.ARMOR_EQUIP_IRON.value(), 1.5F, .55F);
@@ -2330,7 +2334,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 .add(0, getBbHeight() * .95, 0);
         var axe = new MinotaurAxeEntity(Asterion.MINOTAUR_AXE, level);
         axe.setThrower(this);
-        // Solve an arc for the real gravity, with capped lead so a dodge remains possible.
+         
         double flightTicks = Math.clamp(origin.distanceTo(target.position()) / 1.65, 8, 24);
         Vec3 lead = target.getDeltaMovement().multiply(1, 0, 1).scale(Math.min(6, flightTicks * .35));
         if (lead.lengthSqr() > 4) lead = lead.normalize().scale(2);
@@ -2355,7 +2359,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     @Override public void remove(Entity.RemovalReason reason) {
         if (isDefeatedBoss() && removedParts() != MinotaurRemains.ALL && (reason == Entity.RemovalReason.KILLED
                 || reason == Entity.RemovalReason.DISCARDED)) return;
-        // Discard/unload/reset does not call the defeat sequence. Always retire this entity's bars.
+         
         healthBossBar.removeAllPlayers();
         if (!isDefeatedBoss() && (reason == Entity.RemovalReason.KILLED || reason == Entity.RemovalReason.DISCARDED)
                 && thrownAxe != null && level() instanceof ServerLevel server) {
@@ -2374,7 +2378,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         axeAge++;
         var axe = level.getEntity(thrownAxe);
         if (axe == null || axe.isRemoved()) return;
-        // Upgrade an axe saved by the former dropped-item implementation in place.
+         
         if (axe instanceof net.minecraft.world.entity.item.ItemEntity) {
             var physical = new MinotaurAxeEntity(Asterion.MINOTAUR_AXE, level);
             physical.setThrower(this);
@@ -2410,7 +2414,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if (bossAttackTicks == 1 || bossAttackTicks % 24 == 1 || axePickupStall == 36) {
             net.minecraft.world.level.pathfinder.Path bestPath = null;
             double bestCost = Double.MAX_VALUE;
-            // Path to a floor beside the resting body, never the elevated blade center.
+             
             for (int ring = 0; ring < 2; ring++) for (int side = 0; side < 8; side++) {
                 double angle = side * Math.PI / 4;
                 Vec3 point = destination.add(Math.cos(angle) * (2.5 + ring * 2), 0, Math.sin(angle) * (2.5 + ring * 2));
@@ -2426,7 +2430,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             if (bestPath != null) getNavigation().moveTo(bestPath, 1.2);
             else getNavigation().stop();
         }
-        // An unreachable weapon does not trap the AI in endless circling. Fight with free hands/swords and retry later.
+         
         if (axePickupStall > 65 || bossAttackTicks > 180) {
             getNavigation().stop(); axePickupGoal = null; axePickupStall = 0; axePickupBest = Double.MAX_VALUE;
             axeAge = -100; finishBossAttack(18);
@@ -2660,8 +2664,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 return;
             }
             case ARENA_SWEEP, LEAP -> { }
-            // Projectiles, grabs and moving contact attacks do not damage their entire old cone.
-            // Keep their animation cues rather than marking safe ground as a guaranteed hit area.
+             
+             
             default -> { return; }
         }
         float arc = kind == BossTelegraphPayload.TARGET_CIRCLE ? Mth.TWO_PI
@@ -2676,7 +2680,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 ServerPlayNetworking.send(viewer, telegraph);
     }
 
-    /** Melee hit checks use an expanded AABB; preserve its corners instead of promising a circular safe zone. */
+     
     private void updateGroundTelegraph(ServerLevel level) {
         int strike;
         float expansion, arc = Mth.TWO_PI;
@@ -2770,7 +2774,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             case CHARGE -> {
                 int windupTicks = getEntityData().get(DATA_CHARGE_WINDUP);
                 if (bossAttackTicks <= windupTicks) {
-                    // Once telegraphed, finish the windup instead of snapping into a different attack.
+                     
                     setDeltaMovement(getDeltaMovement().multiply(0.08D, 1.0D, 0.08D));
                     getLookControl().setLookAt(player, 12.0F, 6.0F);
                     Vec3 aim = player.position().subtract(position());
@@ -2794,8 +2798,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                         playSound(SoundEvents.RAVAGER_STEP, 2.35F,
                                 0.32F + bossAttackTicks / (float)Math.max(1, windupTicks) * 0.10F);
                     }
-                    // A committed boss charge is allowed to smash a newly placed obstruction.
-                    // The run phase clears the swept body volume before collision is resolved.
+                     
+                     
                 } else {
                     int runTicks = bossAttackTicks - windupTicks;
                     if (runTicks == 1) playSound(Asterion.MINOTAUR_CHARGE_ROAR, 4.0F, 1.0F);
@@ -2855,8 +2859,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                     }
                     if (attackCooldown <= 0 && getBoundingBox().inflate(0.8D).intersects(player.getBoundingBox())) {
                         float damage = (float)Mth.lerp(acceleration, 6.0D, 15.0D);
-                        // A committed body charge should launch the player well clear of
-                        // the Minotaur instead of reading like an ordinary melee shove.
+                         
+                         
                         double knockback = Mth.lerp(acceleration, 2.35D, 4.6D);
                         if (player.hurtServer(level, damageSources().mobAttack(this), damage))
                             ragdollPlayer(player, bossChargeDirection.scale(knockback)
@@ -2892,9 +2896,9 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 setDeltaMovement(0, getDeltaMovement().y, 0);
                 for (int strike = 0; strike < SWORD_STRIKE_TICKS.length; strike++)
                     if (bossAttackTicks == SWORD_STRIKE_TICKS[strike]) {
-                        // Sample the victim direction on the authored blade-contact frame.
-                        // This keeps server damage aligned with the visible sword arc even
-                        // when the target crosses him during the preceding recovery frames.
+                         
+                         
+                         
                         faceDirection(player.position().subtract(position()), 14.0F);
                         performSwordArc(level, strike == 1 ? 19.0F : 15.0F,
                                 strike == 1 ? 2.1D : 1.55D);
@@ -2943,7 +2947,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private void emitChargeSmoke(ServerLevel level, Vec3 direction) {
         if ((tickCount & 1) != 0) return;
         Vec3 trail = position().subtract(direction.scale(getBbWidth() * .45));
-        // The exact door particle factory supplies its size, warm colour and gradual 3–4 second fade.
+         
         level.sendParticles(Asterion.DOOR_SMOKE, trail.x, getY() + .3, trail.z,
                 3, getBbWidth() * .35, .15, getBbWidth() * .35, .018);
     }
@@ -2984,21 +2988,21 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         }
     }
 
-    /** Players cannot transfer collision momentum into this multi-ton boss. */
+     
     @Override
     public boolean isPushable() {
         return false;
     }
 
     @Override protected void pushEntities() {
-        // The fallen body's old upright box must not shove players away from its bones.
+         
         if (!isDefeatedBoss()) super.pushEntities();
     }
 
-    /**
-     * Vanilla entity collision is symmetric. Replace it with a small one-way shove
-     * owned by the server, while scripted grabs/throws retain their own movement authority.
-     */
+     
+
+
+
     private void pushIntersectingPlayers(ServerLevel level) {
         if (!isAlive() || bossStage == BossStage.DEFEATED) return;
         Vec3 bodyMotion = getDeltaMovement().multiply(1.0D, 0.0D, 1.0D);
@@ -3016,7 +3020,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         }
     }
 
-    /** Every committed arena charge may destroy one pillar and ends on that heavy impact. */
+     
     private boolean breakPillarDuringCharge(ServerLevel level, AABB impact,
                                             int stunTicks, int recoveryTicks) {
         if (bossStage != BossStage.PILLARS || !WorldGenerator.breakBossPillar(level, impact)) return false;
@@ -3237,7 +3241,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             scarArena(level, position(), 5);
             level.sendParticles(ParticleTypes.EXPLOSION, getX(), getY() + 0.1D, getZ(),
                     9, 2.2D, 0.22D, 2.2D, 0.05D);
-            playSound(SoundEvents.GENERIC_EXPLODE.value(), 3.2F, 0.42F);
+            playSound(Asterion.MINOTAUR_LAND_SLAM, 3.2F, 1.0F);
             riposteTicks = hit ? 28 : 50;
             stompRecoveryCooldown = hit ? 54 : 44;
             getEntityData().set(DATA_LEAP_LANDING, bossAttackTicks);
@@ -3265,8 +3269,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             for (int index = 0; index < count; index++) {
                 double offset = (index - (count - 1) * 0.5D) * 0.34D;
                 Vec3 origin = getEyePosition().add(right.scale(offset)).add(0.0D, -0.35D, 0.0D);
-                // 26.1 requires server-owned arrows to retain the weapon that fired them;
-                // an empty stack now throws "Invalid weapon firing an arrow" in AbstractArrow.
+                 
+                 
                 Arrow arrow = new Arrow(level, this, new ItemStack(Items.ARROW),
                         new ItemStack(Items.CROSSBOW));
                 arrow.setPos(origin);
@@ -3366,7 +3370,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             getEntityData().set(DATA_REACH_ARM, 0);
             getEntityData().set(DATA_GRAB_TARGET_ID, -1);
             if (canCatchPlayer(target) && !target.isCreative() && hasLineOfSight(target)) {
-                // Transfer movement authority from the yank to the hand; no leftover throw tick may fight the hold.
+                 
                 thrownPlayer = null; grapplePull = false; hornKnockback = false;
                 throwVelocity = Vec3.ZERO;
                 target.setDeltaMovement(Vec3.ZERO);
@@ -3402,7 +3406,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         Vec3 desired = player.getEyePosition().subtract(origin).normalize();
         greekFireAim = greekFireAim.lerp(desired, bossAttackTicks < 24 ? 0.08D : 0.025D).normalize();
         if (bossAttackTicks >= 24 && bossAttackTicks <= 92) {
-            // Animated sprites persist between emissions; stagger the line to avoid dense overdraw.
+             
             if ((bossAttackTicks & 1) == 0) for (int step = 1; step <= 32; step++) {
                 double distance = (step - ((bossAttackTicks & 2) == 0 ? 0.0D : 0.5D)) * 0.93D;
                 Vec3 point = origin.add(greekFireAim.scale(distance));
@@ -3484,8 +3488,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         float damage = singlePunch ? 14.0F + rage() * 0.25F
                 : strike < 2 ? 6.0F : 6.0F + rage() * 0.12F;
         boolean damaged = target.hurtServer(level, damageSources().mobAttack(this), damage);
-        // Mark a physically connected strike even during vanilla hurt-invulnerability frames.  In
-        // particular, the chain's rapid punches used to make the finisher deal no impulse at all.
+         
+         
         punchStrikeMask |= 1 << strike;
         if (strike < 2) {
             if (damaged) {
@@ -3532,8 +3536,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         for (int x = -radius; x <= radius; x++) for (int z = -radius; z <= radius; z++) {
             double distance = Math.sqrt(x * x + z * z);
             if (Math.abs(distance - radius) > 0.55D) continue;
-            // Four visible gaps alternate between cardinal and diagonal lanes, making every ring
-            // solvable through movement instead of forcing a damage trade.
+             
+             
             boolean gate = diagonalGates ? Math.abs(Math.abs(x) - Math.abs(z)) <= 1
                     : Math.abs(x) <= 1 || Math.abs(z) <= 1;
             if (gate) continue;
@@ -3675,7 +3679,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 ragdollPlayer(target, wallward.scale(0.58D).add(0.0D, 0.16D, 0.0D), 1.25F, true);
             level.sendParticles(ParticleTypes.EXPLOSION, target.getX(), target.getY() + 1.0D,
                     target.getZ(), 5, 0.7D, 0.9D, 0.7D, 0.08D);
-            // Keep the wall intact: it is the support for this pin.
+             
             playSound(SoundEvents.RAVAGER_ATTACK, 3.4F, 0.40F);
         }
         if (wallPinTicks == 0 && wallShoveHit && bossAttackTicks >= 16 || bossAttackTicks >= 180) {
@@ -3755,6 +3759,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 return;
             }
             if (horizontalCollision) {
+                playSound(Asterion.MINOTAUR_CHARGE_HIT_WALL, 3.0F, 1.0F);
                 setDeltaMovement(Vec3.ZERO);
                 resetFallDistance();
                 riposteTicks = 36;
@@ -3872,7 +3877,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         playRoar(4.0F, 0.82F, 1.25F);
         level.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + getBbHeight() * 0.5D, getZ(),
                 60, 2.0D, 2.5D, 2.0D, 0.035D);
-        // Keep control of the shot through the complete 168-tick collapse/revival state.
+         
         var cinematic = new net.krodark.asterion.network.RoofCollapsePayload(collapseAnchor, 168);
         for (ServerPlayer viewer : level.players())
             if (viewer.position().horizontalDistanceSqr() < 72.0D * 72.0D
@@ -3955,7 +3960,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             setAggressive(true);
             setRage(12);
             updateChaseSpeed();
-            // Phase two is a clean second health bar, not the remains of pillar damage.
+             
             setHealth(getMaxHealth());
             playSound(SoundEvents.RAVAGER_STEP, 3F, .45F);
             level.sendParticles(Asterion.GREEK_FIRE, getX(), getY() + getBbHeight() * 0.45D, getZ(),
@@ -3972,7 +3977,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             return;
         }
         if (bossAttackTicks == 16) {
-            // Re-evaluate at takeoff: a long weapon sheath must not leave a stale landing target.
+             
             Vec3 lead = player.getDeltaMovement().multiply(1, 0, 1).scale(4);
             if (lead.lengthSqr() > 4) lead = lead.normalize().scale(2);
             leapPlan = MinotaurLeapPlan.find(level, this, player.position().add(lead));
@@ -4002,7 +4007,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         }
         if (leapPlan != null) {
             if (horizontalCollision && leapFlightTick > 1) {
-                // Geometry may change after planning. Fall safely; never tunnel or restart the jump.
+                 
                 leapPlan = null;
                 setDeltaMovement(0, Math.min(0, getDeltaMovement().y), 0);
             } else if (leapFlightTick < leapPlan.ticks()) {
@@ -4049,7 +4054,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 scheduleAirCatch(victim, 34);
             }
         }
-        playSound(SoundEvents.GENERIC_EXPLODE.value(), 3.2F, 0.42F);
+        playSound(Asterion.MINOTAUR_LAND_SLAM, 3.2F, 1.0F);
     }
 
     private void tickLeapShockwave(ServerLevel level) {
@@ -4099,6 +4104,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
     private void performSwordArc(ServerLevel level, float damage, double force) {
         swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+        playSound(Asterion.MINOTAUR_SWORD_SWING, 2.2F, 0.95F + random.nextFloat() * .1F);
         Vec3 facing = Vec3.directionFromRotation(getXRot(), getYHeadRot());
         for (ServerPlayer victim : level.getEntitiesOfClass(ServerPlayer.class, getBoundingBox().inflate(7.0D))) {
             Vec3 delta = victim.position().subtract(position());
@@ -4170,12 +4176,12 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             if (horizontal.lengthSqr() < 0.04D) horizontal = center.subtract(position());
             horizontal = new Vec3(horizontal.x, 0.0D, horizontal.z).normalize();
             if (horizontal.lengthSqr() < .01) horizontal = Vec3.directionFromRotation(0, getYRot());
-            // Roughly 50–80 blocks on open, level ground; walls stop the flight early.
+             
             double throwPower = 5.4D + random.nextDouble() * 1.5D;
             Vec3 impulse = horizontal.scale(throwPower).add(0.0D, 1.25D, 0.0D);
             getEntityData().set(DATA_HELD_PLAYER, -1);
             grabbed.hurtServer(level, damageSources().mobAttack(this), 10.0F);
-            // The scripted wall hit owns impact damage, including delayed client tumble reports.
+             
             RagdollServerNetworking.suppressThrowFallDamage(grabbed, 120);
             ragdollPlayer(grabbed, impulse, 1.85F, true);
             thrownPlayer = grabbed.getUUID();
@@ -4216,10 +4222,10 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         player.setDeltaMovement(impulse);
         player.hurtMarked = true;
         player.resetFallDistance();
-        // This helper is only called by authored knockdown frames. Asterion's roaming
-        // form and the arena Minotaur therefore share one authoritative result: every
-        // connected knockdown creates (or refreshes) the complete client body assembly.
-        // Keep the parameter for call-site readability where an attack is explicitly heavy.
+         
+         
+         
+         
         RagdollServerNetworking.markRagdolled(player, 86);
         if (ServerPlayNetworking.canSend(player, RagdollImpulsePayload.TYPE))
             ServerPlayNetworking.send(player, new RagdollImpulsePayload(position(), impulse, force));
@@ -4649,7 +4655,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     public boolean runningLocomotion() { return behaviorPhase() == BehaviorPhase.CHASING || behaviorPhase() == BehaviorPhase.BOSS; }
-    // Mob.setSpeed also scales forward input, so ground acceleration is proportional to speed squared.
+     
     public static double movementAttributeFor(double blocksPerSecond) { return Math.sqrt(blocksPerSecond * (1 - .6 * .91) / (20 * .98)); }
     private void updateChaseSpeed() {
         AttributeInstance speed = getAttribute(Attributes.MOVEMENT_SPEED);
@@ -4745,6 +4751,19 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         return true;
     }
 
+    private int lightLandingAirTicks;
+
+    private void tickLightLanding() {
+        if (!onGround()) {
+            lightLandingAirTicks = Math.min(20, lightLandingAirTicks + 1);
+            return;
+        }
+        if (lightLandingAirTicks >= 4 && !heavyJumpArmed && doorEntryTicks() == 0
+                && !isInWater() && !isInLava())
+            playSound(Asterion.MINOTAUR_LAND_LIGHT, 2.0F, 1.0F);
+        lightLandingAirTicks = 0;
+    }
+
     private void armHeavyJump() {
         heavyJumpArmed = true;
         heavyJumpWasAirborne = false;
@@ -4823,9 +4842,9 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if (behaviorPhase() == BehaviorPhase.BOSS
                 && source.getDirectEntity() instanceof AbstractArrow arrow
                 && source.getEntity() instanceof ServerPlayer archer) {
-            // Resolve every boss-arrow collision here and remove the projectile immediately.  A
-            // probabilistic fall-through left arrows attached to the custom GeckoLib entity while
-            // its attack state could replace/discard it, which was the unstable impact path.
+             
+             
+             
             arrow.discard();
             interruptRegeneration();
             storedArrows = Math.min(7, storedArrows + 1);
@@ -4856,6 +4875,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             bossPressureHits = Math.min(8, bossPressureHits + 1);
             if (source.getEntity() instanceof ServerPlayer attacker)
                 reactToBossHit(level, attacker);
+            amount = net.krodark.asterion.game.WeaponCombatSystem.afterblowDamage(source, amount, level.getGameTime());
             if (bossStage == BossStage.PILLARS) {
                 playSound(Asterion.MINOTAUR_HURT_LIGHT, 1.45F, 1.0F);
                 return true;
@@ -4886,6 +4906,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if (!AsterionConfig.INSTANCE.minotaurUnkillable)
             return super.hurtServer(level, source, amount);
         if (behaviorPhase() == BehaviorPhase.RETREATING || amount <= 0.0F) return false;
+        amount = net.krodark.asterion.game.WeaponCombatSystem.afterblowDamage(source, amount, level.getGameTime());
         setHealth(getMaxHealth());
         if (behaviorPhase() == BehaviorPhase.HUNTING) beginWarning();
         if (behaviorPhase() == BehaviorPhase.WARNING || behaviorPhase() == BehaviorPhase.CHASING) {
@@ -4943,6 +4964,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
     private void applyBossCollisionDamage(ServerLevel level, boolean pillar) {
         increaseRage(pillar ? 2 : 1);
+        playSound(Asterion.MINOTAUR_CHARGE_HIT_WALL, 3.0F, 1.0F);
         playSound(Asterion.MINOTAUR_STAGGER, 2.2F, 1.0F);
         level.sendParticles(ParticleTypes.DAMAGE_INDICATOR, getX(), getY() + getBbHeight() * 0.58D,
                 getZ(), pillar ? 20 : 10, 0.9D, 1.2D, 0.9D, 0.08D);
@@ -4990,11 +5012,11 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if (hideHarvested) {
             dismember(player, hand, null);
         } else {
-            // Commit before spawning items so simultaneous interactions cannot duplicate the reward.
+             
             hideHarvested = true;
             getEntityData().set(DATA_HARVESTED, true);
             spawnAtLocation(server, new ItemStack(net.krodark.asterion.game.AncientContent.ANCIENT_BONE, 16 + random.nextInt(9)));
-            spawnAtLocation(server, new ItemStack(Items.LEATHER, 6 + random.nextInt(5)));
+            spawnAtLocation(server, new ItemStack(net.krodark.asterion.game.AncientContent.MINOTAUR_HIDE, 6 + random.nextInt(5)));
             spawnAtLocation(server, new ItemStack(Asterion.SHADED_SHALE_TARNISHED_GOLD_ORE, 2 + random.nextInt(3)));
             spawnAtLocation(server, new ItemStack(Asterion.SHADED_SHALE_CELESTIAL_GOLD_ORE, 1 + random.nextInt(2)));
             tool.hurtAndBreak(1, player, hand.asEquipmentSlot());
@@ -5024,7 +5046,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             net.krodark.asterion.game.PlayerNotices.show(player, Component.translatable("message.asterion.minotaur_dismember_order"));
             return;
         }
-        // Commit first: another player or repeated packet cannot harvest the same part twice.
+         
         getEntityData().set(DATA_REMOVED_PARTS, removed | part.bit());
         nextDismemberTick = server.getGameTime() + 12;
         tool.hurtAndBreak(1, player, hand.asEquipmentSlot());
@@ -5077,7 +5099,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
     private void dropDeathWeapons(ServerLevel level) {
         boolean axeAlreadyDropped = axeInWorld() || thrownAxe != null;
-        // A thrown axe remains the same physical object, even if its chunk loads later.
+         
         if (thrownAxe != null && level.getEntity(thrownAxe) instanceof MinotaurAxeEntity axe) {
             axe.disarm();
             thrownAxe = null;
@@ -5103,7 +5125,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         getEntityData().set(DATA_AXE_OUT, true);
     }
 
-    /** Finds room for the full death-animation silhouette, not only the live hitbox. */
+     
     private void settleDefeatedPose(ServerLevel level) {
         Vec3 origin = combatPoint(position());
         AABB body = getBoundingBox();
@@ -5135,7 +5157,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if (bossStage != BossStage.EXTREME || doorEntryTicks() > 0 || bossStunTicks > 0
                 || level.getGameTime() < regenerationDeadline || level.getGameTime() % 20 != 0
                 || getHealth() >= getMaxHealth()) return;
-        // At most one heart/second, also capped at 0.25% of total health. Any hit restarts the random delay.
+         
         heal(Math.min(2F, getMaxHealth() * .0025F));
         level.sendParticles(ParticleTypes.HAPPY_VILLAGER, getX(), getY() + getBbHeight() * .55, getZ(),
                 5, .8, 1, .8, .015);
@@ -5241,7 +5263,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         return bossAttackState() == BossAttack.PUNCH_COMBO;
     }
 
-    /** Client-side blade ribbon envelope around the two authored sword contact frames. */
+     
     public float swordTrailStrength(float partialTick) {
         if (bossAttackState() != BossAttack.SWORD_COMBO || weaponSwapTicks() > 0) return 0.0F;
         double frame = MinotaurAnimationTiming.SWORD_COMBO.seconds(
@@ -5328,19 +5350,19 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 case WALK -> WALK_ANIMATION;
                 case IDLE -> IDLE_ANIMATION;
             };
-            // Keep a continuous local tick clock; packet updates only anchor a newly entered pose.
+             
             double partial = test.renderState().getPartialTick();
-            // Outline/attachment passes request partialTick=1; they must not move the shared clock ahead.
+             
             double age = test.renderState().getAnimatableAge() - (partial == 1 ? 1 : 0);
             double observed = animationPhaseTick(pose) + (partial == 1 ? 0 : partial);
             if (clientAnimationPose != pose) {
                 clientAnimationPose = pose; clientPoseStartAge = age; clientPoseStartTick = observed; clientPoseAge = 0;
             }
-            // Extra render passes can request partialTick=1 before the ordinary interpolated pass.
+             
             double poseAge = clientPoseAge = Math.max(clientPoseAge, Math.max(0, age - clientPoseStartAge));
             double ticks = clientPoseStartTick + poseAge;
             double seconds = animationSeconds(pose, ticks);
-            // The authored charge cadence stays continuous through packet velocity corrections.
+             
             test.setControllerSpeed(1);
             var result = test.setAndContinue(animation);
             ((MinotaurAnimationController)test.controller()).samplePose(seconds, poseAge);
@@ -5389,7 +5411,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             case LAND -> MinotaurAnimationTiming.LAND.seconds(tick);
             case DIES -> MinotaurAnimationTiming.DIES.seconds(tick);
             case REVIVE -> MinotaurAnimationTiming.REVIVE.seconds(tick);
-            default -> -1; // Locomotion loops use the controller's clock, including their loop seam.
+            default -> -1;  
         };
     }
 

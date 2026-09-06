@@ -10,7 +10,7 @@ import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 
-/** Draws one opaque authored base plate and each subsequent material's addition above it. */
+ 
 public final class ForgedTooltipRenderer implements ClientTooltipComponent {
     private static final int SIZE = 76;
     private static final Identifier[] BASE_TEXTURES = textures("base");

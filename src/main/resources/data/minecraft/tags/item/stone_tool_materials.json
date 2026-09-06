@@ -1,4 +1,8 @@
 {
   "replace": false,
-  "values": ["asterion:ancient_stone"]
+  "values": [
+    "asterion:ancient_stone",
+    "asterion:shale",
+    "asterion:shaded_shale"
+  ]
 }

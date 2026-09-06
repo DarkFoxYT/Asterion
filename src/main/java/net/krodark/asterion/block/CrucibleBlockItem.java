@@ -15,7 +15,7 @@ import net.minecraft.world.level.block.Block;
 
 import java.util.function.Consumer;
 
-/** Shares the placed crucible's geometry and texture with its inventory and held item. */
+ 
 public final class CrucibleBlockItem extends BlockItem implements GeoItem {
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 

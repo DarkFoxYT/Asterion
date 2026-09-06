@@ -47,8 +47,8 @@ public final class ScarletCentipedeGeoRenderer
 
     @Override
     public void adjustRenderPose(RenderPassInfo<EntityRenderState> pass) {
-        // Every anchor already has a world frame. Do not add vanilla body yaw, death roll,
-        // shaking, or the global Y bob here -- there is no matching root transform to cancel.
+         
+         
     }
 
     @Override

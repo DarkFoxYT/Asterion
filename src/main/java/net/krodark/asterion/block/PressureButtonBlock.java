@@ -22,7 +22,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-/** Surface-mounted hold switch for floors, walls and ceilings. */
+ 
 public final class PressureButtonBlock extends Block {
     public static final EnumProperty<Direction> FACING=BlockStateProperties.FACING;
     public static final BooleanProperty POWERED=BlockStateProperties.POWERED;

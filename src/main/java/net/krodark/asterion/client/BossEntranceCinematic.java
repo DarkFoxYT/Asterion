@@ -95,8 +95,8 @@ public final class BossEntranceCinematic {
         Vec3 doorway = Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(door));
         float recoil = MinotaurDoorMotion.ease((time - 108) / 32F);
         Vec3 doorShot = doorway.add(inward.scale(10.5 + recoil * 1.2)).add(0, 1.35 + recoil * .2, 0);
-        // Ease across a longer dolly instead of snapping from the player's eyes to
-        // the reveal angle during the first second of the sequence.
+         
+         
         float approach = smootherStep(time / 80F);
         Vec3 camera = (openingEye == null ? playerEye : openingEye).lerp(doorShot, approach);
         float impact = 0;

@@ -19,7 +19,7 @@ import net.minecraft.world.level.block.state.properties.*;
 import net.minecraft.world.phys.shapes.*;
 import org.jspecify.annotations.Nullable;
 
-/** Authored 3x3 caps and 2x2 shaft, clipped into local collision cells. One root renders the model. */
+ 
 public final class PillarBlock extends BaseEntityBlock {
     public static final int MODEL_HEIGHT = 27;
     public static final IntegerProperty COLUMN = IntegerProperty.create("column",0,2);
@@ -117,7 +117,7 @@ public final class PillarBlock extends BaseEntityBlock {
         for(int h=1;h<=27;h++) for(int y=0;y<27;y++) for(int x=0;x<3;x++) for(int z=0;z<3;z++) {
             double scale=h/27.0, ox=(x-1)*16, oy=y*16, oz=(z-1)*16;
             VoxelShape shape=Shapes.empty();
-            // Model coordinates translated +8 in X/Z; vertical scaling matches the root bone renderer.
+             
             double[][] cubes={{-16,0,-16,32,16*scale,32},{-8,16*scale,-8,24,416*scale,24},{-16,416*scale,-16,32,432*scale,32}};
             for(double[] cube:cubes) {
                 double a=Math.max(0,cube[0]-ox),b=Math.max(0,cube[1]-oy),c=Math.max(0,cube[2]-oz);

@@ -124,21 +124,21 @@ public final class DeadSunEntryCinematic {
                 + Math.sin(progress * Math.PI) * 8.0D;
         Vec3 railPosition = new Vec3(anchor.x + Math.cos(angle) * radius,
                 height, anchor.z + Math.sin(angle) * radius);
-        // Overlapping horizontal and vertical motion makes one continuous, bankless dive.
-        // Most lateral travel finishes high above the walls; the last approach is almost vertical.
+         
+         
         float dive = smoother((linear - .43F) / .57F);
         double lateral = 1 - Math.pow(1 - dive, 4);
         double downward = Math.pow(dive, 3);
         Vec3 position = railPosition.lerp(new Vec3(basePosition.x, height, basePosition.z), lateral);
         position = new Vec3(position.x, Mth.lerp(downward, height, basePosition.y), position.z);
-        // Establish the falling body, reveal the sun, then keep the player framed throughout the dive.
+         
         float sunReveal = smoother((linear - .10F) / .18F);
         float playerFocus = smoother((linear - .43F) / .21F);
         Vec3 focus = basePosition.add(0, -.7, 0).lerp(
                 sun.add(0, -config.deadSunSize * .16, 0), (.65F + .35F * sunReveal) * (1 - playerFocus));
         Vec3 delta = focus.subtract(position);
         double horizontal = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
-        // Keep a stable heading as the camera approaches directly above the player.
+         
         float approachYaw = (float)(heading * Mth.RAD_TO_DEG) - 90.0F;
         float lookYaw = (float)(Mth.atan2(delta.z, delta.x) * Mth.RAD_TO_DEG) - 90.0F;
         float shotYaw = Mth.rotLerp(smoother((float)horizontal / 8.0F), approachYaw, lookYaw);
@@ -146,7 +146,7 @@ public final class DeadSunEntryCinematic {
         float viewReturn = smoother(Mth.clamp((linear - 0.68F) / 0.32F, 0.0F, 1.0F));
         shotYaw = Mth.rotLerp(viewReturn, shotYaw, returnYaw);
         shotPitch = Mth.lerp(viewReturn, shotPitch, returnPitch);
-        // Coherent gusts build during acceleration and settle completely before control returns.
+         
         double wind = Math.sin(Math.PI * smoother((linear - .60F) / .40F));
         double gust = wind * (.010 * Math.sin(time * .09) + .005 * Math.sin(time * .17));
         if (position.y > net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y + config.wallHeight + 3)

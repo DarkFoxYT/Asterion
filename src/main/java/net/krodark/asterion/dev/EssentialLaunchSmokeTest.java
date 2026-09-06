@@ -1,6 +1,6 @@
 package net.krodark.asterion.dev;
 
-/** Explicit opt-in startup check; never runs during ordinary play. */
+ 
 public final class EssentialLaunchSmokeTest {
     private EssentialLaunchSmokeTest() { }
     public static void install() {

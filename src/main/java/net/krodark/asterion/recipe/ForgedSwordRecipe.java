@@ -22,7 +22,7 @@ import net.minecraft.world.level.Level;
 
 import java.util.List;
 
-/** Assembles forged components around a deadwood handle. */
+ 
 public final class ForgedSwordRecipe extends CustomRecipe {
     @Override public boolean matches(CraftingInput input, Level level) {
         return parts(input) != null;
@@ -40,7 +40,7 @@ public final class ForgedSwordRecipe extends CustomRecipe {
         int damageRating = weighted(parts, "damage_rating", 10);
         int speedRating = weighted(parts, "speed_rating", 8);
         int durabilityRating = weighted(parts, "durability_rating", 10);
-        // Bonesteel leads damage and endurance; celestial gold keeps its speed advantage.
+         
         double damage = Math.clamp(2D + damageRating * .45D + edge * .10D, 4D, 18D);
         double attackSpeed = Math.clamp(1.25D + speedRating * .025D - weight * .012D, 1.1D, 1.8D);
         int durability = Math.clamp(200 + durabilityRating * 65 + hardness * 15,

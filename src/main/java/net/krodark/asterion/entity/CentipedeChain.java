@@ -6,7 +6,7 @@ import net.minecraft.world.phys.AABB;
 import java.util.List;
 import java.util.ArrayList;
 
-/** One persistent chain per entity; ticked on both sides and only sampled by render passes. */
+ 
 public final class CentipedeChain {
     public static final int MAX_SEGMENTS = 32;
     private static final int SUBSTEPS = 4;
@@ -46,8 +46,8 @@ public final class CentipedeChain {
         System.arraycopy(current, 0, previous, 0, count);
         System.arraycopy(gait, 0, previousGait, 0, count);
         System.arraycopy(speed, 0, previousSpeed, 0, count);
-        // Smaller constraint steps reduce the visible stop/pull cadence without dragging the
-        // whole tail around the head or weakening collision. Links retain their world positions.
+         
+         
         Vec3 start = current[0].position;
         Vec3 startNormal = current[0].normal;
         double reach = 4 + start.distanceTo(head);
@@ -93,7 +93,7 @@ public final class CentipedeChain {
     private void solve(Vec3 head, Vec3 normal, Vec3 facing) {
         CentipedeCollision collision = tickCollision[0];
         var front = collision.followSurface(current[0].position, head, normal, current[0].forward);
-        // Keep the head's probed surface blend; don't quantize it back to one block face.
+         
         normal = front.normal();
         Vec3 frontFacing = CentipedeMotion.followHeading(current[0].forward, facing, normal, .085);
         front = collision.followSurface(front.position(), front.position(), normal, frontFacing);
@@ -102,8 +102,8 @@ public final class CentipedeChain {
         for (int i = 1; i < count; i++) {
             collision = tickCollision[i];
             Pose old = current[i];
-            // Follow the route actually taken, not a straight chord through the corner.
-            // The delayed support normal belongs to this part of the trail, not the head now.
+             
+             
             Pose target = trail.behind(i * CentipedeFrame.LINK_LENGTH);
             Vec3 desired = target.position;
             Pose leader = current[i - 1];
@@ -111,7 +111,7 @@ public final class CentipedeChain {
             Vec3 targetFacing = CentipedeFrame.tangent(leader.position.subtract(desired), jointNormal, target.forward);
             var contact = collision.followSurface(old.position, desired, jointNormal, old.forward);
             Vec3 newFacing = CentipedeMotion.followHeading(old.forward, targetFacing, contact.normal(), .12);
-            // Resolve the final orientation too: turning a wide segment must not overlap a wall.
+             
             contact = collision.followSurface(contact.position(), contact.position(), contact.normal(), newFacing);
             for (int pass = 0; pass < 3; pass++) {
                 Vec3 separated = contact.position();
@@ -119,8 +119,8 @@ public final class CentipedeChain {
                     if (Math.abs(i - other) <= 1) continue;
                     separated = CentipedeBodyConstraint.separate(separated, current[other].position, contact.normal(), newFacing);
                 }
-                // Don't trade self-overlap for disconnected links. World collision takes
-                // priority when there isn't enough room to completely spread the chain.
+                 
+                 
                 Vec3 away = separated.subtract(leader.position);
                 double maximum = CentipedeFrame.LINK_LENGTH + .25;
                 if (away.lengthSqr() > maximum * maximum)
@@ -134,8 +134,8 @@ public final class CentipedeChain {
     public Pose sample(int index, float partialTick) {
         if (count == 0) throw new IllegalStateException("Chain not initialized");
         int link = Mth.clamp(index, 0, count - 1);
-        // Interpolate along the swept route, not a tick-long chord that cuts through
-        // corners and then jumps outward when the render collision guard corrects it.
+         
+         
         double progress = Mth.clamp(partialTick, 0, 1) * SUBSTEPS;
         int step = Math.min((int)progress, SUBSTEPS - 1);
         double alpha = progress - step;
@@ -148,9 +148,9 @@ public final class CentipedeChain {
         return new Pose(position, normal, forward);
     }
 
-    /** One extra tick of presentation history removes tick and packet cadence from the body and seats.
-     * Cubic B-spline weights share both position and velocity at tick boundaries, never extrapolate,
-     * and are independent of frame rate or the number of cameras/render passes sampling the chain. */
+     
+
+
     public Pose sampleSmoothed(int index, float partialTick) {
         if (count == 0) throw new IllegalStateException("Chain not initialized");
         int link = Mth.clamp(index, 0, count - 1);

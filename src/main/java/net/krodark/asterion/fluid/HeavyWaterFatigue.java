@@ -11,7 +11,7 @@ import net.minecraft.tags.FluidTags;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 
-/** Exposure follows the swimmer, not individual liquid blocks. Ordinary water never contributes. */
+ 
 public final class HeavyWaterFatigue {
     private static final Map<MinecraftServer, Map<UUID, Integer>> EXPOSURE = new WeakHashMap<>();
     public static final int MAX_EXPOSURE = 20 * 60;
@@ -31,7 +31,7 @@ public final class HeavyWaterFatigue {
             swimmers.put(player.getUUID(), exposure);
             int tier = fatigueTier(exposure);
             if (tier == 0 || player.tickCount % 20 != 0) continue;
-            // Short refreshes let recovery work without removing unrelated potion effects.
+             
             player.addEffect(new MobEffectInstance(MobEffects.MINING_FATIGUE, 45, tier - 1, false, false, true));
             if (swimming) {
                 player.causeFoodExhaustion(.10F * tier);

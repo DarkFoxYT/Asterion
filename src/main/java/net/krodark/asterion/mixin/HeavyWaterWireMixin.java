@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.At;
 
 @Mixin(RedStoneWireBlock.class)
 public abstract class HeavyWaterWireMixin {
-    // Wire rebuilds from its dry cross/dot state when connections or its shape change.
+     
     @ModifyReturnValue(method = "getConnectionState", at = @At("RETURN"))
     private BlockState asterion$retainWater(BlockState result, BlockGetter level, BlockState input, BlockPos pos) {
         BlockState existing = level.getBlockState(pos);

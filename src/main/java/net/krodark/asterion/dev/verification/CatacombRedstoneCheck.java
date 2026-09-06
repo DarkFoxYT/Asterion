@@ -9,7 +9,7 @@ import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.material.Fluids;
 
-/** Real authored circuitry, rotated and split across chunk boundaries in both orders. */
+ 
 final class CatacombRedstoneCheck {
     private static final Block[] CIRCUIT = {Blocks.REDSTONE_WIRE, Blocks.REPEATER,
             Blocks.COMPARATOR, Blocks.REDSTONE_TORCH, Blocks.REDSTONE_WALL_TORCH,
@@ -21,7 +21,7 @@ final class CatacombRedstoneCheck {
         for(String name : new String[]{"puzzleroom","crossing_01","crossing_02","corridor_t_02"})
             for(Rotation rotation : Rotation.values()) {
                 var template=level.getStructureManager().get(Asterion.id("catacombs/"+name)).orElseThrow();
-                // Deliberately offset from chunk boundaries, like normal 19-block placement.
+                 
                 BlockPos origin=new BlockPos(3+index++*32,160,35);
                 var whole=new BoundingBox(origin.getX(),160,origin.getZ(),origin.getX()+18,190,origin.getZ()+18);
                 var settings=AuthoredCatacombs.settings(whole).setRotation(rotation).setRotationPivot(new BlockPos(9,0,9));
@@ -41,7 +41,7 @@ final class CatacombRedstoneCheck {
                     verified++;
                 }
             }
-        // Exercise the actual empty-fluid bug, independently of optimized template settings.
+         
         BlockPos wire=new BlockPos(0,150,60);
         level.setBlock(wire.below(),Blocks.STONE.defaultBlockState(),18);
         level.setBlock(wire,Blocks.REDSTONE_WIRE.defaultBlockState(),18);
@@ -49,7 +49,7 @@ final class CatacombRedstoneCheck {
         var container=(LiquidBlockContainer)state.getBlock();
         require(!container.placeLiquid(level,wire,state,Fluids.EMPTY.defaultFluidState()),"Empty fluid was accepted");
         require(level.getBlockState(wire).is(Blocks.REDSTONE_WIRE),"Empty fluid deleted wire");
-        // A newly placed dry circuit must also respond to an actual power change.
+         
         level.setBlock(wire.west(),Blocks.REDSTONE_BLOCK.defaultBlockState(),3);
         require(level.getBlockState(wire).getValue(RedStoneWireBlock.POWER)>0,"Placed redstone does not conduct");
         level.setBlock(wire.west(),Blocks.AIR.defaultBlockState(),3);

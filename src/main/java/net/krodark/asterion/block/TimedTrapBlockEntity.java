@@ -59,7 +59,7 @@ public final class TimedTrapBlockEntity extends BlockEntity {
             }
             if (--trap.burst == 0) level.setBlock(pos, state.setValue(TimedTrapBlock.ACTIVE, false), 3);
         }
-        // Persist the countdown on chunk save, without block update packets every tick.
+         
         trap.setChanged();
     }
 }

@@ -16,7 +16,7 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
-/** On-demand virtual multipart picking: no invisible entities, ticking hitboxes, or orphaned parts. */
+ 
 public final class CentipedeInteractionClient {
     private static int lastEntity = -1, lastSurface = -1, frameTicks;
     private static Vec3 lastHeading = Vec3.ZERO;
@@ -61,7 +61,7 @@ public final class CentipedeInteractionClient {
             limit = Math.min(limit, eye.distanceToSqr(entityHit.getLocation()));
         ScarletCentipedeEntity target = null;
         CentipedeInteraction.Hit nearest = null;
-        // Entity spatial indexing only knows about the head; include all possible tail lengths.
+         
         AABB search = new AABB(eye, end).inflate(CentipedeChain.MAX_SEGMENTS * CentipedeFrame.LINK_LENGTH + 4);
         for (var centipede : client.level.getEntitiesOfClass(ScarletCentipedeEntity.class, search,
                 mob -> mob.isAlive() && !mob.isInvisible())) {

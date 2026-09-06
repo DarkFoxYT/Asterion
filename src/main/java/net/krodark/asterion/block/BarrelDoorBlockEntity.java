@@ -18,7 +18,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.*;
 import net.minecraft.world.phys.AABB;
 
-/** A freely operated wooden door; animation state is shared with watching clients. */
+ 
 public final class BarrelDoorBlockEntity extends BlockEntity implements GeoBlockEntity {
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private static final float OPEN_ANGLE = (float)(Math.PI / 2);
@@ -33,7 +33,7 @@ public final class BarrelDoorBlockEntity extends BlockEntity implements GeoBlock
     public float angle(float partialTick) {
         if (level == null) return targetAngle;
         float t = Math.clamp((level.getGameTime() - motionStart + partialTick) / MOTION_TICKS, 0F, 1F);
-        // Quick swing, gentle overshoot, then a clean settle. Reversals start at the current pose.
+         
         float u = t - 1F;
         float eased = 1F + 2.2F * u * u * u + 1.2F * u * u;
         return startAngle + (targetAngle - startAngle) * eased;
@@ -57,8 +57,9 @@ public final class BarrelDoorBlockEntity extends BlockEntity implements GeoBlock
         targetAngle = targetAngle > 0 ? 0 : OPEN_ANGLE;
         motionStart = level.getGameTime();
         BarrelDoorBlock.setOpen(level, worldPosition, facing(), true);
-        level.playSound(null, worldPosition, targetAngle > 0 ? SoundEvents.WOODEN_DOOR_OPEN : SoundEvents.WOODEN_DOOR_CLOSE,
-                SoundSource.BLOCKS, 1F, targetAngle > 0 ? 1.15F : .9F);
+        level.playSound(null, worldPosition,
+                targetAngle > 0 ? Asterion.BARREL_DOOR_OPEN : Asterion.BARREL_DOOR_CLOSE,
+                SoundSource.BLOCKS, 1F, 1F);
         sync();
     }
     private boolean occupied() {
@@ -78,7 +79,7 @@ public final class BarrelDoorBlockEntity extends BlockEntity implements GeoBlock
             } else BarrelDoorBlock.setOpen(level, pos, door.facing(), false);
             door.sync();
         }
-        // Also detect parts removed without neighbor notifications (commands/explosions).
+         
         if (level.getGameTime() % 20 == 0) level.scheduleTick(pos, state.getBlock(), 1);
     }
     private void sync() {

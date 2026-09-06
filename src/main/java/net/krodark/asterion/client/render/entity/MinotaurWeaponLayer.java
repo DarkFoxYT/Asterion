@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
-/** One layer owns all custom hand/hip/back weapons, preventing duplicate equipped copies. */
+ 
 public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Void, EntityRenderState> {
     private static final DataTicket<String> AXE_BONE = DataTickets.create("asterion_axe_bone", String.class);
     private static final DataTicket<Boolean> DEFEATED = DataTickets.create("asterion_weapons_dropped", Boolean.class);
@@ -63,8 +63,8 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
                             float age = (float)pass.renderState().getAnimatableAge();
                             float breathe = Mth.sin(age * 0.075F + (sign < 0 ? 0F : 0.65F));
                             float settle = Mth.sin(age * 0.16F + (sign < 0 ? 0F : Mth.PI));
-                            // Keep the long tips clear of the floor and give the scabbards
-                            // a tiny asynchronous breathing/stride sway instead of a frozen pose.
+                             
+                             
                             poses.translate(sign * 17.0 / 16,
                                     17.0 / 16 + breathe * 0.025F,
                                     3.0 / 16 + settle * 0.018F);
@@ -83,8 +83,8 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
             var poses = posed.poseStack();
             poses.pushPose();
             if (bone.name().equals("body")) {
-                // Centre the axe diagonally on the back, with the blade turned clear
-                // of the torso's rear face (roughly Z=1.1 in this bone's space).
+                 
+                 
                 poses.translate(0, .82, 1.42);
                 poses.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(45));
                 poses.mulPose(com.mojang.math.Axis.YP.rotationDegrees(90));
@@ -98,8 +98,8 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
             }
             if (name.equals("axe_grip")) MinotaurAxeVisual.captureHand(
                     posed.renderState().getGeckolibData(OWNER), poses, posed.cameraState());
-            // The authored grip bone already contains the hand-space quarter-turn. Applying
-            // another Y rotation here turns the axe sideways by exactly 90 degrees.
+             
+             
             MinotaurAxeVisual.submit(poses, tasks, posed.cameraState(), posed.packedLight(), 0);
             poses.popPose();
         }));

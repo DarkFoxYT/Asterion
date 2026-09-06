@@ -14,7 +14,7 @@ import net.minecraft.world.level.block.state.*;
 import net.minecraft.world.level.block.state.properties.*;
 import net.minecraft.world.phys.BlockHitResult;
 
-/** A carved face: its four tear tracks drain into the column immediately in front. */
+ 
 public final class LamenterBlock extends BaseEntityBlock {
     public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty CRYING = BooleanProperty.create("crying");

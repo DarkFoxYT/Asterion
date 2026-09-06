@@ -16,18 +16,18 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.*;
 
-/** Owns arena sealing and player safety separately from the boss's combat AI. */
+ 
 public final class BossArenaEncounter {
-    /** Ten-and-a-half second reveal: enough room for the breach, roar and a gentle camera return. */
+     
     public static final int INTRO_TICKS = 250;
     private static Encounter active;
     private BossArenaEncounter() { }
 
     public static void initialize(ServerLevel level) {
         clear();
-        // Authored gates and doors are restored by their FULL chunk callback. Doing
-        // world reads here can wait on chunk futures while SERVER_STARTED still owns
-        // the server thread, freezing initial world load.
+         
+         
+         
         if(!AuthoredCatacombs.enabled()) {
             MinotaurArenaEntrances.setGates(level,0,null);
             restoreDoors(level);
@@ -37,13 +37,13 @@ public final class BossArenaEncounter {
     public static void begin(ServerLevel level, ServerPlayer trigger, MinotaurEntity boss, Direction entry) {
         if (entry != MinotaurArenaEntrances.PLAYER_ENTRANCE) return;
         if (active != null) { admit(level, trigger, entry); return; }
-        // The authored portcullises must be completely raised before the camera takes
-        // control. This also repairs partially closed gates left by an interrupted intro.
+         
+         
         active = new Encounter(level, boss.getUUID(), entry.getOpposite(), level.getGameTime());
         MinotaurArenaEntrances.setGates(level, 0, null);
         MinotaurArenaEntrances.setOmegaLockVisible(level, false);
         admit(level, trigger, entry);
-        // Include the nearby party before anything closes; never pull players from elsewhere in the maze.
+         
         for (ServerPlayer player : List.copyOf(level.players())) {
             if (player != trigger && eligible(player) && player.position().horizontalDistance() < 60
                     && player.getY() >= AuthoredCatacombs.ARENA_FLOOR_Y
@@ -113,7 +113,7 @@ public final class BossArenaEncounter {
             active.omegaLockRestored = true;
         }
         tickArenaCreatures(level, elapsed);
-        // A late party member in an entrance corridor is admitted safely, never trapped behind a gate.
+         
         for (ServerPlayer player : List.copyOf(level.players())) if (eligible(player) && !active.participants.contains(player.getUUID())) {
             Direction entrance = MinotaurArenaEntrances.corridorAt(player.position());
             if (entrance != null) admit(level, player, entrance);
@@ -135,8 +135,8 @@ public final class BossArenaEncounter {
             return player == null || player.level() != level;
         });
         int height = MinotaurArenaEntrances.gateHeight();
-        // Keep the authored grates fully raised for the reveal; seal the room once
-        // control returns to the party.
+         
+         
         int closedRows = Math.clamp((elapsed - INTRO_TICKS) / 2, 0, height);
         List<Direction> encounterGates = AuthoredCatacombs.enabled()
                 ? List.of(MinotaurArenaEntrances.PLAYER_ENTRANCE, MinotaurArenaEntrances.BOSS_ENTRANCE)
@@ -153,14 +153,14 @@ public final class BossArenaEncounter {
                     rows == height ? SoundEvents.ANVIL_LAND : SoundEvents.CHAIN_HIT, SoundSource.BLOCKS, 1.4F, .6F);
         }
         if (elapsed >= INTRO_TICKS) {
-            // The north door is sacrificial. Never recreate it during combat: doing so
-            // can wall the Minotaur into his staging room after his breach animation.
+             
+             
             BlockPos bossDoor = MinotaurArenaEntrances.door(active.bossDoor);
             MinotaurDoorBlock.removeDoor(level, bossDoor, active.bossDoor);
         }
-        // Logging out, changing dimension, or being the only creative player must not
-        // delete a live encounter. The entity is persistent and waits in the sealed arena;
-        // an actual participant death is handled above by the explicit arena reset path.
+         
+         
+         
     }
 
     public static boolean blocksCentipedeSpawn(ServerLevel level, Vec3 position) {
@@ -173,7 +173,7 @@ public final class BossArenaEncounter {
         if (elapsed % 20 != 0) return;
         var arena = new net.minecraft.world.phys.AABB(-44, AuthoredCatacombs.ARENA_FLOOR_Y, -44,
                 44, LabyrinthLevels.MAZE_FLOOR_Y + 1, 44);
-        // Leave ridden/named centipedes alone; suppress wild arena interference, not player mounts.
+         
         for (var centipede : level.getEntitiesOfClass(net.krodark.asterion.entity.ScarletCentipedeEntity.class, arena))
             if (!centipede.isVehicle() && !centipede.hasCustomName()) centipede.discard();
         int firstWave = ((INTRO_TICKS + 40 + 19) / 20) * 20;
@@ -248,7 +248,7 @@ public final class BossArenaEncounter {
         restoreDoors(level);
     }
 
-    /** Release the entrance while leaving the boss's broken door as it fell. */
+     
     public static void finishDefeated(ServerLevel level) {
         ArenaDebris.clear(level);
         clear();

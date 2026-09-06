@@ -363,7 +363,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
 
     private void leaveCombat(ServerLevel level) {
         if (attack != Attack.NONE) finishAttack(30);
-        // Leaving its target radius must not bypass an unfinished flame-link puzzle.
+         
         pressureHits = 0;
         pressureWindow = 0;
         retaliationQueued = false;
@@ -527,8 +527,8 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
 
     private void tickSpinTornado(ServerLevel level, ServerPlayer target) {
         int tick = ++attackTicks;
-        // Match the brazier's base to the player's footing so the ground-level ring
-        // follows stairs and elevation changes without orbiting harmlessly overhead.
+         
+         
         double targetHeight = target.getY();
         if (tick <= 45) {
             Vec3 next = position().add(0, Math.clamp(targetHeight - getY(), -0.12, 0.12), 0);
@@ -589,8 +589,8 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
             damagePlayers(level, getBoundingBox().inflate(0.65, 0.3, 0.65),
                     scaledDamage(12.5F), 16, true);
         }
-        // After each straight run the pot visibly settles for one second before it
-        // evaluates and commits to the next cardinal direction.
+         
+         
         if (dashLeg >= 7 && legTick >= DASH_MOVE_TICKS) finishAttack(4);
     }
 
@@ -675,8 +675,8 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         Vec3 origin = snapToGrid(position());
         double currentDistance=Math.sqrt(horizontalDistanceSqr(origin,target.position()));
         boolean currentSight=hasLineOfSight(target);
-        // Hold a useful firing position. Reposition only to escape pressure, recover
-        // sight, or correct a genuinely poor range instead of shuffling every attack.
+         
+         
         if(currentSight&&currentDistance>=6&&currentDistance<=14&&random.nextFloat()<.25F)return false;
         List<Vec3> candidates = new ArrayList<>();
         double restY=restingPosition==null?origin.y:restingPosition.y;
@@ -724,8 +724,8 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         double cost=Math.abs(distance-10.0);
         double horizontalTravel=Math.sqrt(horizontalDistanceSqr(candidate,position()));
         double verticalTravel=Math.abs(candidate.y-position().y);
-        // The pot reads more clearly when it changes altitude around the player. Horizontal
-        // shuffles remain possible for collision/line-of-sight recovery but cost more.
+         
+         
         cost+=horizontalTravel*1.15;
         if(verticalTravel>0.5)cost-=2.4+Math.min(1.4,verticalTravel*.22);
         double desiredY=target.getY()+target.getBbHeight()*.55;
@@ -1001,7 +1001,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         super.die(source);
     }
 
-    /** Re-arms the same room after a real player death without duplicating the boss. */
+     
     public void resetAfterPlayerDeath(ServerLevel level) {
         clearCombatState();
         setHealth(getMaxHealth());

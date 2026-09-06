@@ -421,7 +421,7 @@ public final class DeadSunClientEvents {
         }
     }
 
-    /** Flood atmosphere uses the synchronized event clock, including players joining mid-event. */
+     
     public static float floodStrength() {
         var client = Minecraft.getInstance();
         if (client.level == null || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)

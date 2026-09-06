@@ -9,7 +9,7 @@ import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.phys.AABB;
 
-/** Bounded ecology spawning for the maze's vertical biomes, which share a vanilla biome ID. */
+ 
 public final class MazeWildlife {
     private MazeWildlife() { }
     public static void tick(ServerLevel level) {
@@ -42,7 +42,7 @@ public final class MazeWildlife {
                     if (!level.noCollision(mob) || !level.isUnobstructed(mob)
                             || level.players().stream().anyMatch(other -> other.distanceToSqr(mob) < 24 * 24)) continue;
                     level.addFreshEntity(mob);
-                    return; // One successful spawn per ecology tick, regardless of party size.
+                    return;  
                 }
             }
         }

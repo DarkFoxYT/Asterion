@@ -18,7 +18,7 @@ final class OvergrowthFeatureSupport {
             int radius = ((WorldGenRegionAccessor) region).asterion$generatingStep().blockStateWriteRadius();
             if (!withinWriteRadius(region.getCenter(), pos, radius)) return false;
         }
-        // ensureCanWrite logs rejected chunks, so check horizontal bounds first.
+         
         return level.ensureCanWrite(pos);
     }
 

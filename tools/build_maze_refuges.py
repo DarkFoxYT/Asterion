@@ -44,7 +44,7 @@ class Structure:
 
 def refuge():
     s = Structure(23, 11, 23)
-    # Chamfered, double-thick shell with continuous bands rather than checkerboard masonry.
+    
     for x in range(23):
         for z in range(23):
             dx, dz = abs(x - 11), abs(z - 11)
@@ -59,14 +59,14 @@ def refuge():
                     s.put(x, y, z, 'asterion:shale_bricks' if y in (1, 6, 7) else 'asterion:ancient_bricks')
             s.put(x, 8, z, 'asterion:ancient_bricks')
             s.put(x, 9, z, 'asterion:shale_brick_slab')
-    # North and south vestibules remain level with the maze's approach.
+    
     for z in list(range(0, 5)) + list(range(18, 23)):
         s.box((10, 1, z), (12, 4, z), 'minecraft:air')
         s.box((10, 0, z), (12, 0, z), 'asterion:ancient_stone')
         s.put(9, 4, z, 'asterion:ancient_brick_stairs', facing='east', half='top')
         s.put(13, 4, z, 'asterion:ancient_brick_stairs', facing='west', half='top')
         s.box((10, 5, z), (12, 5, z), 'asterion:ancient_brick_slab', type='top')
-    # Wall niches hold benches and warm light, leaving the centre entirely walkable.
+    
     for x, facing in [(4, 'east'), (18, 'west')]:
         for z in range(7, 16):
             s.put(x, 1, z, 'asterion:ancient_plank_stairs', facing=facing)
@@ -81,7 +81,7 @@ def refuge():
         for z in range(7, 16):
             if max(abs(x - 11), abs(z - 11)) == 4:
                 s.put(x, 0, z, 'asterion:shaded_shale_bricks')
-    # The full multipart obelisk is centred, with a clear respawn pad on its south side.
+    
     for x in range(3):
         for z in range(3):
             for row in range(3):
@@ -93,7 +93,7 @@ def refuge():
     for x in (15, 16):
         s.put(x, 1, 4, 'minecraft:barrel', facing='south',
               tag={'id': 'minecraft:barrel', 'LootTable': 'asterion:chests/safe_rune_mid'})
-    # Recessed slit windows; no holes through which mobs can enter.
+    
     for x in (1, 2, 20, 21):
         for z in (8, 14):
             s.box((x, 3, z), (x, 4, z), 'minecraft:iron_bars', north='true', south='true')
@@ -107,7 +107,7 @@ def ruin(name, variant):
         for z in range(2, 19):
             if rng.random() < .82:
                 s.put(x, 0, z, 'asterion:ancient_stone' if (x // 4 + z // 5) % 3 else 'asterion:shale_bricks')
-    # Each footprint is different: a gatehouse, a collapsed dwelling, a courtyard wall.
+    
     lines = ([((3, 5), (19, 5)), ((3, 5), (3, 16)), ((19, 5), (19, 11))],
              [((4, 3), (4, 17)), ((4, 17), (18, 17)), ((18, 9), (18, 17)), ((9, 3), (18, 3))],
              [((3, 4), (19, 4)), ((19, 4), (19, 17)), ((9, 17), (19, 17))])[variant]

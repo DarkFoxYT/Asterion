@@ -118,7 +118,7 @@ public final class AsterionPortalRenderer {
     }
 
     private static void registerLayer(Identifier id, boolean halo) {
-        // Each layer owns its staging values; batch.add packs them before they are reused.
+         
         Matrix4f transform = new Matrix4f();
         Vector4f portal = new Vector4f(), effect = new Vector4f();
         PortalInstance submission = new PortalInstance(transform, portal, effect);
@@ -137,8 +137,8 @@ public final class AsterionPortalRenderer {
                         .blend(RenderState.BlendMode.ALPHA)
                         .backfaceCulling(false)
                         .build())
-                // Explicit capture keeps BOTH layers emissive even below the scene bloom threshold.
-                // The portal shader is already fullbright; bloom is only its optional soft fringe.
+                 
+                 
                 .emissive(halo ? 1.85F : 1.35F)
                 .onRender((ctx, batch) -> {
                     ClientLevel world = ctx.world();
@@ -168,17 +168,17 @@ public final class AsterionPortalRenderer {
                     if (reveal <= 0.002F) return;
 
                     double cx = gateway.getX() + 0.5D;
-                    // Horizontal portals need enough clearance to stay above the floor's
-                    // depth surface. The old 0.012 offset z-fought and visibly sank into
-                    // full blocks at shallow camera angles. Vertical arena portals retain
-                    // their centered height.
+                     
+                     
+                     
+                     
                     double cy = surfaceY + (vertical ? 0.012D : HORIZONTAL_GROUND_CLEARANCE);
                     double cz = gateway.getZ() + 0.5D;
                     float pulse = 1.0F + (float) Math.sin(now * 0.0000000024D) * 0.006F;
                     float radius = CORE_RADIUS * pulse;
                     float openingScale = 0.08F + 0.92F * (1.0F - (float) Math.pow(1.0F - reveal, 3.0D));
                     float layerScale = halo ? 1.28F : 1.0F;
-                    // Test before allocating transforms/uniform vectors; cover the square's corners.
+                     
                     float boundsRadius = (vertical ? 2.92F : radius * 1.414214F)
                             * openingScale * layerScale + 0.02F;
                     if (!batch.visible(cx, cy, cz, boundsRadius)) return;

@@ -18,7 +18,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.AABB;
 
-/** Exercise encounter completion, saved countdowns and charge expiry in a disposable world. */
+ 
 public final class GameplayFixCheck {
     public static void run(MinecraftServer server) {
         var level = server.overworld();

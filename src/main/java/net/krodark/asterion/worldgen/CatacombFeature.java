@@ -7,7 +7,7 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 
-/** Reconstructs the same authored module plan for each intersecting chunk. */
+ 
 public final class CatacombFeature extends Feature<NoneFeatureConfiguration> {
     public CatacombFeature(Codec<NoneFeatureConfiguration> codec) { super(codec); }
     @Override public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> context) {

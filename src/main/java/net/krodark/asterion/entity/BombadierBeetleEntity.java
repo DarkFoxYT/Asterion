@@ -47,7 +47,6 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
     private static final int IGNITION_SPREAD_TICKS = 24;
     private static final int GAS_BURN_TICKS = 18;
     private static final int DEFENCE_COOLDOWN_TICKS = 200;
-    private static final double THREAT_DISTANCE = 4.5D;
     private static final RawAnimation IDLE_ANIMATION = RawAnimation.begin().thenLoop("idle");
     private static final RawAnimation WALK_ANIMATION = RawAnimation.begin().thenLoop("walk");
     private static final EntityDataAccessor<Integer> DATA_DEFENCE_STATE = SynchedEntityData.defineId(
@@ -127,8 +126,6 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
         if (defenceState() == DefenceState.CALM) {
             boolean wallRunning = tickSurfaceLocomotion(false);
             if (!wallRunning) tickCalmPatrol();
-            Player threat = defenceCooldown == 0 && tickCount % 10 == 0 ? nearbyThreat() : null;
-            if (threat != null) beginDefence(threat.position());
             return;
         }
 
@@ -151,12 +148,6 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
     public boolean causeFallDamage(double fallDistance, float damageMultiplier, DamageSource source) {
         resetFallDistance();
         return false;
-    }
-
-    private Player nearbyThreat() {
-        return level().getNearestPlayer(getX(), getY(), getZ(), THREAT_DISTANCE,
-                entity -> entity instanceof Player player && !player.isCreative()
-                        && !player.isSpectator() && player.isAlive());
     }
 
     private void beginDefence(Vec3 threat) {

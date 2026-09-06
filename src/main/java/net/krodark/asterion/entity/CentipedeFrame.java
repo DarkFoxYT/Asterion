@@ -5,7 +5,7 @@ import org.joml.Matrix3f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-/** Coordinate contract shared by the physics, seats and GeckoLib adapter. */
+ 
 public final class CentipedeFrame {
     public static final float MODEL_SCALE = 1.7F;
     public static final double LINK_LENGTH = 1.85D;
@@ -31,7 +31,7 @@ public final class CentipedeFrame {
         return result.normalize();
     }
 
-    /** Heading may turn, but +Y is ALWAYS the surface's outward normal (belly is -Y). */
+     
     public static Quaternionf rotation(Vec3 inwardNormal, Vec3 forward) {
         Vec3 normal = unit(inwardNormal, DOWN);
         Vec3 up = normal.scale(-1);
@@ -42,20 +42,20 @@ public final class CentipedeFrame {
                 .setColumn(2, vector(facing.scale(-1)))).normalize();
     }
 
-    /** BoneSnapshot.translate mirrors X; ignoring this mirrors the trail around the head. */
+     
     public static Vector3f boneTranslation(Vec3 worldOffset) {
         float units = 16.0F / MODEL_SCALE;
         return new Vector3f((float)-worldOffset.x * units,
                 (float)worldOffset.y * units, (float)worldOffset.z * units);
     }
 
-    /** RenderUtil/BoneSnapshot rotate Z, then Y, then X -- not XYZ. */
+     
     public static Vector3f boneAngles(Quaternionf rotation) {
         Matrix3f m = new Matrix3f().set(rotation);
         double cosine = Math.hypot(m.m00(), m.m01());
         float y = (float)Math.atan2(-m.m02(), cosine);
         if (cosine < 1.0E-5) {
-            // At +/-90 degrees X and Z are coupled. Choose X=0 and preserve their combined turn.
+             
             return new Vector3f(0, y, (float)Math.atan2(-m.m10(), m.m11()));
         }
         return new Vector3f((float)Math.atan2(m.m12(), m.m22()), y,

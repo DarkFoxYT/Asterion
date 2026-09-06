@@ -23,7 +23,7 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
-/** Real fluid ticks, immersion, chunk reconciliation and client resource/geometry checks in a disposable world. */
+ 
 public final class HeavyWaterGameTest implements FabricClientGameTest {
     @Override public void runTest(ClientGameTestContext context) {
         context.runOnClient(client -> org.lwjgl.glfw.GLFW.glfwHideWindow(client.getWindow().handle()));
@@ -41,7 +41,7 @@ public final class HeavyWaterGameTest implements FabricClientGameTest {
                 ServerLevel level = mc.overworld();
                 for (int x = -12; x <= 24; x++) for (int z = -5; z <= 15; z++)
                     level.setBlock(new BlockPos(x, 121, z), Blocks.STONE.defaultBlockState(), 3);
-                // Three-deep pool for immersion/fatigue, and an uncontained source for normal flow.
+                 
                 for (int x = 0; x <= 5; x++) for (int z = 0; z <= 5; z++) for (int y = 122; y <= 124; y++)
                     level.setBlock(new BlockPos(x, y, z), x == 0 || x == 5 || z == 0 || z == 5
                             ? Blocks.GLASS.defaultBlockState() : HeavyWater.WATER_BLOCK.defaultBlockState(), 3);
@@ -168,7 +168,7 @@ public final class HeavyWaterGameTest implements FabricClientGameTest {
             BlockPos base=bases[i];
             maze.setBlock(base.below(), Blocks.STONE.defaultBlockState(), 3);
             maze.setBlock(base, i==bases.length-1 ? Blocks.AIR.defaultBlockState()
-                    : Blocks.WATER.defaultBlockState(), 3); // Includes a completely dry gallery.
+                    : Blocks.WATER.defaultBlockState(), 3);  
             for (int y = CatacombLayout.WATER_Y + 1; y <= CatacombFloodState.FLOOD_TOP_Y; y++)
                 maze.setBlock(base.atY(y), Blocks.AIR.defaultBlockState(), 3);
         }

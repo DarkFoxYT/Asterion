@@ -7,7 +7,7 @@ import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.CustomModelData;
 import net.minecraft.world.item.component.ItemLore;
 
-/** Removes the retired purity metadata from old items as players retrieve them. */
+ 
 public final class LegacyPurityCleanup {
     private LegacyPurityCleanup() {}
     public static void tick(MinecraftServer server) {

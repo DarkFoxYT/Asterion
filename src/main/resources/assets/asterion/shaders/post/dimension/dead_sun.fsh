@@ -1,8 +1,8 @@
 #version 330
 
-// World-space Minecraft adaptation of "Supernova remnant" by Duke:
-// https://www.shadertoy.com/view/MdKXzc (CC BY-NC-SA 3.0).
-// Reworked for Amnetic depth occlusion, fixed-step sampling, and texture-free procedural noise.
+ 
+ 
+ 
 
 uniform sampler2D DepthSampler;
 
@@ -77,7 +77,7 @@ float remnantDensity(vec3 p) {
     float ringDistance = length(vec2(length(p.xz) - 0.62, p.y * 1.45));
     float equatorialRing = exp(-ringDistance * 9.0);
 
-    // Static sphere-space detail: visually close to the reference, but never swims with the camera.
+     
     float broad = asterionSunNoise3(p * 4.2 + vec3(8.0, -3.0, 13.0));
     float filament = asterionSunNoise3(p * 11.5 + vec3(-5.0, 17.0, 2.0));
     float structure = smoothstep(0.34, 0.78, broad * 0.68 + filament * 0.32);
@@ -86,7 +86,7 @@ float remnantDensity(vec3 p) {
 }
 
 void main() {
-    // Exactly transparent output: avoid procedural noise/ray work behind opaque nearby terrain.
+     
     if (clamp(Value * EffectStrength, 0.0, 1.0) == 0.0 || clamp(Opacity, 0.0, 1.0) == 0.0) {
         fragColor = vec4(0.0);
         return;
@@ -100,8 +100,8 @@ void main() {
         return;
     }
     float eclipse = clamp(Eclipse, 0.0, 1.0);
-    // A mostly-stable, low-frequency edge fault with sparse horizontal slips. Keeping the
-    // displacement small preserves the solid black center while giving its silhouette life.
+     
+     
     float glitchRow = floor(texCoord.y * OutSize.y * 0.12);
     float glitchFrame = floor(Time * 0.22);
     float rowNoise = asterionSunHash31(vec3(glitchRow, glitchFrame, 19.0));
@@ -113,8 +113,8 @@ void main() {
     vec3 activeCoreTint = mix(CoreTint, eclipseCore, eclipse);
     vec3 activeCoronaTint = mix(CoronaTint, eclipseCorona, eclipse);
     float finale = clamp(Finale, 0.0, 1.0);
-    // During the collapse, heat drains out of the body of the Dead Sun while its outer fault
-    // line spreads. This reads as a dying blood-red star instead of a uniformly brighter orb.
+     
+     
     activeCoreTint = mix(activeCoreTint, vec3(0.14, 0.0004, 0.0012), finale);
     activeCoronaTint = mix(activeCoronaTint, vec3(0.52, 0.003, 0.009), finale);
     vec3 direction = worldRay(texCoord);
@@ -142,11 +142,11 @@ void main() {
             alpha += contribution;
         }
 
-        // Small collapsed core grounds the hollow remnant without turning it into a solid sun.
+         
         float impact = length(cross(direction, toSun)) / max(Sun.w, 0.001);
         float core = 1.0 - smoothstep(0.10, 0.19, impact);
-        // At full Eclipse the occluder consumes about ninety percent of the visible Dead Sun,
-        // leaving only a narrow, readable corona instead of the previous half-covered disc.
+         
+         
         float eclipseDisc = 1.0 - smoothstep(mix(0.12, 0.88, eclipse) + eclipseJitter,
                 mix(0.20, 0.94, eclipse) + eclipseJitter, impact);
         accumulated += activeCoreTint * core * 0.34 * (1.0 - eclipse * 0.72);
@@ -157,11 +157,11 @@ void main() {
     float sinAngle = length(cross(direction, normalize(toSun)));
     float angularRadius = Sun.w / max(centerDistance, Sun.w + 0.001);
     float radial = sinAngle / max(angularRadius, 0.00001);
-    // Emissive corona pixels do not intersect the sphere itself, so they need their own
-    // scene-depth gate. Without it the Eclipse ring remains visible through maze walls.
+     
+     
     float sunVisibility = step(centerDistance - Sun.w * 1.20, geometryDistance);
-    // Cross-product distance also vanishes directly away from the sun. Restrict the
-    // halo and eclipse mask to the forward ray, just like the sphere intersection.
+     
+     
     sunVisibility *= step(0.0, dot(direction, toSun));
     float halo = exp(-max(radial - 0.82, 0.0) * (6.5 / max(Tuning.z, 0.08)));
     halo *= 1.0 - smoothstep(1.75 + Tuning.z * 0.3, 2.05 + Tuning.z * 0.3, radial);
@@ -169,12 +169,12 @@ void main() {
 
     float eclipseRing = exp(-abs(radial - mix(0.20, 0.94, eclipse)) * 24.0)
             * eclipse * sunVisibility;
-    // The occluder is composited after every part of the sun. This prevents the halo and
-    // emissive ring (which are evaluated outside the sphere raymarch) from tinting its center.
+     
+     
     float finalEclipseDisc = 1.0 - smoothstep(mix(0.12, 0.88, eclipse) + eclipseJitter,
             mix(0.20, 0.94, eclipse) + eclipseJitter, radial);
     float eclipseTransmission = 1.0 - finalEclipseDisc * eclipse;
-    // Never let the procedural black mask punch through closer terrain or the arena floor.
+     
     alpha = max(alpha, finalEclipseDisc * eclipse * sunVisibility);
 
     float collapsePulse = sin(Time * mix(0.020, 0.095, finale));
@@ -183,8 +183,8 @@ void main() {
     float strength = clamp(Value * EffectStrength, 0.0, 1.0);
     float opacity = clamp(Opacity, 0.0, 1.0);
     float emission = min(Tuning.x, 5.0) * 0.48 * pulse * mix(1.0, 1.75, eclipse);
-    // Entry radiance is a short world-space volume, not a screen-space bloom multiplier. The
-    // integration ends at the sampled scene depth, so maze roofs and walls occlude every ray.
+     
+     
     float radianceScatter = 0.0;
     if (Radiance > 0.001) {
         float rayEnd = min(geometryDistance, centerDistance + Sun.w * 8.0);

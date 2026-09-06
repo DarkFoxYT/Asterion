@@ -7,7 +7,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
 import java.util.*;
 
-/** Server chooses launches and block destruction; clients own short-lived visual rigid bodies. */
+ 
 public final class ArenaDebris {
     private static final Map<ServerLevel, List<ArenaDebrisPayload.Fragment>> PENDING = new IdentityHashMap<>();
     private ArenaDebris() { }
@@ -29,7 +29,7 @@ public final class ArenaDebris {
     }
     public static void clear(ServerLevel level) {
         PENDING.remove(level);
-        // Empty batch is an encounter reset, clearing only arena rubble and door leaves client-side.
+         
         for (var player : level.players()) if (ServerPlayNetworking.canSend(player, ArenaDebrisPayload.TYPE))
             ServerPlayNetworking.send(player, new ArenaDebrisPayload(List.of(), 0));
     }

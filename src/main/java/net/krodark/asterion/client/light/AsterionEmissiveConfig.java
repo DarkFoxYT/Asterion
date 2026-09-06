@@ -13,7 +13,7 @@ import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
 import net.minecraft.util.Mth;
 
-/** Persistent client-side grading for Asterion's emissive masks and flame particles. */
+ 
 public final class AsterionEmissiveConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path PATH = FabricLoader.getInstance().getConfigDir()
@@ -35,7 +35,7 @@ public final class AsterionEmissiveConfig {
             boolean legacy = json != null && !json.has("version");
             if (legacy) migrateLegacy();
             boolean upgradeEyes = legacy || values.version < 3;
-            // Upgrade the shipped eye setting once, preserving deliberately customized strengths.
+             
             if (upgradeEyes && values.minotaurEyeStrength == 0.85F) values.minotaurEyeStrength = 1.0F;
             boolean upgradeFire = legacy || values.version < 4;
             if (upgradeFire) {
@@ -52,9 +52,9 @@ public final class AsterionEmissiveConfig {
             if (softenVines && values.vineGlowStrength == .65F) values.vineGlowStrength = .55F;
             boolean sharpenBloom = legacy || values.version < 7;
             if (sharpenBloom) {
-                // The old three-quarter-resolution buffer made small eyes, runes and vines
-                // expand into a soft blob. Preserve customized profiles, but upgrade the
-                // shipped profile to a near-native, narrower fringe.
+                 
+                 
+                 
                 if (values.scale == .75F) values.scale = .95F;
                 if (values.intensity == 3.316F) values.intensity = 2.45F;
                 if (values.threshold == .047F) values.threshold = .075F;
@@ -105,7 +105,7 @@ public final class AsterionEmissiveConfig {
     public static float vineGlowStrength() { return values.vineGlowStrength; }
 
     private static void migrateLegacy() {
-        // Replace the old shipped defaults once; retain custom choices within the new safe ranges.
+         
         if (values.threshold == 0.035F) values.threshold = 1.1F;
         if (values.intensity == 4.8F) values.intensity = 0.16F;
         if (values.levels == 7) values.levels = 2;

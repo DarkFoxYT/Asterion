@@ -6,7 +6,7 @@ import net.krodark.asterion.Asterion;
 import net.krodark.asterion.client.particle.AnimatedEmissiveParticle;
 import org.joml.Matrix4fc;
 
-/** Opt-in bridge for Asterion's alpha-sorted particle mesh; other Amnetic meshes are untouched. */
+ 
 public final class ParticleCulling {
     private static OrderedParticleCuller culler;
     private static boolean failed;
@@ -17,7 +17,7 @@ public final class ParticleCulling {
     public static boolean available() {
         if (!net.krodark.asterion.AsterionConfig.INSTANCE.potatoParticleCulling) return false;
         int count = AnimatedEmissiveParticle.trackedCount();
-        // Small batches stay cheap; oversized scenes retain the original nearest-visible budget.
+         
         if (Boolean.getBoolean("asterion.disableGpuParticleCulling") || count < 256 || count > 2048 || failed) return false;
         if (culler == null) {
             ComputeShader scan = null, scatter = null;

@@ -4,7 +4,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.function.IntFunction;
 
-/** Oriented model-space hit volumes, shared by client picking and server validation. */
+ 
 public final class CentipedeInteraction {
     private static final AABB BODY = new AABB(-.68, -.46, -.96, .68, .46, 1.43);
     private static final AABB HEAD = new AABB(-.70, -.45, -2.07, .70, .26, -.94);
@@ -38,7 +38,7 @@ public final class CentipedeInteraction {
         return BODY.inflate(tolerance).contains(local) || seat == 0 && HEAD.inflate(tolerance).contains(local);
     }
 
-    /** Saddle contact is the top of the actual shell, not the larger collision clearance. */
+     
     public static Vec3 saddle(CentipedeChain.Pose pose, int seat) {
         return pose.position().subtract(pose.normal().scale(seat == 0 ? .23 : .42))
                 .add(pose.forward().scale(seat == 0 ? 1.45 : 0));

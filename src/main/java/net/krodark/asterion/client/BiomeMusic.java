@@ -18,7 +18,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import java.util.*;
 
-/** One streamed music voice, server-selected biome, brief credits and quiet per-region gains. */
+ 
 public final class BiomeMusic {
     public record Track(String group, String sound, String title, String artist) { }
     private static ClientLevel level;
@@ -42,7 +42,7 @@ public final class BiomeMusic {
             int center = graphics.guiWidth() / 2;
             String title = client.font.plainSubstrByWidth("Now playing: " + playing.title(), graphics.guiWidth() - 24);
             String artist = client.font.plainSubstrByWidth("by " + playing.artist(), graphics.guiWidth() - 24);
-            int y = arena ? 60 : 8; // Leave the health and rage bars unobstructed.
+            int y = arena ? 60 : 8;  
             graphics.centeredText(client.font, Component.literal(title), center, y, alpha << 24 | 0xE9E6D9);
             graphics.centeredText(client.font, Component.literal(artist), center, y + 11, alpha << 24 | 0xADB9B5);
         });
@@ -98,15 +98,15 @@ public final class BiomeMusic {
                     boss -> boss.behaviorPhase() == MinotaurEntity.BehaviorPhase.BOSS);
             boolean activeBossNearby = nearbyBosses.stream()
                     .anyMatch(boss -> boss.isAlive() && !boss.isDefeatedBoss());
-            // A permanent death-pose Minotaur intentionally remains as an entity. It must not
-            // silence a living/revived boss that is also tracked by the client.
+             
+             
             defeatedBossNearby = !activeBossNearby
                     && nearbyBosses.stream().anyMatch(MinotaurEntity::isDefeatedBoss);
             arena = WorldGenerator.isInsideBossArena(client.player.position()) && activeBossNearby;
             if (activeBossNearby) victoryTrack = 0;
         }
-        // The permanent corpse intentionally retains one health point, so isAlive()
-        // alone cannot distinguish victory from an active encounter.
+         
+         
         boolean victory = !arena && WorldGenerator.isInsideBossArena(client.player.position())
                 && (defeatedBossNearby || AsterionPortalRenderer.isOpen());
         boolean cave = client.player.getY() <= net.krodark.asterion.worldgen.LabyrinthLevels.CAVE_ROOF_Y;

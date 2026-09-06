@@ -5,7 +5,7 @@ import me.shedaniel.rei.api.common.entry.comparison.ItemComparatorRegistry;
 import me.shedaniel.rei.api.common.plugins.REICommonPlugin;
 import net.krodark.asterion.Asterion;
 
-/** Preserves the alloy identity of forged stacks while REI compares entries. */
+ 
 public final class AsterionReiCommonPlugin implements REICommonPlugin {
     @Override public void registerItemComparators(ItemComparatorRegistry registry) {
         registry.register(EntryComparator.itemComponents().onlyExact(),

@@ -6,7 +6,7 @@ import net.krodark.asterion.game.AncientContent;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ItemLike;
 
-/** Append requests to preserve saved indices. Every request is a separate, one-time bargain. */
+ 
 public final class QueenBeetleQuests {
     public record Quest(String id, ItemLike item, int count, ItemLike reward, int rewardCount) {
         public String key(String suffix) { return "quest.asterion.queen_beetle." + id + "." + suffix; }

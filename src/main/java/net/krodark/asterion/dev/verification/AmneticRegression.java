@@ -6,7 +6,7 @@ import com.meekdev.amnetic.client.model.internal.parse.BbmodelParser;
 import java.nio.charset.StandardCharsets;
 import org.joml.Matrix4f;
 
-/** Checks the upgraded API used by Asterion without opening a client or requiring a GPU. */
+ 
 public final class AmneticRegression {
     public static void main(String[] args) {
         check(InstanceLayout.TEXTURED_BILLBOARD.stride() == 48, "Billboard payload layout changed");
@@ -30,7 +30,7 @@ public final class AmneticRegression {
         } finally {
             batch.free();
         }
-        // Upstream's jar references bb4j without shipping it; catch missing parser dependencies.
+         
         var model = BbmodelParser.parse("""
                 {"meta":{"format_version":"4.10","model_format":"free","box_uv":false},
                  "name":"asterion_dependency_check","resolution":{"width":16,"height":16},

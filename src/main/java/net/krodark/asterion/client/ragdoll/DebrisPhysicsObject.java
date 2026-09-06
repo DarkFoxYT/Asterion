@@ -5,7 +5,7 @@ import com.geckolib.animatable.instance.AnimatableInstanceCache;
 import com.geckolib.animatable.manager.AnimatableManager;
 import com.geckolib.util.GeckoLibUtil;
 
-/** A render-only GeckoLib object owned by the client debris simulation. */
+ 
 final class DebrisPhysicsObject implements GeoAnimatable {
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private final int variant;
@@ -20,7 +20,7 @@ final class DebrisPhysicsObject implements GeoAnimatable {
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        // Debris motion is driven by the rigid-body simulation, not a keyframe animation.
+         
     }
 
     @Override

@@ -39,12 +39,12 @@ public final class MazePits {
         BoundingBox clip = new BoundingBox(chunk.getMinBlockX(), floor - 26, chunk.getMinBlockZ(), chunk.getMaxBlockX(), floor + 1, chunk.getMaxBlockZ());
         for (var piece : plan.get().getPiecesBuilder().build().pieces())
             if (piece instanceof PoolElementStructurePiece pit) {
-                // Vanilla lowers rigid starts by their ground delta; keep our named top connector at the surface.
+                 
                 pit.move(0, pit.getGroundLevelDelta(), 0);
                 pit.place(world, level.structureManager(), context.chunkGenerator(),
                         RandomSource.create(seed ^ anchor.asLong()), clip, anchor, false);
             }
-        // Make the surface opening visible instead of leaving maze walls floating over the pit.
+         
         for (int dx = -6; dx <= 6; dx++) for (int dz = -6; dz <= 6; dz++)
             for (int y = floor + 1; y <= floor + 18; y++) world.setBlock(new BlockPos(x + dx, y, z + dz),
                     net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);

@@ -13,7 +13,7 @@ import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 
-/** Short-lived render objects, never collectible ItemEntities. */
+ 
 public final class ForgeItemFlights {
     private record Flight(Vec3 from, Vec3 to, long tick, ItemStackRenderState item) {}
     private static final ArrayList<Flight> flights = new ArrayList<>();

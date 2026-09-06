@@ -8,7 +8,7 @@ import net.krodark.asterion.WorldGenerator;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
 
-/** Opt-in integration coverage in an isolated disposable world. */
+ 
 public final class BiomeFeatureGameTest implements FabricClientGameTest {
     @Override public void runTest(ClientGameTestContext context) {
         context.runOnClient(client -> org.lwjgl.glfw.GLFW.glfwHideWindow(client.getWindow().handle()));
@@ -43,7 +43,7 @@ public final class BiomeFeatureGameTest implements FabricClientGameTest {
                 check(vegetation > 20, "Generated overgrowth is empty: " + vegetation);
                 WorldgenDataChecks.run(maze, sample);
                 for (int i = 0; i < 12; i++) MazeNbtStructures.tick(maze);
-                // Earlier vegetation must not prevent later features from finding the terrain.
+                 
                 BlockPos floor = sample.atY(WorldGenerator.mazeFloorHeight(seed, sample.getX(), sample.getZ()));
                 for (int dy = 1; dy <= 4; dy++) maze.setBlock(floor.above(dy), Blocks.AIR.defaultBlockState(), 2);
                 maze.setBlock(floor, Asterion.ANCIENT_STONE.defaultBlockState(), 2);

@@ -27,7 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Standalone regression executable: run with gradlew centipedeRegression (also part of check). */
+ 
 public final class CentipedeRegression {
     private static int checks;
     private static final Vec3 NORTH = new Vec3(0, 0, -1);
@@ -79,7 +79,7 @@ public final class CentipedeRegression {
                 near(up, normal.scale(-1), 0.0005, "belly frame during corner transition");
             }
         }
-        // Demonstrate that the prior XYZ extraction is caught by this same reconstruction.
+         
         Quaternionf oldCase = CentipedeFrame.rotation(new Vec3(1, 0, 0), new Vec3(0, 1, 1).normalize());
         Vector3f wrong = oldCase.getEulerAnglesXYZ(new Vector3f());
         Vec3 wrongUp = vector(new Quaternionf().rotationZYX(wrong.z, wrong.y, wrong.x).transform(new Vector3f(0, 1, 0)));
@@ -91,7 +91,7 @@ public final class CentipedeRegression {
             Vec3 origin = new Vec3(217.5, 63.2, -41.7);
             Vec3 world = origin.add(i * 0.43, i * 0.22, -i * 0.91);
             Vector3f p = CentipedeFrame.boneTranslation(world.subtract(origin));
-            // Actual GeckoLib BoneSnapshot translation, including its mirrored X and render scale.
+             
             Vec3 rendered = origin.add(-p.x / 16.0 * CentipedeFrame.MODEL_SCALE,
                     p.y / 16.0 * CentipedeFrame.MODEL_SCALE, p.z / 16.0 * CentipedeFrame.MODEL_SCALE);
             near(rendered, world, 0.00001, "world-space anchor is independent of player yaw");

@@ -17,7 +17,7 @@ import net.minecraft.world.phys.Vec3;
 public final class LamenterBlockEntity extends BlockEntity {
     public static final int EXTINGUISH_TICKS = 160;
     public static final int TEAR_REACH = 6;
-    // Pixel centers on the supplied 16px face: two separate tracks beneath each eye.
+     
     private static final double[] TEAR_U = {3.5 / 16, 4.5 / 16, 11.5 / 16, 12.5 / 16};
     private final BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
     private BlockPos wetBrazier;
@@ -33,11 +33,11 @@ public final class LamenterBlockEntity extends BlockEntity {
             if (state.getValue(LamenterBlock.CRYING)) {
                 int phase = Math.floorMod(level.getGameTime() + pos.asLong(), 8);
                 if (phase != 0 && phase != 4) return;
-                // Client-local particles: no per-tear packets or custom renderer/buffer allocations.
+                 
                 for (int track = phase == 0 ? 0 : 1; track < TEAR_U.length; track += 2) {
                     Direction facing = state.getValue(LamenterBlock.FACING);
                     Vec3 source = tearOrigin(pos, facing, track);
-                    // A slight outward arc carries drops over the brazier's inset rim.
+                     
                     level.addParticle(Asterion.LAMENTER_TEAR, source.x, source.y, source.z,
                             facing.getStepX() * .014, 0, facing.getStepZ() * .014);
                 }
@@ -52,7 +52,7 @@ public final class LamenterBlockEntity extends BlockEntity {
             if (crying) level.playSound(null, pos, SoundEvents.POINTED_DRIPSTONE_DRIP_WATER,
                     SoundSource.BLOCKS, .65F, .8F);
         }
-        // Paused/unloaded chunks never earn crying time. Progress is deliberately not persisted.
+         
         if (lamenter.lastTick != level.getGameTime() - 1) lamenter.resetSoaking();
         lamenter.lastTick = level.getGameTime();
         if (!crying) { lamenter.resetSoaking(); return; }
@@ -75,7 +75,7 @@ public final class LamenterBlockEntity extends BlockEntity {
             BlockState candidate = level.getBlockState(cursor);
             if (candidate.is(Asterion.GREEK_BRAZIER))
                 return candidate.getValue(BlockStateProperties.LIT) ? cursor : null;
-            // Solid blocks, slabs and fluids intercept tears; never extinguish through walls.
+             
             if (!candidate.getCollisionShape(level, cursor).isEmpty() || !candidate.getFluidState().isEmpty()) return null;
         }
         return null;

@@ -12,7 +12,7 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 
-/** Downward vines attached only to the approved moss and ancient-leaf supports. */
+ 
 public final class AncientHangingVineFeature extends Feature<NoneFeatureConfiguration> {
     public AncientHangingVineFeature(Codec<NoneFeatureConfiguration> codec) {
         super(codec);

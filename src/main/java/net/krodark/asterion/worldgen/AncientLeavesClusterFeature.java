@@ -99,7 +99,7 @@ public final class AncientLeavesClusterFeature extends Feature<NoneFeatureConfig
         int placed = 0;
         for (int step = 0; step < length; step++) {
             int across = (int)Math.round(Math.sin(phase + step * 0.48D) * 2.1D);
-            // Descend before moving sideways so leaves stay face-connected.
+             
             BlockPos elbow = wall.anchor.relative(tangent, previousAcross).below(step)
                     .relative(wall.outward);
             placed += placeRootedLeaf(level, elbow, wall.outward, leaves);

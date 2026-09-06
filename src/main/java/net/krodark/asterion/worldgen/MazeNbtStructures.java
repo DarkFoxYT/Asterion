@@ -45,7 +45,7 @@ public final class MazeNbtStructures {
         return EMPTY_LAYOUT;
     }
 
-    /** Returns the immutable reservation plan used by async chunk generation. */
+     
     public static Layout generationLayout(long terrainSeed) {
         return GENERATION_LAYOUTS.getOrDefault(terrainSeed, EMPTY_LAYOUT);
     }
@@ -159,8 +159,8 @@ public final class MazeNbtStructures {
                 int centerZ = -limit + cellZ * cell + cell / 2;
                 int originX = centerX - (relative.minX() + relative.maxX()) / 2;
                 int originZ = centerZ - (relative.minZ() + relative.maxZ()) / 2;
-                // NBT templates use y=0 as their floor. Replacing the maze floor here keeps
-                // rooms level with their approaches instead of leaving every landmark on a step.
+                 
+                 
                 int originY = WorldGenerator.mazeFloorHeight(seed, centerX, centerZ) - relative.minY();
                 BlockPos origin = new BlockPos(originX, originY, originZ);
                 BoundingBox box = relative.moved(originX, originY, originZ);
@@ -191,10 +191,10 @@ public final class MazeNbtStructures {
                                       int limit, int cell, ReservationFilter filter) {
         var template = level.getStructureManager().get(QUEEN_TREE).orElseThrow();
         var candidates = new ArrayList<BlockPos>();
-        int edge = Math.min(950, limit - 80);
+        int edge = Math.min(450, limit - 80);
         for (int x = -edge; x <= edge; x += 32) for (int z = -edge; z <= edge; z += 32) {
             long distance = (long)x * x + (long)z * z;
-            if (distance < 550L * 550 || distance > 950L * 950) continue;
+            if (distance < 350L * 350 || distance > 450L * 450) continue;
             boolean overgrown = true;
             for (int dx : new int[]{-32, 0, 32}) for (int dz : new int[]{-38, 0, 38})
                 if (WorldGenerator.mazeBiomeAt(seed, x + dx, z + dz, cell).kind() != MazeBiomes.Kind.OVERGROWTH)
@@ -210,7 +210,7 @@ public final class MazeNbtStructures {
             var reserved = box.inflatedBy(5, 0, 5);
             if (!filter.allow(Math.floorDiv(reserved.minX() + limit, cell), Math.floorDiv(reserved.minZ() + limit, cell),
                     Math.floorDiv(reserved.maxX() + limit, cell), Math.floorDiv(reserved.maxZ() + limit, cell))) continue;
-            if (placements.stream().anyMatch(p -> p.reserved.inflatedBy(256, 0, 256).intersects(reserved))) continue;
+            if (placements.stream().anyMatch(p -> p.reserved.inflatedBy(128, 0, 128).intersects(reserved))) continue;
             placements.add(new Placement(QUEEN_TREE, template, origin, settings, box, reserved, mix(seed ^ center.asLong())));
             if (placements.size() == 2) return;
         }
@@ -404,7 +404,7 @@ public final class MazeNbtStructures {
                     .setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 0), 2);
         }
 
-        // Rotated template doorways do not necessarily line up with the maze grid.
+         
         private static void carveAccessibilityBridges(ServerLevel level, Placement placement) {
             int floorY = placementFloor(placement);
             int centerX = (placement.box.minX() + placement.box.maxX()) / 2;
@@ -445,7 +445,7 @@ public final class MazeNbtStructures {
             }
         }
 
-        /** Compatibility cleanup for chunks made before the reservation plan was available. */
+         
         private static void preparePlacementArea(ServerLevel level, Placement placement) {
             int floorY = placementFloor(placement);
             int top = floorY + AsterionConfig.INSTANCE.wallHeight;
@@ -481,8 +481,8 @@ public final class MazeNbtStructures {
                             safeCheckpoints.put(placement.origin, pad.immutable());
                             return;
                         }
-                        // Legacy rooms had a lantern directly over their lodestone. Never cache
-                        // that occupied position as a respawn; find a clear, supported neighbor.
+                         
+                         
                         for (int dy = 1; dy >= 0; dy--) for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
                             BlockPos feet = cursor.offset(dx, dy, dz).immutable();
                             if (level.getBlockState(feet.below()).isCollisionShapeFullBlock(level, feet.below())
@@ -496,8 +496,8 @@ public final class MazeNbtStructures {
         }
 
         private void configureSafeRoom(ServerLevel level, Placement placement, boolean newlyGenerated) {
-            // Keep the rune habitat, but leave the retired progression gates open. Only initial
-            // template placement establishes provenance; revisiting must not bless player blocks.
+             
+             
             for (BlockPos pos : BlockPos.betweenClosed(placement.box.minX(), placement.box.minY(), placement.box.minZ(),
                     placement.box.maxX(), placement.box.maxY(), placement.box.maxZ())) {
                 var state = level.getBlockState(pos);

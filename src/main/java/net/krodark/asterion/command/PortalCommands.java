@@ -31,7 +31,7 @@ public final class PortalCommands {
         ServerPlayer player = source.getPlayerOrException();
         ServerLevel level = source.getLevel();
         if (!level.dimension().equals(Level.OVERWORLD)) {
-            source.sendFailure(Component.literal("The test portal can currently be summoned only in the Overworld."));
+            net.krodark.asterion.game.PlayerNotices.failure(source, Component.literal("The test portal can currently be summoned only in the Overworld."));
             return 0;
         }
 
@@ -45,7 +45,7 @@ public final class PortalCommands {
         BlockPos center = new BlockPos(x, surfaceY, z);
 
         WorldGenerator.summonPortal(level, center, surfaceY);
-        source.sendSuccess(() -> Component.literal(
+        net.krodark.asterion.game.PlayerNotices.success(source, () -> Component.literal(
                 "Tore open a Asterion portal at " + x + ", " + surfaceY + ", " + z + "."), true);
         return Command.SINGLE_SUCCESS;
     }

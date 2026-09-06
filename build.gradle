@@ -50,22 +50,22 @@ dependencies {
 
     implementation "com.terraformersmc:modmenu:${project.modmenu_version}"
 
-    // Optional recipe-viewer APIs. Neither viewer is bundled or required at runtime.
+     
     compileOnly "mezz.jei:jei-${project.minecraft_version}-fabric-api:${project.jei_version}"
     compileOnly "me.shedaniel:RoughlyEnoughItems-api-fabric:${project.rei_version}"
     compileOnly "dev.architectury:architectury-fabric:${project.architectury_version}"
     compileOnly "me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}"
     compileOnly "maven.modrinth:jade:${project.jade_version}"
 
-    // Keep the pinned renderer and its parser in the distributed mod jar.
+     
     implementation "com.meekdev:amnetic:${project.amnetic_version}"
     include "com.meekdev:amnetic:${project.amnetic_version}"
 
-    // Amnetic references bb4j but does not bundle it.
+     
     implementation "asterion.bundled:bb4j:0.0.0-c2242d5"
     include "asterion.bundled:bb4j:0.0.0-c2242d5"
 
-    // Linux ARM64 is the only supported desktop native missing from Amnetic's jar.
+     
     runtimeOnly "org.lwjgl:lwjgl-assimp:3.4.1:natives-linux-arm64"
     include "org.lwjgl:lwjgl-assimp:3.4.1:natives-linux-arm64"
 
@@ -94,7 +94,7 @@ processResources {
     filesMatching("fabric.mod.json") {
         expand resourceProperties
     }
-    // Keep artists' original filenames in the workspace; ship legal resource IDs.
+     
     filesMatching("assets/asterion/sounds/music/**/*.ogg") {
         path = path.toLowerCase(java.util.Locale.ROOT).replaceAll('[^a-z0-9/._-]', '_')
     }
@@ -141,9 +141,9 @@ jar {
     }
 }
 
-// Build the procedural forge item-model graph directly from the artist-authored texture folders.
-// Each forged component supports four ordered layers; completed swords preserve all four layers
-// independently for their blade, guard and pommel.
+ 
+ 
+ 
 tasks.named('processResources').configure {
     doLast {
         def materials = ['bone_steel', 'celestial_bronze', 'celestial_gold', 'celestial_steel',
@@ -181,17 +181,17 @@ tasks.named('processResources').configure {
             def parent = sword ? 'asterion:item/forged_sword_layer' : 'minecraft:item/generated'
             if (layer == 0) return [parent: parent,
                     textures: [particle: texture, layer0: texture]]
-            // Generated item models do not reliably bake an isolated layer1/2/3. Use a
-            // translucent plane slightly above the base instead, so every pour visibly
-            // composites in order and its 0x80 tint alpha is genuinely blended.
-            // A generated item occupies z=7.5..8.5. Coatings must sit beyond its front
-            // face or the depth buffer hides them and only the opaque base is visible.
+             
+             
+             
+             
+             
             double grow = layer * 0.015D
             [ambientocclusion: false, gui_light: 'front', render_type: 'minecraft:translucent',
              textures: [particle: texture, coating: texture], display: sword ? swordDisplay : generatedDisplay,
              elements: [[from: [-grow, -grow, 7.49D - grow], to: [16D + grow, 16D + grow, 8.51D + grow],
-                 // Opposite faces need opposite U winding. Reusing the same UV rectangle on
-                 // both sides mirrors asymmetric forged textures around the Y axis.
+                  
+                  
                  faces: [north: [uv: [16, 0, 0, 16], texture: '#coating', tintindex: 0],
                          south: [uv: [0, 0, 16, 16], texture: '#coating', tintindex: 0],
                          west: [uv: [0, 0, 1, 16], texture: '#coating', tintindex: 0],
@@ -229,7 +229,7 @@ tasks.named('processResources').configure {
             file("${itemDir}/forged_sword_${part}.json").text = groovy.json.JsonOutput.toJson(
                     [model: [type: 'minecraft:composite', models: layers]])
         }
-        // Grip and every component/coating share the handheld sword transform.
+         
         def swordLayers = [[type: 'minecraft:model', model: 'asterion:item/forged_sword_handle']]
         parts.eachWithIndex { part, partIndex ->
             (0..<4).each { layer ->
@@ -240,8 +240,8 @@ tasks.named('processResources').configure {
         file("${itemDir}/forged_sword.json").text = groovy.json.JsonOutput.toJson(
                 [model: [type: 'minecraft:composite', models: swordLayers]])
 
-        // Ingots use the same true layer stack. The first pour is layer0 (opaque), while
-        // later pours occupy layer1-layer3 and receive their 50% alpha from custom model data.
+         
+         
         def ingotTextures = materials.collectEntries { material ->
             def custom = file("src/main/resources/assets/asterion/textures/forging/${material}/${material}_ingot.png")
             [(material): custom.exists()
@@ -289,9 +289,9 @@ tasks.named('processResources').configure {
     }
 }
 
-// Fabric keeps the production-shaped mod jar open for the lifetime of an
-// Essential development client. Give every launch an immutable copy so a later
-// Gradle build cannot replace the zip while the running class loader reads it.
+ 
+ 
+ 
 def essentialRuntimeToken = "${System.currentTimeMillis()}-${ProcessHandle.current().pid()}"
 def essentialRuntimeDirectory = file("run/.asterion-runtime/${essentialRuntimeToken}")
 def essentialRuntimeJar = new File(essentialRuntimeDirectory,
@@ -327,8 +327,8 @@ loom {
             client()
             name = "Minecraft Client with Essential"
             vmArg "-Dasterion.essential.modJar=${essentialRuntimeJar.absolutePath}"
-            // 26.1 uses official names in both environments. Essential's legacy dev
-            // remapper still requires Tiny mappings, so use the normal loader path.
+             
+             
             mainClass = "net.krodark.asterion.dev.EssentialClientLaunch"
             runDir "run"
             ideConfigGenerated = false
@@ -422,7 +422,11 @@ def clientGameTests = [
         [run: "LamenterTest", folder: "lamenter-testmod", id: "asterion_lamenter_test",
          classes: ["net.krodark.asterion.dev.verification.LamenterGameTest"]],
         [run: "CatacombTest", folder: "catacomb-testmod", id: "asterion_catacomb_test",
-         classes: providers.gradleProperty("cinematicPreviewOnly").isPresent()
+         classes: providers.gradleProperty("pedestalOnly").isPresent()
+                   ? ["net.krodark.asterion.dev.verification.PedestalGameTest"]
+                   : providers.gradleProperty("liftForgeFixesOnly").isPresent()
+                   ? ["net.krodark.asterion.dev.verification.LiftForgeFixesGameTest"]
+                   : providers.gradleProperty("cinematicPreviewOnly").isPresent()
                    ? ["net.krodark.asterion.dev.verification.CinematicPreviewGameTest"]
                    : providers.gradleProperty("gatewayRuinsOnly").isPresent()
                    ? ["net.krodark.asterion.dev.verification.GatewayRuinsGameTest"]
@@ -498,8 +502,8 @@ clientGameTests.each { suite ->
 
 tasks.matching { it.name in ["runClient", "runEssentialClient", "runEssentialTest"] }.configureEach { dependsOn "stageEssentialRuntimeJar" }
 
-// IntelliJ's "Main.main()" Gradle action creates its own JavaExec instead of using runClient.
-// Route that client launch through the same compatibility bootstrap after Loom's injector.
+ 
+ 
 tasks.withType(JavaExec).configureEach {
     if (name == 'net.fabricmc.devlaunchinjector.Main.main()') {
         dependsOn 'stageEssentialRuntimeJar'
@@ -560,7 +564,7 @@ regressionSuites.each { taskName, suite ->
     }
 }
 
-// Keep GPU checks opt-in so ordinary builds also work on headless machines.
+ 
 tasks.named("check") {
     dependsOn "configRegression", "centipedeRegression", "catacombRegression", "forgingRegression", "amneticRegression"
 }

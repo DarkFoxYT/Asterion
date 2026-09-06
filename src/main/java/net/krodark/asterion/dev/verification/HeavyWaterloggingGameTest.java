@@ -125,7 +125,7 @@ public final class HeavyWaterloggingGameTest implements FabricClientGameTest {
                 check(!((BucketItem)HeavyWater.BUCKET).emptyContents(player, level, solid, null), "Waterlogged a double slab");
                 check(level.getBlockState(solid).is(Blocks.STONE_SLAB), "Double slab was destroyed");
 
-                // A real bucket use must target the container, not the adjacent block.
+                 
                 BlockPos aimed = new BlockPos(0, 122, 0);
                 player.teleportTo(.5, 122, 3.5);
                 player.setYRot(180); player.setXRot(30);
@@ -149,7 +149,7 @@ public final class HeavyWaterloggingGameTest implements FabricClientGameTest {
                     if (amount < 8) check(((BucketPickup)state.getBlock()).pickupBlock(player, level, placed, state).isEmpty(), "Partial layer yielded a whole bucket");
                 }
 
-                // Flow, independent of bucket use and placement, must waterlog nearby containers.
+                 
                 BlockPos placedWire = new BlockPos(-6, 122, 0);
                 for (int amount = 1; amount <= 8; amount++) {
                     level.setBlock(placedWire, HeavyWater.BLOCK.defaultBlockState().setValue(TidalWaterBlock.LEVEL, amount), 3);

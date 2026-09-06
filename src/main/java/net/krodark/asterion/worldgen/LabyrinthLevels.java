@@ -1,6 +1,6 @@
 package net.krodark.asterion.worldgen;
 
-/** Canonical vertical layout. Authored NBT files remain local-space and need no resaving. */
+ 
 public final class LabyrinthLevels {
     public static final int LEGACY_TO_LAYERED_OFFSET = 48;
     public static final int MAZE_FLOOR_Y = 48 + LEGACY_TO_LAYERED_OFFSET;

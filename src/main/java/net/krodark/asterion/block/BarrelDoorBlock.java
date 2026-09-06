@@ -21,7 +21,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.*;
 import org.jspecify.annotations.Nullable;
 
-/** One rendered anchor and 11 invisible interaction/collision parts, occupying the authored 3x4 opening. */
+ 
 public final class BarrelDoorBlock extends BaseEntityBlock implements WaterloggedDecoration {
     public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty OPEN = BlockStateProperties.OPEN;
@@ -91,8 +91,8 @@ public final class BarrelDoorBlock extends BaseEntityBlock implements Waterlogge
         for (int depth = 1; depth <= 3; depth++) for (int row = 0; row < 4; row++) {
             BlockPos part = wing(root, facing, depth, row);
             BlockState existing = level.getBlockState(part);
-            // Solid scenery is allowed to clip the visual swing. Keep it intact and omit
-            // only that invisible collision cell so the controller can always open.
+             
+             
             if (!existing.isAir()
                     && !(existing.is(Asterion.BARREL_DOOR) && root(part, existing).equals(root))
                     && !(existing.getBlock() instanceof net.minecraft.world.level.block.LiquidBlock)
@@ -161,10 +161,10 @@ public final class BarrelDoorBlock extends BaseEntityBlock implements Waterlogge
         Direction facing = state.getValue(FACING);
         for (int column = 0; column < 3; column++) for (int row = 0; row < 4; row++)
             if (!level.isLoaded(part(root, facing, column, row))) return;
-        // Swing cells are optional collision proxies. prepareSwing deliberately omits
-        // them where scenery or an entity occupies the arc, so a missing proxy must
-        // never be interpreted as a broken door and delete the visible root model.
-        // The original 3x4 plane below remains the authoritative integrity check.
+         
+         
+         
+         
         for (int column = 0; column < 3; column++) for (int row = 0; row < 4; row++) {
             BlockPos part = part(root, facing, column, row);
             BlockState other = level.getBlockState(part);
@@ -207,12 +207,12 @@ public final class BarrelDoorBlock extends BaseEntityBlock implements Waterlogge
     }
     @Override protected VoxelShape getOcclusionShape(BlockState state) { return Shapes.empty(); }
     @Override public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        // Structure NBT may include a block-entity tag for every multipart cell. Accept a
-        // lightweight instance for those cells so vanilla does not report failed BE loads;
-        // only the root is ticked or rendered.
+         
+         
+         
         return new BarrelDoorBlockEntity(pos, state);
     }
-    /** Marks the original 3x4 door plane for the future Cursed Brazier crypt room. */
+     
     public static void setCursedLocked(Level level,BlockPos root,Direction facing,boolean locked) {
         for(int column=0;column<3;column++)for(int row=0;row<4;row++) {
             BlockPos pos=part(root,facing,column,row);

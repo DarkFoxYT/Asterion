@@ -8,7 +8,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.List;
 import java.util.ArrayList;
 
-/** Bounded debris batches carry initial conditions, never per-frame physics updates. */
+ 
 public record ArenaDebrisPayload(List<Fragment> fragments, long seed) implements CustomPacketPayload {
     public static final int MAX_FRAGMENTS = 96;
     public ArenaDebrisPayload { fragments = List.copyOf(fragments); if (fragments.size() > MAX_FRAGMENTS) throw new IllegalArgumentException("Debris batch too large"); }

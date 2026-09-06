@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Keep shore edges horizontal too; vanilla averages them down toward neighboring air. */
+ 
 @Mixin(FluidRenderer.class)
 public abstract class TidalWaterSurfaceMixin {
     @Inject(method = "calculateAverageHeight", at = @At("HEAD"), cancellable = true)

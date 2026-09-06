@@ -53,7 +53,7 @@ public final class BombardierGasFireParticle extends AnimatedEmissiveParticle {
         }
     }
 
-    /** Shared by ignited gas clouds; no color arrays are allocated per particle tick. */
+     
     static void applyFireColor(SingleQuadParticle particle, float progress) {
         applyFireColor(particle, progress, false);
     }

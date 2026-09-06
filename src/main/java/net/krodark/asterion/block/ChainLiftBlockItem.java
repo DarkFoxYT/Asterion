@@ -15,7 +15,7 @@ import net.minecraft.world.level.block.Block;
 
 import java.util.function.Consumer;
 
-/** The inventory item uses the same platform model as the moving deck. */
+ 
 public final class ChainLiftBlockItem extends BlockItem implements GeoItem {
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 

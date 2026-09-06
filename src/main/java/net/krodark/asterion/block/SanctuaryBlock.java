@@ -27,7 +27,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.*;
 
 public final class SanctuaryBlock extends BaseEntityBlock {
-    // Altar: dormant / charged / collected. Obelisk: inactive / active.
+     
     public static final IntegerProperty CHARGE = IntegerProperty.create("charge", 0, 2);
     public static final IntegerProperty PART_X = IntegerProperty.create("part_x", 0, 2);
     public static final IntegerProperty PART_Z = IntegerProperty.create("part_z", 0, 2);
@@ -118,7 +118,7 @@ public final class SanctuaryBlock extends BaseEntityBlock {
                 return InteractionResult.SUCCESS_SERVER;
             }
             ItemStack reward = new ItemStack(RespawnObelisks.CHARGED_RUNE);
-            // Leave the charge in place if the inventory is full; never lose or duplicate it.
+             
             if (!player.getInventory().add(reward)) return InteractionResult.FAIL;
             level.setBlock(pos, state.setValue(CHARGE, 2), 3);
             level.playSound(null, pos, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 1, 1.25F);

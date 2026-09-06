@@ -18,7 +18,7 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Set;
 
-/** A long-lived, independently wandering insect with a four-frame wing loop. */
+ 
 public final class FlyingInsectParticle extends SingleQuadParticle {
     private static final int FRAMES = 4;
     private static final int TICKS_PER_FRAME = 2;
@@ -130,7 +130,7 @@ public final class FlyingInsectParticle extends SingleQuadParticle {
 
     private void chooseTurn() {
         targetHeading = heading + (random.nextFloat() - 0.5F) * 2.8F;
-        // Occasionally perform a pronounced turn-around instead of only drifting.
+         
         if (random.nextFloat() < 0.18F)
             targetHeading = heading + Mth.PI + (random.nextFloat() - 0.5F) * 0.65F;
         targetVertical = (random.nextFloat() - 0.5F) * 0.034F;
@@ -149,7 +149,7 @@ public final class FlyingInsectParticle extends SingleQuadParticle {
         double dz = lightTarget.z - z;
         double horizontalSquared = dx * dx + dz * dz;
         if (horizontalSquared < 0.05D && Math.abs(dy) < 0.35D) {
-            // Orbit instead of sitting motionless inside the light source.
+             
             targetHeading = heading + 0.65F;
             targetVertical = Mth.clamp((float)dy * 0.025F, -0.012F, 0.012F);
             return;
@@ -178,7 +178,7 @@ public final class FlyingInsectParticle extends SingleQuadParticle {
         Vec3 probe = forward.normalize().scale(0.34D);
         if (level.noCollision(getBoundingBox().move(probe))) return;
 
-        // Prefer a free vertical escape, then bank sideways around the obstacle.
+         
         boolean aboveFree = level.noCollision(getBoundingBox().move(0.0D, 0.28D, 0.0D));
         boolean belowFree = level.noCollision(getBoundingBox().move(0.0D, -0.28D, 0.0D));
         if (aboveFree || belowFree)

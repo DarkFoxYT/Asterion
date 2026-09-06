@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Resolve the moving floor during walking, before vanilla checks friction and auto-jump. */
+ 
 @Mixin(Entity.class)
 public abstract class ChainLiftMovementMixin {
     @Unique private ChainLiftEntity asterion$supportingLift;
@@ -24,7 +24,7 @@ public abstract class ChainLiftMovementMixin {
         if (!(entity instanceof Player) || entity.noPhysics || movement.y > .2) return movement;
         ChainLiftEntity lift = ChainLiftEntity.supporting(entity);
         if (lift == null) return movement;
-        // Walking off the edge and deliberate jumps keep normal gravity and collision.
+         
         if (!lift.overlapsDeck(entity.getBoundingBox().move(movement.x, 0, movement.z))) return movement;
         asterion$supportingLift = lift;
         entity.setPos(entity.getX(), lift.getY() + .5, entity.getZ());

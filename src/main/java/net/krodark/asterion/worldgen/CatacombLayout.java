@@ -8,7 +8,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import java.util.List;
 
-/** Stateless, chunk-order-independent undercroft. The surface maze continues infinitely. */
+ 
 public final class CatacombLayout {
     public static final int TILE = 19;
     public static final int FLOOR_Y = LabyrinthLevels.CATACOMB_BASE_Y + 3;
@@ -20,9 +20,9 @@ public final class CatacombLayout {
     public static final int BRAZIER_ROOM_MIN_X = 10, BRAZIER_ROOM_MAX_X = 12;
     public static final int BRAZIER_ROOM_MIN_Z = 4, BRAZIER_ROOM_MAX_Z = 6;
     public static final int BRAZIER_APPROACH_Z = 5;
-    /** Three authored chambers on parallel eastward branches, separated by solid crypt. */
+     
     public static final List<Integer> BRAZIER_ROOM_MIN_ZS = List.of(4, 10, 16);
-    /** Guaranteed surface crossing on the direct branch between the root and boss room. */
+     
     public static final int BRAZIER_APPROACH_CROSSING_X = 7;
 
     private CatacombLayout() { }
@@ -59,8 +59,8 @@ public final class CatacombLayout {
                 roofAt(pos.getX(), pos.getZ()));
     }
 
-    // Junctions are three modules apart. Only selected tree edges get corridors;
-    // the rest stays solid, rather than carving a room into every grid cell.
+     
+     
     private static final int SPACING = 3;
     public static long hash(long seed, int x, int z) {
         long h = seed ^ x * 0x632BE59BD9B4E019L ^ z * 0x9E3779B97F4A7C15L;
@@ -89,18 +89,18 @@ public final class CatacombLayout {
         }
         return null;
     }
-    /** A bounded local calculation: every occupied cell has a route to the arena root. */
+     
     public static Direction parent(long seed, int x, int z) {
         if (reserved(x,z) || x==ROOT_X && z==ROOT_Z) return null;
-        // The arena jigsaw feeds the first authored module at (0, 4). Keep a short
-        // authored-module branch from there to the root instead of a hand-built hall.
+         
+         
         if (z == ROOT_Z && x >= 0 && x < ROOT_X) return Direction.EAST;
-        // A straight north/south crypt spine feeds three straight east/west boss halls.
+         
         int finalApproach = BRAZIER_ROOM_MIN_ZS.getLast() + 1;
         if (x == ROOT_X && z > ROOT_Z && z <= finalApproach) return Direction.NORTH;
         if (brazierApproach(z) && x > ROOT_X && x < BRAZIER_ROOM_MIN_X) return Direction.WEST;
-        // Route the infinite tree around every reserved 3x3 room footprint without
-        // opening accidental diagonal or side entrances through the authored walls.
+         
+         
         for (int minZ : BRAZIER_ROOM_MIN_ZS) {
             int approachZ = minZ + 1, maxZ = minZ + 2;
             if (x == BRAZIER_ROOM_MAX_X + 1 && z >= minZ && z <= maxZ)
@@ -110,12 +110,12 @@ public final class CatacombLayout {
         }
         Direction spine=backboneParent(seed,x,z);
         if (spine!=null) return spine;
-        // A stair replaces this module when present, or adds a leaf to the adjacent junction.
+         
         if (ForgeDepths.isStairModule(x, z)) return Direction.EAST;
         if (Math.floorMod(x-ROOT_X,SPACING)==0 || Math.floorMod(z-ROOT_Z,SPACING)==0) return null;
         long roll=hash(seed ^ 0xD1B54A32D192ED03L,x,z);
         if (Math.floorMod(roll,6)!=0) return null;
-        // Small blind side branches, each attached to exactly one existing passage.
+         
         Direction[] sides={Direction.NORTH,Direction.EAST,Direction.SOUTH,Direction.WEST};
         int start=(int)((roll>>>8)&3);
         for(int i=0;i<4;i++) {
@@ -142,16 +142,16 @@ public final class CatacombLayout {
         return wovenConnection(seed, tx, tz, side);
     }
 
-    /** A secondary edge that turns adjacent side branches into a coherent loop. */
+     
     public static boolean wovenConnection(long seed, int tx, int tz, Direction side) {
         if (!side.getAxis().isHorizontal()) return false;
         int nx = tx + side.getStepX(), nz = tz + side.getStepZ();
         if (reserved(tx, tz) || reserved(nx, nz) || brazierRoom(tx, tz) || brazierRoom(nx, nz)
                 || !occupied(seed, tx, tz) || !occupied(seed, nx, nz)) return false;
         if (parent(seed, tx, tz) == side || parent(seed, nx, nz) == side.getOpposite()) return false;
-        // The parent edges guarantee reachability. Weave nearby side branches back into
-        // that tree to create readable loops and alternate routes instead of endless
-        // isolated dead ends. Backbone-only links stay sparse and visually deliberate.
+         
+         
+         
         if (backboneParent(seed, tx, tz) != null && backboneParent(seed, nx, nz) != null)
             return false;
         int edgeX = Math.min(tx, nx), edgeZ = Math.min(tz, nz);

@@ -48,8 +48,8 @@ public final class DazeOverlay {
         boolean down = client.screen == null && GLFW.glfwGetKey(client.getWindow().handle(),
                 GLFW.GLFW_KEY_SPACE) == GLFW.GLFW_PRESS;
         boolean mash = AsterionConfig.INSTANCE.ragdollMashRecovery;
-        // Mash progress is made of completed key presses and stays earned. The newer
-        // per-tick decay made the bar immediately retreat between every legitimate tap.
+         
+         
         if (mash && down && !spaceWasDown) progress = Math.min(required, progress + 1);
         else if (!mash && down && (duration - remaining) % 3 == 0)
             progress = Math.min(required, progress + 1);
