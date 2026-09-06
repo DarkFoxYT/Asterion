@@ -231,7 +231,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private BossAttack lastBossAttack = BossAttack.NONE;
     private BossAttack attackBeforeLast = BossAttack.NONE;
     private final ServerBossEvent healthBossBar = new ServerBossEvent(UUID.randomUUID(),
-            Component.literal("THE MINOTAUR"), BossEvent.BossBarColor.RED, BossEvent.BossBarOverlay.NOTCHED_10);
+            Component.literal(""), BossEvent.BossBarColor.RED, BossEvent.BossBarOverlay.NOTCHED_10);
     private Vec3 bossChargeDirection = Vec3.ZERO;
     private boolean bossChargeTargetsPillar;
     private Vec3 bossLeapTarget = Vec3.ZERO;
@@ -1571,6 +1571,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private boolean tickDoorEntry(ServerLevel level) {
         int tick = doorEntryTicks();
         if (tick <= 0 || entryDoor == null || entryFacing == null) return false;
+        noPhysics = true;
         getNavigation().stop();
         setTarget(null);
         setAggressive(false);
@@ -5402,8 +5403,9 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                     ? MinotaurAnimationTiming.ARROWS : MinotaurAnimationTiming.CHAIN).seconds(tick);
             case RUBBLE -> MinotaurAnimationTiming.RUBBLE.seconds(tick);
             case WARNING -> MinotaurAnimationTiming.chargeSeconds(tick, chargeAnimationWindup());
-            case ROAR_START -> (doorEntryTicks() > 0 ? MinotaurAnimationTiming.ENTRY_ROAR
-                    : bossAttackState() == BossAttack.GREEK_FIRE_LASER || bossAttackState() == BossAttack.FIRE_RINGS
+            case ROAR_START -> doorEntryTicks() > 0
+                    ? MinotaurAnimationTiming.ENTRY_ROAR.seconds(tick * .78)
+                    : (bossAttackState() == BossAttack.GREEK_FIRE_LASER || bossAttackState() == BossAttack.FIRE_RINGS
                     ? MinotaurAnimationTiming.FIRE_ROAR : MinotaurAnimationTiming.ROAR).seconds(tick);
             case BELCH -> MinotaurAnimationTiming.BELCH.seconds(tick);
             case LEAP -> MinotaurAnimationTiming.LEAP.seconds(tick);

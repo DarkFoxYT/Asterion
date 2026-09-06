@@ -733,7 +733,7 @@ public final class WorldGenerator {
             if (level.getBlockState(pos).is(net.minecraft.world.level.block.Blocks.CYAN_WOOL))
                 level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
         BlockPos.MutableBlockPos shaft = new BlockPos.MutableBlockPos();
-        for (int sy = origin.getY(); sy < origin.getY() + 63; sy++)
+        for (int sy = level.getMinY(); sy < origin.getY() + 63; sy++)
             for (int sx = 7; sx <= 9; sx++) for (int sz = 7; sz <= 9; sz++)
                 level.setBlock(shaft.set(origin.getX() + sx, sy, origin.getZ() + sz), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
     }

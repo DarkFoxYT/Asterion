@@ -124,7 +124,8 @@ public abstract class CameraMixin {
             }
         }
         DeadSunEntryCinematic.CameraPose shot = DeadSunEntryCinematic.cameraPose(position(), partial);
-        boolean localCamera = minecraft.player != null && ((Camera)(Object)this).entity() == minecraft.player;
+        boolean localCamera = minecraft.player != null && ((Camera)(Object)this).entity() == minecraft.player
+                && !net.krodark.asterion.client.AsterionClient.isPlayback(minecraft);
         if (localCamera && shot != null) {
             setPosition(shot.position());
             setRotation(shot.yaw(), shot.pitch());

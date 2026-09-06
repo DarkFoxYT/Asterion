@@ -255,8 +255,21 @@ public final class AsterionClient implements ClientModInitializer {
         MazeAmbience.initialize();
     }
 
-    private static boolean isPlayback(Minecraft client) {
-        return client.player != null && client.gameRenderer.getMainCamera().entity() != client.player;
+    public static boolean isPlayback(Minecraft client) {
+        if (client.player != null && client.gameRenderer.getMainCamera().entity() != client.player) return true;
+        for (String name : new String[]{"com.moulberry.flashback.Flashback", "com.moulberry.flashback.FlashbackClient", "com.moulberry.flashback.ReplayManager"}) {
+            try {
+                Class<?> type = Class.forName(name);
+                for (String method : new String[]{"isInReplay", "isReplaying", "isPlayback"}) {
+                    try {
+                        var probe = type.getDeclaredMethod(method);
+                        if (java.lang.reflect.Modifier.isStatic(probe.getModifiers()) && probe.getReturnType() == boolean.class
+                                && (boolean)probe.invoke(null)) return true;
+                    } catch (ReflectiveOperationException ignored) { }
+                }
+            } catch (ClassNotFoundException ignored) { }
+        }
+        return false;
     }
 
     private void tick(Minecraft client) {
