@@ -378,6 +378,12 @@ public final class DeadSunEventSystem {
             state.nextEventTick = scheduleNext(random, level.getGameTime());
             return;
         }
+        // A ready eclipse has already waited through its quiet period. Do not let
+        // repeated common-event rolls starve it for another several hours.
+        for (Definition definition : eligible) if (definition.id().equals(ECLIPSE)) {
+            start(level, state, definition);
+            return;
+        }
         int totalWeight = eligible.stream().mapToInt(definition -> Math.max(1, definition.weight())).sum();
         int roll = random.nextInt(totalWeight);
         Definition selected = eligible.getFirst();

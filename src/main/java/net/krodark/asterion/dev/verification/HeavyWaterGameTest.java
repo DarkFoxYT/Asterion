@@ -150,7 +150,7 @@ public final class HeavyWaterGameTest implements FabricClientGameTest {
     private static void checkFloodAndRarity(ServerLevel maze) {
         var timing = RareMazeEvents.get(maze);
         long now = maze.getGameTime();
-        check(timing.nextEclipseTick() - now >= 2L * RareMazeEvents.HOUR, "Eclipse is too common");
+        check(timing.nextEclipseTick() - now <= RareMazeEvents.HOUR / 2, "Eclipse still has a multi-hour wait");
         check(timing.nextFloodTick() - now >= RareMazeEvents.HOUR / 3
                 && timing.nextFloodTick() - now <= RareMazeEvents.HOUR / 2, "Flood quiet period is not 20-30 minutes");
         var saved = RareMazeEvents.CODEC.encodeStart(JsonOps.INSTANCE, timing).getOrThrow();

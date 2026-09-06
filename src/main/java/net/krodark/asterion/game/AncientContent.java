@@ -31,6 +31,10 @@ public final class AncientContent {
     public static final net.minecraft.world.level.block.Block MINOTAUR_TROPHY = Registry.register(BuiltInRegistries.BLOCK, TROPHY_BLOCK_KEY,
             new net.krodark.asterion.block.MinotaurTrophyBlock(net.minecraft.world.level.block.state.BlockBehaviour.Properties.of()
                     .setId(TROPHY_BLOCK_KEY).strength(1.5F, 6).sound(net.minecraft.world.level.block.SoundType.BONE_BLOCK).noOcclusion()));
+    public static final net.minecraft.world.level.block.entity.BlockEntityType<net.krodark.asterion.block.MinotaurTrophyBlockEntity> TROPHY_BLOCK_ENTITY =
+            Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, Asterion.id("minotaur_skull_trophy"),
+                    net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder
+                            .create(net.krodark.asterion.block.MinotaurTrophyBlockEntity::new, MINOTAUR_TROPHY).build());
     private static final ResourceKey<Item> TROPHY_ITEM_KEY = ResourceKey.create(Registries.ITEM, Asterion.id("minotaur_skull_trophy"));
     public static final Item MINOTAUR_TROPHY_ITEM = Registry.register(BuiltInRegistries.ITEM, TROPHY_ITEM_KEY,
             new BlockItem(MINOTAUR_TROPHY, new Item.Properties().setId(TROPHY_ITEM_KEY).rarity(Rarity.RARE)));

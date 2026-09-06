@@ -427,6 +427,7 @@
   "recipe.asterion.crucible.bronze": "Alloy Iron + Copper",
   "recipe.asterion.crucible.steel": "Temper Iron + Coal/Charcoal",
   "recipe.asterion.crucible.bonesteel": "Smelt Mazesteel + Ancient Bone",
+  "recipe.asterion.crucible.minotaur_key": "Cast with exactly 1 pure Bonesteel ingot",
   "recipe.asterion.forged_sword_assembly": "Forged Sword Assembly",
   "recipe.asterion.forged_sword_assembly.inherits": "Shapeless; parts determine appearance and stats",
   "item.asterion.sword_guard_cast": "Sword Guard Cast",

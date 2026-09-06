@@ -8,7 +8,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
 
-/** World-game-time deadlines survive saves; weighted rolls cannot bypass the long quiet period. */
+/** Persisted game-time deadlines keep event pacing consistent across reloads. */
 public final class RareMazeEvents extends SavedData {
     public static final int HOUR = 20 * 60 * 60;
     public static final Codec<RareMazeEvents> CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -22,7 +22,11 @@ public final class RareMazeEvents extends SavedData {
     private RareMazeEvents(long eclipse, long flood) { this.eclipse = eclipse; this.flood = flood; }
     public static RareMazeEvents get(ServerLevel level) {
         RareMazeEvents state = level.getDataStorage().computeIfAbsent(TYPE);
-        if (state.eclipse < 0) state.schedule(level, DeadSunEventSystem.ECLIPSE, 0);
+        if (state.eclipse < 0 || state.eclipse > level.getGameTime() + HOUR / 2 + 20 * 60 * 10) {
+            // Replace legacy multi-hour deadlines once; ordinary reads never postpone an eclipse.
+            state.eclipse = level.getGameTime() + level.getRandom().nextIntBetweenInclusive(20 * 60 * 5, 20 * 60 * 8);
+            state.setDirty();
+        }
         if (state.flood < 0) state.schedule(level, DeadSunEventSystem.FLOOD, 0);
         // Migrate the old 3-6 hour wait so existing saves also see the slow tide.
         if (state.flood > level.getGameTime() + HOUR / 2) {
@@ -39,7 +43,7 @@ public final class RareMazeEvents extends SavedData {
     public long nextFloodTick() { return flood; }
     public void schedule(ServerLevel level, Identifier event, int duration) {
         if (event.equals(DeadSunEventSystem.ECLIPSE))
-            eclipse = level.getGameTime() + duration + level.getRandom().nextIntBetweenInclusive(2 * HOUR, 4 * HOUR);
+            eclipse = level.getGameTime() + duration + level.getRandom().nextIntBetweenInclusive(HOUR / 3, HOUR / 2);
         else if (event.equals(DeadSunEventSystem.FLOOD))
             flood = level.getGameTime() + duration + level.getRandom().nextIntBetweenInclusive(HOUR / 3, HOUR / 2);
         else return;

@@ -1,6 +1,6 @@
 {
-  "parent": "minecraft:item/generated",
+  "parent": "minecraft:item/handheld",
   "textures": {
-    "layer0": "asterion:item/deadwood_stick"
+    "layer0": "asterion:forging/deadwood_stick/deadwood_stick"
   }
 }

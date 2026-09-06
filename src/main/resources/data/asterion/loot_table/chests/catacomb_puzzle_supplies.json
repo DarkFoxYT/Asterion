@@ -60,7 +60,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:stick",
+          "name": "asterion:deadwood_stick",
           "weight": 12,
           "functions": [
             {

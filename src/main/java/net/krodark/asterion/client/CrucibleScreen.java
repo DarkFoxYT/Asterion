@@ -146,11 +146,11 @@ public final class CrucibleScreen extends Screen {
     private int bottomX() { return Math.round(width / scale()) / 2 - 128; }
     private int bottomY() { return Math.round(height / scale()) - 68 + Math.round(64 * (1 - moldPanel.value(framePartial))); }
     private int ingredientX(int index) { return rightX() + (index == 0 ? 56 : 16 + (index - 1) * 40); }
-    private int ingredientY(int index) { return index == 0 ? 24 : 64; }
+    private int ingredientY(int index) { return index == 0 ? 16 : 86; }
     private int inventoryX() { return Math.round(width / scale()) / 2 - 85; }
-    private int inventoryY() { return Math.max(8, Math.round(height / scale()) - 162) + Math.round((1 - Mth.lerp(framePartial, previousInventoryReveal, inventoryReveal)) * 100); }
-    private int inventoryTabX() { return rightX() + 42; }
-    private int inventoryTabY() { return 198; }
+    private int inventoryY() { return 22 - Math.round((1 - Mth.lerp(framePartial, previousInventoryReveal, inventoryReveal)) * 112); }
+    private int inventoryTabX() { return Math.round(width / scale()) / 2 - 22; }
+    private int inventoryTabY() { return 0; }
     private static boolean inside(double x, double y, int left, int top, int w, int h) {
         return x >= left && x < left + w && y >= top && y < top + h;
     }
@@ -185,14 +185,15 @@ public final class CrucibleScreen extends Screen {
         if (inside(heatX, y, 84, 36, 32, 32)) heldControl = CrucibleControlPayload.HEAT;
         else if (inside(heatX, y, 84, 132, 32, 32)) heldControl = CrucibleControlPayload.COOL;
         else if (inside(heatX, y, 84, 84, 32, 32)) { send(CrucibleControlPayload.NEXT_MOLD); return true; }
-        else if (inside(x, y, rightX() + 24, 164, 80, 32)) { send(CrucibleControlPayload.POUR); return true; }
-        else if (inside(x, y, rightX() + 16, 128, 96, 32)) {
+        else if (inside(x, y, rightX() + 24, 44, 80, 32)) {
             controlNotice = materialUnits == 0 ? "ADD METAL" : fuelTicks <= 0 ? "HEAT BELOW"
                     : hasUnsmeltedIngredients() ? "HEAT TO 350°" : "METAL READY";
             noticeTicks = 60;
             send(CrucibleControlPayload.SMELT); return true;
-        } else if (inside(x, y, rightX() + 48, 16, 32, 32)
-                || inside(x, y, rightX() + 8, 56, 112, 32)) {
+        } else if (inside(x, y, rightX() + 16, 138, 96, 32)) {
+            send(CrucibleControlPayload.POUR); return true;
+        } else if (inside(x, y, rightX() + 48, 8, 32, 32)
+                || inside(x, y, rightX() + 8, 78, 112, 32)) {
             inventoryOpen = !inventoryOpen; return true;
         } else {
             for (int i = 0; i < VISIBLE_MOLDS.length; i++) if (inside(x, y, bottomX() + 8 + i * 40, bottomY() + 16, 32, 32)) {
@@ -261,34 +262,30 @@ public final class CrucibleScreen extends Screen {
         int rx = rightX();
         g.fill(rx, 4, rx + 128, 212, 0xE8100E0D);
         image(g, RIGHT, rx, 4, 128, 208);
-        image(g, CENTER, rx, 4, 128, 208);
+        // Keep the channels, but omit the baked output-slot frame: the mold is the output background.
+        g.blit(RenderPipelines.GUI_TEXTURED, CENTER, rx, 4, 0, 0, 128, 160, 128, 208);
         drawMetalFlow(g, rx);
-        image(g, INPUT, rx + 48, 16, 32, 32);
-        for (int i = 0; i < 3; i++) image(g, INPUT, rx + 8 + i * 40, 56, 32, 32);
-        image(g, SMELT, rx + 16, 128, 96, 32);
-        image(g, POUR, rx + 24, 164, 80, 32);
-        shadowCentered(g, "SMELT", rx + 64, 140, 0xFFC5AE8E);
-        shadowCentered(g, "POUR", rx + 64, 176, 0xFFC5AE8E);
-        if (inside(mx, my, rx + 16, 128, 96, 32)) g.outline(rx + 16, 128, 96, 32, 0xFFD0B68C);
-        if (inside(mx, my, rx + 24, 164, 80, 32)) g.outline(rx + 24, 164, 80, 32, 0xFFD0B68C);
-        if (noticeTicks > 0) shadowCentered(g, controlNotice, rx + 64, 116, 0xFFE5B77B);
+        image(g, INPUT, rx + 48, 8, 32, 32);
+        image(g, POUR, rx + 24, 44, 80, 32);
+        for (int i = 0; i < 3; i++) image(g, INPUT, rx + 8 + i * 40, 78, 32, 32);
+        image(g, SMELT, rx + 16, 138, 96, 32);
+        shadowCentered(g, "POUR", rx + 64, 56, 0xFFC5AE8E);
+        shadowCentered(g, "SMELT", rx + 64, 150, 0xFFC5AE8E);
+        if (inside(mx, my, rx + 24, 44, 80, 32)) g.outline(rx + 24, 44, 80, 32, 0xFFD0B68C);
+        if (inside(mx, my, rx + 16, 138, 96, 32)) g.outline(rx + 16, 138, 96, 32, 0xFFD0B68C);
+        if (noticeTicks > 0) shadowCentered(g, controlNotice, rx + 64, 126, 0xFFE5B77B);
         if (mold >= 0 && mold != 4) {
-            g.pose().pushMatrix();
-            image(g, MOLD_TEXTURES[mold], rx + 48, 91, 32, 32);
-            g.pose().translate(rx + 52, 95);
-            g.pose().scale(1.5F, 1.5F);
-            g.item(MOLD_OUTPUT_ICONS[mold], 0, 0);
-            g.pose().popMatrix();
+            image(g, MOLD_TEXTURES[mold], rx + 48, 174, 32, 32);
         }
         ItemStack preview = mixturePreview();
         if (!preview.isEmpty()) {
-            drawItemGlow(g, rx + 56, 99, mixColor);
-            g.item(preview, rx + 56, 99);
+            drawItemGlow(g, rx + 56, 182, mixColor);
+            g.item(preview, rx + 56, 182);
         }
         if (autoPourProgress > 0 && noticeTicks == 0) shadowCentered(g,
                 Math.round(displayedPourProgress * 100F / CrucibleBlockEntity.AUTO_POUR_TICKS) + "%",
-                rx + 64, 116, 0xFFBDA88A);
-        if (inside(mx, my, rx + 48, 16, 32, 32) || inside(mx, my, rx + 8, 56, 112, 32))
+                rx + 64, 126, 0xFFBDA88A);
+        if (inside(mx, my, rx + 48, 8, 32, 32) || inside(mx, my, rx + 8, 78, 112, 32))
             g.setTooltipForNextFrame(font, Component.literal("Open inventory — add ingots or molds"), mouseX, mouseY);
         for (int i = 0; i < metalSequence.length(); i++) {
             int x = ingredientX(i);
@@ -395,6 +392,8 @@ public final class CrucibleScreen extends Screen {
 
     private ItemStack mixturePreview() {
         if (metalSequence.isEmpty() || mold < 0 || hasUnsmeltedIngredients()) return ItemStack.EMPTY;
+        if (MOLDS[mold] == CrucibleBlockEntity.Mold.MINOTAUR_KEY && !metalSequence.equals("5"))
+            return ItemStack.EMPTY;
         if (metalSequence.equals(cachedPreviewSequence) && mold == cachedPreviewMold) return cachedPreview;
         if (MOLDS[mold] == CrucibleBlockEntity.Mold.INGOT && metalSequence.chars().allMatch(value -> value == '5')) {
             cachedPreviewSequence = metalSequence;

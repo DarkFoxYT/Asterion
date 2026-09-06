@@ -98,11 +98,12 @@ public final class MinotaurRemainsGameTest implements FabricClientGameTest {
                 ItemStack trophy = trophies.getFirst().getItem().copy(); trophies.getFirst().discard();
                 var pos = new BlockPos(0, 201, -6);
                 level.setBlock(pos.below(), Asterion.SHALE_BRICKS.defaultBlockState(), 18);
+                player.teleportTo(level, 3, 202, -12, Set.of(), 21, 15, true);
                 var placement = new net.minecraft.world.item.context.BlockPlaceContext(level, player, InteractionHand.MAIN_HAND, trophy,
                         new BlockHitResult(pos.getBottomCenter(), net.minecraft.core.Direction.UP, pos.below(), false));
                 ((BlockItem)AncientContent.MINOTAUR_TROPHY_ITEM).place(placement);
                 check(level.getBlockState(pos).is(AncientContent.MINOTAUR_TROPHY), "Earned trophy could not be placed");
-                player.teleportTo(level, 1.6, 201.3, -8.3, Set.of(), 21, 27, true);
+                player.teleportTo(level, 3, 202, -12, Set.of(), 21, 15, true);
                 player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
             });
             context.runOnClient(c -> c.options.hideGui = true);

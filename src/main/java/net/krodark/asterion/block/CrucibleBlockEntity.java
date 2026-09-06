@@ -386,6 +386,10 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
 
     private void pour(ServerPlayer player) {
         if (!calibrated() || materialUnits() == 0 || hasUnsmeltedIngredients() || !locationAllowsMold()) return;
+        if (mold() == Mold.MINOTAUR_KEY && (materialUnits() != 1 || bonesteel != 1)) {
+            player.sendSystemMessage(Component.literal("The Minotaur Key requires exactly one pure Bonesteel ingot."));
+            return;
+        }
         if (mold() == Mold.INGOT && bonesteel == materialUnits()) {
             eject(new ItemStack(Asterion.BONESTEEL_INGOT, bonesteel));
             finishPour(player);
