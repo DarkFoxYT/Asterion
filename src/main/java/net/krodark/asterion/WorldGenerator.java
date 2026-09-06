@@ -397,8 +397,9 @@ public final class WorldGenerator {
     private static void generateNextPrewarmChunk(ServerLevel maze, BlockPos destination) {
         if (prewarmIndex >= PREWARM_OFFSETS.length) return;
         ChunkPos center = ChunkPos.containing(destination);
-        int[] offset = PREWARM_OFFSETS[prewarmIndex++];
-        maze.getChunk(center.x() + offset[0], center.z() + offset[1]);
+        int[] offset = PREWARM_OFFSETS[prewarmIndex];
+        if (maze.getChunkSource().getChunkNow(center.x() + offset[0], center.z() + offset[1]) != null)
+            prewarmIndex++;
     }
 
     private static int[][] createSpiralOffsets(int radius) {
@@ -1480,7 +1481,7 @@ public final class WorldGenerator {
      
     public static void requestBossArenaStart(ServerPlayer player) {
         if(player.level().dimension().equals(Asterion.ASTERION_LEVEL)) {
-            ensureBossArenaReady((ServerLevel)player.level());
+            prepareBossArenaBeforePlayers((ServerLevel)player.level());
             BOSS_START_REQUESTS.put(player.getUUID(),player.level().getGameTime()
                     +net.krodark.asterion.block.MinotaurDoorMotion.OPEN_TICKS);
         }
@@ -2305,6 +2306,8 @@ public final class WorldGenerator {
         try {
             player.setDeltaMovement(Vec3.ZERO);
             player.resetFallDistance();
+            if (!pending.teleported)
+                pending.maze.getChunkSource().addTicketWithRadius(TicketType.PORTAL, pending.destinationChunk, 1);
             if (!pending.teleported && pending.ticks < 6)
                 player.setPos(player.getX(), player.getY() - (0.10D + pending.ticks * 0.012D), player.getZ());
             if (!pending.teleported && prewarmIndex < PREWARM_OFFSETS.length) {
@@ -2313,9 +2316,10 @@ public final class WorldGenerator {
                 return;
             }
             if (pending.preloadIndex < PRELOAD_OFFSETS.length) {
-                int[] offset = PRELOAD_OFFSETS[pending.preloadIndex++];
-                pending.maze.getChunk((pending.destination.getX() >> 4) + offset[0],
-                        (pending.destination.getZ() >> 4) + offset[1]);
+                int[] offset = PRELOAD_OFFSETS[pending.preloadIndex];
+                if (pending.maze.getChunkSource().getChunkNow((pending.destination.getX() >> 4) + offset[0],
+                        (pending.destination.getZ() >> 4) + offset[1]) == null) return;
+                pending.preloadIndex++;
             }
             if (!pending.teleported
                     && pending.ticks < PORTAL_FADE_IN_TICKS + PORTAL_BLACK_HOLD_TICKS) {
@@ -2332,6 +2336,8 @@ public final class WorldGenerator {
                 player.setDeltaMovement(Vec3.ZERO);
                 player.resetFallDistance();
                 pending.teleported = true;
+                // Give the client its full acknowledgement window after asynchronous generation.
+                pending.ticks = 0;
             }
             if (pending.teleported && !pending.clientReady) {
                 player.setPos(pending.destination.getX() + 0.5D,

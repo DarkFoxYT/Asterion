@@ -220,7 +220,7 @@ public final class AuthoredForge {
 
          
         List<ResolvedPiece> remaining = new ArrayList<>(loaded.values());
-        remaining.sort(Comparator.comparingInt((ResolvedPiece piece) -> connectorCount(piece.template())).reversed());
+        remaining.sort(Comparator.comparingInt((ResolvedPiece piece) -> piece.localPorts().get(Rotation.NONE).size()).reversed());
         long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState()) ^ variant * 0x9E3779B97F4A7C15L;
         int salt = 0;
         for (ResolvedPiece piece : remaining) {
@@ -374,8 +374,21 @@ public final class AuthoredForge {
     }
 
     private static List<Port> ports(ResolvedPiece piece, Rotation rotation, BlockPos origin) {
+        var local = piece.localPorts().get(rotation);
+        if (origin.equals(BlockPos.ZERO)) return local;
+        return local.stream().map(port -> new Port(port.position().offset(origin),
+                port.front(), port.name(), port.target())).toList();
+    }
+
+    private static Map<Rotation, List<Port>> resolvePorts(StructureTemplate template) {
+        var rotations = new java.util.EnumMap<Rotation, List<Port>>(Rotation.class);
+        for (Rotation rotation : Rotation.values()) rotations.put(rotation, localPorts(template, rotation));
+        return Map.copyOf(rotations);
+    }
+
+    private static List<Port> localPorts(StructureTemplate template, Rotation rotation) {
         List<Port> ports = new ArrayList<>();
-        for (StructureTemplate.JigsawBlockInfo jigsaw : piece.template().getJigsaws(origin, rotation)) {
+        for (StructureTemplate.JigsawBlockInfo jigsaw : template.getJigsaws(BlockPos.ZERO, rotation)) {
             Direction front = JigsawBlock.getFrontFacing(jigsaw.info().state());
             if (!front.getAxis().isHorizontal()) continue;
              
@@ -384,14 +397,7 @@ public final class AuthoredForge {
             if (!jigsaw.name().equals(DOOR) || !jigsaw.target().equals(DOOR)) continue;
             ports.add(new Port(jigsaw.info().pos(), front, jigsaw.name(), jigsaw.target()));
         }
-        return ports;
-    }
-
-    private static int connectorCount(StructureTemplate template) {
-        return (int) template.getJigsaws(BlockPos.ZERO, Rotation.NONE).stream()
-                .filter(jigsaw -> jigsaw.name().equals(DOOR) && jigsaw.target().equals(DOOR))
-                .filter(jigsaw -> JigsawBlock.getFrontFacing(jigsaw.info().state()).getAxis().isHorizontal())
-                .count();
+        return List.copyOf(ports);
     }
 
      
@@ -411,7 +417,12 @@ public final class AuthoredForge {
         @Override protected StructureProcessorType<?> getType() { return StructureProcessorType.BLOCK_IGNORE; }
     };
 
-    private record ResolvedPiece(String name, Identifier id, StructureTemplate template) { }
+    private record ResolvedPiece(String name, Identifier id, StructureTemplate template,
+                                 Map<Rotation, List<Port>> localPorts) {
+        ResolvedPiece(String name, Identifier id, StructureTemplate template) {
+            this(name, id, template, resolvePorts(template));
+        }
+    }
     private record Port(BlockPos position, Direction front, Identifier name, Identifier target) { }
     private record Placement(Identifier id, StructureTemplate template, Rotation rotation,
                              BlockPos origin, BoundingBox bounds) { }
