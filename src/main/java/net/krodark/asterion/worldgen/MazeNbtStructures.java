@@ -17,6 +17,9 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
+import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
@@ -501,6 +504,15 @@ public final class MazeNbtStructures {
             for (BlockPos pos : BlockPos.betweenClosed(placement.box.minX(), placement.box.minY(), placement.box.minZ(),
                     placement.box.maxX(), placement.box.maxY(), placement.box.maxZ())) {
                 var state = level.getBlockState(pos);
+                if (newlyGenerated && isSafeRoom(placement.id)
+                        && level.getBlockEntity(pos) instanceof RandomizableContainerBlockEntity container) {
+                    int variant = Math.floorMod((int)(placement.seed ^ pos.asLong()), 3);
+                    ResourceKey<LootTable> loot = ResourceKey.create(net.minecraft.core.registries.Registries.LOOT_TABLE,
+                            Asterion.id("chests/safe_rune_" + (variant == 0 ? "near" : variant == 1 ? "mid" : "far")));
+                    container.setLootTable(loot);
+                    container.setLootTableSeed(CatacombLayout.hash(placement.seed, pos.getX(), pos.getZ()) ^ pos.getY());
+                    container.setChanged();
+                }
                 if (newlyGenerated && level.getBlockEntity(pos) instanceof net.krodark.asterion.block.RuneBlockEntity rune)
                     rune.setWorldGenerated(true);
                 else if (state.is(Asterion.RUNE_ZONE_DOOR)) level.setBlock(pos, state.setValue(RuneDoorBlock.OPEN, true), 3);

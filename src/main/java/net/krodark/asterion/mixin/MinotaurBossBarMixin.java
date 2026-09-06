@@ -24,8 +24,7 @@ public abstract class MinotaurBossBarMixin {
             target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;text(Lnet/minecraft/client/gui/Font;Lnet/minecraft/network/chat/Component;III)V"))
     private void asterion$nameBelow(GuiGraphicsExtractor graphics, net.minecraft.client.gui.Font font,
                                     net.minecraft.network.chat.Component name, int x, int y, int color) {
-        if (name.getString().equals("THE MINOTAUR"))
-            y += 9 + Math.round(48 * MinotaurBossBar.scale(graphics)) - 5;
+        if (name.getString().equals("THE MINOTAUR")) return;
         graphics.text(font, name, x, y, color);
     }
 }

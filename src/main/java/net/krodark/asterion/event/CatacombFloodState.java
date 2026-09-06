@@ -54,7 +54,7 @@ public final class CatacombFloodState extends SavedData {
     public static boolean isFlooding(ServerLevel level, BlockPos pos) {
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return false;
         boolean catacombs = CatacombLayout.contains(pos);
-        return catacombs && !isArenaColumn(pos.getX(), pos.getZ()) && !isOmegaRoom(pos) && get(level).active;
+        return catacombs && !isArenaColumn(pos.getX(), pos.getZ()) && !isOmegaRoom(pos) && !isLootRoom(pos) && get(level).active;
     }
 
     public static void setActive(ServerLevel level, boolean active) {
@@ -184,7 +184,7 @@ public final class CatacombFloodState extends SavedData {
 
     private static boolean inFloodArea(BlockPos pos) {
         return pos.getY() >= MIN_FLOOD_Y && pos.getY() <= FLOOD_TOP_Y
-                && !isArenaColumn(pos.getX(), pos.getZ()) && !isOmegaRoom(pos) && CatacombLayout.contains(pos);
+                && !isArenaColumn(pos.getX(), pos.getZ()) && !isOmegaRoom(pos) && !isLootRoom(pos) && CatacombLayout.contains(pos);
     }
 
     private static boolean wet(BlockState state) {
@@ -226,6 +226,10 @@ public final class CatacombFloodState extends SavedData {
     private static boolean isOmegaRoom(BlockPos pos) {
         BlockPos lock = net.krodark.asterion.worldgen.MinotaurArenaEntrances.OMEGA_LOCK_POSITION;
         return pos.distManhattan(lock) <= 12;
+    }
+    private static boolean isLootRoom(BlockPos pos) {
+        int center = CatacombLayout.ROOT_CENTER;
+        return Math.abs(pos.getX() - center) <= 8 && Math.abs(pos.getZ() - center) <= 8;
     }
     private static final class LoadedTide {
         final LinkedHashSet<Long> chunks = new LinkedHashSet<>(), pending = new LinkedHashSet<>();

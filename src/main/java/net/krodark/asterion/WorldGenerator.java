@@ -736,6 +736,9 @@ public final class WorldGenerator {
         for (int sy = level.getMinY(); sy < origin.getY() + 63; sy++)
             for (int sx = 7; sx <= 9; sx++) for (int sz = 7; sz <= 9; sz++)
                 level.setBlock(shaft.set(origin.getX() + sx, sy, origin.getZ() + sz), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+        for (int sy = origin.getY() + 63; sy <= origin.getY() + 65; sy++)
+            for (int sx = 7; sx <= 9; sx++) for (int sz = 7; sz <= 9; sz++)
+                level.setBlock(shaft.set(origin.getX() + sx, sy, origin.getZ() + sz), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
     }
 
     private static void buildSummonedWell(ServerLevel level, int centerX, int surfaceY, int centerZ, int portalY) {

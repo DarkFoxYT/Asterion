@@ -231,7 +231,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private BossAttack lastBossAttack = BossAttack.NONE;
     private BossAttack attackBeforeLast = BossAttack.NONE;
     private final ServerBossEvent healthBossBar = new ServerBossEvent(UUID.randomUUID(),
-            Component.literal(""), BossEvent.BossBarColor.RED, BossEvent.BossBarOverlay.NOTCHED_10);
+            Component.literal("THE MINOTAUR"), BossEvent.BossBarColor.RED, BossEvent.BossBarOverlay.NOTCHED_10);
     private Vec3 bossChargeDirection = Vec3.ZERO;
     private boolean bossChargeTargetsPillar;
     private Vec3 bossLeapTarget = Vec3.ZERO;
@@ -1609,6 +1609,9 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             net.krodark.asterion.block.MinotaurDoorBlock.removeDoor(level, entryDoor, entryFacing);
             getEntityData().set(DATA_DOOR_ENTRY_TICKS, 0);
             noPhysics = false;
+            Vec3 fallback = Vec3.atBottomCenterOf(net.krodark.asterion.worldgen.MinotaurArenaEntrances.gate(entryFacing))
+                    .add(inward.scale(getBbWidth() * .5D + 2.25D));
+            if (!WorldGenerator.isInsideBossArena(position())) setPos(fallback.x, fallback.y, fallback.z);
              
              
             bossAttackCooldown = Math.max(40,
