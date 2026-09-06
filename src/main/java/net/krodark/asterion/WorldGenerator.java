@@ -707,7 +707,7 @@ public final class WorldGenerator {
     }
 
     public static void summonPortal(ServerLevel level, BlockPos center, int surfaceY) {
-        int riftY = surfaceY - 20;
+        int riftY = surfaceY - 26;
         buildSummonedWell(level, center.getX(), surfaceY, center.getZ(), riftY);
         long visualSeed = mix(level.getSeed() ^ center.asLong() ^ level.getGameTime()
                 ^ 0xA0761D6478BD642FL);
@@ -732,10 +732,14 @@ public final class WorldGenerator {
         for (BlockPos pos : BlockPos.betweenClosed(origin, origin.offset(16, 102, 16)))
             if (level.getBlockState(pos).is(net.minecraft.world.level.block.Blocks.CYAN_WOOL))
                 level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+        BlockPos.MutableBlockPos shaft = new BlockPos.MutableBlockPos();
+        for (int sy = origin.getY(); sy < origin.getY() + 63; sy++)
+            for (int sx = 7; sx <= 9; sx++) for (int sz = 7; sz <= 9; sz++)
+                level.setBlock(shaft.set(origin.getX() + sx, sy, origin.getZ() + sz), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
     }
 
     private static void buildSummonedWell(ServerLevel level, int centerX, int surfaceY, int centerZ, int portalY) {
-        placePortalBlueprint(level, centerX, surfaceY - 83, centerZ);
+        placePortalBlueprint(level, centerX, surfaceY - 89, centerZ);
     }
 
     public static void buildGateway(ServerLevel level, BlockPos horizontalTarget) {
@@ -745,7 +749,7 @@ public final class WorldGenerator {
         int y = net.krodark.asterion.worldgen.GatewayRuins.surface(level, x, z);
         int portalY = y - 20;
         GATEWAY_SURFACE_Y.put(level.getSeed(), portalY);
-        placePortalBlueprint(level, x, y - 83, z);
+        placePortalBlueprint(level, x, y - 89, z);
     }
 
      
