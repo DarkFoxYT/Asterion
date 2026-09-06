@@ -139,7 +139,8 @@
           }
         ],
         "fallback": {
-          "type": "minecraft:empty"
+          "type": "minecraft:model",
+          "model": "asterion:item/forged_sword_blade_layer_iron"
         }
       },
       {
@@ -683,7 +684,8 @@
           }
         ],
         "fallback": {
-          "type": "minecraft:empty"
+          "type": "minecraft:model",
+          "model": "asterion:item/forged_sword_guard_layer_iron"
         }
       },
       {
@@ -1227,7 +1229,8 @@
           }
         ],
         "fallback": {
-          "type": "minecraft:empty"
+          "type": "minecraft:model",
+          "model": "asterion:item/forged_sword_pommel_layer_iron"
         }
       },
       {

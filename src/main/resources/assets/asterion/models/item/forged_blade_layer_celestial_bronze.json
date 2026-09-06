@@ -1,5 +1,5 @@
 {
-  "parent": "minecraft:item/generated",
+  "parent": "minecraft:item/handheld",
   "textures": {
     "layer0": "asterion:forging/celestial_bronze/celestial_bronze_blade_icon"
   }
