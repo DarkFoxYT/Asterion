@@ -136,7 +136,7 @@ public final class SanctuaryBlock extends BaseEntityBlock {
         if (state.getValue(CHARGE) != 1) {
             level.setBlock(pos, state.setValue(CHARGE, 1), 3);
             if (level.getBlockEntity(pos) instanceof SanctuaryBlockEntity sanctuary) sanctuary.startPulse();
-            level.playSound(null, pos, SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.BLOCKS, 1.8F, .7F);
+            level.playSound(null, pos, Asterion.RESPAWN_OBELISK_ACTIVATE, SoundSource.BLOCKS, 1.8F, 1.0F);
         }
         AsterionWorldState.get(server).setRuneCheckpoint(player.getUUID(), spawn);
         serverPlayer.sendOverlayMessage(Component.translatable("message.asterion.obelisk_bound"));

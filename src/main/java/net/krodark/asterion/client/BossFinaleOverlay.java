@@ -12,12 +12,17 @@ import net.minecraft.world.phys.Vec3;
 
 public final class BossFinaleOverlay {
     private static final int CINEMATIC_RENDER_DISTANCE = 12;
-    private static final int CREDITS_TICKS = 220;
+    private static final int CREDIT_CARD_TICKS = 140;
     private static final int RETURN_FADE_TICKS = 52;
-    private static final String[] CREDITS = {
-            "ASTERION", "A LABYRINTH MOD", "", "THE MINOTAUR HAS FALLEN",
-            "THE MAZE RELEASES YOU", "", "THANK YOU FOR PLAYING"
+    private static final String[][] CREDITS = {
+            {"ASTERION", ""},
+            {"CREATED BY", "Darkfox & Kronoz"},
+            {"DEVELOPED BY", "Darkfox"},
+            {"ART / GAME DESIGN", "Kronoz"},
+            {"SOUND EFFECTS", "Flubburr"},
+            {"THANKS FOR PLAYING!", ""}
     };
+    private static final int CREDITS_TICKS = CREDIT_CARD_TICKS * CREDITS.length;
     private static boolean active;
     private static boolean overworldReady;
     private static int ticks;
@@ -101,11 +106,11 @@ public final class BossFinaleOverlay {
         if (!active || overworldReady || ticks >= 265) return null;
         float time = ticks + partialTick;
         float progress = smoother(Mth.clamp(time / 255.0F, 0.0F, 1.0F));
-        double angle = -2.48D + progress * 3.08D + Math.sin(progress * Math.PI * 3.0D) * 0.075D;
-        double radius = Mth.lerp(progress, 104.0D, 70.0D)
+        double angle = -2.48D + progress * .82D;
+        double radius = Mth.lerp(progress, 104.0D, 150.0D)
                 + Math.sin(progress * Math.PI) * 34.0D;
         Vec3 position = new Vec3(Math.cos(angle) * radius + 0.5D,
-                116.0D + Math.sin(progress * Math.PI) * 42.0D - progress * 12.0D,
+                205.0D + progress * 36.0D,
                 Math.sin(angle) * radius + 0.5D);
         net.krodark.asterion.AsterionConfig config = net.krodark.asterion.AsterionConfig.INSTANCE;
         Vec3 sun = new Vec3(config.deadSunX, config.deadSunHeight, config.deadSunZ);
@@ -117,9 +122,9 @@ public final class BossFinaleOverlay {
         float pitch = (float)-(Mth.atan2(delta.y, horizontal) * Mth.RAD_TO_DEG);
         float chaos = sunDetonationStrength();
         double shakeX = (Math.sin(time * 1.73D) + Math.sin(time * 0.37D + 1.8D) * 0.45D)
-                * chaos * 0.46D;
+                * chaos * 0.055D;
         double shakeY = (Math.sin(time * 2.11D + 0.6D) + Math.sin(time * 0.51D) * 0.36D)
-                * chaos * 0.28D;
+                * chaos * 0.035D;
         position = position.add(shakeX, shakeY, -shakeX * 0.62D);
         yaw += (float)(shakeX * 0.42D);
         pitch += (float)(shakeY * 0.34D);
@@ -134,16 +139,37 @@ public final class BossFinaleOverlay {
             int alpha = Math.round((1.0F - fade) * 255.0F);
             graphics.fill(0, 0, graphics.guiWidth(), graphics.guiHeight(), alpha << 24);
             if (fadeTicks < CREDITS_TICKS) {
-                float travel = fadeTicks / (float)CREDITS_TICKS;
-                int startY = graphics.guiHeight() + 24
-                        - Math.round(travel * (graphics.guiHeight() + 150));
-                for (int line = 0; line < CREDITS.length; line++) {
-                    int y = startY + line * 22;
-                    if (y < -16 || y > graphics.guiHeight() + 16 || CREDITS[line].isEmpty()) continue;
-                    int color = line == 0 ? 0xFFF0C879 : 0xFFE8E1D2;
-                    graphics.centeredText(Minecraft.getInstance().font,
-                            net.minecraft.network.chat.Component.literal(CREDITS[line]),
-                            graphics.guiWidth() / 2, y, color);
+                float time = fadeTicks + tracker.getGameTimeDeltaPartialTick(false);
+                int card = Math.min(CREDITS.length - 1, fadeTicks / CREDIT_CARD_TICKS);
+                float local = time - card * CREDIT_CARD_TICKS;
+                float opacity = smoother(local / 24.0F)
+                        * smoother((CREDIT_CARD_TICKS - local) / 28.0F);
+                int textAlpha = Math.round(opacity * 255.0F);
+                if (textAlpha > 3) {
+                    int centerX = graphics.guiWidth() / 2;
+                    int centerY = graphics.guiHeight() / 2;
+                    boolean titleCard = CREDITS[card][1].isEmpty();
+                    if (titleCard) {
+                        var font = Minecraft.getInstance().font;
+                        float scale = Math.min(3.0F,
+                                (graphics.guiWidth() - 32.0F) / Math.max(1, font.width(CREDITS[card][0])));
+                        graphics.pose().pushMatrix();
+                        graphics.pose().translate(centerX, centerY);
+                        graphics.pose().scale(scale, scale);
+                        graphics.centeredText(font,
+                                net.minecraft.network.chat.Component.literal(CREDITS[card][0]),
+                                0, -font.lineHeight / 2, textAlpha << 24 | 0xD6B579);
+                        graphics.pose().popMatrix();
+                    } else {
+                        graphics.centeredText(Minecraft.getInstance().font,
+                                net.minecraft.network.chat.Component.literal(CREDITS[card][0]),
+                                centerX, centerY - 20, textAlpha << 24 | 0xD6B579);
+                        graphics.fill(centerX - 28, centerY - 3, centerX + 28, centerY - 2,
+                                textAlpha << 24 | 0x756344);
+                        graphics.centeredText(Minecraft.getInstance().font,
+                                net.minecraft.network.chat.Component.literal(CREDITS[card][1]),
+                                centerX, centerY + 12, textAlpha << 24 | 0xEEE7DC);
+                    }
                 }
             }
             return;
@@ -162,7 +188,7 @@ public final class BossFinaleOverlay {
         }
     }
 
-    private static void finish(Minecraft client) {
+    public static void finish(Minecraft client) {
         active = false;
         overworldReady = false;
         fadeTicks = 0;

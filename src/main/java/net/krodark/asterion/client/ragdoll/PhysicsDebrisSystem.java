@@ -105,6 +105,14 @@ public final class PhysicsDebrisSystem {
             Vec3 spin = across.scale(.12 + random.nextDouble() * .035).add(inward.scale(side * .055));
             door.angularVelocity.set((float)spin.x, side * .10F, (float)spin.z);
             PIECES.add(door);
+            for (double hingeY : new double[]{1.0, 4.0}) for (int chip = 0; chip < 3; chip++) {
+                Vec3 hinge = MinotaurDoorMotion.toWorld(payload.root(), payload.facing(), new Vec3(side * 3, hingeY, 0));
+                Piece fragment = new Piece(hinge, 3, .18F + random.nextFloat() * .12F, random);
+                fragment.arenaRubble = true;
+                fragment.velocity = inward.scale(.25 + random.nextDouble() * .3)
+                        .add(across.scale(side * (.08 + random.nextDouble() * .12))).add(0, .12, 0);
+                PIECES.add(fragment);
+            }
             doorDust(client.level, door, 52, .18);
         }
     }
@@ -156,10 +164,10 @@ public final class PhysicsDebrisSystem {
         void emit(ClientLevel level, int count) {
             Vec3 across = new Vec3(inward.z, 0, -inward.x);
             for (int i = 0; i < count; i++) {
-                double side = (random.nextDouble() - .5) * 10;
+                double side = (random.nextBoolean() ? 3 : -3) + (random.nextDouble() - .5) * .3;
                 // Dense lower billows and frame plumes; a thinner center lets the eye glow read through.
-                double height = Math.abs(side) > 2.2 ? random.nextDouble() * 4.8 : random.nextDouble() * 2.4;
-                Vec3 pos = root.add(across.scale(side)).add(inward.scale(.4 + random.nextDouble() * 9.5)).add(0, height, 0);
+                double height = (random.nextBoolean() ? 1.0 : 4.0) + random.nextDouble() * .3;
+                Vec3 pos = root.add(across.scale(side)).add(inward.scale(random.nextDouble() * .25)).add(0, height, 0);
                 Vec3 drift = inward.scale(.12 + random.nextDouble() * .20).add(across.scale(side * .014));
                 level.addParticle(Asterion.DOOR_SMOKE, true, false, pos.x, pos.y, pos.z, drift.x, .025 + random.nextDouble() * .07, drift.z);
             }
@@ -292,7 +300,7 @@ public final class PhysicsDebrisSystem {
             piece.restingTime = 0;
         }
         if (piece.sleeping) {
-            if (!isWorldClear(level, piece, piece.position.add(0, -.04, 0))) return false;
+            if (!isWorldClear(level, piece, piece.position.add(0, -.08, 0))) return false;
             piece.sleeping = false;
         }
         if (piece.variant == 7 || piece.arenaRubble) {
@@ -397,14 +405,18 @@ public final class PhysicsDebrisSystem {
                 door.restingTime = 0;
             }
         }
-        if (supported) door.angularVelocity.mul((float)Math.pow(.92, dt));
+                if (supported) {
+            door.angularVelocity.mul((float)Math.pow(.78, dt));
+            door.velocity = new Vec3(door.velocity.x * Math.pow(.85, dt), door.velocity.y,
+                    door.velocity.z * Math.pow(.85, dt));
+        }
         boolean slow = door.velocity.horizontalDistanceSqr() < .0025 && Math.abs(door.velocity.y) < .09
                 && door.angularVelocity.lengthSquared() < .004;
         // Tiny separation after contact resolution must not keep a resting plank awake forever.
-        if (slow && !supported) supported = !isWorldClear(level, door, door.position.add(0, -.035, 0));
+        if (slow && !supported) supported = !isWorldClear(level, door, door.position.add(0, -.06, 0));
         boolean quiet = slow && supported;
         door.restingTime = quiet ? door.restingTime + dt : 0;
-        if (door.restingTime > 12) {
+        if (door.restingTime > 6) {
             door.sleeping = true;
             door.velocity = Vec3.ZERO;
             door.angularVelocity.zero();

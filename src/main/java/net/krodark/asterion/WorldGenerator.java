@@ -210,6 +210,10 @@ public final class WorldGenerator {
         }
     }
 
+    public static BlockPos nearestQueenTree(ServerLevel level, Vec3 position) {
+        return mazeStructureLayout(level).nearestQueenTree(position);
+    }
+
     private static MazeNbtStructures.Layout mazeStructureLayout(ServerLevel level) {
         MazeBiomes.load(level);
         AsterionConfig config = AsterionConfig.INSTANCE;
@@ -270,6 +274,8 @@ public final class WorldGenerator {
         player.setDeltaMovement(Vec3.ZERO);
         player.resetFallDistance();
         WARD_FALL_PROTECTION.put(player.getUUID(), 100);
+        maze.playSound(null, checkpoint, Asterion.RESPAWN_OBELISK_REVIVE,
+                SoundSource.PLAYERS, 1.0F, 1.0F);
     }
 
     private static BlockPos findRespawnCheckpoint(ServerLevel maze, UUID playerId, BlockPos deathPosition) {
@@ -717,36 +723,16 @@ public final class WorldGenerator {
     }
 
     private static void buildSummonedWell(ServerLevel level, int centerX, int surfaceY, int centerZ, int portalY) {
-        clearAboveGateway(level, centerX, surfaceY, centerZ, 5);
+        clearAboveGateway(level, centerX, surfaceY, centerZ, 8);
+        net.krodark.asterion.worldgen.GatewayRuins.build(level, centerX, surfaceY, centerZ, 2);
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-        for (int dx = -5; dx <= 5; dx++) for (int dz = -5; dz <= 5; dz++) {
+        for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
             int edge = Math.max(Math.abs(dx), Math.abs(dz));
-            if (edge > 5 || Math.abs(dx) + Math.abs(dz) > 8) continue;
-            int x = centerX + dx;
-            int z = centerZ + dz;
-            if (edge <= 1) {
-                for (int y = portalY - 2; y <= surfaceY + 2; y++)
-                    level.setBlock(cursor.set(x, y, z), Blocks.AIR.defaultBlockState(), 2);
-                level.setBlock(cursor.set(x, portalY - 3, z),
-                        gatewayRimState(dx, dz, Math.max(3, edge)), 2);
-            } else if (edge == 2) {
-                for (int y = portalY - 3; y < surfaceY; y++) {
-                    int depth = surfaceY - y;
-                    BlockState lining = depth % 3 == 0
-                            ? Blocks.CHISELED_DEEPSLATE.defaultBlockState()
-                            : gatewayRimState(dx, dz, edge);
-                    level.setBlock(cursor.set(x, y, z), lining, 2);
-                }
-                level.setBlock(cursor.set(x, surfaceY, z),
-                        ((Math.abs(dx) == 2 && dz == 0) || (Math.abs(dz) == 2 && dx == 0))
-                                ? Asterion.ANCIENT_BRICK_SLAB.defaultBlockState()
-                                : Asterion.ANCIENT_BRICK_WALL.defaultBlockState(), 2);
-            } else {
-                level.setBlock(cursor.set(x, surfaceY - 1, z), gatewayRimState(dx, dz, edge), 2);
-                if (Math.abs(dx) == 4 && Math.abs(dz) == 4) {
-                    level.setBlock(cursor.set(x, surfaceY, z), Blocks.CHISELED_DEEPSLATE.defaultBlockState(), 2);
-                    level.setBlock(cursor.set(x, surfaceY + 1, z), Blocks.SOUL_LANTERN.defaultBlockState(), 2);
-                }
+            for (int y = portalY - 3; y < surfaceY; y++) {
+                BlockState state = edge == 2 || y == portalY - 3
+                        ? (Math.floorMod(surfaceY - y, 4) == 0 ? Asterion.SHADED_SHALE_BRICKS : Asterion.ANCIENT_STONE).defaultBlockState()
+                        : Blocks.AIR.defaultBlockState();
+                level.setBlock(cursor.set(centerX + dx, y, centerZ + dz), state, 2);
             }
         }
     }
@@ -755,26 +741,12 @@ public final class WorldGenerator {
         int x = horizontalTarget.getX();
         int z = horizontalTarget.getZ();
         level.getChunk(x >> 4, z >> 4);
-        int y = level.getHeight(Heightmap.Types.WORLD_SURFACE, x, z);
+        int y = net.krodark.asterion.worldgen.GatewayRuins.surface(level, x, z);
         int portalY = y - GATEWAY_PORTAL_DEPTH;
         GATEWAY_SURFACE_Y.put(level.getSeed(), portalY);
-        clearAboveGateway(level, x, y, z, 6);
+        clearAboveGateway(level, x, y, z, 8);
+        net.krodark.asterion.worldgen.GatewayRuins.build(level, x, y, z);
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
-        for (int dx = -6; dx <= 6; dx++) for (int dz = -6; dz <= 6; dz++) {
-            int edge = Math.max(Math.abs(dx), Math.abs(dz));
-            if (Math.abs(dx) + Math.abs(dz) > 10) continue;
-            if (edge >= 3 && edge <= 6)
-                level.setBlock(p.set(x + dx, y - 1, z + dz), gatewayRimState(dx, dz, edge), 2);
-            if (edge == 3) {
-                level.setBlock(p.set(x + dx, y, z + dz),
-                        ((Math.abs(dx) == 3 && dz == 0) || (Math.abs(dz) == 3 && dx == 0))
-                                ? Asterion.ANCIENT_BRICK_SLAB.defaultBlockState()
-                                : Asterion.ANCIENT_STONE_WALL.defaultBlockState(), 2);
-            } else if (Math.abs(dx) == 5 && Math.abs(dz) == 5) {
-                level.setBlock(p.set(x + dx, y, z + dz), Blocks.CHISELED_DEEPSLATE.defaultBlockState(), 2);
-                level.setBlock(p.set(x + dx, y + 1, z + dz), Blocks.SOUL_LANTERN.defaultBlockState(), 2);
-            }
-        }
         int shaftBottom = level.getMinY() + 5;
         for (int shaftY = y - 1; shaftY >= shaftBottom; shaftY--) for (int dx = -3; dx <= 3; dx++) for (int dz = -3; dz <= 3; dz++) {
             int edge = Math.max(Math.abs(dx), Math.abs(dz));
@@ -808,8 +780,8 @@ public final class WorldGenerator {
 
     private static BlockState gatewayRimState(int dx, int dz, int edgeDistance) {
         if (edgeDistance >= 3 && Math.floorMod(dx * 3 + dz * 5, 5) == 0)
-            return Blocks.CRACKED_DEEPSLATE_TILES.defaultBlockState();
-        if (Math.floorMod(dx - dz, 3) == 0) return Blocks.CHISELED_DEEPSLATE.defaultBlockState();
+            return Asterion.SHADED_SHALE_BRICKS.defaultBlockState();
+        if (Math.floorMod(dx - dz, 3) == 0) return Asterion.SHALE_BRICKS.defaultBlockState();
         return ((dx + dz) & 1) == 0 ? Asterion.ANCIENT_STONE.defaultBlockState()
                 : Asterion.ANCIENT_BRICKS.defaultBlockState();
     }
@@ -1121,7 +1093,7 @@ public final class WorldGenerator {
         net.krodark.asterion.worldgen.OmegaTreasure.reward(level);
         openArenaExit(level);
         for (ServerPlayer player : level.players()) {
-            player.sendSystemMessage(net.minecraft.network.chat.Component.translatable("message.asterion.omega_treasure"));
+            net.krodark.asterion.game.PlayerNotices.show(player, net.minecraft.network.chat.Component.translatable("message.asterion.omega_treasure"));
         }
     }
 
@@ -2935,7 +2907,7 @@ public final class WorldGenerator {
         return Asterion.ANCIENT_STONE;
     }
 
-    private static MazeBiomes.Biome mazeBiomeAt(long seed, int x, int z, int cell) {
+    public static MazeBiomes.Biome mazeBiomeAt(long seed, int x, int z, int cell) {
         MazeBiomes.Catalog catalog = MazeBiomes.current();
         int regionSize = cell * catalog.regionSizeCells();
         int regionX = Math.floorDiv(x, regionSize);

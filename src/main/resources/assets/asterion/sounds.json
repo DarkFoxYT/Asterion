@@ -1,31 +1,78 @@
 {
+  "respawn_obelisk_activate": {
+    "subtitle": "subtitles.asterion.respawn_obelisk_activate",
+    "sounds": ["asterion:sfx/misc/respawn_obelisk.activate"]
+  },
+  "respawn_obelisk_revive": {
+    "subtitle": "subtitles.asterion.respawn_obelisk_revive",
+    "sounds": ["asterion:sfx/misc/respawn_obelisk.revive"]
+  },
   "metal_hit_sound": {
     "subtitle": "subtitles.asterion.metal_hit",
-    "sounds": ["asterion:metal_hit_sound"]
+    "sounds": [
+      "asterion:metal_hit_sound"
+    ]
   },
   "minotaur_door_openclose": {
     "subtitle": "subtitles.asterion.minotaur_door_openclose",
-    "sounds": ["asterion:minotaur_door_openclose"]
+    "sounds": [
+      "asterion:minotaur_door_openclose"
+    ]
   },
   "minotaur_step": {
     "subtitle": "subtitles.asterion.minotaur_step",
-    "sounds": ["asterion:minotaur_step"]
+    "sounds": [
+      "asterion:minotaur_step"
+    ]
   },
   "cave_ambience": {
-    "sounds": [{"name": "asterion:ambiance/cave_ambiance", "stream": true}]
+    "sounds": [
+      {
+        "name": "asterion:ambiance/cave_ambiance",
+        "stream": true
+      }
+    ]
   },
   "maze_ambience": {
-    "sounds": [{"name": "asterion:ambiance/maze_amb", "stream": true}]
+    "sounds": [
+      {
+        "name": "asterion:ambiance/maze_amb",
+        "stream": true
+      }
+    ]
   },
   "minotaur_roar": {
     "subtitle": "subtitles.asterion.minotaur_roar",
     "sounds": [
-      {
-        "name": "asterion:roar_minator",
-        "type": "file",
-        "volume": 1.0,
-        "pitch": 1.0
-      }
+      "asterion:sfx/mino/minotaur.roar",
+      "asterion:sfx/mino/roar_minator"
+    ]
+  },
+  "minotaur_aggro": {
+    "subtitle": "subtitles.asterion.minotaur_aggro",
+    "sounds": [
+      "asterion:sfx/mino/minotaur.aggro"
+    ]
+  },
+  "minotaur_stagger": {
+    "subtitle": "subtitles.asterion.minotaur_stagger",
+    "sounds": [
+      "asterion:sfx/mino/minotaur.stagger_1",
+      "asterion:sfx/mino/minotaur.stagger_2"
+    ]
+  },
+  "minotaur_hurt_light": {
+    "subtitle": "subtitles.asterion.minotaur_hurt_light",
+    "sounds": [
+      "asterion:sfx/mino/minotaur.hurt_light_1",
+      "asterion:sfx/mino/minotaur.hurt_light_2"
+    ]
+  },
+  "minotaur_hurt_exposed": {
+    "subtitle": "subtitles.asterion.minotaur_hurt_exposed",
+    "sounds": [
+      "asterion:sfx/mino/minotaur.hurt_exposed_1",
+      "asterion:sfx/mino/minotaur.hurt_exposed_2"
     ]
   }
 }

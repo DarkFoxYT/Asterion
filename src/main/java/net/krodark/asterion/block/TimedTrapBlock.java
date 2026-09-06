@@ -37,7 +37,7 @@ public final class TimedTrapBlock extends BaseEntityBlock {
         if (!player.mayBuild()) return InteractionResult.PASS;
         if (!level.isClientSide() && level.getBlockEntity(pos) instanceof TimedTrapBlockEntity trap) {
             trap.setPeriodSeconds(Math.floorMod(trap.periodSeconds() - 1 + (player.isShiftKeyDown() ? -1 : 1), 60) + 1);
-            player.sendSystemMessage(net.minecraft.network.chat.Component.translatable("message.asterion.trap_period", trap.periodSeconds()));
+            net.krodark.asterion.game.PlayerNotices.show(player, net.minecraft.network.chat.Component.translatable("message.asterion.trap_period", trap.periodSeconds()));
         }
         return InteractionResult.SUCCESS;
     }

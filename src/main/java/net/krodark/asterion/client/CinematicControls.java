@@ -17,7 +17,9 @@ public final class CinematicControls {
         for (var key : new net.minecraft.client.KeyMapping[]{client.options.keyUp, client.options.keyDown,
                 client.options.keyLeft, client.options.keyRight, client.options.keyJump, client.options.keyShift,
                 client.options.keySprint, client.options.keyAttack, client.options.keyUse}) key.setDown(false);
-        client.player.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+        client.player.setDeltaMovement(DeadSunEntryCinematic.isActive()
+                ? new net.minecraft.world.phys.Vec3(0, client.player.getDeltaMovement().y, 0)
+                : net.minecraft.world.phys.Vec3.ZERO);
         client.player.setSprinting(false);
         client.player.setJumping(false);
     }

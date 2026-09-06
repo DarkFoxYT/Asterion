@@ -9,6 +9,7 @@ import net.krodark.asterion.GreekRune;
 import net.krodark.asterion.WorldGenerator;
 import net.krodark.asterion.block.RuneDoorBlock;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
@@ -140,6 +141,7 @@ public final class MazeNbtStructures {
         List<Placement> placements = new ArrayList<>();
         long seed = level.getChunkSource().randomState()
                 .getOrCreateRandomFactory(Asterion.id("maze_layout")).at(0, 0, 0).nextLong();
+        addQueenTrees(level, placements, seed, limit, cell, filter);
         for (int baseZ = margin; baseZ < size - margin; baseZ += spacing) {
             for (int baseX = margin; baseX < size - margin; baseX += spacing) {
                 long roll = mix(seed ^ (long) baseX * 0x9E3779B97F4A7C15L
@@ -176,6 +178,56 @@ public final class MazeNbtStructures {
         Layout layout = new Layout(placements);
         GENERATION_LAYOUTS.put(seed, layout);
         return layout;
+    }
+
+    private static final Identifier QUEEN_TREE = Asterion.id("tree_beetle");
+    private static final BlockPos QUEEN_MARKER = new BlockPos(37, 26, 27);
+
+    private static int placementFloor(Placement placement) {
+        return placement.box.minY() + (placement.id.equals(QUEEN_TREE) ? 25 : 0);
+    }
+
+    private static void addQueenTrees(ServerLevel level, List<Placement> placements, long seed,
+                                      int limit, int cell, ReservationFilter filter) {
+        var template = level.getStructureManager().get(QUEEN_TREE).orElseThrow();
+        var candidates = new ArrayList<BlockPos>();
+        int edge = Math.min(950, limit - 80);
+        for (int x = -edge; x <= edge; x += 32) for (int z = -edge; z <= edge; z += 32) {
+            long distance = (long)x * x + (long)z * z;
+            if (distance < 550L * 550 || distance > 950L * 950) continue;
+            boolean overgrown = true;
+            for (int dx : new int[]{-32, 0, 32}) for (int dz : new int[]{-38, 0, 38})
+                if (WorldGenerator.mazeBiomeAt(seed, x + dx, z + dz, cell).kind() != MazeBiomes.Kind.OVERGROWTH)
+                    overgrown = false;
+            if (overgrown) candidates.add(new BlockPos(x, 0, z));
+        }
+        candidates.sort(java.util.Comparator.comparingLong(p -> mix(seed ^ p.asLong())));
+        for (BlockPos center : candidates) {
+            var origin = new BlockPos(center.getX() - 28,
+                    WorldGenerator.mazeFloorHeight(seed, center.getX(), center.getZ()) - 25, center.getZ() - 33);
+            var settings = new StructurePlaceSettings().setIgnoreEntities(true);
+            var box = template.getBoundingBox(settings, origin);
+            var reserved = box.inflatedBy(5, 0, 5);
+            if (!filter.allow(Math.floorDiv(reserved.minX() + limit, cell), Math.floorDiv(reserved.minZ() + limit, cell),
+                    Math.floorDiv(reserved.maxX() + limit, cell), Math.floorDiv(reserved.maxZ() + limit, cell))) continue;
+            if (placements.stream().anyMatch(p -> p.reserved.inflatedBy(256, 0, 256).intersects(reserved))) continue;
+            placements.add(new Placement(QUEEN_TREE, template, origin, settings, box, reserved, mix(seed ^ center.asLong())));
+            if (placements.size() == 2) return;
+        }
+        Asterion.LOGGER.error("Only {} of two Queen trees fit the configured maze/overgrowth area", placements.size());
+    }
+
+    private static void spawnTreeQueen(ServerLevel level, Placement placement) {
+        if (!placement.id.equals(QUEEN_TREE)) return;
+        BlockPos pos = placement.origin.offset(QUEEN_MARKER);
+        if (!level.getBlockState(pos).is(Blocks.RED_WOOL))
+            throw new IllegalStateException("Queen tree lost its red wool marker at " + pos);
+        level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2);
+        var queen = Asterion.QUEEN_BEETLE.create(level, net.minecraft.world.entity.EntitySpawnReason.STRUCTURE);
+        if (queen == null) throw new IllegalStateException("Could not create tree Queen");
+        queen.setPos(pos.getX() + .5, pos.getY(), pos.getZ() + .5);
+        queen.setPersistenceRequired();
+        level.addFreshEntity(queen);
     }
 
     private static Catalog readCatalog(ServerLevel level) {
@@ -262,6 +314,15 @@ public final class MazeNbtStructures {
             }
         }
 
+        public BlockPos nearestQueenTree(Vec3 position) {
+            return placements.stream().filter(p -> p.id.equals(QUEEN_TREE))
+                    .map(p -> p.origin.offset(QUEEN_MARKER))
+                    .min(java.util.Comparator.comparingDouble(p -> {
+                        double dx = p.getX() - position.x, dz = p.getZ() - position.z;
+                        return dx * dx + dz * dz;
+                    })).orElse(null);
+        }
+
         public boolean reserved(int x, int z) {
             List<Placement> local = reservationsByChunk.get(ChunkPos.pack(x >> 4, z >> 4));
             if (local == null) return false;
@@ -275,7 +336,7 @@ public final class MazeNbtStructures {
             if (local == null) return fallback;
             for (Placement placement : local)
                 if (insideXZ(placement.box, x, z) || isApproach(placement, x, z))
-                    return placement.box.minY();
+                    return placementFloor(placement);
             return fallback;
         }
 
@@ -334,7 +395,8 @@ public final class MazeNbtStructures {
                 queued.remove(placement.origin);
                 return;
             }
-            sanitize(level, placement.box);
+            if (!placement.id.equals(QUEEN_TREE)) sanitize(level, placement.box);
+            spawnTreeQueen(level, placement);
             carveAccessibilityBridges(level, placement);
             configureSafeRoom(level, placement, true);
             cacheSafeCheckpoint(level, placement);
@@ -344,7 +406,7 @@ public final class MazeNbtStructures {
 
         // Rotated template doorways do not necessarily line up with the maze grid.
         private static void carveAccessibilityBridges(ServerLevel level, Placement placement) {
-            int floorY = placement.box.minY();
+            int floorY = placementFloor(placement);
             int centerX = (placement.box.minX() + placement.box.maxX()) / 2;
             int centerZ = (placement.box.minZ() + placement.box.maxZ()) / 2;
             boolean refuge = isSafeRoom(placement.id);
@@ -385,8 +447,8 @@ public final class MazeNbtStructures {
 
         /** Compatibility cleanup for chunks made before the reservation plan was available. */
         private static void preparePlacementArea(ServerLevel level, Placement placement) {
-            int floorY = placement.box.minY();
-            int top = placement.box.minY() + AsterionConfig.INSTANCE.wallHeight;
+            int floorY = placementFloor(placement);
+            int top = floorY + AsterionConfig.INSTANCE.wallHeight;
             int floorDepth = AsterionConfig.INSTANCE.floorThickness;
             BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
             for (int x = placement.reserved.minX(); x <= placement.reserved.maxX(); x++)

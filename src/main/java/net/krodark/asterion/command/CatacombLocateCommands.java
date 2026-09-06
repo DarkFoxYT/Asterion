@@ -24,6 +24,15 @@ public final class CatacombLocateCommands {
                     .then(Commands.literal("catacomb_brazier_room")
                             .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
                             .executes(command -> locateBrazierRoom(command.getSource()))));
+            dispatcher.register(Commands.literal("locate")
+                    .then(Commands.literal("structure")
+                            .then(Commands.literal("asterion:tree_beetle")
+                                    .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
+                                    .executes(command -> locateQueenTree(command.getSource())))));
+            dispatcher.register(Commands.literal("locate")
+                    .then(Commands.literal("tree_beetle")
+                            .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
+                            .executes(command -> locateQueenTree(command.getSource()))));
             // Keep the same locator available under the mod's command namespace too.
             dispatcher.register(Commands.literal("asterion")
                     .then(Commands.literal("locate")
@@ -31,6 +40,24 @@ public final class CatacombLocateCommands {
                             .then(Commands.literal("brazier_room")
                                     .executes(command -> locateBrazierRoom(command.getSource())))));
         });
+    }
+
+    private static int locateQueenTree(CommandSourceStack source) {
+        ServerLevel level = source.getServer().getLevel(Asterion.ASTERION_LEVEL);
+        if (level == null) {
+            source.sendFailure(Component.literal("The Asterion dimension is not available."));
+            return 0;
+        }
+        BlockPos target = net.krodark.asterion.WorldGenerator.nearestQueenTree(level, source.getPosition());
+        if (target == null) {
+            source.sendFailure(Component.literal("No Queen tree fits this world's maze and overgrowth settings."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("Nearest Queen Beetle tree: ")
+                .append(Component.literal("[" + target.getX() + " " + target.getY() + " " + target.getZ() + "]")
+                        .withStyle(ChatFormatting.GREEN))
+                .append(Component.literal(" in asterion:asterion_dimension")), false);
+        return Command.SINGLE_SUCCESS;
     }
 
     private static int locateBrazierRoom(CommandSourceStack source) {

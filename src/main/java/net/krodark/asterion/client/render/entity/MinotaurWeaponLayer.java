@@ -98,9 +98,9 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
             }
             if (name.equals("axe_grip")) MinotaurAxeVisual.captureHand(
                     posed.renderState().getGeckolibData(OWNER), poses, posed.cameraState());
-            if (name.equals("axe_grip"))
-                MinotaurAxeVisual.submitAligned(poses, tasks, posed.cameraState(), posed.packedLight(), 0);
-            else MinotaurAxeVisual.submit(poses, tasks, posed.cameraState(), posed.packedLight(), 0);
+            // The authored grip bone already contains the hand-space quarter-turn. Applying
+            // another Y rotation here turns the axe sideways by exactly 90 degrees.
+            MinotaurAxeVisual.submit(poses, tasks, posed.cameraState(), posed.packedLight(), 0);
             poses.popPose();
         }));
     }

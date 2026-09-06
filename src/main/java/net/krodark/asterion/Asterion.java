@@ -137,9 +137,15 @@ public class Asterion implements ModInitializer {
     private static final ResourceKey<Biome> FORGE_BIOME = ResourceKey.create(
             Registries.BIOME, id("forge"));
     public static final SoundEvent MINOTAUR_ROAR = registerSound("minotaur_roar");
+    public static final SoundEvent MINOTAUR_AGGRO = registerSound("minotaur_aggro");
+    public static final SoundEvent MINOTAUR_STAGGER = registerSound("minotaur_stagger");
+    public static final SoundEvent MINOTAUR_HURT_LIGHT = registerSound("minotaur_hurt_light");
+    public static final SoundEvent MINOTAUR_HURT_EXPOSED = registerSound("minotaur_hurt_exposed");
     public static final SoundEvent MINOTAUR_STEP = registerSound("minotaur_step");
     public static final SoundEvent MINOTAUR_DOOR_OPENCLOSE = registerSound("minotaur_door_openclose");
     public static final SoundEvent METAL_HIT = registerSound("metal_hit_sound");
+    public static final SoundEvent RESPAWN_OBELISK_ACTIVATE = registerSound("respawn_obelisk_activate");
+    public static final SoundEvent RESPAWN_OBELISK_REVIVE = registerSound("respawn_obelisk_revive");
 
     public static final Block ANCIENT_BRICKS = registerBlock("ancient_bricks", MapColor.COLOR_BROWN, Block::new);
     public static final Block ANCIENT_MOSSY_BRICKS = registerBlock(

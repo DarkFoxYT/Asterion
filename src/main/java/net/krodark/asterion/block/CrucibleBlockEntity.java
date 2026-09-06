@@ -319,7 +319,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             heatControl = 0;
         else if (action == CrucibleControlPayload.SMELT) {
             if (smeltBonesteel()) { changedAndSync(); open(player); }
-            else player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+            else net.krodark.asterion.game.PlayerNotices.show(player, net.minecraft.network.chat.Component.literal(
                     fuelTicks <= 0 ? "Place a lit heat source beneath the Forge's center." : hasUnsmeltedIngredients()
                             ? "Bonesteel needs Mazesteel, Ancient Bone and at least 350° heat."
                             : "Metals melt as they enter the Forge. Set the mold temperature, then press Smelt to cast."));
@@ -388,7 +388,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     private void pour(ServerPlayer player) {
         if (!calibrated() || materialUnits() == 0 || hasUnsmeltedIngredients() || !locationAllowsMold()) return;
         if (mold() == Mold.MINOTAUR_KEY && (materialUnits() != 1 || bonesteel != 1)) {
-            player.sendSystemMessage(Component.literal("The Minotaur Key requires exactly one pure Bonesteel ingot."));
+            net.krodark.asterion.game.PlayerNotices.show(player, Component.literal("The Minotaur Key requires exactly one pure Bonesteel ingot."));
             return;
         }
         if (mold() == Mold.INGOT && bonesteel == materialUnits()) {

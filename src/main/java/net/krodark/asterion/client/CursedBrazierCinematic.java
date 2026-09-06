@@ -89,8 +89,8 @@ public final class CursedBrazierCinematic {
         if (boss == null) return null;
 
         float time = ticks + partialTick;
-        float reveal = smooth(time / 40F);
-        float returning = smooth((time - (duration - 36F)) / 36F);
+        float reveal = smooth(time / 56F);
+        float returning = smooth((time - (duration - 44F)) / 44F);
         Vec3 focus = boss.getPosition(partialTick).add(0, boss.getBbHeight() * 0.55, 0);
         Vec3 fromBoss = (openingEye == null ? playerEye : openingEye).subtract(focus);
         Vec3 horizontal = new Vec3(fromBoss.x, 0, fromBoss.z);

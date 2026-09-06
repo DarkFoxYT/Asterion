@@ -14,6 +14,7 @@ public final class DeadSunEntryCinematic {
     private static Vec3 openingPosition;
     private static boolean active;
     private static int ticks;
+    private static boolean externalShot;
     private static float returnYaw;
     private static float returnPitch;
     private static CameraType previousCamera;
@@ -74,10 +75,13 @@ public final class DeadSunEntryCinematic {
         client.player.setDeltaMovement(0.0D, client.player.getDeltaMovement().y, 0.0D);
         if (client.options.getCameraType() != CameraType.FIRST_PERSON)
             client.options.setCameraType(CameraType.FIRST_PERSON);
-        if (++ticks >= END_TICKS) finish(client);
+        if (++ticks == 90) client.getSoundManager().play(
+                net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                        net.minecraft.sounds.SoundEvents.WARDEN_ROAR, .65F, 1.4F));
+        if (ticks >= END_TICKS) finish(client);
     }
 
-    private static void finish(Minecraft client) {
+    public static void finish(Minecraft client) {
         active = false;
         ticks = 0;
         if (previousCamera != null) client.options.setCameraType(previousCamera);
@@ -101,6 +105,7 @@ public final class DeadSunEntryCinematic {
     }
 
     public static boolean isActive() { return active; }
+    public static boolean showsPlayer() { return active && externalShot; }
 
     public static CameraPose cameraPose(Vec3 basePosition, float partialTick) {
         if (!active) return null;
@@ -119,31 +124,33 @@ public final class DeadSunEntryCinematic {
                 + Math.sin(progress * Math.PI) * 8.0D;
         Vec3 railPosition = new Vec3(anchor.x + Math.cos(angle) * radius,
                 height, anchor.z + Math.sin(angle) * radius);
-        // Reach the player's column above the walls before descending to first person.
-        float returnWeight = smoother(Mth.clamp((linear - 0.60F) / 0.18F, 0.0F, 1.0F));
-        float descent = smoother(Mth.clamp((linear - 0.78F) / 0.22F, 0.0F, 1.0F));
-        Vec3 position = railPosition.lerp(new Vec3(basePosition.x, height, basePosition.z), returnWeight);
-        position = new Vec3(position.x, Mth.lerp(descent, height, basePosition.y), position.z);
-        Vec3 localMaze = new Vec3(basePosition.x,
-                net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y, basePosition.z);
-        float sunFocus = smoother(Mth.clamp((linear - 0.08F) / 0.34F, 0.0F, 1.0F));
-        Vec3 focus = localMaze.lerp(sun.add(0.0D, -config.deadSunSize * 0.16D, 0.0D),
-                Mth.lerp(sunFocus, 0.60D, 0.94D));
+        // Overlapping horizontal and vertical motion makes one continuous, bankless dive.
+        // Most lateral travel finishes high above the walls; the last approach is almost vertical.
+        float dive = smoother((linear - .43F) / .57F);
+        double lateral = 1 - Math.pow(1 - dive, 4);
+        double downward = Math.pow(dive, 3);
+        Vec3 position = railPosition.lerp(new Vec3(basePosition.x, height, basePosition.z), lateral);
+        position = new Vec3(position.x, Mth.lerp(downward, height, basePosition.y), position.z);
+        // Establish the falling body, reveal the sun, then keep the player framed throughout the dive.
+        float sunReveal = smoother((linear - .10F) / .18F);
+        float playerFocus = smoother((linear - .43F) / .21F);
+        Vec3 focus = basePosition.add(0, -.7, 0).lerp(
+                sun.add(0, -config.deadSunSize * .16, 0), sunReveal * (1 - playerFocus));
         Vec3 delta = focus.subtract(position);
         double horizontal = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
         float shotYaw = (float)(Mth.atan2(delta.z, delta.x) * Mth.RAD_TO_DEG) - 90.0F;
         float shotPitch = (float)-(Mth.atan2(delta.y, horizontal) * Mth.RAD_TO_DEG);
-        float viewReturn = smoother(Mth.clamp((linear - 0.78F) / 0.22F, 0.0F, 1.0F));
+        float viewReturn = smoother(Mth.clamp((linear - 0.88F) / 0.12F, 0.0F, 1.0F));
         shotYaw = Mth.rotLerp(viewReturn, shotYaw, returnYaw);
         shotPitch = Mth.lerp(viewReturn, shotPitch, returnPitch);
-        float radiance = radianceStrength();
-        if (radiance > 0.001F) {
-            double shake = radiance * (0.018D * Math.sin(time * .43D)
-                    + 0.010D * Math.sin(time * .27D + 1.4D));
-            position = position.add(shake, shake * 0.42D, -shake * 0.76D);
-            shotYaw += (float)(shake * 0.34D);
-            shotPitch += (float)(shake * 0.20D);
-        }
+        // Coherent gusts build during acceleration and settle completely before control returns.
+        double wind = Math.sin(Math.PI * smoother((linear - .60F) / .40F));
+        double gust = wind * (.035 * Math.sin(time * .19) + .018 * Math.sin(time * .37));
+        if (position.y > net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y + config.wallHeight + 3)
+            position = position.add(gust, gust * .3, -gust * .6);
+        shotYaw += (float)(gust * 4 * (1 - viewReturn));
+        shotPitch += (float)(wind * .35 * Math.sin(time * .23) * (1 - viewReturn));
+        externalShot = position.distanceToSqr(basePosition) > 4;
         return new CameraPose(position, shotYaw, shotPitch);
     }
 

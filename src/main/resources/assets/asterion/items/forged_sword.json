@@ -3,10 +3,6 @@
     "type": "minecraft:composite",
     "models": [
       {
-        "type": "minecraft:model",
-        "model": "asterion:item/forged_sword_handle"
-      },
-      {
         "type": "minecraft:select",
         "property": "minecraft:custom_model_data",
         "index": 0,
@@ -15,12 +11,16 @@
             "when": "iron",
             "model": {
               "type": "minecraft:model",
-              "model": "asterion:item/forged_sword_blade_layer_iron",
+              "model": "asterion:item/forged_sword_base_iron",
               "tints": [
                 {
                   "type": "minecraft:custom_model_data",
                   "index": 0,
                   "default": -1
+                },
+                {
+                  "type": "minecraft:constant",
+                  "value": -1
                 }
               ]
             }
@@ -29,12 +29,16 @@
             "when": "copper",
             "model": {
               "type": "minecraft:model",
-              "model": "asterion:item/forged_sword_blade_layer_copper",
+              "model": "asterion:item/forged_sword_base_copper",
               "tints": [
                 {
                   "type": "minecraft:custom_model_data",
                   "index": 0,
                   "default": -1
+                },
+                {
+                  "type": "minecraft:constant",
+                  "value": -1
                 }
               ]
             }
@@ -43,12 +47,16 @@
             "when": "tarnished_gold",
             "model": {
               "type": "minecraft:model",
-              "model": "asterion:item/forged_sword_blade_layer_tarnished_gold",
+              "model": "asterion:item/forged_sword_base_tarnished_gold",
               "tints": [
                 {
                   "type": "minecraft:custom_model_data",
                   "index": 0,
                   "default": -1
+                },
+                {
+                  "type": "minecraft:constant",
+                  "value": -1
                 }
               ]
             }
@@ -57,12 +65,16 @@
             "when": "netherite",
             "model": {
               "type": "minecraft:model",
-              "model": "asterion:item/forged_sword_blade_layer_netherite",
+              "model": "asterion:item/forged_sword_base_netherite",
               "tints": [
                 {
                   "type": "minecraft:custom_model_data",
                   "index": 0,
                   "default": -1
+                },
+                {
+                  "type": "minecraft:constant",
+                  "value": -1
                 }
               ]
             }
@@ -71,12 +83,16 @@
             "when": "celestial_bronze",
             "model": {
               "type": "minecraft:model",
-              "model": "asterion:item/forged_sword_blade_layer_celestial_bronze",
+              "model": "asterion:item/forged_sword_base_celestial_bronze",
               "tints": [
                 {
                   "type": "minecraft:custom_model_data",
                   "index": 0,
                   "default": -1
+                },
+                {
+                  "type": "minecraft:constant",
+                  "value": -1
                 }
               ]
             }
@@ -85,12 +101,16 @@
             "when": "bone_steel",
             "model": {
               "type": "minecraft:model",
-              "model": "asterion:item/forged_sword_blade_layer_bone_steel",
+              "model": "asterion:item/forged_sword_base_bone_steel",
               "tints": [
                 {
                   "type": "minecraft:custom_model_data",
                   "index": 0,
                   "default": -1
+                },
+                {
+                  "type": "minecraft:constant",
+                  "value": -1
                 }
               ]
             }
@@ -99,12 +119,16 @@
             "when": "celestial_steel",
             "model": {
               "type": "minecraft:model",
-              "model": "asterion:item/forged_sword_blade_layer_celestial_steel",
+              "model": "asterion:item/forged_sword_base_celestial_steel",
               "tints": [
                 {
                   "type": "minecraft:custom_model_data",
                   "index": 0,
                   "default": -1
+                },
+                {
+                  "type": "minecraft:constant",
+                  "value": -1
                 }
               ]
             }
@@ -113,12 +137,16 @@
             "when": "celestial_gold",
             "model": {
               "type": "minecraft:model",
-              "model": "asterion:item/forged_sword_blade_layer_celestial_gold",
+              "model": "asterion:item/forged_sword_base_celestial_gold",
               "tints": [
                 {
                   "type": "minecraft:custom_model_data",
                   "index": 0,
                   "default": -1
+                },
+                {
+                  "type": "minecraft:constant",
+                  "value": -1
                 }
               ]
             }
@@ -127,12 +155,16 @@
             "when": "gold",
             "model": {
               "type": "minecraft:model",
-              "model": "asterion:item/forged_sword_blade_layer_gold",
+              "model": "asterion:item/forged_sword_base_gold",
               "tints": [
                 {
                   "type": "minecraft:custom_model_data",
                   "index": 0,
                   "default": -1
+                },
+                {
+                  "type": "minecraft:constant",
+                  "value": -1
                 }
               ]
             }
@@ -140,7 +172,7 @@
         ],
         "fallback": {
           "type": "minecraft:model",
-          "model": "asterion:item/forged_sword_blade_layer_iron"
+          "model": "asterion:item/forged_sword_base_iron"
         }
       },
       {

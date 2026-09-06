@@ -97,7 +97,7 @@ public final class BossEntranceCinematic {
         Vec3 doorShot = doorway.add(inward.scale(10.5 + recoil * 1.2)).add(0, 1.35 + recoil * .2, 0);
         // Ease across a longer dolly instead of snapping from the player's eyes to
         // the reveal angle during the first second of the sequence.
-        float approach = smootherStep(time / 64F);
+        float approach = smootherStep(time / 80F);
         Vec3 camera = (openingEye == null ? playerEye : openingEye).lerp(doorShot, approach);
         float impact = 0;
         for (int beat : IMPACT_BEATS) {
@@ -105,9 +105,9 @@ public final class BossEntranceCinematic {
             if (age >= 0 && age < 16) impact += (beat == 112 ? .15F
                     : beat == 78 ? .07F : .035F) * (float)Math.pow(Math.sin(Math.PI * age / 16F), 2);
         }
-        camera = camera.add(Math.sin(time * 2.7) * impact, Math.cos(time * 3.4) * impact * .65, 0);
+        camera = camera.add(Math.sin(time * .7) * impact, Math.cos(time * .9) * impact * .65, 0);
         Vec3 focus = doorway.add(inward.scale(1.2)).add(0, 3.15, 0);
-        float returning = smootherStep((time - (duration - 60)) / 60F);
+        float returning = smootherStep((time - (duration - 76)) / 76F);
         camera = camera.lerp(playerEye, returning);
         Vec3 delta = focus.subtract(camera);
         float yaw = (float)Math.toDegrees(Math.atan2(-delta.x, delta.z));

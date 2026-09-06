@@ -42,7 +42,7 @@ public final class ArenaDeathRecovery {
                 WorldGenerator.respawnAtRune(player,deathPosition);
                 player.setHealth(player.getMaxHealth());
                 player.invulnerableTime=60;
-                player.sendSystemMessage(Component.translatable("message.asterion.arena_revived"));
+                net.krodark.asterion.game.PlayerNotices.show(player, Component.translatable("message.asterion.arena_revived"));
             });
             return false;
         });

@@ -209,4 +209,8 @@ public abstract class CameraMixin {
         }
         return anchor;
     }
+    @Inject(method = "isDetached", at = @At("RETURN"), cancellable = true)
+    private void asterion$showFallingPlayer(org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Boolean> result) {
+        if (DeadSunEntryCinematic.showsPlayer()) result.setReturnValue(true);
+    }
 }

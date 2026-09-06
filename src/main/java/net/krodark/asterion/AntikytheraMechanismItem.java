@@ -55,15 +55,15 @@ public final class AntikytheraMechanismItem extends CompassItem {
             BlockPos bearing = BlockPos.containing(player.position().add(direction.scale(1_000_000.0D)));
             stack.set(DataComponents.LODESTONE_TRACKER, new LodestoneTracker(
                     Optional.of(GlobalPos.of(Asterion.ASTERION_LEVEL, bearing)), false));
-            serverPlayer.sendSystemMessage(Component.translatable("message.asterion.mechanism_bearing_locked"));
+            net.krodark.asterion.game.PlayerNotices.show(serverPlayer, Component.translatable("message.asterion.mechanism_bearing_locked"));
             return InteractionResult.SUCCESS;
         }
         boolean wasDormant = stack.get(DataComponents.LODESTONE_TRACKER) == null;
         bindToGateway(stack, serverLevel);
         if (wasDormant) {
-            serverPlayer.sendSystemMessage(Component.translatable("message.asterion.mechanism_awakened"));
+            net.krodark.asterion.game.PlayerNotices.show(serverPlayer, Component.translatable("message.asterion.mechanism_awakened"));
         } else {
-            serverPlayer.sendSystemMessage(Component.translatable("message.asterion.mechanism_points"));
+            net.krodark.asterion.game.PlayerNotices.show(serverPlayer, Component.translatable("message.asterion.mechanism_points"));
         }
         return InteractionResult.SUCCESS;
     }

@@ -232,8 +232,6 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private BossAttack attackBeforeLast = BossAttack.NONE;
     private final ServerBossEvent healthBossBar = new ServerBossEvent(UUID.randomUUID(),
             Component.literal("THE MINOTAUR"), BossEvent.BossBarColor.RED, BossEvent.BossBarOverlay.NOTCHED_10);
-    private final ServerBossEvent rageBossBar = new ServerBossEvent(UUID.randomUUID(),
-            Component.literal("RAGE"), BossEvent.BossBarColor.YELLOW, BossEvent.BossBarOverlay.NOTCHED_12);
     private Vec3 bossChargeDirection = Vec3.ZERO;
     private boolean bossChargeTargetsPillar;
     private Vec3 bossLeapTarget = Vec3.ZERO;
@@ -336,7 +334,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             var axe = server.getEntity(thrownAxe); if (axe != null) axe.discard();
         }
         if (level() instanceof ServerLevel level) clearBossFire(level);
-        healthBossBar.removeAllPlayers(); rageBossBar.removeAllPlayers(); discard();
+        healthBossBar.removeAllPlayers(); discard();
     }
     public String debugStatus() {
         var target = debugMode && eclipseTarget != null ? level().getPlayerByUUID(eclipseTarget) : getTarget();
@@ -754,7 +752,6 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                     getNavigation().stop();
                     setDeltaMovement(Vec3.ZERO);
                     healthBossBar.removeAllPlayers();
-                    rageBossBar.removeAllPlayers();
                     return;
                 }
             } else {
@@ -1094,7 +1091,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         setTarget(player);
         setAggressive(true);
         updateChaseSpeed();
-        playRoar(3.2F, 1.0F, 0.82F);
+        playSound(Asterion.MINOTAUR_AGGRO, 3.2F, 1.0F);
     }
 
     private void tickChase(ServerLevel level, ServerPlayer player) {
@@ -2014,27 +2011,19 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private void syncBossBars(ServerLevel level) {
         for (ServerPlayer old : java.util.List.copyOf(healthBossBar.getPlayers()))
             if (!old.isAlive() || old.isRemoved() || !level.players().contains(old)) healthBossBar.removePlayer(old);
-        for (ServerPlayer old : java.util.List.copyOf(rageBossBar.getPlayers()))
-            if (!old.isAlive() || old.isRemoved() || !level.players().contains(old)) rageBossBar.removePlayer(old);
         healthBossBar.setVisible(bossStage != BossStage.DEFEATED);
-        rageBossBar.setVisible(bossStage == BossStage.EXTREME);
         float healthProgress = bossStage == BossStage.PILLARS
                 ? WorldGenerator.bossPillarsRemaining()
                         / (float)Math.max(1, AsterionConfig.INSTANCE.minotaurBossPillarCount)
                 : bossStage == BossStage.COLLAPSE ? 0.0F : getHealth() / getMaxHealth();
         healthBossBar.setProgress(Mth.clamp(healthProgress, 0.0F, 1.0F));
-        rageBossBar.setProgress(Mth.clamp(rage() / 12.0F, 0.0F, 1.0F));
         for (ServerPlayer viewer : level.players()) {
             boolean show = WorldGenerator.isInsideBossArena(viewer.position())
                     && viewer.isAlive() && !viewer.isSpectator();
             if (show) {
                 if (!healthBossBar.getPlayers().contains(viewer)) healthBossBar.addPlayer(viewer);
-                if (bossStage == BossStage.EXTREME) {
-                    if (!rageBossBar.getPlayers().contains(viewer)) rageBossBar.addPlayer(viewer);
-                } else rageBossBar.removePlayer(viewer);
             } else {
                 healthBossBar.removePlayer(viewer);
-                rageBossBar.removePlayer(viewer);
             }
         }
     }
@@ -2358,7 +2347,6 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 || reason == Entity.RemovalReason.DISCARDED)) return;
         // Discard/unload/reset does not call the defeat sequence. Always retire this entity's bars.
         healthBossBar.removeAllPlayers();
-        rageBossBar.removeAllPlayers();
         if (!isDefeatedBoss() && (reason == Entity.RemovalReason.KILLED || reason == Entity.RemovalReason.DISCARDED)
                 && thrownAxe != null && level() instanceof ServerLevel server) {
             var axe = server.getEntity(thrownAxe); if (axe != null) axe.discard();
@@ -2369,7 +2357,6 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     @Override public void stopSeenByPlayer(ServerPlayer player) {
         super.stopSeenByPlayer(player);
         healthBossBar.removePlayer(player);
-        rageBossBar.removePlayer(player);
     }
 
     private void tickWorldAxe(ServerLevel level) {
@@ -4858,7 +4845,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             if (source.getEntity() instanceof ServerPlayer attacker)
                 reactToBossHit(level, attacker);
             if (bossStage == BossStage.PILLARS) {
-                playSound(SoundEvents.RAVAGER_HURT, 1.45F, 0.48F);
+                playSound(Asterion.MINOTAUR_HURT_LIGHT, 1.45F, 1.0F);
                 return true;
             }
             int[] pressure = playerHitPressure.computeIfAbsent(source.getEntity().getUUID(), ignored -> new int[2]);
@@ -4877,8 +4864,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 getNavigation().stop();
                 setDeltaMovement(Vec3.ZERO);
             }
-            playSound(SoundEvents.RAVAGER_HURT, exposed ? 2.8F : 1.65F,
-                    exposed ? 0.74F : 0.56F);
+            playSound(exposed ? Asterion.MINOTAUR_HURT_EXPOSED : Asterion.MINOTAUR_HURT_LIGHT,
+                    exposed ? 2.8F : 1.65F, 1.0F);
             level.sendParticles(ParticleTypes.CRIT, getX(), getY() + getBbHeight() * 0.62D, getZ(),
                     exposed ? 35 : 8, 1.0D, 1.2D, 1.0D, 0.18D);
             if (bossStage == BossStage.EXTREME && remaining <= 0.0F) beginDefeated(level);
@@ -4890,7 +4877,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         setHealth(getMaxHealth());
         if (behaviorPhase() == BehaviorPhase.HUNTING) beginWarning();
         if (behaviorPhase() == BehaviorPhase.WARNING || behaviorPhase() == BehaviorPhase.CHASING) {
-            playSound(SoundEvents.RAVAGER_HURT, 1.8F, Math.max(0.42F, 0.72F - rage() * 0.025F));
+            playSound(Asterion.MINOTAUR_HURT_LIGHT, 1.8F, 1.0F);
             if (source.getEntity() instanceof Player) {
                 repelDamage += Mth.ceil(amount);
                 if (repelThreshold > 0 && repelDamage >= repelThreshold) {
@@ -4906,7 +4893,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         float damage = Math.max(18.0F, getMaxHealth() * 0.075F);
         setHealth(Math.max(1.0F, getHealth() - damage));
         interruptRegeneration();
-        playSound(SoundEvents.RAVAGER_HURT, 3.0F, 0.42F);
+        playSound(Asterion.MINOTAUR_STAGGER, 3.0F, 1.0F);
         level.sendParticles(ParticleTypes.DAMAGE_INDICATOR, getX(), getY() + getBbHeight() * 0.62D,
                 getZ(), 18, 1.1D, 1.2D, 1.1D, 0.12D);
     }
@@ -4939,8 +4926,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         boolean counterGrab = distanceTo(attacker) <= 5.2D && attackCooldown <= 0
                 && random.nextFloat() < 0.72F;
         startHitBackoff(attacker, 11, counterGrab);
-        playSound(SoundEvents.RAVAGER_HURT, 2.0F,
-                Math.max(0.38F, 0.66F - rage() * 0.018F));
+        playSound(Asterion.MINOTAUR_HURT_LIGHT, 2.0F, 1.0F);
     }
 
     private void applyBossCollisionDamage(ServerLevel level, boolean pillar) {
@@ -5000,7 +4986,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             spawnAtLocation(server, new ItemStack(Asterion.SHADED_SHALE_CELESTIAL_GOLD_ORE, 1 + random.nextInt(2)));
             tool.hurtAndBreak(1, player, hand.asEquipmentSlot());
             server.playSound(null, blockPosition(), SoundEvents.SHEEP_SHEAR, net.minecraft.sounds.SoundSource.PLAYERS, 1F, .7F);
-            player.sendSystemMessage(Component.translatable("message.asterion.minotaur_harvest"));
+            net.krodark.asterion.game.PlayerNotices.show(player, Component.translatable("message.asterion.minotaur_harvest"));
         }
         return net.minecraft.world.InteractionResult.SUCCESS;
     }
@@ -5013,7 +4999,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if (!(level() instanceof ServerLevel server) || !isAlive() || !isDefeatedBoss() || !isHarvested()) return;
         ItemStack tool = player.getItemInHand(hand);
         if (!tool.is(net.minecraft.tags.ItemTags.SWORDS) && !tool.is(net.minecraft.tags.ItemTags.AXES)) {
-            player.sendSystemMessage(Component.translatable("message.asterion.minotaur_dismember_tool"));
+            net.krodark.asterion.game.PlayerNotices.show(player, Component.translatable("message.asterion.minotaur_dismember_tool"));
             return;
         }
         if (server.getGameTime() < nextDismemberTick) return;
@@ -5022,7 +5008,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if (part == null || part.removed(removed)) return;
         if (part == MinotaurRemains.TORSO && (removed & MinotaurRemains.LIMBS) != MinotaurRemains.LIMBS
                 || part == MinotaurRemains.HEAD && (removed & MinotaurRemains.BODY) != MinotaurRemains.BODY) {
-            player.sendSystemMessage(Component.translatable("message.asterion.minotaur_dismember_order"));
+            net.krodark.asterion.game.PlayerNotices.show(player, Component.translatable("message.asterion.minotaur_dismember_order"));
             return;
         }
         // Commit first: another player or repeated packet cannot harvest the same part twice.
@@ -5058,7 +5044,6 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         settleDefeatedPose(level);
         dropDeathWeapons(level);
         healthBossBar.removeAllPlayers();
-        rageBossBar.removeAllPlayers();
         playRoar(5.0F, 0.58F, 1.65F);
         WorldGenerator.beginBossFinale(level, this);
     }

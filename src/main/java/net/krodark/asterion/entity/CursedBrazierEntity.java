@@ -55,7 +55,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
             RawAnimation.begin().thenPlayAndHold("shoot_beam");
     private static final int TARGET_RANGE = 30;
     private static final int AWAKEN_RANGE = 23;
-    public static final int AWAKENING_DURATION = 64;
+    public static final int AWAKENING_DURATION = 112;
     private static final int ENCOUNTER_DOOR_RANGE = 32;
     private static final int SHIELD_BRAZIER_COUNT = 7;
     private static final int BRAZIER_SEARCH_RANGE = 30;
@@ -206,6 +206,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
             tickAwakening(level);
             return;
         }
+        tickBurningRubble(level);
         if (isInWater()) {
             setShielded(false);
             finishAttack(80);
@@ -310,7 +311,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
 
         setInvulnerable(false);
         setPhase(Phase.ACTIVE);
-        cooldown = 18;
+        cooldown = 36;
         level.playSound(null, blockPosition(), SoundEvents.BLAZE_SHOOT,
                 SoundSource.HOSTILE, 1.6F, 0.72F);
     }
@@ -432,9 +433,50 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         cooldown = Math.max(8, Math.round(recovery * (1F - aggression() * 0.42F))) + random.nextInt(5);
     }
 
+    private record BurningRubble(Vec3 position, Vec3 velocity, int age) {}
+    private final java.util.List<BurningRubble> burningRubble = new java.util.ArrayList<>();
+
+    private void launchBurningRubble(ServerLevel level, ServerPlayer target) {
+        for (Vec3 floor : jetPositions) {
+            if (burningRubble.size() >= 5) break;
+            Vec3 start = floor.add(0, .65, 0);
+            Vec3 delta = target.position().add(0, .7, 0).subtract(start);
+            double flight = Math.clamp(delta.horizontalDistance() / .65, 12, 28);
+            Vec3 velocity = new Vec3(delta.x / flight, delta.y / flight + .0275 * flight, delta.z / flight);
+            burningRubble.add(new BurningRubble(start, velocity, 0));
+            net.krodark.asterion.worldgen.ArenaDebris.queue(level, start, velocity, .55F);
+        }
+    }
+
+    private void tickBurningRubble(ServerLevel level) {
+        for (int i = burningRubble.size() - 1; i >= 0; i--) {
+            BurningRubble stone = burningRubble.get(i);
+            Vec3 next = stone.position.add(stone.velocity);
+            var hit = level.clip(new net.minecraft.world.level.ClipContext(stone.position, next,
+                    net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                    net.minecraft.world.level.ClipContext.Fluid.ANY, this));
+            if (hit.getType() != net.minecraft.world.phys.HitResult.Type.MISS || stone.age > 50) {
+                level.sendParticles(Asterion.GREEK_FIRE, hit.getLocation().x, hit.getLocation().y,
+                        hit.getLocation().z, 5, .2, .2, .2, .02);
+                burningRubble.remove(i);
+                continue;
+            }
+            AABB sweep = new AABB(stone.position, next).inflate(.35);
+            boolean struck = level.players().stream().anyMatch(p -> canFight(p) && p.getBoundingBox().intersects(sweep));
+            if (struck) {
+                damagePlayers(level, sweep, scaledDamage(6F), 30, false);
+                burningRubble.remove(i);
+                continue;
+            }
+            if ((stone.age & 1) == 0) level.sendParticles(Asterion.GREEK_FIRE, next.x, next.y, next.z, 2, .12, .12, .12, .01);
+            burningRubble.set(i, new BurningRubble(next, stone.velocity.add(0, -.055, 0), stone.age + 1));
+        }
+    }
+
     private void tickFloorJets(ServerLevel level, ServerPlayer target) {
         int tick = ++attackTicks;
         if (tick == 1) prepareFloorJets(level, target);
+        if (tick == 40) launchBurningRubble(level, target);
         if (tick <= 38 && tick % 5 == 0) {
             for (Vec3 position : jetPositions) {
                 level.sendParticles(new DustParticleOptions(0xFF170D, 1.15F),

@@ -174,8 +174,12 @@ tasks.named('processResources').configure {
                 firstperson_righthand: [rotation: [0, -90, 25], translation: [1.13, 3.2, 1.13], scale: [0.68, 0.68, 0.68]],
                 firstperson_lefthand: [rotation: [0, 90, -25], translation: [1.13, 3.2, 1.13], scale: [0.68, 0.68, 0.68]],
                 fixed: [rotation: [0, 180, 0], scale: [1, 1, 1]]]
-        def layeredModel = { String texture, int layer ->
-            if (layer == 0) return [parent: 'minecraft:item/generated',
+        def swordDisplay = generatedDisplay + [
+                thirdperson_righthand: [rotation: [0, -90, 55], translation: [0, 4, 0.5], scale: [0.85, 0.85, 0.85]],
+                thirdperson_lefthand: [rotation: [0, 90, -55], translation: [0, 4, 0.5], scale: [0.85, 0.85, 0.85]]]
+        def layeredModel = { String texture, int layer, boolean sword = false ->
+            def parent = sword ? 'asterion:item/forged_sword_layer' : 'minecraft:item/generated'
+            if (layer == 0) return [parent: parent,
                     textures: [particle: texture, layer0: texture]]
             // Generated item models do not reliably bake an isolated layer1/2/3. Use a
             // translucent plane slightly above the base instead, so every pour visibly
@@ -184,7 +188,7 @@ tasks.named('processResources').configure {
             // face or the depth buffer hides them and only the opaque base is visible.
             double grow = layer * 0.015D
             [ambientocclusion: false, gui_light: 'front', render_type: 'minecraft:translucent',
-             textures: [particle: texture, coating: texture], display: generatedDisplay,
+             textures: [particle: texture, coating: texture], display: sword ? swordDisplay : generatedDisplay,
              elements: [[from: [-grow, -grow, 7.49D - grow], to: [16D + grow, 16D + grow, 8.51D + grow],
                  // Opposite faces need opposite U winding. Reusing the same UV rectangle on
                  // both sides mirrors asymmetric forged textures around the Y axis.
@@ -207,7 +211,7 @@ tasks.named('processResources').configure {
                         texture = "asterion:item/forging_overlay/${material}/${textureName}"
                     }
                     file("${modelDir}/forge_${material}_${part}${suffix}_layer${layer}.json").text =
-                            groovy.json.JsonOutput.toJson(layeredModel(texture, layer))
+                            groovy.json.JsonOutput.toJson(layeredModel(texture, layer, suffix == ''))
                 }
             }
         }}
@@ -225,8 +229,8 @@ tasks.named('processResources').configure {
             file("${itemDir}/forged_sword_${part}.json").text = groovy.json.JsonOutput.toJson(
                     [model: [type: 'minecraft:composite', models: layers]])
         }
-        // The regular stick is the physical grip beneath the three forged components.
-        def swordLayers = [[type: 'minecraft:model', model: 'minecraft:item/stick']]
+        // Grip and every component/coating share the handheld sword transform.
+        def swordLayers = [[type: 'minecraft:model', model: 'asterion:item/forged_sword_handle']]
         parts.eachWithIndex { part, partIndex ->
             (0..<4).each { layer ->
                 int index = partIndex * 4 + layer
@@ -418,7 +422,15 @@ def clientGameTests = [
         [run: "LamenterTest", folder: "lamenter-testmod", id: "asterion_lamenter_test",
          classes: ["net.krodark.asterion.dev.verification.LamenterGameTest"]],
         [run: "CatacombTest", folder: "catacomb-testmod", id: "asterion_catacomb_test",
-         classes: providers.gradleProperty("manualForgeOnly").isPresent()
+         classes: providers.gradleProperty("cinematicPreviewOnly").isPresent()
+                   ? ["net.krodark.asterion.dev.verification.CinematicPreviewGameTest"]
+                   : providers.gradleProperty("gatewayRuinsOnly").isPresent()
+                   ? ["net.krodark.asterion.dev.verification.GatewayRuinsGameTest"]
+                   : providers.gradleProperty("queenTreeOnly").isPresent()
+                   ? ["net.krodark.asterion.dev.verification.QueenTreeGameTest"]
+                   : providers.gradleProperty("forgedPoseOnly").isPresent()
+                   ? ["net.krodark.asterion.dev.verification.ForgedPoseGameTest"]
+                   : providers.gradleProperty("manualForgeOnly").isPresent()
                    ? ["net.krodark.asterion.dev.verification.ManualForgeGameTest"]
                    : providers.gradleProperty("cavernOnly").isPresent()
                    ? ["net.krodark.asterion.dev.verification.CavernGameTest"]

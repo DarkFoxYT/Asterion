@@ -83,7 +83,7 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
         }
         if (!unlocked) {
             if (!held.is(Asterion.MINOTAUR_KEY) && !player.isCreative()) {
-                player.sendSystemMessage(Component.translatable("message.asterion.minotaur_door_locked"));
+                net.krodark.asterion.game.PlayerNotices.show(player, Component.translatable("message.asterion.minotaur_door_locked"));
                 level.playSound(null, worldPosition, SoundEvents.CHAIN_HIT, SoundSource.BLOCKS, .5F, .6F);
                 return;
             }

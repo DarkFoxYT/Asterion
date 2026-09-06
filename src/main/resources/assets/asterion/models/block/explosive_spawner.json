@@ -1,8 +1,8 @@
 {
   "parent": "minecraft:block/cube_bottom_top",
   "textures": {
-    "top": "minecraft:block/tnt_top",
-    "side": "minecraft:block/trial_spawner_side_active_ominous",
-    "bottom": "minecraft:block/trial_spawner_bottom"
+    "top": "asterion:block/spawner_top",
+    "side": "asterion:block/spawner_sides",
+    "bottom": "asterion:block/spawner_top"
   }
 }

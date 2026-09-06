@@ -43,8 +43,6 @@ final class MinotaurRageCheck {
             call(boss,"tickBrazierRage",new Class[]{ServerLevel.class},level);
             check(WorldGenerator.activeBossBraziers(level)==4 && boss.rage()==5,"Relighting did not gradually restore rage");
             call(boss,"syncBossBars",new Class[]{ServerLevel.class},level);
-            var bar=(net.minecraft.server.level.ServerBossEvent)field(boss,"rageBossBar");
-            check(!bar.isVisible() && bar.getPlayers().isEmpty(),"Phase-one rage bar leaked");
             var stage=MinotaurEntity.class.getDeclaredField("bossStage");stage.setAccessible(true);
             stage.set(boss,Enum.valueOf((Class)stage.getType(),"EXTREME"));
             call(boss,"setRage",new Class[]{int.class},0);
@@ -71,7 +69,7 @@ final class MinotaurRageCheck {
             check(fragments.size()==32 && quadrants.size()==4,"Roof debris is not distributed across every quadrant");
             check(fragments.stream().allMatch(fragment -> fragment.scale() >= 1.25F),
                     "Roof collapse did not use heavy rubble pieces");
-            Asterion.LOGGER.info("PASS: roar frame 60, once-only combat roar, hidden phase-one rage, brazier weakening/timed relight and maximum phase-two rage");
+            Asterion.LOGGER.info("PASS: roar frame 60, once-only combat roar, brazier weakening/timed relight and maximum phase-two rage");
             Asterion.LOGGER.info("PASS: submerged braziers stay extinguished and bounded roof debris covers all quadrants");
         } catch(ReflectiveOperationException error) { throw new AssertionError(error); }
         finally { saved.forEach((pos,state)->level.setBlock(pos,state,2));boss.discard(); }
