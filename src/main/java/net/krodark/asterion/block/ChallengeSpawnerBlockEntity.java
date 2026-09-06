@@ -66,9 +66,8 @@ public final class ChallengeSpawnerBlockEntity extends BlockEntity {
         if (spawner.mobs.isEmpty()) {
             spawner.complete = true;
             spawner.removeLabel(level);
-            Block.popResource(level, pos.above(), new ItemStack(Asterion.SHALE_TARNISHED_GOLD_ORE, 3 + level.getRandom().nextInt(4)));
-            if (level.getRandom().nextInt(100) == 0)
-                Block.popResource(level, pos.above(), new ItemStack(net.krodark.asterion.game.AncientContent.ANCIENT_BONE));
+            dropRewards(level, pos);
+
             ExperienceOrb.award(level, pos.getCenter().add(0, 1, 0), 20);
         } else if (explosive) {
             if (--spawner.remaining <= 0) {
@@ -91,8 +90,31 @@ public final class ChallengeSpawnerBlockEntity extends BlockEntity {
         if (label != null && level.getEntity(label) != null) level.getEntity(label).discard();
         label = null;
     }
+    private static void dropRewards(ServerLevel level, BlockPos pos) {
+        var random = level.getRandom();
+        Block.popResource(level, pos.above(), new ItemStack(Asterion.SHALE_TARNISHED_GOLD_ORE, 3 + random.nextInt(4)));
+        ItemStack reward = switch (random.nextInt(17)) {
+            case 0 -> new ItemStack(Items.GOLDEN_APPLE);
+            case 1 -> new ItemStack(Items.GOLDEN_CARROT, 2 + random.nextInt(3));
+            case 2 -> net.minecraft.world.item.alchemy.PotionContents.createItemStack(Items.POTION, net.minecraft.world.item.alchemy.Potions.SWIFTNESS);
+            case 3 -> net.minecraft.world.item.alchemy.PotionContents.createItemStack(Items.POTION, net.minecraft.world.item.alchemy.Potions.FIRE_RESISTANCE);
+            case 4 -> new ItemStack(Items.TORCH, 8 + random.nextInt(9));
+            case 5 -> new ItemStack(Items.IRON_INGOT, 2 + random.nextInt(4));
+            case 6 -> new ItemStack(Asterion.CELESTIAL_GOLD_INGOT);
+            case 7 -> new ItemStack(Items.COAL, 3 + random.nextInt(5));
+            case 8 -> new ItemStack(Items.APPLE, 2 + random.nextInt(4));
+            case 9 -> new ItemStack(Items.COOKED_BEEF, 3 + random.nextInt(5));
+            case 10 -> new ItemStack(Asterion.RUNE_TABLETS[random.nextInt(Asterion.RUNE_TABLETS.length)]);
+            case 11 -> new ItemStack(Items.DIAMOND);
+            default -> new ItemStack(Asterion.SHALE_CELESTIAL_GOLD_ORE, 1 + random.nextInt(2));
+        };
+        Block.popResource(level, pos.above(), reward);
+        if (random.nextInt(100) == 0) Block.popResource(level, pos.above(), new ItemStack(net.krodark.asterion.game.AncientContent.ANCIENT_BONE));
+    }
+
     @Override public void preRemoveSideEffects(BlockPos pos, BlockState state) {
         if (level instanceof ServerLevel server) removeLabel(server);
         super.preRemoveSideEffects(pos, state);
     }
 }
+

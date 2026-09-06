@@ -46,7 +46,7 @@ public final class AuthoredForge {
     private static final Map<ServerLevel, Map<Integer, Layout>> VARIANTS = new WeakHashMap<>();
     public static final List<String> PIECES = List.of(
             "forge", "t_junction_1", "t_junction_2", "t_junction_3",
-            "corner_1", "corner_2", "hallway_1", "hallway_2", "gold_reserves");
+            "corner_1", "corner_2", "hallway_1", "hallway_2", "hallway_3", "t_junction_4", "gold_reserves");
     public static final Identifier DOOR = Identifier.fromNamespaceAndPath("asterion", "catacombs/door");
     private static final Map<ServerLevel, Map<Long, Layout>> LAYOUTS = new WeakHashMap<>();
     private static final Map<ServerLevel, java.util.ArrayDeque<PendingChunk>> REPAIRS = new WeakHashMap<>();

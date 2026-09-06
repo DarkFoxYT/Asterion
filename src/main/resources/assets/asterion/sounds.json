@@ -23,6 +23,12 @@
       "asterion:minotaur_door_openclose"
     ]
   },
+  "minotaur_door_bang": {
+    "subtitle": "subtitles.asterion.minotaur_door_bang",
+    "sounds": [
+      "asterion:sfx/mino/minotaur.door_bang"
+    ]
+  },
   "minotaur_step": {
     "subtitle": "subtitles.asterion.minotaur_step",
     "sounds": [

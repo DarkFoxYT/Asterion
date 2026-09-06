@@ -1,10 +1,18 @@
 {
-  "spacing_cells": 8,
-  "padding_blocks": 5,
+  "spacing_cells": 14,
+  "padding_blocks": 8,
   "chance": 0.9,
   "templates": [
     {
-      "template": "asterion:safe_room",
+      "template": "asterion:safe_room_1",
+      "weight": 21
+    },
+    {
+      "template": "asterion:safe_room_2",
+      "weight": 21
+    },
+    {
+      "template": "asterion:safe_room_3",
       "weight": 21
     },
     {
@@ -22,6 +30,10 @@
     {
       "template": "asterion:ruins/courtyard",
       "weight": 2
+    },
+    {
+      "template": "asterion:ruined_safe_room_1",
+      "weight": 12
     }
   ]
 }
