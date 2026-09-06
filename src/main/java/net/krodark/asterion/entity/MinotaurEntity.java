@@ -1558,6 +1558,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             if (!(level().getBlockEntity(entryDoor) instanceof net.krodark.asterion.block.MinotaurDoorBlockEntity)) return;
         }
         doorEntryStarted = true;
+        noPhysics = true;
          
         Vec3 behind = Vec3.atBottomCenterOf(entryDoor)
                 .add(entryFacing.getUnitVec3().scale(Math.max(5.5, getBbWidth() * .5 + 3.5)))
@@ -1606,6 +1607,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
              
             net.krodark.asterion.block.MinotaurDoorBlock.removeDoor(level, entryDoor, entryFacing);
             getEntityData().set(DATA_DOOR_ENTRY_TICKS, 0);
+            noPhysics = false;
              
              
             bossAttackCooldown = Math.max(40,
