@@ -49,6 +49,9 @@ final class AncientBoneCheck {
                 level.setBlockEntity(forge);
                 check(forge.materialUnits() == 2 && forge.hasUnsmeltedIngredients(), "Unsmelted ingredients lost on reload");
                 for (int tick = 0; tick < 250; tick++) { heat.setInt(forge, 350); CrucibleBlockEntity.tick(level, pos, forge.getBlockState(), forge); }
+                check(dropped(level, pos, Asterion.BONESTEEL_INGOT) == 0 && forge.hasUnsmeltedIngredients(),
+                        "Forge smelted without a button press");
+                forge.control(player, CrucibleControlPayload.POUR);
                 check(dropped(level, pos, Asterion.BONESTEEL_INGOT) == 1 && forge.materialUnits() == 0,
                         "Pair did not eject one Bonesteel ingot");
                 forge.control(player, CrucibleControlPayload.POUR);

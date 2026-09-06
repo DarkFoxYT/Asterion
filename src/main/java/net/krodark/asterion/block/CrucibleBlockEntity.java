@@ -33,7 +33,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     public static final int MIN_HEAT_CONTROL = -20;
     public static final int MAX_HEAT_CONTROL = 20;
     public static final int TOLERANCE = 12;
-    /** Twelve controlled seconds in the mold's heat band completes the pour. */
+    /** Retained for decoding progress from older saves and clients. */
     public static final int AUTO_POUR_TICKS = 240;
     private int temperature;
     private int heatControl;
@@ -322,10 +322,11 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             else player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
                     fuelTicks <= 0 ? "Place a lit heat source beneath the Forge's center." : hasUnsmeltedIngredients()
                             ? "Bonesteel needs Mazesteel, Ancient Bone and at least 350° heat."
-                            : "Metals melt as they enter the Forge. Hold the mold temperature to cast."));
+                            : "Metals melt as they enter the Forge. Set the mold temperature, then press Smelt to cast."));
             return;
         }
         else if (action == CrucibleControlPayload.POUR) {
+            if (calibrated() && locationAllowsMold() && smeltBonesteel()) changedAndSync();
             pour(player);
             return;
         }
@@ -651,21 +652,9 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
                 changed = true;
             }
         }
-        if (crucible.smeltBonesteel()) changed = true;
-        if (crucible.calibrated() && crucible.fuelTicks > 0 && crucible.materialUnits() > 0 && crucible.pouringTicks == 0
-                && !crucible.hasUnsmeltedIngredients()
-                && crucible.locationAllowsMold()) {
-            crucible.autoPourTicks++;
-            changed = true;
-            if (crucible.autoPourTicks >= AUTO_POUR_TICKS
-                    && level instanceof net.minecraft.server.level.ServerLevel server) {
-                net.minecraft.world.entity.player.Player nearest = server.getNearestPlayer(
-                        pos.getX() + .5D, pos.getY() + .5D, pos.getZ() + .5D, 8D, false);
-                if (nearest instanceof ServerPlayer player) crucible.pour(player);
-                crucible.autoPourTicks = 0;
-            }
-        } else if (crucible.autoPourTicks != 0) {
-            crucible.autoPourTicks = Math.max(0, crucible.autoPourTicks - 3);
+        // Legacy progress must never finish a cast after loading an older save.
+        if (crucible.autoPourTicks != 0) {
+            crucible.autoPourTicks = 0;
             changed = true;
         }
         // Do not broadcast every idle crucible every tick (fuelTicks == 0 also satisfies

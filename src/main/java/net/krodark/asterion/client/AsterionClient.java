@@ -1,6 +1,5 @@
 package net.krodark.asterion.client;
 
-import com.meekdev.amnetic.client.emissive.BlockEmissive;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -45,10 +44,6 @@ public final class AsterionClient implements ClientModInitializer {
         net.krodark.asterion.dev.EssentialLaunchSmokeTest.install();
         net.krodark.asterion.client.render.HeavyWaterRendering.initialize();
         AsterionEmissiveConfig.load();
-        // Capture luminous baked block geometry in Amnetic's depth-tested bloom pass.
-        // A matching `<texture>_e` sprite controls exactly which texels emit.
-        BlockEmissive.enable();
-        BlockEmissive.intensity(1.35F);
         AsterionEmissiveParticles.initialize();
         AnimatedEmissiveParticle.initialize();
         AsterionPostEffects.register();

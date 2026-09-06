@@ -1,1 +1,1 @@
-{"parent":"minecraft:item/generated","textures":{"layer0":"asterion:forging/celestial_steel/celestial_steel_ingot"}}
+{"parent":"minecraft:item/generated","textures":{"layer0":"asterion:item/celestial_steel_ingot"}}

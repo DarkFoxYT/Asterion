@@ -40,13 +40,11 @@ public final class ForgedSwordRecipe extends CustomRecipe {
         int damageRating = weighted(parts, "damage_rating", 10);
         int speedRating = weighted(parts, "speed_rating", 8);
         int durabilityRating = weighted(parts, "durability_rating", 10);
-        // These are real item attributes. Celestial alloys trade upward across all
-        // three axes, while rare Bonesteel is deliberately the uncapped apex tier.
-        double damage = Math.clamp(2D + damageRating * .55D + edge * .12D + 1D, 4D, 22D);
-        double attackSpeed = Math.clamp(.75D + speedRating * .055D - weight * .018D
-                + .15D, 1.0D, 2.15D);
-        int durability = Math.clamp(180 + durabilityRating * 95 + hardness * 30 + 400,
-                250, 4000);
+        // Bonesteel leads damage and endurance; celestial gold keeps its speed advantage.
+        double damage = Math.clamp(2D + damageRating * .45D + edge * .10D, 4D, 18D);
+        double attackSpeed = Math.clamp(1.25D + speedRating * .025D - weight * .012D, 1.1D, 1.8D);
+        int durability = Math.clamp(200 + durabilityRating * 65 + hardness * 15,
+                250, 3000);
 
         ItemStack result = new ItemStack(Asterion.FORGED_SWORD);
         result.set(DataComponents.MAX_DAMAGE, durability);
