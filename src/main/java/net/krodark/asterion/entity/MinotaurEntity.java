@@ -2065,7 +2065,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 || player.position().subtract(position()).horizontalDistance() <= 3.2D);
     }
 
-    public int heldPlayerId() { return getEntityData().get(DATA_HELD_PLAYER); }
+    public int heldPlayerId() { return isDefeatedBoss() || !isAlive() || isRemoved() ? -1 : getEntityData().get(DATA_HELD_PLAYER); }
 
     private boolean nearThrowWall(ServerPlayer player) {
         return throwWallImpact != null && player.position().distanceToSqr(throwWallImpact) < 16;
@@ -2078,7 +2078,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
     public static boolean controlsPlayer(Entity player) {
         return !player.level().getEntitiesOfClass(MinotaurEntity.class, player.getBoundingBox().inflate(96),
-                boss -> boss.isAlive() && (boss.heldPlayerId() == player.getId()
+                boss -> boss.isAlive() && !boss.isDefeatedBoss() && !boss.isRemoved() && (boss.heldPlayerId() == player.getId()
                         || player.getUUID().equals(boss.thrownPlayer)
                         || (boss.bossAttack == BossAttack.WALL_SHOVE && boss.wallPinTicks > 0
                             && player.getUUID().equals(boss.wallComboTarget)))).isEmpty();
@@ -2484,6 +2484,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     @Override public void remove(Entity.RemovalReason reason) {
+        releaseControlledPlayers();
         if (isDefeatedBoss() && removedParts() != MinotaurRemains.ALL && (reason == Entity.RemovalReason.KILLED
                 || reason == Entity.RemovalReason.DISCARDED)) return;
          
@@ -2493,6 +2494,39 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             var axe = server.getEntity(thrownAxe); if (axe != null) axe.discard();
         }
         super.remove(reason);
+    }
+
+    @Override public void die(DamageSource source) {
+        releaseControlledPlayers();
+        super.die(source);
+    }
+
+    private void releaseControlledPlayers() {
+        if (!(level() instanceof ServerLevel server)) return;
+        Set<UUID> released = new HashSet<>();
+        if (grabbedPlayer != null) released.add(grabbedPlayer);
+        if (thrownPlayer != null) released.add(thrownPlayer);
+        if (wallPinTicks > 0 && wallComboTarget != null) released.add(wallComboTarget);
+        var held = server.getEntity(getEntityData().get(DATA_HELD_PLAYER));
+        if (held instanceof ServerPlayer player) released.add(player.getUUID());
+        // Clear ownership before sending recovery packets: a corpse must never retain a hand lock.
+        grabbedPlayer = thrownPlayer = chainGrappleTarget = wallComboTarget = null;
+        grapplePull = hornKnockback = throwPursuitPending = false;
+        wallPinTicks = throwFlightTicks = wallComboWindow = 0;
+        wallPinPoint = throwWallImpact = null;
+        throwVelocity = Vec3.ZERO;
+        getEntityData().set(DATA_HELD_PLAYER, -1);
+        getEntityData().set(DATA_GRAB_TARGET_ID, -1);
+        clearLockedReach();
+        for (UUID id : released) {
+            var player = server.getServer().getPlayerList().getPlayer(id);
+            if (player == null || player.level() != server) continue;
+            RagdollServerNetworking.finishRagdoll(player);
+            player.setDeltaMovement(Vec3.ZERO);
+            player.resetFallDistance();
+            RagdollServerNetworking.suppressThrowFallDamage(player, 100);
+            RagdollServerNetworking.forceAuthority(player, Vec3.ZERO);
+        }
     }
 
     @Override public void stopSeenByPlayer(ServerPlayer player) {
@@ -5227,6 +5261,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     private void beginDefeated(ServerLevel level) {
+        releaseControlledPlayers();
         setBossStage(BossStage.DEFEATED);
         setBossAttack(BossAttack.NONE);
         setAggressive(false);
