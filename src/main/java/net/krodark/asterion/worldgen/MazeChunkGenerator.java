@@ -64,6 +64,7 @@ public final class MazeChunkGenerator extends net.minecraft.world.level.chunk.Ch
         AuthoredCatacombs.place(world, chunk.getPos());
         AuthoredForge.place(world, chunk.getPos());
         ForgeDepths.carveAccess(world, chunk.getPos());
+        ZoneRunePlacement.markCatacombsPlaced(chunk);
     }
 
     @Override public void spawnOriginalMobs(net.minecraft.server.level.WorldGenRegion region) { flat.spawnOriginalMobs(region); }

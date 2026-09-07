@@ -76,6 +76,16 @@ public final class ZoneRunePlacement {
     }
     private static final java.util.Map<ServerLevel, java.util.Map<ChunkPos, int[]>> GENERATING = new java.util.IdentityHashMap<>();
 
+    private static BlockPos catacombsMarker(ChunkPos pos) {
+        return new BlockPos(pos.getMinBlockX() + 3, 0, pos.getMinBlockZ());
+    }
+
+    public static void markCatacombsPlaced(net.minecraft.world.level.chunk.ChunkAccess chunk) {
+        chunk.setBlockState(catacombsMarker(chunk.getPos()), Blocks.LIGHT.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 0), 0);
+        chunk.markUnsaved();
+    }
+
     public static void tick(ServerLevel level) {
         long deadline = System.nanoTime() + 4_000_000L;
         if (!level.players().isEmpty()) prepareStructures(level);
@@ -182,7 +192,11 @@ public final class ZoneRunePlacement {
         var progress = GENERATING.computeIfAbsent(level, ignored -> new java.util.HashMap<>());
         int[] stage = progress.get(cp);
         if (stage == null) {
-            AuthoredCatacombs.place(level, cp);
+            if (!chunk.getBlockState(catacombsMarker(cp)).equals(Blocks.LIGHT.defaultBlockState()
+                    .setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 0))) {
+                AuthoredCatacombs.place(level, cp);
+                markCatacombsPlaced(chunk);
+            }
             progress.put(cp, new int[2]);
             return null;
         }

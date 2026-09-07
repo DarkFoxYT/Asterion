@@ -45,6 +45,12 @@ public final class ShaleCaves {
                 (.7 + unit(seed ^ 991, x, z) * .7) / Math.sqrt(scale));
     }
 
+    private static Chamber chamber(long seed, int x, int z, java.util.Map<Long, Chamber> chambers) {
+        if (chambers == null) return chamber(seed, x, z);
+        long key = net.minecraft.world.level.ChunkPos.pack(x, z);
+        return chambers.computeIfAbsent(key, ignored -> chamber(seed, x, z));
+    }
+
     private static double passage(double x, double z, double ax, double az, double bx, double bz) {
         double vx = bx - ax, vz = bz - az;
         double t = Math.clamp(((x - ax) * vx + (z - az) * vz) / Math.max(1, vx * vx + vz * vz), 0, 1);
@@ -57,6 +63,10 @@ public final class ShaleCaves {
     }
 
     private static Column column(long seed, int x, int z) {
+        return column(seed, x, z, null);
+    }
+
+    private static Column column(long seed, int x, int z, java.util.Map<Long, Chamber> chambers) {
         double wx = x + (noise(seed ^ 41, x / 38.0, z / 38.0) - .5) * 10;
         double wz = z + (noise(seed ^ 87, x / 43.0, z / 43.0) - .5) * 10;
         int gx = (int)Math.floor(wx / 64), gz = (int)Math.floor(wz / 64);
@@ -64,11 +74,11 @@ public final class ShaleCaves {
         Chamber closest = null;
         double width = 2.2 + noise(seed ^ 619, x / 27.0, z / 27.0) * 5.5;
         for (int cx = gx - 1; cx <= gx + 1; cx++) for (int cz = gz - 1; cz <= gz + 1; cz++) {
-            Chamber room = chamber(seed, cx, cz);
+            Chamber room = chamber(seed, cx, cz, chambers);
             double distance = Math.hypot(wx - room.x, (wz - room.z) * room.stretch);
             if (distance < nearest) { nearest = distance; closest = room; }
             clearance = Math.max(clearance, room.radius - distance);
-            Chamber east = chamber(seed, cx + 1, cz), south = chamber(seed, cx, cz + 1);
+            Chamber east = chamber(seed, cx + 1, cz, chambers), south = chamber(seed, cx, cz + 1, chambers);
             clearance = Math.max(clearance, width - passage(wx, wz, room.x, room.z, east.x, east.z));
             clearance = Math.max(clearance, width - passage(wx, wz, room.x, room.z, south.x, south.z));
              
@@ -76,7 +86,7 @@ public final class ShaleCaves {
             long branch = CatacombLayout.hash(seed ^ 0x7A11E15L, cx, cz);
             int bx = cx + (((branch & 1L) == 0) ? 1 : -1);
             int bz = cz + (((branch & 2L) == 0) ? 1 : -1);
-            Chamber diagonal = chamber(seed, bx, bz);
+            Chamber diagonal = chamber(seed, bx, bz, chambers);
             double branchWidth = 2.0 + Math.floorMod(branch >>> 8, 6);
             clearance = Math.max(clearance,
                     branchWidth - passage(wx, wz, room.x, room.z, diagonal.x, diagonal.z));
@@ -87,7 +97,7 @@ public final class ShaleCaves {
         double floor = ground(seed, x, z) * (1 - flat) + Math.rint(ground(seed, closest.x, closest.z) / 3) * 3 * flat;
         int cx = AuthoredForge.districtCenter(x), cz = AuthoredForge.districtCenter(z);
         int shaftX = cx - 39;
-        Chamber landing = chamber(seed, (int)Math.round(shaftX / 64.0), (int)Math.round(cz / 64.0));
+        Chamber landing = chamber(seed, (int)Math.round(shaftX / 64.0), (int)Math.round(cz / 64.0), chambers);
         clearance = Math.max(clearance, 16 - Math.hypot(x - shaftX, z - cz));
         clearance = Math.max(clearance, 6 - passage(x, z, shaftX, cz, landing.x, landing.z));
         double chamberSpace = Math.clamp((closest.radius - nearest) / 9, 0, 1);
@@ -106,9 +116,10 @@ public final class ShaleCaves {
         int minX = chunk.getPos().getMinBlockX(), minZ = chunk.getPos().getMinBlockZ();
          
          
+        var chambers = new java.util.HashMap<Long, Chamber>();
         Column[][] columns = new Column[18][18];
         for (int dx = 0; dx < 18; dx++) for (int dz = 0; dz < 18; dz++)
-            columns[dx][dz] = column(seed, minX + dx - 1, minZ + dz - 1);
+            columns[dx][dz] = column(seed, minX + dx - 1, minZ + dz - 1, chambers);
         for (int x = chunk.getPos().getMinBlockX(); x <= chunk.getPos().getMaxBlockX(); x++)
             for (int z = chunk.getPos().getMinBlockZ(); z <= chunk.getPos().getMaxBlockZ(); z++) {
                 int dx = x - minX + 1, dz = z - minZ + 1;

@@ -20,7 +20,7 @@ public final class AuthoredCatacombs {
     public static final int BASE_Y = LabyrinthLevels.CATACOMB_BASE_Y, SIZE = 19, CONNECTOR_Y = BASE_Y + 5;
     public static final int ARENA_BASE_Y = LabyrinthLevels.ARENA_BASE_Y, ARENA_FLOOR_Y = ARENA_BASE_Y + 5, ARENA_RADIUS = 61;
     private static final int ARENA_CHUNK_MARKER_Y = ARENA_BASE_Y - 1;
-    private static final int ARENA_CHUNK_REVISION = 8;
+    private static final int ARENA_CHUNK_REVISION = 9;
     public static final List<BlockPos> BRAZIER_ROOM_ORIGINS = CatacombLayout.BRAZIER_ROOM_MIN_ZS.stream()
             .map(minZ -> new BlockPos(CatacombLayout.BRAZIER_ROOM_MIN_X * SIZE, BASE_Y, minZ * SIZE + 3))
             .toList();
@@ -123,6 +123,7 @@ public final class AuthoredCatacombs {
                 }
             }
         placeCursedBrazierRooms(level, world, chunk, clip, seed);
+        placeArenaApproach(world, chunk);
     }
 
      
@@ -524,6 +525,10 @@ public final class AuthoredCatacombs {
         Map<Long,net.minecraft.world.level.chunk.LevelChunk> chunks=new HashMap<>();
         List<BlockPos> pillarRoots=new ArrayList<>();
         for(var info:palettes.getFirst().blocks()) {
+            BlockPos local = info.pos();
+            int x = origin.getX() + local.getX(), y = origin.getY() + local.getY(), z = origin.getZ() + local.getZ();
+            if (x < bounds.minX() || x > bounds.maxX() || y < bounds.minY() || y > bounds.maxY()
+                    || z < bounds.minZ() || z > bounds.maxZ()) continue;
             var state=info.state();
             if(state.is(Blocks.STRUCTURE_BLOCK)||state.is(Blocks.STRUCTURE_VOID)
                     ||state.is(Blocks.JIGSAW)||state.is(Blocks.CYAN_WOOL))state=Blocks.AIR.defaultBlockState();
@@ -532,8 +537,7 @@ public final class AuthoredCatacombs {
                 state=state.setValue(net.krodark.asterion.block.BarrelDoorBlock.OPEN,false)
                         .setValue(net.krodark.asterion.block.BarrelDoorBlock.WING,false);
             }
-            BlockPos pos=origin.offset(info.pos());
-            if(!bounds.isInside(pos))continue;
+            BlockPos pos = new BlockPos(x, y, z);
             if(state.is(Asterion.PILLAR) && net.krodark.asterion.block.PillarBlock.isRoot(state)) {
                 level.setBlock(pos.below(), Asterion.MAZESTEEL_BLOCK.defaultBlockState(), 18);
                 pillarRoots.add(pos.immutable());
@@ -585,23 +589,24 @@ public final class AuthoredCatacombs {
     }
     private static void repairArenaApproach(ServerLevel level, LevelChunk chunk) {
         BlockPos marker = new BlockPos(chunk.getPos().getMinBlockX(), ARENA_BASE_Y - 2, chunk.getPos().getMinBlockZ());
-        var complete = Blocks.LIGHT.defaultBlockState().setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 2);
+        var complete = Blocks.LIGHT.defaultBlockState().setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 3);
         if (chunk.getBlockState(marker).equals(complete)) return;
-        placeArenaApproach(level, chunk);
+        placeArenaApproach(level, chunk.getPos());
         chunk.setBlockState(marker, complete, 0);
         chunk.markUnsaved();
     }
 
     private static boolean arenaApproachFloor(int x, int z) {
-        return Math.abs(x) <= 2 && z >= ARENA_RADIUS && z <= CatacombLayout.ROOT_CENTER + 2
+        return Math.abs(x) <= 2 && z >= ARENA_RADIUS - 3 && z <= CatacombLayout.ROOT_CENTER + 2
                 || x >= -2 && x <= 9 && Math.abs(z - CatacombLayout.ROOT_CENTER) <= 2;
     }
 
-    private static void placeArenaApproach(ServerLevel level, LevelChunk chunk) {
-        ChunkPos cp = chunk.getPos();
+    private static void placeArenaApproach(net.minecraft.world.level.ServerLevelAccessor level, ChunkPos cp) {
+        if (cp.getMaxBlockX() < -3 || cp.getMinBlockX() > 9
+                || cp.getMaxBlockZ() < ARENA_RADIUS - 3 || cp.getMinBlockZ() > CatacombLayout.ROOT_CENTER + 3) return;
         for (int x = cp.getMinBlockX(); x <= cp.getMaxBlockX(); x++)
             for (int z = cp.getMinBlockZ(); z <= cp.getMaxBlockZ(); z++) {
-                if (z < ARENA_RADIUS || x > 9) continue;
+                if (z < ARENA_RADIUS - 3 || x > 9) continue;
                 boolean core = arenaApproachFloor(x, z);
                 boolean wall = !core && (arenaApproachFloor(x - 1, z) || arenaApproachFloor(x + 1, z)
                         || arenaApproachFloor(x, z - 1) || arenaApproachFloor(x, z + 1));

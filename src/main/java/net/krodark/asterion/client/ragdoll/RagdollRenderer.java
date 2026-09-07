@@ -34,6 +34,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.player.PlayerModelPart;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.AABB;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -50,12 +51,20 @@ public final class RagdollRenderer {
         Minecraft client = Minecraft.getInstance();
         if (client.level == null || DismembermentEngine.INSTANCE.pieces().isEmpty()) return;
         Vec3 camera = state.cameraRenderState.pos;
+        float partial = Mth.clamp(client.getDeltaTracker().getGameTimeDeltaPartialTick(true), 0, 1);
         List<RigidBodyPiece> bodies = new ArrayList<>();
         List<RigidBodyPiece> grips = new ArrayList<>();
         for (RigidBodyPiece piece : DismembermentEngine.INSTANCE.pieces()) {
             if (piece.position.distanceToSqr(camera) >= 96 * 96) continue;
             if (DismembermentEngine.isGripRegion(piece.region)) grips.add(piece);
-            else bodies.add(piece);
+            else {
+                Vec3 center = piece.previous.lerp(piece.position, partial)
+                        .add(DismembermentEngine.INSTANCE.heldRenderOffset(piece.entityId, partial));
+                double radius = piece.halfExtents.add(.064, .064, .064).length();
+                if (state.cameraRenderState.cullFrustum != null
+                        && !state.cameraRenderState.cullFrustum.isVisible(new AABB(center, center).inflate(radius))) continue;
+                bodies.add(piece);
+            }
         }
         if (client.player != null && client.options.getCameraType().isFirstPerson()
                 && !DeadSunEntryCinematic.isActive()
