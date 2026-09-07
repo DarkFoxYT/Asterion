@@ -137,6 +137,13 @@ public final class BossEntranceCinematic {
         Vec3 doorFocus = doorway.add(inward.scale(doorFlight * 4)).add(across.scale(doorFlight * 1.5)).add(0, 3.2, 0);
         float handoff = smootherStep((time - BREAK_TICK - 5) / 23F);
         Vec3 focus = doorFocus.lerp(subject.add(0, 3.5, 0), handoff);
+        float roarAge = time - MinotaurAnimationTiming.ENTRY_ROAR.roarSoundTick();
+        float roar = smootherStep(roarAge / 5F)
+                * (1 - smootherStep((time - (MinotaurAnimationTiming.ENTRY_END_TICK - 16)) / 16F));
+        float closeMove = smootherStep((time - MinotaurAnimationTiming.ENTRY_WALK_END_TICK) / 65F);
+        // A shallow dolly and lateral drift keep the close-up alive without circling the boss.
+        camera = camera.add(across.scale(Math.sin(closeMove * Math.PI) * .75))
+                .add(inward.scale(-closeMove * .65)).add(0, Math.sin(closeMove * Math.PI) * .18, 0);
         float impact = 0;
         for (int beat : IMPACT_BEATS) {
             float age = time - beat;
@@ -146,15 +153,21 @@ public final class BossEntranceCinematic {
         float plantAge = time - MinotaurAnimationTiming.ENTRY_WALK_END_TICK;
         if (plantAge >= 0 && plantAge < 24)
             impact += .16F * (float)Math.pow(1 - plantAge / 24, 2);
-        camera = camera.add(across.scale(Math.sin(time * .7) * impact)).add(0, Math.cos(time * .9) * impact * .6, 0);
+        float breachAge = time - BREAK_TICK;
+        float breach = smootherStep(breachAge / 1.5F) * (1 - smootherStep((breachAge - 3) / 18F));
+        impact += breach * .32F + roar * .12F;
+        // Fixed-frequency, timeline-based vibration remains identical at every frame rate.
+        camera = camera.add(across.scale((Math.sin(time * 1.9) + Math.sin(time * 3.1) * .28) * impact))
+                .add(inward.scale(breach * .65 + Math.sin(roarAge * 1.4) * roar * .08))
+                .add(0, Math.cos(time * 2.3) * impact * .65, 0);
         float returning = smootherStep((time - (duration - 30)) / 30F);
         camera = camera.lerp(playerEye, returning);
         Vec3 delta = focus.subtract(camera);
-        float yaw = (float)Math.toDegrees(Math.atan2(-delta.x, delta.z));
-        float pitch = (float)-Math.toDegrees(Math.atan2(delta.y, delta.horizontalDistance()));
+        float yaw = (float)Math.toDegrees(Math.atan2(-delta.x, delta.z)) + (float)Math.sin(time * 1.7) * impact * 1.2F;
+        float pitch = (float)-Math.toDegrees(Math.atan2(delta.y, delta.horizontalDistance())) + (float)Math.cos(time * 2.1) * impact;
         return new CameraPose(camera, Mth.rotLerp(returning, Mth.rotLerp(approach, returnYaw, yaw), returnYaw),
                 Mth.lerp(returning, Mth.lerp(approach, returnPitch, pitch), returnPitch),
-                (float)(Math.sin(reveal * Math.PI) * -3 + settle * 1.2) * (1 - returning));
+                (float)(Math.sin(reveal * Math.PI) * -3 + settle * 1.2 + Math.sin(time * 1.6) * impact * 2) * (1 - returning));
     }
 
     /** One client clock drives camera, entity position and animation despite packet spacing. */
