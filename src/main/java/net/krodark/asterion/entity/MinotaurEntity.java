@@ -3487,6 +3487,25 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if (bossAttackTicks >= 73) { riposteTicks = 24; finishBossAttack(30); }
     }
 
+    private float breakPunchShield(ServerPlayer target, float damage) {
+        var shield = target.getUseItem();
+        if (!target.isBlocking() || !(shield.getItem() instanceof net.minecraft.world.item.ShieldItem)
+                || target.isCreative() || target.isInvulnerable()) return damage;
+        Vec3 towardBoss = position().subtract(target.position()).multiply(1, 0, 1).normalize();
+        if (target.getLookAngle().multiply(1, 0, 1).dot(towardBoss) <= 0) return damage;
+        var slot = target.getUsedItemHand().asEquipmentSlot();
+        var item = shield.getItem();
+        target.stopUsingItem();
+        if (shield.isDamageableItem()) {
+            // Consume all remaining durability, regardless of Unbreaking's random damage reduction.
+            shield.setDamageValue(shield.getMaxDamage());
+            shield.shrink(1);
+            target.onEquippedItemBroken(item, slot);
+        }
+        playSound(SoundEvents.SHIELD_BREAK.value(), 2.5F, .65F);
+        return damage * .8F;
+    }
+
     private boolean performPunchStrike(ServerLevel level, ServerPlayer target, int strike) {
         if (!hasLineOfSight(target)) return false;
         Vec3 delta = target.position().subtract(position());
@@ -3513,24 +3532,10 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         AABB physicalFist = new AABB(shoulder, fist).inflate(strike == 2 ? 1.22D : 0.92D,
                 strike == 2 ? 1.10D : 0.88D, strike == 2 ? 1.22D : 0.92D);
         if (!physicalFist.intersects(target.getBoundingBox())) return false;
-        if (target.isBlocking()) {
-            punchStrikeMask |= 1 << strike;
-            target.setDeltaMovement(direction.scale(0.62D + strike * 0.16D).add(0.0D, 0.12D, 0.0D));
-            target.hurtMarked = true;
-            level.sendParticles(ParticleTypes.CRIT, target.getX(), target.getY() + 1.0D,
-                    target.getZ(), 12 + strike * 5, 0.48D, 0.65D, 0.48D, 0.10D);
-            playSound(SoundEvents.SHIELD_BLOCK.value(), 2.5F, 0.78F - strike * 0.08F);
-            if (strike == 2) {
-                bossStunTicks = 24;
-                riposteTicks = 36;
-                finishBossAttack(42);
-                return true;
-            }
-            return false;
-        }
         boolean singlePunch = bossAttack == BossAttack.PUNCH_SINGLE;
         float damage = singlePunch ? 14.0F + rage() * 0.25F
                 : strike < 2 ? 6.0F : 6.0F + rage() * 0.12F;
+        damage = breakPunchShield(target, damage);
         boolean damaged = target.hurtServer(level, damageSources().mobAttack(this), damage);
          
          
