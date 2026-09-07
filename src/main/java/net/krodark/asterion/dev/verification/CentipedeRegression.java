@@ -49,6 +49,7 @@ public final class CentipedeRegression {
         smoothMotion();
         presentationSmoothness();
         collisionCache();
+        orderedTrailSampling();
         modelContract();
         System.out.println("Centipede regression: " + checks + " checks passed");
     }
@@ -441,6 +442,26 @@ public final class CentipedeRegression {
         chain.tick(new Vec3(101, 50, 100), DOWN, NORTH, 7, EMPTY);
         near(chain.sampleSmoothed(6, 0).position(), chain.sample(6, 1).position(), 1e-8, "restored segment reused stale history");
         System.out.println("Presentation jitter ratio: " + smoothJerk / rawJerk);
+    }
+
+    private static void orderedTrailSampling() {
+        CentipedeTrail trail = new CentipedeTrail();
+        trail.reset(new CentipedeChain.Pose(Vec3.ZERO, DOWN, NORTH));
+        for (int step = 1; step <= 2400; step++) {
+            double angle = step * .002;
+            Vec3 position = new Vec3(20 * Math.sin(angle), 0, 20 * Math.cos(angle) - 20);
+            Vec3 forward = new Vec3(Math.cos(angle), 0, -Math.sin(angle));
+            trail.record(new CentipedeChain.Pose(position, DOWN, forward));
+        }
+        var sampler = trail.sampler();
+        for (int link = 0; link < CentipedeChain.MAX_SEGMENTS + 10; link++) {
+            double distance = link * CentipedeFrame.LINK_LENGTH;
+            var expected = trail.behind(distance);
+            var actual = sampler.behind(distance);
+            near(actual.position(), expected.position(), 0, "ordered trail position");
+            near(actual.normal(), expected.normal(), 0, "ordered trail normal");
+            near(actual.forward(), expected.forward(), 0, "ordered trail heading");
+        }
     }
 
     private static void collisionCache() {

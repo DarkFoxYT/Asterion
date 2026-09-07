@@ -23,6 +23,12 @@ import java.util.Map;
 import java.util.UUID;
 
 public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity, EntityRenderState> {
+    @Override public boolean shouldRender(MinotaurEntity boss, net.minecraft.client.renderer.culling.Frustum frustum,
+                                          double x, double y, double z) {
+        if (boss.doorEntryTicks() > 0 && boss.doorEntryTicks() - 1 < net.krodark.asterion.entity.MinotaurAnimationTiming.ENTRY_BREAK_TICK)
+            return false;
+        return super.shouldRender(boss, frustum, x, y, z);
+    }
     @Override protected net.minecraft.world.phys.AABB getBoundingBoxForCulling(MinotaurEntity boss) {
          
         return boss.animatedBodyBounds();
@@ -100,6 +106,15 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         minotaur.prepareReplayAnimation(replayTick, new Vec3(state.x, state.y, state.z));
         if (Double.isFinite(replayTick))
             state.addGeckolibData(com.geckolib.constant.DataTickets.TICK, replayTick);
+        double entryTime = Double.NaN;
+        if (minotaur.doorEntryTicks() > 0) {
+            entryTime = minotaur.doorEntryTicks() - 1 + (Double.isFinite(replayTick) ? replayTick - Math.floor(replayTick) : partialTick);
+            double cinematicTime = net.krodark.asterion.client.cinematic.BossEntranceCinematic.visualTime(minotaur, partialTick);
+            if (!Double.isFinite(replayTick) && Double.isFinite(cinematicTime)) entryTime = cinematicTime;
+            Vec3 entry = net.krodark.asterion.entity.MinotaurEntranceMotion.point(entryTime, minotaur.getBbWidth());
+            state.x = entry.x; state.y = entry.y; state.z = entry.z;
+        }
+        minotaur.setEntryVisualTime(entryTime);
         MinotaurPoseBlend.capture(minotaur, state, partialTick);
         state.addGeckolibData(HARVESTED, minotaur.isHarvested());
         state.addGeckolibData(REMOVED_PARTS, minotaur.removedParts());

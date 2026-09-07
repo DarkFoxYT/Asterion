@@ -102,12 +102,13 @@ public final class CentipedeChain {
         front = collision.followSurface(front.position(), front.position(), normal, frontFacing);
         current[0] = new Pose(front.position(), normal, frontFacing);
         trail.record(current[0]);
+        var trailSampler = trail.sampler();
         for (int i = 1; i < count; i++) {
             collision = tickCollision[i];
             Pose old = current[i];
              
              
-            Pose target = trail.behind(i * CentipedeFrame.LINK_LENGTH);
+            Pose target = trailSampler.behind(i * CentipedeFrame.LINK_LENGTH);
             Vec3 desired = target.position;
             Pose leader = current[i - 1];
             Vec3 jointNormal = CentipedeFrame.unit(target.normal.lerp(leader.normal, .15), target.normal);
@@ -128,6 +129,8 @@ public final class CentipedeChain {
                 double maximum = CentipedeFrame.LINK_LENGTH + .25;
                 if (away.lengthSqr() > maximum * maximum)
                     separated = leader.position.add(away.normalize().scale(maximum));
+                // No constraint moved this link: its collision-safe pose is already settled.
+                if (separated.equals(contact.position())) break;
                 contact = collision.followSurface(contact.position(), separated, contact.normal(), newFacing);
             }
             current[i] = new Pose(contact.position(), contact.normal(), newFacing);

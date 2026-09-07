@@ -8,9 +8,8 @@ public final class CentipedeBodyConstraint {
     private CentipedeBodyConstraint() {}
 
     public static Vec3 separate(Vec3 center, Vec3 other, Vec3 normal, Vec3 forward) {
+        if (center.distanceToSqr(other) >= CORE_SPACING * CORE_SPACING) return center;
         Vec3 delta = center.subtract(other);
-        double distance = delta.length();
-        if (distance >= CORE_SPACING) return center;
         Vec3 tangent = delta.subtract(normal.scale(delta.dot(normal)));
         if (tangent.lengthSqr() < 1e-8) tangent = forward.cross(normal.scale(-1));
         tangent = CentipedeFrame.unit(tangent, new Vec3(1, 0, 0));

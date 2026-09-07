@@ -1,0 +1,160 @@
+def forgeAssets = layout.buildDirectory.dir('generated/forge-assets')
+def minecraftTextureJar = file("${gradle.gradleUserHomeDir}/caches/fabric-loom/${minecraft_version}/minecraft-client.jar")
+tasks.register('generateForgeAssets') {
+    inputs.dir('src/main/resources/assets/asterion/textures/forging')
+    inputs.file(minecraftTextureJar)
+    outputs.dir(forgeAssets)
+    doLast {
+        def destinationDir = forgeAssets.get().asFile
+        def materials = ['bone_steel', 'celestial_bronze', 'celestial_gold', 'celestial_steel',
+                         'copper', 'gold', 'iron', 'netherite', 'tarnished_gold']
+        def parts = ['blade', 'guard', 'pommel']
+        def modelDir = file("${destinationDir}/assets/asterion/models/item")
+        def itemDir = file("${destinationDir}/assets/asterion/items")
+        def atlasTextureDir = file("${destinationDir}/assets/asterion/textures/item/forging")
+        def overlayTextureDir = file("${destinationDir}/assets/asterion/textures/item/forging_overlay")
+        modelDir.mkdirs(); itemDir.mkdirs()
+        overlayTextureDir.mkdirs()
+        def writeHalfAlpha = { java.awt.image.BufferedImage source, File destination ->
+            def output = new java.awt.image.BufferedImage(source.width, source.height,
+                    java.awt.image.BufferedImage.TYPE_INT_ARGB)
+            for (int y = 0; y < source.height; y++) for (int x = 0; x < source.width; x++) {
+                int argb = source.getRGB(x, y)
+                int alpha = (argb >>> 24) & 255
+                output.setRGB(x, y, ((alpha + 1).intdiv(2) << 24) | (argb & 0xFFFFFF))
+            }
+            destination.parentFile.mkdirs()
+            javax.imageio.ImageIO.write(output, 'png', destination)
+        }
+        def generatedDisplay = [
+                ground: [rotation: [0, 0, 0], translation: [0, 2, 0], scale: [0.5, 0.5, 0.5]],
+                head: [rotation: [0, 180, 0], translation: [0, 13, 7], scale: [1, 1, 1]],
+                thirdperson_righthand: [rotation: [0, 0, 0], translation: [0, 3, 1], scale: [0.55, 0.55, 0.55]],
+                thirdperson_lefthand: [rotation: [0, 0, 0], translation: [0, 3, 1], scale: [0.55, 0.55, 0.55]],
+                firstperson_righthand: [rotation: [0, -90, 25], translation: [1.13, 3.2, 1.13], scale: [0.68, 0.68, 0.68]],
+                firstperson_lefthand: [rotation: [0, 90, -25], translation: [1.13, 3.2, 1.13], scale: [0.68, 0.68, 0.68]],
+                fixed: [rotation: [0, 180, 0], scale: [1, 1, 1]]]
+        def swordDisplay = generatedDisplay + [
+                thirdperson_righthand: [rotation: [0, -90, 55], translation: [0, 4, 0.5], scale: [0.85, 0.85, 0.85]],
+                thirdperson_lefthand: [rotation: [0, 90, -55], translation: [0, 4, 0.5], scale: [0.85, 0.85, 0.85]]]
+        def layeredModel = { String texture, int layer, boolean sword = false ->
+            def parent = sword ? 'asterion:item/forged_sword_layer' : 'minecraft:item/generated'
+            if (layer == 0) return [parent: parent,
+                    textures: [particle: texture, layer0: texture]]
+             
+             
+             
+             
+             
+            double grow = layer * 0.015D
+            [ambientocclusion: false, gui_light: 'front', render_type: 'minecraft:translucent',
+             textures: [particle: texture, coating: texture], display: sword ? swordDisplay : generatedDisplay,
+             elements: [[from: [-grow, -grow, 7.49D - grow], to: [16D + grow, 16D + grow, 8.51D + grow],
+                  
+                  
+                 faces: [north: [uv: [16, 0, 0, 16], texture: '#coating', tintindex: 0],
+                         south: [uv: [0, 0, 16, 16], texture: '#coating', tintindex: 0],
+                         west: [uv: [0, 0, 1, 16], texture: '#coating', tintindex: 0],
+                         east: [uv: [15, 0, 16, 16], texture: '#coating', tintindex: 0],
+                         up: [uv: [0, 0, 16, 1], texture: '#coating', tintindex: 0],
+                         down: [uv: [0, 15, 16, 16], texture: '#coating', tintindex: 0]]]]]
+        }
+        materials.each { material -> parts.each { part ->
+            ['','_icon'].each { suffix ->
+                (0..<4).each { layer ->
+                    def textureName = "${material}_${part}${suffix}"
+                    def texture = "asterion:item/forging/${material}/${textureName}"
+                    if (layer == 1) {
+                        def source = javax.imageio.ImageIO.read(file(
+                                "src/main/resources/assets/asterion/textures/forging/${material}/${textureName}.png"))
+                        writeHalfAlpha(source, file("${overlayTextureDir}/${material}/${textureName}.png"))
+                    }
+                    if (layer > 0) texture = "asterion:item/forging_overlay/${material}/${textureName}"
+                    file("${modelDir}/forge_${material}_${part}${suffix}_layer${layer}.json").text =
+                            groovy.json.JsonOutput.toJson(layeredModel(texture, layer, suffix == ''))
+                }
+            }
+        }}
+        def selectLayer = { String part, boolean icon, int stringIndex, int colorIndex, int renderLayer ->
+            [type: 'minecraft:select', property: 'minecraft:custom_model_data', index: stringIndex,
+             cases: materials.collect { material ->
+                 [when: material, model: [type: 'minecraft:model',
+                     model: "asterion:item/forge_${material}_${part}${icon ? '_icon' : ''}_layer${renderLayer}"]]
+             }, fallback: renderLayer == 0
+                    ? [type: 'minecraft:model', model: "asterion:item/forge_iron_${part}${icon ? '_icon' : ''}_layer0"]
+                    : [type: 'minecraft:empty']]
+        }
+        parts.each { part ->
+            def layers = (0..<4).collect { layer -> selectLayer(part, true, layer, layer, layer) }
+            file("${itemDir}/forged_sword_${part}.json").text = groovy.json.JsonOutput.toJson(
+                    [model: [type: 'minecraft:composite', models: layers]])
+        }
+         
+        def swordLayers = [[type: 'minecraft:model', model: 'asterion:item/forged_sword_handle']]
+        parts.eachWithIndex { part, partIndex ->
+            (0..<4).each { layer ->
+                int index = partIndex * 4 + layer
+                swordLayers.add(selectLayer(part, false, index, index, layer))
+            }
+        }
+        file("${itemDir}/forged_sword.json").text = groovy.json.JsonOutput.toJson(
+                [model: [type: 'minecraft:composite', models: swordLayers]])
+
+         
+         
+        def ingotTextures = materials.collectEntries { material ->
+            def custom = file("src/main/resources/assets/asterion/textures/forging/${material}/${material}_ingot.png")
+            [(material): custom.exists()
+                    ? "asterion:item/forging/${material}/${material}_ingot"
+                    : "minecraft:item/${material == 'tarnished_gold' ? 'gold' : material}_ingot"]
+        }
+        def minecraftClientZip = new java.util.zip.ZipFile(minecraftTextureJar)
+        materials.each { material ->
+            (0..<4).each { layer ->
+                def texture = ingotTextures[material]
+                if (layer == 1) {
+                    java.awt.image.BufferedImage source
+                    def custom = file("src/main/resources/assets/asterion/textures/forging/${material}/${material}_ingot.png")
+                    if (custom.exists()) source = javax.imageio.ImageIO.read(custom)
+                    else {
+                        def vanilla = material == 'tarnished_gold' ? 'gold' : material
+                        def entry = minecraftClientZip.getEntry("assets/minecraft/textures/item/${vanilla}_ingot.png")
+                        source = entry == null ? null : javax.imageio.ImageIO.read(minecraftClientZip.getInputStream(entry))
+                    }
+                    if (source == null) throw new GradleException("Cannot resolve forge ingot texture for ${material}")
+                    writeHalfAlpha(source, file("${overlayTextureDir}/${material}/${material}_ingot.png"))
+                }
+                if (layer > 0) texture = "asterion:item/forging_overlay/${material}/${material}_ingot"
+                file("${modelDir}/forge_${material}_ingot_layer${layer}.json").text =
+                        groovy.json.JsonOutput.toJson(layeredModel(texture, layer))
+            }
+        }
+        minecraftClientZip.close()
+        def ingotLayers = (0..<4).collect { layer ->
+            [type: 'minecraft:select', property: 'minecraft:custom_model_data', index: layer,
+             cases: materials.collect { material ->
+                 [when: material, model: [type: 'minecraft:model',
+                     model: "asterion:item/forge_${material}_ingot_layer${layer}"]]
+             }, fallback: layer == 0
+                    ? [type: 'minecraft:model', model: 'asterion:item/forge_iron_ingot_layer0']
+                    : [type: 'minecraft:empty']]
+        }
+        file("${itemDir}/forged_ingot.json").text = groovy.json.JsonOutput.toJson(
+                [model: [type: 'minecraft:composite', models: ingotLayers]])
+        copy {
+            from file('src/main/resources/assets/asterion/textures/forging')
+            into atlasTextureDir
+        }
+    }
+}
+
+ 
+ 
+ 
+tasks.named('processResources').configure {
+    from(tasks.named('generateForgeAssets')) {
+        // Generated models intentionally replace their source templates.
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
+}
+

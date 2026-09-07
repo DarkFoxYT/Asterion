@@ -51,8 +51,8 @@ public final class OmegaLockBlockEntity extends BlockEntity implements GeoBlockE
     public static void tick(Level level, BlockPos pos, BlockState state, OmegaLockBlockEntity lock) {
         if (level.isClientSide() || lock.openingTicks <= 0 || !(level instanceof net.minecraft.server.level.ServerLevel server)) return;
         lock.openingTicks++;
-        if (lock.gates.isEmpty()) lock.gates = findNearbyGates(server, pos);
         if (lock.openingTicks % 10 != 1) return;
+        if (lock.gates.isEmpty()) lock.gates = findNearbyGates(server, pos);
         int lowest = lock.gates.stream().filter(p -> {
             BlockState gate = server.getBlockState(p);
             return gate.is(Asterion.MAZESTEEL_GATE) && !gate.getValue(DirectionalGateBlock.OPEN);

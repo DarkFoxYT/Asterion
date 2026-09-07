@@ -30,12 +30,33 @@ public final class EntranceReplayGameTest implements FabricClientGameTest {
                     boss.getEntityData().set(accessor, MinotaurAnimationTiming.ENTRY_BREAK_TICK);
                     check(boss.animationState() == MinotaurEntity.AnimationState.IDLE, "Pre-breach pose");
                     for (int tick = MinotaurAnimationTiming.ENTRY_BREAK_TICK;
-                            tick < MinotaurAnimationTiming.ENTRY_WALK_END_TICK; tick++) {
+                            tick < MinotaurAnimationTiming.ENTRY_CROUCH_TICK; tick++) {
                         boss.getEntityData().set(accessor, tick + 1);
-                        check(boss.animationState() == MinotaurEntity.AnimationState.WALK, "Moving without walking");
+                        check(boss.animationState() == MinotaurEntity.AnimationState.CHASE, "Burst missing running animation");
                         check(MinotaurAnimationTiming.entryWalkDistance(tick + 1, 10)
                                 > MinotaurAnimationTiming.entryWalkDistance(tick, 10), "Walk stopped early");
                     }
+                    check(MinotaurAnimationTiming.entryWalkDistance(MinotaurAnimationTiming.ENTRY_BREAK_TICK + 10, 1) > .5, "Burst lacks immediate forward momentum");
+                    boss.getEntityData().set(accessor, MinotaurAnimationTiming.ENTRY_TAKEOFF_TICK + 1);
+                    check(boss.animationState() == MinotaurEntity.AnimationState.LEAP, "Airborne pose missing");
+                    boss.getEntityData().set(accessor, MinotaurAnimationTiming.ENTRY_LAND_TICK + 1);
+                    check(boss.animationState() == MinotaurEntity.AnimationState.LAND, "Landing pose missing");
+                    boss.getEntityData().set(accessor, MinotaurAnimationTiming.ENTRY_CROUCH_TICK + 1);
+                    check(boss.animationState() == MinotaurEntity.AnimationState.LEAP, "Missing grounded jump windup");
+                    check(MinotaurEntranceMotion.point(MinotaurAnimationTiming.ENTRY_CROUCH_TICK, boss.getBbWidth()).equals(
+                            MinotaurEntranceMotion.point(MinotaurAnimationTiming.ENTRY_TAKEOFF_TICK, boss.getBbWidth())), "Feet slide during crouch");
+                    check(MinotaurEntranceMotion.animationSeconds(MinotaurAnimationTiming.ENTRY_TAKEOFF_TICK + 20) > .875,
+                            "Crouching clip played at flight apex");
+                    check(Math.abs(MinotaurEntranceMotion.animationSeconds(MinotaurAnimationTiming.ENTRY_LAND_TICK) - .1667) < 1e-8,
+                            "Landing compression is not aligned to contact");
+                    var landing = MinotaurEntranceMotion.point(MinotaurAnimationTiming.ENTRY_LAND_TICK, boss.getBbWidth());
+                    check(Math.abs(landing.x - .5) < 1e-8 && Math.abs(landing.z - .5) < 1e-8, "Leap missed arena center");
+                    var apex = MinotaurEntranceMotion.point(MinotaurAnimationTiming.ENTRY_TAKEOFF_TICK + 20, boss.getBbWidth());
+                    check(apex.y > landing.y + 11, "Missing leap arc");
+                    for (int boundary : new int[]{MinotaurAnimationTiming.ENTRY_BREAK_TICK, MinotaurAnimationTiming.ENTRY_TAKEOFF_TICK,
+                            MinotaurAnimationTiming.ENTRY_LAND_TICK})
+                        check(MinotaurEntranceMotion.point(boundary - .001, boss.getBbWidth()).distanceTo(
+                                MinotaurEntranceMotion.point(boundary + .001, boss.getBbWidth())) < .01, "Entrance position jumps");
                     boss.getEntityData().set(accessor, MinotaurAnimationTiming.ENTRY_WALK_END_TICK + 1);
                     check(boss.animationState() == MinotaurEntity.AnimationState.ROAR_START, "No planted roar");
                     check(Math.abs(MinotaurAnimationTiming.entryWalkDistance(MinotaurAnimationTiming.ENTRY_END_TICK, 10) - 10) < .00001,
@@ -52,6 +73,17 @@ public final class EntranceReplayGameTest implements FabricClientGameTest {
                 BossEntranceCinematic.receive(payload);
                 check(BossEntranceCinematic.isActive(), "Normal cinematic suppressed");
                 try {
+                    int userFov = client.options.fov().get();
+                    var cinematicTicks = BossEntranceCinematic.class.getDeclaredField("ticks");
+                    cinematicTicks.setAccessible(true);
+                    cinematicTicks.setInt(null, MinotaurAnimationTiming.ENTRY_TAKEOFF_TICK + 15);
+                    check(Math.abs(BossEntranceCinematic.fov(70, .5F) - 96) < .01, "Flight FOV did not widen");
+                    cinematicTicks.setInt(null, MinotaurAnimationTiming.ENTRY_LAND_TICK + 30);
+                    check(Math.abs(BossEntranceCinematic.fov(70, .5F) - 90) < .01, "Frontal FOV did not settle");
+                    var frontal = BossEntranceCinematic.cameraPose(client.player.getEyePosition(), .5F);
+                    check(Math.abs(frontal.position().x - .5) < 3 && Math.abs(frontal.roll()) <= 3,
+                            "Frontal shot or subtle roll lost");
+                    check(client.options.fov().get() == userFov, "Cinematic overwrote user FOV preference");
                     var camera = client.gameRenderer.getMainCamera();
                     var field = java.util.Arrays.stream(camera.getClass().getDeclaredFields())
                             .filter(f -> f.getType() == Entity.class).findFirst().orElseThrow();
@@ -62,6 +94,7 @@ public final class EntranceReplayGameTest implements FabricClientGameTest {
                         field.set(camera, observer);
                         check(AsterionClient.isPlayback(client), "Detached replay camera not detected");
                         ReplayCompatibility.cancelCinematics(client);
+                        check(BossEntranceCinematic.fov(73, .5F) == 73, "Replay cancellation retained forced FOV");
                         check(!BossEntranceCinematic.isActive() && !CinematicHud.isHidden()
                                 && !CinematicControls.locked(), "Replay cancellation left locks");
                         BossEntranceCinematic.receive(payload);

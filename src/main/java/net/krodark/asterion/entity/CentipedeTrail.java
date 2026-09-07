@@ -40,20 +40,35 @@ public final class CentipedeTrail {
     }
 
     public CentipedeChain.Pose behind(double distance) {
-        double at = points.getLast().distance - distance;
-        var iterator = points.descendingIterator();
-        Point newer = iterator.next();
-        while (iterator.hasNext()) {
-            Point older = iterator.next();
-            if (older.distance <= at) {
-                double alpha = Math.clamp((at - older.distance) / (newer.distance - older.distance), 0, 1);
-                Vec3 normal = CentipedeFrame.unit(older.pose.normal().lerp(newer.pose.normal(), alpha), newer.pose.normal());
-                Vec3 forward = CentipedeFrame.tangent(older.pose.forward().lerp(newer.pose.forward(), alpha), normal, newer.pose.forward());
-                return new CentipedeChain.Pose(older.pose.position().lerp(newer.pose.position(), alpha), normal, forward);
+        return sampler().behind(distance);
+    }
+
+    /** Samples increasing distances in one traversal; discard before recording another point. */
+    public Sampler sampler() { return new Sampler(); }
+
+    public final class Sampler {
+        private final java.util.Iterator<Point> iterator = points.descendingIterator();
+        private Point newer = iterator.next();
+        private Point older = iterator.hasNext() ? iterator.next() : null;
+        private final double headDistance = newer.distance;
+        private double lastDistance = Double.NEGATIVE_INFINITY;
+
+        public CentipedeChain.Pose behind(double distance) {
+            if (distance < lastDistance) throw new IllegalArgumentException("Sample distances must increase");
+            lastDistance = distance;
+            double at = headDistance - distance;
+            while (older != null) {
+                if (older.distance <= at) {
+                    double alpha = Math.clamp((at - older.distance) / (newer.distance - older.distance), 0, 1);
+                    Vec3 normal = CentipedeFrame.unit(older.pose.normal().lerp(newer.pose.normal(), alpha), newer.pose.normal());
+                    Vec3 forward = CentipedeFrame.tangent(older.pose.forward().lerp(newer.pose.forward(), alpha), normal, newer.pose.forward());
+                    return new CentipedeChain.Pose(older.pose.position().lerp(newer.pose.position(), alpha), normal, forward);
+                }
+                newer = older;
+                older = iterator.hasNext() ? iterator.next() : null;
             }
-            newer = older;
+            return new CentipedeChain.Pose(newer.pose.position().subtract(newer.pose.forward().scale(newer.distance - at)),
+                    newer.pose.normal(), newer.pose.forward());
         }
-        return new CentipedeChain.Pose(newer.pose.position().subtract(newer.pose.forward().scale(newer.distance - at)),
-                newer.pose.normal(), newer.pose.forward());
     }
 }

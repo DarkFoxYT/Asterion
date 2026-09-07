@@ -300,9 +300,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
     public double replayPoseSeconds(AnimationState pose) {
         double partial = replayAnimationTick - Math.floor(replayAnimationTick);
-        if (pose == AnimationState.WALK && doorEntryTicks() > 0)
-            return Math.clamp((doorEntryTicks() - 1 + partial - MinotaurAnimationTiming.ENTRY_BREAK_TICK) / 49.0, 0, 1)
-                    * MinotaurAnimationTiming.WALK_LENGTH;
+        if (doorEntryTicks() > 0 && pose != AnimationState.IDLE)
+            return MinotaurEntranceMotion.animationSeconds(doorEntryTicks() - 1 + partial);
         if (pose == AnimationState.WALK || pose == AnimationState.CHASE || pose == AnimationState.CHARGE_RUN) {
             double length = pose == AnimationState.WALK ? MinotaurAnimationTiming.WALK_LENGTH : MinotaurAnimationTiming.RUN_LENGTH;
             return (replayAnimationTick / 20.0 % length + length) % length;
@@ -1641,6 +1640,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         return false;
     }
 
+    private double clientEntryVisualTime = Double.NaN;
+    public void setEntryVisualTime(double time) { clientEntryVisualTime = time; }
     public int doorEntryTicks() { return getEntityData().get(DATA_DOOR_ENTRY_TICKS); }
 
     private void beginDoorEntry(net.minecraft.core.Direction playerEntrance) {
@@ -1655,7 +1656,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         setNoGravity(false);
          
         Vec3 behind = Vec3.atBottomCenterOf(entryDoor)
-                .add(entryFacing.getUnitVec3().scale(Math.max(5.5, getBbWidth() * .5 + 3.5)));
+                .add(entryFacing.getUnitVec3().scale(MinotaurEntranceMotion.setback(getBbWidth())));
         net.krodark.asterion.worldgen.MinotaurArenaEntrances.clearBossEntryPath(
                 (ServerLevel)level(), getBbWidth(), getBbHeight(), false);
         setPos(behind.x, behind.y, behind.z);
@@ -1688,27 +1689,33 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 net.krodark.asterion.block.MinotaurDoorBlock.removeDoor(level, entryDoor, entryFacing);
                 net.krodark.asterion.worldgen.MinotaurArenaEntrances.clearBossEntryPath(
                         level, getBbWidth(), getBbHeight(), true);
-                level.sendParticles(Asterion.DOOR_SMOKE, getX(), getY() + 1.2, getZ(), 80, 1.4, 1.1, 1.4, .08);
+                net.krodark.asterion.worldgen.ArenaDebris.entranceBurst(level, entryDoor, inward, getBbHeight());
                 level.playSound(null, entryDoor, Asterion.MINOTAUR_DOOR_BREAK,
                         net.minecraft.sounds.SoundSource.HOSTILE, 1.2F, .9F);
             }
-            setNoGravity(false);
-            Vec3 clearGate = Vec3.atBottomCenterOf(net.krodark.asterion.worldgen.MinotaurArenaEntrances.gate(entryFacing))
-                    .add(inward.scale(getBbWidth() * .5 + 1.25));
-            double remaining = clearGate.subtract(position()).dot(inward);
-             
-            double distance = Math.max(5.5, getBbWidth() * .5 + 3.5) + 1 + getBbWidth() * .5 + 1.25;
-            double step = MinotaurAnimationTiming.entryWalkDistance(elapsed + 1, distance)
-                    - MinotaurAnimationTiming.entryWalkDistance(elapsed, distance);
-            setDeltaMovement(inward.scale(Math.clamp(remaining, 0, step))
-                    .add(0, getDeltaMovement().y, 0));
         }
+        // Scripted movement is sampled absolutely, avoiding accumulated velocity/gravity error.
+        setNoGravity(true);
+        setDeltaMovement(Vec3.ZERO);
+        Vec3 entryPoint = MinotaurEntranceMotion.point(elapsed, getBbWidth());
+        setPos(entryPoint.x, entryPoint.y, entryPoint.z);
+        resetFallDistance();
+        setOnGround(elapsed < MinotaurAnimationTiming.ENTRY_TAKEOFF_TICK
+                || elapsed >= MinotaurAnimationTiming.ENTRY_LAND_TICK);
+        if (elapsed == MinotaurAnimationTiming.ENTRY_TAKEOFF_TICK)
+            playSound(SoundEvents.GOAT_LONG_JUMP, 1.4F, .65F);
+        if (elapsed == MinotaurAnimationTiming.ENTRY_LAND_TICK) {
+            level.sendParticles(Asterion.DOOR_SMOKE, getX(), getY() + .3, getZ(), 100, 5, .25, 5, .12);
+            playSound(Asterion.MINOTAUR_LAND_SLAM, 1F, .9F);
+        }
+
         if (elapsed >= MinotaurAnimationTiming.ENTRY_END_TICK) {
              
              
              
             net.krodark.asterion.block.MinotaurDoorBlock.removeDoor(level, entryDoor, entryFacing);
             getEntityData().set(DATA_DOOR_ENTRY_TICKS, 0);
+            setNoGravity(false);
             noPhysics = false;
             Vec3 fallback = Vec3.atBottomCenterOf(net.krodark.asterion.worldgen.MinotaurArenaEntrances.gate(entryFacing))
                     .add(inward.scale(getBbWidth() * .5D + 2.25D));
@@ -5341,10 +5348,12 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 ? weaponTransitionMode() == 2 ? AnimationState.SHEATHE_SWORD : AnimationState.SHEATHE_AXE
                 : pendingWeaponMode() == 2 ? AnimationState.DRAW_SWORD : AnimationState.DRAW_AXE;
         if (doorEntryTicks() > 0) {
-            int entryTick = doorEntryTicks() - 1;
+            int entryTick = (int)(Double.isFinite(clientEntryVisualTime) ? clientEntryVisualTime : doorEntryTicks() - 1);
             if (entryTick < MinotaurAnimationTiming.ENTRY_BREAK_TICK) return AnimationState.IDLE;
+            if (entryTick < MinotaurAnimationTiming.ENTRY_CROUCH_TICK) return AnimationState.CHASE;
+            if (entryTick < MinotaurAnimationTiming.ENTRY_LAND_TICK - 6) return AnimationState.LEAP;
             return entryTick < MinotaurAnimationTiming.ENTRY_WALK_END_TICK
-                    ? AnimationState.WALK : AnimationState.ROAR_START;
+                    ? AnimationState.LAND : AnimationState.ROAR_START;
         }
         BossAttack renderedAttack = bossAttackState();
         int renderedAttackTicks = getEntityData().get(DATA_BOSS_ATTACK_TICKS);
@@ -5526,14 +5535,14 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 seconds = Math.max(0, tickCount - footstepStartTick + partial) / 20.0
                         % (pose == AnimationState.WALK ? MinotaurAnimationTiming.WALK_LENGTH : MinotaurAnimationTiming.RUN_LENGTH);
              
-            if (pose == AnimationState.WALK && doorEntryTicks() > 0)
-                seconds = Math.clamp((doorEntryTicks() - 1 + partial - MinotaurAnimationTiming.ENTRY_BREAK_TICK)
-                        / 49.0, 0, 1) * MinotaurAnimationTiming.WALK_LENGTH;
+            if (doorEntryTicks() > 0 && pose != AnimationState.IDLE)
+                seconds = MinotaurEntranceMotion.animationSeconds(Double.isFinite(clientEntryVisualTime)
+                        ? clientEntryVisualTime : doorEntryTicks() - 1 + partial);
             if (hasReplayAnimationClock()) {
                 seconds = replayPoseSeconds(pose);
                 poseAge = 6; // Replay frames are absolute samples, not blends from a previously viewed time.
             }
-            ((MinotaurAnimationController)test.controller()).entryBlend(doorEntryTicks() > 0 && !hasReplayAnimationClock());
+            ((MinotaurAnimationController)test.controller()).entryBlend(doorEntryTicks() > 0 && !hasReplayAnimationClock(), pose);
             test.setControllerSpeed(1);
             var result = test.setAndContinue(animation);
             ((MinotaurAnimationController)test.controller()).samplePose(seconds, poseAge, hasReplayAnimationClock() && pose == AnimationState.IDLE);

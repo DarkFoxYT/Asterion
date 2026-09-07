@@ -43,19 +43,37 @@ public final class CatacombArena {
         if (cached != null && now - cached.tick < 20) return cached.positions;
         java.util.List<BlockPos> found = new java.util.ArrayList<>();
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-        for (int x = -AuthoredCatacombs.ARENA_RADIUS; x <= AuthoredCatacombs.ARENA_RADIUS; x++)
-            for (int z = -AuthoredCatacombs.ARENA_RADIUS; z <= AuthoredCatacombs.ARENA_RADIUS; z++) {
-                if (!level.getChunkSource().hasChunk(x >> 4, z >> 4)) continue;
-                for (int y = FLOOR; y <= FLOOR + 6; y++) {
-                    cursor.set(x, y, z);
-                    BlockState state = level.getBlockState(cursor);
-                    if (state.is(Asterion.GREEK_BRAZIER)
-                            && net.krodark.asterion.block.GreekBrazierBlock.isRoot(state)) {
-                        found.add(cursor.immutable());
-                        break;
-                    }
+        int radius = AuthoredCatacombs.ARENA_RADIUS;
+        for (int cx = -radius >> 4; cx <= radius >> 4; cx++)
+            for (int cz = -radius >> 4; cz <= radius >> 4; cz++) {
+                var chunk = level.getChunkSource().getChunkNow(cx, cz);
+                if (chunk == null) continue; // Background checks must never load chunks.
+                int firstSection = chunk.getSectionIndex(FLOOR);
+                int lastSection = chunk.getSectionIndex(FLOOR + 6);
+                boolean[] candidates = new boolean[lastSection - firstSection + 1];
+                boolean any = false;
+                for (int section = firstSection; section <= lastSection; section++) {
+                    candidates[section - firstSection] = chunk.getSection(section).maybeHas(
+                            state -> state.is(Asterion.GREEK_BRAZIER)
+                                    && net.krodark.asterion.block.GreekBrazierBlock.isRoot(state));
+                    any |= candidates[section - firstSection];
                 }
+                if (!any) continue;
+                for (int x = Math.max(-radius, cx << 4); x <= Math.min(radius, (cx << 4) + 15); x++)
+                    for (int z = Math.max(-radius, cz << 4); z <= Math.min(radius, (cz << 4) + 15); z++)
+                        for (int y = FLOOR; y <= FLOOR + 6; y++) {
+                            if (!candidates[chunk.getSectionIndex(y) - firstSection]) continue;
+                            cursor.set(x, y, z);
+                            BlockState state = chunk.getBlockState(cursor);
+                            if (state.is(Asterion.GREEK_BRAZIER)
+                                    && net.krodark.asterion.block.GreekBrazierBlock.isRoot(state)) {
+                                found.add(cursor.immutable());
+                                break;
+                            }
+                        }
             }
+        // Preserve the original scan order for target selection and effect sequencing.
+        found.sort(java.util.Comparator.<BlockPos>comparingInt(pos -> pos.getX()).thenComparingInt(pos -> pos.getZ()));
         java.util.List<BlockPos> stable = java.util.List.copyOf(found);
         BRAZIER_SCANS.put(level, new BrazierScan(now, stable));
         return stable;

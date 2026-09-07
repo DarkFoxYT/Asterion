@@ -21,7 +21,7 @@ public final class CentipedeCollision {
     public List<AABB> collect(AABB region) {
         List<AABB> blocks = new ArrayList<>();
         for (AABB box : geometry.boxes(region)) if (box.intersects(region)) blocks.add(box);
-        return List.copyOf(blocks);
+        return blocks;
     }
 
      
@@ -50,7 +50,7 @@ public final class CentipedeCollision {
         double gapToSurface = 0;
 
          
-        for (AABB block : blocks) for (int axis = 0; axis < 3; axis++) for (int sign : new int[]{-1, 1}) {
+        for (AABB block : blocks) for (int axis = 0; axis < 3; axis++) for (int sign = -1; sign <= 1; sign += 2) {
             int other = (axis + 1) % 3, last = (axis + 2) % 3;
             if (component(position, other) < min(block, other) - component(extents, other) * 0.7
                     || component(position, other) > max(block, other) + component(extents, other) * 0.7
@@ -99,8 +99,10 @@ public final class CentipedeCollision {
         AABB box = volume(from, half);
         Vec3 result = Vec3.ZERO;
         int first = Math.abs(move.x) > Math.abs(move.z) ? 0 : 2;
-        for (int axis : new int[]{1, first, 2 - first}) {
+        for (int pass = 0; pass < 3; pass++) {
+            int axis = pass == 0 ? 1 : pass == 1 ? first : 2 - first;
             double amount = component(move, axis);
+            if (amount == 0) continue;
             for (AABB obstacle : blocks) amount = clip(box, obstacle, axis, amount);
             Vec3 step = axisVector(axis, amount);
             box = box.move(step);
@@ -127,7 +129,7 @@ public final class CentipedeCollision {
             Vec3 correction = null;
             double best = Double.MAX_VALUE;
             for (AABB block : blocks) if (body.intersects(block)) {
-                for (int axis = 0; axis < 3; axis++) for (int sign : new int[]{-1, 1}) {
+                for (int axis = 0; axis < 3; axis++) for (int sign = -1; sign <= 1; sign += 2) {
                     double offset = sign > 0 ? max(block, axis) - min(body, axis) + SKIN
                             : min(block, axis) - max(body, axis) - SKIN;
                     double score = Math.abs(offset) + (1 - preferredUp.dot(axisVector(axis, sign))) * 0.015;

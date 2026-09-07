@@ -86,6 +86,8 @@ public abstract class CameraMixin {
     private void asterion$flamethrowerFovPulse(CallbackInfoReturnable<Float> result) {
         Minecraft minecraft = Minecraft.getInstance();
         if (net.krodark.asterion.client.AsterionClient.isPlayback(minecraft)) return;
+        float cinematicFov = BossEntranceCinematic.fov(result.getReturnValueF(), minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(true));
+        if (cinematicFov != result.getReturnValueF()) { result.setReturnValue(cinematicFov); return; }
         boolean spraying = minecraft.player != null && minecraft.player.isUsingItem()
                 && minecraft.player.getUseItem().is(net.krodark.asterion.game.GameplayContent.FLAMETHROWER);
         asterion$flamethrowerFovStrength = Mth.lerp(.12F, asterion$flamethrowerFovStrength,
@@ -144,6 +146,10 @@ public abstract class CameraMixin {
         if (localCamera && entrance != null) {
             setPosition(entrance.position());
             setRotation(entrance.yaw(), entrance.pitch());
+            Quaternionf bank = new Quaternionf().rotationAxis(entrance.roll() * Mth.DEG_TO_RAD, forwards);
+            rotation.premul(bank);
+            forwards.rotate(bank); up.rotate(bank); left.rotate(bank);
+            matrixPropertiesDirty |= 3;
         }
         CursedBrazierCinematic.CameraPose brazier = CursedBrazierCinematic.cameraPose(position(), partial);
         if (localCamera && brazier != null) {

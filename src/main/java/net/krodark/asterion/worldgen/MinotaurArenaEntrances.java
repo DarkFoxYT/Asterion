@@ -251,7 +251,7 @@ public final class MinotaurArenaEntrances {
     public static void clearBossEntryPath(ServerLevel level, double width, double height, boolean breached) {
         BlockPos root = door(BOSS_ENTRANCE);
         int halfWidth = (int)Math.ceil(width / 2 + .5);
-        int back = (int)Math.ceil(Math.max(5.5, width / 2 + 3.5) + width / 2);
+        int back = (int)Math.ceil(net.krodark.asterion.entity.MinotaurEntranceMotion.setback(width) + width / 2);
         int front = breached ? -(int)Math.ceil(width + 3) : 2;
         for (int depth = front; depth <= back; depth++) for (int side = -halfWidth; side <= halfWidth; side++) {
             BlockPos base = root.relative(BOSS_ENTRANCE, depth).relative(BOSS_ENTRANCE.getClockWise(), side);

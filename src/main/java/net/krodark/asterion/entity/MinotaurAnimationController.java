@@ -28,7 +28,10 @@ public final class MinotaurAnimationController extends AnimationController<Minot
         }
     }
 
-    public void entryBlend(boolean entry) { transitionTicks = entry ? 6 : 0; }
+    public void entryBlend(boolean entry, MinotaurEntity.AnimationState pose) {
+        transitionTicks = !entry ? 0 : pose == MinotaurEntity.AnimationState.LEAP
+                || pose == MinotaurEntity.AnimationState.LAND ? 2 : 6;
+    }
 
     public void samplePose(double seconds, double age, boolean loop) {
         requestedSeconds = seconds;

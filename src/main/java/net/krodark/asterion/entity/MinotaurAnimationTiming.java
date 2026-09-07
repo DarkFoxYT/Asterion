@@ -42,22 +42,21 @@ public final class MinotaurAnimationTiming {
      
     public static final int ENTRY_CAMERA_TICKS = 50;
     public static final int ENTRY_BREAK_TICK = ENTRY_CAMERA_TICKS + 112;
-    public static final int ENTRY_WALK_END_TICK = ENTRY_BREAK_TICK + 49;
-    public static final int ENTRY_END_TICK = ENTRY_WALK_END_TICK + 140;
-    public static final float ENTRY_ROAR_PITCH = 1.15F;
-    // Walk one full gait cycle, then plant the feet before the faster roar.
-    // The six-second clip starts at frame 66 and finishes with the animation.
+    public static final int ENTRY_CROUCH_TICK = ENTRY_BREAK_TICK + 18;
+    public static final int ENTRY_TAKEOFF_TICK = ENTRY_CROUCH_TICK + 8;
+    public static final int ENTRY_LAND_TICK = ENTRY_TAKEOFF_TICK + 40;
+    public static final int ENTRY_WALK_END_TICK = ENTRY_LAND_TICK + 18;
+    public static final int ENTRY_END_TICK = ENTRY_WALK_END_TICK + 100;
+    public static final float ENTRY_ROAR_PITCH = 1.5F;
+    // Run-up, leap, landing recovery, then a brisk five-second roar.
+    // The six-second sound plays at 1.5x after frame 66, ending with the animation.
     public static final Track ENTRY_ROAR = new Track(
-            new double[]{0, ENTRY_WALK_END_TICK, ENTRY_WALK_END_TICK + 36, ENTRY_END_TICK},
+            new double[]{0, ENTRY_WALK_END_TICK, ENTRY_WALK_END_TICK + 20, ENTRY_END_TICK},
             new double[]{0, 0, ROAR_SOUND_SECONDS, 7.4713});
     public static double entryWalkDistance(double tick, double distance) {
-        double t = Math.clamp((tick - ENTRY_BREAK_TICK) / 49.0, 0, 1);
-        // Constant stride through the doorway with short acceleration/deceleration ramps.
-        double ramp = .12;
-        double area = t < ramp ? t * t / (2 * ramp)
-                : t > 1 - ramp ? 1 - ramp - (1 - t) * (1 - t) / (2 * ramp)
-                : t - ramp / 2;
-        return distance * area / (1 - ramp);
+        double t = Math.clamp((tick - ENTRY_BREAK_TICK) / (ENTRY_CROUCH_TICK - ENTRY_BREAK_TICK), 0, 1);
+        // Finish the run before planting the feet for the jump windup.
+        return distance * t;
     }
     public static final Track FIRE_ROAR = new Track(new double[]{0, 18, 24, 78, 92, 108},
             new double[]{0, 2.5862, 3.0172, 5.364, 6.1303, 7.4713});
