@@ -35,6 +35,7 @@ public final class LamenterBlockEntity extends BlockEntity {
 
     public static void tick(Level level, BlockPos pos, BlockState state, LamenterBlockEntity lamenter) {
         if (level.isClientSide()) {
+            if (level.getNearestPlayer(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5, 32, false) == null) return;
             if (state.getValue(LamenterBlock.CRYING)) {
                 int phase = Math.floorMod(level.getGameTime() + pos.asLong(), 8);
                 if (phase != 0 && phase != 4) return;

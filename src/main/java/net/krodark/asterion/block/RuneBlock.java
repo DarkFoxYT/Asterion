@@ -122,7 +122,9 @@ public final class RuneBlock extends BaseEntityBlock implements WaterloggedDecor
     }
     @Override protected BlockState updateShape(BlockState state, LevelReader level, ScheduledTickAccess ticks,
             BlockPos pos, Direction direction, BlockPos neighbor, BlockState neighborState, RandomSource random) {
-        ticks.scheduleTick(pos, this, 1);
+        BlockPos anchorPos = root(pos, state);
+        BlockState anchor = level.hasChunkAt(anchorPos) ? level.getBlockState(anchorPos) : state;
+        ticks.scheduleTick(level.hasChunkAt(anchorPos) && anchor.is(this) && isRoot(anchor) ? anchorPos : pos, this, 1);
         return state;
     }
     @Override protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {

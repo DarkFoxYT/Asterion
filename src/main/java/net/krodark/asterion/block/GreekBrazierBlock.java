@@ -154,11 +154,20 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
         return true;
     }
     @Override protected void onPlace(BlockState state,Level level,BlockPos pos,BlockState old,boolean moved) {
-        if(!level.isClientSide()) level.scheduleTick(pos,this,1);
+        if(!level.isClientSide()) scheduleValidation(level, pos, state);
     }
     @Override protected void neighborChanged(BlockState state,Level level,BlockPos pos,Block neighbor,
             net.minecraft.world.level.redstone.Orientation orientation,boolean moved) {
-        if(!level.isClientSide()) level.scheduleTick(pos,this,1);
+        if(!level.isClientSide()) scheduleValidation(level, pos, state);
+    }
+    private void scheduleValidation(Level level, BlockPos pos, BlockState state) {
+        BlockPos center = root(pos, state);
+        if (!level.isLoaded(center)) {
+            level.scheduleTick(pos, this, 1);
+            return;
+        }
+        BlockState anchor = level.getBlockState(center);
+        level.scheduleTick(owned(anchor, center, center) ? center : pos, this, 1);
     }
     @Override protected void tick(BlockState state,ServerLevel level,BlockPos pos,RandomSource random) {
         BlockPos center=root(pos,state);

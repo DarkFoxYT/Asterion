@@ -264,6 +264,24 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private final MinotaurSmokeClouds smokeClouds = new MinotaurSmokeClouds();
     private long regenerationDeadline;
     private int clientMovingUntil;
+    private AnimationState footstepPose;
+    private int footstepStartTick;
+
+    @Override public void tick() {
+        super.tick();
+        if (!level().isClientSide()) return;
+        AnimationState pose = animationState();
+        if (pose != footstepPose) {
+            footstepPose = pose;
+            footstepStartTick = tickCount;
+            return;
+        }
+        if (pose != AnimationState.WALK && pose != AnimationState.CHASE && pose != AnimationState.CHARGE_RUN) return;
+        double seconds = (tickCount - footstepStartTick) / 20.0;
+        if (MinotaurAnimationTiming.crossedFootstep(seconds - .05, seconds, pose == AnimationState.WALK))
+            level().playLocalSound(getX(), getY(), getZ(), Asterion.MINOTAUR_STEP,
+                    net.minecraft.sounds.SoundSource.HOSTILE, pose == AnimationState.WALK ? 1.05F : 1.8F, 1F, false);
+    }
     private MinotaurLeapPlan leapPlan;
     private int leapFlightTick, obstacleLeapRetryTick;
     private int leapImpactTick = -1;
@@ -397,7 +415,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             debugDecision = "Selected " + selected + " using range, cooldowns and recent attacks";
             beginBossAttack(player, selected);
         }
-        playHeavySteps();
+        tickChaseRumble();
     }
     private int clearCombatObstacle(ServerLevel level, AABB bounds) {
         return 0;  
@@ -829,7 +847,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             getLookControl().setLookAt(player, 6.0F, 6.0F);
             if (gazeTicks >= 12) beginWarning();
         } else gazeTicks = Math.max(0, gazeTicks - 1);
-        playHeavySteps();
+        tickChaseRumble();
     }
 
     private void tickHunting(ServerLevel level, ServerPlayer player) {
@@ -899,7 +917,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         previousTargetDistance = distance;
 
         tickStalking(level, player, observed, distance);
-        playHeavySteps();
+        tickChaseRumble();
     }
 
     private void tickStalking(ServerLevel level, ServerPlayer player, boolean observed, double distance) {
@@ -1225,7 +1243,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             escapeDistanceTicks++;
             if (escapeDistanceTicks >= 60) beginRetreat(true);
         } else escapeDistanceTicks = Math.max(0, escapeDistanceTicks - 2);
-        playHeavySteps();
+        tickChaseRumble();
     }
 
     private boolean tryBeginCorridorCharge(ServerLevel level, ServerPlayer player, double distance) {
@@ -1694,6 +1712,14 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     private void tickBoss(ServerLevel level, ServerPlayer player) {
+        if (net.krodark.asterion.game.ArenaDeathRecovery.isRecovering(player)) {
+            player = level.players().stream().filter(candidate -> candidate.isAlive()
+                            && net.krodark.asterion.worldgen.BossArenaEncounter.isParticipant(candidate)
+                            && !net.krodark.asterion.game.ArenaDeathRecovery.isRecovering(candidate))
+                    .min(java.util.Comparator.comparingDouble(this::distanceToSqr)).orElse(null);
+            if (player == null) return;
+            eclipseTarget = player.getUUID();
+        }
         tickBrazierRage(level);
         if (phaseTicks % 40 == 0) syncBossPartyScaling(level, false);
         if (phaseTicks % 20 == 0) {
@@ -1706,6 +1732,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 && !throwPursuitPending && airborneCatchWindow <= 0 && wallComboWindow <= 0) {
             ServerPlayer tacticalTarget = level.players().stream()
                     .filter(candidate -> candidate.isAlive() && !candidate.isCreative()
+                            && !net.krodark.asterion.game.ArenaDeathRecovery.isRecovering(candidate)
                             && !candidate.isSpectator() && WorldGenerator.isInsideBossArena(candidate.position())
                             && !candidate.getUUID().equals(eclipseTarget))
                     .max(java.util.Comparator.comparingDouble(candidate ->
@@ -1752,7 +1779,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 Vec3 horizontal = new Vec3(inward.x, 0.0D, inward.z).normalize();
                 setDeltaMovement(horizontal.scale(0.34D).add(0.0D, getDeltaMovement().y, 0.0D));
             }
-            playHeavySteps();
+            tickChaseRumble();
             return;
         }
 
@@ -1879,7 +1906,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             Vec3 waypoint = hasLineOfSight(player) ? player.position() : WorldGenerator.bossArenaTacticalWaypoint(position(), player.position());
             getNavigation().moveTo(waypoint.x, waypoint.y, waypoint.z, 0.82D);
         }
-        playHeavySteps();
+        tickChaseRumble();
     }
 
     private boolean tickPendingCombos(ServerLevel level) {
@@ -4725,10 +4752,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         return value * value * value * (value * (value * 6.0D - 15.0D) + 10.0D);
     }
 
-    private void playHeavySteps() {
+    private void tickChaseRumble() {
         if (getDeltaMovement().horizontalDistanceSqr() > 0.012D && (tickCount % 9) == 0) {
-            playSound(SoundEvents.RAVAGER_STEP, behaviorPhase() == BehaviorPhase.CHASING ? 1.8F : 1.05F,
-                    behaviorPhase() == BehaviorPhase.CHASING ? 0.68F : 0.48F);
             if (behaviorPhase() == BehaviorPhase.CHASING && level() instanceof ServerLevel level) {
                 MazeShiftPayload footfall = new MazeShiftPayload(blockPosition(), 26.0F,
                         0.22F + rage() * 0.012F, 7);
@@ -5401,6 +5426,9 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             double poseAge = clientPoseAge = Math.max(clientPoseAge, Math.max(0, age - clientPoseStartAge));
             double ticks = clientPoseStartTick + poseAge;
             double seconds = animationSeconds(pose, ticks);
+            if (pose == AnimationState.WALK || pose == AnimationState.CHASE || pose == AnimationState.CHARGE_RUN)
+                seconds = Math.max(0, tickCount - footstepStartTick + partial) / 20.0
+                        % (pose == AnimationState.WALK ? MinotaurAnimationTiming.WALK_LENGTH : MinotaurAnimationTiming.RUN_LENGTH);
              
             test.setControllerSpeed(1);
             var result = test.setAndContinue(animation);

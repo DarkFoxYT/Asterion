@@ -59,6 +59,8 @@ public final class ChallengeSpawnerBlockEntity extends BlockEntity {
         if (spawner.complete) return;
         boolean explosive = ((ChallengeSpawnerBlock)state.getBlock()).explosive();
         if (!spawner.started) {
+            // Stagger idle proximity checks and failed spawn retries across the world.
+            if (Math.floorMod(level.getGameTime() + pos.asLong(), 10) != 0) return;
             var player = level.players().stream().filter(p -> p.isAlive() && !p.isSpectator()
                     && p.distanceToSqr(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5) < 64).findFirst().orElse(null);
             if (player == null || level.getDifficulty() == net.minecraft.world.Difficulty.PEACEFUL) return;
@@ -77,10 +79,11 @@ public final class ChallengeSpawnerBlockEntity extends BlockEntity {
             }
             if (spawner.mobs.isEmpty()) return;
             spawner.started = true;
+            spawner.setChanged();
         }
          
         var deaths = net.krodark.asterion.game.ChallengeDeaths.get(level);
-        spawner.mobs.removeIf(deaths::consume);
+        boolean changed = spawner.mobs.removeIf(deaths::consume);
         if (spawner.mobs.isEmpty()) {
             spawner.complete = true;
             spawner.removeLabel(level);
@@ -102,7 +105,7 @@ public final class ChallengeSpawnerBlockEntity extends BlockEntity {
                 display.setCustomName(Component.literal(Integer.toString((spawner.remaining + 19) / 20)).withStyle(ChatFormatting.RED));
             }
         }
-        spawner.setChanged();
+        if (changed || spawner.complete || explosive && spawner.remaining % 20 == 0) spawner.setChanged();
     }
     private void removeLabel(ServerLevel level) {
         if (label != null && level.getEntity(label) != null) level.getEntity(label).discard();

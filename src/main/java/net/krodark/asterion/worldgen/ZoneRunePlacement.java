@@ -35,7 +35,8 @@ public final class ZoneRunePlacement {
     public static java.util.List<ChunkPos> arenaChunks() { return ARENA_CHUNKS; }
     public static void enqueueArena(ServerLevel level) {
         var queue = ARENA_PENDING.computeIfAbsent(level, ignored -> new java.util.ArrayDeque<>());
-        if (queue.isEmpty()) queue.addAll(ARENA_CHUNKS);
+        var queued = new java.util.HashSet<>(queue);
+        for (ChunkPos pos : ARENA_CHUNKS) if (!queued.contains(pos)) queue.addLast(pos);
     }
     public static void enqueueCursedBrazierRoom(ServerLevel level) {
         for (int roomIndex = 0; roomIndex < AuthoredCatacombs.BRAZIER_ROOM_ORIGINS.size(); roomIndex++)
@@ -121,23 +122,35 @@ public final class ZoneRunePlacement {
     }
 
     private static void prepareStructures(ServerLevel level) {
-        boolean cinematic = BossArenaEncounter.isIntroCinematic(level);
-        if (!cinematic) releasePreparationTickets(level);
+        boolean prepareArena = BossArenaEncounter.isIntroCinematic(level)
+                || level.players().stream().anyMatch(player ->
+                        Math.abs(player.getX()) <= 192 && Math.abs(player.getZ()) <= 192);
+        boolean prepareRooms = level.players().stream().anyMatch(player ->
+                AuthoredCatacombs.BRAZIER_ROOM_ORIGINS.stream().anyMatch(origin ->
+                        Math.abs(player.getX() - origin.getX()) <= 96
+                                && Math.abs(player.getZ() - origin.getZ()) <= 96));
+        if (!prepareArena && !prepareRooms) releasePreparationTickets(level);
         var arena = ARENA_PENDING.get(level);
-        LevelChunk chunk = nextReadyChunk(level, arena, cinematic);
+        LevelChunk chunk = nextReadyChunk(level, arena, prepareArena);
         if (chunk != null) {
             AuthoredCatacombs.placeArenaChunk(level, chunk);
             return;
         }
-        if (arena != null && arena.isEmpty()) ARENA_PENDING.remove(level);
+        if (arena != null && arena.isEmpty()) {
+            ARENA_PENDING.remove(level);
+            if (!prepareRooms) releasePreparationTickets(level);
+        }
         var rooms = BRAZIER_ROOM_PENDING.get(level);
-        chunk = nextReadyChunk(level, rooms, false);
+        chunk = nextReadyChunk(level, rooms, prepareRooms);
         if (chunk != null) {
             if (!AuthoredCatacombs.cursedBrazierRoomChunkReady(level, chunk.getPos()))
                 AuthoredCatacombs.placeCursedBrazierRoomChunk(level, chunk.getPos());
             return;
         }
-        if (rooms != null && rooms.isEmpty()) BRAZIER_ROOM_PENDING.remove(level);
+        if (rooms != null && rooms.isEmpty()) {
+            BRAZIER_ROOM_PENDING.remove(level);
+            if (arena == null || arena.isEmpty()) releasePreparationTickets(level);
+        }
     }
 
     private static LevelChunk nextReadyChunk(ServerLevel level, java.util.ArrayDeque<ChunkPos> queue, boolean cinematic) {

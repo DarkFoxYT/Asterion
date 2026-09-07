@@ -61,6 +61,7 @@ public final class BossArenaEncounter {
     private static void admit(ServerLevel level, ServerPlayer player, Direction entry) {
         if (active == null || !active.participants.add(player.getUUID())) return;
         Vec3 safe = safePosition(level, player, entry, active.participants.size() - 1);
+        active.spawnPositions.put(player.getUUID(), safe);
         Vec3 focus = Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(active.bossDoor)).add(0, 2.8, 0);
         Vec3 delta = focus.subtract(safe.add(0, player.getEyeHeight(), 0));
         float yaw = (float)Math.toDegrees(Math.atan2(-delta.x, delta.z));
@@ -100,8 +101,8 @@ public final class BossArenaEncounter {
         for (UUID id : List.copyOf(active.participants)) {
             ServerPlayer player = level.getServer().getPlayerList().getPlayer(id);
             if (player != null && !player.isAlive() && player.level() == level) {
-                net.krodark.asterion.worldgen.WorldGenerator.resetBossEncounterAfterDeath(player);
-                return;
+                if (net.krodark.asterion.worldgen.WorldGenerator.resetBossEncounterAfterDeath(player)) return;
+                releasePlayer(player);
             }
         }
         var entity = level.getEntity(active.boss);
@@ -275,11 +276,29 @@ public final class BossArenaEncounter {
         return active != null && active.level == player.level() && active.participants.contains(player.getUUID());
     }
 
+    public static boolean hasSurvivingParticipant(ServerPlayer fallen) {
+        if (active == null || active.level != fallen.level()) return false;
+        return active.level.players().stream()
+                .anyMatch(player -> active.participants.contains(player.getUUID()) && player != fallen && player.level() == active.level
+                        && eligible(player) && !net.krodark.asterion.game.ArenaDeathRecovery.isRecovering(player));
+    }
+
+    public static Vec3 recoveryPosition(ServerPlayer player) {
+        if (active != null && active.level == player.level() && active.spawnPositions.containsKey(player.getUUID()))
+            return active.spawnPositions.get(player.getUUID());
+        return safePosition((ServerLevel) player.level(), player, MinotaurArenaEntrances.PLAYER_ENTRANCE, 2);
+    }
+
     public static void releasePlayer(ServerPlayer player) {
+        if (active == null) return;
+        releaseMovementLock(player);
+        active.participants.remove(player.getUUID());
+    }
+
+    public static void releaseMovementLock(ServerPlayer player) {
         if (active == null) return;
         Lock lock = active.locks.remove(player.getUUID());
         if (lock != null) release(lock);
-        active.participants.remove(player.getUUID());
     }
 
     private static void release(Lock lock) {
@@ -298,6 +317,7 @@ public final class BossArenaEncounter {
         final long start;
         final Set<UUID> beetles = new HashSet<>();
         final Set<UUID> participants = new LinkedHashSet<>();
+        final Map<UUID, Vec3> spawnPositions = new HashMap<>();
         final Map<UUID, Lock> locks = new HashMap<>();
         final Map<Direction, Integer> closedRows = new EnumMap<>(Direction.class);
         boolean omegaLockRestored;

@@ -14,7 +14,7 @@ import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 
 public final class SanctuaryBlockEntity extends BlockEntity implements GeoBlockEntity {
-    private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
+    private AnimatableInstanceCache cache;
     private int pulse;
     private float clientGlowAlpha;
     private boolean clientGlowInitialized;
@@ -34,14 +34,15 @@ public final class SanctuaryBlockEntity extends BlockEntity implements GeoBlockE
         }
         if (!(level instanceof ServerLevel server) || self.pulse <= 0) return;
         double radius = (25 - self.pulse) * .32;
-        int points = 40;
+        int points = 24;
+        var dust = new DustParticleOptions(0xFFD574, .65F + self.pulse / 36F);
         for (int i = 0; i < points; i++) {
             double angle = i * Math.PI * 2 / points;
             double x = pos.getX() + .5 + Math.cos(angle) * radius;
             double z = pos.getZ() + .5 + Math.sin(angle) * radius;
             BlockPos sample = BlockPos.containing(x, pos.getY(), z);
             if (!level.getBlockState(sample).getCollisionShape(level, sample).isEmpty()) continue;
-            server.sendParticles(new DustParticleOptions(0xFFD574, .65F + self.pulse / 36F),
+            server.sendParticles(dust,
                     x, pos.getY() + .18 + Math.sin(angle * 4) * .07, z, 1, .04, .04, .04, 0);
         }
         self.pulse--; self.setChanged();
@@ -53,5 +54,8 @@ public final class SanctuaryBlockEntity extends BlockEntity implements GeoBlockE
     @Override protected void saveAdditional(ValueOutput output) { super.saveAdditional(output); output.putInt("pulse", pulse); }
     @Override protected void loadAdditional(ValueInput input) { super.loadAdditional(input); pulse = Math.clamp(input.getIntOr("pulse", 0), 0, 24); }
     @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) { }
-    @Override public AnimatableInstanceCache getAnimatableInstanceCache() { return cache; }
+    @Override public AnimatableInstanceCache getAnimatableInstanceCache() {
+        if (cache == null) cache = GeckoLibUtil.createInstanceCache(this);
+        return cache;
+    }
 }

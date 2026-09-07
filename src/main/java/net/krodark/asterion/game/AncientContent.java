@@ -40,7 +40,10 @@ public final class AncientContent {
                             .create(net.krodark.asterion.block.MinotaurTrophyBlockEntity::new, MINOTAUR_TROPHY).build());
     private static final ResourceKey<Item> TROPHY_ITEM_KEY = ResourceKey.create(Registries.ITEM, Asterion.id("minotaur_skull_trophy"));
     public static final Item MINOTAUR_TROPHY_ITEM = Registry.register(BuiltInRegistries.ITEM, TROPHY_ITEM_KEY,
-            new BlockItem(MINOTAUR_TROPHY, new Item.Properties().setId(TROPHY_ITEM_KEY).rarity(Rarity.RARE)));
+            new BlockItem(MINOTAUR_TROPHY, new Item.Properties().setId(TROPHY_ITEM_KEY).rarity(Rarity.RARE)
+                    .component(net.minecraft.core.component.DataComponents.EQUIPPABLE,
+                            net.minecraft.world.item.equipment.Equippable.builder(net.minecraft.world.entity.EquipmentSlot.HEAD)
+                                    .setDamageOnHurt(false).build())));
 
     private AncientContent() {}
     public static void initialize() {

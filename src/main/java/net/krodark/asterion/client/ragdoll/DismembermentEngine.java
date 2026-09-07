@@ -111,6 +111,8 @@ public final class DismembermentEngine {
 
     public boolean impact(Entity entity, int region, Vec3 point, Vec3 direction, double force) {
         if (!inAsterion(entity)) return false;
+        if (entity == Minecraft.getInstance().player
+                && RagdollClientController.isRespawnProtected(Minecraft.getInstance())) return false;
         return impact(entity, region, point, direction, force, false);
     }
 
@@ -1578,6 +1580,11 @@ public final class DismembermentEngine {
 
     record WoundProjection(int region, Vec3 modelPosition, Vec3 modelNormal) { }
 
+    public void discardRespawnRagdoll(int entityId) {
+        electrifiedUntil.remove(entityId);
+        removeRagdoll(entityId);
+    }
+
     public void releaseRagdoll(int entityId) {
         Minecraft client = Minecraft.getInstance();
         if (client.level != null && client.level.getEntity(entityId) instanceof Player player
@@ -1699,6 +1706,7 @@ public final class DismembermentEngine {
         }
         if (!(owner instanceof Player) || !owner.isAlive()) return;
         if (owner == client.player) {
+            if (RagdollClientController.isRespawnProtected(client)) return;
              
              
             if (!ragdolled.contains(owner.getId()))

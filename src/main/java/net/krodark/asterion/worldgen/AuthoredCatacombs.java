@@ -414,13 +414,29 @@ public final class AuthoredCatacombs {
     }
 
     private static final Map<ServerLevel, Set<ChunkPos>> COMPLETED_ARENA_CHUNKS = new WeakHashMap<>();
+    private static final Map<ServerLevel, Set<ChunkPos>> RESET_ARENA_CHUNKS = new WeakHashMap<>();
+
+    public static void resetArena(ServerLevel level) {
+        Set<ChunkPos> chunks = new HashSet<>(ZoneRunePlacement.arenaChunks());
+        RESET_ARENA_CHUNKS.put(level, chunks);
+        COMPLETED_ARENA_CHUNKS.remove(level);
+        for (ChunkPos pos : chunks) {
+            LevelChunk chunk = level.getChunkSource().getChunkNow(pos.x(), pos.z());
+            if (chunk != null) {
+                chunk.setBlockState(arenaMarker(pos), Blocks.AIR.defaultBlockState(), 0);
+                chunk.markUnsaved();
+            }
+        }
+        placeArena(level);
+    }
 
     public static boolean arenaComplete(ServerLevel level) {
+        if (!RESET_ARENA_CHUNKS.getOrDefault(level, Set.of()).isEmpty()) return false;
         Set<ChunkPos> completed = COMPLETED_ARENA_CHUNKS.computeIfAbsent(level, ignored -> new HashSet<>());
         for (ChunkPos pos : ZoneRunePlacement.arenaChunks()) {
             LevelChunk chunk = level.getChunkSource().getChunkNow(pos.x(), pos.z());
             if (chunk == null) continue;
-            if (chunk.getBlockState(arenaMarker(pos)).equals(arenaRevisionMarker())) completed.add(pos);
+            if (chunk.getBlockState(arenaMarker(pos)).equals(arenaRevisionMarker()) && hasArenaFoundation(chunk)) completed.add(pos);
             else completed.remove(pos);
         }
         return completed.containsAll(ZoneRunePlacement.arenaChunks());
@@ -428,6 +444,18 @@ public final class AuthoredCatacombs {
 
     private static BlockPos arenaMarker(ChunkPos pos) {
         return new BlockPos(pos.getMinBlockX(), ARENA_CHUNK_MARKER_Y, pos.getMinBlockZ());
+    }
+
+    private static boolean hasArenaFoundation(LevelChunk chunk) {
+        ChunkPos pos = chunk.getPos();
+        if (pos.x() < -4 || pos.x() > 3 || pos.z() < -4 || pos.z() > 3) return true;
+        int minX = Math.max(-61, pos.getMinBlockX()), maxX = Math.min(61, pos.getMaxBlockX());
+        int minZ = Math.max(-61, pos.getMinBlockZ()), maxZ = Math.min(61, pos.getMaxBlockZ());
+        int intact = 0;
+        for (int x : new int[]{minX, (minX + maxX) >> 1, maxX})
+            for (int z : new int[]{minZ, (minZ + maxZ) >> 1, maxZ})
+                if (chunk.getBlockState(new BlockPos(x, ARENA_BASE_Y, z)).is(Asterion.MAZESTEEL_BLOCK)) intact++;
+        return intact >= 5;
     }
 
     private static net.minecraft.world.level.block.state.BlockState arenaRevisionMarker() {
@@ -463,14 +491,16 @@ public final class AuthoredCatacombs {
          
          
          
-        if(chunk.getBlockState(marker).equals(revisionMarker)) {
+        Set<ChunkPos> resetting = RESET_ARENA_CHUNKS.get(level);
+        boolean reset = resetting != null && resetting.contains(cp);
+        if(!reset && chunk.getBlockState(marker).equals(revisionMarker) && hasArenaFoundation(chunk)) {
             repairArenaApproach(level, chunk);
             return;
         }
         if(retiredApproach)sealRetiredApproach(level,chunk);
         BoundingBox chunkBounds=new BoundingBox(cp.getMinBlockX(),ARENA_BASE_Y,cp.getMinBlockZ(),
                 cp.getMaxBlockX(),ARENA_BASE_Y+47,cp.getMaxBlockZ());
-        if(arena)clearOldArenaChunk(chunk,chunkBounds);
+        if(arena)clearOldArenaChunk(level,chunkBounds);
         if(arena)for(int part=1;part<=9;part++) {
             BlockPos origin=new BlockPos(-61+((part-1)%3)*41,ARENA_BASE_Y,-61+((part-1)/3)*41);
             int maxX=origin.getX()+40,maxZ=origin.getZ()+40;
@@ -495,6 +525,8 @@ public final class AuthoredCatacombs {
         chunk.setBlockState(marker,revisionMarker,0);
         MazeNbtStructures.markCopperClean(chunk);
         chunk.markUnsaved();
+        if (resetting != null) resetting.remove(cp);
+        COMPLETED_ARENA_CHUNKS.computeIfAbsent(level, ignored -> new HashSet<>()).add(cp);
         net.krodark.asterion.worldgen.WorldGenerator.arenaChunkPlaced(level);
     }
 
@@ -509,20 +541,19 @@ public final class AuthoredCatacombs {
                 level.setBlock(new BlockPos(x,y,z),Asterion.ANCIENT_BRICKS.defaultBlockState(),18);
         }
     }
-    private static void clearOldArenaChunk(LevelChunk chunk,BoundingBox bounds) {
+    private static void clearOldArenaChunk(ServerLevel level,BoundingBox bounds) {
          
          
         var air=Blocks.AIR.defaultBlockState();
         BlockPos.MutableBlockPos cursor=new BlockPos.MutableBlockPos();
         for(int x=bounds.minX();x<=bounds.maxX();x++)for(int z=bounds.minZ();z<=bounds.maxZ();z++)
             for(int y=bounds.minY();y<=bounds.maxY();y++)
-                chunk.setBlockState(cursor.set(x,y,z),air,0);
+                level.setBlock(cursor.set(x,y,z),air,18);
     }
     private static void placeArenaPart(ServerLevel level, StructureTemplate template, BlockPos origin,
                                        BoundingBox bounds, int part) {
         var palettes=((StructureTemplateAccessor)(Object)template).asterion$getPalettes();
         if(palettes.isEmpty())return;
-        Map<Long,net.minecraft.world.level.chunk.LevelChunk> chunks=new HashMap<>();
         List<BlockPos> pillarRoots=new ArrayList<>();
         for(var info:palettes.getFirst().blocks()) {
             BlockPos local = info.pos();
@@ -545,13 +576,9 @@ public final class AuthoredCatacombs {
              
              
              
-            if(state.hasBlockEntity()||state.getLightEmission()>0||!state.getFluidState().isEmpty())
-                level.setBlock(pos,state,18);
-            else {
-                long key=ChunkPos.pack(pos.getX()>>4,pos.getZ()>>4);
-                var chunk=chunks.computeIfAbsent(key,ignored->level.getChunk(pos.getX()>>4,pos.getZ()>>4));
-                chunk.setBlockState(pos,state,0);
-            }
+            // Deferred placement runs after chunks may already have been sent to players.
+            // The level path updates lighting and queues section updates for every block.
+            level.setBlock(pos,state,18);
         }
          
          
@@ -565,7 +592,6 @@ public final class AuthoredCatacombs {
             net.krodark.asterion.block.PillarBlock.placeStructure(
                     (pos,state)->level.setBlock(pos,state,18),root,
                     net.krodark.asterion.block.PillarBlock.MODEL_HEIGHT);
-        for(var chunk:chunks.values())chunk.markUnsaved();
     }
     private static void configureArenaLoot(ServerLevel level,LevelChunk chunk) {
         var common=net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.LOOT_TABLE,

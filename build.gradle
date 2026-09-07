@@ -417,7 +417,7 @@ loom {
             vmArg "-Dfabric.client.gametest"
             vmArg "-Dfabric.client.gametest.modid=asterion_catacomb_test"
             vmArg "-Dfabric.addMods=${layout.buildDirectory.dir('catacomb-testmod').get().asFile.absolutePath}"
-            runDir "build/catacomb-gametest"
+            runDir providers.gradleProperty('catacombTestDir').getOrElse('build/catacomb-gametest')
             ideConfigGenerated = false
         }
         doorTest {
@@ -575,6 +575,10 @@ tasks.withType(JavaExec).configureEach {
 }
 
 def regressionSuites = [
+        footstepRegression: [
+                entryPoint: "FootstepRegression",
+                summary: "Checks Minotaur contact frames, loop boundaries and authored clip lengths."
+        ],
         configRegression: [
                 entryPoint: "ConfigRegression",
                 summary: "Checks config migration, invalid-file preservation and numeric bounds."
@@ -623,7 +627,7 @@ regressionSuites.each { taskName, suite ->
 
  
 tasks.named("check") {
-    dependsOn "configRegression", "centipedeRegression", "catacombRegression", "forgingRegression", "amneticRegression"
+    dependsOn "configRegression", "centipedeRegression", "catacombRegression", "forgingRegression", "amneticRegression", "footstepRegression"
 }
 
 tasks.register("modDistribution", Sync) {

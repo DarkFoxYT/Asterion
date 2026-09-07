@@ -33,6 +33,10 @@ public final class TimedTrapBlockEntity extends BlockEntity {
             level.setBlock(pos, state.setValue(TimedTrapBlock.ACTIVE, true), 3);
             level.playSound(null, pos, net.minecraft.sounds.SoundEvents.FIRECHARGE_USE, net.minecraft.sounds.SoundSource.BLOCKS, .8F, 1.25F);
         }
+        if (trap.remaining != 8 && trap.burst == 0) {
+            trap.setChanged();
+            return;
+        }
         Vec3 direction = state.getValue(TimedTrapBlock.FACING).getUnitVec3();
         Vec3 start = Vec3.atCenterOf(pos).add(direction.scale(.56));
         if (trap.remaining == 8) level.sendParticles(Asterion.GREEK_FIRE_SOOT, start.x, start.y, start.z, 5, .1, .1, .1, .01);

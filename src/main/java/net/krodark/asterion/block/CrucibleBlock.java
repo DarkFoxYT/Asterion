@@ -115,7 +115,8 @@ public final class CrucibleBlock extends BaseEntityBlock {
 
     @Override public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
                                                                             BlockEntityType<T> type) {
-        return isRoot(state) ? createTickerHelper(type, Asterion.CRUCIBLE_BLOCK_ENTITY, CrucibleBlockEntity::tick) : null;
+        return !level.isClientSide() && isRoot(state)
+                ? createTickerHelper(type, Asterion.CRUCIBLE_BLOCK_ENTITY, CrucibleBlockEntity::tick) : null;
     }
 
     public static boolean isRoot(BlockState state) {

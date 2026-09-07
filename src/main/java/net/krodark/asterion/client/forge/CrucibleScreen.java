@@ -293,6 +293,11 @@ public final class CrucibleScreen extends Screen {
 
     private int bottomX() { return Math.round(width / scale()) / 2 - 128; }
 
+    private int moldSlotX(int index) {
+        int rowWidth = (VISIBLE_MOLDS.length - 1) * 40 + 32;
+        return bottomX() + (256 - rowWidth) / 2 + index * 40;
+    }
+
     private int bottomY() { return Math.round(height / scale()) - GUI_Y - 68 + Math.round(64 * (1 - moldPanel.value(framePartial))); }
 
     private int ingredientX(int index) { return rightX() + (index == 4 ? 56 : index == 0 ? 56 : 16 + (index - 1) * 40); }
@@ -410,7 +415,7 @@ public final class CrucibleScreen extends Screen {
             return true;
         } else {
 
-            for (int i = 0; i < VISIBLE_MOLDS.length; i++) if (inside(x, y, bottomX() + 8 + i * 40, bottomY() + 16, 32, 32)) {
+            for (int i = 0; i < VISIBLE_MOLDS.length; i++) if (inside(x, y, moldSlotX(i), bottomY() + 16, 32, 32)) {
 
                 send(CrucibleControlPayload.selectMold(VISIBLE_MOLDS[i])); return true;
 
@@ -655,7 +660,7 @@ public final class CrucibleScreen extends Screen {
 
             int i = VISIBLE_MOLDS[slotIndex];
 
-            int x = bottomX() + 8 + slotIndex * 40, y = bottomY() + 16;
+            int x = moldSlotX(slotIndex), y = bottomY() + 16;
 
             image(g, MOLD_TEXTURES[i], x, y, 32, 32);
 

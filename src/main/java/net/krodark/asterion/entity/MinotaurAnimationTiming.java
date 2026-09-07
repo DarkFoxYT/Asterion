@@ -2,6 +2,16 @@ package net.krodark.asterion.entity;
 
  
 public final class MinotaurAnimationTiming {
+    public static final double WALK_LENGTH = 2.439, RUN_LENGTH = 1.343;
+
+    /** Contact times use the authored 24 fps timeline, including loop boundaries. */
+    public static boolean crossedFootstep(double previous, double current, boolean walking) {
+        double length = walking ? WALK_LENGTH : RUN_LENGTH;
+        double first = (walking ? 29 : 18) / 24.0;
+        double second = (walking ? 58 : 32) / 24.0;
+        return Math.floor((current - first) / length) > Math.floor((previous - first) / length)
+                || Math.floor((current - second) / length) > Math.floor((previous - second) / length);
+    }
      
     public static final double ROAR_SOUND_SECONDS = 66.0 / 24.0;
     public static final int AXE_RELEASE = 15;

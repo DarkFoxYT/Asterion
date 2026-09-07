@@ -18,7 +18,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.Nullable;
 
 public final class RuneBlockEntity extends BlockEntity implements GeoBlockEntity {
-    private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
+    private AnimatableInstanceCache animationCache;
     private float glowPercent;
     private boolean worldGenerated;
     private int beetleSpawnDelay = 200;
@@ -38,10 +38,16 @@ public final class RuneBlockEntity extends BlockEntity implements GeoBlockEntity
     public RuneBlockEntity(BlockPos pos, BlockState state) { super(Asterion.RUNE_BLOCK_ENTITY, pos, state); }
 
     public static void tick(Level level, BlockPos pos, BlockState state, RuneBlockEntity rune) {
-        float target = state.getValue(RuneBlock.POWERED) ? 100F : 0F;
-        rune.glowPercent += (target - rune.glowPercent) * .18F;
-        if (Math.abs(target - rune.glowPercent) < .08F) rune.glowPercent = target;
-        if (!level.isClientSide() && level.getGameTime() % 20 == 0) level.scheduleTick(pos, state.getBlock(), 1);
+        if (level.isClientSide()) {
+            float target = state.getValue(RuneBlock.POWERED) ? 100F : 0F;
+            if (rune.glowPercent != target) {
+                rune.glowPercent += (target - rune.glowPercent) * .18F;
+                if (Math.abs(target - rune.glowPercent) < .08F) rune.glowPercent = target;
+            }
+            return;
+        }
+        if (Math.floorMod(level.getGameTime() + pos.asLong(), 20) == 0)
+            level.scheduleTick(pos, state.getBlock(), 1);
         if (level instanceof ServerLevel server && rune.worldGenerated && --rune.beetleSpawnDelay <= 0) {
             rune.beetleSpawnDelay = 600 + server.getRandom().nextInt(600);
             rune.spawnBeetle(server, pos);
@@ -99,5 +105,8 @@ public final class RuneBlockEntity extends BlockEntity implements GeoBlockEntity
 
     @Override public @Nullable Packet<ClientGamePacketListener> getUpdatePacket() { return ClientboundBlockEntityDataPacket.create(this); }
     @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) { }
-    @Override public AnimatableInstanceCache getAnimatableInstanceCache() { return animationCache; }
+    @Override public AnimatableInstanceCache getAnimatableInstanceCache() {
+        if (animationCache == null) animationCache = GeckoLibUtil.createInstanceCache(this);
+        return animationCache;
+    }
 }

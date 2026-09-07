@@ -25,6 +25,7 @@ public final class RagdollClientController {
     private static boolean thirdPersonLocked;
     private static LivingEntity observedLocalPlayer;
     private static int ragdollSuppressedUntilTick;
+    private static int respawnProtectedUntilTick;
 
     private RagdollClientController() {
     }
@@ -48,14 +49,16 @@ public final class RagdollClientController {
         }
 
         if (observedLocalPlayer != client.player) {
-            if (observedLocalPlayer != null) engine.releaseRagdoll(observedLocalPlayer.getId());
-            engine.releaseRagdoll(client.player.getId());
+            if (observedLocalPlayer != null) engine.discardRespawnRagdoll(observedLocalPlayer.getId());
+            engine.discardRespawnRagdoll(client.player.getId());
+            ragdollSuppressedUntilTick = client.player.tickCount + 60;
             DazeOverlay.cancel();
             restoreCamera(client);
             tumbleWasDown = false;
             rightWasDown = false;
             resetRecovery();
             observedLocalPlayer = client.player;
+            respawnProtectedUntilTick = client.player.tickCount + 60;
         }
 
         boolean fallingIntoVoid = client.player.getY() <= client.level.getMinY() + 12.0D;
@@ -133,6 +136,11 @@ public final class RagdollClientController {
         engine.tick(client.level, client.player);
         engine.followPlayerTumble(client);
         syncRagdollCamera(client, engine);
+    }
+
+    public static boolean isRespawnProtected(Minecraft client) {
+        return client.player != null && (observedLocalPlayer != client.player
+                || client.player.tickCount < respawnProtectedUntilTick);
     }
 
     public static void suppressAutomaticFallRagdoll(int ticks) {

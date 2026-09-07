@@ -56,6 +56,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     private int brazierKeys;
     private int pouringTicks;
     private int autoPourTicks;
+    private boolean thermalSyncPending;
      
     private int primaryMetal = -1;
     private int secondaryMetal = -1;
@@ -673,10 +674,16 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
          
          
          
-        if (changed) crucible.setChanged();
-        boolean periodicActiveSync = changed && level.getGameTime() % 10L == 0L;
+        crucible.thermalSyncPending |= changed;
+        boolean periodicActiveSync = crucible.thermalSyncPending
+                && Math.floorMod(level.getGameTime() + pos.asLong(), 10L) == 0L;
         boolean finishedPouring = wasPouring && crucible.pouringTicks == 0;
-        if (periodicActiveSync || finishedPouring) crucible.syncClient();
+        // Temperature changes need saving, but do not change inventory/comparator output.
+        if (changed) level.getChunkAt(pos).markUnsaved();
+        if (periodicActiveSync || finishedPouring) {
+            crucible.syncClient();
+            crucible.thermalSyncPending = false;
+        }
     }
 
      

@@ -10,8 +10,11 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 public final class PillarBlockEntity extends BlockEntity implements GeoBlockEntity {
-    private final AnimatableInstanceCache cache=GeckoLibUtil.createInstanceCache(this);
+    private AnimatableInstanceCache cache;
     public PillarBlockEntity(BlockPos pos,BlockState state) { super(Asterion.PILLAR_BLOCK_ENTITY,pos,state); }
     @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) { }
-    @Override public AnimatableInstanceCache getAnimatableInstanceCache() { return cache; }
+    @Override public AnimatableInstanceCache getAnimatableInstanceCache() {
+        if (cache == null) cache = GeckoLibUtil.createInstanceCache(this);
+        return cache;
+    }
 }

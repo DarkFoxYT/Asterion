@@ -95,18 +95,13 @@ public final class WorldGenerator {
     private static final int SUMMONED_PORTAL_DEPTH = 8;
     private static final ResourceKey<LootTable> MAZE_BARREL_LOOT = ResourceKey.create(
             Registries.LOOT_TABLE, Asterion.id("chests/maze_supply_barrel"));
-    private static final ResourceKey<LootTable> SAFE_RUNE_NEAR_LOOT = ResourceKey.create(
-            Registries.LOOT_TABLE, Asterion.id("chests/safe_rune_near"));
-    private static final ResourceKey<LootTable> SAFE_RUNE_MID_LOOT = ResourceKey.create(
-            Registries.LOOT_TABLE, Asterion.id("chests/safe_rune_mid"));
-    private static final ResourceKey<LootTable> SAFE_RUNE_FAR_LOOT = ResourceKey.create(
-            Registries.LOOT_TABLE, Asterion.id("chests/safe_rune_far"));
     private static final int[][] PRELOAD_OFFSETS = {{0, 0}};
     private static final int[][] PREWARM_OFFSETS = {{0, 0}};
     private static final Map<Long, Integer> GATEWAY_SURFACE_Y = new ConcurrentHashMap<>();
     private static final Map<MazeKey, MazeTopology> MAZE_TOPOLOGIES = new ConcurrentHashMap<>();
     private static final Map<UUID, PendingTransition> PENDING_TRANSITIONS = new HashMap<>();
     private static final Map<UUID, Optional<ServerPlayer.RespawnConfig>> PRE_MAZE_RESPAWNS = new HashMap<>();
+    private static final Map<UUID, BlockPos> PREPARED_RESPAWNS = new HashMap<>();
     private static final Map<UUID, Long> LAST_PORTAL_SYNC = new HashMap<>();
     private static final java.util.Set<BlockPos> CLEARED_PORTAL_ENTRANCES = new java.util.HashSet<>();
     private static final Map<UUID, Integer> LAST_BIOME_ATMOSPHERE = new HashMap<>();
@@ -280,8 +275,12 @@ public final class WorldGenerator {
     public static void respawnAtRune(ServerPlayer player, BlockPos deathPosition) {
         ServerLevel maze = player.level().getServer().getLevel(Asterion.ASTERION_LEVEL);
         if (maze == null) return;
-        BlockPos checkpoint = findRespawnCheckpoint(maze, player.getUUID(), deathPosition);
-        maze.getChunkAt(checkpoint);
+        BlockPos checkpoint = PREPARED_RESPAWNS.remove(player.getUUID());
+        if (checkpoint == null || !isSafeRespawnPosition(maze, checkpoint))
+            checkpoint = findRespawnCheckpoint(maze, player.getUUID(), deathPosition);
+        net.krodark.asterion.network.ragdoll.RagdollServerNetworking.resetAfterRespawn(player);
+        player.stopRiding();
+        player.setPose(net.minecraft.world.entity.Pose.STANDING);
          
          
         player.teleportTo(maze, checkpoint.getX() + 0.5D, checkpoint.getY() + 0.1D,
@@ -300,14 +299,17 @@ public final class WorldGenerator {
              
              
              
-            if (!isSafeRespawnPosition(maze, checkpoint)) checkpoint = null;
+            if (!isSafeRespawnPosition(maze, checkpoint)) checkpoint = resolveSafeRespawn(maze, checkpoint);
         }
         if (checkpoint == null)
             checkpoint = MazeNbtStructures.nearestSafeHouse(maze, deathPosition);
-        if (checkpoint != null && !isSafeRespawnPosition(maze, checkpoint)) checkpoint = null;
+        if (checkpoint != null) {
+            maze.getChunkAt(checkpoint);
+            if (!isSafeRespawnPosition(maze, checkpoint)) checkpoint = resolveSafeRespawn(maze, checkpoint);
+        }
         if (checkpoint == null) {
             checkpoint = randomMazeArrival(maze, playerId, 0L);
-            prepareMazeArrival(maze, checkpoint);
+            checkpoint = prepareMazeArrival(maze, checkpoint);
         }
         return checkpoint;
     }
@@ -319,7 +321,8 @@ public final class WorldGenerator {
         ServerLevel maze = player.level();
         BlockPos checkpoint = findRespawnCheckpoint(maze, player.getUUID(), player.blockPosition());
         maze.getChunkAt(checkpoint);
-        PRE_MAZE_RESPAWNS.put(player.getUUID(), Optional.ofNullable(player.getRespawnConfig()));
+        PREPARED_RESPAWNS.put(player.getUUID(), checkpoint.immutable());
+        PRE_MAZE_RESPAWNS.putIfAbsent(player.getUUID(), Optional.ofNullable(player.getRespawnConfig()));
         LevelData.RespawnData data = LevelData.RespawnData.of(
                 Asterion.ASTERION_LEVEL, checkpoint, player.getYRot(), 0.0F);
         player.setRespawnPosition(new ServerPlayer.RespawnConfig(data, true), false);
@@ -338,7 +341,34 @@ public final class WorldGenerator {
                 && !level.getBlockState(feet).is(net.minecraft.tags.BlockTags.FIRE)
                 && !level.getBlockState(floor).is(Blocks.MAGMA_BLOCK)
                 && level.getBlockState(feet).getCollisionShape(level, feet).isEmpty()
-                && level.getBlockState(feet.above()).getCollisionShape(level, feet.above()).isEmpty();
+                && level.getBlockState(feet.above()).getCollisionShape(level, feet.above()).isEmpty()
+                && !level.getBlockCollisions(null, new AABB(feet.getX() + .2, feet.getY() + .1,
+                        feet.getZ() + .2, feet.getX() + .8, feet.getY() + 1.9, feet.getZ() + .8))
+                        .iterator().hasNext();
+    }
+
+    public static BlockPos resolveSafeRespawn(ServerLevel level, BlockPos expected) {
+        var chunk = level.getChunkAt(expected);
+        var bounds = chunk.getPos();
+        java.util.List<BlockPos> columns = new java.util.ArrayList<>(256);
+        for (int x = bounds.getMinBlockX(); x <= bounds.getMaxBlockX(); x++)
+            for (int z = bounds.getMinBlockZ(); z <= bounds.getMaxBlockZ(); z++)
+                columns.add(new BlockPos(x, 0, z));
+        columns.sort(java.util.Comparator.comparingInt(column ->
+                Math.max(Math.abs(column.getX() - expected.getX()), Math.abs(column.getZ() - expected.getZ()))));
+        BlockPos.MutableBlockPos candidate = new BlockPos.MutableBlockPos();
+        for (int distance = 0; distance < level.getHeight(); distance++) {
+            for (int sign = 1; sign >= -1; sign -= 2) {
+                if (distance == 0 && sign < 0) continue;
+                int y = expected.getY() + distance * sign;
+                if (y <= level.getMinY() || y + 2 >= level.getMaxY()) continue;
+                for (BlockPos column : columns) {
+                    candidate.set(column.getX(), y, column.getZ());
+                    if (isSafeRespawnPosition(level, candidate)) return candidate.immutable();
+                }
+            }
+        }
+        throw new IllegalStateException("No supported respawn space in maze chunk " + bounds);
     }
 
      
@@ -347,14 +377,16 @@ public final class WorldGenerator {
     }
 
     public static boolean resetBossEncounterAfterDeath(ServerPlayer deadPlayer) {
+        if (BossArenaEncounter.hasSurvivingParticipant(deadPlayer)) return false;
         if (RESET_DEATHS.contains(deadPlayer)) return true;
+        if (!BossArenaEncounter.isParticipant(deadPlayer) && !BOSS_ENTRANTS.contains(deadPlayer.getUUID())) return false;
         if (!(deadPlayer.level() instanceof ServerLevel maze)
                 || !maze.dimension().equals(Asterion.ASTERION_LEVEL)
                 || AsterionWorldState.get(maze).minotaurDefeated()) return false;
         boolean pitDeath = isInsideBossArena(deadPlayer.position())
                 || (BOSS_ENTRANTS.contains(deadPlayer.getUUID()) && isBossEncounterActive(maze));
         if (!pitDeath) return false;
-        if (!deadPlayer.isAlive()) RESET_DEATHS.add(deadPlayer);
+        if (!deadPlayer.isAlive() && !net.krodark.asterion.game.ArenaDeathRecovery.isRecovering(deadPlayer)) RESET_DEATHS.add(deadPlayer);
 
         for (Entity entity : maze.getAllEntities()) {
             if (entity instanceof MinotaurEntity minotaur
@@ -365,12 +397,6 @@ public final class WorldGenerator {
         bossFinale = null;
         BossArenaEncounter.finish(maze);
          
-        for (ServerPlayer survivor : java.util.List.copyOf(maze.players())) if (survivor != deadPlayer && survivor.isAlive()
-                && isInsideBossArena(survivor.position())) {
-            survivor.teleportTo(maze, .5, net.krodark.asterion.worldgen.AuthoredCatacombs.CONNECTOR_Y, 63.5, Set.of(), 180, 0, true);
-            survivor.setDeltaMovement(Vec3.ZERO);
-            survivor.resetFallDistance();
-        }
         clearBossArenaTransientState(maze);
         rebuildBossArena(maze);
         ELECTRIFIED.remove(deadPlayer.getUUID());
@@ -1016,7 +1042,7 @@ public final class WorldGenerator {
             boolean moved = false;
             if (maze != null) {
                 BlockPos landing = randomMazeArrival(maze, entity.getUUID(), maze.getGameTime());
-                prepareMazeArrival(maze, landing);
+                landing = prepareMazeArrival(maze, landing);
                 moved = entity.teleportTo(maze, landing.getX() + 0.5D, skyfallY(), landing.getZ() + 0.5D,
                         java.util.Set.of(), entity.getYRot(), entity.getXRot(), true);
             }
@@ -1388,7 +1414,7 @@ public final class WorldGenerator {
          
         bossArenaBuild = new BossArenaBuild();
         ARENA_PREVIOUS_POSITIONS.clear();
-        net.krodark.asterion.worldgen.AuthoredCatacombs.placeArena(level);
+        net.krodark.asterion.worldgen.AuthoredCatacombs.resetArena(level);
     }
 
     private static void finishBossArenaBuildIfReady(ServerLevel level) {
@@ -1964,6 +1990,7 @@ public final class WorldGenerator {
         bossFinale = null;
         PENDING_TRANSITIONS.clear();
         PRE_MAZE_RESPAWNS.clear();
+        PREPARED_RESPAWNS.clear();
         PHASING_ENTITIES.clear();
         ABOVE_WALL_TICKS.clear();
         WARD_FALL_PROTECTION.clear();
@@ -2340,7 +2367,7 @@ public final class WorldGenerator {
                 return;
             }
             if (!pending.teleported && pending.preloadIndex >= PRELOAD_OFFSETS.length) {
-                prepareMazeArrival(pending.maze, pending.destination);
+                pending.destination = prepareMazeArrival(pending.maze, pending.destination);
                 long facingRoll = mix(pending.maze.getSeed() ^ pending.destination.asLong());
                 float yaw = (float) Math.floorMod(facingRoll, 360);
                 player.teleportTo(pending.maze, pending.destination.getX() + 0.5,
@@ -2440,10 +2467,8 @@ public final class WorldGenerator {
         return Math.max(200, FLOOR_Y + AsterionConfig.INSTANCE.wallHeight + SKYFALL_CLEARANCE);
     }
 
-    private static void prepareMazeArrival(ServerLevel maze, BlockPos arrival) {
-         
-         
-        maze.getChunkAt(arrival);
+    private static BlockPos prepareMazeArrival(ServerLevel maze, BlockPos arrival) {
+        return resolveSafeRespawn(maze, arrival);
     }
 
     private static void buildMazeChunk(ServerLevel level, LevelChunk chunk, BlockPos marker) {
@@ -2875,30 +2900,6 @@ public final class WorldGenerator {
                 || topology.hasTrait(topologyX, topologyZ, MazeTopology.PLAZA))
             net.krodark.asterion.worldgen.MazeRuins.column(chunk, seed, x, z, floorY, lx, lz, innerA, innerB);
 
-        if (topology.hasTrait(topologyX, topologyZ, MazeTopology.SAFE_RUNE)) {
-            int dx = Math.abs(lx - center), dz = Math.abs(lz - center);
-            if (dx <= 2 && dz <= 2)
-                bufferedSet(chunk, x, floorY, z, ((dx + dz) & 1) == 0
-                        ? Blocks.POLISHED_TUFF.defaultBlockState()
-                        : Blocks.CHISELED_TUFF_BRICKS.defaultBlockState());
-            if (lx == center && lz == center) {
-                bufferedSet(chunk, x, floorY + 1, z, Blocks.LODESTONE.defaultBlockState());
-                bufferedSet(chunk, x, floorY + 2, z, Blocks.SOUL_LANTERN.defaultBlockState());
-            } else if (dx == 2 && dz == 2)
-                bufferedSet(chunk, x, floorY + 1, z, Blocks.CRYING_OBSIDIAN.defaultBlockState());
-            int signedDx = lx - center;
-            int signedDz = lz - center;
-            if (Math.abs(signedDx) == 2 && signedDz == 0) {
-                int distanceCells = Math.max(Math.abs(gx - radius), Math.abs(gz - radius));
-                float distanceRatio = distanceCells / (float)Math.max(1, radius);
-                ResourceKey<LootTable> loot = distanceRatio >= 0.68F ? SAFE_RUNE_FAR_LOOT
-                        : distanceRatio >= 0.36F ? SAFE_RUNE_MID_LOOT : SAFE_RUNE_NEAR_LOOT;
-                BlockPos barrelPos = new BlockPos(x, floorY + 1, z);
-                placeLootBarrel(chunk, barrelPos, loot,
-                        mix(seed ^ ((long)x << 32) ^ z ^ 0xA0761D6478BD642FL));
-            }
-        }
-
         if (topology.hasTrait(topologyX, topologyZ, MazeTopology.RUBBLE)) {
             long rubble = mix(seed ^ (long) gx * 0x9E3779B97F4A7C15L ^ (long) gz * 0xD1B54A32D192ED03L);
             int span = Math.max(1, cell - thickness - 3);
@@ -3200,7 +3201,7 @@ public final class WorldGenerator {
 
     private static final class PendingTransition {
         private final ServerLevel maze;
-        private final BlockPos destination;
+        private BlockPos destination;
         private final boolean wasInvulnerable;
         private final boolean hadNoGravity;
         private final boolean wasNoPhysics;

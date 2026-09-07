@@ -65,11 +65,8 @@
   "minotaur_step": {
     "subtitle": "subtitles.asterion.minotaur_step",
     "sounds": [
-      {
-        "name": "asterion:sfx/mino/minotaur.land_light",
-        "volume": 0.5,
-        "pitch": 0.85
-      }
+      "asterion:sfx/mino/minotaur.step_walk_1",
+      "asterion:sfx/mino/minotaur.step_walk_2"
     ]
   },
   "cave_ambience": {

@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.UUID;
 
 public final class RagdollServerNetworking {
+    private static final Map<UUID, Integer> RESPAWN_GRACE = new HashMap<>();
     private static final Map<String, Long> LAST_POSE = new HashMap<>();
     private static final Map<UUID, Long> ACTIVE_RAGDOLLS = new HashMap<>();
     private static final Map<UUID, net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level>> RAGDOLL_LEVELS = new HashMap<>();
@@ -30,7 +31,7 @@ public final class RagdollServerNetworking {
 
     public static void initialize() {
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
-            SCRIPTED_THROW_DAMAGE.clear(); ACTIVE_RAGDOLLS.clear(); RAGDOLL_LEVELS.clear(); LAST_POSE.clear();
+            RESPAWN_GRACE.clear(); SCRIPTED_THROW_DAMAGE.clear(); ACTIVE_RAGDOLLS.clear(); RAGDOLL_LEVELS.clear(); LAST_POSE.clear();
         });
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
             for (UUID id : java.util.List.copyOf(ACTIVE_RAGDOLLS.keySet())) {
@@ -47,7 +48,10 @@ public final class RagdollServerNetworking {
             if (entity instanceof ServerPlayer player) sendState(viewer, player, false);
         });
         net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> finishRagdoll(handler.getPlayer()));
-        net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> finishRagdoll(oldPlayer));
+        net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
+            finishRagdoll(oldPlayer);
+            resetAfterRespawn(newPlayer);
+        });
         ServerPlayNetworking.registerGlobalReceiver(RagdollFallDamagePayload.TYPE, (payload, context) ->
                 context.server().execute(() -> applyFallDamage(context.player(), payload.damage())));
         ServerPlayNetworking.registerGlobalReceiver(TumbleExitPayload.TYPE, (payload, context) ->
@@ -98,6 +102,7 @@ public final class RagdollServerNetworking {
     }
 
     private static void exitTumble(ServerPlayer player, TumbleExitPayload payload) {
+        if (respawnProtected(player)) return;
         if (MinotaurEntity.controlsPlayer(player)) {
             forceAuthority(player, player.getDeltaMovement());
             return;
@@ -190,12 +195,29 @@ public final class RagdollServerNetworking {
     }
 
     public static void markRagdolled(ServerPlayer player, int ticks) {
+        if (respawnProtected(player)) return;
         if (player.isSpectator()) return;
         long expires = player.level().getServer().getTickCount() + Math.max(1, ticks);
         boolean started = !isRagdolled(player);
         ACTIVE_RAGDOLLS.merge(player.getUUID(), expires, Math::max);
         RAGDOLL_LEVELS.put(player.getUUID(), player.level().dimension());
         if (started) for (ServerPlayer viewer : player.level().players()) sendState(viewer, player, true);
+    }
+
+    public static void resetAfterRespawn(ServerPlayer player) {
+        finishRagdoll(player);
+        SCRIPTED_THROW_DAMAGE.remove(player.getUUID());
+        RESPAWN_GRACE.put(player.getUUID(), player.level().getServer().getTickCount() + 60);
+        player.setDeltaMovement(Vec3.ZERO);
+        player.resetFallDistance();
+    }
+
+    private static boolean respawnProtected(ServerPlayer player) {
+        Integer until = RESPAWN_GRACE.get(player.getUUID());
+        if (until == null) return false;
+        if (player.level().getServer().getTickCount() < until) return true;
+        RESPAWN_GRACE.remove(player.getUUID());
+        return false;
     }
 
     public static boolean isRagdolled(ServerPlayer player) {
