@@ -82,6 +82,8 @@ public final class BossArenaEncounter {
             active.locks.put(player.getUUID(), new Lock(player, safe, yaw, player.isInvulnerable(), player.isNoGravity()));
             player.setInvulnerable(true);
             player.setNoGravity(true);
+            // Admission can leave both entities in their previous sections, so refresh explicitly.
+            refreshCinematicTracking(player);
             if (ServerPlayNetworking.canSend(player, BossEntrancePayload.TYPE))
                 ServerPlayNetworking.send(player, new BossEntrancePayload(active.bossDoor, elapsed, INTRO_TICKS));
         }
@@ -336,10 +338,21 @@ public final class BossArenaEncounter {
         if (lock != null) release(lock);
     }
 
+    private static void refreshCinematicTracking(ServerPlayer player) {
+        if (active == null || active.level != player.level()) return;
+        var boss = active.level.getEntity(active.boss);
+        if (boss == null) return;
+        Object tracked = ((net.krodark.asterion.mixin.ChunkMapTrackingAccessor)active.level.getChunkSource().chunkMap)
+                .asterion$trackedEntities().get(boss.getId());
+        if (tracked instanceof CinematicTracking cinematic) cinematic.refresh(player);
+    }
+
     private static void release(Lock lock) {
         lock.player.setInvulnerable(lock.wasInvulnerable);
         lock.player.setNoGravity(lock.hadNoGravity);
         lock.player.setDeltaMovement(Vec3.ZERO);
+        if (active != null && active.level.getEntity(active.boss) instanceof MinotaurEntity boss && boss.doorEntryTicks() == 0)
+            refreshCinematicTracking(lock.player);
         if (!lock.player.isRemoved() && ServerPlayNetworking.canSend(lock.player, BossEntrancePayload.TYPE))
             ServerPlayNetworking.send(lock.player, new BossEntrancePayload(Direction.NORTH, 0, 0));
     }

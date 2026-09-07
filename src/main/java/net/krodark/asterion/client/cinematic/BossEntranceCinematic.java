@@ -16,7 +16,7 @@ public final class BossEntranceCinematic {
     private static final int APPROACH_TICKS = MinotaurAnimationTiming.ENTRY_CAMERA_TICKS;
     private static final int BREAK_TICK = MinotaurAnimationTiming.ENTRY_BREAK_TICK;
     private static final int[] SOUND_BEATS = {APPROACH_TICKS + 14, APPROACH_TICKS + 44, APPROACH_TICKS + 78};
-    private static final int[] IMPACT_BEATS = {SOUND_BEATS[0], SOUND_BEATS[1], SOUND_BEATS[2], BREAK_TICK, MinotaurAnimationTiming.ENTRY_LAND_TICK};
+    private static final int[] IMPACT_BEATS = {SOUND_BEATS[0], SOUND_BEATS[1], SOUND_BEATS[2], BREAK_TICK, MinotaurAnimationTiming.ENTRY_WALK_END_TICK};
     private static boolean active, showShot, finished;
     private static int ticks, duration, lastSoundTick;
     private static Direction door;
@@ -98,9 +98,7 @@ public final class BossEntranceCinematic {
         if (lastSoundTick < BREAK_TICK && ticks >= BREAK_TICK)
             client.level.playLocalSound(source.x, source.y, source.z, Asterion.MINOTAUR_DOOR_OPENCLOSE,
                     net.minecraft.sounds.SoundSource.BLOCKS, 2.6F, 0.72F, false);
-        cue(client, MinotaurAnimationTiming.ENTRY_CROUCH_TICK, Asterion.MINOTAUR_LAND_LIGHT, .65F, .85F);
-        cue(client, MinotaurAnimationTiming.ENTRY_TAKEOFF_TICK, net.minecraft.sounds.SoundEvents.GOAT_LONG_JUMP, .75F, .65F);
-        cue(client, MinotaurAnimationTiming.ENTRY_LAND_TICK, Asterion.MINOTAUR_LAND_SLAM, 1F, .9F);
+        cue(client, MinotaurAnimationTiming.ENTRY_WALK_END_TICK, Asterion.MINOTAUR_LAND_LIGHT, .85F, .8F);
         lastSoundTick = ticks;
     }
 
@@ -129,25 +127,25 @@ public final class BossEntranceCinematic {
         Vec3 doorShot = doorway.add(inward.scale(13)).add(0, 2.1, 0);
         float approach = smootherStep(time / APPROACH_TICKS);
         Vec3 opening = (openingEye == null ? playerEye : openingEye).lerp(doorShot, approach);
-        // Pull aside as the doors fly past, then track the leap from a clear three-quarter angle.
-        Vec3 tracking = subject.add(across.scale(2.5)).add(inward.scale(16)).add(0, 4, 0);
-        float flightBlend = smootherStep((time - BREAK_TICK) / 26F);
-        Vec3 camera = opening.lerp(tracking, flightBlend);
-        Vec3 focus = doorway.add(0, 3.2, 0).lerp(subject.add(0, 3.5, 0), flightBlend);
-        float settle = smootherStep((time - MinotaurAnimationTiming.ENTRY_LAND_TICK) / 24F);
-        Vec3 landing = net.krodark.asterion.entity.MinotaurEntranceMotion.point(MinotaurAnimationTiming.ENTRY_LAND_TICK, width);
-        Vec3 frontal = landing.add(across.scale(2.5 - settle * .5))
-                .add(inward.scale(16 - settle * 2)).add(0, 4 - settle * 1.2, 0);
-        if (time >= MinotaurAnimationTiming.ENTRY_LAND_TICK) camera = frontal;
+        // Briefly follow the outgoing door fragments, then hand focus to the charging boss.
+        float reveal = smootherStep((time - BREAK_TICK) / 28F);
+        float settle = smootherStep((time - MinotaurAnimationTiming.ENTRY_WALK_END_TICK) / 22F);
+        Vec3 tracking = subject.add(across.scale(3 - settle * 1.2))
+                .add(inward.scale(11 - settle * 2.5)).add(0, 2.8 - settle * .5, 0);
+        Vec3 camera = opening.lerp(tracking, reveal);
+        float doorFlight = smootherStep((time - BREAK_TICK) / 12F);
+        Vec3 doorFocus = doorway.add(inward.scale(doorFlight * 4)).add(across.scale(doorFlight * 1.5)).add(0, 3.2, 0);
+        float handoff = smootherStep((time - BREAK_TICK - 5) / 23F);
+        Vec3 focus = doorFocus.lerp(subject.add(0, 3.5, 0), handoff);
         float impact = 0;
         for (int beat : IMPACT_BEATS) {
             float age = time - beat;
-            if (age >= 0 && age < 16) impact += (beat == BREAK_TICK || beat == MinotaurAnimationTiming.ENTRY_LAND_TICK ? .13F
+            if (age >= 0 && age < 16) impact += (beat == BREAK_TICK || beat == MinotaurAnimationTiming.ENTRY_WALK_END_TICK ? .13F
                     : beat == SOUND_BEATS[2] ? .065F : .03F) * (float)Math.pow(Math.sin(Math.PI * age / 16F), 2);
         }
-        float landingAge = time - MinotaurAnimationTiming.ENTRY_LAND_TICK;
-        if (landingAge >= 0 && landingAge < 24)
-            impact += .34F * (float)Math.pow(1 - landingAge / 24, 2);
+        float plantAge = time - MinotaurAnimationTiming.ENTRY_WALK_END_TICK;
+        if (plantAge >= 0 && plantAge < 24)
+            impact += .16F * (float)Math.pow(1 - plantAge / 24, 2);
         camera = camera.add(across.scale(Math.sin(time * .7) * impact)).add(0, Math.cos(time * .9) * impact * .6, 0);
         float returning = smootherStep((time - (duration - 30)) / 30F);
         camera = camera.lerp(playerEye, returning);
@@ -156,7 +154,7 @@ public final class BossEntranceCinematic {
         float pitch = (float)-Math.toDegrees(Math.atan2(delta.y, delta.horizontalDistance()));
         return new CameraPose(camera, Mth.rotLerp(returning, Mth.rotLerp(approach, returnYaw, yaw), returnYaw),
                 Mth.lerp(returning, Mth.lerp(approach, returnPitch, pitch), returnPitch),
-                (float)(Math.sin(flightBlend * Math.PI) * -3 + settle * 1.5) * (1 - returning));
+                (float)(Math.sin(reveal * Math.PI) * -3 + settle * 1.2) * (1 - returning));
     }
 
     /** One client clock drives camera, entity position and animation despite packet spacing. */
@@ -167,9 +165,9 @@ public final class BossEntranceCinematic {
     public static float fov(float original, float partial) {
         if (!active || !showShot) return original;
         float time = ticks + partial;
-        float flight = smootherStep((time - MinotaurAnimationTiming.ENTRY_TAKEOFF_TICK) / 10F)
-                * (1 - smootherStep((time - MinotaurAnimationTiming.ENTRY_LAND_TICK) / 16F));
-        float shotFov = 90 + flight * 6;
+        float burst = smootherStep((time - BREAK_TICK) / 6F)
+                * (1 - smootherStep((time - MinotaurAnimationTiming.ENTRY_WALK_END_TICK) / 16F));
+        float shotFov = 90 + burst * 4;
         float weight = smootherStep(time / 8F) * (1 - smootherStep((time - (duration - 30)) / 30F));
         return Mth.lerp(weight, original, shotFov);
     }

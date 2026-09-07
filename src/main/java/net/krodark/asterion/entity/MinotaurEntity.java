@@ -1700,13 +1700,10 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         Vec3 entryPoint = MinotaurEntranceMotion.point(elapsed, getBbWidth());
         setPos(entryPoint.x, entryPoint.y, entryPoint.z);
         resetFallDistance();
-        setOnGround(elapsed < MinotaurAnimationTiming.ENTRY_TAKEOFF_TICK
-                || elapsed >= MinotaurAnimationTiming.ENTRY_LAND_TICK);
-        if (elapsed == MinotaurAnimationTiming.ENTRY_TAKEOFF_TICK)
-            playSound(SoundEvents.GOAT_LONG_JUMP, 1.4F, .65F);
-        if (elapsed == MinotaurAnimationTiming.ENTRY_LAND_TICK) {
-            level.sendParticles(Asterion.DOOR_SMOKE, getX(), getY() + .3, getZ(), 100, 5, .25, 5, .12);
-            playSound(Asterion.MINOTAUR_LAND_SLAM, 1F, .9F);
+        setOnGround(true);
+        if (elapsed == MinotaurAnimationTiming.ENTRY_WALK_END_TICK) {
+            level.sendParticles(Asterion.DOOR_SMOKE, getX(), getY() + .2, getZ(), 36, 2.5, .2, 2.5, .06);
+            playSound(Asterion.MINOTAUR_LAND_LIGHT, 1F, .8F);
         }
 
         if (elapsed >= MinotaurAnimationTiming.ENTRY_END_TICK) {
@@ -5350,10 +5347,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if (doorEntryTicks() > 0) {
             int entryTick = (int)(Double.isFinite(clientEntryVisualTime) ? clientEntryVisualTime : doorEntryTicks() - 1);
             if (entryTick < MinotaurAnimationTiming.ENTRY_BREAK_TICK) return AnimationState.IDLE;
-            if (entryTick < MinotaurAnimationTiming.ENTRY_CROUCH_TICK) return AnimationState.CHASE;
-            if (entryTick < MinotaurAnimationTiming.ENTRY_LAND_TICK - 6) return AnimationState.LEAP;
             return entryTick < MinotaurAnimationTiming.ENTRY_WALK_END_TICK
-                    ? AnimationState.LAND : AnimationState.ROAR_START;
+                    ? AnimationState.CHASE : AnimationState.ROAR_START;
         }
         BossAttack renderedAttack = bossAttackState();
         int renderedAttackTicks = getEntityData().get(DATA_BOSS_ATTACK_TICKS);

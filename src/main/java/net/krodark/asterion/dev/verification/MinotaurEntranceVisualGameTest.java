@@ -23,15 +23,22 @@ public final class MinotaurEntranceVisualGameTest implements FabricClientGameTes
                 var boss = MinotaurEntity.activateCenterBoss(level, player, null, Direction.SOUTH);
                 id.set(boss.getUUID());
                 BossArenaEncounter.begin(level, player, boss, Direction.SOUTH);
-                for (int tick = MinotaurAnimationTiming.ENTRY_TAKEOFF_TICK + 4; tick < MinotaurAnimationTiming.ENTRY_LAND_TICK; tick++) {
-                    var point = MinotaurEntranceMotion.point(tick, boss.getBbWidth());
-                    if (!level.noCollision(boss, boss.getBoundingBox().move(point.subtract(boss.position()))))
-                        throw new AssertionError("Leap arc intersects arena at tick " + tick);
-                }
+                for (int tick = MinotaurAnimationTiming.ENTRY_BREAK_TICK; tick <= MinotaurAnimationTiming.ENTRY_END_TICK; tick++)
+                    if (MinotaurEntranceMotion.point(tick, boss.getBbWidth()).y != MinotaurEntranceMotion.point(0, boss.getBbWidth()).y)
+                        throw new AssertionError("Entrance left the ground");
             });
             int previous = 0;
-            for (int tick : new int[]{150, 173, 200, 240, 300}) {
+            for (int tick : new int[]{150, 173, 195, 240, 270}) {
                 context.waitTicks(tick - previous); previous = tick;
+                server.runOnServer(mc -> {
+                    var b = (MinotaurEntity)mc.getLevel(Asterion.ASTERION_LEVEL).getEntity(id.get());
+                    Asterion.LOGGER.info("INTRO CHECK {} server={} phase={} entry={} health={}", tick, b.position(), b.animationState(), b.doorEntryTicks(), b.getHealth());
+                });
+                context.runOnClient(c -> {
+                    boolean found = false;
+                    for (var e : c.level.entitiesForRendering()) if (e instanceof MinotaurEntity b && b.getUUID().equals(id.get())) found = true;
+                    if (!found) throw new AssertionError("Cinematic boss missing from client at " + tick);
+                });
                 context.takeScreenshot("minotaur-intro-" + tick);
             }
             context.waitTicks(BossArenaEncounter.INTRO_TICKS + 5 - previous);
@@ -43,7 +50,7 @@ public final class MinotaurEntranceVisualGameTest implements FabricClientGameTes
                 if (BossArenaEncounter.isMovementLocked(mc.getPlayerList().getPlayers().getFirst()))
                     throw new AssertionError("Player controls remained locked");
             });
-            Asterion.LOGGER.info("PASS: clear authored arena leap arc, full cinematic playback, restored physics and player controls");
+            Asterion.LOGGER.info("PASS: grounded breach path, full cinematic playback, restored physics and player controls");
         }
     }
 }
