@@ -1,4 +1,10 @@
 {
+  "respawn_obelisk_bind": {
+    "subtitle": "subtitles.asterion.respawn_obelisk_bind",
+    "sounds": [
+      "asterion:sfx/misc/respawn_obelisk.bind"
+    ]
+  },
   "respawn_obelisk_activate": {
     "subtitle": "subtitles.asterion.respawn_obelisk_activate",
     "sounds": [

@@ -708,22 +708,21 @@ public final class PhysicsDebrisSystem {
     }
 
     private static AABB boundsAt(Piece piece, Vec3 center) {
-        Vec3 half = piece.halfExtents();
-        Vector3f x = piece.orientation.transform(new Vector3f((float) half.x, 0, 0));
-        Vector3f y = piece.orientation.transform(new Vector3f(0, (float) half.y, 0));
-        Vector3f z = piece.orientation.transform(new Vector3f(0, 0, (float) half.z));
-        double hx = Math.abs(x.x) + Math.abs(y.x) + Math.abs(z.x);
-        double hy = Math.abs(x.y) + Math.abs(y.y) + Math.abs(z.y);
-        double hz = Math.abs(x.z) + Math.abs(y.z) + Math.abs(z.z);
+        piece.updateGeometry();
+        double hx = piece.boundsHalf.x, hy = piece.boundsHalf.y, hz = piece.boundsHalf.z;
         return new AABB(center.x - hx, center.y - hy, center.z - hz,
                 center.x + hx, center.y + hy, center.z + hz);
     }
 
     private static boolean isWorldClear(ClientLevel level, Piece piece, Vec3 center) {
-        return collisionAt(level, piece, center) == null;
+        return collisionAt(level, piece, center, true) == null;
     }
 
     private static Collision collisionAt(ClientLevel level, Piece piece, Vec3 center) {
+        return collisionAt(level, piece, center, false);
+    }
+
+    private static Collision collisionAt(ClientLevel level, Piece piece, Vec3 center, boolean anyContact) {
         AABB broad = boundsAt(piece, center).deflate(0.00035);
         Collision deepest = null;
         for (var shape : level.getBlockCollisions(null, broad)) {
@@ -732,6 +731,7 @@ public final class PhysicsDebrisSystem {
                         axes(piece), box.getCenter(),
                         new Vec3(box.getXsize() * 0.5, box.getYsize() * 0.5, box.getZsize() * 0.5),
                         WORLD_AXES);
+                if (anyContact && collision != null) return collision;
                 if (collision != null && (deepest == null || collision.depth > deepest.depth)) {
                     if (piece.variant != 7 && !piece.arenaRubble) { deepest = collision; continue; }
                     Vec3 point = supportPoint(piece, center, collision.normal);
@@ -761,10 +761,8 @@ public final class PhysicsDebrisSystem {
     }
 
     private static Vec3[] axes(Piece piece) {
-        Vector3f x = piece.orientation.transform(new Vector3f(1, 0, 0));
-        Vector3f y = piece.orientation.transform(new Vector3f(0, 1, 0));
-        Vector3f z = piece.orientation.transform(new Vector3f(0, 0, 1));
-        return new Vec3[] {new Vec3(x.x, x.y, x.z), new Vec3(y.x, y.y, y.z), new Vec3(z.x, z.y, z.z)};
+        piece.updateGeometry();
+        return piece.collisionAxes;
     }
 
     private static Collision satContact(Vec3 centerA, Vec3 halfA, Vec3[] axesA,
@@ -804,6 +802,11 @@ public final class PhysicsDebrisSystem {
         private final Quaternionf previousOrientation;
         private final Vector3f angularVelocity;
         private final float scale;
+        private final Vec3 modelHalf, blockHalf;
+        private final Quaternionf geometryOrientation = new Quaternionf();
+        private boolean geometryReady, geometryBlockVisual;
+        private Vec3[] collisionAxes;
+        private Vec3 boundsHalf;
         private final int variant;
         private final int lifetime;
         private final long seed;
@@ -827,6 +830,8 @@ public final class PhysicsDebrisSystem {
             this.variant = Mth.clamp(variant, 1, 7);
             this.visual = new DebrisPhysicsObject(this.variant);
             this.scale = scale;
+            this.modelHalf = profile(this.variant).halfExtents.scale(scale * (this.variant == 7 ? 1.0 : .88));
+            this.blockHalf = new Vec3(.5 * scale, .5 * scale, .5 * scale);
             this.seed = random.nextLong();
             VariantProfile profile = profile(this.variant);
             this.lifetime = profile.minimumLifetime
@@ -849,8 +854,26 @@ public final class PhysicsDebrisSystem {
         }
 
         private Vec3 halfExtents() {
-            return blockVisual != null ? new Vec3(.5, .5, .5).scale(scale)
-                    : profile(variant).halfExtents.scale(scale * (variant == 7 ? 1.0 : .88));
+            return blockVisual != null ? blockHalf : modelHalf;
+        }
+
+        private void updateGeometry() {
+            boolean block = blockVisual != null;
+            if (geometryReady && geometryBlockVisual == block && geometryOrientation.equals(orientation)) return;
+            geometryReady = true;
+            geometryBlockVisual = block;
+            geometryOrientation.set(orientation);
+            Vector3f x = orientation.transform(new Vector3f(1, 0, 0));
+            Vector3f y = orientation.transform(new Vector3f(0, 1, 0));
+            Vector3f z = orientation.transform(new Vector3f(0, 0, 1));
+            collisionAxes = new Vec3[] {new Vec3(x.x, x.y, x.z), new Vec3(y.x, y.y, y.z), new Vec3(z.x, z.y, z.z)};
+            Vec3 half = halfExtents();
+            orientation.transform(x.set((float) half.x, 0, 0));
+            orientation.transform(y.set(0, (float) half.y, 0));
+            orientation.transform(z.set(0, 0, (float) half.z));
+            boundsHalf = new Vec3(Math.abs(x.x) + Math.abs(y.x) + Math.abs(z.x),
+                    Math.abs(x.y) + Math.abs(y.y) + Math.abs(z.y),
+                    Math.abs(x.z) + Math.abs(y.z) + Math.abs(z.z));
         }
 
         private Vec3 modelCenter() {

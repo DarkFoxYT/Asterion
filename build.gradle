@@ -144,8 +144,14 @@ jar {
  
  
  
-tasks.named('processResources').configure {
+def forgeAssets = layout.buildDirectory.dir('generated/forge-assets')
+def minecraftTextureJar = file("${gradle.gradleUserHomeDir}/caches/fabric-loom/${minecraft_version}/minecraft-client.jar")
+tasks.register('generateForgeAssets') {
+    inputs.dir('src/main/resources/assets/asterion/textures/forging')
+    inputs.file(minecraftTextureJar)
+    outputs.dir(forgeAssets)
     doLast {
+        def destinationDir = forgeAssets.get().asFile
         def materials = ['bone_steel', 'celestial_bronze', 'celestial_gold', 'celestial_steel',
                          'copper', 'gold', 'iron', 'netherite', 'tarnished_gold']
         def parts = ['blade', 'guard', 'pommel']
@@ -204,12 +210,12 @@ tasks.named('processResources').configure {
                 (0..<4).each { layer ->
                     def textureName = "${material}_${part}${suffix}"
                     def texture = "asterion:item/forging/${material}/${textureName}"
-                    if (layer > 0) {
+                    if (layer == 1) {
                         def source = javax.imageio.ImageIO.read(file(
                                 "src/main/resources/assets/asterion/textures/forging/${material}/${textureName}.png"))
                         writeHalfAlpha(source, file("${overlayTextureDir}/${material}/${textureName}.png"))
-                        texture = "asterion:item/forging_overlay/${material}/${textureName}"
                     }
+                    if (layer > 0) texture = "asterion:item/forging_overlay/${material}/${textureName}"
                     file("${modelDir}/forge_${material}_${part}${suffix}_layer${layer}.json").text =
                             groovy.json.JsonOutput.toJson(layeredModel(texture, layer, suffix == ''))
                 }
@@ -248,12 +254,11 @@ tasks.named('processResources').configure {
                     ? "asterion:item/forging/${material}/${material}_ingot"
                     : "minecraft:item/${material == 'tarnished_gold' ? 'gold' : material}_ingot"]
         }
-        def minecraftClientJar = file("${gradle.gradleUserHomeDir}/caches/fabric-loom/${minecraft_version}/minecraft-client.jar")
-        def minecraftClientZip = new java.util.zip.ZipFile(minecraftClientJar)
+        def minecraftClientZip = new java.util.zip.ZipFile(minecraftTextureJar)
         materials.each { material ->
             (0..<4).each { layer ->
                 def texture = ingotTextures[material]
-                if (layer > 0) {
+                if (layer == 1) {
                     java.awt.image.BufferedImage source
                     def custom = file("src/main/resources/assets/asterion/textures/forging/${material}/${material}_ingot.png")
                     if (custom.exists()) source = javax.imageio.ImageIO.read(custom)
@@ -264,8 +269,8 @@ tasks.named('processResources').configure {
                     }
                     if (source == null) throw new GradleException("Cannot resolve forge ingot texture for ${material}")
                     writeHalfAlpha(source, file("${overlayTextureDir}/${material}/${material}_ingot.png"))
-                    texture = "asterion:item/forging_overlay/${material}/${material}_ingot"
                 }
+                if (layer > 0) texture = "asterion:item/forging_overlay/${material}/${material}_ingot"
                 file("${modelDir}/forge_${material}_ingot_layer${layer}.json").text =
                         groovy.json.JsonOutput.toJson(layeredModel(texture, layer))
             }
@@ -292,6 +297,17 @@ tasks.named('processResources').configure {
  
  
  
+tasks.named('processResources').configure {
+    dependsOn tasks.named('generateForgeAssets')
+    inputs.dir(forgeAssets)
+    doLast {
+        copy {
+            from forgeAssets
+            into destinationDir
+        }
+    }
+}
+
 def essentialRuntimePointer = layout.buildDirectory.file("essential-runtime-jar.path")
 tasks.register("stageEssentialRuntimeJar") {
     dependsOn tasks.named("jar")

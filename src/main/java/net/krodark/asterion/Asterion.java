@@ -169,6 +169,7 @@ public class Asterion implements ModInitializer {
     public static final SoundEvent BARREL_DOOR_CLOSE = registerSound("barrel_door_close");
     public static final SoundEvent METAL_HIT = registerSound("metal_hit_sound");
     public static final SoundEvent RESPAWN_OBELISK_ACTIVATE = registerSound("respawn_obelisk_activate");
+    public static final SoundEvent RESPAWN_OBELISK_BIND = registerSound("respawn_obelisk_bind");
     public static final SoundEvent RESPAWN_OBELISK_REVIVE = registerSound("respawn_obelisk_revive");
 
     public static final Block ANCIENT_BRICKS = registerBlock("ancient_bricks", MapColor.COLOR_BROWN, Block::new);
