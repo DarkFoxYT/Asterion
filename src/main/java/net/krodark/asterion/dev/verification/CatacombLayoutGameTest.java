@@ -174,7 +174,9 @@ public final class CatacombLayoutGameTest implements FabricClientGameTest {
                 CatacombRedstoneCheck.run(server.overworld());
                 CatacombLootCheck.run(server.overworld());
                 var player=server.getPlayerList().getPlayers().getFirst();
-                player.teleportTo(level,.5,AuthoredCatacombs.CONNECTOR_Y,63.5,java.util.Set.of(),180,0,true);
+                player.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+                var entryPos=MinotaurArenaEntrances.door(MinotaurArenaEntrances.PLAYER_ENTRANCE);
+                player.teleportTo(level,entryPos.getX()+.5,entryPos.getY(),entryPos.getZ()+3.5,java.util.Set.of(),180,0,true);
                 var boss=net.krodark.asterion.entity.MinotaurEntity.activateCenterBoss(level,player,null,net.minecraft.core.Direction.SOUTH);
                 check(boss!=null && boss.getY()==AuthoredCatacombs.ARENA_FLOOR_Y,"Boss did not spawn on authored floor");
                 BossArenaEncounter.begin(level,player,boss,net.minecraft.core.Direction.SOUTH);

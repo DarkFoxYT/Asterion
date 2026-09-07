@@ -63,6 +63,11 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
                 && worldPosition.equals(net.krodark.asterion.worldgen.MinotaurArenaEntrances.door(
                         net.krodark.asterion.worldgen.MinotaurArenaEntrances.BOSS_ENTRANCE))) return;
         if (net.krodark.asterion.worldgen.BossArenaEncounter.sealsDoor(level, worldPosition, facing())) return;
+        if (!player.isCreative() && !held.is(Asterion.MINOTAUR_KEY)) {
+            net.krodark.asterion.game.PlayerNotices.show(player, Component.translatable("message.asterion.minotaur_door_locked"));
+            level.playSound(null, worldPosition, SoundEvents.CHAIN_HIT, SoundSource.BLOCKS, .5F, .6F);
+            return;
+        }
         boolean insertedKey = held.is(Asterion.MINOTAUR_KEY) && !unlockedWithKey;
         if (insertedKey) {
             unlockedWithKey = true;
@@ -82,11 +87,6 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
             sync();
         }
         if (!unlocked) {
-            if (!held.is(Asterion.MINOTAUR_KEY) && !player.isCreative()) {
-                net.krodark.asterion.game.PlayerNotices.show(player, Component.translatable("message.asterion.minotaur_door_locked"));
-                level.playSound(null, worldPosition, SoundEvents.CHAIN_HIT, SoundSource.BLOCKS, .5F, .6F);
-                return;
-            }
             unlocked = true;
             level.playSound(null, worldPosition, SoundEvents.IRON_TRAPDOOR_OPEN, SoundSource.BLOCKS, 1F, .65F);
         }

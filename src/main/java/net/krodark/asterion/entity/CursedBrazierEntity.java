@@ -276,13 +276,19 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         setInvulnerable(true);
         attack = Attack.NONE;
         entityData.set(ATTACK_ID, Attack.NONE.ordinal());
-        closeEncounterDoors(level);
+        List<Vec3> entrances = new java.util.ArrayList<>();
+        visitEncounterDoors(level, door -> {
+            entrances.add(Vec3.atBottomCenterOf(door.getBlockPos()));
+            door.sealForFight();
+        });
         level.playSound(null, blockPosition(), SoundEvents.TRIAL_SPAWNER_ABOUT_TO_SPAWN_ITEM,
                 SoundSource.HOSTILE, 1.8F, 0.55F);
 
         MazeShiftPayload shake = new MazeShiftPayload(blockPosition(), 30F, 0.32F, 62);
         for (ServerPlayer viewer : level.players()) {
-            if (viewer.distanceToSqr(this) > 42 * 42) continue;
+            if (!net.krodark.asterion.game.EncounterProximity.canJoin(viewer, level, restingPosition)
+                    && entrances.stream().noneMatch(entrance ->
+                    net.krodark.asterion.game.EncounterProximity.canJoin(viewer, level, entrance))) continue;
             if (ServerPlayNetworking.canSend(viewer, CursedBrazierAwakeningPayload.TYPE)) {
                 ServerPlayNetworking.send(viewer,
                         new CursedBrazierAwakeningPayload(getId(), AWAKENING_DURATION));

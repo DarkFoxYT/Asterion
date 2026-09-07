@@ -54,6 +54,7 @@
     "LevelLoadingScreenMixin",
     "RagdollEntityRendererMixin",
     "RagdollLivingEntityRendererMixin",
+    "RagdollGeoEntityRendererMixin",
     "InventoryEntityPreviewMixin",
     "RagdollLevelRendererMixin",
     "SodiumRenderRegionMixin",

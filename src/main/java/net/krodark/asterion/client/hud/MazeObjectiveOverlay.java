@@ -6,7 +6,6 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.client.ragdoll.DismembermentEngine;
-import net.krodark.asterion.game.GameplayContent;
 import net.krodark.asterion.worldgen.CatacombLayout;
 import net.krodark.asterion.worldgen.MinotaurArenaEntrances;
 import net.minecraft.client.Minecraft;
@@ -25,12 +24,7 @@ public final class MazeObjectiveOverlay {
     private static int visibleTicks;
     private static int completionTicks;
     private static Stage stage = Stage.ENTER_CATACOMBS;
-    private static boolean sawBrazierKey;
-    private static boolean sawMinotaurMold;
-    private static boolean sawMinotaurKey;
-    private static boolean sawOmegaKey;
-    private static boolean sawOre;
-    private static boolean sawIngots;
+    private static int sharedStage = -1;
     private static boolean wasInMaze;
     private static Stage layoutStage;
     private static int layoutWidth;
@@ -95,14 +89,13 @@ public final class MazeObjectiveOverlay {
                 || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) {
             armed = visible = false;
             wasInMaze = false;
+            if (client.level == null) sharedStage = -1;
             waypoint = null;
             return;
         }
         if (!wasInMaze) {
             wasInMaze = true;
-             
-             
-            if (!armed) recoverProgress(client);
+            if (!armed) visible = true;
         }
         boolean tumbling = DismembermentEngine.INSTANCE.isPlayerTumbling(client.player.getId());
         if (armed) {
@@ -113,43 +106,16 @@ public final class MazeObjectiveOverlay {
                 visible = true;
             }
         }
-        if (!visible) return;
+        if (!visible || sharedStage < 0 || sharedStage == Stage.values().length) return;
         waypoint = keyWaypoint(client);
         if (!bossFightActive(client)) visibleTicks++;
-        sawOre |= hasCaveOre(client);
-        sawIngots |= hasIngots(client);
-        sawBrazierKey |= client.player.getInventory().contains(new net.minecraft.world.item.ItemStack(GameplayContent.CURSED_BRAZIER_KEY));
-        sawMinotaurMold |= has(client, Asterion.MINOTAUR_KEY_CAST);
-        sawMinotaurKey |= client.player.getInventory().contains(new net.minecraft.world.item.ItemStack(Asterion.MINOTAUR_KEY))
-                || !client.level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
-                        client.player.getBoundingBox().inflate(10.0D), entity -> entity.getItem().is(Asterion.MINOTAUR_KEY))
-                        .isEmpty();
-        sawOmegaKey |= client.player.getInventory().contains(new net.minecraft.world.item.ItemStack(Asterion.OMEGA_KEY));
+    }
 
-        boolean complete = switch (stage) {
-            case ENTER_CATACOMBS -> CatacombLayout.contains(client.player.blockPosition());
-            case GET_BRAZIER_KEY -> sawBrazierKey;
-            case DEFEAT_BRAZIER -> sawMinotaurMold || sawMinotaurKey || sawOmegaKey;
-            case REACH_FORGE -> client.player.getY() <= net.krodark.asterion.worldgen.LabyrinthLevels.FORGE_ROOF_Y;
-            case GATHER_ORE -> sawOre || sawIngots || sawMinotaurKey || sawOmegaKey;
-            case PREPARE_INGOTS -> sawIngots || sawMinotaurKey || sawOmegaKey;
-            case FORGE_MINOTAUR_KEY -> sawMinotaurKey || sawOmegaKey;
-            case REACH_ARENA_DOORS -> client.player.position().distanceToSqr(
-                    MinotaurArenaEntrances.door(MinotaurArenaEntrances.PLAYER_ENTRANCE).getCenter()) <= 24.0D * 24.0D;
-            case DEFEAT_DEAD_SUN -> sawOmegaKey;
-            case OPEN_OMEGA_LOCK -> sawOmegaKey && !client.player.getInventory().contains(
-                    new net.minecraft.world.item.ItemStack(Asterion.OMEGA_KEY));
-        };
-        if (!complete) {
-            completionTicks = 0;
-        } else if (++completionTicks >= 18) {
-            completionTicks = 0;
-            if (stage == Stage.OPEN_OMEGA_LOCK) visible = false;
-            else {
-                stage = Stage.values()[stage.ordinal() + 1];
-                visibleTicks = 0;
-            }
-        }
+    public static void receiveSharedProgress(int value) {
+        if (value < 0 || value > Stage.values().length) return;
+        if (sharedStage != value) visibleTicks = completionTicks = 0;
+        sharedStage = value;
+        if (value < Stage.values().length) stage = Stage.values()[value];
     }
 
     public static boolean bossFightActive(Minecraft client) {
@@ -158,7 +124,7 @@ public final class MazeObjectiveOverlay {
     }
 
     private static void render(GuiGraphicsExtractor graphics, net.minecraft.client.DeltaTracker tracker) {
-        if (!visible || CinematicHud.isHidden() || !AsterionConfig.INSTANCE.objectiveHudEnabled) return;
+        if (!visible || sharedStage < 0 || sharedStage == Stage.values().length || CinematicHud.isHidden() || !AsterionConfig.INSTANCE.objectiveHudEnabled) return;
         if (bossFightActive(Minecraft.getInstance())) return;
         int displaySeconds = AsterionConfig.INSTANCE.objectiveHudSeconds;
         if (displaySeconds > 0 && visibleTicks > displaySeconds * 20) return;
@@ -227,69 +193,18 @@ public final class MazeObjectiveOverlay {
     }
 
     private static void resetProgress() {
-        stage = Stage.ENTER_CATACOMBS;
-        sawBrazierKey = false;
-        sawMinotaurMold = false;
-        sawMinotaurKey = false;
-        sawOmegaKey = false;
-        sawOre = false;
-        sawIngots = false;
+        stage = sharedStage >= 0 && sharedStage < Stage.values().length
+                ? Stage.values()[sharedStage] : Stage.ENTER_CATACOMBS;
     }
 
-    private static void recoverProgress(Minecraft client) {
-        waitTicks = completionTicks = 0;
-        visibleTicks = 0;
-        visible = true;
-        sawOre = hasCaveOre(client);
-        sawIngots = hasIngots(client);
-        sawBrazierKey = has(client, GameplayContent.CURSED_BRAZIER_KEY);
-        sawMinotaurMold = has(client, Asterion.MINOTAUR_KEY_CAST);
-        sawMinotaurKey = has(client, Asterion.MINOTAUR_KEY);
-        sawOmegaKey = has(client, Asterion.OMEGA_KEY);
-        BlockPos pos = client.player.blockPosition();
-        boolean inArena = Math.abs((long)pos.getX()) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS
-                && Math.abs((long)pos.getZ()) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS;
-        if (sawOmegaKey) stage = Stage.OPEN_OMEGA_LOCK;
-        else if (inArena) stage = Stage.DEFEAT_DEAD_SUN;
-        else if (sawMinotaurKey) stage = Stage.REACH_ARENA_DOORS;
-        else if (sawMinotaurMold
-                && pos.getY() <= net.krodark.asterion.worldgen.LabyrinthLevels.FORGE_ROOF_Y)
-            stage = sawIngots ? Stage.FORGE_MINOTAUR_KEY : sawOre ? Stage.PREPARE_INGOTS : Stage.GATHER_ORE;
-        else if (sawMinotaurMold) stage = Stage.REACH_FORGE;
-        else if (net.krodark.asterion.worldgen.AuthoredCatacombs.insideCursedBrazierRoom(pos))
-            stage = Stage.DEFEAT_BRAZIER;
-        else if (sawBrazierKey) stage = Stage.DEFEAT_BRAZIER;
-        else if (CatacombLayout.contains(pos)) stage = Stage.GET_BRAZIER_KEY;
-        else stage = Stage.ENTER_CATACOMBS;
-    }
-
-    private static boolean hasCaveOre(Minecraft client) {
-        return has(client, Asterion.SHALE_TARNISHED_GOLD_ORE.asItem())
-                || has(client, Asterion.SHADED_SHALE_TARNISHED_GOLD_ORE.asItem())
-                || has(client, Asterion.SHALE_CELESTIAL_GOLD_ORE.asItem())
-                || has(client, Asterion.SHADED_SHALE_CELESTIAL_GOLD_ORE.asItem());
-    }
-
-    private static boolean hasIngots(Minecraft client) {
-        return has(client, Asterion.TARNISHED_GOLD_INGOT) || has(client, Asterion.CELESTIAL_GOLD_INGOT)
-                || has(client, Asterion.CELESTIAL_BRONZE_INGOT)
-                || has(client, Asterion.CELESTIAL_STEEL_INGOT) || has(client, Asterion.BONESTEEL_INGOT);
-    }
-
-    private static boolean has(Minecraft client, net.minecraft.world.item.Item item) {
-        return client.player.getInventory().contains(new net.minecraft.world.item.ItemStack(item));
-    }
-
-     
     private static Vec3 keyWaypoint(Minecraft client) {
-        if (stage == Stage.REACH_ARENA_DOORS && has(client, Asterion.MINOTAUR_KEY))
+        if (stage == Stage.REACH_ARENA_DOORS)
             return MinotaurArenaEntrances.door(MinotaurArenaEntrances.PLAYER_ENTRANCE).getCenter();
-        if (stage == Stage.REACH_FORGE && has(client, Asterion.MINOTAUR_KEY_CAST))
+        if (stage == Stage.REACH_FORGE)
             return Vec3.atCenterOf(new BlockPos(CatacombLayout.ROOT_CENTER,
                     net.krodark.asterion.worldgen.AuthoredCatacombs.CONNECTOR_Y,
                     CatacombLayout.ROOT_CENTER));
-        if ((stage == Stage.GET_BRAZIER_KEY || stage == Stage.DEFEAT_BRAZIER)
-                && has(client, GameplayContent.CURSED_BRAZIER_KEY)) {
+        if (stage == Stage.DEFEAT_BRAZIER) {
             return net.krodark.asterion.worldgen.AuthoredCatacombs.BRAZIER_ROOM_ORIGINS.stream()
                     .map(origin -> Vec3.atCenterOf(new BlockPos(origin.getX(),
                             net.krodark.asterion.worldgen.AuthoredCatacombs.CONNECTOR_Y,

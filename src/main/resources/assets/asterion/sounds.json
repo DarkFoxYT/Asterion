@@ -208,5 +208,17 @@
     "sounds": [
       "asterion:sfx/mino/minotaur.roar"
     ]
+  },
+  "minotaur_fist_swing": {
+    "subtitle": "subtitles.asterion.minotaur_fist_swing",
+    "sounds": [
+      "asterion:sfx/mino/minotaur.fist_swing"
+    ]
+  },
+  "minotaur_fist_swing_combo": {
+    "subtitle": "subtitles.asterion.minotaur_fist_swing_combo",
+    "sounds": [
+      "asterion:sfx/mino/minotaur.fist_swing_combo"
+    ]
   }
 }

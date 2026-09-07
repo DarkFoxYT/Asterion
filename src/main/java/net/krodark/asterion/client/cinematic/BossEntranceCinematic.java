@@ -9,7 +9,6 @@ import net.krodark.asterion.network.BossEntrancePayload;
 import net.krodark.asterion.worldgen.MinotaurArenaEntrances;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
@@ -80,12 +79,15 @@ public final class BossEntranceCinematic {
     }
 
     private static void playCinematicSounds(Minecraft client) {
+        Vec3 source = Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(door)).add(0, 2.5, 0);
         for (int beat : SOUND_BEATS) if (lastSoundTick < beat && ticks >= beat)
-            client.getSoundManager().play(SimpleSoundInstance.forUI(Asterion.METAL_HIT,
-                    beat == SOUND_BEATS[2] ? 0.40F : beat == SOUND_BEATS[1] ? .49F : 0.58F,
-                    beat == SOUND_BEATS[2] ? 3.4F : beat == SOUND_BEATS[1] ? 2.45F : 1.8F));
+            client.level.playLocalSound(source.x, source.y, source.z, Asterion.METAL_HIT,
+                    net.minecraft.sounds.SoundSource.BLOCKS,
+                    beat == SOUND_BEATS[2] ? 3.4F : beat == SOUND_BEATS[1] ? 2.45F : 1.8F,
+                    beat == SOUND_BEATS[2] ? 0.40F : beat == SOUND_BEATS[1] ? .49F : 0.58F, false);
         if (lastSoundTick < BREAK_TICK && ticks >= BREAK_TICK)
-            client.getSoundManager().play(SimpleSoundInstance.forUI(Asterion.MINOTAUR_DOOR_OPENCLOSE, 0.72F, 2.6F));
+            client.level.playLocalSound(source.x, source.y, source.z, Asterion.MINOTAUR_DOOR_OPENCLOSE,
+                    net.minecraft.sounds.SoundSource.BLOCKS, 2.6F, 0.72F, false);
         lastSoundTick = ticks;
     }
 

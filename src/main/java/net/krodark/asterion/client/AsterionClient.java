@@ -54,7 +54,6 @@ import net.krodark.asterion.network.ragdoll.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.EntityRenderers;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderers;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.fabricmc.fabric.api.client.particle.v1.ParticleProviderRegistry;
 
 public final class AsterionClient implements ClientModInitializer {
@@ -186,8 +185,15 @@ public final class AsterionClient implements ClientModInitializer {
                 context.client().execute(() ->
                         { if (!isPlayback(context.client())) DimensionTransitionOverlay.begin(payload.fadeInTicks(), payload.holdTicks(), payload.deathMessage()); }));
         ClientPlayNetworking.registerGlobalReceiver(EntryOmenPayload.TYPE, (payload, context) ->
-                context.client().execute(() -> context.client().getSoundManager().play(
-                        SimpleSoundInstance.forUI(Asterion.MINOTAUR_ROAR, 0.72F, 4.0F))));
+                context.client().execute(() -> {
+                    var level = context.client().level;
+                    if (level == null || !level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
+                    var pos = payload.position();
+                    level.playLocalSound(pos.x, pos.y, pos.z, Asterion.MINOTAUR_ROAR,
+                            net.minecraft.sounds.SoundSource.HOSTILE, 2.0F, 0.72F, false);
+                }));
+        ClientPlayNetworking.registerGlobalReceiver(ObjectiveProgressPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> MazeObjectiveOverlay.receiveSharedProgress(payload.stage())));
         ClientPlayNetworking.registerGlobalReceiver(BossFinalePayload.TYPE, (payload, context) ->
                 context.client().execute(() -> { if (!isPlayback(context.client())) BossFinaleOverlay.begin(); }));
         ClientPlayNetworking.registerGlobalReceiver(

@@ -569,10 +569,10 @@ public final class WorldGenerator {
                     BlockKey key = new BlockKey(level.dimension(), cursor.immutable());
                     Block expected = PLAYER_PLACED_BLOCKS.get(key);
                     if (expected == null || !level.getBlockState(cursor).is(expected)) continue;
-                    if (isPermanentUpperMazeBuild(cursor)) continue;
-                    PLAYER_PLACED_BLOCKS.remove(key);
-                    level.destroyBlock(cursor, false, null, 512);
-                    broken++;
+                    if (level.destroyBlock(cursor, false, null, 512)) {
+                        PLAYER_PLACED_BLOCKS.remove(key);
+                        broken++;
+                    }
                 }
         return broken;
     }
@@ -1112,8 +1112,8 @@ public final class WorldGenerator {
             Direction entrance = MinotaurArenaEntrances.crossedEntrance(previous, player.position());
             Long requestedAt=BOSS_START_REQUESTS.get(player.getUUID());
             if(entrance==null&&requestedAt!=null&&maze.getGameTime()>=requestedAt
-                    &&player.distanceToSqr(Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(
-                    MinotaurArenaEntrances.PLAYER_ENTRANCE)))<=24D*24D)
+                    &&net.krodark.asterion.game.EncounterProximity.canJoin(player, maze,
+                    Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(MinotaurArenaEntrances.PLAYER_ENTRANCE))))
                 entrance=MinotaurArenaEntrances.PLAYER_ENTRANCE;
             if (entrance == null || !isBossArenaReady() || BOSS_ENTRANTS.contains(player.getUUID())) continue;
             if (!(maze.getBlockEntity(MinotaurArenaEntrances.door(entrance)) instanceof MinotaurDoorBlockEntity door)
@@ -2398,13 +2398,16 @@ public final class WorldGenerator {
 
     public static void markTransitionReady(ServerPlayer player) {
         PendingTransition pending = PENDING_TRANSITIONS.get(player.getUUID());
+        boolean wasReady = pending != null && pending.clientReady;
         if (pending != null && pending.teleported
                 && player.level().dimension().equals(Asterion.ASTERION_LEVEL))
             pending.clientReady = true;
-        if (pending != null && pending.clientReady) {
+        if (pending != null && pending.clientReady && !wasReady) {
+            EntryOmenPayload omen = new EntryOmenPayload(player.position());
             for (ServerPlayer listener : pending.maze.players())
-                if (ServerPlayNetworking.canSend(listener, EntryOmenPayload.TYPE))
-                    ServerPlayNetworking.send(listener, EntryOmenPayload.INSTANCE);
+                if (listener.distanceToSqr(omen.position()) <= 32 * 32
+                        && ServerPlayNetworking.canSend(listener, EntryOmenPayload.TYPE))
+                    ServerPlayNetworking.send(listener, omen);
         }
     }
 

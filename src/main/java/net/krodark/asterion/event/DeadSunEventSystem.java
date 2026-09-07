@@ -117,27 +117,18 @@ public final class DeadSunEventSystem {
         register(new Definition() {
             @Override public Identifier id() { return FLOOD; }
             @Override public int weight() { return 1; }
-            @Override public int minDurationTicks() { return CatacombFloodState.RISE_DURATION_TICKS + 800; }
-            @Override public int maxDurationTicks() { return CatacombFloodState.RISE_DURATION_TICKS + 1600; }
+            @Override public int minDurationTicks() { return CatacombFloodState.FLOOD_DURATION_TICKS; }
+            @Override public int maxDurationTicks() { return CatacombFloodState.FLOOD_DURATION_TICKS; }
             @Override public float intensity(RandomSource random) { return .35F; }
             @Override public void onStart(ServerLevel level, long seed, int duration, float intensity) {
                 CatacombFloodState.start(level, duration);
-            }
-            @Override public void onTick(ServerLevel level, int elapsed) {
-                if (elapsed % 20 != 0 || CatacombFloodState.get(level).riseSteps() >= CatacombFloodState.MAX_RISE) return;
-                ActiveEvent event = STATES.get(level.getServer()).active;
-                 
-                if (event.durationTicks < elapsed + 800) {
-                    event.durationTicks = elapsed + 800;
-                    CatacombFloodState.ensureRemainingTicks(level, 800);
-                }
             }
             @Override public void onEnd(ServerLevel level) { CatacombFloodState.setActive(level, false); }
         });
         register(new Definition() {
             @Override public Identifier id() { return ECLIPSE; }
             @Override public boolean eligible(ServerLevel level) {
-                return level.players().stream().anyMatch(DeadSunEventSystem::eclipseExposed);
+                return level.players().stream().anyMatch(player -> player.isAlive() && !player.isSpectator());
             }
             @Override public int weight() { return 1; }
             @Override public int minDurationTicks() { return 20 * 60; }
@@ -151,7 +142,7 @@ public final class DeadSunEventSystem {
                 if ((elapsedTicks % 20) != 0) return;
                 java.util.List<MinotaurEntity> hunters = new java.util.ArrayList<>(eclipseMinotaurs(level));
                 for (var player : level.players()) {
-                    if (!eclipseExposed(player)) {
+                    if (!eclipseHunterExposed(player)) {
                         hunters.stream().filter(hunter -> hunter.isAssignedTo(player)
                                 && (hunter.isChasing() || hunter.isRoaming())).forEach(MinotaurEntity::endEclipse);
                         continue;
@@ -314,7 +305,8 @@ public final class DeadSunEventSystem {
             throw new IllegalArgumentException("Duplicate Dead Sun event: " + definition.id());
     }
 
-    private static boolean eclipseExposed(net.minecraft.server.level.ServerPlayer player) {
+    // Hunter terrain restrictions do not control the dimension-wide eclipse or its recipients.
+    private static boolean eclipseHunterExposed(net.minecraft.server.level.ServerPlayer player) {
         return player.isAlive() && !player.isSpectator()
                 && player.getY() >= net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y
                 && !player.level().getBiome(player.blockPosition()).is(Asterion.CATACOMBS_BIOME)
@@ -432,11 +424,6 @@ public final class DeadSunEventSystem {
         DeadSunEventPayload payload = new DeadSunEventPayload(event.definition.id(), event.seed,
                 event.durationTicks, event.elapsed, event.intensity);
         level.players().forEach(player -> {
-            if (event.definition.id().equals(ECLIPSE) && !eclipseExposed(player)) {
-                if (event.notifiedPlayers.remove(player.getUUID()) && ServerPlayNetworking.canSend(player, DeadSunEventPayload.TYPE))
-                    ServerPlayNetworking.send(player, new DeadSunEventPayload(ECLIPSE, event.seed, 1, 1, 0));
-                return;
-            }
             if (!event.notifiedPlayers.add(player.getUUID())) return;
             if (ServerPlayNetworking.canSend(player, DeadSunEventPayload.TYPE))
                 ServerPlayNetworking.send(player, payload);
@@ -447,7 +434,6 @@ public final class DeadSunEventSystem {
         DeadSunEventPayload payload = new DeadSunEventPayload(event.definition.id(), event.seed,
                 event.durationTicks, event.elapsed, event.intensity);
         level.players().forEach(player -> {
-            if (event.definition.id().equals(ECLIPSE) && !eclipseExposed(player)) return;
             event.notifiedPlayers.add(player.getUUID());
             if (ServerPlayNetworking.canSend(player, DeadSunEventPayload.TYPE))
                 ServerPlayNetworking.send(player, payload);

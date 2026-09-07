@@ -736,6 +736,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             return;
         }
         super.customServerAiStep(level);
+        if (isAlive() && (tickCount & 3) == 0)
+            WorldGenerator.breakPlayerBlocksAround(level, getBoundingBox().inflate(1.5D));
         tickLightLanding();
         if (behaviorPhase() != BehaviorPhase.BOSS && behaviorPhase() != BehaviorPhase.RETREATING
                 && behaviorPhase() != BehaviorPhase.DORMANT && !DeadSunEventSystem.isEclipseActive(level)) {
@@ -3436,6 +3438,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         getNavigation().stop();
         setDeltaMovement(0, getDeltaMovement().y, 0);
         if (target == null || !target.isAlive() || target.isSpectator()) { finishBossAttack(24); return; }
+        if (bossAttackTicks == 1) playSound(Asterion.MINOTAUR_FIST_SWING, 2.2F, 1.0F);
         getLookControl().setLookAt(target, 12, 8);
         if (bossAttackTicks == MinotaurAnimationTiming.PUNCH_SINGLE_HIT)
             performPunchStrike(level, target, 2);
@@ -3481,6 +3484,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         getNavigation().stop();
         setDeltaMovement(0, getDeltaMovement().y, 0);
         if (target == null || !target.isAlive() || target.isCreative() || target.isSpectator()) { finishBossAttack(30); return; }
+        if (bossAttackTicks == 1) playSound(Asterion.MINOTAUR_FIST_SWING_COMBO, 2.2F, 1.0F);
         getLookControl().setLookAt(target, 15, 9);
         for (int strike = 0; strike < 3; strike++)
             if (bossAttackTicks == COMBO_STRIKE_TICKS[strike] && performPunchStrike(level, target, strike)) return;
@@ -3929,7 +3933,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
          
         var cinematic = new net.krodark.asterion.network.RoofCollapsePayload(collapseAnchor, 168);
         for (ServerPlayer viewer : level.players())
-            if (viewer.position().horizontalDistanceSqr() < 72.0D * 72.0D
+            if (net.krodark.asterion.worldgen.BossArenaEncounter.isParticipant(viewer)
                     && ServerPlayNetworking.canSend(viewer,
                     net.krodark.asterion.network.RoofCollapsePayload.TYPE))
                 ServerPlayNetworking.send(viewer, cinematic);

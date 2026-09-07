@@ -5,6 +5,7 @@ import net.krodark.asterion.Asterion;
 import net.krodark.asterion.block.MinotaurDoorBlock;
 import net.krodark.asterion.block.MinotaurDoorBlockEntity;
 import net.krodark.asterion.entity.MinotaurEntity;
+import net.krodark.asterion.game.EncounterProximity;
 import net.krodark.asterion.network.BossEntrancePayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -36,6 +37,7 @@ public final class BossArenaEncounter {
 
     public static void begin(ServerLevel level, ServerPlayer trigger, MinotaurEntity boss, Direction entry) {
         if (entry != MinotaurArenaEntrances.PLAYER_ENTRANCE) return;
+        if (!nearEntrance(level, trigger, entry)) return;
         if (active != null) { admit(level, trigger, entry); return; }
          
          
@@ -45,9 +47,7 @@ public final class BossArenaEncounter {
         admit(level, trigger, entry);
          
         for (ServerPlayer player : List.copyOf(level.players())) {
-            if (player != trigger && eligible(player) && player.position().horizontalDistance() < 60
-                    && player.getY() >= AuthoredCatacombs.ARENA_FLOOR_Y
-                    && player.getY() < LabyrinthLevels.MAZE_FLOOR_Y + 1) admit(level, player, entry);
+            if (player != trigger && nearEntrance(level, player, entry)) admit(level, player, entry);
         }
         for (Direction facing : MinotaurArenaEntrances.DOORS) if (facing != active.bossDoor) {
             moveFromClosure(level, facing);
@@ -58,8 +58,15 @@ public final class BossArenaEncounter {
 
     private static boolean eligible(ServerPlayer player) { return player.isAlive() && !player.isSpectator() && !player.isCreative(); }
 
+    private static boolean nearEntrance(ServerLevel level, ServerPlayer player, Direction entry) {
+        return entry == MinotaurArenaEntrances.PLAYER_ENTRANCE
+                && EncounterProximity.canJoin(player, level,
+                Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(entry)));
+    }
+
     private static void admit(ServerLevel level, ServerPlayer player, Direction entry) {
-        if (active == null || !active.participants.add(player.getUUID())) return;
+        if (active == null || active.level != level || !nearEntrance(level, player, entry)
+                || !active.participants.add(player.getUUID())) return;
         Vec3 safe = safePosition(level, player, entry, active.participants.size() - 1);
         active.spawnPositions.put(player.getUUID(), safe);
         Vec3 focus = Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(active.bossDoor)).add(0, 2.8, 0);

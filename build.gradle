@@ -532,7 +532,28 @@ def clientGameTests = [
                  : ["net.krodark.asterion.dev.verification.HeavyWaterloggingGameTest",
                     "net.krodark.asterion.dev.verification.HeavyWaterGameTest"]],
         [run: "RunePuzzleTest", folder: "rune-puzzle-testmod", id: "asterion_rune_puzzle_test",
-         classes: ["net.krodark.asterion.dev.verification.RagdollMultiplayerGameTest",
+         classes: providers.gradleProperty("objectiveSkippingOnly").isPresent()
+                 ? ["net.krodark.asterion.dev.verification.ObjectiveSkippingGameTest"]
+                 : providers.gradleProperty("minotaurDoorKeyOnly").isPresent()
+                 ? ["net.krodark.asterion.dev.verification.MinotaurDoorKeyGameTest"]
+                 : providers.gradleProperty("minotaurBlocksOnly").isPresent()
+                 ? ["net.krodark.asterion.dev.verification.MinotaurBlockBreakingGameTest"]
+                 : providers.gradleProperty("floodDrainOnly").isPresent()
+                 ? ["net.krodark.asterion.dev.verification.FloodDrainGameTest"]
+                 : providers.gradleProperty("eclipseMultiplayerOnly").isPresent()
+                 ? ["net.krodark.asterion.dev.verification.EclipseMultiplayerGameTest"]
+                 : providers.gradleProperty("encounterProximityOnly").isPresent()
+                 ? ["net.krodark.asterion.dev.verification.EncounterProximityGameTest"]
+                 : providers.gradleProperty("mobRagdollOnly").isPresent()
+                 ? ["net.krodark.asterion.dev.verification.MobRagdollGameTest"]
+                 : ["net.krodark.asterion.dev.verification.ObjectiveSkippingGameTest",
+                   "net.krodark.asterion.dev.verification.MinotaurDoorKeyGameTest",
+                   "net.krodark.asterion.dev.verification.MinotaurBlockBreakingGameTest",
+                   "net.krodark.asterion.dev.verification.FloodDrainGameTest",
+                   "net.krodark.asterion.dev.verification.EclipseMultiplayerGameTest",
+                   "net.krodark.asterion.dev.verification.EncounterProximityGameTest",
+                   "net.krodark.asterion.dev.verification.MobRagdollGameTest",
+                   "net.krodark.asterion.dev.verification.RagdollMultiplayerGameTest",
                    "net.krodark.asterion.dev.verification.RunePuzzleGameTest",
                    "net.krodark.asterion.dev.verification.GameplayGameTest"]]
 ]

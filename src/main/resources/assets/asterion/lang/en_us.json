@@ -563,5 +563,7 @@
   "subtitles.asterion.minotaur_sword_sheathe": "Minotaur sheathes swords",
   "item.asterion.minotaur_hide": "Minotaur Hide",
   "tooltip.asterion.minotaur_hide": "Can be crafted into 2 leather.",
-  "subtitles.asterion.minotaur_sword_swing": "Minotaur swings his sword"
+  "subtitles.asterion.minotaur_sword_swing": "Minotaur swings his sword",
+  "subtitles.asterion.minotaur_fist_swing": "Minotaur swings his fist",
+  "subtitles.asterion.minotaur_fist_swing_combo": "Minotaur unleashes a fist combo"
 }

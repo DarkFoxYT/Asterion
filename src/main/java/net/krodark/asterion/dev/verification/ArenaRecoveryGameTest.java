@@ -31,6 +31,8 @@ public final class ArenaRecoveryGameTest implements FabricClientGameTest {
                 var maze = server.getLevel(Asterion.ASTERION_LEVEL);
                 var player = server.getPlayerList().getPlayers().getFirst();
                 player.setGameMode(GameType.SURVIVAL);
+                Vec3 entrance = Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(MinotaurArenaEntrances.PLAYER_ENTRANCE)).add(0, 0, 3);
+                player.teleportTo(maze, entrance.x, entrance.y, entrance.z, Set.of(), 180, 0, true);
                 var boss = MinotaurEntity.activateCenterBoss(maze, player, null, MinotaurArenaEntrances.PLAYER_ENTRANCE);
                 boss.setNoAi(true);
                 BossArenaEncounter.begin(maze, player, boss, MinotaurArenaEntrances.PLAYER_ENTRANCE);

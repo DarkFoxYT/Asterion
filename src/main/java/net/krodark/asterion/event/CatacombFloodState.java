@@ -30,6 +30,9 @@ public final class CatacombFloodState extends SavedData {
     public static final int RISE_PER_STEP = 1;
     public static final int STEP_TICKS = 80;
     public static final int RISE_DURATION_TICKS = MAX_RISE / RISE_PER_STEP * STEP_TICKS;
+    public static final int FLOOD_DURATION_TICKS = 20 * 180;
+    public static final int DRAIN_STEP_TICKS = 20;
+    public static final int DRAIN_PER_STEP = Math.max(1, (MAX_RISE + 59) / 60);
     public static final Codec<CatacombFloodState> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.BOOL.optionalFieldOf("active", false).forGetter(s -> s.active),
             Codec.intRange(0, MAX_RISE).optionalFieldOf("rise", 0).forGetter(s -> s.rise),
@@ -54,28 +57,29 @@ public final class CatacombFloodState extends SavedData {
     public static boolean isFlooding(ServerLevel level, BlockPos pos) {
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return false;
         boolean catacombs = CatacombLayout.contains(pos);
-        return catacombs && !isArenaColumn(pos.getX(), pos.getZ()) && !isOmegaRoom(pos) && !isLootRoom(pos) && get(level).active;
+        return catacombs && !isArenaColumn(pos.getX(), pos.getZ()) && !isOmegaRoom(pos) && !isLootRoom(pos)
+                && !net.krodark.asterion.worldgen.AuthoredCatacombs.insideCursedBrazierRoom(pos) && get(level).active;
     }
 
     public static void setActive(ServerLevel level, boolean active) {
-        if (active) start(level, 20 * 180);
-        else { var state = get(level); state.active = false; state.endsAt = 0; state.setDirty(); }
+        if (active) start(level, FLOOD_DURATION_TICKS);
+        else {
+            var state = get(level);
+            state.active = false;
+            state.endsAt = 0;
+            state.nextStep = Math.min(state.nextStep, level.getGameTime() + DRAIN_STEP_TICKS);
+            state.setDirty();
+        }
     }
 
     public static void start(ServerLevel level, int durationTicks) {
         var state = get(level);
         state.active = true;
-        state.endsAt = level.getGameTime() + Math.max(durationTicks, RISE_DURATION_TICKS + 800);
+        state.endsAt = level.getGameTime() + Math.clamp(durationTicks, 1, FLOOD_DURATION_TICKS);
         state.nextStep = level.getGameTime() + STEP_TICKS;
         var loaded=LOADED.computeIfAbsent(level,ignored->new LoadedTide());
         loaded.pending.addAll(loaded.chunks);
         state.setDirty();
-    }
-
-    public static void ensureRemainingTicks(ServerLevel level, int ticks) {
-        var state = get(level);
-        long until = level.getGameTime() + ticks;
-        if (state.active && until > state.endsAt) { state.endsAt = until; state.setDirty(); }
     }
 
     public static void onChunkLoad(ServerLevel level, LevelChunk chunk, boolean newlyGenerated) {
@@ -97,6 +101,11 @@ public final class CatacombFloodState extends SavedData {
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
         var state = get(level);
         long now = level.getGameTime();
+        // Bound deadlines from worlds saved with the old full-rise minimum.
+        if (state.active && state.endsAt > now + FLOOD_DURATION_TICKS) {
+            state.endsAt = now + FLOOD_DURATION_TICKS;
+            state.setDirty();
+        }
         if (state.active && (now >= state.endsAt || net.krodark.asterion.worldgen.WorldGenerator.isBossEncounterActive(level)))
             setActive(level, false);
         var loaded = LOADED.computeIfAbsent(level, ignored -> new LoadedTide());
@@ -104,8 +113,8 @@ public final class CatacombFloodState extends SavedData {
          
         if (state.rise != target && now >= state.nextStep) {
             state.rise += Integer.signum(target-state.rise)
-                    * Math.min(RISE_PER_STEP,Math.abs(target-state.rise));
-            state.nextStep = now + STEP_TICKS;
+                    * Math.min(state.active ? RISE_PER_STEP : DRAIN_PER_STEP, Math.abs(target-state.rise));
+            state.nextStep = now + (state.active ? STEP_TICKS : DRAIN_STEP_TICKS);
             loaded.pending.addAll(loaded.chunks);
             state.setDirty();
         }
@@ -137,6 +146,13 @@ public final class CatacombFloodState extends SavedData {
         int surface = (CatacombLayout.WATER_Y + 1) * 8 + Math.clamp(riseSteps, 0, MAX_RISE);
         for (BlockPos pos : BlockPos.betweenClosed(chunk.getPos().getMinBlockX(), MIN_FLOOD_Y,
                 chunk.getPos().getMinBlockZ(), chunk.getPos().getMaxBlockX(), FLOOD_TOP_Y, chunk.getPos().getMaxBlockZ())) {
+            if (net.krodark.asterion.worldgen.AuthoredCatacombs.insideCursedBrazierRoom(pos)) {
+                // Clear tide left by older saves without removing ordinary water or room blocks.
+                BlockState old = chunk.getBlockState(pos);
+                if (HeavyWaterlogging.isTidal(old)) level.setBlock(pos, HeavyWaterlogging.dry(old), 2);
+                else if (old.is(HeavyWater.BLOCK)) level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2);
+                continue;
+            }
             if (!inFloodArea(pos)) continue;
             BlockState old = chunk.getBlockState(pos);
             int amount = riseSteps == 0 ? 0 : Math.clamp(surface - pos.getY() * 8, 0, 8);
@@ -184,7 +200,9 @@ public final class CatacombFloodState extends SavedData {
 
     private static boolean inFloodArea(BlockPos pos) {
         return pos.getY() >= MIN_FLOOD_Y && pos.getY() <= FLOOD_TOP_Y
-                && !isArenaColumn(pos.getX(), pos.getZ()) && !isOmegaRoom(pos) && !isLootRoom(pos) && CatacombLayout.contains(pos);
+                && !isArenaColumn(pos.getX(), pos.getZ()) && !isOmegaRoom(pos) && !isLootRoom(pos)
+                && !net.krodark.asterion.worldgen.AuthoredCatacombs.insideCursedBrazierRoom(pos)
+                && CatacombLayout.contains(pos);
     }
 
     private static boolean wet(BlockState state) {

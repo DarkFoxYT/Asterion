@@ -112,11 +112,14 @@ public final class DoorGameTest implements FabricClientGameTest {
                 var player = mc.getPlayerList().getPlayers().getFirst();
                 Vec3 previous = player.position();
                 player.setPos(Vec3.atBottomCenterOf(root));
-                door.interact(player, ItemStack.EMPTY);
+                door.interact(player, new ItemStack(Asterion.MINOTAUR_KEY));
                 check(Math.abs(door.angle(MinotaurDoorMotion.OPEN_TICKS) - MinotaurDoorMotion.OPEN_ANGLE) < .001,
                         "Door tried closing on a player in the passage");
                 player.setPos(previous);
                 door.interact(player, ItemStack.EMPTY);
+                check(Math.abs(door.angle(MinotaurDoorMotion.OPEN_TICKS) - MinotaurDoorMotion.OPEN_ANGLE) < .001,
+                        "Unlocked door accepted a survival click without a key");
+                door.interact(player, new ItemStack(Asterion.MINOTAUR_KEY));
             });
             context.waitTicks(MinotaurDoorMotion.OPEN_TICKS + 8);
             server.runOnServer(mc -> {
@@ -435,6 +438,10 @@ public final class DoorGameTest implements FabricClientGameTest {
                 var boss = Asterion.MINOTAUR.create(maze, net.minecraft.world.entity.EntitySpawnReason.EVENT);
                 boss.setPos(.5, 37, -25.5);
                 maze.addFreshEntity(boss);
+                player.setGameMode(GameType.SURVIVAL);
+                var entryPos = MinotaurArenaEntrances.door(Direction.SOUTH);
+                player.teleportTo(maze, entryPos.getX() + .5, entryPos.getY(), entryPos.getZ() + 3.5,
+                        java.util.Set.of(), 180, 0, true);
                 player.setInvulnerable(true);
                 player.setNoGravity(true);
                 BossArenaEncounter.begin(maze, player, boss, Direction.SOUTH);

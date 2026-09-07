@@ -35,12 +35,12 @@ abstract class RagdollLivingEntityRendererMixin {
             at = @At("HEAD"), cancellable = true)
     private void asterion$hidePhysicalBody(LivingEntityRenderState state, PoseStack poses,
                                              SubmitNodeCollector output, CameraRenderState camera, CallbackInfo ci) {
+        if (Boolean.TRUE.equals(((FabricRenderState) state).getData(RagdollRenderData.GUI_PREVIEW))) return;
         Integer id = ((FabricRenderState) state).getData(RagdollRenderData.ENTITY_ID);
         if (id == null) return;
-        if (DismembermentEngine.INSTANCE.isPlayerTumbling(id)) { ci.cancel(); return; }
+        if (DismembermentEngine.INSTANCE.isRagdolled(id)) { ci.cancel(); return; }
         Set<Integer> hidden = DismembermentEngine.INSTANCE.hiddenRegions(id);
         asterion$visibility.clear();
-        if (!hidden.isEmpty() && DismembermentEngine.INSTANCE.isRagdolled(id)) { mask(model.root()); return; }
         if (model instanceof PlayerModel player) for (int region : hidden) maskPlayer(player, region);
         else if (model instanceof HumanoidModel<?> humanoid) for (int region : hidden) maskHumanoid(humanoid, region);
     }

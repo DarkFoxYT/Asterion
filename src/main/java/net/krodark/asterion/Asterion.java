@@ -145,6 +145,8 @@ public class Asterion implements ModInitializer {
     public static final SoundEvent AFTERBLOW_PEDESTAL_PULL = registerSound("afterblow_pedestal_pull");
     public static final SoundEvent ARENA_PILLAR_BREAK = registerSound("arena_pillar_break");
     public static final SoundEvent MINOTAUR_SWORD_SWING = registerSound("minotaur_sword_swing");
+    public static final SoundEvent MINOTAUR_FIST_SWING = registerSound("minotaur_fist_swing");
+    public static final SoundEvent MINOTAUR_FIST_SWING_COMBO = registerSound("minotaur_fist_swing_combo");
     public static final SoundEvent MINOTAUR_SWORD_SHEATHE = registerSound("minotaur_sword_sheathe");
     public static final SoundEvent MINOTAUR_LAND_LIGHT = registerSound("minotaur_land_light");
     public static final SoundEvent MINOTAUR_LAND_SLAM = registerSound("minotaur_land_slam");
@@ -928,6 +930,9 @@ public class Asterion implements ModInitializer {
         PayloadTypeRegistry.serverboundPlay().register(RagdollArmorImpactPayload.TYPE, RagdollArmorImpactPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RagdollPosePayload.TYPE, RagdollPosePayload.CODEC);
         RagdollServerNetworking.initialize();
+        PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.ObjectiveProgressPayload.TYPE,
+                net.krodark.asterion.network.ObjectiveProgressPayload.CODEC);
+        net.krodark.asterion.game.SharedObjectiveProgress.initialize();
         net.krodark.asterion.network.CentipedeNetworking.initialize();
         net.krodark.asterion.network.MinotaurBodyPayload.initialize();
         PressureButtonNetworking.initialize();

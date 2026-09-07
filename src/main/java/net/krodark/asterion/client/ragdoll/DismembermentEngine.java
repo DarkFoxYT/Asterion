@@ -28,8 +28,6 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.krodark.asterion.entity.MinotaurEntity;
-import net.krodark.asterion.entity.BombadierBeetleEntity;
-import net.krodark.asterion.entity.ScarletCentipedeEntity;
 import net.krodark.asterion.entity.ConstructEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Items;
@@ -64,6 +62,7 @@ import net.minecraft.util.Mth;
 public final class DismembermentEngine {
     public static final DismembermentEngine INSTANCE = new DismembermentEngine();
     private static final boolean RAGDOLL_CAPE_ENABLED = false;
+    private static final int MOB_RAGDOLL_LIFETIME_TICKS = 30 * 20;
     private final List<RigidBodyPiece> pieces = new ArrayList<>();
     private final Map<Integer, Set<Integer>> detached = new HashMap<>();
     private final Set<Integer> ragdolled = new HashSet<>();
@@ -1203,6 +1202,8 @@ public final class DismembermentEngine {
         try {
             EntityRenderer renderer = Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(entity);
             EntityRenderState state = renderer.createRenderState(entity, 1.0f);
+            if (renderer instanceof com.geckolib.renderer.GeoEntityRenderer geo)
+                return geo.getGeoModel().getTextureResource(state);
             if (renderer instanceof LivingEntityRenderer living && state instanceof LivingEntityRenderState)
                 return living.getTextureLocation((LivingEntityRenderState) state);
         } catch (RuntimeException ignored) { }
@@ -1267,10 +1268,10 @@ public final class DismembermentEngine {
         };
     }
 
-    private static boolean isRagdollExcluded(Entity entity) {
+    public static boolean isRagdollExcluded(Entity entity) {
         if (entity == null) return true;
-        if (entity instanceof MinotaurEntity || entity instanceof BombadierBeetleEntity
-                || entity instanceof ScarletCentipedeEntity) {
+        if (entity instanceof MinotaurEntity
+                || entity instanceof net.krodark.asterion.entity.CursedBrazierEntity) {
             return true;
         }
         String path = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).getPath();
@@ -2017,6 +2018,7 @@ public final class DismembermentEngine {
         applyGroundedDrag(
                 level, active, incomingVelocities);
 
+        Set<Integer> expiredBodies = new HashSet<>();
         for (int i = pieces.size() - 1; i >= 0; i--) {
             RigidBodyPiece part = pieces.get(i);
             if (remoteDriven.contains(part.entityId)) continue;
@@ -2097,12 +2099,21 @@ public final class DismembermentEngine {
             part.lastEnergyDelta = part.lastEnergyDelta * 0.82 + rawEnergyDelta * 0.18;
             if (supported && Math.abs(part.lastEnergyDelta) < 0.000015
                     && part.velocity.lengthSqr() < 0.0016) part.lastEnergyDelta = 0.0;
-            if (++part.age > 6000) {
+            if (++part.age >= (part.playerBody ? 6000 : MOB_RAGDOLL_LIFETIME_TICKS)) {
+                expiredBodies.add(part.entityId);
                 if (grabbed == part) grabbed = null;
                 pieces.remove(i);
                 solverIndex.remove(pieceKey(part.entityId, part.region));
             }
             part.contacts.values().removeIf(contact -> part.age - contact.lastAge > 2);
+        }
+        Set<Integer> remainingBodies = new HashSet<>();
+        for (RigidBodyPiece part : pieces) remainingBodies.add(part.entityId);
+        for (int id : expiredBodies) {
+            if (!remainingBodies.contains(id)) {
+                removeRagdoll(id);
+                renderedPoseCache.remove(id);
+            }
         }
         updateSleepingIslands();
         sendPoseSnapshots();
@@ -3557,7 +3568,12 @@ public final class DismembermentEngine {
 
     private void trim(int maximum) {
         while (pieces.size() > Math.max(8, maximum)) {
-            RigidBodyPiece removed = pieces.removeFirst();
+            // Complete corpses live for their full lifetime, even during a crowded fight.
+            RigidBodyPiece removed = pieces.stream()
+                    .filter(part -> !part.playerBody && !ragdolled.contains(part.entityId))
+                    .findFirst().orElse(null);
+            if (removed == null) break;
+            pieces.remove(removed);
             if (grabbed == removed) grabbed = null;
         }
     }
