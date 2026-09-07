@@ -136,6 +136,17 @@ java {
 }
 
 jar {
+    archiveFileName = "${project.archives_base_name}-${project.version}-fabric-mc${project.minecraft_version}.jar"
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    manifest {
+        attributes(
+                'Implementation-Title': 'Asterion',
+                'Implementation-Version': project.version.toString(),
+                'Minecraft-Version': project.minecraft_version.toString(),
+                'Mod-Loader': 'Fabric'
+        )
+    }
     from("LICENSE.txt") {
         rename { "LICENSE_${project.archives_base_name}.txt" }
     }
