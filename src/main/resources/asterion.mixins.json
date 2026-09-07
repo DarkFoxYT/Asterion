@@ -45,6 +45,8 @@
     "MoodyBrightnessMixin",
     "TidalWaterSurfaceMixin",
     "AmneticParticleCullingMixin",
+    "AmneticEmissivePassMixin",
+    "AmneticEmissiveInstanceMixin",
     "AsterionFogRendererMixin",
     "CameraMixin",
     "CentipedeInteractionMixin",

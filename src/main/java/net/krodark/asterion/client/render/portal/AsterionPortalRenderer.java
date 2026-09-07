@@ -126,7 +126,7 @@ public final class AsterionPortalRenderer {
                         .putMat4(instance.transform())
                         .putVec4(instance.portal())
                         .putVec4(instance.effect()))
-                .geometry(planeMesh())
+                .geometry(halo ? haloMesh() : planeMesh())
                 .shaders(SHADER, SHADER)
                 .extraSampler("PortalSampler", PORTAL_IMAGE, 1, true)
                 .extraSampler("OverworldSampler", OVERWORLD_IMAGE, 2, true)
@@ -146,6 +146,7 @@ public final class AsterionPortalRenderer {
                             || (!world.dimension().equals(Level.OVERWORLD)
                             && !world.dimension().equals(Asterion.ASTERION_LEVEL))) return;
                     boolean vertical = world.dimension().equals(Asterion.ASTERION_LEVEL);
+                    if (vertical && halo) return;
 
                     Vec3 camera = ctx.cameraPos();
                     double dx = camera.x - (gateway.getX() + 0.5D);
@@ -213,6 +214,18 @@ public final class AsterionPortalRenderer {
                 -1.0F, -1.0F, 0.0F,  1.0F, -1.0F, 0.0F,
                  1.0F,  1.0F, 0.0F, -1.0F,  1.0F, 0.0F
         }, new int[] {0, 1, 2, 0, 2, 3});
+    }
+
+    private static MeshData haloMesh() {
+        return MeshData.of(new float[] {
+                -1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0,
+                -.62F, -.62F, 0, .62F, -.62F, 0, .62F, .62F, 0, -.62F, .62F, 0
+        }, new int[] {
+                0, 1, 5, 0, 5, 4,
+                1, 2, 6, 1, 6, 5,
+                2, 3, 7, 2, 7, 6,
+                3, 0, 4, 3, 4, 7
+        });
     }
 
 }
