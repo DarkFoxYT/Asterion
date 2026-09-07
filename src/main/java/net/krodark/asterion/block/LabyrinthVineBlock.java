@@ -26,6 +26,7 @@ import org.jspecify.annotations.Nullable;
 public final class LabyrinthVineBlock extends BaseEntityBlock implements WaterloggedDecoration {
     public static final EnumProperty<Direction> FACING = EnumProperty.create(
             "facing", Direction.class, direction -> direction.getAxis() == Direction.Axis.Y);
+    private static final VoxelShape SHAPE = box(5, 0, 5, 11, 16, 11);
     public static final BooleanProperty END = BooleanProperty.create("end");
 
     public LabyrinthVineBlock(Properties properties) {
@@ -54,8 +55,8 @@ public final class LabyrinthVineBlock extends BaseEntityBlock implements Waterlo
             return state.getFluidState().createLegacyBlock();
 
         Direction growth = state.getValue(FACING);
-        BlockState child = direction == growth ? neighborState
-                : level.getBlockState(pos.relative(growth));
+        if (direction != growth) return state;
+        BlockState child = neighborState;
         boolean hasChild = child.is(Asterion.LABYRINTH_VINE)
                 && child.getValue(FACING) == growth;
         return state.setValue(END, !hasChild);
@@ -96,7 +97,7 @@ public final class LabyrinthVineBlock extends BaseEntityBlock implements Waterlo
 
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        return box(5, 0, 5, 11, 16, 11);
+        return SHAPE;
     }
 
     @Override public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {

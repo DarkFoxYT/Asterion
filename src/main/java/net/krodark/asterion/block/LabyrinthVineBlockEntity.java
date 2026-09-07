@@ -10,7 +10,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 public final class LabyrinthVineBlockEntity extends BlockEntity implements GeoBlockEntity {
-    private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
+    private AnimatableInstanceCache animationCache;
 
     public LabyrinthVineBlockEntity(BlockPos pos, BlockState state) {
         super(Asterion.LABYRINTH_VINE_BLOCK_ENTITY, pos, state);
@@ -18,5 +18,8 @@ public final class LabyrinthVineBlockEntity extends BlockEntity implements GeoBl
 
     public boolean isEnd() { return getBlockState().getValue(LabyrinthVineBlock.END); }
     @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) { }
-    @Override public AnimatableInstanceCache getAnimatableInstanceCache() { return animationCache; }
+    @Override public AnimatableInstanceCache getAnimatableInstanceCache() {
+        if (animationCache == null) animationCache = GeckoLibUtil.createInstanceCache(this);
+        return animationCache;
+    }
 }

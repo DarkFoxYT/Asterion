@@ -32,6 +32,15 @@ public final class MazeObjectiveOverlay {
     private static boolean sawOre;
     private static boolean sawIngots;
     private static boolean wasInMaze;
+    private static Stage layoutStage;
+    private static int layoutWidth;
+    private static net.minecraft.locale.Language layoutLanguage;
+    private static java.util.List<net.minecraft.util.FormattedCharSequence> hintLines = java.util.List.of();
+    private static String objectiveLine = "";
+    private static Component progressLabel = Component.empty();
+    private static int progressWidth;
+    private static Vec3 waypoint;
+
 
     private enum Stage {
         ENTER_CATACOMBS("enter_catacombs"),
@@ -86,6 +95,7 @@ public final class MazeObjectiveOverlay {
                 || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) {
             armed = visible = false;
             wasInMaze = false;
+            waypoint = null;
             return;
         }
         if (!wasInMaze) {
@@ -104,6 +114,7 @@ public final class MazeObjectiveOverlay {
             }
         }
         if (!visible) return;
+        waypoint = keyWaypoint(client);
         if (!bossFightActive(client)) visibleTicks++;
         sawOre |= hasCaveOre(client);
         sawIngots |= hasIngots(client);
@@ -156,19 +167,24 @@ public final class MazeObjectiveOverlay {
         float appear = smootherstep(Mth.clamp(renderTicks / 14.0F, 0.0F, 1.0F));
         float completionFade = 1.0F - smootherstep(Mth.clamp(completionTicks / 18.0F, 0.0F, 1.0F));
         int alpha = Math.round(appear * completionFade * 245.0F);
-        Component objective = stage.objective;
-        Component hint = stage.hint;
-        Vec3 waypoint = keyWaypoint(client);
+
         Component waypointText = waypoint == null ? Component.empty() : Component.translatable(
                 "objective.asterion.key_destination",
                 Math.max(1, Math.round((float)Math.sqrt(
                         Math.pow(waypoint.x - client.player.getX(), 2)
                                 + Math.pow(waypoint.z - client.player.getZ(), 2)))));
-        Component progress = Component.translatable("objective.asterion.progress",
-                stage.ordinal() + 1, Stage.values().length);
         int panelWidth = Math.min(graphics.guiWidth() - 20, 236);
-        var splitHint = client.font.split(hint, panelWidth - 18);
-        var hintLines = splitHint.size() > 2 ? splitHint.subList(0, 2) : splitHint;
+        var language = net.minecraft.locale.Language.getInstance();
+        if (layoutStage != stage || layoutWidth != panelWidth || layoutLanguage != language) {
+            layoutStage = stage;
+            layoutWidth = panelWidth;
+            layoutLanguage = language;
+            var lines = client.font.split(stage.hint, panelWidth - 18);
+            hintLines = java.util.List.copyOf(lines.subList(0, Math.min(2, lines.size())));
+            objectiveLine = client.font.plainSubstrByWidth(stage.objective.getString(), panelWidth - 17);
+            progressLabel = Component.translatable("objective.asterion.progress", stage.ordinal() + 1, Stage.values().length);
+            progressWidth = client.font.width(progressLabel);
+        }
         int waypointY = 31 + hintLines.size() * 9;
         int panelHeight = waypointY + (waypoint == null ? 3 : 14);
         int left = Math.round(Mth.lerp(appear, -panelWidth - 4.0F, 12.0F));
@@ -182,9 +198,9 @@ public final class MazeObjectiveOverlay {
         int textLeft = left + 9;
         graphics.text(client.font, INTRO, textLeft, panelTop + 5,
                 Math.round(alpha * 0.74F) << 24 | 0xC18468, false);
-        graphics.text(client.font, progress, left + panelWidth - 8 - client.font.width(progress), panelTop + 5,
+        graphics.text(client.font, progressLabel, left + panelWidth - 8 - progressWidth, panelTop + 5,
                 Math.round(alpha * 0.58F) << 24 | 0xA89185, false);
-        graphics.text(client.font, client.font.plainSubstrByWidth(objective.getString(), panelWidth - 17), textLeft, panelTop + 17,
+        graphics.text(client.font, objectiveLine, textLeft, panelTop + 17,
                 alpha << 24 | 0xF2DED0, false);
         for (int line = 0; line < hintLines.size(); line++)
             graphics.text(client.font, hintLines.get(line), textLeft, panelTop + 29 + line * 9,

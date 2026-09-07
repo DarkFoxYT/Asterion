@@ -9,7 +9,12 @@ public final class EssentialClientLaunch {
         var mods = new java.util.LinkedHashSet<String>();
         String existing = System.getProperty("fabric.addMods", "");
         if (!existing.isEmpty()) mods.add(existing);
-        mods.add(System.getProperty("asterion.essential.modJar"));
+        String pointer = System.getProperty("asterion.essential.modJarPathFile");
+        String modJar = pointer == null ? System.getProperty("asterion.essential.modJar")
+                : java.nio.file.Files.readString(java.nio.file.Path.of(pointer)).trim();
+        if (modJar == null || !java.nio.file.Files.isRegularFile(java.nio.file.Path.of(modJar)))
+            throw new IllegalStateException("Run stageEssentialRuntimeJar before launching the client");
+        mods.add(modJar);
         var metadata = ClassLoader.getSystemResources("fabric.mod.json");
         while (metadata.hasMoreElements()) {
             var url = metadata.nextElement();

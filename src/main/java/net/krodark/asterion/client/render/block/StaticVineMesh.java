@@ -17,12 +17,14 @@ final class StaticVineMesh implements VertexConsumer {
         stack.last().normal().identity();
         try { pass.renderPosed(() -> pass.model().render(pass, mesh, 0, 0, -1)); }
         finally { stack.popPose(); }
+        mesh.removeDegenerateQuads();
         mesh.data = Arrays.copyOf(mesh.data, mesh.size);
         return mesh;
     }
     void verify(RenderPassInfo<?> pass) {
         var expected = new StaticVineMesh();
         pass.renderPosed(() -> pass.model().render(pass, expected, 0, 0, -1));
+        expected.removeDegenerateQuads();
         var actual = new StaticVineMesh();
         render(pass.poseStack().last(), actual, -1, 0, 0);
         if (expected.size != actual.size) throw new AssertionError("Static vine vertex count changed");
@@ -30,6 +32,24 @@ final class StaticVineMesh implements VertexConsumer {
             if (Math.abs(expected.data[i] - actual.data[i]) > .0001F)
                 throw new AssertionError("Static vine position, UV or normal changed at " + i);
     }
+    private void removeDegenerateQuads() {
+        int retained = 0;
+        for (int offset = 0; offset < size; offset += 32) {
+            if (offset + 32 <= size && degenerate(offset, offset + 8, offset + 16)
+                    && degenerate(offset, offset + 16, offset + 24)) continue;
+            int count = Math.min(32, size - offset);
+            System.arraycopy(data, offset, data, retained, count);
+            retained += count;
+        }
+        size = retained;
+    }
+
+    private boolean degenerate(int a, int b, int c) {
+        double ux = data[b] - data[a], uy = data[b + 1] - data[a + 1], uz = data[b + 2] - data[a + 2];
+        double vx = data[c] - data[a], vy = data[c + 1] - data[a + 1], vz = data[c + 2] - data[a + 2];
+        return uy * vz == uz * vy && uz * vx == ux * vz && ux * vy == uy * vx;
+    }
+
     void render(PoseStack.Pose pose, VertexConsumer out, int color, int light, int overlay) {
         var position = new org.joml.Vector3f();
         var normal = new org.joml.Vector3f();

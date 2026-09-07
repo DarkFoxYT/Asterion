@@ -23,6 +23,11 @@ public final class LamenterBlockEntity extends BlockEntity {
     private BlockPos wetBrazier;
     private int soakingTicks;
     private long lastTick = Long.MIN_VALUE;
+    private boolean powerDirty = true;
+    private boolean powered;
+
+    public void invalidatePower() { powerDirty = true; }
+
 
     public LamenterBlockEntity(BlockPos pos, BlockState state) {
         super(Asterion.LAMENTER_BLOCK_ENTITY, pos, state);
@@ -45,7 +50,11 @@ public final class LamenterBlockEntity extends BlockEntity {
             return;
         }
         ServerLevel server = (ServerLevel) level;
-        boolean crying = state.getValue(LamenterBlock.ACTIVE) || level.hasNeighborSignal(pos)
+        if (lamenter.powerDirty) {
+            lamenter.powered = level.hasNeighborSignal(pos);
+            lamenter.powerDirty = false;
+        }
+        boolean crying = state.getValue(LamenterBlock.ACTIVE) || lamenter.powered
                 || CatacombFloodState.isFlooding(server, pos);
         if (crying != state.getValue(LamenterBlock.CRYING)) {
             level.setBlock(pos, state.setValue(LamenterBlock.CRYING, crying), Block.UPDATE_CLIENTS);
