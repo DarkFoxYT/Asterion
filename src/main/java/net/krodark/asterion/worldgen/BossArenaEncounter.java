@@ -20,7 +20,7 @@ import java.util.*;
  
 public final class BossArenaEncounter {
      
-    public static final int INTRO_TICKS = 420;
+    public static final int INTRO_TICKS = net.krodark.asterion.entity.MinotaurAnimationTiming.ENTRY_END_TICK + 24;
     private static Encounter active;
     private BossArenaEncounter() { }
 
@@ -56,7 +56,8 @@ public final class BossArenaEncounter {
         }
     }
 
-    private static boolean eligible(ServerPlayer player) { return player.isAlive() && !player.isSpectator() && !player.isCreative(); }
+    private static boolean eligible(ServerPlayer player) { return player.isAlive() && !player.isSpectator() && !player.isCreative()
+            && !net.krodark.asterion.game.ArenaDeathRecovery.isRecovering(player); }
 
     private static boolean nearEntrance(ServerLevel level, ServerPlayer player, Direction entry) {
         return entry == MinotaurArenaEntrances.PLAYER_ENTRANCE
@@ -65,7 +66,7 @@ public final class BossArenaEncounter {
     }
 
     private static void admit(ServerLevel level, ServerPlayer player, Direction entry) {
-        if (active == null || active.level != level || !nearEntrance(level, player, entry)
+        if (active == null || active.level != level || active.eliminated.contains(player.getUUID()) || !nearEntrance(level, player, entry)
                 || !active.participants.add(player.getUUID())) return;
         Vec3 safe = safePosition(level, player, entry, active.participants.size() - 1);
         active.spawnPositions.put(player.getUUID(), safe);
@@ -142,6 +143,12 @@ public final class BossArenaEncounter {
             ServerPlayer player = level.getServer().getPlayerList().getPlayer(id);
             return player == null || player.level() != level;
         });
+        boolean occupied = level.players().stream().anyMatch(BossArenaEncounter::isActiveFighter);
+        active.emptyTicks = occupied ? 0 : active.emptyTicks + 1;
+        if (active.emptyTicks >= 100) {
+            WorldGenerator.resetAbandonedBossEncounter(level);
+            return;
+        }
         int height = MinotaurArenaEntrances.gateHeight();
          
          
@@ -287,13 +294,34 @@ public final class BossArenaEncounter {
         if (active == null || active.level != fallen.level()) return false;
         return active.level.players().stream()
                 .anyMatch(player -> active.participants.contains(player.getUUID()) && player != fallen && player.level() == active.level
-                        && eligible(player) && !net.krodark.asterion.game.ArenaDeathRecovery.isRecovering(player));
+                        && isActiveFighter(player));
+    }
+
+    public static boolean isActiveFighter(ServerPlayer player) {
+        return isParticipant(player) && eligible(player)
+                && (active.locks.containsKey(player.getUUID()) || WorldGenerator.isInsideBossArena(player.position())
+                && player.getY() < AuthoredCatacombs.ARENA_FLOOR_Y + 24
+                && player.position().subtract(Vec3.atBottomCenterOf(MinotaurArenaEntrances.gate(
+                        MinotaurArenaEntrances.PLAYER_ENTRANCE))).dot(MinotaurArenaEntrances.PLAYER_ENTRANCE.getUnitVec3()) < 0);
     }
 
     public static Vec3 recoveryPosition(ServerPlayer player) {
-        if (active != null && active.level == player.level() && active.spawnPositions.containsKey(player.getUUID()))
-            return active.spawnPositions.get(player.getUUID());
-        return safePosition((ServerLevel) player.level(), player, MinotaurArenaEntrances.PLAYER_ENTRANCE, 2);
+        Direction entrance = MinotaurArenaEntrances.PLAYER_ENTRANCE;
+        return Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(entrance))
+                .add(entrance.getUnitVec3().scale(5));
+    }
+
+    public static void eliminate(ServerPlayer player) {
+        if (active == null) return;
+        active.eliminated.add(player.getUUID());
+        releasePlayer(player);
+    }
+
+    public static void refundAttemptKeys() {
+        if (active == null) return;
+        for (UUID id : active.spawnPositions.keySet()) {
+            net.krodark.asterion.game.EncounterKeyRecovery.refundAttemptKey(active.level, id, Asterion.MINOTAUR_KEY);
+        }
     }
 
     public static void releasePlayer(ServerPlayer player) {
@@ -324,6 +352,8 @@ public final class BossArenaEncounter {
         final long start;
         final Set<UUID> beetles = new HashSet<>();
         final Set<UUID> participants = new LinkedHashSet<>();
+        final Set<UUID> eliminated = new HashSet<>();
+        int emptyTicks;
         final Map<UUID, Vec3> spawnPositions = new HashMap<>();
         final Map<UUID, Lock> locks = new HashMap<>();
         final Map<Direction, Integer> closedRows = new EnumMap<>(Direction.class);

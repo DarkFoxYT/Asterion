@@ -40,11 +40,21 @@ public final class ArenaRecoveryGameTest implements FabricClientGameTest {
                 gate.set(BossArenaEncounter.recoveryPosition(player));
                 var teammate = new ServerPlayer(server, maze, new GameProfile(UUID.randomUUID(), "RecoveryTeammate"), ClientInformation.createDefault());
                 teammate.connection = player.connection;
+                teammate.setGameMode(GameType.SURVIVAL);
                 teammate.setPos(gate.get());
                 maze.addNewPlayer(teammate);
                 BossArenaEncounter.begin(maze, teammate, boss, MinotaurArenaEntrances.PLAYER_ENTRANCE);
                 BossArenaEncounter.releaseMovementLock(teammate);
+                // Synthetic teammate shares a connection; set its position independently of that connection's player.
+                teammate.setPos(Vec3.atBottomCenterOf(MinotaurArenaEntrances.gate(MinotaurArenaEntrances.PLAYER_ENTRANCE)).add(0, 0, -10));
                 try {
+                    Vec3 fightingPosition = teammate.position();
+                    teammate.setPos(gate.get());
+                    check(!BossArenaEncounter.hasSurvivingParticipant(player), "Outside teammate counted as fighter");
+                    teammate.setPos(fightingPosition.add(0, 50, 0));
+                    check(!BossArenaEncounter.hasSurvivingParticipant(player), "Other layer counted as fighter");
+                    teammate.setPos(fightingPosition);
+                    check(BossArenaEncounter.hasSurvivingParticipant(player), "Inside teammate was excluded at " + teammate.position() + " participant=" + BossArenaEncounter.isParticipant(teammate) + " alive=" + teammate.isAlive() + " mode=" + teammate.gameMode.getGameModeForPlayer());
                     player.setHealth(10);
                     check(ServerLivingEntityEvents.ALLOW_DEATH.invoker().allowDeath(player, maze.damageSources().generic(), 1), "Nonlethal notification was intercepted");
                     check(!ArenaDeathRecovery.isRecovering(player), "Living player received death recovery");
@@ -52,6 +62,9 @@ public final class ArenaRecoveryGameTest implements FabricClientGameTest {
                     die(player);
                     check(!boss.isRemoved() && boss.getHealth() == bossHealth && BossArenaEncounter.isSealed(maze), "One death reset a surviving party's boss");
                     check(!ArenaDeathRecovery.isRecovering(teammate) && teammate.getHealth() == teammateHealth && !teammate.isInvulnerable(), "Surviving teammate was pulled into recovery");
+                    check(!BossArenaEncounter.isParticipant(player), "Defeated player remained in attempt");
+                    BossArenaEncounter.begin(maze, player, boss, MinotaurArenaEntrances.PLAYER_ENTRANCE);
+                    check(!BossArenaEncounter.isParticipant(player), "Defeated player rejoined active attempt");
                     check(!WorldGenerator.resetBossEncounterAfterDeath(player), "Fallback death path reset a surviving party");
                     maze.setBlock(new BlockPos(-5, AuthoredCatacombs.ARENA_FLOOR_Y, -25), Blocks.AIR.defaultBlockState(), 18);
                     die(teammate);
@@ -65,7 +78,7 @@ public final class ArenaRecoveryGameTest implements FabricClientGameTest {
                 var maze = server.getLevel(Asterion.ASTERION_LEVEL);
                 var player = server.getPlayerList().getPlayers().getFirst();
                 check(!ArenaDeathRecovery.isRecovering(player) && player.getHealth() == player.getMaxHealth(), "Recovery did not finish");
-                check(player.position().distanceToSqr(gate.get()) < 4, "Respawn missed the post-cutscene gate position: " + player.position());
+                check(player.position().distanceToSqr(gate.get()) < 4, "Respawn missed the exterior entrance: " + player.position());
                 check(!player.isInvulnerable() && !player.isNoGravity(), "Recovery leaked invulnerability or flight");
                 check(!maze.getBlockState(new BlockPos(-5, AuthoredCatacombs.ARENA_FLOOR_Y, -25)).isAir(), "Arena pillar was not rebuilt");
                 var boss = MinotaurEntity.activateCenterBoss(maze, player, null, MinotaurArenaEntrances.PLAYER_ENTRANCE);
@@ -77,7 +90,20 @@ public final class ArenaRecoveryGameTest implements FabricClientGameTest {
             });
             waitReady(context, world.getServer());
             context.waitTicks(25);
-            world.getServer().runOnServer(server -> check(!ArenaDeathRecovery.isRecovering(server.getPlayerList().getPlayers().getFirst()), "Second recovery stuck"));
+            world.getServer().runOnServer(server -> {
+                var player = server.getPlayerList().getPlayers().getFirst();
+                var maze = server.getLevel(Asterion.ASTERION_LEVEL);
+                check(!ArenaDeathRecovery.isRecovering(player), "Second recovery stuck");
+                var boss = MinotaurEntity.activateCenterBoss(maze, player, null, MinotaurArenaEntrances.PLAYER_ENTRANCE);
+                boss.setNoAi(true);
+                BossArenaEncounter.begin(maze, player, boss, MinotaurArenaEntrances.PLAYER_ENTRANCE);
+                BossArenaEncounter.releaseMovementLock(player);
+                player.teleportTo(maze, 300, 150, 300, Set.of(), 0, 0, true);
+                for (int i = 0; i < 99; i++) BossArenaEncounter.tick(maze);
+                check(!boss.isRemoved(), "Empty arena grace period skipped");
+                BossArenaEncounter.tick(maze);
+                check(boss.isRemoved() && !BossArenaEncounter.isSealed(maze), "Abandoned Minotaur encounter stayed active");
+            });
             Asterion.LOGGER.info("PASS: nonlethal guard, surviving teammate unchanged, full wipe, gate recovery, pillar repair and repeat solo reset");
         }
     }

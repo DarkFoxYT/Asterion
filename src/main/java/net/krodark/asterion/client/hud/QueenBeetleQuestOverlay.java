@@ -2,7 +2,6 @@ package net.krodark.asterion.client.hud;
 
 import net.krodark.asterion.client.cinematic.CinematicHud;
 
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.entity.QueenBeetleEntity;
@@ -34,7 +33,7 @@ public final class QueenBeetleQuestOverlay {
     private QueenBeetleQuestOverlay() { }
 
     public static void register() {
-        HudElementRegistry.addLast(Asterion.id("queen_beetle_quest"), QueenBeetleQuestOverlay::render);
+        net.krodark.asterion.client.ReplayCompatibility.addHud(Asterion.id("queen_beetle_quest"), QueenBeetleQuestOverlay::render);
     }
 
     public static void receive(QueenBeetleQuestPayload payload) {

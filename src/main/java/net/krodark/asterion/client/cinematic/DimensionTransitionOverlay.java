@@ -2,7 +2,6 @@ package net.krodark.asterion.client.cinematic;
 
 import net.krodark.asterion.client.hud.MazeObjectiveOverlay;
 
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.network.TransitionReadyPayload;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -30,7 +29,7 @@ public final class DimensionTransitionOverlay {
     }
 
     public static void register() {
-        HudElementRegistry.addLast(Asterion.id("dimension_transition"), DimensionTransitionOverlay::renderHud);
+        net.krodark.asterion.client.ReplayCompatibility.addHud(Asterion.id("dimension_transition"), DimensionTransitionOverlay::renderHud);
     }
 
     public static void begin(int requestedFadeIn, int requestedHold) {
@@ -38,6 +37,7 @@ public final class DimensionTransitionOverlay {
     }
 
     public static void begin(int requestedFadeIn, int requestedHold, int message) {
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(Minecraft.getInstance())) return;
         deathMessage = message;
         fadeInTicks = Math.max(1, requestedFadeIn);
         holdTicks = Math.max(0, requestedHold);
@@ -50,6 +50,7 @@ public final class DimensionTransitionOverlay {
     }
 
     public static void tick(Minecraft client) {
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) { cancel(); return; }
         if (!active) return;
         totalTicks++;
         if (fadingOut) {
@@ -88,6 +89,11 @@ public final class DimensionTransitionOverlay {
         readySent = true;
     }
 
+    public static void cancel() {
+        active = fadingOut = readySent = false;
+        stableTicks = fadeOutProgress = totalTicks = deathMessage = 0;
+    }
+
     private static void clear() {
         if (deathMessage == 0) {
             DeadSunEntryCinematic.begin();
@@ -108,6 +114,7 @@ public final class DimensionTransitionOverlay {
 
     public static boolean shouldReplaceLoadingScreen() {
         Minecraft client = Minecraft.getInstance();
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) return false;
         return active || client.level != null
                 && client.level.dimension().equals(Asterion.ASTERION_LEVEL);
     }

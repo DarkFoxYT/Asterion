@@ -933,6 +933,8 @@ public class Asterion implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.ObjectiveProgressPayload.TYPE,
                 net.krodark.asterion.network.ObjectiveProgressPayload.CODEC);
         net.krodark.asterion.game.SharedObjectiveProgress.initialize();
+        PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.MinotaurGlobalSoundPayload.TYPE,
+                net.krodark.asterion.network.MinotaurGlobalSoundPayload.CODEC);
         net.krodark.asterion.network.CentipedeNetworking.initialize();
         net.krodark.asterion.network.MinotaurBodyPayload.initialize();
         PressureButtonNetworking.initialize();

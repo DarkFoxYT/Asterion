@@ -2,7 +2,6 @@ package net.krodark.asterion.client.hud;
 
 import net.krodark.asterion.client.cinematic.CinematicHud;
 
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.client.ragdoll.DismembermentEngine;
@@ -59,7 +58,7 @@ public final class MazeObjectiveOverlay {
     private MazeObjectiveOverlay() { }
 
     public static void register() {
-        HudElementRegistry.addLast(Asterion.id("maze_objective"), MazeObjectiveOverlay::render);
+        net.krodark.asterion.client.ReplayCompatibility.addHud(Asterion.id("maze_objective"), MazeObjectiveOverlay::render);
     }
 
     public static void armAfterArrival() {

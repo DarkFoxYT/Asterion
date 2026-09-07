@@ -20,15 +20,23 @@ public final class CrucibleCamera {
 
     public static void begin(BlockPos position) {
         Minecraft client = Minecraft.getInstance();
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) return;
         crucible = position.immutable();
         if (previousCamera == null) previousCamera = client.options.getCameraType();
         client.options.setCameraType(CameraType.FIRST_PERSON);
     }
 
     public static void end() { }
+    public static void cancel(Minecraft client) {
+        crucible = null;
+        blend = previousBlend = 0;
+        if (previousCamera != null) client.options.setCameraType(previousCamera);
+        previousCamera = null;
+    }
     public static boolean active() { return crucible != null; }
 
     public static void tick(Minecraft client) {
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) { cancel(client); return; }
         previousBlend = blend;
         boolean open = client.screen instanceof CrucibleScreen && crucible != null;
         blend += ((open ? 1F : 0F) - blend) * (open ? .22F : .16F);

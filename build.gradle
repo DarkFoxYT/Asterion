@@ -532,7 +532,23 @@ def clientGameTests = [
                  : ["net.krodark.asterion.dev.verification.HeavyWaterloggingGameTest",
                     "net.krodark.asterion.dev.verification.HeavyWaterGameTest"]],
         [run: "RunePuzzleTest", folder: "rune-puzzle-testmod", id: "asterion_rune_puzzle_test",
-         classes: providers.gradleProperty("objectiveSkippingOnly").isPresent()
+         classes: providers.gradleProperty("flashbackMinotaurOnly").isPresent()
+                 ? ["net.krodark.asterion.dev.verification.FlashbackMinotaurGameTest",
+                    "net.krodark.asterion.dev.verification.MinotaurLocomotionGameTest",
+                    "net.krodark.asterion.dev.verification.EntranceReplayGameTest"]
+                 : providers.gradleProperty("minotaurSoundOnly").isPresent()
+                 ? ["net.krodark.asterion.dev.verification.MinotaurSoundGameTest"]
+                 : providers.gradleProperty("arenaParticipationOnly").isPresent()
+                 ? ["net.krodark.asterion.dev.verification.ArenaParticipationGameTest"]
+                 : providers.gradleProperty("arenaRecoveryOnly").isPresent()
+                 ? ["net.krodark.asterion.dev.verification.ArenaRecoveryGameTest",
+                    "net.krodark.asterion.dev.verification.ArenaParticipationGameTest"]
+                 : providers.gradleProperty("minotaurLocomotionOnly").isPresent()
+                 ? ["net.krodark.asterion.dev.verification.MinotaurLocomotionGameTest",
+                    "net.krodark.asterion.dev.verification.EntranceReplayGameTest"]
+                 : providers.gradleProperty("entranceReplayOnly").isPresent()
+                 ? ["net.krodark.asterion.dev.verification.EntranceReplayGameTest"]
+                 : providers.gradleProperty("objectiveSkippingOnly").isPresent()
                  ? ["net.krodark.asterion.dev.verification.ObjectiveSkippingGameTest"]
                  : providers.gradleProperty("minotaurDoorKeyOnly").isPresent()
                  ? ["net.krodark.asterion.dev.verification.MinotaurDoorKeyGameTest"]
@@ -546,7 +562,9 @@ def clientGameTests = [
                  ? ["net.krodark.asterion.dev.verification.EncounterProximityGameTest"]
                  : providers.gradleProperty("mobRagdollOnly").isPresent()
                  ? ["net.krodark.asterion.dev.verification.MobRagdollGameTest"]
-                 : ["net.krodark.asterion.dev.verification.ObjectiveSkippingGameTest",
+                 : ["net.krodark.asterion.dev.verification.MinotaurLocomotionGameTest",
+                    "net.krodark.asterion.dev.verification.EntranceReplayGameTest",
+                    "net.krodark.asterion.dev.verification.ObjectiveSkippingGameTest",
                    "net.krodark.asterion.dev.verification.MinotaurDoorKeyGameTest",
                    "net.krodark.asterion.dev.verification.MinotaurBlockBreakingGameTest",
                    "net.krodark.asterion.dev.verification.FloodDrainGameTest",

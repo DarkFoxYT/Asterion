@@ -2,7 +2,6 @@ package net.krodark.asterion.client.audio;
 
 import com.google.gson.Gson;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.worldgen.WorldGenerator;
@@ -34,7 +33,7 @@ public final class BiomeMusic {
 
     public static void initialize() {
         ClientTickEvents.END_CLIENT_TICK.register(BiomeMusic::tick);
-        HudElementRegistry.addLast(Asterion.id("now_playing"), (graphics, delta) -> {
+        net.krodark.asterion.client.ReplayCompatibility.addHud(Asterion.id("now_playing"), (graphics, delta) -> {
             var client = Minecraft.getInstance();
             if (notice <= 0 || playing == null || client.options.hideGui || !ownsMusic()) return;
             float fade = Math.min(1F, Math.min((120 - notice) / 12F, notice / 20F));

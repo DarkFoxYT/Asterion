@@ -19,6 +19,10 @@ final class MinotaurPoseBlend {
         final Map<String, float[]> last = new HashMap<>(), from = new HashMap<>();
     }
     static void capture(MinotaurEntity boss, EntityRenderState state, float partial) {
+        if (boss.hasReplayAnimationClock()) {
+            HISTORIES.remove(boss);
+            return;
+        }
         if (partial == 1) partial = net.minecraft.client.Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
         state.addGeckolibData(FRAME, new Frame(HISTORIES.computeIfAbsent(boss, key -> new History()),
                 boss.animationState().ordinal(), boss.tickCount + partial));

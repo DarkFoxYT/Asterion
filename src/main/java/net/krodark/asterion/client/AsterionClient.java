@@ -82,7 +82,7 @@ public final class AsterionClient implements ClientModInitializer {
         EntityRenderers.register(Asterion.MINOTAUR, MinotaurGeoRenderer::new);
         EntityRenderers.register(net.krodark.asterion.game.AncientContent.SKELETON, net.krodark.asterion.client.render.entity.AncientSkeletonRenderer::new);
         EntityRenderers.register(net.krodark.asterion.game.ChainLiftContent.CALL_RUNE, net.krodark.asterion.client.render.entity.LiftCallRuneRenderer::new);
-        net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(Asterion.id("lift_call_prompt"), (graphics, tracker) -> {
+        net.krodark.asterion.client.ReplayCompatibility.addHud(Asterion.id("lift_call_prompt"), (graphics, tracker) -> {
             var client = net.minecraft.client.Minecraft.getInstance();
             if (client.player == null || client.screen != null || CinematicHud.isHidden()) return;
             if (client.hitResult instanceof net.minecraft.world.phys.EntityHitResult hit
@@ -192,6 +192,8 @@ public final class AsterionClient implements ClientModInitializer {
                     level.playLocalSound(pos.x, pos.y, pos.z, Asterion.MINOTAUR_ROAR,
                             net.minecraft.sounds.SoundSource.HOSTILE, 2.0F, 0.72F, false);
                 }));
+        ClientPlayNetworking.registerGlobalReceiver(MinotaurGlobalSoundPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> net.krodark.asterion.client.audio.MinotaurSoundPlayback.play(payload)));
         ClientPlayNetworking.registerGlobalReceiver(ObjectiveProgressPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> MazeObjectiveOverlay.receiveSharedProgress(payload.stage())));
         ClientPlayNetworking.registerGlobalReceiver(BossFinalePayload.TYPE, (payload, context) ->
@@ -289,7 +291,7 @@ public final class AsterionClient implements ClientModInitializer {
             for (String name : new String[]{"com.moulberry.flashback.Flashback", "com.moulberry.flashback.FlashbackClient", "com.moulberry.flashback.ReplayManager"}) {
                 try {
                     Class<?> type = Class.forName(name, false, AsterionClient.class.getClassLoader());
-                    for (String method : new String[]{"isInReplay", "isReplaying", "isPlayback"}) {
+                    for (String method : new String[]{"isInReplay", "isExporting", "isReplaying", "isPlayback"}) {
                         try {
                             var probe = type.getDeclaredMethod(method);
                             if (java.lang.reflect.Modifier.isStatic(probe.getModifiers())
@@ -304,7 +306,8 @@ public final class AsterionClient implements ClientModInitializer {
     }
 
     public static boolean isPlayback(Minecraft client) {
-        if (client.player != null && client.gameRenderer.getMainCamera().entity() != client.player) return true;
+        if (client.player != null && client.gameRenderer.getMainCamera().entity() != null
+                && client.gameRenderer.getMainCamera().entity() != client.player) return true;
         for (var probe : PlaybackProbes.METHODS) {
             try {
                 if ((boolean)probe.invoke(null)) return true;
@@ -314,6 +317,7 @@ public final class AsterionClient implements ClientModInitializer {
     }
 
     private void tick(Minecraft client) {
+        if (isPlayback(client)) ReplayCompatibility.cancelCinematics(client);
         CrucibleCamera.tick(client);
         DimensionTransitionOverlay.tick(client);
         DeadSunEntryCinematic.tick(client);

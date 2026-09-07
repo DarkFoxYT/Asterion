@@ -53,6 +53,9 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
             RawAnimation.begin().thenLoop("animation.cursed_brazier.idle");
     private static final RawAnimation SHOOT_BEAM_ANIMATION =
             RawAnimation.begin().thenPlayAndHold("shoot_beam");
+    private final java.util.Set<UUID> encounterParticipants = new java.util.HashSet<>();
+    private final java.util.Set<UUID> eliminatedParticipants = new java.util.HashSet<>();
+    private int emptyArenaTicks;
     private static final int TARGET_RANGE = 30;
     private static final int AWAKEN_RANGE = 23;
     public static final int AWAKENING_DURATION = 112;
@@ -202,6 +205,9 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
             tickDormant(level);
             return;
         }
+        level.players().stream().filter(this::canFight).forEach(player -> encounterParticipants.add(player.getUUID()));
+        emptyArenaTicks = level.players().stream().anyMatch(this::canFight) ? 0 : emptyArenaTicks + 1;
+        if (emptyArenaTicks >= 100) { resetAfterPlayerDeath(level); return; }
         if (phase() == Phase.AWAKENING) {
             tickAwakening(level);
             return;
@@ -264,7 +270,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         setInvulnerable(true);
         setShielded(false);
         ServerPlayer player = level.players().stream()
-                .filter(candidate -> candidate.isAlive() && !candidate.isCreative() && !candidate.isSpectator())
+                .filter(this::canFight)
                 .filter(candidate -> candidate.distanceToSqr(this) <= AWAKEN_RANGE * AWAKEN_RANGE)
                 .min(Comparator.comparingDouble(this::distanceToSqr))
                 .orElse(null);
@@ -272,6 +278,10 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
     }
 
     private void beginAwakening(ServerLevel level) {
+        if (restingPosition == null) restingPosition = position();
+        encounterParticipants.clear();
+        eliminatedParticipants.clear();
+        emptyArenaTicks = 0;
         setPhase(Phase.AWAKENING);
         setInvulnerable(true);
         attack = Attack.NONE;
@@ -289,6 +299,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
             if (!net.krodark.asterion.game.EncounterProximity.canJoin(viewer, level, restingPosition)
                     && entrances.stream().noneMatch(entrance ->
                     net.krodark.asterion.game.EncounterProximity.canJoin(viewer, level, entrance))) continue;
+            encounterParticipants.add(viewer.getUUID());
             if (ServerPlayNetworking.canSend(viewer, CursedBrazierAwakeningPayload.TYPE)) {
                 ServerPlayNetworking.send(viewer,
                         new CursedBrazierAwakeningPayload(getId(), AWAKENING_DURATION));
@@ -359,11 +370,44 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
     }
 
     public boolean isParticipant(ServerPlayer player) {
-        return bossBar.getPlayers().contains(player);
+        return phase() != Phase.DORMANT && player.level() == level()
+                && encounterParticipants.contains(player.getUUID()) && !eliminatedParticipants.contains(player.getUUID());
+    }
+
+    public boolean hasSurvivingParticipant(ServerPlayer fallen) {
+        return ((ServerLevel)level()).players().stream().anyMatch(player -> player != fallen && canFight(player));
+    }
+
+    public void eliminate(ServerPlayer player) {
+        eliminatedParticipants.add(player.getUUID());
+        bossBar.removePlayer(player);
+    }
+
+    public Vec3 recoveryPosition() {
+        Vec3 home = restingPosition == null ? position() : restingPosition;
+        int room = net.krodark.asterion.worldgen.AuthoredCatacombs.cursedBrazierRoomIndex(BlockPos.containing(home));
+        if (room >= 0) return Vec3.atBottomCenterOf(net.krodark.asterion.worldgen.AuthoredCatacombs.cursedBrazierEntrance(room).west(5));
+        List<Vec3> exits = new ArrayList<>();
+        visitEncounterDoors((ServerLevel)level(), door -> {
+            Vec3 entrance = Vec3.atBottomCenterOf(door.getBlockPos());
+            Vec3 outward = entrance.subtract(home).multiply(1, 0, 1).normalize();
+            exits.add(entrance.add(outward.scale(5)));
+        });
+        return exits.stream().min(Comparator.comparingDouble(home::distanceToSqr)).orElse(home.add(TARGET_RANGE + 5, 0, 0));
+    }
+
+    private boolean insideEncounterRoom(ServerPlayer player) {
+        Vec3 home = restingPosition == null ? position() : restingPosition;
+        int room = net.krodark.asterion.worldgen.AuthoredCatacombs.cursedBrazierRoomIndex(BlockPos.containing(home));
+        return Math.abs(player.getY() - home.y) <= 12
+                && (room < 0 || net.krodark.asterion.worldgen.AuthoredCatacombs.cursedBrazierRoomIndex(player.blockPosition()) == room);
     }
 
     private boolean canFight(ServerPlayer player) {
         return player.isAlive()
+                && !net.krodark.asterion.game.ArenaDeathRecovery.isRecovering(player)
+                && !eliminatedParticipants.contains(player.getUUID())
+                && insideEncounterRoom(player)
                 && !player.isCreative()
                 && !player.isSpectator()
                 && player.level() == level()
@@ -1013,6 +1057,13 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
 
      
     public void resetAfterPlayerDeath(ServerLevel level) {
+        for (UUID id : encounterParticipants) {
+            net.krodark.asterion.game.EncounterKeyRecovery.refundAttemptKey(level, id,
+                    net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER_KEY);
+        }
+        encounterParticipants.clear();
+        eliminatedParticipants.clear();
+        emptyArenaTicks = 0;
         clearCombatState();
         setHealth(getMaxHealth());
         middleShieldUsed = false;

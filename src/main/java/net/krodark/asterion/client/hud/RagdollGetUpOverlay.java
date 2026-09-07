@@ -2,7 +2,6 @@ package net.krodark.asterion.client.hud;
 
 import net.krodark.asterion.client.cinematic.CinematicHud;
 
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.client.ragdoll.DismembermentEngine;
 import net.minecraft.client.Minecraft;
@@ -17,7 +16,7 @@ public final class RagdollGetUpOverlay {
     private RagdollGetUpOverlay() { }
 
     public static void register() {
-        HudElementRegistry.addLast(Asterion.id("ragdoll_get_up"), RagdollGetUpOverlay::render);
+        net.krodark.asterion.client.ReplayCompatibility.addHud(Asterion.id("ragdoll_get_up"), RagdollGetUpOverlay::render);
     }
 
     private static void render(GuiGraphicsExtractor graphics, net.minecraft.client.DeltaTracker delta) {

@@ -1,6 +1,5 @@
 package net.krodark.asterion.client.hud;
 
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.client.ragdoll.DismembermentEngine;
@@ -25,10 +24,11 @@ public final class DazeOverlay {
     private DazeOverlay() { }
 
     public static void register() {
-        HudElementRegistry.addLast(Asterion.id("daze_escape"), DazeOverlay::render);
+        net.krodark.asterion.client.ReplayCompatibility.addHud(Asterion.id("daze_escape"), DazeOverlay::render);
     }
 
     public static void begin(DazePayload payload) {
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(Minecraft.getInstance())) return;
         duration = Mth.clamp(payload.durationTicks(), 30, 200);
         remaining = duration;
         required = Mth.clamp(payload.requiredPresses(), 4, 18);
@@ -37,6 +37,11 @@ public final class DazeOverlay {
     }
 
     public static void tick(Minecraft client) {
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) {
+            remaining = progress = 0;
+            hideRagdollRecovery();
+            return;
+        }
         if (remaining <= 0 || client.player == null || client.level == null
                 || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)
                 || !DismembermentEngine.INSTANCE.isPlayerTumbling(client.player.getId())) {

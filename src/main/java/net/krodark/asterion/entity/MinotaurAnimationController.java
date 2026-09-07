@@ -11,6 +11,7 @@ import com.geckolib.renderer.base.GeoRenderState;
 public final class MinotaurAnimationController extends AnimationController<MinotaurEntity> {
     private double requestedSeconds = -1, poseAge;
     private AnimationPoint blendFrom;
+    private boolean loopSample;
      
      
     public MinotaurAnimationController(AnimationStateHandler<MinotaurEntity> handler) { super("movement", 0, handler); }
@@ -27,7 +28,19 @@ public final class MinotaurAnimationController extends AnimationController<Minot
         }
     }
 
-    public void samplePose(double seconds, double age) { requestedSeconds = seconds; poseAge = Math.max(0, age); }
+    public void entryBlend(boolean entry) { transitionTicks = entry ? 6 : 0; }
+
+    public void samplePose(double seconds, double age, boolean loop) {
+        requestedSeconds = seconds;
+        poseAge = Math.max(0, age);
+        loopSample = loop;
+    }
+
+    public static double sampleSeconds(double requested, double length, boolean loop) {
+        if (length <= 0) return 0;
+        return loop ? (requested % length + length) % length
+                : Math.clamp(requested, 0, Math.max(0, length - .00001));
+    }
 
     @Override protected void progressExistingAnimation(MinotaurEntity boss, GeoRenderState state,
             double previousTime, double delta) {
@@ -43,7 +56,7 @@ public final class MinotaurAnimationController extends AnimationController<Minot
         else { blendFrom = null; transitionFromPoint = null; }
         if (requestedSeconds < 0 || timeline == null || animationPoint == null) return active;
          
-        double seconds = Math.clamp(requestedSeconds, 0, Math.max(0, animationPoint.animation().length() - .00001));
+        double seconds = sampleSeconds(requestedSeconds, animationPoint.animation().length(), loopSample);
          
         animationPoint = AnimationPoint.createFor(animationPoint.animation(), animationPoint.easingOverride(),
                 animationPoint.loopType(), seconds);

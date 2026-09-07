@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 public final class CinematicControls {
     private CinematicControls() { }
     public static boolean locked() {
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(Minecraft.getInstance())) return false;
         return BossEntranceCinematic.isActive()
                 || CursedBrazierCinematic.isActive()
                 || DeadSunEntryCinematic.isActive()

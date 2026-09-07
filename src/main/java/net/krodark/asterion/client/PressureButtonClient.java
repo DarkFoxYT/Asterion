@@ -6,7 +6,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.client.light.AsterionEmissiveBuffer;
 import net.krodark.asterion.network.PressureButtonHoldPayload;
@@ -37,9 +36,15 @@ public final class PressureButtonClient {
 
     public static void initialize() {
         LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(context->render(context));
-        HudElementRegistry.addLast(Asterion.id("pressure_button_progress"),PressureButtonClient::renderProgress);
+        net.krodark.asterion.client.ReplayCompatibility.addHud(Asterion.id("pressure_button_progress"),PressureButtonClient::renderProgress);
     }
     public static void tick(Minecraft client) {
+        if (AsterionClient.isPlayback(client)) {
+            heldTarget = null;
+            heldTicks = 0;
+            BUTTONS.clear();
+            return;
+        }
         if(client.player==null||client.level==null) { releaseHold(); BUTTONS.clear(); return; }
         BlockPos target=null;
         if(client.options.keyUse.isDown()&&client.hitResult instanceof BlockHitResult hit) {

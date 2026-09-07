@@ -96,6 +96,10 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
     @Override
     public void addRenderData(MinotaurEntity minotaur, Void relatedObject,
                               EntityRenderState state, float partialTick) {
+        double replayTick = net.krodark.asterion.client.FlashbackAnimationClock.tick();
+        minotaur.prepareReplayAnimation(replayTick, new Vec3(state.x, state.y, state.z));
+        if (Double.isFinite(replayTick))
+            state.addGeckolibData(com.geckolib.constant.DataTickets.TICK, replayTick);
         MinotaurPoseBlend.capture(minotaur, state, partialTick);
         state.addGeckolibData(HARVESTED, minotaur.isHarvested());
         state.addGeckolibData(REMOVED_PARTS, minotaur.removedParts());

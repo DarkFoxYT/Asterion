@@ -2,7 +2,6 @@ package net.krodark.asterion.client.cinematic;
 
 import net.krodark.asterion.client.audio.BiomeMusic;
 
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.client.event.DeadSunClientEvents;
 import net.minecraft.client.Minecraft;
@@ -36,11 +35,12 @@ public final class BossFinaleOverlay {
     private BossFinaleOverlay() { }
 
     public static void register() {
-        HudElementRegistry.addLast(Asterion.id("boss_finale"), BossFinaleOverlay::render);
+        net.krodark.asterion.client.ReplayCompatibility.addHud(Asterion.id("boss_finale"), BossFinaleOverlay::render);
     }
 
     public static void begin() {
         Minecraft client = Minecraft.getInstance();
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) return;
         if (client.player != null) {
             returnYaw = client.player.getYRot();
             returnPitch = client.player.getXRot();
@@ -59,6 +59,10 @@ public final class BossFinaleOverlay {
     }
 
     public static void tick(Minecraft client) {
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) {
+            if (isActive()) finish(client);
+            return;
+        }
         if (!active) return;
         if (client.player == null || client.level == null) {
             finish(client);

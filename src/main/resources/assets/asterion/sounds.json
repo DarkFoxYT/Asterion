@@ -20,19 +20,31 @@
   "metal_hit_sound": {
     "subtitle": "subtitles.asterion.metal_hit",
     "sounds": [
-      "asterion:sfx/mino/minotaur.door_bang"
+      {
+        "name": "asterion:sfx/mino/minotaur.door_bang",
+        "preload": true,
+        "attenuation_distance": 48
+      }
     ]
   },
   "minotaur_door_openclose": {
     "subtitle": "subtitles.asterion.minotaur_door_openclose",
     "sounds": [
-      "asterion:sfx/mino/minotaur.door_break"
+      {
+        "name": "asterion:sfx/mino/minotaur.door_break",
+        "preload": true,
+        "attenuation_distance": 48
+      }
     ]
   },
   "minotaur_door_break": {
     "subtitle": "subtitles.asterion.minotaur_door_break",
     "sounds": [
-      "asterion:sfx/mino/minotaur.door_break"
+      {
+        "name": "asterion:sfx/mino/minotaur.door_break",
+        "preload": true,
+        "attenuation_distance": 48
+      }
     ]
   },
   "debris_1": {
@@ -53,20 +65,36 @@
   "arena_ceiling_fall": {
     "subtitle": "subtitles.asterion.arena_ceiling_fall",
     "sounds": [
-      "asterion:sfx/misc/arena.ceiling_fall"
+      {
+        "name": "asterion:sfx/misc/arena.ceiling_fall",
+        "preload": true,
+        "attenuation_distance": 48
+      }
     ]
   },
   "minotaur_door_bang": {
     "subtitle": "subtitles.asterion.minotaur_door_bang",
     "sounds": [
-      "asterion:sfx/mino/minotaur.door_bang"
+      {
+        "name": "asterion:sfx/mino/minotaur.door_bang",
+        "preload": true,
+        "attenuation_distance": 48
+      }
     ]
   },
   "minotaur_step": {
     "subtitle": "subtitles.asterion.minotaur_step",
     "sounds": [
-      "asterion:sfx/mino/minotaur.step_walk_1",
-      "asterion:sfx/mino/minotaur.step_walk_2"
+      {
+        "name": "asterion:sfx/mino/minotaur.step_walk_1",
+        "preload": true,
+        "attenuation_distance": 48
+      },
+      {
+        "name": "asterion:sfx/mino/minotaur.step_walk_2",
+        "preload": true,
+        "attenuation_distance": 48
+      }
     ]
   },
   "cave_ambience": {
@@ -88,53 +116,97 @@
   "minotaur_roar": {
     "subtitle": "subtitles.asterion.minotaur_roar",
     "sounds": [
-      "asterion:sfx/mino/minotaur.roar",
-      "asterion:sfx/mino/roar_minator"
+      {
+        "name": "asterion:sfx/mino/minotaur.roar",
+        "preload": true
+      },
+      {
+        "name": "asterion:sfx/mino/roar_minator",
+        "preload": true
+      }
     ]
   },
   "minotaur_aggro": {
     "subtitle": "subtitles.asterion.minotaur_aggro",
     "sounds": [
-      "asterion:sfx/mino/minotaur.aggro"
+      {
+        "name": "asterion:sfx/mino/minotaur.aggro",
+        "preload": true
+      }
     ]
   },
   "minotaur_stagger": {
     "subtitle": "subtitles.asterion.minotaur_stagger",
     "sounds": [
-      "asterion:sfx/mino/minotaur.stagger_1",
-      "asterion:sfx/mino/minotaur.stagger_2"
+      {
+        "name": "asterion:sfx/mino/minotaur.stagger_1",
+        "preload": true,
+        "attenuation_distance": 32
+      },
+      {
+        "name": "asterion:sfx/mino/minotaur.stagger_2",
+        "preload": true,
+        "attenuation_distance": 32
+      }
     ]
   },
   "minotaur_hurt_light": {
     "subtitle": "subtitles.asterion.minotaur_hurt_light",
     "sounds": [
-      "asterion:sfx/mino/minotaur.hurt_light_1",
-      "asterion:sfx/mino/minotaur.hurt_light_2"
+      {
+        "name": "asterion:sfx/mino/minotaur.hurt_light_1",
+        "preload": true,
+        "attenuation_distance": 32
+      },
+      {
+        "name": "asterion:sfx/mino/minotaur.hurt_light_2",
+        "preload": true,
+        "attenuation_distance": 32
+      }
     ]
   },
   "minotaur_hurt_exposed": {
     "subtitle": "subtitles.asterion.minotaur_hurt_exposed",
     "sounds": [
-      "asterion:sfx/mino/minotaur.hurt_exposed_1",
-      "asterion:sfx/mino/minotaur.hurt_exposed_2"
+      {
+        "name": "asterion:sfx/mino/minotaur.hurt_exposed_1",
+        "preload": true,
+        "attenuation_distance": 32
+      },
+      {
+        "name": "asterion:sfx/mino/minotaur.hurt_exposed_2",
+        "preload": true,
+        "attenuation_distance": 32
+      }
     ]
   },
   "minotaur_charge_warning": {
     "subtitle": "subtitles.asterion.minotaur_charge_warning",
     "sounds": [
-      "asterion:sfx/mino/minotaur.charge_warning"
+      {
+        "name": "asterion:sfx/mino/minotaur.charge_warning",
+        "preload": true,
+        "attenuation_distance": 32
+      }
     ]
   },
   "minotaur_charge_roar": {
     "subtitle": "subtitles.asterion.minotaur_charge_roar",
     "sounds": [
-      "asterion:sfx/mino/minotaur.charge_roar"
+      {
+        "name": "asterion:sfx/mino/minotaur.charge_roar",
+        "preload": true
+      }
     ]
   },
   "minotaur_charge_hit_player": {
     "subtitle": "subtitles.asterion.minotaur_charge_hit_player",
     "sounds": [
-      "asterion:sfx/mino/minotaur.charge_hit_player"
+      {
+        "name": "asterion:sfx/mino/minotaur.charge_hit_player",
+        "preload": true,
+        "attenuation_distance": 32
+      }
     ]
   },
   "afterblow_parry": {
@@ -152,7 +224,11 @@
   "minotaur_charge_hit_wall": {
     "subtitle": "subtitles.asterion.minotaur_charge_hit_wall",
     "sounds": [
-      "asterion:sfx/mino/minotaur.charge_hit_wall"
+      {
+        "name": "asterion:sfx/mino/minotaur.charge_hit_wall",
+        "preload": true,
+        "attenuation_distance": 32
+      }
     ]
   },
   "barrel_door_open": {
@@ -170,19 +246,31 @@
   "minotaur_land_slam": {
     "subtitle": "subtitles.asterion.minotaur_land_slam",
     "sounds": [
-      "asterion:sfx/mino/minotaur.land_slam"
+      {
+        "name": "asterion:sfx/mino/minotaur.land_slam",
+        "preload": true,
+        "attenuation_distance": 32
+      }
     ]
   },
   "minotaur_land_light": {
     "subtitle": "subtitles.asterion.minotaur_land_light",
     "sounds": [
-      "asterion:sfx/mino/minotaur.land_light"
+      {
+        "name": "asterion:sfx/mino/minotaur.land_light",
+        "preload": true,
+        "attenuation_distance": 32
+      }
     ]
   },
   "arena_pillar_break": {
     "subtitle": "subtitles.asterion.arena_pillar_break",
     "sounds": [
-      "asterion:sfx/misc/arena.pillar_break"
+      {
+        "name": "asterion:sfx/misc/arena.pillar_break",
+        "preload": true,
+        "attenuation_distance": 48
+      }
     ]
   },
   "afterblow_pedestal_pull": {
@@ -194,31 +282,50 @@
   "minotaur_sword_sheathe": {
     "subtitle": "subtitles.asterion.minotaur_sword_sheathe",
     "sounds": [
-      "asterion:sfx/mino/minotaur.sword_sheathe"
+      {
+        "name": "asterion:sfx/mino/minotaur.sword_sheathe",
+        "preload": true,
+        "attenuation_distance": 32
+      }
     ]
   },
   "minotaur_sword_swing": {
     "subtitle": "subtitles.asterion.minotaur_sword_swing",
     "sounds": [
-      "asterion:sfx/mino/minotaur.sword_swing"
+      {
+        "name": "asterion:sfx/mino/minotaur.sword_swing",
+        "preload": true,
+        "attenuation_distance": 32
+      }
     ]
   },
   "minotaur_entry_roar": {
     "subtitle": "subtitles.asterion.minotaur_roar",
     "sounds": [
-      "asterion:sfx/mino/minotaur.roar"
+      {
+        "name": "asterion:sfx/mino/minotaur.roar",
+        "preload": true
+      }
     ]
   },
   "minotaur_fist_swing": {
     "subtitle": "subtitles.asterion.minotaur_fist_swing",
     "sounds": [
-      "asterion:sfx/mino/minotaur.fist_swing"
+      {
+        "name": "asterion:sfx/mino/minotaur.fist_swing",
+        "preload": true,
+        "attenuation_distance": 32
+      }
     ]
   },
   "minotaur_fist_swing_combo": {
     "subtitle": "subtitles.asterion.minotaur_fist_swing_combo",
     "sounds": [
-      "asterion:sfx/mino/minotaur.fist_swing_combo"
+      {
+        "name": "asterion:sfx/mino/minotaur.fist_swing_combo",
+        "preload": true,
+        "attenuation_distance": 32
+      }
     ]
   }
 }

@@ -30,6 +30,7 @@ public final class DeadSunEntryCinematic {
 
     public static void begin() {
         Minecraft client = Minecraft.getInstance();
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) return;
         if (client.player == null || client.level == null
                 || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)
                 || !AsterionConfig.INSTANCE.cinematicsEnabled) return;
@@ -47,6 +48,10 @@ public final class DeadSunEntryCinematic {
     }
 
     public static void tick(Minecraft client) {
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) {
+            if (isActive()) finish(client);
+            return;
+        }
         if (!active) return;
         if (client.player == null || client.level == null
                 || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) {

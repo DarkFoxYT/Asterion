@@ -45,6 +45,7 @@ public abstract class CameraMixin {
             target = "Lnet/minecraft/client/CameraType;isFirstPerson()Z"))
     private void asterion$followCentipedeSeat(float partial, CallbackInfo ci) {
         Minecraft client = Minecraft.getInstance();
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) return;
         if (client.player == null || ((Camera)(Object)this).entity() != client.player
                 || !(client.player.getVehicle() instanceof net.krodark.asterion.entity.ScarletCentipedeEntity mount)) return;
         Vec3 normal = mount.passengerNormal(client.player, partial);
@@ -58,6 +59,7 @@ public abstract class CameraMixin {
             target = "Lnet/minecraft/client/Camera;setRotation(FF)V", shift = At.Shift.AFTER))
     private void asterion$tiltCentipedeView(float partial, CallbackInfo ci) {
         Minecraft client = Minecraft.getInstance();
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) return;
         if (client.player == null || ((Camera)(Object)this).entity() != client.player
                 || !(client.player.getVehicle() instanceof net.krodark.asterion.entity.ScarletCentipedeEntity mount)) return;
         Vec3 normal = mount.passengerNormal(client.player, partial);
@@ -75,6 +77,7 @@ public abstract class CameraMixin {
     @Inject(method = "update", at = @At("HEAD"))
     private void asterion$lockRagdollPerspective(DeltaTracker tracker, CallbackInfo ci) {
         Minecraft client = Minecraft.getInstance();
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) return;
         if (client.player != null && ((Camera)(Object)this).entity() == client.player)
             net.krodark.asterion.client.ragdoll.RagdollClientController.enforceRagdollCamera(client);
     }
@@ -82,6 +85,7 @@ public abstract class CameraMixin {
     @Inject(method = "getFov", at = @At("RETURN"), cancellable = true)
     private void asterion$flamethrowerFovPulse(CallbackInfoReturnable<Float> result) {
         Minecraft minecraft = Minecraft.getInstance();
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(minecraft)) return;
         boolean spraying = minecraft.player != null && minecraft.player.isUsingItem()
                 && minecraft.player.getUseItem().is(net.krodark.asterion.game.GameplayContent.FLAMETHROWER);
         asterion$flamethrowerFovStrength = Mth.lerp(.12F, asterion$flamethrowerFovStrength,
@@ -95,6 +99,7 @@ public abstract class CameraMixin {
     @Inject(method = "update", at = @At("TAIL"))
     private void asterion$followRagdollHead(DeltaTracker tracker, CallbackInfo ci) {
         Minecraft minecraft = Minecraft.getInstance();
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(minecraft)) return;
         float partial = tracker.getGameTimeDeltaPartialTick(true);
         if (minecraft.player != null && ((Camera)(Object)this).entity() == minecraft.player) {
             Vec3 handFeet = net.krodark.asterion.client.render.entity.MinotaurHandAttachment.feet(minecraft.player);

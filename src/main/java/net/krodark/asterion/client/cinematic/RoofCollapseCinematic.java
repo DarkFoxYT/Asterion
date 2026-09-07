@@ -20,6 +20,7 @@ public final class RoofCollapseCinematic {
 
     public static void begin(RoofCollapsePayload payload) {
         Minecraft client = Minecraft.getInstance();
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) return;
         finish(client);
         if (client.player == null || client.level == null) return;
         center = payload.center();
@@ -39,6 +40,10 @@ public final class RoofCollapseCinematic {
     }
 
     public static void tick(Minecraft client) {
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) {
+            if (isActive()) finish(client);
+            return;
+        }
         if (!active) return;
         if (client.player == null || client.level == null || !client.player.isAlive()
                 || !client.level.dimension().equals(Asterion.ASTERION_LEVEL) || ++ticks >= duration) {

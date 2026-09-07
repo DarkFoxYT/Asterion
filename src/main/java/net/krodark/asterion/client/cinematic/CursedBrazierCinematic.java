@@ -1,6 +1,5 @@
 package net.krodark.asterion.client.cinematic;
 
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.network.CursedBrazierAwakeningPayload;
@@ -27,7 +26,7 @@ public final class CursedBrazierCinematic {
     }
 
     public static void register() {
-        HudElementRegistry.addLast(Asterion.id("cursed_brazier_awakening"), (graphics, tracker) -> {
+        net.krodark.asterion.client.ReplayCompatibility.addHud(Asterion.id("cursed_brazier_awakening"), (graphics, tracker) -> {
             if (!active || !showShot) return;
             float fade = Math.min(smooth(ticks / 10F), smooth((duration - ticks) / 15F));
             int bar = Math.round(graphics.guiHeight() * 0.075F * fade);
@@ -39,6 +38,7 @@ public final class CursedBrazierCinematic {
 
     public static void receive(CursedBrazierAwakeningPayload payload) {
         Minecraft client = Minecraft.getInstance();
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) return;
         finish(client);
         if (client.player == null || client.level == null || payload.durationTicks() <= 0) return;
 
@@ -65,6 +65,10 @@ public final class CursedBrazierCinematic {
     }
 
     public static void tick(Minecraft client) {
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) {
+            if (isActive()) finish(client);
+            return;
+        }
         if (!active) return;
         if (client.player == null || client.level == null || !client.player.isAlive()
                 || ++ticks >= duration + 5 || client.level.getEntity(bossId) == null) {

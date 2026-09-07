@@ -1,6 +1,5 @@
 package net.krodark.asterion.client.cinematic;
 
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.entity.MinotaurAnimationTiming;
 import net.krodark.asterion.AsterionConfig;
@@ -28,7 +27,7 @@ public final class BossEntranceCinematic {
     private BossEntranceCinematic() { }
 
     public static void register() {
-        HudElementRegistry.addLast(Asterion.id("boss_entrance"), (graphics, tracker) -> {
+        net.krodark.asterion.client.ReplayCompatibility.addHud(Asterion.id("boss_entrance"), (graphics, tracker) -> {
             if (!active || !showShot) return;
             float fade = Math.min(MinotaurDoorMotion.ease(ticks / 7F), MinotaurDoorMotion.ease((duration - ticks) / 14F));
             int height = Math.round(graphics.guiHeight() * .09F * fade);
@@ -39,6 +38,7 @@ public final class BossEntranceCinematic {
 
     public static void receive(BossEntrancePayload payload) {
         Minecraft client = Minecraft.getInstance();
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) return;
         finish(client);
         if (payload.duration() <= 0 || client.player == null || client.level == null) return;
         door = payload.bossDoor();
@@ -63,6 +63,10 @@ public final class BossEntranceCinematic {
     public static boolean isActive() { return active; }
     public static boolean hasFinished() { return finished; }
     public static void tick(Minecraft client) {
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) {
+            if (isActive()) finish(client);
+            return;
+        }
         if (!active) return;
         if (client.player == null || client.level == null || !client.player.isAlive()
                 || !client.level.dimension().equals(Asterion.ASTERION_LEVEL) || ++ticks >= duration + 10) {
@@ -109,8 +113,10 @@ public final class BossEntranceCinematic {
                     : beat == SOUND_BEATS[2] ? .07F : .035F) * (float)Math.pow(Math.sin(Math.PI * age / 16F), 2);
         }
         camera = camera.add(Math.sin(time * .7) * impact, Math.cos(time * .9) * impact * .65, 0);
-        Vec3 focus = doorway.add(inward.scale(1.2)).add(0, 3.15, 0);
-        float returning = smootherStep((time - (duration - 76)) / 76F);
+        float walk = smootherStep((time - BREAK_TICK) /
+                (MinotaurAnimationTiming.ENTRY_WALK_END_TICK - BREAK_TICK));
+        Vec3 focus = doorway.add(inward.scale(1.2 + walk * 2.0)).add(0, 3.15 + walk * .35, 0);
+        float returning = smootherStep((time - (duration - 30)) / 30F);
         camera = camera.lerp(playerEye, returning);
         Vec3 delta = focus.subtract(camera);
         float yaw = (float)Math.toDegrees(Math.atan2(-delta.x, delta.z));

@@ -22,12 +22,19 @@ public final class ArenaDeathRecovery {
     private ArenaDeathRecovery() { }
     private static final Map<UUID, Recovery> pending = new HashMap<>();
     private record Recovery(ServerLevel level, BlockPos origin, Vec3 gatePosition,
-                            boolean invulnerable, boolean noGravity, long at) { }
+                            boolean invulnerable, boolean noGravity, boolean minotaur, long at) { }
 
     public static boolean isRecovering(ServerPlayer player) { return pending.containsKey(player.getUUID()); }
 
     public static void initialize() {
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> pending.clear());
+        net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            Recovery recovery = pending.get(handler.player.getUUID());
+            if (recovery != null) {
+                handler.player.setInvulnerable(recovery.invulnerable());
+                handler.player.setNoGravity(recovery.noGravity());
+            }
+        });
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             var iterator = pending.entrySet().iterator();
             while (iterator.hasNext()) {
@@ -35,17 +42,26 @@ public final class ArenaDeathRecovery {
                 Recovery recovery = entry.getValue();
                 if (server.getTickCount() < recovery.at()) continue;
                 ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
-                if (player == null) { iterator.remove(); continue; }
+                if (player == null) continue;
                 // A wipe rebuilds in bounded chunk batches; wait for safe terrain.
-                if (player.level() == recovery.level() && recovery.gatePosition() != null
-                        && !BossArenaEncounter.isSealed(recovery.level()) && !WorldGenerator.isBossArenaReady()) continue;
+                if (player.level() == recovery.level() && recovery.minotaur()
+                        && !BossArenaEncounter.isSealed(recovery.level()) && !WorldGenerator.isBossArenaReady()
+                        && server.getTickCount() < recovery.at() + 1200) continue;
+                BlockPos safe = null;
+                if (player.level() == recovery.level() && recovery.gatePosition() != null && !player.isSpectator()) {
+                    try {
+                        safe = WorldGenerator.resolveSafeRespawn(recovery.level(), BlockPos.containing(recovery.gatePosition()));
+                    } catch (IllegalStateException notReady) {
+                        // Do not drop protection or crash the tick while the exit terrain is unavailable.
+                        continue;
+                    }
+                }
                 iterator.remove();
                 player.setInvulnerable(recovery.invulnerable());
                 player.setNoGravity(recovery.noGravity());
                 if (player.level() != recovery.level() || player.isSpectator()) continue;
                 releaseBossGrip(player, recovery.level());
                 if (recovery.gatePosition() != null) {
-                    BlockPos safe = WorldGenerator.resolveSafeRespawn(recovery.level(), BlockPos.containing(recovery.gatePosition()));
                     player.teleportTo(recovery.level(), safe.getX() + .5, safe.getY(), safe.getZ() + .5,
                             Set.of(), 180, 0, true);
                 } else WorldGenerator.respawnAtRune(player, recovery.origin());
@@ -68,17 +84,13 @@ public final class ArenaDeathRecovery {
                 if (candidate instanceof CursedBrazierEntity boss && boss.isParticipant(player)) { brazier = boss; break; }
             if (!minotaur && brazier == null) return true;
 
-            Vec3 gate = minotaur ? BossArenaEncounter.recoveryPosition(player) : null;
+            Vec3 gate = minotaur ? BossArenaEncounter.recoveryPosition(player) : brazier.recoveryPosition();
             if (minotaur) BossArenaEncounter.releaseMovementLock(player);
             pending.put(player.getUUID(), new Recovery(level, player.blockPosition().immutable(), gate,
-                    player.isInvulnerable(), player.isNoGravity(), level.getServer().getTickCount() + 20));
+                    player.isInvulnerable(), player.isNoGravity(), minotaur, level.getServer().getTickCount() + 20));
             boolean wipe;
             if (minotaur) wipe = !BossArenaEncounter.hasSurvivingParticipant(player);
-            else {
-                CursedBrazierEntity encounter = brazier;
-                wipe = level.players().stream().noneMatch(other -> other != player && other.isAlive()
-                        && !other.isSpectator() && !other.isCreative() && !isRecovering(other) && encounter.isParticipant(other));
-            }
+            else wipe = !brazier.hasSurvivingParticipant(player);
             releaseBossGrip(player, level);
             if (wipe) {
                 for (ServerPlayer member : List.copyOf(level.players()))
@@ -86,6 +98,10 @@ public final class ArenaDeathRecovery {
                         EncounterKeyRecovery.restoreConsumed(member, minotaur ? Asterion.MINOTAUR_KEY : GameplayContent.CURSED_BRAZIER_KEY);
                 if (minotaur) WorldGenerator.resetBossEncounterAfterDeath(player);
                 else brazier.resetAfterPlayerDeath(level);
+            }
+            if (!wipe) {
+                if (minotaur) BossArenaEncounter.eliminate(player);
+                else brazier.eliminate(player);
             }
             // Delay healing until relocation so the death screen does not show a full-health player.
             player.setHealth(1);

@@ -1,0 +1,86 @@
+package net.krodark.asterion.dev.verification;
+
+import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
+import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
+import net.krodark.asterion.Asterion;
+import net.krodark.asterion.client.AsterionClient;
+import net.krodark.asterion.client.ReplayCompatibility;
+import net.krodark.asterion.client.cinematic.*;
+import net.krodark.asterion.entity.*;
+import net.krodark.asterion.network.BossEntrancePayload;
+import net.krodark.asterion.worldgen.BossArenaEncounter;
+import net.minecraft.core.Direction;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
+
+public final class EntranceReplayGameTest implements FabricClientGameTest {
+    @Override public void runTest(ClientGameTestContext context) {
+        context.runOnClient(c -> org.lwjgl.glfw.GLFW.glfwHideWindow(c.getWindow().handle()));
+        try (var world = context.worldBuilder().create()) {
+            world.getServer().runOnServer(server -> {
+                var boss = Asterion.MINOTAUR.create(server.overworld(), EntitySpawnReason.COMMAND);
+                try {
+                    var geometry = GameplayFixesGameTest.class.getDeclaredMethod("checkEntrance", net.minecraft.server.MinecraftServer.class);
+                    geometry.setAccessible(true);
+                    geometry.invoke(null, server);
+                    var data = MinotaurEntity.class.getDeclaredField("DATA_DOOR_ENTRY_TICKS");
+                    data.setAccessible(true);
+                    @SuppressWarnings("unchecked")
+                    var accessor = (net.minecraft.network.syncher.EntityDataAccessor<Integer>)data.get(null);
+                    boss.getEntityData().set(accessor, MinotaurAnimationTiming.ENTRY_BREAK_TICK);
+                    check(boss.animationState() == MinotaurEntity.AnimationState.IDLE, "Pre-breach pose");
+                    for (int tick = MinotaurAnimationTiming.ENTRY_BREAK_TICK;
+                            tick < MinotaurAnimationTiming.ENTRY_WALK_END_TICK; tick++) {
+                        boss.getEntityData().set(accessor, tick + 1);
+                        check(boss.animationState() == MinotaurEntity.AnimationState.WALK, "Moving without walking");
+                        check(MinotaurAnimationTiming.entryWalkDistance(tick + 1, 10)
+                                > MinotaurAnimationTiming.entryWalkDistance(tick, 10), "Walk stopped early");
+                    }
+                    boss.getEntityData().set(accessor, MinotaurAnimationTiming.ENTRY_WALK_END_TICK + 1);
+                    check(boss.animationState() == MinotaurEntity.AnimationState.ROAR_START, "No planted roar");
+                    check(Math.abs(MinotaurAnimationTiming.entryWalkDistance(MinotaurAnimationTiming.ENTRY_END_TICK, 10) - 10) < .00001,
+                            "Wrong entrance distance");
+                    check(MinotaurAnimationTiming.ENTRY_ROAR.roarSoundTick()
+                            + Math.round(120 / MinotaurAnimationTiming.ENTRY_ROAR_PITCH)
+                            == MinotaurAnimationTiming.ENTRY_END_TICK, "Roar audio duration drift");
+                    check(BossArenaEncounter.INTRO_TICKS < 420, "Intro not shortened");
+                } catch (ReflectiveOperationException e) { throw new AssertionError(e); }
+            });
+            context.waitTicks(10);
+            context.runOnClient(client -> {
+                var payload = new BossEntrancePayload(Direction.NORTH, 0, BossArenaEncounter.INTRO_TICKS);
+                BossEntranceCinematic.receive(payload);
+                check(BossEntranceCinematic.isActive(), "Normal cinematic suppressed");
+                try {
+                    var camera = client.gameRenderer.getMainCamera();
+                    var field = java.util.Arrays.stream(camera.getClass().getDeclaredFields())
+                            .filter(f -> f.getType() == Entity.class).findFirst().orElseThrow();
+                    field.setAccessible(true);
+                    var original = field.get(camera);
+                    var observer = Asterion.MINOTAUR.create(client.level, EntitySpawnReason.COMMAND);
+                    try {
+                        field.set(camera, observer);
+                        check(AsterionClient.isPlayback(client), "Detached replay camera not detected");
+                        ReplayCompatibility.cancelCinematics(client);
+                        check(!BossEntranceCinematic.isActive() && !CinematicHud.isHidden()
+                                && !CinematicControls.locked(), "Replay cancellation left locks");
+                        BossEntranceCinematic.receive(payload);
+                        DimensionTransitionOverlay.begin(20, 20);
+                        DeadSunEntryCinematic.begin();
+                        CrucibleCamera.begin(net.minecraft.core.BlockPos.ZERO);
+                        check(!BossEntranceCinematic.isActive() && !DimensionTransitionOverlay.isActive()
+                                && !DeadSunEntryCinematic.isActive() && !CrucibleCamera.active(),
+                                "Replay restarted cinematic or GUI camera");
+                    } finally { field.set(camera, original); }
+                    BossEntranceCinematic.receive(payload);
+                    check(BossEntranceCinematic.isActive(), "Playback exit left cinematics disabled");
+                    BossEntranceCinematic.finish(client);
+                } catch (ReflectiveOperationException e) { throw new AssertionError(e); }
+            });
+            Asterion.LOGGER.info("PASS: entrance walking/roar phases, audio timing, replay cancellation and normal-play recovery");
+        }
+    }
+    private static void check(boolean value, String message) {
+        if (!value) throw new AssertionError(message);
+    }
+}

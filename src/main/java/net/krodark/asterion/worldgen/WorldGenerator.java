@@ -388,6 +388,14 @@ public final class WorldGenerator {
         if (!pitDeath) return false;
         if (!deadPlayer.isAlive() && !net.krodark.asterion.game.ArenaDeathRecovery.isRecovering(deadPlayer)) RESET_DEATHS.add(deadPlayer);
 
+        resetAbandonedBossEncounter(maze);
+        ELECTRIFIED.remove(deadPlayer.getUUID());
+        WARD_FALL_PROTECTION.remove(deadPlayer.getUUID());
+        return true;
+    }
+
+    public static void resetAbandonedBossEncounter(ServerLevel maze) {
+        BossArenaEncounter.refundAttemptKeys();
         for (Entity entity : maze.getAllEntities()) {
             if (entity instanceof MinotaurEntity minotaur
                     && minotaur.behaviorPhase() == MinotaurEntity.BehaviorPhase.BOSS)
@@ -399,9 +407,7 @@ public final class WorldGenerator {
          
         clearBossArenaTransientState(maze);
         rebuildBossArena(maze);
-        ELECTRIFIED.remove(deadPlayer.getUUID());
-        WARD_FALL_PROTECTION.remove(deadPlayer.getUUID());
-        return true;
+
     }
 
     private static void clearBossArenaTransientState(ServerLevel level) {
@@ -2403,11 +2409,7 @@ public final class WorldGenerator {
                 && player.level().dimension().equals(Asterion.ASTERION_LEVEL))
             pending.clientReady = true;
         if (pending != null && pending.clientReady && !wasReady) {
-            EntryOmenPayload omen = new EntryOmenPayload(player.position());
-            for (ServerPlayer listener : pending.maze.players())
-                if (listener.distanceToSqr(omen.position()) <= 32 * 32
-                        && ServerPlayNetworking.canSend(listener, EntryOmenPayload.TYPE))
-                    ServerPlayNetworking.send(listener, omen);
+            net.krodark.asterion.game.MinotaurSounds.playGlobal(pending.maze, Asterion.MINOTAUR_ROAR, .9F, .72F);
         }
     }
 

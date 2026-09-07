@@ -14,7 +14,8 @@ public abstract class MinotaurBossBarMixin {
     @Inject(method = "extractBar(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IILnet/minecraft/world/BossEvent;)V", at = @At("HEAD"), cancellable = true)
     private void asterion$bar(GuiGraphicsExtractor graphics, int x, int y, BossEvent event, CallbackInfo ci) {
         if (!event.getName().getString().equals("THE MINOTAUR")) return;
-        MinotaurBossBar.render(graphics, x, y, event);
+        if (!net.krodark.asterion.client.AsterionClient.isPlayback(net.minecraft.client.Minecraft.getInstance()))
+            MinotaurBossBar.render(graphics, x, y, event);
         ci.cancel();
     }
 

@@ -56,8 +56,43 @@ public final class EncounterKeyRecovery {
                 intendedPlayer==null?null:intendedPlayer.getUUID(),level.getGameTime()+RECOVERY_DELAY));
     }
 
+    private static final class Refunds extends net.minecraft.world.level.saveddata.SavedData {
+        final Map<String, Integer> pending;
+        Refunds(Map<String, Integer> pending) { this.pending = new HashMap<>(pending); }
+        static final com.mojang.serialization.Codec<Refunds> CODEC =
+                com.mojang.serialization.Codec.unboundedMap(com.mojang.serialization.Codec.STRING,
+                        com.mojang.serialization.Codec.intRange(1, 3)).xmap(Refunds::new, refunds -> refunds.pending);
+        static final net.minecraft.world.level.saveddata.SavedDataType<Refunds> TYPE =
+                new net.minecraft.world.level.saveddata.SavedDataType<>(
+                        net.krodark.asterion.Asterion.id("encounter_key_refunds"), () -> new Refunds(Map.of()), CODEC, null);
+    }
+
+    public static void refundAttemptKey(ServerLevel level, UUID id, Item key) {
+        ServerPlayer player = level.getServer().getPlayerList().getPlayer(id);
+        if (player != null) { restoreConsumed(player, key); return; }
+        Refunds refunds = level.getDataStorage().computeIfAbsent(Refunds.TYPE);
+        int flag = key == net.krodark.asterion.Asterion.MINOTAUR_KEY ? 1 : 2;
+        refunds.pending.merge(id.toString(), flag, (a, b) -> a | b);
+        refunds.setDirty();
+    }
+
+    private static void deliverRefunds(MinecraftServer server) {
+        ServerLevel maze = server.getLevel(net.krodark.asterion.Asterion.ASTERION_LEVEL);
+        if (maze == null) return;
+        Refunds refunds = maze.getDataStorage().computeIfAbsent(Refunds.TYPE);
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            Integer flags = refunds.pending.remove(player.getUUID().toString());
+            if (flags == null) continue;
+            if ((flags & 1) != 0) restoreConsumed(player, net.krodark.asterion.Asterion.MINOTAUR_KEY);
+            if ((flags & 2) != 0) restoreConsumed(player, GameplayContent.CURSED_BRAZIER_KEY);
+            refunds.setDirty();
+        }
+    }
+
     private static void tick(MinecraftServer server) {
-        if(server.getTickCount()%20!=0||PENDING.isEmpty())return;
+        if(server.getTickCount()%20!=0)return;
+        deliverRefunds(server);
+        if(PENDING.isEmpty())return;
         Iterator<Pending> iterator=PENDING.values().iterator();
         while(iterator.hasNext()) {
             Pending pending=iterator.next();
