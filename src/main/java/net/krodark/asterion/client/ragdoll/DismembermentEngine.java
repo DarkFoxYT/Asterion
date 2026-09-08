@@ -66,6 +66,7 @@ public final class DismembermentEngine {
     private final List<RigidBodyPiece> pieces = new ArrayList<>();
     private final Map<Integer, Set<Integer>> detached = new HashMap<>();
     private final Set<Integer> ragdolled = new HashSet<>();
+    private final Map<Integer, net.minecraft.world.entity.player.PlayerSkin> playerSkins = new HashMap<>();
     private final Set<Integer> remoteDriven = new HashSet<>();
     private final Map<Integer, Integer> remotePoseSequences = new HashMap<>();
     private final Map<Integer, Integer> remotePoseTicks = new HashMap<>();
@@ -232,6 +233,11 @@ public final class DismembermentEngine {
                            double force, boolean requestServerKill) {
         if (!inAsterion(entity)) return false;
         if (isRagdollExcluded(entity) || ragdolled.contains(entity.getId())) return false;
+        // First-person players may not have rendered recently, and their skin/model can load asynchronously.
+        if (entity instanceof net.minecraft.client.player.AbstractClientPlayer player) {
+            renderedPoseCache.remove(entity.getId());
+            playerSkins.put(entity.getId(), player.getSkin());
+        }
         pieces.removeIf(piece -> piece.entityId == entity.getId());
         detached.remove(entity.getId());
         detachedModelPaths.remove(entity.getId());
@@ -1197,6 +1203,8 @@ public final class DismembermentEngine {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static Identifier resolveTexture(Entity entity) {
+        if (entity instanceof net.minecraft.client.player.AbstractClientPlayer player)
+            return player.getSkin().body().texturePath();
         if (entity instanceof ConstructEntity)
             return Asterion.id("textures/entity/construct.png");
         try {
@@ -1823,7 +1831,31 @@ public final class DismembermentEngine {
         return hand.subtract(torso.previous.lerp(torso.position, partial));
     }
 
+    private void synchronizePlayerSkins(ClientLevel level) {
+        playerSkins.keySet().removeIf(id -> !ragdolled.contains(id));
+        for (var entry : playerSkins.entrySet()) {
+            if (!(level.getEntity(entry.getKey()) instanceof net.minecraft.client.player.AbstractClientPlayer player)) continue;
+            var skin = player.getSkin();
+            if (skin.equals(entry.getValue())) continue;
+            boolean modelChanged = skin.model() != entry.getValue().model();
+            if (modelChanged) renderedPoseCache.remove(player.getId());
+            for (RigidBodyPiece part : pieces) {
+                if (part.entityId != player.getId() || part.region < 0 || part.region > 5) continue;
+                part.texture = skin.body().texturePath();
+                if (modelChanged) {
+                    BodyGeometry geometry = calculateGeometry(player, part.region, Vec3.ZERO,
+                            part.halfExtents, true, Set.of());
+                    part.halfExtents = geometry.halfExtents;
+                    part.faceUvs = geometry.faceUvs;
+                    part.overlayFaceUvs = geometry.overlayFaceUvs;
+                }
+            }
+            entry.setValue(skin);
+        }
+    }
+
     public void tick(ClientLevel level, Entity collisionContext) {
+        synchronizePlayerSkins(level);
         electrifiedUntil.entrySet().removeIf(entry -> {
             if (entry.getValue() > traumaDecayTicker) return false;
             if (collisionContext.getId() != entry.getKey()) removeRagdoll(entry.getKey());
@@ -3654,6 +3686,7 @@ public final class DismembermentEngine {
     }
 
     public void clear() {
+        playerSkins.clear();
         pieces.clear();
         detached.clear();
         detachedModelPaths.clear();

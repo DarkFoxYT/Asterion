@@ -17,7 +17,7 @@ final class RigidBodyPiece {
     final boolean playerBody;
     Vec3 halfExtents;
     double partMass;
-    final Identifier texture;
+    Identifier texture;
     final int bloodRgb;
     ItemStack headEquipment = ItemStack.EMPTY;
     ItemStack chestEquipment = ItemStack.EMPTY;
@@ -133,4 +133,3 @@ final class RigidBodyPiece {
                 worldPoint.subtract(position).cross(impulse)));
     }
 }
-
