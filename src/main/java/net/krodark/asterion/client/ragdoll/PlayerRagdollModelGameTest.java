@@ -30,7 +30,10 @@ public final class PlayerRagdollModelGameTest implements FabricClientGameTest {
                 var engine = DismembermentEngine.INSTANCE;
                 var player = new Subject(c.level);
                 player.setId(900105);
-                player.setPos(c.player.position().add(3, 5, 0));
+                player.setPos(c.player.position().add(0, 0, 3));
+                player.setYRot(180);
+                player.yBodyRot = player.yBodyRotO = 180;
+                player.yHeadRot = player.yHeadRotO = 180;
                 c.level.addEntity(player);
                 // Seed a rendered wide-player pose, then simulate the real slim skin arriving.
                 engine.captureRenderedPose(player.getId());
@@ -41,8 +44,16 @@ public final class PlayerRagdollModelGameTest implements FabricClientGameTest {
                 player.skin = skin(PlayerModelType.WIDE, "wide/steve");
                 engine.tick(c.level, c.player);
                 verify(engine, player, false);
-                engine.clear();
-                c.level.removeEntity(player.getId(), net.minecraft.world.entity.Entity.RemovalReason.DISCARDED);
+                engine.applyRemoteState(c, new net.krodark.asterion.network.ragdoll.RagdollStatePayload(
+                        player.getId(), player.getUUID(), true));
+                c.player.setYRot(0);
+                c.player.setXRot(0);
+            });
+            context.waitTicks(2);
+            context.takeScreenshot("player-ragdoll-model");
+            context.runOnClient(c -> {
+                DismembermentEngine.INSTANCE.clear();
+                c.level.removeEntity(900105, net.minecraft.world.entity.Entity.RemovalReason.DISCARDED);
             });
             net.krodark.asterion.Asterion.LOGGER.info("PASS: player skin texture, six body regions, outer layers, stale pose and late slim/wide model updates");
         }
@@ -51,6 +62,8 @@ public final class PlayerRagdollModelGameTest implements FabricClientGameTest {
         var body = engine.pieces().stream().filter(p -> p.entityId == player.getId() && p.region <= 5).toList();
         check(body.size() == 6, "Missing player body regions");
         for (var part : body) {
+            if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("entity_model_features"))
+                check(!part.modelBoxes.isEmpty(), "Missing EMF model mesh for body region " + part.region);
             check(part.texture.equals(player.skin.body().texturePath()), "Wrong player skin texture");
             check(part.overlayFaceUvs != null, "Missing player outer skin layer");
             for (var face : part.faceUvs) check(face != null && face.length == 8, "Missing model UV face");

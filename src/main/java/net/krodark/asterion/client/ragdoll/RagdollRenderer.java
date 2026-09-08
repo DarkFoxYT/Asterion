@@ -74,10 +74,22 @@ public final class RagdollRenderer {
         poses.pushPose();
         poses.translate(-camera.x, -camera.y, -camera.z);
         Map<net.minecraft.resources.Identifier, List<RigidBodyPiece>> byTexture = new HashMap<>();
-        for (RigidBodyPiece body : bodies) byTexture.computeIfAbsent(body.texture, ignored -> new ArrayList<>()).add(body);
+        Map<Identifier, List<RigidBodyPiece>> emissives = new HashMap<>();
+        Map<String, RagdollTextureCompatibility.Textures> resolvedTextures = new HashMap<>();
+        for (RigidBodyPiece body : bodies) {
+            boolean playerSkin = body.playerBody && DismembermentEngine.isAnatomicalRegion(body.region);
+            var textures = resolvedTextures.computeIfAbsent(body.entityId + ":" + body.texture + ":" + playerSkin,
+                    ignored -> RagdollTextureCompatibility.resolve(client.level.getEntity(body.entityId), body.texture, playerSkin));
+            byTexture.computeIfAbsent(textures.base(), ignored -> new ArrayList<>()).add(body);
+            if (textures.emissive() != null)
+                emissives.computeIfAbsent(textures.emissive(), ignored -> new ArrayList<>()).add(body);
+        }
         byTexture.forEach((texture, parts) -> collector.submitCustomGeometry(poses,
                 RenderTypes.entityTranslucent(texture, false),
                 (pose, vertices) -> parts.forEach(part -> renderBody(pose, vertices, part))));
+        emissives.forEach((texture, parts) -> collector.submitCustomGeometry(poses,
+                RenderTypes.entityTranslucentEmissive(texture),
+                (pose, vertices) -> parts.forEach(part -> renderBody(pose, vertices, part, true))));
         if (AsterionConfig.INSTANCE.ragdollEquipment) {
             Map<Identifier, List<ArmorDraw>> armorByTexture = new HashMap<>();
             for (RigidBodyPiece body : bodies)
@@ -129,14 +141,34 @@ public final class RagdollRenderer {
     }
 
     private static void renderBody(PoseStack.Pose pose, VertexConsumer out, RigidBodyPiece body) {
+        renderBody(pose, out, body, false);
+    }
+
+    private static void renderBody(PoseStack.Pose pose, VertexConsumer out, RigidBodyPiece body, boolean emissive) {
         float partial = Mth.clamp(Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(true), 0, 1);
         Vec3 center = body.previous.lerp(body.position, partial).add(DismembermentEngine.INSTANCE.heldRenderOffset(body.entityId, partial));
         Quaternionf rotation = new Quaternionf(body.previousOrientation).slerp(body.orientation, partial);
-        drawBox(pose, out, body, center, rotation, body.halfExtents, body.faceUvs);
+        if (!body.modelBoxes.isEmpty()) {
+            PoseStack modelPose = new PoseStack();
+            modelPose.mulPose(pose.pose());
+            modelPose.translate(center.x, center.y, center.z);
+            modelPose.mulPose(rotation);
+            int light = emissive ? 0x00f000f0 : sampleLight(center);
+            for (var box : body.modelBoxes) {
+                if (box.overlay() && !outerLayerVisible(body)) continue;
+                modelPose.pushPose();
+                modelPose.mulPose(box.transform());
+                box.cube().compile(modelPose.last(), out, light, OverlayTexture.NO_OVERLAY, -1);
+                modelPose.popPose();
+            }
+            return;
+        }
+        int light = emissive ? 0x00f000f0 : sampleLight(center);
+        drawBox(pose, out, body, center, rotation, body.halfExtents, body.faceUvs, -1, light);
         if (body.overlayFaceUvs != null && outerLayerVisible(body)) {
             double dilation = body.region == 0 ? Math.min(.03125, body.halfExtents.x * .13)
                     : Math.min(.015625, Math.min(body.halfExtents.x, body.halfExtents.z) * .12);
-            drawBox(pose, out, body, center, rotation, body.halfExtents.add(dilation, dilation, dilation), body.overlayFaceUvs);
+            drawBox(pose, out, body, center, rotation, body.halfExtents.add(dilation, dilation, dilation), body.overlayFaceUvs, -1, light);
         }
     }
 
@@ -223,13 +255,18 @@ public final class RagdollRenderer {
     private static void drawBox(PoseStack.Pose pose, VertexConsumer out, RigidBodyPiece body,
                                 Vec3 center, Quaternionf rotation, Vec3 half, float[][] uvs,
                                 int color) {
+        drawBox(pose, out, body, center, rotation, half, uvs, color, sampleLight(center));
+    }
+
+    private static void drawBox(PoseStack.Pose pose, VertexConsumer out, RigidBodyPiece body,
+                                Vec3 center, Quaternionf rotation, Vec3 half, float[][] uvs,
+                                int color, int light) {
         Vec3[] c = new Vec3[8];
         for (int i = 0; i < 8; i++) {
             Vector3f local = new Vector3f((float)((i & 1) == 0 ? -half.x : half.x),
                     (float)((i & 2) == 0 ? -half.y : half.y), (float)((i & 4) == 0 ? -half.z : half.z));
             rotation.transform(local); c[i] = center.add(local.x, local.y, local.z);
         }
-        int light = sampleLight(center);
         face(pose,out,c,0,4,6,2,color,uvs[0],light); face(pose,out,c,1,3,7,5,color,uvs[1],light);
         face(pose,out,c,0,1,5,4,color,uvs[2],light); face(pose,out,c,2,6,7,3,color,uvs[3],light);
         face(pose,out,c,0,2,3,1,color,uvs[4],light); face(pose,out,c,4,5,7,6,color,uvs[5],light);

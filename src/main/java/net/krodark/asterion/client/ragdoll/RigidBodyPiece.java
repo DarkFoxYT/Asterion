@@ -25,6 +25,8 @@ final class RigidBodyPiece {
     ItemStack footEquipment = ItemStack.EMPTY;
     ItemStack heldItem = ItemStack.EMPTY;
     float[][] faceUvs;
+    java.util.List<ModelBox> modelBoxes = java.util.List.of();
+    record ModelBox(net.minecraft.client.model.geom.ModelPart.Cube cube, org.joml.Matrix4f transform, boolean overlay) { }
     float[][] overlayFaceUvs;
     final Quaternionf orientation = new Quaternionf();
     final Quaternionf previousOrientation = new Quaternionf();

@@ -341,6 +341,7 @@ public final class DismembermentEngine {
                 RagdollPalette.forEntity(entity, RagdollRuntime.INSTANCE.config), geometry.faceUvs,
                 geometry.overlayFaceUvs, geometry.orientation);
         snapshotEquipment(piece, entity);
+        piece.modelBoxes = geometry.modelBoxes;
         RigidBodyPiece parent = parentRegion < 0 ? null : find(entity.getId(), parentRegion);
         if (parent != null) {
             Vec3 socket = geometry.jointOffset != null
@@ -880,18 +881,13 @@ public final class DismembermentEngine {
                     case 5 -> humanoid.leftLeg;
                     default -> humanoid.body;
                 };
-                if (!basePart.isEmpty()) {
-                    ModelPart.Cube baseCube = basePart.getRandomCube(
-                            RandomSource.create(0x5A17L + region * 31L));
-                    for (ModelCube sample : cubes) if (sample.cube == baseCube) {
-                        selected = sample;
-                        break;
-                    }
-                }
+                selected = largestCubeUnder(basePart, cubes,
+                        model instanceof PlayerModel playerModel ? playerOverlay(playerModel, region) : null);
             }
             double best = Double.POSITIVE_INFINITY;
+            boolean searchFallback = selected == null;
             for (ModelCube sample : cubes) {
-                if (selected != null) break;
+                if (!searchFallback) break;
                 if (excludedPaths.contains(sample.path)) continue;
                 double cx = (((sample.bounds[0] + sample.bounds[1]) * 0.5f) - minX) / spanX;
                 double cy = (((sample.bounds[2] + sample.bounds[3]) * 0.5f) - minY) / spanY;
@@ -970,16 +966,84 @@ public final class DismembermentEngine {
                     case 5 -> playerModel.leftPants;
                     default -> playerModel.jacket;
                 };
-                if (!overlayPart.isEmpty())
-                    overlayUvs = uvFaces(overlayPart.getRandomCube(
-                            RandomSource.create(0x0A71E2L + region * 43L)));
+                ModelCube overlayCube = largestCubeUnder(overlayPart, cubes);
+                if (overlayCube != null) overlayUvs = uvFaces(overlayCube.cube);
             }
+            List<RigidBodyPiece.ModelBox> modelBoxes = model instanceof PlayerModel playerModel
+                    ? captureCustomPlayerBoxes(entity, region, playerModel, cubes, offset, orientation, scale)
+                    : List.of();
             return new BodyGeometry(offset, half, uvFaces(source), overlayUvs,
-                    orientation, selected.path, jointOffset);
+                    orientation, selected.path, jointOffset, modelBoxes);
         } catch (RuntimeException ignored) {
             return new BodyGeometry(fallbackOffset, fallbackHalf,
                     resolveFaceUvs(entity, region), null, new Quaternionf());
         }
+    }
+
+    private static List<RigidBodyPiece.ModelBox> captureCustomPlayerBoxes(Entity entity, int region,
+            PlayerModel model, List<ModelCube> samples, Vec3 offset, Quaternionf orientation, double scale) {
+        ModelPart base = switch (region) {
+            case 0 -> model.head; case 2 -> model.rightArm; case 3 -> model.leftArm;
+            case 4 -> model.rightLeg; case 5 -> model.leftLeg; default -> model.body;
+        };
+        if (!base.getClass().getName().startsWith("traben.entity_model_features.")) return List.of();
+        Set<ModelPart.Cube> body = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        Set<ModelPart.Cube> outer = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        base.visit(new PoseStack(), (pose, path, index, cube) -> body.add(cube));
+        playerOverlay(model, region).visit(new PoseStack(), (pose, path, index, cube) -> outer.add(cube));
+        Vec3 center = entity.getBoundingBox().getCenter().add(offset);
+        Vec3 clearance = switch (region) {
+            case 2 -> new Vec3(.060, 0, 0); case 3 -> new Vec3(-.060, -.018, 0);
+            case 4, 5 -> new Vec3(0, -.032, 0); default -> Vec3.ZERO;
+        };
+        var frame = new org.joml.Matrix4f().translation((float)center.x, (float)center.y, (float)center.z)
+                .rotate(orientation).invert()
+                .translate((float)entity.getX(), (float)entity.getY(), (float)entity.getZ())
+                .rotateY((float)Math.toRadians(180 - ((Player)entity).getPreciseBodyRotation(1)))
+                .translate((float)clearance.x, (float)(1.5 * scale + clearance.y), (float)clearance.z)
+                .rotateZ((float)Math.PI).scale((float)scale);
+        List<RigidBodyPiece.ModelBox> result = new ArrayList<>();
+        for (ModelCube sample : samples) {
+            if (!body.contains(sample.cube) && !outer.contains(sample.cube)) continue;
+            ModelPart node = model.root();
+            boolean visible = node.visible;
+            for (String name : sample.path.split("/")) {
+                if (name.isEmpty()) continue;
+                if (!node.hasChild(name)) { visible = false; break; }
+                node = node.getChild(name);
+                visible &= node.visible;
+            }
+            if (visible && !node.skipDraw)
+                result.add(new RigidBodyPiece.ModelBox(sample.cube,
+                        new org.joml.Matrix4f(frame).mul(sample.pose.pose()), outer.contains(sample.cube)));
+        }
+        return List.copyOf(result);
+    }
+
+    private static ModelCube largestCubeUnder(ModelPart part, List<ModelCube> samples) {
+        return largestCubeUnder(part, samples, null);
+    }
+
+    private static ModelPart playerOverlay(PlayerModel model, int region) {
+        return switch (region) {
+            case 0 -> model.hat; case 2 -> model.rightSleeve; case 3 -> model.leftSleeve;
+            case 4 -> model.rightPants; case 5 -> model.leftPants; default -> model.jacket;
+        };
+    }
+
+    private static ModelCube largestCubeUnder(ModelPart part, List<ModelCube> samples, ModelPart excluded) {
+        Set<ModelPart.Cube> descendants = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        part.visit(new PoseStack(), (pose, path, index, cube) -> descendants.add(cube));
+        if (excluded != null) excluded.visit(new PoseStack(), (pose, path, index, cube) -> descendants.remove(cube));
+        ModelCube largest = null;
+        double volume = -1;
+        for (ModelCube sample : samples) {
+            if (!descendants.contains(sample.cube)) continue;
+            var cube = sample.cube;
+            double candidate = Math.abs((cube.maxX - cube.minX) * (cube.maxY - cube.minY) * (cube.maxZ - cube.minZ));
+            if (candidate > volume) { largest = sample; volume = candidate; }
+        }
+        return largest;
     }
 
     private static float[] transformedBounds(PoseStack.Pose pose, ModelPart.Cube cube) {
@@ -1001,7 +1065,12 @@ public final class DismembermentEngine {
 
     private record ModelCube(ModelPart.Cube cube, PoseStack.Pose pose, String path, float[] bounds) { }
     private record BodyGeometry(Vec3 offset, Vec3 halfExtents, float[][] faceUvs, float[][] overlayFaceUvs,
-                                Quaternionf orientation, String modelPath, Vec3 jointOffset) {
+                                Quaternionf orientation, String modelPath, Vec3 jointOffset,
+                                List<RigidBodyPiece.ModelBox> modelBoxes) {
+        private BodyGeometry(Vec3 offset, Vec3 halfExtents, float[][] faceUvs, float[][] overlayFaceUvs,
+                             Quaternionf orientation, String modelPath, Vec3 jointOffset) {
+            this(offset, halfExtents, faceUvs, overlayFaceUvs, orientation, modelPath, jointOffset, List.of());
+        }
         private BodyGeometry(Vec3 offset, Vec3 halfExtents, float[][] faceUvs,
                              float[][] overlayFaceUvs, Quaternionf orientation) {
             this(offset, halfExtents, faceUvs, overlayFaceUvs, orientation, null, null);
@@ -1848,6 +1917,7 @@ public final class DismembermentEngine {
                     part.halfExtents = geometry.halfExtents;
                     part.faceUvs = geometry.faceUvs;
                     part.overlayFaceUvs = geometry.overlayFaceUvs;
+                    part.modelBoxes = geometry.modelBoxes;
                 }
             }
             entry.setValue(skin);
