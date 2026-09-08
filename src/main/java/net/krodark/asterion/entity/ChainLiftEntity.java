@@ -24,6 +24,7 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
     private static final EntityDataAccessor<Float> TO = SynchedEntityData.defineId(ChainLiftEntity.class, EntityDataSerializers.FLOAT);
     private static final EntityDataAccessor<Integer> CEILING = SynchedEntityData.defineId(ChainLiftEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Long> START = SynchedEntityData.defineId(ChainLiftEntity.class, EntityDataSerializers.LONG);
+    private static final EntityDataAccessor<String> RIDERS = SynchedEntityData.defineId(ChainLiftEntity.class, EntityDataSerializers.STRING);
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private final InterpolationHandler interpolation = new InterpolationHandler(this, 1);
     private int waiting;
@@ -36,6 +37,7 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
     @Override protected void defineSynchedData(SynchedEntityData.Builder data) {
         data.define(ANCHOR, BlockPos.ZERO); data.define(FROM, 0F); data.define(TO, 0F);
         data.define(CEILING, Integer.MIN_VALUE); data.define(START, 0L);
+        data.define(RIDERS, "");
     }
     public void configure(BlockPos anchor, int ceiling) {
         entityData.set(ANCHOR, anchor); entityData.set(CEILING, ceiling);
@@ -123,6 +125,28 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
         }
         return null;
     }
+
+    public boolean carries(Entity entity) {
+        return entityData.get(RIDERS).contains("," + entity.getId() + ",");
+    }
+
+    /** Remote player position packets lag behind the lift's deterministic movement clock. */
+    public static ChainLiftEntity renderSupport(Entity entity) {
+        if (!entity.isAlive() || entity.isSpectator() || entity.isPassenger()
+                || entity instanceof Player player && player.getAbilities().flying) return null;
+        for (ChainLiftEntity lift : entity.level().getEntitiesOfClass(ChainLiftEntity.class,
+                entity.getBoundingBox().inflate(.1, 8, .1))) {
+            if (!lift.isAlive() || !lift.overlapsDeck(entity.getBoundingBox())) continue;
+            if (entity instanceof Player player && player.isLocalPlayer()) {
+                if (lift.supports(entity)) return lift;
+            } else if (lift.carries(entity)) return lift;
+        }
+        return null;
+    }
+
+    public double renderedDeckY(float partialTick) {
+        return net.minecraft.util.Mth.lerp(partialTick, yo, getY()) + .5;
+    }
     @Override public void tick() {
         super.tick();
         interpolation.cancel();
@@ -130,6 +154,12 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
         if (!level().isClientSide() && !level().getBlockState(anchor()).is(ChainLiftContent.ANCHOR)) { discard(); return; }
         if (level() instanceof ServerLevel server && --runeCheckTicks <= 0) { ensureCallRunes(server); runeCheckTicks = 100; }
         var riders = level().getEntities(this, getBoundingBox().inflate(0, .7, 0).expandTowards(0, 2, 0), this::supports);
+        if (!level().isClientSide()) {
+            String ids = riders.stream().filter(entity -> entity instanceof Player)
+                    .map(Entity::getId).sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+            // SynchedEntityData sends this only when boarding membership changes, not every tick.
+            entityData.set(RIDERS, ids.isEmpty() ? "" : "," + ids + ",");
+        }
         double next = scheduledY(level().getGameTime()), dy = next - getY();
         if (!level().isClientSide() && Math.abs(dy) > .00001) {
              

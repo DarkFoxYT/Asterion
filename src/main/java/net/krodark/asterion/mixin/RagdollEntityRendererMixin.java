@@ -27,6 +27,10 @@ abstract class RagdollEntityRendererMixin {
         if (entity instanceof net.minecraft.world.entity.player.Player) {
             Vec3 handFeet = net.krodark.asterion.client.render.entity.MinotaurHandAttachment.feet(entity);
             if (handFeet != null) state.passengerOffset = handFeet.subtract(new Vec3(state.x, state.y, state.z));
+            else {
+                var lift = net.krodark.asterion.entity.ChainLiftEntity.renderSupport(entity);
+                if (lift != null) state.passengerOffset = new Vec3(0, lift.renderedDeckY(partialTicks) - state.y, 0);
+            }
         }
     }
 }
