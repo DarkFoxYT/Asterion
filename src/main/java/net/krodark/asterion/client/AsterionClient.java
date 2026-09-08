@@ -5,7 +5,6 @@ import net.krodark.asterion.client.audio.MazeAmbience;
 import net.krodark.asterion.client.cinematic.BossEntranceCinematic;
 import net.krodark.asterion.client.cinematic.BossFinaleOverlay;
 import net.krodark.asterion.client.cinematic.CinematicControls;
-import net.krodark.asterion.client.cinematic.CinematicDebugCommands;
 import net.krodark.asterion.client.cinematic.CinematicHud;
 import net.krodark.asterion.client.cinematic.CrucibleCamera;
 import net.krodark.asterion.client.cinematic.CursedBrazierCinematic;
@@ -59,8 +58,6 @@ import net.fabricmc.fabric.api.client.particle.v1.ParticleProviderRegistry;
 public final class AsterionClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
-        CinematicDebugCommands.register();
-        net.krodark.asterion.dev.EssentialLaunchSmokeTest.install();
         net.krodark.asterion.client.render.HeavyWaterRendering.initialize();
         AsterionEmissiveConfig.load();
         AsterionEmissiveParticles.initialize();

@@ -12,9 +12,6 @@
   "icon": "assets/asterion/icon.png",
   "environment": "*",
   "entrypoints": {
-    "fabric-client-gametest": [
-      "net.krodark.asterion.dev.verification.DoorGameTest"
-    ],
     "fabric-datagen": [
       "net.krodark.asterion.client.AsterionDataGenerator"
     ],

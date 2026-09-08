@@ -225,9 +225,6 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private int pillarOpportunityTicks;
     private final int[] bossAttackLockouts = new int[BossAttack.values().length];
     private BossAttack bossAttack = BossAttack.NONE;
-    private boolean debugMode, debugAutomatic = true, debugPaused;
-    private Vec3 debugOrigin = Vec3.ZERO;
-    private String debugDecision = "Starting debug encounter";
     private BossAttack lastBossAttack = BossAttack.NONE;
     private BossAttack attackBeforeLast = BossAttack.NONE;
     private final ServerBossEvent healthBossBar = new ServerBossEvent(UUID.randomUUID(),
@@ -389,106 +386,11 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private boolean wasObserved;
 
      
-    @Override public boolean shouldBeSaved() { return !debugMode && super.shouldBeSaved(); }
-    public boolean isDebugMinotaur() { return debugMode; }
-    public void beginDebug(ServerPlayer owner) {
-        debugMode = true; debugOrigin = position(); eclipseTarget = owner.getUUID();
-        beginBossIntercept(owner);
-        setBossStage(BossStage.EXTREME);
-        debugAutomatic = true; debugPaused = false;
-        bossAttackCooldown = 40;
-        setPersistenceRequired();
-    }
-    public static java.util.List<String> debugAttackNames() {
-        return Arrays.stream(BossAttack.values()).filter(MinotaurEntity::enabledAttack)
-                .map(a -> a.name().toLowerCase(java.util.Locale.ROOT)).toList();
-    }
-    public boolean forceDebugAttack(ServerPlayer owner, String name) {
-        if (!debugMode || !owner.getUUID().equals(eclipseTarget) || bossAttack != BossAttack.NONE) return false;
-        BossAttack attack;
-        try { attack = BossAttack.valueOf(name.toUpperCase(java.util.Locale.ROOT)); }
-        catch (IllegalArgumentException error) { return false; }
-        if (!enabledAttack(attack)) return false;
-        debugPaused = false; debugAutomatic = false;
-        if (attack == BossAttack.ARROW_RETURN) storedArrows = 5;
-        debugDecision = "Forced by debug command";
-        beginBossAttack(owner, attack);
-        return true;
-    }
-    public void setDebugRunning(boolean automatic) {
-        debugAutomatic = automatic; debugPaused = !automatic;
-        debugDecision = automatic ? "Automatic attack selection enabled" : "Paused by debug command";
-    }
-    public void stopDebug() {
-        if (thrownAxe != null && level() instanceof ServerLevel server) {
-            var axe = server.getEntity(thrownAxe); if (axe != null) axe.discard();
-        }
-        if (level() instanceof ServerLevel level) clearBossFire(level);
-        healthBossBar.removeAllPlayers(); discard();
-    }
-    public String debugStatus() {
-        var target = debugMode && eclipseTarget != null ? level().getPlayerByUUID(eclipseTarget) : getTarget();
-        String distance = target == null ? "none" : String.format(java.util.Locale.ROOT, "%.1fm", distanceTo(target));
-        return "State=" + (debugPaused ? "PAUSED" : behaviorPhase()) + "/" + bossStage
-                + " | weapon=" + (weaponMode() == 1 ? "AXE" : weaponMode() == 2 ? "SWORDS" : "FREE_HANDS")
-                + " swap=" + weaponSwapTicks() + " axeOut=" + axeInWorld()
-                + " | attack=" + bossAttack + " tick=" + (bossAttack == BossAttack.NONE ? 0 : bossAttackTicks) + " cooldown=" + bossAttackCooldown
-                + " | HP=" + Math.round(getHealth()) + "/" + Math.round(getMaxHealth()) + " rage=" + rage()
-                + " | target=" + (target == null ? "none" : target.getPlainTextName()) + " range=" + distance
-                + " LOS=" + (target != null && hasLineOfSight(target)) + " | Decision: " + currentDecision();
-    }
-    public String debugStateKey() { return debugPaused + "/" + bossStage + "/" + bossAttack + "/" + currentDecision()
-            + "/" + weaponMode() + "/" + weaponSwapTicks() / 10 + "/" + axeInWorld(); }
-    private String currentDecision() {
-        if (debugMode) return debugDecision;
-        if (doorEntryTicks() > 0) return "Breaching the sealed boss entrance";
-        if (bossStage == BossStage.COLLAPSE) return collapseTicks < 118 ? "Collapsed beneath rubble" : "Reviving through smoke";
-        if (bossAttack == BossAttack.RETRIEVE_AXE) return axePickupGoal == null ? "Searching for a reachable pickup spot" : "Following a path to the axe";
-        if (weaponSwapTicks() > 0) return "Changing weapons before attacking";
-        if (bossAttack != BossAttack.NONE) return "Executing " + bossAttack;
-        if (bossAttackCooldown > 0) return "Recovering and closing distance";
-        return "Selecting by range, line of sight, rage and attack cooldowns";
-    }
-
-    private void tickDebugBoss(ServerLevel level) {
-        var owner = level.getPlayerByUUID(eclipseTarget);
-        if (!(owner instanceof ServerPlayer player) || !player.isAlive() || player.isSpectator()) {
-            debugDecision = "Owner unavailable; ending test"; stopDebug(); return;
-        }
-        setTarget(player);
-        if (!debugPaused) tickRegeneration(level);
-        if (debugPaused) { getNavigation().stop(); setDeltaMovement(Vec3.ZERO); return; }
-        for (int i = 0; i < bossAttackLockouts.length; i++) if (bossAttackLockouts[i] > 0) bossAttackLockouts[i]--;
-        trackedPlayerVelocity = trackedPlayerVelocity.lerp(player.getDeltaMovement().multiply(1, 0, 1), .24);
-        getLookControl().setLookAt(player, 12, 12);
-        if (bossAttack != BossAttack.NONE) {
-            tickBossAttack(level, player);
-            if (bossAttackTicks > 240) { finishBossAttack(20); debugDecision = "Attack timeout; resetting"; }
-            return;
-        }
-        if (tickPendingCombos(level)) { debugDecision = "Throw follow-up: " + bossAttack; return; }
-        if (!debugAutomatic) { getNavigation().stop(); debugDecision = "Waiting for an attack command"; return; }
-        if (bossAttackCooldown > 0) {
-            bossAttackCooldown--;
-            debugDecision = "Recovering; approaching target if out of reach";
-            if (distanceTo(player) > 5) getNavigation().moveTo(player, .8);
-            return;
-        }
-        BossAttack selected = chooseExtremeAttack(player, distanceTo(player));
-        if (selected == BossAttack.NONE) {
-            getNavigation().moveTo(player, .8); bossAttackCooldown = 8;
-            debugDecision = "No eligible attack at current range/cooldowns; repositioning";
-        } else {
-            debugDecision = "Selected " + selected + " using range, cooldowns and recent attacks";
-            beginBossAttack(player, selected);
-        }
-        tickChaseRumble();
-    }
     private int clearCombatObstacle(ServerLevel level, AABB bounds) {
         return 0;  
     }
-    private Vec3 combatPoint(Vec3 point) { return debugMode ? point : WorldGenerator.clampBossArena(point); }
-    private Vec3 combatCenter() { return debugMode ? debugOrigin : WorldGenerator.bossArenaCenter(); }
+    private Vec3 combatPoint(Vec3 point) { return WorldGenerator.clampBossArena(point); }
+    private Vec3 combatCenter() { return WorldGenerator.bossArenaCenter(); }
     private int lastWallDebrisTick = -20;
     private int breakCombatWall(ServerLevel level, AABB bounds, MinotaurEntity boss) {
         Vec3 forward = bounds.getCenter().subtract(position()).multiply(1, 0, 1).normalize();
@@ -819,7 +721,6 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if (behaviorPhase() == BehaviorPhase.BOSS && bossStage != BossStage.COLLAPSE
                 && bossStage != BossStage.DEFEATED && doorEntryTicks() == 0 && isAlive()) smokeClouds.tick(level, this);
         else smokeClouds.clear();
-        if (debugMode) { tickDebugBoss(level); return; }
         if (tickDoorEntry(level)) return;
         breakEntanglingCobwebs(level);
         tickHeavyLanding(level);
@@ -2022,7 +1923,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         wallComboWindow--;
         Player found = wallComboTarget == null ? null : level.getPlayerByUUID(wallComboTarget);
         ServerPlayer target = found instanceof ServerPlayer serverPlayer ? serverPlayer : null;
-        if (target == null || !target.isAlive() || (!debugMode && target.isCreative()) || target.isSpectator()) {
+        if (target == null || !target.isAlive() || target.isCreative() || target.isSpectator()) {
             throwPursuitPending = false;
             wallComboTarget = null;
             wallComboWindow = 0;
@@ -2130,7 +2031,6 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 player.invulnerableTime = 0;
                 player.hurtServer(level, damageSources().mobAttack(this), 10.0F);
                 scheduleWallCombo(player, 150);
-                debugDecision = "Throw hit a wall; pursuing with charge or punch";
                 level.sendParticles(ParticleTypes.EXPLOSION, player.getX(), player.getY() + .8, player.getZ(), 3, .4, .5, .4, .02);
                 playSound(SoundEvents.PLAYER_BIG_FALL, 2F, .65F);
             }
@@ -2184,7 +2084,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     private void setRage(int value) {
-        if (!debugMode && behaviorPhase() == BehaviorPhase.BOSS && level() instanceof ServerLevel server) {
+        if (behaviorPhase() == BehaviorPhase.BOSS && level() instanceof ServerLevel server) {
             if (bossStage == BossStage.EXTREME) value = 12;
             else if (bossStage == BossStage.PILLARS) value = Math.min(value, WorldGenerator.activeBossBraziers(server) * 2);
         }
@@ -2201,7 +2101,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     private void tickBrazierRage(ServerLevel level) {
-        if (debugMode || bossStage == BossStage.DEFEATED || phaseTicks % 20 != 0) return;
+        if (bossStage == BossStage.DEFEATED || phaseTicks % 20 != 0) return;
         long now = level.getGameTime();
         java.util.Set<BlockPos> present = new java.util.HashSet<>();
         for (BlockPos pos : net.krodark.asterion.worldgen.CatacombArena.braziers(level)) {
@@ -2382,7 +2282,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     boolean greekFirePowered() {
-        return debugMode || level() instanceof ServerLevel server && WorldGenerator.activeBossBraziers(server) > 0;
+        return level() instanceof ServerLevel server && WorldGenerator.activeBossBraziers(server) > 0;
     }
 
     private void recordCloseDamage(DamageSource source, float damage) {
@@ -3160,8 +3060,6 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
      
 
-
-
     private void pushIntersectingPlayers(ServerLevel level) {
         if (!isAlive() || bossStage == BossStage.DEFEATED) return;
         Vec3 bodyMotion = getDeltaMovement().multiply(1.0D, 0.0D, 1.0D);
@@ -3544,7 +3442,6 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 lockReachTo(target);
                 bossAttackTicks = 8;
                 getEntityData().set(DATA_BOSS_ATTACK_TICKS, 8);
-                debugDecision = "Chain connected: catching and throwing the player";
             } else finishBossAttack(30);
         }
     }
@@ -3563,7 +3460,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     private void tickGreekFireLaser(ServerLevel level, ServerPlayer player) {
-        int braziers = debugMode ? 4 : WorldGenerator.activeBossBraziers(level);
+        int braziers = WorldGenerator.activeBossBraziers(level);
         if (braziers == 0) { finishBossAttack(66); return; }
         setDeltaMovement(getDeltaMovement().multiply(0.04D, 1.0D, 0.04D));
         Vec3 origin = getEyePosition().add(0.0D, -0.25D, 0.0D);
@@ -3808,7 +3705,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private void tickWallShove(ServerLevel level, ServerPlayer player) {
         Player found = wallComboTarget == null ? null : level.getPlayerByUUID(wallComboTarget);
         ServerPlayer target = found instanceof ServerPlayer serverPlayer ? serverPlayer : player;
-        if (target == null || !target.isAlive() || (!debugMode && target.isCreative()) || target.isSpectator()) {
+        if (target == null || !target.isAlive() || target.isCreative() || target.isSpectator()) {
             finishBossAttack(34);
             return;
         }
@@ -4087,7 +3984,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         }
         if (collapseTicks >= 34 && collapseTicks <= 136 && (collapseTicks - 34) % 3 == 0)
             WorldGenerator.collapseBossRoofRing(level,
-                    debugMode ? collapseAnchor : combatCenter(), (collapseTicks - 34) / 3);
+                    combatCenter(), (collapseTicks - 34) / 3);
         if (collapseTicks >= 36 && collapseTicks <= 108 && collapseTicks % 12 == 0) {
             float force = 1.4F + (collapseTicks - 36) / 72.0F * 2.2F;
             broadcastMinotaurImpact(level, collapseAnchor.add(0, 28, 0), 110.0F, force, 18);
@@ -4151,7 +4048,6 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             if (lead.lengthSqr() > 4) lead = lead.normalize().scale(2);
             leapPlan = MinotaurLeapPlan.find(level, this, player.position().add(lead));
             if (leapPlan == null) {
-                debugDecision = "Leap cancelled: no clear body arc or supported landing; routing around obstacle";
                 obstacleLeapRetryTick = tickCount + 60;
                 finishBossAttack(18);
                 return;
@@ -4594,11 +4490,9 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         bossObstacleTicks = 0;
         if (getTarget() instanceof ServerPlayer target && attackReady(BossAttack.LEAP)
                 && MinotaurLeapPlan.find(level, this, target.position()) != null) {
-            debugDecision = "Obstacle ahead: committing to a checked leap toward the player";
             beginBossAttack(target, BossAttack.LEAP);
         } else {
             getNavigation().stop();
-            debugDecision = "Obstacle cannot be vaulted safely; finding another route";
         }
     }
 
@@ -5032,12 +4926,6 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if (amount > 0 && source.getEntity() instanceof ServerPlayer attacker && behaviorPhase() == BehaviorPhase.BOSS
                 && doorEntryTicks() == 0 && bossStage != BossStage.DEFEATED && bossStage != BossStage.COLLAPSE)
             combatThreat.merge(attacker.getUUID(), (double)Math.min(30, amount), Double::sum);
-        if (debugMode) {
-            float before = getHealth();
-            boolean damaged = super.hurtServer(level, source, Math.min(amount, Math.max(0, before - 1)));
-            if (damaged) { interruptRegeneration(); recordCloseDamage(source, before - getHealth()); }
-            return damaged;
-        }
         if (doorEntryTicks() > 0) return false;
         if (source.getEntity() == this || source.getDirectEntity() == this
                 || source.is(DamageTypeTags.IS_FIRE)) return false;

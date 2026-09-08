@@ -1,11 +1,9 @@
 package net.krodark.asterion.dev;
 
- 
 public final class EssentialClientLaunch {
     private EssentialClientLaunch() { }
     public static void main(String[] args) throws Exception {
-         
-         
+
         var mods = new java.util.LinkedHashSet<String>();
         String existing = System.getProperty("fabric.addMods", "");
         if (!existing.isEmpty()) mods.add(existing);

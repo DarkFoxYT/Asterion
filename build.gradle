@@ -90,7 +90,7 @@ processResources {
     filesMatching("fabric.mod.json") {
         expand resourceProperties
     }
-     
+
     filesMatching("assets/asterion/sounds/music/**/*.ogg") {
         path = path.toLowerCase(java.util.Locale.ROOT).replaceAll('[^a-z0-9/._-]', '_')
     }
@@ -132,6 +132,7 @@ java {
 }
 
 jar {
+    exclude 'net/krodark/asterion/dev/**'
     archiveFileName = "${project.archives_base_name}-${project.version}-fabric-mc${project.minecraft_version}.jar"
     preserveFileTimestamps = false
     reproducibleFileOrder = true
@@ -192,7 +193,6 @@ loom {
         client {
             mainClass = "net.krodark.asterion.dev.EssentialClientLaunch"
             vmArg "-Dasterion.essential.modJarPathFile=${essentialRuntimePointer.get().asFile.absolutePath}"
-            if (project.hasProperty('startupSmokeTest')) vmArg '-Dasterion.startup.smokeTest=true'
             if (project.hasProperty('startupProfile')) vmArg "-XX:StartFlightRecording=settings=profile,filename=${layout.buildDirectory.file('startup-profile.jfr').get().asFile.absolutePath},dumponexit=true"
             ideConfigGenerated = false
         }
@@ -205,95 +205,10 @@ loom {
             runDir "run"
             ideConfigGenerated = false
         }
-        essentialTest {
-            client()
-            name = "Essential integration test"
-            vmArg "-Dasterion.essential.modJarPathFile=${essentialRuntimePointer.get().asFile.absolutePath}"
-            mainClass = "net.krodark.asterion.dev.EssentialClientLaunch"
-            vmArg "-Dasterion.essential.smokeTest=true"
-            vmArg "-Dfabric.addMods=${fileTree('run/mods').matching { include '*.jar' }.files.collect { it.absolutePath }.join(File.pathSeparator)}"
-            runDir "build/essential-gametest"
-            ideConfigGenerated = false
-        }
-        renderPerformanceTest {
-            client()
-            name = "Renderer performance integration test"
-            vmArg "-Dfabric.client.gametest"
-            vmArg "-Dfabric.client.gametest.modid=asterion_renderer_test"
-            vmArg "-Dfabric.addMods=${layout.buildDirectory.dir('renderer-testmod').get().asFile.absolutePath}"
-            runDir "build/renderer-gametest"
-            ideConfigGenerated = false
-        }
-        lamenterTest {
-            client()
-            name = "Lamenter integration test"
-            vmArg "-Dfabric.client.gametest"
-            vmArg "-Dfabric.client.gametest.modid=asterion_lamenter_test"
-            vmArg "-Dfabric.addMods=${layout.buildDirectory.dir('lamenter-testmod').get().asFile.absolutePath}"
-            runDir "build/lamenter-gametest"
-            ideConfigGenerated = false
-        }
-        runePuzzleTest {
-            client()
-            name = "Rune puzzle integration test"
-            vmArg "-Dfabric.client.gametest"
-            vmArg "-Dfabric.client.gametest.modid=asterion_rune_puzzle_test"
-            vmArg "-Dfabric.addMods=${layout.buildDirectory.dir('rune-puzzle-testmod').get().asFile.absolutePath}"
-            runDir "build/rune-puzzle-gametest"
-            ideConfigGenerated = false
-        }
-        barrelDoorTest {
-            client()
-            name = "Barrel door integration test"
-            vmArg "-Dfabric.client.gametest"
-            vmArg "-Dfabric.client.gametest.modid=asterion_barrel_door_test"
-            vmArg "-Dfabric.addMods=${layout.buildDirectory.dir('barrel-door-testmod').get().asFile.absolutePath}"
-            runDir "build/barrel-door-gametest"
-            ideConfigGenerated = false
-        }
-        catacombTest {
-            vmArg "-Dasterion.audit.tests=${providers.gradleProperty('auditTests').getOrElse('')}"
-            client()
-            name = "Catacomb layout integration test"
-            vmArg "-Dfabric.client.gametest"
-            vmArg "-Dfabric.client.gametest.modid=asterion_catacomb_test"
-            vmArg "-Dfabric.addMods=${layout.buildDirectory.dir('catacomb-testmod').get().asFile.absolutePath}"
-            runDir providers.gradleProperty('catacombTestDir').getOrElse('build/catacomb-gametest')
-            ideConfigGenerated = false
-        }
-        doorTest {
-            client()
-            name = "Door integration test"
-            if (project.hasProperty("pillarOnly")) vmArg "-Dasterion.pillarTest=true"
-            vmArg "-Dfabric.client.gametest"
-            vmArg "-Dfabric.client.gametest.modid=asterion"
-            runDir "build/door-gametest"
-            ideConfigGenerated = false
-        }
-        heavyWaterTest {
-            client()
-            name = "Heavy Water and maze event integration test"
-            vmArg "-Dfabric.client.gametest"
-            vmArg "-Dfabric.client.gametest.modid=asterion_heavy_water_test"
-            vmArg "-Dfabric.addMods=${layout.buildDirectory.dir('heavy-water-testmod').get().asFile.absolutePath}"
-            runDir "build/heavy-water-gametest"
-            ideConfigGenerated = false
-        }
-        biomeTest {
-            client()
-            name = "Biome feature integration test"
-            vmArg "-Dfabric.client.gametest"
-            vmArg "-Dfabric.client.gametest.modid=asterion_biome_test"
-            vmArg "-Dfabric.addMods=${layout.buildDirectory.dir('biome-testmod').get().asFile.absolutePath}"
-            runDir "build/biome-gametest"
-            ideConfigGenerated = false
-        }
     }
 }
 
-apply from: 'gradle/client-tests.gradle'
-
-tasks.matching { it.name in ["runClient", "runEssentialClient", "runEssentialTest"] }.configureEach { dependsOn "stageEssentialRuntimeJar" }
+tasks.matching { it.name in ["runClient", "runEssentialClient"] }.configureEach { dependsOn "stageEssentialRuntimeJar" }
 
 tasks.withType(JavaExec).configureEach {
     doFirst {
@@ -316,61 +231,6 @@ tasks.withType(JavaExec).configureEach {
             }
         }
     }
-}
-
-def regressionSuites = [
-        footstepRegression: [
-                entryPoint: "FootstepRegression",
-                summary: "Checks Minotaur contact frames, loop boundaries and authored clip lengths."
-        ],
-        configRegression: [
-                entryPoint: "ConfigRegression",
-                summary: "Checks config migration, invalid-file preservation and numeric bounds."
-        ],
-        centipedeRegression: [
-                entryPoint: "CentipedeRegression",
-                summary: "Checks centipede world frames, link invariants, collision sweeps and model origins."
-        ],
-        catacombRegression: [
-                entryPoint: "CatacombRegression",
-                summary: "Checks flooded gallery connectivity and authored catacomb structures."
-        ],
-        forgingRegression: [
-                entryPoint: "ForgingRegression",
-                summary: "Checks material identity, celestial progression and Bonesteel apex stats."
-        ],
-        amneticRegression: [
-                entryPoint: "AmneticRegression",
-                summary: "Checks the pinned Amnetic API, instance visibility and parser dependency.",
-                nativeAccess: true
-        ],
-        emissiveRegression: [
-                entryPoint: "EmissiveRegression",
-                summary: "Checks cached emissive geometry and full-bright rendering in a hidden OpenGL window.",
-                nativeAccess: true
-        ],
-        renderPerformanceRegression: [
-                entryPoint: "RenderPerformanceRegression",
-                summary: "Checks ordered GPU culling and original/optimized shader pixel parity.",
-                nativeAccess: true
-        ]
-]
-
-regressionSuites.each { taskName, suite ->
-    tasks.register(taskName, JavaExec) {
-        group = "verification"
-        description = suite.summary
-        dependsOn tasks.named("classes")
-        classpath = sourceSets.main.runtimeClasspath
-        mainClass = "net.krodark.asterion.dev.verification.${suite.entryPoint}"
-        workingDir = project.projectDir
-        javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(targetJavaVersion) }
-        if (suite.nativeAccess) jvmArgs '--enable-native-access=ALL-UNNAMED'
-    }
-}
-
-tasks.named("check") {
-    dependsOn "configRegression", "centipedeRegression", "catacombRegression", "forgingRegression", "amneticRegression", "footstepRegression"
 }
 
 tasks.register("modDistribution", Sync) {

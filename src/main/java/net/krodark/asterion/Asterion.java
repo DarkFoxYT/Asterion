@@ -47,7 +47,6 @@ import net.krodark.asterion.entity.QueenBeetleEntity;
 import net.krodark.asterion.block.ShortGrassBlock;
 import net.krodark.asterion.event.DeadSunEventSystem;
 import net.krodark.asterion.game.light.DynamicBlockLights;
-import net.krodark.asterion.command.PortalCommands;
 import net.minecraft.core.Registry;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -954,9 +953,7 @@ public class Asterion implements ModInitializer {
         net.krodark.asterion.command.CentipedeCommands.register();
         net.krodark.asterion.event.CatacombFloodState.registerCommands();
         DynamicBlockLights.initialize();
-        PortalCommands.register();
         net.krodark.asterion.command.CatacombLocateCommands.register();
-        net.krodark.asterion.command.MinotaurDebugCommands.register();
         FabricDefaultAttributeRegistry.register(MINOTAUR, MinotaurEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(BOMBARDIER_BEETLE, BombadierBeetleEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(RUNE_BEETLE, net.krodark.asterion.entity.RuneBeetleEntity.createAttributes());

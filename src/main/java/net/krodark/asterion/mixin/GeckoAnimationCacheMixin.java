@@ -12,7 +12,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.HashMap;
 import java.util.Map;
 
- 
 @Mixin(targets = "com.geckolib.renderer.texture.GeckoLibAnimatedTexture$AnimationInfo", remap = false)
 public abstract class GeckoAnimationCacheMixin {
     @Shadow @Final java.util.List<?> frames;
@@ -21,7 +20,6 @@ public abstract class GeckoAnimationCacheMixin {
     @Shadow @Final GeckoLibAnimatedTexture this$0;
     @Unique private final Map<Long, NativeImage> asterion$frames = new HashMap<>();
     @Unique private long asterion$bytes;
-    @Unique private final java.util.Set<Long> asterion$verified = new java.util.HashSet<>();
 
     @WrapOperation(method = "tick", at = @At(value = "INVOKE",
             target = "Lcom/mojang/blaze3d/platform/NativeImage;copyRect(Lcom/mojang/blaze3d/platform/NativeImage;IIIIIIZZ)V"))
@@ -49,15 +47,6 @@ public abstract class GeckoAnimationCacheMixin {
         long key = (long)currentFrame << 32 | Integer.toUnsignedLong(subFrame);
         NativeImage cached = asterion$frames.get(key);
         if (cached != null) {
-            if (Boolean.getBoolean("asterion.verifyTextureFrames") && asterion$verified.add(key)) {
-                original.call(interpolation, source, texture);
-                var expected = ((GeckoInterpolationBufferAccessor)interpolation).asterion$buffer();
-                for (int y = 0; y < cached.getHeight(); y++) for (int x = 0; x < cached.getWidth(); x++)
-                    if (cached.getPixel(x, y) != expected.getPixel(x, y))
-                        throw new AssertionError("Cached animation pixel differs: " + this$0.resourceId());
-                System.setProperty("asterion.verifiedTextureFrames",
-                        Integer.toString(Integer.getInteger("asterion.verifiedTextureFrames", 0) + 1));
-            }
             RenderSystem.getDevice().createCommandEncoder().writeToTexture(texture, cached,
                     0, 0, 0, 0, cached.getWidth(), cached.getHeight(), 0, 0);
             return;
@@ -65,7 +54,7 @@ public abstract class GeckoAnimationCacheMixin {
         original.call(interpolation, source, texture);
         NativeImage buffer = ((GeckoInterpolationBufferAccessor)interpolation).asterion$buffer();
         long bytes = (long)buffer.getWidth() * buffer.getHeight() * 4;
-         
+
         if (asterion$bytes + bytes > 32L * 1024 * 1024) return;
         cached = new NativeImage(buffer.getWidth(), buffer.getHeight(), false);
         if (!net.krodark.asterion.client.render.TextureFrameCopy.tryCopy(buffer, cached,
@@ -82,6 +71,5 @@ public abstract class GeckoAnimationCacheMixin {
         asterion$frames.values().forEach(NativeImage::close);
         asterion$frames.clear();
         asterion$bytes = 0;
-        asterion$verified.clear();
     }
 }

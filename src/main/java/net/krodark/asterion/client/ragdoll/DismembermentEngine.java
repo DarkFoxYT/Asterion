@@ -684,14 +684,14 @@ public final class DismembermentEngine {
                 : entity.getBbHeight() / 1.8;
         scale = Math.max(.55, Math.min(2.4, scale));
         double fraction = switch (region) {
-            case 0 -> .075;       
-            case 1 -> .43;        
-            case 2, 3 -> .036;    
-            case 4, 5 -> .070;    
-            case 9, 10 -> .039;   
-            case 11, 12 -> .075;  
-            case 6 -> .032;       
-            case 7, 8 -> .024;    
+            case 0 -> .075;
+            case 1 -> .43;
+            case 2, 3 -> .036;
+            case 4, 5 -> .070;
+            case 9, 10 -> .039;
+            case 11, 12 -> .075;
+            case 6 -> .032;
+            case 7, 8 -> .024;
             default -> .10;
         };
         double armor = entity instanceof Player player ? armorMassForRegion(player, region) : 0.0;
@@ -1300,7 +1300,6 @@ public final class DismembermentEngine {
         return Identifier.withDefaultNamespace("textures/block/red_concrete.png");
     }
 
-     
     private static BodyGeometry constructGeometry(Entity entity, int region) {
         AABB bounds = entity.getBoundingBox();
         Vec3 modelCenter = switch (region) {
@@ -1344,7 +1343,6 @@ public final class DismembermentEngine {
         };
     }
 
-     
     private static float[][] boxUvs(float wu,float wv,float eu,float ev,float du,float dv,
                                     float uu,float uv,float nu,float nv,float su,float sv,
                                     float width,float height,float depth) {
@@ -1453,10 +1451,7 @@ public final class DismembermentEngine {
         if (!playerTumbles.contains(entityId)) {
             Vec3 direction = impulse.lengthSqr() > 1.0E-8D
                     ? impulse.normalize() : client.player.getViewVector(1.0F);
-             
-             
-             
-             
+
             if (ragdolled.contains(entityId) || ragdoll(client.player, 1,
                     client.player.getBoundingBox().getCenter(), direction,
                     Math.max(0.15F, force), false)) {
@@ -1588,9 +1583,7 @@ public final class DismembermentEngine {
         RigidBodyPiece torso = find(client.player.getId(), 1);
         Vec3 trackingPosition = findSafeTumbleExit(client, client.player.getId());
         if (trackingPosition != null) {
-             
-             
-             
+
             client.player.setPos(trackingPosition.x, trackingPosition.y, trackingPosition.z);
             if (torso != null && ClientPlayNetworking.canSend(TumbleExitPayload.TYPE))
                 ClientPlayNetworking.send(new TumbleExitPayload(
@@ -1804,8 +1797,7 @@ public final class DismembermentEngine {
         if (!(owner instanceof Player) || !owner.isAlive()) return;
         if (owner == client.player && !playback) {
             if (RagdollClientController.isRespawnProtected(client)) return;
-             
-             
+
             if (!ragdolled.contains(owner.getId()))
                 ragdoll(owner, 1, owner.getBoundingBox().getCenter(), owner.getDeltaMovement(),
                         Math.max(0.7D, owner.getDeltaMovement().length()), false);
@@ -1853,9 +1845,7 @@ public final class DismembermentEngine {
             if (part == null) continue;
             Vec3 transmittedVelocity = new Vec3(snapshot.vx(), snapshot.vy(), snapshot.vz());
             double speed = transmittedVelocity.length();
-             
-             
-             
+
             Vec3 target = new Vec3(snapshot.x(), snapshot.y(), snapshot.z());
             double error = part.position.distanceTo(target);
             double positionBlend = Mth.clamp(0.58 + speed * 0.10 + error * 0.16, 0.58, 0.94);
@@ -2016,7 +2006,7 @@ public final class DismembermentEngine {
             }
             return;
         }
-         
+
         for (int id : new ArrayList<>(remotePoseTicks.keySet()))
             if (level.getEntity(id) == null || traumaDecayTicker - remotePoseTicks.get(id) > 60) removeRagdoll(id);
         Set<Integer> departedPlayers = new HashSet<>();
@@ -2068,8 +2058,7 @@ public final class DismembermentEngine {
                 break;
             }
         }
-         
-         
+
         final int configuredSubsteps = switch (net.krodark.asterion.AsterionConfig.INSTANCE.ragdollPhysicsQuality) {
             case 0 -> 2;
             case 1 -> 3;
@@ -3073,7 +3062,7 @@ public final class DismembermentEngine {
             AABB box = entity.getBoundingBox();
             ObbContact contact = obbContact(part, part.position, box);
             if (contact == null) continue;
-            Vec3 normal = contact.normal.scale(-1);  
+            Vec3 normal = contact.normal.scale(-1);
             double correctionDistance = Math.min(0.085, contact.depth + 0.002);
             Vec3 correction = normal.scale(correctionDistance);
             boolean articulated = ragdolled.contains(part.entityId);
@@ -3776,58 +3765,6 @@ public final class DismembermentEngine {
 
     public boolean isRagdolled(int entityId) { return ragdolled.contains(entityId); }
 
-    public RagdollDebugFrame debugFrame(Player player) {
-        if (player == null) return new RagdollDebugFrame(0.0, List.of());
-        List<RagdollDebugPart> result = new ArrayList<>();
-        for (RigidBodyPiece part : pieces) if (part.entityId == player.getId()) {
-            RigidBodyPiece parent = part.parentRegion < 0 ? null : find(part.entityId, part.parentRegion);
-            double constraintError = parent == null ? 0.0
-                    : worldAnchor(part, part.childJointAnchor)
-                    .distanceTo(worldAnchor(parent, part.parentJointAnchor));
-            result.add(new RagdollDebugPart(part.region, debugRegionName(part.region),
-                    part.position, part.position.subtract(part.previous), part.velocity,
-                    part.angularVelocity, part.mass(), part.supportTicks > 0,
-                    part.supportTicks, part.sleeping, part.jointType.name(),
-                    part.contacts.size(), part.contacts.values().stream().findFirst()
-                    .map(contact -> contact.normal).orElse(Vec3.ZERO),
-                    0.5 * part.mass() * part.velocity.lengthSqr(),
-                    part.lastEnergyDelta, constraintError, part.physicsBlend));
-        }
-        result.sort(java.util.Comparator.comparingInt(RagdollDebugPart::region));
-        return new RagdollDebugFrame(playerArmorWeight(player), List.copyOf(result));
-    }
-
-    private static String debugRegionName(int region) {
-        return switch (region) {
-            case 0 -> "HEAD";
-            case 1 -> "TORSO";
-            case 2 -> "R ARM";
-            case 3 -> "L ARM";
-            case 4 -> "R LEG";
-            case 5 -> "L LEG";
-            case 6 -> "CAPE";
-            case 7 -> "L WING";
-            case 8 -> "R WING";
-            case 9 -> "R FOREARM";
-            case 10 -> "L FOREARM";
-            case 11 -> "R SHIN";
-            case 12 -> "L SHIN";
-            case 13 -> "CAPE TIP";
-            case 14 -> "L WING TIP";
-            case 15 -> "R WING TIP";
-            case 30 -> "R ITEM GRIP";
-            case 31 -> "L ITEM GRIP";
-            default -> "PART " + region;
-        };
-    }
-
-    public record RagdollDebugFrame(double armorWeight, List<RagdollDebugPart> parts) { }
-    public record RagdollDebugPart(int region, String name, Vec3 position, Vec3 movement,
-                                   Vec3 velocity, Vec3 angularVelocity, double mass,
-                                   boolean supported, int supportTicks, boolean sleeping,
-                                   String jointType, int contactCount, Vec3 contactNormal,
-                                   double kineticEnergy, double energyDelta,
-                                   double constraintError, float physicsBlend) { }
     public float deformation(int entityId, int region) {
         if (!RagdollRuntime.INSTANCE.config.modelDeformation) return 0.0f;
         long key = ((long) entityId << 32) ^ (region & 0xffffffffL);

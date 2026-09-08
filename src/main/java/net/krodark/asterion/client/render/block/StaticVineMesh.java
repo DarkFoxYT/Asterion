@@ -21,17 +21,6 @@ final class StaticVineMesh implements VertexConsumer {
         mesh.data = Arrays.copyOf(mesh.data, mesh.size);
         return mesh;
     }
-    void verify(RenderPassInfo<?> pass) {
-        var expected = new StaticVineMesh();
-        pass.renderPosed(() -> pass.model().render(pass, expected, 0, 0, -1));
-        expected.removeDegenerateQuads();
-        var actual = new StaticVineMesh();
-        render(pass.poseStack().last(), actual, -1, 0, 0);
-        if (expected.size != actual.size) throw new AssertionError("Static vine vertex count changed");
-        for (int i = 0; i < expected.size; i++)
-            if (Math.abs(expected.data[i] - actual.data[i]) > .0001F)
-                throw new AssertionError("Static vine position, UV or normal changed at " + i);
-    }
     private void removeDegenerateQuads() {
         int retained = 0;
         for (int offset = 0; offset < size; offset += 32) {

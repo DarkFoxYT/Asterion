@@ -495,6 +495,7 @@ public final class AuthoredCatacombs {
         boolean reset = resetting != null && resetting.contains(cp);
         if(!reset && chunk.getBlockState(marker).equals(revisionMarker) && hasArenaFoundation(chunk)) {
             repairArenaApproach(level, chunk);
+            MinotaurArenaEntrances.repairOmegaLock(level, cp);
             return;
         }
         if(retiredApproach)sealRetiredApproach(level,chunk);

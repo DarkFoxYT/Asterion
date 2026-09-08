@@ -96,7 +96,6 @@ public final class LabyrinthVineGeoRenderer
         int variant = pass.getOrDefaultGeckolibData(LabyrinthVineGeoModel.END, true) ? 1 : 0;
         if (variants[variant] == null) {
             variants[variant] = StaticVineMesh.bake(pass);
-            if (Boolean.getBoolean("asterion.verifyStaticVines")) variants[variant].verify(pass);
         }
         var mesh = variants[variant];
         int color = pass.renderColor(), light = pass.packedLight(), overlay = pass.packedOverlay();

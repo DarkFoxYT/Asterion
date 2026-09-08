@@ -218,9 +218,15 @@ public final class MinotaurArenaEntrances {
      
     private static void ensureOmegaLock(ServerLevel level) {
         if (BossArenaEncounter.isIntroCinematic(level)) return;
-        if(level.getBlockState(OMEGA_LOCK_POSITION).is(Asterion.MAZESTEEL_GATE))
+        var state = level.getBlockState(OMEGA_LOCK_POSITION);
+        if(state.is(Asterion.MAZESTEEL_GATE) || state.isAir() && omegaGateLocked(level))
             level.setBlock(OMEGA_LOCK_POSITION,Asterion.OMEGA_LOCK.defaultBlockState()
                     .setValue(net.krodark.asterion.block.OmegaLockBlock.FACING,Direction.NORTH),3);
+    }
+
+    public static void repairOmegaLock(ServerLevel level, net.minecraft.world.level.ChunkPos chunk) {
+        if (chunk.equals(net.minecraft.world.level.ChunkPos.containing(OMEGA_LOCK_POSITION))
+                && omegaGateLocked(level)) ensureOmegaLock(level);
     }
 
     public static void setOmegaLockVisible(ServerLevel level, boolean visible) {
@@ -241,7 +247,7 @@ public final class MinotaurArenaEntrances {
             return true;
         }
         var state=level.getBlockState(pos);
-        if(state.isAir())return true;
+        if(state.isAir())return !omegaGateLocked(level);
         if(!state.is(Asterion.OMEGA_LOCK))return false;
         if(state.getValue(net.krodark.asterion.block.OmegaLockBlock.UNLOCKED))level.removeBlock(pos,false);
         return true;
