@@ -183,7 +183,8 @@ public final class RagdollServerNetworking {
         } else if (tracked.isAlive() || sender.distanceToSqr(tracked) > 48 * 48) return;
 
         for (ServerPlayer viewer : sender.level().players()) {
-            if (viewer != sender && viewer.distanceToSqr(center) < 96 * 96
+            // Echo to the owner too: replay recorders capture incoming packets, not our local physics.
+            if (viewer.distanceToSqr(center) < 96 * 96
                     && ServerPlayNetworking.canSend(viewer, RagdollPosePayload.TYPE)) {
                 ServerPlayNetworking.send(viewer, payload);
             }

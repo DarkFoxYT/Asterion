@@ -66,6 +66,8 @@ public final class DismembermentEngine {
     private final List<RigidBodyPiece> pieces = new ArrayList<>();
     private final Map<Integer, Set<Integer>> detached = new HashMap<>();
     private final Set<Integer> ragdolled = new HashSet<>();
+    private long replayTime = Long.MIN_VALUE;
+    private final Map<Integer, Vec3> replayPositions = new HashMap<>();
     private final Map<Integer, net.minecraft.world.entity.player.PlayerSkin> playerSkins = new HashMap<>();
     private final Set<Integer> remoteDriven = new HashSet<>();
     private final Map<Integer, Integer> remotePoseSequences = new HashMap<>();
@@ -281,7 +283,8 @@ public final class DismembermentEngine {
             addRigidBruise(struck, direction.scale(-1), point, 1.0f);
         }
         trim(RagdollRuntime.INSTANCE.config.maxRigidBodies);
-        if (requestServerKill && ClientPlayNetworking.canSend(RagdollKillPayload.TYPE))
+        if (requestServerKill && !net.krodark.asterion.client.AsterionClient.isPlayback(Minecraft.getInstance())
+                && ClientPlayNetworking.canSend(RagdollKillPayload.TYPE))
             ClientPlayNetworking.send(new RagdollKillPayload(entity.getId()));
         return true;
     }
@@ -1412,6 +1415,7 @@ public final class DismembermentEngine {
     }
 
     public void togglePlayerTumble(Minecraft client) {
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) return;
         if (client.player != null && net.krodark.asterion.entity.MinotaurEntity.isHeld(client.player)) return;
         if (client.level == null || client.player == null || !client.player.isAlive()
                 || client.player.isSpectator()) {
@@ -1442,6 +1446,7 @@ public final class DismembermentEngine {
     }
 
     public void forcePlayerTumble(Minecraft client, Vec3 sourcePosition, Vec3 impulse, float force) {
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) return;
         if (client.player == null || !client.player.isAlive() || client.player.isSpectator()
                 || client.level == null) return;
         int entityId = client.player.getId();
@@ -1491,6 +1496,7 @@ public final class DismembermentEngine {
 
     public void reconcilePlayerAuthority(Minecraft client, Vec3 position, Vec3 velocity,
                                          long serverTick) {
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) return;
         if (client.player == null || serverTick <= lastAuthorityTick
                 || !playerTumbles.contains(client.player.getId())) return;
         lastAuthorityTick = serverTick;
@@ -1576,6 +1582,7 @@ public final class DismembermentEngine {
     }
 
     public void followPlayerTumble(Minecraft client) {
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) return;
         if (client.player != null && net.krodark.asterion.entity.MinotaurEntity.isHeld(client.player)) return;
         if (client.player == null || !playerTumbles.contains(client.player.getId())) return;
         RigidBodyPiece torso = find(client.player.getId(), 1);
@@ -1675,6 +1682,7 @@ public final class DismembermentEngine {
 
     public void releaseRagdoll(int entityId) {
         Minecraft client = Minecraft.getInstance();
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) { removeRagdoll(entityId); return; }
         if (client.level != null && client.level.getEntity(entityId) instanceof Player player
                 && net.krodark.asterion.entity.MinotaurEntity.isHeld(player)) return;
         if (client.player != null && client.player.getId() == entityId && playerTumbles.contains(entityId)) {
@@ -1785,6 +1793,7 @@ public final class DismembermentEngine {
 
     public void applyRemoteState(Minecraft client, net.krodark.asterion.network.ragdoll.RagdollStatePayload payload) {
         if (client.level == null) return;
+        boolean playback = preparePlayback(client);
         Entity owner = client.level.getEntity(payload.entityId());
         if (owner == null || !owner.getUUID().equals(payload.playerId())) return;
         if (!payload.active()) {
@@ -1793,7 +1802,7 @@ public final class DismembermentEngine {
             return;
         }
         if (!(owner instanceof Player) || !owner.isAlive()) return;
-        if (owner == client.player) {
+        if (owner == client.player && !playback) {
             if (RagdollClientController.isRespawnProtected(client)) return;
              
              
@@ -1810,6 +1819,7 @@ public final class DismembermentEngine {
         playerTumbles.add(owner.getId());
         remoteDriven.add(owner.getId());
         remotePoseTicks.put(owner.getId(), traumaDecayTicker);
+        if (playback) replayPositions.put(owner.getId(), owner.position());
     }
 
     public void applyRemotePose(Minecraft client, RagdollPosePayload payload) {
@@ -1819,11 +1829,14 @@ public final class DismembermentEngine {
         if (payload.parts().isEmpty()) {
             return;
         }
-        if (client.player != null && payload.entityId() == client.player.getId()) {
+        boolean playback = preparePlayback(client);
+        if (!playback && client.player != null && payload.entityId() == client.player.getId()) {
             return;
         }
         Integer previousSequence = remotePoseSequences.get(payload.entityId());
-        if (previousSequence != null
+        boolean replaySeek = playback && previousSequence != null
+                && Integer.compareUnsigned(payload.sequence(), previousSequence) <= 0;
+        if (!playback && previousSequence != null
                 && Integer.compareUnsigned(payload.sequence(), previousSequence) <= 0) return;
         Entity owner = client.level.getEntity(payload.entityId());
         if (owner instanceof Player && !owner.isAlive()) return;
@@ -1850,6 +1863,14 @@ public final class DismembermentEngine {
                     snapshot.qz(), snapshot.qw());
             if (targetRotation.lengthSquared() < 0.0001f) targetRotation.identity();
             else targetRotation.normalize();
+            if (playback) {
+                part.previous = replaySeek || error > 4 ? target : part.position;
+                part.previousOrientation.set(replaySeek || error > 4 ? targetRotation : part.orientation);
+                part.position = target;
+                part.orientation.set(targetRotation);
+                part.velocity = transmittedVelocity;
+                continue;
+            }
             part.position = error > 4.0 ? target : part.position.lerp(target, positionBlend);
             part.orientation.slerp(targetRotation,
                     (float) Mth.clamp(positionBlend + speed * 0.025, 0.62, 0.96)).normalize();
@@ -1860,6 +1881,7 @@ public final class DismembermentEngine {
     }
 
     private void sendPoseSnapshots() {
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(Minecraft.getInstance())) return;
         if (!ClientPlayNetworking.canSend(RagdollPosePayload.TYPE)) return;
         for (int entityId : ragdolled) {
             if (remoteDriven.contains(entityId)) continue;
@@ -1947,7 +1969,38 @@ public final class DismembermentEngine {
         }
     }
 
+    private boolean preparePlayback(Minecraft client) {
+        if (!net.krodark.asterion.client.AsterionClient.isPlayback(client) || client.level == null) return false;
+        long time = client.level.getGameTime();
+        if (replayTime != Long.MIN_VALUE && time < replayTime) clear();
+        replayTime = time;
+        return true;
+    }
+
+    public void tickPlayback(Minecraft client) {
+        if (!preparePlayback(client)) return;
+        synchronizePlayerSkins(client.level);
+        // Old recordings may contain only the start/end state. Follow their recorded entity movement
+        // rather than leaving the replacement body at the place where the ragdoll started.
+        for (int id : new ArrayList<>(ragdolled)) {
+            Entity owner = client.level.getEntity(id);
+            if (owner == null) { removeRagdoll(id); replayPositions.remove(id); continue; }
+            Vec3 previous = replayPositions.put(id, owner.position());
+            if (previous == null || remotePoseSequences.containsKey(id)) continue;
+            Vec3 delta = owner.position().subtract(previous);
+            for (RigidBodyPiece part : pieces) if (part.entityId == id) {
+                part.previous = part.position;
+                part.position = part.position.add(delta);
+                part.previousOrientation.set(part.orientation);
+            }
+        }
+    }
+
     public void tick(ClientLevel level, Entity collisionContext) {
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(Minecraft.getInstance())) {
+            tickPlayback(Minecraft.getInstance());
+            return;
+        }
         synchronizePlayerSkins(level);
         electrifiedUntil.entrySet().removeIf(entry -> {
             if (entry.getValue() > traumaDecayTicker) return false;
@@ -3798,6 +3851,8 @@ public final class DismembermentEngine {
     }
 
     public void clear() {
+        replayTime = Long.MIN_VALUE;
+        replayPositions.clear();
         playerSkins.clear();
         pieces.clear();
         detached.clear();

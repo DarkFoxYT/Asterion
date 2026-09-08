@@ -23,6 +23,7 @@ public final class RagdollClientController {
     private static net.minecraft.client.multiplayer.ClientLevel observedLevel;
     private static int ragdollSuppressedUntilTick;
     private static int respawnProtectedUntilTick;
+    private static boolean wasPlayback;
 
     private RagdollClientController() {
     }
@@ -41,6 +42,7 @@ public final class RagdollClientController {
             resetRecovery();
             observedLocalPlayer = null;
             observedLevel = null;
+            wasPlayback = false;
             return;
         }
 
@@ -48,6 +50,22 @@ public final class RagdollClientController {
             engine.clear();
             observedLocalPlayer = null;
             observedLevel = client.level;
+        }
+
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) {
+            wasPlayback = true;
+            restoreCamera(client);
+            DazeOverlay.cancel();
+            resetRecovery();
+            tumbleWasDown = rightWasDown = false;
+            engine.tickPlayback(client);
+            return;
+        }
+
+        if (wasPlayback) {
+            engine.clear();
+            observedLocalPlayer = null;
+            wasPlayback = false;
         }
 
         if (observedLocalPlayer != client.player) {
@@ -193,6 +211,7 @@ public final class RagdollClientController {
 
      
     public static void enforceRagdollCamera(Minecraft client) {
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) return;
         if (client.player != null
                 && DismembermentEngine.INSTANCE.isPlayerTumbling(client.player.getId())) {
             if (!thirdPersonLocked) {
