@@ -353,6 +353,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private int leapImpactTick = -1;
     private Vec3 leapImpactOrigin = Vec3.ZERO;
     private final Set<UUID> leapShockwaveHits = new HashSet<>();
+    private final Set<UUID> chargeHits = new HashSet<>();
     private UUID stompTarget;
     private Vec3 stompTargetPosition = Vec3.ZERO;
     private boolean stompWasAirborne;
@@ -1324,6 +1325,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if (horizontal.lengthSqr() < 0.01D) return false;
         corridorChargeDirection = horizontal.normalize();
         corridorChargeTicks = 1;
+        chargeHits.clear();
         getEntityData().set(DATA_CORRIDOR_CHARGE_TICKS, 1);
         corridorChargeCooldown = Math.max(95, 190 - rage() * 6);
         getNavigation().stop();
@@ -1366,10 +1368,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                     getY() + getBbHeight() * 0.42D, impact.getCenter().z,
                     Math.min(12, 3 + broken / 7), 1.2D, 1.5D, 1.2D, 0.07D);
         }
-        if (attackCooldown <= 0 && impact.intersects(player.getBoundingBox())) {
-            player.hurtServer(level, damageSources().mobAttack(this), 16.0F + rage() * 0.35F);
-            ragdollPlayer(player, corridorChargeDirection.scale(3.1D).add(0.0D, 0.62D, 0.0D),
-                    1.6F, true);
+        if (hitChargePlayers(level, impact, 16.0F + rage() * 0.35F,
+                corridorChargeDirection.scale(3.1D).add(0.0D, 0.62D, 0.0D), 1.6F)) {
             attackCooldown = 26;
             finishCorridorCharge();
             return;
@@ -1387,6 +1387,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     private void finishCorridorCharge() {
+        chargeHits.clear();
         corridorChargeTicks = 0;
         getEntityData().set(DATA_CORRIDOR_CHARGE_TICKS, 0);
         corridorChargeDirection = Vec3.ZERO;
@@ -2642,6 +2643,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     private void beginBossAttack(ServerPlayer player, BossAttack attack) {
+        chargeHits.clear();
         if (!enabledAttack(attack) || usesGreekFire(attack) && !greekFirePowered()) return;
         if (!player.getUUID().equals(eclipseTarget)) {
             eclipseTarget = player.getUUID();
@@ -3018,16 +3020,12 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                         finishBossAttack(44);
                         return;
                     }
-                    if (attackCooldown <= 0 && getBoundingBox().inflate(0.8D).intersects(player.getBoundingBox())) {
-                        float damage = (float)Mth.lerp(acceleration, 6.0D, 15.0D);
-                         
-                         
-                        double knockback = Mth.lerp(acceleration, 2.35D, 4.6D);
-                        if (player.hurtServer(level, damageSources().mobAttack(this), damage))
-                            ragdollPlayer(player, bossChargeDirection.scale(knockback)
+                    if (hitChargePlayers(level, impact,
+                            (float)Mth.lerp(acceleration, 6.0D, 15.0D),
+                            bossChargeDirection.scale(Mth.lerp(acceleration, 2.35D, 4.6D))
                                     .add(0.0D, 0.58D + acceleration * 0.42D, 0.0D),
-                                    (float)(1.55D + acceleration * 0.45D), true);
-                        scheduleWallCombo(player, 120);
+                            (float)(1.55D + acceleration * 0.45D))) {
+                        if (chargeHits.contains(player.getUUID())) scheduleWallCombo(player, 120);
                         attackCooldown = 18;
                         finishBossAttack(40);
                         return;
@@ -3242,9 +3240,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 finishBossAttack(32);
                 return;
             }
-            if (attackCooldown <= 0 && impact.intersects(player.getBoundingBox())) {
-                if (player.hurtServer(level, damageSources().mobAttack(this), 22.0F))
-                    ragdollPlayer(player, bossChargeDirection.scale(3.7D).add(0.0D, 0.65D, 0.0D), 1.75F);
+            if (hitChargePlayers(level, impact, 22.0F,
+                    bossChargeDirection.scale(3.7D).add(0.0D, 0.65D, 0.0D), 1.75F)) {
                 attackCooldown = 30;
             }
             if ((bossAttackTicks & 1) == 0)
@@ -3306,16 +3303,19 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 finishBossAttack(32);
                 return;
             }
+            boolean hitPlayer = false;
+            boolean blocked = false;
             for (ServerPlayer victim : level.getEntitiesOfClass(ServerPlayer.class, horns)) {
                 if (!victim.isAlive() || victim.isCreative() || victim.isSpectator()) continue;
+                hitPlayer = true;
                 if (victim.isBlocking()) {
                     victim.setDeltaMovement(bossChargeDirection.scale(1.05D).add(0.0D, 0.18D, 0.0D));
                     victim.hurtMarked = true;
                     playSound(SoundEvents.SHIELD_BLOCK.value(), 3.0F, 0.58F);
                     bossStunTicks = 32;
                     riposteTicks = 42;
-                    finishBossAttack(54);
-                    return;
+                    blocked = true;
+                    continue;
                 }
                 if (victim.hurtServer(level, damageSources().mobAttack(this), 7.0F)) {
                     Vec3 impulse = bossChargeDirection.scale(1.4D).add(0, .55D, 0);
@@ -3327,8 +3327,10 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                     level.sendParticles(ParticleTypes.CRIT, victim.getX(), victim.getY() + 1.0D,
                             victim.getZ(), 22, 0.7D, 0.8D, 0.7D, 0.15D);
                 }
-                riposteTicks = 34;
-                finishBossAttack(62);
+            }
+            if (hitPlayer) {
+                riposteTicks = blocked ? 42 : 34;
+                finishBossAttack(blocked ? 54 : 62);
                 return;
             }
             if ((bossAttackTicks & 1) == 0)
@@ -3934,9 +3936,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 finishBossAttack(54);
                 return;
             }
-            if (attackCooldown <= 0 && impact.intersects(player.getBoundingBox())) {
-                player.hurtServer(level, damageSources().mobAttack(this), 20.0F);
-                ragdollPlayer(player, bossChargeDirection.scale(3.2D).add(0.0D, 0.72D, 0.0D), 1.6F);
+            if (hitChargePlayers(level, impact, 20.0F,
+                    bossChargeDirection.scale(3.2D).add(0.0D, 0.72D, 0.0D), 1.6F)) {
                 attackCooldown = 24;
             }
         }
@@ -4412,7 +4413,20 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         }
     }
 
+    private boolean hitChargePlayers(ServerLevel level, AABB impact, float damage, Vec3 impulse, float force) {
+        boolean hit = false;
+        for (ServerPlayer victim : level.getEntitiesOfClass(ServerPlayer.class, impact)) {
+            if (!victim.isAlive() || victim.isCreative() || victim.isSpectator()
+                    || !chargeHits.add(victim.getUUID())) continue;
+            victim.hurtServer(level, damageSources().mobAttack(this), damage);
+            if (victim.isAlive()) ragdollPlayer(victim, impulse, force, true);
+            hit = true;
+        }
+        return hit;
+    }
+
     private void finishBossAttack(int cooldown) {
+        chargeHits.clear();
         leapPlan = null;
         getEntityData().set(DATA_WEAPON_SWAP, 0);
         if (attackWeapon(bossAttack) != 0 && bossAttack != BossAttack.AXE_THROW)
