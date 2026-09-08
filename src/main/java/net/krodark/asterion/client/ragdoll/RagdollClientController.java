@@ -8,7 +8,6 @@ import net.minecraft.client.CameraType;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.entity.LivingEntity;
 import net.krodark.asterion.client.hud.DazeOverlay;
-import net.krodark.asterion.client.cinematic.BossFinaleOverlay;
 import org.lwjgl.glfw.GLFW;
 
 public final class RagdollClientController {
@@ -21,6 +20,7 @@ public final class RagdollClientController {
     private static CameraType cameraBeforeTumble;
     private static boolean thirdPersonLocked;
     private static LivingEntity observedLocalPlayer;
+    private static net.minecraft.client.multiplayer.ClientLevel observedLevel;
     private static int ragdollSuppressedUntilTick;
     private static int respawnProtectedUntilTick;
 
@@ -33,16 +33,21 @@ public final class RagdollClientController {
 
     private static void tick(Minecraft client) {
         var engine = DismembermentEngine.INSTANCE;
-        if (client.level == null || client.player == null
-                || (!client.level.dimension().equals(Asterion.ASTERION_LEVEL)
-                && !BossFinaleOverlay.isActive())) {
+        if (client.level == null || client.player == null) {
             restoreCamera(client);
             engine.clear();
             tumbleWasDown = false;
             rightWasDown = false;
             resetRecovery();
             observedLocalPlayer = null;
+            observedLevel = null;
             return;
+        }
+
+        if (observedLevel != client.level) {
+            engine.clear();
+            observedLocalPlayer = null;
+            observedLevel = client.level;
         }
 
         if (observedLocalPlayer != client.player) {
@@ -79,6 +84,9 @@ public final class RagdollClientController {
             engine.togglePlayerTumble(client);
         }
         tumbleWasDown = tumble;
+
+        if (shouldTumbleFromFall(client))
+            engine.forcePlayerTumble(client, client.player.position(), client.player.getDeltaMovement(), .7F);
 
         boolean recovery = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_SPACE) == GLFW.GLFW_PRESS;
         boolean tumbling = engine.isPlayerTumbling(client.player.getId());
@@ -118,7 +126,9 @@ public final class RagdollClientController {
         if (++scanTicker % scanInterval == 0) {
             for (LivingEntity entity : client.level.getEntitiesOfClass(LivingEntity.class,
                     client.player.getBoundingBox().inflate(scanRange),
-                     entity -> !entity.isAlive() && !DismembermentEngine.isRagdollExcluded(entity))) {
+                     entity -> !entity.isAlive() && !DismembermentEngine.isRagdollExcluded(entity)
+                             && (entity instanceof net.minecraft.world.entity.player.Player
+                             || client.level.dimension().equals(Asterion.ASTERION_LEVEL)))) {
                 if (!engine.isRagdolled(entity.getId())) {
                     Vec3 motion = entity.getDeltaMovement();
                     Vec3 direction = motion.lengthSqr() > 1.0e-6 ? motion.normalize() : entity.getLookAngle();
@@ -136,6 +146,18 @@ public final class RagdollClientController {
     public static boolean isRespawnProtected(Minecraft client) {
         return client.player != null && (observedLocalPlayer != client.player
                 || client.player.tickCount < respawnProtectedUntilTick);
+    }
+
+    public static boolean shouldTumbleFromFall(Minecraft client) {
+        var player = client.player;
+        return player != null && player.isAlive() && !player.isSpectator()
+                && !player.getAbilities().flying && !player.isFallFlying() && !player.isPassenger()
+                && !player.onGround() && !player.isInWater() && !player.isInLava() && !player.onClimbable()
+                && player.fallDistance > 4 && player.getDeltaMovement().y < -.5
+                && !isRespawnProtected(client) && !isAutomaticRagdollSuppressed(client)
+                && !net.krodark.asterion.client.cinematic.CinematicControls.locked()
+                && !net.krodark.asterion.entity.MinotaurEntity.isHeld(player)
+                && !DismembermentEngine.INSTANCE.isPlayerTumbling(player.getId());
     }
 
     public static void suppressAutomaticFallRagdoll(int ticks) {

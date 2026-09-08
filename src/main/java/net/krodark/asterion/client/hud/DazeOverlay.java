@@ -43,7 +43,6 @@ public final class DazeOverlay {
             return;
         }
         if (remaining <= 0 || client.player == null || client.level == null
-                || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)
                 || !DismembermentEngine.INSTANCE.isPlayerTumbling(client.player.getId())) {
             remaining = 0;
             return;

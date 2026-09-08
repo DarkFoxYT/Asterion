@@ -78,6 +78,11 @@ public final class MinotaurGrabGameTest implements FabricClientGameTest {
                 check(player.position().distanceTo(start.get()) > 5, "Throw did not move the player");
                 barRef.get().removeAllPlayers();
             });
+            context.runOnClient(client -> {
+                var engine = DismembermentEngine.INSTANCE;
+                check(engine.isPlayerTumbling(client.player.getId()), "Throw did not keep the local ragdoll active");
+                check(engine.debugFrame(client.player).parts().size() >= 6, "Thrown player has no complete ragdoll body");
+            });
             Asterion.LOGGER.info("PASS: boss objectives hidden, held player without ragdoll, release and authoritative throw");
         }
     }

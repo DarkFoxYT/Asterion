@@ -1326,8 +1326,8 @@ public final class DismembermentEngine {
 
     public void togglePlayerTumble(Minecraft client) {
         if (client.player != null && net.krodark.asterion.entity.MinotaurEntity.isHeld(client.player)) return;
-        if (client.level == null || client.player == null
-                || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) {
+        if (client.level == null || client.player == null || !client.player.isAlive()
+                || client.player.isSpectator()) {
             return;
         }
         int entityId = client.player.getId();
@@ -1355,8 +1355,8 @@ public final class DismembermentEngine {
     }
 
     public void forcePlayerTumble(Minecraft client, Vec3 sourcePosition, Vec3 impulse, float force) {
-        if (client.player == null || client.player.isSpectator() || client.level == null
-                || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
+        if (client.player == null || !client.player.isAlive() || client.player.isSpectator()
+                || client.level == null) return;
         int entityId = client.player.getId();
         if (!playerTumbles.contains(entityId)) {
             Vec3 direction = impulse.lengthSqr() > 1.0E-8D
@@ -1726,7 +1726,7 @@ public final class DismembermentEngine {
     }
 
     public void applyRemotePose(Minecraft client, RagdollPosePayload payload) {
-        if (client.level == null || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) {
+        if (client.level == null) {
             return;
         }
         if (payload.parts().isEmpty()) {
@@ -1824,7 +1824,6 @@ public final class DismembermentEngine {
     }
 
     public void tick(ClientLevel level, Entity collisionContext) {
-        if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) { clear(); return; }
         electrifiedUntil.entrySet().removeIf(entry -> {
             if (entry.getValue() > traumaDecayTicker) return false;
             if (collisionContext.getId() != entry.getKey()) removeRagdoll(entry.getKey());
@@ -3683,7 +3682,8 @@ public final class DismembermentEngine {
     }
 
     private static boolean inAsterion(Entity entity) {
-        return entity != null && entity.level().dimension().equals(Asterion.ASTERION_LEVEL);
+        return entity != null && (entity instanceof Player
+                || entity.level().dimension().equals(Asterion.ASTERION_LEVEL));
     }
 
     private void tickWailing() {
