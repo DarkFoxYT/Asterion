@@ -61,6 +61,29 @@ final class ChainLiftCheck {
                 if (tick < 100) check(lift.getY() == lift.topY(), "Lift started before the boarding delay");
             }
             check(lift.getY() < lift.topY() - 2, "Lift never descended after players boarded");
+            for (var rider : java.util.List.of(first, second)) {
+                rider.setPos(rider.getX(), lift.getY() - 1, rider.getZ());
+                rider.setDeltaMovement(0, -1, 0);
+            }
+            lift.tick();
+            check(Math.abs(first.getY() - lift.getY() - .5) < .001
+                    && Math.abs(second.getY() - lift.getY() - .5) < .001,
+                    "Lift did not catch riders that slipped below the deck");
+            first.setDeltaMovement(0, .42, 0);
+            check(!lift.supports(first), "Failsafe cancelled a jump");
+            first.setOnGround(false);
+            first.setPos(first.getX(), lift.getY() + .9, first.getZ());
+            first.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+            check(!lift.supports(first), "Lift snapped player down near the jump apex");
+            first.setDeltaMovement(0, -.2, 0);
+            check(!lift.supports(first), "Lift snapped player down before landing");
+            first.move(net.minecraft.world.entity.MoverType.SELF, new net.minecraft.world.phys.Vec3(0, -.6, 0));
+            check(Math.abs(first.getY() - lift.getY() - .5) < .001, "Falling player did not land on the deck");
+            first.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+            double savedX = first.getX();
+            first.setPos(lift.getX() + 5, lift.getY() - 1, first.getZ());
+            check(!lift.supports(first), "Failsafe pulled a player back after walking off");
+            first.setPos(savedX, lift.getY() + .5, first.getZ());
             var saved = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, level.registryAccess());
             lift.saveWithoutId(saved);
             var restored = ChainLiftContent.LIFT.create(level, EntitySpawnReason.LOAD);

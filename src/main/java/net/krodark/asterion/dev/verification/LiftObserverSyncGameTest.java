@@ -23,6 +23,7 @@ public final class LiftObserverSyncGameTest implements FabricClientGameTest {
                 var remote = new net.minecraft.client.player.RemotePlayer(client.level,
                         new com.mojang.authlib.GameProfile(java.util.UUID.randomUUID(), "LiftObserverSubject"));
                 remote.setId(900102); client.level.addEntity(remote);
+                remote.setOnGround(true);
                 try {
                     var field = ChainLiftEntity.class.getDeclaredField("RIDERS"); field.setAccessible(true);
                     @SuppressWarnings("unchecked") var key = (net.minecraft.network.syncher.EntityDataAccessor<String>)field.get(null);
@@ -40,6 +41,12 @@ public final class LiftObserverSyncGameTest implements FabricClientGameTest {
                                 throw new AssertionError("Observer rider drifted from moving deck");
                         }
                     }
+                    remote.setPos(.5, lift.getY() + .9, .5);
+                    remote.setOnGround(false);
+                    if (ChainLiftEntity.renderSupport(remote) != null) throw new AssertionError("Observer snapped an airborne jumper to the deck");
+                    remote.setPos(.5, lift.getY() + .5, .5);
+                    remote.setOnGround(true);
+                    if (ChainLiftEntity.renderSupport(remote) != lift) throw new AssertionError("Observer did not resume alignment after landing");
                     lift.getEntityData().set(key, "");
                     if (ChainLiftEntity.renderSupport(remote) != null) throw new AssertionError("Disembarked rider stayed attached");
                     lift.getEntityData().set(key, ",900102,");

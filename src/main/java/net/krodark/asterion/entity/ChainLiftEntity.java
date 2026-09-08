@@ -108,11 +108,16 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
         return from + (to - from) * (elapsed <= half ? fraction : 1 - fraction);
     }
     public boolean supports(Entity entity) {
-         
         double tolerance = entity instanceof Player ? .65 : .25;
+        double offset = entity.getY() - (getY() + .5);
+        // The boarding tolerance is for grounded/network-delayed riders, not the airborne jump arc.
+        if (!entity.onGround() && offset > .05) return false;
+        // Recover an existing rider after a missed carry tick; never pull strangers up from below.
+        boolean slippedRider = entity instanceof Player && carries(entity)
+                && offset < 0 && offset >= -2 && overlapsDeck(entity.getBoundingBox());
         return entity.isAlive() && !entity.isSpectator() && !entity.isPassenger()
                 && (!(entity instanceof Player player) || !player.getAbilities().flying)
-                && Math.abs(entity.getY() - (getY() + .5)) < tolerance && entity.getDeltaMovement().y <= .08;
+                && (Math.abs(offset) < tolerance || slippedRider) && entity.getDeltaMovement().y <= .08;
     }
     public boolean overlapsDeck(AABB bounds) {
         AABB deck = getBoundingBox();
@@ -120,7 +125,7 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
     }
     public static ChainLiftEntity supporting(Entity entity) {
         for (ChainLiftEntity lift : entity.level().getEntitiesOfClass(ChainLiftEntity.class,
-                entity.getBoundingBox().inflate(.01, .7, .01))) {
+                entity.getBoundingBox().inflate(.01, 2.1, .01))) {
             if (lift.supports(entity) && lift.overlapsDeck(entity.getBoundingBox())) return lift;
         }
         return null;
@@ -139,7 +144,7 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
             if (!lift.isAlive() || !lift.overlapsDeck(entity.getBoundingBox())) continue;
             if (entity instanceof Player player && player.isLocalPlayer()) {
                 if (lift.supports(entity)) return lift;
-            } else if (lift.carries(entity)) return lift;
+            } else if (lift.carries(entity) && (entity.onGround() || entity.getY() <= lift.getY() + .55)) return lift;
         }
         return null;
     }
@@ -153,7 +158,7 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
         if (ceiling() == Integer.MIN_VALUE) return;
         if (!level().isClientSide() && !level().getBlockState(anchor()).is(ChainLiftContent.ANCHOR)) { discard(); return; }
         if (level() instanceof ServerLevel server && --runeCheckTicks <= 0) { ensureCallRunes(server); runeCheckTicks = 100; }
-        var riders = level().getEntities(this, getBoundingBox().inflate(0, .7, 0).expandTowards(0, 2, 0), this::supports);
+        var riders = level().getEntities(this, getBoundingBox().inflate(0, 2.1, 0), this::supports);
         if (!level().isClientSide()) {
             String ids = riders.stream().filter(entity -> entity instanceof Player)
                     .map(Entity::getId).sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
