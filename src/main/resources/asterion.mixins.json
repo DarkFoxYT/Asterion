@@ -7,6 +7,7 @@
     "MinotaurCinematicTrackingMixin",
     "ChunkMapTrackingAccessor",
     "ChainLiftMovementMixin",
+    "ChainLiftServerMovementMixin",
     "AfterblowDamageMixin",
     "MazesteelMiningMixin",
     "HeavyWaterMovementMixin",
