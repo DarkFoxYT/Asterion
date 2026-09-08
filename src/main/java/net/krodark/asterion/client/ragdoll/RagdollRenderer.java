@@ -58,8 +58,7 @@ public final class RagdollRenderer {
             if (piece.position.distanceToSqr(camera) >= 96 * 96) continue;
             if (DismembermentEngine.isGripRegion(piece.region)) grips.add(piece);
             else {
-                Vec3 center = piece.previous.lerp(piece.position, partial)
-                        .add(DismembermentEngine.INSTANCE.heldRenderOffset(piece.entityId, partial));
+                Vec3 center = DismembermentEngine.INSTANCE.renderCenter(piece, partial);
                 double radius = piece.halfExtents.add(.064, .064, .064).length();
                 if (state.cameraRenderState.cullFrustum != null
                         && !state.cameraRenderState.cullFrustum.isVisible(new AABB(center, center).inflate(radius))) continue;
@@ -121,7 +120,7 @@ public final class RagdollRenderer {
         }
         if (stack.isEmpty()) return;
         float partial = Mth.clamp(client.getDeltaTracker().getGameTimeDeltaPartialTick(true), 0.0F, 1.0F);
-        Vec3 center = grip.previous.lerp(grip.position, partial).add(DismembermentEngine.INSTANCE.heldRenderOffset(grip.entityId, partial));
+        Vec3 center = DismembermentEngine.INSTANCE.renderCenter(grip, partial);
         Quaternionf rotation = new Quaternionf(grip.previousOrientation).slerp(grip.orientation, partial);
         poses.pushPose();
         poses.translate(center.x, center.y, center.z);
@@ -146,7 +145,7 @@ public final class RagdollRenderer {
 
     private static void renderBody(PoseStack.Pose pose, VertexConsumer out, RigidBodyPiece body, boolean emissive) {
         float partial = Mth.clamp(Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(true), 0, 1);
-        Vec3 center = body.previous.lerp(body.position, partial).add(DismembermentEngine.INSTANCE.heldRenderOffset(body.entityId, partial));
+        Vec3 center = DismembermentEngine.INSTANCE.renderCenter(body, partial);
         Quaternionf rotation = new Quaternionf(body.previousOrientation).slerp(body.orientation, partial);
         if (!body.modelBoxes.isEmpty()) {
             PoseStack modelPose = new PoseStack();
@@ -240,7 +239,7 @@ public final class RagdollRenderer {
 
     private static void renderEquipmentBox(PoseStack.Pose pose, VertexConsumer out, ArmorDraw draw) {
         float partial = Mth.clamp(Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(true), 0, 1);
-        Vec3 center = draw.body.previous.lerp(draw.body.position, partial).add(DismembermentEngine.INSTANCE.heldRenderOffset(draw.body.entityId, partial));
+        Vec3 center = DismembermentEngine.INSTANCE.renderCenter(draw.body, partial);
         Quaternionf rotation = new Quaternionf(draw.body.previousOrientation).slerp(draw.body.orientation, partial);
         drawBox(pose, out, draw.body, center, rotation, draw.half, draw.uvs, draw.color);
     }

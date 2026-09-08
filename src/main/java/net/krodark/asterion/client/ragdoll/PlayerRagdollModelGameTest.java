@@ -22,6 +22,7 @@ public final class PlayerRagdollModelGameTest implements FabricClientGameTest {
         return new PlayerSkin(new ClientAsset.ResourceTexture(Identifier.withDefaultNamespace(
                 "entity/player/" + name)), null, null, model, true);
     }
+    @SuppressWarnings({"rawtypes", "unchecked"})
     @Override public void runTest(ClientGameTestContext context) {
         context.runOnClient(c -> org.lwjgl.glfw.GLFW.glfwHideWindow(c.getWindow().handle()));
         try (var world = context.worldBuilder().create()) {
@@ -35,6 +36,16 @@ public final class PlayerRagdollModelGameTest implements FabricClientGameTest {
                 player.yBodyRot = player.yBodyRotO = 180;
                 player.yHeadRot = player.yHeadRotO = 180;
                 c.level.addEntity(player);
+                if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("entity_model_features")) {
+                    net.minecraft.client.renderer.entity.EntityRenderer renderer = c.getEntityRenderDispatcher().getRenderer(player);
+                    var model = ((net.minecraft.client.renderer.entity.LivingEntityRenderer)renderer).getModel();
+                    try {
+                        var stateGetter = Class.forName("traben.entity_texture_features.features.state.ETFState").getMethod("state");
+                        Object previous = stateGetter.invoke(null);
+                        check(RagdollModelCompatibility.setup(model, renderer.createRenderState(player, 1)), "Fresh Moves face animation did not run");
+                        check(previous == stateGetter.invoke(null), "Face animation leaked another player's render context");
+                    } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
+                }
                 // Seed a rendered wide-player pose, then simulate the real slim skin arriving.
                 engine.captureRenderedPose(player.getId());
                 player.skin = skin(PlayerModelType.SLIM, "slim/alex");

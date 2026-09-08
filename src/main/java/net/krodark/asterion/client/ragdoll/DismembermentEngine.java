@@ -237,6 +237,7 @@ public final class DismembermentEngine {
         if (entity instanceof net.minecraft.client.player.AbstractClientPlayer player) {
             renderedPoseCache.remove(entity.getId());
             playerSkins.put(entity.getId(), player.getSkin());
+            captureFreshPlayerPose(player);
         }
         pieces.removeIf(piece -> piece.entityId == entity.getId());
         detached.remove(entity.getId());
@@ -852,7 +853,7 @@ public final class DismembermentEngine {
             EntityModel model = living.getModel();
             if (applyAnimation) {
                 EntityRenderState liveState = renderer.createRenderState(entity, 1.0f);
-                model.setupAnim(liveState);
+                RagdollModelCompatibility.setup(model, liveState);
             }
             if (cubes.isEmpty()) model.root().visit(new PoseStack(), (pose, path, index, cube) ->
                     cubes.add(new ModelCube(cube, pose.copy(), path, transformedBounds(pose, cube))));
@@ -910,27 +911,31 @@ public final class DismembermentEngine {
             Vec3 modelOffset;
             Vec3 jointOffset;
             Vector3f pivot = selected.pose.pose().transformPosition(new Vector3f());
+            if (playerGeometry && model instanceof HumanoidModel humanoid) {
+                ModelPart joint = switch (region) {
+                    case 0 -> humanoid.head; case 2 -> humanoid.rightArm; case 3 -> humanoid.leftArm;
+                    case 4 -> humanoid.rightLeg; case 5 -> humanoid.leftLeg; default -> humanoid.body;
+                };
+                PoseStack jointPose = new PoseStack();
+                ModelPart node = model.root();
+                node.translateAndRotate(jointPose);
+                for (String name : selected.path.split("/")) {
+                    if (node == joint) break;
+                    if (name.isEmpty()) continue;
+                    node = node.getChild(name);
+                    node.translateAndRotate(jointPose);
+                }
+                if (node == joint) pivot = jointPose.last().pose().transformPosition(new Vector3f());
+            }
             if (playerGeometry) {
-                Vec3 modelCenterClearance = switch (region) {
-                    case 2 -> new Vec3(0.060, 0.0, 0.0);
-                    case 3 -> new Vec3(-0.060, -0.018, 0.0);
-                    case 4, 5 -> new Vec3(0.0, -0.032, 0.0);
-                    default -> Vec3.ZERO;
-                };
-                Vec3 jointPivotClearance = switch (region) {
-                    case 2 -> new Vec3(0.050, 0.055, 0.0);
-                    case 3 -> new Vec3(-0.050, 0.055, 0.0);
-                    case 4, 5 -> new Vec3(0.0, -0.032, 0.0);
-                    default -> Vec3.ZERO;
-                };
                 Vec3 fromFeet = new Vec3(-cubeCx * scale,
-                        (1.5 - cubeCy) * scale, cubeCz * scale).add(modelCenterClearance);
+                        (1.5 - cubeCy) * scale, cubeCz * scale);
                 float bodyYaw = ((Player) entity).getPreciseBodyRotation(1.0f);
                 Vec3 worldCenter = entity.position().add(RagdollMath.rotateY(
                         fromFeet, Math.toRadians(180.0f - bodyYaw)));
                 modelOffset = worldCenter.subtract(box.getCenter());
                 Vec3 pivotFromFeet = new Vec3(-pivot.x * scale,
-                        (1.5 - pivot.y) * scale, pivot.z * scale).add(jointPivotClearance);
+                        (1.5 - pivot.y) * scale, pivot.z * scale);
                 jointOffset = entity.position().add(RagdollMath.rotateY(pivotFromFeet,
                         Math.toRadians(180.0f - bodyYaw))).subtract(box.getCenter());
             } else {
@@ -991,16 +996,11 @@ public final class DismembermentEngine {
         Set<ModelPart.Cube> outer = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
         base.visit(new PoseStack(), (pose, path, index, cube) -> body.add(cube));
         playerOverlay(model, region).visit(new PoseStack(), (pose, path, index, cube) -> outer.add(cube));
-        Vec3 center = entity.getBoundingBox().getCenter().add(offset);
-        Vec3 clearance = switch (region) {
-            case 2 -> new Vec3(.060, 0, 0); case 3 -> new Vec3(-.060, -.018, 0);
-            case 4, 5 -> new Vec3(0, -.032, 0); default -> Vec3.ZERO;
-        };
+        Vec3 center = entity.getBoundingBox().getCenter().subtract(entity.position()).add(offset);
         var frame = new org.joml.Matrix4f().translation((float)center.x, (float)center.y, (float)center.z)
                 .rotate(orientation).invert()
-                .translate((float)entity.getX(), (float)entity.getY(), (float)entity.getZ())
                 .rotateY((float)Math.toRadians(180 - ((Player)entity).getPreciseBodyRotation(1)))
-                .translate((float)clearance.x, (float)(1.5 * scale + clearance.y), (float)clearance.z)
+                .translate(0, (float)(1.5 * scale), 0)
                 .rotateZ((float)Math.PI).scale((float)scale);
         List<RigidBodyPiece.ModelBox> result = new ArrayList<>();
         for (ModelCube sample : samples) {
@@ -1074,6 +1074,16 @@ public final class DismembermentEngine {
         private BodyGeometry(Vec3 offset, Vec3 halfExtents, float[][] faceUvs,
                              float[][] overlayFaceUvs, Quaternionf orientation) {
             this(offset, halfExtents, faceUvs, overlayFaceUvs, orientation, null, null);
+        }
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private void captureFreshPlayerPose(Player player) {
+        var renderer = Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(player);
+        if (renderer instanceof LivingEntityRenderer living) {
+            EntityModel model = living.getModel();
+            RagdollModelCompatibility.setup(model, renderer.createRenderState(player, 1));
+            captureRenderedPose(player.getId());
         }
     }
 
@@ -1905,7 +1915,15 @@ public final class DismembermentEngine {
         for (var entry : playerSkins.entrySet()) {
             if (!(level.getEntity(entry.getKey()) instanceof net.minecraft.client.player.AbstractClientPlayer player)) continue;
             var skin = player.getSkin();
-            if (skin.equals(entry.getValue())) continue;
+            if (skin.equals(entry.getValue())) {
+                RigidBodyPiece head = find(player.getId(), 0);
+                if (head != null && !head.modelBoxes.isEmpty()) {
+                    // Fresh Moves animates the eyes independently of the physics-driven head.
+                    BodyGeometry face = calculateGeometry(player, 0, Vec3.ZERO, head.halfExtents, true, Set.of());
+                    head.modelBoxes = face.modelBoxes;
+                }
+                continue;
+            }
             boolean modelChanged = skin.model() != entry.getValue().model();
             if (modelChanged) renderedPoseCache.remove(player.getId());
             for (RigidBodyPiece part : pieces) {
@@ -1918,6 +1936,11 @@ public final class DismembermentEngine {
                     part.faceUvs = geometry.faceUvs;
                     part.overlayFaceUvs = geometry.overlayFaceUvs;
                     part.modelBoxes = geometry.modelBoxes;
+                    if (part.anchoredJoint && geometry.jointOffset != null) {
+                        Vector3f socket = new Vector3f(geometry.jointOffset.subtract(geometry.offset).toVector3f());
+                        new Quaternionf(geometry.orientation).conjugate().transform(socket);
+                        part.childJointAnchor = new Vec3(socket.x, socket.y, socket.z);
+                    }
                 }
             }
             entry.setValue(skin);
@@ -3324,6 +3347,25 @@ public final class DismembermentEngine {
                     parent.velocity = parent.velocity.add(cancel.scale(1.0 - childWeight));
             }
         }
+    }
+
+    Vec3 renderCenter(RigidBodyPiece part, float partial) {
+        return renderSocketCenter(part, partial, 0).add(heldRenderOffset(part.entityId, partial));
+    }
+
+    private Vec3 renderSocketCenter(RigidBodyPiece part, float partial, int depth) {
+        if (part.playerBody && part.anchoredJoint && part.parentRegion >= 0 && depth < 16) {
+            RigidBodyPiece parent = find(part.entityId, part.parentRegion);
+            if (parent != null) {
+                Vector3f parentSocket = new Quaternionf(parent.previousOrientation).slerp(parent.orientation, partial)
+                        .transform(part.parentJointAnchor.toVector3f());
+                Vector3f childSocket = new Quaternionf(part.previousOrientation).slerp(part.orientation, partial)
+                        .transform(part.childJointAnchor.toVector3f());
+                return renderSocketCenter(parent, partial, depth + 1)
+                        .add(parentSocket.x - childSocket.x, parentSocket.y - childSocket.y, parentSocket.z - childSocket.z);
+            }
+        }
+        return part.previous.lerp(part.position, partial);
     }
 
     private void enforceExactAnatomicalSockets(List<RigidBodyPiece> active) {
