@@ -728,9 +728,6 @@ public final class DeadSunEventSystem {
         player.setDeltaMovement(impulse);
         player.hurtMarked = true;
         player.resetFallDistance();
-        RagdollServerNetworking.markRagdolled(player, 58);
-        if (ServerPlayNetworking.canSend(player, RagdollImpulsePayload.TYPE))
-            ServerPlayNetworking.send(player, new RagdollImpulsePayload(center, impulse, 1.2F));
         if (ServerPlayNetworking.canSend(player, DazePayload.TYPE))
             ServerPlayNetworking.send(player, new DazePayload(34, 2));
     }

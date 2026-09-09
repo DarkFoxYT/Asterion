@@ -2095,13 +2095,6 @@ public final class WorldGenerator {
         electrify(entity, chargeTicks);
         level.playSound(null, entity.blockPosition(), net.minecraft.sounds.SoundEvents.LIGHTNING_BOLT_THUNDER,
                 net.minecraft.sounds.SoundSource.HOSTILE, 2.0F, .85F);
-        if (entity instanceof ServerPlayer player) {
-            net.krodark.asterion.network.ragdoll.RagdollServerNetworking.markRagdolled(player, chargeTicks + 40);
-            net.krodark.asterion.network.ragdoll.RagdollServerNetworking.suppressThrowFallDamage(player, 240);
-            if (ServerPlayNetworking.canSend(player, net.krodark.asterion.network.ragdoll.RagdollImpulsePayload.TYPE))
-                ServerPlayNetworking.send(player, new net.krodark.asterion.network.ragdoll.RagdollImpulsePayload(
-                        source, launch, 1.6F));
-        }
         WARD_FALL_PROTECTION.put(entity.getUUID(), 240);
     }
 

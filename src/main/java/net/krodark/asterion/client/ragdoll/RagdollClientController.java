@@ -11,7 +11,6 @@ import net.krodark.asterion.client.hud.DazeOverlay;
 import org.lwjgl.glfw.GLFW;
 
 public final class RagdollClientController {
-    private static boolean tumbleWasDown;
     private static boolean rightWasDown;
     private static boolean recoveryWasDown;
     private static int recoveryPresses;
@@ -21,7 +20,6 @@ public final class RagdollClientController {
     private static boolean thirdPersonLocked;
     private static LivingEntity observedLocalPlayer;
     private static net.minecraft.client.multiplayer.ClientLevel observedLevel;
-    private static int ragdollSuppressedUntilTick;
     private static int respawnProtectedUntilTick;
     private static boolean wasPlayback;
 
@@ -37,7 +35,6 @@ public final class RagdollClientController {
         if (client.level == null || client.player == null) {
             restoreCamera(client);
             engine.clear();
-            tumbleWasDown = false;
             rightWasDown = false;
             resetRecovery();
             observedLocalPlayer = null;
@@ -57,7 +54,7 @@ public final class RagdollClientController {
             restoreCamera(client);
             DazeOverlay.cancel();
             resetRecovery();
-            tumbleWasDown = rightWasDown = false;
+            rightWasDown = false;
             engine.tickPlayback(client);
             return;
         }
@@ -71,10 +68,8 @@ public final class RagdollClientController {
         if (observedLocalPlayer != client.player) {
             if (observedLocalPlayer != null) engine.discardRespawnRagdoll(observedLocalPlayer.getId());
             engine.discardRespawnRagdoll(client.player.getId());
-            ragdollSuppressedUntilTick = client.player.tickCount + 60;
             DazeOverlay.cancel();
             restoreCamera(client);
-            tumbleWasDown = false;
             rightWasDown = false;
             resetRecovery();
             observedLocalPlayer = client.player;
@@ -87,7 +82,6 @@ public final class RagdollClientController {
                 engine.releaseRagdoll(client.player.getId());
             DazeOverlay.cancel();
             restoreCamera(client);
-            tumbleWasDown = false;
             rightWasDown = false;
             resetRecovery();
             engine.tick(client.level, client.player);
@@ -96,16 +90,6 @@ public final class RagdollClientController {
 
         boolean input = client.screen == null;
         long window = client.getWindow().handle();
-        boolean tumble = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_H) == GLFW.GLFW_PRESS;
-        if (input && tumble && !tumbleWasDown
-                && !engine.isPlayerTumbling(client.player.getId())) {
-            engine.togglePlayerTumble(client);
-        }
-        tumbleWasDown = tumble;
-
-        if (shouldTumbleFromFall(client))
-            engine.forcePlayerTumble(client, client.player.position(), client.player.getDeltaMovement(), .7F);
-
         boolean recovery = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_SPACE) == GLFW.GLFW_PRESS;
         boolean tumbling = engine.isPlayerTumbling(client.player.getId());
         if (!tumbling || DazeOverlay.isActive() || net.krodark.asterion.entity.MinotaurEntity.isHeld(client.player)) {
@@ -118,7 +102,6 @@ public final class RagdollClientController {
                 recoveryLastPressTick = client.player.tickCount;
                 recoveryPresses++;
                 if (recoveryPresses >= 4 && engine.ragdollElapsedTicks(client.player.getId()) >= 8) {
-                    suppressAutomaticFallRagdoll(40);
                     engine.releaseRagdoll(client.player.getId());
                     resetRecovery();
                     DazeOverlay.hideRagdollRecovery();
@@ -164,29 +147,6 @@ public final class RagdollClientController {
     public static boolean isRespawnProtected(Minecraft client) {
         return client.player != null && (observedLocalPlayer != client.player
                 || client.player.tickCount < respawnProtectedUntilTick);
-    }
-
-    public static boolean shouldTumbleFromFall(Minecraft client) {
-        var player = client.player;
-        return player != null && player.isAlive() && !player.isSpectator()
-                && !player.getAbilities().flying && !player.isFallFlying() && !player.isPassenger()
-                && !player.onGround() && !player.isInWater() && !player.isInLava() && !player.onClimbable()
-                && player.fallDistance > 4 && player.getDeltaMovement().y < -.5
-                && !isRespawnProtected(client) && !isAutomaticRagdollSuppressed(client)
-                && !net.krodark.asterion.client.cinematic.CinematicControls.locked()
-                && !net.krodark.asterion.entity.MinotaurEntity.isHeld(player)
-                && !DismembermentEngine.INSTANCE.isPlayerTumbling(player.getId());
-    }
-
-    public static void suppressAutomaticFallRagdoll(int ticks) {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player != null)
-            ragdollSuppressedUntilTick = Math.max(ragdollSuppressedUntilTick,
-                    client.player.tickCount + Math.max(1, ticks));
-    }
-
-    public static boolean isAutomaticRagdollSuppressed(Minecraft client) {
-        return client.player != null && client.player.tickCount < ragdollSuppressedUntilTick;
     }
 
     private static float axis(long window, int negative, int positive) {

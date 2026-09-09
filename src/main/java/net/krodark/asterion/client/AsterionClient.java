@@ -209,7 +209,6 @@ public final class AsterionClient implements ClientModInitializer {
                 context.client().execute(() -> {
                     MazeZapRenderer.receive(payload);
                     DeadSunClientEvents.receiveWardZap(payload);
-                    RagdollClientController.suppressAutomaticFallRagdoll(payload.durationTicks() + 80);
                 }));
         ClientPlayNetworking.registerGlobalReceiver(DeadSunEventPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> DeadSunClientEvents.receive(payload)));
