@@ -44,7 +44,7 @@ public final class AsterionModMenu implements ModMenuApi {
                     left, y, 150, 20, Component.literal("Adaptive performance"),
                     (button, value) -> config.adaptivePerformance = value));
             addRenderableWidget(CycleButton.<Integer>builder(value -> Component.literal(value + " FPS"),
-                            config.performanceTargetFps).withValues(60, 120, 165, 240, 360).create(
+                            config.performanceTargetFps).withValues(30, 45, 60, 90, 120, 165, 240, 360).create(
                     right, y, 150, 20, Component.literal("Performance target"),
                     (button, value) -> config.performanceTargetFps = value));
             y += 21;
@@ -125,11 +125,14 @@ public final class AsterionModMenu implements ModMenuApi {
                     right, y, 150, 20, Component.literal("Objective display"),
                     (button, value) -> config.objectiveHudSeconds = value));
             y += 24;
+            addRenderableWidget(Button.builder(Component.literal("Performance presets"), button ->
+                    minecraft.setScreen(new PerformancePresetsScreen(this)))
+                    .bounds(left, y, 150, 20).build());
             addRenderableWidget(Button.builder(Component.literal("Save and return"), button -> {
                 config.save();
                 AsterionEmissiveConfig.apply();
                 minecraft.setScreen(parent);
-            }).bounds(width / 2 - 100, y, 200, 20).build());
+            }).bounds(right, y, 150, 20).build());
         }
 
         @Override

@@ -12,7 +12,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 
 public final class ShatteredDeadWoodGeoRenderer
-        extends GeoBlockRenderer<ShatteredDeadWoodBlockEntity, BlockEntityRenderState> {
+        extends StaticDecorationRenderer<ShatteredDeadWoodBlockEntity> {
     private static final DataTicket<Integer> FACING = DataTickets.create(
             "asterion_shattered_dead_wood_facing", Integer.class);
 

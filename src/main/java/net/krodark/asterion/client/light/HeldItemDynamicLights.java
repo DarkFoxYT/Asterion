@@ -73,7 +73,15 @@ public final class HeldItemDynamicLights {
         NEARBY_ITEMS.clear();
         if (config.droppedItemLights) {
             NEARBY_ITEMS.addAll(client.level.getEntitiesOfClass(ItemEntity.class,
-                    client.player.getBoundingBox().inflate(range), ItemEntity::isAlive));
+                    client.player.getBoundingBox().inflate(range), item -> item.isAlive()
+                            && item.distanceToSqr(client.player) <= rangeSquared
+                            && styleFor(item.getItem()) != null));
+            // Bound per-frame interpolation and light updates, not just the GPU light count.
+            NEARBY_ITEMS.sort(java.util.Comparator.comparingDouble(item -> item.distanceToSqr(client.player)));
+            int itemBudget = Math.max(0, config.maxDynamicLights - currentLights.size());
+            if (NEARBY_ITEMS.size() > itemBudget) {
+                NEARBY_ITEMS.subList(itemBudget, NEARBY_ITEMS.size()).clear();
+            }
             for (ItemEntity item : NEARBY_ITEMS) {
                 if (styleFor(item.getItem()) != null) {
                     UUID id = item.getUUID();
@@ -90,6 +98,8 @@ public final class HeldItemDynamicLights {
         }
         ACTIVE_LIGHTS.clear();
         ACTIVE_LIGHTS.addAll(currentLights);
+        HELD_KEYS.entrySet().removeIf(entry -> !currentLights.contains(entry.getValue()[0])
+                && !currentLights.contains(entry.getValue()[1]));
         DROPPED_POSITIONS.keySet().removeIf(id -> !CURRENT_DROPPED_IDS.contains(id));
         DROPPED_KEYS.keySet().removeIf(id -> !CURRENT_DROPPED_IDS.contains(id));
     }

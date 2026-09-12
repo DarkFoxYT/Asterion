@@ -35,7 +35,7 @@ public final class DynamicBlockLights {
 
     private static void tick(MinecraftServer server) {
         AsterionConfig config = AsterionConfig.INSTANCE;
-        if (!config.dynamicLightsEnabled) {
+        if (!config.dynamicLightsEnabled || !config.blockLightUpdates) {
             if (!PLACED.isEmpty()) clear(server);
             return;
         }

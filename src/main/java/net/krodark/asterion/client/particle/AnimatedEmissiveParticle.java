@@ -69,6 +69,9 @@ public abstract class AnimatedEmissiveParticle extends SingleQuadParticle {
                 .onRender((context, batch) -> {
                     VISIBLE.clear();
                     boolean culling = net.krodark.asterion.AsterionConfig.INSTANCE.potatoParticleCulling;
+                    var config = net.krodark.asterion.AsterionConfig.INSTANCE;
+                    int range = culling ? Math.min(64, config.emissiveParticleDistance) : config.emissiveParticleDistance;
+                    int limit = culling ? Math.min(2048, config.maxEmissiveParticles) : config.maxEmissiveParticles;
                     var world = context.world();
                     if (world == null) { ACTIVE.clear(); return; }
                     var camera = context.cameraPos();
@@ -87,17 +90,17 @@ public abstract class AnimatedEmissiveParticle extends SingleQuadParticle {
                         particle.renderZ = (float)(Mth.lerp(partialTick, particle.zo, particle.z) - camera.z);
                         particle.distanceSquared = particle.renderX * particle.renderX
                                 + particle.renderY * particle.renderY + particle.renderZ * particle.renderZ;
-                        if (culling && particle.distanceSquared > 64 * 64) continue;
+                        if (particle.distanceSquared > range * range) continue;
                         particle.renderSize = particle.getQuadSize(partialTick) * 2.0F;
                          
                         float radius = Math.abs(particle.renderSize) * 0.707107F + 0.01F;
-                        if (culling && !gpuFrame && !batch.visible(camera.x + particle.renderX, camera.y + particle.renderY,
+                        if (!gpuFrame && !batch.visible(camera.x + particle.renderX, camera.y + particle.renderY,
                                 camera.z + particle.renderZ, radius)) continue;
                         VISIBLE.add(particle);
                     }
                     VISIBLE.sort(BACK_TO_FRONT);
                      
-                    for (int i = culling ? Math.max(0, VISIBLE.size() - 2048) : 0; i < VISIBLE.size(); i++) {
+                    for (int i = Math.max(0, VISIBLE.size() - limit); i < VISIBLE.size(); i++) {
                         var p = VISIBLE.get(i);
                         if (gpuFrame) batch.add(p, p.renderX, p.renderY, p.renderZ,
                                 Math.abs(p.renderSize) * .707107F + .01F);

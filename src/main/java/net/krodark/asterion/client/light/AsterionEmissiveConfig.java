@@ -81,17 +81,23 @@ public final class AsterionEmissiveConfig {
 
     public static void apply() {
         BloomSettings bloom = Bloom.settings();
-        int quality = AsterionConfig.INSTANCE.cinematicQuality;
+        int quality = Math.max(0, effectiveBloomQuality() - 1);
         int qualityLevelCap = quality == 0 ? 2 : 3;
         float qualityIntensity = quality == 0 ? 0.65F : quality == 1 ? 0.82F : 1.0F;
-        bloom.enabled(values.enabled)
+        float scaleCap = quality == 0 ? 0.5F : quality == 1 ? 0.7F : 1.0F;
+        bloom.enabled(values.enabled && effectiveBloomQuality() != 0)
                 .all(false)
                 .occlude(true)
                 .threshold(values.threshold)
                 .intensity(values.intensity * qualityIntensity)
                 .levels(Math.min(values.levels, qualityLevelCap))
-                .scale(values.scale)
+                .scale(Math.min(values.scale, scaleCap))
                 .knee(values.knee);
+    }
+
+    public static int effectiveBloomQuality() {
+        var config = AsterionConfig.INSTANCE;
+        return config.bloomQuality < 0 ? config.cinematicQuality + 1 : config.bloomQuality;
     }
 
     public static float minotaurEyeStrength() {

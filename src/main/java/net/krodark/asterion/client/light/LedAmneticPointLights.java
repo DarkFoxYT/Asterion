@@ -136,6 +136,7 @@ final class LedAmneticPointLights {
                 }
                 entry.getValue().remove();
                 BUFFERED.remove(entry.getKey());
+                CONFIGURED_QUALITY.remove(entry.getKey());
                 iterator.remove();
                 break;
             }

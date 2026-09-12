@@ -21,6 +21,7 @@ public final class BrazierAmneticLights {
     private BrazierAmneticLights() { }
 
     public static void tick(Minecraft client) {
+        if (!net.krodark.asterion.AsterionConfig.INSTANCE.dynamicLightsEnabled) return;
         if (client.level == null || client.player == null || --cooldown > 0) return;
         cooldown = SCAN_INTERVAL;
         BlockPos center = client.player.blockPosition();

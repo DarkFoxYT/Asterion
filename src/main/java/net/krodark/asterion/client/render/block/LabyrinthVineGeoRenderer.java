@@ -14,6 +14,9 @@ import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
  
 public final class LabyrinthVineGeoRenderer
         extends GeoBlockRenderer<LabyrinthVineBlockEntity, BlockEntityRenderState> {
+    @Override public int getViewDistance() {
+        return net.krodark.asterion.AsterionConfig.INSTANCE.decorationRenderDistance;
+    }
     private final java.util.Map<com.geckolib.cache.model.BakedGeoModel, StaticVineMesh[]> meshes =
             new com.google.common.collect.MapMaker().weakKeys().makeMap();
 
