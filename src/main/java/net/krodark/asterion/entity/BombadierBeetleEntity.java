@@ -135,8 +135,10 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
 
     @Override
     public boolean hurt(DamageSource source, float amount) {
-        ServerLevel level = (ServerLevel) level();
         boolean hurt = super.hurt(source, amount);
+        // hurt() is predicted on the logical client when the local player attacks.
+        // Defence state, gas trails and damage must only be mutated by the server.
+        if (!(level() instanceof ServerLevel)) return hurt;
         if (hurt && isAlive() && defenceState() == DefenceState.CALM && defenceCooldown == 0) {
             Entity attacker = source.getEntity();
             beginDefence(attacker == null ? null : attacker.position());

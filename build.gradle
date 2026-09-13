@@ -155,6 +155,26 @@ processResources {
         }
         file("${destinationDir}/assets/asterion/sounds.json").text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(sounds))
         file("${destinationDir}/assets/asterion/music_tracks.json").text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(tracks))
+        def renderTypes = [
+                ancient_leaves: 'minecraft:cutout', tainted_leaves: 'minecraft:cutout',
+                tainted_leaves_variant: 'minecraft:cutout', tainted_petals: 'minecraft:cutout',
+                tainted_petals_variant: 'minecraft:cutout', short_grass: 'minecraft:cutout',
+                ancient_moss_carpet: 'minecraft:cutout', mazesteel_bars_post: 'minecraft:cutout',
+                mazesteel_bars_side: 'minecraft:cutout', mazesteel_chain: 'minecraft:cutout',
+                mazesteel_gate: 'minecraft:cutout', greek_brazier: 'minecraft:cutout',
+                greek_brazier_part: 'minecraft:cutout', greek_brazier_unlit: 'minecraft:cutout',
+                greek_fire_lantern: 'minecraft:cutout', red_fire_lantern: 'minecraft:cutout',
+                greek_fire_torch_particles: 'minecraft:cutout', red_fire_torch_particles: 'minecraft:cutout',
+                orange_fire_torch_particles: 'minecraft:cutout', labyrinth_vine_particles: 'minecraft:cutout',
+                heavy_water: 'minecraft:translucent'
+        ]
+        renderTypes.each { name, type ->
+            def model = file("${destinationDir}/assets/asterion/models/block/${name}.json")
+            if (!model.isFile()) return
+            def json = new groovy.json.JsonSlurper().parse(model)
+            json.render_type = type
+            model.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json))
+        }
     }
 }
 
@@ -284,4 +304,77 @@ tasks.register("buildAllLoaders") {
     group = "build"
     description = "Builds the Minecraft 1.21.1 Fabric and NeoForge jars."
     dependsOn tasks.named("build"), project(":neoforge").tasks.named("build")
+}
+
+tasks.register("validateAsterionAssets") {
+    group = "verification"
+    description = "Validates Asterion model, GeckoLib, particle and Veil resources."
+    dependsOn tasks.named("processResources")
+    doLast {
+        def assets = file("${layout.buildDirectory.get().asFile}/resources/main/assets/asterion")
+        def failures = []
+        def parsed = [:]
+        fileTree(assets).matching { include '**/*.json' }.files.each { resource ->
+            try { parsed[resource] = new groovy.json.JsonSlurper().parse(resource) }
+            catch (Exception error) { failures << "Invalid JSON ${assets.toPath().relativize(resource.toPath())}: ${error.message}" }
+        }
+        fileTree(new File(assets, 'geo')).matching { include '**/*.geo.json' }.files.each { resource ->
+            def json = parsed[resource]
+            if (json != null && json.format_version != '1.12.0')
+                failures << "Unsupported GeckoLib model format in ${resource.name}: ${json.format_version}"
+        }
+        fileTree(new File(assets, 'particles')).matching { include '**/*.json' }.files.each { resource ->
+            def json = parsed[resource]
+            json?.textures?.each { texture ->
+                if (texture instanceof String && texture.startsWith('asterion:')) {
+                    def image = new File(assets, 'textures/particle/' + texture.substring('asterion:'.length()) + '.png')
+                    if (!image.isFile()) failures << "Missing particle texture ${texture} used by ${resource.name}"
+                }
+            }
+        }
+        fileTree(new File(assets, 'models')).matching { include '**/*.json' }.files.each { resource ->
+            def json = parsed[resource]
+            json?.textures?.values()?.each { texture ->
+                if (texture instanceof String && texture.startsWith('asterion:')) {
+                    def image = new File(assets, 'textures/' + texture.substring('asterion:'.length()) + '.png')
+                    if (!image.isFile()) failures << "Missing model texture ${texture} used by ${resource.name}"
+                }
+            }
+            if (json?.parent instanceof String && json.parent.startsWith('asterion:')) {
+                def parent = new File(assets, 'models/' + json.parent.substring('asterion:'.length()) + '.json')
+                if (!parent.isFile()) failures << "Missing parent model ${json.parent} used by ${resource.name}"
+            }
+        }
+        fileTree(new File(assets, 'blockstates')).matching { include '**/*.json' }.files.each { resource ->
+            def visit
+            visit = { value ->
+                if (value instanceof Map) {
+                    value.each { key, child ->
+                        if (key == 'model' && child instanceof String && child.startsWith('asterion:')) {
+                            def model = new File(assets, 'models/' + child.substring('asterion:'.length()) + '.json')
+                            if (!model.isFile()) failures << "Missing block model ${child} used by ${resource.name}"
+                        } else visit(child)
+                    }
+                } else if (value instanceof Collection) value.each(visit)
+            }
+            visit(parsed[resource])
+        }
+        fileTree(new File(assets, 'pinwheel/shaders/program')).matching { include '**/*.json' }.files.each { resource ->
+            def json = parsed[resource]
+            ['vertex': '.vsh', 'fragment': '.fsh'].each { key, extension ->
+                def shader = json?.get(key)
+                if (shader instanceof String && shader.startsWith('asterion:')) {
+                    def source = new File(assets, 'pinwheel/shaders/program/'
+                            + shader.substring('asterion:'.length()) + extension)
+                    if (!source.isFile()) failures << "Missing ${key} shader ${shader} used by ${resource.name}"
+                }
+            }
+        }
+        if (!failures.isEmpty()) throw new GradleException(failures.unique().join(System.lineSeparator()))
+        logger.lifecycle("Validated ${parsed.size()} Asterion JSON resources and their local asset references.")
+    }
+}
+
+tasks.named("check").configure {
+    dependsOn tasks.named("validateAsterionAssets")
 }

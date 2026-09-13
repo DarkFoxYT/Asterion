@@ -21,6 +21,7 @@ public final class AsterionNeoForgeClient {
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft client = Minecraft.getInstance();
+        net.krodark.asterion.port.client.PortClientFeatures.tick(client);
         if (client.player == null || client.level == null) {
             clearLight();
             return;

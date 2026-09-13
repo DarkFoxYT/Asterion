@@ -29,7 +29,9 @@
     "StructureTemplateAccessor",
     "WorldGenRegionAccessor"
   ],
-  "client": [],
+  "client": [
+    "ItemPropertiesInvoker"
+  ],
   "injectors": {
     "defaultRequire": 1
   },

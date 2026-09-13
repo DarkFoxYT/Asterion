@@ -139,6 +139,26 @@ tasks.named('processResources').configure {
         }
         file("${destinationDir}/assets/asterion/sounds.json").text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(sounds))
         file("${destinationDir}/assets/asterion/music_tracks.json").text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(tracks))
+        def renderTypes = [
+                ancient_leaves: 'minecraft:cutout', tainted_leaves: 'minecraft:cutout',
+                tainted_leaves_variant: 'minecraft:cutout', tainted_petals: 'minecraft:cutout',
+                tainted_petals_variant: 'minecraft:cutout', short_grass: 'minecraft:cutout',
+                ancient_moss_carpet: 'minecraft:cutout', mazesteel_bars_post: 'minecraft:cutout',
+                mazesteel_bars_side: 'minecraft:cutout', mazesteel_chain: 'minecraft:cutout',
+                mazesteel_gate: 'minecraft:cutout', greek_brazier: 'minecraft:cutout',
+                greek_brazier_part: 'minecraft:cutout', greek_brazier_unlit: 'minecraft:cutout',
+                greek_fire_lantern: 'minecraft:cutout', red_fire_lantern: 'minecraft:cutout',
+                greek_fire_torch_particles: 'minecraft:cutout', red_fire_torch_particles: 'minecraft:cutout',
+                orange_fire_torch_particles: 'minecraft:cutout', labyrinth_vine_particles: 'minecraft:cutout',
+                heavy_water: 'minecraft:translucent'
+        ]
+        renderTypes.each { name, type ->
+            def model = file("${destinationDir}/assets/asterion/models/block/${name}.json")
+            if (!model.isFile()) return
+            def json = new groovy.json.JsonSlurper().parse(model)
+            json.render_type = type
+            model.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json))
+        }
     }
 }
 
