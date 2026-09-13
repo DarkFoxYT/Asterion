@@ -5,9 +5,13 @@ import foundry.veil.api.client.render.post.PostPipeline;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
+import net.krodark.asterion.worldgen.AuthoredCatacombs;
+import net.krodark.asterion.worldgen.CatacombLayout;
+import net.krodark.asterion.worldgen.LabyrinthLevels;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
 
@@ -19,6 +23,14 @@ import org.joml.Vector3f;
 public final class PortDimensionEffects {
     private static final ResourceLocation PIPELINE = Asterion.id("dimension/atmosphere");
     private static boolean active;
+    private static int biomeTarget;
+    private static float overgrowthBlend;
+    private static float crimsonBlend;
+    private static float catacombBlend;
+    private static float arenaBlend;
+    private static float caveBlend;
+    private static float forgeBlend;
+    private static float floodBlend;
 
     private PortDimensionEffects() {}
 
@@ -30,6 +42,7 @@ public final class PortDimensionEffects {
     }
 
     public static void tick(Minecraft client) {
+        tickBiomeAtmosphere(client);
         boolean wanted = client.level != null && client.player != null
                 && client.level.dimension().equals(Asterion.ASTERION_LEVEL)
                 && (AsterionConfig.INSTANCE.deadSunEnabled || AsterionConfig.INSTANCE.dustyAirEnabled);
@@ -60,6 +73,9 @@ public final class PortDimensionEffects {
                 client.gameRenderer).asterion$currentFov(camera, partialTick, true));
         float far = Math.max(64.0F, client.gameRenderer.getDepthFar());
         AsterionConfig config = AsterionConfig.INSTANCE;
+        Vector3f atmosphere = atmosphereSettings(config);
+        Vector3f dust = dustColor(config);
+        Vector3f fog = fogColor(config);
 
         pipeline.getUniformSafe("CameraPosition").setVector((float)position.x, (float)position.y, (float)position.z);
         pipeline.getUniformSafe("CameraForward").setVector(forward);
@@ -70,12 +86,9 @@ public final class PortDimensionEffects {
         pipeline.getUniformSafe("EffectData").setVector(
                 config.dustyAirEnabled ? config.dustyAirStrength : 0.0F,
                 config.deadSunEnabled ? config.deadSunStrength : 0.0F,
-                config.dustDensity * mix(1.0F, 2.80F, eclipse),
-                config.fogStrength * mix(1.0F, 2.25F, eclipse));
-        pipeline.getUniformSafe("DustColor").setVector(mix(config.dustR, 0.15F, eclipse),
-                mix(config.dustG, 0.018F, eclipse), mix(config.dustB, 0.012F, eclipse));
-        pipeline.getUniformSafe("FogColor").setVector(mix(config.fogR, 0.018F, eclipse),
-                mix(config.fogG, 0.003F, eclipse), mix(config.fogB, 0.002F, eclipse));
+                atmosphere.x, atmosphere.y);
+        pipeline.getUniformSafe("DustColor").setVector(dust);
+        pipeline.getUniformSafe("FogColor").setVector(fog);
         Vec3 sunOffset = PortDeadSunEvents.sunOffset();
         double dx = position.x - config.deadSunX;
         double dz = position.z - config.deadSunZ;
@@ -98,6 +111,91 @@ public final class PortDimensionEffects {
         pipeline.getUniformSafe("AnimationData").setVector(
                 (float)((System.nanoTime() * 1.0E-9D % 100000.0D) * 20.0D),
                 config.shaderAnimationSpeed, Math.max(0, Math.min(2, config.cinematicQuality)), eclipse);
+    }
+
+    public static void setBiome(int biome) {
+        biomeTarget = Mth.clamp(biome, 0, 4);
+    }
+
+    /** Smoothly restores the authored atmosphere for each vertical/biome zone. */
+    private static void tickBiomeAtmosphere(Minecraft client) {
+        boolean inside = client.level != null && client.player != null
+                && client.level.dimension().equals(Asterion.ASTERION_LEVEL);
+        if (!inside) {
+            biomeTarget = 0;
+            catacombBlend = approach(catacombBlend, 0.0F, .12F);
+            arenaBlend = approach(arenaBlend, 0.0F, .12F);
+            caveBlend = approach(caveBlend, 0.0F, .12F);
+            forgeBlend = approach(forgeBlend, 0.0F, .12F);
+            floodBlend = approach(floodBlend, 0.0F, .12F);
+        } else {
+            Vec3 camera = client.gameRenderer.getMainCamera().getPosition();
+            double cameraY = camera.y;
+            float caveTarget = Mth.clamp((float)(LabyrinthLevels.CAVE_ROOF_Y - cameraY) / 12.0F,
+                    0.0F, 1.0F);
+            caveBlend = approach(caveBlend, caveTarget, .04F);
+
+            float arenaTarget = Math.abs(camera.x) <= AuthoredCatacombs.ARENA_RADIUS
+                    && Math.abs(camera.z) <= AuthoredCatacombs.ARENA_RADIUS
+                    && cameraY >= AuthoredCatacombs.ARENA_BASE_Y
+                    && cameraY < AuthoredCatacombs.ARENA_BASE_Y + 47 ? 1.0F : 0.0F;
+            arenaBlend = approach(arenaBlend, arenaTarget, .08F);
+
+            int vaultRoof = Math.min(LabyrinthLevels.MAZE_FLOOR_Y - 2,
+                    CatacombLayout.roofAt(client.player.getBlockX(), client.player.getBlockZ()));
+            float underground = Mth.clamp((float)(vaultRoof + 3 - cameraY) / 4.0F, 0.0F, 1.0F)
+                    * Mth.clamp((float)(cameraY - LabyrinthLevels.FORGE_ROOF_Y), 0.0F, 1.0F);
+            if (biomeTarget == 3) underground = 1.0F;
+            catacombBlend = approach(catacombBlend, underground, .04F);
+            forgeBlend = approach(forgeBlend, biomeTarget == 4 ? 1.0F - caveTarget : 0.0F, .04F);
+            floodBlend = approach(floodBlend, PortDeadSunEvents.floodStrength(), .025F);
+        }
+        overgrowthBlend = approach(overgrowthBlend, biomeTarget == 1 ? 1.0F : 0.0F, .026F);
+        crimsonBlend = approach(crimsonBlend, biomeTarget == 2 ? 1.0F : 0.0F, .026F);
+    }
+
+    private static Vector3f atmosphereSettings(AsterionConfig config) {
+        float eclipse = Mth.clamp(PortDeadSunEvents.eclipse(), 0.0F, 1.0F);
+        float dust = config.dustDensity * mix(mix(1.0F, .82F, overgrowthBlend)
+                * mix(1.0F, .92F, crimsonBlend)
+                * mix(1.0F, 1.18F, forgeBlend)
+                * mix(1.0F, 2.80F, eclipse)
+                * mix(1.0F, 1.40F + 2.80F * floodBlend * (1.0F - arenaBlend), catacombBlend)
+                * mix(1.0F, 3.20F, caveBlend), .45F, arenaBlend);
+        float fog = config.fogStrength * mix(mix(1.0F, .90F, overgrowthBlend)
+                * mix(1.0F, .94F, crimsonBlend)
+                * mix(1.0F, 1.12F, forgeBlend)
+                * mix(1.0F, 2.25F, eclipse)
+                * mix(1.0F, 1.10F + .40F * floodBlend * (1.0F - arenaBlend), catacombBlend)
+                * mix(1.0F, 2.10F, caveBlend), .38F, arenaBlend);
+        return new Vector3f(dust, fog, config.shaderAnimationSpeed);
+    }
+
+    private static Vector3f dustColor(AsterionConfig config) {
+        float eclipse = Mth.clamp(PortDeadSunEvents.eclipse(), 0.0F, 1.0F);
+        float red = mix(mix(mix(config.dustR, .43F, overgrowthBlend), .50F, crimsonBlend), .92F, forgeBlend);
+        float green = mix(mix(mix(config.dustG, .46F, overgrowthBlend), .70F, crimsonBlend), .34F, forgeBlend);
+        float blue = mix(mix(mix(config.dustB, .40F, overgrowthBlend), .84F, crimsonBlend), .12F, forgeBlend);
+        return new Vector3f(
+                mix(mix(mix(mix(red, .15F, eclipse), .70F, catacombBlend), .82F, arenaBlend), .025F, caveBlend),
+                mix(mix(mix(mix(green, .018F, eclipse), .81F, catacombBlend), .52F, arenaBlend), .028F, caveBlend),
+                mix(mix(mix(mix(blue, .012F, eclipse), .90F, catacombBlend), .25F, arenaBlend), .032F, caveBlend));
+    }
+
+    private static Vector3f fogColor(AsterionConfig config) {
+        float eclipse = Mth.clamp(PortDeadSunEvents.eclipse(), 0.0F, 1.0F);
+        float red = mix(mix(mix(config.fogR, .20F, overgrowthBlend), .20F, crimsonBlend), .22F, forgeBlend);
+        float green = mix(mix(mix(config.fogG, .235F, overgrowthBlend), .34F, crimsonBlend), .085F, forgeBlend);
+        float blue = mix(mix(mix(config.fogB, .205F, overgrowthBlend), .43F, crimsonBlend), .045F, forgeBlend);
+        return new Vector3f(
+                mix(mix(mix(mix(red, .018F, eclipse), .64F, catacombBlend), .20F, arenaBlend), .003F, caveBlend),
+                mix(mix(mix(mix(green, .003F, eclipse), .76F, catacombBlend), .13F, arenaBlend), .004F, caveBlend),
+                mix(mix(mix(mix(blue, .002F, eclipse), .86F, catacombBlend), .085F, arenaBlend), .006F, caveBlend));
+    }
+
+    private static float approach(float value, float target, float speed) {
+        float result = value + (target - value) * speed;
+        return Math.abs(target - result) < .001F ? target : result;
     }
 
     private static float mix(float from, float to, float amount) {

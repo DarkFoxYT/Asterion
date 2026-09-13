@@ -135,6 +135,14 @@ public final class PortDeadSunEvents {
         return sample(listener, 1).eclipse;
     }
 
+    /** Atmospheric tide ramp used by the catacomb dust profile. */
+    public static float floodStrength() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null || active == null || !active.id.equals(DeadSunEventSystem.FLOOD)) return 0.0F;
+        return (float)Mth.clamp((client.level.getGameTime() - active.start)
+                / (double)net.krodark.asterion.event.CatacombFloodState.RISE_DURATION_TICKS, 0.0D, 1.0D);
+    }
+
     private static float smooth(float value) { return value * value * (3 - 2 * value); }
     private static Vec3 noiseVector(long seed, double elapsed, double scale) {
         return new Vec3(noise(seed + 3, elapsed * 0.92D), noise(seed + 7, elapsed * 1.08D),

@@ -39,10 +39,14 @@ public final class PortClientFeatures {
                 new DimensionSpecialEffects(Float.NaN, false, DimensionSpecialEffects.SkyType.NONE,
                         false, false) {
                     @Override public Vec3 getBrightnessDependentFogColor(Vec3 color, float sunHeight) {
-                        return new Vec3(.018D, .010D, .006D);
+                        return Vec3.ZERO;
                     }
-                    @Override public boolean isFoggyAt(int x, int z) { return true; }
+                    @Override public boolean isFoggyAt(int x, int z) { return false; }
                 });
+        // Clouds use a separate world render path in 1.21.1, even for a NONE
+        // sky type.  A no-op renderer prevents vanilla clouds leaking into the
+        // enclosed Labyrinth without touching clouds in other dimensions.
+        DimensionRenderingRegistry.registerCloudRenderer(Asterion.ASTERION_LEVEL, context -> {});
 
         // Compass predicates are registered per-item in 1.21.1. Extending CompassItem
         // alone does not make a custom item use the vanilla angle property.
@@ -64,7 +68,10 @@ public final class PortClientFeatures {
         ClientPlayNetworking.registerGlobalReceiver(ForgeInsertPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> PortForgeItemFlights.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(BiomeAtmospherePayload.TYPE, (payload, context) ->
-                context.client().execute(() -> PortAudio.setBiome(payload.biome())));
+                context.client().execute(() -> {
+                    PortDimensionEffects.setBiome(payload.biome());
+                    PortAudio.setBiome(payload.biome());
+                }));
         ClientPlayNetworking.registerGlobalReceiver(MinotaurGlobalSoundPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> PortAudio.playGlobal(payload)));
         ClientPlayNetworking.registerGlobalReceiver(EntryOmenPayload.TYPE, (payload, context) ->
