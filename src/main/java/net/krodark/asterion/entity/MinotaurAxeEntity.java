@@ -15,10 +15,8 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.storage.ValueInput;
-import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
@@ -33,11 +31,10 @@ public final class MinotaurAxeEntity extends Entity {
     private static final double SWORD_MIN_Y = -13 - 6 * Math.sqrt(2);
     public static final double SWORD_CENTER_Y = (78 + SWORD_MIN_Y) / 32.0 + 6 / 16.0;
     private static final EntityDataAccessor<Boolean> SWORD = SynchedEntityData.defineId(MinotaurAxeEntity.class, EntityDataSerializers.BOOLEAN);
-    private static final EntityDataAccessor<Quaternionfc> ROTATION = SynchedEntityData.defineId(MinotaurAxeEntity.class, EntityDataSerializers.QUATERNION);
+    private static final EntityDataAccessor<Quaternionf> ROTATION = SynchedEntityData.defineId(MinotaurAxeEntity.class, EntityDataSerializers.QUATERNION);
     private static final EntityDataAccessor<Float> SCALE = SynchedEntityData.defineId(MinotaurAxeEntity.class, EntityDataSerializers.FLOAT);
     private static final EntityDataAccessor<Integer> THROWER = SynchedEntityData.defineId(MinotaurAxeEntity.class, EntityDataSerializers.INT);
     private static final Vec3[] WORLD_AXES = {new Vec3(1, 0, 0), new Vec3(0, 1, 0), new Vec3(0, 0, 1)};
-    private final InterpolationHandler interpolation = new InterpolationHandler(this, 2);
     private final Quaternionf rotation = new Quaternionf(), previousRotation = new Quaternionf();
     private Vec3 spin = Vec3.ZERO;
     private int quietTicks, impactCooldown;
@@ -71,8 +68,7 @@ public final class MinotaurAxeEntity extends Entity {
     public boolean sleeping() { return sleeping; }
     public int throwerId() { return entityData.get(THROWER); }
     public void setThrower(MinotaurEntity boss) { entityData.set(THROWER, boss.getId()); }
-    @Override public InterpolationHandler getInterpolation() { return interpolation; }
-    @Override public boolean hurtServer(ServerLevel level, DamageSource source, float damage) { return false; }
+    @Override public boolean hurt(DamageSource source, float damage) { return false; }
      
     @Override public boolean ignoreExplosion(net.minecraft.world.level.Explosion explosion) { return true; }
 
@@ -111,7 +107,6 @@ public final class MinotaurAxeEntity extends Entity {
         super.tick();
         previousRotation.set(rotation);
         if (level().isClientSide()) {
-            interpolation.interpolate();
             rotation.set(entityData.get(ROTATION));
             return;
         }
@@ -194,7 +189,7 @@ public final class MinotaurAxeEntity extends Entity {
             Entity owner = server.getEntity(throwerId());
             var damage = owner instanceof net.minecraft.world.entity.LivingEntity living
                     ? damageSources().mobProjectile(this, living) : damageSources().generic();
-            if (victim.hurtServer(server, damage, edge ? 20F : 10F)) {
+            if (victim.hurt(damage, edge ? 20F : 10F)) {
                 hitPlayers.add(victim.getUUID());
                 Vec3 impulse = velocity.normalize().scale(edge ? 2.8D : 1.35D)
                         .add(0, edge ? .72D : .42D, 0);
@@ -248,8 +243,8 @@ public final class MinotaurAxeEntity extends Entity {
         double x = radius(half, axes, WORLD_AXES[0]), y = radius(half, axes, WORLD_AXES[1]), z = radius(half, axes, WORLD_AXES[2]);
         return new AABB(center.x - x, center.y - y, center.z - z, center.x + x, center.y + y, center.z + z);
     }
-    @Override protected AABB makeBoundingBox(Vec3 position) {
-        return rotation == null ? super.makeBoundingBox(position) : bounds(position);
+    @Override protected AABB makeBoundingBox() {
+        return rotation == null ? super.makeBoundingBox() : bounds(position());
     }
     private record Contact(Vec3 normal, double depth, Vec3 point) { }
     private Contact contact(Vec3 center) {
@@ -293,22 +288,22 @@ public final class MinotaurAxeEntity extends Entity {
     }
     private double effectiveMass(Vec3 lever, Vec3 normal) { return 1 + normal.dot(inverseInertia(lever.cross(normal)).cross(lever)); }
 
-    @Override protected void addAdditionalSaveData(ValueOutput out) {
+    @Override public void addAdditionalSaveData(CompoundTag out) {
         out.putFloat("qx", rotation.x); out.putFloat("qy", rotation.y); out.putFloat("qz", rotation.z); out.putFloat("qw", rotation.w);
         out.putDouble("spin_x", spin.x); out.putDouble("spin_y", spin.y); out.putDouble("spin_z", spin.z);
         out.putFloat("axe_scale", modelScale()); out.putBoolean("sleeping", sleeping);
         out.putBoolean("sword", isSword()); out.putBoolean("harmless", harmless);
     }
-    @Override protected void readAdditionalSaveData(ValueInput in) {
-        entityData.set(SWORD, in.getBooleanOr("sword", false));
-        harmless = in.getBooleanOr("harmless", false);
-        rotation.set(in.getFloatOr("qx", 0), in.getFloatOr("qy", 0), in.getFloatOr("qz", 0), in.getFloatOr("qw", 1));
+    @Override public void readAdditionalSaveData(CompoundTag in) {
+        entityData.set(SWORD, net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "sword", false));
+        harmless = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "harmless", false);
+        rotation.set(net.krodark.asterion.port.compat.NbtCompat.getFloat(in, "qx", 0), net.krodark.asterion.port.compat.NbtCompat.getFloat(in, "qy", 0), net.krodark.asterion.port.compat.NbtCompat.getFloat(in, "qz", 0), net.krodark.asterion.port.compat.NbtCompat.getFloat(in, "qw", 1));
         if (!rotation.isFinite() || rotation.lengthSquared() < .001) rotation.identity(); else rotation.normalize();
         previousRotation.set(rotation);
-        spin = new Vec3(in.getDoubleOr("spin_x", 0), in.getDoubleOr("spin_y", 0), in.getDoubleOr("spin_z", 0));
+        spin = new Vec3(net.krodark.asterion.port.compat.NbtCompat.getDouble(in, "spin_x", 0), net.krodark.asterion.port.compat.NbtCompat.getDouble(in, "spin_y", 0), net.krodark.asterion.port.compat.NbtCompat.getDouble(in, "spin_z", 0));
         if (!Double.isFinite(spin.lengthSqr())) spin = Vec3.ZERO;
-        entityData.set(SCALE, Math.clamp(in.getFloatOr("axe_scale", .94F), .3525F, 1.88F));
+        entityData.set(SCALE, Math.clamp(net.krodark.asterion.port.compat.NbtCompat.getFloat(in, "axe_scale", .94F), .3525F, 1.88F));
         entityData.set(ROTATION, new Quaternionf(rotation));
-        sleeping = in.getBooleanOr("sleeping", false);
+        sleeping = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "sleeping", false);
     }
 }

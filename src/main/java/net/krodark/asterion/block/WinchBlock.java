@@ -17,7 +17,6 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
-import net.minecraft.world.level.redstone.Orientation;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -57,27 +56,31 @@ public final class WinchBlock extends Block {
     }
 
     @Override
-    protected void affectNeighborsAfterRemoval(BlockState state, ServerLevel level, BlockPos pos,
-                                               boolean movedByPiston) {
+    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState,
+                            boolean movedByPiston) {
+        if (state.is(newState.getBlock()) || !(level instanceof ServerLevel server)) {
+            super.onRemove(state, level, pos, newState, movedByPiston);
+            return;
+        }
          
          
         boolean closedAny = false;
-        for (BlockPos gatePos : findConnectedGates(level, pos)) {
-            if (level.dimension().equals(Asterion.ASTERION_LEVEL)
+        for (BlockPos gatePos : findConnectedGates(server, pos)) {
+            if (server.dimension().equals(Asterion.ASTERION_LEVEL)
                     && net.krodark.asterion.worldgen.MinotaurArenaEntrances.isGate(gatePos)) continue;
-            BlockState gate = level.getBlockState(gatePos);
+            BlockState gate = server.getBlockState(gatePos);
             if (!gate.getValue(DirectionalGateBlock.OPEN)) continue;
-            level.setBlock(gatePos, gate.setValue(DirectionalGateBlock.OPEN, false), Block.UPDATE_ALL);
+            server.setBlock(gatePos, gate.setValue(DirectionalGateBlock.OPEN, false), Block.UPDATE_ALL);
             closedAny = true;
         }
-        if (closedAny) level.playSound(null, pos, SoundEvents.IRON_TRAPDOOR_CLOSE,
+        if (closedAny) server.playSound(null, pos, SoundEvents.IRON_TRAPDOOR_CLOSE,
                 SoundSource.BLOCKS, 0.65F, 0.7F);
-        super.affectNeighborsAfterRemoval(state, level, pos, movedByPiston);
+        super.onRemove(state, level, pos, newState, movedByPiston);
     }
 
     @Override
     protected void neighborChanged(BlockState state, Level level, BlockPos pos, Block neighborBlock,
-                                   Orientation orientation, boolean movedByPiston) {
+                                   BlockPos neighborPos, boolean movedByPiston) {
         if (level.isClientSide()) return;
         boolean powered = level.hasNeighborSignal(pos);
         boolean powerChanged = powered != state.getValue(POWERED);

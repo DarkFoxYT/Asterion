@@ -157,7 +157,7 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
         if(!level.isClientSide()) scheduleValidation(level, pos, state);
     }
     @Override protected void neighborChanged(BlockState state,Level level,BlockPos pos,Block neighbor,
-            net.minecraft.world.level.redstone.Orientation orientation,boolean moved) {
+            BlockPos neighborPos,boolean moved) {
         if(!level.isClientSide()) scheduleValidation(level, pos, state);
     }
     private void scheduleValidation(Level level, BlockPos pos, BlockState state) {
@@ -212,15 +212,15 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
         }
         return super.playerWillDestroy(level,pos,state,player);
     }
-    @Override protected InteractionResult useItemOn(ItemStack stack,BlockState state,Level level,BlockPos pos,
+    @Override protected net.minecraft.world.ItemInteractionResult useItemOn(ItemStack stack,BlockState state,Level level,BlockPos pos,
             Player player,InteractionHand hand,BlockHitResult hit) {
         if(!state.getValue(BlockStateProperties.LIT)
-                || (!stack.is(Items.WATER_BUCKET) && !(stack.getItem() instanceof ShovelItem))) return InteractionResult.PASS;
-        if(player.getY()<pos.getY()-2.5D) return InteractionResult.FAIL;
+                || (!stack.is(Items.WATER_BUCKET) && !(stack.getItem() instanceof ShovelItem))) return net.minecraft.world.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        if(player.getY()<pos.getY()-2.5D) return net.minecraft.world.ItemInteractionResult.FAIL;
         if(level instanceof ServerLevel server && extinguish(server,pos)
                 && stack.is(Items.WATER_BUCKET) && !player.getAbilities().instabuild)
             player.setItemInHand(hand,new ItemStack(Items.BUCKET));
-        return InteractionResult.SUCCESS;
+        return net.minecraft.world.ItemInteractionResult.SUCCESS;
     }
     @Override public void animateTick(BlockState state,Level level,BlockPos pos,RandomSource random) {
         if(!isRoot(state) || !state.getValue(BlockStateProperties.LIT)) return;
@@ -231,20 +231,20 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
                 pos.getX()+.5,pos.getY()+2.8,pos.getZ()+.5,0,.055,0);
     }
     @Override protected void entityInside(BlockState state,Level level,BlockPos pos,
-            net.minecraft.world.entity.Entity entity,net.minecraft.world.entity.InsideBlockEffectApplier effects,boolean precise) {
+            net.minecraft.world.entity.Entity entity) {
         if (state.getValue(BlockStateProperties.LIT) && entity instanceof LivingEntity
                 && level instanceof ServerLevel server) {
-            entity.hurtServer(server, server.damageSources().campfire(), 2F);
+            entity.hurt(server.damageSources().campfire(), 2F);
         }
-        super.entityInside(state,level,pos,entity,effects,precise);
+        super.entityInside(state,level,pos,entity);
     }
     @Override protected VoxelShape getShape(BlockState state,BlockGetter level,BlockPos pos,CollisionContext context) {
         return SHAPES[state.getValue(COLUMN)*3+state.getValue(ROW)];
     }
-    @Override protected BlockState updateShape(BlockState state,LevelReader level,ScheduledTickAccess ticks,
-            BlockPos pos,Direction direction,BlockPos neighbor,BlockState other,RandomSource random) {
-        ticks.scheduleTick(pos,this,1);
-        if(state.getValue(BlockStateProperties.WATERLOGGED)) ticks.scheduleTick(pos,Fluids.WATER,Fluids.WATER.getTickDelay(level));
+    @Override protected BlockState updateShape(BlockState state,Direction direction,BlockState other,
+            LevelAccessor level,BlockPos pos,BlockPos neighbor) {
+        level.scheduleTick(pos,this,1);
+        if(state.getValue(BlockStateProperties.WATERLOGGED)) level.scheduleTick(pos,Fluids.WATER,Fluids.WATER.getTickDelay(level));
         return state;
     }
     @Override protected BlockState rotate(BlockState state,Rotation rotation) {

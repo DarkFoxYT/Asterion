@@ -168,14 +168,14 @@ public final class CatacombLayout {
                 for (int y=AuthoredCatacombs.ARENA_BASE_Y+2,roof=roofAt(x,z);y<=roof;y++) {
                     double radius = Math.hypot(x, z);
                     if (radius < AuthoredCatacombs.ARENA_RADIUS - 4) {
-                        chunk.setBlockState(cursor.set(x,y,z), Blocks.AIR.defaultBlockState(),0);
+                        chunk.setBlockState(cursor.set(x,y,z), Blocks.AIR.defaultBlockState(), false);
                         continue;
                     }
                     int band = (int)Math.floor(radius - (AuthoredCatacombs.ARENA_RADIUS - 4));
                     BlockState rim = band < 2 ? Asterion.SHADED_SHALE.defaultBlockState()
                             : band < 5 ? Asterion.SHALE.defaultBlockState()
                             : (Math.floorMod(x*17L+y*3L+z*31L+seed,9)<3 ? moss : brick);
-                    chunk.setBlockState(cursor.set(x,y,z), rim,0);
+                    chunk.setBlockState(cursor.set(x,y,z), rim, false);
                 }
     }
 }

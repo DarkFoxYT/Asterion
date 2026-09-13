@@ -9,7 +9,6 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.ScheduledTickAccess;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
@@ -44,9 +43,8 @@ public final class PressureButtonBlock extends Block {
         Direction support=facing.getOpposite();
         return Block.canSupportCenter(level,pos.relative(support),facing);
     }
-    @Override protected BlockState updateShape(BlockState state,LevelReader level,ScheduledTickAccess ticks,
-            BlockPos pos,Direction direction,BlockPos neighborPos,BlockState neighbor,
-            net.minecraft.util.RandomSource random) {
+    @Override protected BlockState updateShape(BlockState state,Direction direction,BlockState neighbor,
+            net.minecraft.world.level.LevelAccessor level,BlockPos pos,BlockPos neighborPos) {
         return direction==state.getValue(FACING).getOpposite()&&!canSurvive(state,level,pos)
                 ?net.minecraft.world.level.block.Blocks.AIR.defaultBlockState():state;
     }

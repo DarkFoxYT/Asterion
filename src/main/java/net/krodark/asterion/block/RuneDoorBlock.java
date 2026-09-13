@@ -30,7 +30,7 @@ public final class RuneDoorBlock extends Block {
     }
 
     @Override
-    protected VoxelShape getOcclusionShape(BlockState state) {
+    protected VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
         return state.getValue(OPEN) ? Shapes.empty() : Shapes.block();
     }
 }

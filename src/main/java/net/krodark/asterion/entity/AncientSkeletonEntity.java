@@ -7,7 +7,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.monster.skeleton.Skeleton;
+import net.minecraft.world.entity.monster.Skeleton;
 import net.minecraft.world.item.*;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
@@ -24,8 +24,7 @@ public final class AncientSkeletonEntity extends Skeleton {
     @Override protected void populateDefaultEquipmentSlots(RandomSource random, DifficultyInstance difficulty) {
         ItemStack sword = new ItemStack(Asterion.CELESTIAL_BRONZE_SWORD);
         sword.set(net.minecraft.core.component.DataComponents.CUSTOM_MODEL_DATA,
-                new net.minecraft.world.item.component.CustomModelData(java.util.List.of(random.nextBoolean() ? 1F : 2F),
-                        java.util.List.of(), java.util.List.of(), java.util.List.of()));
+                new net.minecraft.world.item.component.CustomModelData(random.nextBoolean() ? 1 : 2));
         setItemSlot(EquipmentSlot.MAINHAND, sword);
         var armor = net.krodark.asterion.game.ArmorContent.SETS.get(random.nextInt(2)).pieces();
         EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
@@ -41,7 +40,7 @@ public final class AncientSkeletonEntity extends Skeleton {
     @Override protected void dropCustomDeathLoot(ServerLevel level, net.minecraft.world.damagesource.DamageSource source,
                                                  boolean killedByPlayer) { }
     @Override public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty,
-                                                  EntitySpawnReason reason, SpawnGroupData group) {
+                                                  MobSpawnType reason, SpawnGroupData group) {
         SpawnGroupData result = super.finalizeSpawn(level, difficulty, reason, group);
         setCanPickUpLoot(false);
         for (EquipmentSlot slot : EquipmentSlot.values()) setDropChance(slot, 0);
@@ -63,7 +62,7 @@ public final class AncientSkeletonEntity extends Skeleton {
                 && pos.getY() <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y + 47;
     }
 
-    @Override public boolean checkSpawnRules(net.minecraft.world.level.LevelAccessor level, EntitySpawnReason reason) {
+    @Override public boolean checkSpawnRules(net.minecraft.world.level.LevelAccessor level, MobSpawnType reason) {
         if (level instanceof ServerLevel server && (insideArena(server, blockPosition()) || onForgeRoof(server, blockPosition()))) return false;
         return super.checkSpawnRules(level, reason);
     }
@@ -75,17 +74,17 @@ public final class AncientSkeletonEntity extends Skeleton {
     }
 
     public static boolean canSpawn(EntityType<AncientSkeletonEntity> type, ServerLevelAccessor level,
-                                   EntitySpawnReason reason, BlockPos pos, RandomSource random) {
+                                   MobSpawnType reason, BlockPos pos, RandomSource random) {
         if (insideArena(level.getLevel(), pos) || onForgeRoof(level.getLevel(), pos)) return false;
-        if (reason == EntitySpawnReason.SPAWNER)
+        if (reason == MobSpawnType.SPAWNER)
             return checkMonsterSpawnRules(type, level, reason, pos, random);
-        if (reason == EntitySpawnReason.NATURAL && net.krodark.asterion.worldgen.ShaleCaves.contains(pos)) {
+        if (reason == MobSpawnType.NATURAL && net.krodark.asterion.worldgen.ShaleCaves.contains(pos)) {
             if (random.nextInt(3) != 0 || !checkMonsterSpawnRules(type, level, reason, pos, random)) return false;
             if (!net.krodark.asterion.worldgen.CaveSpawnSpace.nearOccupiedChamber(level.getLevel(), pos)) return false;
             return level.getLevel().getEntitiesOfClass(AncientSkeletonEntity.class,
                     new net.minecraft.world.phys.AABB(pos).inflate(48, 12, 48)).size() < 4;
         }
-        return reason == EntitySpawnReason.NATURAL
+        return reason == MobSpawnType.NATURAL
                 && (level.getBiome(pos).is(Asterion.CATACOMBS_BIOME)
                     || net.krodark.asterion.worldgen.ShaleCaves.contains(pos))
                 && checkMonsterSpawnRules(type, level, reason, pos, random);

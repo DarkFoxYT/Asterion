@@ -11,7 +11,6 @@ import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.permissions.Permissions;
 
  
 public final class CatacombLocateCommands {
@@ -22,21 +21,21 @@ public final class CatacombLocateCommands {
              
             dispatcher.register(Commands.literal("locate")
                     .then(Commands.literal("catacomb_brazier_room")
-                            .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
+                            .requires(source -> source.hasPermission(2))
                             .executes(command -> locateBrazierRoom(command.getSource()))));
             dispatcher.register(Commands.literal("locate")
                     .then(Commands.literal("structure")
                             .then(Commands.literal("asterion:tree_beetle")
-                                    .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
+                                    .requires(source -> source.hasPermission(2))
                                     .executes(command -> locateQueenTree(command.getSource())))));
             dispatcher.register(Commands.literal("locate")
                     .then(Commands.literal("tree_beetle")
-                            .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
+                            .requires(source -> source.hasPermission(2))
                             .executes(command -> locateQueenTree(command.getSource()))));
              
             dispatcher.register(Commands.literal("asterion")
                     .then(Commands.literal("locate")
-                            .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
+                            .requires(source -> source.hasPermission(2))
                             .then(Commands.literal("brazier_room")
                                     .executes(command -> locateBrazierRoom(command.getSource())))));
         });

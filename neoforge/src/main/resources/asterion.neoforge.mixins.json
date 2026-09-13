@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "net.krodark.asterion.port.neoforge.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "AsterionFluidTypeMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

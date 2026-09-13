@@ -11,7 +11,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.ScheduledTickAccess;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -40,13 +39,12 @@ public final class PassionBloomBlock extends Block {
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, LevelReader level,
-                                     ScheduledTickAccess ticks, BlockPos pos,
-                                     Direction direction, BlockPos neighborPos,
-                                     BlockState neighborState, RandomSource random) {
+    protected BlockState updateShape(BlockState state, Direction direction,
+                                     BlockState neighborState, net.minecraft.world.level.LevelAccessor level,
+                                     BlockPos pos, BlockPos neighborPos) {
         return direction == Direction.UP && !canSurvive(state, level, pos)
                 ? Blocks.AIR.defaultBlockState()
-                : super.updateShape(state, level, ticks, pos, direction, neighborPos, neighborState, random);
+                : super.updateShape(state, direction, neighborState, level, pos, neighborPos);
     }
 
     @Override
@@ -62,6 +60,6 @@ public final class PassionBloomBlock extends Block {
         ItemStack bloom = new ItemStack(Asterion.TAINTED_HEART_EATABLE);
         if (!player.getInventory().add(bloom)) player.drop(bloom, false);
         level.removeBlock(pos, false);
-        return InteractionResult.SUCCESS_SERVER;
+        return InteractionResult.SUCCESS;
     }
 }

@@ -1,0 +1,157 @@
+plugins {
+    id 'net.neoforged.moddev' version '2.0.141'
+    id 'maven-publish'
+}
+
+version = rootProject.mod_version
+group = rootProject.maven_group
+
+base {
+    archivesName = "${rootProject.archives_base_name}-neoforge"
+}
+
+repositories {
+    maven { url = 'https://maven.blamejared.com/' }
+    maven { url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/' }
+    maven { url = 'https://maven.su5ed.dev/releases/' }
+}
+
+neoForge {
+    version = rootProject.neoforge_version
+
+    runs {
+        client {
+            client()
+            gameDirectory = file('../run-1.21.1-neoforge')
+        }
+        server {
+            server()
+            gameDirectory = file('../run-1.21.1-neoforge-server')
+            programArgument '--nogui'
+        }
+    }
+
+    mods {
+        asterion {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ['../src/main/java', '../src/port/java', 'src/main/java']
+            exclude 'net/krodark/asterion/client/**'
+            exclude 'net/krodark/asterion/port/fabric/**'
+            exclude 'net/krodark/asterion/compat/jei/**'
+            exclude 'net/krodark/asterion/compat/rei/**'
+            exclude 'net/krodark/asterion/compat/jade/**'
+            exclude 'net/krodark/asterion/dev/**'
+            [
+                    'ForgeHudMixin', 'ForgeToastMixin', 'ForgePlayerRendererMixin',
+                    'GeckoAnimationCacheMixin', 'GeckoAnimationFrameAccessor',
+                    'GeckoTextureCacheLifecycleMixin', 'GeckoInterpolationBufferAccessor',
+                    'BossHealthOverlayAccessor', 'MinotaurBossBarMixin', 'MinotaurBodyPickingMixin',
+                    'FlamethrowerInputMixin', 'BiomeMusicMixin', 'MoodyBrightnessMixin',
+                    'TidalWaterSurfaceMixin', 'AmneticParticleCullingMixin',
+                    'AmneticEmissivePassMixin', 'AmneticEmissiveInstanceMixin',
+                    'AmneticDepthAttachmentMixin', 'AmneticDepthBlitMixin',
+                    'AmneticBloomPerformanceMixin', 'AsterionFogRendererMixin', 'CameraMixin',
+                    'CentipedeInteractionMixin', 'FallingBlockRendererMixin',
+                    'LevelLoadingScreenMixin', 'RagdollEntityRendererMixin',
+                    'RagdollLivingEntityRendererMixin', 'RagdollGeoEntityRendererMixin',
+                    'InventoryEntityPreviewMixin', 'RagdollLevelRendererMixin',
+                    'SodiumRenderRegionMixin', 'RagdollLocalPlayerMixin',
+                    'RagdollItemInHandRendererMixin', 'ForgedTooltipOutlineMixin'
+            ].each { exclude "net/krodark/asterion/mixin/${it}.java" }
+        }
+        resources {
+            srcDirs = ['../src/main/resources', 'src/main/resources']
+            exclude 'fabric.mod.json'
+        }
+    }
+}
+
+dependencies {
+    implementation "org.sinytra.forgified-fabric-api:forgified-fabric-api:${rootProject.forgified_fabric_api_version}"
+    implementation "software.bernie.geckolib:geckolib-neoforge-${rootProject.minecraft_version}:${rootProject.geckolib_version}"
+    implementation "foundry.veil:veil-neoforge-${rootProject.minecraft_version}:${rootProject.veil_version}"
+    compileOnly 'org.jspecify:jspecify:1.0.0'
+}
+
+def resourceProperties = [
+        version: rootProject.mod_version,
+        minecraft_version: rootProject.minecraft_version,
+        neoforge_version: rootProject.neoforge_version,
+        veil_version: rootProject.veil_version,
+        geckolib_version: rootProject.geckolib_version
+]
+
+tasks.named('processResources').configure {
+    from('../src/main/resources/assets/asterion/textures/armor') {
+        include '*_top.png'
+        into 'assets/asterion/textures/entity/equipment/humanoid'
+        rename { it.replace('_top.png', '.png') }
+    }
+    from('../src/main/resources/assets/asterion/textures/armor') {
+        include '*_bottom.png'
+        into 'assets/asterion/textures/entity/equipment/humanoid_leggings'
+        rename { it.replace('_bottom.png', '.png') }
+    }
+    inputs.properties resourceProperties
+    filesMatching('META-INF/neoforge.mods.toml') {
+        expand resourceProperties
+    }
+    filesMatching('assets/asterion/sounds/music/**/*.ogg') {
+        path = path.toLowerCase(java.util.Locale.ROOT).replaceAll('[^a-z0-9/._-]', '_')
+    }
+    doLast {
+        def sounds = new groovy.json.JsonSlurper().parse(file('../src/main/resources/assets/asterion/sounds.json'))
+        def tracks = []
+        def seen = new HashSet<String>()
+        fileTree('../src/main/resources/assets/asterion/sounds/music').matching { include '**/*.ogg' }.files.sort().each { track ->
+            def trackGroup = track.parentFile.name
+            if (!(trackGroup in ['ancient', 'overgrown', 'crimsonmarshlands', 'arena', 'forge'])) return
+            def stem = track.name.substring(0, track.name.length() - 4)
+            def split = stem.lastIndexOf(' - ')
+            def title = split < 0 ? stem : stem.substring(0, split).trim()
+            def artist = split < 0 ? 'Unknown artist' : stem.substring(split + 3).trim()
+            def resource = "music/${trackGroup}/${stem}".toLowerCase(java.util.Locale.ROOT).replaceAll('[^a-z0-9/._-]', '_')
+            if (!seen.add(resource)) throw new GradleException("Duplicate music resource: ${resource}")
+            def event = resource.replace('/', '.')
+            sounds[event] = [sounds: [[name: "asterion:${resource}", stream: true]]]
+            tracks.add([group: trackGroup, sound: "asterion:${event}", title: title, artist: artist])
+        }
+        file("${destinationDir}/assets/asterion/sounds.json").text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(sounds))
+        file("${destinationDir}/assets/asterion/music_tracks.json").text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(tracks))
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs.addAll(['-Xlint:deprecation', '-Xlint:unchecked', '-Xmaxerrs', '1000'])
+    options.release.set(21)
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    withSourcesJar()
+}
+
+jar {
+    archiveFileName = "${rootProject.archives_base_name}-${rootProject.mod_version}-neoforge-mc${rootProject.minecraft_version}.jar"
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    manifest {
+        attributes(
+                'Implementation-Title': 'Asterion',
+                'Implementation-Version': rootProject.mod_version.toString(),
+                'Minecraft-Version': rootProject.minecraft_version.toString(),
+                'Mod-Loader': 'NeoForge'
+        )
+    }
+    from('../LICENSE.txt') {
+        rename { "LICENSE_${rootProject.archives_base_name}.txt" }
+    }
+}

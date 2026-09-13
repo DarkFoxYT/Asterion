@@ -4,20 +4,20 @@ import net.krodark.asterion.Asterion;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
-public record DeadSunEventPayload(Identifier eventId, long seed, int durationTicks, int elapsedTicks,
+public record DeadSunEventPayload(ResourceLocation eventId, long seed, int durationTicks, int elapsedTicks,
                                   float intensity) implements CustomPacketPayload {
     public static final Type<DeadSunEventPayload> TYPE = new Type<>(Asterion.id("dead_sun_event"));
     public static final StreamCodec<RegistryFriendlyByteBuf, DeadSunEventPayload> CODEC = StreamCodec.of(
             (buffer, payload) -> {
-                buffer.writeIdentifier(payload.eventId);
+                buffer.writeResourceLocation(payload.eventId);
                 buffer.writeLong(payload.seed);
                 buffer.writeVarInt(payload.durationTicks);
                 buffer.writeVarInt(payload.elapsedTicks);
                 buffer.writeFloat(payload.intensity);
             },
-            buffer -> new DeadSunEventPayload(buffer.readIdentifier(), buffer.readLong(),
+            buffer -> new DeadSunEventPayload(buffer.readResourceLocation(), buffer.readLong(),
                     buffer.readVarInt(), buffer.readVarInt(), buffer.readFloat())
     );
 

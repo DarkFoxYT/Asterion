@@ -1,12 +1,12 @@
 package net.krodark.asterion.entity;
 
-import com.geckolib.animatable.GeoEntity;
-import com.geckolib.animatable.instance.AnimatableInstanceCache;
-import com.geckolib.animatable.manager.AnimatableManager;
-import com.geckolib.animation.AnimationController;
-import com.geckolib.animation.object.PlayState;
-import com.geckolib.animation.RawAnimation;
-import com.geckolib.util.GeckoLibUtil;
+import software.bernie.geckolib.animatable.GeoEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animation.AnimatableManager;
+import software.bernie.geckolib.animation.AnimationController;
+import software.bernie.geckolib.animation.PlayState;
+import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.util.GeckoLibUtil;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -21,7 +21,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -30,8 +30,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.storage.ValueInput;
-import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.util.Mth;
 
@@ -75,8 +75,8 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
     }
 
     @Override
-    public boolean checkSpawnRules(LevelAccessor level, EntitySpawnReason reason) {
-        if (reason == EntitySpawnReason.NATURAL) {
+    public boolean checkSpawnRules(LevelAccessor level, MobSpawnType reason) {
+        if (reason == MobSpawnType.NATURAL) {
             if (!(level instanceof ServerLevel server)
                     || !server.dimension().equals(Asterion.ASTERION_LEVEL)
                     || !isAllowedAsterionLocation(blockPosition())) return false;
@@ -206,23 +206,24 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
                 1, .05D, .05D, .05D, .006D);
     }
 
-    @Override public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
+    @Override public boolean hurt(DamageSource source, float amount) {
+        if (!(level() instanceof ServerLevel level)) return super.hurt(source, amount);
         if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY))
-            return super.hurtServer(level, source, amount);
+            return super.hurt(source, amount);
         if (source.is(DamageTypeTags.IS_FIRE)) return false;
          
          
         if (!isVulnerable()) {
             if (blockedHitCooldown == 0) {
                 blockedHitCooldown = 8;
-                playSound(SoundEvents.SHIELD_BLOCK.value(), 0.65F, 0.72F);
+                playSound(SoundEvents.SHIELD_BLOCK, 0.65F, 0.72F);
                 level.sendParticles(ParticleTypes.WAX_OFF,
                         getX(), getY() + getBbHeight() * 0.55D, getZ(),
                         5, 0.28D, 0.38D, 0.28D, 0.045D);
             }
             return false;
         }
-        boolean hurt = super.hurtServer(level, source, amount);
+        boolean hurt = super.hurt(source, amount);
         if (hurt) {
             Vec3 hit = getBoundingBox().getCenter();
             level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK,
@@ -235,7 +236,7 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
     }
 
     @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<ConstructEntity>("movement", 2, state -> {
+        controllers.add(new AnimationController<ConstructEntity>(this, "movement", 2, state -> {
             if (isAttacking()) return state.setAndContinue(ATTACK);
             if (getDeltaMovement().horizontalDistanceSqr() > 1.0E-4D) {
                 state.setControllerSpeed(isRunning() ? 1.65F : 0.9F);
@@ -245,18 +246,18 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
         }));
     }
 
-    @Override protected void addAdditionalSaveData(ValueOutput output) {
+    @Override public void addAdditionalSaveData(CompoundTag output) {
         super.addAdditionalSaveData(output);
         output.putBoolean("Attacking", isAttacking());
         output.putInt("AttackTicks", attackTicks);
         output.putInt("RecoveryTicks", recoveryTicks);
     }
 
-    @Override protected void readAdditionalSaveData(ValueInput input) {
+    @Override public void readAdditionalSaveData(CompoundTag input) {
         super.readAdditionalSaveData(input);
-        entityData.set(ATTACKING, input.getBooleanOr("Attacking", false));
-        attackTicks = Math.clamp(input.getIntOr("AttackTicks", 0), 0, ATTACK_ANIMATION_TICKS);
-        recoveryTicks = Math.clamp(input.getIntOr("RecoveryTicks", 0), 0, RECOVERY_TICKS);
+        entityData.set(ATTACKING, net.krodark.asterion.port.compat.NbtCompat.getBoolean(input, "Attacking", false));
+        attackTicks = Math.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "AttackTicks", 0), 0, ATTACK_ANIMATION_TICKS);
+        recoveryTicks = Math.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "RecoveryTicks", 0), 0, RECOVERY_TICKS);
     }
 
     @Override public AnimatableInstanceCache getAnimatableInstanceCache() {

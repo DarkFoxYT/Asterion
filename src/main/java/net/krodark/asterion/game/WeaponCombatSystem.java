@@ -9,7 +9,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.item.AfterblowItem;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -24,7 +24,7 @@ import net.minecraft.world.item.ItemStack;
 
  
 public final class WeaponCombatSystem {
-    private static final Identifier TWIN_SPEED = Asterion.id("sickened_twinblades_combo_speed");
+    private static final ResourceLocation TWIN_SPEED = Asterion.id("sickened_twinblades_combo_speed");
     private static final int COMBO_TIMEOUT = 30;
     private static final Map<UUID, Combo> COMBOS = new HashMap<>();
     private static boolean initialized;

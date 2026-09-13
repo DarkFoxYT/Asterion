@@ -24,11 +24,15 @@ import java.util.List;
 
  
 public final class ForgedSwordRecipe extends CustomRecipe {
+    public ForgedSwordRecipe() {
+        super(net.minecraft.world.item.crafting.CraftingBookCategory.MISC);
+    }
+
     @Override public boolean matches(CraftingInput input, Level level) {
         return parts(input) != null;
     }
 
-    @Override public ItemStack assemble(CraftingInput input) {
+    @Override public ItemStack assemble(CraftingInput input, net.minecraft.core.HolderLookup.Provider registries) {
         ItemStack[] parts = parts(input);
         if (parts == null) return ItemStack.EMPTY;
         CompoundTag blade = data(parts[0]), guard = data(parts[1]), pommel = data(parts[2]);
@@ -62,8 +66,8 @@ public final class ForgedSwordRecipe extends CustomRecipe {
         appendLayers(blade, renderMaterials, renderColors);
         appendLayers(guard, renderMaterials, renderColors);
         appendLayers(pommel, renderMaterials, renderColors);
-        result.set(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(List.of(), List.of(),
-                renderMaterials, renderColors));
+        result.set(DataComponents.CUSTOM_MODEL_DATA,
+                new CustomModelData(java.util.Objects.hash(renderMaterials, renderColors)));
         boolean uniform = bladeMaterial.equals(guardMaterial) && bladeMaterial.equals(pommelMaterial);
         String title = uniform ? displayName(bladeMaterial) + " Sword" : "Custom Forged Sword";
         result.set(DataComponents.CUSTOM_NAME, Component.literal(title).withStyle(ChatFormatting.WHITE));
@@ -80,7 +84,7 @@ public final class ForgedSwordRecipe extends CustomRecipe {
         CompoundTag forged = new CompoundTag();
         forged.putString("blade_material", bladeMaterial); forged.putString("guard_material", guardMaterial);
         forged.putString("pommel_material", pommelMaterial);
-        forged.putString("metal_sequence", blade.getStringOr("metal_sequence", ""));
+        forged.putString("metal_sequence", net.krodark.asterion.port.compat.NbtCompat.getString(blade, "metal_sequence", ""));
         forged.putInt("edge", edge); forged.putInt("hardness", hardness); forged.putInt("weight", weight);
         forged.putInt("damage_rating", damageRating); forged.putInt("speed_rating", speedRating);
         forged.putInt("durability_rating", durabilityRating);
@@ -89,6 +93,8 @@ public final class ForgedSwordRecipe extends CustomRecipe {
         result.set(DataComponents.CUSTOM_DATA, CustomData.of(forged));
         return result;
     }
+
+    @Override public boolean canCraftInDimensions(int width, int height) { return width * height >= 4; }
 
     private static ItemStack[] parts(CraftingInput input) {
         ItemStack blade = ItemStack.EMPTY, guard = ItemStack.EMPTY, pommel = ItemStack.EMPTY;
@@ -106,18 +112,18 @@ public final class ForgedSwordRecipe extends CustomRecipe {
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
         return data == null ? new CompoundTag() : data.copyTag();
     }
-    private static int value(CompoundTag tag, String key, int fallback) { return tag.getIntOr(key, fallback); }
+    private static int value(CompoundTag tag, String key, int fallback) { return net.krodark.asterion.port.compat.NbtCompat.getInt(tag, key, fallback); }
     private static int weighted(ItemStack[] parts, String key, int fallback) {
         return Math.round((value(data(parts[0]), key, fallback) * 2
                 + value(data(parts[1]), key, fallback) + value(data(parts[2]), key, fallback)) / 4F);
     }
     private static String primaryMaterial(CompoundTag tag) {
-        String sequence = tag.getStringOr("metal_sequence", "");
+        String sequence = net.krodark.asterion.port.compat.NbtCompat.getString(tag, "metal_sequence", "");
         return sequence.isEmpty() ? "iron" : CrucibleBlockEntity.metalId(sequence.charAt(0) - '0');
     }
     private static void appendLayers(CompoundTag tag, java.util.List<String> materials,
                                      java.util.List<Integer> colors) {
-        String sequence = tag.getStringOr("metal_sequence", "");
+        String sequence = net.krodark.asterion.port.compat.NbtCompat.getString(tag, "metal_sequence", "");
         for (int layer = 0; layer < 4; layer++) {
             materials.add(layer < sequence.length()
                     ? CrucibleBlockEntity.metalId(sequence.charAt(layer) - '0') : "none");

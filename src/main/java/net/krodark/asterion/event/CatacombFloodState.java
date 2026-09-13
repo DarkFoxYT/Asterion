@@ -15,9 +15,9 @@ import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.permissions.Permissions;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.minecraft.world.level.saveddata.SavedDataType;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.block.Blocks;
@@ -39,8 +39,8 @@ public final class CatacombFloodState extends SavedData {
             Codec.LONG.optionalFieldOf("ends_at", 0L).forGetter(s -> s.endsAt),
             Codec.LONG.optionalFieldOf("next_step", 0L).forGetter(s -> s.nextStep)
     ).apply(instance, CatacombFloodState::new));
-    private static final SavedDataType<CatacombFloodState> TYPE = new SavedDataType<>(
-            Asterion.id("catacomb_flood"), CatacombFloodState::new, CODEC, null);
+    private static final SavedData.Factory<CatacombFloodState> FACTORY =
+            net.krodark.asterion.port.compat.SavedDataCompat.factory(CODEC, CatacombFloodState::new);
     private static final Map<ServerLevel, LoadedTide> LOADED = new WeakHashMap<>();
     private boolean active;
     private int rise;
@@ -50,7 +50,12 @@ public final class CatacombFloodState extends SavedData {
         this.active = active; this.rise = rise; this.endsAt = endsAt; this.nextStep = nextStep;
     }
 
-    public static CatacombFloodState get(ServerLevel level) { return level.getDataStorage().computeIfAbsent(TYPE); }
+    public static CatacombFloodState get(ServerLevel level) {
+        return level.getDataStorage().computeIfAbsent(FACTORY, "asterion_catacomb_flood");
+    }
+    @Override public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        return net.krodark.asterion.port.compat.SavedDataCompat.save(CODEC, this, tag, registries);
+    }
     public int riseSteps() { return rise; }
     public double surfaceHeight() { return CatacombLayout.WATER_Y + 1 + rise / 8.0; }
 
@@ -85,13 +90,13 @@ public final class CatacombFloodState extends SavedData {
     public static void onChunkLoad(ServerLevel level, LevelChunk chunk, boolean newlyGenerated) {
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
         var loaded = LOADED.computeIfAbsent(level, ignored -> new LoadedTide());
-        loaded.chunks.add(chunk.getPos().pack());
-        loaded.pending.add(chunk.getPos().pack());
+        loaded.chunks.add(chunk.getPos().toLong());
+        loaded.pending.add(chunk.getPos().toLong());
     }
     public static void onChunkUnload(ServerLevel level, LevelChunk chunk) {
         var loaded = LOADED.get(level);
         if (loaded != null) {
-            long packed=chunk.getPos().pack();
+            long packed=chunk.getPos().toLong();
             loaded.chunks.remove(packed);loaded.pending.remove(packed);
         }
     }
@@ -124,7 +129,7 @@ public final class CatacombFloodState extends SavedData {
         int budget=0;
          
         for(var player:level.players())for(int dx=-1;dx<=1 && budget<8;dx++)for(int dz=-1;dz<=1 && budget<8;dz++) {
-            long packed=ChunkPos.pack(player.chunkPosition().x()+dx,player.chunkPosition().z()+dz);
+            long packed=ChunkPos.asLong(player.chunkPosition().x+dx,player.chunkPosition().z+dz);
             if(loaded.pending.remove(packed) && reconcileLoaded(level,loaded,packed,state.rise))budget++;
         }
         while(budget++<10 && !loaded.pending.isEmpty()) {
@@ -276,7 +281,7 @@ public final class CatacombFloodState extends SavedData {
                     return 1;
                 }));
             dispatcher.register(Commands.literal("asterion")
-                    .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
+                    .requires(source -> source.hasPermission(2))
                     .then(Commands.literal("catacombs").then(flood)));
         });
     }

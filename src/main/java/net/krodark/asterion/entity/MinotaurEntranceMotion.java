@@ -10,7 +10,7 @@ public final class MinotaurEntranceMotion {
     public static Vec3 point(double tick, double width) {
         var facing = MinotaurArenaEntrances.BOSS_ENTRANCE;
         Vec3 door = Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(facing));
-        Vec3 inward = facing.getOpposite().getUnitVec3();
+        Vec3 inward = net.minecraft.world.phys.Vec3.atLowerCornerOf(facing.getOpposite().getNormal());
         Vec3 start = door.subtract(inward.scale(setback(width)));
         Vec3 stop = door.add(inward.scale(width * .5 + 5));
         return start.lerp(stop, MinotaurAnimationTiming.entryWalkDistance(tick, 1));

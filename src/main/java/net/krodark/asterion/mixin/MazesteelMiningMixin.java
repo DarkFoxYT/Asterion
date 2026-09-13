@@ -17,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class MazesteelMiningMixin {
     @org.spongepowered.asm.mixin.Unique
     private static final TagKey<Block> ASTERION_MAZESTEEL = TagKey.create(Registries.BLOCK,
-            net.minecraft.resources.Identifier.fromNamespaceAndPath("asterion", "mazesteel"));
+            net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("asterion", "mazesteel"));
     @Inject(method = "getDestroyProgress", at = @At("HEAD"), cancellable = true)
     private void asterion$fixedMiningTime(BlockState state, Player player, BlockGetter level, BlockPos pos,
                                          CallbackInfoReturnable<Float> cir) {

@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ServerGamePacketListenerImpl.class)
 abstract class CinematicServerMovementMixin {
     @Shadow public ServerPlayer player;
-    @Inject(method = {"handleMovePlayer", "handleMoveVehicle", "handlePlayerAction", "handleUseItemOn", "handleUseItem", "handleInteract", "handleAttack"},
+    @Inject(method = {"handleMovePlayer", "handleMoveVehicle", "handlePlayerAction", "handleUseItemOn", "handleUseItem", "handleInteract"},
             at = @At("HEAD"), cancellable = true)
     private void asterion$lockCinematicBody(CallbackInfo ci) {
          

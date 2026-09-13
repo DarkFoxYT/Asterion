@@ -13,7 +13,8 @@ public final class LegacyPurityCleanup {
     public static void tick(MinecraftServer server) {
         if (server.getTickCount() % 100 != 0) return;
         for (var player : server.getPlayerList().getPlayers())
-            for (ItemStack stack : player.getInventory()) clean(stack);
+            for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++)
+                clean(player.getInventory().getItem(slot));
     }
     public static void clean(ItemStack stack) {
         var id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem());
@@ -27,13 +28,8 @@ public final class LegacyPurityCleanup {
             tag.remove("purity");
             if (tag.isEmpty()) stack.remove(DataComponents.CUSTOM_DATA);
             else stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
-            var model = stack.get(DataComponents.CUSTOM_MODEL_DATA);
-            if (model != null && !model.floats().isEmpty()) {
-                if (model.flags().isEmpty() && model.strings().isEmpty() && model.colors().isEmpty())
-                    stack.remove(DataComponents.CUSTOM_MODEL_DATA);
-                else stack.set(DataComponents.CUSTOM_MODEL_DATA,
-                        new CustomModelData(java.util.List.of(), model.flags(), model.strings(), model.colors()));
-            }
+            // 1.21.1 CustomModelData stores one integer, so there is no separate
+            // post-1.21 float channel to clean without destroying the item model.
         }
         var lore = stack.get(DataComponents.LORE);
         if (lore == null || lore.lines().stream().noneMatch(line -> line.getString().startsWith("Purity "))) return;

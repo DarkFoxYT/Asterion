@@ -45,7 +45,7 @@ public final class LamenterBlock extends BaseEntityBlock {
         return InteractionResult.SUCCESS;
     }
     @Override protected void neighborChanged(BlockState state, Level level, BlockPos pos, Block neighbor,
-            net.minecraft.world.level.redstone.Orientation orientation, boolean moved) {
+            BlockPos neighborPos, boolean moved) {
         if (!level.isClientSide() && level.getBlockEntity(pos) instanceof LamenterBlockEntity lamenter)
             lamenter.invalidatePower();
     }

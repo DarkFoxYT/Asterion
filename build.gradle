@@ -1,10 +1,41 @@
 plugins {
-    id 'net.fabricmc.fabric-loom' version '1.17-SNAPSHOT'
+    id 'net.fabricmc.fabric-loom-remap' version '1.17-SNAPSHOT'
     id 'maven-publish'
 }
 
 version = project.mod_version
 group = project.maven_group
+
+sourceSets {
+    main {
+        java {
+            srcDir 'src/port/java'
+            exclude 'net/krodark/asterion/port/neoforge/**'
+            exclude 'net/krodark/asterion/client/**'
+            exclude 'net/krodark/asterion/compat/jei/**'
+            exclude 'net/krodark/asterion/compat/rei/**'
+            exclude 'net/krodark/asterion/compat/jade/**'
+            exclude 'net/krodark/asterion/dev/**'
+            [
+                    'ForgeHudMixin', 'ForgeToastMixin', 'ForgePlayerRendererMixin',
+                    'GeckoAnimationCacheMixin', 'GeckoAnimationFrameAccessor',
+                    'GeckoTextureCacheLifecycleMixin', 'GeckoInterpolationBufferAccessor',
+                    'BossHealthOverlayAccessor', 'MinotaurBossBarMixin', 'MinotaurBodyPickingMixin',
+                    'FlamethrowerInputMixin', 'BiomeMusicMixin', 'MoodyBrightnessMixin',
+                    'TidalWaterSurfaceMixin', 'AmneticParticleCullingMixin',
+                    'AmneticEmissivePassMixin', 'AmneticEmissiveInstanceMixin',
+                    'AmneticDepthAttachmentMixin', 'AmneticDepthBlitMixin',
+                    'AmneticBloomPerformanceMixin', 'AsterionFogRendererMixin', 'CameraMixin',
+                    'CentipedeInteractionMixin', 'FallingBlockRendererMixin',
+                    'LevelLoadingScreenMixin', 'RagdollEntityRendererMixin',
+                    'RagdollLivingEntityRendererMixin', 'RagdollGeoEntityRendererMixin',
+                    'InventoryEntityPreviewMixin', 'RagdollLevelRendererMixin',
+                    'SodiumRenderRegionMixin', 'RagdollLocalPlayerMixin',
+                    'RagdollItemInHandRendererMixin', 'ForgedTooltipOutlineMixin'
+            ].each { exclude "net/krodark/asterion/mixin/${it}.java" }
+        }
+    }
+}
 
 base {
     archivesName = project.archives_base_name
@@ -33,7 +64,10 @@ repositories {
                 url = "https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/"
             }
         }
-        filter { includeGroupAndSubgroups "com.geckolib" }
+        filter {
+            includeGroupAndSubgroups "com.geckolib"
+            includeGroupAndSubgroups "software.bernie.geckolib"
+        }
     }
     maven { name = "Terraformers"; url = "https://maven.terraformersmc.com/releases/" }
     maven { name = "BlameJared"; url = "https://maven.blamejared.com/" }
@@ -43,12 +77,15 @@ repositories {
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    mappings loom.officialMojangMappings()
+    modImplementation("net.fabricmc:fabric-loader:${project.loader_version}") {
+        version { strictly project.loader_version }
+    }
 
-    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-    implementation "com.geckolib:geckolib-fabric-${project.minecraft_version}:${project.geckolib_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    modImplementation "software.bernie.geckolib:geckolib-fabric-${project.minecraft_version}:${project.geckolib_version}"
 
-    implementation "com.terraformersmc:modmenu:${project.modmenu_version}"
+    modImplementation "com.terraformersmc:modmenu:${project.modmenu_version}"
 
     compileOnly "mezz.jei:jei-${project.minecraft_version}-fabric-api:${project.jei_version}"
     compileOnly "me.shedaniel:RoughlyEnoughItems-api-fabric:${project.rei_version}"
@@ -56,21 +93,20 @@ dependencies {
     compileOnly "me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}"
     compileOnly "maven.modrinth:jade:${project.jade_version}"
 
-    implementation "com.meekdev:amnetic:${project.amnetic_version}"
-    include "com.meekdev:amnetic:${project.amnetic_version}"
-
-    implementation "asterion.bundled:bb4j:0.0.0-c2242d5"
-    include "asterion.bundled:bb4j:0.0.0-c2242d5"
-
-    runtimeOnly "org.lwjgl:lwjgl-assimp:3.4.1:natives-linux-arm64"
-    include "org.lwjgl:lwjgl-assimp:3.4.1:natives-linux-arm64"
+    modImplementation("foundry.veil:veil-fabric-${project.minecraft_version}:${project.veil_version}") {
+        transitive = true
+    }
+    compileOnly "org.jspecify:jspecify:1.0.0"
 
 }
 
 def resourceProperties = [
         version          : version,
         minecraft_version: minecraft_version,
-        loader_version   : loader_version
+        loader_version   : loader_version,
+        fabric_version   : fabric_version,
+        veil_version     : veil_version,
+        geckolib_version : geckolib_version
 ]
 
 processResources {
@@ -116,10 +152,10 @@ processResources {
     }
 }
 
-def targetJavaVersion = 25
+def targetJavaVersion = 21
 tasks.withType(JavaCompile).configureEach {
     options.encoding = "UTF-8"
-    options.compilerArgs.addAll(["-Xlint:deprecation", "-Xlint:unchecked"])
+    options.compilerArgs.addAll(["-Xlint:deprecation", "-Xlint:unchecked", "-Xmaxerrs", "1000"])
     options.release.set(targetJavaVersion)
 }
 
@@ -191,24 +227,22 @@ loom {
     }
     runs {
         client {
-            mainClass = "net.krodark.asterion.dev.EssentialClientLaunch"
-            vmArg "-Dasterion.essential.modJarPathFile=${essentialRuntimePointer.get().asFile.absolutePath}"
+            client()
+            runDir "run-1.21.1-fabric"
             if (project.hasProperty('startupProfile')) vmArg "-XX:StartFlightRecording=settings=profile,filename=${layout.buildDirectory.file('startup-profile.jfr').get().asFile.absolutePath},dumponexit=true"
             ideConfigGenerated = false
         }
-        essentialClient {
-            client()
-            name = "Minecraft Client with Essential"
-            vmArg "-Dasterion.essential.modJarPathFile=${essentialRuntimePointer.get().asFile.absolutePath}"
-
-            mainClass = "net.krodark.asterion.dev.EssentialClientLaunch"
-            runDir "run"
+        server {
+            server()
+            runDir "run-server"
             ideConfigGenerated = false
         }
     }
 }
 
-tasks.matching { it.name in ["runClient", "runEssentialClient"] }.configureEach { dependsOn "stageEssentialRuntimeJar" }
+tasks.named("remapJar").configure {
+    archiveFileName = "${project.archives_base_name}-${project.version}-fabric-mc${project.minecraft_version}.jar"
+}
 
 tasks.withType(JavaExec).configureEach {
     doFirst {
@@ -221,16 +255,6 @@ tasks.withType(JavaExec).configureEach {
             logger.lifecycle("Asterion client stability mode: C1 tier ${safeTier}; crash-prone C2 tier disabled.")
         }
     }
-    if (name == 'net.fabricmc.devlaunchinjector.Main.main()') {
-        dependsOn 'stageEssentialRuntimeJar'
-        doFirst {
-            if (allJvmArgs.any { it == '-Dfabric.dli.env=client' }) {
-                setJvmArgs(jvmArgs.findAll { !it.startsWith('-Dfabric.dli.main=') && !it.startsWith('-Dasterion.essential.modJar=') && !it.startsWith('-Dasterion.essential.modJarPathFile=') })
-                systemProperty 'fabric.dli.main', 'net.krodark.asterion.dev.EssentialClientLaunch'
-                systemProperty 'asterion.essential.modJarPathFile', essentialRuntimePointer.get().asFile.absolutePath
-            }
-        }
-    }
 }
 
 tasks.register("modDistribution", Sync) {
@@ -240,4 +264,10 @@ tasks.register("modDistribution", Sync) {
     into layout.buildDirectory.dir("distribution")
     from(tasks.named("jar"))
     from("docs/INSTALL-MODS.txt")
+}
+
+tasks.register("buildAllLoaders") {
+    group = "build"
+    description = "Builds the Minecraft 1.21.1 Fabric and NeoForge jars."
+    dependsOn tasks.named("build"), project(":neoforge").tasks.named("build")
 }

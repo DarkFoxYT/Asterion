@@ -10,7 +10,7 @@ import net.krodark.asterion.worldgen.WorldGenerator;
 import net.krodark.asterion.block.RuneDoorBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.ChunkPos;
@@ -37,7 +37,7 @@ import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class MazeNbtStructures {
-    private static final Identifier CATALOG = Asterion.id("maze_structures.json");
+    private static final ResourceLocation CATALOG = Asterion.id("maze_structures.json");
     private static final Map<ServerLevel, Layout> LAYOUTS = new WeakHashMap<>();
     private static final Map<Long, Layout> GENERATION_LAYOUTS = new ConcurrentHashMap<>();
     private static final Layout EMPTY_LAYOUT = new Layout(List.of());
@@ -102,20 +102,20 @@ public final class MazeNbtStructures {
                     if (!isCopper(chunk.getBlockState(cursor).getBlock())) continue;
                     chunk.setBlockState(cursor, y <= LabyrinthLevels.MAZE_FLOOR_Y
                             ? Asterion.ANCIENT_STONE.defaultBlockState()
-                            : Asterion.ANCIENT_BRICKS.defaultBlockState(), 0);
+                            : Asterion.ANCIENT_BRICKS.defaultBlockState(), false);
                 }
             }
         }
         chunk.setBlockState(marker, Blocks.LIGHT.defaultBlockState()
-                .setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 0), 0);
-        chunk.markUnsaved();
+                .setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 0), false);
+        chunk.setUnsaved(true);
     }
 
     public static void markCopperClean(LevelChunk chunk) {
         BlockPos marker = new BlockPos(chunk.getPos().getMinBlockX(), 2, chunk.getPos().getMinBlockZ());
         chunk.setBlockState(marker, Blocks.LIGHT.defaultBlockState()
-                .setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 0), 0);
-        chunk.markUnsaved();
+                .setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 0), false);
+        chunk.setUnsaved(true);
     }
 
     public static void clearRuntimeState() {
@@ -183,7 +183,7 @@ public final class MazeNbtStructures {
         return layout;
     }
 
-    private static final Identifier QUEEN_TREE = Asterion.id("tree_beetle");
+    private static final ResourceLocation QUEEN_TREE = Asterion.id("tree_beetle");
     private static final BlockPos QUEEN_MARKER = new BlockPos(37, 26, 27);
 
     private static int placementFloor(Placement placement) {
@@ -226,7 +226,7 @@ public final class MazeNbtStructures {
         if (!level.getBlockState(pos).is(Blocks.RED_WOOL))
             throw new IllegalStateException("Queen tree lost its red wool marker at " + pos);
         level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2);
-        var queen = Asterion.QUEEN_BEETLE.create(level, net.minecraft.world.entity.EntitySpawnReason.STRUCTURE);
+        var queen = Asterion.QUEEN_BEETLE.create(level);
         if (queen == null) throw new IllegalStateException("Could not create tree Queen");
         queen.setPos(pos.getX() + .5, pos.getY(), pos.getZ() + .5);
         queen.setPersistenceRequired();
@@ -245,7 +245,7 @@ public final class MazeNbtStructures {
                 JsonArray array = root.getAsJsonArray("templates");
                 if (array != null) for (var value : array) {
                     JsonObject object = value.getAsJsonObject();
-                    Identifier id = Identifier.tryParse(object.get("template").getAsString());
+                    ResourceLocation id = ResourceLocation.tryParse(object.get("template").getAsString());
                     if (id != null) entries.add(new TemplateEntry(id,
                             Math.max(1, object.has("weight") ? object.get("weight").getAsInt() : 1)));
                 }
@@ -282,7 +282,7 @@ public final class MazeNbtStructures {
     }
 
     private static boolean isCopper(net.minecraft.world.level.block.Block block) {
-        Identifier id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(block);
+        ResourceLocation id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(block);
         return id != null && id.getPath().contains("copper");
     }
 
@@ -311,8 +311,8 @@ public final class MazeNbtStructures {
             this.placements = placements;
             for (Placement placement : placements) {
                 placement.reserved.intersectingChunks().forEach(chunk -> reservationsByChunk
-                        .computeIfAbsent(chunk.pack(), ignored -> new ArrayList<>()).add(placement));
-                anchorsByChunk.computeIfAbsent(ChunkPos.pack(placement.origin), ignored -> new ArrayList<>())
+                        .computeIfAbsent(chunk.toLong(), ignored -> new ArrayList<>()).add(placement));
+                anchorsByChunk.computeIfAbsent(ChunkPos.asLong(placement.origin), ignored -> new ArrayList<>())
                         .add(placement);
             }
         }
@@ -327,7 +327,7 @@ public final class MazeNbtStructures {
         }
 
         public boolean reserved(int x, int z) {
-            List<Placement> local = reservationsByChunk.get(ChunkPos.pack(x >> 4, z >> 4));
+            List<Placement> local = reservationsByChunk.get(ChunkPos.asLong(x >> 4, z >> 4));
             if (local == null) return false;
             for (Placement placement : local)
                 if (insideXZ(placement.box, x, z) || isApproach(placement, x, z)) return true;
@@ -335,7 +335,7 @@ public final class MazeNbtStructures {
         }
 
         public int floorY(int x, int z, int fallback) {
-            List<Placement> local = reservationsByChunk.get(ChunkPos.pack(x >> 4, z >> 4));
+            List<Placement> local = reservationsByChunk.get(ChunkPos.asLong(x >> 4, z >> 4));
             if (local == null) return fallback;
             for (Placement placement : local)
                 if (insideXZ(placement.box, x, z) || isApproach(placement, x, z))
@@ -344,13 +344,13 @@ public final class MazeNbtStructures {
         }
 
         public void onChunkBuilt(LevelChunk chunk) {
-            List<Placement> local = anchorsByChunk.get(chunk.getPos().pack());
+            List<Placement> local = anchorsByChunk.get(chunk.getPos().toLong());
             if (local == null) return;
             for (Placement placement : local) if (queued.add(placement.origin)) pending.addLast(placement);
         }
 
         public void markTerrainGenerated(ChunkPos chunk) {
-            long key = chunk.pack();
+            long key = chunk.toLong();
             if (reservationsByChunk.containsKey(key)) generatedChunks.add(key);
         }
 
@@ -376,7 +376,7 @@ public final class MazeNbtStructures {
             if (placement == null) return;
             BlockPos marker = new BlockPos(placement.origin.getX(), 3, placement.origin.getZ());
             boolean footprintLoaded = placement.reserved.intersectingChunks().allMatch(
-                    chunk -> level.getChunkSource().hasChunk(chunk.x(), chunk.z()));
+                    chunk -> level.getChunkSource().hasChunk(chunk.x, chunk.z));
             if (!footprintLoaded) {
                 pending.addLast(placement);
                 return;
@@ -389,7 +389,7 @@ public final class MazeNbtStructures {
                 return;
             }
             boolean generatedAroundStructure = placement.reserved.intersectingChunks()
-                    .allMatch(chunk -> generatedChunks.contains(chunk.pack()));
+                    .allMatch(chunk -> generatedChunks.contains(chunk.toLong()));
             if (!generatedAroundStructure) preparePlacementArea(level, placement);
             boolean placed = placement.template.placeInWorld(level, placement.origin, placement.origin,
                     placement.settings, RandomSource.create(placement.seed), 2);
@@ -582,14 +582,14 @@ public final class MazeNbtStructures {
             return false;
         }
 
-        private static boolean isSafeRoom(Identifier id) {
+        private static boolean isSafeRoom(ResourceLocation id) {
             return id.getPath().contains("safe_room") || id.getPath().contains("sanctuary");
         }
     }
 
     private record Catalog(int spacingCells, int padding, float chance, List<TemplateEntry> templates) { }
-    private record TemplateEntry(Identifier id, int weight) { }
+    private record TemplateEntry(ResourceLocation id, int weight) { }
     private record ResolvedTemplate(TemplateEntry entry, StructureTemplate template) { }
-    private record Placement(Identifier id, StructureTemplate template, BlockPos origin,
+    private record Placement(ResourceLocation id, StructureTemplate template, BlockPos origin,
                              StructurePlaceSettings settings, BoundingBox box, BoundingBox reserved, long seed) { }
 }

@@ -45,14 +45,14 @@ public final class OmegaLockBlock extends BaseEntityBlock {
     @Override public @Nullable BlockState getStateForPlacement(BlockPlaceContext context) {
         return defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
     }
-    @Override protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
+    @Override protected net.minecraft.world.ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
                                                      Player player, InteractionHand hand, BlockHitResult hit) {
-        if (!stack.is(Asterion.OMEGA_KEY)) return InteractionResult.TRY_WITH_EMPTY_HAND;
-        if (state.getValue(UNLOCKED)) return InteractionResult.SUCCESS;
+        if (!stack.is(Asterion.OMEGA_KEY)) return net.minecraft.world.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        if (state.getValue(UNLOCKED)) return net.minecraft.world.ItemInteractionResult.SUCCESS;
         if (!level.isClientSide() && level.getBlockEntity(pos) instanceof OmegaLockBlockEntity lock && lock.unlock(player)) {
             if (!player.isCreative()) stack.shrink(1);
         }
-        return InteractionResult.SUCCESS;
+        return net.minecraft.world.ItemInteractionResult.SUCCESS;
     }
     @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.MODEL; }
     @Override protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {

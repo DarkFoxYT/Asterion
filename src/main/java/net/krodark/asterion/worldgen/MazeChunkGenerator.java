@@ -55,7 +55,10 @@ public final class MazeChunkGenerator extends net.minecraft.world.level.chunk.Ch
                                        RandomState random, ChunkAccess chunk) { flat.buildSurface(region, structures, random, chunk); }
     @Override public void applyCarvers(net.minecraft.server.level.WorldGenRegion region, long seed, RandomState random,
                                        net.minecraft.world.level.biome.BiomeManager biomes, StructureManager structures,
-                                       ChunkAccess chunk) { flat.applyCarvers(region, seed, random, biomes, structures, chunk); }
+                                       ChunkAccess chunk,
+                                       net.minecraft.world.level.levelgen.GenerationStep.Carving carving) {
+        flat.applyCarvers(region, seed, random, biomes, structures, chunk, carving);
+    }
     @Override
     public void applyBiomeDecoration(net.minecraft.world.level.WorldGenLevel world, ChunkAccess chunk,
                                      StructureManager structures) {

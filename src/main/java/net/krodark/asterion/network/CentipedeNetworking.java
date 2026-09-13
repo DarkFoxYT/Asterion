@@ -13,13 +13,13 @@ public final class CentipedeNetworking {
     private CentipedeNetworking() {}
 
     public static void initialize() {
-        PayloadTypeRegistry.serverboundPlay().register(CentipedeDriverFramePayload.TYPE, CentipedeDriverFramePayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(CentipedeDriverFramePayload.TYPE, CentipedeDriverFramePayload.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(CentipedeDriverFramePayload.TYPE, (payload, context) ->
                 context.server().execute(() -> {
                     if (context.player().level().getEntity(payload.entityId()) instanceof ScarletCentipedeEntity centipede)
                         centipede.receiveDriverFrame(context.player(), payload.surface(), payload.forward());
                 }));
-        PayloadTypeRegistry.serverboundPlay().register(CentipedeMountPayload.TYPE, CentipedeMountPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(CentipedeMountPayload.TYPE, CentipedeMountPayload.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(CentipedeMountPayload.TYPE, (payload, context) ->
                 context.server().execute(() -> mount(context.player(), payload)));
     }

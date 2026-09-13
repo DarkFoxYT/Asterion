@@ -66,12 +66,11 @@ public final class DirectionalGateBlock extends Block implements net.minecraft.w
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, net.minecraft.world.level.LevelReader level,
-            net.minecraft.world.level.ScheduledTickAccess ticks, BlockPos pos, Direction direction,
-            BlockPos neighborPos, BlockState neighborState, net.minecraft.util.RandomSource random) {
-        if (state.getValue(WATERLOGGED)) ticks.scheduleTick(pos, net.minecraft.world.level.material.Fluids.WATER,
+    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+            net.minecraft.world.level.LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
+        if (state.getValue(WATERLOGGED)) level.scheduleTick(pos, net.minecraft.world.level.material.Fluids.WATER,
                 net.minecraft.world.level.material.Fluids.WATER.getTickDelay(level));
-        return super.updateShape(state, level, ticks, pos, direction, neighborPos, neighborState, random);
+        return super.updateShape(state, direction, neighborState, level, pos, neighborPos);
     }
 
     @Override
@@ -91,7 +90,7 @@ public final class DirectionalGateBlock extends Block implements net.minecraft.w
     }
 
     @Override
-    protected VoxelShape getOcclusionShape(BlockState state) {
+    protected VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
         return Shapes.empty();
     }
     @Override protected boolean isPathfindable(BlockState state, net.minecraft.world.level.pathfinder.PathComputationType type) {

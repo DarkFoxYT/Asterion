@@ -77,18 +77,18 @@ public final class CursedBrazierDoorBlock extends BaseEntityBlock {
             door.toggle(player, held);
         return InteractionResult.SUCCESS;
     }
-    @Override protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
+    @Override protected net.minecraft.world.ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
                                                      Player player, InteractionHand hand, BlockHitResult hit) {
-        return interact(level, pos, state, player, stack);
+        return net.krodark.asterion.port.compat.InteractionCompat.item(interact(level, pos, state, player, stack));
     }
     @Override protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
                                                           Player player, BlockHitResult hit) {
         return interact(level, pos, state, player, ItemStack.EMPTY);
     }
-    @Override protected BlockState updateShape(BlockState state, LevelReader level, ScheduledTickAccess ticks,
-                                                BlockPos pos, Direction direction, BlockPos neighbor,
-                                                BlockState neighborState, RandomSource random) {
-        ticks.scheduleTick(pos, this, 1);
+    @Override protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+                                                net.minecraft.world.level.LevelAccessor level,
+                                                BlockPos pos, BlockPos neighbor) {
+        level.scheduleTick(pos, this, 1);
         return state;
     }
     @Override protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
@@ -117,7 +117,7 @@ public final class CursedBrazierDoorBlock extends BaseEntityBlock {
     @Override protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return state.getValue(OPEN) ? Shapes.empty() : getShape(state, level, pos, context);
     }
-    @Override protected VoxelShape getOcclusionShape(BlockState state) { return Shapes.empty(); }
+    @Override protected VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) { return Shapes.empty(); }
     @Override protected BlockState rotate(BlockState state, Rotation rotation) { return state.setValue(FACING, rotation.rotate(state.getValue(FACING))); }
     @Override protected BlockState mirror(BlockState state, Mirror mirror) { return rotate(state, mirror.getRotation(state.getValue(FACING))); }
     @Override public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {

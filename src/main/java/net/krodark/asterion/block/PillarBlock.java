@@ -73,9 +73,9 @@ public final class PillarBlock extends BaseEntityBlock {
         }
         return super.playerWillDestroy(level,pos,state,player);
     }
-    @Override protected BlockState updateShape(BlockState state,LevelReader level,ScheduledTickAccess ticks,BlockPos pos,
-            Direction side,BlockPos neighbor,BlockState other,RandomSource random) {
-        ticks.scheduleTick(pos,this,1); return state;
+    @Override protected BlockState updateShape(BlockState state,Direction side,BlockState other,
+            LevelAccessor level,BlockPos pos,BlockPos neighbor) {
+        level.scheduleTick(pos,this,1); return state;
     }
     @Override protected void tick(BlockState state,ServerLevel level,BlockPos pos,RandomSource random) {
         BlockPos root=root(pos,state); int height=state.getValue(HEIGHT);

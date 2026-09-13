@@ -4,13 +4,13 @@ import net.krodark.asterion.Asterion;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
 
 public record RagdollAuthorityPayload(Vec3 position, Vec3 velocity, long serverTick)
         implements CustomPacketPayload {
     public static final Type<RagdollAuthorityPayload> TYPE = new Type<>(
-            Identifier.fromNamespaceAndPath(Asterion.MOD_ID, "ragdoll_authority"));
+            ResourceLocation.fromNamespaceAndPath(Asterion.MOD_ID, "ragdoll_authority"));
     public static final StreamCodec<RegistryFriendlyByteBuf, RagdollAuthorityPayload> CODEC =
             CustomPacketPayload.codec(RagdollAuthorityPayload::write, RagdollAuthorityPayload::read);
 

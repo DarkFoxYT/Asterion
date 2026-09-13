@@ -7,14 +7,13 @@ import net.krodark.asterion.entity.ScarletCentipedeEntity;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.permissions.Permissions;
 
 public final class CentipedeCommands {
     private CentipedeCommands() {}
     public static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(
                 Commands.literal("centipede")
-                        .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
+                        .requires(source -> source.hasPermission(2))
                         .then(Commands.literal("segments")
                                 .then(Commands.argument("targets", EntityArgument.entities())
                                         .then(Commands.argument("count", IntegerArgumentType.integer(CentipedeSegments.MIN, CentipedeSegments.MAX))

@@ -20,18 +20,15 @@ public final class HeavyWater {
             Asterion.id("flowing_heavy_water"), new HeavyWaterFluid.Flowing());
     public static final net.minecraft.world.level.block.LiquidBlock WATER_BLOCK = Registry.register(BuiltInRegistries.BLOCK,
             Asterion.id("heavy_water"), new net.minecraft.world.level.block.LiquidBlock(STILL, BlockBehaviour.Properties.of()
-                    .setId(ResourceKey.create(Registries.BLOCK, Asterion.id("heavy_water")))
-                    .mapColor(MapColor.WATER).replaceable().noCollision().noLootTable().liquid().strength(100)));
+                    .mapColor(MapColor.WATER).replaceable().noCollission().noLootTable().liquid().strength(100)));
     public static final TidalWaterFluid FLUID = Registry.register(BuiltInRegistries.FLUID,
             Asterion.id("heavy_water_layer"), new TidalWaterFluid());
     public static final TidalWaterBlock BLOCK = Registry.register(BuiltInRegistries.BLOCK,
             Asterion.id("heavy_water_layer"), new TidalWaterBlock(BlockBehaviour.Properties.of()
-                    .setId(ResourceKey.create(Registries.BLOCK, Asterion.id("heavy_water_layer")))
-                    .mapColor(MapColor.WATER).replaceable().noCollision().noOcclusion()
+                    .mapColor(MapColor.WATER).replaceable().noCollission().noOcclusion()
                     .strength(100).noLootTable().liquid()));
     public static final Item BUCKET = Registry.register(BuiltInRegistries.ITEM,
             Asterion.id("heavy_water_bucket"), new BucketItem(STILL, new Item.Properties()
-                    .setId(ResourceKey.create(Registries.ITEM, Asterion.id("heavy_water_bucket")))
                     .craftRemainder(Items.BUCKET).stacksTo(1)));
     private HeavyWater() { }
     public static void initialize() { HeavyWaterlogging.ready = true; }

@@ -1,18 +1,18 @@
 package net.krodark.asterion.block;
 
-import com.geckolib.animatable.GeoItem;
-import com.geckolib.animatable.client.GeoRenderProvider;
-import com.geckolib.animatable.instance.AnimatableInstanceCache;
-import com.geckolib.animatable.manager.AnimatableManager;
-import com.geckolib.model.GeoModel;
-import com.geckolib.renderer.GeoItemRenderer;
-import com.geckolib.renderer.base.GeoRenderState;
-import com.geckolib.util.GeckoLibUtil;
+import software.bernie.geckolib.animatable.GeoItem;
+import software.bernie.geckolib.animatable.client.GeoRenderProvider;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animation.AnimatableManager;
+import software.bernie.geckolib.model.GeoModel;
+import software.bernie.geckolib.renderer.GeoItemRenderer;
+import software.bernie.geckolib.util.GeckoLibUtil;
 import net.krodark.asterion.Asterion;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.level.block.Block;
 
+import java.util.List;
 import java.util.function.Consumer;
 
  
@@ -33,16 +33,15 @@ public final class ChainLiftBlockItem extends BlockItem implements GeoItem {
                 footprint.expandTowards(0, ceiling-pos.getY(), 0)).isEmpty();
         if (!supported || ceiling == ChainLiftBlockEntity.NO_CEILING || !clear || overlaps) {
             if (context.getPlayer() instanceof net.minecraft.server.level.ServerPlayer player)
-                player.sendOverlayMessage(net.minecraft.network.chat.Component.translatable("message.asterion.chain_lift.space"));
+                player.displayClientMessage(net.minecraft.network.chat.Component.translatable("message.asterion.chain_lift.space"), true);
             return net.minecraft.world.InteractionResult.FAIL;
         }
         return super.place(context);
     }
 
     @Override public void appendHoverText(net.minecraft.world.item.ItemStack stack, TooltipContext context,
-            net.minecraft.world.item.component.TooltipDisplay display,
-            Consumer<net.minecraft.network.chat.Component> tooltip, net.minecraft.world.item.TooltipFlag flag) {
-        tooltip.accept(net.minecraft.network.chat.Component.translatable("tooltip.asterion.chain_lift")
+            List<net.minecraft.network.chat.Component> tooltip, net.minecraft.world.item.TooltipFlag flag) {
+        tooltip.add(net.minecraft.network.chat.Component.translatable("tooltip.asterion.chain_lift")
                 .withStyle(net.minecraft.ChatFormatting.GRAY));
     }
 
@@ -52,13 +51,13 @@ public final class ChainLiftBlockItem extends BlockItem implements GeoItem {
 
             @Override public GeoItemRenderer<ChainLiftBlockItem> getGeoItemRenderer() {
                 if (renderer == null) renderer = new GeoItemRenderer<>(new GeoModel<>() {
-                    @Override public Identifier getModelResource(GeoRenderState state) {
+                    @Override public ResourceLocation getModelResource(ChainLiftBlockItem item) {
                         return Asterion.id("block/chain_lift");
                     }
-                    @Override public Identifier getTextureResource(GeoRenderState state) {
+                    @Override public ResourceLocation getTextureResource(ChainLiftBlockItem item) {
                         return Asterion.id("textures/block/chain_lift.png");
                     }
-                    @Override public Identifier getAnimationResource(ChainLiftBlockItem item) { return null; }
+                    @Override public ResourceLocation getAnimationResource(ChainLiftBlockItem item) { return null; }
                 });
                 return renderer;
             }

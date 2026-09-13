@@ -22,12 +22,12 @@ public final class ForgeDepths {
         int minZ = chunk.getPos().getMinBlockZ(), maxZ = chunk.getPos().getMaxBlockZ();
         for (int x = minX; x <= maxX; x++) for (int z = minZ; z <= maxZ; z++) {
             for (int y = FLOOR_Y - 2; y <= FLOOR_Y; y++)
-                chunk.setBlockState(cursor.set(x, y, z), floor(seed, x, y, z), 0);
+                chunk.setBlockState(cursor.set(x, y, z), floor(seed, x, y, z), false);
             for (int y = FLOOR_Y + 1; y < ROOF_Y - 2; y++)
                 chunk.setBlockState(cursor.set(x, y, z),
-                        (ShaleCaves.shaded(seed, x, y, z) ? Asterion.SHADED_SHALE : Asterion.SHALE).defaultBlockState(), 0);
+                        (ShaleCaves.shaded(seed, x, y, z) ? Asterion.SHADED_SHALE : Asterion.SHALE).defaultBlockState(), false);
             for (int y = ROOF_Y - 2; y <= ROOF_Y; y++)
-                chunk.setBlockState(cursor.set(x, y, z), Asterion.MAZESTEEL_BRICKS.defaultBlockState(), 0);
+                chunk.setBlockState(cursor.set(x, y, z), Asterion.MAZESTEEL_BRICKS.defaultBlockState(), false);
         }
     }
 
@@ -51,15 +51,16 @@ public final class ForgeDepths {
         if (chunk.getMaxBlockX() < cx - 50 || chunk.getMinBlockX() > cx - 9
                 || chunk.getMaxBlockZ() < cz - 11 || chunk.getMinBlockZ() > cz + 11) return;
         var template = level.getStructureManager().get(Asterion.id("forge/staircase")).orElseThrow();
-        var bottomPort = template.getJigsaws(BlockPos.ZERO, net.minecraft.world.level.block.Rotation.NONE).stream()
+        var bottomPort = net.krodark.asterion.port.compat.JigsawCompat.getJigsaws(
+                        template, BlockPos.ZERO, net.minecraft.world.level.block.Rotation.NONE).stream()
                 .filter(port -> port.info().pos().getY() == 1).findFirst().orElseThrow();
         BlockPos socket = AuthoredForge.westSocket(level, chunk);
         BlockPos origin = socket.west().subtract(bottomPort.info().pos());
         var bounds = template.getBoundingBox(new net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings(), origin);
          
          
-        var clip = new net.minecraft.world.level.levelgen.structure.BoundingBox(chunk.getMinBlockX(), level.getMinY(),
-                chunk.getMinBlockZ(), chunk.getMaxBlockX(), level.getMaxY() - 1, chunk.getMaxBlockZ());
+        var clip = new net.minecraft.world.level.levelgen.structure.BoundingBox(chunk.getMinBlockX(), level.getMinBuildHeight(),
+                chunk.getMinBlockZ(), chunk.getMaxBlockX(), level.getMaxBuildHeight() - 1, chunk.getMaxBlockZ());
         if (bounds.intersects(clip)) {
             // Clip at chunk borders, not the maze floor: the authored landing includes its own roof.
             var stairClip = new net.minecraft.world.level.levelgen.structure.BoundingBox(
@@ -72,7 +73,8 @@ public final class ForgeDepths {
         long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
         int tx = Math.floorDiv(origin.getX(), 19), tz = Math.floorDiv(origin.getZ(), 19);
         int exits = AuthoredCatacombs.exits(seed, tx, tz);
-        for (var port : template.getJigsaws(origin, net.minecraft.world.level.block.Rotation.NONE)) {
+        for (var port : net.krodark.asterion.port.compat.JigsawCompat.getJigsaws(
+                template, origin, net.minecraft.world.level.block.Rotation.NONE)) {
             if (port.info().pos().getY() != AuthoredCatacombs.CONNECTOR_Y) continue;
             Direction face = net.minecraft.world.level.block.JigsawBlock.getFrontFacing(port.info().state());
             int bit = switch (face) { case NORTH -> 1; case EAST -> 2; case SOUTH -> 4; case WEST -> 8; default -> 0; };
@@ -95,7 +97,7 @@ public final class ForgeDepths {
                 && chunk.getMaxBlockZ() >= origin.getZ() && chunk.getMinBlockZ() <= origin.getZ() + 18)
         for (BlockPos pos : BlockPos.betweenClosed(Math.max(chunk.getMinBlockX(), origin.getX()), origin.getY(),
                 Math.max(chunk.getMinBlockZ(), origin.getZ()), Math.min(chunk.getMaxBlockX(), socket.getX() + 2),
-                Math.min(bounds.maxY(), level.getMaxY() - 1), Math.min(chunk.getMaxBlockZ(), bounds.maxZ()))) {
+                Math.min(bounds.maxY(), level.getMaxBuildHeight() - 1), Math.min(chunk.getMaxBlockZ(), bounds.maxZ()))) {
             var state = world.getBlockState(pos);
             if (state.getBlock() instanceof net.krodark.asterion.block.DirectionalGateBlock
                     && !state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.OPEN))

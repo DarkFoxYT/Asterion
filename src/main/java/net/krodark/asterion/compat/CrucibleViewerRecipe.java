@@ -2,7 +2,7 @@ package net.krodark.asterion.compat;
 
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.block.CrucibleBlockEntity;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -12,7 +12,7 @@ import net.minecraft.world.item.component.CustomData;
 import java.util.List;
 
  
-public record CrucibleViewerRecipe(Identifier id, List<List<ItemStack>> inputs, Item mold,
+public record CrucibleViewerRecipe(ResourceLocation id, List<List<ItemStack>> inputs, Item mold,
                                    int temperature, List<ItemStack> outputs, String instructionKey) {
     private static final List<ItemStack> METALS = List.of(
             new ItemStack(Items.IRON_INGOT),

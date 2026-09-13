@@ -1,9 +1,9 @@
 package net.krodark.asterion.block;
 
-import com.geckolib.animatable.GeoBlockEntity;
-import com.geckolib.animatable.instance.AnimatableInstanceCache;
-import com.geckolib.animatable.manager.AnimatableManager;
-import com.geckolib.util.GeckoLibUtil;
+import software.bernie.geckolib.animatable.GeoBlockEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animation.AnimatableManager;
+import software.bernie.geckolib.util.GeckoLibUtil;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.network.MazeShiftPayload;
@@ -17,8 +17,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.storage.ValueInput;
-import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.CompoundTag;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -90,8 +90,8 @@ public final class OmegaLockBlockEntity extends BlockEntity implements GeoBlockE
         return List.copyOf(found);
     }
 
-    @Override protected void saveAdditional(ValueOutput out) { super.saveAdditional(out); out.putInt("openingTicks", openingTicks); }
-    @Override protected void loadAdditional(ValueInput in) { super.loadAdditional(in); openingTicks = in.getIntOr("openingTicks", 0); }
+    @Override protected void saveAdditional(CompoundTag out, net.minecraft.core.HolderLookup.Provider registries) { super.saveAdditional(out, registries); out.putInt("openingTicks", openingTicks); }
+    @Override protected void loadAdditional(CompoundTag in, net.minecraft.core.HolderLookup.Provider registries) { super.loadAdditional(in, registries); openingTicks = net.krodark.asterion.port.compat.NbtCompat.getInt(in, "openingTicks", 0); }
     @Override public CompoundTag getUpdateTag(HolderLookup.Provider registries) { return saveCustomOnly(registries); }
     @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) { }
     @Override public AnimatableInstanceCache getAnimatableInstanceCache() { return cache; }

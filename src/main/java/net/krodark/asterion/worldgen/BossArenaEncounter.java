@@ -74,7 +74,7 @@ public final class BossArenaEncounter {
         Vec3 delta = focus.subtract(safe.add(0, player.getEyeHeight(), 0));
         float yaw = (float)Math.toDegrees(Math.atan2(-delta.x, delta.z));
         player.stopRiding();
-        player.teleportTo(level, safe.x, safe.y, safe.z, Set.of(), yaw, 0, true);
+        player.teleportTo(level, safe.x, safe.y, safe.z, Set.of(), yaw, 0);
         player.setDeltaMovement(Vec3.ZERO);
         player.resetFallDistance();
         int elapsed = (int)(level.getGameTime() - active.start);
@@ -91,8 +91,8 @@ public final class BossArenaEncounter {
 
     private static Vec3 safePosition(ServerLevel level, ServerPlayer player, Direction entry, int slot) {
         Vec3 gate = Vec3.atBottomCenterOf(MinotaurArenaEntrances.gate(entry));
-        Vec3 inward = entry.getOpposite().getUnitVec3();
-        Vec3 across = entry.getClockWise().getUnitVec3();
+        Vec3 inward = net.minecraft.world.phys.Vec3.atLowerCornerOf(entry.getOpposite().getNormal());
+        Vec3 across = net.minecraft.world.phys.Vec3.atLowerCornerOf(entry.getClockWise().getNormal());
         for (int attempt = 0; attempt < 60; attempt++) {
             int index = slot + attempt;
             int side = index % 5 - 2;
@@ -201,7 +201,7 @@ public final class BossArenaEncounter {
             double angle = level.getRandom().nextDouble() * Math.PI * 2;
             Vec3 pos = new Vec3(Math.cos(angle) * 20 + .5, AuthoredCatacombs.ARENA_FLOOR_Y + 1, Math.sin(angle) * 20 + .5);
             if (level.players().stream().anyMatch(player -> player.position().distanceToSqr(pos) < 8 * 8)) continue;
-            var beetle = Asterion.BOMBARDIER_BEETLE.create(level, net.minecraft.world.entity.EntitySpawnReason.EVENT);
+            var beetle = Asterion.BOMBARDIER_BEETLE.create(level);
             if (beetle == null) break;
             beetle.setPos(pos);
             BlockPos floor = BlockPos.containing(pos).below();
@@ -221,7 +221,7 @@ public final class BossArenaEncounter {
                 && (player.getBoundingBox().intersects(gate) || player.getBoundingBox().intersects(door))) {
             Vec3 safe = safePosition(level, player, facing, 0);
             player.stopRiding();
-            player.teleportTo(level, safe.x, safe.y, safe.z, Set.of(), player.getYRot(), player.getXRot(), true);
+            player.teleportTo(level, safe.x, safe.y, safe.z, Set.of(), player.getYRot(), player.getXRot());
             player.setDeltaMovement(Vec3.ZERO);
             player.resetFallDistance();
         }
@@ -304,13 +304,14 @@ public final class BossArenaEncounter {
                 && (active.locks.containsKey(player.getUUID()) || WorldGenerator.isInsideBossArena(player.position())
                 && player.getY() < AuthoredCatacombs.ARENA_FLOOR_Y + 24
                 && player.position().subtract(Vec3.atBottomCenterOf(MinotaurArenaEntrances.gate(
-                        MinotaurArenaEntrances.PLAYER_ENTRANCE))).dot(MinotaurArenaEntrances.PLAYER_ENTRANCE.getUnitVec3()) < 0);
+                        MinotaurArenaEntrances.PLAYER_ENTRANCE))).dot(
+                        Vec3.atLowerCornerOf(MinotaurArenaEntrances.PLAYER_ENTRANCE.getNormal())) < 0);
     }
 
     public static Vec3 recoveryPosition(ServerPlayer player) {
         Direction entrance = MinotaurArenaEntrances.PLAYER_ENTRANCE;
         return Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(entrance))
-                .add(entrance.getUnitVec3().scale(5));
+                .add(Vec3.atLowerCornerOf(entrance.getNormal()).scale(5));
     }
 
     public static void eliminate(ServerPlayer player) {

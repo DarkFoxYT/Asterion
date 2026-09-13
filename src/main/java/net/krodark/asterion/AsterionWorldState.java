@@ -4,12 +4,13 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.minecraft.world.level.saveddata.SavedDataType;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.HolderLookup;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -40,8 +41,9 @@ public final class AsterionWorldState extends SavedData {
             Codec.INT.optionalFieldOf("gateway_rift_y", Integer.MIN_VALUE).forGetter(state -> state.gatewayRiftY),
             Codec.LONG.optionalFieldOf("gateway_center", Long.MIN_VALUE).forGetter(state -> state.gatewayCenter)
     ).apply(instance, AsterionWorldState::new));
-    private static final SavedDataType<AsterionWorldState> TYPE = new SavedDataType<>(
-            Asterion.id("world_state"), AsterionWorldState::new, CODEC, DataFixTypes.LEVEL);
+    private static final SavedData.Factory<AsterionWorldState> FACTORY =
+            net.krodark.asterion.port.compat.SavedDataCompat.factory(CODEC, AsterionWorldState::new);
+    private static final String DATA_NAME = "asterion_world_state";
 
     private boolean omegaGateUnlocked;
     public boolean omegaGateUnlocked() { return omegaGateUnlocked; }
@@ -90,7 +92,12 @@ public final class AsterionWorldState extends SavedData {
     }
 
     public static AsterionWorldState get(ServerLevel level) {
-        return level.getServer().overworld().getDataStorage().computeIfAbsent(TYPE);
+        return level.getServer().overworld().getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
+    }
+
+    @Override
+    public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        return net.krodark.asterion.port.compat.SavedDataCompat.save(CODEC, this, tag, registries);
     }
 
     public boolean minotaurDefeated() { return minotaurDefeated; }
@@ -116,7 +123,7 @@ public final class AsterionWorldState extends SavedData {
 
     public SavedPortal summonedPortal() {
         if (summonedPortalCenter == Long.MIN_VALUE) return null;
-        Identifier id = Identifier.tryParse(summonedPortalDimension);
+        ResourceLocation id = ResourceLocation.tryParse(summonedPortalDimension);
         if (id == null) return null;
         return new SavedPortal(net.minecraft.core.BlockPos.of(summonedPortalCenter), summonedPortalY,
                 summonedPortalSeed, ResourceKey.create(Registries.DIMENSION, id));
@@ -127,7 +134,7 @@ public final class AsterionWorldState extends SavedData {
         summonedPortalCenter = center.asLong();
         summonedPortalY = surfaceY;
         summonedPortalSeed = visualSeed;
-        summonedPortalDimension = dimension.identifier().toString();
+        summonedPortalDimension = dimension.location().toString();
         portalLayoutVersion = 1;
         setDirty();
     }

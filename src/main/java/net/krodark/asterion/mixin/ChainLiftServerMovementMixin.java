@@ -24,7 +24,6 @@ abstract class ChainLiftServerMovementMixin {
                 || !lift.overlapsDeck(player.getBoundingBox().move(x - player.getX(), 0, z - player.getZ()))) return packet;
         // The client reports an older lift height. Keep normal validation of horizontal movement and rotation.
         return new ServerboundMovePlayerPacket.PosRot(x, lift.getY() + .5, z,
-                packet.getYRot(player.getYRot()), packet.getXRot(player.getXRot()),
-                true, packet.horizontalCollision());
+                packet.getYRot(player.getYRot()), packet.getXRot(player.getXRot()), true);
     }
 }

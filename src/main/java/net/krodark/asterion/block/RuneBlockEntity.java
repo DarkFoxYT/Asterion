@@ -1,9 +1,9 @@
 package net.krodark.asterion.block;
 
-import com.geckolib.animatable.GeoBlockEntity;
-import com.geckolib.animatable.instance.AnimatableInstanceCache;
-import com.geckolib.animatable.manager.AnimatableManager;
-import com.geckolib.util.GeckoLibUtil;
+import software.bernie.geckolib.animatable.GeoBlockEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animation.AnimatableManager;
+import software.bernie.geckolib.util.GeckoLibUtil;
 import net.krodark.asterion.Asterion;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.protocol.Packet;
@@ -26,14 +26,14 @@ public final class RuneBlockEntity extends BlockEntity implements GeoBlockEntity
     public boolean isWorldGenerated() { return worldGenerated; }
     public void setWorldGenerated(boolean value) { worldGenerated = value; setChanged(); }
 
-    @Override protected void saveAdditional(net.minecraft.world.level.storage.ValueOutput out) {
-        super.saveAdditional(out);
+    @Override protected void saveAdditional(net.minecraft.nbt.CompoundTag out, net.minecraft.core.HolderLookup.Provider registries) {
+        super.saveAdditional(out, registries);
         out.putBoolean("worldGenerated", worldGenerated);
     }
-    @Override protected void loadAdditional(net.minecraft.world.level.storage.ValueInput in) {
-        super.loadAdditional(in);
+    @Override protected void loadAdditional(net.minecraft.nbt.CompoundTag in, net.minecraft.core.HolderLookup.Provider registries) {
+        super.loadAdditional(in, registries);
          
-        worldGenerated = in.getBooleanOr("worldGenerated", false);
+        worldGenerated = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "worldGenerated", false);
     }
     public RuneBlockEntity(BlockPos pos, BlockState state) { super(Asterion.RUNE_BLOCK_ENTITY, pos, state); }
 
@@ -55,7 +55,7 @@ public final class RuneBlockEntity extends BlockEntity implements GeoBlockEntity
     }
 
     private void spawnBeetle(ServerLevel level, BlockPos root) {
-        if (!level.getGameRules().get(net.minecraft.world.level.gamerules.GameRules.SPAWN_MOBS)) return;
+        if (!level.getGameRules().getBoolean(net.minecraft.world.level.GameRules.RULE_DOMOBSPAWNING)) return;
         if (level.players().stream().noneMatch(player -> !player.isSpectator()
                 && player.distanceToSqr(root.getX() + .5, root.getY(), root.getZ() + .5) < 48 * 48)) return;
         if (level.getEntitiesOfClass(net.krodark.asterion.entity.RuneBeetleEntity.class,
@@ -66,7 +66,7 @@ public final class RuneBlockEntity extends BlockEntity implements GeoBlockEntity
             if (!level.getChunkSource().hasChunk(pos.getX() >> 4, pos.getZ() >> 4)) continue;
             if (!level.getBlockState(pos.below()).isFaceSturdy(level, pos.below(), net.minecraft.core.Direction.UP)
                     || !level.getFluidState(pos).isEmpty()) continue;
-            var beetle = Asterion.RUNE_BEETLE.create(level, net.minecraft.world.entity.EntitySpawnReason.NATURAL);
+            var beetle = Asterion.RUNE_BEETLE.create(level);
             if (beetle == null) return;
              
             int carriedRune = runeIndex();
@@ -87,8 +87,8 @@ public final class RuneBlockEntity extends BlockEntity implements GeoBlockEntity
         boolean matches = key.is(Asterion.RUNE_TABLETS[runeIndex()])
                 || key.is(Asterion.RUNE_STONE_BLOCKS[runeIndex()].asItem());
         if (!reset && !matches) {
-            player.sendOverlayMessage(net.minecraft.network.chat.Component.translatable("message.asterion.rune_key_required",
-                    net.minecraft.network.chat.Component.translatable(Asterion.RUNE_TABLETS[runeIndex()].getDescriptionId())));
+            player.displayClientMessage(net.minecraft.network.chat.Component.translatable("message.asterion.rune_key_required",
+                    net.minecraft.network.chat.Component.translatable(Asterion.RUNE_TABLETS[runeIndex()].getDescriptionId())), true);
             return;
         }
         boolean powered = !reset;

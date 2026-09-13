@@ -23,15 +23,15 @@ public final class MazeChunkData {
                     && !net.krodark.asterion.block.CrucibleBlock.isRoot(state)) {
                 if (tag != null) {
                     pending.remove(pos);
-                    chunk.markUnsaved();
+                    chunk.setUnsaved(true);
                 }
                 continue;
             }
             if (!state.hasBlockEntity()) {
                  
-                if (tag != null && "DUMMY".equals(tag.getStringOr("id", ""))) {
+                if (tag != null && "DUMMY".equals(net.krodark.asterion.port.compat.NbtCompat.getString(tag, "id", ""))) {
                     pending.remove(pos);
-                    chunk.markUnsaved();
+                    chunk.setUnsaved(true);
                 }
                 continue;
             }

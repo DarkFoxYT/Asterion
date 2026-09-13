@@ -34,8 +34,9 @@ public final class PedestalBlock extends BaseEntityBlock {
         }
         return InteractionResult.SUCCESS;
     }
-    @Override protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
+    @Override protected net.minecraft.world.ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
             Player player, net.minecraft.world.InteractionHand hand, BlockHitResult hit) {
-        return useWithoutItem(state, level, pos, player, hit);
+        return net.krodark.asterion.port.compat.InteractionCompat.item(
+                useWithoutItem(state, level, pos, player, hit));
     }
 }

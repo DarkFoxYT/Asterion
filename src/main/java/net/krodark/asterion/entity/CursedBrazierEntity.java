@@ -1,11 +1,11 @@
 package net.krodark.asterion.entity;
 
-import com.geckolib.animatable.GeoEntity;
-import com.geckolib.animatable.instance.AnimatableInstanceCache;
-import com.geckolib.animatable.manager.AnimatableManager;
-import com.geckolib.animation.AnimationController;
-import com.geckolib.animation.RawAnimation;
-import com.geckolib.util.GeckoLibUtil;
+import software.bernie.geckolib.animatable.GeoEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animation.AnimatableManager;
+import software.bernie.geckolib.animation.AnimationController;
+import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.util.GeckoLibUtil;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -43,8 +43,8 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.storage.ValueInput;
-import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -81,7 +81,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
 
     private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
     private final ServerBossEvent bossBar = new ServerBossEvent(
-            UUID.randomUUID(), Component.translatable("entity.asterion.cursed_brazier"),
+            Component.translatable("entity.asterion.cursed_brazier"),
             BossEvent.BossBarColor.GREEN, BossEvent.BossBarOverlay.NOTCHED_10);
     private final List<Vec3> jetPositions = new ArrayList<>();
     private final List<BlockPos> shieldBraziers = new ArrayList<>();
@@ -533,7 +533,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         if (tick == 40) launchBurningRubble(level, target);
         if (tick <= 38 && tick % 5 == 0) {
             for (Vec3 position : jetPositions) {
-                level.sendParticles(new DustParticleOptions(0xFF170D, 1.15F),
+                level.sendParticles(net.krodark.asterion.port.compat.ParticleCompat.dust(0xFF170D, 1.15F),
                         position.x, position.y + 0.035, position.z,
                         6, 0.48, 0.015, 0.48, 0.005);
                 level.sendParticles(Asterion.GREEK_FIRE_SOOT, position.x, position.y, position.z,
@@ -659,7 +659,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
             double radius = 6.2 - tick * 0.13;
             for (int index = 0; index < 20; index++) {
                 double angle = Math.PI * 2 * index / 20 + tick * 0.09;
-                level.sendParticles(new DustParticleOptions(0x72FF55, 1.25F),
+                level.sendParticles(net.krodark.asterion.port.compat.ParticleCompat.dust(0x72FF55, 1.25F),
                         getX() + Math.cos(angle) * radius, centerY,
                         getZ() + Math.sin(angle) * radius,
                         1, 0.015, 0.04, 0.015, 0);
@@ -925,17 +925,18 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
     }
 
     @Override
-    public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
+    public boolean hurt(DamageSource source, float amount) {
+        if (!(level() instanceof ServerLevel level)) return super.hurt(source, amount);
         if (source.is(DamageTypeTags.IS_FIRE)) return false;
         if (shielded()) {
             level.sendParticles(ParticleTypes.ELECTRIC_SPARK,
                     getX(), getY() + getBbHeight() * 0.52, getZ(),
                     12, 2.1, 1.6, 2.1, 0.055);
-            playSound(SoundEvents.SHIELD_BLOCK.value(), 1.15F, 0.62F);
+            playSound(SoundEvents.SHIELD_BLOCK, 1.15F, 0.62F);
             return false;
         }
         float before = getHealth();
-        boolean damaged = super.hurtServer(level, source, amount);
+        boolean damaged = super.hurt(source, amount);
         if (!damaged || phase() != Phase.ACTIVE) return damaged;
         float dealt = Math.max(0F, before - getHealth());
         fury = Math.min(100F, fury + dealt * 3.2F);
@@ -984,7 +985,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
                                int immunityTicks, boolean heavyImpact) {
         for (ServerPlayer player : level.getEntitiesOfClass(ServerPlayer.class, area, this::canFight)) {
             if (hitCooldowns.containsKey(player.getUUID())) continue;
-            if (!player.hurtServer(level, level.damageSources().mobAttack(this), damage)) continue;
+            if (!player.hurt(level.damageSources().mobAttack(this), damage)) continue;
             GreekFireBurn.ignite(player, heavyImpact ? 3F : 6F);
             hitCooldowns.put(player.getUUID(), immunityTicks);
             Vec3 impulse = directionOrForward(player.position().subtract(position()))
@@ -1113,14 +1114,14 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
     @Override
     protected void dropCustomDeathLoot(ServerLevel level, DamageSource source, boolean killedByPlayer) {
         super.dropCustomDeathLoot(level, source, killedByPlayer);
-        spawnAtLocation(level, new ItemStack(GameplayContent.CURSED_BRAZIER_KEY));
-        var keyMold=spawnAtLocation(level, new ItemStack(Asterion.MINOTAUR_KEY_CAST));
+        spawnAtLocation(new ItemStack(GameplayContent.CURSED_BRAZIER_KEY));
+        var keyMold=spawnAtLocation(new ItemStack(Asterion.MINOTAUR_KEY_CAST));
         net.krodark.asterion.game.EncounterKeyRecovery.track(level,keyMold,
                 source.getEntity() instanceof ServerPlayer player?player:null);
     }
 
     @Override
-    protected void addAdditionalSaveData(ValueOutput output) {
+    public void addAdditionalSaveData(CompoundTag output) {
         super.addAdditionalSaveData(output);
         output.putInt("BrazierPhase", phase().ordinal());
         output.putInt("BrazierPhaseTicks", phaseTicks);
@@ -1135,28 +1136,28 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
     }
 
     @Override
-    protected void readAdditionalSaveData(ValueInput input) {
+    public void readAdditionalSaveData(CompoundTag input) {
         super.readAdditionalSaveData(input);
-        int phaseIndex = Math.clamp(input.getIntOr("BrazierPhase", Phase.DORMANT.ordinal()),
+        int phaseIndex = Math.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "BrazierPhase", Phase.DORMANT.ordinal()),
                 0, Phase.values().length - 1);
         Phase restored = Phase.values()[phaseIndex];
         entityData.set(PHASE_ID, restored.ordinal());
         entityData.set(PHASE_STARTED_AT, tickCount);
-        phaseTicks = Math.max(0, input.getIntOr("BrazierPhaseTicks", 0));
+        phaseTicks = Math.max(0, net.krodark.asterion.port.compat.NbtCompat.getInt(input, "BrazierPhaseTicks", 0));
         restingPosition = new Vec3(
-                input.getDoubleOr("RestX", getX()),
-                input.getDoubleOr("RestY", getY()),
-                input.getDoubleOr("RestZ", getZ()));
-        middleShieldUsed = input.getBooleanOr("MiddleShieldUsed", false);
-        finalShieldUsed = input.getBooleanOr("FinalShieldUsed", false);
-        initialShieldUsed = input.getBooleanOr("InitialShieldUsed", false);
-        fury = Math.clamp(input.getFloatOr("BrazierFury", 0F), 0F, 100F);
+                net.krodark.asterion.port.compat.NbtCompat.getDouble(input, "RestX", getX()),
+                net.krodark.asterion.port.compat.NbtCompat.getDouble(input, "RestY", getY()),
+                net.krodark.asterion.port.compat.NbtCompat.getDouble(input, "RestZ", getZ()));
+        middleShieldUsed = net.krodark.asterion.port.compat.NbtCompat.getBoolean(input, "MiddleShieldUsed", false);
+        finalShieldUsed = net.krodark.asterion.port.compat.NbtCompat.getBoolean(input, "FinalShieldUsed", false);
+        initialShieldUsed = net.krodark.asterion.port.compat.NbtCompat.getBoolean(input, "InitialShieldUsed", false);
+        fury = Math.clamp(net.krodark.asterion.port.compat.NbtCompat.getFloat(input, "BrazierFury", 0F), 0F, 100F);
         setInvulnerable(restored != Phase.ACTIVE);
     }
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<CursedBrazierEntity>("attack", 2, state ->
+        controllers.add(new AnimationController<CursedBrazierEntity>(this, "attack", 2, state ->
                 state.setAndContinue(attack() == Attack.FIRE_BEAM
                         ? SHOOT_BEAM_ANIMATION
                         : IDLE_ANIMATION)));

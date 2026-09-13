@@ -105,7 +105,7 @@ public final class GasClouds {
                     if (cloud.owner != null && level.getEntity(cloud.owner) instanceof ServerPlayer attacker
                             && victim instanceof ServerPlayer player && !attacker.canHarmPlayer(player)) continue;
                     hit.add(victim.getUUID());
-                    victim.hurtServer(level, level.damageSources().inFire(), 5);
+                    victim.hurt(level.damageSources().inFire(), 5);
                     if (cloud.flamethrower) GreekFireBurn.ignite(victim, 4);
                     else victim.igniteForSeconds(4);
                 }

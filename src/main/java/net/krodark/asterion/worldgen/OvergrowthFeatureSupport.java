@@ -23,8 +23,8 @@ final class OvergrowthFeatureSupport {
     }
 
     static boolean withinWriteRadius(ChunkPos center, BlockPos pos, int radius) {
-        return Math.abs((long) (pos.getX() >> 4) - center.x()) <= radius
-                && Math.abs((long) (pos.getZ() >> 4) - center.z()) <= radius;
+        return Math.abs((long) (pos.getX() >> 4) - center.x) <= radius
+                && Math.abs((long) (pos.getZ() >> 4) - center.z) <= radius;
     }
 
     static boolean enabled(WorldGenLevel level, BlockPos pos, String feature) {

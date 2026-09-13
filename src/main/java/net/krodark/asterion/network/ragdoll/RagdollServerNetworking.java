@@ -65,7 +65,7 @@ public final class RagdollServerNetworking {
                             && living.isAlive()
                             && context.player().distanceToSqr(living) <= 64 * 64
                             && context.player().hasLineOfSight(living)) {
-                        living.kill(context.player().level());
+                        living.kill();
                     }
                 }));
         ServerPlayNetworking.registerGlobalReceiver(RagdollEntityImpactPayload.TYPE, (payload, context) ->
@@ -98,7 +98,7 @@ public final class RagdollServerNetworking {
         if (WorldGenerator.hasFallProtection(player) || !Float.isFinite(damage) || damage < .5f) {
             return;
         }
-        player.hurtServer(player.level(), player.damageSources().fall(), Math.min(20, damage));
+        player.hurt(player.damageSources().fall(), Math.min(20, damage));
     }
 
     private static void exitTumble(ServerPlayer player, TumbleExitPayload payload) {
@@ -182,7 +182,7 @@ public final class RagdollServerNetworking {
             markRagdolled(sender, 60);
         } else if (tracked.isAlive() || sender.distanceToSqr(tracked) > 48 * 48) return;
 
-        for (ServerPlayer viewer : sender.level().players()) {
+        for (ServerPlayer viewer : sender.serverLevel().players()) {
             // Echo to the owner too: replay recorders capture incoming packets, not our local physics.
             if (viewer.distanceToSqr(center) < 96 * 96
                     && ServerPlayNetworking.canSend(viewer, RagdollPosePayload.TYPE)) {
@@ -202,7 +202,7 @@ public final class RagdollServerNetworking {
         boolean started = !isRagdolled(player);
         ACTIVE_RAGDOLLS.merge(player.getUUID(), expires, Math::max);
         RAGDOLL_LEVELS.put(player.getUUID(), player.level().dimension());
-        if (started) for (ServerPlayer viewer : player.level().players()) sendState(viewer, player, true);
+        if (started) for (ServerPlayer viewer : player.serverLevel().players()) sendState(viewer, player, true);
     }
 
     public static void resetAfterRespawn(ServerPlayer player) {

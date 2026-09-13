@@ -1,17 +1,17 @@
 package net.krodark.asterion.block;
 
-import com.geckolib.animatable.GeoBlockEntity;
-import com.geckolib.animatable.instance.AnimatableInstanceCache;
-import com.geckolib.animatable.manager.AnimatableManager;
-import com.geckolib.util.GeckoLibUtil;
+import software.bernie.geckolib.animatable.GeoBlockEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animation.AnimatableManager;
+import software.bernie.geckolib.util.GeckoLibUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.storage.ValueInput;
-import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.CompoundTag;
 
 public final class SanctuaryBlockEntity extends BlockEntity implements GeoBlockEntity {
     private AnimatableInstanceCache cache;
@@ -35,7 +35,7 @@ public final class SanctuaryBlockEntity extends BlockEntity implements GeoBlockE
         if (!(level instanceof ServerLevel server) || self.pulse <= 0) return;
         double radius = (25 - self.pulse) * .32;
         int points = 24;
-        var dust = new DustParticleOptions(0xFFD574, .65F + self.pulse / 36F);
+        var dust = net.krodark.asterion.port.compat.ParticleCompat.dust(0xFFD574, .65F + self.pulse / 36F);
         for (int i = 0; i < points; i++) {
             double angle = i * Math.PI * 2 / points;
             double x = pos.getX() + .5 + Math.cos(angle) * radius;
@@ -51,8 +51,8 @@ public final class SanctuaryBlockEntity extends BlockEntity implements GeoBlockE
         if (!clientGlowInitialized) return getBlockState().getValue(SanctuaryBlock.CHARGE) == 1 ? 1F : 0F;
         return clientGlowAlpha;
     }
-    @Override protected void saveAdditional(ValueOutput output) { super.saveAdditional(output); output.putInt("pulse", pulse); }
-    @Override protected void loadAdditional(ValueInput input) { super.loadAdditional(input); pulse = Math.clamp(input.getIntOr("pulse", 0), 0, 24); }
+    @Override protected void saveAdditional(CompoundTag output, net.minecraft.core.HolderLookup.Provider registries) { super.saveAdditional(output, registries); output.putInt("pulse", pulse); }
+    @Override protected void loadAdditional(CompoundTag input, net.minecraft.core.HolderLookup.Provider registries) { super.loadAdditional(input, registries); pulse = Math.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "pulse", 0), 0, 24); }
     @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) { }
     @Override public AnimatableInstanceCache getAnimatableInstanceCache() {
         if (cache == null) cache = GeckoLibUtil.createInstanceCache(this);

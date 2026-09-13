@@ -112,19 +112,19 @@ public final class RuneBlock extends BaseEntityBlock implements WaterloggedDecor
         }
         return InteractionResult.PASS;
     }
-    @Override protected InteractionResult useItemOn(ItemStack held, BlockState state, Level level, BlockPos pos,
+    @Override protected net.minecraft.world.ItemInteractionResult useItemOn(ItemStack held, BlockState state, Level level, BlockPos pos,
                                                    Player player, InteractionHand hand, BlockHitResult hit) {
-        return interact(level, pos, state, player, held);
+        return net.krodark.asterion.port.compat.InteractionCompat.item(interact(level, pos, state, player, held));
     }
     @Override protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
                                                         Player player, BlockHitResult hit) {
         return interact(level, pos, state, player, ItemStack.EMPTY);
     }
-    @Override protected BlockState updateShape(BlockState state, LevelReader level, ScheduledTickAccess ticks,
-            BlockPos pos, Direction direction, BlockPos neighbor, BlockState neighborState, RandomSource random) {
+    @Override protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+            net.minecraft.world.level.LevelAccessor level, BlockPos pos, BlockPos neighbor) {
         BlockPos anchorPos = root(pos, state);
         BlockState anchor = level.hasChunkAt(anchorPos) ? level.getBlockState(anchorPos) : state;
-        ticks.scheduleTick(level.hasChunkAt(anchorPos) && anchor.is(this) && isRoot(anchor) ? anchorPos : pos, this, 1);
+        level.scheduleTick(level.hasChunkAt(anchorPos) && anchor.is(this) && isRoot(anchor) ? anchorPos : pos, this, 1);
         return state;
     }
     @Override protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
@@ -176,7 +176,7 @@ public final class RuneBlock extends BaseEntityBlock implements WaterloggedDecor
     @Override protected int getDirectSignal(BlockState state, BlockGetter level, BlockPos pos, Direction side) {
         return getSignal(state, level, pos, side);
     }
-    @Override protected VoxelShape getOcclusionShape(BlockState state) { return Shapes.empty(); }
+    @Override protected VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) { return Shapes.empty(); }
     @Override public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
          
          

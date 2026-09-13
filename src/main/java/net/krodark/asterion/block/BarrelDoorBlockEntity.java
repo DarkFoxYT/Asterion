@@ -1,9 +1,9 @@
 package net.krodark.asterion.block;
 
-import com.geckolib.animatable.GeoBlockEntity;
-import com.geckolib.animatable.instance.AnimatableInstanceCache;
-import com.geckolib.animatable.manager.AnimatableManager;
-import com.geckolib.util.GeckoLibUtil;
+import software.bernie.geckolib.animatable.GeoBlockEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animation.AnimatableManager;
+import software.bernie.geckolib.util.GeckoLibUtil;
 import net.krodark.asterion.Asterion;
 import net.minecraft.core.*;
 import net.minecraft.nbt.CompoundTag;
@@ -42,8 +42,8 @@ public final class BarrelDoorBlockEntity extends BlockEntity implements GeoBlock
         if (level == null || level.isClientSide()) return;
         if(getBlockState().getValue(BarrelDoorBlock.CURSED_LOCKED)) {
             if(!held.is(net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER_KEY)) {
-                player.sendOverlayMessage(net.minecraft.network.chat.Component.translatable(
-                        "message.asterion.cursed_brazier_door_locked"));
+                player.displayClientMessage(net.minecraft.network.chat.Component.translatable(
+                        "message.asterion.cursed_brazier_door_locked"), true);
                 level.playSound(null,worldPosition,SoundEvents.CHAIN_HIT,SoundSource.BLOCKS,.8F,.62F);
                 return;
             }
@@ -86,17 +86,17 @@ public final class BarrelDoorBlockEntity extends BlockEntity implements GeoBlock
         setChanged();
         level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
     }
-    @Override protected void saveAdditional(ValueOutput out) {
-        super.saveAdditional(out);
+    @Override protected void saveAdditional(CompoundTag out, net.minecraft.core.HolderLookup.Provider registries) {
+        super.saveAdditional(out, registries);
         out.putLong("motionStart", motionStart);
         out.putFloat("startAngle", startAngle);
         out.putFloat("targetAngle", targetAngle);
     }
-    @Override protected void loadAdditional(ValueInput in) {
-        super.loadAdditional(in);
-        motionStart = in.getLongOr("motionStart", 0);
-        startAngle = in.getFloatOr("startAngle", 0);
-        targetAngle = in.getFloatOr("targetAngle", 0);
+    @Override protected void loadAdditional(CompoundTag in, net.minecraft.core.HolderLookup.Provider registries) {
+        super.loadAdditional(in, registries);
+        motionStart = net.krodark.asterion.port.compat.NbtCompat.getLong(in, "motionStart", 0);
+        startAngle = net.krodark.asterion.port.compat.NbtCompat.getFloat(in, "startAngle", 0);
+        targetAngle = net.krodark.asterion.port.compat.NbtCompat.getFloat(in, "targetAngle", 0);
     }
     @Override public CompoundTag getUpdateTag(HolderLookup.Provider registries) { return saveCustomOnly(registries); }
     @Override public ClientboundBlockEntityDataPacket getUpdatePacket() { return ClientboundBlockEntityDataPacket.create(this); }

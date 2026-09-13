@@ -3,7 +3,7 @@ package net.krodark.asterion.network.ragdoll;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 public record TumbleExitPayload(double x, double y, double z, double vx, double vy, double vz, boolean finished)
         implements CustomPacketPayload {
@@ -11,7 +11,7 @@ public record TumbleExitPayload(double x, double y, double z, double vx, double 
         this(x, y, z, vx, vy, vz, true);
     }
     public static final Type<TumbleExitPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("asterion", "tumble_exit"));
+            new Type<>(ResourceLocation.fromNamespaceAndPath("asterion", "tumble_exit"));
     public static final StreamCodec<RegistryFriendlyByteBuf, TumbleExitPayload> CODEC =
             CustomPacketPayload.codec(TumbleExitPayload::write, TumbleExitPayload::read);
 

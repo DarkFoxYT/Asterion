@@ -19,7 +19,7 @@ import java.util.Optional;
 public final class MazePits {
     private MazePits() { }
     public static void place(FeaturePlaceContext<NoneFeatureConfiguration> context, ChunkPos chunk, long seed) {
-        if (Math.floorMod(chunk.x(), 12) != 6 || Math.floorMod(chunk.z(), 12) != 6) return;
+        if (Math.floorMod(chunk.x, 12) != 6 || Math.floorMod(chunk.z, 12) != 6) return;
         int x = chunk.getMinBlockX() + 8, z = chunk.getMinBlockZ() + 8;
         if (Math.abs(x) < 100 && Math.abs(z) < 100) return;
         for (int dx = -7; dx <= 7; dx++) for (int dz = -7; dz <= 7; dz++)
@@ -33,7 +33,7 @@ public final class MazePits {
                 world.getSeed(), chunk, world, b -> true);
         BlockPos anchor = new BlockPos(x, floor, z);
         var plan = JigsawPlacement.addPieces(generation, pool, Optional.of(Asterion.id("maze_pits/surface")), 1,
-                anchor, false, Optional.empty(), new JigsawStructure.MaxDistance(15, 32), PoolAliasLookup.EMPTY,
+                anchor, false, Optional.empty(), 32, PoolAliasLookup.EMPTY,
                 DimensionPadding.ZERO, LiquidSettings.IGNORE_WATERLOGGING);
         if (plan.isEmpty()) return;
         BoundingBox clip = new BoundingBox(chunk.getMinBlockX(), floor - 26, chunk.getMinBlockZ(), chunk.getMaxBlockX(), floor + 1, chunk.getMaxBlockZ());

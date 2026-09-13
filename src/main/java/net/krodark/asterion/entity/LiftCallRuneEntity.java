@@ -2,6 +2,7 @@ package net.krodark.asterion.entity;
 
 import net.krodark.asterion.game.ChainLiftContent;
 import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.*;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
@@ -20,8 +21,8 @@ public final class LiftCallRuneEntity extends Entity {
     @Override protected void defineSynchedData(SynchedEntityData.Builder data) { data.define(ANCHOR, BlockPos.ZERO); data.define(UPPER, false); }
     public void configure(BlockPos anchor, boolean upper) { entityData.set(ANCHOR, anchor); entityData.set(UPPER, upper); }
     @Override public boolean isPickable() { return true; }
-    @Override public boolean hurtServer(ServerLevel level, DamageSource source, float amount) { return false; }
-    @Override public InteractionResult interact(Player player, InteractionHand hand, net.minecraft.world.phys.Vec3 hit) {
+    @Override public boolean hurt(DamageSource source, float amount) { return false; }
+    @Override public InteractionResult interactAt(Player player, net.minecraft.world.phys.Vec3 hit, InteractionHand hand) {
         if (player.isSpectator() || player.distanceToSqr(this) > 36) return InteractionResult.PASS;
         if (!level().isClientSide()) {
             BlockPos anchor = entityData.get(ANCHOR);
@@ -37,7 +38,7 @@ public final class LiftCallRuneEntity extends Entity {
         if (!level().isClientSide() && tickCount % 40 == 0 && level().hasChunkAt(entityData.get(ANCHOR))
                 && !level().getBlockState(entityData.get(ANCHOR)).is(ChainLiftContent.ANCHOR)) discard();
     }
-    @Override protected void addAdditionalSaveData(ValueOutput out) { out.putLong("Anchor", entityData.get(ANCHOR).asLong()); out.putBoolean("Upper", entityData.get(UPPER)); }
-    @Override protected void readAdditionalSaveData(ValueInput in) { configure(BlockPos.of(in.getLongOr("Anchor", 0)), in.getBooleanOr("Upper", false)); }
+    @Override public void addAdditionalSaveData(CompoundTag out) { out.putLong("Anchor", entityData.get(ANCHOR).asLong()); out.putBoolean("Upper", entityData.get(UPPER)); }
+    @Override public void readAdditionalSaveData(CompoundTag in) { configure(BlockPos.of(net.krodark.asterion.port.compat.NbtCompat.getLong(in, "Anchor", 0)), net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "Upper", false)); }
 }
 

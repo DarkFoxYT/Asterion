@@ -2,7 +2,7 @@ package net.krodark.asterion.block;
 
 import net.krodark.asterion.fluid.HeavyWaterlogging;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.SimpleWaterloggedBlock;
@@ -13,7 +13,7 @@ import net.minecraft.world.level.material.FluidState;
  
 public interface HeavyWaterRedstone extends SimpleWaterloggedBlock {
     @Override
-    default boolean canPlaceLiquid(LivingEntity user, BlockGetter level, BlockPos pos, BlockState state, Fluid fluid) {
+    default boolean canPlaceLiquid(Player user, BlockGetter level, BlockPos pos, BlockState state, Fluid fluid) {
         return HeavyWaterlogging.isHeavy(fluid) ? HeavyWaterlogging.amount(state) == 0 : state.getCollisionShape(level, pos).isEmpty();
     }
 

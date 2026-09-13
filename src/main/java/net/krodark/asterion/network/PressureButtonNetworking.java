@@ -58,7 +58,7 @@ public final class PressureButtonNetworking {
             return;
         }
         if(!validTarget(player,pos)) return;
-        ServerLevel level=player.level();
+        ServerLevel level=player.serverLevel();
         var state=level.getBlockState(pos);
         boolean button=state.is(Asterion.PRESSURE_BUTTON),lamenter=state.is(Asterion.LAMENTER);
         if(!button&&!lamenter) return;
@@ -118,7 +118,7 @@ public final class PressureButtonNetworking {
     }
     private static BlockPos nearestLamenter(ServerLevel level,BlockPos origin,int radius) {
         BlockPos nearest=null; double best=Double.MAX_VALUE;
-        int minY=Math.max(level.getMinY(),origin.getY()-20),maxY=Math.min(level.getMaxY(),origin.getY()+20);
+        int minY=Math.max(level.getMinBuildHeight(),origin.getY()-20),maxY=Math.min(level.getMaxBuildHeight(),origin.getY()+20);
         for(BlockPos candidate:BlockPos.betweenClosed(origin.getX()-radius,minY,origin.getZ()-radius,
                 origin.getX()+radius,maxY,origin.getZ()+radius)) {
             double distance=candidate.distSqr(origin);

@@ -18,7 +18,6 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.ScheduledTickAccess;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.entity.*;
 import net.minecraft.world.level.block.state.*;
@@ -100,9 +99,9 @@ public final class SanctuaryBlock extends BaseEntityBlock {
     @Override protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
         return interact(ItemStack.EMPTY, state, level, pos, player);
     }
-    @Override protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
+    @Override protected net.minecraft.world.ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
                                                   Player player, InteractionHand hand, BlockHitResult hit) {
-        return interact(stack, state, level, pos, player);
+        return net.krodark.asterion.port.compat.InteractionCompat.item(interact(stack, state, level, pos, player));
     }
     private InteractionResult interact(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player) {
         if(!altar&&!isRoot(state)) {
@@ -113,24 +112,24 @@ public final class SanctuaryBlock extends BaseEntityBlock {
         if (!(player instanceof net.minecraft.server.level.ServerPlayer serverPlayer)) return InteractionResult.PASS;
         if (altar) {
             if (state.getValue(CHARGE) != 1) {
-                serverPlayer.sendOverlayMessage(Component.translatable(state.getValue(CHARGE) == 0
-                        ? "message.asterion.altar_dormant" : "message.asterion.altar_empty"));
-                return InteractionResult.SUCCESS_SERVER;
+                serverPlayer.displayClientMessage(Component.translatable(state.getValue(CHARGE) == 0
+                        ? "message.asterion.altar_dormant" : "message.asterion.altar_empty"), true);
+                return InteractionResult.SUCCESS;
             }
             ItemStack reward = new ItemStack(RespawnObelisks.CHARGED_RUNE);
              
             if (!player.getInventory().add(reward)) return InteractionResult.FAIL;
             level.setBlock(pos, state.setValue(CHARGE, 2), 3);
             level.playSound(null, pos, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 1, 1.25F);
-            return InteractionResult.SUCCESS_SERVER;
+            return InteractionResult.SUCCESS;
         }
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) {
-            serverPlayer.sendOverlayMessage(Component.translatable("message.asterion.obelisk_maze_only"));
+            serverPlayer.displayClientMessage(Component.translatable("message.asterion.obelisk_maze_only"), true);
             return InteractionResult.FAIL;
         }
         BlockPos spawn = safeSpawn(server, pos);
         if (spawn == null) {
-            serverPlayer.sendOverlayMessage(Component.translatable("message.asterion.obelisk_blocked"));
+            serverPlayer.displayClientMessage(Component.translatable("message.asterion.obelisk_blocked"), true);
             return InteractionResult.FAIL;
         }
         if (state.getValue(CHARGE) != 1) {
@@ -141,8 +140,8 @@ public final class SanctuaryBlock extends BaseEntityBlock {
             level.playSound(null, pos, Asterion.RESPAWN_OBELISK_BIND, SoundSource.BLOCKS, 1.8F, 1.0F);
         }
         AsterionWorldState.get(server).setRuneCheckpoint(player.getUUID(), spawn);
-        serverPlayer.sendOverlayMessage(Component.translatable("message.asterion.obelisk_bound"));
-        return InteractionResult.SUCCESS_SERVER;
+        serverPlayer.displayClientMessage(Component.translatable("message.asterion.obelisk_bound"), true);
+        return InteractionResult.SUCCESS;
     }
     @Override public BlockState playerWillDestroy(Level level,BlockPos pos,BlockState state,Player player) {
         if(!altar&&!level.isClientSide()) {
@@ -158,10 +157,10 @@ public final class SanctuaryBlock extends BaseEntityBlock {
             if(level.getBlockState(part).is(this))level.setBlock(part,Blocks.AIR.defaultBlockState(),Block.UPDATE_CLIENTS);
         }
     }
-    @Override protected BlockState updateShape(BlockState state,LevelReader level,ScheduledTickAccess ticks,
-                                               BlockPos pos,Direction direction,BlockPos neighborPos,
-                                               BlockState neighborState,RandomSource random) {
-        if(!altar)ticks.scheduleTick(pos,this,1);
+    @Override protected BlockState updateShape(BlockState state,Direction direction,BlockState neighborState,
+                                               net.minecraft.world.level.LevelAccessor level,
+                                               BlockPos pos,BlockPos neighborPos) {
+        if(!altar)level.scheduleTick(pos,this,1);
         return state;
     }
     @Override protected void tick(BlockState state,ServerLevel level,BlockPos pos,RandomSource random) {

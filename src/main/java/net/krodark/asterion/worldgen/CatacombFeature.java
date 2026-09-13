@@ -13,9 +13,9 @@ public final class CatacombFeature extends Feature<NoneFeatureConfiguration> {
     @Override public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> context) {
         if (!context.level().getLevel().dimension().equals(Asterion.ASTERION_LEVEL)) return false;
         if (context.level().getLevel().getChunkSource().getGenerator() instanceof MazeChunkGenerator) return true;
-        AuthoredCatacombs.place(context.level(), ChunkPos.containing(context.origin()));
-        AuthoredForge.place(context.level(), ChunkPos.containing(context.origin()));
-        ForgeDepths.carveAccess(context.level(), ChunkPos.containing(context.origin()));
+        AuthoredCatacombs.place(context.level(), new ChunkPos(context.origin()));
+        AuthoredForge.place(context.level(), new ChunkPos(context.origin()));
+        ForgeDepths.carveAccess(context.level(), new ChunkPos(context.origin()));
         return true;
     }
 }

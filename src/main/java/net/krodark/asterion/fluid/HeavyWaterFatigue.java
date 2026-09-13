@@ -32,10 +32,10 @@ public final class HeavyWaterFatigue {
             int tier = fatigueTier(exposure);
             if (tier == 0 || player.tickCount % 20 != 0) continue;
              
-            player.addEffect(new MobEffectInstance(MobEffects.MINING_FATIGUE, 45, tier - 1, false, false, true));
+            player.addEffect(new MobEffectInstance(MobEffects.DIG_SLOWDOWN, 45, tier - 1, false, false, true));
             if (swimming) {
                 player.causeFoodExhaustion(.10F * tier);
-                if (tier >= 2) player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 45, tier - 2, false, false, true));
+                if (tier >= 2) player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 45, tier - 2, false, false, true));
             }
         }
     }

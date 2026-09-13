@@ -23,7 +23,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.minecraft.world.level.saveddata.SavedDataType;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.HolderLookup;
 
 public final class SharedObjectiveProgress extends SavedData {
     private static final int CATACOMBS=1, BRAZIER_KEY=2, MOLD=4, FORGE=8, ORE=16,
@@ -31,13 +32,19 @@ public final class SharedObjectiveProgress extends SavedData {
     public static final Codec<SharedObjectiveProgress> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.intRange(0, 1023).optionalFieldOf("milestones", 0).forGetter(state -> state.milestones)
     ).apply(instance, SharedObjectiveProgress::new));
-    private static final SavedDataType<SharedObjectiveProgress> TYPE = new SavedDataType<>(
-            Asterion.id("shared_objectives"), () -> new SharedObjectiveProgress(0), CODEC, null);
+    private static final SavedData.Factory<SharedObjectiveProgress> FACTORY =
+            net.krodark.asterion.port.compat.SavedDataCompat.factory(
+                    CODEC, () -> new SharedObjectiveProgress(0));
     private static final Map<MinecraftServer, Map<UUID, Integer>> SENT = new WeakHashMap<>();
     private int milestones;
 
     private SharedObjectiveProgress(int milestones) { this.milestones = milestones; }
-    public static SharedObjectiveProgress get(ServerLevel level) { return level.getDataStorage().computeIfAbsent(TYPE); }
+    public static SharedObjectiveProgress get(ServerLevel level) {
+        return level.getDataStorage().computeIfAbsent(FACTORY, "asterion_shared_objectives");
+    }
+    @Override public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        return net.krodark.asterion.port.compat.SavedDataCompat.save(CODEC, this, tag, registries);
+    }
     private boolean has(int flag) { return (milestones & flag) != 0; }
     public int stage() {
         if (has(FINISHED)) return 10;

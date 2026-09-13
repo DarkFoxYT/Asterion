@@ -6,7 +6,6 @@ import net.krodark.asterion.worldgen.WorldGenerator;
 
 import net.minecraft.core.BlockPos;
 
-import net.fabricmc.api.ModInitializer;
 import net.krodark.asterion.event.CatacombFloodState;
 import net.fabricmc.fabric.api.biome.v1.BiomeModifications;
 import net.fabricmc.fabric.api.biome.v1.BiomeSelectors;
@@ -17,7 +16,7 @@ import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
-import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
+import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.fabricmc.fabric.api.registry.FlammableBlockRegistry;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -52,7 +51,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.BlockItem;
@@ -60,12 +59,12 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.item.SpawnEggItem;
-import net.minecraft.world.item.ToolMaterial;
+import net.minecraft.world.item.Tier;
+import net.minecraft.world.item.Tiers;
+import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.item.component.Consumables;
-import net.minecraft.world.item.consume_effects.ApplyStatusEffectsConsumeEffect;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.sounds.SoundEvent;
@@ -94,7 +93,6 @@ import net.minecraft.world.level.block.CarpetBlock;
 import net.minecraft.world.level.block.FenceBlock;
 import net.minecraft.world.level.block.FenceGateBlock;
 import net.minecraft.world.level.block.LeavesBlock;
-import net.minecraft.world.level.block.UntintedParticleLeavesBlock;
 import net.minecraft.world.level.block.SlabBlock;
 import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.RotatedPillarBlock;
@@ -130,7 +128,7 @@ import net.krodark.asterion.worldgen.MazeChunkGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Asterion implements ModInitializer {
+public final class Asterion {
     public static final String MOD_ID = "asterion";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     public static final ResourceKey<Level> ASTERION_LEVEL = ResourceKey.create(
@@ -244,26 +242,26 @@ public class Asterion implements ModInitializer {
                     .sound(SoundType.MOSS)));
     public static final Block ANCIENT_MOSS_CARPET = registerBlock(
             "ancient_moss_carpet", MapColor.TERRACOTTA_GREEN,
-            properties -> new net.krodark.asterion.block.WaterloggedMossCarpetBlock(properties.noCollision().strength(0.1F)
+            properties -> new net.krodark.asterion.block.WaterloggedMossCarpetBlock(properties.noCollission().strength(0.1F)
                     .sound(SoundType.MOSS_CARPET)));
     public static final LeavesBlock ANCIENT_LEAVES = (LeavesBlock)registerBlock(
             "ancient_leaves", MapColor.TERRACOTTA_BROWN,
-            properties -> new UntintedParticleLeavesBlock(0.01F, ParticleTypes.PALE_OAK_LEAVES,
+            properties -> new LeavesBlock(
                     properties.strength(0.2F).randomTicks().sound(SoundType.GRASS).noOcclusion()));
     public static final LeavesBlock TAINTED_LEAVES = (LeavesBlock)registerBlock(
             "tainted_leaves", MapColor.COLOR_RED,
-            properties -> new UntintedParticleLeavesBlock(0.008F, ParticleTypes.CRIMSON_SPORE,
+            properties -> new LeavesBlock(
                     properties.strength(0.2F).randomTicks().sound(SoundType.GRASS).noOcclusion()));
     public static final MultifaceBlock TAINTED_PETALS = (MultifaceBlock)registerBlock(
             "tainted_petals", MapColor.COLOR_RED,
-            properties -> new MultifaceBlock(properties.noCollision().replaceable().instabreak()
+            properties -> new net.minecraft.world.level.block.GlowLichenBlock(properties.noCollission().replaceable().instabreak()
                     .sound(SoundType.PINK_PETALS).noOcclusion()));
     public static final PassionBloomBlock PASSION_BLOOM = (PassionBloomBlock)registerBlockWithoutItem(
             "tainted_heart", MapColor.COLOR_RED,
-            properties -> new PassionBloomBlock(properties.noCollision().instabreak()
+            properties -> new PassionBloomBlock(properties.noCollission().instabreak()
                     .sound(SoundType.SWEET_BERRY_BUSH).noOcclusion()));
     public static final Block SHORT_GRASS = registerBlock("short_grass", MapColor.PLANT,
-            properties -> new ShortGrassBlock(properties.noCollision().replaceable().instabreak()
+            properties -> new ShortGrassBlock(properties.noCollission().replaceable().instabreak()
                     .sound(SoundType.GRASS).offsetType(BlockBehaviour.OffsetType.XZ)));
     public static final Block ANCIENT_STONE_SLAB = registerBlock("ancient_stone_slab", MapColor.TERRACOTTA_BROWN, SlabBlock::new);
     public static final Block ANCIENT_STONE_STAIRS = registerBlock("ancient_stone_stairs", MapColor.TERRACOTTA_BROWN,
@@ -393,13 +391,12 @@ public class Asterion implements ModInitializer {
             properties -> new LabyrinthVineBlock(properties.noOcclusion().strength(0.4F)
                     .sound(SoundType.VINE).lightLevel(state -> 5)),
             properties -> properties.food(new FoodProperties.Builder().nutrition(1)
-                            .saturationModifier(0.15F).build(),
-                    Consumables.defaultFood().onConsume(new ApplyStatusEffectsConsumeEffect(
-                            new MobEffectInstance(MobEffects.GLOWING, 10 * 20))).build()));
+                    .saturationModifier(0.15F)
+                    .effect(new MobEffectInstance(MobEffects.GLOWING, 10 * 20), 1.0F).build()));
     private static final ResourceKey<Item> POPPED_ANCIENT_VINES_KEY = ResourceKey.create(
             Registries.ITEM, id("popped_ancient_vines"));
     public static final Item POPPED_ANCIENT_VINES = Registry.register(BuiltInRegistries.ITEM,
-            POPPED_ANCIENT_VINES_KEY, new Item(new Item.Properties().setId(POPPED_ANCIENT_VINES_KEY)
+            POPPED_ANCIENT_VINES_KEY, new Item(new Item.Properties()
                     .food(new FoodProperties.Builder().nutrition(4).saturationModifier(0.45F).build())));
     public static final Item INGOT_CAST = registerSimpleItem("ingot_cast");
     public static final Item SWORD_GUARD_CAST = registerSimpleItem("sword_guard_cast");
@@ -418,12 +415,12 @@ public class Asterion implements ModInitializer {
     public static final Item FORGED_SWORD = registerForgedSwordItem("forged_sword");
     public static final net.minecraft.world.item.crafting.RecipeSerializer<net.krodark.asterion.recipe.ForgedSwordRecipe>
             FORGED_SWORD_RECIPE = Registry.register(BuiltInRegistries.RECIPE_SERIALIZER, id("forged_sword"),
-            new net.minecraft.world.item.crafting.RecipeSerializer<>(
+            net.krodark.asterion.port.compat.RecipeSerializerCompat.of(
                     com.mojang.serialization.MapCodec.unit(new net.krodark.asterion.recipe.ForgedSwordRecipe()),
                     net.minecraft.network.codec.StreamCodec.unit(new net.krodark.asterion.recipe.ForgedSwordRecipe())));
     public static final net.minecraft.world.item.crafting.RecipeSerializer<net.krodark.asterion.recipe.RemovedRecipe>
             REMOVED_RECIPE = Registry.register(BuiltInRegistries.RECIPE_SERIALIZER, id("removed"),
-            new net.minecraft.world.item.crafting.RecipeSerializer<>(
+            net.krodark.asterion.port.compat.RecipeSerializerCompat.of(
                     com.mojang.serialization.MapCodec.unit(new net.krodark.asterion.recipe.RemovedRecipe()),
                     net.minecraft.network.codec.StreamCodec.unit(new net.krodark.asterion.recipe.RemovedRecipe())));
     public static final SkeletonBlock SKELETON = (SkeletonBlock)registerBlock(
@@ -457,26 +454,26 @@ public class Asterion implements ModInitializer {
                     .sized(1.25F * AsterionConfig.INSTANCE.minotaurScale,
                             2.75F * AsterionConfig.INSTANCE.minotaurScale)
                     .eyeHeight(2.35F * AsterionConfig.INSTANCE.minotaurScale)
-                    .clientTrackingRange(16).build(MINOTAUR_ENTITY_KEY)
+                    .clientTrackingRange(16).build(MINOTAUR_ENTITY_KEY.location().toString())
     );
     private static final ResourceKey<EntityType<?>> MINOTAUR_AXE_KEY = ResourceKey.create(Registries.ENTITY_TYPE, id("minotaur_axe"));
     public static final EntityType<net.krodark.asterion.entity.MinotaurAxeEntity> MINOTAUR_AXE = Registry.register(
             BuiltInRegistries.ENTITY_TYPE, MINOTAUR_AXE_KEY,
             EntityType.Builder.<net.krodark.asterion.entity.MinotaurAxeEntity>of(net.krodark.asterion.entity.MinotaurAxeEntity::new, MobCategory.MISC)
-                    .sized(1, 1).clientTrackingRange(16).updateInterval(1).build(MINOTAUR_AXE_KEY));
+                    .sized(1, 1).clientTrackingRange(16).updateInterval(1).build(MINOTAUR_AXE_KEY.location().toString()));
     private static final ResourceKey<EntityType<?>> BOMBARDIER_BEETLE_KEY = ResourceKey.create(
             Registries.ENTITY_TYPE, id("bombadier_beetle"));
     private static final ResourceKey<EntityType<?>> RUNE_BEETLE_KEY = ResourceKey.create(Registries.ENTITY_TYPE, id("rune_beetle"));
     public static final EntityType<net.krodark.asterion.entity.RuneBeetleEntity> RUNE_BEETLE = Registry.register(
             BuiltInRegistries.ENTITY_TYPE, RUNE_BEETLE_KEY,
             EntityType.Builder.of(net.krodark.asterion.entity.RuneBeetleEntity::new, MobCategory.CREATURE)
-                    .sized(.45F, .25F).eyeHeight(.15F).clientTrackingRange(8).build(RUNE_BEETLE_KEY));
+                    .sized(.45F, .25F).eyeHeight(.15F).clientTrackingRange(8).build(RUNE_BEETLE_KEY.location().toString()));
     public static final EntityType<BombadierBeetleEntity> BOMBARDIER_BEETLE = Registry.register(
             BuiltInRegistries.ENTITY_TYPE,
             BOMBARDIER_BEETLE_KEY,
             EntityType.Builder.of(BombadierBeetleEntity::new, MobCategory.CREATURE)
                     .sized(0.8F, 0.45F).eyeHeight(0.3F).clientTrackingRange(10)
-                    .fireImmune().build(BOMBARDIER_BEETLE_KEY)
+                    .fireImmune().build(BOMBARDIER_BEETLE_KEY.location().toString())
     );
     private static final ResourceKey<EntityType<?>> CONSTRUCT_KEY = ResourceKey.create(
             Registries.ENTITY_TYPE, id("construct"));
@@ -485,7 +482,7 @@ public class Asterion implements ModInitializer {
             EntityType.Builder.of(ConstructEntity::new, MobCategory.MONSTER)
                      
                     .sized(1.0F, 2.1875F).eyeHeight(1.75F).clientTrackingRange(10).fireImmune()
-                    .build(CONSTRUCT_KEY));
+                    .build(CONSTRUCT_KEY.location().toString()));
     private static final ResourceKey<EntityType<?>> QUEEN_BEETLE_KEY = ResourceKey.create(
             Registries.ENTITY_TYPE, id("queen_beetle"));
     public static final EntityType<QueenBeetleEntity> QUEEN_BEETLE = Registry.register(
@@ -493,17 +490,15 @@ public class Asterion implements ModInitializer {
             EntityType.Builder.of(QueenBeetleEntity::new, MobCategory.CREATURE)
                      
                     .sized(2.625F, 1.625F).eyeHeight(0.9F).clientTrackingRange(12)
-                    .build(QUEEN_BEETLE_KEY));
+                    .build(QUEEN_BEETLE_KEY.location().toString()));
     private static final ResourceKey<Item> CONSTRUCT_EGG_KEY = ResourceKey.create(
             Registries.ITEM, id("construct_spawn_egg"));
     public static final Item CONSTRUCT_SPAWN_EGG = Registry.register(BuiltInRegistries.ITEM,
-            CONSTRUCT_EGG_KEY, new SpawnEggItem(new Item.Properties().setId(CONSTRUCT_EGG_KEY)
-                    .spawnEgg(CONSTRUCT)));
+            CONSTRUCT_EGG_KEY, new SpawnEggItem(CONSTRUCT, 0x8B8177, 0x57C7A5, new Item.Properties()));
     private static final ResourceKey<Item> QUEEN_BEETLE_EGG_KEY = ResourceKey.create(
             Registries.ITEM, id("queen_beetle_spawn_egg"));
     public static final Item QUEEN_BEETLE_SPAWN_EGG = Registry.register(BuiltInRegistries.ITEM,
-            QUEEN_BEETLE_EGG_KEY, new SpawnEggItem(new Item.Properties().setId(QUEEN_BEETLE_EGG_KEY)
-                    .spawnEgg(QUEEN_BEETLE)));
+            QUEEN_BEETLE_EGG_KEY, new SpawnEggItem(QUEEN_BEETLE, 0x542F1E, 0xD4AF37, new Item.Properties()));
     private static final ResourceKey<EntityType<?>> SCARLET_CENTIPEDE_KEY = ResourceKey.create(
             Registries.ENTITY_TYPE, id("scarlet_centipede"));
     public static final EntityType<ScarletCentipedeEntity> SCARLET_CENTIPEDE = Registry.register(
@@ -511,15 +506,14 @@ public class Asterion implements ModInitializer {
             SCARLET_CENTIPEDE_KEY,
             EntityType.Builder.of(ScarletCentipedeEntity::new, MobCategory.CREATURE)
                     .sized(1.785F, 0.697F).eyeHeight(0.527F).clientTrackingRange(48)
-                    .build(SCARLET_CENTIPEDE_KEY)
+                    .build(SCARLET_CENTIPEDE_KEY.location().toString())
     );
     private static final ResourceKey<Item> SCARLET_CENTIPEDE_SPAWN_EGG_KEY = ResourceKey.create(
             Registries.ITEM, id("scarlet_centipede_spawn_egg"));
     public static final Item SCARLET_CENTIPEDE_SPAWN_EGG = Registry.register(
             BuiltInRegistries.ITEM,
             SCARLET_CENTIPEDE_SPAWN_EGG_KEY,
-            new SpawnEggItem(new Item.Properties().setId(SCARLET_CENTIPEDE_SPAWN_EGG_KEY)
-                    .spawnEgg(SCARLET_CENTIPEDE))
+            new SpawnEggItem(SCARLET_CENTIPEDE, 0x621414, 0xE0553F, new Item.Properties())
     );
     public static final SimpleParticleType BOMBARDIER_STENCH = Registry.register(
             BuiltInRegistries.PARTICLE_TYPE, id("bombardier_stench"), FabricParticleTypes.simple());
@@ -561,61 +555,59 @@ public class Asterion implements ModInitializer {
     public static final Item ANTIKYTHERA_MECHANISM = Registry.register(
             BuiltInRegistries.ITEM,
             MECHANISM_KEY,
-            new AntikytheraMechanismItem(new Item.Properties().setId(MECHANISM_KEY).stacksTo(1).rarity(Rarity.EPIC))
+            new AntikytheraMechanismItem(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC))
     );
     private static final ResourceKey<Item> BLUEPRINT_KEY = ResourceKey.create(
             Registries.ITEM, id("antikythera_blueprint"));
     public static final Item ANTIKYTHERA_BLUEPRINT = Registry.register(
             BuiltInRegistries.ITEM,
             BLUEPRINT_KEY,
-            new AntikytheraBlueprintItem(new Item.Properties().setId(BLUEPRINT_KEY).stacksTo(1).rarity(Rarity.RARE))
+            new AntikytheraBlueprintItem(new Item.Properties().stacksTo(1).rarity(Rarity.RARE))
     );
     private static final TagKey<Block> INCORRECT_FOR_CELESTIAL_BRONZE_TOOL = TagKey.create(
             Registries.BLOCK, id("incorrect_for_celestial_bronze_tool"));
     private static final TagKey<Item> REPAIRS_CELESTIAL_BRONZE_TOOLS = TagKey.create(
             Registries.ITEM, id("repairs_celestial_bronze_tools"));
-    public static final ToolMaterial CELESTIAL_BRONZE = new ToolMaterial(
+    public static final Tier CELESTIAL_BRONZE = new net.krodark.asterion.port.compat.AsterionTier(
             INCORRECT_FOR_CELESTIAL_BRONZE_TOOL, 1200, 7.5F, 3.5F, 18,
             REPAIRS_CELESTIAL_BRONZE_TOOLS);
     private static final ResourceKey<Item> CELESTIAL_BRONZE_SWORD_KEY = ResourceKey.create(
             Registries.ITEM, id("celestial_bronze_sword"));
     public static final Item CELESTIAL_BRONZE_SWORD = Registry.register(
             BuiltInRegistries.ITEM, CELESTIAL_BRONZE_SWORD_KEY,
-            new Item(new Item.Properties().setId(CELESTIAL_BRONZE_SWORD_KEY)
-                    .sword(CELESTIAL_BRONZE, 3.5F, -2.3F)
+            new SwordItem(CELESTIAL_BRONZE, new Item.Properties()
+                    .attributes(SwordItem.createAttributes(CELESTIAL_BRONZE, 4, -2.3F))
                     .rarity(Rarity.RARE).fireResistant()));
     private static final ResourceKey<Item> AFTERBLOW_KEY = ResourceKey.create(Registries.ITEM, id("afterblow"));
     public static final Item AFTERBLOW = Registry.register(BuiltInRegistries.ITEM, AFTERBLOW_KEY,
-            new net.krodark.asterion.item.AfterblowItem(new Item.Properties().setId(AFTERBLOW_KEY)
-                    .sword(new ToolMaterial(INCORRECT_FOR_CELESTIAL_BRONZE_TOOL, 2000, 8.0F, 4.0F, 18,
-                            REPAIRS_CELESTIAL_BRONZE_TOOLS), 4.5F, -2.4F)
+            new net.krodark.asterion.item.AfterblowItem(new Item.Properties().durability(2000)
+                    .attributes(SwordItem.createAttributes(CELESTIAL_BRONZE, 5, -2.4F))
                     .rarity(Rarity.EPIC).fireResistant()));
     private static final ResourceKey<Item> SICKENED_TWINBLADES_KEY = ResourceKey.create(
             Registries.ITEM, id("sickened_twinblades"));
     public static final Item SICKENED_TWINBLADES = Registry.register(
             BuiltInRegistries.ITEM, SICKENED_TWINBLADES_KEY,
             new net.krodark.asterion.item.SickenedTwinbladesItem(
-                    new Item.Properties().setId(SICKENED_TWINBLADES_KEY)
-                            .sword(new ToolMaterial(INCORRECT_FOR_CELESTIAL_BRONZE_TOOL, 1600, 7.0F, 2.8F, 14,
-                                    REPAIRS_CELESTIAL_BRONZE_TOOLS), 2.7F, -2.0F)
+                    new Item.Properties().durability(1600)
+                            .attributes(SwordItem.createAttributes(CELESTIAL_BRONZE, 3, -2.0F))
                             .rarity(Rarity.RARE)));
     private static final ResourceKey<Item> MINOTAUR_KEY_ID = ResourceKey.create(Registries.ITEM, id("minotaur_key"));
     public static final Item MINOTAUR_KEY = Registry.register(BuiltInRegistries.ITEM, MINOTAUR_KEY_ID,
-            new Item(new Item.Properties().setId(MINOTAUR_KEY_ID).stacksTo(1).rarity(Rarity.UNCOMMON)
+            new Item(new Item.Properties().stacksTo(1).rarity(Rarity.UNCOMMON)
                     .component(net.minecraft.core.component.DataComponents.LORE, minotaurKeyInstructions())));
     private static final ResourceKey<Item> OMEGA_KEY_ID = ResourceKey.create(Registries.ITEM, id("omega_key"));
     public static final Item OMEGA_KEY = Registry.register(BuiltInRegistries.ITEM, OMEGA_KEY_ID,
-            new Item(new Item.Properties().setId(OMEGA_KEY_ID).stacksTo(1).rarity(Rarity.EPIC).fireResistant()));
+            new Item(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC).fireResistant()));
     private static final ResourceKey<Item> TAINTED_HEART_KEY = ResourceKey.create(
             Registries.ITEM, id("tainted_heart"));
     public static final Item TAINTED_HEART = Registry.register(
             BuiltInRegistries.ITEM, TAINTED_HEART_KEY,
-            new BlockItem(PASSION_BLOOM, new Item.Properties().setId(TAINTED_HEART_KEY)));
+            new BlockItem(PASSION_BLOOM, new Item.Properties()));
     private static final ResourceKey<Item> TAINTED_HEART_EATABLE_KEY = ResourceKey.create(
             Registries.ITEM, id("tainted_heart_eatable"));
     public static final Item TAINTED_HEART_EATABLE = Registry.register(
             BuiltInRegistries.ITEM, TAINTED_HEART_EATABLE_KEY,
-            new Item(new Item.Properties().setId(TAINTED_HEART_EATABLE_KEY)
+            new Item(new Item.Properties()
                     .food(new FoodProperties.Builder().nutrition(5)
                             .saturationModifier(0.55F).build())));
     private static final ResourceKey<CreativeModeTab> ITEM_GROUP_KEY = ResourceKey.create(
@@ -623,7 +615,7 @@ public class Asterion implements ModInitializer {
     public static final CreativeModeTab ITEM_GROUP = Registry.register(
             BuiltInRegistries.CREATIVE_MODE_TAB,
             ITEM_GROUP_KEY,
-            FabricCreativeModeTab.builder()
+            FabricItemGroup.builder()
                     .title(Component.translatable("itemGroup.asterion.asterion"))
                     .icon(() -> new ItemStack(ANTIKYTHERA_MECHANISM))
                     .displayItems((parameters, output) -> {
@@ -731,7 +723,7 @@ public class Asterion implements ModInitializer {
     public static final CreativeModeTab FORGING_ITEM_GROUP = Registry.register(
             BuiltInRegistries.CREATIVE_MODE_TAB,
             ResourceKey.create(Registries.CREATIVE_MODE_TAB, id("forging")),
-            FabricCreativeModeTab.builder()
+            FabricItemGroup.builder()
                     .title(Component.translatable("itemGroup.asterion.forging"))
                     .icon(() -> new ItemStack(CELESTIAL_STEEL_INGOT))
                     .displayItems((parameters, output) -> {
@@ -766,16 +758,14 @@ public class Asterion implements ModInitializer {
                             ItemStack guard = forgePart(FORGED_SWORD_GUARD, metal, "Sword Guard");
                             ItemStack pommel = forgePart(FORGED_SWORD_POMMEL, metal, "Sword Pommel");
                             output.accept(blade); output.accept(guard); output.accept(pommel);
-                            output.accept(new net.krodark.asterion.recipe.ForgedSwordRecipe().assemble(
-                                    net.minecraft.world.item.crafting.CraftingInput.of(2, 2,
-                                            java.util.List.of(blade, guard, pommel, new ItemStack(DEADWOOD_STICK)))));
+                            output.accept(FORGED_SWORD);
                         }
                         output.accept(CELESTIAL_BRONZE_SWORD);
                     }).build());
     public static final CreativeModeTab RUNE_ITEM_GROUP = Registry.register(
             BuiltInRegistries.CREATIVE_MODE_TAB,
             ResourceKey.create(Registries.CREATIVE_MODE_TAB, id("runes")),
-            FabricCreativeModeTab.builder()
+            FabricItemGroup.builder()
                     .title(Component.translatable("itemGroup.asterion.runes"))
                     .icon(() -> new ItemStack(RUNE_TABLETS[0]))
                     .displayItems((parameters, output) -> {
@@ -864,10 +854,12 @@ public class Asterion implements ModInitializer {
 
     }
 
-    @Override
-    public void onInitialize() {
-        net.fabricmc.fabric.api.registry.FuelValueEvents.BUILD.register((builder, context) ->
-                builder.add(DEADWOOD_STICK, context.baseSmeltTime() / 2));
+    private static boolean initialized;
+
+    public static synchronized void initialize() {
+        if (initialized) return;
+        initialized = true;
+        net.fabricmc.fabric.api.registry.FuelRegistry.INSTANCE.add(DEADWOOD_STICK, 100);
         registerDeadWoodProperties();
         net.krodark.asterion.game.WeaponCombatSystem.initialize();
         net.krodark.asterion.game.GameplayContent.initialize();
@@ -881,58 +873,58 @@ public class Asterion implements ModInitializer {
         net.krodark.asterion.fluid.HeavyWater.initialize();
         net.krodark.asterion.block.RespawnObelisks.initialize();
         AsterionConfig.INSTANCE.sanitize();
-        PayloadTypeRegistry.clientboundPlay().register(DimensionTransitionPayload.TYPE, DimensionTransitionPayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(EntryOmenPayload.TYPE, EntryOmenPayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(BossFinalePayload.TYPE, BossFinalePayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(
+        PayloadTypeRegistry.playS2C().register(DimensionTransitionPayload.TYPE, DimensionTransitionPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(EntryOmenPayload.TYPE, EntryOmenPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(BossFinalePayload.TYPE, BossFinalePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(
                 net.krodark.asterion.network.RoofCollapsePayload.TYPE,
                 net.krodark.asterion.network.RoofCollapsePayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.BossEntrancePayload.TYPE,
+        PayloadTypeRegistry.playS2C().register(net.krodark.asterion.network.BossEntrancePayload.TYPE,
                 net.krodark.asterion.network.BossEntrancePayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(
+        PayloadTypeRegistry.playS2C().register(
                 net.krodark.asterion.network.CursedBrazierAwakeningPayload.TYPE,
                 net.krodark.asterion.network.CursedBrazierAwakeningPayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(GatewayPortalPayload.TYPE, GatewayPortalPayload.CODEC);
-        PayloadTypeRegistry.serverboundPlay().register(TransitionReadyPayload.TYPE, TransitionReadyPayload.CODEC);
-        PayloadTypeRegistry.serverboundPlay().register(PressureButtonHoldPayload.TYPE,PressureButtonHoldPayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(MazeZapPayload.TYPE, MazeZapPayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(DeadSunEventPayload.TYPE, DeadSunEventPayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(MazeShiftPayload.TYPE, MazeShiftPayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.ArenaDebrisPayload.TYPE, net.krodark.asterion.network.ArenaDebrisPayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.MinotaurImpactPayload.TYPE,
+        PayloadTypeRegistry.playS2C().register(GatewayPortalPayload.TYPE, GatewayPortalPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(TransitionReadyPayload.TYPE, TransitionReadyPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(PressureButtonHoldPayload.TYPE,PressureButtonHoldPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(MazeZapPayload.TYPE, MazeZapPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(DeadSunEventPayload.TYPE, DeadSunEventPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(MazeShiftPayload.TYPE, MazeShiftPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(net.krodark.asterion.network.ArenaDebrisPayload.TYPE, net.krodark.asterion.network.ArenaDebrisPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(net.krodark.asterion.network.MinotaurImpactPayload.TYPE,
                 net.krodark.asterion.network.MinotaurImpactPayload.CODEC);
         ServerTickEvents.END_SERVER_TICK.register(net.krodark.asterion.worldgen.ArenaDebris::flush);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> net.krodark.asterion.worldgen.ArenaDebris.clear());
-        PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.DoorBreakPayload.TYPE,
+        PayloadTypeRegistry.playS2C().register(net.krodark.asterion.network.DoorBreakPayload.TYPE,
                 net.krodark.asterion.network.DoorBreakPayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(DeadSunStrikePayload.TYPE, DeadSunStrikePayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(BossTelegraphPayload.TYPE, BossTelegraphPayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(BossEncounterResetPayload.TYPE, BossEncounterResetPayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(DazePayload.TYPE, DazePayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(BiomeAtmospherePayload.TYPE, BiomeAtmospherePayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(CrucibleScreenPayload.TYPE, CrucibleScreenPayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.ForgeInsertPayload.TYPE, net.krodark.asterion.network.ForgeInsertPayload.CODEC);
-        PayloadTypeRegistry.serverboundPlay().register(CrucibleControlPayload.TYPE, CrucibleControlPayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(
+        PayloadTypeRegistry.playS2C().register(DeadSunStrikePayload.TYPE, DeadSunStrikePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(BossTelegraphPayload.TYPE, BossTelegraphPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(BossEncounterResetPayload.TYPE, BossEncounterResetPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(DazePayload.TYPE, DazePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(BiomeAtmospherePayload.TYPE, BiomeAtmospherePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(CrucibleScreenPayload.TYPE, CrucibleScreenPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(net.krodark.asterion.network.ForgeInsertPayload.TYPE, net.krodark.asterion.network.ForgeInsertPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(CrucibleControlPayload.TYPE, CrucibleControlPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(
                 net.krodark.asterion.network.QueenBeetleQuestPayload.TYPE,
                 net.krodark.asterion.network.QueenBeetleQuestPayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(RagdollImpulsePayload.TYPE, RagdollImpulsePayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(RagdollPosePayload.TYPE, RagdollPosePayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(RagdollStatePayload.TYPE, RagdollStatePayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(RagdollAuthorityPayload.TYPE, RagdollAuthorityPayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(RagdollExplosionPayload.TYPE, RagdollExplosionPayload.CODEC);
-        PayloadTypeRegistry.serverboundPlay().register(RagdollKillPayload.TYPE, RagdollKillPayload.CODEC);
-        PayloadTypeRegistry.serverboundPlay().register(RagdollBlockImpactPayload.TYPE, RagdollBlockImpactPayload.CODEC);
-        PayloadTypeRegistry.serverboundPlay().register(RagdollEntityImpactPayload.TYPE, RagdollEntityImpactPayload.CODEC);
-        PayloadTypeRegistry.serverboundPlay().register(RagdollFallDamagePayload.TYPE, RagdollFallDamagePayload.CODEC);
-        PayloadTypeRegistry.serverboundPlay().register(TumbleExitPayload.TYPE, TumbleExitPayload.CODEC);
-        PayloadTypeRegistry.serverboundPlay().register(RagdollArmorImpactPayload.TYPE, RagdollArmorImpactPayload.CODEC);
-        PayloadTypeRegistry.serverboundPlay().register(RagdollPosePayload.TYPE, RagdollPosePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(RagdollImpulsePayload.TYPE, RagdollImpulsePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(RagdollPosePayload.TYPE, RagdollPosePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(RagdollStatePayload.TYPE, RagdollStatePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(RagdollAuthorityPayload.TYPE, RagdollAuthorityPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(RagdollExplosionPayload.TYPE, RagdollExplosionPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(RagdollKillPayload.TYPE, RagdollKillPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(RagdollBlockImpactPayload.TYPE, RagdollBlockImpactPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(RagdollEntityImpactPayload.TYPE, RagdollEntityImpactPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(RagdollFallDamagePayload.TYPE, RagdollFallDamagePayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(TumbleExitPayload.TYPE, TumbleExitPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(RagdollArmorImpactPayload.TYPE, RagdollArmorImpactPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(RagdollPosePayload.TYPE, RagdollPosePayload.CODEC);
         RagdollServerNetworking.initialize();
-        PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.ObjectiveProgressPayload.TYPE,
+        PayloadTypeRegistry.playS2C().register(net.krodark.asterion.network.ObjectiveProgressPayload.TYPE,
                 net.krodark.asterion.network.ObjectiveProgressPayload.CODEC);
         net.krodark.asterion.game.SharedObjectiveProgress.initialize();
-        PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.MinotaurGlobalSoundPayload.TYPE,
+        PayloadTypeRegistry.playS2C().register(net.krodark.asterion.network.MinotaurGlobalSoundPayload.TYPE,
                 net.krodark.asterion.network.MinotaurGlobalSoundPayload.CODEC);
         net.krodark.asterion.network.CentipedeNetworking.initialize();
         net.krodark.asterion.network.MinotaurBodyPayload.initialize();
@@ -960,9 +952,10 @@ public class Asterion implements ModInitializer {
         FabricDefaultAttributeRegistry.register(SCARLET_CENTIPEDE, ScarletCentipedeEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(CONSTRUCT, ConstructEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(QUEEN_BEETLE, QueenBeetleEntity.createAttributes());
-        ServerChunkEvents.CHUNK_LOAD.register(WorldGenerator::onChunkLoad);
-        ServerChunkEvents.CHUNK_LOAD.register(CatacombFloodState::onChunkLoad);
-        ServerChunkEvents.CHUNK_LOAD.register(net.krodark.asterion.worldgen.AuthoredForge::onChunkLoad);
+        ServerChunkEvents.CHUNK_LOAD.register((level, chunk) -> WorldGenerator.onChunkLoad(level, chunk, false));
+        ServerChunkEvents.CHUNK_LOAD.register((level, chunk) -> CatacombFloodState.onChunkLoad(level, chunk, false));
+        ServerChunkEvents.CHUNK_LOAD.register((level, chunk) ->
+                net.krodark.asterion.worldgen.AuthoredForge.onChunkLoad(level, chunk, false));
         ServerChunkEvents.CHUNK_UNLOAD.register(CatacombFloodState::onChunkUnload);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> CatacombFloodState.clear());
         PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, blockEntity) ->
@@ -1021,7 +1014,7 @@ public class Asterion implements ModInitializer {
         ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {
             if (entity instanceof ConstructEntity
                     && level.dimension().equals(ASTERION_LEVEL)
-                    && !entity.entityTags().contains(net.krodark.asterion.game.ChallengeDeaths.TAG)
+                    && !entity.getTags().contains(net.krodark.asterion.game.ChallengeDeaths.TAG)
                     && !ConstructEntity.isAllowedAsterionLocation(entity.blockPosition())) {
                 entity.discard();
                 return;
@@ -1083,12 +1076,12 @@ public class Asterion implements ModInitializer {
         LOGGER.info("Asterion loaded");
     }
 
-    public static Identifier id(String path) {
-        return Identifier.fromNamespaceAndPath(MOD_ID, path);
+    public static ResourceLocation id(String path) {
+        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
     }
 
     private static SoundEvent registerSound(String name) {
-        Identifier identifier = id(name);
+        ResourceLocation identifier = id(name);
         return Registry.register(BuiltInRegistries.SOUND_EVENT, identifier,
                 SoundEvent.createVariableRangeEvent(identifier));
     }
@@ -1122,24 +1115,24 @@ public class Asterion implements ModInitializer {
 
     private static Item registerMinotaurKeyCast() {
         ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id("minotaur_key_cast"));
-        return Registry.register(BuiltInRegistries.ITEM, key, new Item(new Item.Properties().setId(key)
+        return Registry.register(BuiltInRegistries.ITEM, key, new Item(new Item.Properties()
                 .component(net.minecraft.core.component.DataComponents.LORE, minotaurKeyInstructions())));
     }
 
     private static Item registerSimpleItem(String name) {
         ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id(name));
-        return Registry.register(BuiltInRegistries.ITEM, key, new Item(new Item.Properties().setId(key)));
+        return Registry.register(BuiltInRegistries.ITEM, key, new Item(new Item.Properties()));
     }
 
     private static Item registerForgedComponentItem(String name) {
         ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id(name));
         return Registry.register(BuiltInRegistries.ITEM, key,
-                new net.krodark.asterion.item.ForgedComponentItem(new Item.Properties().setId(key)));
+                new net.krodark.asterion.item.ForgedComponentItem(new Item.Properties()));
     }
 
     private static Item registerMetalItem(String name) {
         ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id(name));
-        Item.Properties properties = new Item.Properties().setId(key);
+        Item.Properties properties = new Item.Properties();
         String recipe = switch (name) {
             case "celestial_bronze_ingot" -> "Forge: 1 copper ingot + 1 gold ingot";
             case "tarnished_gold_ingot" -> "Forge: 1 tarnished gold ore";
@@ -1158,7 +1151,8 @@ public class Asterion implements ModInitializer {
     private static Item registerForgedSwordItem(String name) {
         ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id(name));
         return Registry.register(BuiltInRegistries.ITEM, key,
-                new net.krodark.asterion.item.ForgedSwordItem(new Item.Properties().setId(key).sword(ToolMaterial.IRON, 3.5F, -2.3F).enchantable(18)));
+                new net.krodark.asterion.item.ForgedSwordItem(new Item.Properties().durability(Tiers.IRON.getUses())
+                        .attributes(SwordItem.createAttributes(Tiers.IRON, 4, -2.3F))));
     }
 
     private static ItemStack forgePart(Item item, int metal, String part) {
@@ -1170,9 +1164,7 @@ public class Asterion implements ModInitializer {
         stack.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME,
                 Component.literal(display + " " + part));
         stack.set(net.minecraft.core.component.DataComponents.CUSTOM_MODEL_DATA,
-                new net.minecraft.world.item.component.CustomModelData(java.util.List.of(), java.util.List.of(),
-                        java.util.List.of(material, "none", "none", "none"),
-                        java.util.List.of(0xFFFFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF)));
+                new net.minecraft.world.item.component.CustomModelData(metal));
         net.minecraft.nbt.CompoundTag data = new net.minecraft.nbt.CompoundTag();
         data.putString("metal_sequence", Integer.toString(metal));
         data.putString("alloy", display);
@@ -1193,9 +1185,9 @@ public class Asterion implements ModInitializer {
                                        java.util.function.Function<BlockBehaviour.Properties, Block> factory,
                                        java.util.function.UnaryOperator<Item.Properties> itemProperties) {
         Block block = registerBlockWithoutItem(name, color, factory);
-        Identifier identifier = id(name);
+        ResourceLocation identifier = id(name);
         ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, identifier);
-        Item.Properties properties = itemProperties.apply(new Item.Properties().setId(itemKey)).useBlockDescriptionPrefix();
+        Item.Properties properties = itemProperties.apply(new Item.Properties());
         Registry.register(BuiltInRegistries.ITEM, itemKey, block instanceof net.krodark.asterion.block.CrucibleBlock
                 ? new net.krodark.asterion.block.CrucibleBlockItem(block, properties)
                 : new BlockItem(block, properties));
@@ -1204,10 +1196,10 @@ public class Asterion implements ModInitializer {
 
     private static Block registerBlockWithoutItem(String name, MapColor color,
                                                   java.util.function.Function<BlockBehaviour.Properties, Block> factory) {
-        Identifier identifier = id(name);
+        ResourceLocation identifier = id(name);
         ResourceKey<Block> blockKey = ResourceKey.create(Registries.BLOCK, identifier);
         return Registry.register(BuiltInRegistries.BLOCK, blockKey, factory.apply(
-                BlockBehaviour.Properties.of().setId(blockKey).mapColor(color)
+                BlockBehaviour.Properties.of().mapColor(color)
                         .strength(3.5f, 8.0f).sound(SoundType.DEEPSLATE)));
     }
 
@@ -1216,7 +1208,7 @@ public class Asterion implements ModInitializer {
         for (int index = 0; index < tablets.length; index++) {
             ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id("runestone" + (index + 1)));
             tablets[index] = Registry.register(BuiltInRegistries.ITEM, key,
-                    new Item(new Item.Properties().setId(key)));
+                    new Item(new Item.Properties()));
         }
         return tablets;
     }
@@ -1240,7 +1232,7 @@ public class Asterion implements ModInitializer {
                             .pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK)));
             ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, id(name));
             Registry.register(BuiltInRegistries.ITEM, itemKey, new RuneBlockItem(runes[index], runeIndex,
-                    new Item.Properties().setId(itemKey).useBlockDescriptionPrefix()));
+                    new Item.Properties()));
         }
         return runes;
     }

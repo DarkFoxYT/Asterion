@@ -1,9 +1,9 @@
 package net.krodark.asterion.block;
 
-import com.geckolib.animatable.GeoBlockEntity;
-import com.geckolib.animatable.instance.AnimatableInstanceCache;
-import com.geckolib.animatable.manager.AnimatableManager;
-import com.geckolib.util.GeckoLibUtil;
+import software.bernie.geckolib.animatable.GeoBlockEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animation.AnimatableManager;
+import software.bernie.geckolib.util.GeckoLibUtil;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.network.CrucibleControlPayload;
@@ -22,8 +22,8 @@ import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.CustomModelData;
 import net.minecraft.ChatFormatting;
-import net.minecraft.world.level.storage.ValueInput;
-import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.CompoundTag;
 
 public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEntity {
     private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
@@ -177,11 +177,11 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
         if (data == null || data.isEmpty()) return false;
         net.minecraft.nbt.CompoundTag tag = data.copyTag();
-        String sequence = tag.getStringOr("metal_sequence", "");
+        String sequence = net.krodark.asterion.port.compat.NbtCompat.getString(tag, "metal_sequence", "");
         if (sequence.isEmpty()) {
-            sequence = "0".repeat(Mth.clamp(tag.getIntOr("iron", 0), 0, 4))
-                    + "1".repeat(Mth.clamp(tag.getIntOr("copper", 0), 0, 4))
-                    + "2".repeat(Mth.clamp(tag.getIntOr("gold", 0), 0, 4));
+            sequence = "0".repeat(Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(tag, "iron", 0), 0, 4))
+                    + "1".repeat(Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(tag, "copper", 0), 0, 4))
+                    + "2".repeat(Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(tag, "gold", 0), 0, 4));
         }
         if (sequence.isEmpty() || materialUnits() + sequence.length() > 4
                 || sequence.chars().anyMatch(value -> value < '0' || value > '8')) return false;
@@ -437,10 +437,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         int overlayMetal = secondaryMetal < 0 ? primaryMetal : secondaryMetal;
         int overlayColor = metalSequence.length() < 2 ? 0 : 0x80000000
                 | metalColor(metalSequence.charAt(metalSequence.length() - 1) - '0');
-        result.set(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(
-                java.util.List.of(), java.util.List.of(),
-                layerMaterials(),
-                layerColors()));
+        result.set(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(primaryMetal + 1));
         result.set(DataComponents.LORE, new ItemLore(java.util.List.of(
                 Component.literal(compositionLine(total)).withStyle(ChatFormatting.GRAY),
                 Component.literal("Hardness " + hardness + "  Edge " + edge).withStyle(ChatFormatting.DARK_GRAY),
@@ -679,7 +676,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
                 && Math.floorMod(level.getGameTime() + pos.asLong(), 10L) == 0L;
         boolean finishedPouring = wasPouring && crucible.pouringTicks == 0;
         // Temperature changes need saving, but do not change inventory/comparator output.
-        if (changed) level.getChunkAt(pos).markUnsaved();
+        if (changed) level.getChunkAt(pos).setUnsaved(true);
         if (periodicActiveSync || finishedPouring) {
             crucible.syncClient();
             crucible.thermalSyncPending = false;
@@ -724,8 +721,8 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
                 selectedMoldIndex(), mixColor(), materialUnits(), metalSequence, autoPourTicks);
     }
 
-    @Override protected void saveAdditional(ValueOutput output) {
-        super.saveAdditional(output);
+    @Override protected void saveAdditional(CompoundTag output, net.minecraft.core.HolderLookup.Provider registries) {
+        super.saveAdditional(output, registries);
         output.putInt("temperature", temperature);
         output.putInt("heatControl", heatControl);
         output.putFloat("thermalRemainder", thermalRemainder);
@@ -753,47 +750,47 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         output.putString("metalSequence", metalSequence);
     }
 
-    @Override protected void loadAdditional(ValueInput input) {
-        super.loadAdditional(input);
-        temperature = Mth.clamp(input.getIntOr("temperature", 0), MIN_TEMPERATURE, MAX_TEMPERATURE);
-        mold = Mth.clamp(input.getIntOr("mold", 0), 0, Mold.values().length - 1);
-        moldInserted = input.getBooleanOr("moldInserted", false);
-        if (input.getIntOr("moldVersion", 0) == 0) {
-            int oldMold = input.getIntOr("mold", 0);
+    @Override protected void loadAdditional(CompoundTag input, net.minecraft.core.HolderLookup.Provider registries) {
+        super.loadAdditional(input, registries);
+        temperature = Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "temperature", 0), MIN_TEMPERATURE, MAX_TEMPERATURE);
+        mold = Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "mold", 0), 0, Mold.values().length - 1);
+        moldInserted = net.krodark.asterion.port.compat.NbtCompat.getBoolean(input, "moldInserted", false);
+        if (net.krodark.asterion.port.compat.NbtCompat.getInt(input, "moldVersion", 0) == 0) {
+            int oldMold = net.krodark.asterion.port.compat.NbtCompat.getInt(input, "mold", 0);
             if (oldMold == 4) { mold = 0; moldInserted = false; }
             else if (oldMold == 5) mold = Mold.MINOTAUR_KEY.ordinal();
         }
-        iron = Mth.clamp(input.getIntOr("iron", 0), 0, 4);
-        copper = Mth.clamp(input.getIntOr("copper", 0), 0, 4 - iron);
-        gold = Mth.clamp(input.getIntOr("gold", 0), 0, 4 - iron - copper);
-        netherite = Mth.clamp(input.getIntOr("netherite", 0), 0, 4 - iron - copper - gold);
-        celestialBronze = Mth.clamp(input.getIntOr("celestialBronze", 0), 0,
+        iron = Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "iron", 0), 0, 4);
+        copper = Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "copper", 0), 0, 4 - iron);
+        gold = Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "gold", 0), 0, 4 - iron - copper);
+        netherite = Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "netherite", 0), 0, 4 - iron - copper - gold);
+        celestialBronze = Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "celestialBronze", 0), 0,
                 4 - iron - copper - gold - netherite);
-        bonesteel = Mth.clamp(input.getIntOr("bonesteel", 0), 0,
+        bonesteel = Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "bonesteel", 0), 0,
                 4 - iron - copper - gold - netherite - celestialBronze);
-        celestialSteel = Mth.clamp(input.getIntOr("celestialSteel", 0), 0,
+        celestialSteel = Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "celestialSteel", 0), 0,
                 4 - iron - copper - gold - netherite - celestialBronze - bonesteel);
-        celestialGold = Mth.clamp(input.getIntOr("celestialGold", 0), 0,
+        celestialGold = Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "celestialGold", 0), 0,
                 4 - iron - copper - gold - netherite - celestialBronze - bonesteel - celestialSteel);
-        regularGold = Mth.clamp(input.getIntOr("regularGold", 0), 0,
+        regularGold = Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "regularGold", 0), 0,
                 4 - iron - copper - gold - netherite - celestialBronze - bonesteel - celestialSteel - celestialGold);
         int remaining = 5 - iron - copper - gold - netherite - celestialBronze - bonesteel - celestialSteel - celestialGold - regularGold;
-        mazesteel = Mth.clamp(input.getIntOr("mazesteel", 0), 0, remaining);
-        ancientBones = Mth.clamp(input.getIntOr("ancientBones", 0), 0, remaining - mazesteel);
-        carbon = Mth.clamp(input.getIntOr("carbon", 0), 0, Math.max(0, remaining - mazesteel - ancientBones));
-        brazierKeys = Mth.clamp(input.getIntOr("brazierKeys", 0), 0, Math.min(1, Math.max(0, remaining - mazesteel - ancientBones - carbon)));
-        pouringTicks = Mth.clamp(input.getIntOr("pouringTicks", 0), 0, 40);
-        autoPourTicks = Mth.clamp(input.getIntOr("autoPourTicks", 0), 0, AUTO_POUR_TICKS);
-        primaryMetal = Mth.clamp(input.getIntOr("primaryMetal", -1), -1, 12);
-        secondaryMetal = Mth.clamp(input.getIntOr("secondaryMetal", -1), -1, 12);
-        metalSequence = input.getStringOr("metalSequence", "");
+        mazesteel = Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "mazesteel", 0), 0, remaining);
+        ancientBones = Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "ancientBones", 0), 0, remaining - mazesteel);
+        carbon = Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "carbon", 0), 0, Math.max(0, remaining - mazesteel - ancientBones));
+        brazierKeys = Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "brazierKeys", 0), 0, Math.min(1, Math.max(0, remaining - mazesteel - ancientBones - carbon)));
+        pouringTicks = Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "pouringTicks", 0), 0, 40);
+        autoPourTicks = Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "autoPourTicks", 0), 0, AUTO_POUR_TICKS);
+        primaryMetal = Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "primaryMetal", -1), -1, 12);
+        secondaryMetal = Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "secondaryMetal", -1), -1, 12);
+        metalSequence = net.krodark.asterion.port.compat.NbtCompat.getString(input, "metalSequence", "");
         if (metalSequence.length() != materialUnits()
                 || metalSequence.chars().anyMatch(value -> value < '0' || value > '0' + 12))
             metalSequence = legacySequence();
         if (primaryMetal < 0 && !metalSequence.isEmpty()) primaryMetal = metalSequence.charAt(0) - '0';
-        heatControl = Mth.clamp(input.getIntOr("heatControl", 0), MIN_HEAT_CONTROL, MAX_HEAT_CONTROL);
-        thermalRemainder = Mth.clamp(input.getFloatOr("thermalRemainder", 0F), -1F, 1F);
-        fuelTicks = Math.max(0, input.getIntOr("fuelTicks", 0));
+        heatControl = Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "heatControl", 0), MIN_HEAT_CONTROL, MAX_HEAT_CONTROL);
+        thermalRemainder = Mth.clamp(net.krodark.asterion.port.compat.NbtCompat.getFloat(input, "thermalRemainder", 0F), -1F, 1F);
+        fuelTicks = Math.max(0, net.krodark.asterion.port.compat.NbtCompat.getInt(input, "fuelTicks", 0));
     }
 
     private String legacySequence() {

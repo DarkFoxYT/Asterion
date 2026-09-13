@@ -4,12 +4,12 @@ import net.krodark.asterion.Asterion;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
 
 public record RagdollExplosionPayload(Vec3 center, float radius) implements CustomPacketPayload {
     public static final Type<RagdollExplosionPayload> TYPE = new Type<>(
-            Identifier.fromNamespaceAndPath(Asterion.MOD_ID, "ragdoll_explosion"));
+            ResourceLocation.fromNamespaceAndPath(Asterion.MOD_ID, "ragdoll_explosion"));
     public static final StreamCodec<RegistryFriendlyByteBuf, RagdollExplosionPayload> CODEC =
             CustomPacketPayload.codec(RagdollExplosionPayload::write, RagdollExplosionPayload::read);
 

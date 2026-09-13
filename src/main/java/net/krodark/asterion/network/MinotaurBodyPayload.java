@@ -29,7 +29,7 @@ public record MinotaurBodyPayload(int entityId, Vec3 point, boolean attack, int 
     @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
 
     public static void initialize() {
-        PayloadTypeRegistry.serverboundPlay().register(TYPE, CODEC);
+        PayloadTypeRegistry.playC2S().register(TYPE, CODEC);
         ServerPlayNetworking.registerGlobalReceiver(TYPE, (payload, context) ->
                 context.server().execute(() -> handle(context.player(), payload)));
     }
@@ -48,7 +48,6 @@ public record MinotaurBodyPayload(int entityId, Vec3 point, boolean attack, int 
             if (request.part < -1 || request.part > 5) return;
             boss.dismember(player, InteractionHand.MAIN_HAND, net.krodark.asterion.entity.MinotaurRemains.fromId(request.part), point);
         } else if (request.attack) {
-            if (player.cannotAttackWithItem(player.getMainHandItem(), 0)) return;
             player.attack(boss);
             player.resetLastActionTime();
         } else if (boss.isDefeatedBoss()) boss.mobInteract(player, InteractionHand.MAIN_HAND);

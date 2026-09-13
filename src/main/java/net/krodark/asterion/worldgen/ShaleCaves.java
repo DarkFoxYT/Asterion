@@ -47,7 +47,7 @@ public final class ShaleCaves {
 
     private static Chamber chamber(long seed, int x, int z, java.util.Map<Long, Chamber> chambers) {
         if (chambers == null) return chamber(seed, x, z);
-        long key = net.minecraft.world.level.ChunkPos.pack(x, z);
+        long key = net.minecraft.world.level.ChunkPos.asLong(x, z);
         return chambers.computeIfAbsent(key, ignored -> chamber(seed, x, z));
     }
 
@@ -111,7 +111,7 @@ public final class ShaleCaves {
     public static int floorY(long seed, int x, int z) { return (int)Math.floor(column(seed, x, z).floor); }
 
     public static void generate(ChunkAccess chunk, long seed) {
-        if (chunk.getMinY() > LabyrinthLevels.CAVE_BOTTOM_Y) return;
+        if (chunk.getMinBuildHeight() > LabyrinthLevels.CAVE_BOTTOM_Y) return;
         var pos = new BlockPos.MutableBlockPos();
         int minX = chunk.getPos().getMinBlockX(), minZ = chunk.getPos().getMinBlockZ();
          
@@ -145,18 +145,18 @@ public final class ShaleCaves {
                                 && cave.roof - Math.floor(cave.roof) < .5)
                             state = slab(shaded(seed, x, y, z)).defaultBlockState().setValue(SlabBlock.TYPE, SlabType.TOP);
                     }
-                    chunk.setBlockState(pos.set(x, y, z), state, 0);
+                    chunk.setBlockState(pos.set(x, y, z), state, false);
                 }
                 if (open && !puddle && !flooded && cave.clearance > 4
                         && noise(seed ^ 7119, x / 31.0, z / 31.0) > .56) {
                     if (!CatacombProtection.isOre(chunk.getBlockState(pos.set(x, floor, z)))
                             && chunk.getBlockState(pos).isCollisionShapeFullBlock(chunk, pos)) {
-                        chunk.setBlockState(pos, Asterion.ANCIENT_MOSS.defaultBlockState(), 0);
+                        chunk.setBlockState(pos, Asterion.ANCIENT_MOSS.defaultBlockState(), false);
                         long plant = CatacombLayout.hash(seed ^ 727, x, z);
                         if (Math.floorMod(plant, 9) == 0)
-                            chunk.setBlockState(pos.set(x, floor + 1, z), Asterion.ANCIENT_MOSS_CARPET.defaultBlockState(), 0);
+                            chunk.setBlockState(pos.set(x, floor + 1, z), Asterion.ANCIENT_MOSS_CARPET.defaultBlockState(), false);
                         else if (Math.floorMod(plant, 23) == 0)
-                            chunk.setBlockState(pos.set(x, floor + 1, z), Blocks.BROWN_MUSHROOM.defaultBlockState(), 0);
+                            chunk.setBlockState(pos.set(x, floor + 1, z), Blocks.BROWN_MUSHROOM.defaultBlockState(), false);
                     }
                 }
                 if (open && !puddle && !flooded) spikes(chunk, seed, x, z, floor, roof, cave.clearance);
@@ -164,15 +164,15 @@ public final class ShaleCaves {
                 if (open && roof + 2 <= LabyrinthLevels.CAVE_ROOF_Y && wet(seed ^ 0xD21FL, x, z)
                         && Math.floorMod(CatacombLayout.hash(seed, x, z), 5) == 0) {
                      
-                    chunk.setBlockState(pos.set(x, roof, z), base(shaded(seed, x, roof, z)).defaultBlockState(), 0);
-                    chunk.setBlockState(pos.set(x, roof + 1, z), Blocks.WATER.defaultBlockState(), 0);
+                    chunk.setBlockState(pos.set(x, roof, z), base(shaded(seed, x, roof, z)).defaultBlockState(), false);
+                    chunk.setBlockState(pos.set(x, roof + 1, z), Blocks.WATER.defaultBlockState(), false);
                 }
             }
-        chunk.setBlockState(marker(chunk), revision(), 0);
+        chunk.setBlockState(marker(chunk), revision(), false);
     }
 
     public static void repairEmptyChunk(net.minecraft.world.level.chunk.LevelChunk chunk, long seed) {
-        if (chunk.getMinY() > LabyrinthLevels.CAVE_BOTTOM_Y || chunk.getBlockState(marker(chunk)).equals(revision())) return;
+        if (chunk.getMinBuildHeight() > LabyrinthLevels.CAVE_BOTTOM_Y || chunk.getBlockState(marker(chunk)).equals(revision())) return;
         for (BlockPos pos : BlockPos.betweenClosed(chunk.getPos().getMinBlockX(), LabyrinthLevels.CAVE_BOTTOM_Y,
                 chunk.getPos().getMinBlockZ(), chunk.getPos().getMaxBlockX(), LabyrinthLevels.CAVE_ROOF_Y,
                 chunk.getPos().getMaxBlockZ())) {
@@ -180,7 +180,7 @@ public final class ShaleCaves {
             if (!state.isAir()) return;
         }
         generate(chunk, seed);
-        chunk.markUnsaved();
+        chunk.setUnsaved(true);
     }
 
     private static BlockPos marker(ChunkAccess chunk) {
@@ -215,7 +215,7 @@ public final class ShaleCaves {
             chunk.setBlockState(new BlockPos(x, floor + offset, z), Asterion.LABYRINTH_VINE.defaultBlockState()
                     .setValue(net.krodark.asterion.block.LabyrinthVineBlock.FACING, Direction.UP)
                     .setValue(net.krodark.asterion.block.LabyrinthVineBlock.END, offset == length)
-                    .setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED, true), 0);
+                    .setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED, true), false);
         }
     }
 
@@ -280,7 +280,7 @@ public final class ShaleCaves {
                     .defaultBlockState()
                     .setValue(net.krodark.asterion.block.ShaleFormationBlock.THICKNESS, (remaining + 1) / 2)
                     .setValue(net.krodark.asterion.block.ShaleFormationBlock.HANGING, hanging);
-            chunk.setBlockState(new BlockPos(x, y, z), state, 0);
+            chunk.setBlockState(new BlockPos(x, y, z), state, false);
         }
     }
 

@@ -36,7 +36,7 @@ final class ForgeCaveEntrance {
                     || z + 4 < chunk.getMinBlockZ() || z - 4 > chunk.getMaxBlockZ()) continue;
             int feet = spiralTop - (int)Math.floor((spiralTop - bottom) * i / (double)steps);
             int previousFeet = spiralTop - (int)Math.floor((spiralTop - bottom) * Math.max(0, i - 1) / (double)steps);
-            Direction uphill = Direction.getApproximateNearest(previous.getX() - local.getX(), 0,
+            Direction uphill = Direction.getNearest(previous.getX() - local.getX(), 0,
                     previous.getZ() - local.getZ());
             boolean dark = ShaleCaves.shaded(seed, x, feet - 1, z);
             BlockState rock = (dark ? Asterion.SHADED_SHALE : Asterion.SHALE).defaultBlockState();

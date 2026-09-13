@@ -14,8 +14,8 @@ public final class LoadedBlockSearch {
 
     public static List<BlockPos> find(Level level, BlockPos min, BlockPos max, Predicate<BlockState> matches) {
         List<BlockPos> found = new ArrayList<>();
-        int minY = Math.max(min.getY(), level.getMinY());
-        int maxY = Math.min(max.getY(), level.getMaxY() - 1);
+        int minY = Math.max(min.getY(), level.getMinBuildHeight());
+        int maxY = Math.min(max.getY(), level.getMaxBuildHeight() - 1);
         if (minY > maxY) return found;
 
         for (int cx = min.getX() >> 4; cx <= max.getX() >> 4; cx++) {

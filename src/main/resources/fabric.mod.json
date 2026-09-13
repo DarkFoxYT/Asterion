@@ -12,26 +12,11 @@
   "icon": "assets/asterion/icon.png",
   "environment": "*",
   "entrypoints": {
-    "fabric-datagen": [
-      "net.krodark.asterion.client.AsterionDataGenerator"
-    ],
     "client": [
-      "net.krodark.asterion.client.AsterionClient"
+      "net.krodark.asterion.port.fabric.AsterionFabricClient"
     ],
     "main": [
-      "net.krodark.asterion.Asterion"
-    ],
-    "modmenu": [
-      "net.krodark.asterion.client.AsterionModMenu"
-    ],
-    "rei_client": [
-      "net.krodark.asterion.compat.rei.AsterionReiClientPlugin"
-    ],
-    "rei_common": [
-      "net.krodark.asterion.compat.rei.AsterionReiCommonPlugin"
-    ],
-    "jade": [
-      "net.krodark.asterion.compat.jade.AsterionJadePlugin"
+      "net.krodark.asterion.port.fabric.AsterionFabric"
     ]
   },
   "mixins": [
@@ -39,9 +24,9 @@
   ],
   "depends": {
     "fabricloader": ">=${loader_version}",
-    "fabric-api": "*",
+    "fabric-api": ">=${fabric_version}",
     "minecraft": "${minecraft_version}",
-    "amnetic": "*",
-    "geckolib": ">=5.5.2"
+    "veil": ">=${veil_version}",
+    "geckolib": ">=${geckolib_version}"
   }
 }

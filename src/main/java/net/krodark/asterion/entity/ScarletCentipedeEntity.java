@@ -1,11 +1,11 @@
 package net.krodark.asterion.entity;
 
-import com.geckolib.animatable.GeoEntity;
-import com.geckolib.animatable.instance.AnimatableInstanceCache;
-import com.geckolib.animatable.manager.AnimatableManager;
-import com.geckolib.animation.AnimationController;
-import com.geckolib.animation.RawAnimation;
-import com.geckolib.util.GeckoLibUtil;
+import software.bernie.geckolib.animatable.GeoEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animation.AnimatableManager;
+import software.bernie.geckolib.animation.AnimationController;
+import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.util.GeckoLibUtil;
 import net.krodark.asterion.Asterion;
 import net.minecraft.core.Direction;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -18,7 +18,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
-import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MoverType;
@@ -30,8 +30,8 @@ import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.storage.ValueInput;
-import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.AABB;
 import org.joml.Quaternionf;
@@ -49,7 +49,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
             ScarletCentipedeEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<String> DATA_SEATS = SynchedEntityData.defineId(
             ScarletCentipedeEntity.class, EntityDataSerializers.STRING);
-    private static final EntityDataAccessor<org.joml.Vector3fc> DATA_FORWARD = SynchedEntityData.defineId(
+    private static final EntityDataAccessor<org.joml.Vector3f> DATA_FORWARD = SynchedEntityData.defineId(
             ScarletCentipedeEntity.class, EntityDataSerializers.VECTOR3);
     private static final Direction[] SURFACES = Direction.values();
     private static final int DEFAULT_CHAIN_SEGMENTS = 7;
@@ -65,7 +65,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
 
     private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
     private Vec3 surfaceForward = new Vec3(0.0D, 0.0D, -1.0D);
-    private Vec3 smoothedAttachmentNormal = Direction.DOWN.getUnitVec3();
+    private Vec3 smoothedAttachmentNormal = net.minecraft.world.phys.Vec3.atLowerCornerOf(Direction.DOWN.getNormal());
     private Vec3 smoothedSurfaceMotion = Vec3.ZERO;
     private Vec3 wildHeading = new Vec3(0, 0, -1);
     private double wildSpeed;
@@ -87,7 +87,6 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         if (!level.isClientSide()) setChainSegmentCount(CentipedeSegments.randomCount(random));
     }
 
-    @Override public boolean canBreatheUnderwater() { return true; }
 
     public static AttributeSupplier.Builder createAttributes() {
         return PathfinderMob.createMobAttributes()
@@ -99,17 +98,17 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     }
 
     @Override
-    public boolean checkSpawnRules(LevelAccessor level, EntitySpawnReason reason) {
+    public boolean checkSpawnRules(LevelAccessor level, MobSpawnType reason) {
         if (level instanceof ServerLevel server && server.dimension().equals(Asterion.ASTERION_LEVEL)
                 && net.krodark.asterion.worldgen.ShaleCaves.contains(blockPosition()))
             return !net.krodark.asterion.worldgen.WorldGenerator.isNearSafeRune(server, blockPosition())
                     && BugSurfaces.allowed(level, blockPosition().below());
-        if (reason == EntitySpawnReason.NATURAL
+        if (reason == MobSpawnType.NATURAL
                 && (!(level instanceof ServerLevel serverLevel)
                 || !serverLevel.dimension().equals(Asterion.ASTERION_LEVEL)
                 || getY() >= net.krodark.asterion.worldgen.CatacombLayout.ROOF_Y
                 || net.krodark.asterion.worldgen.WorldGenerator.isNearSafeRune(serverLevel, blockPosition()))) return false;
-        if (level instanceof ServerLevel server && reason != EntitySpawnReason.SPAWN_ITEM_USE
+        if (level instanceof ServerLevel server && reason != MobSpawnType.SPAWN_EGG
                 && net.krodark.asterion.worldgen.BossArenaEncounter.blocksCentipedeSpawn(server, position())) return false;
         return super.checkSpawnRules(level, reason);
     }
@@ -124,17 +123,17 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     }
 
     @Override
-    protected void addAdditionalSaveData(ValueOutput output) {
+    public void addAdditionalSaveData(CompoundTag output) {
         super.addAdditionalSaveData(output);
         output.putInt("chain_segments", chainSegmentCount());
         output.putString("segment_riders", getEntityData().get(DATA_SEATS));
     }
 
     @Override
-    protected void readAdditionalSaveData(ValueInput input) {
+    public void readAdditionalSaveData(CompoundTag input) {
         super.readAdditionalSaveData(input);
-        setChainSegmentCount(input.getIntOr("chain_segments", chainSegmentCount()));
-        getEntityData().set(DATA_SEATS, input.getStringOr("segment_riders", ""));
+        setChainSegmentCount(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "chain_segments", chainSegmentCount()));
+        getEntityData().set(DATA_SEATS, net.krodark.asterion.port.compat.NbtCompat.getString(input, "segment_riders", ""));
     }
 
     @Override
@@ -152,11 +151,11 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
              
              
             surfaceForward = CentipedeMotion.followHeading(surfaceForward, driverHeading,
-                    attachedSurface().getUnitVec3(), .45D);
+                    net.minecraft.world.phys.Vec3.atLowerCornerOf(attachedSurface().getNormal()), .45D);
         }
          
          
-        if (isLocalInstanceAuthoritative()) updateSurfaceAfterMovement();
+        if (isControlledByLocalInstance()) updateSurfaceAfterMovement();
         blendAttachmentNormal();
         if (!level().isClientSide()) {
             getEntityData().set(DATA_FORWARD, vector(surfaceForward()));
@@ -166,7 +165,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
                 for (Entity rider : getPassengers()) live.claim(rider.getUUID(), seatIndex(rider), chainSegmentCount());
                 getEntityData().set(DATA_SEATS, live.encode());
             }
-        } else if (!isLocalInstanceAuthoritative()) {
+        } else if (!isControlledByLocalInstance()) {
             var heading = getEntityData().get(DATA_FORWARD);
             surfaceForward = new Vec3(heading.x(), heading.y(), heading.z());
             smoothedSurfaceMotion = Vec3.ZERO;
@@ -197,7 +196,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
 
         setNoGravity(usesSurfaceTravel());
         resetFallDistance();
-        Vec3 normal = attachedSurface().getUnitVec3();
+        Vec3 normal = net.minecraft.world.phys.Vec3.atLowerCornerOf(attachedSurface().getNormal());
         Vec3 up = normal.scale(-1.0D);
         Vec3 forward = projectOntoSurface(surfaceForward, normal);
         if (forward.lengthSqr() < 1.0E-5D) forward = fallbackForward(up);
@@ -229,7 +228,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         smoothedSurfaceMotion = projectOntoSurface(smoothedSurfaceMotion, normal);
         smoothedSurfaceMotion = bodyChain.limitHeadMotion(smoothedSurfaceMotion);
         if (smoothedSurfaceMotion.lengthSqr() < 1.0E-6D) smoothedSurfaceMotion = Vec3.ZERO;
-        Vec3 motion = smoothedSurfaceMotion.add(surface.getUnitVec3().scale(ADHESION));
+        Vec3 motion = smoothedSurfaceMotion.add(Vec3.atLowerCornerOf(surface.getNormal()).scale(ADHESION));
         setDeltaMovement(motion);
         move(MoverType.SELF, motion);
         keepHeadOutsideWalls();
@@ -245,7 +244,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
             surfaceForward = Vec3.directionFromRotation(0.0F, getYRot());
             return;
         }
-        surfaceForward = riderForward(player, attachedSurface().getUnitVec3().scale(-1.0D));
+        surfaceForward = riderForward(player, net.minecraft.world.phys.Vec3.atLowerCornerOf(attachedSurface().getNormal()).scale(-1.0D));
     }
 
     @Override
@@ -301,10 +300,10 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     private void keepHeadOutsideWalls() {
          
          
-        if (!isLocalInstanceAuthoritative()) return;
+        if (!isControlledByLocalInstance()) return;
         if (!usesSurfaceTravel()) return;
         Vec3 head = chainHeadCenter();
-        var contact = bodyCollision.followSurface(head, head, attachedSurface().getUnitVec3(), surfaceForward());
+        var contact = bodyCollision.followSurface(head, head, net.minecraft.world.phys.Vec3.atLowerCornerOf(attachedSurface().getNormal()), surfaceForward());
         Vec3 correction = contact.position().subtract(head);
         if (correction.lengthSqr() > 1.0E-8D) move(MoverType.SELF, correction);
     }
@@ -399,7 +398,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     public float segmentSpeed(int index, float partial) { return bodyChain.initialized() ? bodyChain.smoothedSpeed(index, partial) : 0; }
 
     private Vec3 chainHeadCenter() {
-        Vec3 normal = attachedSurface().getUnitVec3();
+        Vec3 normal = net.minecraft.world.phys.Vec3.atLowerCornerOf(attachedSurface().getNormal());
         double halfHeight = getBbHeight() * 0.5D;
         double boxReach = (Math.abs(normal.x) + Math.abs(normal.z)) * getBbWidth() * 0.5D
                 + Math.abs(normal.y) * halfHeight;
@@ -423,7 +422,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     }
 
     @Override
-    public boolean causeFallDamage(double fallDistance, float multiplier, DamageSource source) {
+    public boolean causeFallDamage(float fallDistance, float multiplier, DamageSource source) {
         resetFallDistance();
         return false;
     }
@@ -462,7 +461,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
             double wallScore = .05;
             for (Direction candidate : Direction.Plane.HORIZONTAL) {
                 if (!touchingSurface(candidate)) continue;
-                double score = surfaceForward.dot(candidate.getUnitVec3());
+                double score = surfaceForward.dot(Vec3.atLowerCornerOf(candidate.getNormal()));
                 if (score > wallScore) {
                     wallScore = score;
                     wall = candidate;
@@ -470,12 +469,12 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
             }
             if (wall != null) return wall;
         }
-        Vec3 motion = projectOntoSurface(smoothedSurfaceMotion, current.getUnitVec3());
+        Vec3 motion = projectOntoSurface(smoothedSurfaceMotion, net.minecraft.world.phys.Vec3.atLowerCornerOf(current.getNormal()));
         Direction best = null;
         double bestScore = 0.025D;
         for (Direction candidate : SURFACES) {
             if (candidate == current || !touchingSurface(candidate)) continue;
-            double score = motion.dot(candidate.getUnitVec3());
+            double score = motion.dot(Vec3.atLowerCornerOf(candidate.getNormal()));
             if (score > bestScore) {
                 bestScore = score;
                 best = candidate;
@@ -491,14 +490,15 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     }
 
     private boolean touchingSurface(Direction direction) {
-        return BugSurfaces.touches(level(), getBoundingBox().move(direction.getUnitVec3().scale(CONTACT_PROBE)));
+        return BugSurfaces.touches(level(), getBoundingBox().move(
+                Vec3.atLowerCornerOf(direction.getNormal()).scale(CONTACT_PROBE)));
     }
 
     private void updateNearbySurface(Vec3 input) {
         if (isInWater() || isInLava() || tickCount - lastSurfaceSwitchTick < 6) return;
         Vec3 motion;
         if (getControllingPassenger() instanceof Player player) {
-            Vec3 up = attachedSurface().getUnitVec3().scale(-1);
+            Vec3 up = net.minecraft.world.phys.Vec3.atLowerCornerOf(attachedSurface().getNormal()).scale(-1);
             Vec3 forward = riderForward(player, up);
             motion = forward.scale(input.z).subtract(up.cross(forward).scale(input.x)).scale(RIDDEN_SPEED);
         } else motion = isNoAi() ? Vec3.ZERO : wildHeading.scale(wildSpeed);
@@ -515,11 +515,12 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
 
     private void attachTo(Direction next, Direction previous) {
         if (!touchingSurface(next)) return;
-        Vec3 nextNormal = next.getUnitVec3();
+        Vec3 nextNormal = net.minecraft.world.phys.Vec3.atLowerCornerOf(next.getNormal());
         Vec3 projected = projectOntoSurface(surfaceForward, nextNormal);
         if (projected.lengthSqr() < 1.0E-5D) {
              
-            projected = projectOntoSurface(previous.getUnitVec3().scale(-1.0D), nextNormal);
+            projected = projectOntoSurface(
+                    Vec3.atLowerCornerOf(previous.getNormal()).scale(-1.0D), nextNormal);
         }
         if (projected.lengthSqr() < 1.0E-5D)
             projected = fallbackForward(nextNormal.scale(-1.0D));
@@ -545,7 +546,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     }
 
     private void blendAttachmentNormal() {
-        Vec3 target = attachedSurface().getUnitVec3();
+        Vec3 target = net.minecraft.world.phys.Vec3.atLowerCornerOf(attachedSurface().getNormal());
         Vec3 blended = smoothedAttachmentNormal.lerp(target, SURFACE_BLEND);
         smoothedAttachmentNormal = blended.lengthSqr() < 1.0E-6D ? target : blended.normalize();
     }
@@ -592,7 +593,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
 
     public Direction attachedSurface() {
         int ordinal = Mth.clamp(getEntityData().get(DATA_ATTACHED_SURFACE), 0, SURFACES.length - 1);
-        if (level().isClientSide() && getControllingPassenger() != null && isLocalInstanceAuthoritative()) {
+        if (level().isClientSide() && getControllingPassenger() != null && isControlledByLocalInstance()) {
              
              
             if (localDriverSurface == null) localDriverSurface = SURFACES[ordinal];
@@ -603,7 +604,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     }
 
     private void setAttachedSurface(Direction direction) {
-        if (level().isClientSide() && getControllingPassenger() != null && isLocalInstanceAuthoritative())
+        if (level().isClientSide() && getControllingPassenger() != null && isControlledByLocalInstance())
             localDriverSurface = direction;
         getEntityData().set(DATA_ATTACHED_SURFACE, direction.ordinal());
     }
@@ -648,7 +649,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         @Override public void stop() { wildSpeed = 0; }
 
         @Override public void tick() {
-            Vec3 normal = attachedSurface().getUnitVec3();
+            Vec3 normal = net.minecraft.world.phys.Vec3.atLowerCornerOf(attachedSurface().getNormal());
             wildHeading = CentipedeFrame.tangent(wildHeading, normal, surfaceForward);
             wanted = CentipedeFrame.tangent(wanted, normal, wildHeading);
             Vec3 right = wildHeading.cross(normal.scale(-1));
@@ -694,7 +695,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<ScarletCentipedeEntity>("movement", 3, state -> {
+        controllers.add(new AnimationController<ScarletCentipedeEntity>(this, "movement", 3, state -> {
             state.setControllerSpeed(0.35F + segmentSpeed(0, 1));
             return state.setAndContinue(WALK_ANIMATION);
         }));

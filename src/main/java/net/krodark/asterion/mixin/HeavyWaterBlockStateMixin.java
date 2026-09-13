@@ -4,9 +4,7 @@ import net.krodark.asterion.fluid.HeavyWater;
 import net.krodark.asterion.fluid.HeavyWaterlogging;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.ScheduledTickAccess;
+import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
@@ -38,13 +36,13 @@ public abstract class HeavyWaterBlockStateMixin {
         return original;
     }
     @Inject(method = "updateShape", at = @At("RETURN"))
-    private void asterion$scheduleHeavyWater(LevelReader level, ScheduledTickAccess ticks, BlockPos pos,
-                                            Direction direction, BlockPos neighborPos, BlockState neighbor,
-                                            RandomSource random, CallbackInfoReturnable<BlockState> result) {
+    private void asterion$scheduleHeavyWater(Direction direction, BlockState neighbor,
+                                            LevelAccessor level, BlockPos pos, BlockPos neighborPos,
+                                            CallbackInfoReturnable<BlockState> result) {
         if (asterion$heavyWater == HeavyWaterlogging.NORMAL && HeavyWaterlogging.ready)
-            ticks.scheduleTick(pos, HeavyWater.STILL, HeavyWater.STILL.getTickDelay(level));
+            level.scheduleTick(pos, HeavyWater.STILL, HeavyWater.STILL.getTickDelay(level));
         else if (asterion$decorationWater && asterion$heavyWater == 0)
-            ticks.scheduleTick(pos, net.minecraft.world.level.material.Fluids.WATER,
+            level.scheduleTick(pos, net.minecraft.world.level.material.Fluids.WATER,
                     net.minecraft.world.level.material.Fluids.WATER.getTickDelay(level));
     }
 }

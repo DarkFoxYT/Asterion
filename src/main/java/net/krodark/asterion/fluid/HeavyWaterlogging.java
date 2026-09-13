@@ -1,7 +1,7 @@
 package net.krodark.asterion.fluid;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.LiquidBlockContainer;
@@ -39,7 +39,7 @@ public final class HeavyWaterlogging {
     public static BlockState dry(BlockState state) {
         return state.setValue(BlockStateProperties.WATERLOGGED, false).setValue(LEVEL, 0);
     }
-    public static boolean canFill(@Nullable LivingEntity user, BlockGetter level, BlockPos pos, BlockState state) {
+    public static boolean canFill(@Nullable Player user, BlockGetter level, BlockPos pos, BlockState state) {
         if (state.getBlock() instanceof net.krodark.asterion.block.HeavyWaterRedstone)
             return supports(state) && !state.getValue(BlockStateProperties.WATERLOGGED);
         return supports(state) && !state.getValue(BlockStateProperties.WATERLOGGED)

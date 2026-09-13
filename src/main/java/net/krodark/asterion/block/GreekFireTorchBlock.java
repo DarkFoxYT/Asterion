@@ -68,9 +68,9 @@ public final class GreekFireTorchBlock extends BaseEntityBlock implements Simple
         return level.getBlockState(below).getBlock()==this
                 || Block.canSupportCenter(level,below,Direction.UP);
     }
-    @Override protected BlockState updateShape(BlockState state,LevelReader level,ScheduledTickAccess ticks,
-            BlockPos pos,Direction direction,BlockPos neighborPos,BlockState neighbor,RandomSource random) {
-        if(state.getValue(WATERLOGGED)) ticks.scheduleTick(pos,net.minecraft.world.level.material.Fluids.WATER,
+    @Override protected BlockState updateShape(BlockState state,Direction direction,BlockState neighbor,
+            LevelAccessor level,BlockPos pos,BlockPos neighborPos) {
+        if(state.getValue(WATERLOGGED)) level.scheduleTick(pos,net.minecraft.world.level.material.Fluids.WATER,
                 net.minecraft.world.level.material.Fluids.WATER.getTickDelay(level));
         if(!canSurvive(state,level,pos)) return Blocks.AIR.defaultBlockState();
         if(!wall && direction==Direction.UP)
@@ -87,7 +87,7 @@ public final class GreekFireTorchBlock extends BaseEntityBlock implements Simple
         if(wet.is(this)) level.setBlock(pos,wet.setValue(LIT,false).setValue(RELIGHT,0),Block.UPDATE_ALL);
         return true;
     }
-    @Override public net.minecraft.world.item.ItemStack pickupBlock(net.minecraft.world.entity.LivingEntity entity,
+    @Override public net.minecraft.world.item.ItemStack pickupBlock(net.minecraft.world.entity.player.Player entity,
             LevelAccessor level,BlockPos pos,BlockState state) {
         net.minecraft.world.item.ItemStack result=SimpleWaterloggedBlock.super.pickupBlock(entity,level,pos,state);
         if(!result.isEmpty()&&level instanceof net.minecraft.server.level.ServerLevel server) {

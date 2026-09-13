@@ -18,8 +18,8 @@ public final class CentipedeSurfaceProbe {
         double best = Double.MAX_VALUE;
         Approach result = null;
         for (Direction face : Direction.values()) {
-            Vec3 normal = face.getUnitVec3();
-            if (Math.abs(normal.dot(support.getUnitVec3())) > .5 || heading.dot(normal) < .25) continue;
+            Vec3 normal = directionVector(face);
+            if (Math.abs(normal.dot(directionVector(support))) > .5 || heading.dot(normal) < .25) continue;
             for (AABB block : blocks) {
                 double gap = switch (face) {
                     case EAST -> block.minX - body.maxX;
@@ -33,7 +33,7 @@ public final class CentipedeSurfaceProbe {
                 double along = Math.max(0, gap) / heading.dot(normal);
                 AABB arrived = body.move(heading.scale(along + .025));
                 if (!arrived.intersects(block) || along >= best) continue;
-                result = new Approach(face, gap, support.getUnitVec3());
+                result = new Approach(face, gap, directionVector(support));
                 best = along;
             }
         }
@@ -42,15 +42,17 @@ public final class CentipedeSurfaceProbe {
 
     public static Approach aroundEdge(AABB body, Vec3 motion, Direction support, List<AABB> blocks) {
         if (motion.lengthSqr() < .000225) return null;
-        Vec3 heading = CentipedeFrame.tangent(motion, support.getUnitVec3(), motion);
-        AABB nextSupport = body.move(heading.scale(.4)).move(support.getUnitVec3().scale(.34));
+        Vec3 supportNormal = directionVector(support);
+        Vec3 heading = CentipedeFrame.tangent(motion, supportNormal, motion);
+        AABB nextSupport = body.move(heading.scale(.4)).move(supportNormal.scale(.34));
          
         for (AABB block : blocks) if (nextSupport.intersects(block)) return null;
         for (Direction travel : Direction.values()) {
-            if (heading.dot(travel.getUnitVec3()) < .7
-                    || Math.abs(travel.getUnitVec3().dot(support.getUnitVec3())) > .5) continue;
+            Vec3 travelNormal = directionVector(travel);
+            if (heading.dot(travelNormal) < .7
+                    || Math.abs(travelNormal.dot(supportNormal)) > .5) continue;
             for (AABB block : blocks) {
-                if (!body.move(support.getUnitVec3().scale(.34)).intersects(block)) continue;
+                if (!body.move(supportNormal.scale(.34)).intersects(block)) continue;
                 double edge = switch (travel) {
                     case EAST -> block.maxX - body.minX;
                     case WEST -> body.maxX - block.minX;
@@ -61,11 +63,16 @@ public final class CentipedeSurfaceProbe {
                 };
                 if (edge < -.02 || edge > .18) continue;
                 Direction face = travel.getOpposite();
-                if (!body.move(face.getUnitVec3().scale(.12)).intersects(block)) continue;
+                Vec3 faceNormal = directionVector(face);
+                if (!body.move(faceNormal.scale(.12)).intersects(block)) continue;
                 return new Approach(face, edge, CentipedeFrame.unit(
-                        support.getUnitVec3().lerp(face.getUnitVec3(), .4), support.getUnitVec3()));
+                        supportNormal.lerp(faceNormal, .4), supportNormal));
             }
         }
         return null;
+    }
+
+    private static Vec3 directionVector(Direction direction) {
+        return Vec3.atLowerCornerOf(direction.getNormal());
     }
 }

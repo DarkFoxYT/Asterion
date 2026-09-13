@@ -1,9 +1,9 @@
 package net.krodark.asterion.entity;
 
-import com.geckolib.animatable.GeoEntity;
-import com.geckolib.animatable.instance.AnimatableInstanceCache;
-import com.geckolib.animatable.manager.AnimatableManager;
-import com.geckolib.util.GeckoLibUtil;
+import software.bernie.geckolib.animatable.GeoEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animation.AnimatableManager;
+import software.bernie.geckolib.util.GeckoLibUtil;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
@@ -22,7 +22,6 @@ public final class RuneBeetleEntity extends PathfinderMob implements GeoEntity {
 
     public RuneBeetleEntity(EntityType<? extends RuneBeetleEntity> type, Level level) { super(type, level); }
 
-    @Override public boolean canBreatheUnderwater() { return true; }
 
     public static AttributeSupplier.Builder createAttributes() {
         return createMobAttributes().add(Attributes.MAX_HEALTH, 6)
@@ -37,20 +36,20 @@ public final class RuneBeetleEntity extends PathfinderMob implements GeoEntity {
 
     @Override public boolean removeWhenFarAway(double distanceSquared) { return true; }
     @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new com.geckolib.animation.AnimationController<RuneBeetleEntity>("movement", 4,
-                state -> state.setAndContinue(com.geckolib.animation.RawAnimation.begin()
+        controllers.add(new software.bernie.geckolib.animation.AnimationController<RuneBeetleEntity>(this, "movement", 4,
+                state -> state.setAndContinue(software.bernie.geckolib.animation.RawAnimation.begin()
                         .thenLoop(getDeltaMovement().horizontalDistanceSqr() > .0001 ? "walk" : "idle"))));
     }
-    @Override protected void addAdditionalSaveData(net.minecraft.world.level.storage.ValueOutput out) {
+    @Override public void addAdditionalSaveData(net.minecraft.nbt.CompoundTag out) {
         super.addAdditionalSaveData(out); out.putInt("RuneIndex", runeIndex);
     }
-    @Override protected void readAdditionalSaveData(net.minecraft.world.level.storage.ValueInput in) {
-        super.readAdditionalSaveData(in); setRuneIndex(in.getIntOr("RuneIndex", 0));
+    @Override public void readAdditionalSaveData(net.minecraft.nbt.CompoundTag in) {
+        super.readAdditionalSaveData(in); setRuneIndex(net.krodark.asterion.port.compat.NbtCompat.getInt(in, "RuneIndex", 0));
     }
     @Override protected void dropCustomDeathLoot(net.minecraft.server.level.ServerLevel level,
             net.minecraft.world.damagesource.DamageSource source, boolean killedByPlayer) {
         super.dropCustomDeathLoot(level, source, killedByPlayer);
-        spawnAtLocation(level, new net.minecraft.world.item.ItemStack(net.krodark.asterion.Asterion.RUNE_TABLETS[runeIndex]));
+        spawnAtLocation(new net.minecraft.world.item.ItemStack(net.krodark.asterion.Asterion.RUNE_TABLETS[runeIndex]));
     }
     @Override public AnimatableInstanceCache getAnimatableInstanceCache() { return cache; }
 }

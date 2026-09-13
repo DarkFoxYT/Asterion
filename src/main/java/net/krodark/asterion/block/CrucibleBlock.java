@@ -11,6 +11,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Mirror;
@@ -26,7 +27,6 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.ScheduledTickAccess;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.LivingEntity;
@@ -81,23 +81,23 @@ public final class CrucibleBlock extends BaseEntityBlock {
                 .setValue(PART_Z, mirror == Mirror.LEFT_RIGHT ? 4 - state.getValue(PART_Z) : state.getValue(PART_Z));
     }
 
-    @Override protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
+    @Override protected net.minecraft.world.ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
                                                      Player player, InteractionHand hand, BlockHitResult hit) {
         BlockPos root = root(pos, state);
         BlockState rootState = level.getBlockState(root);
-        if (!rootState.is(this) || !isRoot(rootState)) return InteractionResult.FAIL;
-        if (level.isClientSide()) return InteractionResult.SUCCESS;
+        if (!rootState.is(this) || !isRoot(rootState)) return net.minecraft.world.ItemInteractionResult.FAIL;
+        if (level.isClientSide()) return net.minecraft.world.ItemInteractionResult.SUCCESS;
         if (player instanceof ServerPlayer serverPlayer
                 && level.getBlockEntity(root) instanceof CrucibleBlockEntity crucible) {
             if (player.isCrouching()) {
                 if (hit.getDirection() == Direction.UP) crucible.removeMold(serverPlayer);
                 else crucible.open(serverPlayer);
-                return InteractionResult.SUCCESS_SERVER;
+                return net.minecraft.world.ItemInteractionResult.SUCCESS;
             }
             crucible.open(serverPlayer);
-            return InteractionResult.SUCCESS_SERVER;
+            return net.minecraft.world.ItemInteractionResult.SUCCESS;
         }
-        return InteractionResult.TRY_WITH_EMPTY_HAND;
+        return net.minecraft.world.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
     }
 
     @Override protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
@@ -110,7 +110,7 @@ public final class CrucibleBlock extends BaseEntityBlock {
             if (player.isCrouching() && hit.getDirection() == Direction.UP) crucible.removeMold(serverPlayer);
             else crucible.open(serverPlayer);
         }
-        return level.isClientSide() ? InteractionResult.SUCCESS : InteractionResult.SUCCESS_SERVER;
+        return InteractionResult.SUCCESS;
     }
 
     @Override public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
@@ -156,10 +156,9 @@ public final class CrucibleBlock extends BaseEntityBlock {
         }
     }
 
-    @Override protected BlockState updateShape(BlockState state, LevelReader level, ScheduledTickAccess ticks,
-                                                BlockPos pos, Direction direction, BlockPos neighborPos,
-                                                BlockState neighborState, RandomSource random) {
-        ticks.scheduleTick(pos, this, 1);
+    @Override protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+                                                LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
+        level.scheduleTick(pos, this, 1);
         return state;
     }
 
@@ -186,7 +185,7 @@ public final class CrucibleBlock extends BaseEntityBlock {
     }
     @Override protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos,
                                                      CollisionContext context) { return getShape(state, level, pos, context); }
-    @Override protected VoxelShape getOcclusionShape(BlockState state) { return Shapes.empty(); }
+    @Override protected VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) { return Shapes.empty(); }
 
     private static int shapeIndex(int x, int y, int z) { return (y * 5 + z) * 5 + x; }
     private static VoxelShape[] makeCollision() {

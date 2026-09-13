@@ -7,7 +7,7 @@ import net.krodark.asterion.network.IgniteGasPayload;
 import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.fabricmc.fabric.api.event.lifecycle.v1.*;
-import net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents;
+import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.fabricmc.fabric.api.networking.v1.*;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.*;
@@ -34,35 +34,37 @@ public final class GameplayContent {
                     .sized(4.8F, 4.85F)
                     .fireImmune()
                     .clientTrackingRange(12)
-                    .build(CURSED_KEY));
-    public static final Item CURSED_BRAZIER_EGG = item("cursed_brazier_spawn_egg", p -> new SpawnEggItem(p.spawnEgg(CURSED_BRAZIER)));
+                    .build(CURSED_KEY.location().toString()));
+    public static final Item CURSED_BRAZIER_EGG = item("cursed_brazier_spawn_egg",
+            p -> new SpawnEggItem(CURSED_BRAZIER, 0x27120F, 0xFF5C1A, p));
     public static final Item CURSED_BRAZIER_KEY = item("cursed_brazier_key",
             p -> new Item(p.stacksTo(1).rarity(Rarity.RARE).fireResistant()));
-    public static final Item RUNE_BEETLE_EGG = item("rune_beetle_spawn_egg", p -> new SpawnEggItem(p.spawnEgg(Asterion.RUNE_BEETLE)));
+    public static final Item RUNE_BEETLE_EGG = item("rune_beetle_spawn_egg",
+            p -> new SpawnEggItem(Asterion.RUNE_BEETLE, 0x385C43, 0x89E8B3, p));
     private GameplayContent() { }
     private static Block block(String name, java.util.function.Function<BlockBehaviour.Properties, Block> factory) {
         var key = ResourceKey.create(Registries.BLOCK, Asterion.id(name));
         Block block = Registry.register(BuiltInRegistries.BLOCK, key,
-                factory.apply(BlockBehaviour.Properties.of().setId(key).strength(4, 1200).sound(net.minecraft.world.level.block.SoundType.METAL)));
+                factory.apply(BlockBehaviour.Properties.of().strength(4, 1200).sound(net.minecraft.world.level.block.SoundType.METAL)));
         item(name, p -> new BlockItem(block, p)); return block;
     }
     private static Item item(String name, java.util.function.Function<Item.Properties, Item> factory) {
         var key = ResourceKey.create(Registries.ITEM, Asterion.id(name));
-        return Registry.register(BuiltInRegistries.ITEM, key, factory.apply(new Item.Properties().setId(key)));
+        return Registry.register(BuiltInRegistries.ITEM, key, factory.apply(new Item.Properties()));
     }
     public static void initialize() {
         net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.AFTER_DEATH.register((entity, damage) -> {
-            if (entity.entityTags().contains(ChallengeDeaths.TAG) && entity.level() instanceof net.minecraft.server.level.ServerLevel level)
+            if (entity.getTags().contains(ChallengeDeaths.TAG) && entity.level() instanceof net.minecraft.server.level.ServerLevel level)
                 ChallengeDeaths.get(level).record(entity.getUUID());
         });
         FabricDefaultAttributeRegistry.register(CURSED_BRAZIER, CursedBrazierEntity.createAttributes());
-        CreativeModeTabEvents.modifyOutputEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Asterion.id("asterion"))).register(output -> {
+        ItemGroupEvents.modifyEntriesEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Asterion.id("asterion"))).register(output -> {
             output.accept(SPEWER); output.accept(FIRE_BURST_TRAP);
             output.accept(EXPLOSIVE_SPAWNER); output.accept(REWARD_SPAWNER);
             output.accept(FLAMETHROWER); output.accept(CURSED_BRAZIER_EGG);
             output.accept(CURSED_BRAZIER_KEY); output.accept(RUNE_BEETLE_EGG);
         });
-        PayloadTypeRegistry.serverboundPlay().register(IgniteGasPayload.TYPE, IgniteGasPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(IgniteGasPayload.TYPE, IgniteGasPayload.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(IgniteGasPayload.TYPE, (payload, context) -> context.server().execute(() -> FlamethrowerItem.ignite(context.player())));
         ServerTickEvents.END_SERVER_TICK.register(GasClouds::tick);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> {

@@ -1,11 +1,12 @@
 package net.krodark.asterion.entity;
 
-import com.geckolib.animatable.GeoEntity;
-import com.geckolib.animatable.instance.AnimatableInstanceCache;
-import com.geckolib.animatable.manager.AnimatableManager;
-import com.geckolib.util.GeckoLibUtil;
+import software.bernie.geckolib.animatable.GeoEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animation.AnimatableManager;
+import software.bernie.geckolib.util.GeckoLibUtil;
 import net.krodark.asterion.game.ChainLiftContent;
 import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.*;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
@@ -26,7 +27,6 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
     private static final EntityDataAccessor<Long> START = SynchedEntityData.defineId(ChainLiftEntity.class, EntityDataSerializers.LONG);
     private static final EntityDataAccessor<String> RIDERS = SynchedEntityData.defineId(ChainLiftEntity.class, EntityDataSerializers.STRING);
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
-    private final InterpolationHandler interpolation = new InterpolationHandler(this, 1);
     private int waiting;
     private boolean descending, armed;
     private int requestedStop = -1;
@@ -64,7 +64,7 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
                 if (level.hasChunkAt(candidate) && level.getBlockState(candidate).getCollisionShape(level, candidate).isEmpty()) { position = candidate; break; }
             }
             if (!level.hasChunkAt(position)) continue;
-            var rune = ChainLiftContent.CALL_RUNE.create(level, EntitySpawnReason.EVENT);
+            var rune = ChainLiftContent.CALL_RUNE.create(level);
             if (rune == null) continue;
             rune.setUUID(id); rune.configure(anchor(), upper);
             rune.setPos(position.getX() + .5, y, position.getZ() + .5);
@@ -76,14 +76,10 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
     public double bottomY() { return anchor().getY() + .5; }
     public double topY() { return ceiling() - 3; }
     public boolean moving() { return entityData.get(FROM).floatValue() != entityData.get(TO).floatValue(); }
-    @Override public InterpolationHandler getInterpolation() { return interpolation; }
-    @Override public boolean canBeCollidedWith(Entity other) {
-         
-        return isAlive() && !supports(other);
-    }
+    @Override public boolean canBeCollidedWith() { return isAlive(); }
     @Override public boolean canCollideWith(Entity other) { return false; }
     @Override public boolean isPickable() { return true; }
-    @Override public boolean hurtServer(ServerLevel level, DamageSource source, float amount) { return false; }
+    @Override public boolean hurt(DamageSource source, float amount) { return false; }
     @Override public boolean ignoreExplosion(net.minecraft.world.level.Explosion explosion) { return true; }
 
     private static final double START_SPEED = .03, MAX_SPEED = .18, ACCELERATION = .05;
@@ -154,7 +150,6 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
     }
     @Override public void tick() {
         super.tick();
-        interpolation.cancel();
         if (ceiling() == Integer.MIN_VALUE) return;
         if (!level().isClientSide() && !level().getBlockState(anchor()).is(ChainLiftContent.ANCHOR)) { discard(); return; }
         if (level() instanceof ServerLevel server && --runeCheckTicks <= 0) { ensureCallRunes(server); runeCheckTicks = 100; }
@@ -227,16 +222,16 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
         entityData.set(START, level().getGameTime() + 3);  
     }
     private void stopAtCurrentPosition() { entityData.set(FROM, (float)getY()); entityData.set(TO, (float)getY()); }
-    @Override protected void addAdditionalSaveData(ValueOutput out) {
+    @Override public void addAdditionalSaveData(CompoundTag out) {
         out.putLong("Anchor", anchor().asLong()); out.putInt("Ceiling", ceiling());
         out.putInt("RequestedStop", requestedStop >= 0 ? requestedStop : moving() && calledLanding ? (descending ? 0 : 1) : -1); out.putBoolean("CalledLanding", calledLanding);
         out.putBoolean("Descending", descending); out.putBoolean("Armed", armed); out.putInt("Waiting", waiting);
     }
-    @Override protected void readAdditionalSaveData(ValueInput in) {
-        entityData.set(ANCHOR, BlockPos.of(in.getLongOr("Anchor", 0))); entityData.set(CEILING, in.getIntOr("Ceiling", Integer.MIN_VALUE));
-        stopAtCurrentPosition(); descending = in.getBooleanOr("Descending", false);
-        requestedStop = Math.clamp(in.getIntOr("RequestedStop", -1), -1, 1); calledLanding = in.getBooleanOr("CalledLanding", false);
-        armed = in.getBooleanOr("Armed", false); waiting = in.getIntOr("Waiting", WAIT_TICKS);
+    @Override public void readAdditionalSaveData(CompoundTag in) {
+        entityData.set(ANCHOR, BlockPos.of(net.krodark.asterion.port.compat.NbtCompat.getLong(in, "Anchor", 0))); entityData.set(CEILING, net.krodark.asterion.port.compat.NbtCompat.getInt(in, "Ceiling", Integer.MIN_VALUE));
+        stopAtCurrentPosition(); descending = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "Descending", false);
+        requestedStop = Math.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(in, "RequestedStop", -1), -1, 1); calledLanding = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "CalledLanding", false);
+        armed = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "Armed", false); waiting = net.krodark.asterion.port.compat.NbtCompat.getInt(in, "Waiting", WAIT_TICKS);
     }
     @Override public AnimatableInstanceCache getAnimatableInstanceCache() { return cache; }
     @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {}

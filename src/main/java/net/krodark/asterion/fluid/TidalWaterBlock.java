@@ -4,7 +4,7 @@ import com.mojang.serialization.MapCodec;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.LevelAccessor;
@@ -40,7 +40,7 @@ public final class TidalWaterBlock extends Block implements BucketPickup {
         return Shapes.empty();
     }
     @Override protected boolean isPathfindable(BlockState state, PathComputationType type) { return true; }
-    @Override public ItemStack pickupBlock(@Nullable LivingEntity user, LevelAccessor level, BlockPos pos, BlockState state) {
+    @Override public ItemStack pickupBlock(@Nullable Player user, LevelAccessor level, BlockPos pos, BlockState state) {
         if (state.getValue(LEVEL) != 8) return ItemStack.EMPTY;
         level.setBlock(pos, Blocks.AIR.defaultBlockState(), 11);
         return new ItemStack(HeavyWater.BUCKET);

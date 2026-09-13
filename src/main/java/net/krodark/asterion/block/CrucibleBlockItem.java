@@ -1,15 +1,14 @@
 package net.krodark.asterion.block;
 
-import com.geckolib.animatable.GeoItem;
-import com.geckolib.animatable.client.GeoRenderProvider;
-import com.geckolib.animatable.instance.AnimatableInstanceCache;
-import com.geckolib.animatable.manager.AnimatableManager;
-import com.geckolib.model.GeoModel;
-import com.geckolib.renderer.GeoItemRenderer;
-import com.geckolib.renderer.base.GeoRenderState;
-import com.geckolib.util.GeckoLibUtil;
+import software.bernie.geckolib.animatable.GeoItem;
+import software.bernie.geckolib.animatable.client.GeoRenderProvider;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animation.AnimatableManager;
+import software.bernie.geckolib.model.GeoModel;
+import software.bernie.geckolib.renderer.GeoItemRenderer;
+import software.bernie.geckolib.util.GeckoLibUtil;
 import net.krodark.asterion.Asterion;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.level.block.Block;
 
@@ -27,13 +26,13 @@ public final class CrucibleBlockItem extends BlockItem implements GeoItem {
 
             @Override public GeoItemRenderer<CrucibleBlockItem> getGeoItemRenderer() {
                 if (renderer == null) renderer = new GeoItemRenderer<>(new GeoModel<>() {
-                    @Override public Identifier getModelResource(GeoRenderState state) {
+                    @Override public ResourceLocation getModelResource(CrucibleBlockItem item) {
                         return Asterion.id("block/crucible");
                     }
-                    @Override public Identifier getTextureResource(GeoRenderState state) {
+                    @Override public ResourceLocation getTextureResource(CrucibleBlockItem item) {
                         return Asterion.id("textures/block/crucible.png");
                     }
-                    @Override public Identifier getAnimationResource(CrucibleBlockItem item) { return null; }
+                    @Override public ResourceLocation getAnimationResource(CrucibleBlockItem item) { return null; }
                 });
                 return renderer;
             }

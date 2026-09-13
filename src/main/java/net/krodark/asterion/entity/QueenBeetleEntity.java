@@ -1,11 +1,11 @@
 package net.krodark.asterion.entity;
 
-import com.geckolib.animatable.GeoEntity;
-import com.geckolib.animatable.instance.AnimatableInstanceCache;
-import com.geckolib.animatable.manager.AnimatableManager;
-import com.geckolib.animation.AnimationController;
-import com.geckolib.animation.RawAnimation;
-import com.geckolib.util.GeckoLibUtil;
+import software.bernie.geckolib.animatable.GeoEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animation.AnimatableManager;
+import software.bernie.geckolib.animation.AnimationController;
+import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.util.GeckoLibUtil;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.block.RespawnObelisks;
@@ -64,7 +64,7 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
          
     }
 
-    @Override public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
+    @Override public boolean hurt(DamageSource source, float amount) {
         return false;
     }
 
@@ -73,7 +73,7 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
         return false;
     }
 
-    @Override public void kill(ServerLevel level) {
+    @Override public void kill() {
          
          
     }
@@ -81,16 +81,16 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
     private static final String INDEX_TAG = "asterion.queen_beetle_quest.index.";
 
     public static int questIndex(Player player) {
-        for (String tag : player.entityTags()) if (tag.startsWith(INDEX_TAG)) {
+        for (String tag : player.getTags()) if (tag.startsWith(INDEX_TAG)) {
             try { return Math.clamp(Integer.parseInt(tag.substring(INDEX_TAG.length())), 0, QueenBeetleQuests.ALL.size()); }
             catch (NumberFormatException ignored) { }
         }
          
-        return player.entityTags().contains(COMPLETE_TAG) ? 1 : 0;
+        return player.getTags().contains(COMPLETE_TAG) ? 1 : 0;
     }
 
     private static void setQuestIndex(Player player, int index) {
-        for (String tag : java.util.List.copyOf(player.entityTags())) if (tag.startsWith(INDEX_TAG)) player.removeTag(tag);
+        for (String tag : java.util.List.copyOf(player.getTags())) if (tag.startsWith(INDEX_TAG)) player.removeTag(tag);
         player.addTag(INDEX_TAG + index);
     }
 
@@ -100,22 +100,22 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
         int anger = angerTier(player);
         if (index >= QueenBeetleQuests.ALL.size()) {
             sendQuest(serverPlayer, QueenBeetleQuestPayload.COMPLETE, index - 1, 0, 1, anger);
-            return InteractionResult.SUCCESS_SERVER;
+            return InteractionResult.SUCCESS;
         }
         int cooldown = cooldownSeconds(serverPlayer);
-        if (!player.entityTags().contains(ACTIVE_TAG) && cooldown > 0) {
+        if (!player.getTags().contains(ACTIVE_TAG) && cooldown > 0) {
              
              
             sendQuest(serverPlayer, QueenBeetleQuestPayload.COOLDOWN, index, cooldown,
                     QUEST_COOLDOWN_TICKS / 20, anger);
-            return InteractionResult.SUCCESS_SERVER;
+            return InteractionResult.SUCCESS;
         }
         var quest = QueenBeetleQuests.get(index);
         int target = index == 0 ? petalTarget(anger) : quest.count();
         int progress = countItems(player, quest.item().asItem(), target);
         setQuestIndex(player, index);
         player.removeTag(COMPLETE_TAG);
-        if (!player.entityTags().contains(ACTIVE_TAG)) {
+        if (!player.getTags().contains(ACTIVE_TAG)) {
             player.addTag(ACTIVE_TAG);
             sendQuest(serverPlayer, QueenBeetleQuestPayload.ACCEPTED, index, progress, target, anger);
         } else if (progress < target) {
@@ -131,7 +131,7 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
             if (!player.getInventory().add(reward)) player.drop(reward, false);
             sendQuest(serverPlayer, QueenBeetleQuestPayload.REWARDED, index, target, target, anger);
         }
-        return InteractionResult.SUCCESS_SERVER;
+        return InteractionResult.SUCCESS;
     }
 
     private static void sendQuest(ServerPlayer player, int stage, int index, int progress, int target, int anger) {
@@ -149,7 +149,7 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
 
     public static int cooldownSeconds(ServerPlayer player) {
         long until = 0;
-        for (String tag : player.entityTags()) if (tag.startsWith(COOLDOWN_TAG)) {
+        for (String tag : player.getTags()) if (tag.startsWith(COOLDOWN_TAG)) {
             try { until = Math.max(until, Long.parseLong(tag.substring(COOLDOWN_TAG.length()))); }
             catch (NumberFormatException ignored) { }
         }
@@ -162,7 +162,7 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
     }
 
     private static void clearCooldownTag(Player player) {
-        for (String tag : java.util.List.copyOf(player.entityTags()))
+        for (String tag : java.util.List.copyOf(player.getTags()))
             if (tag.startsWith(COOLDOWN_TAG)) player.removeTag(tag);
     }
 
@@ -189,7 +189,7 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
     public static void syncActiveQuest(ServerPlayer player) {
         int index = questIndex(player);
         net.krodark.asterion.game.AsterionAdvancements.queenProgress(player, index);
-        if (player.entityTags().contains(ACTIVE_TAG) && index < QueenBeetleQuests.ALL.size()) {
+        if (player.getTags().contains(ACTIVE_TAG) && index < QueenBeetleQuests.ALL.size()) {
             int anger = angerTier(player);
             var quest = QueenBeetleQuests.get(index);
             int target = index == 0 ? petalTarget(anger) : quest.count();
@@ -199,9 +199,9 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
     }
 
     public static void copyQuests(ServerPlayer oldPlayer, ServerPlayer newPlayer) {
-        for (String tag : java.util.List.copyOf(newPlayer.entityTags()))
+        for (String tag : java.util.List.copyOf(newPlayer.getTags()))
             if (tag.startsWith("asterion.queen_beetle_quest.") || tag.startsWith(KILLS_TAG)) newPlayer.removeTag(tag);
-        for (String tag : oldPlayer.entityTags())
+        for (String tag : oldPlayer.getTags())
             if (tag.startsWith("asterion.queen_beetle_quest.") || tag.startsWith(KILLS_TAG)) newPlayer.addTag(tag);
         syncActiveQuest(newPlayer);
     }
@@ -211,11 +211,11 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
         int kills = beetleKills(player);
         player.removeTag(KILLS_TAG + kills);
         player.addTag(KILLS_TAG + Math.min(9999, kills + 1));
-        if (player.entityTags().contains(ACTIVE_TAG)) syncActiveQuest(player);
+        if (player.getTags().contains(ACTIVE_TAG)) syncActiveQuest(player);
     }
 
     private static int beetleKills(Player player) {
-        for (String tag : player.entityTags()) if (tag.startsWith(KILLS_TAG)) {
+        for (String tag : player.getTags()) if (tag.startsWith(KILLS_TAG)) {
             try { return Math.max(0, Integer.parseInt(tag.substring(KILLS_TAG.length()))); }
             catch (NumberFormatException ignored) { }
         }
@@ -233,7 +233,7 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
     }
 
     @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<QueenBeetleEntity>("movement", 4,
+        controllers.add(new AnimationController<QueenBeetleEntity>(this, "movement", 4,
                 state -> state.setAndContinue(IDLE)));
     }
 

@@ -3,7 +3,6 @@ package net.krodark.asterion.mixin;
 import java.util.Map;
 import java.util.function.Function;
 import net.krodark.asterion.fluid.HeavyWaterlogging;
-import net.minecraft.world.level.block.SimpleWaterloggedBlock;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.Property;
@@ -23,9 +22,13 @@ public abstract class HeavyWaterStateDefinitionMixin {
     private void asterion$waterLevels(Function<?, ?> defaultState, StateDefinition.Factory<?, ?> factory,
                                      CallbackInfoReturnable<?> result) {
         if (owner instanceof net.krodark.asterion.block.WaterloggedDecoration
-                || owner instanceof net.krodark.asterion.block.HeavyWaterRedstone)
+                || owner instanceof net.krodark.asterion.block.HeavyWaterRedstone) {
             properties.put(BlockStateProperties.WATERLOGGED.getName(), BlockStateProperties.WATERLOGGED);
-        if (owner instanceof SimpleWaterloggedBlock && properties.containsValue(BlockStateProperties.WATERLOGGED))
+        }
+        if ((owner instanceof net.krodark.asterion.block.WaterloggedDecoration
+                || owner instanceof net.krodark.asterion.block.HeavyWaterRedstone)
+                && properties.containsValue(BlockStateProperties.WATERLOGGED)) {
             properties.put(HeavyWaterlogging.LEVEL.getName(), HeavyWaterlogging.LEVEL);
+        }
     }
 }

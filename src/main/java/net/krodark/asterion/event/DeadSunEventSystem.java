@@ -3,7 +3,6 @@ package net.krodark.asterion.event;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.Commands;
-import net.minecraft.server.permissions.Permissions;
 import com.mojang.brigadier.Command;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.worldgen.WorldGenerator;
@@ -13,7 +12,7 @@ import net.krodark.asterion.network.DeadSunStrikePayload;
 import net.krodark.asterion.network.DazePayload;
 import net.krodark.asterion.network.ragdoll.RagdollImpulsePayload;
 import net.krodark.asterion.network.ragdoll.RagdollServerNetworking;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.network.chat.Component;
@@ -46,16 +45,16 @@ import java.util.ArrayDeque;
 import java.util.HashMap;
 
 public final class DeadSunEventSystem {
-    public static final Identifier RUMBLE = Asterion.id("rumble");
-    public static final Identifier FLOOD = Asterion.id("flood");
-    public static final Identifier ECLIPSE = Asterion.id("eclipse");
-    public static final Identifier SHIFTING = Asterion.id("shifting");
-    public static final Identifier DEAD_SUN_BARRAGE = Asterion.id("dead_sun_barrage");
-    public static final Identifier POISON_GEYSERS = Asterion.id("poison_geysers");
-    public static final Identifier CRIMSON_FIREFLIES = Asterion.id("crimson_fireflies");
+    public static final ResourceLocation RUMBLE = Asterion.id("rumble");
+    public static final ResourceLocation FLOOD = Asterion.id("flood");
+    public static final ResourceLocation ECLIPSE = Asterion.id("eclipse");
+    public static final ResourceLocation SHIFTING = Asterion.id("shifting");
+    public static final ResourceLocation DEAD_SUN_BARRAGE = Asterion.id("dead_sun_barrage");
+    public static final ResourceLocation POISON_GEYSERS = Asterion.id("poison_geysers");
+    public static final ResourceLocation CRIMSON_FIREFLIES = Asterion.id("crimson_fireflies");
     private static final int MIN_INTERVAL = 20 * 35;
     private static final int MAX_INTERVAL = 20 * 95;
-    private static final Map<Identifier, Definition> DEFINITIONS = new LinkedHashMap<>();
+    private static final Map<ResourceLocation, Definition> DEFINITIONS = new LinkedHashMap<>();
     private static final Map<MinecraftServer, SchedulerState> STATES = new WeakHashMap<>();
     private static final ArrayDeque<WallLayer> SHIFT_ANIMATION = new ArrayDeque<>();
     private static final List<PendingStrike> PENDING_STRIKES = new ArrayList<>();
@@ -64,7 +63,7 @@ public final class DeadSunEventSystem {
 
     static {
         register(new Definition() {
-            @Override public Identifier id() { return RUMBLE; }
+            @Override public ResourceLocation id() { return RUMBLE; }
             @Override public int weight() { return 10; }
             @Override public int minDurationTicks() { return 70; }
             @Override public int maxDurationTicks() { return 135; }
@@ -74,7 +73,7 @@ public final class DeadSunEventSystem {
             }
         });
         register(new Definition() {
-            @Override public Identifier id() { return SHIFTING; }
+            @Override public ResourceLocation id() { return SHIFTING; }
             @Override public int weight() { return 7; }
             @Override public int minDurationTicks() { return 20 * 38; }
             @Override public int maxDurationTicks() { return 20 * 52; }
@@ -89,7 +88,7 @@ public final class DeadSunEventSystem {
             }
         });
         register(new Definition() {
-            @Override public Identifier id() { return POISON_GEYSERS; }
+            @Override public ResourceLocation id() { return POISON_GEYSERS; }
             @Override public int weight() { return 5; }
             @Override public int minDurationTicks() { return 20 * 18; }
             @Override public int maxDurationTicks() { return 20 * 30; }
@@ -102,7 +101,7 @@ public final class DeadSunEventSystem {
             @Override public void onEnd(ServerLevel level) { POISON_GEYSER_HAZARDS.clear(); }
         });
         register(new Definition() {
-            @Override public Identifier id() { return CRIMSON_FIREFLIES; }
+            @Override public ResourceLocation id() { return CRIMSON_FIREFLIES; }
             @Override public int weight() { return 4; }
             @Override public int minDurationTicks() { return 20 * 16; }
             @Override public int maxDurationTicks() { return 20 * 24; }
@@ -115,7 +114,7 @@ public final class DeadSunEventSystem {
             @Override public void onEnd(ServerLevel level) { CRIMSON_FIREFLY_SWARM.clear(); }
         });
         register(new Definition() {
-            @Override public Identifier id() { return FLOOD; }
+            @Override public ResourceLocation id() { return FLOOD; }
             @Override public int weight() { return 1; }
             @Override public int minDurationTicks() { return CatacombFloodState.FLOOD_DURATION_TICKS; }
             @Override public int maxDurationTicks() { return CatacombFloodState.FLOOD_DURATION_TICKS; }
@@ -126,7 +125,7 @@ public final class DeadSunEventSystem {
             @Override public void onEnd(ServerLevel level) { CatacombFloodState.setActive(level, false); }
         });
         register(new Definition() {
-            @Override public Identifier id() { return ECLIPSE; }
+            @Override public ResourceLocation id() { return ECLIPSE; }
             @Override public boolean eligible(ServerLevel level) {
                 return level.players().stream().anyMatch(player -> player.isAlive() && !player.isSpectator());
             }
@@ -174,7 +173,7 @@ public final class DeadSunEventSystem {
     public static void registerCommands() {
         CommandRegistrationCallback.EVENT.register((dispatcher, context, environment) -> {
             var root = Commands.literal("asterionevent")
-                    .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
+                    .requires(source -> source.hasPermission(2))
                     .executes(command -> showStatus(command.getSource()));
             var start = Commands.literal("start");
             for (Definition definition : DEFINITIONS.values()) {
@@ -205,7 +204,7 @@ public final class DeadSunEventSystem {
             }
             root.then(start);
             root.then(Commands.literal("list").executes(command -> {
-                String names = String.join(", ", DEFINITIONS.keySet().stream().map(Identifier::getPath).toList());
+                String names = String.join(", ", DEFINITIONS.keySet().stream().map(ResourceLocation::getPath).toList());
                 net.krodark.asterion.game.PlayerNotices.success(command.getSource(), () -> Component.literal("Available Asterion events: " + names), false);
                 return Command.SINGLE_SUCCESS;
             }));
@@ -250,7 +249,7 @@ public final class DeadSunEventSystem {
 
     public static boolean isEclipseActive(ServerLevel level) { return isActive(level, ECLIPSE); }
 
-    public static boolean isActive(ServerLevel level, Identifier event) {
+    public static boolean isActive(ServerLevel level, ResourceLocation event) {
         SchedulerState state = STATES.get(level.getServer());
         return state != null && state.active != null && state.active.definition.id().equals(event);
     }
@@ -270,8 +269,8 @@ public final class DeadSunEventSystem {
 
     private static java.util.List<MinotaurEntity> eclipseMinotaurs(ServerLevel level) {
         return level.getEntitiesOfClass(MinotaurEntity.class,
-                new net.minecraft.world.phys.AABB(-4096, level.getMinY(), -4096,
-                        4096, level.getMaxY(), 4096));
+                new net.minecraft.world.phys.AABB(-4096, level.getMinBuildHeight(), -4096,
+                        4096, level.getMaxBuildHeight(), 4096));
     }
 
     private static boolean claimHunter(ServerLevel level, UUID playerId) {
@@ -313,7 +312,7 @@ public final class DeadSunEventSystem {
                 && !player.level().getBiome(player.blockPosition()).is(Asterion.FORGE_BIOME);
     }
 
-    public static boolean trigger(ServerLevel level, Identifier eventId) {
+    public static boolean trigger(ServerLevel level, ResourceLocation eventId) {
         Definition definition = DEFINITIONS.get(eventId);
         if (definition == null || WorldGenerator.isBossEncounterActive(level)
                 || !definition.eligible(level)) return false;
@@ -440,7 +439,7 @@ public final class DeadSunEventSystem {
         });
     }
 
-    private static void syncStopped(ServerLevel level, Identifier eventId, long seed) {
+    private static void syncStopped(ServerLevel level, ResourceLocation eventId, long seed) {
         DeadSunEventPayload payload = new DeadSunEventPayload(eventId, seed, 1, 1, 0.0F);
         level.players().forEach(player -> {
             if (ServerPlayNetworking.canSend(player, DeadSunEventPayload.TYPE))
@@ -650,10 +649,10 @@ public final class DeadSunEventSystem {
             }
             if (geyser.warningTicks-- > 0) {
                 double pulse = 0.25D + (1.0D - geyser.warningTicks / 44.0D) * 0.45D;
-                level.sendParticles(new DustParticleOptions(0x83B84A, 0.9F),
+                level.sendParticles(net.krodark.asterion.port.compat.ParticleCompat.dust(0x83B84A, 0.9F),
                         center.x, center.y + 0.08D, center.z, 5,
                         pulse, 0.025D, pulse, 0.01D);
-                level.sendParticles(new DustParticleOptions(0xB2DFC7, 0.54F),
+                level.sendParticles(net.krodark.asterion.port.compat.ParticleCompat.dust(0xB2DFC7, 0.54F),
                         center.x, center.y + 0.14D, center.z, 3,
                         pulse * 0.62D, 0.035D, pulse * 0.62D, 0.006D);
                 if ((geyser.warningTicks % 11) == 0)
@@ -682,7 +681,7 @@ public final class DeadSunEventSystem {
                 double progress = layer / (double)layers;
                 double y = center.y + 0.2D + progress * geyser.columnHeight;
                 double spread = 0.10D + geyser.radius * (0.17D - progress * 0.09D);
-                level.sendParticles(new DustParticleOptions(geyserGradientColor(progress),
+                level.sendParticles(net.krodark.asterion.port.compat.ParticleCompat.dust(geyserGradientColor(progress),
                                 (float)(0.82D - progress * 0.28D)),
                         center.x, y, center.z, 2, spread, 0.24D, spread, 0.012D);
                 if ((layer & 1) == 0) {
@@ -710,7 +709,7 @@ public final class DeadSunEventSystem {
                 player.addEffect(new MobEffectInstance(MobEffects.POISON, 55, 0, false, true));
                 long lastDamage = geyser.lastDamage.getOrDefault(player.getUUID(), Long.MIN_VALUE);
                 if (now - lastDamage >= 20L) {
-                    player.hurtServer(level, player.damageSources().magic(), 1.5F);
+                    player.hurt(player.damageSources().magic(), 1.5F);
                     geyser.lastDamage.put(player.getUUID(), now);
                 }
                 if (horizontal <= geyser.radius * 0.58D
@@ -774,7 +773,7 @@ public final class DeadSunEventSystem {
             double distance = delta.length();
             if (distance < 0.72D) {
                 player.igniteForTicks(16);
-                player.hurtServer(level, player.damageSources().inFire(), 1.0F);
+                player.hurt(player.damageSources().inFire(), 1.0F);
                 level.sendParticles(ParticleTypes.FLAME, firefly.position.x, firefly.position.y,
                         firefly.position.z, 8, 0.18D, 0.18D, 0.18D, 0.035D);
                 level.sendParticles(ParticleTypes.SMOKE, firefly.position.x, firefly.position.y,
@@ -798,7 +797,7 @@ public final class DeadSunEventSystem {
             level.sendParticles(Asterion.HOSTILE_FIREFLY, next.x, next.y, next.z,
                     0, velocity.x, velocity.y, velocity.z, 1.0D);
             if ((firefly.age & 3) == 0)
-                level.sendParticles(new DustParticleOptions(0xFF170D, 0.62F),
+                level.sendParticles(net.krodark.asterion.port.compat.ParticleCompat.dust(0xFF170D, 0.62F),
                         next.x, next.y, next.z, 1, 0.025D, 0.025D, 0.025D, 0.0D);
         }
     }
@@ -870,7 +869,7 @@ public final class DeadSunEventSystem {
     }
 
     public interface Definition {
-        Identifier id();
+        ResourceLocation id();
         int weight();
         int minDurationTicks();
         int maxDurationTicks();

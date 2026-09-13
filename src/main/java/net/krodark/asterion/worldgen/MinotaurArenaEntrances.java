@@ -46,8 +46,9 @@ public final class MinotaurArenaEntrances {
         if (position.y < floorY - .5 || position.y > floorY + 7) return null;
         for (Direction facing : java.util.List.of(PLAYER_ENTRANCE)) {
             Vec3 offset = position.subtract(Vec3.atBottomCenterOf(door(facing)));
-            double depth = offset.dot(facing.getUnitVec3());
-            if (depth >= -4 && depth <= 8 && Math.abs(offset.dot(facing.getClockWise().getUnitVec3())) < 3.5) return facing;
+            double depth = offset.dot(Vec3.atLowerCornerOf(facing.getNormal()));
+            if (depth >= -4 && depth <= 8
+                    && Math.abs(offset.dot(Vec3.atLowerCornerOf(facing.getClockWise().getNormal()))) < 3.5) return facing;
         }
         return null;
     }
@@ -133,10 +134,10 @@ public final class MinotaurArenaEntrances {
     public static Direction crossedEntrance(Vec3 previous, Vec3 current) {
         for (Direction facing : java.util.List.of(PLAYER_ENTRANCE)) {
             Vec3 center = Vec3.atBottomCenterOf(door(facing));
-            Vec3 outward = facing.getUnitVec3();
+            Vec3 outward = net.minecraft.world.phys.Vec3.atLowerCornerOf(facing.getNormal());
             Vec3 relative = current.subtract(center);
             double after = relative.dot(outward);
-            double across = Math.abs(relative.dot(facing.getClockWise().getUnitVec3()));
+            double across = Math.abs(relative.dot(Vec3.atLowerCornerOf(facing.getClockWise().getNormal())));
             boolean justInside = after < 0 && after >= -8 && across <= 3.5
                     && relative.y >= -.25 && relative.y < 4.5;
             if (previous == null || previous.distanceToSqr(current) > 16 * 16) {
@@ -146,7 +147,7 @@ public final class MinotaurArenaEntrances {
             double before = previous.subtract(center).dot(outward);
             if (before >= 0 && after < 0) {
                 Vec3 crossing = previous.lerp(current, before / (before - after)).subtract(center);
-                if (Math.abs(crossing.dot(facing.getClockWise().getUnitVec3())) <= 3.5
+                if (Math.abs(crossing.dot(Vec3.atLowerCornerOf(facing.getClockWise().getNormal()))) <= 3.5
                         && crossing.y >= -.25 && crossing.y < 4.5) return facing;
             }
              
@@ -202,15 +203,15 @@ public final class MinotaurArenaEntrances {
         setGates(level, 0, null);
     }
     public static void buildForChunk(ServerLevel level,net.minecraft.world.level.ChunkPos chunk) {
-        if(chunk.x()!=0)return;
+        if(chunk.x!=0)return;
          
          
          
-        if(chunk.equals(net.minecraft.world.level.ChunkPos.containing(gate(PLAYER_ENTRANCE))))
+        if(chunk.equals(new net.minecraft.world.level.ChunkPos(gate(PLAYER_ENTRANCE))))
             setGate(level,PLAYER_ENTRANCE,0);
-        if(chunk.z()==-3)setAuthoredBossGate(level,0);
+        if(chunk.z==-3)setAuthoredBossGate(level,0);
         if (net.krodark.asterion.AsterionWorldState.get(level).minotaurDefeated()
-                && chunk.equals(net.minecraft.world.level.ChunkPos.containing(door(PLAYER_ENTRANCE)))
+                && chunk.equals(new net.minecraft.world.level.ChunkPos(door(PLAYER_ENTRANCE)))
                 && level.getBlockEntity(door(PLAYER_ENTRANCE)) instanceof net.krodark.asterion.block.MinotaurDoorBlockEntity door)
             door.openAfterVictory();
     }
@@ -225,7 +226,7 @@ public final class MinotaurArenaEntrances {
     }
 
     public static void repairOmegaLock(ServerLevel level, net.minecraft.world.level.ChunkPos chunk) {
-        if (chunk.equals(net.minecraft.world.level.ChunkPos.containing(OMEGA_LOCK_POSITION))
+        if (chunk.equals(new net.minecraft.world.level.ChunkPos(OMEGA_LOCK_POSITION))
                 && omegaGateLocked(level)) ensureOmegaLock(level);
     }
 
@@ -279,7 +280,7 @@ public final class MinotaurArenaEntrances {
                 BlockPos pos = root.relative(facing, depth).relative(facing.getClockWise(), side).above(y);
                 if (level.getBlockState(pos).is(Asterion.ANCIENT_BRICKS)) {
                     if (level.getRandom().nextInt(4) == 0)
-                        ArenaDebris.queue(level, Vec3.atCenterOf(pos), facing.getOpposite().getUnitVec3()
+                        ArenaDebris.queue(level, Vec3.atCenterOf(pos), net.minecraft.world.phys.Vec3.atLowerCornerOf(facing.getOpposite().getNormal())
                                 .scale(.5 + level.getRandom().nextDouble() * .5).add(0, .2, 0));
                     level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2);
                 }

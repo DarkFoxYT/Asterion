@@ -63,7 +63,7 @@ public final class ArenaDeathRecovery {
                 releaseBossGrip(player, recovery.level());
                 if (recovery.gatePosition() != null) {
                     player.teleportTo(recovery.level(), safe.getX() + .5, safe.getY(), safe.getZ() + .5,
-                            Set.of(), 180, 0, true);
+                            Set.of(), 180, 0);
                 } else WorldGenerator.respawnAtRune(player, recovery.origin());
                 player.setHealth(player.getMaxHealth());
                 player.getFoodData().setFoodLevel(20);

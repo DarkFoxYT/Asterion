@@ -43,7 +43,7 @@ public final class RumbleSources {
         var hit = level.clip(new ClipContext(start, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
                 net.minecraft.world.phys.shapes.CollisionContext.empty()));
         if (hit.getType() != HitResult.Type.BLOCK || hit.isInside()) return null;
-        Vec3 normal = hit.getDirection().getUnitVec3();
+        Vec3 normal = net.minecraft.world.phys.Vec3.atLowerCornerOf(hit.getDirection().getNormal());
         return new Source(hit.getLocation().add(normal.scale(.24)), normal, hit.getBlockPos());
     }
 }
