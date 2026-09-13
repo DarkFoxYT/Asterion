@@ -1,7 +1,7 @@
 {
   "type": "minecraft:blasting",
   "category": "misc",
-  "ingredient": "asterion:shale_tarnished_gold_ore",
+  "ingredient": {"item":"asterion:shale_tarnished_gold_ore"},
   "result": {
     "id": "asterion:tarnished_gold_ingot"
   },

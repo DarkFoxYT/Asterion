@@ -565,5 +565,11 @@
   "tooltip.asterion.minotaur_hide": "Can be crafted into 2 leather.",
   "subtitles.asterion.minotaur_sword_swing": "Minotaur swings his sword",
   "subtitles.asterion.minotaur_fist_swing": "Minotaur swings his fist",
-  "subtitles.asterion.minotaur_fist_swing_combo": "Minotaur unleashes a fist combo"
+  "subtitles.asterion.minotaur_fist_swing_combo": "Minotaur unleashes a fist combo",
+  "tag.item.asterion.dead_wood_logs": "Dead Wood Logs",
+  "tag.item.asterion.repairs_celestial_bronze_armor": "Repairs Celestial Bronze Armor",
+  "tag.item.asterion.repairs_celestial_bronze_tools": "Repairs Celestial Bronze Tools",
+  "tag.item.asterion.repairs_celestial_gold_armor": "Repairs Celestial Gold Armor",
+  "tag.item.asterion.repairs_celestial_steel_armor": "Repairs Celestial Steel Armor",
+  "tag.item.asterion.repairs_tarnished_gold_armor": "Repairs Tarnished Gold Armor"
 }

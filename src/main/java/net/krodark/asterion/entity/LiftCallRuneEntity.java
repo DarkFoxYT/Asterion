@@ -35,8 +35,10 @@ public final class LiftCallRuneEntity extends Entity {
     }
     @Override public void tick() {
         super.tick();
-        if (!level().isClientSide() && tickCount % 40 == 0 && level().hasChunkAt(entityData.get(ANCHOR))
-                && !level().getBlockState(entityData.get(ANCHOR)).is(ChainLiftContent.ANCHOR)) discard();
+        BlockPos anchor = entityData.get(ANCHOR);
+        if (!level().isClientSide() && tickCount % 40 == 0
+                && level().hasChunk(anchor.getX() >> 4, anchor.getZ() >> 4)
+                && !level().getBlockState(anchor).is(ChainLiftContent.ANCHOR)) discard();
     }
     @Override public void addAdditionalSaveData(CompoundTag out) { out.putLong("Anchor", entityData.get(ANCHOR).asLong()); out.putBoolean("Upper", entityData.get(UPPER)); }
     @Override public void readAdditionalSaveData(CompoundTag in) { configure(BlockPos.of(net.krodark.asterion.port.compat.NbtCompat.getLong(in, "Anchor", 0)), net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "Upper", false)); }

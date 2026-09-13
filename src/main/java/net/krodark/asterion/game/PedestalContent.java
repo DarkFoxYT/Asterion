@@ -17,7 +17,7 @@ public final class PedestalContent {
     private static final ResourceKey<Item> ITEM_KEY = ResourceKey.create(Registries.ITEM, Asterion.id("pedestal"));
     public static final Item ITEM = Registry.register(BuiltInRegistries.ITEM, ITEM_KEY, new PedestalBlockItem(BLOCK, new Item.Properties()));
     public static final BlockEntityType<PedestalBlockEntity> BLOCK_ENTITY = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE,
-            Asterion.id("pedestal"), net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder.create(PedestalBlockEntity::new, BLOCK).build());
+            Asterion.id("pedestal"), BlockEntityType.Builder.of(PedestalBlockEntity::new, BLOCK).build(null));
     private PedestalContent() { }
     public static void initialize() {
         net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents.modifyEntriesEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Asterion.id("asterion")))

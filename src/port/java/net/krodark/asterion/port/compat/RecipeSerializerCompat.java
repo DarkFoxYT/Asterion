@@ -17,4 +17,13 @@ public final class RecipeSerializerCompat {
             @Override public StreamCodec<RegistryFriendlyByteBuf, T> streamCodec() { return streamCodec; }
         };
     }
+
+    /**
+     * Creates a serializer for a stateless recipe. The exact same recipe instance must back both
+     * codecs: {@link StreamCodec#unit(Object)} rejects a different (even equivalent) instance while
+     * synchronizing recipes to a client.
+     */
+    public static <T extends Recipe<?>> RecipeSerializer<T> unit(T recipe) {
+        return of(MapCodec.unit(recipe), StreamCodec.unit(recipe));
+    }
 }

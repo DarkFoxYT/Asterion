@@ -51,9 +51,11 @@ public final class ChainLiftBlockItem extends BlockItem implements GeoItem {
 
             @Override public GeoItemRenderer<ChainLiftBlockItem> getGeoItemRenderer() {
                 if (renderer == null) renderer = new GeoItemRenderer<>(new GeoModel<>() {
+                    @SuppressWarnings("deprecation")
                     @Override public ResourceLocation getModelResource(ChainLiftBlockItem item) {
                         return Asterion.id("block/chain_lift");
                     }
+                    @SuppressWarnings("deprecation")
                     @Override public ResourceLocation getTextureResource(ChainLiftBlockItem item) {
                         return Asterion.id("textures/block/chain_lift.png");
                     }

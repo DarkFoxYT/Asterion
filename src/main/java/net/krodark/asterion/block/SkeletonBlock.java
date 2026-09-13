@@ -47,6 +47,7 @@ public final class SkeletonBlock extends BaseEntityBlock implements WaterloggedD
         return state.setValue(FACING, rotation.rotate(state.getValue(FACING)));
     }
 
+    @SuppressWarnings("deprecation") // NeoForge's context overload is unavailable on Fabric 1.21.1.
     @Override
     protected BlockState mirror(BlockState state, Mirror mirror) {
         return state.rotate(mirror.getRotation(state.getValue(FACING)));

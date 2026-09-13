@@ -39,6 +39,7 @@ public final class HeavyWaterFatigue {
             }
         }
     }
+    @SuppressWarnings("deprecation") // NeoForge's FluidType overload is loader-specific.
     public static boolean swimmingInHeavyWater(net.minecraft.world.entity.player.Player player) {
         if (!player.isInWater() || player.isPassenger()
                 || player.onGround() && player.getFluidHeight(FluidTags.WATER) < .8 && !player.isSwimming()) return false;

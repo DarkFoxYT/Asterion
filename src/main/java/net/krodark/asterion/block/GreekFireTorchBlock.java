@@ -110,6 +110,7 @@ public final class GreekFireTorchBlock extends BaseEntityBlock implements Simple
     @Override protected BlockState rotate(BlockState state,Rotation rotation) {
         return state.setValue(FACING,rotation.rotate(state.getValue(FACING)));
     }
+    @SuppressWarnings("deprecation") // NeoForge's context overload is unavailable on Fabric 1.21.1.
     @Override protected BlockState mirror(BlockState state,Mirror mirror) {
         return state.rotate(mirror.getRotation(state.getValue(FACING)));
     }

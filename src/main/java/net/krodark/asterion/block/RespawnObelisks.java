@@ -1,7 +1,6 @@
 package net.krodark.asterion.block;
 
 import net.krodark.asterion.Asterion;
-import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Registry;
@@ -25,7 +24,7 @@ public final class RespawnObelisks {
             Asterion.id("charged_respawn_rune"), new Item(new Item.Properties().stacksTo(1)));
     public static final BlockEntityType<SanctuaryBlockEntity> BLOCK_ENTITY = Registry.register(
             BuiltInRegistries.BLOCK_ENTITY_TYPE, Asterion.id("sanctuary"),
-            FabricBlockEntityTypeBuilder.create(SanctuaryBlockEntity::new, ALTAR, OBELISK).build());
+            BlockEntityType.Builder.of(SanctuaryBlockEntity::new, ALTAR, OBELISK).build(null));
 
     private RespawnObelisks() { }
     public static void initialize() { }

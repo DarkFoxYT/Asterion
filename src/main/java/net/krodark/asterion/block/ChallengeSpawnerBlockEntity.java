@@ -41,6 +41,7 @@ public final class ChallengeSpawnerBlockEntity extends BlockEntity {
         for (String id : net.krodark.asterion.port.compat.NbtCompat.getString(in, "Mobs", "").split(",")) if (!id.isEmpty()) mobs.add(UUID.fromString(id));
         String id = net.krodark.asterion.port.compat.NbtCompat.getString(in, "Label", ""); label = id.isEmpty() ? null : UUID.fromString(id);
     }
+    @SuppressWarnings("deprecation") // The portable 1.21.1 spawn finalization signature.
     public static void tick(Level world, BlockPos pos, BlockState state, ChallengeSpawnerBlockEntity spawner) {
         if (!(world instanceof ServerLevel level)) return;
         if (spawner.spawnVersion == 0) {

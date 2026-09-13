@@ -2,7 +2,7 @@
   "type": "minecraft:crafting_shaped",
   "category": "building",
   "key": {
-    "#": "asterion:ancient_moss"
+    "#": {"item":"asterion:ancient_moss"}
   },
   "pattern": [
     "##"

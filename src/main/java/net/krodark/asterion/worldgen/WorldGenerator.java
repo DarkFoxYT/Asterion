@@ -714,6 +714,7 @@ public final class WorldGenerator {
         return broken;
     }
 
+    @SuppressWarnings("deprecation") // NeoForge's contextual sound-type overload is loader-specific.
     private static void tickRestoringBlocks(MinecraftServer server) {
         while (!RESTORING_BLOCKS.isEmpty()) {
             RestoringBlock entry = RESTORING_BLOCKS.peek();

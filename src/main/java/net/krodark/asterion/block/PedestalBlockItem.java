@@ -26,9 +26,11 @@ public final class PedestalBlockItem extends BlockItem implements GeoItem {
 
             @Override public GeoItemRenderer<PedestalBlockItem> getGeoItemRenderer() {
                 if (renderer == null) renderer = new GeoItemRenderer<>(new GeoModel<>() {
+                    @SuppressWarnings("deprecation")
                     @Override public ResourceLocation getModelResource(PedestalBlockItem item) {
                         return Asterion.id("block/pedestal");
                     }
+                    @SuppressWarnings("deprecation")
                     @Override public ResourceLocation getTextureResource(PedestalBlockItem item) {
                         return Asterion.id("textures/block/pedestal.png");
                     }

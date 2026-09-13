@@ -416,6 +416,7 @@ public final class AuthoredForge {
 
      
     private static final StructureProcessor CRUCIBLE_PART_DATA = new StructureProcessor() {
+        @SuppressWarnings("deprecation")
         @Override public StructureTemplate.StructureBlockInfo processBlock(
                 net.minecraft.world.level.LevelReader world, BlockPos origin, BlockPos reference,
                 StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed,

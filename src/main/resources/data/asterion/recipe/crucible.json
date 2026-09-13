@@ -2,6 +2,6 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "pattern": ["B B", "B B", "BBB"],
-  "key": { "B": "asterion:ancient_bricks" },
+  "key": { "B": {"item":"asterion:ancient_bricks"} },
   "result": { "id": "asterion:crucible" }
 }

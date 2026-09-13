@@ -1,7 +1,7 @@
 {
   "type": "minecraft:smelting",
   "category": "misc",
-  "ingredient": "asterion:shale_celestial_gold_ore",
+  "ingredient": {"item":"asterion:shale_celestial_gold_ore"},
   "result": {
     "id": "asterion:celestial_gold_ingot"
   },

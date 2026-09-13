@@ -2,9 +2,9 @@
   "type": "minecraft:crafting_shaped",
   "category": "redstone",
   "key": {
-    "C": "asterion:mazesteel_chain",
-    "M": "asterion:mazesteel_block",
-    "R": "minecraft:redstone"
+    "C": {"item":"asterion:mazesteel_chain"},
+    "M": {"item":"asterion:mazesteel_block"},
+    "R": {"item":"minecraft:redstone"}
   },
   "pattern": [
     "CMC",

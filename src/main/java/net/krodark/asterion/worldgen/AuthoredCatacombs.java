@@ -299,6 +299,7 @@ public final class AuthoredCatacombs {
     }
      
     private static final StructureProcessor CROSSING_SURFACE = new StructureProcessor() {
+        @SuppressWarnings("deprecation")
         @Override public StructureTemplate.StructureBlockInfo processBlock(
                 net.minecraft.world.level.LevelReader world, BlockPos origin, BlockPos reference,
                 StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed,
@@ -309,6 +310,7 @@ public final class AuthoredCatacombs {
         @Override protected StructureProcessorType<?> getType() { return StructureProcessorType.BLOCK_IGNORE; }
     };
     private static final StructureProcessor CLOSED_BARREL_DOORS = new StructureProcessor() {
+        @SuppressWarnings("deprecation")
         @Override public StructureTemplate.StructureBlockInfo processBlock(
                 net.minecraft.world.level.LevelReader world, BlockPos origin, BlockPos reference,
                 StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed,
@@ -335,6 +337,7 @@ public final class AuthoredCatacombs {
         @Override protected StructureProcessorType<?> getType() { return StructureProcessorType.BLOCK_IGNORE; }
     };
     private static final StructureProcessor REMOVE_ARENA_MARKERS = new StructureProcessor() {
+        @SuppressWarnings("deprecation")
         @Override public StructureTemplate.StructureBlockInfo processBlock(
                 net.minecraft.world.level.LevelReader world, BlockPos origin, BlockPos reference,
                 StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed,
@@ -346,6 +349,7 @@ public final class AuthoredCatacombs {
         @Override protected StructureProcessorType<?> getType() { return StructureProcessorType.BLOCK_IGNORE; }
     };
     private static final StructureProcessor ARENA_NBT_ONLY = new StructureProcessor() {
+        @SuppressWarnings("deprecation")
         @Override public StructureTemplate.StructureBlockInfo processBlock(
                 net.minecraft.world.level.LevelReader world, BlockPos origin, BlockPos reference,
                 StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed,

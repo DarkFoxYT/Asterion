@@ -167,6 +167,8 @@ java {
     withSourcesJar()
 }
 
+def bundledLicenseName = "LICENSE_${project.archives_base_name}.txt"
+
 jar {
     exclude 'net/krodark/asterion/dev/**'
     archiveFileName = "${project.archives_base_name}-${project.version}-fabric-mc${project.minecraft_version}.jar"
@@ -181,7 +183,7 @@ jar {
         )
     }
     from("LICENSE.txt") {
-        rename { "LICENSE_${project.archives_base_name}.txt" }
+        rename { bundledLicenseName }
     }
 }
 

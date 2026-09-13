@@ -6,7 +6,7 @@
     "I I"
   ],
   "key": {
-    "I": "asterion:celestial_gold_ingot"
+    "I": {"item":"asterion:celestial_gold_ingot"}
   },
   "result": {
     "id": "asterion:celestial_gold_helmet",

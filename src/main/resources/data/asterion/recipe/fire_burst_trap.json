@@ -7,10 +7,10 @@
     "IRI"
   ],
   "key": {
-    "I": "minecraft:iron_ingot",
-    "D": "minecraft:dispenser",
-    "R": "minecraft:redstone",
-    "B": "minecraft:blaze_powder"
+    "I": {"item":"minecraft:iron_ingot"},
+    "D": {"item":"minecraft:dispenser"},
+    "R": {"item":"minecraft:redstone"},
+    "B": {"item":"minecraft:blaze_powder"}
   },
   "result": {
     "id": "asterion:fire_burst_trap",

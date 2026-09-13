@@ -26,9 +26,11 @@ public final class CrucibleBlockItem extends BlockItem implements GeoItem {
 
             @Override public GeoItemRenderer<CrucibleBlockItem> getGeoItemRenderer() {
                 if (renderer == null) renderer = new GeoItemRenderer<>(new GeoModel<>() {
+                    @SuppressWarnings("deprecation")
                     @Override public ResourceLocation getModelResource(CrucibleBlockItem item) {
                         return Asterion.id("block/crucible");
                     }
+                    @SuppressWarnings("deprecation")
                     @Override public ResourceLocation getTextureResource(CrucibleBlockItem item) {
                         return Asterion.id("textures/block/crucible.png");
                     }

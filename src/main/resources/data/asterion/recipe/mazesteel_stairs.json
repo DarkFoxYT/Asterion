@@ -2,7 +2,7 @@
   "type": "minecraft:crafting_shaped",
   "category": "building",
   "key": {
-    "#": "asterion:mazesteel_block"
+    "#": {"item":"asterion:mazesteel_block"}
   },
   "pattern": [
     "#  ",

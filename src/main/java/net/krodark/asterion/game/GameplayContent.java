@@ -4,7 +4,6 @@ import net.krodark.asterion.Asterion;
 import net.krodark.asterion.block.*;
 import net.krodark.asterion.entity.CursedBrazierEntity;
 import net.krodark.asterion.network.IgniteGasPayload;
-import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.fabricmc.fabric.api.event.lifecycle.v1.*;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
@@ -22,11 +21,11 @@ public final class GameplayContent {
     public static final Block EXPLOSIVE_SPAWNER = block("explosive_spawner", p -> new ChallengeSpawnerBlock(true, p.noOcclusion()));
     public static final Block REWARD_SPAWNER = block("reward_spawner", p -> new ChallengeSpawnerBlock(false, p.noOcclusion()));
     public static final BlockEntityType<ChallengeSpawnerBlockEntity> CHALLENGE_SPAWNER_ENTITY = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE,
-            Asterion.id("challenge_spawner"), FabricBlockEntityTypeBuilder.create(ChallengeSpawnerBlockEntity::new, EXPLOSIVE_SPAWNER, REWARD_SPAWNER).build());
+            Asterion.id("challenge_spawner"), BlockEntityType.Builder.of(ChallengeSpawnerBlockEntity::new, EXPLOSIVE_SPAWNER, REWARD_SPAWNER).build(null));
     public static final Block SPEWER = block("spewer", p -> new TimedTrapBlock(true, p));
     public static final Block FIRE_BURST_TRAP = block("fire_burst_trap", p -> new TimedTrapBlock(false, p));
     public static final BlockEntityType<TimedTrapBlockEntity> TRAP_ENTITY = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE,
-            Asterion.id("timed_trap"), FabricBlockEntityTypeBuilder.create(TimedTrapBlockEntity::new, SPEWER, FIRE_BURST_TRAP).build());
+            Asterion.id("timed_trap"), BlockEntityType.Builder.of(TimedTrapBlockEntity::new, SPEWER, FIRE_BURST_TRAP).build(null));
     public static final Item FLAMETHROWER = item("flamethrower", p -> new FlamethrowerItem(p.durability(512)));
     private static final ResourceKey<EntityType<?>> CURSED_KEY = ResourceKey.create(Registries.ENTITY_TYPE, Asterion.id("cursed_brazier"));
     public static final EntityType<CursedBrazierEntity> CURSED_BRAZIER = Registry.register(BuiltInRegistries.ENTITY_TYPE, CURSED_KEY,
@@ -34,11 +33,13 @@ public final class GameplayContent {
                     .sized(4.8F, 4.85F)
                     .fireImmune()
                     .clientTrackingRange(12)
-                    .build(CURSED_KEY.location().toString()));
+                    .build(null));
+    @SuppressWarnings("deprecation") // Required by the shared Fabric/NeoForge registration path.
     public static final Item CURSED_BRAZIER_EGG = item("cursed_brazier_spawn_egg",
             p -> new SpawnEggItem(CURSED_BRAZIER, 0x27120F, 0xFF5C1A, p));
     public static final Item CURSED_BRAZIER_KEY = item("cursed_brazier_key",
             p -> new Item(p.stacksTo(1).rarity(Rarity.RARE).fireResistant()));
+    @SuppressWarnings("deprecation") // Required by the shared Fabric/NeoForge registration path.
     public static final Item RUNE_BEETLE_EGG = item("rune_beetle_spawn_egg",
             p -> new SpawnEggItem(Asterion.RUNE_BEETLE, 0x385C43, 0x89E8B3, p));
     private GameplayContent() { }

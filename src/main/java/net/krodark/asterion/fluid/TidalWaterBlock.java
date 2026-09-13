@@ -45,5 +45,6 @@ public final class TidalWaterBlock extends Block implements BucketPickup {
         level.setBlock(pos, Blocks.AIR.defaultBlockState(), 11);
         return new ItemStack(HeavyWater.BUCKET);
     }
+    @SuppressWarnings("deprecation") // Fabric 1.21.1's BucketPickup contract still requires this method.
     @Override public Optional<SoundEvent> getPickupSound() { return HeavyWater.FLUID.getPickupSound(); }
 }

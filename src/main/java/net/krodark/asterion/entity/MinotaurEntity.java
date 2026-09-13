@@ -651,6 +651,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 AsterionConfig.INSTANCE.minotaurDamageMin, AsterionConfig.INSTANCE.minotaurDamageMax);
     }
 
+    @SuppressWarnings("deprecation") // NeoForge's FluidType hook is loader-specific.
     @Override public boolean isPushedByFluid() { return false; }
 
     @Override protected float getWaterSlowDown() { return .96F; }

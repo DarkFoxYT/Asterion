@@ -7,10 +7,10 @@
     " II"
   ],
   "key": {
-    "I": "minecraft:iron_ingot",
-    "B": "minecraft:blaze_rod",
-    "D": "asterion:spewer",
-    "R": "minecraft:redstone"
+    "I": {"item":"minecraft:iron_ingot"},
+    "B": {"item":"minecraft:blaze_rod"},
+    "D": {"item":"asterion:spewer"},
+    "R": {"item":"minecraft:redstone"}
   },
   "result": {
     "id": "asterion:flamethrower",

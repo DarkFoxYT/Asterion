@@ -31,9 +31,11 @@ public final class RuneBlockItem extends BlockItem implements GeoItem {
             @Override
             public GeoItemRenderer<RuneBlockItem> getGeoItemRenderer() {
                 if (renderer == null) renderer = new GeoItemRenderer<>(new GeoModel<>() {
+                    @SuppressWarnings("deprecation")
                     @Override public ResourceLocation getModelResource(RuneBlockItem item) {
                         return Asterion.id("block/rune");
                     }
+                    @SuppressWarnings("deprecation")
                     @Override public ResourceLocation getTextureResource(RuneBlockItem item) {
                         return Asterion.id("textures/block/runes/" + (runeIndex + 1) + ".png");
                     }

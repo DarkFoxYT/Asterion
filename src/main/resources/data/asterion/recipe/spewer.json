@@ -7,9 +7,9 @@
     "IRI"
   ],
   "key": {
-    "I": "minecraft:iron_ingot",
-    "D": "minecraft:dispenser",
-    "R": "minecraft:redstone"
+    "I": {"item":"minecraft:iron_ingot"},
+    "D": {"item":"minecraft:dispenser"},
+    "R": {"item":"minecraft:redstone"}
   },
   "result": {
     "id": "asterion:spewer",

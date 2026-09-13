@@ -18,6 +18,7 @@ public final class SimpleGeoEntityRenderer<T extends Entity & GeoAnimatable> ext
         this.scaleHeight = scale;
     }
 
+    @SuppressWarnings("deprecation")
     private static final class StaticModel<T extends GeoAnimatable> extends GeoModel<T> {
         private final ResourceLocation model;
         private final ResourceLocation texture;

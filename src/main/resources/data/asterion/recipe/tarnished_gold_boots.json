@@ -6,7 +6,7 @@
     "I I"
   ],
   "key": {
-    "I": "asterion:tarnished_gold_ingot"
+    "I": {"item":"asterion:tarnished_gold_ingot"}
   },
   "result": {
     "id": "asterion:tarnished_gold_boots",

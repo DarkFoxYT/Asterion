@@ -1,6 +1,6 @@
 {
   "type": "minecraft:stonecutting",
-  "ingredient": "asterion:mazesteel_block",
+  "ingredient": {"item":"asterion:mazesteel_block"},
   "result": {
     "id": "asterion:mazesteel_stairs",
     "count": 1
