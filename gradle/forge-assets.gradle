@@ -116,21 +116,28 @@ tasks.register('generateForgeAssets') {
         file("${itemDir}/forged_sword.json").text = groovy.json.JsonOutput.toJson(
                 [model: [type: 'minecraft:composite', models: swordLayers]])
 
-        materialsByIndex.each { material ->
-            file("${modelDir}/forge_legacy_${material}_sword.json").text =
-                    groovy.json.JsonOutput.toJson([parent: 'asterion:item/forged_sword_layer', textures: [
-                            layer0: "asterion:item/forging/${material}/${material}_blade",
-                            layer1: "asterion:item/forging/${material}/${material}_guard",
-                            layer2: "asterion:item/forging/${material}/${material}_pommel"]])
+        def swordOverrides = []
+        materialsByIndex.eachWithIndex { bladeMaterial, bladeIndex ->
+            materialsByIndex.eachWithIndex { guardMaterial, guardIndex ->
+                materialsByIndex.eachWithIndex { pommelMaterial, pommelIndex ->
+                    def combination = "${bladeMaterial}_${guardMaterial}_${pommelMaterial}"
+                    int predicate = 1 + bladeIndex + guardIndex * 9 + pommelIndex * 81
+                    file("${modelDir}/forge_legacy_${combination}_sword.json").text =
+                            groovy.json.JsonOutput.toJson([parent: 'asterion:item/forged_sword_layer', textures: [
+                                    layer0: "asterion:item/forging/${bladeMaterial}/${bladeMaterial}_blade",
+                                    layer1: "asterion:item/forging/${guardMaterial}/${guardMaterial}_guard",
+                                    layer2: "asterion:item/forging/${pommelMaterial}/${pommelMaterial}_pommel"]])
+                    swordOverrides.add([predicate: [custom_model_data: predicate],
+                                        model: "asterion:item/forge_legacy_${combination}_sword"])
+                }
+            }
         }
         file("${modelDir}/forged_sword.json").text = groovy.json.JsonOutput.toJson([
                 parent: 'asterion:item/forged_sword_layer',
                 textures: [layer0: 'asterion:item/forging/iron/iron_blade',
                            layer1: 'asterion:item/forging/iron/iron_guard',
                            layer2: 'asterion:item/forging/iron/iron_pommel'],
-                overrides: materialsByIndex.withIndex().collect { material, index -> [
-                        predicate: [custom_model_data: index + 1],
-                        model: "asterion:item/forge_legacy_${material}_sword"] }
+                overrides: swordOverrides
         ])
 
          

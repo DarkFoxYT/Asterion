@@ -11,8 +11,6 @@ import net.krodark.asterion.port.client.MinotaurAxePortRenderer;
 import net.krodark.asterion.port.client.SimpleGeoEntityRenderer;
 import net.krodark.asterion.port.client.SimpleGeoBlockRenderer;
 import net.krodark.asterion.port.client.PortClientFeatures;
-import net.minecraft.client.particle.FlameParticle;
-import net.minecraft.client.particle.SmokeParticle;
 import net.minecraft.client.renderer.RenderType;
 import net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap;
 import net.neoforged.api.distmarker.Dist;
@@ -33,9 +31,8 @@ public final class AsterionNeoForgeClientModEvents {
         event.registerEntityRenderer(Asterion.MINOTAUR, context -> new SimpleGeoEntityRenderer<>(context,
                 Asterion.id("entity/minotaur"), Asterion.id("textures/entity/minotaur.png"),
                 Asterion.id("entity/minotaur"), 1.1F, 1.0F));
-        event.registerEntityRenderer(Asterion.BOMBARDIER_BEETLE, context -> new SimpleGeoEntityRenderer<>(context,
-                Asterion.id("entity/bombadier_beetle"), Asterion.id("textures/entity/bombadier_beetle.png"),
-                Asterion.id("entity/bombadier_beetle"), 0.35F, 1.0F));
+        event.registerEntityRenderer(Asterion.BOMBARDIER_BEETLE,
+                net.krodark.asterion.port.client.PortBombardierBeetleRenderer::new);
         event.registerEntityRenderer(Asterion.RUNE_BEETLE, context -> new SimpleGeoEntityRenderer<>(context,
                 Asterion.id("entity/bombadier_beetle"), Asterion.id("textures/entity/bombadier_beetle.png"),
                 Asterion.id("entity/bombadier_beetle"), 0.2F, 0.55F));
@@ -45,9 +42,8 @@ public final class AsterionNeoForgeClientModEvents {
         event.registerEntityRenderer(Asterion.QUEEN_BEETLE, context -> new SimpleGeoEntityRenderer<>(context,
                 Asterion.id("entity/queen_beetle"), Asterion.id("textures/entity/queen_beetle.png"),
                 Asterion.id("entity/queen_beetle"), 1.3F, 1.0F));
-        event.registerEntityRenderer(Asterion.SCARLET_CENTIPEDE, context -> new SimpleGeoEntityRenderer<>(context,
-                Asterion.id("entity/centipede"), Asterion.id("textures/entity/centipede.png"),
-                Asterion.id("entity/centipede"), 0.8F, 1.0F));
+        event.registerEntityRenderer(Asterion.SCARLET_CENTIPEDE,
+                net.krodark.asterion.port.client.PortScarletCentipedeRenderer::new);
         event.registerEntityRenderer(GameplayContent.CURSED_BRAZIER, context -> new SimpleGeoEntityRenderer<>(context,
                 Asterion.id("entity/cursed_brazier"), Asterion.id("textures/entity/cursed_brazier.png"),
                 Asterion.id("entity/cursed_brazier"), 2.35F, 1.0F));
@@ -62,12 +58,12 @@ public final class AsterionNeoForgeClientModEvents {
                         + (rune.runeIndex() + 1) + ".png"), ignored -> Asterion.id("block/rune")));
         event.registerBlockEntityRenderer(Asterion.PILLAR_BLOCK_ENTITY, context -> new SimpleGeoBlockRenderer<>(
                 Asterion.id("block/pillar"), Asterion.id("textures/block/pillar.png"), Asterion.id("block/pillar")));
-        event.registerBlockEntityRenderer(Asterion.MINOTAUR_DOOR_BLOCK_ENTITY, context -> new SimpleGeoBlockRenderer<>(
-                Asterion.id("block/minotaur_door"), Asterion.id("textures/block/minotaur_door.png"), Asterion.id("block/minotaur_door")));
-        event.registerBlockEntityRenderer(Asterion.CURSED_BRAZIER_DOOR_BLOCK_ENTITY, context -> new SimpleGeoBlockRenderer<>(
-                Asterion.id("block/cursed_brazier_door"), Asterion.id("textures/block/cursed_brazier_door.png"), Asterion.id("block/cursed_brazier_door")));
-        event.registerBlockEntityRenderer(Asterion.BARREL_DOOR_BLOCK_ENTITY, context -> new SimpleGeoBlockRenderer<>(
-                Asterion.id("block/barrel_door"), Asterion.id("textures/block/barrel_door.png"), Asterion.id("block/barrel_door")));
+        event.registerBlockEntityRenderer(Asterion.MINOTAUR_DOOR_BLOCK_ENTITY,
+                context -> new net.krodark.asterion.port.client.PortDoorRenderers.Minotaur());
+        event.registerBlockEntityRenderer(Asterion.CURSED_BRAZIER_DOOR_BLOCK_ENTITY,
+                context -> new net.krodark.asterion.port.client.PortDoorRenderers.Cursed());
+        event.registerBlockEntityRenderer(Asterion.BARREL_DOOR_BLOCK_ENTITY,
+                context -> new net.krodark.asterion.port.client.PortDoorRenderers.Barrel());
         event.registerBlockEntityRenderer(net.krodark.asterion.block.RespawnObelisks.BLOCK_ENTITY,
                 context -> new SimpleGeoBlockRenderer<>(entity -> Asterion.id(entity.getBlockState().is(
                                 net.krodark.asterion.block.RespawnObelisks.ALTAR) ? "block/respawn_altar" : "block/respawn_obelisk"),
@@ -119,22 +115,27 @@ public final class AsterionNeoForgeClientModEvents {
 
     @SubscribeEvent
     public static void registerParticleProviders(RegisterParticleProvidersEvent event) {
-        event.registerSpriteSet(Asterion.GREEK_FIRE, FlameParticle.Provider::new);
-        event.registerSpriteSet(Asterion.MINOTAUR_BELCH_FIRE, FlameParticle.Provider::new);
-        event.registerSpriteSet(Asterion.FLAMETHROWER_GAS_FIRE, FlameParticle.Provider::new);
-        event.registerSpriteSet(Asterion.BOMBARDIER_GAS_FIRE, FlameParticle.Provider::new);
-        event.registerSpriteSet(Asterion.BRAZIER_FIRE, FlameParticle.Provider::new);
-        event.registerSpriteSet(Asterion.FIREFLY, FlameParticle.Provider::new);
-        event.registerSpriteSet(Asterion.HOSTILE_FIREFLY, FlameParticle.Provider::new);
-        event.registerSpriteSet(Asterion.BOMBARDIER_STENCH, SmokeParticle.Provider::new);
-        event.registerSpriteSet(Asterion.MINOTAUR_BELCH_SMOKE, SmokeParticle.Provider::new);
-        event.registerSpriteSet(Asterion.FLAMETHROWER_GAS, SmokeParticle.Provider::new);
-        event.registerSpriteSet(Asterion.GREEK_FIRE_SOOT, SmokeParticle.Provider::new);
-        event.registerSpriteSet(Asterion.LAMENTER_TEAR, SmokeParticle.Provider::new);
-        event.registerSpriteSet(Asterion.DOOR_SMOKE, SmokeParticle.Provider::new);
-        event.registerSpriteSet(Asterion.DOOR_DUST, SmokeParticle.Provider::new);
-        event.registerSpriteSet(Asterion.FLY, SmokeParticle.Provider::new);
-        event.registerSpriteSet(Asterion.ANCIENT_WALL_DUST, SmokeParticle.Provider::new);
-        event.registerSpriteSet(Asterion.RUMBLE_SMOKE, SmokeParticle.Provider::new);
+        register(event, Asterion.GREEK_FIRE, net.krodark.asterion.port.client.PortParticles.Style.GREEK_FIRE);
+        register(event, Asterion.MINOTAUR_BELCH_FIRE, net.krodark.asterion.port.client.PortParticles.Style.BELCH_FIRE);
+        register(event, Asterion.FLAMETHROWER_GAS_FIRE, net.krodark.asterion.port.client.PortParticles.Style.GAS_FIRE);
+        register(event, Asterion.BOMBARDIER_GAS_FIRE, net.krodark.asterion.port.client.PortParticles.Style.GAS_FIRE);
+        register(event, Asterion.BRAZIER_FIRE, net.krodark.asterion.port.client.PortParticles.Style.BRAZIER_FIRE);
+        register(event, Asterion.FIREFLY, net.krodark.asterion.port.client.PortParticles.Style.FIREFLY);
+        register(event, Asterion.HOSTILE_FIREFLY, net.krodark.asterion.port.client.PortParticles.Style.HOSTILE_FIREFLY);
+        register(event, Asterion.BOMBARDIER_STENCH, net.krodark.asterion.port.client.PortParticles.Style.STENCH);
+        register(event, Asterion.MINOTAUR_BELCH_SMOKE, net.krodark.asterion.port.client.PortParticles.Style.BELCH_SMOKE);
+        register(event, Asterion.FLAMETHROWER_GAS, net.krodark.asterion.port.client.PortParticles.Style.FLAMETHROWER_GAS);
+        register(event, Asterion.GREEK_FIRE_SOOT, net.krodark.asterion.port.client.PortParticles.Style.SOOT);
+        register(event, Asterion.LAMENTER_TEAR, net.krodark.asterion.port.client.PortParticles.Style.TEAR);
+        register(event, Asterion.DOOR_SMOKE, net.krodark.asterion.port.client.PortParticles.Style.DOOR_SMOKE);
+        register(event, Asterion.DOOR_DUST, net.krodark.asterion.port.client.PortParticles.Style.DOOR_DUST);
+        register(event, Asterion.FLY, net.krodark.asterion.port.client.PortParticles.Style.FLY);
+        register(event, Asterion.ANCIENT_WALL_DUST, net.krodark.asterion.port.client.PortParticles.Style.WALL_DUST);
+        register(event, Asterion.RUMBLE_SMOKE, net.krodark.asterion.port.client.PortParticles.Style.RUMBLE);
+    }
+
+    private static void register(RegisterParticleProvidersEvent event, net.minecraft.core.particles.SimpleParticleType type,
+                                 net.krodark.asterion.port.client.PortParticles.Style style) {
+        event.registerSpriteSet(type, sprites -> net.krodark.asterion.port.client.PortParticles.provider(sprites, style));
     }
 }

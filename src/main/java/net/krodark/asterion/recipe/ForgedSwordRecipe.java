@@ -66,10 +66,13 @@ public final class ForgedSwordRecipe extends CustomRecipe {
         appendLayers(blade, renderMaterials, renderColors);
         appendLayers(guard, renderMaterials, renderColors);
         appendLayers(pommel, renderMaterials, renderColors);
-        // Minecraft 1.21.1 only exposes integer custom-model predicates. Use the blade's
-        // primary material for the visual variant while retaining the full alloy data below.
+        // Encode all three visible components into the 1.21.1 integer predicate.  The
+        // generated model table decodes this into independent blade/guard/pommel textures.
+        int bladeIndex = materialIndex(bladeMaterial);
+        int guardIndex = materialIndex(guardMaterial);
+        int pommelIndex = materialIndex(pommelMaterial);
         result.set(DataComponents.CUSTOM_MODEL_DATA,
-                new CustomModelData(materialIndex(bladeMaterial) + 1));
+                new CustomModelData(1 + bladeIndex + guardIndex * 9 + pommelIndex * 81));
         boolean uniform = bladeMaterial.equals(guardMaterial) && bladeMaterial.equals(pommelMaterial);
         String title = uniform ? displayName(bladeMaterial) + " Sword" : "Custom Forged Sword";
         result.set(DataComponents.CUSTOM_NAME, Component.literal(title).withStyle(ChatFormatting.WHITE));

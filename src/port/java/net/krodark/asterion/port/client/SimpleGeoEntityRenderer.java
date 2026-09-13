@@ -8,7 +8,7 @@ import software.bernie.geckolib.model.GeoModel;
 import software.bernie.geckolib.renderer.GeoEntityRenderer;
 
 /** Basic GeckoLib 4 renderer used while the newer render-state effects are unavailable. */
-public final class SimpleGeoEntityRenderer<T extends Entity & GeoAnimatable> extends GeoEntityRenderer<T> {
+public class SimpleGeoEntityRenderer<T extends Entity & GeoAnimatable> extends GeoEntityRenderer<T> {
     public SimpleGeoEntityRenderer(EntityRendererProvider.Context context, ResourceLocation model,
                                    ResourceLocation texture, ResourceLocation animations,
                                    float shadowRadius, float scale) {

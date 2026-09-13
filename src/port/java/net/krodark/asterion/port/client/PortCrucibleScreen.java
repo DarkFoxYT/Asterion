@@ -259,8 +259,8 @@ public final class PortCrucibleScreen extends Screen {
     private void renderRecipeReference(GuiGraphics graphics) {
         int x = logicalWidth() / 2 - 116;
         int y = 20;
-        graphics.fill(x, y, x + 232, y + 104, 0xF5100E0D);
-        graphics.renderOutline(x, y, 232, 104, 0xFF817361);
+        graphics.fill(x, y, x + 232, y + 130, 0xF5100E0D);
+        graphics.renderOutline(x, y, 232, 130, 0xFF817361);
         graphics.fill(x + 1, y + 1, x + 231, y + 23, 0xFF25211D);
         centered(graphics, "FORGE RECIPES", x + 116, y + 8, 0xFFE1C99F);
         graphics.drawString(font, "Steel: 2 iron + 2 coal · 700° ±8", x + 12, y + 34, 0xFFC5B69F, true);
@@ -268,6 +268,10 @@ public final class PortCrucibleScreen extends Screen {
         graphics.drawString(font, "900° ±8", x + 12, y + 64, 0xFFC5B69F, true);
         graphics.drawString(font, "Gold ore: ingot mold · 350° ±12", x + 12, y + 76, 0xFFC5B69F, true);
         graphics.drawString(font, "Match the mold temperature, then POUR.", x + 12, y + 91, 0xFFE5B77B, true);
+        graphics.drawString(font, "Sword: blade + guard + pommel + deadwood stick", x + 12, y + 106,
+                0xFFC5B69F, true);
+        graphics.drawString(font, "Each component keeps its forged material texture.", x + 12, y + 119,
+                0xFFE5B77B, true);
     }
 
     @Override

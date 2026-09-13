@@ -28,7 +28,9 @@ public final class LiftCallRunePortRenderer extends EntityRenderer<LiftCallRuneE
         poses.mulPose(entityRenderDispatcher.cameraOrientation());
         poses.scale(.62F, .62F, .62F);
         Matrix4f matrix = poses.last().pose();
-        VertexConsumer out = buffers.getBuffer(RenderType.entityTranslucentEmissive(TEXTURE));
+        // Veil 4.5's 1.21.1 emissive entity program advertises an unavailable Sampler2.
+        // Full-bright lighting below preserves the glow without generating that shader warning.
+        VertexConsumer out = buffers.getBuffer(RenderType.entityTranslucent(TEXTURE));
         vertex(out, matrix, -.5F, -.5F, 0, 1);
         vertex(out, matrix, .5F, -.5F, 1, 1);
         vertex(out, matrix, .5F, .5F, 1, 0);

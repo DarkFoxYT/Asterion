@@ -32,6 +32,8 @@
   "client": [
     "ItemPropertiesInvoker",
     "PortCameraMixin",
+    "PortCentipedeInteractionMixin",
+    "PortBiomeMusicMixin",
     "PortFogRendererMixin",
     "PortRagdollRenderMixin"
   ],
