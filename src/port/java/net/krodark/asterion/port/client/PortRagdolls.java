@@ -308,7 +308,11 @@ public final class PortRagdolls {
             recover = recoveryHoldTicks >= 32 && localElapsed >= 8;
         }
         recoveryWasDown = down;
-        if (!recover || !supported(client.player, feet)) return false;
+        // safeFeet already resolves a collision-free player position. Requiring
+        // the current pose's bounding box to also be floor-supported made
+        // crouching shrink the box and accidentally turned Shift into a second
+        // recovery requirement.
+        if (!recover) return false;
         Vec3 exitVelocity = velocity.length() > 2.8D ? velocity.normalize().scale(2.8D) : velocity;
         ACTIVE.remove(client.player.getId());
         client.player.setPos(feet);
@@ -328,12 +332,6 @@ public final class PortRagdolls {
         restoreCamera(client);
         resetRecovery();
         return true;
-    }
-
-    private static boolean supported(LivingEntity entity, Vec3 feet) {
-        AABB box = entity.getBoundingBox().move(feet.subtract(entity.position())).deflate(.002D);
-        return entity.level().noCollision(entity, box)
-                && !entity.level().noCollision(entity, box.move(0, -.10D, 0));
     }
 
     private static void resetRecovery() {
