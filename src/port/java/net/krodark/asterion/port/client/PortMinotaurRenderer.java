@@ -29,6 +29,7 @@ public final class PortMinotaurRenderer extends SimpleGeoEntityRenderer<Minotaur
     public PortMinotaurRenderer(EntityRendererProvider.Context context) {
         super(context, Asterion.id("entity/minotaur"), Asterion.id("textures/entity/minotaur.png"),
                 Asterion.id("entity/minotaur"), 1.9F, 1.0F);
+        withEmissiveBones(ignored -> 0xFFFFFFFF, boss -> !boss.isHarvested(), "glow");
         addRenderLayer(new Weapons(this));
     }
 
@@ -60,7 +61,8 @@ public final class PortMinotaurRenderer extends SimpleGeoEntityRenderer<Minotaur
                 || name.equals("thing for skirt ig") || name.endsWith("_player_grip") || name.startsWith("hand_item");
         MinotaurRemains region = region(bone);
         boolean removed = region.removed(boss.removedParts());
-        bone.setHidden(removed || (skeleton ? !boss.isHarvested() : boss.isHarvested() && !retained));
+        if (!name.equals("glow"))
+            bone.setHidden(removed || (skeleton ? !boss.isHarvested() : boss.isHarvested() && !retained));
         super.renderRecursively(poses, boss, bone, type, buffers, buffer, rerender,
                 partialTick, light, overlay, colour);
     }

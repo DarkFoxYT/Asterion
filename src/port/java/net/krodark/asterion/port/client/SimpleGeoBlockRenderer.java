@@ -7,6 +7,8 @@ import software.bernie.geckolib.model.GeoModel;
 import software.bernie.geckolib.renderer.GeoBlockRenderer;
 
 import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.ToIntFunction;
 
 /** Minecraft 1.21.1 GeckoLib renderer used by both loader client bootstraps. */
 public class SimpleGeoBlockRenderer<T extends BlockEntity & GeoAnimatable>
@@ -25,6 +27,16 @@ public class SimpleGeoBlockRenderer<T extends BlockEntity & GeoAnimatable>
                                   Function<T, ResourceLocation> texture,
                                   Function<T, ResourceLocation> animation) {
         super(new StaticModel<>(model, texture, animation));
+    }
+
+    public SimpleGeoBlockRenderer<T> withEmissiveBones(String... bones) {
+        return withEmissiveBones(ignored -> 0xFFFFFFFF, ignored -> true, bones);
+    }
+
+    public SimpleGeoBlockRenderer<T> withEmissiveBones(ToIntFunction<T> color,
+                                                        Predicate<T> visible, String... bones) {
+        addRenderLayer(new PortEmissiveGeoLayer<>(this, this::getTextureLocation, color, visible, bones));
+        return this;
     }
 
     @SuppressWarnings("deprecation")

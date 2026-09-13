@@ -5,7 +5,6 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.entity.LiftCallRuneEntity;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.texture.OverlayTexture;
@@ -28,9 +27,7 @@ public final class LiftCallRunePortRenderer extends EntityRenderer<LiftCallRuneE
         poses.mulPose(entityRenderDispatcher.cameraOrientation());
         poses.scale(.62F, .62F, .62F);
         Matrix4f matrix = poses.last().pose();
-        // Veil 4.5's 1.21.1 emissive entity program advertises an unavailable Sampler2.
-        // Full-bright lighting below preserves the glow without generating that shader warning.
-        VertexConsumer out = buffers.getBuffer(RenderType.entityTranslucent(TEXTURE));
+        VertexConsumer out = buffers.getBuffer(PortEmissiveBuffer.renderType(TEXTURE));
         vertex(out, matrix, -.5F, -.5F, 0, 1);
         vertex(out, matrix, .5F, -.5F, 1, 1);
         vertex(out, matrix, .5F, .5F, 1, 0);

@@ -45,9 +45,8 @@ public final class AsterionFabricClient implements ClientModInitializer {
     }
 
     private static void registerBlockEntityRenderers() {
-        BlockEntityRenderers.register(Asterion.RUNE_BLOCK_ENTITY, context -> new SimpleGeoBlockRenderer<>(
-                Asterion.id("block/rune"), rune -> Asterion.id("textures/block/runes/"
-                        + (rune.runeIndex() + 1) + ".png"), ignored -> Asterion.id("block/rune")));
+        BlockEntityRenderers.register(Asterion.RUNE_BLOCK_ENTITY,
+                context -> new net.krodark.asterion.port.client.PortRuneRenderer());
         BlockEntityRenderers.register(Asterion.PILLAR_BLOCK_ENTITY, context -> new SimpleGeoBlockRenderer<>(
                 Asterion.id("block/pillar"), Asterion.id("textures/block/pillar.png"), Asterion.id("block/pillar")));
         BlockEntityRenderers.register(Asterion.MINOTAUR_DOOR_BLOCK_ENTITY,
@@ -67,15 +66,7 @@ public final class AsterionFabricClient implements ClientModInitializer {
         BlockEntityRenderers.register(Asterion.CRUCIBLE_BLOCK_ENTITY, context -> new SimpleGeoBlockRenderer<>(
                 Asterion.id("block/crucible"), Asterion.id("textures/block/crucible.png"), null));
         BlockEntityRenderers.register(Asterion.GREEK_FIRE_TORCH_BLOCK_ENTITY,
-                context -> new SimpleGeoBlockRenderer<>(entity -> {
-                    var block = (net.krodark.asterion.block.GreekFireTorchBlock) entity.getBlockState().getBlock();
-                    return Asterion.id(block.wall ? "block/wall_torch" : "block/floor_torch");
-                }, entity -> {
-                    var state = entity.getBlockState();
-                    var block = (net.krodark.asterion.block.GreekFireTorchBlock) state.getBlock();
-                    return Asterion.id("textures/block/" + (state.getValue(net.krodark.asterion.block.GreekFireTorchBlock.LIT)
-                            ? block.fireColor.texture : "torch_no_fire") + ".png");
-                }, ignored -> Asterion.id("block/greek_fire_torch")));
+                context -> new net.krodark.asterion.port.client.PortGreekFireTorchRenderer());
         BlockEntityRenderers.register(Asterion.SKELETON_BLOCK_ENTITY, context -> new SimpleGeoBlockRenderer<>(
                 Asterion.id("block/skeleton"), Asterion.id("textures/block/skeleton.png"), Asterion.id("block/skeleton")));
         BlockEntityRenderers.register(Asterion.SHATTERED_DEAD_WOOD_BLOCK_ENTITY, context -> new SimpleGeoBlockRenderer<>(
@@ -108,17 +99,15 @@ public final class AsterionFabricClient implements ClientModInitializer {
         EntityRendererRegistry.register(Asterion.RUNE_BEETLE, context -> new SimpleGeoEntityRenderer<>(context,
                 Asterion.id("entity/bombadier_beetle"), Asterion.id("textures/entity/bombadier_beetle.png"),
                 Asterion.id("entity/bombadier_beetle"), 0.2F, 0.55F));
-        EntityRendererRegistry.register(Asterion.CONSTRUCT, context -> new SimpleGeoEntityRenderer<>(context,
-                Asterion.id("entity/construct"), Asterion.id("textures/entity/construct.png"),
-                Asterion.id("entity/construct"), 0.55F, 1.0F));
+        EntityRendererRegistry.register(Asterion.CONSTRUCT,
+                net.krodark.asterion.port.client.PortConstructRenderer::new);
         EntityRendererRegistry.register(Asterion.QUEEN_BEETLE, context -> new SimpleGeoEntityRenderer<>(context,
                 Asterion.id("entity/queen_beetle"), Asterion.id("textures/entity/queen_beetle.png"),
                 Asterion.id("entity/queen_beetle"), 1.3F, 1.0F));
         EntityRendererRegistry.register(Asterion.SCARLET_CENTIPEDE,
                 net.krodark.asterion.port.client.PortScarletCentipedeRenderer::new);
-        EntityRendererRegistry.register(GameplayContent.CURSED_BRAZIER, context -> new SimpleGeoEntityRenderer<>(context,
-                Asterion.id("entity/cursed_brazier"), Asterion.id("textures/entity/cursed_brazier.png"),
-                Asterion.id("entity/cursed_brazier"), 2.35F, 1.0F));
+        EntityRendererRegistry.register(GameplayContent.CURSED_BRAZIER,
+                net.krodark.asterion.port.client.PortCursedBrazierRenderer::new);
         EntityRendererRegistry.register(ChainLiftContent.LIFT,
                 net.krodark.asterion.port.client.PortChainLiftRenderer::new);
         EntityRendererRegistry.register(Asterion.MINOTAUR_AXE, MinotaurAxePortRenderer::new);

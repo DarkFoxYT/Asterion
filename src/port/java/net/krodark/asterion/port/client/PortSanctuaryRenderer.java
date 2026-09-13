@@ -21,6 +21,20 @@ public final class PortSanctuaryRenderer extends SimpleGeoBlockRenderer<Sanctuar
         super(entity -> Asterion.id(((SanctuaryBlock)entity.getBlockState().getBlock()).altar
                         ? "block/respawn_altar" : "block/respawn_obelisk"),
                 entity -> texture(entity), ignored -> null);
+        withEmissiveBones(PortSanctuaryRenderer::glowColor,
+                PortSanctuaryRenderer::hasGlow, "glow");
+    }
+
+    private static boolean hasGlow(SanctuaryBlockEntity entity) {
+        SanctuaryBlock block = (SanctuaryBlock)entity.getBlockState().getBlock();
+        return block.altar ? entity.getBlockState().getValue(SanctuaryBlock.CHARGE) == 1
+                : entity.clientGlowAlpha() > .005F;
+    }
+
+    private static int glowColor(SanctuaryBlockEntity entity) {
+        SanctuaryBlock block = (SanctuaryBlock)entity.getBlockState().getBlock();
+        int alpha = block.altar ? 255 : Math.clamp(Math.round(entity.clientGlowAlpha() * 255F), 0, 255);
+        return alpha << 24 | 0xFFE7B5;
     }
 
     private static ResourceLocation texture(SanctuaryBlockEntity entity) {
@@ -45,7 +59,6 @@ public final class PortSanctuaryRenderer extends SimpleGeoBlockRenderer<Sanctuar
                                   RenderType type, MultiBufferSource buffers, VertexConsumer buffer,
                                   boolean rerender, float partialTick, int light, int overlay, int colour) {
         if (bone.getName().equals("glow")) {
-            bone.setHidden(altar && charge != 1);
             if (altar) {
                 bone.setPosY(bone.getInitialSnapshot().getOffsetY() + (float)Math.sin(time * .065D) * 1.2F);
                 bone.setRotY(bone.getInitialSnapshot().getRotY() + time * .025F);

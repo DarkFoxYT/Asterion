@@ -7,6 +7,9 @@ import software.bernie.geckolib.animatable.GeoAnimatable;
 import software.bernie.geckolib.model.GeoModel;
 import software.bernie.geckolib.renderer.GeoEntityRenderer;
 
+import java.util.function.Predicate;
+import java.util.function.ToIntFunction;
+
 /** Basic GeckoLib 4 renderer used while the newer render-state effects are unavailable. */
 public class SimpleGeoEntityRenderer<T extends Entity & GeoAnimatable> extends GeoEntityRenderer<T> {
     public SimpleGeoEntityRenderer(EntityRendererProvider.Context context, ResourceLocation model,
@@ -16,6 +19,16 @@ public class SimpleGeoEntityRenderer<T extends Entity & GeoAnimatable> extends G
         this.shadowRadius = shadowRadius;
         this.scaleWidth = scale;
         this.scaleHeight = scale;
+    }
+
+    public SimpleGeoEntityRenderer<T> withEmissiveBones(String... bones) {
+        return withEmissiveBones(ignored -> 0xFFFFFFFF, ignored -> true, bones);
+    }
+
+    public SimpleGeoEntityRenderer<T> withEmissiveBones(ToIntFunction<T> color,
+                                                         Predicate<T> visible, String... bones) {
+        addRenderLayer(new PortEmissiveGeoLayer<>(this, this::getTextureLocation, color, visible, bones));
+        return this;
     }
 
     @SuppressWarnings("deprecation")

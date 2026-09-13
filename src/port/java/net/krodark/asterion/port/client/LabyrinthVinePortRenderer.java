@@ -15,6 +15,7 @@ public final class LabyrinthVinePortRenderer extends SimpleGeoBlockRenderer<Laby
                         == net.minecraft.core.Direction.UP ? "block/labyrinth_vine_up" : "block/labyrinth_vine"),
                 ignored -> Asterion.id("textures/block/labyrinth_vine.png"),
                 ignored -> Asterion.id("block/labyrinth_vine"));
+        withEmissiveBones(ignored -> 0xE6FFFFFF, LabyrinthVineBlockEntity::isEnd, "glow");
     }
 
     @Override
