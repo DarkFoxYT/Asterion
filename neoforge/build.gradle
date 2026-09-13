@@ -97,6 +97,12 @@ def resourceProperties = [
 ]
 
 tasks.named('processResources').configure {
+    // The shared generator produces the 729 legacy CustomModelData sword
+    // combinations required by Minecraft 1.21.1.  Without this input NeoForge
+    // packaged the nine blade-only source fallbacks, dropping guard and pommel.
+    dependsOn rootProject.tasks.named('generateForgeAssets')
+    from(rootProject.layout.buildDirectory.dir('generated/forge-assets'))
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
     from('../src/main/resources/assets/asterion/geckolib/models') {
         into 'assets/asterion/geo'
     }

@@ -64,6 +64,8 @@ public final class PortDeadSunEvents {
             active = null; rumbles.clear(); warnings.clear(); return;
         }
         long now = client.level.getGameTime();
+        if (active != null && active.id.equals(DeadSunEventSystem.RUMBLE))
+            PortPhysicsDebris.spawnAmbientRumble(client, active.intensity, active.seed);
         if (active != null && now > active.start + active.duration) active = null;
         rumbles.removeIf(rumble -> now > rumble.start + rumble.duration);
         for (int index = warnings.size() - 1; index >= 0; index--) {

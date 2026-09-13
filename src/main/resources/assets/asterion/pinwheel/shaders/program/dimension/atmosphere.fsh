@@ -16,6 +16,7 @@ uniform float DeadSunDensity;
 uniform vec3 DeadSunCoreColor;
 uniform vec3 DeadSunCoronaColor;
 uniform vec4 AnimationData;
+uniform vec4 ZoneData;
 
 in vec2 texCoord;
 out vec4 fragColor;
@@ -63,6 +64,10 @@ float sceneDistance(float depth, vec3 direction) {
 
 float densityAt(vec3 p, vec3 wind) {
     float banks = noise3((p + wind) * vec3(0.032, 0.052, 0.032));
+    if (Quality < 0.5) {
+        float lowAir = 1.0 - smoothstep(28.0, 112.0, p.y);
+        return smoothstep(0.28, 0.74, banks) * mix(0.70, 1.14, lowAir);
+    }
     float wisps = noise3((p - wind * 1.4) * vec3(0.080, 0.024, 0.080)
         + vec3(17.0, 3.0, -9.0));
     float circulation = sin(atan(p.z, p.x) * 4.0 + length(p.xz) * 0.034
@@ -186,14 +191,16 @@ void main() {
 
     if (EffectData.x > 0.001 && EffectData.z > 0.0 && EffectData.w > 0.0) {
         float travel = min(geometryDistance, 112.0);
-        int samples = Quality < 0.5 ? 3 : (Quality < 1.5 ? 5 : 7);
+        // Dust, fog and grading share this one depth-aware composite. Four/six
+        // samples retain the integral while saving a noise pair per pixel.
+        int samples = Quality < 0.5 ? 3 : (Quality < 1.5 ? 4 : 6);
         float stepLength = travel / float(samples);
         float opticalDepth = 0.0;
         vec3 scattering = vec3(0.0);
         vec3 wind = vec3(Time * 0.006, Time * 0.0015, -Time * 0.004) * AnimationData.y;
         vec3 neutralDust = mix(DustColor,
             vec3(dot(DustColor, vec3(0.299, 0.587, 0.114))), 0.16);
-        for (int i = 0; i < 7; ++i) {
+        for (int i = 0; i < 6; ++i) {
             if (i >= samples) break;
             float along = (float(i) + 0.5) * stepLength;
             vec3 sampleWorld = CameraPosition + direction * along;
@@ -228,6 +235,15 @@ void main() {
         graded = mix(graded, filmicCurve(graded), 0.32);
         graded = (graded - 0.5) * 1.035 + 0.5;
         colour = mix(scene.rgb, max(graded, vec3(0.0)), clamp(EffectData.x, 0.0, 1.0));
+    }
+
+    // Restore the authored cave exposure independently of the current ray
+    // length, while keeping block lights and emissive surfaces legible.
+    if (ZoneData.x > 0.001) {
+        float luma = dot(colour, vec3(0.2126, 0.7152, 0.0722));
+        float localLight = smoothstep(0.10, 0.68, luma);
+        float caveExposure = mix(0.46, 0.82, localLight);
+        colour *= mix(1.0, caveExposure, ZoneData.x);
     }
 
     if (Eclipse > 0.001) {

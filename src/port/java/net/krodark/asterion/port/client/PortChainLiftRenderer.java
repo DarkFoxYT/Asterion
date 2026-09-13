@@ -12,6 +12,8 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.AABB;
 import org.joml.Matrix4f;
+import software.bernie.geckolib.cache.object.GeoBone;
+import software.bernie.geckolib.renderer.layer.GeoRenderLayer;
 
 /** Lift renderer with a cheap two-plane chain stretched to the synchronized ceiling anchor. */
 public final class PortChainLiftRenderer extends SimpleGeoEntityRenderer<ChainLiftEntity> {
@@ -20,21 +22,30 @@ public final class PortChainLiftRenderer extends SimpleGeoEntityRenderer<ChainLi
     public PortChainLiftRenderer(EntityRendererProvider.Context context) {
         super(context, Asterion.id("block/chain_lift"), Asterion.id("textures/block/chain_lift.png"),
                 Asterion.id("block/chain_lift"), 1.5F, 1.0F);
+        addRenderLayer(new ChainLayer(this));
     }
 
-    @Override
-    public void render(ChainLiftEntity lift, float yaw, float partialTick, PoseStack poses,
-                       MultiBufferSource buffers, int packedLight) {
-        super.render(lift, yaw, partialTick, poses, buffers, packedLight);
-        double liftY = Mth.lerp(partialTick, lift.yo, lift.getY());
-        float top = (float)(lift.ceiling() - liftY);
-        if (!Float.isFinite(top) || top <= .45F || top > 256) return;
-        VertexConsumer out = buffers.getBuffer(CHAIN);
-        Matrix4f matrix = poses.last().pose();
-        float width = .12F;
-        float v = top / .5F;
-        quad(out, matrix, -width, .45F, 0, width, top, 0, 0, v, packedLight, 0, 0, 1);
-        quad(out, matrix, 0, .45F, -width, 0, top, width, 0, v, packedLight, 1, 0, 0);
+    private static final class ChainLayer extends GeoRenderLayer<ChainLiftEntity> {
+        private ChainLayer(PortChainLiftRenderer renderer) { super(renderer); }
+
+        @Override
+        public void renderForBone(PoseStack poses, ChainLiftEntity lift, GeoBone bone, RenderType renderType,
+                                  MultiBufferSource buffers, VertexConsumer buffer, float partialTick,
+                                  int packedLight, int packedOverlay) {
+            if (!bone.getName().equals("chain")) return;
+            double liftY = Mth.lerp(partialTick, lift.yo, lift.getY());
+            // The authored empty chain bone sits at Y=46px. Rendering here makes
+            // the chain inherit every animation/rotation applied to its holder.
+            float length = (float)(lift.ceiling() - liftY - 46.0D / 16.0D);
+            if (!Float.isFinite(length) || length <= 0 || length > 256) return;
+            VertexConsumer out = buffers.getBuffer(CHAIN);
+            Matrix4f matrix = poses.last().pose();
+            float width = .12F;
+            float v = length / .5F;
+            quad(out, matrix, -width, 0, 0, width, length, 0, 0, v, packedLight, 0, 0, 1);
+            quad(out, matrix, 0, 0, -width, 0, length, width, 0, v, packedLight, 1, 0, 0);
+            buffers.getBuffer(renderType);
+        }
     }
 
     private static void quad(VertexConsumer out, Matrix4f matrix, float x0, float y0, float z0,

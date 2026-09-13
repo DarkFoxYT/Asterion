@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.block.MinotaurDoorMotion;
+import net.krodark.asterion.event.RumbleSources;
 import net.krodark.asterion.network.ArenaDebrisPayload;
 import net.krodark.asterion.network.DoorBreakPayload;
 import net.minecraft.client.Minecraft;
@@ -37,6 +38,7 @@ public final class PortPhysicsDebris {
     private static final List<Piece> PIECES = new ArrayList<>();
     private static final GeoObjectRenderer<DebrisObject> RENDERER = new GeoObjectRenderer<>(new DebrisModel());
     private static ClientLevel trackedLevel;
+    private static long lastAmbientTick = Long.MIN_VALUE;
 
     private PortPhysicsDebris() {}
 
@@ -50,8 +52,7 @@ public final class PortPhysicsDebris {
             PoseStack poses = context.matrixStack();
             for (Piece piece : PIECES) {
                 double distanceSqr = piece.position.distanceToSqr(camera);
-                if (distanceSqr > 96 * 96 || piece.sleeping && distanceSqr > 48 * 48
-                        && ((piece.age + piece.variant) & 1) != 0) continue;
+                if (distanceSqr > 96 * 96) continue;
                 Vec3 position = piece.previous.lerp(piece.position, partial).subtract(camera);
                 Quaternionf rotation = new Quaternionf(piece.previousRotation).slerp(piece.rotation, partial);
                 poses.pushPose();
@@ -123,7 +124,12 @@ public final class PortPhysicsDebris {
             piece.arena = true;
             piece.velocity = fragment.velocity().lengthSqr() > 9
                     ? fragment.velocity().normalize().scale(3) : fragment.velocity();
-            if (clear(client.level, piece, piece.position)) PIECES.add(piece);
+            Vec3 spawn = findClearSpawn(client.level, piece, piece.position);
+            if (spawn != null) {
+                piece.position = piece.previous = spawn;
+                PIECES.add(piece);
+                emitDust(client.level, spawn, new Vec3(0, 1, 0), random, 3);
+            }
         }
         trim();
     }
@@ -133,22 +139,34 @@ public final class PortPhysicsDebris {
         if (client.level == null || client.player == null || client.player.position().distanceTo(center) > radius + 28)
             return;
         ensureLevel(client.level);
-        Random random = new Random(seed);
+        Random random = new Random(seed ^ client.level.getGameTime() * 0x9E3779B97F4A7C15L);
         int count = Mth.clamp(2 + Math.round(intensity * 4), 2, 7);
         for (int i = 0; i < count; i++) {
-            double angle = random.nextDouble() * Mth.TWO_PI;
-            double range = 2 + random.nextDouble() * Math.max(2, radius);
-            Vec3 position = center.add(Math.cos(angle) * range, 2.5D, Math.sin(angle) * range);
-            for (int down = 0; down < 8 && client.level.getBlockState(BlockPos.containing(position).below()).isAir(); down++)
-                position = position.add(0, -1, 0);
+            RumbleSources.Source source = RumbleSources.find(client.level, client.player.position(), random);
+            if (source == null) continue;
+            Vec3 position = source.position();
             Piece piece = new Piece(position, 3 + random.nextInt(4), .12F + random.nextFloat() * .20F,
                     random, 150 + random.nextInt(120));
             piece.arena = true;
-            piece.velocity = new Vec3((random.nextDouble() - .5D) * .16D,
-                    .18D + random.nextDouble() * .32D * intensity, (random.nextDouble() - .5D) * .16D);
-            PIECES.add(piece);
+            piece.velocity = source.normal().scale(.05D + random.nextDouble() * .10D)
+                    .add((random.nextDouble() - .5D) * .08D,
+                            .04D + random.nextDouble() * .22D * intensity,
+                            (random.nextDouble() - .5D) * .08D);
+            if (clear(client.level, piece, position)) {
+                PIECES.add(piece);
+                emitDust(client.level, position, source.normal(), random, 5 + Math.round(intensity * 3));
+            }
         }
         trim();
+    }
+
+    public static void spawnAmbientRumble(Minecraft client, float intensity, long seed) {
+        if (client.level == null || client.player == null) return;
+        long tick = client.level.getGameTime();
+        int interval = Math.max(4, 11 - Math.round(intensity * 6.0F));
+        if (tick == lastAmbientTick || Math.floorMod(tick + seed, interval) != 0) return;
+        lastAmbientTick = tick;
+        spawnRumble(client.player.position(), 13.0F, intensity * .78F, seed ^ tick * 31L);
     }
 
     public static void tick(Minecraft client) {
@@ -159,26 +177,32 @@ public final class PortPhysicsDebris {
             Piece piece = iterator.next();
             piece.previous = piece.position;
             piece.previousRotation.set(piece.rotation);
-            if (!piece.sleeping) simulate(client.level, piece);
+            if (!piece.sleeping) {
+                int substeps = Mth.clamp(1 + net.krodark.asterion.AsterionConfig.INSTANCE.ragdollPhysicsQuality, 1, 3);
+                for (int step = 0; step < substeps && !piece.sleeping; step++)
+                    simulate(client.level, piece, 1.0D / substeps);
+            }
             if (++piece.age > piece.life || client.player != null
                     && piece.position.distanceToSqr(client.player.position()) > 128 * 128) iterator.remove();
         }
     }
 
-    private static void simulate(ClientLevel level, Piece piece) {
-        piece.velocity = piece.velocity.add(0, -.075D * gravity(piece.variant), 0).scale(.992D);
+    private static void simulate(ClientLevel level, Piece piece, double dt) {
+        piece.velocity = piece.velocity.add(0, -.075D * gravity(piece.variant) * dt, 0)
+                .scale(Math.pow(.992D, dt));
         Vec3 start = piece.position;
         double impact = piece.velocity.length();
         boolean collided = false;
-        Vec3 x = start.add(piece.velocity.x, 0, 0);
+        Vec3 x = start.add(piece.velocity.x * dt, 0, 0);
         if (clear(level, piece, x)) start = x; else { piece.velocity = piece.velocity.multiply(-.22D, 1, 1); collided = true; }
-        Vec3 y = start.add(0, piece.velocity.y, 0);
+        Vec3 y = start.add(0, piece.velocity.y * dt, 0);
         if (clear(level, piece, y)) start = y; else { piece.velocity = piece.velocity.multiply(1, -.18D, 1); collided = true; }
-        Vec3 z = start.add(0, 0, piece.velocity.z);
+        Vec3 z = start.add(0, 0, piece.velocity.z * dt);
         if (clear(level, piece, z)) start = z; else { piece.velocity = piece.velocity.multiply(1, 1, -.22D); collided = true; }
         piece.position = start;
-        piece.rotation.rotateXYZ(piece.spin.x, piece.spin.y, piece.spin.z).normalize();
-        piece.spin.mul(collided ? .72F : .988F);
+        piece.rotation.rotateXYZ(piece.spin.x * (float)dt, piece.spin.y * (float)dt,
+                piece.spin.z * (float)dt).normalize();
+        piece.spin.mul(collided ? .72F : (float)Math.pow(.988F, dt));
         if (collided) {
             piece.velocity = piece.velocity.multiply(.78D, 1, .78D);
             if (impact > .24D && piece.soundCooldown-- <= 0) {
@@ -203,12 +227,30 @@ public final class PortPhysicsDebris {
         if (trackedLevel == level) return;
         PIECES.clear();
         trackedLevel = level;
+        lastAmbientTick = Long.MIN_VALUE;
     }
 
     private static boolean clear(ClientLevel level, Piece piece, Vec3 center) {
         Vec3 half = halfExtents(piece.variant).scale(piece.scale);
         return level.noCollision(new AABB(center.x - half.x, center.y - half.y, center.z - half.z,
                 center.x + half.x, center.y + half.y, center.z + half.z).deflate(.001D));
+    }
+
+    private static Vec3 findClearSpawn(ClientLevel level, Piece piece, Vec3 origin) {
+        for (double lift : new double[]{0, .18D, .36D, .65D, 1.0D}) {
+            Vec3 candidate = origin.add(0, lift, 0);
+            if (clear(level, piece, candidate)) return candidate;
+        }
+        return null;
+    }
+
+    private static void emitDust(ClientLevel level, Vec3 position, Vec3 normal, Random random, int count) {
+        for (int i = 0; i < count; i++) {
+            Vec3 spread = position.add((random.nextDouble() - .5D) * .55D,
+                    (random.nextDouble() - .5D) * .25D, (random.nextDouble() - .5D) * .55D);
+            level.addParticle(Asterion.ANCIENT_WALL_DUST, spread.x, spread.y, spread.z,
+                    normal.x * .012D, normal.y * .012D, normal.z * .012D);
+        }
     }
 
     private static Vec3 halfExtents(int variant) {

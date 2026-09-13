@@ -89,6 +89,7 @@ public final class PortDimensionEffects {
                 atmosphere.x, atmosphere.y);
         pipeline.getUniformSafe("DustColor").setVector(dust);
         pipeline.getUniformSafe("FogColor").setVector(fog);
+        pipeline.getUniformSafe("ZoneData").setVector(caveBlend, catacombBlend, arenaBlend, forgeBlend);
         Vec3 sunOffset = PortDeadSunEvents.sunOffset();
         double dx = position.x - config.deadSunX;
         double dz = position.z - config.deadSunZ;
