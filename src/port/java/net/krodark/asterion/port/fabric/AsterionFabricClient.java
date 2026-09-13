@@ -57,12 +57,7 @@ public final class AsterionFabricClient implements ClientModInitializer {
         BlockEntityRenderers.register(Asterion.BARREL_DOOR_BLOCK_ENTITY,
                 context -> new net.krodark.asterion.port.client.PortDoorRenderers.Barrel());
         BlockEntityRenderers.register(net.krodark.asterion.block.RespawnObelisks.BLOCK_ENTITY,
-                context -> new SimpleGeoBlockRenderer<>(entity -> Asterion.id(entity.getBlockState().is(
-                                net.krodark.asterion.block.RespawnObelisks.ALTAR) ? "block/respawn_altar" : "block/respawn_obelisk"),
-                        entity -> entity.getBlockState().is(net.krodark.asterion.block.RespawnObelisks.ALTAR)
-                                ? net.minecraft.resources.ResourceLocation.withDefaultNamespace("textures/block/gold_block.png")
-                                : Asterion.id("textures/block/respawn_obelisk.png"),
-                        ignored -> Asterion.id("block/sanctuary")));
+                context -> new net.krodark.asterion.port.client.PortSanctuaryRenderer());
         BlockEntityRenderers.register(Asterion.LABYRINTH_VINE_BLOCK_ENTITY,
                 context -> new LabyrinthVinePortRenderer());
         BlockEntityRenderers.register(AncientContent.TROPHY_BLOCK_ENTITY, context -> new SimpleGeoBlockRenderer<>(
@@ -124,9 +119,8 @@ public final class AsterionFabricClient implements ClientModInitializer {
         EntityRendererRegistry.register(GameplayContent.CURSED_BRAZIER, context -> new SimpleGeoEntityRenderer<>(context,
                 Asterion.id("entity/cursed_brazier"), Asterion.id("textures/entity/cursed_brazier.png"),
                 Asterion.id("entity/cursed_brazier"), 2.35F, 1.0F));
-        EntityRendererRegistry.register(ChainLiftContent.LIFT, context -> new SimpleGeoEntityRenderer<>(context,
-                Asterion.id("block/chain_lift"), Asterion.id("textures/block/chain_lift.png"),
-                Asterion.id("block/chain_lift"), 1.5F, 1.0F));
+        EntityRendererRegistry.register(ChainLiftContent.LIFT,
+                net.krodark.asterion.port.client.PortChainLiftRenderer::new);
         EntityRendererRegistry.register(Asterion.MINOTAUR_AXE, MinotaurAxePortRenderer::new);
         EntityRendererRegistry.register(ChainLiftContent.CALL_RUNE, LiftCallRunePortRenderer::new);
     }

@@ -4,12 +4,16 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import net.krodark.asterion.Asterion;
+import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.entity.MinotaurAxeEntity;
 import net.krodark.asterion.entity.MinotaurEntity;
+import net.krodark.asterion.entity.MinotaurRemains;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.resources.ResourceLocation;
+import software.bernie.geckolib.cache.object.BakedGeoModel;
 import software.bernie.geckolib.animatable.GeoAnimatable;
 import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.animation.AnimatableManager;
@@ -24,8 +28,49 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 public final class PortMinotaurRenderer extends SimpleGeoEntityRenderer<MinotaurEntity> {
     public PortMinotaurRenderer(EntityRendererProvider.Context context) {
         super(context, Asterion.id("entity/minotaur"), Asterion.id("textures/entity/minotaur.png"),
-                Asterion.id("entity/minotaur"), 1.1F, 1.0F);
+                Asterion.id("entity/minotaur"), 1.9F, 1.0F);
         addRenderLayer(new Weapons(this));
+    }
+
+    @Override
+    public void preRender(PoseStack poses, MinotaurEntity boss, BakedGeoModel model,
+                          MultiBufferSource buffers, VertexConsumer buffer, boolean rerender,
+                          float partialTick, int light, int overlay, int colour) {
+        float scale = .47F * AsterionConfig.INSTANCE.minotaurScale;
+        scaleWidth = scale;
+        scaleHeight = scale;
+        super.preRender(poses, boss, model, buffers, buffer, rerender,
+                partialTick, light, overlay, colour);
+    }
+
+    @Override
+    public boolean shouldRender(MinotaurEntity boss, Frustum frustum, double x, double y, double z) {
+        if (boss.doorEntryTicks() > 0 && boss.doorEntryTicks() - 1
+                < net.krodark.asterion.entity.MinotaurAnimationTiming.ENTRY_BREAK_TICK) return false;
+        return frustum.isVisible(boss.animatedBodyBounds());
+    }
+
+    @Override
+    public void renderRecursively(PoseStack poses, MinotaurEntity boss, GeoBone bone, RenderType type,
+                                  MultiBufferSource buffers, VertexConsumer buffer, boolean rerender,
+                                  float partialTick, int light, int overlay, int colour) {
+        String name = bone.getName();
+        boolean skeleton = name.startsWith("skeleton") || name.startsWith("skeliton");
+        boolean retained = name.contains("armor") || name.equals("lefthand") || name.equals("righthand")
+                || name.equals("thing for skirt ig") || name.endsWith("_player_grip") || name.startsWith("hand_item");
+        MinotaurRemains region = region(bone);
+        boolean removed = region.removed(boss.removedParts());
+        bone.setHidden(removed || (skeleton ? !boss.isHarvested() : boss.isHarvested() && !retained));
+        super.renderRecursively(poses, boss, bone, type, buffers, buffer, rerender,
+                partialTick, light, overlay, colour);
+    }
+
+    private static MinotaurRemains region(GeoBone bone) {
+        for (GeoBone parent = bone; parent != null; parent = parent.getParent()) {
+            MinotaurRemains region = MinotaurRemains.root(parent.getName());
+            if (region != null) return region;
+        }
+        return MinotaurRemains.TORSO;
     }
 
     private static final class Weapons extends GeoRenderLayer<MinotaurEntity> {
@@ -45,16 +90,19 @@ public final class PortMinotaurRenderer extends SimpleGeoEntityRenderer<Minotaur
             int mode = boss.renderedWeaponMode();
             if (mode == 2 && (name.equals("hand_itemR") || name.equals("hand_itemL"))) {
                 poses.pushPose();
-                poses.translate(0, 6.0D / 16.0D, 0);
                 SWORD_RENDERER.render(poses, SWORD, buffers, null, null, packedLight, partialTick);
                 poses.popPose();
             }
             if (mode != 2 && name.equals("lowerbody")) {
                 for (int sign : new int[]{-1, 1}) {
+                    float age = boss.tickCount + partialTick;
+                    float breathe = (float)Math.sin(age * .075F + (sign < 0 ? 0F : .65F));
+                    float settle = (float)Math.sin(age * .16F + (sign < 0 ? 0F : Math.PI));
                     poses.pushPose();
-                    poses.translate(sign * 17.0D / 16.0D, 17.0D / 16.0D, 3.0D / 16.0D);
-                    poses.mulPose(Axis.XP.rotationDegrees(168));
-                    poses.mulPose(Axis.ZP.rotationDegrees(-sign * 6));
+                    poses.translate(sign * 17.0D / 16.0D, 17.0D / 16.0D + breathe * .025D,
+                            3.0D / 16.0D + settle * .018D);
+                    poses.mulPose(Axis.XP.rotationDegrees(168 + breathe * 1.25F));
+                    poses.mulPose(Axis.ZP.rotationDegrees(-sign * (6 + settle * 1.1F)));
                     SWORD_RENDERER.render(poses, SWORD, buffers, null, null, packedLight, partialTick);
                     poses.popPose();
                 }
@@ -64,7 +112,7 @@ public final class PortMinotaurRenderer extends SimpleGeoEntityRenderer<Minotaur
                 poses.translate(0, -MinotaurAxeEntity.GRIP_Y, 0);
                 AXE_RENDERER.render(poses, AXE, buffers, null, null, packedLight, partialTick);
                 poses.popPose();
-            } else if (mode != 1 && !boss.axeInWorld() && name.equals("lowerbody")) {
+            } else if (mode != 1 && !boss.axeInWorld() && name.equals("body")) {
                 poses.pushPose();
                 poses.translate(0, .82D, 1.42D);
                 poses.mulPose(Axis.ZP.rotationDegrees(45));

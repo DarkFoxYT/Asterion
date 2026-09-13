@@ -2,6 +2,7 @@ package net.krodark.asterion.port.client;
 
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.post.PostPipeline;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
 import net.minecraft.client.Camera;
@@ -21,6 +22,13 @@ public final class PortDimensionEffects {
 
     private PortDimensionEffects() {}
 
+    public static void initialize() {
+        // A client tick is only 20 Hz.  Camera data sampled there visibly trails a
+        // high-refresh-rate camera, making the atmosphere appear screen-locked.
+        // Refresh it after the translucent world pass on every rendered frame.
+        WorldRenderEvents.AFTER_TRANSLUCENT.register(context -> updateFrame(Minecraft.getInstance()));
+    }
+
     public static void tick(Minecraft client) {
         boolean wanted = client.level != null && client.player != null
                 && client.level.dimension().equals(Asterion.ASTERION_LEVEL)
@@ -32,7 +40,12 @@ public final class PortDimensionEffects {
             else manager.remove(PIPELINE);
         }
         if (!wanted) return;
+        updateFrame(client);
+    }
 
+    private static void updateFrame(Minecraft client) {
+        if (!active || client.level == null || client.player == null) return;
+        var manager = VeilRenderSystem.renderer().getPostProcessingManager();
         PostPipeline pipeline = manager.getPipeline(PIPELINE);
         if (pipeline == null) return;
         Camera camera = client.gameRenderer.getMainCamera();
@@ -67,8 +80,13 @@ public final class PortDimensionEffects {
         double dx = position.x - config.deadSunX;
         double dz = position.z - config.deadSunZ;
         float distanceScale = 1.0F + Math.min(7.0F, (float)Math.sqrt(dx * dx + dz * dz) / 1200.0F);
-        pipeline.getUniformSafe("DeadSunPosition").setVector(config.deadSunX + (float)sunOffset.x,
-                config.deadSunHeight + (float)sunOffset.y, config.deadSunZ + (float)sunOffset.z);
+        // Keep the astronomical body camera-relative on the GPU.  This avoids
+        // losing sub-pixel precision when the maze is far from the world origin;
+        // the direction still comes from its fixed world-space coordinate.
+        pipeline.getUniformSafe("DeadSunPosition").setVector(
+                (float)(config.deadSunX + sunOffset.x - position.x),
+                (float)(config.deadSunHeight + sunOffset.y - position.y),
+                (float)(config.deadSunZ + sunOffset.z - position.z));
         pipeline.getUniformSafe("DeadSunData").setVector(
                 config.deadSunSize * distanceScale * mix(1.0F, 1.08F, eclipse),
                 config.deadSunBrightness * mix(1.0F, 0.95F, eclipse),

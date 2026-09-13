@@ -38,6 +38,8 @@
     "PortGameRendererAccessor",
     "PortHumanoidRagdollMixin",
     "PortMinotaurBossBarMixin",
+    "PortMinotaurBodyPickingMixin",
+    "PortRagdollLocalPlayerMixin",
     "PortRagdollRenderMixin"
   ],
   "injectors": {

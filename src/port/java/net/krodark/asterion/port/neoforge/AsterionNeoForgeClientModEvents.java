@@ -46,9 +46,8 @@ public final class AsterionNeoForgeClientModEvents {
         event.registerEntityRenderer(GameplayContent.CURSED_BRAZIER, context -> new SimpleGeoEntityRenderer<>(context,
                 Asterion.id("entity/cursed_brazier"), Asterion.id("textures/entity/cursed_brazier.png"),
                 Asterion.id("entity/cursed_brazier"), 2.35F, 1.0F));
-        event.registerEntityRenderer(ChainLiftContent.LIFT, context -> new SimpleGeoEntityRenderer<>(context,
-                Asterion.id("block/chain_lift"), Asterion.id("textures/block/chain_lift.png"),
-                Asterion.id("block/chain_lift"), 1.5F, 1.0F));
+        event.registerEntityRenderer(ChainLiftContent.LIFT,
+                net.krodark.asterion.port.client.PortChainLiftRenderer::new);
         event.registerEntityRenderer(Asterion.MINOTAUR_AXE, MinotaurAxePortRenderer::new);
         event.registerEntityRenderer(ChainLiftContent.CALL_RUNE, LiftCallRunePortRenderer::new);
 
@@ -64,12 +63,7 @@ public final class AsterionNeoForgeClientModEvents {
         event.registerBlockEntityRenderer(Asterion.BARREL_DOOR_BLOCK_ENTITY,
                 context -> new net.krodark.asterion.port.client.PortDoorRenderers.Barrel());
         event.registerBlockEntityRenderer(net.krodark.asterion.block.RespawnObelisks.BLOCK_ENTITY,
-                context -> new SimpleGeoBlockRenderer<>(entity -> Asterion.id(entity.getBlockState().is(
-                                net.krodark.asterion.block.RespawnObelisks.ALTAR) ? "block/respawn_altar" : "block/respawn_obelisk"),
-                        entity -> entity.getBlockState().is(net.krodark.asterion.block.RespawnObelisks.ALTAR)
-                                ? net.minecraft.resources.ResourceLocation.withDefaultNamespace("textures/block/gold_block.png")
-                                : Asterion.id("textures/block/respawn_obelisk.png"),
-                        ignored -> Asterion.id("block/sanctuary")));
+                context -> new net.krodark.asterion.port.client.PortSanctuaryRenderer());
         event.registerBlockEntityRenderer(Asterion.LABYRINTH_VINE_BLOCK_ENTITY,
                 context -> new LabyrinthVinePortRenderer());
         event.registerBlockEntityRenderer(AncientContent.TROPHY_BLOCK_ENTITY, context -> new SimpleGeoBlockRenderer<>(

@@ -11,9 +11,13 @@ import net.krodark.asterion.worldgen.MinotaurArenaEntrances;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.resources.sounds.AbstractSoundInstance;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 
@@ -34,6 +38,10 @@ public final class PortCinematics {
     private static CameraType previousCamera;
     private static MinotaurEntity cinematicBoss;
     private static boolean showShot;
+    private static Boolean previousHideGui;
+    private static Boolean previousCull;
+    private static int lastSoundTick;
+    private static final java.util.List<CueSound> cues = new java.util.ArrayList<>();
 
     private PortCinematics() {}
 
@@ -54,6 +62,8 @@ public final class PortCinematics {
     public static void tick(Minecraft client) {
         if (scene == Scene.NONE) return;
         elapsed++;
+        maintainPresentation(client);
+        if (scene == Scene.BOSS_ENTRANCE) playBossSounds(client);
         if (client.player != null && client.screen == null) updateCamera(client);
         if (scene == Scene.TRANSITION && elapsed >= fadeIn + hold) {
             if (ClientPlayNetworking.canSend(TransitionReadyPayload.TYPE))
@@ -63,8 +73,7 @@ public final class PortCinematics {
     }
 
     private static void beginTransition(DimensionTransitionPayload payload) {
-        scene = Scene.TRANSITION;
-        elapsed = 0;
+        begin(Scene.TRANSITION, Math.max(9, payload.fadeInTicks() + payload.holdTicks()));
         fadeIn = Math.max(1, payload.fadeInTicks());
         hold = Math.max(8, payload.holdTicks());
         duration = fadeIn + hold;
@@ -74,10 +83,11 @@ public final class PortCinematics {
     }
 
     private static void beginBoss(BossEntrancePayload payload) {
-        if (payload.duration() <= 0) { scene = Scene.NONE; return; }
         Minecraft client = Minecraft.getInstance();
+        if (payload.duration() <= 0) { finish(client); return; }
         begin(Scene.BOSS_ENTRANCE, Math.max(1, payload.duration()));
         elapsed = Mth.clamp(payload.elapsed(), 0, duration - 1);
+        lastSoundTick = elapsed - 1;
         door = payload.bossDoor();
         if (client.player != null) {
             openingEye = client.player.getEyePosition();
@@ -87,6 +97,8 @@ public final class PortCinematics {
             if (showShot) {
                 previousCamera = client.options.getCameraType();
                 client.options.setCameraType(CameraType.FIRST_PERSON);
+            } else {
+                restorePresentation(client);
             }
         }
     }
@@ -102,6 +114,8 @@ public final class PortCinematics {
     }
 
     private static void begin(Scene next, int ticks) {
+        Minecraft client = Minecraft.getInstance();
+        finish(client);
         scene = next;
         elapsed = 0;
         duration = ticks;
@@ -111,6 +125,45 @@ public final class PortCinematics {
         openingEye = null;
         cinematicBoss = null;
         showShot = false;
+        if (AsterionConfig.INSTANCE.cinematicsEnabled || next == Scene.TRANSITION) {
+            previousHideGui = client.options.hideGui;
+            previousCull = client.smartCull;
+            client.options.hideGui = true;
+            client.smartCull = false;
+        }
+    }
+
+    private static void maintainPresentation(Minecraft client) {
+        if (previousHideGui != null) client.options.hideGui = true;
+        if (previousCull != null) client.smartCull = false;
+    }
+
+    private static void playBossSounds(Minecraft client) {
+        if (client.level == null || door == null) return;
+        int approach = MinotaurAnimationTiming.ENTRY_CAMERA_TICKS;
+        int[] beats = {approach + 14, approach + 44, approach + 78};
+        Vec3 source = Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(door)).add(0, 2.5D, 0);
+        for (int index = 0; index < beats.length; index++) {
+            int beat = beats[index];
+            if (lastSoundTick < beat && elapsed >= beat) {
+                float[] volumes = {1.8F, 2.45F, 3.4F};
+                float[] pitches = {.58F, .49F, .40F};
+                client.level.playLocalSound(source.x, source.y, source.z, net.krodark.asterion.Asterion.METAL_HIT,
+                        SoundSource.BLOCKS, volumes[index], pitches[index], false);
+            }
+        }
+        if (lastSoundTick < MinotaurAnimationTiming.ENTRY_BREAK_TICK
+                && elapsed >= MinotaurAnimationTiming.ENTRY_BREAK_TICK)
+            client.level.playLocalSound(source.x, source.y, source.z,
+                    net.krodark.asterion.Asterion.MINOTAUR_DOOR_OPENCLOSE,
+                    SoundSource.BLOCKS, 2.6F, .72F, false);
+        if (lastSoundTick < MinotaurAnimationTiming.ENTRY_WALK_END_TICK
+                && elapsed >= MinotaurAnimationTiming.ENTRY_WALK_END_TICK) {
+            CueSound sound = new CueSound(net.krodark.asterion.Asterion.MINOTAUR_LAND_LIGHT, .85F, .8F);
+            cues.add(sound);
+            client.getSoundManager().play(sound);
+        }
+        lastSoundTick = elapsed;
     }
 
     private static void updateCamera(Minecraft client) {
@@ -197,11 +250,31 @@ public final class PortCinematics {
 
     private static void finish(Minecraft client) {
         if (previousCamera != null) client.options.setCameraType(previousCamera);
+        for (CueSound sound : cues) client.getSoundManager().stop(sound);
+        cues.clear();
+        restorePresentation(client);
         previousCamera = null;
         scene = Scene.NONE;
         showShot = false;
         openingEye = null;
         cinematicBoss = null;
+    }
+
+    private static void restorePresentation(Minecraft client) {
+        if (previousHideGui != null) client.options.hideGui = previousHideGui;
+        if (previousCull != null) client.smartCull = previousCull;
+        previousHideGui = null;
+        previousCull = null;
+    }
+
+    private static final class CueSound extends AbstractSoundInstance {
+        private CueSound(SoundEvent event, float volume, float pitch) {
+            super(event, SoundSource.HOSTILE, RandomSource.create());
+            this.volume = volume;
+            this.pitch = pitch;
+            this.relative = true;
+            this.attenuation = Attenuation.NONE;
+        }
     }
 
     public record CameraPose(Vec3 position, float yaw, float pitch, float roll) {}

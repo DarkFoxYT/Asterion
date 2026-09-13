@@ -53,6 +53,8 @@ public final class PortDeadSunEvents {
         if (client.level == null) return;
         rumbles.add(new Rumble(Vec3.atCenterOf(payload.center()), client.level.getGameTime(),
                 Math.max(1, payload.durationTicks()), payload.radius(), payload.intensity(), payload.center().asLong()));
+        PortPhysicsDebris.spawnRumble(Vec3.atCenterOf(payload.center()), payload.radius(), payload.intensity(),
+                payload.center().asLong());
     }
 
     public static void receive(DeadSunStrikePayload payload) { warnings.add(new Warning(payload)); }
@@ -78,6 +80,7 @@ public final class PortDeadSunEvents {
             }
             if (--warning.remaining <= 0) {
                 rumbles.add(new Rumble(Vec3.atCenterOf(warning.target), now, 18, 18, 1, warning.target.asLong()));
+                PortPhysicsDebris.spawnRumble(Vec3.atCenterOf(warning.target), 18, 1, warning.target.asLong());
                 warnings.remove(index);
             }
         }

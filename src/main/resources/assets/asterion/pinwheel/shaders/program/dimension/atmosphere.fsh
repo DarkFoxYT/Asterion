@@ -103,12 +103,25 @@ float remnantDensity(vec3 p) {
 }
 
 vec4 renderDeadSun(vec3 direction, float geometryDistance) {
-    vec3 toSun = DeadSunPosition - CameraPosition;
+    // DeadSunPosition is uploaded relative to the exact render-frame camera.
+    // Doing the ray test in this local frame preserves precision and prevents
+    // the sun from swimming or snapping as the camera moves.
+    vec3 toSun = DeadSunPosition;
     float centerDistance = length(toSun);
     float nearHit;
     float farHit;
-    bool intersects = raySphere(CameraPosition, direction, nearHit, farHit)
+    bool intersects = raySphere(vec3(0.0), direction, nearHit, farHit)
         && nearHit < geometryDistance;
+    float sinAngle = length(cross(direction, normalize(toSun)));
+    float angularRadius = DeadSunData.x / max(centerDistance, DeadSunData.x + 0.001);
+    float radial = sinAngle / max(angularRadius, 0.00001);
+    float visible = step(centerDistance - DeadSunData.x * 1.20, geometryDistance)
+        * step(0.0, dot(direction, toSun));
+    // Nearly every screen pixel is outside the sun and corona. Avoid the
+    // animated noise and volumetric work entirely for those pixels.
+    if (!intersects && (visible < 0.5 || radial > 2.40 + DeadSunData.z * 0.3)) {
+        return vec4(0.0);
+    }
     vec3 activeCore = mix(DeadSunCoreColor, vec3(1.0, 0.003, 0.008), Eclipse);
     vec3 activeCorona = mix(DeadSunCoronaColor, vec3(1.0, 0.018, 0.055), Eclipse);
     vec3 accumulated = vec3(0.0);
@@ -128,7 +141,7 @@ vec4 renderDeadSun(vec3 direction, float geometryDistance) {
         for (int i = 0; i < 16; ++i) {
             if (i >= sampleCount) break;
             float along = nearHit + (float(i) + 0.5) * stepLength;
-            vec3 local = (CameraPosition + direction * along - DeadSunPosition) / DeadSunData.x;
+            vec3 local = (direction * along - DeadSunPosition) / DeadSunData.x;
             float density = clamp(remnantDensity(local) * stepLength
                 / max(DeadSunData.x, 0.001) * 0.72, 0.0, 0.42);
             vec3 hot = mix(activeCore * 1.55, activeCorona * 0.92,
@@ -147,11 +160,6 @@ vec4 renderDeadSun(vec3 direction, float geometryDistance) {
         alpha = max(alpha, max(core * 0.52, eclipseDisc * Eclipse));
     }
 
-    float sinAngle = length(cross(direction, normalize(toSun)));
-    float angularRadius = DeadSunData.x / max(centerDistance, DeadSunData.x + 0.001);
-    float radial = sinAngle / max(angularRadius, 0.00001);
-    float visible = step(centerDistance - DeadSunData.x * 1.20, geometryDistance)
-        * step(0.0, dot(direction, toSun));
     float halo = exp(-max(radial - 0.82, 0.0) * (6.5 / max(DeadSunData.z, 0.08)));
     halo *= 1.0 - smoothstep(1.75 + DeadSunData.z * 0.3,
         2.05 + DeadSunData.z * 0.3, radial);

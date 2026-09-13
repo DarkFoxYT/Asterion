@@ -14,6 +14,8 @@ import net.krodark.asterion.network.DeadSunStrikePayload;
 import net.krodark.asterion.network.DeadSunEventPayload;
 import net.krodark.asterion.network.MazeShiftPayload;
 import net.krodark.asterion.network.BossTelegraphPayload;
+import net.krodark.asterion.network.ArenaDebrisPayload;
+import net.krodark.asterion.network.DoorBreakPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.item.CompassItemPropertyFunction;
 import net.minecraft.core.component.DataComponents;
@@ -86,6 +88,10 @@ public final class PortClientFeatures {
                 context.client().execute(() -> PortDeadSunEvents.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(BossTelegraphPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> PortBossTelegraphs.receive(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(ArenaDebrisPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> PortPhysicsDebris.spawnArenaDebris(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(DoorBreakPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> PortPhysicsDebris.spawnDoors(payload)));
         PortPortalRenderer.initialize();
         PortForgeItemFlights.initialize();
         PortCinematics.initialize();
@@ -93,9 +99,15 @@ public final class PortClientFeatures {
         PortAudio.initialize();
         PortLightning.initialize();
         PortBossTelegraphs.initialize();
+        PortDimensionEffects.initialize();
+        PortPhysicsDebris.initialize();
     }
 
     public static void tick(Minecraft client) {
+        if (client.player != null) {
+            PortMinotaurBodyPicking.pick(client,
+                    client.getTimer().getGameTimeDeltaPartialTick(true));
+        }
         PortPortalRenderer.tick(client);
         PortForgeItemFlights.tick(client);
         PortAtmosphere.tick(client);
@@ -107,5 +119,6 @@ public final class PortClientFeatures {
         PortAudio.tick(client);
         PortLightning.tick(client);
         PortDeadSunEvents.tick(client);
+        PortPhysicsDebris.tick(client);
     }
 }

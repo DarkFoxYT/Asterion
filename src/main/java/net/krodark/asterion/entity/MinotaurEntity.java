@@ -36,7 +36,9 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
@@ -152,6 +154,23 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             MinotaurEntity.class, EntityDataSerializers.INT);
     private long nextDismemberTick;
     public int removedParts() { return getEntityData().get(DATA_REMOVED_PARTS); }
+    @Override protected EntityDimensions getDefaultDimensions(Pose pose) {
+        EntityDimensions base = super.getDefaultDimensions(pose);
+        int removed = removedParts();
+        if (removed == 0) return base;
+        float width = base.width(), height = base.height();
+        if ((removed & (MinotaurRemains.LEFT_ARM.bit() | MinotaurRemains.RIGHT_ARM.bit()))
+                == (MinotaurRemains.LEFT_ARM.bit() | MinotaurRemains.RIGHT_ARM.bit())) width *= .74F;
+        if ((removed & (MinotaurRemains.LEFT_LEG.bit() | MinotaurRemains.RIGHT_LEG.bit()))
+                == (MinotaurRemains.LEFT_LEG.bit() | MinotaurRemains.RIGHT_LEG.bit())) height *= .72F;
+        if (MinotaurRemains.TORSO.removed(removed)) { width *= .58F; height *= .52F; }
+        return EntityDimensions.scalable(Math.max(.38F, width), Math.max(.45F, height));
+    }
+
+    @Override public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
+        super.onSyncedDataUpdated(key);
+        if (DATA_REMOVED_PARTS.equals(key)) refreshDimensions();
+    }
     public AABB animatedBodyBounds() {
         return getBoundingBox().inflate(8 * .47 * AsterionConfig.INSTANCE.minotaurScale);
     }
@@ -5153,6 +5172,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         }
          
         getEntityData().set(DATA_REMOVED_PARTS, removed | part.bit());
+        refreshDimensions();
         nextDismemberTick = server.getGameTime() + 12;
         tool.hurtAndBreak(1, player, hand == net.minecraft.world.InteractionHand.MAIN_HAND
                 ? net.minecraft.world.entity.EquipmentSlot.MAINHAND : net.minecraft.world.entity.EquipmentSlot.OFFHAND);

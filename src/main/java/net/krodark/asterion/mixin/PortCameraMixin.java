@@ -43,6 +43,8 @@ public abstract class PortCameraMixin {
             up.rotate(tilt);
             left.rotate(tilt);
         }
+        Vec3 ragdollCamera = net.krodark.asterion.port.client.PortRagdolls.cameraPosition(getPosition(), partialTick);
+        if (ragdollCamera != null) setPosition(ragdollCamera);
         net.krodark.asterion.port.client.PortCinematics.CameraPose cinematic =
                 net.krodark.asterion.port.client.PortCinematics.cameraPose(getPosition(), partialTick);
         if (cinematic != null) {

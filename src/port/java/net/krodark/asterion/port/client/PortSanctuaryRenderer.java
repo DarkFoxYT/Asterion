@@ -1,0 +1,65 @@
+package net.krodark.asterion.port.client;
+
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.krodark.asterion.Asterion;
+import net.krodark.asterion.block.SanctuaryBlock;
+import net.krodark.asterion.block.SanctuaryBlockEntity;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.phys.Vec3;
+import software.bernie.geckolib.cache.object.GeoBone;
+
+/** Dedicated sanctuary renderer; only the root block renders and it owns no door animation state. */
+public final class PortSanctuaryRenderer extends SimpleGeoBlockRenderer<SanctuaryBlockEntity> {
+    private boolean altar;
+    private int charge;
+    private float time;
+
+    public PortSanctuaryRenderer() {
+        super(entity -> Asterion.id(((SanctuaryBlock)entity.getBlockState().getBlock()).altar
+                        ? "block/respawn_altar" : "block/respawn_obelisk"),
+                entity -> texture(entity), ignored -> null);
+    }
+
+    private static ResourceLocation texture(SanctuaryBlockEntity entity) {
+        SanctuaryBlock block = (SanctuaryBlock)entity.getBlockState().getBlock();
+        if (!block.altar) return Asterion.id("textures/block/respawn_obelisk.png");
+        return ResourceLocation.withDefaultNamespace("textures/block/"
+                + (entity.getBlockState().getValue(SanctuaryBlock.CHARGE) == 1 ? "gold_block.png" : "iron_block.png"));
+    }
+
+    @Override
+    public void render(SanctuaryBlockEntity entity, float partialTick, PoseStack poses,
+                       MultiBufferSource buffers, int light, int overlay) {
+        SanctuaryBlock block = (SanctuaryBlock)entity.getBlockState().getBlock();
+        altar = block.altar;
+        charge = entity.getBlockState().getValue(SanctuaryBlock.CHARGE);
+        time = (entity.getLevel() == null ? 0 : entity.getLevel().getGameTime()) + partialTick;
+        super.render(entity, partialTick, poses, buffers, light, overlay);
+    }
+
+    @Override
+    public void renderRecursively(PoseStack poses, SanctuaryBlockEntity entity, GeoBone bone,
+                                  RenderType type, MultiBufferSource buffers, VertexConsumer buffer,
+                                  boolean rerender, float partialTick, int light, int overlay, int colour) {
+        if (bone.getName().equals("glow")) {
+            bone.setHidden(altar && charge != 1);
+            if (altar) {
+                bone.setPosY(bone.getInitialSnapshot().getOffsetY() + (float)Math.sin(time * .065D) * 1.2F);
+                bone.setRotY(bone.getInitialSnapshot().getRotY() + time * .025F);
+                bone.setRotZ(bone.getInitialSnapshot().getRotZ() + .15F);
+            }
+        }
+        super.renderRecursively(poses, entity, bone, type, buffers, buffer, rerender,
+                partialTick, light, overlay, colour);
+    }
+
+    @Override public boolean shouldRender(SanctuaryBlockEntity entity, Vec3 camera) {
+        SanctuaryBlock block = (SanctuaryBlock)entity.getBlockState().getBlock();
+        return block.isRoot(entity.getBlockState()) && super.shouldRender(entity, camera);
+    }
+
+    @Override public int getViewDistance() { return 96; }
+}

@@ -1,11 +1,15 @@
 package net.krodark.asterion.port.client;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.network.ragdoll.*;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -13,6 +17,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,10 +41,18 @@ public final class PortRagdolls {
     private static final Map<Integer, Ragdoll> ACTIVE = new HashMap<>();
     private static CameraType previousCamera;
     private static int poseSequence;
+    private static boolean recoveryWasDown;
+    private static int recoveryPresses;
+    private static int recoveryLastPressTick;
+    private static int recoveryHoldTicks;
+    private static int localElapsed;
+    private static Vec3 smoothCamera;
+    private static int corpseScanTicker;
 
     private PortRagdolls() {}
 
     public static void initialize() {
+        HudRenderCallback.EVENT.register((graphics, delta) -> renderRecovery(graphics));
         ClientPlayNetworking.registerGlobalReceiver(RagdollImpulsePayload.TYPE, (payload, context) ->
                 context.client().execute(() -> {
                     if (context.client().player == null) return;
@@ -83,13 +96,17 @@ public final class PortRagdolls {
         if (client.level == null) {
             ACTIVE.clear();
             restoreCamera(client);
+            resetRecovery();
             return;
         }
         // Dead bodies get the same solver even when no explicit network state was needed.
-        if (client.player != null) for (LivingEntity entity : client.level.getEntitiesOfClass(
-                LivingEntity.class, client.player.getBoundingBox().inflate(64.0D),
-                entity -> !entity.isAlive() && entity.deathTime > 0 && !ACTIVE.containsKey(entity.getId())))
-            activate(entity, 600);
+        int scanInterval = AsterionConfig.INSTANCE.ragdollPhysicsQuality <= 0 ? 10
+                : AsterionConfig.INSTANCE.ragdollPhysicsQuality == 1 ? 7 : 5;
+        if (client.player != null && ++corpseScanTicker % scanInterval == 0)
+            for (LivingEntity entity : client.level.getEntitiesOfClass(
+                    LivingEntity.class, client.player.getBoundingBox().inflate(64.0D),
+                    entity -> !entity.isAlive() && entity.deathTime > 0 && !ACTIVE.containsKey(entity.getId())))
+                activate(entity, 600);
 
         Iterator<Map.Entry<Integer, Ragdoll>> entries = ACTIVE.entrySet().iterator();
         while (entries.hasNext()) {
@@ -107,12 +124,45 @@ public final class PortRagdolls {
 
         if (client.player != null && ACTIVE.containsKey(client.player.getId())) {
             Ragdoll local = ACTIVE.get(client.player.getId());
+            localElapsed++;
             if (previousCamera == null) previousCamera = client.options.getCameraType();
             if (client.options.getCameraType() != CameraType.THIRD_PERSON_BACK)
                 client.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+            lockInput(client);
+            Vec3 feet = safeFeet(client.player, local);
+            Vec3 solvedVelocity = local.part(TORSO).velocity.lerp(local.part(CHEST).velocity, .5D);
+            client.player.setPos(feet);
+            client.player.setDeltaMovement(Vec3.ZERO);
+            if (client.player.tickCount % 2 == 0 && ClientPlayNetworking.canSend(TumbleExitPayload.TYPE))
+                ClientPlayNetworking.send(new TumbleExitPayload(feet.x, feet.y, feet.z, 0, 0, 0, false));
+            handleRecovery(client, local, feet, solvedVelocity);
             if (client.player.tickCount % 3 == 0 && ClientPlayNetworking.canSend(RagdollPosePayload.TYPE))
                 ClientPlayNetworking.send(local.payload(client.player.getId(), ++poseSequence));
-        } else restoreCamera(client);
+        } else {
+            restoreCamera(client);
+            resetRecovery();
+        }
+    }
+
+    public static boolean localMovementLocked() {
+        Minecraft client = Minecraft.getInstance();
+        return client.player != null && ACTIVE.containsKey(client.player.getId());
+    }
+
+    /** Smooth third-person camera translated from the vanilla eye anchor to the solved head. */
+    public static Vec3 cameraPosition(Vec3 vanillaPosition, float partialTick) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) return null;
+        Ragdoll ragdoll = ACTIVE.get(client.player.getId());
+        if (ragdoll == null) return null;
+        Vec3 head = ragdoll.part(HEAD).render(partialTick);
+        Vec3 eye = new Vec3(Mth.lerp(partialTick, client.player.xo, client.player.getX()),
+                Mth.lerp(partialTick, client.player.yo, client.player.getY()) + client.player.getEyeHeight(),
+                Mth.lerp(partialTick, client.player.zo, client.player.getZ()));
+        Vec3 target = head.add(vanillaPosition.subtract(eye));
+        if (smoothCamera == null || smoothCamera.distanceToSqr(target) > 144.0D) smoothCamera = target;
+        else smoothCamera = smoothCamera.lerp(target, .30D);
+        return smoothCamera;
     }
 
     public static boolean isRagdolled(LivingEntity entity) {
@@ -198,6 +248,91 @@ public final class PortRagdolls {
     private static void restoreCamera(Minecraft client) {
         if (previousCamera != null) client.options.setCameraType(previousCamera);
         previousCamera = null;
+        smoothCamera = null;
+    }
+
+    private static Vec3 safeFeet(LivingEntity entity, Ragdoll ragdoll) {
+        Vec3 desired = ragdoll.part(TORSO).position.add(0, -entity.getBbHeight() * .43D, 0);
+        AABB original = entity.getBoundingBox();
+        Vec3 current = entity.position();
+        for (int ring = 0; ring <= 5; ring++) {
+            double radius = ring == 0 ? 0 : .16D + ring * .12D;
+            int count = ring == 0 ? 1 : 8;
+            for (int i = 0; i < count; i++) {
+                double angle = Mth.TWO_PI * i / count;
+                for (int up = 0; up <= 4; up++) {
+                    Vec3 candidate = desired.add(Math.cos(angle) * radius, up * .18D, Math.sin(angle) * radius);
+                    if (entity.level().noCollision(entity, original.move(candidate.subtract(current)).deflate(.002D)))
+                        return candidate;
+                }
+            }
+        }
+        return current;
+    }
+
+    private static void lockInput(Minecraft client) {
+        client.options.keyUp.setDown(false);
+        client.options.keyDown.setDown(false);
+        client.options.keyLeft.setDown(false);
+        client.options.keyRight.setDown(false);
+        client.options.keyJump.setDown(false);
+        client.options.keyShift.setDown(false);
+        client.options.keySprint.setDown(false);
+        client.options.keyAttack.setDown(false);
+        client.options.keyUse.setDown(false);
+        client.player.setSprinting(false);
+    }
+
+    private static void handleRecovery(Minecraft client, Ragdoll ragdoll, Vec3 feet, Vec3 velocity) {
+        boolean down = client.screen == null && GLFW.glfwGetKey(client.getWindow().getWindow(), GLFW.GLFW_KEY_SPACE)
+                == GLFW.GLFW_PRESS;
+        boolean recover = false;
+        if (AsterionConfig.INSTANCE.ragdollMashRecovery) {
+            if (client.player.tickCount - recoveryLastPressTick > 24) recoveryPresses = 0;
+            if (down && !recoveryWasDown) {
+                recoveryLastPressTick = client.player.tickCount;
+                recoveryPresses++;
+            }
+            recover = recoveryPresses >= 4 && localElapsed >= 8;
+        } else {
+            recoveryHoldTicks = down ? Math.min(32, recoveryHoldTicks + 1) : Math.max(0, recoveryHoldTicks - 2);
+            recover = recoveryHoldTicks >= 32 && localElapsed >= 8;
+        }
+        recoveryWasDown = down;
+        if (!recover) return;
+        Vec3 exitVelocity = velocity.length() > 2.8D ? velocity.normalize().scale(2.8D) : velocity;
+        ACTIVE.remove(client.player.getId());
+        client.player.setPos(feet);
+        client.player.setDeltaMovement(exitVelocity);
+        if (ClientPlayNetworking.canSend(TumbleExitPayload.TYPE))
+            ClientPlayNetworking.send(new TumbleExitPayload(feet.x, feet.y, feet.z,
+                    exitVelocity.x, exitVelocity.y, exitVelocity.z, true));
+        restoreCamera(client);
+        resetRecovery();
+    }
+
+    private static void resetRecovery() {
+        recoveryWasDown = false;
+        recoveryPresses = 0;
+        recoveryLastPressTick = 0;
+        recoveryHoldTicks = 0;
+        localElapsed = 0;
+    }
+
+    private static void renderRecovery(GuiGraphics graphics) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || client.screen != null || !localMovementLocked()) return;
+        boolean mash = AsterionConfig.INSTANCE.ragdollMashRecovery;
+        float progress = mash ? recoveryPresses / 4.0F : recoveryHoldTicks / 32.0F;
+        Component text = Component.literal(mash ? "MASH SPACE  —  GET UP" : "HOLD SPACE  —  GET UP");
+        int center = graphics.guiWidth() / 2;
+        int y = graphics.guiHeight() - 54;
+        int half = Math.max(72, client.font.width(text) / 2 + 13);
+        graphics.fill(center - half, y - 8, center + half, y + 16, 0xA0080606);
+        graphics.fill(center - half, y + 13, center + half, y + 16, 0xB0251715);
+        graphics.fill(center - half, y + 13, center - half + Math.round(half * 2 * Mth.clamp(progress, 0, 1)),
+                y + 16, 0xE09E3028);
+        graphics.drawCenteredString(client.font, text, center, y, 0xFFF4E6D8);
     }
 
     private static Vec3 safe(Vec3 value, Vec3 fallback) {
