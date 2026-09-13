@@ -1735,20 +1735,18 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 && bossAttack == BossAttack.NONE && weaponSwapTicks() == 0
                 && !throwPursuitPending && airborneCatchWindow <= 0 && wallComboWindow <= 0) {
             ServerPlayer tacticalTarget = level.players().stream()
-                    .filter(candidate -> candidate.isAlive() && !candidate.isCreative()
-                            && !net.krodark.asterion.game.ArenaDeathRecovery.isRecovering(candidate)
-                            && !candidate.isSpectator() && WorldGenerator.isInsideBossArena(candidate.position())
-                            && (!net.krodark.asterion.worldgen.BossArenaEncounter.isSealed(level)
-                                || net.krodark.asterion.worldgen.BossArenaEncounter.isActiveFighter(candidate))
-                            && !candidate.getUUID().equals(eclipseTarget))
-                    .max(java.util.Comparator.comparingDouble(candidate ->
-                            combatThreat.getOrDefault(candidate.getUUID(), 0.0) + 12.0 / (1 + distanceTo(candidate))
-                                    + (hasLineOfSight(candidate) ? 3 : 0)))
+                    .filter(candidate -> validBossTarget(level, candidate))
+                    .max(java.util.Comparator.comparingDouble(this::bossTargetScore))
                     .orElse(null);
-            if (tacticalTarget != null && bossAttack == BossAttack.NONE) {
+            // Keep focus unless somebody is materially more dangerous.  The old
+            // alternate-only search made the boss ping-pong between players every
+            // focus window even when its current target was still the best choice.
+            double currentScore = validBossTarget(level, player) ? bossTargetScore(player) : -1000.0D;
+            if (tacticalTarget != null && !tacticalTarget.getUUID().equals(player.getUUID())
+                    && bossTargetScore(tacticalTarget) > currentScore + 4.0D) {
                 eclipseTarget = tacticalTarget.getUUID();
                 player = tacticalTarget;
-                targetFocusUntil = tickCount + 140 + random.nextInt(61);
+                targetFocusUntil = tickCount + 110 + random.nextInt(51);
                 trackedPlayerVelocity = Vec3.ZERO;
             }
         }
@@ -2192,11 +2190,16 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
     private BossAttack pickTacticalAttack(ServerPlayer player, List<BossAttack> choices, double distance) {
         boolean clearChargeLane = hasClearChargeLane(player);
+        boolean visible = hasLineOfSight(player);
         choices.removeIf(attack -> !attackReady(attack) || attack == BossAttack.CHARGE && !clearChargeLane
-                || attack == BossAttack.HORN_RAM && !shouldHornRam(player));
+                || attack == BossAttack.HORN_RAM && !shouldHornRam(player)
+                || !visible && (attack == BossAttack.CHAIN_GRAPPLE
+                    || attack == BossAttack.AXE_THROW || attack == BossAttack.GREEK_FIRE_LASER));
         double height = player.getY() - getY();
         Vec3 delta = player.position().subtract(position()).multiply(1, 0, 1);
         double facing = delta.lengthSqr() < .01 ? 1 : delta.normalize().dot(Vec3.directionFromRotation(0, getYHeadRot()));
+        double retreatSpeed = delta.lengthSqr() < .01 ? 0.0D
+                : trackedPlayerVelocity.dot(delta.normalize());
         BossAttack selected = BossAttack.NONE;
         double totalWeight = 0;
         for (BossAttack attack : choices) {
@@ -2233,17 +2236,39 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                     && attack != BossAttack.AXE_THROW;
             if (keepWeapon) score += weaponUsesRemaining > 0 ? 2.25D : 1.0D;
             if (weaponUsesRemaining > 0 && family >= 0 && !keepWeapon) score -= .65D;
-            if (attack == lastBossAttack) score -= 2;
-            else if (attack == attackBeforeLast) score -= .65;
+            if (attack == lastBossAttack) score -= 5.5D;
+            else if (attack == attackBeforeLast) score -= 2.0D;
             if (attack != BossAttack.AXE_THROW && attack != BossAttack.RETRIEVE_AXE)
                 score += Math.min(12, attacksSinceUse[attack.ordinal()]) * .18;
             if (height > 1.5 && attack == BossAttack.LEAP) score += 2;
+            if (retreatSpeed > .075D && (attack == BossAttack.CHARGE || attack == BossAttack.LEAP
+                    || attack == BossAttack.CHAIN_GRAPPLE || attack == BossAttack.AXE_THROW)) score += 2.4D;
+            if (retreatSpeed < -.075D && distance < 8.0D && (attack == BossAttack.CLEAVE
+                    || attack == BossAttack.AXE_CHOP || attack == BossAttack.PUNCH_COMBO)) score += 1.8D;
              
             double weight = Math.exp(Math.clamp(score / 2, -6, 8));
             totalWeight += weight;
             if (random.nextDouble() * totalWeight < weight) selected = attack;
         }
         return selected;
+    }
+
+    private boolean validBossTarget(ServerLevel level, ServerPlayer candidate) {
+        return candidate.isAlive() && !candidate.isCreative() && !candidate.isSpectator()
+                && !net.krodark.asterion.game.ArenaDeathRecovery.isRecovering(candidate)
+                && WorldGenerator.isInsideBossArena(candidate.position())
+                && (!net.krodark.asterion.worldgen.BossArenaEncounter.isSealed(level)
+                    || net.krodark.asterion.worldgen.BossArenaEncounter.isActiveFighter(candidate));
+    }
+
+    private double bossTargetScore(ServerPlayer candidate) {
+        double distance = distanceTo(candidate);
+        double score = combatThreat.getOrDefault(candidate.getUUID(), 0.0D)
+                + 14.0D / (1.0D + distance);
+        if (hasLineOfSight(candidate)) score += 3.0D;
+        if (RagdollServerNetworking.isRagdolled(candidate)) score -= 2.0D;
+        if (candidate.getHealth() <= candidate.getMaxHealth() * .30F) score += 1.25D;
+        return score;
     }
 
     private static boolean enabledAttack(BossAttack attack) {

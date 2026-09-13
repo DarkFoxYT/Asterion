@@ -108,6 +108,9 @@ public final class PortClientFeatures {
         PortBossTelegraphs.initialize();
         PortDimensionEffects.initialize();
         PortPhysicsDebris.initialize();
+        // Register last so all other entity-stage geometry is queued before
+        // the shared depth-aware Geo emissive replay.
+        PortEmissiveQueue.initialize();
     }
 
     public static void tick(Minecraft client) {

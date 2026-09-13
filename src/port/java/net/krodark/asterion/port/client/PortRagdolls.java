@@ -313,6 +313,9 @@ public final class PortRagdolls {
         ACTIVE.remove(client.player.getId());
         client.player.setPos(feet);
         client.player.setDeltaMovement(exitVelocity);
+        client.player.setShiftKeyDown(false);
+        client.player.setPose(net.minecraft.world.entity.Pose.STANDING);
+        client.player.refreshDimensions();
         client.player.setXRot(0);
         client.player.xRotO = 0;
         client.player.yHeadRot = client.player.getYRot();

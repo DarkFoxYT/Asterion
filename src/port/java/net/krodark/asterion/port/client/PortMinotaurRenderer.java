@@ -87,6 +87,7 @@ public final class PortMinotaurRenderer extends SimpleGeoEntityRenderer<Minotaur
     }
 
     private static final class Weapons extends GeoRenderLayer<MinotaurEntity> {
+        private static final double BACK_MOUNT_CENTER_Y = (129 - 6 * Math.sqrt(2)) / 32.0D;
         private static final WeaponObject AXE = new WeaponObject();
         private static final WeaponObject SWORD = new WeaponObject();
         private static final GeoObjectRenderer<WeaponObject> AXE_RENDERER = new GeoObjectRenderer<>(new WeaponModel(false));
@@ -103,12 +104,15 @@ public final class PortMinotaurRenderer extends SimpleGeoEntityRenderer<Minotaur
             int mode = boss.renderedWeaponMode();
             if (mode == 2 && (name.equals("hand_itemR") || name.equals("hand_itemL"))) {
                 poses.pushPose();
+                // GeckoLib 4's object pass already applies this model's root
+                // pivot; translating it a second time drops the grip below the
+                // Minotaur's palm.
                 SWORD_RENDERER.render(poses, SWORD, buffers, null, null, packedLight, partialTick);
                 poses.popPose();
             }
             if (mode != 2 && name.equals("lowerbody")) {
-                for (int sign : new int[]{-1, 1}) {
-                    float age = boss.tickCount + partialTick;
+                float age = boss.tickCount + partialTick;
+                for (int sign = -1; sign <= 1; sign += 2) {
                     float breathe = (float)Math.sin(age * .075F + (sign < 0 ? 0F : .65F));
                     float settle = (float)Math.sin(age * .16F + (sign < 0 ? 0F : Math.PI));
                     poses.pushPose();
@@ -122,15 +126,20 @@ public final class PortMinotaurRenderer extends SimpleGeoEntityRenderer<Minotaur
             }
             if (mode == 1 && !boss.axeInWorld() && name.equals("hand_itemR")) {
                 poses.pushPose();
+                // hand_itemR is an authored locator.  Its rotation already puts the
+                // weapon axis through the palm; another correction here compounds
+                // the arm animation and makes the axe point into the floor.
                 poses.translate(0, -MinotaurAxeEntity.GRIP_Y, 0);
                 AXE_RENDERER.render(poses, AXE, buffers, null, null, packedLight, partialTick);
                 poses.popPose();
             } else if (mode != 1 && !boss.axeInWorld() && name.equals("body")) {
                 poses.pushPose();
+                // This offset was authored in the torso basis.  Attaching it to
+                // lowerbody makes the hip and torso rotations affect it twice.
                 poses.translate(0, .82D, 1.42D);
                 poses.mulPose(Axis.ZP.rotationDegrees(45));
                 poses.mulPose(Axis.YP.rotationDegrees(90));
-                poses.translate(0, -(129 - 6 * Math.sqrt(2)) / 32.0D, 0);
+                poses.translate(0, -BACK_MOUNT_CENTER_Y, 0);
                 AXE_RENDERER.render(poses, AXE, buffers, null, null, packedLight, partialTick);
                 poses.popPose();
             }

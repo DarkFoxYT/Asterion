@@ -1,6 +1,7 @@
 package net.krodark.asterion.port.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
 import net.krodark.asterion.entity.MinotaurAxeEntity;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderer;
@@ -28,10 +29,14 @@ public final class MinotaurAxePortRenderer extends EntityRenderer<MinotaurAxeEnt
                        MultiBufferSource buffers, int packedLight) {
         poses.pushPose();
         poses.mulPose(entity.renderRotation(partialTick));
-        poses.translate(0, -entity.modelCenterY(), 0);
         poses.scale(entity.modelScale(), entity.modelScale(), entity.modelScale());
+        poses.translate(0, -entity.modelCenterY(), 0);
         if (entity.isSword()) SWORD_RENDERER.render(poses, SWORD, buffers, null, null, packedLight, partialTick);
-        else AXE_RENDERER.render(poses, AXE, buffers, null, null, packedLight, partialTick);
+        else {
+            // Matches the original physics visual's submitAligned transform.
+            poses.mulPose(Axis.YP.rotationDegrees(-90));
+            AXE_RENDERER.render(poses, AXE, buffers, null, null, packedLight, partialTick);
+        }
         poses.popPose();
         super.render(entity, yaw, partialTick, poses, buffers, packedLight);
     }

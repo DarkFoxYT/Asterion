@@ -56,15 +56,20 @@ public final class PortPhysicsDebris {
                 double distanceSqr = piece.position.distanceToSqr(camera);
                 if (distanceSqr > 96 * 96) continue;
                 Vec3 position = piece.previous.lerp(piece.position, partial).subtract(camera);
-                Quaternionf rotation = new Quaternionf(piece.previousRotation).slerp(piece.rotation, partial);
+                Quaternionf rotation = piece.interpolatedRotation.set(piece.previousRotation)
+                        .slerp(piece.rotation, partial);
                 poses.pushPose();
                 poses.translate(position.x, position.y, position.z);
                 poses.mulPose(rotation);
                 poses.scale(piece.scale, piece.scale, piece.scale);
                 Vec3 center = modelCenter(piece.variant);
                 poses.translate(-center.x, -center.y, -center.z);
-                int light = LevelRenderer.getLightColor(client.level, BlockPos.containing(piece.position));
-                RENDERER.render(poses, piece.visual, context.consumers(), null, null, light, partial);
+                long tick = client.level.getGameTime();
+                if (!piece.sleeping || piece.cachedLight < 0 || tick - piece.lightSampleTick >= 20) {
+                    piece.cachedLight = LevelRenderer.getLightColor(client.level, BlockPos.containing(piece.position));
+                    piece.lightSampleTick = tick;
+                }
+                RENDERER.render(poses, piece.visual, context.consumers(), null, null, piece.cachedLight, partial);
                 poses.popPose();
             }
         });
@@ -92,9 +97,13 @@ public final class PortPhysicsDebris {
             for (double hingeY : new double[]{1.0D, 4.0D}) for (int chip = 0; chip < 3; chip++) {
                 Vec3 hinge = MinotaurDoorMotion.toWorld(payload.root(), payload.facing(),
                         new Vec3(side * 3.0D, hingeY, 0));
-                Piece fragment = new Piece(hinge, 3, .18F + random.nextFloat() * .12F, random, 240);
+                Piece fragment = new Piece(hinge, 3 + random.nextInt(4),
+                        .15F + random.nextFloat() * .18F, random, 240);
                 fragment.velocity = inward.scale(.25D + random.nextDouble() * .3D)
-                        .add(across.scale(side * (.08D + random.nextDouble() * .12D))).add(0, .12D, 0);
+                        .add(across.scale(side * (.08D + random.nextDouble() * .12D)))
+                        .add((random.nextDouble() - .5D) * .08D,
+                                .08D + random.nextDouble() * .18D,
+                                (random.nextDouble() - .5D) * .08D);
                 PIECES.add(fragment);
             }
         }
@@ -193,22 +202,44 @@ public final class PortPhysicsDebris {
     private static void simulate(ClientLevel level, Piece piece, double dt) {
         piece.velocity = piece.velocity.add(0, -.075D * gravity(piece.variant) * dt, 0)
                 .scale(Math.pow(.992D, dt));
-        Vec3 start = piece.position;
-        double impact = piece.velocity.length();
-        boolean collided = false;
-        Vec3 x = start.add(piece.velocity.x * dt, 0, 0);
-        if (clear(level, piece, x)) start = x; else { piece.velocity = piece.velocity.multiply(-.22D, 1, 1); collided = true; }
-        Vec3 y = start.add(0, piece.velocity.y * dt, 0);
-        if (clear(level, piece, y)) start = y; else { piece.velocity = piece.velocity.multiply(1, -.18D, 1); collided = true; }
-        Vec3 z = start.add(0, 0, piece.velocity.z * dt);
-        if (clear(level, piece, z)) start = z; else { piece.velocity = piece.velocity.multiply(1, 1, -.22D); collided = true; }
-        piece.position = start;
+        if (piece.velocity.y < -2.8D)
+            piece.velocity = new Vec3(piece.velocity.x, -2.8D, piece.velocity.z);
+
+        piece.scratchRotation.set(piece.rotation);
         piece.rotation.rotateXYZ(piece.spin.x * (float)dt, piece.spin.y * (float)dt,
                 piece.spin.z * (float)dt).normalize();
-        piece.spin.mul(collided ? .72F : (float)Math.pow(.988F, dt));
+        if (collisionAt(level, piece, piece.position) != null) {
+            piece.rotation.set(piece.scratchRotation);
+            piece.spin.mul(-.24F);
+        } else piece.spin.mul((float)Math.pow(.992F, dt));
+
+        Vec3 motion = piece.velocity.scale(dt);
+        int sweeps = Mth.clamp((int)Math.ceil(motion.length()
+                / Math.max(.045D, piece.smallestExtent() * .65D)), 1, 10);
+        Vec3 increment = motion.scale(1.0D / sweeps);
+        boolean collided = false;
+        boolean supported = false;
+        double strongestImpact = 0;
+        for (int sweep = 0; sweep < sweeps; sweep++) {
+            Vec3 normal = move(level, piece, increment);
+            if (normal == null) continue;
+            collided = true;
+            supported |= normal.y > .55D;
+            double into = piece.velocity.dot(normal);
+            double impact = Math.max(0, -into);
+            strongestImpact = Math.max(strongestImpact, impact);
+            if (into < 0) {
+                Vec3 tangent = piece.velocity.subtract(normal.scale(into));
+                piece.velocity = tangent.scale(1.0D - friction(piece.variant))
+                        .add(normal.scale(impact * restitution(piece.variant)));
+                Vec3 torque = normal.cross(tangent).scale(.18D + piece.scale * .12D);
+                piece.spin.add((float)torque.x, (float)torque.y, (float)torque.z);
+                if (normal.y > .55D) applyRollingContact(piece, normal);
+            }
+        }
         if (collided) {
-            piece.velocity = piece.velocity.multiply(.78D, 1, .78D);
-            if (impact > .24D && piece.soundCooldown <= 0 && claimLocalSound(level, piece.position)) {
+            if (strongestImpact > .24D && piece.soundCooldown <= 0
+                    && claimLocalSound(level, piece.position)) {
                 var sound = switch (piece.soundVariant) {
                     case 0 -> Asterion.DEBRIS_1;
                     case 1 -> Asterion.DEBRIS_2;
@@ -216,15 +247,52 @@ public final class PortPhysicsDebris {
                 };
                 level.playLocalSound(piece.position.x, piece.position.y, piece.position.z, sound,
                         SoundSource.BLOCKS, Mth.clamp((.12F + piece.scale * .58F)
-                                * (float)Mth.clamp(impact * 1.7D, .45D, 1.0D), .10F, .72F),
+                                * (float)Mth.clamp(strongestImpact * 1.7D, .45D, 1.0D), .10F, .72F),
                         Mth.clamp((1.13F - piece.scale * .25F) * piece.impactPitch, .48F, 1.32F), false);
                 piece.soundCooldown = 13 + piece.soundVariant * 3;
                 level.addParticle(ParticleTypes.POOF, piece.position.x, piece.position.y, piece.position.z, 0, .02D, 0);
             }
         }
-        if (collided && piece.velocity.lengthSqr() < .0012D && piece.spin.lengthSquared() < .0012F) {
-            if (++piece.restTicks > 12) piece.sleeping = true;
+        if (!supported && piece.velocity.lengthSqr() < .012D)
+            supported = collisionAt(level, piece, piece.position.add(0, -.055D, 0)) != null;
+        if (supported) {
+            piece.velocity = new Vec3(piece.velocity.x * .88D, piece.velocity.y, piece.velocity.z * .88D);
+            piece.spin.mul(.86F);
+        }
+        if (supported && piece.velocity.lengthSqr() < .0018D && piece.spin.lengthSquared() < .0018F) {
+            if (++piece.restTicks > 16) {
+                piece.sleeping = true;
+                piece.velocity = Vec3.ZERO;
+                piece.spin.zero();
+            }
         } else piece.restTicks = 0;
+    }
+
+    private static Vec3 move(ClientLevel level, Piece piece, Vec3 delta) {
+        Vec3 start = piece.position;
+        Vec3 candidate = start.add(delta);
+        Collision collision = collisionAt(level, piece, candidate);
+        if (collision == null) {
+            piece.position = candidate;
+            return null;
+        }
+        Vec3 low = start, high = candidate;
+        for (int i = 0; i < 7; i++) {
+            Vec3 middle = low.lerp(high, .5D);
+            if (collisionAt(level, piece, middle) == null) low = middle;
+            else high = middle;
+        }
+        piece.position = low;
+        return collision.normal.scale(-1.0D);
+    }
+
+    private static void applyRollingContact(Piece piece, Vec3 normal) {
+        Vec3 tangent = piece.velocity.subtract(normal.scale(piece.velocity.dot(normal)));
+        if (tangent.lengthSqr() < 1.0E-6D) return;
+        double radius = Math.max(.04D, Math.min(piece.half.x, piece.half.z));
+        Vec3 axis = normal.cross(tangent).scale(1.0D / radius);
+        Vector3f target = new Vector3f((float)axis.x, (float)axis.y, (float)axis.z);
+        piece.spin.lerp(target, piece.variant >= 5 ? .42F : .24F);
     }
 
     private static void ensureLevel(ClientLevel level) {
@@ -237,10 +305,50 @@ public final class PortPhysicsDebris {
     }
 
     private static boolean clear(ClientLevel level, Piece piece, Vec3 center) {
-        Vec3 half = halfExtents(piece.variant).scale(piece.scale);
-        return level.noCollision(new AABB(center.x - half.x, center.y - half.y, center.z - half.z,
-                center.x + half.x, center.y + half.y, center.z + half.z).deflate(.001D));
+        return collisionAt(level, piece, center) == null;
     }
+
+    private static Collision collisionAt(ClientLevel level, Piece piece, Vec3 center) {
+        piece.updateGeometry();
+        Vec3 broadHalf = piece.boundsHalf;
+        AABB broad = new AABB(center.x - broadHalf.x, center.y - broadHalf.y, center.z - broadHalf.z,
+                center.x + broadHalf.x, center.y + broadHalf.y, center.z + broadHalf.z).deflate(.00035D);
+        Collision deepest = null;
+        for (var shape : level.getBlockCollisions(null, broad)) for (AABB box : shape.toAabbs()) {
+            Collision contact = satContact(piece, center, box);
+            if (contact != null && (deepest == null || contact.depth > deepest.depth)) deepest = contact;
+        }
+        return deepest;
+    }
+
+    private static Collision satContact(Piece piece, Vec3 center, AABB box) {
+        Vec3 delta = box.getCenter().subtract(center);
+        Vec3 boxHalf = new Vec3(box.getXsize() * .5D, box.getYsize() * .5D, box.getZsize() * .5D);
+        Vec3 best = null;
+        double depth = Double.POSITIVE_INFINITY;
+        for (Vec3 axis : piece.satAxes) {
+            if (axis == null) continue;
+            double overlap = projection(piece.half, piece.axes, axis)
+                    + projection(boxHalf, WORLD_AXES, axis) - Math.abs(delta.dot(axis));
+            if (overlap <= .00045D) return null;
+            if (overlap < depth) {
+                depth = overlap;
+                best = delta.dot(axis) < 0 ? axis.scale(-1) : axis;
+            }
+        }
+        return best == null ? null : new Collision(best, depth);
+    }
+
+    private static double projection(Vec3 half, Vec3[] axes, Vec3 direction) {
+        return half.x * Math.abs(axes[0].dot(direction))
+                + half.y * Math.abs(axes[1].dot(direction))
+                + half.z * Math.abs(axes[2].dot(direction));
+    }
+
+    private static final Vec3[] WORLD_AXES = {
+            new Vec3(1, 0, 0), new Vec3(0, 1, 0), new Vec3(0, 0, 1)
+    };
+    private record Collision(Vec3 normal, double depth) {}
 
     private static Vec3 findClearSpawn(ClientLevel level, Piece piece, Vec3 origin) {
         for (double lift : new double[]{0, .18D, .36D, .65D, 1.0D}) {
@@ -294,6 +402,8 @@ public final class PortPhysicsDebris {
     }
 
     private static double gravity(int variant) { return variant == 7 ? 1.35D : variant >= 5 ? .72D : 1.0D; }
+    private static double restitution(int variant) { return variant == 7 ? .06D : variant >= 5 ? .24D : .14D; }
+    private static double friction(int variant) { return variant == 7 ? .42D : variant >= 5 ? .20D : .31D; }
     private static boolean finite(Vec3 value) {
         return Double.isFinite(value.x) && Double.isFinite(value.y) && Double.isFinite(value.z);
     }
@@ -309,17 +419,27 @@ public final class PortPhysicsDebris {
         final float scale;
         final int soundVariant;
         final float impactPitch;
+        final Vec3 half;
         final Quaternionf rotation = new Quaternionf();
         final Quaternionf previousRotation = new Quaternionf();
+        final Quaternionf interpolatedRotation = new Quaternionf();
+        final Quaternionf scratchRotation = new Quaternionf();
+        final Quaternionf geometryRotation = new Quaternionf(Float.NaN, Float.NaN, Float.NaN, Float.NaN);
+        final Vec3[] axes = new Vec3[3];
+        final Vec3[] satAxes = new Vec3[15];
         final Vector3f spin;
+        Vec3 boundsHalf;
         Vec3 position, previous, velocity = Vec3.ZERO;
         int age, restTicks, soundCooldown;
+        int cachedLight = -1;
+        long lightSampleTick = Long.MIN_VALUE;
         boolean sleeping, arena;
         Piece(Vec3 position, int variant, float scale, Random random, int life) {
             this.position = this.previous = position;
             this.variant = Mth.clamp(variant, 1, 7);
             this.visual = new DebrisObject(this.variant);
             this.scale = scale;
+            this.half = halfExtents(this.variant).scale(scale);
             this.life = life;
             soundVariant = random.nextInt(3);
             impactPitch = .82F + random.nextFloat() * .36F;
@@ -329,6 +449,30 @@ public final class PortPhysicsDebris {
             previousRotation.set(rotation);
             spin = new Vector3f((random.nextFloat() - .5F) * .34F,
                     (random.nextFloat() - .5F) * .34F, (random.nextFloat() - .5F) * .34F);
+        }
+
+        double smallestExtent() { return Math.min(half.x, Math.min(half.y, half.z)); }
+
+        void updateGeometry() {
+            if (geometryRotation.equals(rotation)) return;
+            geometryRotation.set(rotation);
+            Vector3f x = rotation.transform(new Vector3f(1, 0, 0));
+            Vector3f y = rotation.transform(new Vector3f(0, 1, 0));
+            Vector3f z = rotation.transform(new Vector3f(0, 0, 1));
+            axes[0] = new Vec3(x.x, x.y, x.z);
+            axes[1] = new Vec3(y.x, y.y, y.z);
+            axes[2] = new Vec3(z.x, z.y, z.z);
+            System.arraycopy(axes, 0, satAxes, 0, 3);
+            System.arraycopy(WORLD_AXES, 0, satAxes, 3, 3);
+            int index = 6;
+            for (Vec3 axis : axes) for (Vec3 world : WORLD_AXES) {
+                Vec3 cross = axis.cross(world);
+                double lengthSqr = cross.lengthSqr();
+                satAxes[index++] = lengthSqr < 1.0E-10D ? null
+                        : cross.scale(1.0D / Math.sqrt(lengthSqr));
+            }
+            boundsHalf = new Vec3(projection(half, axes, WORLD_AXES[0]),
+                    projection(half, axes, WORLD_AXES[1]), projection(half, axes, WORLD_AXES[2]));
         }
     }
 
