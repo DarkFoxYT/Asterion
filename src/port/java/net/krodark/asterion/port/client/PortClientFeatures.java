@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.mixin.ItemPropertiesInvoker;
 import net.krodark.asterion.network.CrucibleScreenPayload;
+import net.krodark.asterion.network.GatewayPortalPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.item.CompassItemPropertyFunction;
 import net.minecraft.core.component.DataComponents;
@@ -38,14 +39,25 @@ public final class PortClientFeatures {
                             && screen.matches(payload.pos())) screen.update(payload);
                     else context.client().setScreen(new PortCrucibleScreen(payload));
                 }));
+        ClientPlayNetworking.registerGlobalReceiver(GatewayPortalPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> PortPortalRenderer.receive(payload)));
+        PortPortalRenderer.initialize();
+        PortCinematics.initialize();
+        PortRagdolls.initialize();
     }
 
     public static void tick(Minecraft client) {
+        PortPortalRenderer.tick(client);
+        PortCinematics.tick(client);
+        PortRagdolls.tick(client);
         boolean wanted = client.level != null && client.level.dimension().equals(Asterion.ASTERION_LEVEL);
         if (wanted == atmosphereActive) return;
         try {
             var post = VeilRenderSystem.renderer().getPostProcessingManager();
-            if (wanted) post.add(20, ATMOSPHERE);
+            if (wanted) {
+                if (post.getPipeline(ATMOSPHERE) == null) return;
+                post.add(20, ATMOSPHERE);
+            }
             else post.remove(ATMOSPHERE);
             atmosphereActive = wanted;
         } catch (RuntimeException ignored) {

@@ -30,7 +30,8 @@
     "WorldGenRegionAccessor"
   ],
   "client": [
-    "ItemPropertiesInvoker"
+    "ItemPropertiesInvoker",
+    "PortRagdollRenderMixin"
   ],
   "injectors": {
     "defaultRequire": 1
