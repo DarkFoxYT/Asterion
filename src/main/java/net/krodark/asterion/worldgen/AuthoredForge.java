@@ -421,7 +421,13 @@ public final class AuthoredForge {
                 net.minecraft.world.level.LevelReader world, BlockPos origin, BlockPos reference,
                 StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed,
                 StructurePlaceSettings settings) {
-            if (!(transformed.state().getBlock() instanceof net.krodark.asterion.block.CrucibleBlock)) return transformed;
+            if (!(transformed.state().getBlock() instanceof net.krodark.asterion.block.CrucibleBlock)) {
+                // Some authored templates contain legacy/DUMMY NBT on decorative blocks.
+                // Never pass block-entity data to a state that cannot own a block entity.
+                return transformed.state().hasBlockEntity() ? transformed
+                        : new StructureTemplate.StructureBlockInfo(
+                                transformed.pos(), transformed.state(), null);
+            }
             net.minecraft.nbt.CompoundTag data = null;
             if (net.krodark.asterion.block.CrucibleBlock.isRoot(transformed.state())) {
                 data = new net.minecraft.nbt.CompoundTag();

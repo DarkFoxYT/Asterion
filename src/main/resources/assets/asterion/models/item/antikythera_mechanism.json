@@ -2,5 +2,24 @@
   "parent": "minecraft:item/generated",
   "textures": {
     "layer0": "asterion:item/am/antikythera_mechinisim_1"
-  }
+  },
+  "overrides": [
+    { "predicate": { "angle": 0.00000 }, "model": "asterion:item/antikythera_mechanism_1" },
+    { "predicate": { "angle": 0.03125 }, "model": "asterion:item/antikythera_mechanism_2" },
+    { "predicate": { "angle": 0.09375 }, "model": "asterion:item/antikythera_mechanism_3" },
+    { "predicate": { "angle": 0.15625 }, "model": "asterion:item/antikythera_mechanism_4" },
+    { "predicate": { "angle": 0.21875 }, "model": "asterion:item/antikythera_mechanism_5" },
+    { "predicate": { "angle": 0.28125 }, "model": "asterion:item/antikythera_mechanism_6" },
+    { "predicate": { "angle": 0.34375 }, "model": "asterion:item/antikythera_mechanism_7" },
+    { "predicate": { "angle": 0.40625 }, "model": "asterion:item/antikythera_mechanism_8" },
+    { "predicate": { "angle": 0.46875 }, "model": "asterion:item/antikythera_mechanism_9" },
+    { "predicate": { "angle": 0.53125 }, "model": "asterion:item/antikythera_mechanism_10" },
+    { "predicate": { "angle": 0.59375 }, "model": "asterion:item/antikythera_mechanism_11" },
+    { "predicate": { "angle": 0.65625 }, "model": "asterion:item/antikythera_mechanism_12" },
+    { "predicate": { "angle": 0.71875 }, "model": "asterion:item/antikythera_mechanism_13" },
+    { "predicate": { "angle": 0.78125 }, "model": "asterion:item/antikythera_mechanism_14" },
+    { "predicate": { "angle": 0.84375 }, "model": "asterion:item/antikythera_mechanism_15" },
+    { "predicate": { "angle": 0.90625 }, "model": "asterion:item/antikythera_mechanism_16" },
+    { "predicate": { "angle": 0.96875 }, "model": "asterion:item/antikythera_mechanism_1" }
+  ]
 }

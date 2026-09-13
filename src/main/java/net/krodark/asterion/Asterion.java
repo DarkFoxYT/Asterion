@@ -1165,7 +1165,7 @@ public final class Asterion {
         stack.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME,
                 Component.literal(display + " " + part));
         stack.set(net.minecraft.core.component.DataComponents.CUSTOM_MODEL_DATA,
-                new net.minecraft.world.item.component.CustomModelData(metal));
+                new net.minecraft.world.item.component.CustomModelData(metal + 1));
         net.minecraft.nbt.CompoundTag data = new net.minecraft.nbt.CompoundTag();
         data.putString("metal_sequence", Integer.toString(metal));
         data.putString("alloy", display);

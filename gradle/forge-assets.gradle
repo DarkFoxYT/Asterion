@@ -8,6 +8,9 @@ tasks.register('generateForgeAssets') {
         def destinationDir = forgeAssets.get().asFile
         def materials = ['bone_steel', 'celestial_bronze', 'celestial_gold', 'celestial_steel',
                          'copper', 'gold', 'iron', 'netherite', 'tarnished_gold']
+        def materialsByIndex = ['iron', 'copper', 'tarnished_gold', 'netherite',
+                                'celestial_bronze', 'bone_steel', 'celestial_steel',
+                                'celestial_gold', 'gold']
         def parts = ['blade', 'guard', 'pommel']
         def modelDir = file("${destinationDir}/assets/asterion/models/item")
         def itemDir = file("${destinationDir}/assets/asterion/items")
@@ -88,6 +91,19 @@ tasks.register('generateForgeAssets') {
             def layers = (0..<4).collect { layer -> selectLayer(part, true, layer, layer, layer) }
             file("${itemDir}/forged_sword_${part}.json").text = groovy.json.JsonOutput.toJson(
                     [model: [type: 'minecraft:composite', models: layers]])
+
+            materialsByIndex.each { material ->
+                file("${modelDir}/forge_legacy_${material}_${part}.json").text =
+                        groovy.json.JsonOutput.toJson([parent: 'minecraft:item/generated', textures: [
+                                layer0: "asterion:item/forging/${material}/${material}_${part}_icon"]])
+            }
+            file("${modelDir}/forged_sword_${part}.json").text = groovy.json.JsonOutput.toJson([
+                    parent: 'minecraft:item/generated',
+                    textures: [layer0: 'asterion:item/forging/iron/iron_' + part + '_icon'],
+                    overrides: materialsByIndex.withIndex().collect { material, index -> [
+                            predicate: [custom_model_data: index + 1],
+                            model: "asterion:item/forge_legacy_${material}_${part}"] }
+            ])
         }
          
         def swordLayers = [[type: 'minecraft:model', model: 'asterion:item/forged_sword_handle']]
@@ -99,6 +115,23 @@ tasks.register('generateForgeAssets') {
         }
         file("${itemDir}/forged_sword.json").text = groovy.json.JsonOutput.toJson(
                 [model: [type: 'minecraft:composite', models: swordLayers]])
+
+        materialsByIndex.each { material ->
+            file("${modelDir}/forge_legacy_${material}_sword.json").text =
+                    groovy.json.JsonOutput.toJson([parent: 'asterion:item/forged_sword_layer', textures: [
+                            layer0: "asterion:item/forging/${material}/${material}_blade",
+                            layer1: "asterion:item/forging/${material}/${material}_guard",
+                            layer2: "asterion:item/forging/${material}/${material}_pommel"]])
+        }
+        file("${modelDir}/forged_sword.json").text = groovy.json.JsonOutput.toJson([
+                parent: 'asterion:item/forged_sword_layer',
+                textures: [layer0: 'asterion:item/forging/iron/iron_blade',
+                           layer1: 'asterion:item/forging/iron/iron_guard',
+                           layer2: 'asterion:item/forging/iron/iron_pommel'],
+                overrides: materialsByIndex.withIndex().collect { material, index -> [
+                        predicate: [custom_model_data: index + 1],
+                        model: "asterion:item/forge_legacy_${material}_sword"] }
+        ])
 
          
          

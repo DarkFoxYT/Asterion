@@ -97,6 +97,12 @@ def resourceProperties = [
 ]
 
 tasks.named('processResources').configure {
+    from('../src/main/resources/assets/asterion/geckolib/models') {
+        into 'assets/asterion/geo'
+    }
+    from('../src/main/resources/assets/asterion/geckolib/animations') {
+        into 'assets/asterion/animations'
+    }
     from('../src/main/resources/assets/asterion/textures/armor') {
         include '*_top.png'
         into 'assets/asterion/textures/entity/equipment/humanoid'

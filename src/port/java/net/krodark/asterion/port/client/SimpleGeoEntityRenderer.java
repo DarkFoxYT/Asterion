@@ -25,9 +25,19 @@ public final class SimpleGeoEntityRenderer<T extends Entity & GeoAnimatable> ext
         private final ResourceLocation animations;
 
         private StaticModel(ResourceLocation model, ResourceLocation texture, ResourceLocation animations) {
-            this.model = model;
+            this.model = geckoModel(model);
             this.texture = texture;
-            this.animations = animations;
+            this.animations = geckoAnimation(animations);
+        }
+
+        private static ResourceLocation geckoModel(ResourceLocation id) {
+            return ResourceLocation.fromNamespaceAndPath(id.getNamespace(),
+                    "geo/" + id.getPath() + ".geo.json");
+        }
+
+        private static ResourceLocation geckoAnimation(ResourceLocation id) {
+            return ResourceLocation.fromNamespaceAndPath(id.getNamespace(),
+                    "animations/" + id.getPath() + ".animation.json");
         }
 
         @Override

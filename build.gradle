@@ -110,6 +110,12 @@ def resourceProperties = [
 ]
 
 processResources {
+    from('src/main/resources/assets/asterion/geckolib/models') {
+        into 'assets/asterion/geo'
+    }
+    from('src/main/resources/assets/asterion/geckolib/animations') {
+        into 'assets/asterion/animations'
+    }
     from('src/main/resources/assets/asterion/textures/armor') {
         include '*_top.png'
         into 'assets/asterion/textures/entity/equipment/humanoid'
@@ -231,12 +237,18 @@ loom {
         client {
             client()
             runDir "run-1.21.1-fabric"
+            vmArg '--enable-native-access=ALL-UNNAMED'
+            if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_24))
+                vmArg '--sun-misc-unsafe-memory-access=allow'
             if (project.hasProperty('startupProfile')) vmArg "-XX:StartFlightRecording=settings=profile,filename=${layout.buildDirectory.file('startup-profile.jfr').get().asFile.absolutePath},dumponexit=true"
             ideConfigGenerated = false
         }
         server {
             server()
             runDir "run-server"
+            vmArg '--enable-native-access=ALL-UNNAMED'
+            if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_24))
+                vmArg '--sun-misc-unsafe-memory-access=allow'
             ideConfigGenerated = false
         }
     }
