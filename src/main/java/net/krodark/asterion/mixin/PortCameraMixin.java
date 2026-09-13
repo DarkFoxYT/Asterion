@@ -43,6 +43,19 @@ public abstract class PortCameraMixin {
             up.rotate(tilt);
             left.rotate(tilt);
         }
+        net.krodark.asterion.port.client.PortCinematics.CameraPose cinematic =
+                net.krodark.asterion.port.client.PortCinematics.cameraPose(getPosition(), partialTick);
+        if (cinematic != null) {
+            setPosition(cinematic.position());
+            setRotation(cinematic.yaw(), cinematic.pitch());
+            if (Math.abs(cinematic.roll()) > 0.001F) {
+                Quaternionf roll = new Quaternionf().fromAxisAngleRad(forwards.x, forwards.y, forwards.z,
+                        (float)Math.toRadians(cinematic.roll()));
+                rotation.premul(roll);
+                up.rotate(roll);
+                left.rotate(roll);
+            }
+        }
         PortCrucibleCamera.CameraPose pose = PortCrucibleCamera.cameraPose(
                 getPosition(), getYRot(), getXRot(), partialTick);
         if (pose != null) {

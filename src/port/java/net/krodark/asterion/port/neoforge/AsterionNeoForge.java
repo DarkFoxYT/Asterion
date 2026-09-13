@@ -12,9 +12,13 @@ import java.util.List;
 
 @Mod(Asterion.MOD_ID)
 public final class AsterionNeoForge {
-    public AsterionNeoForge(IEventBus modBus) {
+    public AsterionNeoForge(IEventBus modBus, net.neoforged.fml.ModContainer container) {
         modBus.addListener(AsterionNeoForge::initializeAfterNeoForgeRegistries);
         modBus.addListener(AsterionNeoForge::registerSpawnPlacements);
+        net.neoforged.neoforge.client.gui.IConfigScreenFactory configScreenFactory =
+                (mod, parent) -> new net.krodark.asterion.port.client.PortAsterionSettingsScreen(parent);
+        container.registerExtensionPoint(net.neoforged.neoforge.client.gui.IConfigScreenFactory.class,
+                configScreenFactory);
     }
 
     private static void initializeAfterNeoForgeRegistries(EntityAttributeCreationEvent event) {

@@ -17,6 +17,9 @@
     ],
     "main": [
       "net.krodark.asterion.port.fabric.AsterionFabric"
+    ],
+    "modmenu": [
+      "net.krodark.asterion.port.fabric.PortAsterionModMenu"
     ]
   },
   "mixins": [

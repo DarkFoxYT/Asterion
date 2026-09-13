@@ -13,12 +13,15 @@ import net.krodark.asterion.network.MazeZapPayload;
 import net.krodark.asterion.network.DeadSunStrikePayload;
 import net.krodark.asterion.network.DeadSunEventPayload;
 import net.krodark.asterion.network.MazeShiftPayload;
+import net.krodark.asterion.network.BossTelegraphPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.item.CompassItemPropertyFunction;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.component.LodestoneTracker;
 import net.minecraft.world.phys.Vec3;
+import net.fabricmc.fabric.api.client.rendering.v1.DimensionRenderingRegistry;
+import net.minecraft.client.renderer.DimensionSpecialEffects;
 
 /** Loader-neutral client features backed by APIs available on both 1.21.1 jars. */
 public final class PortClientFeatures {
@@ -29,6 +32,15 @@ public final class PortClientFeatures {
     public static void initialize() {
         if (initialized) return;
         initialized = true;
+
+        DimensionRenderingRegistry.registerDimensionEffects(Asterion.id("asterion"),
+                new DimensionSpecialEffects(Float.NaN, false, DimensionSpecialEffects.SkyType.NONE,
+                        false, false) {
+                    @Override public Vec3 getBrightnessDependentFogColor(Vec3 color, float sunHeight) {
+                        return new Vec3(.018D, .010D, .006D);
+                    }
+                    @Override public boolean isFoggyAt(int x, int z) { return true; }
+                });
 
         // Compass predicates are registered per-item in 1.21.1. Extending CompassItem
         // alone does not make a custom item use the vanilla angle property.
@@ -72,12 +84,15 @@ public final class PortClientFeatures {
                 context.client().execute(() -> PortDeadSunEvents.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(MazeShiftPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> PortDeadSunEvents.receive(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(BossTelegraphPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> PortBossTelegraphs.receive(payload)));
         PortPortalRenderer.initialize();
         PortForgeItemFlights.initialize();
         PortCinematics.initialize();
         PortRagdolls.initialize();
         PortAudio.initialize();
         PortLightning.initialize();
+        PortBossTelegraphs.initialize();
     }
 
     public static void tick(Minecraft client) {

@@ -68,8 +68,7 @@ public final class AsterionFabricClient implements ClientModInitializer {
         BlockEntityRenderers.register(AncientContent.TROPHY_BLOCK_ENTITY, context -> new SimpleGeoBlockRenderer<>(
                 Asterion.id("block/minotaur_trophy"), Asterion.id("textures/entity/minotaur.png"), null));
         BlockEntityRenderers.register(net.krodark.asterion.game.PedestalContent.BLOCK_ENTITY,
-                context -> new SimpleGeoBlockRenderer<>(Asterion.id("block/pedestal"),
-                        Asterion.id("textures/block/pedestal.png"), null));
+                net.krodark.asterion.port.client.PortPedestalRenderer::new);
         BlockEntityRenderers.register(Asterion.CRUCIBLE_BLOCK_ENTITY, context -> new SimpleGeoBlockRenderer<>(
                 Asterion.id("block/crucible"), Asterion.id("textures/block/crucible.png"), null));
         BlockEntityRenderers.register(Asterion.GREEK_FIRE_TORCH_BLOCK_ENTITY,
@@ -107,9 +106,8 @@ public final class AsterionFabricClient implements ClientModInitializer {
 
     private static void registerEntityRenderers() {
         EntityRendererRegistry.register(AncientContent.SKELETON, AncientSkeletonRenderer::new);
-        EntityRendererRegistry.register(Asterion.MINOTAUR, context -> new SimpleGeoEntityRenderer<>(context,
-                Asterion.id("entity/minotaur"), Asterion.id("textures/entity/minotaur.png"),
-                Asterion.id("entity/minotaur"), 1.1F, 1.0F));
+        EntityRendererRegistry.register(Asterion.MINOTAUR,
+                net.krodark.asterion.port.client.PortMinotaurRenderer::new);
         EntityRendererRegistry.register(Asterion.BOMBARDIER_BEETLE,
                 net.krodark.asterion.port.client.PortBombardierBeetleRenderer::new);
         EntityRendererRegistry.register(Asterion.RUNE_BEETLE, context -> new SimpleGeoEntityRenderer<>(context,

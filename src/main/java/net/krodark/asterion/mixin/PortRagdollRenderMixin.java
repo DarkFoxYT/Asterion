@@ -1,11 +1,12 @@
 package net.krodark.asterion.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
 import net.krodark.asterion.port.client.PortRagdolls;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -23,9 +24,22 @@ public abstract class PortRagdollRenderMixin {
         asterion$posed = PortRagdolls.isRagdolled(entity);
         if (!asterion$posed) return;
         poses.pushPose();
-        poses.translate(0, .28, 0);
-        poses.mulPose(Axis.ZP.rotationDegrees(86.0F));
-        poses.mulPose(Axis.YP.rotationDegrees(entity.getId() % 2 == 0 ? 10.0F : -10.0F));
+        PortRagdolls.RenderPose pose = PortRagdolls.renderPose(entity, partialTick);
+        if (pose == null) return;
+        Vec3 base = new Vec3(Mth.lerp(partialTick, entity.xo, entity.getX()),
+                Mth.lerp(partialTick, entity.yo, entity.getY()) + entity.getBbHeight() * .52D,
+                Mth.lerp(partialTick, entity.zo, entity.getZ()));
+        Vec3 delta = pose.pivot().subtract(base);
+        poses.translate(delta.x, delta.y + entity.getBbHeight() * .52D, delta.z);
+        poses.mulPose(pose.orientation());
+        poses.translate(0, -entity.getBbHeight() * .52D, 0);
+    }
+
+    @Inject(method = "setupRotations", at = @At("HEAD"), cancellable = true)
+    private void asterion$usePhysicsRotation(LivingEntity entity, PoseStack poses, float bob,
+                                             float bodyRot, float partialTick, float scale,
+                                             CallbackInfo callback) {
+        if (PortRagdolls.isRagdolled(entity)) callback.cancel();
     }
 
     @Inject(method = "render", at = @At("RETURN"))

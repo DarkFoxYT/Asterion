@@ -42,7 +42,9 @@ public final class PortDimensionEffects {
         Vector3f left = camera.getLeftVector();
         float aspect = Math.max(1, client.getWindow().getWidth())
                 / (float)Math.max(1, client.getWindow().getHeight());
-        float fov = (float)Math.toRadians(client.options.fov().get());
+        float partialTick = client.getTimer().getGameTimeDeltaPartialTick(true);
+        float fov = (float)Math.toRadians(((net.krodark.asterion.mixin.PortGameRendererAccessor)
+                client.gameRenderer).asterion$currentFov(camera, partialTick, true));
         float far = Math.max(64.0F, client.gameRenderer.getDepthFar());
         AsterionConfig config = AsterionConfig.INSTANCE;
 
@@ -55,21 +57,32 @@ public final class PortDimensionEffects {
         pipeline.getUniformSafe("EffectData").setVector(
                 config.dustyAirEnabled ? config.dustyAirStrength : 0.0F,
                 config.deadSunEnabled ? config.deadSunStrength : 0.0F,
-                config.dustDensity * (1.0F + eclipse * 1.8F), config.fogStrength * (1.0F + eclipse));
-        pipeline.getUniformSafe("DustColor").setVector(config.dustR * (1.0F - eclipse * 0.42F),
-                config.dustG * (1.0F - eclipse * 0.78F), config.dustB * (1.0F - eclipse * 0.78F));
-        pipeline.getUniformSafe("FogColor").setVector(config.fogR * (1.0F - eclipse * 0.62F),
-                config.fogG * (1.0F - eclipse * 0.88F), config.fogB * (1.0F - eclipse * 0.88F));
+                config.dustDensity * mix(1.0F, 2.80F, eclipse),
+                config.fogStrength * mix(1.0F, 2.25F, eclipse));
+        pipeline.getUniformSafe("DustColor").setVector(mix(config.dustR, 0.15F, eclipse),
+                mix(config.dustG, 0.018F, eclipse), mix(config.dustB, 0.012F, eclipse));
+        pipeline.getUniformSafe("FogColor").setVector(mix(config.fogR, 0.018F, eclipse),
+                mix(config.fogG, 0.003F, eclipse), mix(config.fogB, 0.002F, eclipse));
         Vec3 sunOffset = PortDeadSunEvents.sunOffset();
+        double dx = position.x - config.deadSunX;
+        double dz = position.z - config.deadSunZ;
+        float distanceScale = 1.0F + Math.min(7.0F, (float)Math.sqrt(dx * dx + dz * dz) / 1200.0F);
         pipeline.getUniformSafe("DeadSunPosition").setVector(config.deadSunX + (float)sunOffset.x,
                 config.deadSunHeight + (float)sunOffset.y, config.deadSunZ + (float)sunOffset.z);
-        pipeline.getUniformSafe("DeadSunData").setVector(config.deadSunSize, config.deadSunBrightness,
-                config.deadSunCorona, config.deadSunOpacity);
+        pipeline.getUniformSafe("DeadSunData").setVector(
+                config.deadSunSize * distanceScale * mix(1.0F, 1.08F, eclipse),
+                config.deadSunBrightness * mix(1.0F, 0.95F, eclipse),
+                config.deadSunCorona * mix(1.0F, 2.15F, eclipse), config.deadSunOpacity);
+        pipeline.getUniformSafe("DeadSunDensity").setFloat(config.deadSunDensity * mix(1.0F, 1.55F, eclipse));
         pipeline.getUniformSafe("DeadSunCoreColor").setVector(config.deadSunCoreR, config.deadSunCoreG, config.deadSunCoreB);
         pipeline.getUniformSafe("DeadSunCoronaColor").setVector(config.deadSunCoronaR,
                 config.deadSunCoronaG, config.deadSunCoronaB);
         pipeline.getUniformSafe("AnimationData").setVector(
-                (float)(System.nanoTime() * 1.0E-9D),
-                config.shaderAnimationSpeed, Math.max(0, Math.min(2, config.cinematicQuality)), 0.0F);
+                (float)((System.nanoTime() * 1.0E-9D % 100000.0D) * 20.0D),
+                config.shaderAnimationSpeed, Math.max(0, Math.min(2, config.cinematicQuality)), eclipse);
+    }
+
+    private static float mix(float from, float to, float amount) {
+        return from + (to - from) * amount;
     }
 }

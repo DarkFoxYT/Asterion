@@ -35,6 +35,9 @@
     "PortCentipedeInteractionMixin",
     "PortBiomeMusicMixin",
     "PortFogRendererMixin",
+    "PortGameRendererAccessor",
+    "PortHumanoidRagdollMixin",
+    "PortMinotaurBossBarMixin",
     "PortRagdollRenderMixin"
   ],
   "injectors": {

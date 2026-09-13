@@ -48,6 +48,11 @@ public final class PortPortalRenderer {
         portal = payload;
     }
 
+    public static boolean isOpen() {
+        Minecraft client = Minecraft.getInstance();
+        return portal != null && client.level != null && client.level == world;
+    }
+
     public static void tick(Minecraft client) {
         GatewayPortalPayload data = portal;
         if (data == null || client.level == null || client.level != world || client.player == null

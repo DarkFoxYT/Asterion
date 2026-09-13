@@ -6,6 +6,7 @@ import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.game.MinotaurSounds;
 import net.krodark.asterion.network.MinotaurGlobalSoundPayload;
+import net.krodark.asterion.worldgen.WorldGenerator;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.resources.sounds.AbstractSoundInstance;
@@ -25,6 +26,8 @@ public final class PortAudio {
 
     private static ClientLevel level;
     private static int biome = -1, ticks, notice, gap;
+    private static boolean arena, defeatedBossNearby;
+    private static int victoryTrack;
     private static String lastGroup = "";
     private static Track playing, previous;
     private static List<Track> tracks = List.of();
@@ -42,8 +45,9 @@ public final class PortAudio {
             int center = graphics.guiWidth() / 2;
             String title = client.font.plainSubstrByWidth("Now playing: " + playing.title(), graphics.guiWidth() - 24);
             String artist = client.font.plainSubstrByWidth("by " + playing.artist(), graphics.guiWidth() - 24);
-            graphics.drawCenteredString(client.font, Component.literal(title), center, 8, alpha << 24 | 0xE9E6D9);
-            graphics.drawCenteredString(client.font, Component.literal(artist), center, 19, alpha << 24 | 0xADB9B5);
+            int y = arena ? 60 : 8;
+            graphics.drawCenteredString(client.font, Component.literal(title), center, y, alpha << 24 | 0xE9E6D9);
+            graphics.drawCenteredString(client.font, Component.literal(artist), center, y + 11, alpha << 24 | 0xADB9B5);
         });
     }
 
@@ -69,8 +73,23 @@ public final class PortAudio {
         ticks++;
         if (notice > 0) notice--;
         boolean cave = client.player.getY() <= net.krodark.asterion.worldgen.LabyrinthLevels.CAVE_ROOF_Y;
-        String desired = cave ? "" : group(biome);
+        if (ticks % 10 == 0) {
+            var nearbyBosses = client.level.getEntitiesOfClass(net.krodark.asterion.entity.MinotaurEntity.class,
+                    client.player.getBoundingBox().inflate(128.0D),
+                    boss -> boss.behaviorPhase() == net.krodark.asterion.entity.MinotaurEntity.BehaviorPhase.BOSS);
+            boolean activeBoss = nearbyBosses.stream().anyMatch(boss -> boss.isAlive() && !boss.isDefeatedBoss());
+            defeatedBossNearby = !activeBoss && nearbyBosses.stream()
+                    .anyMatch(net.krodark.asterion.entity.MinotaurEntity::isDefeatedBoss);
+            arena = WorldGenerator.isInsideBossArena(client.player.position()) && activeBoss;
+            if (activeBoss) victoryTrack = 0;
+        }
+        boolean victory = !arena && WorldGenerator.isInsideBossArena(client.player.position())
+                && (defeatedBossNearby || PortPortalRenderer.isOpen());
+        // Keep music alive throughout the dimension. Caves use the restrained
+        // ancient score while an active Minotaur promotes the authored arena set.
+        String desired = victory ? "victory" : arena ? "arena" : cave ? "ancient" : group(biome);
         if (!desired.equals(lastGroup)) {
+            if (victory && music != null) client.getSoundManager().stop(music);
             gap = 0;
             lastGroup = desired;
         }
@@ -89,7 +108,7 @@ public final class PortAudio {
     }
 
     private static float gain(String group) {
-        return switch (group) { case "ancient" -> 0.12F; case "forge" -> 0.24F; default -> 0.32F; };
+        return switch (group) { case "ancient" -> 0.20F; case "forge" -> 0.28F; case "arena" -> .55F; default -> 0.34F; };
     }
 
     private static void tickMusic(Minecraft client, String desired) {
@@ -97,29 +116,43 @@ public final class PortAudio {
         boolean audible = configured > 0 && client.options.getSoundSourceVolume(SoundSource.MUSIC) > 0
                 && client.options.getSoundSourceVolume(SoundSource.MASTER) > 0;
         if (music != null) {
-            music.target = audible && playing != null && playing.group().equals(desired)
+            music.target = audible && compatible(playing, desired)
                     ? gain(desired) * configured : 0.0F;
             if (!client.getSoundManager().isActive(music) && ticks - music.started > 40) {
+                boolean changed = !compatible(playing, desired);
                 previous = playing;
                 music = null;
                 playing = null;
                 notice = 0;
-                gap = 100 + client.level.random.nextInt(201);
+                gap = changed ? 0 : desired.equals("victory") ? 40 : 100 + client.level.random.nextInt(201);
             }
             return;
         }
         if (!audible || desired.isEmpty()) return;
         if (gap > 0) { gap--; return; }
         if (tracks.isEmpty()) loadTracks(client);
-        List<Track> choices = tracks.stream().filter(track -> track.group().equals(desired))
+        List<Track> choices = tracks.stream().filter(track -> compatible(track, desired))
                 .sorted(Comparator.comparing(Track::title)).toList();
         if (choices.isEmpty()) { gap = 200; return; }
-        List<Track> candidates = choices.size() > 1
-                ? choices.stream().filter(track -> !track.equals(previous)).toList() : choices;
-        playing = candidates.get(client.level.random.nextInt(candidates.size()));
+        if (desired.equals("victory")) {
+            if (victoryTrack >= choices.size()) return;
+            playing = choices.get(victoryTrack++);
+        } else {
+            List<Track> candidates = choices.size() > 1
+                    ? choices.stream().filter(track -> !track.equals(previous)).toList() : choices;
+            playing = candidates.get(client.level.random.nextInt(candidates.size()));
+        }
         music = new MusicVoice(playing, gain(desired) * configured);
         client.getSoundManager().play(music);
         notice = 120;
+    }
+
+    private static boolean compatible(Track track, String desired) {
+        if (track == null) return false;
+        return desired.equals("victory")
+                ? track.title().equals("if we could roll back the credits, one last time")
+                        || track.title().equals("ill see you, at the edge of the world")
+                : track.group().equals(desired);
     }
 
     private static void loadTracks(Minecraft client) {
@@ -153,6 +186,8 @@ public final class PortAudio {
         mazeAmbience = caveAmbience = null;
         notice = gap = 0;
         lastGroup = "";
+        arena = defeatedBossNearby = false;
+        victoryTrack = 0;
     }
 
     public static void playGlobal(MinotaurGlobalSoundPayload payload) {
