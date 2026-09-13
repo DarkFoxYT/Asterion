@@ -1,0 +1,15 @@
+Asterion 1.2.0 for Minecraft 26.1.2
+
+Fabric
+  Install the Fabric Asterion jar and amnetic-1.0-SNAPSHOT.jar as separate mods.
+  Fabric API and GeckoLib 5.5.2 are required. Mod Menu is recommended for configs.
+
+Quilt
+  Install the Quilt Asterion jar and amnetic-1.0-SNAPSHOT.jar as separate mods.
+  Quilt Loader, Fabric API, and GeckoLib 5.5.2 are required. Mod Menu is recommended.
+
+NeoForge
+  Install the NeoForge Asterion jar and amnetic-neoforge-1.0-SNAPSHOT.jar as separate mods.
+  Forgified Fabric API and GeckoLib 5.5.2 are required.
+
+Do not install both Amnetic loader variants in the same instance.

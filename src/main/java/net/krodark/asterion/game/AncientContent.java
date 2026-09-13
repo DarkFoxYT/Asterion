@@ -4,6 +4,7 @@ import net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents;
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.entity.AncientSkeletonEntity;
+import net.krodark.asterion.mixin.SpawnPlacementsAccessor;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.*;
 import net.minecraft.resources.ResourceKey;
@@ -48,7 +49,8 @@ public final class AncientContent {
     private AncientContent() {}
     public static void initialize() {
         FabricDefaultAttributeRegistry.register(SKELETON, AncientSkeletonEntity.attributes());
-        SpawnPlacements.register(SKELETON, SpawnPlacementTypes.ON_GROUND, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, AncientSkeletonEntity::canSpawn);
+        SpawnPlacementsAccessor.asterion$register(SKELETON, SpawnPlacementTypes.ON_GROUND,
+                Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, AncientSkeletonEntity::canSpawn);
         CreativeModeTabEvents.modifyOutputEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Asterion.id("asterion")))
                 .register(output -> { output.accept(EGG); output.accept(ANCIENT_BONE); output.accept(MINOTAUR_HIDE); output.accept(MINOTAUR_TROPHY_ITEM); });
     }

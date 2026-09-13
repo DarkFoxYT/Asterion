@@ -39,11 +39,31 @@ repositories {
     maven { name = "BlameJared"; url = "https://maven.blamejared.com/" }
     maven { name = "Shedaniel"; url = "https://maven.shedaniel.me/" }
     maven { name = "Modrinth"; url = "https://api.modrinth.com/maven" }
+    maven { name = "Quilt"; url = "https://maven.quiltmc.org/repository/release" }
+}
+
+def loaderPlatform = providers.gradleProperty("loader_platform").getOrElse("fabric")
+if (!(loaderPlatform in ["fabric", "quilt"])) {
+    throw new GradleException("Unsupported loader_platform '${loaderPlatform}'. Expected 'fabric' or 'quilt'.")
+}
+
+if (loaderPlatform == "quilt") {
+    configurations.configureEach {
+        // Quilt Loader supplies Fabric Loader's compatibility API. Keeping a
+        // transitive, signed Fabric Loader jar beside it causes split-package
+        // signer failures before Knot can start.
+        exclude group: "net.fabricmc", module: "fabric-loader"
+    }
 }
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    if (loaderPlatform == "quilt") {
+        implementation "org.quiltmc:quilt-loader:${project.quilt_loader_version}"
+        implementation "org.quiltmc:quilt-loader-dependencies:${project.quilt_loader_version}"
+    } else {
+        implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    }
 
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
     implementation "com.geckolib:geckolib-fabric-${project.minecraft_version}:${project.geckolib_version}"
@@ -57,7 +77,6 @@ dependencies {
     compileOnly "maven.modrinth:jade:${project.jade_version}"
 
     implementation "com.meekdev:amnetic:${project.amnetic_version}"
-    include "com.meekdev:amnetic:${project.amnetic_version}"
 
     implementation "asterion.bundled:bb4j:0.0.0-c2242d5"
     include "asterion.bundled:bb4j:0.0.0-c2242d5"
@@ -133,7 +152,7 @@ java {
 
 jar {
     exclude 'net/krodark/asterion/dev/**'
-    archiveFileName = "${project.archives_base_name}-${project.version}-fabric-mc${project.minecraft_version}.jar"
+    archiveFileName = "${project.archives_base_name}-${project.version}-${loaderPlatform}-mc${project.minecraft_version}.jar"
     preserveFileTimestamps = false
     reproducibleFileOrder = true
     manifest {
@@ -141,11 +160,32 @@ jar {
                 'Implementation-Title': 'Asterion',
                 'Implementation-Version': project.version.toString(),
                 'Minecraft-Version': project.minecraft_version.toString(),
-                'Mod-Loader': 'Fabric'
+                'Mod-Loader': loaderPlatform == 'quilt' ? 'Quilt' : 'Fabric'
         )
     }
     from("LICENSE.txt") {
         rename { "LICENSE_${project.archives_base_name}.txt" }
+    }
+}
+
+if (loaderPlatform == "quilt") {
+    def prepareQuiltRunMods = tasks.register("prepareQuiltRunMods", Sync) {
+        dependsOn tasks.named("jar")
+        from tasks.named("jar", Jar).flatMap { it.archiveFile }
+        from(configurations.runtimeClasspath) {
+            include "fabric-api-*.jar"
+            include "geckolib-fabric-*.jar"
+            include "modmenu-*.jar"
+            include "amnetic-*.jar"
+        }
+        into layout.buildDirectory.dir("run/quilt/mods")
+    }
+
+    loom.runs.configureEach {
+        runDir "build/run/quilt"
+    }
+    tasks.matching { it.name.startsWith("run") }.configureEach {
+        dependsOn prepareQuiltRunMods
     }
 }
 
@@ -235,9 +275,10 @@ tasks.withType(JavaExec).configureEach {
 
 tasks.register("modDistribution", Sync) {
     group = "distribution"
-    description = "Stages the combined Asterion mod jar and installation notes."
+    description = "Stages Asterion, its standalone local Amnetic dependency, and installation notes."
     dependsOn tasks.named("jar")
     into layout.buildDirectory.dir("distribution")
     from(tasks.named("jar"))
+    from("libs/amnetic-1.0-SNAPSHOT.jar")
     from("docs/INSTALL-MODS.txt")
 }

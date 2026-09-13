@@ -41,13 +41,33 @@ public abstract class ForgedTooltipOutlineMixin {
             asterion$metalSequence = sequence;
     }
 
-    @Inject(method = "tooltip", at = @At(value = "INVOKE",
+    @Inject(method = "tooltip(Lnet/minecraft/client/gui/Font;Ljava/util/List;IILnet/minecraft/client/gui/screens/inventory/tooltip/ClientTooltipPositioner;Lnet/minecraft/resources/Identifier;)V",
+            require = 0, at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/gui/screens/inventory/tooltip/TooltipRenderUtil;extractTooltipBackground(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIIILnet/minecraft/resources/Identifier;)V",
             shift = At.Shift.AFTER))
-    private void asterion$drawForgedOutline(Font font, List<ClientTooltipComponent> lines,
+    private void asterion$drawForgedOutlineLegacy(Font font, List<ClientTooltipComponent> lines,
                                              int mouseX, int mouseY,
                                              ClientTooltipPositioner positioner,
                                              @Nullable Identifier style, CallbackInfo ci) {
+        asterion$drawForgedOutline(font, lines, mouseX, mouseY, positioner);
+    }
+
+    @Inject(method = "tooltip(Lnet/minecraft/client/gui/Font;Ljava/util/List;IILnet/minecraft/client/gui/screens/inventory/tooltip/ClientTooltipPositioner;Lnet/minecraft/resources/Identifier;Lnet/minecraft/world/item/ItemStack;)V",
+            require = 0, at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/gui/screens/inventory/tooltip/TooltipRenderUtil;extractTooltipBackground(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIIILnet/minecraft/resources/Identifier;)V",
+            shift = At.Shift.AFTER))
+    private void asterion$drawForgedOutlineNeoForge(Font font, List<ClientTooltipComponent> lines,
+                                                     int mouseX, int mouseY,
+                                                     ClientTooltipPositioner positioner,
+                                                     @Nullable Identifier style, ItemStack tooltipStack,
+                                                     CallbackInfo ci) {
+        asterion$drawForgedOutline(font, lines, mouseX, mouseY, positioner);
+    }
+
+    @Unique
+    private void asterion$drawForgedOutline(Font font, List<ClientTooltipComponent> lines,
+                                             int mouseX, int mouseY,
+                                             ClientTooltipPositioner positioner) {
         if (asterion$metalSequence.isEmpty()) return;
         int width = 0;
         int height = lines.size() == 1 ? -2 : 0;

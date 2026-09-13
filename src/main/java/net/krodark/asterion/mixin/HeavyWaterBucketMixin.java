@@ -20,6 +20,9 @@ import org.spongepowered.asm.mixin.injection.At;
 
 @Mixin(BucketItem.class)
 public abstract class HeavyWaterBucketMixin {
+    private static final String EMPTY_CONTENTS_LEGACY = "emptyContents(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/level/Level;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/phys/BlockHitResult;)Z";
+    private static final String EMPTY_CONTENTS_STACK_AWARE = "emptyContents(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/level/Level;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/phys/BlockHitResult;Lnet/minecraft/world/item/ItemStack;)Z";
+
     @org.spongepowered.asm.mixin.injection.Inject(method = "emptyContents", at = @At("HEAD"), cancellable = true)
     private void asterion$protectCatacombFluids(LivingEntity user, net.minecraft.world.level.Level level, BlockPos pos,
             net.minecraft.world.phys.BlockHitResult hit,
@@ -33,14 +36,14 @@ public abstract class HeavyWaterBucketMixin {
     private net.minecraft.world.level.material.FlowingFluid asterion$allowWaterContainer(net.minecraft.world.level.material.FlowingFluid water) {
         return HeavyWaterlogging.isHeavy(content) ? (net.minecraft.world.level.material.FlowingFluid)content : water;
     }
-    @WrapOperation(method = "emptyContents", at = @At(value = "INVOKE", target =
+    @WrapOperation(method = {EMPTY_CONTENTS_LEGACY, EMPTY_CONTENTS_STACK_AWARE}, at = @At(value = "INVOKE", target =
             "Lnet/minecraft/world/level/block/LiquidBlockContainer;canPlaceLiquid(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/material/Fluid;)Z"))
     private boolean asterion$canWaterlog(LiquidBlockContainer container, LivingEntity user, BlockGetter level,
                                         BlockPos pos, BlockState state, Fluid fluid, Operation<Boolean> original) {
         return HeavyWaterlogging.isHeavy(fluid) ? HeavyWaterlogging.canFill(user, level, pos, state)
                 : original.call(container, user, level, pos, state, fluid);
     }
-    @WrapOperation(method = "emptyContents", at = @At(value = "INVOKE", target =
+    @WrapOperation(method = {EMPTY_CONTENTS_LEGACY, EMPTY_CONTENTS_STACK_AWARE}, at = @At(value = "INVOKE", target =
             "Lnet/minecraft/world/level/block/LiquidBlockContainer;placeLiquid(Lnet/minecraft/world/level/LevelAccessor;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/material/FluidState;)Z"))
     private boolean asterion$placeLoggedWater(LiquidBlockContainer container, LevelAccessor level, BlockPos pos,
                                              BlockState state, FluidState fluid, Operation<Boolean> original) {

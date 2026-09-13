@@ -30,7 +30,8 @@
     "CinematicServerMovementMixin",
     "PrimaryLevelDataMixin",
     "StructureTemplateAccessor",
-    "WorldGenRegionAccessor"
+    "WorldGenRegionAccessor",
+    "SpawnPlacementsAccessor"
   ],
   "client": [
     "ForgeHudMixin",

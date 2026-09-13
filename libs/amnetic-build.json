@@ -1,9 +1,9 @@
 {
-  "version": "1.0-SNAPSHOT-asterion.2",
-  "sourceCommit": "3affd395ba457cdd26021da3f32d1a8773394f16",
+  "version": "1.0-SNAPSHOT",
+  "sourceCommit": "a69eb7b1f3a36ab093189fe9dbcf2383b82f2bd1",
   "minecraft": "26.1.2",
-  "amneticSha256": "388e8f6531bc64e9783c35c18850b15621da09cf742fbcfc2e9783341c5e3904",
+  "fabricQuiltSha256": "20b5318c67f8de8a1a87e07ec376d9978478cd32daa734fe8c3b5775f7501e0a",
+  "neoForgeSha256": "a768ca22f09f30c075938326e9940c89e626398a5732e8cc18b61d76a6f3cc06",
   "bb4jSha256": "c2242d567a3246ce68fe115f4214127e0d3986a99d6dde1a7a52aae0059fe888",
-  "installation": "Amnetic and its bb4j parser library nested inside Asterion",
-  "sourcePatch": "docs/curseforge/amnetic-preset-safety.patch"
+  "installation": "Local Amnetic Fabric/Quilt and NeoForge artifacts used by the matching Asterion loader build"
 }
