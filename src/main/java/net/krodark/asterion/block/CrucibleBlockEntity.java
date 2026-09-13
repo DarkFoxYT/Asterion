@@ -303,7 +303,8 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             if (!stack.isEmpty() && insert(player, stack)) {
                 var visual = new net.krodark.asterion.network.ForgeInsertPayload(worldPosition, player.getEyePosition(), thrown);
                 for (var viewer : ((net.minecraft.server.level.ServerLevel)level).players())
-                    if (viewer.distanceToSqr(worldPosition.getCenter()) < 48 * 48)
+                    if (viewer.distanceToSqr(worldPosition.getCenter()) < 48 * 48
+                            && ServerPlayNetworking.canSend(viewer, net.krodark.asterion.network.ForgeInsertPayload.TYPE))
                         ServerPlayNetworking.send(viewer, visual);
                 open(player);
             }

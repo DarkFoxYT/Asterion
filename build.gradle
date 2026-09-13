@@ -126,6 +126,25 @@ processResources {
         into 'assets/asterion/textures/entity/equipment/humanoid_leggings'
         rename { it.replace('_bottom.png', '.png') }
     }
+    // Minecraft 1.21.1 still resolves ArmorMaterial layers through the legacy
+    // textures/models/armor namespace. Keep the newer equipment copies too so
+    // the same source assets remain forward-compatible.
+    from('src/main/resources/assets/asterion/textures/armor') {
+        include '*_top.png'
+        into 'assets/asterion/textures/models/armor'
+        rename { it.replace('_top.png', '_layer_1.png') }
+    }
+    from('src/main/resources/assets/asterion/textures/armor') {
+        include '*_bottom.png'
+        into 'assets/asterion/textures/models/armor'
+        rename { it.replace('_bottom.png', '_layer_2.png') }
+    }
+    // NeoForge's 1.21.1 item atlas only discovers these generated-model
+    // dependencies reliably below textures/item. Keep the original authoring
+    // layout, but stage an item-atlas copy for both loader distributions.
+    from('src/main/resources/assets/asterion/textures/forging') {
+        into 'assets/asterion/textures/item/forging'
+    }
     inputs.properties resourceProperties
     filteringCharset = "UTF-8"
 
@@ -174,6 +193,11 @@ processResources {
             def json = new groovy.json.JsonSlurper().parse(model)
             json.render_type = type
             model.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json))
+        }
+        fileTree("${destinationDir}/assets/asterion/models/item").matching { include 'forged*.json' }.files.each { model ->
+            def source = model.getText('UTF-8')
+            def staged = source.replace('asterion:forging/', 'asterion:item/forging/')
+            if (staged != source) model.setText(staged, 'UTF-8')
         }
     }
 }

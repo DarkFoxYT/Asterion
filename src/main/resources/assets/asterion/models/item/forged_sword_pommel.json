@@ -1,1 +1,14 @@
-{"parent":"minecraft:item/generated","textures":{"layer0":"asterion:item/celestial_bronze_ingot"}}
+{
+  "parent": "asterion:item/forged_pommel_layer_iron",
+  "overrides": [
+    { "predicate": { "custom_model_data": 1 }, "model": "asterion:item/forged_pommel_layer_iron" },
+    { "predicate": { "custom_model_data": 2 }, "model": "asterion:item/forged_pommel_layer_copper" },
+    { "predicate": { "custom_model_data": 3 }, "model": "asterion:item/forged_pommel_layer_tarnished_gold" },
+    { "predicate": { "custom_model_data": 4 }, "model": "asterion:item/forged_pommel_layer_netherite" },
+    { "predicate": { "custom_model_data": 5 }, "model": "asterion:item/forged_pommel_layer_celestial_bronze" },
+    { "predicate": { "custom_model_data": 6 }, "model": "asterion:item/forged_pommel_layer_bone_steel" },
+    { "predicate": { "custom_model_data": 7 }, "model": "asterion:item/forged_pommel_layer_celestial_steel" },
+    { "predicate": { "custom_model_data": 8 }, "model": "asterion:item/forged_pommel_layer_celestial_gold" },
+    { "predicate": { "custom_model_data": 9 }, "model": "asterion:item/forged_pommel_layer_gold" }
+  ]
+}

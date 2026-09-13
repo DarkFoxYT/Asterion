@@ -14,6 +14,7 @@ import net.krodark.asterion.game.ChainLiftContent;
 import net.krodark.asterion.game.GameplayContent;
 import net.krodark.asterion.port.client.AncientSkeletonRenderer;
 import net.krodark.asterion.port.client.LiftCallRunePortRenderer;
+import net.krodark.asterion.port.client.LabyrinthVinePortRenderer;
 import net.krodark.asterion.port.client.MinotaurAxePortRenderer;
 import net.krodark.asterion.port.client.SimpleGeoEntityRenderer;
 import net.minecraft.client.Minecraft;
@@ -65,11 +66,7 @@ public final class AsterionFabricClient implements ClientModInitializer {
                                 : Asterion.id("textures/block/respawn_obelisk.png"),
                         ignored -> Asterion.id("block/sanctuary")));
         BlockEntityRenderers.register(Asterion.LABYRINTH_VINE_BLOCK_ENTITY,
-                context -> new SimpleGeoBlockRenderer<>(entity -> Asterion.id(entity.getBlockState().getValue(
-                                net.krodark.asterion.block.LabyrinthVineBlock.FACING) == net.minecraft.core.Direction.UP
-                                ? "block/labyrinth_vine_up" : "block/labyrinth_vine"),
-                        ignored -> Asterion.id("textures/block/labyrinth_vine.png"),
-                        ignored -> Asterion.id("block/labyrinth_vine")));
+                context -> new LabyrinthVinePortRenderer());
         BlockEntityRenderers.register(AncientContent.TROPHY_BLOCK_ENTITY, context -> new SimpleGeoBlockRenderer<>(
                 Asterion.id("block/minotaur_trophy"), Asterion.id("textures/entity/minotaur.png"), null));
         BlockEntityRenderers.register(net.krodark.asterion.game.PedestalContent.BLOCK_ENTITY,

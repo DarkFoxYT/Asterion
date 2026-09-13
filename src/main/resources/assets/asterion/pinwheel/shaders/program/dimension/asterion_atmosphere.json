@@ -1,4 +1,0 @@
-{
-  "vertex": "veil:core/blit_screen_effect",
-  "fragment": "asterion:dimension/asterion_atmosphere"
-}

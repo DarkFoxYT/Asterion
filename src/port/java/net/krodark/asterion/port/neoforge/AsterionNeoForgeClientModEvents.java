@@ -6,12 +6,15 @@ import net.krodark.asterion.game.ChainLiftContent;
 import net.krodark.asterion.game.GameplayContent;
 import net.krodark.asterion.port.client.AncientSkeletonRenderer;
 import net.krodark.asterion.port.client.LiftCallRunePortRenderer;
+import net.krodark.asterion.port.client.LabyrinthVinePortRenderer;
 import net.krodark.asterion.port.client.MinotaurAxePortRenderer;
 import net.krodark.asterion.port.client.SimpleGeoEntityRenderer;
 import net.krodark.asterion.port.client.SimpleGeoBlockRenderer;
 import net.krodark.asterion.port.client.PortClientFeatures;
 import net.minecraft.client.particle.FlameParticle;
 import net.minecraft.client.particle.SmokeParticle;
+import net.minecraft.client.renderer.RenderType;
+import net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -25,6 +28,7 @@ public final class AsterionNeoForgeClientModEvents {
     @SubscribeEvent
     public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
         PortClientFeatures.initialize();
+        registerRenderLayers();
         event.registerEntityRenderer(AncientContent.SKELETON, AncientSkeletonRenderer::new);
         event.registerEntityRenderer(Asterion.MINOTAUR, context -> new SimpleGeoEntityRenderer<>(context,
                 Asterion.id("entity/minotaur"), Asterion.id("textures/entity/minotaur.png"),
@@ -72,11 +76,7 @@ public final class AsterionNeoForgeClientModEvents {
                                 : Asterion.id("textures/block/respawn_obelisk.png"),
                         ignored -> Asterion.id("block/sanctuary")));
         event.registerBlockEntityRenderer(Asterion.LABYRINTH_VINE_BLOCK_ENTITY,
-                context -> new SimpleGeoBlockRenderer<>(entity -> Asterion.id(entity.getBlockState().getValue(
-                                net.krodark.asterion.block.LabyrinthVineBlock.FACING) == net.minecraft.core.Direction.UP
-                                ? "block/labyrinth_vine_up" : "block/labyrinth_vine"),
-                        ignored -> Asterion.id("textures/block/labyrinth_vine.png"),
-                        ignored -> Asterion.id("block/labyrinth_vine")));
+                context -> new LabyrinthVinePortRenderer());
         event.registerBlockEntityRenderer(AncientContent.TROPHY_BLOCK_ENTITY, context -> new SimpleGeoBlockRenderer<>(
                 Asterion.id("block/minotaur_trophy"), Asterion.id("textures/entity/minotaur.png"), null));
         event.registerBlockEntityRenderer(net.krodark.asterion.game.PedestalContent.BLOCK_ENTITY,
@@ -100,6 +100,21 @@ public final class AsterionNeoForgeClientModEvents {
                 Asterion.id("block/shattered_dead_wood"), Asterion.id("textures/block/shattered_dead_wood.png"), Asterion.id("block/shattered_dead_wood")));
         event.registerBlockEntityRenderer(Asterion.OMEGA_LOCK_BLOCK_ENTITY, context -> new SimpleGeoBlockRenderer<>(
                 Asterion.id("block/omega_lock"), Asterion.id("textures/block/runes/24.png"), Asterion.id("block/omega_lock")));
+    }
+
+    private static void registerRenderLayers() {
+        BlockRenderLayerMap.INSTANCE.putBlocks(RenderType.cutout(), Asterion.ANCIENT_LEAVES,
+                Asterion.TAINTED_LEAVES, Asterion.TAINTED_PETALS, Asterion.PASSION_BLOOM,
+                Asterion.SHORT_GRASS, Asterion.ANCIENT_MOSS_CARPET, Asterion.MAZESTEEL_BARS,
+                Asterion.MAZESTEEL_CHAIN, Asterion.MAZESTEEL_GATE, Asterion.GREEK_BRAZIER,
+                Asterion.GREEK_FIRE_LANTERN, Asterion.RED_FIRE_LANTERN,
+                Asterion.GREEK_FIRE_FLOOR_TORCH, Asterion.GREEK_FIRE_WALL_TORCH,
+                Asterion.RED_FIRE_FLOOR_TORCH, Asterion.RED_FIRE_WALL_TORCH,
+                Asterion.ORANGE_FIRE_FLOOR_TORCH, Asterion.ORANGE_FIRE_WALL_TORCH,
+                Asterion.LABYRINTH_VINE);
+        BlockRenderLayerMap.INSTANCE.putBlocks(RenderType.translucent(),
+                net.krodark.asterion.fluid.HeavyWater.WATER_BLOCK,
+                net.krodark.asterion.fluid.HeavyWater.BLOCK);
     }
 
     @SubscribeEvent

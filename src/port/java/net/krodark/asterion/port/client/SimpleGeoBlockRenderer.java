@@ -9,7 +9,7 @@ import software.bernie.geckolib.renderer.GeoBlockRenderer;
 import java.util.function.Function;
 
 /** Minecraft 1.21.1 GeckoLib renderer used by both loader client bootstraps. */
-public final class SimpleGeoBlockRenderer<T extends BlockEntity & GeoAnimatable>
+public class SimpleGeoBlockRenderer<T extends BlockEntity & GeoAnimatable>
         extends GeoBlockRenderer<T> {
     public SimpleGeoBlockRenderer(ResourceLocation model, ResourceLocation texture,
                                   ResourceLocation animation) {

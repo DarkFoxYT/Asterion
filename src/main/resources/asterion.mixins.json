@@ -31,6 +31,8 @@
   ],
   "client": [
     "ItemPropertiesInvoker",
+    "PortCameraMixin",
+    "PortFogRendererMixin",
     "PortRagdollRenderMixin"
   ],
   "injectors": {
