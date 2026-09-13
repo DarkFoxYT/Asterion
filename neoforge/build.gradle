@@ -38,6 +38,14 @@ neoForge {
     }
 }
 
+// IntelliJ delegates generated Application configurations to a Gradle task named after
+// the DevLaunch main class. Ensure its argument files exist even after `clean`.
+tasks.configureEach {
+    if (name == 'net.neoforged.devlaunch.Main.main()') {
+        dependsOn tasks.named('prepareClientRun'), tasks.named('prepareServerRun')
+    }
+}
+
 sourceSets {
     main {
         java {
