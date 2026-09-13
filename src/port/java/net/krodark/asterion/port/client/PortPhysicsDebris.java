@@ -39,6 +39,8 @@ public final class PortPhysicsDebris {
     private static final GeoObjectRenderer<DebrisObject> RENDERER = new GeoObjectRenderer<>(new DebrisModel());
     private static ClientLevel trackedLevel;
     private static long lastAmbientTick = Long.MIN_VALUE;
+    private static long soundBudgetTick = Long.MIN_VALUE;
+    private static final List<Vec3> SOUND_POSITIONS = new ArrayList<>();
 
     private PortPhysicsDebris() {}
 
@@ -177,6 +179,7 @@ public final class PortPhysicsDebris {
             Piece piece = iterator.next();
             piece.previous = piece.position;
             piece.previousRotation.set(piece.rotation);
+            if (piece.soundCooldown > 0) piece.soundCooldown--;
             if (!piece.sleeping) {
                 int substeps = Mth.clamp(1 + net.krodark.asterion.AsterionConfig.INSTANCE.ragdollPhysicsQuality, 1, 3);
                 for (int step = 0; step < substeps && !piece.sleeping; step++)
@@ -205,19 +208,20 @@ public final class PortPhysicsDebris {
         piece.spin.mul(collided ? .72F : (float)Math.pow(.988F, dt));
         if (collided) {
             piece.velocity = piece.velocity.multiply(.78D, 1, .78D);
-            if (impact > .24D && piece.soundCooldown-- <= 0) {
-                var sound = switch (piece.variant % 3) {
+            if (impact > .24D && piece.soundCooldown <= 0 && claimLocalSound(level, piece.position)) {
+                var sound = switch (piece.soundVariant) {
                     case 0 -> Asterion.DEBRIS_1;
                     case 1 -> Asterion.DEBRIS_2;
                     default -> Asterion.DEBRIS_3;
                 };
                 level.playLocalSound(piece.position.x, piece.position.y, piece.position.z, sound,
-                        SoundSource.BLOCKS, Mth.clamp(.15F + piece.scale * .7F, .15F, .8F),
-                        Mth.clamp(1.15F - piece.scale * .28F, .52F, 1.18F), false);
-                piece.soundCooldown = 8;
+                        SoundSource.BLOCKS, Mth.clamp((.12F + piece.scale * .58F)
+                                * (float)Mth.clamp(impact * 1.7D, .45D, 1.0D), .10F, .72F),
+                        Mth.clamp((1.13F - piece.scale * .25F) * piece.impactPitch, .48F, 1.32F), false);
+                piece.soundCooldown = 13 + piece.soundVariant * 3;
                 level.addParticle(ParticleTypes.POOF, piece.position.x, piece.position.y, piece.position.z, 0, .02D, 0);
             }
-        } else if (piece.soundCooldown > 0) piece.soundCooldown--;
+        }
         if (collided && piece.velocity.lengthSqr() < .0012D && piece.spin.lengthSquared() < .0012F) {
             if (++piece.restTicks > 12) piece.sleeping = true;
         } else piece.restTicks = 0;
@@ -228,6 +232,8 @@ public final class PortPhysicsDebris {
         PIECES.clear();
         trackedLevel = level;
         lastAmbientTick = Long.MIN_VALUE;
+        soundBudgetTick = Long.MIN_VALUE;
+        SOUND_POSITIONS.clear();
     }
 
     private static boolean clear(ClientLevel level, Piece piece, Vec3 center) {
@@ -251,6 +257,21 @@ public final class PortPhysicsDebris {
             level.addParticle(Asterion.ANCIENT_WALL_DUST, spread.x, spread.y, spread.z,
                     normal.x * .012D, normal.y * .012D, normal.z * .012D);
         }
+    }
+
+    private static boolean claimLocalSound(ClientLevel level, Vec3 position) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || client.player.distanceToSqr(position) > 56.0D * 56.0D) return false;
+        long tick = level.getGameTime();
+        if (tick != soundBudgetTick) {
+            soundBudgetTick = tick;
+            SOUND_POSITIONS.clear();
+        }
+        int limit = 2 + Math.max(0, net.krodark.asterion.AsterionConfig.INSTANCE.ragdollPhysicsQuality);
+        if (SOUND_POSITIONS.size() >= limit
+                || SOUND_POSITIONS.stream().anyMatch(other -> other.distanceToSqr(position) < 6.25D)) return false;
+        SOUND_POSITIONS.add(position);
+        return true;
     }
 
     private static Vec3 halfExtents(int variant) {
@@ -286,6 +307,8 @@ public final class PortPhysicsDebris {
         final DebrisObject visual;
         final int variant, life;
         final float scale;
+        final int soundVariant;
+        final float impactPitch;
         final Quaternionf rotation = new Quaternionf();
         final Quaternionf previousRotation = new Quaternionf();
         final Vector3f spin;
@@ -298,6 +321,9 @@ public final class PortPhysicsDebris {
             this.visual = new DebrisObject(this.variant);
             this.scale = scale;
             this.life = life;
+            soundVariant = random.nextInt(3);
+            impactPitch = .82F + random.nextFloat() * .36F;
+            soundCooldown = random.nextInt(6);
             rotation.rotationXYZ(random.nextFloat() * Mth.TWO_PI, random.nextFloat() * Mth.TWO_PI,
                     random.nextFloat() * Mth.TWO_PI);
             previousRotation.set(rotation);

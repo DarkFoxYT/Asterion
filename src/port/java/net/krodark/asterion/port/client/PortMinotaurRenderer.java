@@ -13,6 +13,7 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import software.bernie.geckolib.cache.object.BakedGeoModel;
 import software.bernie.geckolib.animatable.GeoAnimatable;
 import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
@@ -38,6 +39,16 @@ public final class PortMinotaurRenderer extends SimpleGeoEntityRenderer<Minotaur
                           MultiBufferSource buffers, VertexConsumer buffer, boolean rerender,
                           float partialTick, int light, int overlay, int colour) {
         float scale = .47F * AsterionConfig.INSTANCE.minotaurScale;
+        double entryTime = PortCinematics.bossVisualTime(boss, partialTick);
+        boss.setEntryVisualTime(entryTime);
+        if (Double.isFinite(entryTime)) {
+            net.minecraft.world.phys.Vec3 authored = net.krodark.asterion.entity.MinotaurEntranceMotion
+                    .point(entryTime, boss.getBbWidth());
+            double renderedX = Mth.lerp(partialTick, boss.xo, boss.getX());
+            double renderedY = Mth.lerp(partialTick, boss.yo, boss.getY());
+            double renderedZ = Mth.lerp(partialTick, boss.zo, boss.getZ());
+            poses.translate(authored.x - renderedX, authored.y - renderedY, authored.z - renderedZ);
+        }
         scaleWidth = scale;
         scaleHeight = scale;
         super.preRender(poses, boss, model, buffers, buffer, rerender,
@@ -48,7 +59,7 @@ public final class PortMinotaurRenderer extends SimpleGeoEntityRenderer<Minotaur
     public boolean shouldRender(MinotaurEntity boss, Frustum frustum, double x, double y, double z) {
         if (boss.doorEntryTicks() > 0 && boss.doorEntryTicks() - 1
                 < net.krodark.asterion.entity.MinotaurAnimationTiming.ENTRY_BREAK_TICK) return false;
-        return frustum.isVisible(boss.animatedBodyBounds());
+        return true;
     }
 
     @Override

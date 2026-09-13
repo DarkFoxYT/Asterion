@@ -65,8 +65,6 @@ public final class PortChainLiftRenderer extends SimpleGeoEntityRenderer<ChainLi
 
     @Override
     public boolean shouldRender(ChainLiftEntity lift, Frustum frustum, double x, double y, double z) {
-        AABB bounds = lift.getBoundingBox().expandTowards(0,
-                Math.max(3.0D, lift.ceiling() - lift.getY()), 0).inflate(.5D);
-        return frustum.isVisible(bounds);
+        return true;
     }
 }

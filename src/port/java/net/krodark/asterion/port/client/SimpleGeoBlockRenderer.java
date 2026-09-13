@@ -39,6 +39,13 @@ public class SimpleGeoBlockRenderer<T extends BlockEntity & GeoAnimatable>
         return this;
     }
 
+    @Override
+    public boolean shouldRenderOffScreen(T animatable) {
+        // Multi-block and animated GeoModels frequently extend outside their
+        // root block's section bounds; keep visible bones from popping out.
+        return true;
+    }
+
     @SuppressWarnings("deprecation")
     private static final class StaticModel<T extends GeoAnimatable> extends GeoModel<T> {
         private final Function<T, ResourceLocation> model;

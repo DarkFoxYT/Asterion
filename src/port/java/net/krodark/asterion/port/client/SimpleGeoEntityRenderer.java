@@ -1,6 +1,7 @@
 package net.krodark.asterion.port.client;
 
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
+import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import software.bernie.geckolib.animatable.GeoAnimatable;
@@ -29,6 +30,14 @@ public class SimpleGeoEntityRenderer<T extends Entity & GeoAnimatable> extends G
                                                          Predicate<T> visible, String... bones) {
         addRenderLayer(new PortEmissiveGeoLayer<>(this, this::getTextureLocation, color, visible, bones));
         return this;
+    }
+
+    @Override
+    public boolean shouldRender(T animatable, Frustum frustum, double x, double y, double z) {
+        // Animated GeoModel bones often extend well beyond the vanilla hitbox.
+        // Keep the model submitted when that small box leaves the view so large
+        // limbs, doors, chains and wall-crawling bodies do not pop out.
+        return true;
     }
 
     @SuppressWarnings("deprecation")

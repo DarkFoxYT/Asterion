@@ -6,12 +6,16 @@ import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
+import org.joml.Matrix3f;
+import org.joml.Matrix4f;
 import software.bernie.geckolib.animatable.GeoAnimatable;
 import software.bernie.geckolib.cache.object.BakedGeoModel;
 import software.bernie.geckolib.cache.object.GeoBone;
 import software.bernie.geckolib.renderer.GeoRenderer;
 import software.bernie.geckolib.renderer.layer.GeoRenderLayer;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -23,6 +27,7 @@ public final class PortEmissiveGeoLayer<T extends GeoAnimatable> extends GeoRend
     private final Function<T, ResourceLocation> texture;
     private final ToIntFunction<T> color;
     private final Predicate<T> visible;
+    private final List<Draw> pending = new ArrayList<>();
 
     public PortEmissiveGeoLayer(GeoRenderer<T> renderer, Function<T, ResourceLocation> texture,
                                 ToIntFunction<T> color, Predicate<T> visible, String... bones) {
@@ -37,9 +42,9 @@ public final class PortEmissiveGeoLayer<T extends GeoAnimatable> extends GeoRend
     public void preRender(PoseStack poses, T animatable, BakedGeoModel model, RenderType renderType,
                           MultiBufferSource buffers, VertexConsumer buffer, float partialTick,
                           int packedLight, int packedOverlay) {
-        // The normal surface must not also draw these cubes; the emission type
-        // supplies both its visible surface and its separate bloom attachment.
-        for (String name : bones) model.getBone(name).ifPresent(bone -> bone.setHidden(true));
+        pending.clear();
+        boolean show = visible.test(animatable) && (color.applyAsInt(animatable) >>> 24) != 0;
+        for (String name : bones) model.getBone(name).ifPresent(bone -> bone.setHidden(!show));
     }
 
     @Override
@@ -50,17 +55,30 @@ public final class PortEmissiveGeoLayer<T extends GeoAnimatable> extends GeoRend
         int tint = color.applyAsInt(animatable);
         if ((tint >>> 24) == 0) return;
 
+        // Capture the posed bone, then emit only after the complete base model.
+        // The emissive bones remain visible in that base pass, so they contribute
+        // their own depth instead of glowing through the rest of the GeoModel.
+        pending.add(new Draw(bone, new Matrix4f(poses.last().pose()),
+                new Matrix3f(poses.last().normal()), tint));
+    }
+
+    @Override
+    public void render(PoseStack poses, T animatable, BakedGeoModel model, RenderType renderType,
+                       MultiBufferSource buffers, VertexConsumer buffer, float partialTick,
+                       int packedLight, int packedOverlay) {
+        if (pending.isEmpty()) return;
         RenderType emission = PortEmissiveBuffer.renderType(texture.apply(animatable));
         VertexConsumer out = buffers.getBuffer(emission);
-        boolean hidden = bone.isHidden();
-        bone.setHidden(false);
-        try {
-            renderer.renderCubesOfBone(poses, bone, out, LightTexture.FULL_BRIGHT, packedOverlay, tint);
-        } finally {
-            bone.setHidden(hidden);
-            // GeckoLib requires the original consumer to be made current again
-            // after a per-bone layer switches render types.
-            buffers.getBuffer(renderType);
+        PoseStack drawPoses = new PoseStack();
+        for (Draw draw : pending) {
+            drawPoses.last().pose().set(draw.pose);
+            drawPoses.last().normal().set(draw.normal);
+            renderer.renderCubesOfBone(drawPoses, draw.bone, out,
+                    LightTexture.FULL_BRIGHT, packedOverlay, draw.tint);
         }
+        pending.clear();
+        buffers.getBuffer(renderType);
     }
+
+    private record Draw(GeoBone bone, Matrix4f pose, Matrix3f normal, int tint) {}
 }

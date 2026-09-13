@@ -13,7 +13,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.resources.sounds.AbstractSoundInstance;
 import net.minecraft.core.Direction;
-import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
@@ -243,6 +242,12 @@ public final class PortCinematics {
                 (float)(Math.sin(reveal * Math.PI) * -3.0D + settle * 1.2D) * (1.0F - returning));
     }
 
+    public static double bossVisualTime(MinotaurEntity boss, float partial) {
+        if (scene == Scene.BOSS_ENTRANCE && boss.doorEntryTicks() > 0
+                && (cinematicBoss == null || cinematicBoss == boss)) return elapsed + partial;
+        return boss.doorEntryTicks() > 0 ? boss.doorEntryTicks() - 1 + partial : Double.NaN;
+    }
+
     private static float smootherStep(float value) {
         float t = Mth.clamp(value, 0, 1);
         return t * t * t * (t * (t * 6 - 15) + 10);
@@ -280,36 +285,17 @@ public final class PortCinematics {
     public record CameraPose(Vec3 position, float yaw, float pitch, float roll) {}
 
     private static void render(GuiGraphics graphics) {
-        if (scene == Scene.NONE) return;
-        int width = graphics.guiWidth();
-        int height = graphics.guiHeight();
-        float progress = duration <= 0 ? 1 : Mth.clamp(elapsed / (float)duration, 0, 1);
-        int bar = Math.max(18, height / 9);
-        int alpha = Math.round(230 * Mth.clamp(Math.min(progress * 6, (1 - progress) * 8), 0, 1));
-        graphics.fill(0, 0, width, bar, alpha << 24);
-        graphics.fill(0, height - bar, width, height, alpha << 24);
-
-        Minecraft client = Minecraft.getInstance();
-        Component caption = switch (scene) {
-            case TRANSITION -> deathMessage == 0 ? Component.translatable("transition.asterion.descending")
-                    : Component.translatable(deathMessage == 1 ? "death.asterion.you_died" : "death.asterion.teammate_died");
-            case BOSS_ENTRANCE -> Component.literal("THE LABYRINTH STIRS");
-            case BRAZIER -> Component.literal("AN ANCIENT FLAME AWAKENS");
-            case ROOF_COLLAPSE -> Component.literal("THE SANCTUARY COLLAPSES");
-            case FINALE -> Component.literal("THE DEAD SUN FADES");
-            default -> Component.empty();
-        };
-        int textAlpha = Math.max(0x30, alpha) << 24;
-        graphics.drawCenteredString(client.font, caption, width / 2, height - bar + 6,
-                textAlpha | (scene == Scene.TRANSITION ? 0xD63A32 : 0xE7C88B));
-
-        if (scene == Scene.TRANSITION) {
-            float fade = elapsed < fadeIn ? elapsed / (float)fadeIn
-                    : 1.0F - Mth.clamp((elapsed - fadeIn) / (float)Math.max(1, hold), 0, 1);
-            int darkness = Math.round(Mth.clamp(fade, 0, 1) * 245);
-            graphics.fill(0, 0, width, height, darkness << 24);
-            graphics.drawCenteredString(client.font, caption, width / 2, height / 2,
-                    Math.max(80, darkness) << 24 | 0xD63A32);
+        // Cinematics are camera-only. Only dimension transitions draw a clean
+        // black fade; no letterbox bars, titles or captions are overlaid.
+        if (scene != Scene.TRANSITION) return;
+        int fadeOut = Math.max(4, Math.min(12, hold / 3));
+        float opacity;
+        if (elapsed < fadeIn) opacity = smootherStep(elapsed / (float)fadeIn);
+        else {
+            int remaining = duration - elapsed;
+            opacity = remaining > fadeOut ? 1.0F : smootherStep(remaining / (float)fadeOut);
         }
+        int alpha = Math.round(Mth.clamp(opacity, 0, 1) * 255.0F);
+        graphics.fill(0, 0, graphics.guiWidth(), graphics.guiHeight(), alpha << 24);
     }
 }

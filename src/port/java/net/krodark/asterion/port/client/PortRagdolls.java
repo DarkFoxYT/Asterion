@@ -85,7 +85,15 @@ public final class PortRagdolls {
         ClientPlayNetworking.registerGlobalReceiver(RagdollAuthorityPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> {
                     if (context.client().player == null) return;
-                    Ragdoll ragdoll = activate(context.client().player, 80);
+                    Ragdoll ragdoll = ACTIVE.get(context.client().player.getId());
+                    // The server sends a final authority correction immediately
+                    // after recovery. Never interpret that acknowledgement as a
+                    // fresh knockdown.
+                    if (ragdoll == null) {
+                        context.client().player.setPos(payload.position());
+                        context.client().player.setDeltaMovement(payload.velocity());
+                        return;
+                    }
                     Vec3 correction = payload.position().subtract(ragdoll.center());
                     ragdoll.translate(correction);
                     for (Body body : ragdoll.bodies.values()) body.velocity = payload.velocity();
@@ -135,8 +143,9 @@ public final class PortRagdolls {
             client.player.setDeltaMovement(Vec3.ZERO);
             if (client.player.tickCount % 2 == 0 && ClientPlayNetworking.canSend(TumbleExitPayload.TYPE))
                 ClientPlayNetworking.send(new TumbleExitPayload(feet.x, feet.y, feet.z, 0, 0, 0, false));
-            handleRecovery(client, local, feet, solvedVelocity);
-            if (client.player.tickCount % 3 == 0 && ClientPlayNetworking.canSend(RagdollPosePayload.TYPE))
+            boolean recovered = handleRecovery(client, local, feet, solvedVelocity);
+            if (!recovered && client.player.tickCount % 3 == 0
+                    && ClientPlayNetworking.canSend(RagdollPosePayload.TYPE))
                 ClientPlayNetworking.send(local.payload(client.player.getId(), ++poseSequence));
         } else {
             restoreCamera(client);
@@ -283,7 +292,7 @@ public final class PortRagdolls {
         client.player.setSprinting(false);
     }
 
-    private static void handleRecovery(Minecraft client, Ragdoll ragdoll, Vec3 feet, Vec3 velocity) {
+    private static boolean handleRecovery(Minecraft client, Ragdoll ragdoll, Vec3 feet, Vec3 velocity) {
         boolean down = client.screen == null && GLFW.glfwGetKey(client.getWindow().getWindow(), GLFW.GLFW_KEY_SPACE)
                 == GLFW.GLFW_PRESS;
         boolean recover = false;
@@ -299,16 +308,29 @@ public final class PortRagdolls {
             recover = recoveryHoldTicks >= 32 && localElapsed >= 8;
         }
         recoveryWasDown = down;
-        if (!recover) return;
+        if (!recover || !supported(client.player, feet)) return false;
         Vec3 exitVelocity = velocity.length() > 2.8D ? velocity.normalize().scale(2.8D) : velocity;
         ACTIVE.remove(client.player.getId());
         client.player.setPos(feet);
         client.player.setDeltaMovement(exitVelocity);
+        client.player.setXRot(0);
+        client.player.xRotO = 0;
+        client.player.yHeadRot = client.player.getYRot();
+        client.player.yHeadRotO = client.player.getYRot();
+        client.player.yBodyRot = client.player.getYRot();
+        client.player.yBodyRotO = client.player.getYRot();
         if (ClientPlayNetworking.canSend(TumbleExitPayload.TYPE))
             ClientPlayNetworking.send(new TumbleExitPayload(feet.x, feet.y, feet.z,
                     exitVelocity.x, exitVelocity.y, exitVelocity.z, true));
         restoreCamera(client);
         resetRecovery();
+        return true;
+    }
+
+    private static boolean supported(LivingEntity entity, Vec3 feet) {
+        AABB box = entity.getBoundingBox().move(feet.subtract(entity.position())).deflate(.002D);
+        return entity.level().noCollision(entity, box)
+                && !entity.level().noCollision(entity, box.move(0, -.10D, 0));
     }
 
     private static void resetRecovery() {
@@ -439,6 +461,14 @@ public final class PortRagdolls {
         }
 
         private void move(LivingEntity entity, Body body, Vec3 delta) {
+            // Sweep in radius-sized increments so a fast impulse cannot sample
+            // from above a floor to below it without ever touching its collider.
+            int steps = Mth.clamp((int)Math.ceil(delta.length() / Math.max(.07D, body.radius * .65D)), 1, 12);
+            Vec3 step = delta.scale(1.0D / steps);
+            for (int i = 0; i < steps; i++) moveStep(entity, body, step);
+        }
+
+        private void moveStep(LivingEntity entity, Body body, Vec3 delta) {
             Vec3 start = body.position;
             Vec3 candidate = start.add(delta);
             if (clear(entity, body, candidate)) { body.position = candidate; return; }
