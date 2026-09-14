@@ -1,29 +1,27 @@
 Asterion local builds
 Generated: 2026-09-14
 
-Minecraft 26.1.2 (source commit 7988996f)
+Minecraft 26.1.2 (source commit db5d5f1d)
   Fabric:   Asterion-1.2.0-fabric-mc26.1.2.jar
   Quilt:    Asterion-1.2.0-quilt-mc26.1.2.jar
   NeoForge: Asterion-1.2.0-neoforge-mc26.1.2.jar
 
-  Fabric and Quilt also require:
-    amnetic-1.0-SNAPSHOT-fabric-quilt-mc26.1.2.jar
+  Amnetic 1.0-SNAPSHOT is embedded in each jar using its loader-specific
+  nested-mod format. Do not install a separate Amnetic copy with these builds.
 
-  NeoForge also requires:
-    amnetic-1.0-SNAPSHOT-neoforge-mc26.1.2.jar
-
-Minecraft 1.21.1 (source commit 41caa5db)
+Minecraft 1.21.1 (source commit dedee44a)
   Fabric:   Asterion-1.2.2-fabric-mc1.21.1.jar
   NeoForge: Asterion-1.2.2-neoforge-mc1.21.1.jar
 
+  Veil 4.5.0 is embedded in each jar using its loader-specific nested-mod
+  format. Do not install a separate Veil copy with these builds.
+
 SHA-256
-  F5F687CDE339F73B9D52EAA2A121622C1B1B4BD8B140758C0D65248DD1258120  Asterion-1.2.0-fabric-mc26.1.2.jar
-  73F55FEB186AE662687D66BBEB50C4ECCAEA0CEF83E2CA6DA0F3D3A8243934B0  Asterion-1.2.0-quilt-mc26.1.2.jar
-  763F09E403CEC781E6A9FBC22F567B2B710BE061462E5094EC51D99E9C7187B3  Asterion-1.2.0-neoforge-mc26.1.2.jar
-  151CCA66365015088F9BDD73E0191146ADA88096623FC3B0F7FEF800BEEC79E2  Asterion-1.2.2-fabric-mc1.21.1.jar
-  7B4505CA98DC45335E48E81B9D50C1F4F651540BC645EA4BFA588CC86895F7B6  Asterion-1.2.2-neoforge-mc1.21.1.jar
-  20B5318C67F8DE8A1A87E07EC376D9978478CD32DAA734FE8C3B5775F7501E0A  amnetic-1.0-SNAPSHOT-fabric-quilt-mc26.1.2.jar
-  A768CA22F09F30C075938326E9940C89E626398A5732E8CC18B61D76A6F3CC06  amnetic-1.0-SNAPSHOT-neoforge-mc26.1.2.jar
+  DF327B9BBCF45AFB1F87E86E9281C4C6B6157744605F3C416ECA01918CD6B83F  Asterion-1.2.0-fabric-mc26.1.2.jar
+  2B14D7D7ADFE82F43B4FB37C8BE2CFFBC5A01782E146E90DB1C91F681ADB38E9  Asterion-1.2.0-quilt-mc26.1.2.jar
+  2E57D2870A4FB7584F05AF36FAE238006781AB497A0713C44D25C351EEA662EF  Asterion-1.2.0-neoforge-mc26.1.2.jar
+  D6A2FCBC109D7F00ACB39B80C71B1C7DB1F09503E9860E5F26FCAAB6CE0C4672  Asterion-1.2.2-fabric-mc1.21.1.jar
+  126B11EACAFAD560AB832D7316D2C101AB170CD60F25A24ECFF0DC69ACCA7D4F  Asterion-1.2.2-neoforge-mc1.21.1.jar
 
 These jars are intentionally ignored by Git. Rebuilding them does not dirty the
 source tree; this manifest remains tracked so each artifact is identifiable.
