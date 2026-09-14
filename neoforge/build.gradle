@@ -12,6 +12,12 @@ base {
 }
 
 repositories {
+    ivy {
+        name = "LocalRendererDependencies"
+        url = rootProject.uri("libs")
+        patternLayout { artifact "[artifact]-[revision].[ext]" }
+        metadataSources { artifact() }
+    }
     maven { name = "Fabric"; url = "https://maven.fabricmc.net/" }
     maven { name = "Sinytra"; url = "https://maven.sinytra.org" }
     maven { name = "GeckoLib"; url = "https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/" }
@@ -67,7 +73,10 @@ configurations {
 dependencies {
     implementation "org.sinytra.forgified-fabric-api:forgified-fabric-api:${rootProject.forgified_fabric_api_version}"
     implementation "com.geckolib:geckolib-neoforge-${rootProject.minecraft_version}:${rootProject.geckolib_version}"
-    implementation files(rootProject.file("libs/amnetic-neoforge-1.0-SNAPSHOT.jar"))
+    implementation "asterion.local:amnetic-neoforge:${rootProject.amnetic_version}"
+    jarJar("asterion.local:amnetic-neoforge:${rootProject.amnetic_version}") {
+        version { strictly "[${rootProject.amnetic_version}]" }
+    }
 
     // Shared optional integrations are compiled but remain optional at runtime.
     compileOnly "net.fabricmc:fabric-loader:${rootProject.loader_version}"
@@ -122,6 +131,5 @@ tasks.register("modDistribution", Sync) {
     dependsOn tasks.named("jar")
     into layout.buildDirectory.dir("distribution")
     from(tasks.named("jar"))
-    from(rootProject.file("libs/amnetic-neoforge-1.0-SNAPSHOT.jar"))
     from(rootProject.file("docs/INSTALL-MODS.txt"))
 }
