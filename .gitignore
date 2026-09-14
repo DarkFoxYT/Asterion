@@ -24,3 +24,6 @@ run
 logs/
 *.log
 *.log.gz
+
+# Locally assembled release shelf. Keep the manifest, not binary builds.
+/modbuilds/*.jar
