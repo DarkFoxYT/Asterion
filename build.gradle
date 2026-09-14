@@ -96,6 +96,7 @@ dependencies {
     modImplementation("foundry.veil:veil-fabric-${project.minecraft_version}:${project.veil_version}") {
         transitive = true
     }
+    include "foundry.veil:veil-fabric-${project.minecraft_version}:${project.veil_version}"
     compileOnly "org.jspecify:jspecify:1.0.0"
 
 }

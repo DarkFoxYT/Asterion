@@ -85,6 +85,9 @@ dependencies {
     implementation "org.sinytra.forgified-fabric-api:forgified-fabric-api:${rootProject.forgified_fabric_api_version}"
     implementation "software.bernie.geckolib:geckolib-neoforge-${rootProject.minecraft_version}:${rootProject.geckolib_version}"
     implementation "foundry.veil:veil-neoforge-${rootProject.minecraft_version}:${rootProject.veil_version}"
+    jarJar("foundry.veil:veil-neoforge-${rootProject.minecraft_version}:${rootProject.veil_version}") {
+        version { strictly "[${rootProject.veil_version}]" }
+    }
     compileOnly 'org.jspecify:jspecify:1.0.0'
 }
 
