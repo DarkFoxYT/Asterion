@@ -135,6 +135,8 @@ public class Asterion implements ModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     public static final ResourceKey<Level> ASTERION_LEVEL = ResourceKey.create(
             Registries.DIMENSION, id("asterion_dimension"));
+    public static final ResourceKey<Level> LIMBO_LEVEL = ResourceKey.create(
+            Registries.DIMENSION, id("limbo"));
     public static final ResourceKey<Biome> CATACOMBS_BIOME = ResourceKey.create(
             Registries.BIOME, id("catacombs"));
     public static final ResourceKey<Biome> FORGE_BIOME = ResourceKey.create(
@@ -829,6 +831,9 @@ public class Asterion implements ModInitializer {
             id("layered_maze"), net.krodark.asterion.worldgen.LayeredMazeBiomeSource.CODEC);
     public static final com.mojang.serialization.MapCodec<MazeChunkGenerator> MAZE_CHUNK_GENERATOR =
             Registry.register(BuiltInRegistries.CHUNK_GENERATOR, id("maze"), MazeChunkGenerator.CODEC);
+    public static final com.mojang.serialization.MapCodec<net.krodark.asterion.update.underworld.world.UnderworldChunkGenerator>
+            UNDERWORLD_CHUNK_GENERATOR = Registry.register(BuiltInRegistries.CHUNK_GENERATOR,
+            id("underworld_river"), net.krodark.asterion.update.underworld.world.UnderworldChunkGenerator.CODEC);
     private static final ResourceKey<PlacedFeature> UNDERWATER_RUIN_PLACED = ResourceKey.create(
             Registries.PLACED_FEATURE, id("underwater_ruin"));
     private static final ResourceKey<PlacedFeature> ANCIENT_MOSS_PATCH_PLACED = ResourceKey.create(
@@ -875,6 +880,7 @@ public class Asterion implements ModInitializer {
         net.krodark.asterion.game.ArmorContent.initialize();
         net.krodark.asterion.game.ChainLiftContent.initialize();
         net.krodark.asterion.game.PedestalContent.initialize();
+        net.krodark.asterion.update.underworld.UnderworldContent.initialize();
         net.krodark.asterion.game.EncounterKeyRecovery.initialize();
         net.krodark.asterion.game.ArenaDeathRecovery.initialize();
         ServerTickEvents.END_SERVER_TICK.register(net.krodark.asterion.forging.LegacyPurityCleanup::tick);
@@ -1070,6 +1076,7 @@ public class Asterion implements ModInitializer {
                             newPlayer, BossEncounterResetPayload.INSTANCE);
             }
         });
+        net.krodark.asterion.update.underworld.UnderworldPassage.initialize();
         ServerLifecycleEvents.SERVER_STOPPING.register(WorldGenerator::clearRuntimeState);
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             var maze = server.getLevel(ASTERION_LEVEL);

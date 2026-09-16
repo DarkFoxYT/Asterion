@@ -1,0 +1,17 @@
+{
+  "type": "asterion:limbo",
+  "generator": {
+    "type": "asterion:underworld_river",
+    "biome_source": {
+      "type": "minecraft:fixed",
+      "biome": "asterion:limbo"
+    },
+    "settings": {
+      "biome": "asterion:limbo",
+      "features": false,
+      "lakes": false,
+      "layers": [],
+      "structure_overrides": []
+    }
+  }
+}

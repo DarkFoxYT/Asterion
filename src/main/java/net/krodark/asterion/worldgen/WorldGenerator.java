@@ -2322,6 +2322,14 @@ public final class WorldGenerator {
         }
     }
 
+    /** Temporary 2.0 story handoff: the far shore of Limbo enters the existing Labyrinth flow. */
+    public static void beginLimboExit(ServerPlayer player) {
+        if (!player.level().dimension().equals(Asterion.LIMBO_LEVEL)
+                || PENDING_TRANSITIONS.containsKey(player.getUUID())) return;
+        ServerLevel maze = player.level().getServer().getLevel(Asterion.ASTERION_LEVEL);
+        if (maze != null) beginTransition(player, maze);
+    }
+
     private static void beginTransition(ServerPlayer player, ServerLevel maze) {
         if (prewarmSeed != maze.getSeed()) {
             prewarmSeed = maze.getSeed();

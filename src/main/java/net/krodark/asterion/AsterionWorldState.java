@@ -38,7 +38,9 @@ public final class AsterionWorldState extends SavedData {
             Codec.BOOL.optionalFieldOf("omega_gate_unlocked", false).forGetter(state -> state.omegaGateUnlocked),
             Codec.INT.optionalFieldOf("portal_layout_version", 0).forGetter(state -> state.portalLayoutVersion),
             Codec.INT.optionalFieldOf("gateway_rift_y", Integer.MIN_VALUE).forGetter(state -> state.gatewayRiftY),
-            Codec.LONG.optionalFieldOf("gateway_center", Long.MIN_VALUE).forGetter(state -> state.gatewayCenter)
+            Codec.LONG.optionalFieldOf("gateway_center", Long.MIN_VALUE).forGetter(state -> state.gatewayCenter),
+            Codec.STRING.listOf().optionalFieldOf("underworld_passengers", java.util.List.of())
+                    .forGetter(state -> state.underworldPassengers.stream().sorted().toList())
     ).apply(instance, AsterionWorldState::new));
     private static final SavedDataType<AsterionWorldState> TYPE = new SavedDataType<>(
             Asterion.id("world_state"), AsterionWorldState::new, CODEC, DataFixTypes.LEVEL);
@@ -60,22 +62,25 @@ public final class AsterionWorldState extends SavedData {
     private int portalLayoutVersion;
     private int gatewayRiftY;
     private long gatewayCenter;
+    private final java.util.Set<String> underworldPassengers;
     public int portalLayoutVersion() { return portalLayoutVersion; }
     public int gatewayRiftY(net.minecraft.core.BlockPos center) { return center.asLong() == gatewayCenter ? gatewayRiftY : Integer.MIN_VALUE; }
     public void setGatewayRiftY(net.minecraft.core.BlockPos center, int y) { gatewayCenter = center.asLong(); gatewayRiftY = y; setDirty(); }
 
     public AsterionWorldState() {
-        this(false, false, java.util.List.of(), Map.of(), Long.MIN_VALUE, 0, 0L, "minecraft:overworld", 0, false, false, 1, Integer.MIN_VALUE, Long.MIN_VALUE);
+        this(false, false, java.util.List.of(), Map.of(), Long.MIN_VALUE, 0, 0L, "minecraft:overworld", 0, false, false, 1, Integer.MIN_VALUE, Long.MIN_VALUE, java.util.List.of());
     }
     private AsterionWorldState(boolean minotaurDefeated, boolean cursedBrazierDefeated,
                                java.util.List<Integer> cursedBrazierDefeatedRooms,
                                Map<String, Long> runeCheckpoints,
                                long summonedPortalCenter, int summonedPortalY,
                                long summonedPortalSeed, String summonedPortalDimension, int bossArenaRevision,
-                               boolean arenaLamentersInstalled, boolean omegaGateUnlocked, int portalLayoutVersion, int gatewayRiftY, long gatewayCenter) {
+                               boolean arenaLamentersInstalled, boolean omegaGateUnlocked, int portalLayoutVersion, int gatewayRiftY, long gatewayCenter,
+                               java.util.List<String> underworldPassengers) {
         this.portalLayoutVersion = portalLayoutVersion;
         this.gatewayRiftY = gatewayRiftY;
         this.gatewayCenter = gatewayCenter;
+        this.underworldPassengers = new java.util.HashSet<>(underworldPassengers);
         this.omegaGateUnlocked = omegaGateUnlocked;
         this.minotaurDefeated = minotaurDefeated;
         this.cursedBrazierDefeated = cursedBrazierDefeated;
@@ -91,6 +96,17 @@ public final class AsterionWorldState extends SavedData {
 
     public static AsterionWorldState get(ServerLevel level) {
         return level.getServer().overworld().getDataStorage().computeIfAbsent(TYPE);
+    }
+
+    /** Returns true exactly once per player and persists that passage in the world save. */
+    public boolean beginUnderworldPassage(UUID playerId) {
+        if (!underworldPassengers.add(playerId.toString())) return false;
+        setDirty();
+        return true;
+    }
+
+    public boolean hasEnteredUnderworld(UUID playerId) {
+        return underworldPassengers.contains(playerId.toString());
     }
 
     public boolean minotaurDefeated() { return minotaurDefeated; }

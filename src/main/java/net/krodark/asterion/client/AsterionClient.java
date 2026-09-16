@@ -59,6 +59,7 @@ public final class AsterionClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         net.krodark.asterion.client.render.HeavyWaterRendering.initialize();
+        net.krodark.asterion.update.underworld.client.UnderworldClient.initialize();
         AsterionEmissiveConfig.load();
         AsterionEmissiveParticles.initialize();
         AnimatedEmissiveParticle.initialize();

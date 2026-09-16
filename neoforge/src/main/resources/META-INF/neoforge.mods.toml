@@ -9,7 +9,7 @@ config="asterion.mixins.json"
 modId="asterion"
 version="${version}"
 displayName="Asterion"
-description='''Descend into an infinite living labyrinth, explore its flooded catacombs, and survive the Minotaur at its heart.'''
+description='''Asterion 2.0: The Underworld Update. Descend into the living labyrinth, cross death's shale river, and survive the Minotaur at its heart.'''
 authors="Kronoz, DarkFox"
 
 [[dependencies.asterion]]
