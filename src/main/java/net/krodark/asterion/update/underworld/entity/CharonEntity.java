@@ -64,21 +64,18 @@ public final class CharonEntity extends Entity implements GeoEntity {
 
     @Override public void tick() {
         super.tick();
-        interpolation.cancel();
-        Entity entity = level() instanceof ServerLevel server ? server.getEntity(CharonsFerryEntity.SHARED_ID) : null;
-        if (!(entity instanceof CharonsFerryEntity ferry)) {
-            for (CharonsFerryEntity found : level().getEntitiesOfClass(CharonsFerryEntity.class,
-                    getBoundingBox().inflate(16.0))) { entity = found; break; }
+        if (isPassenger()) {
+            interpolation.cancel();
+            return;
         }
-        if (!(entity instanceof CharonsFerryEntity ferry)) return;
-        double yaw = Math.toRadians(ferry.getYRot());
-        double localX = -1.35, localZ = 1.55;
-        double x = ferry.getX() + localX * Math.cos(yaw) - localZ * Math.sin(yaw);
-        double z = ferry.getZ() + localX * Math.sin(yaw) + localZ * Math.cos(yaw);
-        Vec3 previous = position();
-        setPos(x, ferry.deckY(), z);
-        setYRot(ferry.getYRot());
-        setDeltaMovement(position().subtract(previous));
+        // Repair old saves through the real passenger relationship; vanilla then synchronizes
+        // the ferryman with the ferry instead of two independent position streams.
+        if (level() instanceof ServerLevel server
+                && server.getEntity(CharonsFerryEntity.SHARED_ID) instanceof CharonsFerryEntity ferry) {
+            startRiding(ferry);
+        } else if (level().isClientSide()) {
+            interpolation.interpolate();
+        }
     }
 
     @Override protected void addAdditionalSaveData(ValueOutput out) { }

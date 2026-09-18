@@ -48,10 +48,10 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
 
     public void berth() {
         double z = UnderworldTerrain.FERRY_Z;
-        setPos(UnderworldTerrain.riverCenter(z), UnderworldTerrain.WATER_Y - 6.8, z);
+        setPos(UnderworldTerrain.riverCenter(z), UnderworldTerrain.WATER_Y + .65, z);
         setYRot(0F);
         entityData.set(SAILING, false);
-        entityData.set(EMERGENCE, 0);
+        entityData.set(EMERGENCE, EMERGENCE_TICKS);
         entityData.set(PAID, "");
         departureWait = 40;
         returnWait = 0;
@@ -59,6 +59,24 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
 
     // The supplied model's main deck ends at 21 model pixels (16 pixels per block).
     public double deckY() { return getY() + 21.0 / 16.0; }
+
+    @Override protected boolean canAddPassenger(Entity passenger) {
+        return passenger instanceof CharonEntity && getPassengers().isEmpty();
+    }
+
+    @Override protected void positionRider(Entity passenger, Entity.MoveFunction move) {
+        if (!(passenger instanceof CharonEntity)) {
+            super.positionRider(passenger, move);
+            return;
+        }
+        // Keep the ferryman inside the stern deck, not beyond its port rail.
+        double yaw = Math.toRadians(getYRot());
+        double stern = 1.0;
+        move.accept(passenger, getX() - stern * Math.sin(yaw), deckY(),
+                getZ() + stern * Math.cos(yaw));
+        passenger.setYRot(getYRot());
+        passenger.resetFallDistance();
+    }
     public boolean sailing() { return entityData.get(SAILING); }
     public int emergenceTicks() { return entityData.get(EMERGENCE); }
     public boolean emerging() { return emergenceTicks() > 0 && emergenceTicks() < EMERGENCE_TICKS; }
@@ -134,24 +152,11 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
             String ids = walkers.stream().filter(Player.class::isInstance).map(Entity::getId).sorted()
                     .map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
             entityData.set(RIDERS, ids.isEmpty() ? "" : "," + ids + ",");
-            int emergence = emergenceTicks();
-            if (emergence == 0 && level().getNearestPlayer(this, 80.0) != null) {
-                summon();
-                emergence = emergenceTicks();
+            // Migrate old submerged arrivals to a quietly moored ferry.
+            if (emergenceTicks() < EMERGENCE_TICKS) {
+                entityData.set(EMERGENCE, EMERGENCE_TICKS);
+                setPos(getX(), UnderworldTerrain.WATER_Y + .65, getZ());
             }
-            if (emergence > 0 && emergence < EMERGENCE_TICKS) {
-                emergence++;
-                entityData.set(EMERGENCE, emergence);
-                double progress = emergence / (double)EMERGENCE_TICKS;
-                double eased = 1.0 - Math.pow(1.0 - progress, 3.0);
-                double settle = progress > .78 ? Math.sin((progress - .78) / .22 * Math.PI) * .20 : 0.0;
-                setPos(UnderworldTerrain.riverCenter(UnderworldTerrain.FERRY_Z),
-                        UnderworldTerrain.WATER_Y - 6.8 + eased * 7.45 + settle,
-                        UnderworldTerrain.FERRY_Z);
-                setDeltaMovement(Vec3.ZERO);
-                return;
-            }
-            if (emergence == 0) return;
             // Repair already-saved ferries whose old waterline left the deck submerged.
             if (!sailing()) setPos(getX(), UnderworldTerrain.WATER_Y + .65, getZ());
             if (!sailing()) {

@@ -1,0 +1,41 @@
+// Opt-in validation; these checks never run during normal gameplay or world generation.
+allprojects {
+    afterEvaluate { p ->
+        if (p == rootProject) {
+            def smokeCompile = tasks.register('compileUnderworldSmoke', JavaCompile) {
+                dependsOn tasks.named('classes')
+                source = files('tools/UnderworldTerrainSmoke.java', 'tools/LimboShaderSmoke.java',
+                        'tools/EmissiveUploadSmoke.java', 'tools/DepthBlitSmoke.java')
+                classpath = sourceSets.main.runtimeClasspath
+                destinationDirectory = layout.buildDirectory.dir('underworld-smoke')
+                javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+            tasks.register('checkUnderworldTerrain', JavaExec) {
+                dependsOn smokeCompile
+                classpath = sourceSets.main.runtimeClasspath + files(smokeCompile.flatMap { it.destinationDirectory })
+                mainClass = 'UnderworldTerrainSmoke'
+                javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+            tasks.register('checkUnderworldShaders', JavaExec) {
+                dependsOn smokeCompile
+                classpath = sourceSets.main.runtimeClasspath + files(smokeCompile.flatMap { it.destinationDirectory })
+                mainClass = 'LimboShaderSmoke'
+                args 'src/main/resources/assets/asterion/shaders/post/underworld/river_atmosphere.fsh',
+                     'src/main/resources/assets/asterion/shaders/post/underworld/river_atmosphere_fast.fsh'
+                javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+            tasks.register('checkEmissiveUploads', JavaExec) {
+                dependsOn smokeCompile
+                classpath = sourceSets.main.runtimeClasspath + files(smokeCompile.flatMap { it.destinationDirectory })
+                mainClass = 'EmissiveUploadSmoke'
+                javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+            tasks.register('checkBloomDepth', JavaExec) {
+                dependsOn smokeCompile
+                classpath = sourceSets.main.runtimeClasspath + files(smokeCompile.flatMap { it.destinationDirectory })
+                mainClass = 'DepthBlitSmoke'
+                javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+        }
+    }
+}

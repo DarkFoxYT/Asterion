@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.gen.Invoker;
 
 @Mixin(value = InstanceMeshEntry.class, remap = false)
-public abstract class AmneticEmissiveInstanceMixin {
+public abstract class AmneticEmissiveInstanceMixin implements net.krodark.asterion.client.light.EmissiveBatchState {
     @Shadow @Final private Identifier id;
     @Shadow @Final private Matrix4f projViewScratch;
     @Shadow private int lastInstanceCount;
@@ -23,6 +23,10 @@ public abstract class AmneticEmissiveInstanceMixin {
     @Unique private Vec3 asterion$camera;
     @Unique private final Matrix4f asterion$projection = new Matrix4f();
     @Unique private final Matrix4f asterion$view = new Matrix4f();
+
+    @Override public boolean asterion$emptyThisFrame() {
+        return asterion$preparedFrame == EmissivePassFrame.frame && lastInstanceCount == 0;
+    }
 
     @Invoker("drawNow")
     protected abstract void asterion$drawPrepared(Matrix4f combined, Matrix4fc projection, Matrix4fc view,

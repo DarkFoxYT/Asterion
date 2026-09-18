@@ -34,7 +34,7 @@ public final class UnderworldPassage {
         destination.getChunk(UnderworldTerrain.SPAWN_X >> 4, UnderworldTerrain.SPAWN_Z >> 4);
         player.stopRiding();
         player.teleportTo(destination, UnderworldTerrain.SPAWN_X + .5, UnderworldTerrain.SPAWN_Y,
-                UnderworldTerrain.SPAWN_Z + .5, Set.of(), -90F, 0F, true);
+                UnderworldTerrain.SPAWN_Z + .5, Set.of(), 0F, 0F, true);
         player.setDeltaMovement(Vec3.ZERO);
         player.resetFallDistance();
     }
@@ -55,13 +55,6 @@ public final class UnderworldPassage {
                         Set.of(), 0, 0, true);
                 player.setDeltaMovement(Vec3.ZERO);
                 player.resetFallDistance();
-                player.sendOverlayMessage(net.minecraft.network.chat.Component.literal("Only Charon can guide you across the Styx."));
-            }
-            if (player.tickCount % 100 == 0 && player.isAlive() && !player.isSpectator()) {
-                String guidance = player.getX() < -35
-                        ? "Follow the lit shale path to the river and Charon."
-                        : "Give Charon a gold nugget, then board. The ferry waits for nearby travelers.";
-                if (player.getZ() < 100) player.sendOverlayMessage(net.minecraft.network.chat.Component.literal(guidance));
             }
             if (player.isAlive() && !player.isSpectator() && player.getX() > -42
                     && player.getZ() > 20 && player.getZ() < 105
@@ -94,11 +87,15 @@ public final class UnderworldPassage {
     }
 
     private static void ensureCharon(ServerLevel level, CharonsFerryEntity ferry) {
-        if (level.getEntity(CharonEntity.SHARED_ID) instanceof CharonEntity) return;
+        if (level.getEntity(CharonEntity.SHARED_ID) instanceof CharonEntity existing) {
+            if (existing.getVehicle() != ferry) existing.startRiding(ferry);
+            return;
+        }
         CharonEntity charon = UnderworldContent.CHARON.create(level, EntitySpawnReason.EVENT);
         if (charon == null) return;
         charon.setUUID(CharonEntity.SHARED_ID);
         charon.setPos(ferry.getX(), ferry.deckY(), ferry.getZ());
         level.addFreshEntity(charon);
+        charon.startRiding(ferry);
     }
 }

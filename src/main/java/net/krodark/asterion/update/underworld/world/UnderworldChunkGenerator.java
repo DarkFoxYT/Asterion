@@ -65,7 +65,7 @@ public final class UnderworldChunkGenerator extends net.minecraft.world.level.ch
     }
     @Override public void addDebugScreenInfo(java.util.List<String> lines, RandomState random,
                                              net.minecraft.core.BlockPos pos) {
-        lines.add("Asterion 2.0 Underworld river corridor");
+        lines.add("Asterion 2.0 Styx shoreline");
     }
     @Override public CompletableFuture<ChunkAccess> fillFromNoise(Blender blender, RandomState random,
             StructureManager structures, ChunkAccess chunk) {

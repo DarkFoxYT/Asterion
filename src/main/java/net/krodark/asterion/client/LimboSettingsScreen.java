@@ -17,11 +17,10 @@ public final class LimboSettingsScreen extends Screen {
     @Override protected void init() {
         var config = AsterionConfig.INSTANCE;
         int y = Math.max(20, height / 2 - 60);
-        slider("Cave fog", y, config.limboFogStrength, 2, v -> config.limboFogStrength = (float)v);
-        slider("River mist", y + 24, config.limboMistStrength, 2, v -> config.limboMistStrength = (float)v);
-        slider("Dark water", y + 48, config.limboWaterStrength, 1, v -> config.limboWaterStrength = (float)v);
+        slider("Distance haze", y, config.limboFogStrength, 2, v -> config.limboFogStrength = (float)v);
+        slider("Low mist", y + 24, config.limboMistStrength, 2, v -> config.limboMistStrength = (float)v);
         addRenderableWidget(Button.builder(Component.literal("Save and return"), b -> onClose())
-                .bounds(width / 2 - 130, y + 80, 260, 20).build());
+                .bounds(width / 2 - 130, y + 56, 260, 20).build());
     }
     private void slider(String label, int y, double initial, double maximum, DoubleConsumer setter) {
         addRenderableWidget(new AbstractSliderButton(width / 2 - 130, y, 260, 20,

@@ -54,6 +54,8 @@
     "AmneticDepthAttachmentMixin",
     "AmneticDepthBlitMixin",
     "AmneticBloomPerformanceMixin",
+    "AmneticEmissiveSourcesMixin",
+    "AmneticInstanceBufferMixin",
     "AsterionFogRendererMixin",
     "CameraMixin",
     "CentipedeInteractionMixin",

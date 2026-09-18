@@ -8,7 +8,6 @@ import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.client.PerformanceGovernor;
 import net.krodark.asterion.update.underworld.world.UnderworldTerrain;
-import net.krodark.asterion.update.underworld.entity.CharonEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.UniformValue;
 import net.minecraft.world.phys.Vec3;
@@ -17,12 +16,11 @@ import org.joml.Vector4f;
 
 import java.util.List;
 
-/** Screen-space deep-water parallax and a separate low volumetric mist band above the river. */
+/** Depth-tested low mist. Water itself is rendered exclusively by Minecraft or the shader pack. */
 public final class UnderworldPostEffects {
     private static final Matrix4f inverseViewProjection = new Matrix4f();
     private static Vec3 cameraPosition = Vec3.ZERO;
     private static Vec3 cameraForward = new Vec3(0, 0, 1);
-    private static boolean snapshot;
 
     private UnderworldPostEffects() { }
 
@@ -33,50 +31,35 @@ public final class UnderworldPostEffects {
                 .phase(RenderPhase.POST_WORLD).priority(18).fade(20, 14)
                 .uniform("UnderworldTime", UnderworldPostEffects::time)
                 .uniformRaw("WorldData", UnderworldPostEffects::worldData)
-                .uniformVec4("CharonData", UnderworldPostEffects::charonData)
                 .uniformVec4("RiverData", () -> new Vector4f(
-                        UnderworldTerrain.WATER_Y + .90F, 1.05F, AsterionConfig.INSTANCE.limboWaterStrength, AsterionConfig.INSTANCE.limboMistStrength)));
+                        UnderworldTerrain.WATER_Y + 1.15F, 2.2F,
+                        active() ? AsterionConfig.INSTANCE.limboFogStrength : 0F,
+                        active() ? AsterionConfig.INSTANCE.limboMistStrength : 0F)));
         PostEffects.register(Asterion.id("underworld/river_atmosphere_fast"), config -> config
                 .when(() -> active() && (AsterionConfig.INSTANCE.cinematicQuality <= 0
                         || PerformanceGovernor.quality() == 0))
                 .phase(RenderPhase.POST_WORLD).priority(18).fade(6, 8)
                 .uniform("UnderworldTime", UnderworldPostEffects::time)
                 .uniformRaw("WorldData", UnderworldPostEffects::worldData)
-                .uniformVec4("CharonData", UnderworldPostEffects::charonData)
                 .uniformVec4("RiverData", () -> new Vector4f(
-                        UnderworldTerrain.WATER_Y + .90F, 1.05F, AsterionConfig.INSTANCE.limboWaterStrength, AsterionConfig.INSTANCE.limboMistStrength)));
+                        UnderworldTerrain.WATER_Y + 1.15F, 2.2F,
+                        active() ? AsterionConfig.INSTANCE.limboFogStrength : 0F,
+                        active() ? AsterionConfig.INSTANCE.limboMistStrength : 0F)));
     }
 
     private static boolean active() {
         Minecraft client = Minecraft.getInstance();
         boolean limbo = client.level != null && client.level.dimension().equals(Asterion.LIMBO_LEVEL);
-        if (!limbo) snapshot = false;
-        return limbo && (AmneticCamera.isReady() || snapshot);
+        return limbo && !ShaderPackCompatibility.active() && AmneticCamera.isReady();
     }
 
     private static double time() { return (System.nanoTime() * 0.000000001 % 100000.0) * 20.0; }
-
-    private static Vector4f charonData() {
-        Minecraft client = Minecraft.getInstance();
-        if (client.level == null || client.player == null) return new Vector4f(0, -1000, 0, 0);
-        CharonEntity nearest = null;
-        double best = Double.POSITIVE_INFINITY;
-        for (CharonEntity charon : client.level.getEntitiesOfClass(CharonEntity.class,
-                client.player.getBoundingBox().inflate(128.0))) {
-            double distance = charon.distanceToSqr(client.player);
-            if (distance < best) { nearest = charon; best = distance; }
-        }
-        if (nearest == null) return new Vector4f(0, -1000, 0, 0);
-        float motion = (float)Math.clamp(nearest.getDeltaMovement().horizontalDistance() * 16.0, 0.0, 1.0);
-        return new Vector4f((float)nearest.getX(), (float)nearest.getY(), (float)nearest.getZ(), motion);
-    }
 
     private static List<UniformValue> worldData() {
         if (AmneticCamera.isReady()) {
             inverseViewProjection.set(AmneticCamera.inverseViewProjection());
             cameraPosition = AmneticCamera.position();
             cameraForward = AmneticCamera.forward();
-            snapshot = true;
         }
         return List.of(
                 new UniformValue.Matrix4x4Uniform(new Matrix4f(inverseViewProjection)),

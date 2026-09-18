@@ -60,8 +60,9 @@ public final class AsterionEmissiveConfig {
                 if (values.threshold == .047F) values.threshold = .075F;
                 if (values.knee == .25F) values.knee = .18F;
             }
+            boolean optimizeBloom = legacy || values.version < 8;
             sanitize();
-            if (upgradeEyes || upgradeFire || restoreAmnetic || softenVines || sharpenBloom) save();
+            if (upgradeEyes || upgradeFire || restoreAmnetic || softenVines || sharpenBloom || optimizeBloom) save();
         } catch (Exception exception) {
             Asterion.LOGGER.warn("Unable to load Asterion emissive config {}", PATH, exception);
             values = new Values();
@@ -84,7 +85,9 @@ public final class AsterionEmissiveConfig {
         int quality = Math.max(0, effectiveBloomQuality() - 1);
         int qualityLevelCap = quality == 0 ? 2 : 3;
         float qualityIntensity = quality == 0 ? 0.65F : quality == 1 ? 0.82F : 1.0F;
-        float scaleCap = quality == 0 ? 0.5F : quality == 1 ? 0.7F : 1.0F;
+        // Blur does not need a near-full-resolution HDR target; preserve crisp source
+        // geometry in the normal render and spend bandwidth only on its soft halo.
+        float scaleCap = quality == 0 ? 0.25F : quality == 1 ? 0.375F : 0.5F;
         bloom.enabled(values.enabled && effectiveBloomQuality() != 0)
                 .all(false)
                 .occlude(true)
@@ -99,6 +102,8 @@ public final class AsterionEmissiveConfig {
         var config = AsterionConfig.INSTANCE;
         return config.bloomQuality < 0 ? config.cinematicQuality + 1 : config.bloomQuality;
     }
+
+    public static boolean sceneBloomEnabled() { return values.sceneBloom; }
 
     public static float minotaurEyeStrength() {
         return values.minotaurEyeStrength;
@@ -127,7 +132,7 @@ public final class AsterionEmissiveConfig {
     }
 
     private static void sanitize() {
-        values.version = 7;
+        values.version = 8;
         values.threshold = finiteClamp(values.threshold, 0.0F, 2.0F, .075F);
         values.intensity = finiteClamp(values.intensity, 0.0F, 8.0F, 2.45F);
         values.levels = Mth.clamp(values.levels, 2, 3);
@@ -139,8 +144,10 @@ public final class AsterionEmissiveConfig {
     }
 
     private static final class Values {
-        private int version = 7;
+        private int version = 8;
         private boolean enabled = true;
+        // Optional whole-scene brightness bloom. Explicit emissive sources always remain.
+        private boolean sceneBloom = false;
         private float threshold = .075F;
         private float intensity = 2.45F;
         private int levels = 2;

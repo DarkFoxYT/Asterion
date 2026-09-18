@@ -20,16 +20,19 @@ import java.util.Map;
 public final class AmneticBoneEmission {
     private static final InstanceLayout LAYOUT = InstanceLayout.builder().mat4(2).vec4(6).vec4(7).build();
     private static final Map<MeshKey, Entry> ENTRIES = new HashMap<>();
+    private static final ArrayList<Entry> ACTIVE = new ArrayList<>();
+    public static final Identifier SOURCE_ID = Asterion.id("vine_glow");
     private static boolean initialized;
     private static final SourceContext SOURCE_CONTEXT = new SourceContext();
     private static long submissions;
     public static long submissions() { return submissions; }
+    public static boolean hasPending() { return !ACTIVE.isEmpty(); }
     private AmneticBoneEmission() { }
 
     private static void emit(EmissiveContext context) {
         SOURCE_CONTEXT.frame = context;
         try {
-            for (Entry entry : ENTRIES.values()) {
+            for (Entry entry : ACTIVE) {
                 if (entry.count > 0) InstanceMeshRegistry.INSTANCE.render(entry.id, SOURCE_CONTEXT);
             }
         } finally { SOURCE_CONTEXT.frame = null; }
@@ -38,12 +41,15 @@ public final class AmneticBoneEmission {
     public static void submit(Identifier model, EmissiveBoneMesh geometry, Identifier texture,
                               Matrix4fc pose, int color, float uScale, float vScale, float strength,
                               boolean backfaceCulling) {
-        if (!Bloom.settings().isEnabled()) return;
+        if (!Bloom.settings().isEnabled() || strength <= 0 || (color >>> 24) == 0
+                || (color & 0xFFFFFF) == 0) return;
         if (!initialized) {
-            EmissiveSources.register(Asterion.id("vine_glow"), AmneticBoneEmission::emit);
+            EmissiveSources.register(SOURCE_ID, AmneticBoneEmission::emit);
              
-            Pipeline.add(RenderStage.POST, 11, "Clear bone emission submissions", ctx ->
-                    ENTRIES.values().forEach(entry -> entry.count = 0));
+            Pipeline.add(RenderStage.POST, 11, "Clear bone emission submissions", ctx -> {
+                for (Entry entry : ACTIVE) entry.count = 0;
+                ACTIVE.clear();
+            });
             initialized = true;
         }
         MeshKey key = new MeshKey(model, texture, backfaceCulling);
@@ -52,10 +58,14 @@ public final class AmneticBoneEmission {
             Identifier id = Asterion.id("bone_emission/" + model.getNamespace() + "/" + model.getPath()
                     + "/" + texture.getNamespace() + "/" + texture.getPath()
                     + (backfaceCulling ? "/culled" : "/two_sided"));
-            if (entry != null) InstanceMeshRegistry.INSTANCE.unregister(id);
+            if (entry != null) {
+                ACTIVE.remove(entry);
+                InstanceMeshRegistry.INSTANCE.unregister(id);
+            }
             entry = new Entry(id, geometry, texture, backfaceCulling);
             ENTRIES.put(key, entry);
         }
+        if (entry.count == 0) ACTIVE.add(entry);
         if (entry.count == entry.poses.size()) entry.poses.add(new Instance());
         Instance instance = entry.poses.get(entry.count++);
         instance.pose.set(pose);

@@ -31,7 +31,7 @@ public final class LimboMusic {
         boolean limbo = client.level != null && client.player != null
                 && client.level.dimension().equals(Asterion.LIMBO_LEVEL);
         if (!limbo) { stop(client); return; }
-        if (client.player.getX() > -42.0) revealed = true;
+        if (client.player.getZ() > 8.0) revealed = true;
         float target = revealed ? .52F * AsterionConfig.INSTANCE.musicVolumePercent / 100F : 0F;
         if (voice == null && target > .001F) {
             voice = new Voice(target);

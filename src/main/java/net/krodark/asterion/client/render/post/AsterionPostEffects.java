@@ -135,7 +135,8 @@ public final class AsterionPostEffects {
     }
 
     private static boolean isDustReady() {
-        return isLimbo() ? AmneticCamera.isReady() : isPostProcessingReady();
+        // Limbo has its own low mist and distance haze; do not stack a second dust volume.
+        return !isLimbo() && isPostProcessingReady();
     }
 
     private static boolean isInsideAsterion() {
