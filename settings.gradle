@@ -8,4 +8,9 @@ pluginManagement {
     }
 }
 
+plugins {
+    // Provision the Java versions required by Minecraft and NeoForge's tools.
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
 include 'neoforge'
