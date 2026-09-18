@@ -13,13 +13,13 @@ public final class CharonsFerryRenderer extends GeoEntityRenderer<CharonsFerryEn
     public CharonsFerryRenderer(EntityRendererProvider.Context context) {
         super(context, new GeoModel<>() {
             @Override public Identifier getModelResource(GeoRenderState state) {
-                return Asterion.id("underworld/entity/charons_ferry");
+                return Asterion.id("entity/charons_ferry");
             }
             @Override public Identifier getTextureResource(GeoRenderState state) {
-                return Asterion.id("textures/underworld/entity/charons_ferry.png");
+                return Asterion.id("textures/entity/charons_ferry.png");
             }
             @Override public Identifier getAnimationResource(CharonsFerryEntity entity) {
-                return Asterion.id("underworld/entity/charons_ferry");
+                return Asterion.id("entity/charons_ferry");
             }
         });
         shadowRadius = 1.8F;

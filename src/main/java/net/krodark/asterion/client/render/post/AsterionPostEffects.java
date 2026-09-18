@@ -60,7 +60,7 @@ public final class AsterionPostEffects {
                         AsterionConfig.INSTANCE.deadSunCoronaG, AsterionConfig.INSTANCE.deadSunCoronaB)));
 
         PostEffects.register(Asterion.id("dimension/dusty_air"), config -> config
-                .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.dustyAirEnabled
+                .when(() -> isDustReady() && AsterionConfig.INSTANCE.dustyAirEnabled
                         && effectQuality() == 1)
                 .phase(RenderPhase.POST_WORLD)
                 .priority(20)
@@ -77,7 +77,7 @@ public final class AsterionPostEffects {
          
          
         PostEffects.register(Asterion.id("dimension/dusty_air_high"), config -> config
-                .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.dustyAirEnabled
+                .when(() -> isDustReady() && AsterionConfig.INSTANCE.dustyAirEnabled
                         && effectQuality() >= 2)
                 .phase(RenderPhase.POST_WORLD)
                 .priority(20)
@@ -92,7 +92,7 @@ public final class AsterionPostEffects {
                 .uniformRaw("WorldData", AsterionPostEffects::worldData));
 
         PostEffects.register(Asterion.id("dimension/dusty_air_fast"), config -> config
-                .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.dustyAirEnabled
+                .when(() -> isDustReady() && AsterionConfig.INSTANCE.dustyAirEnabled
                         && effectQuality() <= 0)
                 .phase(RenderPhase.POST_WORLD)
                 .priority(20)
@@ -127,6 +127,15 @@ public final class AsterionPostEffects {
                         AsterionConfig.INSTANCE.deadSunCoreG, AsterionConfig.INSTANCE.deadSunCoreB))
                 .uniformVec3("DeadSunCoronaColor", () -> new Vector3f(AsterionConfig.INSTANCE.deadSunCoronaR,
                         AsterionConfig.INSTANCE.deadSunCoronaG, AsterionConfig.INSTANCE.deadSunCoronaB)));
+    }
+
+    private static boolean isLimbo() {
+        var level = Minecraft.getInstance().level;
+        return level != null && level.dimension().equals(Asterion.LIMBO_LEVEL);
+    }
+
+    private static boolean isDustReady() {
+        return isLimbo() ? AmneticCamera.isReady() : isPostProcessingReady();
     }
 
     private static boolean isInsideAsterion() {
@@ -187,6 +196,7 @@ public final class AsterionPostEffects {
     }
 
     private static Vector3f atmosphereSettings() {
+        if (isLimbo()) return new Vector3f(.45F, AsterionConfig.INSTANCE.limboFogStrength, .35F);
         AsterionConfig config = AsterionConfig.INSTANCE;
         float eclipse = darkness();
         return new Vector3f(
@@ -206,6 +216,7 @@ public final class AsterionPostEffects {
     }
 
     private static Vector3f dustColor() {
+        if (isLimbo()) return new Vector3f(.64F, .71F, .74F);
         AsterionConfig config = AsterionConfig.INSTANCE;
         float eclipse = darkness();
          
@@ -227,6 +238,7 @@ public final class AsterionPostEffects {
     }
 
     private static Vector3f fogColor() {
+        if (isLimbo()) return new Vector3f(.40F, .48F, .52F);
         AsterionConfig config = AsterionConfig.INSTANCE;
         float eclipse = darkness();
         float red = mix(config.fogR, 0.20F, overgrowthBlend);

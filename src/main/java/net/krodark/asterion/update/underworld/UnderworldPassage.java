@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionWorldState;
 import net.krodark.asterion.update.underworld.entity.CharonsFerryEntity;
+import net.krodark.asterion.update.underworld.entity.CharonEntity;
 import net.krodark.asterion.update.underworld.world.UnderworldTerrain;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -33,7 +34,7 @@ public final class UnderworldPassage {
         destination.getChunk(UnderworldTerrain.SPAWN_X >> 4, UnderworldTerrain.SPAWN_Z >> 4);
         player.stopRiding();
         player.teleportTo(destination, UnderworldTerrain.SPAWN_X + .5, UnderworldTerrain.SPAWN_Y,
-                UnderworldTerrain.SPAWN_Z + .5, Set.of(), 180F, 0F, true);
+                UnderworldTerrain.SPAWN_Z + .5, Set.of(), -90F, 0F, true);
         player.setDeltaMovement(Vec3.ZERO);
         player.resetFallDistance();
     }
@@ -43,15 +44,43 @@ public final class UnderworldPassage {
         if (level == null || level.players().isEmpty()) return;
 
         for (ServerPlayer player : java.util.List.copyOf(level.players())) {
+            // The Styx is crossed aboard the paid ferry, not by swimming or walking around it.
+            if (player.isAlive() && !player.isSpectator() && !player.getAbilities().instabuild
+                    && player.getZ() > 105
+                    && CharonsFerryEntity.supporting(player) == null
+                    && !(level.getEntity(CharonsFerryEntity.SHARED_ID) instanceof CharonsFerryEntity escort
+                    && escort.hasPaid(player) && escort.distanceToSqr(player) < 144)) {
+                player.teleportTo(level, UnderworldTerrain.riverCenter(UnderworldTerrain.FERRY_Z) - 4,
+                        UnderworldTerrain.WATER_Y + 2, UnderworldTerrain.FERRY_Z,
+                        Set.of(), 0, 0, true);
+                player.setDeltaMovement(Vec3.ZERO);
+                player.resetFallDistance();
+                player.sendOverlayMessage(net.minecraft.network.chat.Component.literal("Only Charon can guide you across the Styx."));
+            }
+            if (player.tickCount % 100 == 0 && player.isAlive() && !player.isSpectator()) {
+                String guidance = player.getX() < -35
+                        ? "Follow the lit shale path to the river and Charon."
+                        : "Give Charon a gold nugget, then board. The ferry waits for nearby travelers.";
+                if (player.getZ() < 100) player.sendOverlayMessage(net.minecraft.network.chat.Component.literal(guidance));
+            }
+            if (player.isAlive() && !player.isSpectator() && player.getX() > -42
+                    && player.getZ() > 20 && player.getZ() < 105
+                    && level.getEntity(CharonsFerryEntity.SHARED_ID) instanceof CharonsFerryEntity ferry)
+                ferry.summon();
             if (player.isAlive() && !player.isSpectator()
                     && player.getZ() >= UnderworldTerrain.END_Z - 72
+                    && level.getEntity(CharonsFerryEntity.SHARED_ID) instanceof CharonsFerryEntity arrival
+                    && arrival.hasPaid(player) && arrival.supports(player)
                     && player.getY() >= UnderworldTerrain.WATER_Y - 3)
                 net.krodark.asterion.worldgen.WorldGenerator.beginLimboExit(player);
         }
 
         if (++ferryCheck < 80) return;
         ferryCheck = 0;
-        if (level.getEntity(CharonsFerryEntity.SHARED_ID) instanceof CharonsFerryEntity) return;
+        if (level.getEntity(CharonsFerryEntity.SHARED_ID) instanceof CharonsFerryEntity ferry) {
+            ensureCharon(level, ferry);
+            return;
+        }
         AABB route = new AABB(-96, UnderworldTerrain.WATER_Y - 8, UnderworldTerrain.START_Z,
                 96, UnderworldTerrain.WATER_Y + 16, UnderworldTerrain.END_Z);
         if (!level.getEntitiesOfClass(CharonsFerryEntity.class, route).isEmpty()) return;
@@ -61,5 +90,15 @@ public final class UnderworldPassage {
         ferry.setUUID(CharonsFerryEntity.SHARED_ID);
         ferry.berth();
         level.addFreshEntity(ferry);
+        ensureCharon(level, ferry);
+    }
+
+    private static void ensureCharon(ServerLevel level, CharonsFerryEntity ferry) {
+        if (level.getEntity(CharonEntity.SHARED_ID) instanceof CharonEntity) return;
+        CharonEntity charon = UnderworldContent.CHARON.create(level, EntitySpawnReason.EVENT);
+        if (charon == null) return;
+        charon.setUUID(CharonEntity.SHARED_ID);
+        charon.setPos(ferry.getX(), ferry.deckY(), ferry.getZ());
+        level.addFreshEntity(charon);
     }
 }

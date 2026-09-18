@@ -327,5 +327,13 @@
         "attenuation_distance": 32
       }
     ]
+  },
+  "limbo_ambience": {
+    "sounds": [
+      {
+        "name": "asterion:ambiance/limbo/mystery_hell_themed_ambience",
+        "stream": true
+      }
+    ]
   }
 }

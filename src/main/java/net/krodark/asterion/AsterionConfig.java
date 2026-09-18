@@ -80,6 +80,9 @@ public final class AsterionConfig {
     public boolean enhancedLightning = true;
     public boolean deadSunEnabled = true;
     public boolean dustyAirEnabled = true;
+    public float limboFogStrength = .75F;
+    public float limboMistStrength = 1.0F;
+    public float limboWaterStrength = .86F;
     public float deadSunStrength = 0.82f;
     public float dustyAirStrength = 1.0f;
     public float deadSunHeight = 260.0f;

@@ -31,10 +31,15 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
             CharonsFerryEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<String> RIDERS = SynchedEntityData.defineId(
             CharonsFerryEntity.class, EntityDataSerializers.STRING);
+    private static final EntityDataAccessor<Integer> EMERGENCE = SynchedEntityData.defineId(
+            CharonsFerryEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<String> PAID = SynchedEntityData.defineId(
+            CharonsFerryEntity.class, EntityDataSerializers.STRING);
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private final InterpolationHandler interpolation = new InterpolationHandler(this, 3);
     private int departureWait = 40;
     private int returnWait;
+    public static final int EMERGENCE_TICKS = 110;
 
     public CharonsFerryEntity(EntityType<? extends CharonsFerryEntity> type, Level level) {
         super(type, level);
@@ -43,20 +48,37 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
 
     public void berth() {
         double z = UnderworldTerrain.FERRY_Z;
-        setPos(UnderworldTerrain.riverCenter(z), UnderworldTerrain.WATER_Y + .16, z);
+        setPos(UnderworldTerrain.riverCenter(z), UnderworldTerrain.WATER_Y - 6.8, z);
         setYRot(0F);
         entityData.set(SAILING, false);
+        entityData.set(EMERGENCE, 0);
+        entityData.set(PAID, "");
         departureWait = 40;
         returnWait = 0;
     }
 
-    public double deckY() { return getY() + .52; }
+    // The supplied model's main deck ends at 21 model pixels (16 pixels per block).
+    public double deckY() { return getY() + 21.0 / 16.0; }
     public boolean sailing() { return entityData.get(SAILING); }
+    public int emergenceTicks() { return entityData.get(EMERGENCE); }
+    public boolean emerging() { return emergenceTicks() > 0 && emergenceTicks() < EMERGENCE_TICKS; }
+    public boolean readyForFare() { return emergenceTicks() >= EMERGENCE_TICKS && !sailing(); }
     public boolean carries(Entity entity) { return entityData.get(RIDERS).contains("," + entity.getId() + ","); }
+    public boolean hasPaid(Player player) { return entityData.get(PAID).contains("," + player.getUUID() + ","); }
+    public void summon() {
+        if (!level().isClientSide() && emergenceTicks() == 0) entityData.set(EMERGENCE, 1);
+    }
+    public void acceptFare(Player player) {
+        if (level().isClientSide() || hasPaid(player)) return;
+        entityData.set(PAID, entityData.get(PAID) + "," + player.getUUID() + ",");
+        departureWait = Math.min(departureWait, 50);
+    }
 
     @Override protected void defineSynchedData(SynchedEntityData.Builder data) {
         data.define(SAILING, false);
         data.define(RIDERS, "");
+        data.define(EMERGENCE, 0);
+        data.define(PAID, "");
     }
     @Override public InterpolationHandler getInterpolation() { return interpolation; }
     @Override public boolean isPickable() { return true; }
@@ -71,7 +93,7 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
         double yaw = Math.toRadians(getYRot());
         double localX = dx * Math.cos(yaw) + dz * Math.sin(yaw);
         double localZ = -dx * Math.sin(yaw) + dz * Math.cos(yaw);
-        return Math.abs(localX) < 2.05 && Math.abs(localZ) < 3.25;
+        return Math.abs(localX) < 1.0625 && localZ > -3.0625 && localZ < 2.1875;
     }
 
     public boolean supports(Entity entity) {
@@ -93,34 +115,81 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
 
     @Override public void tick() {
         super.tick();
-        interpolation.cancel();
+        if (level().isClientSide()) {
+            double beforeX = getX(), beforeY = getY(), beforeZ = getZ();
+            var supported = level().getEntities(this, getBoundingBox().inflate(1, 2.1, 1), this::supports);
+            interpolation.interpolate();
+            for (Entity walker : supported) {
+                if (walker instanceof Player player && player.isLocalPlayer()) {
+                    walker.setPos(walker.getX() + getX() - beforeX,
+                            walker.getY() + getY() - beforeY, walker.getZ() + getZ() - beforeZ);
+                    walker.setOnGround(true);
+                    walker.resetFallDistance();
+                }
+            }
+            return;
+        }
         var walkers = level().getEntities(this, getBoundingBox().inflate(.8, 2.1, .8), this::supports);
         if (!level().isClientSide()) {
             String ids = walkers.stream().filter(Player.class::isInstance).map(Entity::getId).sorted()
                     .map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
             entityData.set(RIDERS, ids.isEmpty() ? "" : "," + ids + ",");
+            int emergence = emergenceTicks();
+            if (emergence == 0 && level().getNearestPlayer(this, 80.0) != null) {
+                summon();
+                emergence = emergenceTicks();
+            }
+            if (emergence > 0 && emergence < EMERGENCE_TICKS) {
+                emergence++;
+                entityData.set(EMERGENCE, emergence);
+                double progress = emergence / (double)EMERGENCE_TICKS;
+                double eased = 1.0 - Math.pow(1.0 - progress, 3.0);
+                double settle = progress > .78 ? Math.sin((progress - .78) / .22 * Math.PI) * .20 : 0.0;
+                setPos(UnderworldTerrain.riverCenter(UnderworldTerrain.FERRY_Z),
+                        UnderworldTerrain.WATER_Y - 6.8 + eased * 7.45 + settle,
+                        UnderworldTerrain.FERRY_Z);
+                setDeltaMovement(Vec3.ZERO);
+                return;
+            }
+            if (emergence == 0) return;
+            // Repair already-saved ferries whose old waterline left the deck submerged.
+            if (!sailing()) setPos(getX(), UnderworldTerrain.WATER_Y + .65, getZ());
             if (!sailing()) {
                 if (getZ() >= UnderworldTerrain.END_Z - 56) {
-                    if (walkers.isEmpty() && ++returnWait >= 60) berth();
-                } else if (walkers.stream().anyMatch(Player.class::isInstance)) {
-                    if (--departureWait <= 0) entityData.set(SAILING, true);
-                } else departureWait = 40;
+                    if (walkers.stream().noneMatch(Player.class::isInstance)) {
+                        if (++returnWait >= 60) berth();
+                    } else returnWait = 0;
+                } else if (walkers.stream().filter(Player.class::isInstance)
+                        .map(Player.class::cast).anyMatch(this::hasPaid)) {
+                    boolean waiting = level().getEntitiesOfClass(Player.class, getBoundingBox().inflate(24),
+                            p -> p.isAlive() && !p.isSpectator() && !p.getAbilities().flying)
+                            .stream().anyMatch(p -> !supports(p) || !hasPaid(p));
+                    if (waiting) departureWait = 100;
+                    else if (--departureWait <= 0) entityData.set(SAILING, true);
+                } else departureWait = 100;
             }
         }
 
-        if (!sailing()) return;
+        if (emergenceTicks() < EMERGENCE_TICKS || !sailing()) return;
         double oldX = getX(), oldY = getY(), oldZ = getZ();
-        double nextZ = Math.min(UnderworldTerrain.END_Z - 54, oldZ + .072);
+        double tangent = (UnderworldTerrain.riverCenter(oldZ + .5)
+                - UnderworldTerrain.riverCenter(oldZ - .5));
+        double nextZ = Math.min(UnderworldTerrain.END_Z - 54, oldZ + .072 / Math.sqrt(1 + tangent * tangent));
         double nextX = UnderworldTerrain.riverCenter(nextZ);
-        double nextY = UnderworldTerrain.WATER_Y + .16 + Math.sin(tickCount * .055) * .025;
-        setYRot((float)Math.toDegrees(Math.atan2(-(nextX - oldX), nextZ - oldZ)));
+        double nextY = UnderworldTerrain.WATER_Y + .65 + Math.sin(tickCount * .055) * .025;
+        float oldYaw = getYRot();
+        float targetYaw = (float)Math.toDegrees(Math.atan2(-tangent, 1.0));
+        setYRot(oldYaw + net.minecraft.util.Mth.wrapDegrees(targetYaw - oldYaw) * .12F);
         setPos(nextX, nextY, nextZ);
         setDeltaMovement(Vec3.ZERO);
 
         Vec3 movement = new Vec3(nextX - oldX, nextY - oldY, nextZ - oldZ);
         for (Entity walker : walkers) {
             if (level().isClientSide() && !(walker instanceof Player player && player.isLocalPlayer())) continue;
-            walker.setPos(walker.getX() + movement.x, deckY(), walker.getZ() + movement.z);
+            double turn = Math.toRadians(getYRot() - oldYaw);
+            double relativeX = walker.getX() - oldX, relativeZ = walker.getZ() - oldZ;
+            walker.setPos(nextX + relativeX * Math.cos(turn) - relativeZ * Math.sin(turn),
+                    deckY(), nextZ + relativeX * Math.sin(turn) + relativeZ * Math.cos(turn));
             if (walker.getDeltaMovement().y < 0)
                 walker.setDeltaMovement(walker.getDeltaMovement().multiply(1, 0, 1));
             walker.setOnGround(true);
@@ -133,11 +202,15 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
         out.putBoolean("Sailing", sailing());
         out.putInt("DepartureWait", departureWait);
         out.putInt("ReturnWait", returnWait);
+        out.putInt("Emergence", emergenceTicks());
+        out.putString("Paid", entityData.get(PAID));
     }
     @Override protected void readAdditionalSaveData(ValueInput in) {
         entityData.set(SAILING, in.getBooleanOr("Sailing", false));
         departureWait = in.getIntOr("DepartureWait", 40);
         returnWait = in.getIntOr("ReturnWait", 0);
+        entityData.set(EMERGENCE, Math.clamp(in.getIntOr("Emergence", 0), 0, EMERGENCE_TICKS));
+        entityData.set(PAID, in.getStringOr("Paid", ""));
     }
     @Override public AnimatableInstanceCache getAnimatableInstanceCache() { return cache; }
     @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) { }

@@ -7,6 +7,9 @@ public final class UnderworldClient {
     private UnderworldClient() { }
     public static void initialize() {
         EntityRenderers.register(UnderworldContent.CHARONS_FERRY, CharonsFerryRenderer::new);
+        EntityRenderers.register(UnderworldContent.CHARON, CharonRenderer::new);
+        FerryWaterPhysics.initialize();
+        LimboMusic.initialize();
         UnderworldPostEffects.register();
     }
 }
