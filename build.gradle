@@ -144,10 +144,7 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 java {
-    def javaVersion = JavaVersion.toVersion(targetJavaVersion)
-    if (JavaVersion.current() < javaVersion) {
-        toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
-    }
+    toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
     withSourcesJar()
 }
 
