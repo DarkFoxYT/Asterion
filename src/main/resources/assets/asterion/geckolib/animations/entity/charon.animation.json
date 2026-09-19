@@ -1,4 +1,15 @@
 {
   "format_version": "1.8.0",
-  "animations": {}
+  "animations": {
+    "idle": {
+      "loop": true,
+      "animation_length": 8,
+      "bones": {
+        "body": { "scale": [1, "1 + 0.002 * math.sin(query.anim_time * 45)", 1] },
+        "head": { "rotation": ["0.7 * math.sin(query.anim_time * 45)", "1.8 * math.sin(query.anim_time * 45)", 0] },
+        "right_arm": { "rotation": ["-3 + 0.8 * math.sin(query.anim_time * 45 + 25)", 0, -2] },
+        "left_arm": { "rotation": ["-2 + 0.6 * math.sin(query.anim_time * 45 - 20)", 0, 2] }
+      }
+    }
+  }
 }

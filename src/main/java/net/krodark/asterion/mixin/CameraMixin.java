@@ -42,6 +42,33 @@ public abstract class CameraMixin {
     @Shadow private int matrixPropertiesDirty;
 
     @Inject(method = "alignWithEntity", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/Camera;setRotation(FF)V", shift = At.Shift.AFTER))
+    private void asterion$tiltFerryView(float partial, CallbackInfo ci) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || ((Camera)(Object)this).entity() != client.player
+                || net.krodark.asterion.client.AsterionClient.isPlayback(client)) return;
+        var boat = net.krodark.asterion.update.underworld.entity.CharonsFerryEntity.supporting(client.player);
+        if (boat == null) return;
+        Quaternionf tilt = net.krodark.asterion.update.underworld.client.FerryDeckRender.tilt(boat, partial);
+        rotation.premul(tilt); forwards.rotate(tilt); up.rotate(tilt); left.rotate(tilt);
+        matrixPropertiesDirty |= 3;
+    }
+
+    @Inject(method = "alignWithEntity", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/CameraType;isFirstPerson()Z"))
+    private void asterion$followFerryDeck(float partial, CallbackInfo ci) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || ((Camera)(Object)this).entity() != client.player
+                || net.krodark.asterion.client.AsterionClient.isPlayback(client)) return;
+        var boat = net.krodark.asterion.update.underworld.entity.CharonsFerryEntity.supporting(client.player);
+        if (boat == null) return;
+        Vec3 feet = net.krodark.asterion.update.underworld.client.FerryDeckRender.feet(client.player, boat, partial);
+        Vector3f eye = net.krodark.asterion.update.underworld.client.FerryDeckRender.tilt(boat, partial)
+                .transform(new Vector3f(0, client.player.getEyeHeight(), 0));
+        setPosition(feet.add(eye.x, eye.y, eye.z));
+    }
+
+    @Inject(method = "alignWithEntity", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/CameraType;isFirstPerson()Z"))
     private void asterion$followCentipedeSeat(float partial, CallbackInfo ci) {
         Minecraft client = Minecraft.getInstance();

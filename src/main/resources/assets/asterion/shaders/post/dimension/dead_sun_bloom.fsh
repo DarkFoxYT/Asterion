@@ -17,7 +17,8 @@ in vec2 texCoord;
 out vec4 fragColor;
 
 void main() {
-    vec2 stepUv = Direction / max(InSize, vec2(1.0));
+    // Both directions use the blur buffer's pixel size, including the first downsampled pass.
+    vec2 stepUv = Direction / max(OutSize, vec2(1.0));
     vec3 glow = texture(InSampler, texCoord).rgb * 0.227027;
     glow += texture(InSampler, texCoord + stepUv * 1.384615).rgb * 0.316216;
     glow += texture(InSampler, texCoord - stepUv * 1.384615).rgb * 0.316216;

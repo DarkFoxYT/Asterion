@@ -15,6 +15,7 @@ public final class LimboMusic {
     private static ClientLevel trackedLevel;
     private static Voice voice;
     private static boolean revealed;
+    private static int ticks;
 
     private LimboMusic() { }
 
@@ -23,6 +24,7 @@ public final class LimboMusic {
     }
 
     private static void tick(Minecraft client) {
+        ticks++;
         if (trackedLevel != client.level) {
             stop(client);
             trackedLevel = client.level;
@@ -33,12 +35,19 @@ public final class LimboMusic {
         if (!limbo) { stop(client); return; }
         if (client.player.getZ() > 8.0) revealed = true;
         float target = revealed ? .52F * AsterionConfig.INSTANCE.musicVolumePercent / 100F : 0F;
+        if (voice != null && ticks - voice.started > 40 && !client.getSoundManager().isActive(voice))
+            voice = null;
         if (voice == null && target > .001F) {
-            voice = new Voice(target);
+            voice = new Voice(target, ticks);
             client.getSoundManager().play(voice);
         } else if (voice != null) {
             voice.target = target;
         }
+    }
+
+    public static boolean ownsMusic() {
+        Minecraft client = Minecraft.getInstance();
+        return client.level != null && client.level.dimension().equals(Asterion.LIMBO_LEVEL);
     }
 
     private static void stop(Minecraft client) {
@@ -48,10 +57,12 @@ public final class LimboMusic {
 
     private static final class Voice extends AbstractTickableSoundInstance {
         private float target;
-        private Voice(float target) {
+        private final int started;
+        private Voice(float target, int started) {
             super(SoundEvent.createVariableRangeEvent(Asterion.id("limbo_ambience")),
                     SoundSource.MUSIC, RandomSource.create());
             this.target = target;
+            this.started = started;
             volume = .001F;
             looping = true;
             delay = 0;

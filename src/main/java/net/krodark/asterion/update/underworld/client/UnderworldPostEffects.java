@@ -9,14 +9,14 @@ import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.client.PerformanceGovernor;
 import net.krodark.asterion.update.underworld.world.UnderworldTerrain;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.UniformValue;
+import com.meekdev.amnetic.client.post.UniformValue;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 
 import java.util.List;
 
-/** Depth-tested low mist. Water itself is rendered exclusively by Minecraft or the shader pack. */
+/** Depth-tested low mist; the animated water surface has its own geometry pass. */
 public final class UnderworldPostEffects {
     private static final Matrix4f inverseViewProjection = new Matrix4f();
     private static Vec3 cameraPosition = Vec3.ZERO;
@@ -25,24 +25,24 @@ public final class UnderworldPostEffects {
     private UnderworldPostEffects() { }
 
     public static void register() {
-        PostEffects.register(Asterion.id("underworld/river_atmosphere"), config -> config
+        PostEffects.register(Asterion.id("underworld/river_atmosphere"), config -> net.krodark.asterion.client.render.post.AmneticPostBuffers.attach(config, "underworld_mist", 1F / 3F)
                 .when(() -> active() && AsterionConfig.INSTANCE.cinematicQuality > 0
                         && PerformanceGovernor.quality() > 0)
-                .phase(RenderPhase.POST_WORLD).priority(18).fade(20, 14)
+                .phase(RenderPhase.POST_WORLD).priority(18).fade(8, 0)
                 .uniform("UnderworldTime", UnderworldPostEffects::time)
                 .uniformRaw("WorldData", UnderworldPostEffects::worldData)
                 .uniformVec4("RiverData", () -> new Vector4f(
-                        UnderworldTerrain.WATER_Y + 1.15F, 2.2F,
+                        UnderworldTerrain.WATER_Y + .85F, 3.6F,
                         active() ? AsterionConfig.INSTANCE.limboFogStrength : 0F,
                         active() ? AsterionConfig.INSTANCE.limboMistStrength : 0F)));
-        PostEffects.register(Asterion.id("underworld/river_atmosphere_fast"), config -> config
+        PostEffects.register(Asterion.id("underworld/river_atmosphere_fast"), config -> net.krodark.asterion.client.render.post.AmneticPostBuffers.attach(config, "underworld_fast_mist", .25F)
                 .when(() -> active() && (AsterionConfig.INSTANCE.cinematicQuality <= 0
                         || PerformanceGovernor.quality() == 0))
-                .phase(RenderPhase.POST_WORLD).priority(18).fade(6, 8)
+                .phase(RenderPhase.POST_WORLD).priority(18).fade(3, 0)
                 .uniform("UnderworldTime", UnderworldPostEffects::time)
                 .uniformRaw("WorldData", UnderworldPostEffects::worldData)
                 .uniformVec4("RiverData", () -> new Vector4f(
-                        UnderworldTerrain.WATER_Y + 1.15F, 2.2F,
+                        UnderworldTerrain.WATER_Y + .85F, 3.3F,
                         active() ? AsterionConfig.INSTANCE.limboFogStrength : 0F,
                         active() ? AsterionConfig.INSTANCE.limboMistStrength : 0F)));
     }
@@ -53,7 +53,11 @@ public final class UnderworldPostEffects {
         return limbo && !ShaderPackCompatibility.active() && AmneticCamera.isReady();
     }
 
-    private static double time() { return (System.nanoTime() * 0.000000001 % 100000.0) * 20.0; }
+    private static double time() {
+        Minecraft client = Minecraft.getInstance();
+        return client.level == null ? 0 : client.level.getGameTime()
+                + client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+    }
 
     private static List<UniformValue> worldData() {
         if (AmneticCamera.isReady()) {

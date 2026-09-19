@@ -19,6 +19,7 @@ abstract class RagdollEntityRendererMixin {
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void asterion$attachRagdollIdentity(Entity entity, EntityRenderState state, float partialTicks, CallbackInfo ci) {
         ((FabricRenderState) state).setData(RagdollRenderData.ENTITY_ID, entity.getId());
+        ((FabricRenderState)state).setData(net.krodark.asterion.update.underworld.client.FerryDeckRender.TILT, null);
         if (entity.getVehicle() instanceof ScarletCentipedeEntity centipede) {
             state.passengerOffset = centipede.passengerPosition(entity, partialTicks).subtract(new Vec3(state.x, state.y, state.z));
             ((FabricRenderState)state).setData(CentipedeRiderRenderData.FRAME, CentipedeFrame.rotation(
@@ -30,6 +31,15 @@ abstract class RagdollEntityRendererMixin {
             else {
                 var lift = net.krodark.asterion.entity.ChainLiftEntity.renderSupport(entity);
                 if (lift != null) state.passengerOffset = new Vec3(0, lift.renderedDeckY(partialTicks) - state.y, 0);
+                else {
+                    var ferry = net.krodark.asterion.update.underworld.entity.CharonsFerryEntity.supporting(entity);
+                    if (ferry != null) {
+                        ((FabricRenderState)state).setData(net.krodark.asterion.update.underworld.client.FerryDeckRender.TILT,
+                                net.krodark.asterion.update.underworld.client.FerryDeckRender.tilt(ferry, partialTicks));
+                        state.passengerOffset = net.krodark.asterion.update.underworld.client.FerryDeckRender.feet(entity, ferry, partialTicks)
+                                .subtract(new Vec3(state.x, state.y, state.z));
+                    }
+                }
             }
         }
     }

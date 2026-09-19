@@ -100,7 +100,8 @@ public final class AsterionEmissiveConfig {
 
     public static int effectiveBloomQuality() {
         var config = AsterionConfig.INSTANCE;
-        return config.bloomQuality < 0 ? config.cinematicQuality + 1 : config.bloomQuality;
+        int requested = config.bloomQuality < 0 ? config.cinematicQuality + 1 : config.bloomQuality;
+        return Math.min(requested, net.krodark.asterion.client.PerformanceGovernor.quality() + 1);
     }
 
     public static boolean sceneBloomEnabled() { return values.sceneBloom; }

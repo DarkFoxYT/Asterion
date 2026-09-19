@@ -24,15 +24,18 @@ public abstract class ChainLiftMovementMixin {
         asterion$supportingLift = null;
         asterion$supportingFerry = null;
         Entity entity = (Entity)(Object)this;
-        if (!(entity instanceof Player) || entity.noPhysics
-                || entity.getDeltaMovement().y > .08 || movement.y > .65) return movement;
+        if (!(entity instanceof Player) || entity.noPhysics) return movement;
+        movement = CharonsFerryEntity.collideNearbyHulls(entity, movement);
+        if (entity.getDeltaMovement().y > .08 || movement.y > .65) return movement;
         ChainLiftEntity lift = ChainLiftEntity.supporting(entity);
         if (lift == null) {
             CharonsFerryEntity ferry = CharonsFerryEntity.supporting(entity);
-            if (ferry == null || !ferry.overlapsDeck(entity.getBoundingBox().move(movement.x, 0, movement.z)))
-                return movement;
+            if (ferry == null) ferry = CharonsFerryEntity.landing(entity, movement);
+            if (ferry == null) return movement;
+            movement = ferry.collideDeckMovement(entity, movement);
+            if (!ferry.overlapsDeck(entity.getBoundingBox().move(movement.x, 0, movement.z))) return movement;
             asterion$supportingFerry = ferry;
-            entity.setPos(entity.getX(), ferry.deckY(), entity.getZ());
+            entity.setPos(entity.getX(), ferry.deckHeightAt(entity.getX(), entity.getZ()), entity.getZ());
             return new Vec3(movement.x, 0, movement.z);
         }
          
@@ -52,6 +55,7 @@ public abstract class ChainLiftMovementMixin {
         Entity entity = (Entity)(Object)this;
         if (lift != null && !lift.overlapsDeck(entity.getBoundingBox())
                 || ferry != null && !ferry.overlapsDeck(entity.getBoundingBox())) return;
+        if (ferry != null) entity.setPos(entity.getX(), ferry.deckHeightAt(entity.getX(), entity.getZ()), entity.getZ());
         entity.verticalCollision = true;
         entity.verticalCollisionBelow = true;
         entity.setOnGround(true);

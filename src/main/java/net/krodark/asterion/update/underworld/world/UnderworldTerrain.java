@@ -27,6 +27,10 @@ public final class UnderworldTerrain {
                 + Math.sin(z * .043 + .4) * 4.0;
     }
 
+    /** Shared world-space water height, including the renderer's horizontal crest deformation. */
+    public static double waveHeight(double x, double z, double ticks) {
+        return UnderworldWaves.height(x, z, ticks);
+    }
     public static void generate(ChunkAccess chunk, long seed) {
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int x = chunk.getPos().getMinBlockX(); x <= chunk.getPos().getMaxBlockX(); x++) {
@@ -91,9 +95,22 @@ public final class UnderworldTerrain {
             path = true;
         }
         if (tunnel && lateral < channel && z < 150) floor = Math.min(floor, WATER_Y - 7);
+        // The player wakes in a dry cavern. The Styx is revealed around the bend instead of
+        // inexplicably running through the entrance room.
+        if (tunnel && z < 18 && lateral < channel + 3) floor = WATER_Y + 1;
         if (path) {
             floor = WATER_Y + 1;
             roof = Math.max(roof, floor + 12);
+        }
+        // Sparse, column-coherent teeth make the huge sea cave read as eroded limestone.
+        // Keep the authored approach and ferry lane clear.
+        if (open && !path && z > 80 && lateral > 13) {
+            double cells = octaves(seed ^ 0x57A1AC71L, x * .085, z * .085);
+            double detail = octaves(seed ^ 0x51A6L, x * .19, z * .19);
+            if (cells > .55) roof -= (cells - .55) * 31 + Math.max(0, detail) * 5;
+            if (cells < -.62 && floor > WATER_Y - 25)
+                floor += (-cells - .62) * 18 + Math.max(0, -detail) * 4;
+            if (roof - floor < 7) roof = floor + 7;
         }
         return new Column(open, (int)Math.floor(floor), (int)Math.ceil(roof), path);
     }

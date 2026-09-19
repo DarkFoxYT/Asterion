@@ -5,6 +5,7 @@ import com.geckolib.animatable.instance.AnimatableInstanceCache;
 import com.geckolib.animatable.manager.AnimatableManager;
 import com.geckolib.util.GeckoLibUtil;
 import net.krodark.asterion.update.underworld.world.UnderworldTerrain;
+import net.krodark.asterion.update.underworld.world.FerryHull;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -35,10 +36,21 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
             CharonsFerryEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<String> PAID = SynchedEntityData.defineId(
             CharonsFerryEntity.class, EntityDataSerializers.STRING);
+    private static final EntityDataAccessor<Float> ROLL = SynchedEntityData.defineId(
+            CharonsFerryEntity.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Float> PITCH = SynchedEntityData.defineId(
+            CharonsFerryEntity.class, EntityDataSerializers.FLOAT);
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private final InterpolationHandler interpolation = new InterpolationHandler(this, 3);
     private int departureWait = 40;
     private int returnWait;
+    private float previousVisualRoll;
+    private float visualRoll;
+    private float previousVisualPitch;
+    private float visualPitch;
+    private float shoreFactor = 1;
+    private int shoreX = Integer.MIN_VALUE, shoreZ = Integer.MIN_VALUE;
+    private double surgeSpeed, heaveSpeed;
     public static final int EMERGENCE_TICKS = 110;
 
     public CharonsFerryEntity(EntityType<? extends CharonsFerryEntity> type, Level level) {
@@ -47,9 +59,15 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
     }
 
     public void berth() {
+        surgeSpeed = heaveSpeed = 0;
         double z = UnderworldTerrain.FERRY_Z;
         setPos(UnderworldTerrain.riverCenter(z), UnderworldTerrain.WATER_Y + .65, z);
         setYRot(0F);
+        setXRot(0F);
+        entityData.set(ROLL, 0F);
+        entityData.set(PITCH, 0F);
+        previousVisualRoll = visualRoll = 0F;
+        previousVisualPitch = visualPitch = 0F;
         entityData.set(SAILING, false);
         entityData.set(EMERGENCE, EMERGENCE_TICKS);
         entityData.set(PAID, "");
@@ -58,7 +76,24 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
     }
 
     // The supplied model's main deck ends at 21 model pixels (16 pixels per block).
-    public double deckY() { return getY() + 21.0 / 16.0; }
+    public double deckY() { return deckHeightAt(getX(), getZ()); }
+    public float rockingRoll() { return entityData.get(ROLL); }
+    public float rockingRoll(float partialTick) {
+        return net.minecraft.util.Mth.lerp(partialTick, previousVisualRoll, visualRoll);
+    }
+    public float rockingPitch(float partialTick) {
+        return net.minecraft.util.Mth.lerp(partialTick, previousVisualPitch, visualPitch);
+    }
+
+    public double deckHeightAt(double x, double z) {
+        double yaw = Math.toRadians(getYRot());
+        double dx = x - getX(), dz = z - getZ();
+        double localX = -dx * Math.cos(yaw) - dz * Math.sin(yaw);
+        double localZ = dx * Math.sin(yaw) - dz * Math.cos(yaw);
+        double pitch = Math.toRadians(entityData.get(PITCH)), roll = Math.toRadians(rockingRoll());
+        return getY() + FerryHull.PIVOT + (FerryHull.DECK - FerryHull.PIVOT + FerryHull.RENDER_OFFSET) / (Math.cos(pitch) * Math.cos(roll))
+                + localX * Math.tan(roll) / Math.cos(pitch) - localZ * Math.tan(pitch);
+    }
 
     @Override protected boolean canAddPassenger(Entity passenger) {
         return passenger instanceof CharonEntity && getPassengers().isEmpty();
@@ -70,10 +105,8 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
             return;
         }
         // Keep the ferryman inside the stern deck, not beyond its port rail.
-        double yaw = Math.toRadians(getYRot());
-        double stern = 1.0;
-        move.accept(passenger, getX() - stern * Math.sin(yaw), deckY(),
-                getZ() + stern * Math.cos(yaw));
+        Vec3 stern = deckPoint(0, 1.0);
+        move.accept(passenger, stern.x, stern.y, stern.z);
         passenger.setYRot(getYRot());
         passenger.resetFallDistance();
     }
@@ -97,29 +130,69 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
         data.define(RIDERS, "");
         data.define(EMERGENCE, 0);
         data.define(PAID, "");
+        data.define(ROLL, 0F);
+        data.define(PITCH, 0F);
     }
     @Override public InterpolationHandler getInterpolation() { return interpolation; }
     @Override public boolean isPickable() { return true; }
-    @Override public boolean canBeCollidedWith(Entity other) { return isAlive() && !supports(other); }
+    @Override public boolean canBeCollidedWith(Entity other) { return false; }
     @Override public boolean canCollideWith(Entity other) { return false; }
     @Override public boolean hurtServer(ServerLevel level, DamageSource source, float amount) { return false; }
     @Override public boolean ignoreExplosion(net.minecraft.world.level.Explosion explosion) { return true; }
 
-    public boolean overlapsDeck(AABB bounds) {
-        double dx = (bounds.minX + bounds.maxX) * .5 - getX();
-        double dz = (bounds.minZ + bounds.maxZ) * .5 - getZ();
-        double yaw = Math.toRadians(getYRot());
-        double localX = dx * Math.cos(yaw) + dz * Math.sin(yaw);
-        double localZ = -dx * Math.sin(yaw) + dz * Math.cos(yaw);
-        return Math.abs(localX) < 1.0625 && localZ > -3.0625 && localZ < 2.1875;
+    public Vec3 deckPoint(double localX, double localZ) {
+        return position().add(FerryHull.world(new Vec3(localX,FerryHull.DECK,localZ),getYRot(),entityData.get(PITCH),rockingRoll()));
     }
-
+    public Vec3 deckLocal(double x,double z) {
+        return FerryHull.local(new Vec3(x-getX(),deckHeightAt(x,z)-getY(),z-getZ()),getYRot(),entityData.get(PITCH),rockingRoll());
+    }
+    public boolean overlapsDeck(AABB bounds) {
+        Vec3 p=deckLocal((bounds.minX+bounds.maxX)*.5,(bounds.minZ+bounds.maxZ)*.5);
+        return FerryHull.deckDistance(p.x,p.z)<.03;
+    }
+    public Vec3 collideDeckMovement(Entity walker,Vec3 movement) {
+        // A solid landing is an exit, not an invisible end rail.
+        var landing=net.minecraft.core.BlockPos.containing(walker.getX()+movement.x,
+                deckHeightAt(walker.getX()+movement.x,walker.getZ()+movement.z)-.15,walker.getZ()+movement.z);
+        if(level().getBlockState(landing).isSolidRender())return movement;
+        Vec3 start=deckLocal(walker.getX(),walker.getZ());
+        Vec3 end=deckLocal(walker.getX()+movement.x,walker.getZ()+movement.z);
+        double radius=Math.min(.30,walker.getBbWidth()*.45);
+        // Do not push a newly boarding player backwards because their feet straddle an edge.
+        radius=Math.min(radius,Math.max(0,-FerryHull.deckDistance(start.x,start.z)));
+        Vec3 safe=FerryHull.constrain(start.x,start.z,end.x,end.z,radius);
+        Vec3 target=deckPoint(safe.x,safe.z);
+        return new Vec3(target.x-walker.getX(),movement.y,target.z-walker.getZ());
+    }
+    public static Vec3 collideNearbyHulls(Entity walker,Vec3 movement) {
+        if(!walker.level().dimension().equals(net.krodark.asterion.Asterion.LIMBO_LEVEL)
+                || walker.isSpectator() || walker instanceof Player p && p.getAbilities().flying)return movement;
+        for(var boat:walker.level().getEntitiesOfClass(CharonsFerryEntity.class,walker.getBoundingBox().inflate(4))) {
+            if(walker.getY()>=boat.deckHeightAt(walker.getX(),walker.getZ())-.65)continue;
+            double centerOffset=Math.min(.6,walker.getBbHeight()*.5);
+            Vec3 center=walker.position().add(0,centerOffset,0);
+            Vec3 candidate=center.add(movement);
+            Vec3 local=FerryHull.local(candidate.subtract(boat.position()),boat.getYRot(),boat.entityData.get(PITCH),boat.rockingRoll());
+            if(local.y<3.0/16 || local.y>FerryHull.DECK)continue;
+            double radius=walker.getBbWidth()*.48,distance=FerryHull.hullDistance(local.x,local.y,local.z);
+            if(distance>=radius)continue;
+            double gx=FerryHull.hullDistance(local.x+.01,local.y,local.z)-FerryHull.hullDistance(local.x-.01,local.y,local.z);
+            double gz=FerryHull.hullDistance(local.x,local.y,local.z+.01)-FerryHull.hullDistance(local.x,local.y,local.z-.01);
+            double length=Math.hypot(gx,gz);
+            if(length<1e-8) { gx=local.x>=0?1:-1;gz=0;length=1; }
+            double push=radius-distance+.015;
+            Vec3 corrected=boat.position().add(FerryHull.world(local.add(gx/length*push,0,gz/length*push),
+                    boat.getYRot(),boat.entityData.get(PITCH),boat.rockingRoll()));
+            movement=new Vec3(corrected.x-center.x,movement.y,corrected.z-center.z);
+        }
+        return movement;
+    }
     public boolean supports(Entity entity) {
         if (!entity.isAlive() || entity.isSpectator() || entity.isPassenger()
                 || entity instanceof Player player && player.getAbilities().flying) return false;
-        double offset = entity.getY() - deckY();
+        double offset = entity.getY() - deckHeightAt(entity.getX(), entity.getZ());
         if (!entity.onGround() && offset > .06) return false;
-        boolean recovering = carries(entity) && offset < 0 && offset >= -1.5 && overlapsDeck(entity.getBoundingBox());
+        boolean recovering = carries(entity) && offset < 0 && offset >= -.28 && overlapsDeck(entity.getBoundingBox());
         return (Math.abs(offset) < .72 || recovering) && entity.getDeltaMovement().y <= .08
                 && overlapsDeck(entity.getBoundingBox());
     }
@@ -130,17 +203,40 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
             if (ferry.supports(entity)) return ferry;
         return null;
     }
+    public static CharonsFerryEntity landing(Entity entity,Vec3 movement) {
+        if(movement.y>=0 || !entity.level().dimension().equals(net.krodark.asterion.Asterion.LIMBO_LEVEL))return null;
+        for(var boat:entity.level().getEntitiesOfClass(CharonsFerryEntity.class,
+                entity.getBoundingBox().expandTowards(movement).inflate(4))) {
+            double deck=boat.deckHeightAt(entity.getX()+movement.x,entity.getZ()+movement.z);
+            if(entity.getY()>=boat.deckHeightAt(entity.getX(),entity.getZ())-.05
+                    && entity.getY()+movement.y<=deck && boat.overlapsDeck(entity.getBoundingBox().move(movement)))return boat;
+        }
+        return null;
+    }
 
     @Override public void tick() {
         super.tick();
+        if (tickCount <= 1) {
+            previousVisualRoll = visualRoll = rockingRoll();
+            previousVisualPitch = visualPitch = entityData.get(PITCH);
+        }
+        previousVisualRoll = visualRoll;
+        visualRoll = net.minecraft.util.Mth.lerp(.55F, visualRoll, rockingRoll());
+        previousVisualPitch = visualPitch;
+        visualPitch = net.minecraft.util.Mth.lerp(.55F, visualPitch, entityData.get(PITCH));
         if (level().isClientSide()) {
-            double beforeX = getX(), beforeY = getY(), beforeZ = getZ();
+            double beforeX = getX(), beforeZ = getZ();
+            float beforeYaw = getYRot();
             var supported = level().getEntities(this, getBoundingBox().inflate(1, 2.1, 1), this::supports);
             interpolation.interpolate();
             for (Entity walker : supported) {
                 if (walker instanceof Player player && player.isLocalPlayer()) {
-                    walker.setPos(walker.getX() + getX() - beforeX,
-                            walker.getY() + getY() - beforeY, walker.getZ() + getZ() - beforeZ);
+                    double turn = -Math.toRadians(net.minecraft.util.Mth.wrapDegrees(getYRot() - beforeYaw));
+                    double rx = walker.getX() - beforeX, rz = walker.getZ() - beforeZ;
+                    double x = getX() + rx * Math.cos(turn) - rz * Math.sin(turn);
+                    double z = getZ() + rx * Math.sin(turn) + rz * Math.cos(turn);
+                    walker.setYRot(walker.getYRot() + net.minecraft.util.Mth.wrapDegrees(getYRot() - beforeYaw));
+                    walker.setPos(x, deckHeightAt(x, z), z);
                     walker.setOnGround(true);
                     walker.resetFallDistance();
                 }
@@ -157,8 +253,7 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
                 entityData.set(EMERGENCE, EMERGENCE_TICKS);
                 setPos(getX(), UnderworldTerrain.WATER_Y + .65, getZ());
             }
-            // Repair already-saved ferries whose old waterline left the deck submerged.
-            if (!sailing()) setPos(getX(), UnderworldTerrain.WATER_Y + .65, getZ());
+            // Moored ferries keep following the swell through the same buoyancy step below.
             if (!sailing()) {
                 if (getZ() >= UnderworldTerrain.END_Z - 56) {
                     if (walkers.stream().noneMatch(Player.class::isInstance)) {
@@ -175,26 +270,55 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
             }
         }
 
-        if (emergenceTicks() < EMERGENCE_TICKS || !sailing()) return;
+        if (emergenceTicks() < EMERGENCE_TICKS) return;
         double oldX = getX(), oldY = getY(), oldZ = getZ();
         double tangent = (UnderworldTerrain.riverCenter(oldZ + .5)
                 - UnderworldTerrain.riverCenter(oldZ - .5));
-        double nextZ = Math.min(UnderworldTerrain.END_Z - 54, oldZ + .072 / Math.sqrt(1 + tangent * tangent));
-        double nextX = UnderworldTerrain.riverCenter(nextZ);
-        double nextY = UnderworldTerrain.WATER_Y + .65 + Math.sin(tickCount * .055) * .025;
+        double desiredSpeed = sailing() ? .072 : 0;
+        surgeSpeed += Math.clamp(desiredSpeed - surgeSpeed, -.0035, .0025);
+        double nextZ = Math.min(UnderworldTerrain.END_Z - 54,
+                oldZ + surgeSpeed / Math.sqrt(1 + tangent * tangent));
+        double nextX = surgeSpeed > .0001 ? UnderworldTerrain.riverCenter(nextZ) : oldX;
+        int sx = (int)Math.floor(nextX), sz = (int)Math.floor(nextZ);
+        if (sx != shoreX || sz != shoreZ || tickCount % 20 == 0) {
+            shoreX = sx; shoreZ = sz;
+            shoreFactor = net.krodark.asterion.update.underworld.world.WaterShoreline.sample(level(), sx, sz);
+        }
+        double wave = UnderworldTerrain.waveHeight(nextX, nextZ, level().getGameTime());
+        double bow = UnderworldTerrain.waveHeight(nextX - Math.sin(Math.toRadians(getYRot())) * 2.4,
+                nextZ + Math.cos(Math.toRadians(getYRot())) * 2.4, level().getGameTime());
+        double stern = UnderworldTerrain.waveHeight(nextX + Math.sin(Math.toRadians(getYRot())) * 3.2,
+                nextZ - Math.cos(Math.toRadians(getYRot())) * 3.2, level().getGameTime());
+        double port = UnderworldTerrain.waveHeight(nextX - Math.cos(Math.toRadians(getYRot())) * .7,
+                nextZ - Math.sin(Math.toRadians(getYRot())) * .7, level().getGameTime());
+        double starboard = UnderworldTerrain.waveHeight(nextX + Math.cos(Math.toRadians(getYRot())) * .7,
+                nextZ + Math.sin(Math.toRadians(getYRot())) * .7, level().getGameTime());
+        // Buoyancy follows the hull's footprint, smoothing little chop instead of snapping to one point.
+        double targetY = UnderworldTerrain.WATER_Y + .65 + (wave * 2 + bow + stern + port + starboard) * shoreFactor / 6;
+        // Damped vertical inertia: the displaced hull volume restores the waterline gradually.
+        heaveSpeed = Math.clamp(heaveSpeed + (targetY - oldY) * .075 - heaveSpeed * .42, -.14, .14);
+        double nextY = oldY + heaveSpeed;
         float oldYaw = getYRot();
-        float targetYaw = (float)Math.toDegrees(Math.atan2(-tangent, 1.0));
-        setYRot(oldYaw + net.minecraft.util.Mth.wrapDegrees(targetYaw - oldYaw) * .12F);
+        float targetYaw = sailing() ? (float)Math.toDegrees(Math.atan2(-tangent, 1.0)) : oldYaw;
+        setYRot(oldYaw + net.minecraft.util.Mth.wrapDegrees(targetYaw - oldYaw) * .065F);
+        entityData.set(PITCH, net.minecraft.util.Mth.lerp(.22F, entityData.get(PITCH),
+                Math.clamp((float)Math.toDegrees(Math.atan2((bow - stern) * shoreFactor, 5.6)), -12F, 12F)));
+        setXRot(entityData.get(PITCH));
+        entityData.set(ROLL, net.minecraft.util.Mth.lerp(.2F, rockingRoll(),
+                Math.clamp((float)Math.toDegrees(Math.atan2((port - starboard) * shoreFactor, 1.4)), -10F, 10F)));
         setPos(nextX, nextY, nextZ);
+        if (tickCount % 20 == 0) net.krodark.asterion.update.underworld.FerryJourneyState.get((ServerLevel)level()).track(this);
         setDeltaMovement(Vec3.ZERO);
 
         Vec3 movement = new Vec3(nextX - oldX, nextY - oldY, nextZ - oldZ);
         for (Entity walker : walkers) {
             if (level().isClientSide() && !(walker instanceof Player player && player.isLocalPlayer())) continue;
-            double turn = Math.toRadians(getYRot() - oldYaw);
+            double turn = -Math.toRadians(net.minecraft.util.Mth.wrapDegrees(getYRot() - oldYaw));
+            walker.setYRot(walker.getYRot() + net.minecraft.util.Mth.wrapDegrees(getYRot() - oldYaw));
             double relativeX = walker.getX() - oldX, relativeZ = walker.getZ() - oldZ;
-            walker.setPos(nextX + relativeX * Math.cos(turn) - relativeZ * Math.sin(turn),
-                    deckY(), nextZ + relativeX * Math.sin(turn) + relativeZ * Math.cos(turn));
+            double x = nextX + relativeX * Math.cos(turn) - relativeZ * Math.sin(turn);
+            double z = nextZ + relativeX * Math.sin(turn) + relativeZ * Math.cos(turn);
+            walker.setPos(x, deckHeightAt(x, z), z);
             if (walker.getDeltaMovement().y < 0)
                 walker.setDeltaMovement(walker.getDeltaMovement().multiply(1, 0, 1));
             walker.setOnGround(true);

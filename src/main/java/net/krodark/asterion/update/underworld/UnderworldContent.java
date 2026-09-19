@@ -26,7 +26,7 @@ public final class UnderworldContent {
     public static final EntityType<CharonEntity> CHARON = Registry.register(
             BuiltInRegistries.ENTITY_TYPE, CHARON_KEY,
             EntityType.Builder.of(CharonEntity::new, MobCategory.MISC)
-                    .sized(1.35F, 3.9F).clientTrackingRange(24).updateInterval(1)
+                    .sized(.9F, 2.55F).clientTrackingRange(24).updateInterval(1)
                     .fireImmune().build(CHARON_KEY));
 
     private UnderworldContent() { }

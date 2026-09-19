@@ -16,7 +16,7 @@ public class LimboShaderSmoke {
             GL.createCapabilities();
             for (String file : args) {
                 int shader = GL20.glCreateShader(GL20.GL_FRAGMENT_SHADER);
-                GL20.glShaderSource(shader, Files.readString(Path.of(file)));
+                GL20.glShaderSource(shader, ShaderIncludes.resolve(Files.readString(Path.of(file))));
                 GL20.glCompileShader(shader);
                 String log = GL20.glGetShaderInfoLog(shader);
                 if (GL20.glGetShaderi(shader, GL20.GL_COMPILE_STATUS) == 0)

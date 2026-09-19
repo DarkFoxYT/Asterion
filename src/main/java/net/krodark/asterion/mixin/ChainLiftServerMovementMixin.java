@@ -23,10 +23,10 @@ abstract class ChainLiftServerMovementMixin {
         ChainLiftEntity lift = ChainLiftEntity.supporting(player);
         if (lift == null) {
             CharonsFerryEntity ferry = CharonsFerryEntity.supporting(player);
-            if (ferry == null || Math.abs(y - ferry.deckY()) > 2
+            if (ferry == null || Math.abs(y - ferry.deckHeightAt(x, z)) > 2
                     || !ferry.overlapsDeck(player.getBoundingBox().move(x - player.getX(), 0, z - player.getZ())))
                 return packet;
-            return new ServerboundMovePlayerPacket.PosRot(x, ferry.deckY(), z,
+            return new ServerboundMovePlayerPacket.PosRot(x, ferry.deckHeightAt(x, z), z,
                     packet.getYRot(player.getYRot()), packet.getXRot(player.getXRot()),
                     true, packet.horizontalCollision());
         }

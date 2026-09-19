@@ -17,6 +17,11 @@ fabricApi {
 }
 
 repositories {
+    maven {
+        name = "RyanHCode"
+        url = "https://maven.ryanhcode.dev/releases"
+        content { includeGroup "foundry.imguimc" }
+    }
     ivy {
         name = "LocalRendererDependencies"
         url = uri("libs")
@@ -78,6 +83,11 @@ dependencies {
 
     implementation "com.meekdev:amnetic:${project.amnetic_version}"
     include "com.meekdev:amnetic:${project.amnetic_version}"
+
+    // Amnetic keeps its editor optional for production, but an IDE client should
+    // have the ImGui host available so the Right Shift editor shortcut works.
+    // runtimeOnly deliberately keeps ImGuiMC out of Asterion's distributable jar.
+    runtimeOnly "foundry.imguimc:imguimc-fabric-26.1:${project.imguimc_version}"
 
     implementation "asterion.bundled:bb4j:0.0.0-c2242d5"
     include "asterion.bundled:bb4j:0.0.0-c2242d5"

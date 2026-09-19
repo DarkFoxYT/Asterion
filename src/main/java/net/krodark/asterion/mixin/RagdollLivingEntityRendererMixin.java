@@ -59,6 +59,11 @@ abstract class RagdollLivingEntityRendererMixin {
     @Inject(method = "setupRotations", at = @At("TAIL"))
     private void asterion$alignCentipedeRider(LivingEntityRenderState state, PoseStack poses,
                                                float bodyRot, float scale, CallbackInfo ci) {
+        Quaternionf deck = ((FabricRenderState)state).getData(net.krodark.asterion.update.underworld.client.FerryDeckRender.TILT);
+        if (deck != null && !Boolean.TRUE.equals(((FabricRenderState)state).getData(RagdollRenderData.GUI_PREVIEW))) {
+            float angle = (180F - bodyRot) * Mth.DEG_TO_RAD;
+            poses.mulPose(new Quaternionf().rotationY(-angle).mul(deck).rotateY(angle));
+        }
         Quaternionf frame = ((FabricRenderState)state).getData(CentipedeRiderRenderData.FRAME);
         if (frame == null) return;
         poses.mulPose(new Quaternionf().rotationY((180F - bodyRot) * Mth.DEG_TO_RAD)

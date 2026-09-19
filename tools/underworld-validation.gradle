@@ -5,10 +5,30 @@ allprojects {
             def smokeCompile = tasks.register('compileUnderworldSmoke', JavaCompile) {
                 dependsOn tasks.named('classes')
                 source = files('tools/UnderworldTerrainSmoke.java', 'tools/LimboShaderSmoke.java',
-                        'tools/EmissiveUploadSmoke.java', 'tools/DepthBlitSmoke.java')
+                        'tools/EmissiveUploadSmoke.java', 'tools/DepthBlitSmoke.java', 'tools/LimboWaterSmoke.java',
+                        'tools/AmneticShaderProfile.java', 'tools/WaterVisualSmoke.java', 'tools/ShaderIncludes.java', 'tools/WakeFieldSmoke.java', 'tools/FerryHullSmoke.java', 'tools/AmneticCompatibilitySmoke.java')
                 classpath = sourceSets.main.runtimeClasspath
                 destinationDirectory = layout.buildDirectory.dir('underworld-smoke')
                 javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+            tasks.register('checkAmneticCompatibility', JavaExec) {
+                dependsOn smokeCompile
+                classpath = sourceSets.main.runtimeClasspath + files(smokeCompile.flatMap { it.destinationDirectory })
+                mainClass = 'AmneticCompatibilitySmoke'
+                javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+            tasks.register('profileAmneticShaders', JavaExec) {
+                dependsOn smokeCompile
+                classpath = sourceSets.main.runtimeClasspath + files(smokeCompile.flatMap { it.destinationDirectory })
+                mainClass = 'AmneticShaderProfile'
+                args providers.gradleProperty('shaderProfileOutput').getOrElse('build/reports/amnetic-shaders.csv')
+                javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+            tasks.register('checkLimboWater', JavaExec) {
+                dependsOn smokeCompile
+                classpath = sourceSets.main.runtimeClasspath + files(smokeCompile.flatMap { it.destinationDirectory })
+                mainClass = 'LimboWaterSmoke'
+                javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
             }
             tasks.register('checkUnderworldTerrain', JavaExec) {
                 dependsOn smokeCompile

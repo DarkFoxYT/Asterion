@@ -4,6 +4,8 @@ import com.geckolib.animatable.GeoEntity;
 import com.geckolib.animatable.instance.AnimatableInstanceCache;
 import com.geckolib.animatable.manager.AnimatableManager;
 import com.geckolib.util.GeckoLibUtil;
+import com.geckolib.animation.AnimationController;
+import com.geckolib.animation.RawAnimation;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
@@ -25,6 +27,7 @@ import java.util.UUID;
 
 /** Friendly ferryman fixed to the shared ferry. His fare is one gold nugget. */
 public final class CharonEntity extends Entity implements GeoEntity {
+    private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("idle");
     public static final UUID SHARED_ID = UUID.nameUUIDFromBytes(
             "asterion:limbo:charon".getBytes(StandardCharsets.UTF_8));
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
@@ -81,5 +84,8 @@ public final class CharonEntity extends Entity implements GeoEntity {
     @Override protected void addAdditionalSaveData(ValueOutput out) { }
     @Override protected void readAdditionalSaveData(ValueInput in) { }
     @Override public AnimatableInstanceCache getAnimatableInstanceCache() { return cache; }
-    @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) { }
+    @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+        controllers.add(new AnimationController<CharonEntity>("idle", 12,
+                state -> state.setAndContinue(IDLE)));
+    }
 }

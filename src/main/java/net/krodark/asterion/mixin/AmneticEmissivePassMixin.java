@@ -6,7 +6,7 @@ import com.meekdev.amnetic.client.instanced.InstancePhase;
 import com.meekdev.amnetic.client.instanced.InstanceRenderContext;
 import com.meekdev.amnetic.client.instanced.internal.InstanceMeshEntry;
 import com.meekdev.amnetic.client.instanced.internal.InstanceMeshRegistry;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import com.meekdev.amnetic.client.render.LevelCamera;
 import net.krodark.asterion.client.light.EmissivePassFrame;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -34,8 +34,8 @@ public abstract class AmneticEmissivePassMixin {
         }
         cir.setReturnValue(false);
     }
-    @Inject(method = "renderAll(Lcom/meekdev/amnetic/client/instanced/InstancePhase;Lnet/fabricmc/fabric/api/client/rendering/v1/level/LevelRenderContext;)V", at = @At("HEAD"))
-    private void asterion$beginFrame(InstancePhase phase, LevelRenderContext context, CallbackInfo ci) {
+    @Inject(method = "renderAll(Lcom/meekdev/amnetic/client/instanced/InstancePhase;Lcom/meekdev/amnetic/client/render/LevelCamera;)V", at = @At("HEAD"))
+    private void asterion$beginFrame(InstancePhase phase, LevelCamera context, CallbackInfo ci) {
         if (phase == InstancePhase.WORLD_LAST) EmissivePassFrame.frame++;
     }
 

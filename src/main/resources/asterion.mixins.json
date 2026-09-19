@@ -43,6 +43,7 @@
     "GeckoInterpolationBufferAccessor",
     "BossHealthOverlayAccessor",
     "MinotaurBossBarMixin",
+    "LimboDeathScreenMixin",
     "MinotaurBodyPickingMixin",
     "FlamethrowerInputMixin",
     "BiomeMusicMixin",
@@ -51,7 +52,6 @@
     "AmneticParticleCullingMixin",
     "AmneticEmissivePassMixin",
     "AmneticEmissiveInstanceMixin",
-    "AmneticDepthAttachmentMixin",
     "AmneticDepthBlitMixin",
     "AmneticBloomPerformanceMixin",
     "AmneticEmissiveSourcesMixin",
@@ -67,6 +67,7 @@
     "InventoryEntityPreviewMixin",
     "RagdollLevelRendererMixin",
     "SodiumRenderRegionMixin",
+    "SodiumWaterSurfaceMixin",
     "RagdollLocalPlayerMixin",
     "RagdollItemInHandRendererMixin",
     "ForgedTooltipOutlineMixin"

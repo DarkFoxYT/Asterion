@@ -11,6 +11,8 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -23,6 +25,7 @@ public final class UnderworldPassage {
     private UnderworldPassage() { }
 
     public static void initialize() {
+        FerryRejoin.initialize();
         // Registered after Asterion's existing respawn recovery, so the one-time story passage wins cleanly.
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> enterAfterFirstDeath(newPlayer));
         ServerTickEvents.END_SERVER_TICK.register(UnderworldPassage::tick);
@@ -37,6 +40,9 @@ public final class UnderworldPassage {
                 UnderworldTerrain.SPAWN_Z + .5, Set.of(), 0F, 0F, true);
         player.setDeltaMovement(Vec3.ZERO);
         player.resetFallDistance();
+        // Charon always gives a newly dead soul exactly one fare.
+        if (!player.getInventory().contains(new ItemStack(Items.GOLD_NUGGET)))
+            player.getInventory().add(new ItemStack(Items.GOLD_NUGGET));
     }
 
     private static void tick(MinecraftServer server) {
@@ -44,6 +50,7 @@ public final class UnderworldPassage {
         if (level == null || level.players().isEmpty()) return;
 
         for (ServerPlayer player : java.util.List.copyOf(level.players())) {
+            if (FerryRejoin.recover(player)) continue;
             // The Styx is crossed aboard the paid ferry, not by swimming or walking around it.
             if (player.isAlive() && !player.isSpectator() && !player.getAbilities().instabuild
                     && player.getZ() > 105
@@ -68,7 +75,7 @@ public final class UnderworldPassage {
                 net.krodark.asterion.worldgen.WorldGenerator.beginLimboExit(player);
         }
 
-        if (++ferryCheck < 80) return;
+        if (FerryRejoin.hasPending() || ++ferryCheck < 80) return;
         ferryCheck = 0;
         if (level.getEntity(CharonsFerryEntity.SHARED_ID) instanceof CharonsFerryEntity ferry) {
             ensureCharon(level, ferry);
