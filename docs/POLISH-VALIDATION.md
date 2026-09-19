@@ -33,3 +33,12 @@ The port shaders lift distant open-air scattering to a soft ash-grey tone. Near 
 - Skeleton rendering preserves child traversal when hiding flesh. Runtime checks verify visible harvested bones, removed-arm exclusion from rendering/targeting, and continued visibility/targeting of the remaining regions.
 
 The new focused physics/remains regressions passed on 1.20.1 Fabric and 1.21.1 native NeoForge. Quilt and third-party shader-pack combinations were not rerun for this update. This update does not assert that every possible gameplay issue is eliminated.
+
+
+## Emission culling and unload cleanup (2026-09-20)
+
+The port checks cached, cube-rotation-aware bounds against the current bone-to-clip transform before allocating a glow submission. A conservative bounds margin preserves edge geometry. The queue only collects during world rendering, releases renderer/bone/texture references every frame, caps idle pooling, and clears its pool and bounds cache on world changes/disconnect. Stale block entities cannot submit glow after removal, replacement or chunk unloading.
+
+Dynamic lights are enabled only while their full influence bounds intersect the camera frustum. Cleanup now checks the actual client chunk cache (the general ClientLevel.hasChunkAt check can report absent chunks as present) and removes unloaded-chunk lights without waiting for their normal timeout. Particle emission already has distance/GPU culling and was left unchanged.
+
+The packaged 1.20.1 regression passed visible bloom, camera rotation/translation, zero emission when turned away, solid-wall occlusion, edge visibility, queue-reference release, world-pool clearing and unloaded-light removal. The native 1.21.1 NeoForge packaged build passed the same regression. These checks establish culling and cleanup behavior; they are not a blanket FPS guarantee. This change targets the GeckoLib 4 ports; 26.1.2 remains unchanged.

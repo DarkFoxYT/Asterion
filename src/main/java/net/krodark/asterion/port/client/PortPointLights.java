@@ -66,6 +66,28 @@ final class PortPointLights {
         }
     }
 
+    static boolean loaded(Object key, net.minecraft.client.multiplayer.ClientLevel level) {
+        var sample = BUFFERED.get(key);
+        if (sample == null) return false;
+        var pos = net.minecraft.core.BlockPos.containing(sample.position());
+        return level.getChunkSource().hasChunk(pos.getX() >> 4, pos.getZ() >> 4);
+    }
+
+    static void cull(net.minecraft.client.renderer.culling.Frustum frustum) {
+        if (frustum == null) return;
+        var level = net.minecraft.client.Minecraft.getInstance().level;
+        for (var entry : LIGHTS.entrySet()) {
+            var sample = BUFFERED.get(entry.getKey());
+            boolean visible = level != null && sample != null && loaded(entry.getKey(),level);
+            if (visible) {
+                var p = sample.position(); double radius = Math.max(.1, sample.radius());
+                visible = frustum.isVisible(new net.minecraft.world.phys.AABB(p.x-radius,p.y-radius,p.z-radius,
+                        p.x+radius,p.y+radius,p.z+radius));
+            }
+            entry.getValue().setEnabled(visible);
+        }
+    }
+
     static void remove(Object key) {
         Light light = LIGHTS.remove(key);
         BUFFERED.remove(key);

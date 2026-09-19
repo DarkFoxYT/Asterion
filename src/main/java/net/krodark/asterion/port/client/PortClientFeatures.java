@@ -129,6 +129,7 @@ public final class PortClientFeatures {
     }
 
     public static void tick(Minecraft client) {
+        PortEmissiveQueue.tick(client);
         PortLight.tickCleanup(client);
         PortHeldItemLights.tick(client);
         PortBrazierLights.tick(client);

@@ -43,7 +43,7 @@ public final class PortLight {
         Iterator<Map.Entry<Object, Long>> iterator = UPDATED.entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry<Object, Long> entry = iterator.next();
-            if (entry.getValue() < stale) {
+            if (entry.getValue() < stale || !PortPointLights.loaded(entry.getKey(), client.level)) {
                 PortPointLights.remove(entry.getKey());
                 iterator.remove();
             }

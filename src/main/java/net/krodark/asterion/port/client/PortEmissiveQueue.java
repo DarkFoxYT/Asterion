@@ -25,6 +25,11 @@ final class PortEmissiveQueue {
     private static final List<Draw> POOL = new ArrayList<>();
     private static final PoseStack POSES = new PoseStack();
     private static int count;
+    private static boolean collecting;
+    private static net.minecraft.client.multiplayer.ClientLevel world;
+    private static final java.util.Map<GeoBone, net.minecraft.world.phys.AABB> BOUNDS = new java.util.WeakHashMap<>();
+    private static final Matrix4f CLIP = new Matrix4f();
+    private static final org.joml.FrustumIntersection FRUSTUM = new org.joml.FrustumIntersection();
     private static final Matrix4f WORLD_PROJECTION = new Matrix4f();
     private static final Matrix4f WORLD_MODEL_VIEW = new Matrix4f();
     private static boolean initialized;
@@ -65,10 +70,16 @@ final class PortEmissiveQueue {
                         RenderSystem.setProjectionMatrix(previousProjection, previousSorting);
                     }
                 });
-        WorldRenderEvents.START.register(context -> count = 0);
+        WorldRenderEvents.START.register(context -> {
+            tick(net.minecraft.client.Minecraft.getInstance());
+            resetFrame();
+            collecting = true;
+        });
+        WorldRenderEvents.AFTER_SETUP.register(context -> PortPointLights.cull(context.frustum()));
         // This fires after both entities and block entities. It also runs when
         // there is no outline, unlike BLOCK_OUTLINE itself.
         WorldRenderEvents.BEFORE_BLOCK_OUTLINE.register((context, hit) -> {
+            collecting = false;
             flush(context.consumers());
             return true;
         });
@@ -86,6 +97,10 @@ final class PortEmissiveQueue {
 
     static void submit(GeoRenderer<?> renderer, GeoBone bone, PoseStack.Pose transform,
                        ResourceLocation texture, int tint, int overlay) {
+        if (!collecting || world == null || bone.getCubes().isEmpty()) return;
+        var bounds = BOUNDS.computeIfAbsent(bone, PortEmissiveQueue::bounds);
+        CLIP.set(RenderSystem.getProjectionMatrix()).mul(RenderSystem.getModelViewMatrix()).mul(transform.pose());
+        if (!visible(CLIP, bounds)) return;
         if (count == 0) {
             WORLD_PROJECTION.set(RenderSystem.getProjectionMatrix());
             WORLD_MODEL_VIEW.set(RenderSystem.getModelViewMatrix());
@@ -98,6 +113,50 @@ final class PortEmissiveQueue {
         }
         draw.capture(renderer, bone, transform, texture, tint, overlay);
         count++;
+    }
+
+    static void tick(net.minecraft.client.Minecraft client) {
+        if (world == client.level) return;
+        resetFrame();
+        POOL.clear(); BOUNDS.clear(); collecting = false;
+        world = client.level;
+    }
+
+    private static void resetFrame() {
+        for (int i = 0; i < count; i++) POOL.get(i).release();
+        count = 0;
+        // Retain a modest allocation cache, not the largest scene ever visited.
+        if (POOL.size() > 2048) POOL.subList(2048, POOL.size()).clear();
+    }
+
+    static boolean visible(Matrix4f clip, net.minecraft.world.phys.AABB bounds) {
+        return FRUSTUM.set(clip).testAab((float)bounds.minX, (float)bounds.minY, (float)bounds.minZ,
+                (float)bounds.maxX, (float)bounds.maxY, (float)bounds.maxZ);
+    }
+
+    private static net.minecraft.world.phys.AABB bounds(GeoBone bone) {
+        PoseStack poses = new PoseStack();
+        org.joml.Vector3f point = new org.joml.Vector3f();
+        double minX=Double.POSITIVE_INFINITY,minY=minX,minZ=minX,maxX=Double.NEGATIVE_INFINITY,maxY=maxX,maxZ=maxX;
+        for (var cube : bone.getCubes()) {
+            poses.pushPose();
+            //? if >=1.20.5 {
+            software.bernie.geckolib.util.RenderUtil.translateToPivotPoint(poses,cube);
+            software.bernie.geckolib.util.RenderUtil.rotateMatrixAroundCube(poses,cube);
+            software.bernie.geckolib.util.RenderUtil.translateAwayFromPivotPoint(poses,cube);
+            //?} else {
+            /*software.bernie.geckolib.util.RenderUtils.translateToPivotPoint(poses,cube);
+            software.bernie.geckolib.util.RenderUtils.rotateMatrixAroundCube(poses,cube);
+            software.bernie.geckolib.util.RenderUtils.translateAwayFromPivotPoint(poses,cube);*/
+            //?}
+            for (var quad : cube.quads()) if (quad != null) for (var vertex : quad.vertices()) {
+                poses.last().pose().transformPosition(vertex.position(),point);
+                minX=Math.min(minX,point.x);minY=Math.min(minY,point.y);minZ=Math.min(minZ,point.z);
+                maxX=Math.max(maxX,point.x);maxY=Math.max(maxY,point.y);maxZ=Math.max(maxZ,point.z);
+            }
+            poses.popPose();
+        }
+        return new net.minecraft.world.phys.AABB(minX,minY,minZ,maxX,maxY,maxZ).inflate(.25);
     }
 
     private static final class Draw {
@@ -120,6 +179,8 @@ final class PortEmissiveQueue {
             this.overlay = overlay;
         }
 
+        private void release() { renderer = null; bone = null; texture = null; }
+
         @SuppressWarnings({"rawtypes", "unchecked"})
         private void render(MultiBufferSource.BufferSource buffers) {
             RenderType emission = PortEmissiveBuffer.renderType(texture);
@@ -130,6 +191,7 @@ final class PortEmissiveQueue {
             // non-emissive instance may have hidden this same bone after this
             // draw was captured, so restore the captured visible state locally.
             boolean hidden = bone.isHidden();
+            boolean childrenHidden = bone.isHidingChildren();
             bone.setHidden(false);
 
 //? if >=1.20.5 {
@@ -141,6 +203,7 @@ final class PortEmissiveQueue {
 //?}
 
             bone.setHidden(hidden);
+            bone.setChildrenHidden(childrenHidden);
         }
     }
 }

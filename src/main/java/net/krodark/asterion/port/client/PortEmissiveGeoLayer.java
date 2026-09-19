@@ -40,9 +40,20 @@ public final class PortEmissiveGeoLayer<T extends GeoAnimatable> extends GeoRend
                           MultiBufferSource buffers, VertexConsumer buffer, float partialTick,
                           int packedLight, int packedOverlay) {
         renderTint = color.applyAsInt(animatable);
-        renderVisible = visible.test(animatable) && (renderTint >>> 24) != 0;
+        renderVisible = current(animatable) && visible.test(animatable) && (renderTint >>> 24) != 0;
         renderTexture = renderVisible ? texture.apply(animatable) : null;
         for (String name : bones) model.getBone(name).ifPresent(bone -> bone.setHidden(!renderVisible));
+    }
+
+    private static boolean current(Object owner) {
+        var level = net.minecraft.client.Minecraft.getInstance().level;
+        if (level == null) return false;
+        if (owner instanceof net.minecraft.world.level.block.entity.BlockEntity block)
+            return !block.isRemoved() && block.getLevel() == level && level.getChunkSource().hasChunk(block.getBlockPos().getX() >> 4, block.getBlockPos().getZ() >> 4)
+                    && level.getBlockEntity(block.getBlockPos()) == block;
+        if (owner instanceof net.minecraft.world.entity.Entity entity)
+            return !entity.isRemoved() && entity.level() == level;
+        return true;
     }
 
     @Override
