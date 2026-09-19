@@ -16,3 +16,7 @@ The final NeoForge scenario measured 15.615 ms median and 31.5732 ms p95 across 
 
 Quilt uses the same Fabric artifacts; this revision's runtime tests used Fabric and NeoForge. External shader packs, long multiplayer sessions and NeoForge 1.20.1 remain outside this validation. These checks do not establish that every possible gameplay issue is eliminated.
 
+
+## Ash-grey sky update (2026-09-20)
+
+The port shaders lift distant open-air scattering to a soft ash-grey tone. Near geometry, dark caves and eclipse shading retain their existing treatment. The packaged NeoForge atmosphere regression passed all three quality settings: visible dust over sky and geometry, no blue cast, non-flat dust banks, TAA disabled and no OpenGL errors. The 1.20.1 and 1.21.1 builds share these shader resources.

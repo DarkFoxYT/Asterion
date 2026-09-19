@@ -122,7 +122,11 @@ void main() {
         // Use the same extinction and scattering across the horizon. Distant
         // atmosphere gradually becomes neutral, including geometry at the sky limit.
         float grey = dot(scatterColor, vec3(0.2126, 0.7152, 0.0722));
-        scatterColor = mix(scatterColor, vec3(grey), smoothstep(64.0, 112.0, travel));
+        // Keep the open labyrinth sky visibly ash-grey, as in the 26.1.2
+        // atmosphere, without lifting the deliberately dark caves or eclipse.
+        float openAir = smoothstep(0.025, 0.10, grey) * (1.0 - clamp(Eclipse, 0.0, 1.0));
+        float skyGrey = max(grey, 0.24 * openAir);
+        scatterColor = mix(scatterColor, vec3(skyGrey), smoothstep(64.0, 112.0, travel));
         scattering += visibility * extinction * scatterColor;
     }
 

@@ -44,7 +44,11 @@ void main() {
     float light=smoothstep(.12,.72,luma);
     transmission=mix(transmission,1.0,light*.45);
     vec3 fog=mix(FogTint,DustTint,.28+noise(cell+17.0)*.12);
-    fog=mix(fog,vec3(dot(fog,vec3(.2126,.7152,.0722))),smoothstep(64.0,112.0,travel));
+    float grey=dot(fog,vec3(.2126,.7152,.0722));
+    // Match the ash-grey distant atmosphere of the volumetric qualities.
+    // Very dark biome/eclipse tints remain dark.
+    float openAir=smoothstep(.025,.10,grey);
+    fog=mix(fog,vec3(max(grey,.24*openAir)),smoothstep(64.0,112.0,travel));
     vec3 result=scene.rgb*transmission+fog*(1.0-transmission);
     fragColor=vec4(mix(scene.rgb,result,clamp(Value*EffectStrength,0.0,1.0)),scene.a);
 }
