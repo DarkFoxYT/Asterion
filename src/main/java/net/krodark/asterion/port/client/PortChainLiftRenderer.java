@@ -33,17 +33,21 @@ public final class PortChainLiftRenderer extends SimpleGeoEntityRenderer<ChainLi
                                   MultiBufferSource buffers, VertexConsumer buffer, float partialTick,
                                   int packedLight, int packedOverlay) {
             if (!bone.getName().equals("chain")) return;
-            double liftY = Mth.lerp(partialTick, lift.yo, lift.getY());
-            // The authored empty chain bone sits at Y=46px. Rendering here makes
-            // the chain inherit every animation/rotation applied to its holder.
-            float length = (float)(lift.ceiling() - liftY - 46.0D / 16.0D);
-            if (!Float.isFinite(length) || length <= 0 || length > 256) return;
-            VertexConsumer out = buffers.getBuffer(CHAIN);
-            Matrix4f matrix = poses.last().pose();
-            float width = .12F;
-            float v = length / .5F;
-            quad(out, matrix, -width, 0, 0, width, length, 0, 0, v, packedLight, 0, 0, 1);
-            quad(out, matrix, 0, 0, -width, 0, length, width, 0, v, packedLight, 1, 0, 0);
+            poses.pushPose();
+            // GeckoLib 4 invokes layers after moving away from the bone pivot.
+            //? if >=1.20.5 {
+            software.bernie.geckolib.util.RenderUtil.translateToPivotPoint(poses, bone);
+            //?} else {
+            /*software.bernie.geckolib.util.RenderUtils.translateToPivotPoint(poses, bone);
+            *///?}
+            org.joml.Vector3f point = poses.last().pose().transformPosition(new org.joml.Vector3f());
+            poses.popPose();
+            var camera = net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+            var start = new net.minecraft.world.phys.Vec3(point.x, point.y, point.z);
+            var end = new net.minecraft.world.phys.Vec3(Mth.lerp(partialTick, lift.xo, lift.getX()),
+                    lift.ceiling(), Mth.lerp(partialTick, lift.zo, lift.getZ())).subtract(camera);
+            if (end.y <= start.y || start.distanceToSqr(end) > 256 * 256) return;
+            PortMinotaurChainLayer.draw(buffers.getBuffer(CHAIN), start, end, 0, packedLight);
             buffers.getBuffer(renderType);
         }
     }
@@ -72,6 +76,9 @@ out.addVertex(matrix, x, y, z).setColor(255, 255, 255, 255).setUv(u, v)
 
     @Override
     public boolean shouldRender(ChainLiftEntity lift, Frustum frustum, double x, double y, double z) {
-        return true;
+        AABB bounds = lift.getBoundingBox().inflate(3).minmax(new AABB(
+                lift.getX() - 1, lift.ceiling() - 1, lift.getZ() - 1,
+                lift.getX() + 1, lift.ceiling() + 1, lift.getZ() + 1));
+        return frustum.isVisible(bounds);
     }
 }

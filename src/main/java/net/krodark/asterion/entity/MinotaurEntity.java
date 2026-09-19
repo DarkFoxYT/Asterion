@@ -185,7 +185,16 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     public int weaponSwapTicks() { return getEntityData().get(DATA_WEAPON_SWAP); }
     public boolean axeInWorld() { return getEntityData().get(DATA_AXE_OUT); }
     public boolean isAxeAttackActive() { return weaponSwapTicks() == 0 && requiresAxe(bossAttackState()); }
-    public double rageCooldownMultiplier() { return .84D - Math.min(12, rage()) * .037D; }
+    private float gearPressure;
+    /** Worn protection, including modded armor attributes; inventory hoarding does not count. */
+    public static float gearPressure(net.minecraft.world.entity.player.Player player) {
+        double armor = player.getArmorValue();
+        double toughness = player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ARMOR_TOUGHNESS);
+        return (float)Math.max(0, Math.min(1.25, armor / 20.0 * .75 + toughness / 12.0 * .25));
+    }
+    public double rageCooldownMultiplier() {
+        return (.84D - Math.min(12, rage()) * .037D) * (1 - .24D * gearPressure);
+    }
     private Vec3 wallPinPoint;
     private int wallPinTicks;
     private static final EntityDataAccessor<Integer> DATA_REACH_ARM = SynchedEntityData.defineId(
@@ -1988,7 +1997,7 @@ super.defineSynchedData(builder);
 
     private void scheduleWallCombo(ServerPlayer player, int ticks) {
         wallComboTarget = player.getUUID();
-        wallComboWindow = Math.max(wallComboWindow, ticks);
+        wallComboWindow = Math.max(wallComboWindow, ticks + Math.round(gearPressure * 30));
     }
 
     private boolean canCatchPlayer(ServerPlayer player) {
@@ -4461,6 +4470,12 @@ Arrow arrow = new Arrow(level, this, new ItemStack(Items.ARROW),
     }
 
     private void syncBossPartyScaling(ServerLevel level, boolean initial) {
+        gearPressure = 0;
+        for (ServerPlayer fighter : level.players()) {
+            if (fighter.isAlive() && !fighter.isCreative() && !fighter.isSpectator()
+                    && fighter.distanceToSqr(this) < 64 * 64)
+                gearPressure = Math.max(gearPressure, gearPressure(fighter));
+        }
         int players = (int)level.players().stream()
                 .filter(player -> player.isAlive() && !player.isCreative() && !player.isSpectator()
                         && (net.krodark.asterion.worldgen.BossArenaEncounter.isSealed(level)

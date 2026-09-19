@@ -20,6 +20,7 @@ public final class ClientSmokeTest implements ClientModInitializer {
         if (!Boolean.getBoolean("asterion.clientSmoke")) return;
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
         BloomSmoke.register(() -> worldTicks);
+        PolishSmoke.register(() -> worldTicks);
         AtmosphereSmoke.register(() -> worldTicks);
         net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents.END.register(context -> {
             long now=System.nanoTime();
@@ -103,6 +104,7 @@ public final class ClientSmokeTest implements ClientModInitializer {
                     server.getCommands().performPrefixedCommand(source,command);
             });
         }
+        if(Boolean.getBoolean("asterion.polishSmoke") && worldTicks>=160) { PolishSmoke.tick(client,worldTicks);return; }
         if(Boolean.getBoolean("asterion.atmosphereSmoke") && worldTicks>=160) { AtmosphereSmoke.tick(client,worldTicks);return; }
         if(Boolean.getBoolean("asterion.bloomSmoke") && worldTicks>=160) { BloomSmoke.tick(client,worldTicks);return; }
         if (worldTicks == 160) {
@@ -202,6 +204,9 @@ public final class ClientSmokeTest implements ClientModInitializer {
     }
     private static final class InputShield extends net.minecraft.client.gui.screens.Screen {
         InputShield() { super(net.minecraft.network.chat.Component.literal("Automated gameplay test")); }
+        public void renderBackground(net.minecraft.client.gui.GuiGraphics g,int x,int y,float partial) {}
+        public void renderBackground(net.minecraft.client.gui.GuiGraphics g) {}
+        public void renderBlurredBackground(float partial) {}
         @Override public boolean isPauseScreen() { return false; }
         @Override public boolean shouldCloseOnEsc() { return false; }
     }

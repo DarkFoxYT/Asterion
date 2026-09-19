@@ -1,9 +1,7 @@
 package net.krodark.asterion.port.client;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.entity.MinotaurEntity;
-import net.krodark.asterion.entity.MinotaurRemains;
 import net.krodark.asterion.network.MinotaurBodyPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.InteractionHand;
@@ -12,64 +10,117 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4f;
+import org.joml.Vector3f;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 
-/** Enlarged model-aware selection and region picking for the authored Minotaur skeleton. */
 public final class PortMinotaurBodyPicking {
+    private static final Map<MinotaurEntity, Body> BODIES = new WeakHashMap<>();
     private PortMinotaurBodyPicking() {}
 
+    public static final class Body {
+        private final long tick;
+        private final java.lang.ref.WeakReference<MinotaurEntity> owner;
+        private final List<Part> parts = new ArrayList<>();
+        private Body(MinotaurEntity boss) {
+            this.tick = boss.level().getGameTime();
+            this.owner = new java.lang.ref.WeakReference<>(boss);
+        }
+        public void add(Matrix4f inverse, Vec3 camera, List<AABB> shapes, int region) {
+            parts.add(new Part(inverse, camera, shapes, region));
+        }
+        public int partCount() { return parts.size(); }
+        public Vec3 clip(Vec3 from, Vec3 to) {
+            var hit = pick(from, to);
+            return hit == null ? null : hit.point();
+        }
+        public BodyHit pick(Vec3 from, Vec3 to) {
+            BodyHit best = null;
+            double distance = Double.POSITIVE_INFINITY;
+            for (var part : parts) {
+                Vec3 localFrom = transform(part.inverse, from.subtract(part.camera));
+                Vec3 localTo = transform(part.inverse, to.subtract(part.camera));
+                double length = localFrom.distanceTo(localTo);
+                if (length < 1e-8) continue;
+                for (var shape : part.shapes) {
+                    var hit = shape.contains(localFrom) ? java.util.Optional.of(localFrom) : shape.clip(localFrom, localTo);
+                    if (hit.isEmpty()) continue;
+                    double fraction = localFrom.distanceTo(hit.get()) / length;
+                    if (fraction < distance) { distance = fraction; best = new BodyHit(from.lerp(to, fraction), part.region); }
+                }
+            }
+            return best;
+        }
+    }
+    public record BodyHit(Vec3 point, int part) {}
+    private record Part(Matrix4f inverse, Vec3 camera, List<AABB> shapes, int region) {}
+
+    public static Body begin(MinotaurEntity boss) {
+        var client = Minecraft.getInstance();
+        if (client.player == null || client.player.distanceToSqr(boss) > 32 * 32) return null;
+        return new Body(boss);
+    }
+
+    public static void publish(Body body) {
+        if (body == null || body.parts.isEmpty()) return;
+        var boss = body.owner.get();
+        if (boss != null) BODIES.put(boss, body);
+    }
+
+    public static Body body(MinotaurEntity boss) { return BODIES.get(boss); }
+
     public static void pick(Minecraft client, float partial) {
-        if (client.player == null || client.level == null || client.getCameraEntity() != client.player) return;
+        if (client.player == null || client.level == null) { BODIES.clear(); return; }
+        if (client.getCameraEntity() != client.player) return;
+        BODIES.entrySet().removeIf(entry -> !entry.getKey().isAlive()
+                || entry.getKey().level() != client.level || client.level.getGameTime() - entry.getValue().tick > 2);
+        if (BODIES.isEmpty()) return;
         Vec3 eye = client.player.getEyePosition(partial);
         Vec3 end = eye.add(client.player.getViewVector(partial).scale(net.krodark.asterion.port.compat.EntityCompat.reach(client.player)));
-        HitResult block = client.level.clip(new ClipContext(eye, end, ClipContext.Block.COLLIDER,
-                ClipContext.Fluid.NONE, client.player));
-        double closest = block.getType() == HitResult.Type.MISS ? eye.distanceToSqr(end)
-                : eye.distanceToSqr(block.getLocation());
-        if (client.hitResult instanceof EntityHitResult existing)
-            closest = Math.min(closest, eye.distanceToSqr(existing.getLocation()));
-        EntityHitResult result = null;
-        double visualScale = .47D * AsterionConfig.INSTANCE.minotaurScale;
-        AABB search = new AABB(eye, end).inflate(8.0D);
-        for (MinotaurEntity boss : client.level.getEntitiesOfClass(MinotaurEntity.class, search)) {
-            AABB body = boss.getBoundingBox().inflate(2.15D * visualScale, .42D * visualScale,
-                    2.15D * visualScale);
-            var hit = body.contains(eye) ? java.util.Optional.of(eye) : body.clip(eye, end);
-            if (hit.isPresent() && eye.distanceToSqr(hit.get()) < closest) {
-                closest = eye.distanceToSqr(hit.get());
-                result = new EntityHitResult(boss, hit.get());
+        var block = client.level.clip(new ClipContext(eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, client.player));
+        double limit = eye.distanceToSqr(block.getLocation());
+        if (client.hitResult instanceof EntityHitResult existing && !(existing.getEntity() instanceof MinotaurEntity))
+            limit = Math.min(limit, eye.distanceToSqr(existing.getLocation()));
+        EntityHitResult nearest = null;
+        for (var entry : BODIES.entrySet()) {
+            var boss = entry.getKey();
+            var body = entry.getValue();
+            if (!boss.isAlive() || boss.level() != client.level || client.level.getGameTime() - body.tick > 2) continue;
+            Vec3 hit = body.clip(eye, end);
+            if (hit != null && eye.distanceToSqr(hit) <= limit) {
+                limit = eye.distanceToSqr(hit);
+                nearest = new EntityHitResult(boss, hit);
             }
         }
-        if (result != null) {
-            client.hitResult = result;
-            client.crosshairPickEntity = result.getEntity();
+        if (nearest != null) {
+            client.hitResult = nearest;
+            client.crosshairPickEntity = nearest.getEntity();
+        } else if (client.hitResult instanceof EntityHitResult hit && hit.getEntity() instanceof MinotaurEntity boss
+                && BODIES.containsKey(boss) && client.level.getGameTime() - BODIES.get(boss).tick <= 2) {
+            client.hitResult = block;
+            client.crosshairPickEntity = null;
         }
     }
 
     public static boolean interact(Minecraft client, boolean attack) {
         if (client.player == null || client.player.isSpectator() || client.player.isUsingItem()
-                || !(client.hitResult instanceof EntityHitResult hit)
-                || !(hit.getEntity() instanceof MinotaurEntity boss)
-                || !ClientPlayNetworking.canSend(MinotaurBodyPayload.TYPE)
-                || !attack && !boss.isDefeatedBoss()) return false;
-        Vec3 point = hit.getLocation();
-        MinotaurRemains region = region(boss, point);
-        if (region.removed(boss.removedParts())) region = MinotaurRemains.next(boss.removedParts());
-        ClientPlayNetworking.send(new MinotaurBodyPayload(boss.getId(), point, attack,
-                region == null ? -1 : region.ordinal()));
+                || !(client.hitResult instanceof EntityHitResult hit) || !(hit.getEntity() instanceof MinotaurEntity boss)
+                || (!attack && !boss.isDefeatedBoss()) || !ClientPlayNetworking.canSend(MinotaurBodyPayload.TYPE)) return false;
+        var body = BODIES.get(boss);
+        Vec3 eye = client.player.getEyePosition();
+        Vec3 direction = hit.getLocation().subtract(eye).normalize();
+        var part = body == null ? null : body.pick(eye, hit.getLocation().add(direction.scale(.1)));
+        ClientPlayNetworking.send(new MinotaurBodyPayload(boss.getId(), hit.getLocation(), attack, part == null ? -1 : part.part()));
         client.player.swing(InteractionHand.MAIN_HAND);
         if (attack) client.player.resetAttackStrengthTicker();
         return true;
     }
 
-    private static MinotaurRemains region(MinotaurEntity boss, Vec3 point) {
-        Vec3 relative = point.subtract(boss.position());
-        double yaw = Math.toRadians(-boss.yBodyRot);
-        double localX = relative.x * Math.cos(yaw) - relative.z * Math.sin(yaw);
-        double fraction = relative.y / Math.max(.1D, boss.getBbHeight());
-        if (fraction > .73D) return MinotaurRemains.HEAD;
-        if (fraction < .42D) return localX >= 0 ? MinotaurRemains.LEFT_LEG : MinotaurRemains.RIGHT_LEG;
-        if (Math.abs(localX) > boss.getBbWidth() * .42D)
-            return localX >= 0 ? MinotaurRemains.LEFT_ARM : MinotaurRemains.RIGHT_ARM;
-        return MinotaurRemains.TORSO;
+    private static Vec3 transform(Matrix4f matrix, Vec3 point) {
+        Vector3f v = matrix.transformPosition(new Vector3f((float)point.x, (float)point.y, (float)point.z));
+        return new Vec3(v.x, v.y, v.z);
     }
 }

@@ -30,7 +30,8 @@ public final class PortRagdolls {
     public static void tick(Minecraft client) { RagdollClientController.tick(client); DazeOverlay.tick(client); }
     public static boolean localMovementLocked() {
         var player=Minecraft.getInstance().player;
-        return player!=null && DismembermentEngine.INSTANCE.isPlayerTumbling(player.getId());
+        return player!=null && (DismembermentEngine.INSTANCE.isPlayerTumbling(player.getId())
+                || net.krodark.asterion.entity.MinotaurEntity.isHeld(player));
     }
     public static boolean isRagdolled(LivingEntity entity) { return DismembermentEngine.INSTANCE.isRagdolled(entity.getId()); }
     public static Vec3 ragdollHandPosition(int entityId,boolean right) { return DismembermentEngine.INSTANCE.ragdollHandPosition(entityId,right); }

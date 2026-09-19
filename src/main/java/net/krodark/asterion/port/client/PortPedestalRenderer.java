@@ -41,7 +41,7 @@ super.render(pedestal, partialTick, poses, buffers, packedLight, packedOverlay);
         poses.mulPose(Axis.ZP.rotationDegrees(-135));
         poses.scale(1.25F, 1.25F, 1.25F);
         Minecraft.getInstance().getItemRenderer().renderStatic(new ItemStack(Asterion.AFTERBLOW),
-                ItemDisplayContext.FIXED, packedLight, OverlayTexture.NO_OVERLAY,
+                ItemDisplayContext.NONE, packedLight, OverlayTexture.NO_OVERLAY,
                 poses, buffers, pedestal.getLevel(), (int)pedestal.getBlockPos().asLong());
         poses.popPose();
     }

@@ -45,10 +45,12 @@ public final class ShaleCaves {
                 (.7 + unit(seed ^ 991, x, z) * .7) / Math.sqrt(scale));
     }
 
-    private static Chamber chamber(long seed, int x, int z, java.util.Map<Long, Chamber> chambers) {
+    private static Chamber chamber(long seed, int x, int z, it.unimi.dsi.fastutil.longs.Long2ObjectMap<Chamber> chambers) {
         if (chambers == null) return chamber(seed, x, z);
         long key = net.minecraft.world.level.ChunkPos.asLong(x, z);
-        return chambers.computeIfAbsent(key, ignored -> chamber(seed, x, z));
+        Chamber cached = chambers.get(key);
+        if (cached == null) { cached = chamber(seed, x, z); chambers.put(key, cached); }
+        return cached;
     }
 
     private static double passage(double x, double z, double ax, double az, double bx, double bz) {
@@ -66,7 +68,7 @@ public final class ShaleCaves {
         return column(seed, x, z, null);
     }
 
-    private static Column column(long seed, int x, int z, java.util.Map<Long, Chamber> chambers) {
+    private static Column column(long seed, int x, int z, it.unimi.dsi.fastutil.longs.Long2ObjectMap<Chamber> chambers) {
         double wx = x + (noise(seed ^ 41, x / 38.0, z / 38.0) - .5) * 10;
         double wz = z + (noise(seed ^ 87, x / 43.0, z / 43.0) - .5) * 10;
         int gx = (int)Math.floor(wx / 64), gz = (int)Math.floor(wz / 64);
@@ -116,7 +118,7 @@ public final class ShaleCaves {
         int minX = chunk.getPos().getMinBlockX(), minZ = chunk.getPos().getMinBlockZ();
 
 
-        var chambers = new java.util.HashMap<Long, Chamber>();
+        var chambers = new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<Chamber>(64);
         Column[][] columns = new Column[18][18];
         for (int dx = 0; dx < 18; dx++) for (int dz = 0; dz < 18; dz++)
             columns[dx][dz] = column(seed, minX + dx - 1, minZ + dz - 1, chambers);

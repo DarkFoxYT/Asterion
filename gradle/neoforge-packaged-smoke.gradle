@@ -19,6 +19,7 @@ neoForge.runs {
         systemProperty 'asterion.clientSmoke', 'true'
         systemProperty 'asterion.nativeAmneticSmoke', 'true'
         systemProperty 'amnetic.opengl.debug', 'true'
+        if (project.hasProperty('polishSmoke')) systemProperty 'asterion.polishSmoke', 'true'
         if (project.hasProperty('bloomSmoke')) systemProperty 'asterion.bloomSmoke', 'true'
         if (project.hasProperty('atmosphereSmoke')) systemProperty 'asterion.atmosphereSmoke', 'true'
     }

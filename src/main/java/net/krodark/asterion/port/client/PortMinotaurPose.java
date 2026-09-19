@@ -17,14 +17,29 @@ final class PortMinotaurPose {
         void addGeckolibData(Key key,Object value){data.put(key,value);}
         @SuppressWarnings("unchecked") <T> T getOrDefaultGeckolibData(Key key,T fallback){return (T)data.getOrDefault(key,fallback);}
     }
+    static boolean attackCue(MinotaurEntity boss) {
+        return !boss.isDefeatedBoss() && !boss.isHarvested() && boss.doorEntryTicks() <= 0
+                && (boss.bossAttackAnimationTicks() > 0 || boss.animationState() == MinotaurEntity.AnimationState.WARNING
+                || boss.animationState() == MinotaurEntity.AnimationState.CHARGE_RUN);
+    }
     static int eyeTint(MinotaurEntity boss) {
         State state=STATES.get(boss);
         int tint=state==null?0xFFD8FFFF:state.getOrDefaultGeckolibData(EYE_TINT,0xFFD8FFFF);
+        if (attackCue(boss)) tint = 0xFF55FF66;
         float strength=boss.collapseAnimationTicks()>45 && boss.collapseAnimationTicks()<118?.04F:boss.doorEntryTicks()>0?1F:PortEmissiveConfig.minotaurEyeStrength();
         return (Math.round((tint>>>24)*strength)<<24)|(tint&0xFFFFFF);
     }
     static void apply(MinotaurEntity minotaur,Collection<?> model,float partialTick) {
         State state=STATES.computeIfAbsent(minotaur,key->new State()); Bones bones=new Bones(model.stream().filter(GeoBone.class::isInstance).map(GeoBone.class::cast).toList());
+        try {
+        applyPose(minotaur, state, bones, partialTick);
+        } finally {
+            // Procedural changes are render-only. Leaving these flags set makes
+            // GeckoLib skip resetting unanimated channels on the next frame.
+            for (GeoBone bone : bones.all) bone.resetStateChanges();
+        }
+    }
+    private static void applyPose(MinotaurEntity minotaur, State state, Bones bones, float partialTick) {
         {
         float bodyYaw = Mth.rotLerp(partialTick, minotaur.yBodyRotO, minotaur.yBodyRot);
         float headYaw = Mth.rotLerp(partialTick, minotaur.yHeadRotO, minotaur.yHeadRot);
@@ -32,7 +47,7 @@ final class PortMinotaurPose {
         float targetPitch = Mth.clamp(Mth.lerp(partialTick, minotaur.xRotO, minotaur.getXRot()), -34F, 42F);
 
         LookPose pose = state.look;
-        float frameTicks = Math.max(0.05F, Math.min(2F, (float)(minotaur.tickCount+partialTick-state.age)));
+        float frameTicks = state.age < 0 ? 1 : Math.max(0F, Math.min(2F, (float)(minotaur.tickCount+partialTick-state.age)));
         float blend = 1.0F - (float)Math.pow(0.72D, frameTicks);
         pose.yaw += Mth.wrapDegrees(targetYaw - pose.yaw) * blend;
         pose.pitch += (targetPitch - pose.pitch) * blend;
@@ -55,7 +70,7 @@ final class PortMinotaurPose {
 
 
         GrabPose grab = state.grab;
-        int grabTicks = minotaur.grabAttackTicks();
+        float grabTicks = minotaur.grabAttackTicks() + partialTick;
         float desiredGrab = 0.0F;
         float grabYaw = 0.0F;
         float grabPitch = 0.0F;
@@ -69,9 +84,15 @@ final class PortMinotaurPose {
                     : grabTicks < 12 ? smoother(grabTicks / 12.0F)
                     : grabTicks < 43 ? 1.0F : 1.0F - smoother((grabTicks - 43) / 6.0F);
             Entity targetEntity = minotaur.level().getEntity(minotaur.grabTargetEntityId());
-            if (targetEntity != null) {
-                Vec3 shoulderCenter = minotaur.position().add(0.0D, minotaur.getBbHeight() * 0.68D, 0.0D);
-                Vec3 targetCenter = targetEntity.position().add(0.0D, targetEntity.getBbHeight() * 0.52D, 0.0D);
+            if (targetEntity != null && minotaur.heldPlayerId() == targetEntity.getId()) {
+                // The held player's position follows this arm. Aiming back at it
+                // would create a feedback loop during the grab and throw.
+                grabYaw = grab.yaw;
+                grabPitch = grab.pitch;
+                grabExtension = grab.extension;
+            } else if (targetEntity != null) {
+                Vec3 shoulderCenter = minotaur.getPosition(partialTick).add(0.0D, minotaur.getBbHeight() * 0.68D, 0.0D);
+                Vec3 targetCenter = targetEntity.getPosition(partialTick).add(0.0D, targetEntity.getBbHeight() * 0.52D, 0.0D);
                 Vec3 delta = targetCenter.subtract(shoulderCenter);
                 double horizontal = Math.max(0.001D, Math.sqrt(delta.x * delta.x + delta.z * delta.z));
                 float worldYaw = (float)(Mth.atan2(delta.z, delta.x) * Mth.RAD_TO_DEG) - 90.0F;
@@ -112,7 +133,12 @@ final class PortMinotaurPose {
             state.addGeckolibData(EYE_TINT, 0xFF000000 | red << 16 | 0xFFFF);
         } else state.addGeckolibData(EYE_TINT, 0xFFD8FFFF);
         }
-        if (!minotaur.isPerformingGrab()) { blend(minotaur,state,bones,partialTick); return; }
+        boolean tracking = minotaur.isPerformingGrab() || minotaur.animationState() == MinotaurEntity.AnimationState.IDLE
+                || minotaur.animationState() == MinotaurEntity.AnimationState.WALK
+                || minotaur.animationState() == MinotaurEntity.AnimationState.CHASE;
+        if (!tracking || minotaur.doorEntryTicks() > 0 || minotaur.collapseAnimationTicks() > 0) {
+            blend(minotaur,state,bones,partialTick); return;
+        }
         float yaw = state.getOrDefaultGeckolibData(LOOK_YAW, 0.0F);
         float pitch = state.getOrDefaultGeckolibData(LOOK_PITCH, 0.0F);
 

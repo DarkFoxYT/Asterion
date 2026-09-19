@@ -28,7 +28,8 @@
     "PrimaryLevelDataMixin",
     "StructureTemplateAccessor",
     "WorldGenRegionAccessor",
-    "LabyrinthBlockEntityCleanupMixin"
+    "LabyrinthBlockEntityCleanupMixin",
+    "RagdollUseGuardMixin"
   ],
   "client": [
     "ItemPropertiesInvoker",
@@ -47,7 +48,13 @@
     "AmneticParticleCullingMixin",
     "AmneticEmissivePassMixin",
     "AmneticEmissiveInstanceMixin",
-    "PortModelCubeAccessor"
+    "PortModelCubeAccessor",
+    "PortSpriteTickerAccessor",
+    "PortSpriteUploadInvoker",
+    "PortSpriteInterpolationMixin",
+    "PortGeckoInterpolationMixin",
+    "RagdollClientUseGuardMixin",
+    "PortAfterblowRenderMixin"
   ],
   "injectors": {
     "defaultRequire": 1

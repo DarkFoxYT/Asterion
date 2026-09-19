@@ -300,8 +300,8 @@ public final class MazeNbtStructures {
 
     public static final class Layout {
         private final List<Placement> placements;
-        private final Map<Long, List<Placement>> reservationsByChunk = new HashMap<>();
-        private final Map<Long, List<Placement>> anchorsByChunk = new HashMap<>();
+        private final it.unimi.dsi.fastutil.longs.Long2ObjectMap<List<Placement>> reservationsByChunk = new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<>();
+        private final it.unimi.dsi.fastutil.longs.Long2ObjectMap<List<Placement>> anchorsByChunk = new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<>();
         private final ArrayDeque<Placement> pending = new ArrayDeque<>();
         private final Set<BlockPos> queued = new HashSet<>();
         private final Set<Long> generatedChunks = ConcurrentHashMap.newKeySet();

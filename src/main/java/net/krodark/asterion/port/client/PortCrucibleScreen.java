@@ -148,8 +148,13 @@ public final class PortCrucibleScreen extends Screen {
         graphics.pose().scale(.82F, .78F, 1.0F);
         int first = Math.round(192 - Mth.clamp(displayedTemperature
                 / CrucibleBlockEntity.MAX_TEMPERATURE, 0, 1) * 180);
-        if (first < 192)
-            graphics.blit(GAUGE_FILL, 0, first, 0, first, 64, 192 - first, 64, 208);
+        PortGuiMask.blit(graphics, GAUGE_FILL, 0, 0, 0, 0, 64, 208, 64, 208, 0xFF211B18);
+        for (int row = first; row < 192; row += 2) {
+            float heat = (192 - row) / 180F;
+            int color = heat < .55F ? PortGuiMask.mix(heat / .55F, 0xFF9D3B20, 0xFFF59C36)
+                    : PortGuiMask.mix((heat - .55F) / .45F, 0xFFF59C36, 0xFFFFF0BC);
+            PortGuiMask.blit(graphics, GAUGE_FILL, 0, row, 0, row, 64, Math.min(2, 192 - row), 64, 208, color);
+        }
         image(graphics, GAUGE, 0, 0, 64, 208);
         graphics.pose().popPose();
         centered(graphics, Math.round(displayedTemperature) + "°", x + 47, 176, 0xFFD4BE9E);
@@ -172,11 +177,17 @@ public final class PortCrucibleScreen extends Screen {
         image(graphics, RIGHT, x, 4, 128, 208);
         image(graphics, CENTER, x, 4, 128, 208);
         if (state.materialUnits() > 0) {
-            int color = state.mixColor();
-            graphics.setColor(((color >> 16) & 255) / 255.0F, ((color >> 8) & 255) / 255.0F,
-                    (color & 255) / 255.0F, 1.0F);
-            image(graphics, CENTER_FILL, x, 4, 128, 208);
-            graphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
+            float heat = Mth.clamp(displayedTemperature / 900F, 0, 1);
+            float time = minecraft.level == null ? 0 : minecraft.level.getGameTime();
+            float progress = displayedPourProgress / CrucibleBlockEntity.AUTO_POUR_TICKS;
+            int baseColor = PortGuiMask.mix(heat, 0xFF000000 | state.mixColor(), 0xFFFF792A);
+            for (int row = 16; row < 192; row += 2) {
+                if (row >= 28 && row < 60 || row >= 116 && row < 148) continue;
+                if (row > 110 && row > 110 + progress * 82) continue;
+                float pulse = (.5F + .5F * Mth.sin(row * .12F - time * .16F)) * heat;
+                int color = PortGuiMask.mix(pulse * .65F, baseColor, 0xFFFFE8A0);
+                PortGuiMask.blit(graphics, CENTER_FILL, x, 4 + row, 0, row, 128, 2, 128, 208, color);
+            }
         }
         graphics.fill(x + 46, 78, x + 82, 116, 0xA0100E0D);
         image(graphics, INPUT, x + 48, 8, 32, 32);

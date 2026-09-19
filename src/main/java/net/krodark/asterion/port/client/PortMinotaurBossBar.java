@@ -30,7 +30,8 @@ public final class PortMinotaurBossBar {
         Minecraft client = Minecraft.getInstance();
         if (client.level == null || client.player == null) return;
         long now = client.level.getGameTime();
-        if (boss == null || boss.isRemoved() || now >= nextScan) {
+        if (boss != null && (boss.isRemoved() || boss.level() != client.level)) { boss = null; nextScan = 0; }
+        if (now >= nextScan) {
             boss = client.level.getEntitiesOfClass(MinotaurEntity.class,
                     client.player.getBoundingBox().inflate(160.0D),
                     candidate -> candidate.behaviorPhase() == MinotaurEntity.BehaviorPhase.BOSS
@@ -53,8 +54,14 @@ public final class PortMinotaurBossBar {
 
         RenderSystem.enableBlend();
         if (filled > 0) {
-            RenderSystem.setShaderColor(.74F, .08F, .13F, 1);
-            graphics.blit(FILL, x + 46, y + 21, 46, 53, filled, 6, 256, 112);
+            int[] blood = {0xFF4A0710, 0xFF850D1B, 0xFFBE2434, 0xFFA01628, 0xFF730B1A, 0xFF3B050E};
+            for (int offset = 3; offset >= 1; offset--) {
+                int glow = (30 / offset) << 24 | 0xA40920;
+                PortGuiMask.blit(graphics, FILL, x + 46, y + 21 - offset, 46, 53, filled, 6, 256, 112, glow);
+                PortGuiMask.blit(graphics, FILL, x + 46, y + 21 + offset, 46, 53, filled, 6, 256, 112, glow);
+            }
+            for (int row = 0; row < blood.length; row++)
+                PortGuiMask.blit(graphics, FILL, x + 46, y + 21 + row, 46, 53 + row, filled, 1, 256, 112, blood[row]);
         }
         RenderSystem.setShaderColor(1, 1, 1, 1);
         graphics.blit(FRAME, x, y, 0, 32, 256, 48, 256, 112);
@@ -64,10 +71,8 @@ public final class PortMinotaurBossBar {
             graphics.drawString(client.font, count, x + 128 - client.font.width(count) / 2,
                     y + 34, 0xFFFF263D, true);
         }
-        RenderSystem.setShaderColor(charged ? .33F : 1.0F, charged ? .81F : .15F,
-                charged ? 1.0F : .24F, 1);
-        graphics.blit(EYES, x + 121, y + 19, 121, 51, 14, 10, 256, 112);
-        RenderSystem.setShaderColor(1, 1, 1, 1);
+        PortGuiMask.blit(graphics, EYES, x + 121, y + 19, 121, 51, 14, 10, 256, 112,
+                boss != null && PortMinotaurPose.attackCue(boss) ? 0xFF55FF66 : charged ? 0xFF55CEFF : 0xFFFF263D);
         RenderSystem.disableBlend();
     }
 

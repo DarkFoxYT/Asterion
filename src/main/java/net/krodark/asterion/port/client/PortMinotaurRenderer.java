@@ -23,6 +23,11 @@ import software.bernie.geckolib.model.GeoModel;
 import software.bernie.geckolib.renderer.GeoObjectRenderer;
 import software.bernie.geckolib.renderer.layer.GeoRenderLayer;
 import software.bernie.geckolib.util.GeckoLibUtil;
+//? if >=1.20.5 {
+import software.bernie.geckolib.util.Color;
+//?} else {
+/*import software.bernie.geckolib.core.object.Color;*/
+//?}
 
 /** Restores the Minotaur's authored axe and paired swords on the 1.21.1 model. */
 @SuppressWarnings("deprecation")
@@ -32,7 +37,14 @@ public final class PortMinotaurRenderer extends SimpleGeoEntityRenderer<Minotaur
                 Asterion.id("entity/minotaur"), 1.9F, 1.0F);
         withEmissiveBones(PortMinotaurPose::eyeTint, boss -> !boss.isHarvested(), "glow");
         addRenderLayer(new Weapons(this));
+        addRenderLayer(new PortMinotaurBodyLayer(this));
         addRenderLayer(new PortMinotaurChainLayer(this));
+    }
+
+    @Override
+    public Color getRenderColor(MinotaurEntity boss, float partial, int light) {
+        var base = super.getRenderColor(boss, partial, light);
+        return PortMinotaurPose.attackCue(boss) ? new Color((base.getAlpha() << 24) | 0x4DFF59) : base;
     }
 
     @Override

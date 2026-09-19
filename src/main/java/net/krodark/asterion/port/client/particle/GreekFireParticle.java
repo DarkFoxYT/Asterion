@@ -9,6 +9,7 @@ import net.minecraft.util.Mth;
 
 public final class GreekFireParticle extends AnimatedEmissiveParticle {
     private boolean brazierFlame;
+    private float rollDrift;
     private GreekFireParticle(ClientLevel level, double x, double y, double z,
                               double vx, double vy, double vz, SpriteSet sprites, RandomSource random) {
         super(level, x, y, z, vx, vy, vz, sprites);
@@ -23,6 +24,8 @@ public final class GreekFireParticle extends AnimatedEmissiveParticle {
 
         setColor(1.08F, 1.04F, .80F);
         setAlpha(0.88F);
+        roll = oRoll = (random.nextFloat() - .5F) * .32F;
+        rollDrift = (random.nextFloat() - .5F) * .025F;
         setSpriteFromAge(sprites);
     }
 
@@ -37,6 +40,8 @@ public final class GreekFireParticle extends AnimatedEmissiveParticle {
 
     @Override
     public void tick() {
+        oRoll = roll;
+        roll += rollDrift;
         super.tick();
         if (isAlive()) {
             float ignition = Mth.clamp(age / Math.max(1F, lifetime * .24F), 0F, 1F);

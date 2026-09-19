@@ -5,6 +5,7 @@ import software.bernie.geckolib.animation.AnimationController;
 /** GeckoLib 4 controller used by the Minecraft 1.21.1 build. */
 public final class MinotaurAnimationController extends AnimationController<MinotaurEntity> {
     private double requestedTick = Double.NaN;
+    private boolean loopSample;
 
     public MinotaurAnimationController(MinotaurEntity boss, AnimationStateHandler<MinotaurEntity> handler) {
         super(boss, "movement", 0, handler);
@@ -17,6 +18,7 @@ public final class MinotaurAnimationController extends AnimationController<Minot
 
     public void samplePose(double seconds, double age, boolean loop) {
         requestedTick = Math.max(0, seconds * 20.0D);
+        loopSample = loop;
     }
 
     @Override
@@ -25,8 +27,9 @@ public final class MinotaurAnimationController extends AnimationController<Minot
         // active clip from the authoritative attack timeline. This restores the
         // complete leap/land sequence without snapping pose boundaries.
         double adjusted = super.adjustTick(tick);
-        return getAnimationState() == State.RUNNING && Double.isFinite(requestedTick)
-                ? requestedTick : adjusted;
+        var current = getCurrentAnimation();
+        return getAnimationState() == State.RUNNING && Double.isFinite(requestedTick) && current != null
+                ? sampleSeconds(requestedTick, current.animation().length(), loopSample) : adjusted;
     }
 
     public static double sampleSeconds(double requested, double length, boolean loop) {

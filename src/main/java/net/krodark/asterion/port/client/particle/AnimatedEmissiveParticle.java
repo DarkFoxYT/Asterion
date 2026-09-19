@@ -49,13 +49,14 @@ public abstract class AnimatedEmissiveParticle extends TextureSheetParticle {
         ACTIVE.add(this);
     }
 
+    private float renderRoll;
     public static void initialize() {
         if (initialized) return;
-        InstanceLayout layout = InstanceLayout.TEXTURED_BILLBOARD;
+        InstanceLayout layout = InstanceLayout.builder().vec3(2).float1(3).vec4(4).vec4(5).float1(6).build();
         InstancedMesh.<AnimatedEmissiveParticle>builder(layout, (p, out) -> out
                 .putVec3(p.renderX, p.renderY, p.renderZ).putFloat(p.renderSize)
                 .putVec4(p.rCol, p.gCol, p.bCol, p.alpha)
-                .putVec4(p.getU0(), p.getV0(), p.getU1() - p.getU0(), p.getV1() - p.getV0()))
+                .putVec4(p.getU0(), p.getV0(), p.getU1() - p.getU0(), p.getV1() - p.getV0()).putFloat(p.renderRoll))
                 .geometry(MeshData.texturedQuad())
                 .shaders(Asterion.id("particle/animated_emissive"),
                         ResourceLocation.fromNamespaceAndPath("amnetic", "particle/default_textured"))
@@ -93,6 +94,7 @@ public abstract class AnimatedEmissiveParticle extends TextureSheetParticle {
                                 + particle.renderY * particle.renderY + particle.renderZ * particle.renderZ;
                         if (particle.distanceSquared > range * range) continue;
                         particle.renderSize = particle.getQuadSize(partialTick) * 2.0F;
+                        particle.renderRoll = Mth.lerp(partialTick, particle.oRoll, particle.roll);
 
                         float radius = Math.abs(particle.renderSize) * 0.707107F + 0.01F;
                         if (!gpuFrame && !batch.visible(camera.x + particle.renderX, camera.y + particle.renderY,

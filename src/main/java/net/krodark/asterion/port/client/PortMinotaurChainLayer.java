@@ -37,6 +37,7 @@ final class PortMinotaurChainLayer extends GeoRenderLayer<MinotaurEntity> {
         double length=start.distanceTo(end);if(length<.05||length>40)return;
         double slack=Math.min(1.3,length*.09)*Mth.clamp(Math.abs(ticks-25)/7,.06F,1);
         draw(buffers.getBuffer(MATERIAL),start,end,slack,light);
+        buffers.getBuffer(type);
     }
     static void draw(VertexConsumer out, Vec3 start, Vec3 end, double slack, int light) {
         Vec3 axis = end.subtract(start).normalize();
@@ -44,13 +45,14 @@ final class PortMinotaurChainLayer extends GeoRenderLayer<MinotaurEntity> {
         across = across.add(axis.cross(across)).normalize();
         Vec3 other = axis.cross(across).normalize();
         int links = Math.min(288, Math.max(1, Mth.ceil(start.distanceTo(end) / .45)));
+        Vec3 widthA = across.scale(.20), widthB = other.scale(.20);
         Vec3 a = start;
         for (int i = 1; i <= links; i++) {
             double t = i / (double)links;
             Vec3 b = start.lerp(end, t).add(0, -4 * slack * t * (1 - t), 0);
 
-            quad(out, a, b, across.scale(.20), other, 0, .25F, light);
-            quad(out, a, b, other.scale(.20), across, 4.25F / 16, 8.25F / 16, light);
+            quad(out, a, b, widthA, other, 0, .25F, light);
+            quad(out, a, b, widthB, across, 4.25F / 16, 8.25F / 16, light);
             a = b;
         }
     }
