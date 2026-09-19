@@ -112,6 +112,9 @@ public void renderRecursively(PoseStack poses, MinotaurEntity boss, GeoBone bone
         boolean removed = region.removed(boss.removedParts());
         if (!name.equals("glow"))
             bone.setHidden(removed || (skeleton ? !boss.isHarvested() : boss.isHarvested() && !retained));
+        // GeckoLib 4 setHidden also hides descendants. Flesh, skeleton and
+        // removable regions share parents, so decide visibility for each bone.
+        bone.setChildrenHidden(false);
 
 //? if >=1.20.5 {
 super.renderRecursively(poses, boss, bone, type, buffers, buffer, rerender,

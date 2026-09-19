@@ -125,6 +125,7 @@ public final class PortClientFeatures {
         // Register last so all other entity-stage geometry is queued before
         // the shared depth-aware Geo emissive replay.
         PortEmissiveQueue.initialize();
+        LabyrinthVinePortRenderer.initializeCulling();
     }
 
     public static void tick(Minecraft client) {
@@ -144,6 +145,7 @@ public final class PortClientFeatures {
         PortDimensionEffects.tick(client);
         PortCentipedeInteraction.tick(client);
         PortAudio.tick(client);
+        net.krodark.asterion.port.client.AxeFlightAudio.tick(client);
         PortLightning.tick(client);
         PortDeadSunEvents.tick(client);
         PortPhysicsDebris.tick(client);

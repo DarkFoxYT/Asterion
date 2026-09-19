@@ -17,7 +17,8 @@ public final class MinotaurAnimationController extends AnimationController<Minot
     }
 
     public void samplePose(double seconds, double age, boolean loop) {
-        requestedTick = Math.max(0, seconds * 20.0D);
+        // Negative time delegates idle and other unsampled clips to GeckoLib.
+        requestedTick = seconds < 0 ? Double.NaN : seconds * 20.0D;
         loopSample = loop;
     }
 

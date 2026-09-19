@@ -34,7 +34,7 @@ final class PolishSmoke {
         var boss=client.level.getEntitiesOfClass(MinotaurEntity.class,client.player.getBoundingBox().inflate(30)).stream().findFirst().orElse(null);
         if(boss==null)throw new AssertionError("Missing Minotaur fixture");
         data(boss,"DATA_PHASE",ordinal("BehaviorPhase","BOSS"));
-        client.player.setXRot(-20);client.player.xRotO=-20;
+        client.player.setXRot(tick>=265?20:-20);client.player.xRotO=client.player.getXRot();
         if(tick>=185 && tick<250) {
             data(boss,"DATA_BOSS_ATTACK",ordinal("BossAttack","GRAB"));
             data(boss,"DATA_BOSS_ATTACK_TICKS",Math.min(46,tick-180));
@@ -58,6 +58,8 @@ final class PolishSmoke {
             });
             checkMask(client);
             ProceduralStabilitySmoke.run(client.level);
+            DebrisRegression.run(client);
+            AxeAudioRegression.run(client);
         }
         if(tick==220) {
             hand=net.krodark.asterion.port.client.ragdoll.MinotaurHandAttachment.feet(client.player);
@@ -79,7 +81,25 @@ final class PolishSmoke {
         if(tick>=265) {data(boss,"DATA_BOSS_STAGE",ordinal("BossStage","DEFEATED"));data(boss,"DATA_BOSS_ATTACK_TICKS",200);}
         if(tick==310)snapshot(client,"corpse");
         if(tick==325)data(boss,"DATA_HARVESTED",true);
-        if(tick==345)snapshot(client,"corpse-skeleton");
+        if(tick==345) {
+            var body=net.krodark.asterion.port.client.PortMinotaurBodyPicking.body(boss);
+            if(body==null || body.partCount()<16) throw new AssertionError("Harvested skeleton geometry is missing");
+            snapshot(client,"corpse-skeleton");
+            data(boss,"DATA_REMOVED_PARTS",net.krodark.asterion.entity.MinotaurRemains.LEFT_ARM.bit());
+        }
+        if(tick==350) {
+            try {
+                var body=net.krodark.asterion.port.client.PortMinotaurBodyPicking.body(boss);
+                if(body==null || body.partCount()<10) throw new AssertionError("Removing a limb hid the remaining skeleton");
+                var parts=body.getClass().getDeclaredField("parts");parts.setAccessible(true);
+                for(Object part:(java.util.List<?>)parts.get(body)) {
+                    var region=part.getClass().getDeclaredMethod("region");region.setAccessible(true);
+                    if((int)region.invoke(part)==net.krodark.asterion.entity.MinotaurRemains.LEFT_ARM.ordinal())
+                        throw new AssertionError("Severed arm remains rendered/pickable");
+                }
+                Asterion.LOGGER.info("ASTERION_SKELETON PASSED: harvested bones render, removed arm disappears, other regions remain pickable");
+            } catch(ReflectiveOperationException e) {throw new AssertionError(e);}
+        }
         if(tick==365) {
             ClientSmokeTest.verifyGraphicsAndTaa();
             Asterion.LOGGER.info("ASTERION_POLISH PASSED: GUI alpha masks, worn gear scaling, held/released player anchors, animated body picking, ragdoll item-use rejection, corpse rendering");

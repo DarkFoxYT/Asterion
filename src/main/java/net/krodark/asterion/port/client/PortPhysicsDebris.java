@@ -96,6 +96,7 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, piece.cach
                     7, 1.0F, random, 1000);
             door.rotation.rotationY(MinotaurDoorMotion.yaw(payload.facing()) + side * angle);
             door.previousRotation.set(door.rotation);
+            door.spawnDelay = 2; // Allow the following door-block removal packet to arrive.
             door.velocity = inward.scale(1.55D + random.nextDouble() * .18D)
                     .add(across.scale(side * .22D)).add(0, .48D + random.nextDouble() * .10D, 0);
             door.spin.set((float)(across.x * .13D), side * .10F, (float)(across.z * .13D));
@@ -195,6 +196,11 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, piece.cach
             piece.previous = piece.position;
             piece.previousRotation.set(piece.rotation);
             if (piece.soundCooldown > 0) piece.soundCooldown--;
+            if (piece.spawnDelay > 0) { piece.spawnDelay--; continue; }
+            if (piece.sleeping && piece.age % 4 == 0 && !hasFloorSupport(client.level, piece)) {
+                piece.sleeping = false;
+                piece.restTicks = 0;
+            }
             if (!piece.sleeping) {
                 int substeps = Mth.clamp(1 + net.krodark.asterion.AsterionConfig.INSTANCE.ragdollPhysicsQuality, 1, 3);
                 for (int step = 0; step < substeps && !piece.sleeping; step++)
@@ -205,7 +211,19 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, piece.cach
         }
     }
 
+    private static boolean hasFloorSupport(ClientLevel level, Piece piece) {
+        Collision support = collisionAt(level, piece, piece.position.add(0, -.015D, 0));
+        return support != null && support.normal.y < -.55D;
+    }
+
     private static void simulate(ClientLevel level, Piece piece, double dt) {
+        // Block updates can arrive after debris packets or replace its resting
+        // surface. Recover an embedded body before doing a swept movement.
+        for (int pass = 0; pass < 8; pass++) {
+            Collision overlap = collisionAt(level, piece, piece.position);
+            if (overlap == null) break;
+            piece.position = piece.position.subtract(overlap.normal.scale(overlap.depth + .001D));
+        }
         piece.velocity = piece.velocity.add(0, -.075D * gravity(piece.variant) * dt, 0)
                 .scale(Math.pow(.992D, dt));
         if (piece.velocity.y < -2.8D)
@@ -252,15 +270,15 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, piece.cach
                     default -> Asterion.DEBRIS_3;
                 };
                 level.playLocalSound(piece.position.x, piece.position.y, piece.position.z, sound,
-                        SoundSource.BLOCKS, Mth.clamp((.12F + piece.scale * .58F)
-                                * (float)Mth.clamp(strongestImpact * 1.7D, .45D, 1.0D), .10F, .72F),
+                        SoundSource.BLOCKS, Mth.clamp((.08F + piece.scale * .32F)
+                                * (float)Mth.clamp(strongestImpact * 1.7D, .45D, 1.0D), .06F, .38F),
                         Mth.clamp((1.13F - piece.scale * .25F) * piece.impactPitch, .48F, 1.32F), false);
                 piece.soundCooldown = 13 + piece.soundVariant * 3;
                 level.addParticle(ParticleTypes.POOF, piece.position.x, piece.position.y, piece.position.z, 0, .02D, 0);
             }
         }
         if (!supported && piece.velocity.lengthSqr() < .012D)
-            supported = collisionAt(level, piece, piece.position.add(0, -.055D, 0)) != null;
+            supported = hasFloorSupport(level, piece);
         if (supported) {
             piece.velocity = new Vec3(piece.velocity.x * .88D, piece.velocity.y, piece.velocity.z * .88D);
             piece.spin.mul(.86F);
@@ -375,13 +393,13 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, piece.cach
 
     private static boolean claimLocalSound(ClientLevel level, Vec3 position) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.player.distanceToSqr(position) > 56.0D * 56.0D) return false;
-        long tick = level.getGameTime();
+        if (client.player == null || client.player.distanceToSqr(position) > 16.0D * 16.0D) return false;
+        long tick = Math.floorDiv(level.getGameTime(), 4);
         if (tick != soundBudgetTick) {
             soundBudgetTick = tick;
             SOUND_POSITIONS.clear();
         }
-        int limit = 2 + Math.max(0, net.krodark.asterion.AsterionConfig.INSTANCE.ragdollPhysicsQuality);
+        int limit = 3; // Audio density is independent of visual physics quality.
         if (SOUND_POSITIONS.size() >= limit
                 || SOUND_POSITIONS.stream().anyMatch(other -> other.distanceToSqr(position) < 6.25D)) return false;
         SOUND_POSITIONS.add(position);
@@ -416,7 +434,11 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, piece.cach
     private static void trim() {
         int quality = net.krodark.asterion.AsterionConfig.INSTANCE.ragdollPhysicsQuality;
         int limit = quality <= 0 ? 72 : quality == 1 ? 128 : 192;
-        while (PIECES.size() > limit) PIECES.remove(0);
+        while (PIECES.size() > limit) {
+            int expendable = -1;
+            for (int i = 0; i < PIECES.size(); i++) if (PIECES.get(i).variant != 7) { expendable = i; break; }
+            PIECES.remove(expendable < 0 ? 0 : expendable);
+        }
     }
 
     private static final class Piece {
@@ -436,7 +458,7 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, piece.cach
         final Vector3f spin;
         Vec3 boundsHalf;
         Vec3 position, previous, velocity = Vec3.ZERO;
-        int age, restTicks, soundCooldown;
+        int age, restTicks, soundCooldown, spawnDelay;
         int cachedLight = -1;
         long lightSampleTick = Long.MIN_VALUE;
         boolean sleeping, arena;

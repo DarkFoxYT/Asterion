@@ -10,6 +10,20 @@ import software.bernie.geckolib.cache.object.BakedGeoModel;
 
 /** Correct up/down geometry and terminal bulb visibility for ancient vines. */
 public final class LabyrinthVinePortRenderer extends SimpleGeoBlockRenderer<LabyrinthVineBlockEntity> {
+    private static net.minecraft.client.renderer.culling.Frustum frustum;
+    static void initializeCulling() {
+        net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents.START.register(context -> frustum = null);
+        net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents.AFTER_SETUP.register(context -> frustum = context.frustum());
+    }
+
+    @Override
+    public boolean shouldRender(LabyrinthVineBlockEntity vine, net.minecraft.world.phys.Vec3 camera) {
+        // Keep the global block-entity path for section-edge geometry, but cull
+        // the complete model before GeckoLib transforms or queues emissive bones.
+        return super.shouldRender(vine, camera) && (frustum == null
+                || frustum.isVisible(new net.minecraft.world.phys.AABB(vine.getBlockPos()).inflate(3)));
+    }
+
     public LabyrinthVinePortRenderer() {
         super(entity -> Asterion.id(entity.getBlockState().getValue(LabyrinthVineBlock.FACING)
                         == net.minecraft.core.Direction.UP ? "block/labyrinth_vine_up" : "block/labyrinth_vine"),

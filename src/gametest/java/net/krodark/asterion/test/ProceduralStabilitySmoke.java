@@ -60,6 +60,15 @@ public final class ProceduralStabilitySmoke {
                 if(bone.getRotX()!=.25F || bone.getRotY()!=-.4F || bone.getRotZ()!=.1F)
                     throw new AssertionError("Procedural offsets changed the authored grapple pose");
         }
+        var live = level.getEntitiesOfClass(MinotaurEntity.class, net.minecraft.client.Minecraft.getInstance().player.getBoundingBox().inflate(30)).get(0);
+        var controller = live.getAnimatableInstanceCache().getManagerForId(live.getId()).getAnimationControllers().get("movement");
+        if (controller.getCurrentAnimation() == null) throw new AssertionError("No live animation for clock regression");
+        var clock = (net.krodark.asterion.entity.MinotaurAnimationController) (Object) controller;
+        var adjust = clock.getClass().getDeclaredMethod("adjustTick", double.class); adjust.setAccessible(true);
+        clock.samplePose(-1, 20, false);
+        double a = (double)adjust.invoke(clock, 1000D), b = (double)adjust.invoke(clock, 1000.25D);
+        if (Math.abs((b-a)-.25) > .0001) throw new AssertionError("Natural animation clock froze instead of interpolating: " + a + ", " + b);
+        Asterion.LOGGER.info("ASTERION_ANIMATION_CLOCK PASSED: natural clip advances at fractional render times");
         Asterion.LOGGER.info("ASTERION_GRAPPLE PASSED: authored grapple bone rotations preserved for 120 frames");
         Asterion.LOGGER.info("ASTERION_PROCEDURAL PASSED: 6000 GeckoLib frames, alternating Minotaurs, no rotation/translation/scale drift");
     }

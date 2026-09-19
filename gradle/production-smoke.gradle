@@ -42,6 +42,7 @@ tasks.register('runProductionSmokeClient', productionType) {
     runDir = layout.buildDirectory.dir('run/production-smoke')
     javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(minecraft_version == '1.20.1' ? 17 : 21) }
     jvmArgs.addAll('-Dasterion.clientSmoke=true', '-Damnetic.opengl.debug=true', '-Dfabric.noGui=true')
+    if (project.hasProperty('vineSmoke')) jvmArgs.add('-Dasterion.vineSmoke=true')
     if (project.hasProperty('polishSmoke')) jvmArgs.add('-Dasterion.polishSmoke=true')
     if (project.hasProperty('bloomSmoke')) jvmArgs.add('-Dasterion.bloomSmoke=true')
     if (project.hasProperty('atmosphereSmoke')) jvmArgs.add('-Dasterion.atmosphereSmoke=true')

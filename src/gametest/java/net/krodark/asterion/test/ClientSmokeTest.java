@@ -20,6 +20,7 @@ public final class ClientSmokeTest implements ClientModInitializer {
         if (!Boolean.getBoolean("asterion.clientSmoke")) return;
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
         BloomSmoke.register(() -> worldTicks);
+        VineSmoke.register(() -> worldTicks);
         PolishSmoke.register(() -> worldTicks);
         AtmosphereSmoke.register(() -> worldTicks);
         net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents.END.register(context -> {
@@ -104,6 +105,7 @@ public final class ClientSmokeTest implements ClientModInitializer {
                     server.getCommands().performPrefixedCommand(source,command);
             });
         }
+        if(Boolean.getBoolean("asterion.vineSmoke") && worldTicks>=160) { VineSmoke.tick(client,worldTicks);return; }
         if(Boolean.getBoolean("asterion.polishSmoke") && worldTicks>=160) { PolishSmoke.tick(client,worldTicks);return; }
         if(Boolean.getBoolean("asterion.atmosphereSmoke") && worldTicks>=160) { AtmosphereSmoke.tick(client,worldTicks);return; }
         if(Boolean.getBoolean("asterion.bloomSmoke") && worldTicks>=160) { BloomSmoke.tick(client,worldTicks);return; }
