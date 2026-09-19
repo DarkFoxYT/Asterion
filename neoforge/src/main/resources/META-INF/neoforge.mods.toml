@@ -5,6 +5,9 @@ license="LicenseRef-AMALGAM-Proprietary"
 [[mixins]]
 config="asterion.mixins.json"
 
+[[mixins]]
+config="asterion.neoforge.mixins.json"
+
 [[mods]]
 modId="asterion"
 version="${version}"

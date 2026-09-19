@@ -14,3 +14,7 @@ Native NeoForge packaging relocates Amnetic's bridge out of Minecraft's module, 
 
 These are short renderer smoke tests, not exhaustive 26.1.2 gameplay, multiplayer, external shader-pack or Quilt validation. They do not establish a percentage of visual parity or guarantee zero performance issues. The port branch has additional long gameplay and 6,000-frame GeckoLib 4 regressions.
 
+
+## NeoForge fluid hotfix (2026-09-20)
+
+HeavyWaterFluid and TidalWaterFluid now explicitly return NeoForge's water FluidType through a NeoForge-only mixin. This covers source, flowing and tidal variants without changing their custom flow/tide implementation or Fabric. The packaged client verified all three registered custom fluids and all 26 states, then completed the in-world renderer smoke test without the reported getFluidType exception.
