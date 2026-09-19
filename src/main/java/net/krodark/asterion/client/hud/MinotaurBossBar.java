@@ -79,7 +79,8 @@ public final class MinotaurBossBar {
         float force = impact * 1.5F + (charged ? .45F : 0);
         float shakeX = (float)Math.sin(time * 1.8) * force;
         float shakeY = (float)Math.sin(time * 2.3) * force * .55F;
-        int eyeColor = ARGB.linearLerp(blue, 0xFFFF263D, 0xFF55CEFF);
+        int eyeColor = boss != null && net.krodark.asterion.client.render.entity.MinotaurGeoRenderer.attackCue(boss)
+                ? 0xFF55FF66 : ARGB.linearLerp(blue, 0xFFFF263D, 0xFF55CEFF);
         g.pose().pushMatrix();
         float scale = scale(g);
         g.pose().translate(x + 91 - 128 * scale + shakeX, y - 5 + shakeY);

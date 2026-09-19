@@ -43,6 +43,6 @@ side="BOTH"
 [[dependencies.asterion]]
 modId="amnetic"
 type="required"
-versionRange="[1.0-SNAPSHOT,)"
+versionRange="[1.0-SNAPSHOT-0b72718,)"
 ordering="AFTER"
 side="CLIENT"

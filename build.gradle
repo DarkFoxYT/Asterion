@@ -288,3 +288,5 @@ tasks.register("modDistribution", Sync) {
     from(tasks.named("jar"))
     from("docs/INSTALL-MODS.txt")
 }
+
+apply from: "gradle/polish-smoke.gradle"

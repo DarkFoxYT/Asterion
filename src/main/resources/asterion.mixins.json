@@ -31,7 +31,8 @@
     "PrimaryLevelDataMixin",
     "StructureTemplateAccessor",
     "WorldGenRegionAccessor",
-    "SpawnPlacementsAccessor"
+    "SpawnPlacementsAccessor",
+    "RagdollUseGuardMixin"
   ],
   "client": [
     "ForgeHudMixin",
@@ -70,7 +71,10 @@
     "SodiumWaterSurfaceMixin",
     "RagdollLocalPlayerMixin",
     "RagdollItemInHandRendererMixin",
-    "ForgedTooltipOutlineMixin"
+    "ForgedTooltipOutlineMixin",
+    "RagdollClientUseGuardMixin",
+    "AfterblowFirstPersonMixin",
+    "RenderTypeFactory"
   ],
   "injectors": {
     "defaultRequire": 1

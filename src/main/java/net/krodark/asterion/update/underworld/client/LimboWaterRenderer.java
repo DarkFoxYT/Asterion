@@ -1,6 +1,6 @@
 package net.krodark.asterion.update.underworld.client;
 
-import net.minecraft.client.renderer.rendertype.AmneticRenderTypeAccess;
+import net.krodark.asterion.mixin.RenderTypeFactory;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -29,7 +29,7 @@ import java.util.Map;
 
 /** Cached shoreline geometry. Wave displacement and normals are evaluated on the GPU. */
 public final class LimboWaterRenderer {
-    private static final RenderType SURFACE = AmneticRenderTypeAccess.create("asterion/limbo_water",
+    private static final RenderType SURFACE = RenderTypeFactory.create("asterion/limbo_water",
             RenderSetup.builder(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET, RenderPipelines.FOG_SNIPPET)
                     .withLocation(Asterion.id("pipeline/limbo_water"))
                     .withVertexShader(Asterion.id("core/limbo_water"))

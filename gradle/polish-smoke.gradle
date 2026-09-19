@@ -1,0 +1,17 @@
+sourceSets { polishSmoke }
+configurations.polishSmokeImplementation.extendsFrom configurations.implementation
+configurations.polishSmokeRuntimeOnly.extendsFrom configurations.runtimeOnly
+sourceSets.polishSmoke.compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+sourceSets.polishSmoke.runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+loom {
+    mods { asterion_polish_tests { sourceSet sourceSets.polishSmoke } }
+    runs { polishSmokeClient {
+        client()
+        source sourceSets.polishSmoke
+        mainClass = "net.fabricmc.loader.impl.launch.knot.KnotClient"
+        runDir "build/run/polish-smoke"
+        vmArg '-Dasterion.polishSmoke=true'
+        ideConfigGenerated = false
+    } }
+}
+
