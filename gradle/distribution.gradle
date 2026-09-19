@@ -4,10 +4,7 @@ def nativeNeo = project.name == 'neoforge'
 def mc = nativeNeo ? rootProject.minecraft_version : project.minecraft_version
 dependencies {
     if (nativeNeo) {
-        distributionMods "org.sinytra.forgified-fabric-api:forgified-fabric-api:${rootProject.forgified_fabric_api_version}"
-        distributionMods "org.sinytra:connector:2.0.0-beta.17+1.21.1"
         distributionMods "software.bernie.geckolib:geckolib-neoforge-${mc}:${rootProject.geckolib_version}"
-        distributionMods files(rootProject.file("libs/amnetic-1.0.0-asterion.9+${mc}.jar"))
     } else {
         distributionMods "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
         distributionMods "software.bernie.geckolib:geckolib-fabric-${mc}:${project.geckolib_version}"

@@ -64,7 +64,9 @@ final class BloomSmoke {
                     double brightness=Math.max(data.get(i*3),Math.max(data.get(i*3+1),data.get(i*3+2)));
                     if(brightness>.01) {pixels++;weight+=brightness;x+=(i%width)*brightness;y+=(i/width)*brightness;}
                 }
-                mask.writeToFile(Minecraft.getInstance().gameDirectory.toPath().resolve("screenshots/asterion-emission-mask-"+tick+".png"));
+                var folder=Minecraft.getInstance().gameDirectory.toPath().resolve("screenshots");
+                java.nio.file.Files.createDirectories(folder);
+                mask.writeToFile(folder.resolve("asterion-emission-mask-"+tick+".png"));
                 }
             } finally {GL11.glBindTexture(GL11.GL_TEXTURE_2D,old);MemoryUtil.memFree(data);}
             Asterion.LOGGER.info("ASTERION_BLOOM tick={} pixels={} weight={} centroid=({}, {}) size={}x{}",tick,pixels,weight,x/Math.max(weight,.0001),y/Math.max(weight,.0001),width,height);

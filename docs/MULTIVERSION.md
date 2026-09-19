@@ -1,8 +1,8 @@
 # Asterion multiversion port
 
-This worktree starts from `origin/1.21.1`; the original underworld checkout is untouched.
+The `multiversion` branch succeeds `1.21.1` and preserves its history.
 Stonecutter 0.9.8 maintains 1.20.1 and 1.21.1 from the active 1.21.1 sources.
-Fabric is the default target. Quilt uses the same release JAR. NeoForge 1.21.1 uses the native adapter plus Connector for Amnetic.
+Fabric is the default target. Quilt uses the same release JAR. NeoForge 1.21.1 uses native Asterion and Amnetic adapters without Connector. Amnetic is embedded in every release. Forgified Fabric API remains necessary for shared API calls and is embedded in the NeoForge release, together with the Assimp runtime.
 
 ## Building
 
@@ -44,8 +44,13 @@ Additional focused runs:
 gradlew.bat :1.20.1:runSmokeClient :1.21.1:runSmokeClient :neoforge:runSmokeClient -PatmosphereSmoke
 gradlew.bat :1.20.1:runSmokeClient :1.21.1:runSmokeClient -PbloomSmoke
 gradlew.bat :1.20.1:runProductionSmokeClient :1.21.1:runProductionSmokeClient
+gradlew.bat :neoforge:runPackagedSmokeClient
+gradlew.bat :neoforge:runPackagedSmokeClient -PbloomSmoke
+gradlew.bat :neoforge:runPackagedSmokeClient -PatmosphereSmoke
 ```
 
 `-PshaderSmoke` adds only the optional local Iris/Sodium JARs under `build/shader-smoke/<version>` to development runs. These are not shipped dependencies. Shader smoke coverage uses Iris installed without an active external shader pack.
 
 Main-branch visual fidelity has not been quantified as a percentage. Frame times describe the individual 854x480 test scene and GPU recorded in each log; they are not a general frame-rate guarantee. NeoForge 1.20.1 was attempted in an isolated probe but did not complete validation and is not a supported artifact in this delivery.
+
+The native Amnetic adapter is built from `neoforge/src/amneticNative` and the recorded official-mapped Amnetic development JAR by `gradle/amnetic-neoforge.gradle`. Packaged NeoForge tests use release JARs, assert Connector is absent, and load the embedded Assimp native library.

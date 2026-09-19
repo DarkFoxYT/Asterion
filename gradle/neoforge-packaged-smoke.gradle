@@ -1,0 +1,25 @@
+// Load the release JAR from the mod classpath, with no loose Asterion classes.
+def packagedHarness = tasks.register('packagedSmokeHarnessJar', Jar) {
+    from sourceSets.smoke.output
+    archiveClassifier = 'packaged-smoke-tests'
+    destinationDirectory = layout.buildDirectory.dir('test-harness')
+}
+sourceSets { packagedSmoke }
+neoForge.addModdingDependenciesTo(sourceSets.packagedSmoke)
+dependencies {
+    packagedSmokeRuntimeOnly files(tasks.named('jar'), packagedHarness)
+    packagedSmokeRuntimeOnly "software.bernie.geckolib:geckolib-neoforge-${rootProject.minecraft_version}:${rootProject.geckolib_version}"
+}
+neoForge.runs {
+    packagedSmokeClient {
+        client()
+        sourceSet = sourceSets.packagedSmoke
+        loadedMods = []
+        gameDirectory = layout.buildDirectory.dir('run/packaged-smoke-client').get().asFile
+        systemProperty 'asterion.clientSmoke', 'true'
+        systemProperty 'asterion.nativeAmneticSmoke', 'true'
+        systemProperty 'amnetic.opengl.debug', 'true'
+        if (project.hasProperty('bloomSmoke')) systemProperty 'asterion.bloomSmoke', 'true'
+        if (project.hasProperty('atmosphereSmoke')) systemProperty 'asterion.atmosphereSmoke', 'true'
+    }
+}

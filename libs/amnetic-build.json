@@ -25,5 +25,12 @@
       "sha256": "a129e4672e7772a0637adbe4411652dfc603b43552189819ad79b184a0d10b42"
     }
   ],
-  "portCommit": "cd28f76f57d5be75c048dfc0588a6277673bf8f0"
+  "portCommit": "cd28f76f57d5be75c048dfc0588a6277673bf8f0",
+  "nativeNeoForge": {
+    "source": "neoforge/src/amneticNative",
+    "build": "gradle/amnetic-neoforge.gradle",
+    "sharedArtifact": "libs/amnetic-1.0.0-asterion.9+1.21.1-dev.jar",
+    "connectorRequired": false,
+    "packaging": "Embedded in Asterion alongside Forgified Fabric API and Assimp"
+  }
 }

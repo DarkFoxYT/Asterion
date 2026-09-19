@@ -1,0 +1,39 @@
+// The shared renderer is already compiled against official Minecraft names.
+// A native lifecycle entrypoint lets NeoForge load it without Connector rewriting.
+sourceSets {
+    amneticNative {
+        compileClasspath += sourceSets.main.compileClasspath
+    }
+}
+neoForge.addModdingDependenciesTo(sourceSets.amneticNative)
+configurations { amneticNativeBinaries { transitive = false } }
+dependencies {
+    amneticNativeCompileOnly 'net.fabricmc:fabric-loader:0.19.5'
+    ['natives-windows', 'natives-linux', 'natives-macos', 'natives-macos-arm64'].each {
+        amneticNativeBinaries "org.lwjgl:lwjgl-assimp:3.3.3:${it}"
+    }
+    jarJar('org.lwjgl:lwjgl-assimp:3.3.3') {
+        transitive = false
+        version { strictly '[3.3.3]' }
+    }
+}
+def nativeRenderer = tasks.register('amneticNativeJar', Jar) {
+    from sourceSets.amneticNative.output
+    from(zipTree(rootProject.file('libs/amnetic-1.0.0-asterion.9+1.21.1-dev.jar'))) {
+        exclude 'fabric.mod.json', 'META-INF/MANIFEST.MF'
+    }
+    // Keep platform-specific native paths intact. The Assimp Java API is a
+    // normal deduplicated Jar-in-Jar dependency; no LWJGL classes are shaded.
+    from({ configurations.amneticNativeBinaries.collect { zipTree(it) } }) {
+        include '**/*.dll', '**/*.so', '**/*.dylib'
+    }
+    archiveFileName = 'amnetic-1.0.0-asterion.9-neoforge+1.21.1.jar'
+    destinationDirectory = layout.buildDirectory.dir('renderer')
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    manifest { attributes('Automatic-Module-Name': 'com.meekdev.amnetic') }
+}
+dependencies {
+    jarJar files(nativeRenderer)
+    runtimeOnly files(nativeRenderer)
+}
