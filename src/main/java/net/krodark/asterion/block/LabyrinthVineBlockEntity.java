@@ -9,7 +9,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-public final class LabyrinthVineBlockEntity extends BlockEntity implements GeoBlockEntity {
+public final class LabyrinthVineBlockEntity extends net.krodark.asterion.port.compat.VersionedBlockEntity implements GeoBlockEntity {
     private AnimatableInstanceCache animationCache;
 
     public LabyrinthVineBlockEntity(BlockPos pos, BlockState state) {

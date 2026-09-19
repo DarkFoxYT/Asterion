@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
- 
+
 public final class AmneticBoneEmission {
     private static final InstanceLayout LAYOUT = InstanceLayout.builder().mat4(2).vec4(6).vec4(7).build();
     private static final Map<MeshKey, Entry> ENTRIES = new HashMap<>();
@@ -41,7 +41,7 @@ public final class AmneticBoneEmission {
         if (!Bloom.settings().isEnabled()) return;
         if (!initialized) {
             EmissiveSources.register(Asterion.id("vine_glow"), AmneticBoneEmission::emit);
-             
+
             Pipeline.add(RenderStage.POST, 11, "Clear bone emission submissions", ctx ->
                     ENTRIES.values().forEach(entry -> entry.count = 0));
             initialized = true;
@@ -59,7 +59,7 @@ public final class AmneticBoneEmission {
         if (entry.count == entry.poses.size()) entry.poses.add(new Instance());
         Instance instance = entry.poses.get(entry.count++);
         instance.pose.set(pose);
-        float gain = Float.isFinite(strength) ? Math.clamp(strength, 0.0F, 4.0F) : 1.0F;
+        float gain = Float.isFinite(strength) ? net.krodark.asterion.port.compat.MathCompat.clamp(strength, 0.0F, 4.0F) : 1.0F;
         instance.color.set((color >>> 16 & 255) / 255f * gain,
                 (color >>> 8 & 255) / 255f * gain,
                 (color & 255) / 255f * gain, (color >>> 24) / 255f);
@@ -90,11 +90,11 @@ public final class AmneticBoneEmission {
                     .extraSampler("TextureSampler", texture, 0, false)
                     .phase(InstancePhase.WORLD_LAST).manual().emissive()
                     .renderState(RenderState.builder().depthTest(true).depthWrite(false)
-                             
-                             
+
+
                             .backfaceCulling(backfaceCulling).blend(RenderState.BlendMode.ALPHA).build())
                     .onRender((ctx, batch) -> {
-                         
+
                         for (int i = 0; i < count; i++) batch.add(poses.get(i));
                         submissions += count;
                     }).register(id);

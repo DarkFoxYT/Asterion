@@ -44,9 +44,9 @@ public final class BossEntranceCinematic {
         if (payload.duration() <= 0 || client.player == null || client.level == null) return;
         door = payload.bossDoor();
         if (!door.getAxis().isHorizontal()) return;
-        duration = Math.clamp(payload.duration(), 1, net.krodark.asterion.worldgen.BossArenaEncounter.INTRO_TICKS);
+        duration = net.krodark.asterion.port.compat.MathCompat.clamp(payload.duration(), 1, net.krodark.asterion.worldgen.BossArenaEncounter.INTRO_TICKS);
         finished = false;
-        ticks = Math.clamp(payload.elapsed(), 0, duration);
+        ticks = net.krodark.asterion.port.compat.MathCompat.clamp(payload.elapsed(), 0, duration);
         lastSoundTick = ticks - 1;
         active = true;
         showShot = AsterionConfig.INSTANCE.cinematicsEnabled;
@@ -186,7 +186,7 @@ public final class BossEntranceCinematic {
     }
 
     private static float smootherStep(float value) {
-        float t = Math.clamp(value, 0F, 1F);
+        float t = net.krodark.asterion.port.compat.MathCompat.clamp(value, 0F, 1F);
         return t * t * t * (t * (t * 6F - 15F) + 10F);
     }
 

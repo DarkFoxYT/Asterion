@@ -41,7 +41,7 @@ public final class AsterionWorldState extends SavedData {
             Codec.INT.optionalFieldOf("gateway_rift_y", Integer.MIN_VALUE).forGetter(state -> state.gatewayRiftY),
             Codec.LONG.optionalFieldOf("gateway_center", Long.MIN_VALUE).forGetter(state -> state.gatewayCenter)
     ).apply(instance, AsterionWorldState::new));
-    private static final SavedData.Factory<AsterionWorldState> FACTORY =
+    private static final net.krodark.asterion.port.compat.SavedDataCompat.Factory<AsterionWorldState> FACTORY =
             net.krodark.asterion.port.compat.SavedDataCompat.factory(CODEC, AsterionWorldState::new);
     private static final String DATA_NAME = "asterion_world_state";
 
@@ -92,10 +92,9 @@ public final class AsterionWorldState extends SavedData {
     }
 
     public static AsterionWorldState get(ServerLevel level) {
-        return level.getServer().overworld().getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
+        return net.krodark.asterion.port.compat.SavedDataCompat.get(level.getServer().overworld().getDataStorage(), FACTORY, DATA_NAME);
     }
 
-    @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         return net.krodark.asterion.port.compat.SavedDataCompat.save(CODEC, this, tag, registries);
     }
@@ -174,4 +173,7 @@ public final class AsterionWorldState extends SavedData {
         else cursedBrazierDefeatedRooms.add(roomIndex);
         setDirty();
     }
+//? if <1.20.5 {
+/*    @Override public net.minecraft.nbt.CompoundTag save(net.minecraft.nbt.CompoundTag tag) { return save(tag, null); }*/
+//?}
 }

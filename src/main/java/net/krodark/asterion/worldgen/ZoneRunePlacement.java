@@ -43,7 +43,7 @@ public final class ZoneRunePlacement {
             enqueueCursedBrazierRoom(level, roomIndex);
     }
     public static void enqueueCursedBrazierRoom(ServerLevel level, int roomIndex) {
-        int normalizedRoom = Math.clamp(roomIndex, 0, AuthoredCatacombs.BRAZIER_ROOM_ORIGINS.size() - 1);
+        int normalizedRoom = net.krodark.asterion.port.compat.MathCompat.clamp(roomIndex, 0, AuthoredCatacombs.BRAZIER_ROOM_ORIGINS.size() - 1);
         BlockPos origin = AuthoredCatacombs.BRAZIER_ROOM_ORIGINS.get(normalizedRoom);
         var queue = BRAZIER_ROOM_PENDING.computeIfAbsent(level, ignored -> new java.util.ArrayDeque<>());
         var queued = new java.util.HashSet<>(queue);
@@ -56,8 +56,8 @@ public final class ZoneRunePlacement {
             ChunkPos chunk = new ChunkPos(x,z);
             if (queued.add(chunk)) queue.add(chunk);
         }
-         
-         
+
+
         int hallMinChunkX = (CatacombLayout.ROOT_X * CatacombLayout.TILE) >> 4;
         int hallMaxChunkX = (CatacombLayout.BRAZIER_ROOM_MIN_X * CatacombLayout.TILE - 1) >> 4;
         int hallMinChunkZ = (hallZ * CatacombLayout.TILE) >> 4;
@@ -181,8 +181,8 @@ public final class ZoneRunePlacement {
         java.util.LinkedHashSet<ChunkPos> chunks = new java.util.LinkedHashSet<>();
         for (int x = -4; x <= 3; x++) for (int z = -4; z <= 3; z++)
             chunks.add(new ChunkPos(x, z));
-         
-         
+
+
         for (int x = -1; x <= 5; x++) for (int z = 3; z <= 5; z++)
             chunks.add(new ChunkPos(x, z));
         return java.util.List.copyOf(chunks);
@@ -242,8 +242,8 @@ public final class ZoneRunePlacement {
         BlockPos decorationMarker = new BlockPos(cp.getMinBlockX() + 2, 0, cp.getMinBlockZ());
         var decorated = Blocks.LIGHT.defaultBlockState().setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 3);
         if (chunk.getBlockState(decorationMarker).equals(decorated)) return;
-         
-         
+
+
         if (!newlyGenerated && chunk.getBlockState(new BlockPos(cp.getMinBlockX(), 0, cp.getMinBlockZ()))
                 .is(Blocks.STRUCTURE_VOID)) {
             chunk.setBlockState(decorationMarker, decorated, false);

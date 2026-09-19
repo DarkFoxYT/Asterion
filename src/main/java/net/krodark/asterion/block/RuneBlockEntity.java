@@ -17,7 +17,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.Nullable;
 
-public final class RuneBlockEntity extends BlockEntity implements GeoBlockEntity {
+public final class RuneBlockEntity extends net.krodark.asterion.port.compat.VersionedBlockEntity implements GeoBlockEntity {
     private AnimatableInstanceCache animationCache;
     private float glowPercent;
     private boolean worldGenerated;
@@ -32,7 +32,7 @@ public final class RuneBlockEntity extends BlockEntity implements GeoBlockEntity
     }
     @Override protected void loadAdditional(net.minecraft.nbt.CompoundTag in, net.minecraft.core.HolderLookup.Provider registries) {
         super.loadAdditional(in, registries);
-         
+
         worldGenerated = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "worldGenerated", false);
     }
     public RuneBlockEntity(BlockPos pos, BlockState state) { super(Asterion.RUNE_BLOCK_ENTITY, pos, state); }
@@ -68,7 +68,7 @@ public final class RuneBlockEntity extends BlockEntity implements GeoBlockEntity
                     || !level.getFluidState(pos).isEmpty()) continue;
             var beetle = Asterion.RUNE_BEETLE.create(level);
             if (beetle == null) return;
-             
+
             int carriedRune = runeIndex();
             if (level.getRandom().nextFloat() < 0.35F)
                 carriedRune = (carriedRune + 1 + level.getRandom().nextInt(Asterion.RUNE_TABLETS.length - 1))

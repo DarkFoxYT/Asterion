@@ -5,9 +5,9 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.meekdev.amnetic.client.instanced.internal.CullTargets;
 import com.meekdev.amnetic.client.instanced.internal.GpuCuller;
 import com.meekdev.amnetic.client.instanced.internal.InstanceMeshEntry;
-import net.krodark.asterion.client.particle.AnimatedEmissiveParticle;
-import net.krodark.asterion.client.render.ParticleCulling;
-import net.minecraft.resources.Identifier;
+import net.krodark.asterion.port.client.particle.AnimatedEmissiveParticle;
+import net.krodark.asterion.port.client.render.ParticleCulling;
+import net.minecraft.resources.ResourceLocation;
 import org.joml.Matrix4fc;
 import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.injection.*;
@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.*;
 
 @Mixin(value = InstanceMeshEntry.class, remap = false)
 public abstract class AmneticParticleCullingMixin {
-    @Shadow @Final private Identifier id;
+    @Shadow @Final private ResourceLocation id;
 
     @Inject(method = "gpuCullEnabled", at = @At("RETURN"), cancellable = true)
     private void asterion$chooseCulling(CallbackInfoReturnable<Boolean> result) {

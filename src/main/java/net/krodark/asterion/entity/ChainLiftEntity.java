@@ -16,7 +16,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.*;
 import net.minecraft.world.phys.*;
 
- 
+
 public final class ChainLiftEntity extends Entity implements GeoEntity {
     public static final int WAIT_TICKS = 100;
     public static final int RETURN_WAIT_TICKS = 40;
@@ -34,7 +34,13 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
     private boolean calledLanding;
 
     public ChainLiftEntity(EntityType<? extends ChainLiftEntity> type, Level level) { super(type, level); setNoGravity(true); }
-    @Override protected void defineSynchedData(SynchedEntityData.Builder data) {
+    @Override //? if >=1.20.5 {
+protected void defineSynchedData(SynchedEntityData.Builder data) {
+//?} else {
+/*protected void defineSynchedData() {
+        var data = this.entityData;*/
+//?}
+
         data.define(ANCHOR, BlockPos.ZERO); data.define(FROM, 0F); data.define(TO, 0F);
         data.define(CEILING, Integer.MIN_VALUE); data.define(START, 0L);
         data.define(RIDERS, "");
@@ -84,7 +90,13 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
     @Override public boolean canCollideWith(Entity other) { return false; }
     @Override public boolean isPickable() { return true; }
     @Override public boolean hurt(DamageSource source, float amount) { return false; }
-    @Override public boolean ignoreExplosion(net.minecraft.world.level.Explosion explosion) { return true; }
+    @Override
+//? if >=1.20.5 {
+public boolean ignoreExplosion(net.minecraft.world.level.Explosion explosion)
+//?} else {
+/*public boolean ignoreExplosion()*/
+//?}
+ { return true; }
 
     private static final double START_SPEED = .03, MAX_SPEED = .18, ACCELERATION = .05;
     private static final double RAMP_TICKS = Math.log(MAX_SPEED / START_SPEED) / ACCELERATION;
@@ -103,7 +115,7 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
     public double scheduledY(long time) {
         double from = entityData.get(FROM), to = entityData.get(TO);
         double duration = travelTicks(to - from), half = duration / 2;
-        double elapsed = Math.clamp(time - entityData.get(START), 0, duration);
+        double elapsed = net.krodark.asterion.port.compat.MathCompat.clamp(time - entityData.get(START), 0, duration);
         double fraction = .5 * acceleratedDistance(Math.min(elapsed, duration - elapsed)) / acceleratedDistance(half);
         return from + (to - from) * (elapsed <= half ? fraction : 1 - fraction);
     }
@@ -166,13 +178,13 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
         }
         double next = scheduledY(level().getGameTime()), dy = next - getY();
         if (!level().isClientSide() && Math.abs(dy) > .00001) {
-             
+
             AABB swept = new AABB(getX()-1.49, getY()+.01, getZ()-1.49, getX()+1.49, getY()+3, getZ()+1.49).expandTowards(0, dy, 0);
             boolean blocked = level().getBlockCollisions(this, swept).iterator().hasNext();
             if (dy < 0) blocked |= !level().getEntities(this, getBoundingBox().expandTowards(0, dy, 0), e -> !(e instanceof LiftCallRuneEntity) && !riders.contains(e) && e.isAlive() && !e.isSpectator()).isEmpty();
             if (blocked) { stopAtCurrentPosition(); next = getY(); dy = 0; waiting = WAIT_TICKS; }
         }
-         
+
         setPos(anchor().getX() + .5, next, anchor().getZ() + .5);
         for (Entity rider : riders) {
             if (level().isClientSide() && !(rider instanceof Player player && player.isLocalPlayer())) continue;
@@ -199,8 +211,8 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
             boolean atTop = Math.abs(getY() - topY()) < .02;
             boolean atBottom = Math.abs(getY() - bottomY()) < .02;
             if (atTop) {
-                 
-                 
+
+
                 if (!playerAboard) { armed = false; waiting = WAIT_TICKS; }
                 else if (!armed) { armed = true; waiting = WAIT_TICKS; }
                 else if (--waiting <= 0) beginJourney(bottomY(), true);
@@ -209,12 +221,12 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
                 else if (!armed) { armed = true; waiting = WAIT_TICKS; }
                 else if (--waiting <= 0) { calledLanding = false; beginJourney(topY(), false); }
             } else if (atBottom) {
-                 
+
                 if (playerAboard) waiting = RETURN_WAIT_TICKS;
                 else if (--waiting <= 0) beginJourney(topY(), false);
             } else if (--waiting <= 0) {
-                 
-                 
+
+
                 if (descending && playerAboard) beginJourney(bottomY(), true);
                 else beginJourney(topY(), false);
             }
@@ -223,7 +235,7 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
     private void beginJourney(double target, boolean goingDown) {
         descending = goingDown;
         entityData.set(FROM, (float)getY()); entityData.set(TO, (float)target);
-        entityData.set(START, level().getGameTime() + 3);  
+        entityData.set(START, level().getGameTime() + 3);
     }
     private void stopAtCurrentPosition() { entityData.set(FROM, (float)getY()); entityData.set(TO, (float)getY()); }
     @Override public void addAdditionalSaveData(CompoundTag out) {
@@ -234,7 +246,7 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
     @Override public void readAdditionalSaveData(CompoundTag in) {
         entityData.set(ANCHOR, BlockPos.of(net.krodark.asterion.port.compat.NbtCompat.getLong(in, "Anchor", 0))); entityData.set(CEILING, net.krodark.asterion.port.compat.NbtCompat.getInt(in, "Ceiling", Integer.MIN_VALUE));
         stopAtCurrentPosition(); descending = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "Descending", false);
-        requestedStop = Math.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(in, "RequestedStop", -1), -1, 1); calledLanding = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "CalledLanding", false);
+        requestedStop = net.krodark.asterion.port.compat.MathCompat.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(in, "RequestedStop", -1), -1, 1); calledLanding = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "CalledLanding", false);
         armed = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "Armed", false); waiting = net.krodark.asterion.port.compat.NbtCompat.getInt(in, "Waiting", WAIT_TICKS);
     }
     @Override public AnimatableInstanceCache getAnimatableInstanceCache() { return cache; }

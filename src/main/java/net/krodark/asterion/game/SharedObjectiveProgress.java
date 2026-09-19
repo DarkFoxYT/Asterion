@@ -32,7 +32,7 @@ public final class SharedObjectiveProgress extends SavedData {
     public static final Codec<SharedObjectiveProgress> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.intRange(0, 1023).optionalFieldOf("milestones", 0).forGetter(state -> state.milestones)
     ).apply(instance, SharedObjectiveProgress::new));
-    private static final SavedData.Factory<SharedObjectiveProgress> FACTORY =
+    private static final net.krodark.asterion.port.compat.SavedDataCompat.Factory<SharedObjectiveProgress> FACTORY =
             net.krodark.asterion.port.compat.SavedDataCompat.factory(
                     CODEC, () -> new SharedObjectiveProgress(0));
     private static final Map<MinecraftServer, Map<UUID, Integer>> SENT = new WeakHashMap<>();
@@ -40,9 +40,9 @@ public final class SharedObjectiveProgress extends SavedData {
 
     private SharedObjectiveProgress(int milestones) { this.milestones = milestones; }
     public static SharedObjectiveProgress get(ServerLevel level) {
-        return level.getDataStorage().computeIfAbsent(FACTORY, "asterion_shared_objectives");
+        return net.krodark.asterion.port.compat.SavedDataCompat.get(level.getDataStorage(), FACTORY, "asterion_shared_objectives");
     }
-    @Override public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+    public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         return net.krodark.asterion.port.compat.SavedDataCompat.save(CODEC, this, tag, registries);
     }
     private boolean has(int flag) { return (milestones & flag) != 0; }
@@ -105,4 +105,7 @@ public final class SharedObjectiveProgress extends SavedData {
         for (Item item : items) if (player.getInventory().contains(new ItemStack(item))) return true;
         return false;
     }
+//? if <1.20.5 {
+/*    @Override public net.minecraft.nbt.CompoundTag save(net.minecraft.nbt.CompoundTag tag) { return save(tag, null); }*/
+//?}
 }

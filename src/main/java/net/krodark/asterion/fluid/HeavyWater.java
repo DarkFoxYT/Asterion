@@ -11,7 +11,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 
- 
+
 public final class HeavyWater {
     public static final int COLOR = 0xFF579FAD;
     public static final HeavyWaterFluid STILL = Registry.register(BuiltInRegistries.FLUID,
@@ -28,7 +28,7 @@ public final class HeavyWater {
                     .mapColor(MapColor.WATER).replaceable().noCollission().noOcclusion()
                     .strength(100).noLootTable().liquid()));
     public static final Item BUCKET = Registry.register(BuiltInRegistries.ITEM,
-            Asterion.id("heavy_water_bucket"), new BucketItem(STILL, new Item.Properties()
+            Asterion.id("heavy_water_bucket"), new BucketItem(STILL, new net.krodark.asterion.port.compat.ItemProperties()
                     .craftRemainder(Items.BUCKET).stacksTo(1)));
     private HeavyWater() { }
     public static void initialize() { HeavyWaterlogging.ready = true; }

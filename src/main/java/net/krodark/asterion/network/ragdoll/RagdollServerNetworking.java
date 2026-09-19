@@ -123,13 +123,13 @@ public final class RagdollServerNetworking {
         var destination = player.getBoundingBox().move(target.subtract(player.position())).deflate(.001);
         if (!player.level().hasChunk(pos.getX() >> 4, pos.getZ() >> 4)
                 || !player.level().noCollision(player, destination)) {
-             
-             
-             
+
+
+
             target = player.position();
         }
 
-         
+
         if (payload.finished()) player.teleportTo(target.x, target.y, target.z);
         else player.setPos(target);
         Vec3 velocity = new Vec3(payload.vx(), payload.vy(), payload.vz());
@@ -161,8 +161,8 @@ public final class RagdollServerNetworking {
             LAST_POSE.entrySet().removeIf(entry -> now - entry.getValue() > 200);
         }
         String key = sender.getUUID() + ":" + payload.entityId();
-         
-         
+
+
         if (now - LAST_POSE.getOrDefault(key, -1000L) < 1) {
             return;
         }
@@ -172,12 +172,12 @@ public final class RagdollServerNetworking {
         if (tracked instanceof ServerPlayer && tracked != sender) {
             return;
         }
-        RagdollPosePayload.Part root = payload.parts().getFirst();
+        RagdollPosePayload.Part root = payload.parts().get(0);
         Vec3 center = new Vec3(root.x(), root.y(), root.z());
         if (!finite(center) || sender.distanceToSqr(center) > 96 * 96) {
             return;
         }
-         
+
         for (var part : payload.parts()) {
             Vec3 point = new Vec3(part.x(), part.y(), part.z());
             Vec3 velocity = new Vec3(part.vx(), part.vy(), part.vz());
@@ -235,9 +235,9 @@ public final class RagdollServerNetworking {
     }
 
     public static void finishRagdoll(ServerPlayer player) {
-         
-         
-         
+
+
+
         ACTIVE_RAGDOLLS.remove(player.getUUID());
         RAGDOLL_LEVELS.remove(player.getUUID());
         LAST_POSE.keySet().removeIf(key -> key.startsWith(player.getUUID() + ":"));

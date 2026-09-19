@@ -90,12 +90,12 @@ public final class BoltBuilder {
 
     private static List<Vec3> smooth(List<Vec3> input) {
         List<Vec3> result = new ArrayList<>(input.size());
-        result.add(input.getFirst());
+        result.add(input.get(0));
         for (int i = 1; i < input.size() - 1; i++) {
             result.add(input.get(i - 1).scale(0.16D).add(input.get(i).scale(0.68D))
                     .add(input.get(i + 1).scale(0.16D)));
         }
-        result.add(input.getLast());
+        result.add(input.get(input.size() - 1));
         return result;
     }
 

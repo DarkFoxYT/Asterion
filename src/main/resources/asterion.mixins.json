@@ -27,7 +27,8 @@
     "CinematicServerMovementMixin",
     "PrimaryLevelDataMixin",
     "StructureTemplateAccessor",
-    "WorldGenRegionAccessor"
+    "WorldGenRegionAccessor",
+    "LabyrinthBlockEntityCleanupMixin"
   ],
   "client": [
     "ItemPropertiesInvoker",
@@ -36,11 +37,17 @@
     "PortBiomeMusicMixin",
     "PortFogRendererMixin",
     "PortGameRendererAccessor",
-    "PortHumanoidRagdollMixin",
     "PortMinotaurBossBarMixin",
     "PortMinotaurBodyPickingMixin",
     "PortRagdollLocalPlayerMixin",
-    "PortRagdollRenderMixin"
+    "PortRagdollRenderMixin",
+    "BossHealthOverlayAccessor",
+    "PortLevelLoadingScreenMixin",
+    "AmneticBloomPerformanceMixin",
+    "AmneticParticleCullingMixin",
+    "AmneticEmissivePassMixin",
+    "AmneticEmissiveInstanceMixin",
+    "PortModelCubeAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

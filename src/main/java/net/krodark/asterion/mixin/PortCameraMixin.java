@@ -58,6 +58,14 @@ public abstract class PortCameraMixin {
                 left.rotate(roll);
             }
         }
+        var brazier = net.krodark.asterion.port.client.PortCursedBrazierCinematic.cameraPose(getPosition(), partialTick);
+        if (brazier != null) { setPosition(brazier.position()); setRotation(brazier.yaw(), brazier.pitch()); }
+        var roof = net.krodark.asterion.port.client.PortRoofCollapseCinematic.cameraPose(getPosition(), partialTick);
+        if (roof != null) { setPosition(roof.position()); setRotation(roof.yaw(), roof.pitch()); }
+        var arrival = net.krodark.asterion.port.client.PortDeadSunEntryCinematic.cameraPose(getPosition(), partialTick);
+        if (arrival != null) { setPosition(arrival.position()); setRotation(arrival.yaw(), arrival.pitch()); }
+        var finale = net.krodark.asterion.port.client.PortBossFinaleOverlay.cameraPose(getPosition(), partialTick);
+        if (finale != null) { setPosition(finale.position()); setRotation(finale.yaw(), finale.pitch()); }
         PortCrucibleCamera.CameraPose pose = PortCrucibleCamera.cameraPose(
                 getPosition(), getYRot(), getXRot(), partialTick);
         if (pose != null) {

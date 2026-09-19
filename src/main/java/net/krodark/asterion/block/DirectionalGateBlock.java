@@ -17,7 +17,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
- 
+
 public final class DirectionalGateBlock extends Block implements net.minecraft.world.level.block.SimpleWaterloggedBlock {
     public static final EnumProperty<AttachFace> FACE = BlockStateProperties.ATTACH_FACE;
     public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
@@ -45,12 +45,12 @@ public final class DirectionalGateBlock extends Block implements net.minecraft.w
     }
 
     @Override
-    protected BlockState rotate(BlockState state, Rotation rotation) {
+    public BlockState rotate(BlockState state, Rotation rotation) {
         return state.setValue(FACING, rotation.rotate(state.getValue(FACING)));
     }
 
     @Override
-    protected BlockState mirror(BlockState state, Mirror mirror) {
+    public BlockState mirror(BlockState state, Mirror mirror) {
         return state.setValue(FACING, mirror.mirror(state.getValue(FACING)));
     }
 
@@ -60,13 +60,13 @@ public final class DirectionalGateBlock extends Block implements net.minecraft.w
     }
 
     @Override
-    protected net.minecraft.world.level.material.FluidState getFluidState(BlockState state) {
+    public net.minecraft.world.level.material.FluidState getFluidState(BlockState state) {
         return state.getValue(WATERLOGGED) ? net.minecraft.world.level.material.Fluids.WATER.getSource(false)
                 : super.getFluidState(state);
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
             net.minecraft.world.level.LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
         if (state.getValue(WATERLOGGED)) level.scheduleTick(pos, net.minecraft.world.level.material.Fluids.WATER,
                 net.minecraft.world.level.material.Fluids.WATER.getTickDelay(level));
@@ -74,7 +74,7 @@ public final class DirectionalGateBlock extends Block implements net.minecraft.w
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         if (state.getValue(OPEN)) return Shapes.empty();
         if (state.getValue(FACE) != AttachFace.FLOOR)
             return box(0, 6, 0, 16, 10, 16);
@@ -84,19 +84,25 @@ public final class DirectionalGateBlock extends Block implements net.minecraft.w
     }
 
     @Override
-    protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos,
+    public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos,
                                              CollisionContext context) {
         return state.getValue(OPEN) ? Shapes.empty() : getShape(state, level, pos, context);
     }
 
     @Override
-    protected VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
+    public VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
         return Shapes.empty();
     }
-    @Override protected boolean isPathfindable(BlockState state, net.minecraft.world.level.pathfinder.PathComputationType type) {
+    @Override
+//? if >=1.20.5 {
+protected boolean isPathfindable(BlockState state, net.minecraft.world.level.pathfinder.PathComputationType type)
+//?} else {
+/*public boolean isPathfindable(BlockState state, net.minecraft.world.level.BlockGetter level, net.minecraft.core.BlockPos pos, net.minecraft.world.level.pathfinder.PathComputationType type)*/
+//?}
+ {
         return state.getValue(OPEN);
     }
-    @Override protected float getDestroyProgress(BlockState state, net.minecraft.world.entity.player.Player player,
+    @Override public float getDestroyProgress(BlockState state, net.minecraft.world.entity.player.Player player,
                                                  BlockGetter level, BlockPos pos) {
         if (!player.isCreative() && player.level().dimension().equals(net.krodark.asterion.Asterion.ASTERION_LEVEL)
                 && net.krodark.asterion.worldgen.MinotaurArenaEntrances.isGate(pos)) return 0;

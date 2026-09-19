@@ -23,7 +23,7 @@ import org.joml.Quaternionf;
 import org.joml.Quaternionfc;
 import org.joml.Vector3f;
 
- 
+
 public final class MinotaurAxeEntity extends Entity {
     public static final double GRIP_Y = 45 / 16.0;
     private static final double MODEL_MIN_Y = -6 * Math.sqrt(2);
@@ -43,7 +43,13 @@ public final class MinotaurAxeEntity extends Entity {
     private final java.util.Set<java.util.UUID> hitPlayers = new java.util.HashSet<>();
 
     public MinotaurAxeEntity(EntityType<? extends MinotaurAxeEntity> type, Level level) { super(type, level); }
-    @Override protected void defineSynchedData(SynchedEntityData.Builder data) {
+    @Override //? if >=1.20.5 {
+protected void defineSynchedData(SynchedEntityData.Builder data) {
+//?} else {
+/*protected void defineSynchedData() {
+        var data = this.entityData;*/
+//?}
+
         data.define(ROTATION, new Quaternionf());
         data.define(SCALE, .47F * AsterionConfig.INSTANCE.minotaurScale);
         data.define(THROWER, -1);
@@ -69,8 +75,14 @@ public final class MinotaurAxeEntity extends Entity {
     public int throwerId() { return entityData.get(THROWER); }
     public void setThrower(MinotaurEntity boss) { entityData.set(THROWER, boss.getId()); }
     @Override public boolean hurt(DamageSource source, float damage) { return false; }
-     
-    @Override public boolean ignoreExplosion(net.minecraft.world.level.Explosion explosion) { return true; }
+
+    @Override
+//? if >=1.20.5 {
+public boolean ignoreExplosion(net.minecraft.world.level.Explosion explosion)
+//?} else {
+/*public boolean ignoreExplosion()*/
+//?}
+ { return true; }
 
     public void launch(Vec3 origin, Vec3 velocity, float yaw) {
         setPos(origin);
@@ -78,7 +90,7 @@ public final class MinotaurAxeEntity extends Entity {
         setDeltaMovement(velocity);
         rotation.rotationY((float)Math.toRadians(-yaw));
         previousRotation.set(rotation);
-         
+
         Vector3f axis = rotation.transform(new Vector3f(0, 0, .56F));
         spin = new Vec3(axis.x, .025, axis.z);
         entityData.set(ROTATION, new Quaternionf(rotation));
@@ -91,11 +103,11 @@ public final class MinotaurAxeEntity extends Entity {
         Vec3 velocity = target.subtract(origin).add(0, .075 * (flightTicks - travel) / drag, 0).scale(1 / travel);
         launch(origin, velocity, yaw);
         Vec3 direction = target.subtract(origin);
-         
+
         rotation.rotationY((float)(Math.atan2(direction.x, direction.z) - Math.PI / 2));
         previousRotation.set(rotation);
         entityData.set(ROTATION, new Quaternionf(rotation));
-         
+
         double spinTravel = (1 - Math.pow(.994, flightTicks)) / -Math.log(.994);
         int turns = Math.max(0, (int)Math.round((.56 * spinTravel - Math.PI) / (Math.PI * 2)));
         float angularSpeed = (float)((Math.PI + turns * Math.PI * 2) / spinTravel);
@@ -111,7 +123,7 @@ public final class MinotaurAxeEntity extends Entity {
             return;
         }
         if (impactCooldown > 0) impactCooldown--;
-         
+
         if (sleeping && getDeltaMovement().lengthSqr() < 1e-8 && contact(position().add(0, -.04, 0)) != null) return;
         sleeping = false;
         Vec3 velocity = getDeltaMovement();
@@ -175,7 +187,7 @@ public final class MinotaurAxeEntity extends Entity {
         if (velocity.lengthSqr() < .10) return;
         Vec3[] axes = axes();
         float scale = modelScale();
-         
+
         Vec3 blade = center.add(axes[1].scale(2.05 * scale));
         Vec3 handle = center.add(axes[1].scale(-1.25 * scale));
         for (var victim : victims) {
@@ -224,7 +236,7 @@ public final class MinotaurAxeEntity extends Entity {
         return true;
     }
 
-     
+
     private Vec3 half() {
         return (isSword() ? new Vec3(2.5 / 16, (78 - SWORD_MIN_Y) / 32.0, 14.2 / 16)
                 : new Vec3(2, (99 - MODEL_MIN_Y) / 32.0, 2.75 / 16)).scale(modelScale());
@@ -271,7 +283,7 @@ public final class MinotaurAxeEntity extends Entity {
                 double dot = axes[i].dot(normal);
                 if (Math.abs(dot) > .001) point = point.add(axes[i].scale(-Math.signum(dot) * extents[i]));
             }
-            point = new Vec3(Math.clamp(point.x, box.minX, box.maxX), Math.clamp(point.y, box.minY, box.maxY), Math.clamp(point.z, box.minZ, box.maxZ));
+            point = new Vec3(net.krodark.asterion.port.compat.MathCompat.clamp(point.x, box.minX, box.maxX), net.krodark.asterion.port.compat.MathCompat.clamp(point.y, box.minY, box.maxY), net.krodark.asterion.port.compat.MathCompat.clamp(point.z, box.minZ, box.maxZ));
             deepest = new Contact(normal, depth, point);
         }
         return deepest;
@@ -302,7 +314,7 @@ public final class MinotaurAxeEntity extends Entity {
         previousRotation.set(rotation);
         spin = new Vec3(net.krodark.asterion.port.compat.NbtCompat.getDouble(in, "spin_x", 0), net.krodark.asterion.port.compat.NbtCompat.getDouble(in, "spin_y", 0), net.krodark.asterion.port.compat.NbtCompat.getDouble(in, "spin_z", 0));
         if (!Double.isFinite(spin.lengthSqr())) spin = Vec3.ZERO;
-        entityData.set(SCALE, Math.clamp(net.krodark.asterion.port.compat.NbtCompat.getFloat(in, "axe_scale", .94F), .3525F, 1.88F));
+        entityData.set(SCALE, net.krodark.asterion.port.compat.MathCompat.clamp(net.krodark.asterion.port.compat.NbtCompat.getFloat(in, "axe_scale", .94F), .3525F, 1.88F));
         entityData.set(ROTATION, new Quaternionf(rotation));
         sleeping = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "sleeping", false);
     }

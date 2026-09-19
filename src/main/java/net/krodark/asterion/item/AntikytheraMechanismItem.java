@@ -29,15 +29,15 @@ public final class AntikytheraMechanismItem extends CompassItem {
 
     @Override
     public Component getName(ItemStack stack) {
-         
-         
+
+
         return Component.translatable(getDescriptionId());
     }
 
     @Override
     public boolean isFoil(ItemStack stack) {
-         
-         
+
+
         return stack.isEnchanted();
     }
 
@@ -53,7 +53,7 @@ public final class AntikytheraMechanismItem extends CompassItem {
                     Component.translatable("message.asterion.mechanism_points"));
             return net.minecraft.world.InteractionResultHolder.success(stack);
         }
-        boolean wasDormant = stack.get(DataComponents.LODESTONE_TRACKER) == null;
+        boolean wasDormant = net.krodark.asterion.port.compat.ItemData.get(stack, DataComponents.LODESTONE_TRACKER) == null;
         bindToPortal(stack, serverLevel);
         if (wasDormant) {
             net.krodark.asterion.game.PlayerNotices.show(serverPlayer, Component.translatable("message.asterion.mechanism_awakened"));
@@ -78,10 +78,10 @@ public final class AntikytheraMechanismItem extends CompassItem {
             BlockPos target = WorldGenerator.gatewayPosition(level.getServer().overworld().getSeed());
             expected = GlobalPos.of(Level.OVERWORLD, target);
         }
-        LodestoneTracker current = stack.get(DataComponents.LODESTONE_TRACKER);
+        LodestoneTracker current = net.krodark.asterion.port.compat.ItemData.get(stack, DataComponents.LODESTONE_TRACKER);
         if (current == null || current.tracked() || current.target().isEmpty()
                 || !current.target().get().equals(expected)) {
-            stack.set(DataComponents.LODESTONE_TRACKER,
+            net.krodark.asterion.port.compat.ItemData.set(stack, DataComponents.LODESTONE_TRACKER,
                     new LodestoneTracker(Optional.of(expected), false));
         }
     }
@@ -90,7 +90,7 @@ public final class AntikytheraMechanismItem extends CompassItem {
     @SuppressWarnings("deprecation")
     public void appendHoverText(ItemStack stack, TooltipContext context,
                                 List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.translatable(stack.get(DataComponents.LODESTONE_TRACKER) == null
+        tooltip.add(Component.translatable(net.krodark.asterion.port.compat.ItemData.get(stack, DataComponents.LODESTONE_TRACKER) == null
                 ? "tooltip.asterion.antikythera_mechanism.dormant"
                 : "tooltip.asterion.antikythera_mechanism.bound"));
         tooltip.add(Component.translatable("tooltip.asterion.antikythera_mechanism.maze_bearing"));

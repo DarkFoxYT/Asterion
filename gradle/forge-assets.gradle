@@ -1,7 +1,7 @@
 def forgeAssets = layout.buildDirectory.dir('generated/forge-assets')
 def minecraftTextureJar = file("${gradle.gradleUserHomeDir}/caches/fabric-loom/${minecraft_version}/minecraft-client.jar")
 tasks.register('generateForgeAssets') {
-    inputs.dir('src/main/resources/assets/asterion/textures/forging')
+    inputs.dir(rootProject.file('src/main/resources/assets/asterion/textures/forging'))
     inputs.file(minecraftTextureJar)
     outputs.dir(forgeAssets)
     doLast {
@@ -44,17 +44,17 @@ tasks.register('generateForgeAssets') {
             def parent = sword ? 'asterion:item/forged_sword_layer' : 'minecraft:item/generated'
             if (layer == 0) return [parent: parent,
                     textures: [particle: texture, layer0: texture]]
-             
-             
-             
-             
-             
+
+
+
+
+
             double grow = layer * 0.015D
             [ambientocclusion: false, gui_light: 'front', render_type: 'minecraft:translucent',
              textures: [particle: texture, coating: texture], display: sword ? swordDisplay : generatedDisplay,
              elements: [[from: [-grow, -grow, 7.49D - grow], to: [16D + grow, 16D + grow, 8.51D + grow],
-                  
-                  
+
+
                  faces: [north: [uv: [16, 0, 0, 16], texture: '#coating', tintindex: 0],
                          south: [uv: [0, 0, 16, 16], texture: '#coating', tintindex: 0],
                          west: [uv: [0, 0, 1, 16], texture: '#coating', tintindex: 0],
@@ -68,7 +68,7 @@ tasks.register('generateForgeAssets') {
                     def textureName = "${material}_${part}${suffix}"
                     def texture = "asterion:item/forging/${material}/${textureName}"
                     if (layer == 1) {
-                        def source = javax.imageio.ImageIO.read(file(
+                        def source = javax.imageio.ImageIO.read(rootProject.file(
                                 "src/main/resources/assets/asterion/textures/forging/${material}/${textureName}.png"))
                         writeHalfAlpha(source, file("${overlayTextureDir}/${material}/${textureName}.png"))
                     }
@@ -105,7 +105,7 @@ tasks.register('generateForgeAssets') {
                             model: "asterion:item/forge_legacy_${material}_${part}"] }
             ])
         }
-         
+
         def swordLayers = [[type: 'minecraft:model', model: 'asterion:item/forged_sword_handle']]
         parts.eachWithIndex { part, partIndex ->
             (0..<4).each { layer ->
@@ -149,10 +149,10 @@ tasks.register('generateForgeAssets') {
                 overrides: swordOverrides
         ])
 
-         
-         
+
+
         def ingotTextures = materials.collectEntries { material ->
-            def custom = file("src/main/resources/assets/asterion/textures/forging/${material}/${material}_ingot.png")
+            def custom = rootProject.file("src/main/resources/assets/asterion/textures/forging/${material}/${material}_ingot.png")
             [(material): custom.exists()
                     ? "asterion:item/forging/${material}/${material}_ingot"
                     : "minecraft:item/${material == 'tarnished_gold' ? 'gold' : material}_ingot"]
@@ -163,7 +163,7 @@ tasks.register('generateForgeAssets') {
                 def texture = ingotTextures[material]
                 if (layer == 1) {
                     java.awt.image.BufferedImage source
-                    def custom = file("src/main/resources/assets/asterion/textures/forging/${material}/${material}_ingot.png")
+                    def custom = rootProject.file("src/main/resources/assets/asterion/textures/forging/${material}/${material}_ingot.png")
                     if (custom.exists()) source = javax.imageio.ImageIO.read(custom)
                     else {
                         def vanilla = material == 'tarnished_gold' ? 'gold' : material
@@ -191,19 +191,18 @@ tasks.register('generateForgeAssets') {
         file("${itemDir}/forged_ingot.json").text = groovy.json.JsonOutput.toJson(
                 [model: [type: 'minecraft:composite', models: ingotLayers]])
         copy {
-            from file('src/main/resources/assets/asterion/textures/forging')
+            from rootProject.file('src/main/resources/assets/asterion/textures/forging')
             into atlasTextureDir
         }
     }
 }
 
- 
- 
- 
+
+
+
 tasks.named('processResources').configure {
     from(tasks.named('generateForgeAssets')) {
         // Generated models intentionally replace their source templates.
         duplicatesStrategy = DuplicatesStrategy.INCLUDE
     }
 }
-

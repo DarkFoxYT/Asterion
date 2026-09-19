@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-public final class OmegaLockBlockEntity extends BlockEntity implements GeoBlockEntity {
+public final class OmegaLockBlockEntity extends net.krodark.asterion.port.compat.VersionedBlockEntity implements GeoBlockEntity {
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private int openingTicks;
     private List<BlockPos> gates = List.of();
@@ -58,8 +58,8 @@ public final class OmegaLockBlockEntity extends BlockEntity implements GeoBlockE
             return gate.is(Asterion.MAZESTEEL_GATE) && !gate.getValue(DirectionalGateBlock.OPEN);
         }).mapToInt(BlockPos::getY).min().orElse(Integer.MAX_VALUE);
         if (lowest == Integer.MAX_VALUE) {
-             
-             
+
+
             server.removeBlock(pos,false);
             return;
         }

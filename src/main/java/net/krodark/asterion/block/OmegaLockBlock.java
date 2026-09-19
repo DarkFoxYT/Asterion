@@ -29,11 +29,11 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
- 
+
 public final class OmegaLockBlock extends BaseEntityBlock {
     public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty UNLOCKED = BooleanProperty.create("unlocked");
-     
+
     private static final VoxelShape NORTH_SOUTH = box(0, 0, 5, 16, 16, 11);
     private static final VoxelShape EAST_WEST = box(5, 0, 0, 11, 16, 16);
 
@@ -41,11 +41,11 @@ public final class OmegaLockBlock extends BaseEntityBlock {
         super(properties);
         registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH).setValue(UNLOCKED, false));
     }
-    @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
+    protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
     @Override public @Nullable BlockState getStateForPlacement(BlockPlaceContext context) {
         return defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
     }
-    @Override protected net.minecraft.world.ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
+    protected net.minecraft.world.ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
                                                      Player player, InteractionHand hand, BlockHitResult hit) {
         if (!stack.is(Asterion.OMEGA_KEY)) return net.minecraft.world.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
         if (state.getValue(UNLOCKED)) return net.minecraft.world.ItemInteractionResult.SUCCESS;
@@ -54,11 +54,11 @@ public final class OmegaLockBlock extends BaseEntityBlock {
         }
         return net.minecraft.world.ItemInteractionResult.SUCCESS;
     }
-    @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.MODEL; }
-    @Override protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    @Override public RenderShape getRenderShape(BlockState state) { return RenderShape.MODEL; }
+    @Override public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return state.getValue(FACING).getAxis() == Direction.Axis.Z ? NORTH_SOUTH : EAST_WEST;
     }
-    @Override protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    @Override public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         if (context instanceof net.minecraft.world.phys.shapes.EntityCollisionContext entityContext
                 && entityContext.getEntity() instanceof net.krodark.asterion.entity.MinotaurEntity) return net.minecraft.world.phys.shapes.Shapes.empty();
         return state.getValue(UNLOCKED) ? net.minecraft.world.phys.shapes.Shapes.empty() : getShape(state, level, pos, context);
@@ -66,10 +66,20 @@ public final class OmegaLockBlock extends BaseEntityBlock {
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(FACING, UNLOCKED);
     }
-    @Override protected BlockState rotate(BlockState state, Rotation rotation) { return state.setValue(FACING, rotation.rotate(state.getValue(FACING))); }
-    @Override protected BlockState mirror(BlockState state, Mirror mirror) { return rotate(state, mirror.getRotation(state.getValue(FACING))); }
+    @Override public BlockState rotate(BlockState state, Rotation rotation) { return state.setValue(FACING, rotation.rotate(state.getValue(FACING))); }
+    @Override public BlockState mirror(BlockState state, Mirror mirror) { return rotate(state, mirror.getRotation(state.getValue(FACING))); }
     @Override public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) { return new OmegaLockBlockEntity(pos, state); }
     @Override public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
         return createTickerHelper(type, Asterion.OMEGA_LOCK_BLOCK_ENTITY, OmegaLockBlockEntity::tick);
     }
+
+//? if <1.20.5 {
+/*    @Override public net.minecraft.world.InteractionResult use(net.minecraft.world.level.block.state.BlockState state,
+        net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos, net.minecraft.world.entity.player.Player player,
+        net.minecraft.world.InteractionHand hand, net.minecraft.world.phys.BlockHitResult hit) {
+        var result = useItemOn(player.getItemInHand(hand), state, level, pos, player, hand, hit);
+        if (result != net.krodark.asterion.port.legacy.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION) return result.result();
+        return super.use(state, level, pos, player, hand, hit);
+    }*/
+//?}
 }

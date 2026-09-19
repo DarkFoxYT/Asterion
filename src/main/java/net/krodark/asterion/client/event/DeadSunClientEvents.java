@@ -73,7 +73,7 @@ public final class DeadSunClientEvents {
         long tick = client.level.getGameTime();
         if (lastImpactTick != Long.MIN_VALUE && tick >= lastImpactTick && tick - lastImpactTick < 3) return;
         lastImpactTick = tick;
-        if (LOCAL_RUMBLES.size() >= 16) LOCAL_RUMBLES.removeFirst();
+        if (LOCAL_RUMBLES.size() >= 16) LOCAL_RUMBLES.remove(0);
         LOCAL_RUMBLES.add(new LocalRumble(center, client.level.getGameTime(), duration, radius, strength,
                 Double.doubleToLongBits(center.x + center.z)));
     }
@@ -421,7 +421,7 @@ public final class DeadSunClientEvents {
         }
     }
 
-     
+
     public static float floodStrength() {
         var client = Minecraft.getInstance();
         if (client.level == null || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)

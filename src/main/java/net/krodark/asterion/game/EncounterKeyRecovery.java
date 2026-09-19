@@ -15,7 +15,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
- 
+
 public final class EncounterKeyRecovery {
     private static final long RECOVERY_DELAY=20L*60L;
     private static final Map<UUID,Pending> PENDING=new HashMap<>();
@@ -28,13 +28,13 @@ public final class EncounterKeyRecovery {
         ServerLifecycleEvents.SERVER_STOPPED.register(server->PENDING.clear());
     }
 
-     
+
     public static void markConsumed(ServerPlayer player,Item key) {
         String marker=spentMarker(key);
         if(marker!=null)player.addTag(marker);
     }
 
-     
+
     public static boolean restoreConsumed(ServerPlayer player,Item key) {
         String marker=spentMarker(key);
         if(marker==null||!player.removeTag(marker))return false;
@@ -62,10 +62,13 @@ public final class EncounterKeyRecovery {
         static final com.mojang.serialization.Codec<Refunds> CODEC =
                 com.mojang.serialization.Codec.unboundedMap(com.mojang.serialization.Codec.STRING,
                         com.mojang.serialization.Codec.intRange(1, 3)).xmap(Refunds::new, refunds -> refunds.pending);
-        static final net.minecraft.world.level.saveddata.SavedData.Factory<Refunds> FACTORY =
+        static final net.krodark.asterion.port.compat.SavedDataCompat.Factory<Refunds> FACTORY =
                 net.krodark.asterion.port.compat.SavedDataCompat.factory(
                         CODEC, () -> new Refunds(Map.of()));
-        @Override public net.minecraft.nbt.CompoundTag save(net.minecraft.nbt.CompoundTag tag,
+        //? if <1.20.5 {
+/*@Override public net.minecraft.nbt.CompoundTag save(net.minecraft.nbt.CompoundTag tag) { return save(tag, null); }*/
+//?}
+public net.minecraft.nbt.CompoundTag save(net.minecraft.nbt.CompoundTag tag,
                 net.minecraft.core.HolderLookup.Provider registries) {
             return net.krodark.asterion.port.compat.SavedDataCompat.save(CODEC, this, tag, registries);
         }
@@ -74,8 +77,7 @@ public final class EncounterKeyRecovery {
     public static void refundAttemptKey(ServerLevel level, UUID id, Item key) {
         ServerPlayer player = level.getServer().getPlayerList().getPlayer(id);
         if (player != null) { restoreConsumed(player, key); return; }
-        Refunds refunds = level.getDataStorage().computeIfAbsent(
-                Refunds.FACTORY, "asterion_encounter_key_refunds");
+        Refunds refunds = net.krodark.asterion.port.compat.SavedDataCompat.get(level.getDataStorage(), Refunds.FACTORY, "asterion_encounter_key_refunds");
         int flag = key == net.krodark.asterion.Asterion.MINOTAUR_KEY ? 1 : 2;
         refunds.pending.merge(id.toString(), flag, (a, b) -> a | b);
         refunds.setDirty();
@@ -84,8 +86,7 @@ public final class EncounterKeyRecovery {
     private static void deliverRefunds(MinecraftServer server) {
         ServerLevel maze = server.getLevel(net.krodark.asterion.Asterion.ASTERION_LEVEL);
         if (maze == null) return;
-        Refunds refunds = maze.getDataStorage().computeIfAbsent(
-                Refunds.FACTORY, "asterion_encounter_key_refunds");
+        Refunds refunds = net.krodark.asterion.port.compat.SavedDataCompat.get(maze.getDataStorage(), Refunds.FACTORY, "asterion_encounter_key_refunds");
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             Integer flags = refunds.pending.remove(player.getUUID().toString());
             if (flags == null) continue;

@@ -15,18 +15,18 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.WaterFluid;
 import net.minecraft.world.phys.Vec3;
 
- 
+
 public final class TidalWaterFluid extends WaterFluid {
     public TidalWaterFluid() { registerDefaultState(stateDefinition.any().setValue(LEVEL, 8)); }
     @Override protected void createFluidStateDefinition(StateDefinition.Builder<Fluid, FluidState> builder) {
-         
+
         builder.add(LEVEL);
     }
     @Override public Fluid getSource() { return this; }
     @Override public Fluid getFlowing() { return this; }
     @Override public FluidState getSource(boolean falling) { return defaultFluidState(); }
     @Override public FluidState getFlowing(int amount, boolean falling) {
-        return defaultFluidState().setValue(LEVEL, Math.clamp(amount, 1, 8));
+        return defaultFluidState().setValue(LEVEL, net.krodark.asterion.port.compat.MathCompat.clamp(amount, 1, 8));
     }
     @Override public Item getBucket() { return HeavyWater.BUCKET; }
     @Override public int getAmount(FluidState state) { return state.getValue(LEVEL); }

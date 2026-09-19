@@ -15,7 +15,7 @@ public final class PedestalContent {
     public static final PedestalBlock BLOCK = Registry.register(BuiltInRegistries.BLOCK, KEY,
             new PedestalBlock(BlockBehaviour.Properties.of().strength(3.5F).sound(SoundType.STONE).noOcclusion()));
     private static final ResourceKey<Item> ITEM_KEY = ResourceKey.create(Registries.ITEM, Asterion.id("pedestal"));
-    public static final Item ITEM = Registry.register(BuiltInRegistries.ITEM, ITEM_KEY, new PedestalBlockItem(BLOCK, new Item.Properties()));
+    public static final Item ITEM = Registry.register(BuiltInRegistries.ITEM, ITEM_KEY, new PedestalBlockItem(BLOCK, new net.krodark.asterion.port.compat.ItemProperties()));
     public static final BlockEntityType<PedestalBlockEntity> BLOCK_ENTITY = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE,
             Asterion.id("pedestal"), BlockEntityType.Builder.of(PedestalBlockEntity::new, BLOCK).build(null));
     private PedestalContent() { }

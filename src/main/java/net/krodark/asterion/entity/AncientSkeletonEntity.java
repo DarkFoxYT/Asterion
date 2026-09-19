@@ -12,7 +12,7 @@ import net.minecraft.world.item.*;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
 
- 
+
 public final class AncientSkeletonEntity extends Skeleton {
     public AncientSkeletonEntity(EntityType<? extends Skeleton> type, Level level) { super(type, level); }
 
@@ -23,7 +23,7 @@ public final class AncientSkeletonEntity extends Skeleton {
 
     @Override protected void populateDefaultEquipmentSlots(RandomSource random, DifficultyInstance difficulty) {
         ItemStack sword = new ItemStack(Asterion.CELESTIAL_BRONZE_SWORD);
-        sword.set(net.minecraft.core.component.DataComponents.CUSTOM_MODEL_DATA,
+        net.krodark.asterion.port.compat.ItemData.set(sword, net.minecraft.core.component.DataComponents.CUSTOM_MODEL_DATA,
                 new net.minecraft.world.item.component.CustomModelData(random.nextBoolean() ? 1 : 2));
         setItemSlot(EquipmentSlot.MAINHAND, sword);
         var armor = net.krodark.asterion.game.ArmorContent.SETS.get(random.nextInt(2)).pieces();
@@ -36,12 +36,29 @@ public final class AncientSkeletonEntity extends Skeleton {
         setCanPickUpLoot(false);
     }
 
-     
-    @Override protected void dropCustomDeathLoot(ServerLevel level, net.minecraft.world.damagesource.DamageSource source,
-                                                 boolean killedByPlayer) { }
+
+    @Override
+//? if >=1.20.5 {
+protected void dropCustomDeathLoot(ServerLevel level, net.minecraft.world.damagesource.DamageSource source,
+                                                 boolean killedByPlayer) {
+//?} else {
+/*protected void dropCustomDeathLoot(net.minecraft.world.damagesource.DamageSource source, int looting, boolean killedByPlayer) {
+ var level = (net.minecraft.server.level.ServerLevel)level();*/
+//?}
+ }
     @Override public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty,
-                                                  MobSpawnType reason, SpawnGroupData group) {
-        SpawnGroupData result = super.finalizeSpawn(level, difficulty, reason, group);
+                                                  //? if >=1.20.5 {
+MobSpawnType reason, SpawnGroupData group) {
+//?} else {
+/*MobSpawnType reason, SpawnGroupData group, @org.jetbrains.annotations.Nullable net.minecraft.nbt.CompoundTag spawnTag) {*/
+//?}
+
+        //? if >=1.20.5 {
+SpawnGroupData result = super.finalizeSpawn(level, difficulty, reason, group);
+//?} else {
+/*SpawnGroupData result = super.finalizeSpawn(level, difficulty, reason, group, spawnTag);*/
+//?}
+
         setCanPickUpLoot(false);
         for (EquipmentSlot slot : EquipmentSlot.values()) setDropChance(slot, 0);
         return result;

@@ -19,7 +19,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
- 
+
 public final class PassionBloomBlock extends Block {
     public static final MapCodec<PassionBloomBlock> CODEC = simpleCodec(PassionBloomBlock::new);
     private static final VoxelShape SHAPE = Block.box(4.0D, 3.0D, 4.0D, 12.0D, 16.0D, 12.0D);
@@ -28,18 +28,17 @@ public final class PassionBloomBlock extends Block {
         super(properties);
     }
 
-    @Override
     protected MapCodec<? extends Block> codec() {
         return CODEC;
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         return level.getBlockState(pos.above()).is(Asterion.TAINTED_LEAVES);
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction direction,
+    public BlockState updateShape(BlockState state, Direction direction,
                                      BlockState neighborState, net.minecraft.world.level.LevelAccessor level,
                                      BlockPos pos, BlockPos neighborPos) {
         return direction == Direction.UP && !canSurvive(state, level, pos)
@@ -48,12 +47,11 @@ public final class PassionBloomBlock extends Block {
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos,
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos,
                                   CollisionContext context) {
         return SHAPE;
     }
 
-    @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
                                                Player player, BlockHitResult hit) {
         if (level.isClientSide()) return InteractionResult.SUCCESS;
@@ -62,4 +60,12 @@ public final class PassionBloomBlock extends Block {
         level.removeBlock(pos, false);
         return InteractionResult.SUCCESS;
     }
+
+//? if <1.20.5 {
+/*    @Override public net.minecraft.world.InteractionResult use(net.minecraft.world.level.block.state.BlockState state,
+        net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos, net.minecraft.world.entity.player.Player player,
+        net.minecraft.world.InteractionHand hand, net.minecraft.world.phys.BlockHitResult hit) {
+        return useWithoutItem(state, level, pos, player, hit);
+    }*/
+//?}
 }

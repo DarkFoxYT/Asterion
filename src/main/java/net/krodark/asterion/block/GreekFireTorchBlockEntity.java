@@ -9,7 +9,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-public final class GreekFireTorchBlockEntity extends BlockEntity implements GeoBlockEntity {
+public final class GreekFireTorchBlockEntity extends net.krodark.asterion.port.compat.VersionedBlockEntity implements GeoBlockEntity {
     private AnimatableInstanceCache cache;
     public GreekFireTorchBlockEntity(BlockPos pos,BlockState state) {
         super(Asterion.GREEK_FIRE_TORCH_BLOCK_ENTITY,pos,state);

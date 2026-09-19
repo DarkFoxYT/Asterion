@@ -7,7 +7,8 @@ import net.krodark.asterion.network.IgniteGasPayload;
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.fabricmc.fabric.api.event.lifecycle.v1.*;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
-import net.fabricmc.fabric.api.networking.v1.*;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.*;
 import net.minecraft.resources.ResourceKey;
@@ -29,7 +30,7 @@ public final class GameplayContent {
     public static final Item FLAMETHROWER = item("flamethrower", p -> new FlamethrowerItem(p.durability(512)));
     private static final ResourceKey<EntityType<?>> CURSED_KEY = ResourceKey.create(Registries.ENTITY_TYPE, Asterion.id("cursed_brazier"));
     public static final EntityType<CursedBrazierEntity> CURSED_BRAZIER = Registry.register(BuiltInRegistries.ENTITY_TYPE, CURSED_KEY,
-            EntityType.Builder.of(CursedBrazierEntity::new, MobCategory.MONSTER)
+            net.minecraft.world.entity.EntityType.Builder.of(CursedBrazierEntity::new, MobCategory.MONSTER)
                     .sized(4.8F, 4.85F)
                     .fireImmune()
                     .clientTrackingRange(12)
@@ -51,7 +52,7 @@ public final class GameplayContent {
     }
     private static Item item(String name, java.util.function.Function<Item.Properties, Item> factory) {
         var key = ResourceKey.create(Registries.ITEM, Asterion.id(name));
-        return Registry.register(BuiltInRegistries.ITEM, key, factory.apply(new Item.Properties()));
+        return Registry.register(BuiltInRegistries.ITEM, key, factory.apply(new net.krodark.asterion.port.compat.ItemProperties()));
     }
     public static void initialize() {
         net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.AFTER_DEATH.register((entity, damage) -> {

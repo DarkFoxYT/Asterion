@@ -51,13 +51,19 @@ public final class FlamethrowerItem extends Item implements GeoItem {
         player.startUsingItem(hand);
         return net.minecraft.world.InteractionResultHolder.consume(player.getItemInHand(hand));
     }
-    @Override public int getUseDuration(ItemStack stack, LivingEntity user) { return 72000; }
+    @Override public int
+//? if >=1.20.5 {
+getUseDuration(ItemStack stack, LivingEntity user)
+//?} else {
+/*getUseDuration(ItemStack stack)*/
+//?}
+ { return 72000; }
     @Override public UseAnim getUseAnimation(ItemStack stack) { return UseAnim.BOW; }
     @Override public void onUseTick(Level world, LivingEntity entity, ItemStack stack, int remaining) {
         if (!(world instanceof ServerLevel level) || remaining % 4 != 0 || entity.isSpectator() || entity.isInWater()) return;
         var direction = entity.getLookAngle();
         GasClouds.emitFlamethrower(level, entity.getEyePosition().add(direction.scale(.6)), direction.scale(.4), entity.getUUID());
-        if (remaining % 20 == 0) stack.hurtAndBreak(1, entity, entity.getUsedItemHand() == InteractionHand.MAIN_HAND
+        if (remaining % 20 == 0) net.krodark.asterion.port.compat.EntityCompat.hurtAndBreak(stack, 1, entity, entity.getUsedItemHand() == InteractionHand.MAIN_HAND
                 ? net.minecraft.world.entity.EquipmentSlot.MAINHAND : net.minecraft.world.entity.EquipmentSlot.OFFHAND);
     }
     public static void ignite(ServerPlayer player) {

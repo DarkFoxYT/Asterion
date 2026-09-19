@@ -26,14 +26,14 @@ side="BOTH"
 [[dependencies.asterion]]
 modId="minecraft"
 type="required"
-versionRange="[${minecraft_version},1.22)"
+versionRange="[${minecraft_version}]"
 ordering="NONE"
 side="BOTH"
 
 [[dependencies.asterion]]
-modId="veil"
+modId="amnetic"
 type="required"
-versionRange="[${veil_version},)"
+versionRange="[0,)"
 ordering="AFTER"
 side="CLIENT"
 
@@ -48,5 +48,12 @@ side="BOTH"
 modId="fabric_api"
 type="required"
 versionRange="[0.116.15,)"
+ordering="BEFORE"
+side="BOTH"
+
+[[dependencies.asterion]]
+modId="connector"
+type="required"
+versionRange="[2.0.0-beta.17,)"
 ordering="BEFORE"
 side="BOTH"

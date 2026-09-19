@@ -1,9 +1,29 @@
 {
-  "version": "1.0-SNAPSHOT-asterion.2",
-  "sourceCommit": "3affd395ba457cdd26021da3f32d1a8773394f16",
-  "minecraft": "26.1.2",
-  "amneticSha256": "388e8f6531bc64e9783c35c18850b15621da09cf742fbcfc2e9783341c5e3904",
-  "bb4jSha256": "c2242d567a3246ce68fe115f4214127e0d3986a99d6dde1a7a52aae0059fe888",
-  "installation": "Amnetic and its bb4j parser library nested inside Asterion",
-  "sourcePatch": "docs/curseforge/amnetic-preset-safety.patch"
+  "upstreamCommit": "0b727183ec2d18514cdeb0d4bdc7a2c2692890c5",
+  "version": "1.0.0-asterion.9",
+  "renderer": "Amnetic; Veil removed",
+  "patches": [
+    "Private relocated glTF/Jackson readers for Quilt and Connector",
+    "Legacy OpenGL vertex-array state repair",
+    "Postprocessing clear color and blit shader compatibility",
+    "TAA disabled whenever Asterion is loaded",
+    "Iris checks active shader packs rather than installation alone",
+    "Optional window-context wrapper for NeoForge",
+    "Full-resolution emission depth testing with independently scaled bloom blur",
+    "Composable Sodium window creation, compatible debug hints, working OpenGL fallback"
+  ],
+  "rebuild": "gradlew.bat :1.20.1:build :1.21.1:build -Pmod_version=1.0.0-asterion.9",
+  "artifacts": [
+    {
+      "file": "amnetic-1.0.0-asterion.9+1.20.1.jar",
+      "minecraft": "1.20.1",
+      "sha256": "6fb6c0f8616b620fddce904546b0381a05e7aab64bdc2e4eec47d1c5d5dc37b7"
+    },
+    {
+      "file": "amnetic-1.0.0-asterion.9+1.21.1.jar",
+      "minecraft": "1.21.1",
+      "sha256": "a129e4672e7772a0637adbe4411652dfc603b43552189819ad79b184a0d10b42"
+    }
+  ],
+  "portCommit": "cd28f76f57d5be75c048dfc0588a6277673bf8f0"
 }

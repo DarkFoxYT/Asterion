@@ -21,7 +21,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
- 
+
 public final class LabyrinthVineBlock extends BaseEntityBlock implements WaterloggedDecoration {
     public static final EnumProperty<Direction> FACING = EnumProperty.create(
             "facing", Direction.class, direction -> direction.getAxis() == Direction.Axis.Y);
@@ -36,7 +36,7 @@ public final class LabyrinthVineBlock extends BaseEntityBlock implements Waterlo
                 .setValue(END, true));
     }
 
-    @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
+    protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
@@ -46,7 +46,7 @@ public final class LabyrinthVineBlock extends BaseEntityBlock implements Waterlo
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
                                      net.minecraft.world.level.LevelAccessor level,
                                      BlockPos pos, BlockPos neighborPos) {
         Direction supportDirection = state.getValue(FACING).getOpposite();
@@ -62,7 +62,7 @@ public final class LabyrinthVineBlock extends BaseEntityBlock implements Waterlo
     }
 
     @Override
-    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         Direction growthDirection = state.getValue(FACING);
         BlockPos supportPos = pos.relative(growthDirection.getOpposite());
         BlockState support = level.getBlockState(supportPos);
@@ -75,7 +75,7 @@ public final class LabyrinthVineBlock extends BaseEntityBlock implements Waterlo
         builder.add(FACING, END);
     }
 
-    @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
+    @Override public RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
 
     @Override
     public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
@@ -95,7 +95,7 @@ public final class LabyrinthVineBlock extends BaseEntityBlock implements Waterlo
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPE;
     }
 

@@ -14,21 +14,21 @@ import net.minecraft.world.level.levelgen.Heightmap;
 public final class AncientContent {
     private static final ResourceKey<EntityType<?>> KEY = ResourceKey.create(Registries.ENTITY_TYPE, Asterion.id("ancient_skeleton"));
     public static final EntityType<AncientSkeletonEntity> SKELETON = Registry.register(BuiltInRegistries.ENTITY_TYPE, KEY,
-            EntityType.Builder.of(AncientSkeletonEntity::new, MobCategory.MONSTER).sized(.6F, 1.99F)
+            net.minecraft.world.entity.EntityType.Builder.of(AncientSkeletonEntity::new, MobCategory.MONSTER).sized(.6F, 1.99F)
                     .clientTrackingRange(8).build(null));
     private static final ResourceKey<Item> EGG_KEY = ResourceKey.create(Registries.ITEM, Asterion.id("ancient_skeleton_spawn_egg"));
     @SuppressWarnings("deprecation") // Required by the shared Fabric/NeoForge registration path.
     public static final Item EGG = Registry.register(BuiltInRegistries.ITEM, EGG_KEY,
-            new SpawnEggItem(SKELETON, 0xD7C8A5, 0x6F6048, new Item.Properties()));
+            new SpawnEggItem(SKELETON, 0xD7C8A5, 0x6F6048, new net.krodark.asterion.port.compat.ItemProperties()));
     private static final ResourceKey<Item> BONE_KEY = ResourceKey.create(Registries.ITEM, Asterion.id("ancient_bone"));
     public static final Item ANCIENT_BONE = Registry.register(BuiltInRegistries.ITEM, BONE_KEY,
-            new Item(new Item.Properties().rarity(Rarity.UNCOMMON)
+            new Item(new net.krodark.asterion.port.compat.ItemProperties().rarity(Rarity.UNCOMMON)
                     .component(net.minecraft.core.component.DataComponents.LORE, new net.minecraft.world.item.component.ItemLore(
                             java.util.List.of(net.minecraft.network.chat.Component.translatable("tooltip.asterion.ancient_bone"))))));
 
     private static final ResourceKey<Item> HIDE_KEY = ResourceKey.create(Registries.ITEM, Asterion.id("minotaur_hide"));
     public static final Item MINOTAUR_HIDE = Registry.register(BuiltInRegistries.ITEM, HIDE_KEY,
-            new Item(new Item.Properties().rarity(Rarity.UNCOMMON)
+            new Item(new net.krodark.asterion.port.compat.ItemProperties().rarity(Rarity.UNCOMMON)
                     .component(net.minecraft.core.component.DataComponents.LORE, new net.minecraft.world.item.component.ItemLore(
                             java.util.List.of(net.minecraft.network.chat.Component.translatable("tooltip.asterion.minotaur_hide"))))));
 
@@ -42,7 +42,7 @@ public final class AncientContent {
                             .of(net.krodark.asterion.block.MinotaurTrophyBlockEntity::new, MINOTAUR_TROPHY).build(null));
     private static final ResourceKey<Item> TROPHY_ITEM_KEY = ResourceKey.create(Registries.ITEM, Asterion.id("minotaur_skull_trophy"));
     public static final Item MINOTAUR_TROPHY_ITEM = Registry.register(BuiltInRegistries.ITEM, TROPHY_ITEM_KEY,
-            new BlockItem(MINOTAUR_TROPHY, new Item.Properties().rarity(Rarity.RARE)));
+            new BlockItem(MINOTAUR_TROPHY, new net.krodark.asterion.port.compat.ItemProperties().rarity(Rarity.RARE)));
 
     private AncientContent() {}
     public static void initialize() {

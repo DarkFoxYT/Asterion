@@ -119,6 +119,10 @@ void main() {
         float heightLight = smoothstep(20.0, 112.0, sampleWorld.y);
         float dustMix = 0.24 + heightLight * 0.18;
         vec3 scatterColor = mix(FogTint, neutralDust, dustMix);
+        // Use the same extinction and scattering across the horizon. Distant
+        // atmosphere gradually becomes neutral, including geometry at the sky limit.
+        float grey = dot(scatterColor, vec3(0.2126, 0.7152, 0.0722));
+        scatterColor = mix(scatterColor, vec3(grey), smoothstep(64.0, 112.0, travel));
         scattering += visibility * extinction * scatterColor;
     }
 

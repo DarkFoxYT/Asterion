@@ -13,17 +13,17 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.phys.*;
 
-public final class TimedTrapBlockEntity extends BlockEntity {
+public final class TimedTrapBlockEntity extends net.krodark.asterion.port.compat.VersionedBlockEntity {
     private int seconds, remaining, burst;
     public TimedTrapBlockEntity(BlockPos pos, BlockState state) { super(GameplayContent.TRAP_ENTITY, pos, state); }
     public int periodSeconds() { return seconds == 0 ? 5 : seconds; }
-    public void setPeriodSeconds(int seconds) { this.seconds = Math.clamp(seconds, 1, 60); remaining = this.seconds * 20; setChanged(); }
+    public void setPeriodSeconds(int seconds) { this.seconds = net.krodark.asterion.port.compat.MathCompat.clamp(seconds, 1, 60); remaining = this.seconds * 20; setChanged(); }
     @Override protected void saveAdditional(CompoundTag out, net.minecraft.core.HolderLookup.Provider registries) {
         super.saveAdditional(out, registries); out.putInt("PeriodSeconds", seconds); out.putInt("RemainingTicks", remaining); out.putInt("BurstTicks", burst);
     }
     @Override protected void loadAdditional(CompoundTag in, net.minecraft.core.HolderLookup.Provider registries) {
-        super.loadAdditional(in, registries); seconds = Math.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(in, "PeriodSeconds", 0), 0, 60);
-        remaining = Math.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(in, "RemainingTicks", seconds * 20), 0, 1200); burst = Math.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(in, "BurstTicks", 0), 0, 8);
+        super.loadAdditional(in, registries); seconds = net.krodark.asterion.port.compat.MathCompat.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(in, "PeriodSeconds", 0), 0, 60);
+        remaining = net.krodark.asterion.port.compat.MathCompat.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(in, "RemainingTicks", seconds * 20), 0, 1200); burst = net.krodark.asterion.port.compat.MathCompat.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(in, "BurstTicks", 0), 0, 8);
     }
     public static void tick(Level world, BlockPos pos, BlockState state, TimedTrapBlockEntity trap) {
         if (!(world instanceof ServerLevel level)) return;
@@ -47,7 +47,13 @@ public final class TimedTrapBlockEntity extends BlockEntity {
             } else {
                 var hit = level.clip(new net.minecraft.world.level.ClipContext(start, start.add(direction.scale(7)),
                         net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE,
-                        net.minecraft.world.phys.shapes.CollisionContext.empty()));
+
+//? if >=1.20.5 {
+net.minecraft.world.phys.shapes.CollisionContext.empty()
+//?} else {
+/*(net.minecraft.world.entity.Entity)null*/
+//?}
+));
                 Vec3 end = hit.getLocation();
                 double length = start.distanceTo(end);
                 for (double distance = 0; distance < length; distance += .6) {
@@ -63,7 +69,7 @@ public final class TimedTrapBlockEntity extends BlockEntity {
             }
             if (--trap.burst == 0) level.setBlock(pos, state.setValue(TimedTrapBlock.ACTIVE, false), 3);
         }
-         
+
         trap.setChanged();
     }
 }

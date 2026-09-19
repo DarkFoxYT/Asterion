@@ -49,8 +49,8 @@ public final class CrucibleBlock extends BaseEntityBlock {
                 .setValue(PART_X, 2).setValue(PART_Y, 0).setValue(PART_Z, 2));
     }
 
-    @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
-    @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
+    protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
+    @Override public RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
     @Override public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return isRoot(state) ? new CrucibleBlockEntity(pos, state) : null;
     }
@@ -70,18 +70,18 @@ public final class CrucibleBlock extends BaseEntityBlock {
                                       LivingEntity placer, ItemStack stack) {
         if (!level.isClientSide()) placeStructure(level, pos, state.getValue(FACING));
     }
-    @Override protected BlockState rotate(BlockState state, Rotation rotation) {
+    @Override public BlockState rotate(BlockState state, Rotation rotation) {
         BlockPos offset = new BlockPos(state.getValue(PART_X) - 2, 0, state.getValue(PART_Z) - 2).rotate(rotation);
         return state.setValue(FACING, rotation.rotate(state.getValue(FACING)))
                 .setValue(PART_X, offset.getX() + 2).setValue(PART_Z, offset.getZ() + 2);
     }
-    @Override protected BlockState mirror(BlockState state, Mirror mirror) {
+    @Override public BlockState mirror(BlockState state, Mirror mirror) {
         return state.setValue(FACING, mirror.mirror(state.getValue(FACING)))
                 .setValue(PART_X, mirror == Mirror.FRONT_BACK ? 4 - state.getValue(PART_X) : state.getValue(PART_X))
                 .setValue(PART_Z, mirror == Mirror.LEFT_RIGHT ? 4 - state.getValue(PART_Z) : state.getValue(PART_Z));
     }
 
-    @Override protected net.minecraft.world.ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
+    protected net.minecraft.world.ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
                                                      Player player, InteractionHand hand, BlockHitResult hit) {
         BlockPos root = root(pos, state);
         BlockState rootState = level.getBlockState(root);
@@ -100,7 +100,7 @@ public final class CrucibleBlock extends BaseEntityBlock {
         return net.minecraft.world.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
     }
 
-    @Override protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
                                                           Player player, BlockHitResult hit) {
         BlockPos root = root(pos, state);
         BlockState rootState = level.getBlockState(root);
@@ -156,13 +156,13 @@ public final class CrucibleBlock extends BaseEntityBlock {
         }
     }
 
-    @Override protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+    @Override public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
                                                 LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
         level.scheduleTick(pos, this, 1);
         return state;
     }
 
-    @Override protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    @Override public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         BlockPos root = root(pos, state);
         BlockState rootState = level.getBlockState(root);
         if (!rootState.is(this) || !isRoot(rootState)) {
@@ -179,20 +179,20 @@ public final class CrucibleBlock extends BaseEntityBlock {
         }
     }
 
-    @Override protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos,
+    @Override public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos,
                                             CollisionContext context) {
         return COLLISION[shapeIndex(state.getValue(PART_X), state.getValue(PART_Y), state.getValue(PART_Z))];
     }
-    @Override protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos,
+    @Override public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos,
                                                      CollisionContext context) { return getShape(state, level, pos, context); }
-    @Override protected VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) { return Shapes.empty(); }
+    @Override public VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) { return Shapes.empty(); }
 
     private static int shapeIndex(int x, int y, int z) { return (y * 5 + z) * 5 + x; }
     private static VoxelShape[] makeCollision() {
         VoxelShape[] shapes = new VoxelShape[100];
         for (int x = 0; x < 5; x++) for (int y = 0; y < 4; y++) for (int z = 0; z < 5; z++) {
             VoxelShape shape = Shapes.empty();
-             
+
             shape = addClipped(shape, x, y, z, .3125, .25, .3125, 4.6875, 2.125, 4.6875);
             shape = addClipped(shape, x, y, z, 0, 1.25, 0, 5, 4, .75);
             shape = addClipped(shape, x, y, z, 0, 1.25, 4.25, 5, 4, 5);
@@ -212,4 +212,14 @@ public final class CrucibleBlock extends BaseEntityBlock {
         return Shapes.or(shape, Shapes.box(x1 - partX, y1 - partY, z1 - partZ,
                 x2 - partX, y2 - partY, z2 - partZ));
     }
+
+//? if <1.20.5 {
+/*    @Override public net.minecraft.world.InteractionResult use(net.minecraft.world.level.block.state.BlockState state,
+        net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos, net.minecraft.world.entity.player.Player player,
+        net.minecraft.world.InteractionHand hand, net.minecraft.world.phys.BlockHitResult hit) {
+        var result = useItemOn(player.getItemInHand(hand), state, level, pos, player, hand, hit);
+        if (result != net.krodark.asterion.port.legacy.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION) return result.result();
+        return useWithoutItem(state, level, pos, player, hit);
+    }*/
+//?}
 }

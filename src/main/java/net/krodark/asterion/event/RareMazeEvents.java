@@ -9,34 +9,34 @@ import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.core.HolderLookup;
 
- 
+
 public final class RareMazeEvents extends SavedData {
     public static final int HOUR = 20 * 60 * 60;
     public static final Codec<RareMazeEvents> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.LONG.optionalFieldOf("next_eclipse", -1L).forGetter(s -> s.eclipse),
             Codec.LONG.optionalFieldOf("next_flood", -1L).forGetter(s -> s.flood)
     ).apply(instance, RareMazeEvents::new));
-    private static final SavedData.Factory<RareMazeEvents> FACTORY =
+    private static final net.krodark.asterion.port.compat.SavedDataCompat.Factory<RareMazeEvents> FACTORY =
             net.krodark.asterion.port.compat.SavedDataCompat.factory(CODEC, RareMazeEvents::new);
     private long eclipse, flood;
     private RareMazeEvents() { this(-1, -1); }
     private RareMazeEvents(long eclipse, long flood) { this.eclipse = eclipse; this.flood = flood; }
     public static RareMazeEvents get(ServerLevel level) {
-        RareMazeEvents state = level.getDataStorage().computeIfAbsent(FACTORY, "asterion_rare_maze_events");
+        RareMazeEvents state = net.krodark.asterion.port.compat.SavedDataCompat.get(level.getDataStorage(), FACTORY, "asterion_rare_maze_events");
         if (state.eclipse < 0 || state.eclipse > level.getGameTime() + HOUR / 2 + 20 * 60 * 10) {
-             
+
             state.eclipse = level.getGameTime() + level.getRandom().nextIntBetweenInclusive(20 * 60 * 5, 20 * 60 * 8);
             state.setDirty();
         }
         if (state.flood < 0) state.schedule(level, DeadSunEventSystem.FLOOD, 0);
-         
+
         if (state.flood > level.getGameTime() + HOUR / 2) {
             state.flood = level.getGameTime() + HOUR / 2;
             state.setDirty();
         }
         return state;
     }
-    @Override public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+    public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         return net.krodark.asterion.port.compat.SavedDataCompat.save(CODEC, this, tag, registries);
     }
     public boolean ready(ResourceLocation event, long now) {
@@ -53,4 +53,7 @@ public final class RareMazeEvents extends SavedData {
         else return;
         setDirty();
     }
+//? if <1.20.5 {
+/*    @Override public net.minecraft.nbt.CompoundTag save(net.minecraft.nbt.CompoundTag tag) { return save(tag, null); }*/
+//?}
 }

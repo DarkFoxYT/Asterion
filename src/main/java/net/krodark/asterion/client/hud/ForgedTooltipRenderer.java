@@ -10,7 +10,7 @@ import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 
- 
+
 public final class ForgedTooltipRenderer implements ClientTooltipComponent {
     private static final int SIZE = 76;
     private static final Identifier[] BASE_TEXTURES = textures("base");
@@ -44,7 +44,7 @@ public final class ForgedTooltipRenderer implements ClientTooltipComponent {
 
     private static Identifier texture(int metal, String role) {
         Identifier[] textures = role.equals("base") ? BASE_TEXTURES : ADDITION_TEXTURES;
-        return textures[Math.clamp(metal, 0, textures.length - 1)];
+        return textures[net.krodark.asterion.port.compat.MathCompat.clamp(metal, 0, textures.length - 1)];
     }
 
     private static Identifier[] textures(String role) {

@@ -12,7 +12,7 @@ import net.minecraft.world.level.block.state.properties.*;
 import net.minecraft.world.phys.shapes.*;
 import org.jspecify.annotations.Nullable;
 
- 
+
 public final class GreekFireTorchBlock extends BaseEntityBlock implements SimpleWaterloggedBlock {
     public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty TOP = BooleanProperty.create("top");
@@ -36,7 +36,7 @@ public final class GreekFireTorchBlock extends BaseEntityBlock implements Simple
         registerDefaultState(stateDefinition.any().setValue(FACING,Direction.NORTH).setValue(TOP,true)
                 .setValue(LIT,true).setValue(WATERLOGGED,false).setValue(RELIGHT,0));
     }
-    @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
+    protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block,BlockState> builder) {
         builder.add(FACING,TOP,LIT,WATERLOGGED,RELIGHT);
     }
@@ -58,7 +58,7 @@ public final class GreekFireTorchBlock extends BaseEntityBlock implements Simple
                 .setValue(WATERLOGGED,wet).setValue(LIT,!wet);
         return canSurvive(state,context.getLevel(),context.getClickedPos())?state:null;
     }
-    @Override protected boolean canSurvive(BlockState state,LevelReader level,BlockPos pos) {
+    @Override public boolean canSurvive(BlockState state,LevelReader level,BlockPos pos) {
         if(wall) {
             Direction support=state.getValue(FACING).getOpposite();
             BlockPos supportPos=pos.relative(support);
@@ -68,7 +68,7 @@ public final class GreekFireTorchBlock extends BaseEntityBlock implements Simple
         return level.getBlockState(below).getBlock()==this
                 || Block.canSupportCenter(level,below,Direction.UP);
     }
-    @Override protected BlockState updateShape(BlockState state,Direction direction,BlockState neighbor,
+    @Override public BlockState updateShape(BlockState state,Direction direction,BlockState neighbor,
             LevelAccessor level,BlockPos pos,BlockPos neighborPos) {
         if(state.getValue(WATERLOGGED)) level.scheduleTick(pos,net.minecraft.world.level.material.Fluids.WATER,
                 net.minecraft.world.level.material.Fluids.WATER.getTickDelay(level));
@@ -77,7 +77,7 @@ public final class GreekFireTorchBlock extends BaseEntityBlock implements Simple
             return state.setValue(TOP,neighbor.getBlock()!=this);
         return state;
     }
-    @Override protected net.minecraft.world.level.material.FluidState getFluidState(BlockState state) {
+    @Override public net.minecraft.world.level.material.FluidState getFluidState(BlockState state) {
         return state.getValue(WATERLOGGED)?net.minecraft.world.level.material.Fluids.WATER.getSource(false):super.getFluidState(state);
     }
     @Override public boolean placeLiquid(LevelAccessor level,BlockPos pos,BlockState state,
@@ -87,9 +87,21 @@ public final class GreekFireTorchBlock extends BaseEntityBlock implements Simple
         if(wet.is(this)) level.setBlock(pos,wet.setValue(LIT,false).setValue(RELIGHT,0),Block.UPDATE_ALL);
         return true;
     }
-    @Override public net.minecraft.world.item.ItemStack pickupBlock(net.minecraft.world.entity.player.Player entity,
+    @Override
+//? if >=1.20.5 {
+public net.minecraft.world.item.ItemStack pickupBlock(net.minecraft.world.entity.player.Player entity,
+//?} else {
+/*public net.minecraft.world.item.ItemStack pickupBlock(*/
+//?}
+
             LevelAccessor level,BlockPos pos,BlockState state) {
-        net.minecraft.world.item.ItemStack result=SimpleWaterloggedBlock.super.pickupBlock(entity,level,pos,state);
+        net.minecraft.world.item.ItemStack result=
+//? if >=1.20.5 {
+SimpleWaterloggedBlock.super.pickupBlock(entity,level,pos,state)
+//?} else {
+/*SimpleWaterloggedBlock.super.pickupBlock(level,pos,state)*/
+//?}
+;
         if(!result.isEmpty()&&level instanceof net.minecraft.server.level.ServerLevel server) {
             BlockState dry=server.getBlockState(pos);
             if(dry.is(this)) server.setBlock(pos,dry.setValue(LIT,false).setValue(RELIGHT,10),Block.UPDATE_ALL);
@@ -97,7 +109,7 @@ public final class GreekFireTorchBlock extends BaseEntityBlock implements Simple
         }
         return result;
     }
-    @Override protected void tick(BlockState state,net.minecraft.server.level.ServerLevel level,BlockPos pos,RandomSource random) {
+    @Override public void tick(BlockState state,net.minecraft.server.level.ServerLevel level,BlockPos pos,RandomSource random) {
         if(state.getValue(WATERLOGGED)||state.getValue(LIT)) return;
         int remaining=state.getValue(RELIGHT);
         if(remaining<=1) {
@@ -107,18 +119,18 @@ public final class GreekFireTorchBlock extends BaseEntityBlock implements Simple
         level.setBlock(pos,state.setValue(RELIGHT,remaining-1),Block.UPDATE_CLIENTS);
         level.scheduleTick(pos,this,20);
     }
-    @Override protected BlockState rotate(BlockState state,Rotation rotation) {
+    @Override public BlockState rotate(BlockState state,Rotation rotation) {
         return state.setValue(FACING,rotation.rotate(state.getValue(FACING)));
     }
     @SuppressWarnings("deprecation") // NeoForge's context overload is unavailable on Fabric 1.21.1.
-    @Override protected BlockState mirror(BlockState state,Mirror mirror) {
+    @Override public BlockState mirror(BlockState state,Mirror mirror) {
         return state.rotate(mirror.getRotation(state.getValue(FACING)));
     }
-    @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
-    @Override protected VoxelShape getShape(BlockState state,BlockGetter level,BlockPos pos,CollisionContext context) {
+    @Override public RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
+    @Override public VoxelShape getShape(BlockState state,BlockGetter level,BlockPos pos,CollisionContext context) {
         if(!wall) return state.getValue(TOP)?box(1,0,1,15,16,15):box(6,0,6,10,16,10);
-         
-         
+
+
         return switch(state.getValue(FACING)) {
             case EAST -> WALL_SHAPES[1]; case SOUTH -> WALL_SHAPES[2];
             case WEST -> WALL_SHAPES[3]; default -> WALL_SHAPES[0];
@@ -136,9 +148,9 @@ public final class GreekFireTorchBlock extends BaseEntityBlock implements Simple
             }
             boxes[index]=box(minX,source[1],minZ,maxX,source[4],maxZ);
         }
-         
-         
-         
+
+
+
         return Shapes.or(boxes[0],boxes[1],boxes[2],boxes[3],boxes[4]);
     }
     @Override public BlockEntity newBlockEntity(BlockPos pos,BlockState state) {

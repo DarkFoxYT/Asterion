@@ -21,7 +21,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.*;
 import org.jspecify.annotations.Nullable;
 
- 
+
 public final class BarrelDoorBlock extends BaseEntityBlock implements WaterloggedDecoration {
     public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty OPEN = BlockStateProperties.OPEN;
@@ -37,7 +37,7 @@ public final class BarrelDoorBlock extends BaseEntityBlock implements Waterlogge
                 .setValue(OPEN, false).setValue(CURSED_LOCKED,false)
                 .setValue(WING, false).setValue(COLUMN, 1).setValue(ROW, 0));
     }
-    @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
+    protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
     public static boolean isRoot(BlockState state) { return !state.getValue(WING) && state.getValue(COLUMN) == 1 && state.getValue(ROW) == 0; }
     public static BlockPos root(BlockPos pos, BlockState state) {
         Direction facing = state.getValue(FACING);
@@ -91,8 +91,8 @@ public final class BarrelDoorBlock extends BaseEntityBlock implements Waterlogge
         for (int depth = 1; depth <= 3; depth++) for (int row = 0; row < 4; row++) {
             BlockPos part = wing(root, facing, depth, row);
             BlockState existing = level.getBlockState(part);
-             
-             
+
+
             if (!existing.isAir()
                     && !(existing.is(Asterion.BARREL_DOOR) && root(part, existing).equals(root))
                     && !(existing.getBlock() instanceof net.minecraft.world.level.block.LiquidBlock)
@@ -138,20 +138,20 @@ public final class BarrelDoorBlock extends BaseEntityBlock implements Waterlogge
         }
         return InteractionResult.PASS;
     }
-    @Override protected net.minecraft.world.ItemInteractionResult useItemOn(ItemStack held, BlockState state, Level level, BlockPos pos,
+    protected net.minecraft.world.ItemInteractionResult useItemOn(ItemStack held, BlockState state, Level level, BlockPos pos,
                                                    Player player, InteractionHand hand, BlockHitResult hit) {
         return net.krodark.asterion.port.compat.InteractionCompat.item(interact(level, pos, state, player, held));
     }
-    @Override protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
                                                         Player player, BlockHitResult hit) {
         return interact(level, pos, state, player, ItemStack.EMPTY);
     }
-    @Override protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+    @Override public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
             net.minecraft.world.level.LevelAccessor level, BlockPos pos, BlockPos neighbor) {
         level.scheduleTick(pos, this, 1);
         return state;
     }
-    @Override protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    @Override public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         BlockPos root = root(pos, state);
         if (!level.isLoaded(root)) return;
         if (!(level.getBlockEntity(root) instanceof BarrelDoorBlockEntity)) {
@@ -161,10 +161,10 @@ public final class BarrelDoorBlock extends BaseEntityBlock implements Waterlogge
         Direction facing = state.getValue(FACING);
         for (int column = 0; column < 3; column++) for (int row = 0; row < 4; row++)
             if (!level.isLoaded(part(root, facing, column, row))) return;
-         
-         
-         
-         
+
+
+
+
         for (int column = 0; column < 3; column++) for (int row = 0; row < 4; row++) {
             BlockPos part = part(root, facing, column, row);
             BlockState other = level.getBlockState(part);
@@ -174,10 +174,10 @@ public final class BarrelDoorBlock extends BaseEntityBlock implements Waterlogge
             }
         }
     }
-    @Override protected BlockState rotate(BlockState state, Rotation rotation) {
+    @Override public BlockState rotate(BlockState state, Rotation rotation) {
         return state.setValue(FACING, rotation.rotate(state.getValue(FACING)));
     }
-    @Override protected BlockState mirror(BlockState state, Mirror mirror) {
+    @Override public BlockState mirror(BlockState state, Mirror mirror) {
         return mirror == Mirror.NONE ? state : state.setValue(FACING, mirror.mirror(state.getValue(FACING)))
                 .setValue(COLUMN, state.getValue(WING) ? state.getValue(COLUMN) : 2 - state.getValue(COLUMN));
     }
@@ -188,8 +188,8 @@ public final class BarrelDoorBlock extends BaseEntityBlock implements Waterlogge
         }
         return super.playerWillDestroy(level, pos, state, player);
     }
-    @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
-    @Override protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    @Override public RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
+    @Override public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         if (!state.getValue(OPEN)) return state.getValue(FACING).getAxis() == Direction.Axis.Z
                 ? box(0, 0, 5, 16, 16, 11) : box(5, 0, 0, 11, 16, 16);
         if (!state.getValue(WING) && state.getValue(COLUMN) != 2) return Shapes.empty();
@@ -202,17 +202,17 @@ public final class BarrelDoorBlock extends BaseEntityBlock implements Waterlogge
             default -> box(10, 0, z0, 16, 16, z1);
         };
     }
-    @Override protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    @Override public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return getShape(state, level, pos, context);
     }
-    @Override protected VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) { return Shapes.empty(); }
+    @Override public VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) { return Shapes.empty(); }
     @Override public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-         
-         
-         
+
+
+
         return new BarrelDoorBlockEntity(pos, state);
     }
-     
+
     public static void setCursedLocked(Level level,BlockPos root,Direction facing,boolean locked) {
         for(int column=0;column<3;column++)for(int row=0;row<4;row++) {
             BlockPos pos=part(root,facing,column,row);
@@ -224,4 +224,14 @@ public final class BarrelDoorBlock extends BaseEntityBlock implements Waterlogge
     @Override public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
         return isRoot(state)?createTickerHelper(type,Asterion.BARREL_DOOR_BLOCK_ENTITY,BarrelDoorBlockEntity::tick):null;
     }
+
+//? if <1.20.5 {
+/*    @Override public net.minecraft.world.InteractionResult use(net.minecraft.world.level.block.state.BlockState state,
+        net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos, net.minecraft.world.entity.player.Player player,
+        net.minecraft.world.InteractionHand hand, net.minecraft.world.phys.BlockHitResult hit) {
+        var result = useItemOn(player.getItemInHand(hand), state, level, pos, player, hand, hit);
+        if (result != net.krodark.asterion.port.legacy.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION) return result.result();
+        return useWithoutItem(state, level, pos, player, hit);
+    }*/
+//?}
 }

@@ -19,7 +19,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.phys.AABB;
 
-public final class CursedBrazierDoorBlockEntity extends BlockEntity implements GeoBlockEntity {
+public final class CursedBrazierDoorBlockEntity extends net.krodark.asterion.port.compat.VersionedBlockEntity implements GeoBlockEntity {
     public static final int MOVE_TICKS = 90;
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private float progress;
@@ -36,7 +36,7 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
     }
     public float progress(float partialTick) {
         if (!moving || level == null) return progress;
-        float t = Math.clamp((level.getGameTime() - motionStart + partialTick) / MOVE_TICKS, 0F, 1F);
+        float t = net.krodark.asterion.port.compat.MathCompat.clamp((level.getGameTime() - motionStart + partialTick) / MOVE_TICKS, 0F, 1F);
         t = t * t * (3F - 2F * t);
         return startProgress + ((raising ? 1F : 0F) - startProgress) * t;
     }
@@ -107,7 +107,7 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
         var facing = getBlockState().getValue(CursedBrazierDoorBlock.FACING);
         BlockPos a = CursedBrazierDoorBlock.part(worldPosition, facing, 0, 0);
         BlockPos b = CursedBrazierDoorBlock.part(worldPosition, facing, 2, 4);
-        return AABB.encapsulatingFullBlocks(a, b).inflate(.35D, 0, .35D);
+        return net.krodark.asterion.port.compat.GeometryCompat.fullBlocks(a, b).inflate(.35D, 0, .35D);
     }
     public static void tick(Level level, BlockPos pos, BlockState state, CursedBrazierDoorBlockEntity door) {
         if (level.isClientSide() || !CursedBrazierDoorBlock.isRoot(state)) return;

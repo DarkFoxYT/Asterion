@@ -18,16 +18,16 @@ public final class ChainLiftContent {
     public static final Block ANCHOR = Registry.register(BuiltInRegistries.BLOCK, BLOCK_KEY,
             new ChainLiftBlock(BlockBehaviour.Properties.of().strength(5, 1200).sound(SoundType.METAL)));
     private static final ResourceKey<Item> ITEM_KEY = ResourceKey.create(Registries.ITEM, Asterion.id("chain_lift"));
-    public static final Item ITEM = Registry.register(BuiltInRegistries.ITEM, ITEM_KEY, new ChainLiftBlockItem(ANCHOR, new Item.Properties()));
+    public static final Item ITEM = Registry.register(BuiltInRegistries.ITEM, ITEM_KEY, new ChainLiftBlockItem(ANCHOR, new net.krodark.asterion.port.compat.ItemProperties()));
     public static final BlockEntityType<ChainLiftBlockEntity> BLOCK_ENTITY = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE,
             Asterion.id("chain_lift"), BlockEntityType.Builder.of(ChainLiftBlockEntity::new, ANCHOR).build(null));
     private static final ResourceKey<EntityType<?>> ENTITY_KEY = ResourceKey.create(Registries.ENTITY_TYPE, Asterion.id("chain_lift"));
     public static final EntityType<ChainLiftEntity> LIFT = Registry.register(BuiltInRegistries.ENTITY_TYPE, ENTITY_KEY,
-            EntityType.Builder.of(ChainLiftEntity::new, MobCategory.MISC).sized(3, .5F)
+            net.minecraft.world.entity.EntityType.Builder.of(ChainLiftEntity::new, MobCategory.MISC).sized(3, .5F)
                     .clientTrackingRange(16).updateInterval(1).fireImmune().build(null));
     private static final ResourceKey<EntityType<?>> RUNE_KEY = ResourceKey.create(Registries.ENTITY_TYPE, Asterion.id("lift_call_rune"));
     public static final EntityType<net.krodark.asterion.entity.LiftCallRuneEntity> CALL_RUNE = Registry.register(BuiltInRegistries.ENTITY_TYPE, RUNE_KEY,
-            EntityType.Builder.of(net.krodark.asterion.entity.LiftCallRuneEntity::new, MobCategory.MISC).sized(.7F, .7F)
+            net.minecraft.world.entity.EntityType.Builder.of(net.krodark.asterion.entity.LiftCallRuneEntity::new, MobCategory.MISC).sized(.7F, .7F)
                     .clientTrackingRange(10).updateInterval(20).fireImmune().build(null));
     private ChainLiftContent() {}
     public static void initialize() {

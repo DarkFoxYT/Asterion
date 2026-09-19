@@ -51,11 +51,11 @@ public final class AsterionConfig {
     public float minotaurVerticalFov = 70.0f;
     public int minotaurBossPillarCount = 6;
     public boolean cinematicsEnabled = true;
-     
+
     public boolean objectiveHudEnabled = true;
-     
+
     public int objectiveHudSeconds = 0;
-     
+
     public int brightnessPercent = 0;
     public int musicVolumePercent = 50;
     public int cinematicQuality = 2;
@@ -276,14 +276,14 @@ public final class AsterionConfig {
         minotaurVerticalFov = clamp(minotaurVerticalFov, 25.0f, 120.0f);
         minotaurBossPillarCount = Math.max(4, Math.min(16, minotaurBossPillarCount));
         cinematicQuality = Math.max(0, Math.min(2, cinematicQuality));
-        bloomQuality = Math.clamp(bloomQuality, -1, 3);
-        decorationRenderDistance = Math.clamp(decorationRenderDistance, 16, 128);
+        bloomQuality = net.krodark.asterion.port.compat.MathCompat.clamp(bloomQuality, -1, 3);
+        decorationRenderDistance = net.krodark.asterion.port.compat.MathCompat.clamp(decorationRenderDistance, 16, 128);
         objectiveHudSeconds = Math.max(0, Math.min(120, objectiveHudSeconds));
-        brightnessPercent = Math.clamp(brightnessPercent, -1, 100);
-        musicVolumePercent = Math.clamp(musicVolumePercent, 0, 100);
+        brightnessPercent = net.krodark.asterion.port.compat.MathCompat.clamp(brightnessPercent, -1, 100);
+        musicVolumePercent = net.krodark.asterion.port.compat.MathCompat.clamp(musicVolumePercent, 0, 100);
         ambientParticleQuality = Math.max(0, Math.min(2, ambientParticleQuality));
-        maxEmissiveParticles = Math.clamp(maxEmissiveParticles, 256, 16384);
-        emissiveParticleDistance = Math.clamp(emissiveParticleDistance, 32, 256);
+        maxEmissiveParticles = net.krodark.asterion.port.compat.MathCompat.clamp(maxEmissiveParticles, 256, 16384);
+        emissiveParticleDistance = net.krodark.asterion.port.compat.MathCompat.clamp(emissiveParticleDistance, 32, 256);
         ragdollPhysicsQuality = Math.max(0, Math.min(2, ragdollPhysicsQuality));
         dynamicLightQuality = Math.max(0, Math.min(2, dynamicLightQuality));
         dynamicLightRangePercent = Math.max(25, Math.min(100, dynamicLightRangePercent));
@@ -317,7 +317,7 @@ public final class AsterionConfig {
     }
 
     private static float clamp(float value, float min, float max) {
-        return Float.isNaN(value) ? min : Math.clamp(value, min, max);
+        return Float.isNaN(value) ? min : net.krodark.asterion.port.compat.MathCompat.clamp(value, min, max);
     }
 
     public void save() {

@@ -29,7 +29,7 @@ public final class ShatteredDeadWoodGeoRenderer
     @Override
     public void adjustModelBonesForRender(RenderPassInfo<BlockEntityRenderState> pass, BoneSnapshots bones) {
         super.adjustModelBonesForRender(pass, bones);
-        Direction facing = Direction.values()[Math.clamp(
+        Direction facing = Direction.values()[net.krodark.asterion.port.compat.MathCompat.clamp(
                 pass.getOrDefaultGeckolibData(FACING, Direction.UP.ordinal()),
                 0, Direction.values().length - 1)];
         float x = 0.0F;

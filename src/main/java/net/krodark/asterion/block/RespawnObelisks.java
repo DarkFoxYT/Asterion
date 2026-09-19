@@ -21,7 +21,7 @@ public final class RespawnObelisks {
     public static final SanctuaryBlock ALTAR = register("respawn_altar", true);
     public static final SanctuaryBlock OBELISK = register("respawn_obelisk", false);
     public static final Item CHARGED_RUNE = Registry.register(BuiltInRegistries.ITEM,
-            Asterion.id("charged_respawn_rune"), new Item(new Item.Properties().stacksTo(1)));
+            Asterion.id("charged_respawn_rune"), new Item(new net.krodark.asterion.port.compat.ItemProperties().stacksTo(1)));
     public static final BlockEntityType<SanctuaryBlockEntity> BLOCK_ENTITY = Registry.register(
             BuiltInRegistries.BLOCK_ENTITY_TYPE, Asterion.id("sanctuary"),
             BlockEntityType.Builder.of(SanctuaryBlockEntity::new, ALTAR, OBELISK).build(null));
@@ -35,11 +35,11 @@ public final class RespawnObelisks {
                 new SanctuaryBlock(altar, BlockBehaviour.Properties.of().strength(4.0F, 12.0F)
                         .noOcclusion().sound(SoundType.DEEPSLATE)
                         .lightLevel(state -> state.getValue(SanctuaryBlock.CHARGE) == 1 ? (altar ? 5 : 11) : 0)));
-        Registry.register(BuiltInRegistries.ITEM, id, new BlockItem(block, new Item.Properties()));
+        Registry.register(BuiltInRegistries.ITEM, id, new BlockItem(block, new net.krodark.asterion.port.compat.ItemProperties()));
         return block;
     }
 
-     
+
     public static boolean chargeNearest(ServerLevel level, BlockPos origin) {
         BlockPos nearest = nearestUnchargedAltar(level, origin);
         if (nearest == null) return false;
@@ -65,7 +65,7 @@ public final class RespawnObelisks {
         return nearest;
     }
 
-     
+
     public static void ensureRoomFixtures(ServerLevel level, BlockPos rune) {
         BlockPos marker = null;
         boolean hasAltar = false;

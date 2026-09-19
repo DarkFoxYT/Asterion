@@ -16,7 +16,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(SimpleWaterloggedBlock.class)
 public interface HeavyWaterPickupMixin {
     @Inject(method = "pickupBlock", at = @At("HEAD"), cancellable = true)
-    private void asterion$pickUpHeavyWater(Player user, LevelAccessor level, BlockPos pos, BlockState state,
+    //? if >=1.20.5 {
+private void asterion$pickUpHeavyWater(Player user, LevelAccessor level, BlockPos pos, BlockState state,
+//?} else {
+/*private void asterion$pickUpHeavyWater(LevelAccessor level, BlockPos pos, BlockState state,*/
+//?}
+
                                           CallbackInfoReturnable<ItemStack> result) {
         int amount = HeavyWaterlogging.amount(state);
         if (amount == 0) return;

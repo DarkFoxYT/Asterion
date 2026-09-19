@@ -24,13 +24,13 @@ public final class RuneDoorBlock extends Block {
     }
 
     @Override
-    protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos,
+    public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos,
                                             CollisionContext context) {
         return state.getValue(OPEN) ? Shapes.empty() : Shapes.block();
     }
 
     @Override
-    protected VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
+    public VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
         return state.getValue(OPEN) ? Shapes.empty() : Shapes.block();
     }
 }

@@ -14,7 +14,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.EntityHitResult;
 
- 
+
 public final class QueenBeetleQuestOverlay {
     private static final int CARD_WIDTH = 202;
     private static int stage = -1;
@@ -39,7 +39,7 @@ public final class QueenBeetleQuestOverlay {
     public static void receive(QueenBeetleQuestPayload payload) {
         boolean restoring = payload.stage() == QueenBeetleQuestPayload.RESTORE_ACTIVE;
         boolean wasActive = isActive() && questIndex == payload.questIndex();
-        questIndex = Math.clamp(payload.questIndex(), 0, QueenBeetleQuests.ALL.size() - 1);
+        questIndex = net.krodark.asterion.port.compat.MathCompat.clamp(payload.questIndex(), 0, QueenBeetleQuests.ALL.size() - 1);
         var request = quest();
         questTitle = Component.translatable(request.key("title"));
         questItem = new ItemStack(request.item()).getHoverName();
@@ -50,8 +50,8 @@ public final class QueenBeetleQuestOverlay {
         target = Math.max(1, payload.target());
         anger = Mth.clamp(payload.anger(), 0, 4);
         if (!wasActive || restoring) displayedProgress = payload.progress();
-         
-         
+
+
         if (!wasActive) objectiveTicks = restoring ? 12 : 0;
         dialogueDuration = payload.stage() == QueenBeetleQuestPayload.REWARDED ? 150 : 120;
         if (stage == QueenBeetleQuestPayload.ACCEPTED || stage == QueenBeetleQuestPayload.REWARDED) {

@@ -1,0 +1,90 @@
+plugins {
+    id 'dev.kikugie.stonecutter'
+}
+stonecutter.active '1.21.1'
+stonecutter.parameters {
+    replacements {
+        string(current.parsed >= '1.21') {
+            replace('new net.minecraft.resources.ResourceLocation(', 'net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(')
+        }
+        string(current.parsed >= '1.20.5') {
+            replace('net.krodark.asterion.port.legacy.EntityTypeBuilder.', 'net.minecraft.world.entity.EntityType.Builder.')
+            replace('net.krodark.asterion.port.compat.ClientTime.partialTick()', 'Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false)')
+            replace('net.minecraft.world.item.alchemy.PotionUtils.setPotion(new ItemStack(Items.POTION), ', 'net.minecraft.world.item.alchemy.PotionContents.createItemStack(Items.POTION, ')
+            replace('SoundEvents.AMETHYST_BLOCK_CHIME', 'SoundEvents.TRIAL_SPAWNER_ABOUT_TO_SPAWN_ITEM')
+            replace('.damageSources().inFire()', '.damageSources().campfire()')
+            replace('.getAdvancements().getAdvancement(', '.getAdvancements().get(')
+            replace('Blocks.TUFF', 'Blocks.TUFF_BRICKS')
+            replace('.addTransientModifier(', '.addOrUpdateTransientModifier(')
+            replace('net.krodark.asterion.port.legacy.DamageEvents.AFTER_DAMAGE', 'ServerLivingEntityEvents.AFTER_DAMAGE')
+            replace('net.krodark.asterion.port.legacy.gecko.GeoBlockRenderer', 'software.bernie.geckolib.renderer.GeoBlockRenderer')
+
+            replace('net.krodark.asterion.port.legacy.network.ItemCodecs.STACK', 'ItemStack.STREAM_CODEC')
+            replace('ResourceLocation.tryParse(', 'ResourceLocation.parse(')
+            replace('net.krodark.asterion.port.legacy.item.SwordItem', 'net.minecraft.world.item.SwordItem')
+            replace('net.krodark.asterion.port.legacy.BlockCodecs.simple(', 'simpleCodec(')
+            replace('public void playerWillDestroy(', 'public BlockState playerWillDestroy(')
+            replace('super.playerWillDestroy(level, pos, state, player);', 'return super.playerWillDestroy(level, pos, state, player);')
+            replace('net.krodark.asterion.port.legacy.gecko.GeoRenderProvider', 'software.bernie.geckolib.animatable.client.GeoRenderProvider')
+            replace('net.krodark.asterion.port.legacy.gecko.GeoItem', 'software.bernie.geckolib.animatable.GeoItem')
+            replace('net.krodark.asterion.Asterion.RUMBLE_SMOKE', 'ParticleTypes.DUST_PLUME')
+            replace('SoundEvents.BEACON_ACTIVATE', 'SoundEvents.VAULT_ACTIVATE')
+            replace('SoundEvents.GENERIC_EXPLODE', 'SoundEvents.GENERIC_EXPLODE.value()')
+            replace('SoundEvents.ARMOR_EQUIP_IRON', 'SoundEvents.ARMOR_EQUIP_IRON.value()')
+            replace('SoundEvents.CROSSBOW_LOADING_END', 'SoundEvents.CROSSBOW_LOADING_END.value()')
+            replace('.saturationMod(', '.saturationModifier(')
+            replace('net.minecraft.world.entity.SpawnPlacements.Type', 'net.minecraft.world.entity.SpawnPlacementTypes')
+            replace('EquipmentSlot.MAINHAND', 'EquipmentSlotGroup.MAINHAND')
+            replace('AttributeModifier.Operation.ADDITION', 'AttributeModifier.Operation.ADD_VALUE')
+            replace('BASE_ATTACK_DAMAGE_UUID', 'BASE_ATTACK_DAMAGE_ID')
+            replace('BASE_ATTACK_SPEED_UUID', 'BASE_ATTACK_SPEED_ID')
+            replace('net.minecraft.world.level.Level context', 'TooltipContext context')
+            replace('.getFrameTime()', '.getTimer().getGameTimeDeltaPartialTick(true)')
+            replace('.tickDelta()', '.tickCounter().getGameTimeDeltaPartialTick(false)')
+            replace('new ResourceLocation("minecraft", ', 'ResourceLocation.withDefaultNamespace(')
+            replace('getDimensions(Pose pose)', 'getDefaultDimensions(Pose pose)')
+            replace('super.getDimensions(pose)', 'super.getDefaultDimensions(pose)')
+            replace('base.width', 'base.width()')
+            replace('base.height', 'base.height()')
+            replace('net.krodark.asterion.port.legacy.item.DataComponents', 'net.minecraft.core.component.DataComponents')
+            replace('net.krodark.asterion.port.legacy.item.DataComponentType', 'net.minecraft.core.component.DataComponentType')
+            replace('net.krodark.asterion.port.legacy.item.CustomData', 'net.minecraft.world.item.component.CustomData')
+            replace('net.krodark.asterion.port.legacy.item.CustomModelData', 'net.minecraft.world.item.component.CustomModelData')
+            replace('net.krodark.asterion.port.legacy.item.ItemLore', 'net.minecraft.world.item.component.ItemLore')
+            replace('net.krodark.asterion.port.legacy.item.LodestoneTracker', 'net.minecraft.world.item.component.LodestoneTracker')
+            replace('net.krodark.asterion.port.legacy.item.ItemAttributeModifiers', 'net.minecraft.world.item.component.ItemAttributeModifiers')
+            replace('net.minecraft.world.entity.EquipmentSlot', 'net.minecraft.world.entity.EquipmentSlotGroup')
+            replace('net.minecraft.world.inventory.CraftingContainer', 'net.minecraft.world.item.crafting.CraftingInput')
+            replace('CraftingContainer', 'CraftingInput')
+            replace('input.getItems()', 'input.items()')
+            replace('net.krodark.asterion.port.legacy.BlockEntity', 'net.krodark.asterion.port.compat.VersionedBlockEntity')
+            replace('net.krodark.asterion.port.legacy.ItemInteractionResult', 'net.minecraft.world.ItemInteractionResult')
+            replace('BlockPathTypes', 'PathType')
+            replace('software.bernie.geckolib.core.object.PlayState', 'software.bernie.geckolib.animation.PlayState')
+            replace('software.bernie.geckolib.core.animatable.GeoAnimatable', 'software.bernie.geckolib.animatable.GeoAnimatable')
+            replace('FriendlyByteBuf', 'RegistryFriendlyByteBuf')
+            replace('net.krodark.asterion.port.legacy.network.StreamCodec', 'net.minecraft.network.codec.StreamCodec')
+            replace('net.krodark.asterion.port.legacy.network.ByteBufCodecs', 'net.minecraft.network.codec.ByteBufCodecs')
+            replace('net.krodark.asterion.port.legacy.network.CustomPacketPayload', 'net.minecraft.network.protocol.common.custom.CustomPacketPayload')
+            replace('net.krodark.asterion.port.legacy.network.PayloadTypeRegistry', 'net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry')
+            replace('net.krodark.asterion.port.legacy.network.ServerPlayNetworking', 'net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking')
+            replace('net.krodark.asterion.port.legacy.network.ClientPlayNetworking', 'net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking')
+            replace('net.minecraft.world.level.chunk.ChunkStatus', 'net.minecraft.world.level.chunk.status.ChunkStatus')
+        }
+        string(current.parsed >= '1.21') {
+            replace('new ResourceLocation(', 'ResourceLocation.fromNamespaceAndPath(')
+            replace('software.bernie.geckolib.core.animation.', 'software.bernie.geckolib.animation.')
+            replace('software.bernie.geckolib.core.animatable.instance.', 'software.bernie.geckolib.animatable.instance.')
+        }
+    }
+}
+tasks.register('buildAllVersions') {
+    group = 'build'
+    description = 'Build both Minecraft versions with Stonecutter.'
+    dependsOn ':1.20.1:build', ':1.21.1:build'
+}
+
+tasks.register('stageTestBuilds') {
+    group = 'distribution'
+    dependsOn ':1.20.1:stagePlayableBuild', ':1.21.1:stagePlayableBuild', ':neoforge:stagePlayableBuild'
+}

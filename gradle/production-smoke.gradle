@@ -1,0 +1,48 @@
+def loomLoader = tasks.named('remapJar').get().getClass().getClassLoader()
+def remapType = Class.forName('net.fabricmc.loom.task.RemapJarTask', true, loomLoader)
+def productionType = Class.forName('net.fabricmc.loom.task.prod.ClientProductionRunTask', true, loomLoader)
+// Exercise the shipped remapped artifacts in an actual production classloader.
+def smokeMetadata = tasks.register('productionSmokeMetadata') {
+    def output = layout.buildDirectory.file('production-smoke-metadata/fabric.mod.json')
+    outputs.file(output)
+    inputs.file(rootProject.file('src/gametest/resources/fabric.mod.json'))
+    doLast {
+        def metadata = new groovy.json.JsonSlurper().parse(rootProject.file('src/gametest/resources/fabric.mod.json'))
+        metadata.entrypoints.remove('fabric-gametest')
+        metadata.depends.remove('fabric-gametest-api-v1')
+        metadata.environment = 'client'
+        def file = output.get().asFile
+        file.parentFile.mkdirs()
+        file.setText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata)), 'UTF-8')
+    }
+}
+
+def smokeJar = tasks.register('smokeHarnessJar', Jar) {
+    from(sourceSets.gametest.output) { exclude 'fabric.mod.json' }
+    exclude 'net/krodark/asterion/test/CompatibilityGameTests.class'
+    from(layout.buildDirectory.dir('production-smoke-metadata'))
+    dependsOn smokeMetadata
+    archiveClassifier = 'smoke-dev'
+    destinationDirectory = layout.buildDirectory.dir('test-harness')
+}
+def smokeRemap = tasks.register('remapSmokeHarnessJar', remapType) {
+    dependsOn smokeJar
+    inputFile = smokeJar.flatMap { it.archiveFile }
+    archiveClassifier = 'smoke'
+    destinationDirectory = layout.buildDirectory.dir('test-harness')
+    addNestedDependencies = false
+    classpath.from(sourceSets.gametest.compileClasspath)
+}
+tasks.register('runProductionSmokeClient', productionType) {
+    // Both Loom versions share the global asset cache. Declare both producers.
+    dependsOn ':1.20.1:downloadAssets', ':1.21.1:downloadAssets'
+    group = 'verification'
+    description = 'Run the opt-in client scenario using the release JAR and real production dependencies.'
+    mods.setFrom(tasks.named('remapJar'), smokeRemap, configurations.distributionMods)
+    runDir = layout.buildDirectory.dir('run/production-smoke')
+    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(minecraft_version == '1.20.1' ? 17 : 21) }
+    jvmArgs.addAll('-Dasterion.clientSmoke=true', '-Damnetic.opengl.debug=true', '-Dfabric.noGui=true')
+    if (project.hasProperty('bloomSmoke')) jvmArgs.add('-Dasterion.bloomSmoke=true')
+    if (project.hasProperty('atmosphereSmoke')) jvmArgs.add('-Dasterion.atmosphereSmoke=true')
+    programArgs.addAll('--username', 'AsterionTest', '--accessToken', '0', '--version', minecraft_version)
+}

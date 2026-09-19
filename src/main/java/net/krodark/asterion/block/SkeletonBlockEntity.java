@@ -9,7 +9,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-public final class SkeletonBlockEntity extends BlockEntity implements GeoBlockEntity {
+public final class SkeletonBlockEntity extends net.krodark.asterion.port.compat.VersionedBlockEntity implements GeoBlockEntity {
     private AnimatableInstanceCache animationCache;
 
     public SkeletonBlockEntity(BlockPos pos, BlockState state) {

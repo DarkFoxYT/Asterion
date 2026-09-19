@@ -28,11 +28,26 @@ public final class ArmorContent {
     private static Set register(String name, int durability, int head, int chest, int legs, int feet,
                                 int enchantability, float toughness, float knockbackResistance) {
         TagKey<Item> repairs = TagKey.create(Registries.ITEM, Asterion.id("repairs_" + name + "_armor"));
+
+//? if >=1.20.5 {
         var material = Holder.direct(new ArmorMaterial(
                 Map.of(ArmorItem.Type.HELMET, head, ArmorItem.Type.CHESTPLATE, chest,
                         ArmorItem.Type.LEGGINGS, legs, ArmorItem.Type.BOOTS, feet, ArmorItem.Type.BODY, chest),
                 enchantability, SoundEvents.ARMOR_EQUIP_IRON, () -> Ingredient.of(repairs),
                 List.of(new ArmorMaterial.Layer(Asterion.id(name))), toughness, knockbackResistance));
+//?} else {
+/*        var material = Holder.<ArmorMaterial>direct(new ArmorMaterial() {
+ public int getDurabilityForType(ArmorItem.Type type){return durability * switch(type){case HELMET->11;case CHESTPLATE->16;case LEGGINGS->15;case BOOTS->13;};}
+ public int getDefenseForType(ArmorItem.Type type){return switch(type){case HELMET->head;case CHESTPLATE->chest;case LEGGINGS->legs;case BOOTS->feet;};}
+ public int getEnchantmentValue(){return enchantability;}
+ public net.minecraft.sounds.SoundEvent getEquipSound(){return SoundEvents.ARMOR_EQUIP_IRON;}
+ public Ingredient getRepairIngredient(){return Ingredient.of(repairs);}
+ public String getName(){return "asterion:"+name;}
+ public float getToughness(){return toughness;}
+ public float getKnockbackResistance(){return knockbackResistance;}
+ });*/
+//?}
+
         return new Set(name, material, List.of(piece(name, "helmet", material, ArmorItem.Type.HELMET, durability),
                 piece(name, "chestplate", material, ArmorItem.Type.CHESTPLATE, durability),
                 piece(name, "leggings", material, ArmorItem.Type.LEGGINGS, durability),
@@ -42,7 +57,13 @@ public final class ArmorContent {
                               ArmorItem.Type type, int durability) {
         var key = ResourceKey.create(Registries.ITEM, Asterion.id(materialName + "_" + slot));
         return Registry.register(BuiltInRegistries.ITEM, key,
-                new ArmorItem(material, type, new Item.Properties().durability(type.getDurability(durability))));
+
+//? if >=1.20.5 {
+new ArmorItem(material, type, new net.krodark.asterion.port.compat.ItemProperties().durability(type.getDurability(durability)))
+//?} else {
+/*new ArmorItem(material.value(), type, new Item.Properties().durability(material.value().getDurabilityForType(type)))*/
+//?}
+);
     }
     public static void initialize() {
         ItemGroupEvents.modifyEntriesEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Asterion.id("forging")))

@@ -14,7 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
- 
+
 final class ForgeCaveEntrance {
     private record Cell(BlockState state, int priority) {}
     private static final List<BlockPos> LOOP = loop();
@@ -49,8 +49,8 @@ final class ForgeCaveEntrance {
                 if (distance > edge) continue;
                 int ceiling = feet + (distance <= 2 ? 5 : 4);
                 for (int y = feet - 3; y <= ceiling + 1; y++) {
-                     
-                     
+
+
                     boolean stairShell = px >= cx - 28 && px <= cx - 19
                             && Math.abs(pz - cz) <= 9 && y >= 28;
                     if (!stairShell && (y > LabyrinthLevels.CAVE_ROOF_Y || feet > bottom + 5))
@@ -65,8 +65,8 @@ final class ForgeCaveEntrance {
                 for (int y = feet; y <= ceiling; y++) put(plan, new BlockPos(px, y, pz), Blocks.AIR.defaultBlockState(), 2);
             }
         }
-         
-         
+
+
         for (int depth = 0; depth <= 8; depth++) for (int side = -3; side <= 3; side++) {
             int x = mouthX + depth, z = cz + side;
             if (x < chunk.getMinBlockX() || x > chunk.getMaxBlockX()
@@ -101,7 +101,7 @@ final class ForgeCaveEntrance {
                     boolean interior = Math.abs(dx) <= radius && Math.abs(dz) <= radius && y >= bottom && y < top + 3;
                     level.setBlock(pos, interior ? Blocks.AIR.defaultBlockState() : rock(seed, x, y, z), 18);
                 }
-                 
+
                 if (dx >= 2 && Math.abs(dz) <= 1) {
                     if (y == bottom - 1 || y == top - 1) level.setBlock(pos, rock(seed, x, y, z), 18);
                     else if (y >= bottom && y <= bottom + 2 || y >= top && y <= top + 2)
@@ -138,7 +138,7 @@ final class ForgeCaveEntrance {
                 if (z != target[1]) { z += Integer.signum(target[1] - z); path.add(new BlockPos(x, 0, z)); }
             }
         }
-        path.removeLast();
+        path.remove(path.size() - 1);
         return List.copyOf(path);
     }
 }

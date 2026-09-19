@@ -25,7 +25,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
- 
+
 
 
 
@@ -50,20 +50,20 @@ public final class WinchBlock extends Block {
     }
 
     @Override
-    protected void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
+    public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
         super.onPlace(state, level, pos, oldState, movedByPiston);
         if (!level.isClientSide()) level.scheduleTick(pos, this, 1);
     }
 
     @Override
-    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState,
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState,
                             boolean movedByPiston) {
         if (state.is(newState.getBlock()) || !(level instanceof ServerLevel server)) {
             super.onRemove(state, level, pos, newState, movedByPiston);
             return;
         }
-         
-         
+
+
         boolean closedAny = false;
         for (BlockPos gatePos : findConnectedGates(server, pos)) {
             if (server.dimension().equals(Asterion.ASTERION_LEVEL)
@@ -79,7 +79,7 @@ public final class WinchBlock extends Block {
     }
 
     @Override
-    protected void neighborChanged(BlockState state, Level level, BlockPos pos, Block neighborBlock,
+    public void neighborChanged(BlockState state, Level level, BlockPos pos, Block neighborBlock,
                                    BlockPos neighborPos, boolean movedByPiston) {
         if (level.isClientSide()) return;
         boolean powered = level.hasNeighborSignal(pos);
@@ -87,14 +87,14 @@ public final class WinchBlock extends Block {
         if (powerChanged) {
             level.setBlock(pos, state.setValue(POWERED, powered), Block.UPDATE_ALL);
         }
-         
-         
+
+
         if (powerChanged || neighborBlock != Asterion.MAZESTEEL_GATE)
             level.scheduleTick(pos, this, 1);
     }
 
     @Override
-    protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         boolean powered = level.hasNeighborSignal(pos);
         if (powered != state.getValue(POWERED)) {
             state = state.setValue(POWERED, powered);
@@ -106,7 +106,7 @@ public final class WinchBlock extends Block {
 
         Direction direction = state.getValue(FACING);
         List<BlockPos> candidates = gates.stream()
-                 
+
                 .filter(gatePos -> !level.dimension().equals(Asterion.ASTERION_LEVEL)
                         || !net.krodark.asterion.worldgen.MinotaurArenaEntrances.isGate(gatePos))
                 .filter(gatePos -> level.getBlockState(gatePos).getValue(DirectionalGateBlock.OPEN) != powered)
@@ -114,7 +114,7 @@ public final class WinchBlock extends Block {
         if (candidates.isEmpty()) return;
 
         Comparator<BlockPos> alongWinch = Comparator.comparingInt(gatePos -> projection(pos, gatePos, direction));
-         
+
         BlockPos layerAnchor = (powered
                 ? candidates.stream().max(alongWinch)
                 : candidates.stream().min(alongWinch)).orElseThrow();
@@ -170,12 +170,12 @@ public final class WinchBlock extends Block {
     }
 
     @Override
-    protected BlockState rotate(BlockState state, Rotation rotation) {
+    public BlockState rotate(BlockState state, Rotation rotation) {
         return state.setValue(FACING, rotation.rotate(state.getValue(FACING)));
     }
 
     @Override
-    protected BlockState mirror(BlockState state, Mirror mirror) {
+    public BlockState mirror(BlockState state, Mirror mirror) {
         return state.setValue(FACING, mirror.mirror(state.getValue(FACING)));
     }
 

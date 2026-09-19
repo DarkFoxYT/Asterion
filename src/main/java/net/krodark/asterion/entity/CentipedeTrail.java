@@ -3,7 +3,7 @@ package net.krodark.asterion.entity;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayDeque;
 
- 
+
 public final class CentipedeTrail {
     private record Point(double distance, CentipedeChain.Pose pose) {}
     private final ArrayDeque<Point> points = new ArrayDeque<>();
@@ -20,14 +20,14 @@ public final class CentipedeTrail {
         if (points.isEmpty()) { reset(pose); return; }
         Point last = points.getLast();
         double moved = last.pose.position().distanceTo(pose.position());
-         
+
         if (moved < 1e-6) return;
         if (points.size() > 2) {
             var iterator = points.descendingIterator();
             iterator.next();
             Point previous = iterator.next();
             if (last.distance - previous.distance < .025) {
-                points.removeLast();
+                points.remove(points.size() - 1);
                 last = previous;
                 moved = last.pose.position().distanceTo(pose.position());
             }
@@ -59,7 +59,7 @@ public final class CentipedeTrail {
             double at = headDistance - distance;
             while (older != null) {
                 if (older.distance <= at) {
-                    double alpha = Math.clamp((at - older.distance) / (newer.distance - older.distance), 0, 1);
+                    double alpha = net.krodark.asterion.port.compat.MathCompat.clamp((at - older.distance) / (newer.distance - older.distance), 0, 1);
                     Vec3 normal = CentipedeFrame.unit(older.pose.normal().lerp(newer.pose.normal(), alpha), newer.pose.normal());
                     Vec3 forward = CentipedeFrame.tangent(older.pose.forward().lerp(newer.pose.forward(), alpha), normal, newer.pose.forward());
                     return new CentipedeChain.Pose(older.pose.position().lerp(newer.pose.position(), alpha), normal, forward);

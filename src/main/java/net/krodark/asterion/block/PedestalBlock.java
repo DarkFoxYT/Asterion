@@ -19,12 +19,12 @@ public final class PedestalBlock extends BaseEntityBlock {
     public static final BooleanProperty CLAIMED = BooleanProperty.create("claimed");
     private static final VoxelShape SHAPE = Shapes.or(Block.box(3, 0, 3, 13, 4, 13), Block.box(0, 4, 0, 16, 11, 16));
     public PedestalBlock(Properties properties) { super(properties); registerDefaultState(stateDefinition.any().setValue(CLAIMED, false)); }
-    @Override protected MapCodec<? extends BaseEntityBlock> codec() { return simpleCodec(PedestalBlock::new); }
+    protected MapCodec<? extends BaseEntityBlock> codec() { return simpleCodec(PedestalBlock::new); }
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) { builder.add(CLAIMED); }
-    @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
-    @Override protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) { return SHAPE; }
+    @Override public RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
+    @Override public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) { return SHAPE; }
     @Override public BlockEntity newBlockEntity(BlockPos pos, BlockState state) { return new PedestalBlockEntity(pos, state); }
-    @Override protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
         if (player.isSpectator() || state.getValue(CLAIMED)) return InteractionResult.PASS;
         if (!level.isClientSide()) {
             if (!level.setBlock(pos, state.setValue(CLAIMED, true), Block.UPDATE_ALL)) return InteractionResult.FAIL;
@@ -34,9 +34,19 @@ public final class PedestalBlock extends BaseEntityBlock {
         }
         return InteractionResult.SUCCESS;
     }
-    @Override protected net.minecraft.world.ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
+    protected net.minecraft.world.ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
             Player player, net.minecraft.world.InteractionHand hand, BlockHitResult hit) {
         return net.krodark.asterion.port.compat.InteractionCompat.item(
                 useWithoutItem(state, level, pos, player, hit));
     }
+
+//? if <1.20.5 {
+/*    @Override public net.minecraft.world.InteractionResult use(net.minecraft.world.level.block.state.BlockState state,
+        net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos, net.minecraft.world.entity.player.Player player,
+        net.minecraft.world.InteractionHand hand, net.minecraft.world.phys.BlockHitResult hit) {
+        var result = useItemOn(player.getItemInHand(hand), state, level, pos, player, hand, hit);
+        if (result != net.krodark.asterion.port.legacy.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION) return result.result();
+        return useWithoutItem(state, level, pos, player, hit);
+    }*/
+//?}
 }

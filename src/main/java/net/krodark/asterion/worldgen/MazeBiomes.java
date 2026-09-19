@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
- 
+
 public final class MazeBiomes {
     private static final ResourceLocation CATALOG = Asterion.id("maze_biomes.json");
     private static final Catalog FALLBACK = new Catalog(20, 7, 2.0F, 4.0F, List.of(
@@ -133,7 +133,7 @@ public final class MazeBiomes {
                           List<Biome> biomes) {
         public Biome ancient() {
             return biomes.stream().filter(biome -> biome.kind == Kind.ANCIENT)
-                    .findFirst().orElse(FALLBACK.biomes.getFirst());
+                    .findFirst().orElse(FALLBACK.biomes.get(0));
         }
 
         public Biome select(long random) {

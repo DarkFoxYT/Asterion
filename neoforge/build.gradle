@@ -1,6 +1,7 @@
 plugins {
     id 'net.neoforged.moddev' version '2.0.141'
     id 'maven-publish'
+    id 'org.sinytra.adapter.userdev' version '1.2.1-SNAPSHOT'
 }
 
 version = rootProject.mod_version
@@ -12,6 +13,7 @@ base {
 
 repositories {
     maven { url = 'https://maven.blamejared.com/' }
+    maven { url = 'https://maven.fabricmc.net/' }
     maven { url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/' }
     maven { url = 'https://maven.su5ed.dev/releases/' }
 }
@@ -60,12 +62,12 @@ sourceSets {
                     'ForgeHudMixin', 'ForgeToastMixin', 'ForgePlayerRendererMixin',
                     'GeckoAnimationCacheMixin', 'GeckoAnimationFrameAccessor',
                     'GeckoTextureCacheLifecycleMixin', 'GeckoInterpolationBufferAccessor',
-                    'BossHealthOverlayAccessor', 'MinotaurBossBarMixin', 'MinotaurBodyPickingMixin',
+                    'MinotaurBossBarMixin', 'MinotaurBodyPickingMixin',
                     'FlamethrowerInputMixin', 'BiomeMusicMixin', 'MoodyBrightnessMixin',
-                    'TidalWaterSurfaceMixin', 'AmneticParticleCullingMixin',
-                    'AmneticEmissivePassMixin', 'AmneticEmissiveInstanceMixin',
+                    'TidalWaterSurfaceMixin',
+
                     'AmneticDepthAttachmentMixin', 'AmneticDepthBlitMixin',
-                    'AmneticBloomPerformanceMixin', 'AsterionFogRendererMixin', 'CameraMixin',
+                    'AsterionFogRendererMixin', 'CameraMixin',
                     'CentipedeInteractionMixin', 'FallingBlockRendererMixin',
                     'LevelLoadingScreenMixin', 'RagdollEntityRendererMixin',
                     'RagdollLivingEntityRendererMixin', 'RagdollGeoEntityRendererMixin',
@@ -84,15 +86,17 @@ sourceSets {
 dependencies {
     implementation "org.sinytra.forgified-fabric-api:forgified-fabric-api:${rootProject.forgified_fabric_api_version}"
     implementation "software.bernie.geckolib:geckolib-neoforge-${rootProject.minecraft_version}:${rootProject.geckolib_version}"
-    implementation "foundry.veil:veil-neoforge-${rootProject.minecraft_version}:${rootProject.veil_version}"
+    compileOnly files(rootProject.file("libs/amnetic-1.0.0-asterion.9+1.21.1-dev.jar"))
+    runtimeOnly files(rootProject.file("libs/amnetic-1.0.0-asterion.9+1.21.1.jar"))
+    additionalRuntimeClasspath "org.sinytra:connector:2.0.0-beta.17+1.21.1"
     compileOnly 'org.jspecify:jspecify:1.0.0'
+
 }
 
 def resourceProperties = [
         version: rootProject.mod_version,
         minecraft_version: rootProject.minecraft_version,
         neoforge_version: rootProject.neoforge_version,
-        veil_version: rootProject.veil_version,
         geckolib_version: rootProject.geckolib_version
 ]
 
@@ -100,8 +104,8 @@ tasks.named('processResources').configure {
     // The shared generator produces the 729 legacy CustomModelData sword
     // combinations required by Minecraft 1.21.1.  Without this input NeoForge
     // packaged the nine blade-only source fallbacks, dropping guard and pommel.
-    dependsOn rootProject.tasks.named('generateForgeAssets')
-    from(rootProject.layout.buildDirectory.dir('generated/forge-assets'))
+    dependsOn ':1.21.1:generateForgeAssets'
+    from(rootProject.file('versions/1.21.1/build/generated/forge-assets'))
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
     from('../src/main/resources/assets/asterion/geckolib/models') {
         into 'assets/asterion/geo'
@@ -213,3 +217,36 @@ jar {
         rename { "LICENSE_${rootProject.archives_base_name}.txt" }
     }
 }
+
+apply from: rootProject.file("gradle/amnetic-runtime.gradle")
+
+// The same opt-in client scenario runs against the native NeoForge adapter.
+sourceSets {
+    smoke {
+        java.srcDirs = [rootProject.file('src/gametest/java'), rootProject.file('src/gametest/1.21.1'), file('src/smoke/java')]
+        java.exclude 'net/krodark/asterion/test/CompatibilityGameTests.java'
+        resources.srcDirs = ['src/smoke/resources']
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
+}
+configurations.smokeImplementation.extendsFrom(configurations.implementation)
+configurations.smokeCompileOnly.extendsFrom(configurations.compileOnly)
+configurations.smokeRuntimeOnly.extendsFrom(configurations.runtimeOnly)
+neoForge {
+    mods { asterion_tests { sourceSet sourceSets.smoke } }
+    runs {
+        smokeClient {
+            client()
+            sourceSet = sourceSets.smoke
+            gameDirectory = layout.buildDirectory.dir('run/smoke-client').get().asFile
+            systemProperty 'asterion.clientSmoke', 'true'
+            if (project.hasProperty('bloomSmoke')) systemProperty 'asterion.bloomSmoke', 'true'
+            if (project.hasProperty('atmosphereSmoke')) systemProperty 'asterion.atmosphereSmoke', 'true'
+        }
+    }
+}
+
+dependencies { smokeCompileOnly 'net.fabricmc:fabric-loader:0.19.5' }
+
+apply from: rootProject.file('gradle/distribution.gradle')

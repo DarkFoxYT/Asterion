@@ -81,6 +81,9 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
 
     public BombadierBeetleEntity(EntityType<? extends BombadierBeetleEntity> type, Level level) {
         super(type, level);
+//? if <1.20.5 {
+/*setMaxUpStep(1F);*/
+//?}
         xpReward = 2;
     }
 
@@ -91,7 +94,11 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
                 .add(Attributes.MOVEMENT_SPEED, 0.23D)
                 .add(Attributes.FOLLOW_RANGE, 12.0D)
                 .add(Attributes.ARMOR, 2.0D)
-                .add(Attributes.STEP_HEIGHT, 1.0D);
+
+//? if >=1.20.5 {
+.add(Attributes.STEP_HEIGHT, 1.0D)
+//?}
+;
     }
 
     @Override
@@ -103,8 +110,19 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
+    //? if >=1.20.5 {
+protected void defineSynchedData(SynchedEntityData.Builder builder) {
+//?} else {
+/*protected void defineSynchedData() {
+        var builder = this.entityData;*/
+//?}
+
+        //? if >=1.20.5 {
+super.defineSynchedData(builder);
+//?} else {
+/*super.defineSynchedData();*/
+//?}
+
         builder.define(DATA_DEFENCE_STATE, DefenceState.CALM.ordinal());
         builder.define(DATA_ATTACHED_SURFACE, Direction.DOWN.ordinal());
     }
@@ -518,7 +536,7 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
         for (LivingEntity victim : level.getEntitiesOfClass(LivingEntity.class, fireCloud,
                 entity -> entity != this && entity.isAlive())) {
             if (!ignitedVictims.add(victim.getUUID())) continue;
-            victim.igniteForSeconds(4.0F);
+            net.krodark.asterion.port.compat.EntityCompat.ignite(victim, 4.0F);
             victim.hurt(level.damageSources().inFire(), 4.0F);
         }
     }
@@ -579,4 +597,7 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
             this.position = position;
         }
     }
+//? if <1.20.5 {
+/*@Override protected float getStandingEyeHeight(net.minecraft.world.entity.Pose pose,net.minecraft.world.entity.EntityDimensions dimensions){return .3F;}*/
+//?}
 }

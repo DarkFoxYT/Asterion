@@ -25,7 +25,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.CompoundTag;
 
-public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEntity {
+public final class CrucibleBlockEntity extends net.krodark.asterion.port.compat.VersionedBlockEntity implements GeoBlockEntity {
     private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
     public static final int MIN_TEMPERATURE = 0;
     public static final int MAX_TEMPERATURE = 1000;
@@ -33,7 +33,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     public static final int MIN_HEAT_CONTROL = -20;
     public static final int MAX_HEAT_CONTROL = 20;
     public static final int TOLERANCE = 12;
-     
+
     public static final int AUTO_POUR_TICKS = 240;
     private int temperature;
     private int heatControl;
@@ -57,7 +57,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     private int pouringTicks;
     private int autoPourTicks;
     private boolean thermalSyncPending;
-     
+
     private int primaryMetal = -1;
     private int secondaryMetal = -1;
     private String metalSequence = "";
@@ -100,8 +100,8 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     public int mixColor() {
         if (metalSequence.isEmpty()) return 0x514A43;
         int color = metalColor(metalSequence.charAt(0) - '0');
-         
-         
+
+
         for (int index = 1; index < metalSequence.length(); index++)
             color = overlay(color, metalColor(metalSequence.charAt(index) - '0'), 0.5F);
         return color;
@@ -171,10 +171,10 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         return false;
     }
 
-     
+
     private boolean insertForgedAlloy(ItemStack stack, ServerPlayer player) {
         if (!stack.is(Asterion.TARNISHED_GOLD_INGOT)) return false;
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        CustomData data = net.krodark.asterion.port.compat.ItemData.get(stack, DataComponents.CUSTOM_DATA);
         if (data == null || data.isEmpty()) return false;
         net.minecraft.nbt.CompoundTag tag = data.copyTag();
         String sequence = net.krodark.asterion.port.compat.NbtCompat.getString(tag, "metal_sequence", "");
@@ -423,7 +423,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         ItemStack result = new ItemStack(output);
         int error = Math.abs(temperature - targetTemperature());
         String quality = error <= 5 ? "Masterwork" : error <= 15 ? "Fine" : "Serviceable";
-        result.set(DataComponents.CUSTOM_NAME,
+        net.krodark.asterion.port.compat.ItemData.set(result, DataComponents.CUSTOM_NAME,
                 Component.literal(alloyName() + " " + partName())
                         .withStyle(error <= 5 ? ChatFormatting.GOLD : ChatFormatting.WHITE));
         int total = materialUnits();
@@ -438,8 +438,8 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         int overlayMetal = secondaryMetal < 0 ? primaryMetal : secondaryMetal;
         int overlayColor = metalSequence.length() < 2 ? 0 : 0x80000000
                 | metalColor(metalSequence.charAt(metalSequence.length() - 1) - '0');
-        result.set(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(primaryMetal + 1));
-        result.set(DataComponents.LORE, new ItemLore(java.util.List.of(
+        net.krodark.asterion.port.compat.ItemData.set(result, DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(primaryMetal + 1));
+        net.krodark.asterion.port.compat.ItemData.set(result, DataComponents.LORE, new ItemLore(java.util.List.of(
                 Component.literal(compositionLine(total)).withStyle(ChatFormatting.GRAY),
                 Component.literal("Hardness " + hardness + "  Edge " + edge).withStyle(ChatFormatting.DARK_GRAY),
                 Component.literal("Power " + damageRating + "  Speed " + speedRating
@@ -475,12 +475,12 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         forging.putInt("base_color", baseColor);
         forging.putInt("overlay_color", overlayColor);
         forging.putString("metal_sequence", metalSequence);
-        result.set(DataComponents.CUSTOM_DATA, CustomData.of(forging));
+        net.krodark.asterion.port.compat.ItemData.set(result, DataComponents.CUSTOM_DATA, CustomData.of(forging));
         eject(result);
         finishPour(player);
     }
 
-     
+
     private void eject(ItemStack stack) {
         if (!(level instanceof net.minecraft.server.level.ServerLevel server) || stack.isEmpty()) return;
         net.minecraft.core.Direction facing = getBlockState().getValue(CrucibleBlock.FACING);
@@ -506,14 +506,14 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         open(player);
     }
 
-     
+
     private java.util.List<Integer> layerColors() {
         java.util.ArrayList<Integer> colors = new java.util.ArrayList<>(4);
         for (int layer = 0; layer < 4; layer++) {
             if (layer >= metalSequence.length()) colors.add(0x00FFFFFF);
-             
-             
-             
+
+
+
             else colors.add(layer == 0 ? 0xFFFFFFFF : 0x80FFFFFF);
         }
         return colors;
@@ -646,8 +646,8 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             changed = true;
         }
         if (sourceHeat > 0) {
-             
-             
+
+
             float radiativeLoss = crucible.temperature / (float) MAX_TEMPERATURE * 0.22F;
             crucible.thermalRemainder += sourceHeat + crucible.heatControl * 0.04F - radiativeLoss;
         } else {
@@ -664,14 +664,14 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
                 changed = true;
             }
         }
-         
+
         if (crucible.autoPourTicks != 0) {
             crucible.autoPourTicks = 0;
             changed = true;
         }
-         
-         
-         
+
+
+
         crucible.thermalSyncPending |= changed;
         boolean periodicActiveSync = crucible.thermalSyncPending
                 && Math.floorMod(level.getGameTime() + pos.asLong(), 10L) == 0L;
@@ -684,7 +684,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         }
     }
 
-     
+
     private static float heatSource(net.minecraft.world.level.Level level, BlockPos source) {
         BlockState state = level.getBlockState(source);
         if (state.is(net.minecraft.world.level.block.Blocks.SOUL_CAMPFIRE)
@@ -704,7 +704,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
         syncClient();
     }
 
-     
+
     private boolean locationAllowsMold() {
         if (!moldInserted || mold() != Mold.MINOTAUR_KEY) return true;
         return level instanceof net.minecraft.server.level.ServerLevel server

@@ -11,11 +11,11 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.*;
 
-public final class ChainLiftBlockEntity extends BlockEntity {
+public final class ChainLiftBlockEntity extends net.krodark.asterion.port.compat.VersionedBlockEntity {
     public static final int NO_CEILING = Integer.MIN_VALUE;
     private boolean spawned;
     public ChainLiftBlockEntity(BlockPos pos, BlockState state) { super(ChainLiftContent.BLOCK_ENTITY, pos, state); }
-     
+
     public static int findCeiling(Level level, BlockPos base) {
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         int limit = Math.min(level.getMaxBuildHeight(), base.getY() + 128);

@@ -9,7 +9,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-public final class PedestalBlockEntity extends BlockEntity implements GeoBlockEntity {
+public final class PedestalBlockEntity extends net.krodark.asterion.port.compat.VersionedBlockEntity implements GeoBlockEntity {
     private AnimatableInstanceCache cache;
     public PedestalBlockEntity(BlockPos pos,BlockState state) { super(net.krodark.asterion.game.PedestalContent.BLOCK_ENTITY,pos,state); }
     @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) { }

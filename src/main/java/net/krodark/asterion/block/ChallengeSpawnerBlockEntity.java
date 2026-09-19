@@ -18,7 +18,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.*;
 
-public final class ChallengeSpawnerBlockEntity extends BlockEntity {
+public final class ChallengeSpawnerBlockEntity extends net.krodark.asterion.port.compat.VersionedBlockEntity {
     private boolean started, complete;
     private int spawnVersion = 1;
     private int remaining = 60 * 20;
@@ -36,7 +36,7 @@ public final class ChallengeSpawnerBlockEntity extends BlockEntity {
         super.loadAdditional(in, registries);
         spawnVersion = net.krodark.asterion.port.compat.NbtCompat.getInt(in, "SpawnVersion", 0);
         started = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "Started", false); complete = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "Complete", false);
-        remaining = Math.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(in, "Remaining", 1200), 0, 1200);
+        remaining = net.krodark.asterion.port.compat.MathCompat.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(in, "Remaining", 1200), 0, 1200);
         mobs.clear();
         for (String id : net.krodark.asterion.port.compat.NbtCompat.getString(in, "Mobs", "").split(",")) if (!id.isEmpty()) mobs.add(UUID.fromString(id));
         String id = net.krodark.asterion.port.compat.NbtCompat.getString(in, "Label", ""); label = id.isEmpty() ? null : UUID.fromString(id);
@@ -74,7 +74,12 @@ public final class ChallengeSpawnerBlockEntity extends BlockEntity {
                 BlockPos spawn = pos.offset(level.getRandom().nextInt(9) - 4, level.getRandom().nextInt(5) - 2, level.getRandom().nextInt(9) - 4);
                 mob.setPos(spawn.getX() + .5, spawn.getY(), spawn.getZ() + .5);
                 if (!level.noCollision(mob) || !level.getBlockState(spawn.below()).isFaceSturdy(level, spawn.below(), net.minecraft.core.Direction.UP)) continue;
-                mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawn), MobSpawnType.SPAWNER, null);
+                //? if >=1.20.5 {
+mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawn), MobSpawnType.SPAWNER, null);
+//?} else {
+/*mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawn), MobSpawnType.SPAWNER, null, null);*/
+//?}
+
                 mob.setPersistenceRequired(); mob.setTarget(player);
                 mob.addTag(net.krodark.asterion.game.ChallengeDeaths.TAG);
                 if (level.addFreshEntity(mob) && !mob.isRemoved()) spawner.mobs.add(mob.getUUID());
@@ -83,7 +88,7 @@ public final class ChallengeSpawnerBlockEntity extends BlockEntity {
             spawner.started = true;
             spawner.setChanged();
         }
-         
+
         var deaths = net.krodark.asterion.game.ChallengeDeaths.get(level);
         boolean changed = spawner.mobs.removeIf(deaths::consume);
         if (spawner.mobs.isEmpty()) {

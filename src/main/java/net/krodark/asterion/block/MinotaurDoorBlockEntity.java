@@ -29,7 +29,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlockEntity {
+public final class MinotaurDoorBlockEntity extends net.krodark.asterion.port.compat.VersionedBlockEntity implements GeoBlockEntity {
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private boolean unlocked;
     private boolean unlockedWithKey;
@@ -58,7 +58,7 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
     }
     public void interact(Player player, ItemStack held) {
         if (level == null || breaching) return;
-         
+
         if (level.dimension().equals(Asterion.ASTERION_LEVEL)
                 && worldPosition.equals(net.krodark.asterion.worldgen.MinotaurArenaEntrances.door(
                         net.krodark.asterion.worldgen.MinotaurArenaEntrances.BOSS_ENTRANCE))) return;
@@ -94,14 +94,14 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
         startAngle = angle(0);
         targetAngle = targetAngle > 0 ? 0 : MinotaurDoorMotion.OPEN_ANGLE;
         motionStart = level.getGameTime();
-         
+
         MinotaurDoorBlock.setOpen(level, worldPosition, facing(), true);
         sync();
     }
     private boolean occupied() {
         BlockPos a = MinotaurDoorBlock.part(worldPosition, facing(), 0, 0);
         BlockPos b = MinotaurDoorBlock.part(worldPosition, facing(), 6, 4);
-        return !level.getEntities((net.minecraft.world.entity.Entity)null, AABB.encapsulatingFullBlocks(a, b), e -> e.isAlive() && !e.isSpectator()).isEmpty();
+        return !level.getEntities((net.minecraft.world.entity.Entity)null, net.krodark.asterion.port.compat.GeometryCompat.fullBlocks(a, b), e -> e.isAlive() && !e.isSpectator()).isEmpty();
     }
     public void closeForEncounter() {
         if (level == null || breaching || targetAngle == 0) return;
@@ -214,7 +214,7 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
         float movement = Float.isFinite(previousDustAngle) ? Math.abs(current - previousDustAngle) : 0;
         previousDustAngle = current;
         if (movement < .001F) return;
-        int count = Math.clamp((int)(movement * 60), 1, 5);
+        int count = net.krodark.asterion.port.compat.MathCompat.clamp((int)(movement * 60), 1, 5);
         for (int side = -1; side <= 1; side += 2) {
             Vec3 point = MinotaurDoorMotion.emitter(worldPosition, facing(), side, current);
             for (int i = 0; i < count; i++) level.addParticle(Asterion.DOOR_DUST,

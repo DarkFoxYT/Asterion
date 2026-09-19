@@ -21,7 +21,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
- 
+
 @Mixin(GuiGraphicsExtractor.class)
 public abstract class ForgedTooltipOutlineMixin {
     @Unique private static final int ASTERION_TEXTURE_SIZE = 76;
@@ -33,7 +33,7 @@ public abstract class ForgedTooltipOutlineMixin {
             at = @At("HEAD"))
     private void asterion$captureForgedStack(Font font, ItemStack stack, int x, int y, CallbackInfo ci) {
         asterion$metalSequence = "";
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        CustomData data = net.krodark.asterion.port.compat.ItemData.get(stack, DataComponents.CUSTOM_DATA);
         if (data == null) return;
         CompoundTag tag = data.copyTag();
         String sequence = tag.getStringOr("metal_sequence", "");
@@ -58,7 +58,7 @@ public abstract class ForgedTooltipOutlineMixin {
         GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object)this;
         Vector2ic point = positioner.positionTooltip(graphics.guiWidth(), graphics.guiHeight(),
                 mouseX, mouseY, width, height);
-         
+
         int x = point.x() - 8, y = point.y() - 8;
         int frameWidth = width + 16, frameHeight = height + 16;
         asterion$draw(graphics, ASTERION_BASE[asterion$metalSequence.charAt(0) - '0'],
@@ -72,9 +72,9 @@ public abstract class ForgedTooltipOutlineMixin {
     @Unique
     private static void asterion$draw(GuiGraphicsExtractor graphics, Identifier texture,
                                        int x, int y, int width, int height) {
-         
-         
-         
+
+
+
         int corner = 12;
         int middle = ASTERION_TEXTURE_SIZE - corner * 2;
         int horizontal = Math.max(1, width - corner * 2);

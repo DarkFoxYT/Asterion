@@ -1,0 +1,12 @@
+// Loom/ModDev development runs do not unpack a dependency's nested jars.
+// Production gets these libraries from the embedded, version-matched Amnetic jar.
+repositories { mavenCentral() }
+dependencies {
+    def lwjgl = project.findProperty('minecraft_version') == '1.20.1' ? '3.3.1' : '3.3.3'
+    runtimeOnly "org.lwjgl:lwjgl-assimp:${lwjgl}"
+    def os = System.getProperty('os.name').toLowerCase(java.util.Locale.ROOT)
+    def arch = System.getProperty('os.arch')
+    def nativeClassifier = os.contains('win') ? 'natives-windows' : os.contains('mac') ? (arch == 'aarch64' ? 'natives-macos-arm64' : 'natives-macos') : 'natives-linux'
+    runtimeOnly "org.lwjgl:lwjgl-assimp:${lwjgl}:${nativeClassifier}"
+}
+

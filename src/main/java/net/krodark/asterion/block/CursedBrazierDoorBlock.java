@@ -21,7 +21,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.*;
 import org.jspecify.annotations.Nullable;
 
- 
+
 public final class CursedBrazierDoorBlock extends BaseEntityBlock {
     public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty OPEN = BlockStateProperties.OPEN;
@@ -33,7 +33,7 @@ public final class CursedBrazierDoorBlock extends BaseEntityBlock {
         registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH)
                 .setValue(OPEN, false).setValue(COLUMN, 1).setValue(ROW, 0));
     }
-    @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
+    protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
     public static boolean isRoot(BlockState state) { return state.getValue(COLUMN) == 1 && state.getValue(ROW) == 0; }
     public static BlockPos root(BlockPos pos, BlockState state) {
         return pos.relative(state.getValue(FACING).getClockWise(), 1 - state.getValue(COLUMN)).below(state.getValue(ROW));
@@ -77,21 +77,21 @@ public final class CursedBrazierDoorBlock extends BaseEntityBlock {
             door.toggle(player, held);
         return InteractionResult.SUCCESS;
     }
-    @Override protected net.minecraft.world.ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
+    protected net.minecraft.world.ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
                                                      Player player, InteractionHand hand, BlockHitResult hit) {
         return net.krodark.asterion.port.compat.InteractionCompat.item(interact(level, pos, state, player, stack));
     }
-    @Override protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
                                                           Player player, BlockHitResult hit) {
         return interact(level, pos, state, player, ItemStack.EMPTY);
     }
-    @Override protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+    @Override public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
                                                 net.minecraft.world.level.LevelAccessor level,
                                                 BlockPos pos, BlockPos neighbor) {
         level.scheduleTick(pos, this, 1);
         return state;
     }
-    @Override protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    @Override public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         BlockPos root = root(pos, state);
         if (!level.isLoaded(root)) return;
         if (!(level.getBlockEntity(root) instanceof CursedBrazierDoorBlockEntity)) remove(level, root, state.getValue(FACING));
@@ -109,25 +109,35 @@ public final class CursedBrazierDoorBlock extends BaseEntityBlock {
         }
         return super.playerWillDestroy(level, pos, state, player);
     }
-    @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
-    @Override protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    @Override public RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
+    @Override public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         if (state.getValue(OPEN)) return isRoot(state) ? box(2, 0, 4, 14, 4, 12) : Shapes.empty();
         return state.getValue(FACING).getAxis() == Direction.Axis.Z ? box(0, 0, 3, 16, 16, 13) : box(3, 0, 0, 13, 16, 16);
     }
-    @Override protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    @Override public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return state.getValue(OPEN) ? Shapes.empty() : getShape(state, level, pos, context);
     }
-    @Override protected VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) { return Shapes.empty(); }
-    @Override protected BlockState rotate(BlockState state, Rotation rotation) { return state.setValue(FACING, rotation.rotate(state.getValue(FACING))); }
-    @Override protected BlockState mirror(BlockState state, Mirror mirror) { return rotate(state, mirror.getRotation(state.getValue(FACING))); }
+    @Override public VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) { return Shapes.empty(); }
+    @Override public BlockState rotate(BlockState state, Rotation rotation) { return state.setValue(FACING, rotation.rotate(state.getValue(FACING))); }
+    @Override public BlockState mirror(BlockState state, Mirror mirror) { return rotate(state, mirror.getRotation(state.getValue(FACING))); }
     @Override public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-         
-         
-         
+
+
+
         return new CursedBrazierDoorBlockEntity(pos, state);
     }
     @Override public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
         if (!isRoot(state)) return null;
         return createTickerHelper(type, Asterion.CURSED_BRAZIER_DOOR_BLOCK_ENTITY, CursedBrazierDoorBlockEntity::tick);
     }
+
+//? if <1.20.5 {
+/*    @Override public net.minecraft.world.InteractionResult use(net.minecraft.world.level.block.state.BlockState state,
+        net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos, net.minecraft.world.entity.player.Player player,
+        net.minecraft.world.InteractionHand hand, net.minecraft.world.phys.BlockHitResult hit) {
+        var result = useItemOn(player.getItemInHand(hand), state, level, pos, player, hand, hit);
+        if (result != net.krodark.asterion.port.legacy.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION) return result.result();
+        return useWithoutItem(state, level, pos, player, hit);
+    }*/
+//?}
 }

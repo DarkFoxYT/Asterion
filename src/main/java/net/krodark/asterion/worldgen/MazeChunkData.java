@@ -8,17 +8,31 @@ import net.minecraft.world.level.chunk.LevelChunk;
 public final class MazeChunkData {
     private MazeChunkData() { }
 
+    /** Templates and later maze carving can replace a container with solid masonry.
+     * Remove its pending NBT before vanilla tries to promote the generated chunk. */
+    public static void sanitize(net.minecraft.world.level.chunk.ChunkAccess chunk) {
+        var pending = ((ChunkAccessAccessor) chunk).asterion$pendingBlockEntities();
+        boolean changed = pending.entrySet().removeIf(entry -> {
+            var state = chunk.getBlockState(entry.getKey());
+            return !state.hasBlockEntity() || (state.getBlock() instanceof
+                    net.krodark.asterion.block.CrucibleBlock &&
+                    !net.krodark.asterion.block.CrucibleBlock.isRoot(state));
+        });
+        if (changed) chunk.setUnsaved(true);
+    }
+
     public static void prepare(ServerLevel level, LevelChunk chunk) {
         var pending = ((ChunkAccessAccessor) chunk).asterion$pendingBlockEntities();
+        sanitize(chunk);
         var pois = level.getPoiManager();
         for (var pos : chunk.getBlockEntitiesPos()) {
             var state = chunk.getBlockState(pos);
             var tag = pending.get(pos);
-             
-             
-             
-             
-             
+
+
+
+
+
             if (state.getBlock() instanceof net.krodark.asterion.block.CrucibleBlock
                     && !net.krodark.asterion.block.CrucibleBlock.isRoot(state)) {
                 if (tag != null) {
@@ -28,7 +42,7 @@ public final class MazeChunkData {
                 continue;
             }
             if (!state.hasBlockEntity()) {
-                 
+
                 if (tag != null && "DUMMY".equals(net.krodark.asterion.port.compat.NbtCompat.getString(tag, "id", ""))) {
                     pending.remove(pos);
                     chunk.setUnsaved(true);
@@ -36,10 +50,10 @@ public final class MazeChunkData {
                 continue;
             }
 
-             
+
             if (tag != null) chunk.getBlockEntity(pos);
 
-             
+
             PoiTypes.forState(state).ifPresent(type -> {
                 var registered = pois.getType(pos);
                 if (registered.filter(type::equals).isPresent()) return;

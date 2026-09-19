@@ -48,7 +48,7 @@ public final class MazeNbtStructures {
         return EMPTY_LAYOUT;
     }
 
-     
+
     public static Layout generationLayout(long terrainSeed) {
         return GENERATION_LAYOUTS.getOrDefault(terrainSeed, EMPTY_LAYOUT);
     }
@@ -162,12 +162,12 @@ public final class MazeNbtStructures {
                 int centerZ = -limit + cellZ * cell + cell / 2;
                 int originX = centerX - (relative.minX() + relative.maxX()) / 2;
                 int originZ = centerZ - (relative.minZ() + relative.maxZ()) / 2;
-                 
-                 
+
+
                 int originY = WorldGenerator.mazeFloorHeight(seed, centerX, centerZ) - relative.minY();
                 BlockPos origin = new BlockPos(originX, originY, originZ);
                 BoundingBox box = relative.moved(originX, originY, originZ);
-                BoundingBox reserved = box.inflatedBy(catalog.padding, 0, catalog.padding);
+                BoundingBox reserved = net.krodark.asterion.port.compat.GeometryCompat.inflate(box, catalog.padding, 0, catalog.padding);
                 int minCellX = Math.floorDiv(reserved.minX() + limit, cell);
                 int maxCellX = Math.floorDiv(reserved.maxX() + limit, cell);
                 int minCellZ = Math.floorDiv(reserved.minZ() + limit, cell);
@@ -210,10 +210,10 @@ public final class MazeNbtStructures {
                     WorldGenerator.mazeFloorHeight(seed, center.getX(), center.getZ()), center.getZ() - 33);
             var settings = new StructurePlaceSettings().setIgnoreEntities(true);
             var box = template.getBoundingBox(settings, origin);
-            var reserved = box.inflatedBy(5, 0, 5);
+            var reserved = net.krodark.asterion.port.compat.GeometryCompat.inflate(box, 5, 0, 5);
             if (!filter.allow(Math.floorDiv(reserved.minX() + limit, cell), Math.floorDiv(reserved.minZ() + limit, cell),
                     Math.floorDiv(reserved.maxX() + limit, cell), Math.floorDiv(reserved.maxZ() + limit, cell))) continue;
-            if (placements.stream().anyMatch(p -> p.reserved.inflatedBy(128, 0, 128).intersects(reserved))) continue;
+            if (placements.stream().anyMatch(p -> net.krodark.asterion.port.compat.GeometryCompat.inflate(p.reserved, 128, 0, 128).intersects(reserved))) continue;
             placements.add(new Placement(QUEEN_TREE, template, origin, settings, box, reserved, mix(seed ^ center.asLong())));
             if (placements.size() == 2) return;
         }
@@ -264,7 +264,7 @@ public final class MazeNbtStructures {
             choice -= template.entry.weight;
             if (choice < 0) return template;
         }
-        return templates.getLast();
+        return templates.get(templates.size() - 1);
     }
 
     private static void sanitize(ServerLevel level, BoundingBox box) {
@@ -310,7 +310,7 @@ public final class MazeNbtStructures {
         private Layout(List<Placement> placements) {
             this.placements = placements;
             for (Placement placement : placements) {
-                placement.reserved.intersectingChunks().forEach(chunk -> reservationsByChunk
+                net.krodark.asterion.port.compat.GeometryCompat.chunks(placement.reserved).forEach(chunk -> reservationsByChunk
                         .computeIfAbsent(chunk.toLong(), ignored -> new ArrayList<>()).add(placement));
                 anchorsByChunk.computeIfAbsent(ChunkPos.asLong(placement.origin), ignored -> new ArrayList<>())
                         .add(placement);
@@ -375,7 +375,7 @@ public final class MazeNbtStructures {
             Placement placement = pending.pollFirst();
             if (placement == null) return;
             BlockPos marker = new BlockPos(placement.origin.getX(), 3, placement.origin.getZ());
-            boolean footprintLoaded = placement.reserved.intersectingChunks().allMatch(
+            boolean footprintLoaded = net.krodark.asterion.port.compat.GeometryCompat.chunks(placement.reserved).allMatch(
                     chunk -> level.getChunkSource().hasChunk(chunk.x, chunk.z));
             if (!footprintLoaded) {
                 pending.addLast(placement);
@@ -388,7 +388,7 @@ public final class MazeNbtStructures {
                 cacheSafeCheckpoint(level, placement);
                 return;
             }
-            boolean generatedAroundStructure = placement.reserved.intersectingChunks()
+            boolean generatedAroundStructure = net.krodark.asterion.port.compat.GeometryCompat.chunks(placement.reserved)
                     .allMatch(chunk -> generatedChunks.contains(chunk.toLong()));
             if (!generatedAroundStructure) preparePlacementArea(level, placement);
             boolean placed = placement.template.placeInWorld(level, placement.origin, placement.origin,
@@ -407,7 +407,7 @@ public final class MazeNbtStructures {
                     .setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 0), 2);
         }
 
-         
+
         private static void carveAccessibilityBridges(ServerLevel level, Placement placement) {
             int floorY = placementFloor(placement);
             int centerX = (placement.box.minX() + placement.box.maxX()) / 2;
@@ -448,7 +448,7 @@ public final class MazeNbtStructures {
             }
         }
 
-         
+
         private static void preparePlacementArea(ServerLevel level, Placement placement) {
             int floorY = placementFloor(placement);
             int top = floorY + AsterionConfig.INSTANCE.wallHeight;
@@ -484,8 +484,8 @@ public final class MazeNbtStructures {
                             safeCheckpoints.put(placement.origin, pad.immutable());
                             return;
                         }
-                         
-                         
+
+
                         for (int dy = 1; dy >= 0; dy--) for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
                             BlockPos feet = cursor.offset(dx, dy, dz).immutable();
                             if (level.getBlockState(feet.below()).isCollisionShapeFullBlock(level, feet.below())
@@ -499,18 +499,18 @@ public final class MazeNbtStructures {
         }
 
         private void configureSafeRoom(ServerLevel level, Placement placement, boolean newlyGenerated) {
-             
-             
+
+
             for (BlockPos pos : BlockPos.betweenClosed(placement.box.minX(), placement.box.minY(), placement.box.minZ(),
                     placement.box.maxX(), placement.box.maxY(), placement.box.maxZ())) {
                 var state = level.getBlockState(pos);
                 if (newlyGenerated && isSafeRoom(placement.id)
                         && level.getBlockEntity(pos) instanceof RandomizableContainerBlockEntity container) {
                     int variant = Math.floorMod((int)(placement.seed ^ pos.asLong()), 3);
-                    ResourceKey<LootTable> loot = ResourceKey.create(net.minecraft.core.registries.Registries.LOOT_TABLE,
+                    ResourceKey<LootTable> loot = ResourceKey.create(net.krodark.asterion.port.compat.LootCompat.REGISTRY,
                             Asterion.id("chests/safe_rune_" + (variant == 0 ? "near" : variant == 1 ? "mid" : "far")));
-                    container.setLootTable(loot);
-                    container.setLootTableSeed(CatacombLayout.hash(placement.seed, pos.getX(), pos.getZ()) ^ pos.getY());
+                    net.krodark.asterion.port.compat.LootCompat.set(container, loot);
+                    net.krodark.asterion.port.compat.LootCompat.seed(container, CatacombLayout.hash(placement.seed, pos.getX(), pos.getZ()) ^ pos.getY());
                     container.setChanged();
                 }
                 if (newlyGenerated && level.getBlockEntity(pos) instanceof net.krodark.asterion.block.RuneBlockEntity rune)

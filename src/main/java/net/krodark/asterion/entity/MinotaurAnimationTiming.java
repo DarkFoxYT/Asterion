@@ -1,6 +1,6 @@
 package net.krodark.asterion.entity;
 
- 
+
 public final class MinotaurAnimationTiming {
     public static final double WALK_LENGTH = 2.439, RUN_LENGTH = 1.343;
 
@@ -12,13 +12,13 @@ public final class MinotaurAnimationTiming {
         return Math.floor((current - first) / length) > Math.floor((previous - first) / length)
                 || Math.floor((current - second) / length) > Math.floor((previous - second) / length);
     }
-     
+
     public static final double ROAR_SOUND_SECONDS = 66.0 / 24.0;
     public static final int AXE_RELEASE = 15;
     public static final int[] COMBO_HITS = {19, 33, 46};
-     
+
     public static final int[] SWORD_COMBO_HITS = {18, 42};
-     
+
     public static final int PUNCH_SINGLE_HIT = 25;
     public static final Track CLEAVE = track(48, 2.3864, 18, .9091);
     public static final Track CHOP = track(40, 1.9583, 26, 1.25);
@@ -39,7 +39,7 @@ public final class MinotaurAnimationTiming {
     public static final Track SHEATHE_SWORD = track(24, 1.5417);
     public static final Track SHEATHE_AXE = track(20, 1.0);
     public static final Track ROAR = track(150, 7.4713);
-     
+
     public static final int ENTRY_CAMERA_TICKS = 50;
     public static final int ENTRY_BREAK_TICK = ENTRY_CAMERA_TICKS + 112;
     public static final int ENTRY_WALK_END_TICK = ENTRY_BREAK_TICK + 28;
@@ -51,7 +51,7 @@ public final class MinotaurAnimationTiming {
             new double[]{0, ENTRY_WALK_END_TICK, ENTRY_WALK_END_TICK + 20, ENTRY_END_TICK},
             new double[]{0, 0, ROAR_SOUND_SECONDS, 7.4713});
     public static double entryWalkDistance(double tick, double distance) {
-        double t = Math.clamp((tick - ENTRY_BREAK_TICK) / (ENTRY_WALK_END_TICK - ENTRY_BREAK_TICK), 0, 1);
+        double t = net.krodark.asterion.port.compat.MathCompat.clamp((tick - ENTRY_BREAK_TICK) / (ENTRY_WALK_END_TICK - ENTRY_BREAK_TICK), 0, 1);
         // Strong initial momentum with a smooth stop; gait follows the same distance curve.
         return distance * (t + Math.sin(Math.PI * t) / Math.PI);
     }
@@ -65,7 +65,7 @@ public final class MinotaurAnimationTiming {
     private MinotaurAnimationTiming() { }
 
     public static double chargeSeconds(double tick, int windup) {
-        return Math.clamp(tick / Math.max(1, windup), 0, 1) * 3.4849;
+        return net.krodark.asterion.port.compat.MathCompat.clamp(tick / Math.max(1, windup), 0, 1) * 3.4849;
     }
     private static Track track(int end, double length, double... events) {
         double[] ticks = new double[events.length / 2 + 2], frames = new double[ticks.length];

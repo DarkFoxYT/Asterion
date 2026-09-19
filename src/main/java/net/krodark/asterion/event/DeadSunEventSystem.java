@@ -292,8 +292,8 @@ public final class DeadSunEventSystem {
             mixed ^= mixed >>> 30;
             mixed *= 0xbf58476d1ce4e5b9L;
             mixed ^= mixed >>> 27;
-             
-             
+
+
             return 20 * (3 + (int)Math.floorMod(mixed, 5L));
         });
         return elapsedTicks >= reveal;
@@ -389,15 +389,15 @@ public final class DeadSunEventSystem {
             state.nextEventTick = scheduleNext(random, level.getGameTime());
             return;
         }
-         
-         
+
+
         for (Definition definition : eligible) if (definition.id().equals(ECLIPSE)) {
             start(level, state, definition);
             return;
         }
         int totalWeight = eligible.stream().mapToInt(definition -> Math.max(1, definition.weight())).sum();
         int roll = random.nextInt(totalWeight);
-        Definition selected = eligible.getFirst();
+        Definition selected = eligible.get(0);
         for (Definition definition : eligible) {
             roll -= Math.max(1, definition.weight());
             if (roll < 0) {
@@ -501,7 +501,7 @@ public final class DeadSunEventSystem {
     }
 
     private static void tickRumbleDebris(ServerLevel level) {
-         
+
         for (var player : level.players()) {
             if (!player.isAlive() || player.isSpectator()) continue;
             var source = RumbleSources.find(level, player.position(), new java.util.Random(level.getRandom().nextLong()));
@@ -772,7 +772,7 @@ public final class DeadSunEventSystem {
             Vec3 delta = target.subtract(firefly.position);
             double distance = delta.length();
             if (distance < 0.72D) {
-                player.igniteForTicks(16);
+                net.krodark.asterion.port.compat.EntityCompat.igniteTicks(player, 16);
                 player.hurt(player.damageSources().inFire(), 1.0F);
                 level.sendParticles(ParticleTypes.FLAME, firefly.position.x, firefly.position.y,
                         firefly.position.z, 8, 0.18D, 0.18D, 0.18D, 0.035D);

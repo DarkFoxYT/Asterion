@@ -23,7 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
- 
+
 public final class BossGroundTelegraphRenderer {
     private static final RenderType SURFACE = AmneticRenderTypeAccess.create("asterion/boss_ground_warning",
             RenderSetup.builder(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
@@ -96,7 +96,7 @@ public final class BossGroundTelegraphRenderer {
         if (forward.lengthSqr() < .01) forward = new Vec3(0, 0, 1);
         Vec3 right = new Vec3(-forward.z, 0, forward.x);
         if (shape.kind() == BossTelegraphPayload.CHARGE_LANE) {
-            double width = Math.clamp(shape.halfWidth(), .15, 12);
+            double width = net.krodark.asterion.port.compat.MathCompat.clamp(shape.halfWidth(), .15, 12);
             int lengthSteps = Mth.ceil(shape.radius()), widthSteps = Math.max(1, Mth.ceil(width * 2));
             for (int i = 0; i < lengthSteps; i++) for (int j = 0; j < widthSteps; j++) {
                 double a = shape.radius() * i / lengthSteps, b = shape.radius() * (i + 1) / lengthSteps;
@@ -107,14 +107,14 @@ public final class BossGroundTelegraphRenderer {
             builder.line(right.scale(-width), forward.scale(shape.radius()).add(right.scale(-width)));
             builder.line(right.scale(width), forward.scale(shape.radius()).add(right.scale(width)));
             builder.line(forward.scale(shape.radius()).add(right.scale(-width)), forward.scale(shape.radius()).add(right.scale(width)));
-             
+
             for (double d = 3; d < shape.radius(); d += 4) {
                 builder.line(forward.scale(d - 1).add(right.scale(-width * .6)), forward.scale(d));
                 builder.line(forward.scale(d - 1).add(right.scale(width * .6)), forward.scale(d));
             }
         } else {
             boolean box = shape.kind() == BossTelegraphPayload.BOX || shape.kind() == BossTelegraphPayload.BOX_CONE;
-            double arc = Math.clamp(shape.arcRadians(), .01, Math.PI * 2);
+            double arc = net.krodark.asterion.port.compat.MathCompat.clamp(shape.arcRadians(), .01, Math.PI * 2);
             double start = Math.atan2(forward.z, forward.x) - arc * .5;
             int segments = Math.max(18, Mth.ceil(arc * 12));
             int rings = Math.max(1, Mth.ceil(shape.radius()));
@@ -164,7 +164,7 @@ public final class BossGroundTelegraphRenderer {
             a = project(a); b = project(b); c = project(c); d = project(d);
             double min = Math.min(Math.min(a.y, b.y), Math.min(c.y, d.y));
             double max = Math.max(Math.max(a.y, b.y), Math.max(c.y, d.y));
-             
+
             if (!Double.isFinite(min) || !Double.isFinite(max) || max - min > .65) return;
             quads.add(new Quad(a, b, c, d, rim));
         }

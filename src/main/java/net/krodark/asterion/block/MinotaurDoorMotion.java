@@ -4,7 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 
- 
+
 public final class MinotaurDoorMotion {
     public static final int WIDTH = 7, HEIGHT = 5, OPEN_TICKS = 72, BREAK_TICK = 112;
     public static final float OPEN_ANGLE = (float)Math.toRadians(100);
@@ -13,7 +13,7 @@ public final class MinotaurDoorMotion {
     private MinotaurDoorMotion() { }
 
     public static float ease(float t) {
-        t = Math.clamp(t, 0, 1);
+        t = net.krodark.asterion.port.compat.MathCompat.clamp(t, 0, 1);
         return t * t * (3 - 2 * t);
     }
 
@@ -46,7 +46,7 @@ public final class MinotaurDoorMotion {
     }
 
     public static Vec3 leafPoint(int side, float angle, double x, double y) {
-         
+
         double hinge = side * 3.0, dx = side * x - hinge, rotation = side * angle;
         return new Vec3(hinge + dx * Math.cos(rotation), y, -dx * Math.sin(rotation));
     }

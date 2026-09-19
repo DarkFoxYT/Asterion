@@ -15,7 +15,7 @@ import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.templatesystem.*;
 import java.util.*;
 
- 
+
 public final class AuthoredCatacombs {
     public static final int BASE_Y = LabyrinthLevels.CATACOMB_BASE_Y, SIZE = 19, CONNECTOR_Y = BASE_Y + 5;
     public static final int ARENA_BASE_Y = LabyrinthLevels.ARENA_BASE_Y, ARENA_FLOOR_Y = ARENA_BASE_Y + 5, ARENA_RADIUS = 61;
@@ -24,8 +24,8 @@ public final class AuthoredCatacombs {
     public static final List<BlockPos> BRAZIER_ROOM_ORIGINS = CatacombLayout.BRAZIER_ROOM_MIN_ZS.stream()
             .map(minZ -> new BlockPos(CatacombLayout.BRAZIER_ROOM_MIN_X * SIZE, BASE_Y, minZ * SIZE + 3))
             .toList();
-     
-    public static final BlockPos BRAZIER_ROOM_ORIGIN = BRAZIER_ROOM_ORIGINS.getFirst();
+
+    public static final BlockPos BRAZIER_ROOM_ORIGIN = BRAZIER_ROOM_ORIGINS.get(0);
     private static final int BRAZIER_PART_SIZE = 25;
     private static final int BRAZIER_ROOM_SIZE = BRAZIER_PART_SIZE * 2;
     private static final int BRAZIER_ROOM_MARKER_Y = BASE_Y - 1;
@@ -47,7 +47,7 @@ public final class AuthoredCatacombs {
         int mask = 0;
         for (Direction side : Direction.Plane.HORIZONTAL)
             if (CatacombLayout.connected(seed, tx, tz, side)) mask |= bit(side);
-         
+
         if (tx == 0 && tz == CatacombLayout.ROOT_Z) mask |= 8;
         return mask;
     }
@@ -72,7 +72,7 @@ public final class AuthoredCatacombs {
         } else {
             name = (hash & 1) == 0 ? "corridor_cross_01" : "corridor_cross_02"; nativeMask = 15;
         }
-         
+
         boolean bossApproachCrossing=tx==CatacombLayout.BRAZIER_APPROACH_CROSSING_X
                 &&tz==CatacombLayout.BRAZIER_APPROACH_Z;
         if ((tx == CatacombLayout.ROOT_X && tz == CatacombLayout.ROOT_Z)
@@ -103,8 +103,8 @@ public final class AuthoredCatacombs {
                         .orElseThrow(() -> new IllegalStateException("Missing authored crypt: " + module.name()));
                 if (!template.getSize().equals(new net.minecraft.core.Vec3i(19, 31, 19)))
                     throw new IllegalStateException("Unexpected crypt size: " + module.name());
-                 
-                 
+
+
                 BoundingBox roomClip = module.name().startsWith("crossing_") ? clip
                         : new BoundingBox(clip.minX(), clip.minY(), clip.minZ(), clip.maxX(), BASE_Y + 27, clip.maxZ());
                 var placement=placementSettings(roomClip,module.name().startsWith("crossing_"))
@@ -113,7 +113,7 @@ public final class AuthoredCatacombs {
                         RandomSource.create(seed^origin.asLong()),18);
                 markTemplateRunes(world,template,origin,placement,roomClip);
                 if (module.name().startsWith("crossing_")) surfaceApproach(world, chunk, origin, seed);
-                 
+
                 for (Direction side : Direction.Plane.HORIZONTAL) if ((module.blocked() & bit(side)) != 0) {
                     BlockPos door = origin.offset(9, 5, 9).relative(side, 9);
                     for (int across = -3; across <= 3; across++) for (int y = -1; y <= 6; y++) {
@@ -126,7 +126,7 @@ public final class AuthoredCatacombs {
         placeArenaApproach(world, chunk);
     }
 
-     
+
     public static void retrofitWovenConnections(ServerLevel level, LevelChunk chunk) {
         long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
         BoundingBox clip = new BoundingBox(chunk.getPos().getMinBlockX(), BASE_Y,
@@ -203,8 +203,8 @@ public final class AuthoredCatacombs {
     }
 
     public static void placeCursedBrazierRoomChunk(ServerLevel level,ChunkPos chunk) {
-         
-         
+
+
         place(level, chunk);
     }
 
@@ -224,11 +224,11 @@ public final class AuthoredCatacombs {
     }
 
     public static BlockPos cursedBrazierEntrance(int roomIndex) {
-        BlockPos origin = BRAZIER_ROOM_ORIGINS.get(Math.clamp(roomIndex, 0, BRAZIER_ROOM_ORIGINS.size() - 1));
+        BlockPos origin = BRAZIER_ROOM_ORIGINS.get(net.krodark.asterion.port.compat.MathCompat.clamp(roomIndex, 0, BRAZIER_ROOM_ORIGINS.size() - 1));
         return new BlockPos(origin.getX(), CONNECTOR_Y, origin.getZ() + BRAZIER_PART_SIZE);
     }
 
-     
+
     public static void tickCursedBrazierRoom(ServerLevel level) {
         if (level.getGameTime() % 20 != 0) return;
         for (int roomIndex = 0; roomIndex < BRAZIER_ROOM_ORIGINS.size(); roomIndex++)
@@ -258,7 +258,7 @@ public final class AuthoredCatacombs {
         if (level.getBlockState(marker).is(Blocks.RED_WOOL))
             level.setBlock(marker,Blocks.AIR.defaultBlockState(),2);
         if (net.krodark.asterion.AsterionWorldState.get(level).cursedBrazierDefeated(roomIndex)) return;
-        var roomBounds=net.minecraft.world.phys.AABB.encapsulatingFullBlocks(roomOrigin,
+        var roomBounds=net.krodark.asterion.port.compat.GeometryCompat.fullBlocks(roomOrigin,
                 roomOrigin.offset(BRAZIER_ROOM_SIZE-1,30,BRAZIER_ROOM_SIZE-1));
         if(!level.getEntitiesOfClass(net.krodark.asterion.entity.CursedBrazierEntity.class,
                 roomBounds,net.minecraft.world.entity.Entity::isAlive).isEmpty())return;
@@ -275,7 +275,7 @@ public final class AuthoredCatacombs {
         if (roomIndex < 0) return;
         net.krodark.asterion.AsterionWorldState.get(level).resetCursedBrazierEncounter(roomIndex);
         BlockPos roomOrigin = BRAZIER_ROOM_ORIGINS.get(roomIndex);
-        var roomBounds=net.minecraft.world.phys.AABB.encapsulatingFullBlocks(roomOrigin,
+        var roomBounds=net.krodark.asterion.port.compat.GeometryCompat.fullBlocks(roomOrigin,
                 roomOrigin.offset(BRAZIER_ROOM_SIZE-1,30,BRAZIER_ROOM_SIZE-1));
         for (var boss : level.getEntitiesOfClass(net.krodark.asterion.entity.CursedBrazierEntity.class,
                 roomBounds, net.minecraft.world.entity.Entity::isAlive))
@@ -291,13 +291,19 @@ public final class AuthoredCatacombs {
     }
     public static StructurePlaceSettings settings(BoundingBox clip) {
         return new StructurePlaceSettings().setBoundingBox(clip).setIgnoreEntities(true)
-                 
-                 
-                .setKnownShape(true).setLiquidSettings(LiquidSettings.IGNORE_WATERLOGGING)
+
+
+                .setKnownShape(true)
+//? if >=1.20.5 {
+.setLiquidSettings(LiquidSettings.IGNORE_WATERLOGGING)
+//?} else {
+/*.setKeepLiquids(false)*/
+//?}
+
                 .addProcessor(BlockIgnoreProcessor.STRUCTURE_BLOCK).addProcessor(JigsawReplacementProcessor.INSTANCE)
                 .addProcessor(CLOSED_BARREL_DOORS);
     }
-     
+
     private static final StructureProcessor CROSSING_SURFACE = new StructureProcessor() {
         @SuppressWarnings("deprecation")
         @Override public StructureTemplate.StructureBlockInfo processBlock(
@@ -316,18 +322,20 @@ public final class AuthoredCatacombs {
                 StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed,
                 StructurePlaceSettings settings) {
             var state = transformed.state();
-             
-             
-             
+
+
+
             if (state.getBlock() instanceof net.krodark.asterion.block.RuneBlock)
                 return new StructureTemplate.StructureBlockInfo(transformed.pos(), state, null);
             if (state.is(Asterion.CURSED_BRAZIER_DOOR)) {
                 var closed=state.setValue(net.krodark.asterion.block.CursedBrazierDoorBlock.OPEN,false);
                 return new StructureTemplate.StructureBlockInfo(transformed.pos(),closed,null);
             }
+            if (!state.hasBlockEntity() && transformed.nbt() != null)
+                return new StructureTemplate.StructureBlockInfo(transformed.pos(), state, null);
             if (!state.is(Asterion.BARREL_DOOR)) return transformed;
-             
-             
+
+
             if (state.getValue(net.krodark.asterion.block.BarrelDoorBlock.WING)) return null;
             net.minecraft.world.level.block.state.BlockState closed = state
                     .setValue(net.krodark.asterion.block.BarrelDoorBlock.OPEN, false)
@@ -354,9 +362,9 @@ public final class AuthoredCatacombs {
                 net.minecraft.world.level.LevelReader world, BlockPos origin, BlockPos reference,
                 StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed,
                 StructurePlaceSettings settings) {
-             
-             
-             
+
+
+
             if (transformed.state().is(Asterion.MINOTAUR_DOOR)) return null;
             return transformed.nbt()==null ? null : transformed;
         }
@@ -367,8 +375,8 @@ public final class AuthoredCatacombs {
         return crossing ? settings.addProcessor(CROSSING_SURFACE) : settings;
     }
     public static void surfaceApproach(net.minecraft.world.level.ServerLevelAccessor world, ChunkPos chunk, BlockPos origin, long seed) {
-         
-         
+
+
         int minX=Math.max(1,chunk.getMinBlockX()-origin.getX());
         int maxX=Math.min(17,chunk.getMaxBlockX()-origin.getX());
         int minZ=Math.max(1,chunk.getMinBlockZ()-origin.getZ());
@@ -381,9 +389,9 @@ public final class AuthoredCatacombs {
             int radius=Math.max(Math.abs(x-9),Math.abs(z-9));
             int surface=net.krodark.asterion.worldgen.WorldGenerator.mazeFloorHeight(seed,wx,wz);
             if(radius<=2) {
-                 
-                 
-                 
+
+
+
                 int clearanceStart=LabyrinthLevels.MAZE_FLOOR_Y+2;
                 for(int y=clearanceStart;y<=Math.max(clearanceStart,surface+2);y++) {
                     pos.set(wx,y,wz);
@@ -391,8 +399,8 @@ public final class AuthoredCatacombs {
                 }
                 continue;
             }
-             
-             
+
+
             pos.set(wx,surface+1,wz);
             if(!world.getBlockState(pos).getCollisionShape(world,pos).isEmpty())continue;
             pos.set(wx,surface+2,wz);
@@ -402,7 +410,7 @@ public final class AuthoredCatacombs {
                 pos.set(wx,y,wz);
                 if(world.getBlockState(pos)!=brick)world.setBlock(pos,brick,18);
             }
-             
+
             for(int y=deck+1;y<=surface;y++) {
                 pos.set(wx,y,wz);
                 if(!world.getBlockState(pos).isAir())world.setBlock(pos,air,18);
@@ -410,9 +418,9 @@ public final class AuthoredCatacombs {
         }
     }
     public static void placeArena(ServerLevel level) {
-         
-         
-         
+
+
+
         ZoneRunePlacement.enqueueArena(level);
     }
 
@@ -472,9 +480,9 @@ public final class AuthoredCatacombs {
                     (pos,part)->level.setBlock(pos,part,18),root,
                     net.krodark.asterion.block.PillarBlock.MODEL_HEIGHT);
         }
-         
-         
-         
+
+
+
         for(Direction direction:Direction.Plane.HORIZONTAL) {
             net.krodark.asterion.block.GreekBrazierBlock.removeStructure(
                     level,CatacombArena.brazier(direction));
@@ -491,9 +499,9 @@ public final class AuthoredCatacombs {
         if(!arena&&!approach&&!retiredApproach)return;
         BlockPos marker=arenaMarker(cp);
         var revisionMarker=arenaRevisionMarker();
-         
-         
-         
+
+
+
         Set<ChunkPos> resetting = RESET_ARENA_CHUNKS.get(level);
         boolean reset = resetting != null && resetting.contains(cp);
         if(!reset && chunk.getBlockState(marker).equals(revisionMarker) && hasArenaFoundation(chunk)) {
@@ -524,8 +532,8 @@ public final class AuthoredCatacombs {
         net.krodark.asterion.worldgen.WorldGenerator.registerAuthoredArenaPillars(level,chunk);
         configureArenaLoot(level,chunk);
         MinotaurArenaEntrances.buildForChunk(level,cp);
-         
-         
+
+
         chunk.setBlockState(marker,revisionMarker, false);
         MazeNbtStructures.markCopperClean(chunk);
         chunk.setUnsaved(true);
@@ -546,8 +554,8 @@ public final class AuthoredCatacombs {
         }
     }
     private static void clearOldArenaChunk(ServerLevel level,BoundingBox bounds) {
-         
-         
+
+
         var air=Blocks.AIR.defaultBlockState();
         BlockPos.MutableBlockPos cursor=new BlockPos.MutableBlockPos();
         for(int x=bounds.minX();x<=bounds.maxX();x++)for(int z=bounds.minZ();z<=bounds.maxZ();z++)
@@ -559,7 +567,7 @@ public final class AuthoredCatacombs {
         var palettes=((StructureTemplateAccessor)(Object)template).asterion$getPalettes();
         if(palettes.isEmpty())return;
         List<BlockPos> pillarRoots=new ArrayList<>();
-        for(var info:palettes.getFirst().blocks()) {
+        for(var info:palettes.get(0).blocks()) {
             BlockPos local = info.pos();
             int x = origin.getX() + local.getX(), y = origin.getY() + local.getY(), z = origin.getZ() + local.getZ();
             if (x < bounds.minX() || x > bounds.maxX() || y < bounds.minY() || y > bounds.maxY()
@@ -577,38 +585,38 @@ public final class AuthoredCatacombs {
                 level.setBlock(pos.below(), Asterion.MAZESTEEL_BLOCK.defaultBlockState(), 18);
                 pillarRoots.add(pos.immutable());
             }
-             
-             
-             
+
+
+
             // Deferred placement runs after chunks may already have been sent to players.
             // The level path updates lighting and queues section updates for every block.
             level.setBlock(pos,state,18);
         }
-         
-         
+
+
         template.placeInWorld(level,origin,origin,settings(bounds)
                 .addProcessor(REMOVE_ARENA_MARKERS).addProcessor(ARENA_NBT_ONLY),
                 RandomSource.create(part),18);
-         
-         
-         
+
+
+
         for(BlockPos root:pillarRoots)
             net.krodark.asterion.block.PillarBlock.placeStructure(
                     (pos,state)->level.setBlock(pos,state,18),root,
                     net.krodark.asterion.block.PillarBlock.MODEL_HEIGHT);
     }
     private static void configureArenaLoot(ServerLevel level,LevelChunk chunk) {
-        var common=net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.LOOT_TABLE,
+        var common=net.minecraft.resources.ResourceKey.create(net.krodark.asterion.port.compat.LootCompat.REGISTRY,
                 Asterion.id("chests/arena_vault_common"));
-        var treasure=net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.LOOT_TABLE,
+        var treasure=net.minecraft.resources.ResourceKey.create(net.krodark.asterion.port.compat.LootCompat.REGISTRY,
                 Asterion.id("chests/arena_vault_treasure"));
         for(var entry:chunk.getBlockEntities().entrySet()) {
                 BlockPos pos=entry.getKey();
                 if(pos.getY()<ARENA_BASE_Y||pos.getY()>ARENA_BASE_Y+47
                         ||Math.abs(pos.getX())>61||Math.abs(pos.getZ())>61)continue;
                 if(entry.getValue() instanceof net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity container
-                        && container.getLootTable()==null)
-                    container.setLootTable(Math.floorMod(pos.asLong()^level.getSeed(),4)==0?treasure:common);
+                        && net.krodark.asterion.port.compat.LootCompat.get(container)==null)
+                    net.krodark.asterion.port.compat.LootCompat.set(container, Math.floorMod(pos.asLong()^level.getSeed(),4)==0?treasure:common);
         }
     }
     public static void markGeneratedRunes(LevelChunk chunk,BoundingBox bounds) {

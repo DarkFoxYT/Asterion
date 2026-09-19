@@ -49,7 +49,7 @@ final class ForgeRecipePanel {
         String pages = (page + 1) + "/" + available.size();
         g.text(font, pages, x + 191 - font.width(pages) / 2, y + 8, 0xFFCFB993, true);
         var recipe = available.get(page);
-        ItemStack output = recipe.outputs().getFirst();
+        ItemStack output = recipe.outputs().get(0);
         String title = output.getHoverName().getString();
         g.text(font, font.plainSubstrByWidth(title, WIDTH - 24), x + 12, y + 30, 0xFFE1C99F, true);
         g.text(font, font.plainSubstrByWidth(new ItemStack(recipe.mold()).getHoverName().getString(), WIDTH - 24),

@@ -10,7 +10,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-public final class ShatteredDeadWoodBlockEntity extends BlockEntity implements GeoBlockEntity {
+public final class ShatteredDeadWoodBlockEntity extends net.krodark.asterion.port.compat.VersionedBlockEntity implements GeoBlockEntity {
     private AnimatableInstanceCache animationCache;
 
     public ShatteredDeadWoodBlockEntity(BlockPos pos, BlockState state) {

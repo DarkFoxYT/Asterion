@@ -18,8 +18,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.*;
 import net.minecraft.world.phys.AABB;
 
- 
-public final class BarrelDoorBlockEntity extends BlockEntity implements GeoBlockEntity {
+
+public final class BarrelDoorBlockEntity extends net.krodark.asterion.port.compat.VersionedBlockEntity implements GeoBlockEntity {
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private static final float OPEN_ANGLE = (float)(Math.PI / 2);
     private static final int MOTION_TICKS = 16;
@@ -32,8 +32,8 @@ public final class BarrelDoorBlockEntity extends BlockEntity implements GeoBlock
     private Direction facing() { return getBlockState().getValue(BarrelDoorBlock.FACING); }
     public float angle(float partialTick) {
         if (level == null) return targetAngle;
-        float t = Math.clamp((level.getGameTime() - motionStart + partialTick) / MOTION_TICKS, 0F, 1F);
-         
+        float t = net.krodark.asterion.port.compat.MathCompat.clamp((level.getGameTime() - motionStart + partialTick) / MOTION_TICKS, 0F, 1F);
+
         float u = t - 1F;
         float eased = 1F + 2.2F * u * u * u + 1.2F * u * u;
         return startAngle + (targetAngle - startAngle) * eased;
@@ -63,7 +63,7 @@ public final class BarrelDoorBlockEntity extends BlockEntity implements GeoBlock
         sync();
     }
     private boolean occupied() {
-        AABB opening = AABB.encapsulatingFullBlocks(BarrelDoorBlock.part(worldPosition, facing(), 0, 0),
+        AABB opening = net.krodark.asterion.port.compat.GeometryCompat.fullBlocks(BarrelDoorBlock.part(worldPosition, facing(), 0, 0),
                 BarrelDoorBlock.part(worldPosition, facing(), 2, 3));
         return !level.getEntities((net.minecraft.world.entity.Entity)null, opening,
                 entity -> entity.isAlive() && !entity.isSpectator()).isEmpty();
@@ -79,7 +79,7 @@ public final class BarrelDoorBlockEntity extends BlockEntity implements GeoBlock
             } else BarrelDoorBlock.setOpen(level, pos, door.facing(), false);
             door.sync();
         }
-         
+
         if (level.getGameTime() % 20 == 0) level.scheduleTick(pos, state.getBlock(), 1);
     }
     private void sync() {

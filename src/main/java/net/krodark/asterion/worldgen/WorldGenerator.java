@@ -84,7 +84,7 @@ public final class WorldGenerator {
     private static final boolean ENABLE_MAZE_NBT_STRUCTURES = true;
     private static final int FLOOR_Y = net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y;
     private static final int BOSS_FLOOR_Y = net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_FLOOR_Y;
-     
+
     private static final int DIMENSION_CEILING_Y = 300;
     private static final int PIT_HALF_WIDTH = 42;
     private static final int PIT_WALL_THICKNESS = 6;
@@ -94,7 +94,7 @@ public final class WorldGenerator {
     private static final int GATEWAY_PORTAL_DEPTH = 9;
     private static final int SUMMONED_PORTAL_DEPTH = 8;
     private static final ResourceKey<LootTable> MAZE_BARREL_LOOT = ResourceKey.create(
-            Registries.LOOT_TABLE, Asterion.id("chests/maze_supply_barrel"));
+            net.krodark.asterion.port.compat.LootCompat.REGISTRY, Asterion.id("chests/maze_supply_barrel"));
     private static final int[][] PRELOAD_OFFSETS = {{0, 0}};
     private static final int[][] PREWARM_OFFSETS = {{0, 0}};
     private static final Map<Long, Integer> GATEWAY_SURFACE_Y = new ConcurrentHashMap<>();
@@ -141,8 +141,8 @@ public final class WorldGenerator {
 
         if (newlyGenerated) {
             MazeNbtStructures.markCopperClean(chunk);
-             
-             
+
+
             net.krodark.asterion.worldgen.ZoneRunePlacement.enqueue(level, chunk);
         } else {
             MazeNbtStructures.cleanLegacyCopper(chunk,
@@ -280,8 +280,8 @@ public final class WorldGenerator {
         net.krodark.asterion.network.ragdoll.RagdollServerNetworking.resetAfterRespawn(player);
         player.stopRiding();
         player.setPose(net.minecraft.world.entity.Pose.STANDING);
-         
-         
+
+
         player.teleportTo(maze, checkpoint.getX() + 0.5D, checkpoint.getY() + 0.1D,
                 checkpoint.getZ() + 0.5D, Set.of(), player.getYRot(), 0.0F);
         player.setDeltaMovement(Vec3.ZERO);
@@ -295,9 +295,9 @@ public final class WorldGenerator {
         BlockPos checkpoint = AsterionWorldState.get(maze).runeCheckpoint(playerId);
         if (checkpoint != null) {
             maze.getChunkAt(checkpoint);
-             
-             
-             
+
+
+
             if (!isSafeRespawnPosition(maze, checkpoint)) checkpoint = resolveSafeRespawn(maze, checkpoint);
         }
         if (checkpoint == null)
@@ -313,7 +313,7 @@ public final class WorldGenerator {
         return checkpoint;
     }
 
-     
+
 
     public static void prepareRapidRespawn(ServerPlayer player) {
         if (!player.level().dimension().equals(Asterion.ASTERION_LEVEL)) return;
@@ -327,7 +327,7 @@ public final class WorldGenerator {
         player.setRespawnPosition(Asterion.ASTERION_LEVEL, checkpoint, player.getYRot(), true, false);
     }
 
-     
+
     public static void finishRapidRespawn(ServerPlayer player) {
         SavedRespawn previous = PRE_MAZE_RESPAWNS.remove(player.getUUID());
         if (previous != null) player.setRespawnPosition(previous.dimension(), previous.position(),
@@ -371,7 +371,7 @@ public final class WorldGenerator {
         throw new IllegalStateException("No supported respawn space in maze chunk " + bounds);
     }
 
-     
+
     public static void playerConnected(ServerPlayer player) {
         LAST_PORTAL_SYNC.remove(player.getUUID());
     }
@@ -404,7 +404,7 @@ public final class WorldGenerator {
         BOSS_ENTRANTS.clear();
         bossFinale = null;
         BossArenaEncounter.finish(maze);
-         
+
         clearBossArenaTransientState(maze);
         rebuildBossArena(maze);
 
@@ -491,7 +491,7 @@ public final class WorldGenerator {
         }
         int foundationBottom = floorY - config.floorThickness + 1;
         if (pos.getY() >= foundationBottom) return pos.getY() <= floorY;
-         
+
         return net.krodark.asterion.worldgen.CatacombProtection.contains(level, pos);
     }
 
@@ -520,8 +520,8 @@ public final class WorldGenerator {
                 if (!wall) continue;
                 boolean core = isMazeWallCore(topology, structures, seed, biome,
                         x, z, cell, thickness, radius);
-                 
-                 
+
+
                 boolean newShell = expandLegacyShell && !isWall(topology, structures, seed, biome,
                         x, z, cell, 2, radius);
                 int wallHeight = biome.kind() == MazeBiomes.Kind.CRIMSON_MARSHLANDS
@@ -583,7 +583,7 @@ public final class WorldGenerator {
         return broken;
     }
 
-     
+
 
     public static int breakLowMazeSnags(ServerLevel level, AABB bounds, Entity breaker) {
         int broken = 0;
@@ -618,7 +618,7 @@ public final class WorldGenerator {
         return breakTemporaryMasonry(level, bounds, breaker, BOSS_FLOOR_Y + 1, 144);
     }
 
-     
+
     public static boolean isBreakableBossPath(ServerLevel level, AABB bounds) {
         boolean foundCollision = false;
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
@@ -635,7 +635,7 @@ public final class WorldGenerator {
         return foundCollision;
     }
 
-     
+
     public static int breakBossPathObstacle(ServerLevel level, AABB bounds,
                                             Entity breaker, int budget) {
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return 0;
@@ -663,8 +663,8 @@ public final class WorldGenerator {
         if (state.isAir() || state.hasBlockEntity() || isActivePortalProtected(level, pos)
                 || state.getDestroySpeed(level, pos) < 0.0F) return false;
 
-         
-         
+
+
         double radiusSquared = (pos.getX() + 0.5D) * (pos.getX() + 0.5D)
                 + (pos.getZ() + 0.5D) * (pos.getZ() + 0.5D);
         double protectedRadius = PIT_HALF_WIDTH - 1.5D;
@@ -829,7 +829,7 @@ public final class WorldGenerator {
         AsterionWorldState.get(level).setGatewayRiftY(horizontalTarget, portalY);
     }
 
-     
+
     private static void clearAboveGateway(ServerLevel level, int centerX, int surfaceY, int centerZ, int radius) {
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
@@ -1095,8 +1095,8 @@ public final class WorldGenerator {
         for (Entity entity : maze.getAllEntities()) {
             if (!(entity instanceof MinotaurEntity minotaur)
                     || !minotaur.isAlive() || minotaur.isRemoved()) continue;
-             
-             
+
+
             if (minotaur.behaviorPhase() != MinotaurEntity.BehaviorPhase.BOSS
                     && isOvergrowthBiomeAt(minotaur.getX(), minotaur.getZ())) {
                 minotaur.discard();
@@ -1265,7 +1265,7 @@ public final class WorldGenerator {
             }
         }
         ServerLevel overworld = server.overworld();
-        BlockPos spawn = overworld.getLevelData().getSpawnPos();
+        BlockPos spawn = overworld.getSharedSpawnPos();
         overworld.getChunkAt(spawn);
         int surface = overworld.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
                 spawn.getX(), spawn.getZ());
@@ -1403,13 +1403,13 @@ public final class WorldGenerator {
         return radius <= PIT_HALF_WIDTH + 3 ? BOSS_FLOOR_Y : FLOOR_Y;
     }
 
-     
+
     public static void prepareBossArenaBeforePlayers(ServerLevel level) {
         if (bossArenaPrepared) return;
         bossArenaPrepared = true;
         bossArenaBuild = new BossArenaBuild();
-         
-         
+
+
         net.krodark.asterion.worldgen.AuthoredCatacombs.placeArena(level);
     }
 
@@ -1417,7 +1417,7 @@ public final class WorldGenerator {
 
     private static void rebuildBossArena(ServerLevel level) {
         bossArenaPrepared = true;
-         
+
         bossArenaBuild = new BossArenaBuild();
         ARENA_PREVIOUS_POSITIONS.clear();
         net.krodark.asterion.worldgen.AuthoredCatacombs.resetArena(level);
@@ -1515,7 +1515,7 @@ public final class WorldGenerator {
         finishBossArenaBuildIfReady(level);
         return isBossArenaReady();
     }
-     
+
     public static void requestBossArenaStart(ServerPlayer player) {
         if(player.level().dimension().equals(Asterion.ASTERION_LEVEL)) {
             prepareBossArenaBeforePlayers((ServerLevel)player.level());
@@ -1559,7 +1559,7 @@ public final class WorldGenerator {
         return false;
     }
 
-     
+
     public static int destroyAllBossPillars(ServerLevel level) {
         BossArenaBuild build = bossArenaBuild;
         if (build == null || !build.ready) return 0;
@@ -1592,8 +1592,8 @@ public final class WorldGenerator {
         }
         level.sendParticles(ParticleTypes.EXPLOSION, pillar.x + 0.5D, BOSS_FLOOR_Y + 7.0D,
                 pillar.z + 0.5D, 12, 1.2D, 5.0D, 1.2D, 0.04D);
-         
-         
+
+
         double roofY = net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_BASE_Y + 46.0D;
         for (int fragment = 0; fragment < 22; fragment++) {
             Vec3 origin = new Vec3(pillar.x + .5D + (level.getRandom().nextDouble() - .5D) * 8.0D,
@@ -1627,9 +1627,9 @@ public final class WorldGenerator {
             double along = new Vec3(toPlayer.x, 0, toPlayer.z).dot(direction);
             Vec3 nearest = boss.add(direction.scale(Mth.clamp(along, 0.0D, length)));
             double laneDistance = new Vec3(player.x - nearest.x, 0, player.z - nearest.z).length();
-             
-             
-             
+
+
+
             if (along <= 2.5D || along >= length - 2.5D || laneDistance > 2.15D) continue;
             Vec3 towardPlayer = new Vec3(toPlayer.x, 0, toPlayer.z).normalize();
             if (towardPlayer.dot(direction) < 0.975D) continue;
@@ -1762,8 +1762,8 @@ public final class WorldGenerator {
         double distance = Math.min(net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS,
                 step * 1.78D);
         fractureCentralRoof(level, cursor, launches, origin, step, roofY);
-         
-         
+
+
         for (int fault = 0; fault < 9; fault++) {
             long faultSeed = mix(level.getSeed() ^ fault * 0x9E3779B97F4A7C15L);
             double baseAngle = Mth.TWO_PI * fault / 9.0D
@@ -1793,7 +1793,7 @@ public final class WorldGenerator {
                 net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS, -1, roofY);
     }
 
-     
+
 
 
 
@@ -1851,7 +1851,7 @@ public final class WorldGenerator {
         if (removed) launches.add(new Vec3(x + .5D, underside - .15D, z + .5D));
     }
 
-     
+
 
 
 
@@ -2447,8 +2447,8 @@ public final class WorldGenerator {
         int usable = maxOffset * 2 + 1;
         int corridorCenter = config.wallThickness
                 + (config.cellSize - config.wallThickness) / 2;
-         
-         
+
+
         for (int attempt = 0; attempt < 32; attempt++) {
             long candidate = mix(roll + attempt * 0x9E3779B97F4A7C15L);
             int gx = centerCell - maxOffset + (int)Math.floorMod(candidate, usable);
@@ -2498,9 +2498,9 @@ public final class WorldGenerator {
         for (int x = startX; x <= endX; x++) {
             for (int z = startZ; z <= endZ; z++) {
 
-                 
-                 
-                 
+
+
+
                 if (Math.abs(x) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS
                         && Math.abs(z) <= net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS) continue;
 
@@ -2536,8 +2536,8 @@ public final class WorldGenerator {
                                         : patternedWall(seed, x, y, z, biome, cell, radius));
                     if (!core) placeBiomeWallDetail(chunk, seed, x, z, biomeWallHeight, biome, floorY);
                 } else {
-                     
-                     
+
+
                     if (structures.reserved(x, z)) continue;
                     if (needsElevationSlab(seed, x, z, cell, floorY))
                         bufferedSet(chunk, x, floorY + 1, z,
@@ -2549,8 +2549,8 @@ public final class WorldGenerator {
                             bufferedSet(chunk, x, floorY + y, z,
                                     patternedWall(seed, x, y, z, biome, cell, radius));
                     }
-                     
-                     
+
+
                     if (biome.kind() != MazeBiomes.Kind.CRIMSON_MARSHLANDS
                             && placeMazeMotifColumn(chunk, seed, x, z, cell, thickness,
                             biomeWallHeight, biome, radius, floorY)) continue;
@@ -2672,13 +2672,13 @@ public final class WorldGenerator {
         return false;
     }
 
-     
+
     private static BlockPos sharedMazeArrival(ServerLevel maze, ServerPlayer entrant) {
         long now = maze.getGameTime();
         if (sharedPortalArrival == null || now > sharedPortalArrivalUntil) {
             sharedPortalArrival = randomMazeArrival(maze, entrant.getUUID(), now);
         }
-         
+
         sharedPortalArrivalUntil = now + 20L * 10L;
         return sharedPortalArrival;
     }
@@ -2736,7 +2736,7 @@ public final class WorldGenerator {
         return ringCore || spokeCore;
     }
 
-     
+
 
     private static boolean isCircularMazeWall(long seed, int x, int z, int cell, int thickness) {
         MazeBiomes.Catalog catalog = MazeBiomes.current();
@@ -2775,8 +2775,8 @@ public final class WorldGenerator {
                     && circularSliceDistance(slice, gateC, slices) > 1) return true;
         }
 
-         
-         
+
+
         int spokes = 12;
         double spokeStep = Math.PI * 2.0D / spokes;
         int spoke = Mth.floor(angle / spokeStep + 0.5D) % spokes;
@@ -2879,8 +2879,8 @@ public final class WorldGenerator {
         int innerB = cell - 3;
 
         placeBiomeFloorDetail(chunk, seed, x, z, lx, lz, center, thickness, wallHeight, biome, floorY);
-         
-         
+
+
         if (biome.kind() == MazeBiomes.Kind.OVERGROWTH) return;
 
         long supply = mix(seed ^ (long) gx * 0xC2B2AE3D27D4EB4FL
@@ -2921,16 +2921,16 @@ public final class WorldGenerator {
         BlockState state = Blocks.BARREL.defaultBlockState();
         chunk.setBlockState(pos, state, false);
         BarrelBlockEntity barrel = new BarrelBlockEntity(pos, state);
-        barrel.setLootTable(loot);
-        barrel.setLootTableSeed(seed);
+        net.krodark.asterion.port.compat.LootCompat.set(barrel, loot);
+        net.krodark.asterion.port.compat.LootCompat.seed(barrel, seed);
         chunk.setBlockEntity(barrel);
     }
 
     private static BlockState patternedWall(long seed, int x, int y, int z, MazeBiomes.Biome biome,
                                             int cell, int radius) {
         if (isCenterArena(x, z, cell)) return Asterion.ANCIENT_BRICKS.defaultBlockState();
-         
-         
+
+
         double broad = wallNoise(seed ^ 0x9E3779B97F4A7C15L, x, y, z, 18.0D);
         double secondary = wallNoise(seed ^ 0xD1B54A32D192ED03L, x, y, z, 9.0D);
         double erosion = broad * 0.78D + secondary * 0.22D;
@@ -3042,8 +3042,8 @@ public final class WorldGenerator {
             boolean tainted = biome.hasFeature("tainted_foliage");
             BlockState leaves = (tainted ? Asterion.TAINTED_LEAVES : Asterion.ANCIENT_LEAVES).defaultBlockState()
                     .setValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT, true);
-             
-             
+
+
             for (int rise = 4; rise <= wallHeight - 3; rise++) {
                 double wallGrowth = wallNoise(seed ^ 0xC6BC279692B5CC83L,
                         x, floorY + rise, z, 7.5D) * 0.72D
@@ -3069,8 +3069,8 @@ public final class WorldGenerator {
         boolean corridorInterior = lx >= thickness + 1 && lz >= thickness + 1;
         if (!corridorInterior) return;
         if (biome.kind() == MazeBiomes.Kind.OVERGROWTH) {
-             
-             
+
+
             if (biome.hasFeature("moss_patches") && wallNoise(seed ^ 0x76CB124FL, x, 0, z, 6.5D) > .56D)
                 bufferedSet(chunk, x, floorY, z, Asterion.ANCIENT_MOSS.defaultBlockState());
             if (biome.hasFeature("floor_plants") && Math.floorMod(detail, 13) == 0)
@@ -3297,8 +3297,8 @@ public final class WorldGenerator {
 
             while (z > center) {
                 long choice = mix(seed ^ (long) segment++ * 0x9E3779B97F4A7C15L);
-                 
-                 
+
+
                 int northRun = 3 + (int) Math.floorMod(choice, 6);
                 for (int i = 0; i < northRun && z > center; i++) {
                     int next = index(x, --z);
@@ -3414,7 +3414,7 @@ public final class WorldGenerator {
             }
         }
 
-         
+
 
         private void shapeDistrictLandmarks() {
             int center = size / 2;

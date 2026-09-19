@@ -1,4 +1,5 @@
 plugins {
+    id 'dev.kikugie.stonecutter'
     id 'net.fabricmc.fabric-loom-remap' version '1.17-SNAPSHOT'
     id 'maven-publish'
 }
@@ -6,10 +7,15 @@ plugins {
 version = project.mod_version
 group = project.maven_group
 
+if (minecraft_version == '1.20.1') {
+    ext['fabric.loom.runtimeJavaCompatibilityVersion'] = '17'
+    sourceSets.main.java.srcDir(rootProject.file('src/legacy/java'))
+    sourceSets.main.java.exclude('net/krodark/asterion/port/compat/VersionedBlockEntity.java')
+}
+
 sourceSets {
     main {
         java {
-            srcDir 'src/port/java'
             exclude 'net/krodark/asterion/port/neoforge/**'
             exclude 'net/krodark/asterion/client/**'
             exclude 'net/krodark/asterion/compat/jei/**'
@@ -20,12 +26,12 @@ sourceSets {
                     'ForgeHudMixin', 'ForgeToastMixin', 'ForgePlayerRendererMixin',
                     'GeckoAnimationCacheMixin', 'GeckoAnimationFrameAccessor',
                     'GeckoTextureCacheLifecycleMixin', 'GeckoInterpolationBufferAccessor',
-                    'BossHealthOverlayAccessor', 'MinotaurBossBarMixin', 'MinotaurBodyPickingMixin',
+                    'MinotaurBossBarMixin', 'MinotaurBodyPickingMixin',
                     'FlamethrowerInputMixin', 'BiomeMusicMixin', 'MoodyBrightnessMixin',
-                    'TidalWaterSurfaceMixin', 'AmneticParticleCullingMixin',
-                    'AmneticEmissivePassMixin', 'AmneticEmissiveInstanceMixin',
+                    'TidalWaterSurfaceMixin',
+
                     'AmneticDepthAttachmentMixin', 'AmneticDepthBlitMixin',
-                    'AmneticBloomPerformanceMixin', 'AsterionFogRendererMixin', 'CameraMixin',
+                    'AsterionFogRendererMixin', 'CameraMixin',
                     'CentipedeInteractionMixin', 'FallingBlockRendererMixin',
                     'LevelLoadingScreenMixin', 'RagdollEntityRendererMixin',
                     'RagdollLivingEntityRendererMixin', 'RagdollGeoEntityRendererMixin',
@@ -50,7 +56,7 @@ fabricApi {
 repositories {
     ivy {
         name = "LocalRendererDependencies"
-        url = uri("libs")
+        url = rootProject.uri("libs")
         patternLayout {
             artifact "[artifact]-[revision].[ext]"
             artifact "[artifact].[ext]"
@@ -67,6 +73,7 @@ repositories {
         filter {
             includeGroupAndSubgroups "com.geckolib"
             includeGroupAndSubgroups "software.bernie.geckolib"
+            includeGroup "com.eliotlash.mclib"
         }
     }
     maven { name = "Terraformers"; url = "https://maven.terraformersmc.com/releases/" }
@@ -76,6 +83,8 @@ repositories {
 }
 
 dependencies {
+    modImplementation "com.meekdev:amnetic:1.0.0-asterion.9+${minecraft_version}"
+    include "com.meekdev:amnetic:1.0.0-asterion.9+${minecraft_version}"
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings loom.officialMojangMappings()
     modImplementation("net.fabricmc:fabric-loader:${project.loader_version}") {
@@ -93,9 +102,6 @@ dependencies {
     compileOnly "me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}"
     compileOnly "maven.modrinth:jade:${project.jade_version}"
 
-    modImplementation("foundry.veil:veil-fabric-${project.minecraft_version}:${project.veil_version}") {
-        transitive = true
-    }
     compileOnly "org.jspecify:jspecify:1.0.0"
 
 }
@@ -103,25 +109,24 @@ dependencies {
 def resourceProperties = [
         version          : version,
         minecraft_version: minecraft_version,
-        loader_version   : loader_version,
+        loader_version   : "0.19.3",
         fabric_version   : fabric_version,
-        veil_version     : veil_version,
         geckolib_version : geckolib_version
 ]
 
 processResources {
-    from('src/main/resources/assets/asterion/geckolib/models') {
+    from(rootProject.file('src/main/resources/assets/asterion/geckolib/models')) {
         into 'assets/asterion/geo'
     }
-    from('src/main/resources/assets/asterion/geckolib/animations') {
+    from(rootProject.file('src/main/resources/assets/asterion/geckolib/animations')) {
         into 'assets/asterion/animations'
     }
-    from('src/main/resources/assets/asterion/textures/armor') {
+    from(rootProject.file('src/main/resources/assets/asterion/textures/armor')) {
         include '*_top.png'
         into 'assets/asterion/textures/entity/equipment/humanoid'
         rename { it.replace('_top.png', '.png') }
     }
-    from('src/main/resources/assets/asterion/textures/armor') {
+    from(rootProject.file('src/main/resources/assets/asterion/textures/armor')) {
         include '*_bottom.png'
         into 'assets/asterion/textures/entity/equipment/humanoid_leggings'
         rename { it.replace('_bottom.png', '.png') }
@@ -129,12 +134,12 @@ processResources {
     // Minecraft 1.21.1 still resolves ArmorMaterial layers through the legacy
     // textures/models/armor namespace. Keep the newer equipment copies too so
     // the same source assets remain forward-compatible.
-    from('src/main/resources/assets/asterion/textures/armor') {
+    from(rootProject.file('src/main/resources/assets/asterion/textures/armor')) {
         include '*_top.png'
         into 'assets/asterion/textures/models/armor'
         rename { it.replace('_top.png', '_layer_1.png') }
     }
-    from('src/main/resources/assets/asterion/textures/armor') {
+    from(rootProject.file('src/main/resources/assets/asterion/textures/armor')) {
         include '*_bottom.png'
         into 'assets/asterion/textures/models/armor'
         rename { it.replace('_bottom.png', '_layer_2.png') }
@@ -142,7 +147,7 @@ processResources {
     // NeoForge's 1.21.1 item atlas only discovers these generated-model
     // dependencies reliably below textures/item. Keep the original authoring
     // layout, but stage an item-atlas copy for both loader distributions.
-    from('src/main/resources/assets/asterion/textures/forging') {
+    from(rootProject.file('src/main/resources/assets/asterion/textures/forging')) {
         into 'assets/asterion/textures/item/forging'
     }
     inputs.properties resourceProperties
@@ -156,10 +161,10 @@ processResources {
         path = path.toLowerCase(java.util.Locale.ROOT).replaceAll('[^a-z0-9/._-]', '_')
     }
     doLast {
-        def sounds = new groovy.json.JsonSlurper().parse(file('src/main/resources/assets/asterion/sounds.json'))
+        def sounds = new groovy.json.JsonSlurper().parse(rootProject.file('src/main/resources/assets/asterion/sounds.json'))
         def tracks = []
         def seen = new HashSet<String>()
-        fileTree('src/main/resources/assets/asterion/sounds/music').matching { include '**/*.ogg' }.files.sort().each { track ->
+        rootProject.fileTree('src/main/resources/assets/asterion/sounds/music').matching { include '**/*.ogg' }.files.sort().each { track ->
             def group = track.parentFile.name
             if (!(group in ['ancient', 'overgrown', 'crimsonmarshlands', 'arena', 'forge'])) return
             def stem = track.name.substring(0, track.name.length() - 4)
@@ -202,7 +207,7 @@ processResources {
     }
 }
 
-def targetJavaVersion = 21
+def targetJavaVersion = minecraft_version == '1.20.1' ? 17 : 21
 tasks.withType(JavaCompile).configureEach {
     options.encoding = "UTF-8"
     options.compilerArgs.addAll(["-Xlint:deprecation", "-Xlint:unchecked", "-Xmaxerrs", "1000"])
@@ -211,9 +216,7 @@ tasks.withType(JavaCompile).configureEach {
 
 java {
     def javaVersion = JavaVersion.toVersion(targetJavaVersion)
-    if (JavaVersion.current() < javaVersion) {
-        toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
-    }
+    toolchain.languageVersion = JavaLanguageVersion.of(Math.max(21, targetJavaVersion))
     withSourcesJar()
 }
 
@@ -232,12 +235,13 @@ jar {
                 'Mod-Loader': 'Fabric'
         )
     }
-    from("LICENSE.txt") {
+    from(rootProject.file("LICENSE.txt")) {
         rename { bundledLicenseName }
     }
 }
 
-apply from: 'gradle/forge-assets.gradle'
+apply from: rootProject.file('gradle/forge-assets.gradle')
+apply from: rootProject.file('gradle/legacy-resources.gradle')
 
 def essentialRuntimePointer = layout.buildDirectory.file("essential-runtime-jar.path")
 tasks.register("stageEssentialRuntimeJar") {
@@ -280,10 +284,8 @@ loom {
     runs {
         client {
             client()
-            runDir "run-1.21.1-fabric"
+            runDir "run-${minecraft_version}-fabric"
             vmArg '--enable-native-access=ALL-UNNAMED'
-            if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_24))
-                vmArg '--sun-misc-unsafe-memory-access=allow'
             if (project.hasProperty('startupProfile')) vmArg "-XX:StartFlightRecording=settings=profile,filename=${layout.buildDirectory.file('startup-profile.jfr').get().asFile.absolutePath},dumponexit=true"
             ideConfigGenerated = false
         }
@@ -291,8 +293,6 @@ loom {
             server()
             runDir "run-server"
             vmArg '--enable-native-access=ALL-UNNAMED'
-            if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_24))
-                vmArg '--sun-misc-unsafe-memory-access=allow'
             ideConfigGenerated = false
         }
     }
@@ -318,10 +318,10 @@ tasks.withType(JavaExec).configureEach {
 tasks.register("modDistribution", Sync) {
     group = "distribution"
     description = "Stages the combined Asterion mod jar and installation notes."
-    dependsOn tasks.named("jar")
+    dependsOn tasks.named("remapJar")
     into layout.buildDirectory.dir("distribution")
-    from(tasks.named("jar"))
-    from("docs/INSTALL-MODS.txt")
+    from(tasks.named("remapJar"))
+    from(rootProject.file("docs/INSTALL-MODS.txt"))
 }
 
 tasks.register("buildAllLoaders") {
@@ -332,7 +332,7 @@ tasks.register("buildAllLoaders") {
 
 tasks.register("validateAsterionAssets") {
     group = "verification"
-    description = "Validates Asterion model, GeckoLib, particle and Veil resources."
+    description = "Validates Asterion model, GeckoLib, particle and Amnetic resources."
     dependsOn tasks.named("processResources")
     doLast {
         def assets = file("${layout.buildDirectory.get().asFile}/resources/main/assets/asterion")
@@ -383,16 +383,18 @@ tasks.register("validateAsterionAssets") {
             }
             visit(parsed[resource])
         }
-        fileTree(new File(assets, 'pinwheel/shaders/program')).matching { include '**/*.json' }.files.each { resource ->
+        fileTree(new File(assets, 'post_effect')).matching { include '**/*.json' }.files.each { resource ->
             def json = parsed[resource]
-            ['vertex': '.vsh', 'fragment': '.fsh'].each { key, extension ->
-                def shader = json?.get(key)
+            json?.passes?.each { pass ->
+            ['vertex_shader': '.vsh', 'fragment_shader': '.fsh'].each { key, extension ->
+                def shader = pass?.get(key)
                 if (shader instanceof String && shader.startsWith('asterion:')) {
-                    def source = new File(assets, 'pinwheel/shaders/program/'
+                    def source = new File(assets, 'shaders/'
                             + shader.substring('asterion:'.length()) + extension)
                     if (!source.isFile()) failures << "Missing ${key} shader ${shader} used by ${resource.name}"
                 }
             }
+        }
         }
         if (!failures.isEmpty()) throw new GradleException(failures.unique().join(System.lineSeparator()))
         logger.lifecycle("Validated ${parsed.size()} Asterion JSON resources and their local asset references.")
@@ -402,3 +404,51 @@ tasks.register("validateAsterionAssets") {
 tasks.named("check").configure {
     dependsOn tasks.named("validateAsterionAssets")
 }
+
+
+fabricApi.configureTests {
+    createSourceSet = true
+    modId = 'asterion_tests'
+    enableGameTests = true
+    enableClientGameTests = false
+}
+sourceSets.gametest {
+    java.srcDirs = [rootProject.file('src/gametest/java'), rootProject.file("src/gametest/${minecraft_version}")]
+    resources.srcDirs = [rootProject.file('src/gametest/resources')]
+}
+
+loom.runs {
+    smokeClient {
+        client()
+        source sourceSets.gametest
+        runDir "build/run/smoke-client"
+        vmArg '-Dasterion.clientSmoke=true'
+        vmArg '-Damnetic.opengl.debug=true'
+        vmArg '--enable-native-access=ALL-UNNAMED'
+        ideConfigGenerated = false
+    }
+}
+apply from: rootProject.file('gradle/quilt.gradle')
+
+apply from: rootProject.file("gradle/amnetic-runtime.gradle")
+
+if (providers.gradleProperty('shaderSmoke').isPresent()) {
+    dependencies { modLocalRuntime fileTree(rootProject.file("build/shader-smoke/${minecraft_version}")) { include '*.jar' } }
+}
+
+if (providers.gradleProperty('atmosphereSmoke').isPresent()) {
+    loom.runs.smokeClient.vmArg '-Dasterion.atmosphereSmoke=true'
+}
+
+if (providers.gradleProperty('bloomSmoke').isPresent()) {
+    loom.runs.smokeClient.vmArg '-Dasterion.bloomSmoke=true'
+}
+
+apply from: rootProject.file('gradle/distribution.gradle')
+
+// Match Minecraft's runtime and native libraries, including Sodium's checks.
+tasks.withType(JavaExec).configureEach {
+    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(minecraft_version == '1.20.1' ? 17 : 21) }
+}
+
+apply from: rootProject.file('gradle/production-smoke.gradle')

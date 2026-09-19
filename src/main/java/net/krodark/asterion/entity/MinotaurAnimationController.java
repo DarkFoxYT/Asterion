@@ -32,6 +32,6 @@ public final class MinotaurAnimationController extends AnimationController<Minot
     public static double sampleSeconds(double requested, double length, boolean loop) {
         if (length <= 0) return 0;
         return loop ? (requested % length + length) % length
-                : Math.clamp(requested, 0, Math.max(0, length - .00001));
+                : net.krodark.asterion.port.compat.MathCompat.clamp(requested, 0, Math.max(0, length - .00001));
     }
 }

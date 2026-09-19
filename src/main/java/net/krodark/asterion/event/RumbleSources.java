@@ -11,7 +11,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
- 
+
 public final class RumbleSources {
     public record Source(Vec3 position, Vec3 normal, BlockPos block) { }
     private RumbleSources() { }
@@ -41,7 +41,13 @@ public final class RumbleSources {
             if (!level.getChunkSource().hasChunk(sample.getX() >> 4, sample.getZ() >> 4)) return null;
         }
         var hit = level.clip(new ClipContext(start, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
-                net.minecraft.world.phys.shapes.CollisionContext.empty()));
+
+//? if >=1.20.5 {
+net.minecraft.world.phys.shapes.CollisionContext.empty()
+//?} else {
+/*(net.minecraft.world.entity.Entity)null*/
+//?}
+));
         if (hit.getType() != HitResult.Type.BLOCK || hit.isInside()) return null;
         Vec3 normal = net.minecraft.world.phys.Vec3.atLowerCornerOf(hit.getDirection().getNormal());
         return new Source(hit.getLocation().add(normal.scale(.24)), normal, hit.getBlockPos());

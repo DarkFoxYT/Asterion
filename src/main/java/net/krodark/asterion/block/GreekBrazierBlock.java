@@ -23,7 +23,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.*;
 import org.jspecify.annotations.Nullable;
 
- 
+
 public final class GreekBrazierBlock extends Block implements SimpleWaterloggedBlock {
     private static final int RELIGHT_DELAY = 20 * 30;
     private static final java.util.Map<ServerLevel, java.util.Map<Long, Long>> RELIGHT_AT =
@@ -31,7 +31,7 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
     public static final IntegerProperty COLUMN = IntegerProperty.create("column", 0, 2);
     public static final IntegerProperty ROW = IntegerProperty.create("row", 0, 2);
     public static final BooleanProperty FORMED = BooleanProperty.create("formed");
-     
+
     private static final double[][] CUBES = {
             {-11,4,-11,27,13,27}, {-13,13,-13,29,16,29},
             {0,2,0,16,4,16}, {-6,0,-6,22,2,22}
@@ -86,7 +86,7 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
         if(wet) extinguish(level,center);
         return true;
     }
-     
+
     public static void placeStructure(java.util.function.BiConsumer<BlockPos,BlockState> place, BlockPos center) {
         for(int x=0;x<3;x++) for(int z=0;z<3;z++)
             place.accept(part(center,x,z),Asterion.GREEK_BRAZIER.defaultBlockState()
@@ -100,7 +100,7 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
                     ? Blocks.WATER.defaultBlockState() : Blocks.AIR.defaultBlockState(),UPDATE_ALL);
         }
     }
-     
+
     public static void removeStructure(Level level,BlockPos center) {
         BlockState state=level.getBlockState(center);
         if(state.getBlock() instanceof GreekBrazierBlock)center=root(center,state);
@@ -145,7 +145,7 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
         level.sendParticles(net.krodark.asterion.Asterion.GREEK_FIRE, center.getX()+.5, center.getY()+1.1, center.getZ()+.5, 18, .7, .3, .7, .035);
         return true;
     }
-    @Override protected FluidState getFluidState(BlockState state) {
+    @Override public FluidState getFluidState(BlockState state) {
         return state.getValue(BlockStateProperties.WATERLOGGED)?Fluids.WATER.getSource(false):super.getFluidState(state);
     }
     @Override public boolean placeLiquid(LevelAccessor level,BlockPos pos,BlockState state,FluidState fluid) {
@@ -153,10 +153,10 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
         if(level instanceof ServerLevel server) extinguish(server,pos);
         return true;
     }
-    @Override protected void onPlace(BlockState state,Level level,BlockPos pos,BlockState old,boolean moved) {
+    @Override public void onPlace(BlockState state,Level level,BlockPos pos,BlockState old,boolean moved) {
         if(!level.isClientSide()) scheduleValidation(level, pos, state);
     }
-    @Override protected void neighborChanged(BlockState state,Level level,BlockPos pos,Block neighbor,
+    @Override public void neighborChanged(BlockState state,Level level,BlockPos pos,Block neighbor,
             BlockPos neighborPos,boolean moved) {
         if(!level.isClientSide()) scheduleValidation(level, pos, state);
     }
@@ -169,7 +169,7 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
         BlockState anchor = level.getBlockState(center);
         level.scheduleTick(owned(anchor, center, center) ? center : pos, this, 1);
     }
-    @Override protected void tick(BlockState state,ServerLevel level,BlockPos pos,RandomSource random) {
+    @Override public void tick(BlockState state,ServerLevel level,BlockPos pos,RandomSource random) {
         BlockPos center=root(pos,state);
         for(int x=0;x<3;x++) for(int z=0;z<3;z++)
             if(!level.isLoaded(part(center,x,z))) { level.scheduleTick(pos,this,20); return; }
@@ -210,9 +210,15 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
             if(!player.isCreative()) popResource(level,pos,new ItemStack(this));
             removeAll(level,root(pos,state));
         }
-        return super.playerWillDestroy(level,pos,state,player);
+
+//? if >=1.20.5 {
+return super.playerWillDestroy(level,pos,state,player);
+//?} else {
+/*super.playerWillDestroy(level,pos,state,player);*/
+//?}
+
     }
-    @Override protected net.minecraft.world.ItemInteractionResult useItemOn(ItemStack stack,BlockState state,Level level,BlockPos pos,
+    protected net.minecraft.world.ItemInteractionResult useItemOn(ItemStack stack,BlockState state,Level level,BlockPos pos,
             Player player,InteractionHand hand,BlockHitResult hit) {
         if(!state.getValue(BlockStateProperties.LIT)
                 || (!stack.is(Items.WATER_BUCKET) && !(stack.getItem() instanceof ShovelItem))) return net.minecraft.world.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
@@ -230,7 +236,7 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
         if(random.nextInt(6)==0) level.addParticle(ParticleTypes.SMOKE,
                 pos.getX()+.5,pos.getY()+2.8,pos.getZ()+.5,0,.055,0);
     }
-    @Override protected void entityInside(BlockState state,Level level,BlockPos pos,
+    @Override public void entityInside(BlockState state,Level level,BlockPos pos,
             net.minecraft.world.entity.Entity entity) {
         if (state.getValue(BlockStateProperties.LIT) && entity instanceof LivingEntity
                 && level instanceof ServerLevel server) {
@@ -238,16 +244,16 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
         }
         super.entityInside(state,level,pos,entity);
     }
-    @Override protected VoxelShape getShape(BlockState state,BlockGetter level,BlockPos pos,CollisionContext context) {
+    @Override public VoxelShape getShape(BlockState state,BlockGetter level,BlockPos pos,CollisionContext context) {
         return SHAPES[state.getValue(COLUMN)*3+state.getValue(ROW)];
     }
-    @Override protected BlockState updateShape(BlockState state,Direction direction,BlockState other,
+    @Override public BlockState updateShape(BlockState state,Direction direction,BlockState other,
             LevelAccessor level,BlockPos pos,BlockPos neighbor) {
         level.scheduleTick(pos,this,1);
         if(state.getValue(BlockStateProperties.WATERLOGGED)) level.scheduleTick(pos,Fluids.WATER,Fluids.WATER.getTickDelay(level));
         return state;
     }
-    @Override protected BlockState rotate(BlockState state,Rotation rotation) {
+    @Override public BlockState rotate(BlockState state,Rotation rotation) {
         int x=state.getValue(COLUMN)-1,z=state.getValue(ROW)-1;
         return switch(rotation) {
             case CLOCKWISE_90 -> state.setValue(COLUMN,1-z).setValue(ROW,1+x);
@@ -256,7 +262,7 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
             default -> state;
         };
     }
-    @Override protected BlockState mirror(BlockState state,Mirror mirror) {
+    @Override public BlockState mirror(BlockState state,Mirror mirror) {
         return switch(mirror) {
             case LEFT_RIGHT -> state.setValue(ROW,2-state.getValue(ROW));
             case FRONT_BACK -> state.setValue(COLUMN,2-state.getValue(COLUMN));
@@ -277,4 +283,14 @@ public final class GreekBrazierBlock extends Block implements SimpleWaterloggedB
         }
         return result;
     }
+
+//? if <1.20.5 {
+/*    @Override public net.minecraft.world.InteractionResult use(net.minecraft.world.level.block.state.BlockState state,
+        net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos, net.minecraft.world.entity.player.Player player,
+        net.minecraft.world.InteractionHand hand, net.minecraft.world.phys.BlockHitResult hit) {
+        var result = useItemOn(player.getItemInHand(hand), state, level, pos, player, hand, hit);
+        if (result != net.krodark.asterion.port.legacy.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION) return result.result();
+        return super.use(state, level, pos, player, hand, hit);
+    }*/
+//?}
 }

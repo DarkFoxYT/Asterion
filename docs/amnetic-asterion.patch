@@ -1,0 +1,711 @@
+diff --git a/build.gradle.kts b/build.gradle.kts
+index a9b15bf..50b69a0 100644
+--- a/build.gradle.kts
++++ b/build.gradle.kts
+@@ -1,6 +1,10 @@
++import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
++import net.fabricmc.loom.task.RemapJarTask
++
+ plugins {
+     id("dev.kikugie.loom-back-compat")
+     `maven-publish`
++    id("com.gradleup.shadow")
+ }
+ 
+ version = "${findProperty("mod_version") ?: property("mod.version")}+${sc.current.version}"
+@@ -23,6 +27,11 @@ repositories {
+     maven("https://repo.javagl.de/") { name = "javagl Maven" }
+ }
+ 
++// Keep model readers private: launchers may already load a different Jackson
++// version before the mod classloader is created (notably Quilt and Connector).
++val modelLibraries by configurations.creating
++configurations.implementation { extendsFrom(modelLibraries) }
++
+ dependencies {
+     val mc = sc.current.version
+     val lwjgl: String = sc.properties["deps.lwjgl"]
+@@ -34,11 +43,12 @@ dependencies {
+     modImplementation("net.fabricmc:fabric-loader:${property("deps.fabric_loader")}")
+     modImplementation("net.fabricmc.fabric-api:fabric-api:$fabricApi")
+ 
+-    include(implementation("de.javagl:jgltf-model:2.0.4")!!)
+-    include(implementation("de.javagl:jgltf-impl-v2:2.0.4")!!)
+-    include(implementation("com.fasterxml.jackson.core:jackson-databind:2.13.4.2")!!)
+-    include(implementation("com.fasterxml.jackson.core:jackson-core:2.13.4")!!)
+-    include(implementation("com.fasterxml.jackson.core:jackson-annotations:2.13.4")!!)
++    modelLibraries("de.javagl:jgltf-model:2.0.4")
++    modelLibraries("de.javagl:jgltf-impl-v2:2.0.4")
++    modelLibraries("de.javagl:jgltf-impl-v1:2.0.4")
++    modelLibraries("com.fasterxml.jackson.core:jackson-databind:2.13.4.2")
++    modelLibraries("com.fasterxml.jackson.core:jackson-core:2.13.4")
++    modelLibraries("com.fasterxml.jackson.core:jackson-annotations:2.13.4")
+ 
+     implementation(files(rootProject.file("libs/bb4j.jar")))
+ 
+@@ -106,7 +116,7 @@ tasks {
+     }
+ 
+     withType<Jar> {
+-        from(rootProject.file("LICENSE")) { rename { "${it}_amnetic" } }
++        from(rootProject.file("LICENSE.txt")) { rename { "${it}_amnetic" } }
+     }
+ 
+     jar {
+@@ -122,3 +132,17 @@ publishing {
+         }
+     }
+ }
++
++// Shade only the model reader dependencies, never Minecraft, Fabric, or LWJGL.
++val shadedModelJar = tasks.named<ShadowJar>("shadowJar") {
++    configurations = listOf(modelLibraries)
++    archiveClassifier = "dev-shadow"
++    relocate("de.javagl", "com.meekdev.amnetic.internal.model.javagl")
++    relocate("com.fasterxml.jackson", "com.meekdev.amnetic.internal.model.jackson")
++    mergeServiceFiles()
++    from(zipTree(rootProject.file("libs/bb4j.jar"))) { exclude("META-INF/**") }
++    exclude("META-INF/*.SF", "META-INF/*.RSA", "META-INF/*.DSA", "module-info.class")
++}
++tasks.withType<RemapJarTask>().configureEach {
++    if (name == "remapJar") inputFile.set(shadedModelJar.flatMap { it.archiveFile })
++}
+diff --git a/settings.gradle.kts b/settings.gradle.kts
+index 8e0ae76..c5ecbce 100644
+--- a/settings.gradle.kts
++++ b/settings.gradle.kts
+@@ -22,4 +22,4 @@ stonecutter {
+ rootProject.name = "amnetic"
+ 
+ include("examples")
+-include("bench")
++if (file("bench").isDirectory) include("bench")
+diff --git a/src/main/java/com/meekdev/amnetic/client/bloom/internal/BloomRenderer.java b/src/main/java/com/meekdev/amnetic/client/bloom/internal/BloomRenderer.java
+index 1cb20a1..a0ad92a 100644
+--- a/src/main/java/com/meekdev/amnetic/client/bloom/internal/BloomRenderer.java
++++ b/src/main/java/com/meekdev/amnetic/client/bloom/internal/BloomRenderer.java
+@@ -105,7 +105,8 @@ public final class BloomRenderer {
+         if (instEmissive || hookEmissive) {
+             if (s.isOcclude()) {
+                 emissiveBuf.blitDepthFromMain();
+-                GL11.glDepthFunc(GL11.GL_LEQUAL); // visible surfaces (equal depth) bloom
++                GlStateManager._depthFunc(GL11.GL_LEQUAL); // keep the vanilla cache and GL state aligned
++                GL11.glDepthFunc(GL11.GL_LEQUAL);
+             }
+             if (instEmissive) {
+                 for (InstancePhase phase : PHASES) {
+@@ -166,6 +167,7 @@ public final class BloomRenderer {
+             if (occlude) {
+                 GlStateManager._enableDepthTest();
+                 GL11.glEnable(GL11.GL_DEPTH_TEST);
++                GlStateManager._depthFunc(GL11.GL_LEQUAL);
+                 GL11.glDepthFunc(GL11.GL_LEQUAL);
+                 // emissive block quads are coplanar with the world geometry already in this
+                 // depth buffer, so exact-equality LEQUAL fails at grazing angles and drops
+@@ -249,11 +251,13 @@ public final class BloomRenderer {
+         if (emissiveBuf != null) emissiveBuf.dispose();
+         if (sceneCapture != null) sceneCapture.dispose();
+ 
+-        // both buffers only feed the mip chain, which downsamples to `scale` immediately, so
+-        // capturing/prefiltering at full resolution would be wasted GPU work
++        // Geometry must use the same pixel centers as the world depth buffer.
++        // A downscaled nearest-depth copy self-occludes small/copanar emissive
++        // surfaces and lets edge samples cross thin occluders. Downsample only
++        // after visibility has been resolved; the blur chain still uses scale.
+         FramebufferSpec.Builder emissive = FramebufferSpec.builder().color(ColorFormat.R11G11B10F);
+         if (occlude) emissive.depthTexture();
+-        emissiveBuf = Framebuffers.screen("Bloom Emissive", scale, emissive.build());
++        emissiveBuf = Framebuffers.screen("Bloom Emissive", 1.0f, emissive.build());
+         sceneCapture = Framebuffers.screen("Bloom Scene Capture", scale,
+                 FramebufferSpec.builder().color(ColorFormat.R11G11B10F).depthTexture().build());
+ 
+diff --git a/src/main/java/com/meekdev/amnetic/client/emissive/internal/BlockEmissiveSource.java b/src/main/java/com/meekdev/amnetic/client/emissive/internal/BlockEmissiveSource.java
+index 8d27556..0a517fb 100644
+--- a/src/main/java/com/meekdev/amnetic/client/emissive/internal/BlockEmissiveSource.java
++++ b/src/main/java/com/meekdev/amnetic/client/emissive/internal/BlockEmissiveSource.java
+@@ -109,7 +109,7 @@ public final class BlockEmissiveSource {
+ 
+         GL30.glBindVertexArray(vao);
+         GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, vertexCount);
+-        GL30.glBindVertexArray(0);
++        com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+     }
+ 
+     private void rebuild(ClientLevel level, int cx, int cy, int cz) {
+@@ -206,7 +206,7 @@ public final class BlockEmissiveSource {
+         GL20.glVertexAttribPointer(2, 2, GL11.GL_FLOAT, false, stride, 5 * Float.BYTES);
+         GL20.glEnableVertexAttribArray(3);
+         GL20.glVertexAttribPointer(3, 2, GL11.GL_FLOAT, false, stride, 7 * Float.BYTES);
+-        GL30.glBindVertexArray(0);
++        com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
+     }
+ 
+diff --git a/src/main/java/com/meekdev/amnetic/client/instanced/internal/InstanceMeshEntry.java b/src/main/java/com/meekdev/amnetic/client/instanced/internal/InstanceMeshEntry.java
+index 77d713f..66410d2 100644
+--- a/src/main/java/com/meekdev/amnetic/client/instanced/internal/InstanceMeshEntry.java
++++ b/src/main/java/com/meekdev/amnetic/client/instanced/internal/InstanceMeshEntry.java
+@@ -180,7 +180,7 @@ public final class InstanceMeshEntry<T> implements AutoCloseable {
+             }
+         } finally {
+             if (fullSet) pointInstanceAttributes(instanceBuffer.id());
+-            GlStateManager._glBindVertexArray(0);
++            com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+             GlStateManager._glUseProgram(0);
+         }
+     }
+@@ -216,7 +216,7 @@ public final class InstanceMeshEntry<T> implements AutoCloseable {
+                 GL31.glDrawArraysInstanced(GL11.GL_TRIANGLES, 0, mesh.geometry().vertexCount(), instanceCount);
+             }
+         } finally {
+-            GlStateManager._glBindVertexArray(0);
++            com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+             GlStateManager._glUseProgram(0);
+         }
+     }
+@@ -249,7 +249,7 @@ public final class InstanceMeshEntry<T> implements AutoCloseable {
+ 
+             GL15.glBindBuffer(GL40.GL_DRAW_INDIRECT_BUFFER, 0);
+         } finally {
+-            GlStateManager._glBindVertexArray(0);
++            com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+             GlStateManager._glUseProgram(0);
+         }
+     }
+@@ -410,7 +410,7 @@ public final class InstanceMeshEntry<T> implements AutoCloseable {
+         mesh.layout().setupVaoAttributes();
+ 
+         GlStateManager._glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
+-        GlStateManager._glBindVertexArray(0);
++        com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+     }
+ 
+     private void ensureShader() {
+@@ -433,7 +433,7 @@ public final class InstanceMeshEntry<T> implements AutoCloseable {
+             GL15.glBufferSubData(GL15.GL_ELEMENT_ARRAY_BUFFER, 0L, geometry.indicesAsBuffer());
+         }
+         GlStateManager._glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
+-        GlStateManager._glBindVertexArray(0);
++        com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+     }
+ 
+     @Override
+diff --git a/src/main/java/com/meekdev/amnetic/client/light/internal/LightVolumePass.java b/src/main/java/com/meekdev/amnetic/client/light/internal/LightVolumePass.java
+index 08883a8..268068b 100644
+--- a/src/main/java/com/meekdev/amnetic/client/light/internal/LightVolumePass.java
++++ b/src/main/java/com/meekdev/amnetic/client/light/internal/LightVolumePass.java
+@@ -93,7 +93,7 @@ public final class LightVolumePass {
+             program.setFloat("LightRadius", pad);
+             GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, vertexCount);
+         }
+-        GL30.glBindVertexArray(0);
++        com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+ 
+         GL11.glCullFace(GL11.GL_BACK);
+         GlStateManager._depthFunc(GL11.GL_LEQUAL);
+@@ -115,7 +115,7 @@ public final class LightVolumePass {
+         GL15.glBufferData(GL15.GL_ARRAY_BUFFER, buf, GL15.GL_STATIC_DRAW);
+         GL20.glEnableVertexAttribArray(0);
+         GL20.glVertexAttribPointer(0, 3, GL11.GL_FLOAT, false, 3 * Float.BYTES, 0L);
+-        GL30.glBindVertexArray(0);
++        com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
+     }
+ 
+diff --git a/src/main/java/com/meekdev/amnetic/client/model/internal/GpuModel.java b/src/main/java/com/meekdev/amnetic/client/model/internal/GpuModel.java
+index ca0a30e..db13417 100644
+--- a/src/main/java/com/meekdev/amnetic/client/model/internal/GpuModel.java
++++ b/src/main/java/com/meekdev/amnetic/client/model/internal/GpuModel.java
+@@ -153,7 +153,7 @@ public final class GpuModel implements AutoCloseable {
+         drawPass(shader, instances, false, lod);
+         drawPass(shader, instances, true, lod);
+ 
+-        GlStateManager._glBindVertexArray(0);
++        com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+         GlStateManager._activeTexture(GL13.GL_TEXTURE0);
+     }
+ 
+@@ -215,7 +215,7 @@ public final class GpuModel implements AutoCloseable {
+                 GlStateManager._enableCull();
+             }
+         }
+-        GlStateManager._glBindVertexArray(0);
++        com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+         GlStateManager._activeTexture(GL13.GL_TEXTURE0);
+     }
+ 
+@@ -272,7 +272,7 @@ public final class GpuModel implements AutoCloseable {
+                 GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, part.vertexCount);
+             }
+         }
+-        GlStateManager._glBindVertexArray(0);
++        com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+     }
+ 
+     private void drawBatched(ModelShader shader, GpuPart part, List<DrawInstance> instances) {
+@@ -692,7 +692,7 @@ public final class GpuModel implements AutoCloseable {
+             }
+             if (lodIbo[lod] == 0) {
+                 int[] idx = lods[lod];
+-                GlStateManager._glBindVertexArray(0);
++                com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+                 int b = GlStateManager._glGenBuffers();
+                 GlStateManager._glBindBuffer(GL15.GL_ELEMENT_ARRAY_BUFFER, b);
+                 ByteBuffer buf = MemoryUtil.memAlloc(idx.length * Integer.BYTES);
+@@ -791,7 +791,7 @@ public final class GpuModel implements AutoCloseable {
+             GL33.glVertexAttribDivisor(7, 1);
+ 
+             GlStateManager._glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
+-            GlStateManager._glBindVertexArray(0);
++            com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+             p.drawIbo = p.ibo;
+             p.drawCount = p.indexCount;
+             return p;
+diff --git a/src/main/java/com/meekdev/amnetic/client/model/internal/ModelRegistry.java b/src/main/java/com/meekdev/amnetic/client/model/internal/ModelRegistry.java
+index 3e156f5..bc37150 100644
+--- a/src/main/java/com/meekdev/amnetic/client/model/internal/ModelRegistry.java
++++ b/src/main/java/com/meekdev/amnetic/client/model/internal/ModelRegistry.java
+@@ -227,7 +227,7 @@ public final class ModelRegistry {
+             }
+         } finally {
+             GlStateManager._glUseProgram(0);
+-            GlStateManager._glBindVertexArray(0);
++            com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+         }
+     }
+ 
+@@ -457,7 +457,7 @@ public final class ModelRegistry {
+             }
+         } finally {
+             GlStateManager._glUseProgram(0);
+-            GlStateManager._glBindVertexArray(0);
++            com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+         }
+     }
+ 
+diff --git a/src/main/java/com/meekdev/amnetic/client/model/internal/OffscreenModelRenderer.java b/src/main/java/com/meekdev/amnetic/client/model/internal/OffscreenModelRenderer.java
+index 39cfd3a..cdf6fa4 100644
+--- a/src/main/java/com/meekdev/amnetic/client/model/internal/OffscreenModelRenderer.java
++++ b/src/main/java/com/meekdev/amnetic/client/model/internal/OffscreenModelRenderer.java
+@@ -57,7 +57,7 @@ public final class OffscreenModelRenderer implements AutoCloseable {
+             return true;
+         } finally {
+             GlStateManager._glUseProgram(0);
+-            GlStateManager._glBindVertexArray(0);
++            com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+             RenderState.DEFAULT.restore();
+         }
+     }
+diff --git a/src/main/java/com/meekdev/amnetic/client/post/internal/PostPipeline.java b/src/main/java/com/meekdev/amnetic/client/post/internal/PostPipeline.java
+index 5b14fec..0f74787 100644
+--- a/src/main/java/com/meekdev/amnetic/client/post/internal/PostPipeline.java
++++ b/src/main/java/com/meekdev/amnetic/client/post/internal/PostPipeline.java
+@@ -83,7 +83,7 @@ final class PostPipeline implements AutoCloseable {
+                         t.has("width") ? t.get("width").getAsInt() : null,
+                         t.has("height") ? t.get("height").getAsInt() : null,
+                         t.has("persistent") && t.get("persistent").getAsBoolean(),
+-                        t.has("clear_color") ? t.get("clear_color").getAsInt() : 0));
++                        parseClearColor(t.get("clear_color"))));
+             }
+         }
+ 
+@@ -128,6 +128,16 @@ final class PostPipeline implements AutoCloseable {
+         return new PostPipeline(id, targets, passes);
+     }
+ 
++    private static int parseClearColor(JsonElement color) {
++        if (color == null || color.isJsonNull()) return 0;
++        if (!color.isJsonArray()) return color.getAsInt();
++        var rgba = color.getAsJsonArray();
++        if (rgba.size() != 4) throw new IllegalArgumentException("clear_color requires four RGBA components");
++        int[] channels = new int[4];
++        for (int i = 0; i < 4; i++) channels[i] = Math.round(Math.max(0F, Math.min(1F, rgba.get(i).getAsFloat())) * 255F);
++        return channels[3] << 24 | channels[0] << 16 | channels[1] << 8 | channels[2];
++    }
++
+     boolean usesTarget(Identifier target) {
+         for (Pass pass : passes) {
+             if (target.equals(pass.output())) return true;
+diff --git a/src/main/java/com/meekdev/amnetic/client/post/internal/PostProgram.java b/src/main/java/com/meekdev/amnetic/client/post/internal/PostProgram.java
+index f2193f0..79afc11 100644
+--- a/src/main/java/com/meekdev/amnetic/client/post/internal/PostProgram.java
++++ b/src/main/java/com/meekdev/amnetic/client/post/internal/PostProgram.java
+@@ -64,7 +64,9 @@ final class PostProgram implements AutoCloseable {
+ 
+     PostProgram(Identifier vertexShader, Identifier fragmentShader) {
+         String vsh = SCREENQUAD.equals(vertexShader) ? read(SCREENQUAD_FILE) : load(vertexShader, "vsh");
+-        String fsh = load(fragmentShader, "fsh");
++        String fsh = fragmentShader.equals(Identifier.fromNamespaceAndPath("minecraft", "post/blit"))
++                ? read(Identifier.fromNamespaceAndPath("amnetic", "shaders/post/blit.fsh"))
++                : load(fragmentShader, "fsh");
+         int vs = compile(GL20.GL_VERTEX_SHADER, vsh, vertexShader);
+         int fs;
+         try {
+diff --git a/src/main/java/com/meekdev/amnetic/client/render/Geometry.java b/src/main/java/com/meekdev/amnetic/client/render/Geometry.java
+index 68fd61b..faf81e1 100644
+--- a/src/main/java/com/meekdev/amnetic/client/render/Geometry.java
++++ b/src/main/java/com/meekdev/amnetic/client/render/Geometry.java
+@@ -63,7 +63,7 @@ public final class Geometry {
+         } else {
+             GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, gpu.count);
+         }
+-        GlStateManager._glBindVertexArray(0);
++        com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+         GlStateManager._glUseProgram(0);
+     }
+ 
+@@ -99,7 +99,7 @@ public final class Geometry {
+         }
+ 
+         GlStateManager._glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
+-        GlStateManager._glBindVertexArray(0);
++        com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+         return gpu;
+     }
+ 
+diff --git a/src/main/java/com/meekdev/amnetic/client/render/GlState.java b/src/main/java/com/meekdev/amnetic/client/render/GlState.java
+index 62b9785..064d71d 100644
+--- a/src/main/java/com/meekdev/amnetic/client/render/GlState.java
++++ b/src/main/java/com/meekdev/amnetic/client/render/GlState.java
+@@ -23,6 +23,14 @@ public final class GlState {
+         return geometryPolygonMode;
+     }
+ 
++    /** Older BufferUploader caches the last immediate VBO independently of GL state. */
++    public static void resetVertexArray() {
++        GlStateManager._glBindVertexArray(0);
++        //? if <1.21.5 {
++        /*com.mojang.blaze3d.vertex.BufferUploader.invalidate();
++        *///?}
++    }
++
+     public static void beginFullscreen() {
+         GL11.glPolygonMode(GL11.GL_FRONT_AND_BACK, GL11.GL_FILL);
+         GlStateManager._disableBlend(); GL11.glDisable(GL11.GL_BLEND);
+@@ -53,7 +61,7 @@ public final class GlState {
+         GL13.glActiveTexture(GL13.GL_TEXTURE0);
+         GlStateManager._activeTexture(GL13.GL_TEXTURE0);
+         GlStateManager._glUseProgram(0);
+-        GlStateManager._glBindVertexArray(0);
++        com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+         GlStateManager._depthMask(true); GL11.glDepthMask(true);
+         GlStateManager._enableDepthTest(); GL11.glEnable(GL11.GL_DEPTH_TEST);
+         GlStateManager._enableCull(); GL11.glEnable(GL11.GL_CULL_FACE);
+diff --git a/src/main/java/com/meekdev/amnetic/client/render/ScreenPass.java b/src/main/java/com/meekdev/amnetic/client/render/ScreenPass.java
+index 2408fb0..8d04053 100644
+--- a/src/main/java/com/meekdev/amnetic/client/render/ScreenPass.java
++++ b/src/main/java/com/meekdev/amnetic/client/render/ScreenPass.java
+@@ -1,6 +1,5 @@
+ package com.meekdev.amnetic.client.render;
+ 
+-import net.fabricmc.loader.api.FabricLoader;
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ 
+@@ -25,7 +24,7 @@ public abstract class ScreenPass {
+ 
+     protected final void dispatch() {
+         if (!guard.alive() || !enabled()) return;
+-        if (skipUnderIris() && FabricLoader.getInstance().isModLoaded("iris")) return;
++        if (skipUnderIris() && ShaderPackCompatibility.active()) return;
+         CameraSnapshot cam = CameraSnapshot.current();
+         if (cam == null) return;
+         if (program == null) program = createProgram();
+diff --git a/src/main/java/com/meekdev/amnetic/client/shadow/internal/EntityOccluders.java b/src/main/java/com/meekdev/amnetic/client/shadow/internal/EntityOccluders.java
+index 144d0e1..ce2f3e5 100644
+--- a/src/main/java/com/meekdev/amnetic/client/shadow/internal/EntityOccluders.java
++++ b/src/main/java/com/meekdev/amnetic/client/shadow/internal/EntityOccluders.java
+@@ -99,7 +99,7 @@ public final class EntityOccluders {
+             GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, vbo);
+             GL20.glEnableVertexAttribArray(0);
+             GL20.glVertexAttribPointer(0, 3, GL11.GL_FLOAT, false, 3 * Float.BYTES, 0L);
+-            GL30.glBindVertexArray(0);
++            com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+         }
+         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, vbo);
+         GL15.glBufferData(GL15.GL_ARRAY_BUFFER, buf, GL15.GL_DYNAMIC_DRAW);
+@@ -115,7 +115,7 @@ public final class EntityOccluders {
+         if (vertexCount == 0) return;
+         GL30.glBindVertexArray(vao);
+         GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, vertexCount);
+-        GL30.glBindVertexArray(0);
++        com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+     }
+ 
+     public void dispose() {
+diff --git a/src/main/java/com/meekdev/amnetic/client/shadow/internal/OccluderMesh.java b/src/main/java/com/meekdev/amnetic/client/shadow/internal/OccluderMesh.java
+index 626ee3b..cfecbf6 100644
+--- a/src/main/java/com/meekdev/amnetic/client/shadow/internal/OccluderMesh.java
++++ b/src/main/java/com/meekdev/amnetic/client/shadow/internal/OccluderMesh.java
+@@ -48,7 +48,7 @@ public final class OccluderMesh implements AutoCloseable {
+         if (count == 0) return;
+         GL30.glBindVertexArray(vao);
+         GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, count);
+-        GL30.glBindVertexArray(0);
++        com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+     }
+ 
+     private void buildOpaque(List<OccluderEntry> list) {
+@@ -78,7 +78,7 @@ public final class OccluderMesh implements AutoCloseable {
+         GL15.glBufferData(GL15.GL_ARRAY_BUFFER, buf, GL15.GL_STATIC_DRAW);
+         GL20.glEnableVertexAttribArray(0);
+         GL20.glVertexAttribPointer(0, 3, GL11.GL_FLOAT, false, 3 * Float.BYTES, 0L);
+-        GL30.glBindVertexArray(0);
++        com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
+     }
+ 
+@@ -111,7 +111,7 @@ public final class OccluderMesh implements AutoCloseable {
+         GL20.glVertexAttribPointer(0, 3, GL11.GL_FLOAT, false, stride, 0L);
+         GL20.glEnableVertexAttribArray(1);
+         GL20.glVertexAttribPointer(1, 2, GL11.GL_FLOAT, false, stride, 3 * Float.BYTES);
+-        GL30.glBindVertexArray(0);
++        com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
+         return new int[]{vao, vbo, buf.limit() / 5};
+     }
+diff --git a/src/main/java/com/meekdev/amnetic/client/surface/internal/UiBatcher.java b/src/main/java/com/meekdev/amnetic/client/surface/internal/UiBatcher.java
+index c36f6ee..32c6f1d 100644
+--- a/src/main/java/com/meekdev/amnetic/client/surface/internal/UiBatcher.java
++++ b/src/main/java/com/meekdev/amnetic/client/surface/internal/UiBatcher.java
+@@ -478,7 +478,7 @@ public final class UiBatcher {
+         // left bound, the sampler would override whatever the game draws on unit zero next
+         GL33.glBindSampler(0, 0);
+ 
+-        GlStateManager._glBindVertexArray(0);
++        com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+         verts.clear();
+         segments = 0;
+     }
+@@ -534,6 +534,6 @@ public final class UiBatcher {
+         GL20.glVertexAttribPointer(4, 2, GL11.GL_FLOAT, false, stride, 48);
+         GL20.glEnableVertexAttribArray(5);
+         GL20.glVertexAttribPointer(5, 4, GL11.GL_FLOAT, false, stride, 56);
+-        GlStateManager._glBindVertexArray(0);
++        com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+     }
+ }
+diff --git a/src/main/java/com/meekdev/amnetic/client/surface/internal/WorldSurfaceRenderer.java b/src/main/java/com/meekdev/amnetic/client/surface/internal/WorldSurfaceRenderer.java
+index 0bc32af..4285bc7 100644
+--- a/src/main/java/com/meekdev/amnetic/client/surface/internal/WorldSurfaceRenderer.java
++++ b/src/main/java/com/meekdev/amnetic/client/surface/internal/WorldSurfaceRenderer.java
+@@ -252,7 +252,7 @@ public final class WorldSurfaceRenderer {
+         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, vbo);
+         GL15.glBufferData(GL15.GL_ARRAY_BUFFER, grid, GL15.GL_STREAM_DRAW);
+         GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, segs * 6);
+-        GlStateManager._glBindVertexArray(0);
++        com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+         GlStateManager._glUseProgram(0);
+         GlStateManager._depthMask(true); GL11.glDepthMask(true);
+         GlStateManager._enableDepthTest(); GL11.glEnable(GL11.GL_DEPTH_TEST);
+@@ -418,6 +418,6 @@ public final class WorldSurfaceRenderer {
+         GL20.glVertexAttribPointer(0, 3, GL11.GL_FLOAT, false, 20, 0);
+         GL20.glEnableVertexAttribArray(1);
+         GL20.glVertexAttribPointer(1, 2, GL11.GL_FLOAT, false, 20, 12);
+-        GlStateManager._glBindVertexArray(0);
++        com.meekdev.amnetic.client.render.GlState.resetVertexArray();
+     }
+ }
+diff --git a/src/main/java/com/meekdev/amnetic/client/taa/Taa.java b/src/main/java/com/meekdev/amnetic/client/taa/Taa.java
+index c0ee744..546f9eb 100644
+--- a/src/main/java/com/meekdev/amnetic/client/taa/Taa.java
++++ b/src/main/java/com/meekdev/amnetic/client/taa/Taa.java
+@@ -2,15 +2,13 @@ package com.meekdev.amnetic.client.taa;
+ 
+ import com.meekdev.amnetic.client.taa.internal.CasPass;
+ import com.meekdev.amnetic.client.taa.internal.TaaPass;
+-import net.fabricmc.loader.api.FabricLoader;
++import com.meekdev.amnetic.client.render.ShaderPackCompatibility;
+ 
+ public final class Taa {
+ 
+     private static final TaaSettings SETTINGS = new TaaSettings();
+ 
+-    // under Iris every Amnetic screen pass skips itself, the projection jitter has to skip
+-    // too or the world shimmers with no resolve pass to integrate it
+-    private static final boolean IRIS = FabricLoader.getInstance().isModLoaded("iris");
++    // Projection jitter and its resolve pass must agree when a shader pack is active.
+ 
+     private Taa() {}
+ 
+@@ -19,7 +17,7 @@ public final class Taa {
+     }
+ 
+     public static boolean jitterActive() {
+-        return SETTINGS.isEnabled() && !IRIS;
++        return SETTINGS.isEnabled() && !ShaderPackCompatibility.active();
+     }
+ 
+     public static void enable() {
+diff --git a/src/main/java/com/meekdev/amnetic/client/taa/TaaSettings.java b/src/main/java/com/meekdev/amnetic/client/taa/TaaSettings.java
+index 2777f94..a257b36 100644
+--- a/src/main/java/com/meekdev/amnetic/client/taa/TaaSettings.java
++++ b/src/main/java/com/meekdev/amnetic/client/taa/TaaSettings.java
+@@ -2,6 +2,8 @@ package com.meekdev.amnetic.client.taa;
+ 
+ public final class TaaSettings {
+ 
++    // Asterion deliberately uses unjittered rendering on every supported target.
++    private static final boolean ALLOWED = !net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("asterion");
+     private boolean enabled = false;
+     private float feedback = 0.9f;
+     private float sharpness = 0.4f;
+@@ -9,8 +11,8 @@ public final class TaaSettings {
+ 
+     TaaSettings() {}
+ 
+-    public TaaSettings enabled(boolean v) { this.enabled = v; return this; }
+-    public boolean isEnabled() { return enabled; }
++    public TaaSettings enabled(boolean v) { this.enabled = v && ALLOWED; return this; }
++    public boolean isEnabled() { return enabled && ALLOWED; }
+ 
+     public TaaSettings feedback(float v) { this.feedback = Math.max(0f, Math.min(0.98f, v)); return this; }
+     public float feedback() { return feedback; }
+diff --git a/src/main/java/com/meekdev/amnetic/mixin/WindowGlContextMixin.java b/src/main/java/com/meekdev/amnetic/mixin/WindowGlContextMixin.java
+index ba06852..2a599a1 100644
+--- a/src/main/java/com/meekdev/amnetic/mixin/WindowGlContextMixin.java
++++ b/src/main/java/com/meekdev/amnetic/mixin/WindowGlContextMixin.java
+@@ -6,14 +6,18 @@ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ import org.spongepowered.asm.mixin.Mixin;
+ import org.spongepowered.asm.mixin.injection.At;
+-import org.spongepowered.asm.mixin.injection.Redirect;
++import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
++import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
++import org.lwjgl.glfw.GLFWErrorCallback;
+ 
+ @Mixin(Window.class)
+ public final class WindowGlContextMixin {
+ 
+     private static final Logger LOGGER = LoggerFactory.getLogger("Amnetic/GL");
+ 
+-    @Redirect(
++    // NeoForge owns window creation through its early display; use its context there.
++    @WrapOperation(
++            require = 0,
+             //? if >=26.1 {
+             method = "createGlfwWindow",
+             //?} else {
+@@ -25,21 +29,32 @@ public final class WindowGlContextMixin {
+             )
+     )
+     private static long amnetic$createWindowWithGlVersion(int width, int height, CharSequence title,
+-                                                          long monitor, long share) {
++                                                          long monitor, long share, Operation<Long> original) {
+         int major = Integer.getInteger("amnetic.opengl.major", 4);
+         int minor = Integer.getInteger("amnetic.opengl.minor", 6);
+         boolean debug = Boolean.getBoolean("amnetic.opengl.debug");
+ 
+-        applyHints(major, minor, debug);
+-        long handle = GLFW.glfwCreateWindow(width, height, title, monitor, share);
+-        if (handle != 0L) {
+-            LOGGER.info("Created OpenGL {}.{} core context (compute-capable)", major, minor);
+-            return handle;
++        // Compose with Sodium's driver workarounds instead of replacing its call.
++        // Vanilla's startup callback throws immediately; temporarily record GLFW
++        // errors so an unsupported context can actually reach the fallback.
++        GLFWErrorCallback probe = GLFWErrorCallback.create((code, description) ->
++                LOGGER.warn("Context probe {}: {}", code, GLFWErrorCallback.getDescription(description)));
++        GLFWErrorCallback previous = GLFW.glfwSetErrorCallback(probe);
++        try {
++            int[][] candidates = {{major, minor}, {4, 3}, {3, 3}};
++            for (int[] version : candidates) {
++                applyHints(version[0], version[1], debug);
++                long handle = original.call(width, height, title, monitor, share);
++                if (handle != 0L) {
++                    LOGGER.info("Created OpenGL {}.{} core context", version[0], version[1]);
++                    return handle;
++                }
++            }
++            throw new IllegalStateException("Unable to create an OpenGL 3.3 or newer context; see the GLFW errors above");
++        } finally {
++            GLFW.glfwSetErrorCallback(previous);
++            probe.free();
+         }
+-
+-        LOGGER.warn("OpenGL {}.{} context creation failed; falling back to 3.3", major, minor);
+-        applyHints(3, 3, false);
+-        return GLFW.glfwCreateWindow(width, height, title, monitor, share);
+     }
+ 
+     private static void applyHints(int major, int minor, boolean debug) {
+@@ -48,5 +63,7 @@ public final class WindowGlContextMixin {
+         GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_PROFILE, GLFW.GLFW_OPENGL_CORE_PROFILE);
+         GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_FORWARD_COMPAT, GLFW.GLFW_TRUE);
+         GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_DEBUG_CONTEXT, debug ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
++        // A debug context and Sodium's optional no-error context are exclusive.
++        if (debug) GLFW.glfwWindowHint(GLFW.GLFW_CONTEXT_NO_ERROR, GLFW.GLFW_FALSE);
+     }
+ }
+diff --git a/src/main/resources/amnetic.mixins.json b/src/main/resources/amnetic.mixins.json
+index 11312ed..519a882 100644
+--- a/src/main/resources/amnetic.mixins.json
++++ b/src/main/resources/amnetic.mixins.json
+@@ -6,7 +6,6 @@
+   "mixins": [],
+   "client": [
+     "GameRendererMixin",
+-    "BufferUploaderMixin",
+     "ItemInHandRendererMixin",
+     "GlCommandEncoderMixin",
+     "MinecraftMainTargetMixin",
+diff --git a/stonecutter.gradle.kts b/stonecutter.gradle.kts
+index a299aa0..3a1bee6 100644
+--- a/stonecutter.gradle.kts
++++ b/stonecutter.gradle.kts
+@@ -1,5 +1,6 @@
+ plugins {
+     id("dev.kikugie.stonecutter")
++    id("com.gradleup.shadow") version "9.6.1" apply false
+ }
+ 
+ stonecutter active "26.1.2"
+diff --git a/src/main/java/com/meekdev/amnetic/client/render/ShaderPackCompatibility.java b/src/main/java/com/meekdev/amnetic/client/render/ShaderPackCompatibility.java
+new file mode 100644
+index 0000000..4b5c829
+--- /dev/null
++++ b/src/main/java/com/meekdev/amnetic/client/render/ShaderPackCompatibility.java
+@@ -0,0 +1,31 @@
++package com.meekdev.amnetic.client.render;
++
++import net.fabricmc.loader.api.FabricLoader;
++import java.lang.reflect.Method;
++
++/** Optional Iris API bridge; an installed but inactive shader loader needs no workaround. */
++public final class ShaderPackCompatibility {
++    private static final boolean INSTALLED = FabricLoader.getInstance().isModLoaded("iris");
++    private static final Method ACTIVE = findApi();
++    private ShaderPackCompatibility() {}
++
++    private static Method findApi() {
++        if (!INSTALLED) return null;
++        for (String name : new String[]{"net.irisshaders.iris.api.v0.IrisApi",
++                "net.coderbot.iris.api.v0.IrisApi"}) {
++            try { return Class.forName(name).getMethod("isShaderPackInUse"); }
++            catch (ReflectiveOperationException | LinkageError ignored) { }
++        }
++        return null;
++    }
++
++    public static boolean active() {
++        if (!INSTALLED) return false;
++        // Unknown Iris APIs retain the conservative framebuffer compatibility path.
++        if (ACTIVE == null) return true;
++        try {
++            Object api = ACTIVE.getDeclaringClass().getMethod("getInstance").invoke(null);
++            return (boolean) ACTIVE.invoke(api);
++        } catch (ReflectiveOperationException | LinkageError failure) { return true; }
++    }
++}
+diff --git a/src/main/resources/assets/amnetic/shaders/post/blit.fsh b/src/main/resources/assets/amnetic/shaders/post/blit.fsh
+new file mode 100644
+index 0000000..70f02a9
+--- /dev/null
++++ b/src/main/resources/assets/amnetic/shaders/post/blit.fsh
+@@ -0,0 +1,6 @@
++#version 330
++uniform sampler2D InSampler;
++layout(std140) uniform BlitConfig { vec4 ColorModulate; };
++in vec2 texCoord;
++out vec4 fragColor;
++void main() { fragColor = texture(InSampler, texCoord) * ColorModulate; }

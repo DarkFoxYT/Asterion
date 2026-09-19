@@ -16,7 +16,7 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import org.jspecify.annotations.Nullable;
 
- 
+
 public final class ShatteredDeadWoodBlock extends BaseEntityBlock {
     public static final EnumProperty<Direction> FACING = BlockStateProperties.FACING;
 
@@ -25,7 +25,7 @@ public final class ShatteredDeadWoodBlock extends BaseEntityBlock {
         registerDefaultState(stateDefinition.any().setValue(FACING, Direction.UP));
     }
 
-    @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
+    protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
@@ -33,12 +33,12 @@ public final class ShatteredDeadWoodBlock extends BaseEntityBlock {
     }
 
     @Override
-    protected BlockState rotate(BlockState state, Rotation rotation) {
+    public BlockState rotate(BlockState state, Rotation rotation) {
         return state.setValue(FACING, rotation.rotate(state.getValue(FACING)));
     }
 
     @Override
-    protected BlockState mirror(BlockState state, Mirror mirror) {
+    public BlockState mirror(BlockState state, Mirror mirror) {
         return state.setValue(FACING, mirror.mirror(state.getValue(FACING)));
     }
 
@@ -47,7 +47,7 @@ public final class ShatteredDeadWoodBlock extends BaseEntityBlock {
         builder.add(FACING);
     }
 
-    @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
+    @Override public RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
 
     @Override public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new ShatteredDeadWoodBlockEntity(pos, state);

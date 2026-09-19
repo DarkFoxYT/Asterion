@@ -181,7 +181,7 @@ public final class DismembermentEngine {
         if (assembly.isEmpty() || client.level == null) return;
         double reach = Math.max(1.5, radius * 2.0 + 1.0);
         RigidBodyPiece torso = assembly.stream().filter(part -> part.region == 1)
-                .findFirst().orElse(assembly.getFirst());
+                .findFirst().orElse(assembly.get(0));
         double distance = torso.position.distanceTo(center);
         if (distance > reach) return;
         double exposure = 1.0;

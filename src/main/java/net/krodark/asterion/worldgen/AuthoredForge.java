@@ -31,16 +31,16 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.WeakHashMap;
 
- 
+
 
 
 
 
 public final class AuthoredForge {
     private static final ResourceKey<LootTable> FORGE_CACHE = ResourceKey.create(
-            Registries.LOOT_TABLE, ResourceLocation.fromNamespaceAndPath("asterion", "chests/forge_cache"));
+            net.krodark.asterion.port.compat.LootCompat.REGISTRY, ResourceLocation.fromNamespaceAndPath("asterion", "chests/forge_cache"));
     private static final ResourceKey<LootTable> FORGE_GOLD_RESERVE = ResourceKey.create(
-            Registries.LOOT_TABLE, ResourceLocation.fromNamespaceAndPath("asterion", "chests/forge_gold_reserve"));
+            net.krodark.asterion.port.compat.LootCompat.REGISTRY, ResourceLocation.fromNamespaceAndPath("asterion", "chests/forge_gold_reserve"));
     private static final int DISTRICT_ROOMS = 52;
     public static final int DISTRICT_SPACING = 228;
     private static final Map<ServerLevel, Map<String, Optional<ResolvedPiece>>> PIECE_CACHE = new WeakHashMap<>();
@@ -56,7 +56,7 @@ public final class AuthoredForge {
 
     private AuthoredForge() { }
 
-     
+
 
     public static void onChunkLoad(ServerLevel level, net.minecraft.world.level.chunk.LevelChunk chunk, boolean newlyGenerated) {
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
@@ -66,7 +66,7 @@ public final class AuthoredForge {
     public static void tickRepairs(ServerLevel level) {
         var pending = REPAIRS.get(level);
         if (pending == null || pending.isEmpty()) return;
-         
+
         PendingChunk entry = pending.removeFirst();
         ChunkPos pos = entry.pos();
         var chunk = level.getChunkSource().getChunkNow(pos.x, pos.z);
@@ -76,8 +76,8 @@ public final class AuthoredForge {
         }
         repairEmptyChunk(level, chunk);
         ShaleCaves.repairEmptyChunk(chunk, MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState()));
-         
-         
+
+
     }
 
     public static void repairEmptyChunk(ServerLevel level, net.minecraft.world.level.chunk.LevelChunk chunk) {
@@ -132,8 +132,8 @@ public final class AuthoredForge {
                 if (pos.getX() < minX || pos.getX() > maxX || pos.getY() < minY || pos.getY() > maxY
                         || pos.getZ() < minZ || pos.getZ() > maxZ) continue;
                 if (world.getBlockEntity(pos) instanceof RandomizableContainerBlockEntity container) {
-                    container.setLootTable(loot);
-                    container.setLootTableSeed(CatacombLayout.hash(placement.origin().asLong(), pos.getX(), pos.getZ()) ^ pos.getY());
+                    net.krodark.asterion.port.compat.LootCompat.set(container, loot);
+                    net.krodark.asterion.port.compat.LootCompat.seed(container, CatacombLayout.hash(placement.origin().asLong(), pos.getX(), pos.getZ()) ^ pos.getY());
                     container.setChanged();
                 }
             }
@@ -151,7 +151,7 @@ public final class AuthoredForge {
     }
 
     public static BlockPos westSocket(ServerLevel level, ChunkPos chunk) {
-        var root = layoutFor(level, chunk).placements().getFirst();
+        var root = layoutFor(level, chunk).placements().get(0);
         return net.krodark.asterion.port.compat.JigsawCompat.getJigsaws(
                         root.template(), root.origin(), root.rotation()).stream()
                 .filter(port -> JigsawBlock.getFrontFacing(port.info().state()) == Direction.WEST
@@ -197,7 +197,7 @@ public final class AuthoredForge {
         REPAIRS.clear();
     }
 
-     
+
     public static boolean contains(ServerLevel level, BlockPos pos) {
         Layout layout = layoutFor(level, new ChunkPos(pos));
         return placements(level, layout, new ChunkPos(pos)).stream().anyMatch(placement -> placement.bounds().isInside(pos));
@@ -224,9 +224,9 @@ public final class AuthoredForge {
         Placement rootPlacement = placement(root, Rotation.NONE, rootOrigin);
         placed.add(rootPlacement);
         open.addAll(ports(root, Rotation.NONE, rootOrigin));
-        open.removeIf(port -> port.front() == Direction.WEST);  
+        open.removeIf(port -> port.front() == Direction.WEST);
 
-         
+
         List<ResolvedPiece> remaining = new ArrayList<>(loaded.values());
         remaining.sort(Comparator.comparingInt((ResolvedPiece piece) -> piece.localPorts().get(Rotation.NONE).size()).reversed());
         long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState()) ^ variant * 0x9E3779B97F4A7C15L;
@@ -245,9 +245,9 @@ public final class AuthoredForge {
             children.removeIf(port -> port.position().equals(attachment.childPosition()));
             open.addAll(children);
         }
-         
-         
-         
+
+
+
         List<ResolvedPiece> palette = new ArrayList<>(loaded.values());
         palette.add(root);
         int attempts = 0;
@@ -282,7 +282,7 @@ public final class AuthoredForge {
         return choices.get((int)Math.floorMod(roll >>> 8, choices.size()));
     }
 
-     
+
     private static void openSeam(ServerLevelAccessor world, Port port, BoundingBox clip) {
         Direction across = port.front().getClockWise();
         for (int depth = 0; depth <= 1; depth++) for (int side = -2; side <= 2; side++)
@@ -293,7 +293,7 @@ public final class AuthoredForge {
             }
     }
 
-     
+
     private static void sealPort(ServerLevelAccessor world, Port port, BoundingBox clip) {
         Direction across = port.front().getClockWise();
         for (int depth = 0; depth <= 1; depth++) for (int side = -3; side <= 3; side++)
@@ -348,10 +348,10 @@ public final class AuthoredForge {
                     int center = CatacombLayout.ROOT_CENTER;
                     if (bounds.minX() < center - 96 || bounds.maxX() > center + 96
                             || bounds.minZ() < center - 96 || bounds.maxZ() > center + 96) continue;
-                     
+
                     if (bounds.intersects(new BoundingBox(center - 28, 28, center - 9,
                             center - 19, 78, center + 9))) continue;
-                     
+
                     if (bounds.intersects(new BoundingBox(center - 50, LabyrinthLevels.CAVE_BOTTOM_Y + 3, center - 11,
                             center - 19, 36, center + 11))) continue;
                     if (placed.stream().anyMatch(other -> other.bounds().intersects(candidate.bounds()))) continue;
@@ -359,8 +359,8 @@ public final class AuthoredForge {
                     long centerZ = (long)candidate.bounds().minZ() + candidate.bounds().maxZ();
                     long root = CatacombLayout.ROOT_CENTER * 2L;
                     long dx = centerX - root, dz = centerZ - root;
-                     
-                     
+
+
                     long score = (dx * dx + dz * dz) * 1024L
                             + Math.floorMod(CatacombLayout.hash(seed, origin.getX(), origin.getZ()), 1024L);
                     if (score > bestScore) {
@@ -405,16 +405,16 @@ public final class AuthoredForge {
                 : net.krodark.asterion.port.compat.JigsawCompat.getJigsaws(template, BlockPos.ZERO, rotation)) {
             Direction front = JigsawBlock.getFrontFacing(jigsaw.info().state());
             if (!front.getAxis().isHorizontal()) continue;
-             
-             
-             
+
+
+
             if (!jigsaw.name().equals(DOOR) || !jigsaw.target().equals(DOOR)) continue;
             ports.add(new Port(jigsaw.info().pos(), front, jigsaw.name(), jigsaw.target()));
         }
         return List.copyOf(ports);
     }
 
-     
+
     private static final StructureProcessor CRUCIBLE_PART_DATA = new StructureProcessor() {
         @SuppressWarnings("deprecation")
         @Override public StructureTemplate.StructureBlockInfo processBlock(

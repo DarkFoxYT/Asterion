@@ -40,7 +40,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.EnumSet;
 
- 
+
 public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEntity {
     private static final RawAnimation WALK_ANIMATION = RawAnimation.begin().thenLoop("walk");
     private static final EntityDataAccessor<Integer> DATA_ATTACHED_SURFACE = SynchedEntityData.defineId(
@@ -83,6 +83,9 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
 
     public ScarletCentipedeEntity(EntityType<? extends ScarletCentipedeEntity> type, Level level) {
         super(type, level);
+//? if <1.20.5 {
+/*setMaxUpStep(1.25F);*/
+//?}
         xpReward = 4;
         if (!level.isClientSide()) setChainSegmentCount(CentipedeSegments.randomCount(random));
     }
@@ -94,7 +97,11 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
                 .add(Attributes.MOVEMENT_SPEED, 0.30D)
                 .add(Attributes.FOLLOW_RANGE, 18.0D)
                 .add(Attributes.ARMOR, 5.0D)
-                .add(Attributes.STEP_HEIGHT, 1.25D);
+
+//? if >=1.20.5 {
+.add(Attributes.STEP_HEIGHT, 1.25D)
+//?}
+;
     }
 
     @Override
@@ -114,8 +121,19 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
+    //? if >=1.20.5 {
+protected void defineSynchedData(SynchedEntityData.Builder builder) {
+//?} else {
+/*protected void defineSynchedData() {
+        var builder = this.entityData;*/
+//?}
+
+        //? if >=1.20.5 {
+super.defineSynchedData(builder);
+//?} else {
+/*super.defineSynchedData();*/
+//?}
+
         builder.define(DATA_ATTACHED_SURFACE, Direction.DOWN.ordinal());
         builder.define(DATA_CHAIN_SEGMENTS, DEFAULT_CHAIN_SEGMENTS);
         builder.define(DATA_SEATS, "");
@@ -147,19 +165,19 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         if (getControllingPassenger() != null) navigation.stop();
         super.tick();
         if (!level().isClientSide() && getControllingPassenger() != null && tickCount - driverFrameTick <= 15) {
-             
-             
-             
+
+
+
             surfaceForward = CentipedeMotion.followHeading(surfaceForward, driverHeading,
                     net.minecraft.world.phys.Vec3.atLowerCornerOf(attachedSurface().getNormal()), .45D);
         }
-         
-         
+
+
         if (isControlledByLocalInstance()) updateSurfaceAfterMovement();
         blendAttachmentNormal();
         if (!level().isClientSide()) {
             getEntityData().set(DATA_FORWARD, vector(surfaceForward()));
-             
+
             if (tickCount == 60) {
                 CentipedeSeats live = new CentipedeSeats();
                 for (Entity rider : getPassengers()) live.claim(rider.getUUID(), seatIndex(rider), chainSegmentCount());
@@ -207,7 +225,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         double speed;
         if (controller instanceof Player) {
             forward = riderForward((Player)controller, up);
-             
+
             Vec3 left = up.cross(forward).normalize();
             tangent = forward.scale(input.z).subtract(left.scale(input.x));
             speed = RIDDEN_SPEED * Math.min(1.0D, tangent.length());
@@ -221,7 +239,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
             if (speed > 0) surfaceForward = tangent;
         }
 
-         
+
         Vec3 desiredTangent = tangent.scale(speed);
         double response = desiredTangent.lengthSqr() > 1.0E-5D ? 0.20D : 0.30D;
         smoothedSurfaceMotion = smoothedSurfaceMotion.lerp(desiredTangent, response);
@@ -273,9 +291,9 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     @Override
     protected InteractionResult mobInteract(Player player, InteractionHand hand) {
         if (!player.isSecondaryUseActive() && !player.isPassenger()) {
-             
+
             Vec3 eye = player.getEyePosition();
-            var hit = CentipedeInteraction.pick(eye, eye.add(player.getViewVector(1).scale(player.entityInteractionRange())),
+            var hit = CentipedeInteraction.pick(eye, eye.add(player.getViewVector(1).scale(net.krodark.asterion.port.compat.EntityCompat.reach(player))),
                     chainSegmentCount(), i -> chainPose(i, 1));
             if (hit != null && (level().isClientSide() || mountSegment(player, hit.seat())))
                 return InteractionResult.SUCCESS;
@@ -283,7 +301,6 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         return super.mobInteract(player, hand);
     }
 
-    @Override
     protected Vec3 getPassengerAttachmentPoint(Entity passenger, EntityDimensions dimensions, float scale) {
         int seat = Math.max(0, seatIndex(passenger));
         return CentipedeInteraction.saddle(chainPose(seat, 1), seat).subtract(position());
@@ -296,10 +313,10 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         passenger.resetFallDistance();
     }
 
-     
+
     private void keepHeadOutsideWalls() {
-         
-         
+
+
         if (!isControlledByLocalInstance()) return;
         if (!usesSurfaceTravel()) return;
         Vec3 head = chainHeadCenter();
@@ -315,16 +332,22 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
             if (level().noCollision(passenger,
                     passenger.getBoundingBox().move(candidate.subtract(passenger.position())))) return candidate;
         }
-         
+
         return passenger.position();
     }
 
     public Vec3 passengerPosition(Entity passenger, float partial) {
         int seat = Math.max(0, seatIndex(passenger));
         var pose = chainPose(seat, partial);
-         
-         
-        Vec3 attachment = passenger.getVehicleAttachmentPoint(this);
+
+
+
+//? if >=1.20.5 {
+Vec3 attachment = passenger.getVehicleAttachmentPoint(this);
+//?} else {
+/*Vec3 attachment = new Vec3(0, passenger.getMyRidingOffset(), 0);*/
+//?}
+
         Vec3 rotated = CentipedeInteraction.toWorld(attachment, pose).subtract(pose.position());
         return CentipedeInteraction.saddle(pose, seat).subtract(rotated);
     }
@@ -350,7 +373,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
                 || !Double.isFinite(heading.x) || !Double.isFinite(heading.y) || !Double.isFinite(heading.z)
                 || heading.lengthSqr() < .5 || heading.lengthSqr() > 1.5) return;
         Direction face = SURFACES[surface];
-         
+
         if (face != Direction.DOWN && !touchingSurface(face)) return;
         if (face != attachedSurface()) lastSurfaceSwitchTick = tickCount;
         setAttachedSurface(face);
@@ -447,14 +470,14 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
                 attachTo(replacement, current);
                 return;
             }
-             
+
             if (surfaceContactGrace-- <= 0) detachFromSurface();
         }
     }
 
     private Direction bestTransitionSurface(Direction current) {
-         
-         
+
+
         if (tickCount - lastSurfaceSwitchTick < 6 && touchingSurface(current)) return null;
         if (current == Direction.DOWN && horizontalCollision) {
             Direction wall = null;
@@ -508,8 +531,8 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         if (approach == null)
             approach = CentipedeSurfaceProbe.aroundEdge(getBoundingBox(), motion, attachedSurface(), blocks);
         if (approach == null) return;
-         
-         
+
+
         if (approach.gap() <= .08 && touchingSurface(approach.face())) attachTo(approach.face(), attachedSurface());
     }
 
@@ -518,7 +541,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         Vec3 nextNormal = net.minecraft.world.phys.Vec3.atLowerCornerOf(next.getNormal());
         Vec3 projected = projectOntoSurface(surfaceForward, nextNormal);
         if (projected.lengthSqr() < 1.0E-5D) {
-             
+
             projected = projectOntoSurface(
                     Vec3.atLowerCornerOf(previous.getNormal()).scale(-1.0D), nextNormal);
         }
@@ -552,11 +575,11 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     }
 
     private boolean usesSurfaceTravel() {
-         
+
         return attachedSurface() != Direction.DOWN;
     }
 
-     
+
 
     private static Vec3 riderForward(Player player, Vec3 surfaceUp) {
         Vec3 flat = Vec3.directionFromRotation(0.0F, player.getYRot());
@@ -594,8 +617,8 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     public Direction attachedSurface() {
         int ordinal = Mth.clamp(getEntityData().get(DATA_ATTACHED_SURFACE), 0, SURFACES.length - 1);
         if (level().isClientSide() && getControllingPassenger() != null && isControlledByLocalInstance()) {
-             
-             
+
+
             if (localDriverSurface == null) localDriverSurface = SURFACES[ordinal];
             return localDriverSurface;
         }
@@ -631,7 +654,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
             if (seatIndex(rider) >= chainSegmentCount()) rider.stopRiding();
     }
 
-     
+
     private final class SurfaceWanderGoal extends Goal {
         private Vec3 wanted = new Vec3(0, 0, -1);
         private Vec3 lastPosition = Vec3.ZERO;
@@ -671,8 +694,8 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
             double moved = position().distanceToSqr(lastPosition);
             lastPosition = position();
             stuckTicks = wildSpeed > .08 && moved < .0004 ? stuckTicks + 1 : 0;
-             
-             
+
+
             Vec3 ahead = wildHeading.scale(.95);
             boolean supportedAhead = !level().noCollision(ScarletCentipedeEntity.this,
                     getBoundingBox().move(ahead).move(normal.scale(.8)));
@@ -705,4 +728,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     public AnimatableInstanceCache getAnimatableInstanceCache() {
         return animationCache;
     }
+//? if <1.20.5 {
+/*@Override protected float getStandingEyeHeight(net.minecraft.world.entity.Pose pose,net.minecraft.world.entity.EntityDimensions dimensions){return .527F;}*/
+//?}
 }

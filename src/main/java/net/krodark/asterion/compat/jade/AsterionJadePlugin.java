@@ -27,7 +27,7 @@ public final class AsterionJadePlugin implements IWailaPlugin {
     private static final Identifier CRUCIBLE_STATE = Asterion.id("crucible_state");
 
     @Override public void register(IWailaCommonRegistration registration) {
-         
+
         registration.registerBlockDataProvider(CrucibleDataProvider.INSTANCE, CrucibleBlock.class);
     }
 
@@ -93,7 +93,7 @@ public final class AsterionJadePlugin implements IWailaPlugin {
             tooltip.add(status(state));
 
             if (state.autoPour() > 0) {
-                float progress = Math.clamp(state.autoPour() / (float) CrucibleBlockEntity.AUTO_POUR_TICKS, 0F, 1F);
+                float progress = net.krodark.asterion.port.compat.MathCompat.clamp(state.autoPour() / (float) CrucibleBlockEntity.AUTO_POUR_TICKS, 0F, 1F);
                 tooltip.add(JadeUI.progressArrow(progress));
                 tooltip.append(Component.translatable("jade.asterion.crucible.pouring", Math.round(progress * 100F))
                         .withStyle(ChatFormatting.GREEN));

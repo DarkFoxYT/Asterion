@@ -16,7 +16,13 @@ import java.util.concurrent.CompletableFuture;
 public final class MazeChunkGenerator extends net.minecraft.world.level.chunk.ChunkGenerator {
     private record TerrainSeed(RandomState state, long seed) { }
     private static volatile TerrainSeed cachedTerrainSeed;
-    public static final MapCodec<MazeChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(instance ->
+
+//? if >=1.20.5 {
+public static final MapCodec<MazeChunkGenerator> CODEC = RecordCodecBuilder.mapCodec
+//?} else {
+/*public static final com.mojang.serialization.Codec<MazeChunkGenerator> CODEC = RecordCodecBuilder.create*/
+//?}
+(instance ->
             instance.group(
                     FlatLevelGeneratorSettings.CODEC.fieldOf("settings").forGetter(MazeChunkGenerator::settings),
                     net.minecraft.world.level.biome.BiomeSource.CODEC.fieldOf("biome_source")
@@ -34,7 +40,7 @@ public final class MazeChunkGenerator extends net.minecraft.world.level.chunk.Ch
 
     public FlatLevelGeneratorSettings settings() { return settings; }
 
-     
+
     public static long terrainSeed(RandomState randomState) {
         TerrainSeed cached = cachedTerrainSeed;
         if (cached != null && cached.state == randomState) return cached.seed;
@@ -43,8 +49,13 @@ public final class MazeChunkGenerator extends net.minecraft.world.level.chunk.Ch
         return seed;
     }
 
-    @Override
-    protected MapCodec<? extends net.minecraft.world.level.chunk.ChunkGenerator> codec() {
+
+//? if >=1.20.5 {
+public MapCodec<? extends net.minecraft.world.level.chunk.ChunkGenerator> codec()
+//?} else {
+/*public com.mojang.serialization.Codec<? extends net.minecraft.world.level.chunk.ChunkGenerator> codec()*/
+//?}
+ {
         return CODEC;
     }
 
@@ -63,11 +74,12 @@ public final class MazeChunkGenerator extends net.minecraft.world.level.chunk.Ch
     public void applyBiomeDecoration(net.minecraft.world.level.WorldGenLevel world, ChunkAccess chunk,
                                      StructureManager structures) {
         super.applyBiomeDecoration(world, chunk, structures);
-         
+
         AuthoredCatacombs.place(world, chunk.getPos());
         AuthoredForge.place(world, chunk.getPos());
         ForgeDepths.carveAccess(world, chunk.getPos());
         ZoneRunePlacement.markCatacombsPlaced(chunk);
+        MazeChunkData.sanitize(chunk);
     }
 
     @Override public void spawnOriginalMobs(net.minecraft.server.level.WorldGenRegion region) { flat.spawnOriginalMobs(region); }
@@ -87,12 +99,25 @@ public final class MazeChunkGenerator extends net.minecraft.world.level.chunk.Ch
                                              net.minecraft.core.BlockPos pos) { flat.addDebugScreenInfo(lines, random, pos); }
 
     @Override
-    public CompletableFuture<ChunkAccess> fillFromNoise(Blender blender, RandomState randomState,
+
+//? if >=1.20.5 {
+public CompletableFuture<ChunkAccess> fillFromNoise(Blender blender,
+//?} else {
+/*public CompletableFuture<ChunkAccess> fillFromNoise(java.util.concurrent.Executor executor, Blender blender,*/
+//?}
+ RandomState randomState,
                                                          StructureManager structureManager,
                                                          ChunkAccess chunk) {
-        return flat.fillFromNoise(blender, randomState, structureManager, chunk).thenApply(generated -> {
+
+//? if >=1.20.5 {
+return flat.fillFromNoise(blender, randomState, structureManager, chunk).thenApply(generated -> {
+//?} else {
+/*return flat.fillFromNoise(executor, blender, randomState, structureManager, chunk).thenApply(generated -> {*/
+//?}
+
             long worldSeed = terrainSeed(randomState);
             WorldGenerator.generateMazeChunk(generated, worldSeed);
+            MazeChunkData.sanitize(generated);
             return generated;
         });
     }

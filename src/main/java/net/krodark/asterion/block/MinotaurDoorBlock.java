@@ -21,7 +21,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.*;
 import org.jspecify.annotations.Nullable;
 
- 
+
 public final class MinotaurDoorBlock extends BaseEntityBlock {
     public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty OPEN = BlockStateProperties.OPEN;
@@ -32,7 +32,7 @@ public final class MinotaurDoorBlock extends BaseEntityBlock {
         registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH)
                 .setValue(OPEN, false).setValue(COLUMN, 3).setValue(ROW, 0));
     }
-    @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
+    protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
     public static boolean isRoot(BlockState state) { return state.getValue(COLUMN) == 3 && state.getValue(ROW) == 0; }
     public static BlockPos root(BlockPos pos, BlockState state) {
         return pos.relative(state.getValue(FACING).getClockWise(), 3 - state.getValue(COLUMN)).below(state.getValue(ROW));
@@ -92,20 +92,20 @@ public final class MinotaurDoorBlock extends BaseEntityBlock {
         }
         return InteractionResult.PASS;
     }
-    @Override protected net.minecraft.world.ItemInteractionResult useItemOn(ItemStack held, BlockState state, Level level, BlockPos pos,
+    protected net.minecraft.world.ItemInteractionResult useItemOn(ItemStack held, BlockState state, Level level, BlockPos pos,
                                                    Player player, InteractionHand hand, BlockHitResult hit) {
         return net.krodark.asterion.port.compat.InteractionCompat.item(interact(level, pos, state, player, held));
     }
-    @Override protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
                                                         Player player, BlockHitResult hit) {
         return interact(level, pos, state, player, ItemStack.EMPTY);
     }
-    @Override protected BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+    @Override public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
             net.minecraft.world.level.LevelAccessor level, BlockPos pos, BlockPos neighbor) {
         level.scheduleTick(pos, this, 1);
         return state;
     }
-    @Override protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    @Override public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         BlockPos root = root(pos, state);
         if (!level.isLoaded(root)) return;
         if (!(level.getBlockEntity(root) instanceof MinotaurDoorBlockEntity)) {
@@ -124,10 +124,10 @@ public final class MinotaurDoorBlock extends BaseEntityBlock {
             }
         }
     }
-    @Override protected BlockState rotate(BlockState state, Rotation rotation) {
+    @Override public BlockState rotate(BlockState state, Rotation rotation) {
         return state.setValue(FACING, rotation.rotate(state.getValue(FACING)));
     }
-    @Override protected BlockState mirror(BlockState state, Mirror mirror) {
+    @Override public BlockState mirror(BlockState state, Mirror mirror) {
         return mirror == Mirror.NONE ? state : state.setValue(FACING, mirror.mirror(state.getValue(FACING)))
                 .setValue(COLUMN, 6 - state.getValue(COLUMN));
     }
@@ -138,25 +138,35 @@ public final class MinotaurDoorBlock extends BaseEntityBlock {
         }
         return super.playerWillDestroy(level, pos, state, player);
     }
-    @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
-    @Override protected float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
+    @Override public RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
+    @Override public float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
         if (!player.isCreative() && player.level().dimension().equals(Asterion.ASTERION_LEVEL)
                 && root(pos, state).equals(net.krodark.asterion.worldgen.MinotaurArenaEntrances.door(state.getValue(FACING))))
-            return 0;  
+            return 0;
         return super.getDestroyProgress(state, player, level, pos);
     }
-    @Override protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    @Override public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return state.getValue(FACING).getAxis() == Direction.Axis.Z
                 ? box(0, 0, 3, 16, 16, 13) : box(3, 0, 0, 13, 16, 16);
     }
-    @Override protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    @Override public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return state.getValue(OPEN) ? Shapes.empty() : getShape(state, level, pos, context);
     }
-    @Override protected VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) { return Shapes.empty(); }
+    @Override public VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) { return Shapes.empty(); }
     @Override public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return isRoot(state) ? new MinotaurDoorBlockEntity(pos, state) : null;
     }
     @Override public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
         return createTickerHelper(type, Asterion.MINOTAUR_DOOR_BLOCK_ENTITY, MinotaurDoorBlockEntity::tick);
     }
+
+//? if <1.20.5 {
+/*    @Override public net.minecraft.world.InteractionResult use(net.minecraft.world.level.block.state.BlockState state,
+        net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos, net.minecraft.world.entity.player.Player player,
+        net.minecraft.world.InteractionHand hand, net.minecraft.world.phys.BlockHitResult hit) {
+        var result = useItemOn(player.getItemInHand(hand), state, level, pos, player, hand, hit);
+        if (result != net.krodark.asterion.port.legacy.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION) return result.result();
+        return useWithoutItem(state, level, pos, player, hit);
+    }*/
+//?}
 }

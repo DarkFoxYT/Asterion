@@ -17,18 +17,18 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.*;
 
- 
+
 public final class BossArenaEncounter {
-     
+
     public static final int INTRO_TICKS = net.krodark.asterion.entity.MinotaurAnimationTiming.ENTRY_END_TICK + 24;
     private static Encounter active;
     private BossArenaEncounter() { }
 
     public static void initialize(ServerLevel level) {
         clear();
-         
-         
-         
+
+
+
         if(!AuthoredCatacombs.enabled()) {
             MinotaurArenaEntrances.setGates(level,0,null);
             restoreDoors(level);
@@ -39,13 +39,13 @@ public final class BossArenaEncounter {
         if (entry != MinotaurArenaEntrances.PLAYER_ENTRANCE) return;
         if (!nearEntrance(level, trigger, entry)) return;
         if (active != null) { admit(level, trigger, entry); return; }
-         
-         
+
+
         active = new Encounter(level, boss.getUUID(), entry.getOpposite(), level.getGameTime());
         MinotaurArenaEntrances.setGates(level, 0, null);
         MinotaurArenaEntrances.setOmegaLockVisible(level, false);
         admit(level, trigger, entry);
-         
+
         for (ServerPlayer player : List.copyOf(level.players())) {
             if (player != trigger && nearEntrance(level, player, entry)) admit(level, player, entry);
         }
@@ -124,7 +124,7 @@ public final class BossArenaEncounter {
             active.omegaLockRestored = true;
         }
         tickArenaCreatures(level, elapsed);
-         
+
         for (ServerPlayer player : List.copyOf(level.players())) if (eligible(player) && !active.participants.contains(player.getUUID())) {
             Direction entrance = MinotaurArenaEntrances.corridorAt(player.position());
             if (entrance != null) admit(level, player, entrance);
@@ -152,9 +152,9 @@ public final class BossArenaEncounter {
             return;
         }
         int height = MinotaurArenaEntrances.gateHeight();
-         
-         
-        int closedRows = Math.clamp((elapsed - INTRO_TICKS) / 2, 0, height);
+
+
+        int closedRows = net.krodark.asterion.port.compat.MathCompat.clamp((elapsed - INTRO_TICKS) / 2, 0, height);
         List<Direction> encounterGates = AuthoredCatacombs.enabled()
                 ? List.of(MinotaurArenaEntrances.PLAYER_ENTRANCE, MinotaurArenaEntrances.BOSS_ENTRANCE)
                 : MinotaurArenaEntrances.DOORS;
@@ -170,14 +170,14 @@ public final class BossArenaEncounter {
                     rows == height ? SoundEvents.ANVIL_LAND : SoundEvents.CHAIN_HIT, SoundSource.BLOCKS, 1.4F, .6F);
         }
         if (elapsed >= INTRO_TICKS) {
-             
-             
+
+
             BlockPos bossDoor = MinotaurArenaEntrances.door(active.bossDoor);
             MinotaurDoorBlock.removeDoor(level, bossDoor, active.bossDoor);
         }
-         
-         
-         
+
+
+
     }
 
     public static boolean blocksCentipedeSpawn(ServerLevel level, Vec3 position) {
@@ -190,7 +190,7 @@ public final class BossArenaEncounter {
         if (elapsed % 20 != 0) return;
         var arena = new net.minecraft.world.phys.AABB(-44, AuthoredCatacombs.ARENA_FLOOR_Y, -44,
                 44, LabyrinthLevels.MAZE_FLOOR_Y + 1, 44);
-         
+
         for (var centipede : level.getEntitiesOfClass(net.krodark.asterion.entity.ScarletCentipedeEntity.class, arena))
             if (!centipede.isVehicle() && !centipede.hasCustomName()) centipede.discard();
         int firstWave = ((INTRO_TICKS + 40 + 19) / 20) * 20;
@@ -265,7 +265,7 @@ public final class BossArenaEncounter {
         restoreDoors(level);
     }
 
-     
+
     public static void finishDefeated(ServerLevel level) {
         ArenaDebris.clear(level);
         clear();

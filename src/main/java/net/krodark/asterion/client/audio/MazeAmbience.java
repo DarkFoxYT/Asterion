@@ -8,7 +8,7 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 
- 
+
 public final class MazeAmbience {
     private static Loop maze, cave;
     private static int ticks;
@@ -60,11 +60,11 @@ public final class MazeAmbience {
             relative = true;
             attenuation = Attenuation.NONE;
             looping = true;
-            delay = 0;  
+            delay = 0;
             volume = .001F;
         }
         @Override public void tick() {
-            volume += Math.clamp(target - volume, -.0025F, .0025F);
+            volume += net.krodark.asterion.port.compat.MathCompat.clamp(target - volume, -.0025F, .0025F);
             if (target == 0 && volume <= .001F) stop();
         }
     }

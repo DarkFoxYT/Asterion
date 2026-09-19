@@ -35,7 +35,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.util.Mth;
 
- 
+
 public final class ConstructEntity extends PathfinderMob implements GeoEntity {
     private static final EntityDataAccessor<Boolean> ATTACKING = SynchedEntityData.defineId(
             ConstructEntity.class, EntityDataSerializers.BOOLEAN);
@@ -45,10 +45,10 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
     private static final RawAnimation ATTACK = RawAnimation.begin().thenPlayAndHold("attack");
     private static final double NOTICE_RANGE = 34.0D;
     private static final double IGNITE_RANGE = 3.5D;
-     
-    public static final int ATTACK_HIT_TICK = 25;  
-    public static final int ATTACK_ANIMATION_TICKS = 155;  
-    public static final int RECOVERY_TICKS = 100;  
+
+    public static final int ATTACK_HIT_TICK = 25;
+    public static final int ATTACK_ANIMATION_TICKS = 155;
+    public static final int RECOVERY_TICKS = 100;
     private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
     private int attackTicks;
     private int recoveryTicks;
@@ -91,8 +91,19 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
         return super.checkSpawnRules(level, reason);
     }
 
-    @Override protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
+    @Override //? if >=1.20.5 {
+protected void defineSynchedData(SynchedEntityData.Builder builder) {
+//?} else {
+/*protected void defineSynchedData() {
+        var builder = this.entityData;*/
+//?}
+
+        //? if >=1.20.5 {
+super.defineSynchedData(builder);
+//?} else {
+/*super.defineSynchedData();*/
+//?}
+
         builder.define(ATTACKING, false);
         builder.define(RUNNING, false);
     }
@@ -171,7 +182,7 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
                 net.minecraft.world.entity.EntitySelector.NO_CREATIVE_OR_SPECTATOR);
     }
 
-     
+
     private void updateConstrainedFacing(Player target) {
         Vec3 motion = getDeltaMovement();
         float bodyYaw = yBodyRot;
@@ -211,8 +222,8 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
         if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY))
             return super.hurt(source, amount);
         if (source.is(DamageTypeTags.IS_FIRE)) return false;
-         
-         
+
+
         if (!isVulnerable()) {
             if (blockedHitCooldown == 0) {
                 blockedHitCooldown = 8;
@@ -256,11 +267,14 @@ public final class ConstructEntity extends PathfinderMob implements GeoEntity {
     @Override public void readAdditionalSaveData(CompoundTag input) {
         super.readAdditionalSaveData(input);
         entityData.set(ATTACKING, net.krodark.asterion.port.compat.NbtCompat.getBoolean(input, "Attacking", false));
-        attackTicks = Math.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "AttackTicks", 0), 0, ATTACK_ANIMATION_TICKS);
-        recoveryTicks = Math.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "RecoveryTicks", 0), 0, RECOVERY_TICKS);
+        attackTicks = net.krodark.asterion.port.compat.MathCompat.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "AttackTicks", 0), 0, ATTACK_ANIMATION_TICKS);
+        recoveryTicks = net.krodark.asterion.port.compat.MathCompat.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "RecoveryTicks", 0), 0, RECOVERY_TICKS);
     }
 
     @Override public AnimatableInstanceCache getAnimatableInstanceCache() {
         return animationCache;
     }
+//? if <1.20.5 {
+/*@Override protected float getStandingEyeHeight(net.minecraft.world.entity.Pose pose,net.minecraft.world.entity.EntityDimensions dimensions){return 1.75F;}*/
+//?}
 }

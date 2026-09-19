@@ -22,7 +22,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 
- 
+
 public final class WeaponCombatSystem {
     private static final ResourceLocation TWIN_SPEED = Asterion.id("sickened_twinblades_combo_speed");
     private static final int COMBO_TIMEOUT = 30;
@@ -47,8 +47,8 @@ public final class WeaponCombatSystem {
                                     float damageTaken, boolean blocked) {
         if (damageTaken <= 0) return;
 
-         
-         
+
+
         if (victim instanceof ServerPlayer wounded) endCombo(wounded, true);
 
         if (!(source.getEntity() instanceof ServerPlayer attacker)
@@ -60,7 +60,7 @@ public final class WeaponCombatSystem {
             AfterblowItem.consumeStored(weapon, attacker.level().getGameTime());
     }
 
-     
+
 
     public static float afterblowDamage(DamageSource source, float damage, long gameTime) {
         if (!(source.getEntity() instanceof ServerPlayer attacker) || source.getDirectEntity() != attacker)
@@ -71,7 +71,7 @@ public final class WeaponCombatSystem {
         return stored > 0 && Float.isFinite(damage) ? damage + stored : damage;
     }
 
-     
+
     public static float amplifyTwinbladeDamage(ServerPlayer attacker, LivingEntity target,
                                                DamageSource source, float damage) {
         if (source.getDirectEntity() != attacker || !attacker.getMainHandItem().is(Asterion.SICKENED_TWINBLADES))
@@ -88,8 +88,8 @@ public final class WeaponCombatSystem {
         int hits = old == null || now - old.lastDamageTick > COMBO_TIMEOUT ? 1 : old.hits + 1;
         COMBOS.put(player.getUUID(), new Combo(hits, now));
 
-         
-         
+
+
         player.swing((hits & 1) == 0 ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND, true);
         updateSpeed(player, hits);
     }
@@ -120,7 +120,7 @@ public final class WeaponCombatSystem {
 
     private static void finishCombo(ServerPlayer player, Combo combo, boolean hunger) {
         var speed = player.getAttribute(Attributes.ATTACK_SPEED);
-        if (speed != null) speed.removeModifier(TWIN_SPEED);
+        if (speed != null) net.krodark.asterion.port.compat.AttributeCompat.remove(speed, TWIN_SPEED);
         if (hunger && combo.hits >= 3) {
             int amplifier = Math.min(2, (combo.hits - 3) / 4);
             player.addEffect(new MobEffectInstance(MobEffects.HUNGER, 100, amplifier,
@@ -132,11 +132,11 @@ public final class WeaponCombatSystem {
         var speed = player.getAttribute(Attributes.ATTACK_SPEED);
         if (speed == null) return;
         if (hits < 3) {
-            speed.removeModifier(TWIN_SPEED);
+            net.krodark.asterion.port.compat.AttributeCompat.remove(speed, TWIN_SPEED);
             return;
         }
         double bonus = Math.min(1.8D, (hits - 2) * .18D);
-        speed.addOrUpdateTransientModifier(new AttributeModifier(
+        speed.addOrUpdateTransientModifier(net.krodark.asterion.port.compat.AttributeCompat.of(
                 TWIN_SPEED, bonus, AttributeModifier.Operation.ADD_VALUE));
     }
 }

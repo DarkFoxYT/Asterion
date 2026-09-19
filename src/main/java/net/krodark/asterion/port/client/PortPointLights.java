@@ -1,0 +1,149 @@
+package net.krodark.asterion.port.client;
+
+import com.meekdev.amnetic.client.light.FalloffCurve;
+import com.meekdev.amnetic.client.light.Light;
+import com.meekdev.amnetic.client.light.Lights;
+import com.meekdev.amnetic.client.compute.ComputeCapabilities;
+import net.krodark.asterion.AsterionConfig;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
+import net.minecraft.world.phys.Vec3;
+
+final class PortPointLights {
+    private static final Map<Object, Light> LIGHTS = new LinkedHashMap<>(128, 0.75F, true);
+    private static final Map<Object, PortLight.LedPointLightSample> BUFFERED = new LinkedHashMap<>();
+    private static final Map<Object,Integer> CONFIGURED_QUALITY = new LinkedHashMap<>();
+
+    private PortPointLights() {
+    }
+
+    static void update(Object key, PortLight.LedPointLightSample sample) {
+        AsterionConfig config = AsterionConfig.INSTANCE;
+        if (!config.dynamicLightsEnabled || !computeLightingAvailable()) {
+            remove(key);
+            return;
+        }
+        int quality = effectiveQuality(config);
+        boolean shadows = quality >= 2 && sample.castsShadow();
+        boolean godrays = quality >= 2 && sample.radius() >= 2.5F;
+        Light light = LIGHTS.computeIfAbsent(key, ignored -> createLight(sample));
+        PortLight.LedPointLightSample previous = BUFFERED.put(key, sample);
+        if (previous != null && previous.position().distanceToSqr(sample.position()) < 0.0009D
+                && Math.abs(previous.strength() - sample.strength()) < 0.006F
+                && Math.abs(previous.radius() - sample.radius()) < 0.006F
+                && Math.abs(previous.red() - sample.red()) < 0.003F
+                && Math.abs(previous.green() - sample.green()) < 0.003F
+                && Math.abs(previous.blue() - sample.blue()) < 0.003F
+                && previous.castsShadow() == sample.castsShadow()
+                && CONFIGURED_QUALITY.getOrDefault(key,-1)==quality) {
+            trimToBudget(key);
+            return;
+        }
+        light.setPosition(sample.position())
+                .setColor(sample.red(), sample.green(), sample.blue())
+                .setIntensity(Math.abs(sample.strength()))
+                .setRange(Math.max(0.1F, sample.radius()))
+                .castsShadow(shadows)
+                .shadowStrength(1.0F)
+                .godray(godrays ? 1.0F : 0.0F)
+                .godraySteps(godrays ? 10 : 0)
+                .godrayDensity(godrays ? 0.435F : 0.0F)
+                .godrayAniso(0.95F)
+                .godrayShadows(shadows)
+                .setEnabled(true);
+        CONFIGURED_QUALITY.put(key,quality);
+        trimToBudget(key);
+    }
+
+    private static boolean computeLightingAvailable() {
+        try {
+            ComputeCapabilities.probeOnce();
+            return ComputeCapabilities.isComputeAvailable();
+        } catch (Throwable unsupportedGpuOrBackend) {
+            return false;
+        }
+    }
+
+    static void remove(Object key) {
+        Light light = LIGHTS.remove(key);
+        BUFFERED.remove(key);
+        CONFIGURED_QUALITY.remove(key);
+        if (light != null) {
+            light.remove();
+        }
+    }
+
+    static void clear() {
+        LIGHTS.values().forEach(Light::remove);
+        LIGHTS.clear();
+        BUFFERED.clear();
+        CONFIGURED_QUALITY.clear();
+    }
+
+    static Vec3 nearestAttractor(Vec3 origin, double maxDistance) {
+        double maxDistanceSquared = maxDistance * maxDistance;
+        double bestScore = Double.POSITIVE_INFINITY;
+        Vec3 best = null;
+        for (PortLight.LedPointLightSample sample : BUFFERED.values()) {
+            if (sample.strength() <= 0.05F || sample.radius() <= 0.25F) continue;
+            double distanceSquared = origin.distanceToSqr(sample.position());
+            double reach = Math.min(maxDistance, Math.max(2.5D, sample.radius() * 1.65D));
+            if (distanceSquared > maxDistanceSquared || distanceSquared > reach * reach) continue;
+            double score = distanceSquared / Math.max(0.15D, sample.strength());
+            if (score < bestScore) {
+                bestScore = score;
+                best = sample.position();
+            }
+        }
+        return best;
+    }
+
+    private static Light createLight(PortLight.LedPointLightSample sample) {
+        int quality = effectiveQuality(AsterionConfig.INSTANCE);
+        boolean shadows = quality >= 2 && sample.castsShadow();
+        boolean godrays = quality >= 2 && sample.radius() >= 2.5F;
+        return Lights.point(
+                        sample.position(),
+                        sample.red(),
+                        sample.green(),
+                        sample.blue(),
+                        Math.max(0.1F, sample.radius()),
+                        Math.abs(sample.strength()))
+                .setFalloff(FalloffCurve.SMOOTH)
+                .castsShadow(shadows)
+                .shadowStrength(1.0F)
+                .godray(godrays ? 1.0F : 0.0F)
+                .godraySteps(godrays ? 10 : 0)
+                .godrayDensity(godrays ? 0.435F : 0.0F)
+                .godrayAniso(0.95F)
+                .godrayShadows(shadows)
+                ;
+    }
+
+    private static void trimToBudget(Object protectedKey) {
+        AsterionConfig config = AsterionConfig.INSTANCE;
+        int quality = effectiveQuality(config);
+        int qualityBudget = quality == 0 ? 24 : quality == 1 ? 56 : 96;
+        int budget = Math.max(1, Math.min(qualityBudget, config.maxDynamicLights));
+        while (LIGHTS.size() > budget) {
+            Iterator<Map.Entry<Object, Light>> iterator = LIGHTS.entrySet().iterator();
+            while (iterator.hasNext()) {
+                Map.Entry<Object, Light> entry = iterator.next();
+                if (Objects.equals(entry.getKey(), protectedKey)) {
+                    continue;
+                }
+                entry.getValue().remove();
+                BUFFERED.remove(entry.getKey());
+                CONFIGURED_QUALITY.remove(entry.getKey());
+                iterator.remove();
+                break;
+            }
+        }
+    }
+    private static int effectiveQuality(AsterionConfig config) {
+        return Math.min(config.dynamicLightQuality,
+                net.krodark.asterion.port.client.PortPerformanceGovernor.quality());
+    }
+}

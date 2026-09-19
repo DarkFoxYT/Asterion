@@ -8,9 +8,15 @@ import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.biome.Climate;
 
- 
+
 public final class LayeredMazeBiomeSource extends BiomeSource {
-    public static final MapCodec<LayeredMazeBiomeSource> CODEC = RecordCodecBuilder.mapCodec(instance ->
+
+//? if >=1.20.5 {
+public static final MapCodec<LayeredMazeBiomeSource> CODEC = RecordCodecBuilder.mapCodec
+//?} else {
+/*public static final com.mojang.serialization.Codec<LayeredMazeBiomeSource> CODEC = RecordCodecBuilder.create*/
+//?}
+(instance ->
             instance.group(
                     Biome.CODEC.fieldOf("surface").forGetter(source -> source.surface),
                     Biome.CODEC.fieldOf("catacombs").forGetter(source -> source.catacombs),
@@ -34,7 +40,13 @@ public final class LayeredMazeBiomeSource extends BiomeSource {
         this.forge = forge;
     }
 
-    @Override protected MapCodec<? extends BiomeSource> codec() { return CODEC; }
+
+//? if >=1.20.5 {
+public MapCodec<? extends BiomeSource> codec()
+//?} else {
+/*public com.mojang.serialization.Codec<? extends BiomeSource> codec()*/
+//?}
+ { return CODEC; }
 
     @Override
     protected Stream<Holder<Biome>> collectPossibleBiomes() {

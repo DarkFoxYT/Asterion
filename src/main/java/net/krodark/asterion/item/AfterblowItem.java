@@ -16,7 +16,7 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 
- 
+
 public final class AfterblowItem extends Item {
     private static final String STORED_DAMAGE = "afterblow_damage";
     private static final String STORED_AT = "afterblow_stored_at";
@@ -31,15 +31,21 @@ public final class AfterblowItem extends Item {
     public net.minecraft.world.InteractionResultHolder<ItemStack> use(Level level, net.minecraft.world.entity.player.Player player,
                                  InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
-         
-         
+
+
         if (player.getCooldowns().isOnCooldown(stack.getItem()) || storedAt(stack, level.getGameTime()) > .001F)
             return net.minecraft.world.InteractionResultHolder.fail(stack);
         player.startUsingItem(hand);
         return net.minecraft.world.InteractionResultHolder.consume(stack);
     }
 
-    @Override public int getUseDuration(ItemStack stack, LivingEntity user) { return 40; }
+    @Override public int
+//? if >=1.20.5 {
+getUseDuration(ItemStack stack, LivingEntity user)
+//?} else {
+/*getUseDuration(ItemStack stack)*/
+//?}
+ { return 40; }
     @Override public UseAnim getUseAnimation(ItemStack stack) { return UseAnim.BLOCK; }
 
     @Override
@@ -69,7 +75,7 @@ public final class AfterblowItem extends Item {
         int durability = Math.max(1, (int)Math.ceil(damage));
         InteractionHand hand = player.getUsedItemHand();
         player.stopUsingItem();
-        stack.hurtAndBreak(durability, player, hand == InteractionHand.MAIN_HAND
+        net.krodark.asterion.port.compat.EntityCompat.hurtAndBreak(stack, durability, player, hand == InteractionHand.MAIN_HAND
                 ? net.minecraft.world.entity.EquipmentSlot.MAINHAND
                 : net.minecraft.world.entity.EquipmentSlot.OFFHAND);
         player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
@@ -78,17 +84,17 @@ public final class AfterblowItem extends Item {
         return true;
     }
 
-     
+
     public static float consumeStored(ItemStack stack, long now) {
         float stored = storedAt(stack, now);
-         
-         
+
+
         if (rawStored(stack) > 0) writeStored(stack, 0, now);
         return stored;
     }
 
     public static float storedAt(ItemStack stack, long now) {
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        CustomData data = net.krodark.asterion.port.compat.ItemData.get(stack, DataComponents.CUSTOM_DATA);
         if (data == null) return 0;
         CompoundTag tag = data.copyTag();
         float raw = net.krodark.asterion.port.compat.NbtCompat.getFloat(tag, STORED_DAMAGE, 0);
@@ -99,7 +105,7 @@ public final class AfterblowItem extends Item {
     }
 
     private static void writeStored(ItemStack stack, float value, long now) {
-        CustomData old = stack.get(DataComponents.CUSTOM_DATA);
+        CustomData old = net.krodark.asterion.port.compat.ItemData.get(stack, DataComponents.CUSTOM_DATA);
         CompoundTag tag = old == null ? new CompoundTag() : old.copyTag();
         if (value <= .001F) {
             tag.remove(STORED_DAMAGE);
@@ -108,7 +114,7 @@ public final class AfterblowItem extends Item {
             tag.putFloat(STORED_DAMAGE, value);
             tag.putLong(STORED_AT, now);
         }
-        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        net.krodark.asterion.port.compat.ItemData.set(stack, DataComponents.CUSTOM_DATA, CustomData.of(tag));
         updateModel(stack, value > .001F);
     }
 
@@ -122,7 +128,7 @@ public final class AfterblowItem extends Item {
     }
 
     private static float rawStored(ItemStack stack) {
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        CustomData data = net.krodark.asterion.port.compat.ItemData.get(stack, DataComponents.CUSTOM_DATA);
         if (data == null) return 0;
         float value = net.krodark.asterion.port.compat.NbtCompat.getFloat(data.copyTag(), STORED_DAMAGE, 0);
         return Float.isFinite(value) ? Math.max(0, value) : 0;
@@ -130,7 +136,7 @@ public final class AfterblowItem extends Item {
 
     private static void updateModel(ItemStack stack, boolean powered) {
         var model = new net.minecraft.world.item.component.CustomModelData(powered ? 1 : 0);
-        if (!model.equals(stack.get(DataComponents.CUSTOM_MODEL_DATA))) stack.set(DataComponents.CUSTOM_MODEL_DATA, model);
+        if (!model.equals(net.krodark.asterion.port.compat.ItemData.get(stack, DataComponents.CUSTOM_MODEL_DATA))) net.krodark.asterion.port.compat.ItemData.set(stack, DataComponents.CUSTOM_MODEL_DATA, model);
     }
 
     @Override

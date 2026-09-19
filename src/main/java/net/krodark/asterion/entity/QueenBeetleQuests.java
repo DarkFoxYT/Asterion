@@ -6,7 +6,7 @@ import net.krodark.asterion.game.AncientContent;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ItemLike;
 
- 
+
 public final class QueenBeetleQuests {
     public record Quest(String id, ItemLike item, int count, ItemLike reward, int rewardCount) {
         public String key(String suffix) { return "quest.asterion.queen_beetle." + id + "." + suffix; }
@@ -34,6 +34,6 @@ public final class QueenBeetleQuests {
             new Quest("bronze_promise", Asterion.CELESTIAL_BRONZE_INGOT, 2, Items.GOLDEN_APPLE, 2),
             new Quest("queens_covenant", Asterion.CELESTIAL_GOLD_INGOT, 1, Asterion.CELESTIAL_STEEL_INGOT, 1)
     );
-    public static Quest get(int index) { return ALL.get(Math.clamp(index, 0, ALL.size() - 1)); }
+    public static Quest get(int index) { return ALL.get(net.krodark.asterion.port.compat.MathCompat.clamp(index, 0, ALL.size() - 1)); }
     private QueenBeetleQuests() { }
 }

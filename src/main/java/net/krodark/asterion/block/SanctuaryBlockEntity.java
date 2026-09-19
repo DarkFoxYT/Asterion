@@ -13,7 +13,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.CompoundTag;
 
-public final class SanctuaryBlockEntity extends BlockEntity implements GeoBlockEntity {
+public final class SanctuaryBlockEntity extends net.krodark.asterion.port.compat.VersionedBlockEntity implements GeoBlockEntity {
     private AnimatableInstanceCache cache;
     private int pulse;
     private float clientGlowAlpha;
@@ -52,7 +52,7 @@ public final class SanctuaryBlockEntity extends BlockEntity implements GeoBlockE
         return clientGlowAlpha;
     }
     @Override protected void saveAdditional(CompoundTag output, net.minecraft.core.HolderLookup.Provider registries) { super.saveAdditional(output, registries); output.putInt("pulse", pulse); }
-    @Override protected void loadAdditional(CompoundTag input, net.minecraft.core.HolderLookup.Provider registries) { super.loadAdditional(input, registries); pulse = Math.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "pulse", 0), 0, 24); }
+    @Override protected void loadAdditional(CompoundTag input, net.minecraft.core.HolderLookup.Provider registries) { super.loadAdditional(input, registries); pulse = net.krodark.asterion.port.compat.MathCompat.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "pulse", 0), 0, 24); }
     @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) { }
     @Override public AnimatableInstanceCache getAnimatableInstanceCache() {
         if (cache == null) cache = GeckoLibUtil.createInstanceCache(this);

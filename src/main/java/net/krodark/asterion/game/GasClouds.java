@@ -13,7 +13,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.util.Mth;
 import java.util.*;
 
- 
+
 public final class GasClouds {
     private static final Map<ServerLevel, List<Cloud>> CLOUDS = new IdentityHashMap<>();
     private GasClouds() { }
@@ -44,14 +44,20 @@ public final class GasClouds {
     }
     private static boolean visible(ServerLevel level, Vec3 start, Vec3 end) {
         return level.clip(new ClipContext(start, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
-                net.minecraft.world.phys.shapes.CollisionContext.empty())).getType() == HitResult.Type.MISS;
+
+//? if >=1.20.5 {
+net.minecraft.world.phys.shapes.CollisionContext.empty()
+//?} else {
+/*(net.minecraft.world.entity.Entity)null*/
+//?}
+)).getType() == HitResult.Type.MISS;
     }
     public static void tick(MinecraftServer server) {
         // Damage callbacks can emit clouds or clear an owner's clouds during this tick.
         for (var entry : List.copyOf(CLOUDS.entrySet())) {
             var level = entry.getKey(); var clouds = entry.getValue();
             Set<UUID> hit = new HashSet<>();
-             
+
             if (level.getGameTime() % 3 == 0) {
                 Vec3 spreadSound = null;
                 Map<Long,List<Vec3>> burning=new HashMap<>();
@@ -107,7 +113,7 @@ public final class GasClouds {
                     hit.add(victim.getUUID());
                     victim.hurt(level.damageSources().inFire(), 5);
                     if (cloud.flamethrower) GreekFireBurn.ignite(victim, 4);
-                    else victim.igniteForSeconds(4);
+                    else net.krodark.asterion.port.compat.EntityCompat.ignite(victim, 4);
                 }
             }
         }

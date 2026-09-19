@@ -32,6 +32,7 @@ public abstract class HeavyWaterBucketMixin {
     private net.minecraft.world.level.material.FlowingFluid asterion$allowWaterContainer(net.minecraft.world.level.material.FlowingFluid water) {
         return HeavyWaterlogging.isHeavy(content) ? (net.minecraft.world.level.material.FlowingFluid)content : water;
     }
+//? if >=1.20.5 {
     @WrapOperation(method = "emptyContents", at = @At(value = "INVOKE", target =
             "Lnet/minecraft/world/level/block/LiquidBlockContainer;canPlaceLiquid(Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/material/Fluid;)Z"), require = 0)
     private boolean asterion$canWaterlog(LiquidBlockContainer container, net.minecraft.world.entity.player.Player user, BlockGetter level,
@@ -39,6 +40,17 @@ public abstract class HeavyWaterBucketMixin {
         return HeavyWaterlogging.isHeavy(fluid) ? HeavyWaterlogging.canFill(user, level, pos, state)
                 : original.call(container, user, level, pos, state, fluid);
     }
+
+//?} else {
+/*    @WrapOperation(method = "emptyContents", at = @At(value = "INVOKE", target =
+            "Lnet/minecraft/world/level/block/LiquidBlockContainer;canPlaceLiquid(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/material/Fluid;)Z"), require = 0)
+    private boolean asterion$canWaterlog(LiquidBlockContainer container, BlockGetter level,
+                                        BlockPos pos, BlockState state, Fluid fluid, Operation<Boolean> original) {
+        return HeavyWaterlogging.isHeavy(fluid) ? HeavyWaterlogging.canFill(null, level, pos, state)
+                : original.call(container, level, pos, state, fluid);
+    }
+*/
+//?}
     @WrapOperation(method = "emptyContents", at = @At(value = "INVOKE", target =
             "Lnet/minecraft/world/level/block/LiquidBlockContainer;placeLiquid(Lnet/minecraft/world/level/LevelAccessor;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/material/FluidState;)Z"), require = 0)
     private boolean asterion$placeLoggedWater(LiquidBlockContainer container, LevelAccessor level, BlockPos pos,

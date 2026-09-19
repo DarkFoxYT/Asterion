@@ -6,10 +6,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
- 
+
 public record MinotaurLeapPlan(Vec3 start, Vec3 landing, double rise, int ticks) {
     public Vec3 point(double tick) {
-        double t = Math.clamp(tick / ticks, 0, 1);
+        double t = net.krodark.asterion.port.compat.MathCompat.clamp(tick / ticks, 0, 1);
         return start.lerp(landing, t).add(0, 4 * rise * t * (1 - t), 0);
     }
 
@@ -23,7 +23,7 @@ public record MinotaurLeapPlan(Vec3 start, Vec3 landing, double rise, int ticks)
             Vec3 candidate = target.add(towardBoss.scale(setback));
             Vec3 landing = supportedLanding(level, boss, local, candidate);
             if (landing == null || landing.subtract(start).horizontalDistance() < 3) continue;
-            int ticks = (int)Math.clamp(Math.ceil(landing.subtract(start).horizontalDistance() / .85), 14, 38);
+            int ticks = (int)net.krodark.asterion.port.compat.MathCompat.clamp(Math.ceil(landing.subtract(start).horizontalDistance() / .85), 14, 38);
             for (double rise : new double[]{3.5, 5, 7, 9, 12}) {
                 MinotaurLeapPlan plan = new MinotaurLeapPlan(start, landing, rise, ticks);
                 Vec3 previous = start;
@@ -42,7 +42,7 @@ public record MinotaurLeapPlan(Vec3 start, Vec3 landing, double rise, int ticks)
     }
 
     private static Vec3 supportedLanding(ServerLevel level, MinotaurEntity boss, AABB local, Vec3 target) {
-         
+
         for (int offset = 1; offset >= -9; offset--) {
             BlockPos floor = BlockPos.containing(target).offset(0, offset - 1, 0);
             if (!level.hasChunk(floor.getX() >> 4, floor.getZ() >> 4)) continue;

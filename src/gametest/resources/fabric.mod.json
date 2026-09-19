@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "asterion_tests",
+  "version": "1.0.0",
+  "name": "Asterion compatibility tests",
+  "environment": "*",
+  "entrypoints": {
+    "fabric-gametest": [
+      "net.krodark.asterion.test.CompatibilityGameTests"
+    ],
+    "client": [
+      "net.krodark.asterion.test.ClientSmokeTest"
+    ]
+  },
+  "depends": {
+    "asterion": "*",
+    "fabric-gametest-api-v1": "*"
+  }
+}

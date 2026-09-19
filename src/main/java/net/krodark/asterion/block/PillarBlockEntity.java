@@ -9,7 +9,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-public final class PillarBlockEntity extends BlockEntity implements GeoBlockEntity {
+public final class PillarBlockEntity extends net.krodark.asterion.port.compat.VersionedBlockEntity implements GeoBlockEntity {
     private AnimatableInstanceCache cache;
     public PillarBlockEntity(BlockPos pos,BlockState state) { super(Asterion.PILLAR_BLOCK_ENTITY,pos,state); }
     @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) { }

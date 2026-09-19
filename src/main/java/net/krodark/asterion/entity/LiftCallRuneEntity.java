@@ -18,7 +18,13 @@ public final class LiftCallRuneEntity extends Entity {
     private static final EntityDataAccessor<BlockPos> ANCHOR = SynchedEntityData.defineId(LiftCallRuneEntity.class, EntityDataSerializers.BLOCK_POS);
     private static final EntityDataAccessor<Boolean> UPPER = SynchedEntityData.defineId(LiftCallRuneEntity.class, EntityDataSerializers.BOOLEAN);
     public LiftCallRuneEntity(EntityType<? extends LiftCallRuneEntity> type, Level level) { super(type, level); setNoGravity(true); }
-    @Override protected void defineSynchedData(SynchedEntityData.Builder data) { data.define(ANCHOR, BlockPos.ZERO); data.define(UPPER, false); }
+    @Override //? if >=1.20.5 {
+protected void defineSynchedData(SynchedEntityData.Builder data) {
+//?} else {
+/*protected void defineSynchedData() {
+        var data = this.entityData;*/
+//?}
+ data.define(ANCHOR, BlockPos.ZERO); data.define(UPPER, false); }
     public void configure(BlockPos anchor, boolean upper) { entityData.set(ANCHOR, anchor); entityData.set(UPPER, upper); }
     @Override public boolean isPickable() { return true; }
     @Override public boolean hurt(DamageSource source, float amount) { return false; }
