@@ -18,3 +18,8 @@ These are short renderer smoke tests, not exhaustive 26.1.2 gameplay, multiplaye
 ## NeoForge fluid hotfix (2026-09-20)
 
 HeavyWaterFluid and TidalWaterFluid now explicitly return NeoForge's water FluidType through a NeoForge-only mixin. This covers source, flowing and tidal variants without changing their custom flow/tide implementation or Fabric. The packaged client verified all three registered custom fluids and all 26 states, then completed the in-world renderer smoke test without the reported getFluidType exception.
+
+
+## Positional weapon and debris audio (2026-09-20)
+
+Added the five supplied axe sounds as mono Vorbis: drawing, throwing, balanced swing variants, and a position-following flight loop that stops when the axe rests or disappears. Debris clips are now mono and quieter with a 16-block attenuation distance; collisions and fractures share a three-per-four-tick budget. Both loader releases compile and build with their existing embedded Amnetic packaging. Port-only animation-clock and skeleton-hierarchy fixes do not apply to this GeckoLib 5 renderer.

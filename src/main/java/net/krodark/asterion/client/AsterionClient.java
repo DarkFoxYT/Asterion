@@ -328,6 +328,7 @@ public final class AsterionClient implements ClientModInitializer {
         QueenBeetleQuestOverlay.tick(client);
         DeadSunClientEvents.tick(client);
         PhysicsDebrisSystem.tick(client);
+        net.krodark.asterion.client.audio.AxeFlightAudio.tick(client);
         DazeOverlay.tick(client);
         HeldItemDynamicLights.tick(client);
         net.krodark.asterion.client.light.BrazierAmneticLights.tick(client);

@@ -145,6 +145,10 @@ public class Asterion implements ModInitializer {
     public static final SoundEvent MINOTAUR_ROAR = registerSound("minotaur_roar");
     public static final SoundEvent AFTERBLOW_PEDESTAL_PULL = registerSound("afterblow_pedestal_pull");
     public static final SoundEvent ARENA_PILLAR_BREAK = registerSound("arena_pillar_break");
+    public static final SoundEvent MINOTAUR_AXE_DRAW = registerSound("minotaur_axe_draw");
+    public static final SoundEvent MINOTAUR_AXE_THROW = registerSound("minotaur_axe_throw");
+    public static final SoundEvent MINOTAUR_AXE_FLIGHT_LOOP = registerSound("minotaur_axe_flight_loop");
+    public static final SoundEvent MINOTAUR_AXE_SWING = registerSound("minotaur_axe_swing");
     public static final SoundEvent MINOTAUR_SWORD_SWING = registerSound("minotaur_sword_swing");
     public static final SoundEvent MINOTAUR_FIST_SWING = registerSound("minotaur_fist_swing");
     public static final SoundEvent MINOTAUR_FIST_SWING_COMBO = registerSound("minotaur_fist_swing_combo");

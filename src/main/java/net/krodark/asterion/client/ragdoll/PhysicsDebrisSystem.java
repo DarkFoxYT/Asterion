@@ -62,6 +62,8 @@ public final class PhysicsDebrisSystem {
     private static ClientLevel trackedLevel;
     private static long lastAmbientTick = Long.MIN_VALUE;
     private static long lastImpactSoundTick = Long.MIN_VALUE;
+    private static long debrisSoundWindow = Long.MIN_VALUE;
+    private static int debrisSoundCount;
 
     private PhysicsDebrisSystem() { }
 
@@ -75,6 +77,7 @@ public final class PhysicsDebrisSystem {
         trackedLevel = null;
         lastAmbientTick = Long.MIN_VALUE;
         lastImpactSoundTick = Long.MIN_VALUE;
+        debrisSoundWindow = Long.MIN_VALUE; debrisSoundCount = 0;
     }
 
     public static void spawnDoors(DoorBreakPayload payload) {
@@ -332,10 +335,10 @@ public final class PhysicsDebrisSystem {
             boolean shouldBreak = !piece.unbreakable() && (impactSpeed > piece.breakSpeed()
                     || piece.impacts >= piece.maxImpacts());
             boolean floorContact = normal.y > 0.55D;
-            if (floorContact && impactSpeed > .25D && (piece.impacts & 3) == 1) {
+            if (floorContact && impactSpeed > .25D && (piece.impacts & 3) == 1 && claimDebrisSound(level, piece.position)) {
                 var sound = switch (piece.variant % 3) { case 0 -> Asterion.DEBRIS_1; case 1 -> Asterion.DEBRIS_2; default -> Asterion.DEBRIS_3; };
                 level.playLocalSound(piece.position.x, piece.position.y, piece.position.z, sound, SoundSource.BLOCKS,
-                        (float)Math.min(0.7, 0.18 + impactSpeed * .08), .88F + level.getRandom().nextFloat() * .18F, false);
+                        (float)Math.min(0.38, 0.10 + impactSpeed * .06), .88F + level.getRandom().nextFloat() * .18F, false);
             }
             if (shouldBreak && piece.consumeSurfaceSurvival(floorContact)) {
                 piece.impacts = Math.max(0, piece.impacts - 2);
@@ -693,10 +696,20 @@ public final class PhysicsDebrisSystem {
         }
         level.addParticle(ParticleTypes.POOF, piece.position.x, piece.position.y, piece.position.z,
                 normal.x * 0.04, Math.max(0.025, normal.y * 0.04), normal.z * 0.04);
-        level.playLocalSound(piece.position.x, piece.position.y, piece.position.z,
+        if (claimDebrisSound(level, piece.position)) level.playLocalSound(piece.position.x, piece.position.y, piece.position.z,
                 SoundEvents.DEEPSLATE_BREAK, SoundSource.BLOCKS,
                 Mth.clamp((0.18F + piece.scale * 0.85F) * piece.massFactor(), 0.14F, 0.65F),
                 debrisImpactPitch(piece), false);
+    }
+
+    private static boolean claimDebrisSound(ClientLevel level, Vec3 position) {
+        var player = Minecraft.getInstance().player;
+        if (player == null || player.distanceToSqr(position) > 16 * 16) return false;
+        long window = Math.floorDiv(level.getGameTime(), 4);
+        if (window != debrisSoundWindow) { debrisSoundWindow = window; debrisSoundCount = 0; }
+        if (debrisSoundCount >= 3) return false;
+        debrisSoundCount++;
+        return true;
     }
 
     private static float debrisImpactPitch(Piece piece) {

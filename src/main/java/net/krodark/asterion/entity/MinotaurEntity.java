@@ -2353,7 +2353,9 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 playSound(Asterion.MINOTAUR_SWORD_SHEATHE, 1.4F, 1.0F);
             else playSound(SoundEvents.ARMOR_EQUIP_IRON.value(), 1.4F, .65F);
         }
-        if (ticks == weaponSheathTicks() + Math.max(1, weaponDrawTicks() / 2))
+        if (wanted == 1 && ticks == weaponSheathTicks() + 1)
+            playSound(Asterion.MINOTAUR_AXE_DRAW, 1.0F, 1.0F);
+        if (wanted != 1 && ticks == weaponSheathTicks() + Math.max(1, weaponDrawTicks() / 2))
             playSound(SoundEvents.ARMOR_EQUIP_IRON.value(), 1.5F, .55F);
         if (ticks >= weaponSheathTicks() + weaponDrawTicks()) {
             getEntityData().set(DATA_WEAPON, wanted);
@@ -2384,7 +2386,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         axePickupGoal = null; axePickupStall = 0; axePickupBest = Double.MAX_VALUE;
         getEntityData().set(DATA_AXE_OUT, true);
         getEntityData().set(DATA_WEAPON, 0);
-        playSound(SoundEvents.PLAYER_ATTACK_SWEEP, 2F, .5F);
+        playSound(Asterion.MINOTAUR_AXE_THROW, 1.0F, 1.0F);
     }
 
     public static net.minecraft.world.item.ItemStack weaponAxeStack() {
@@ -2830,16 +2832,19 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 }
                 float yaw = (float)(Math.atan2(bossChargeDirection.z, bossChargeDirection.x) * Mth.RAD_TO_DEG) - 90;
                 setYRot(yaw); yBodyRot = yaw; yHeadRot = yaw;
+                if (bossAttackTicks == AXE_CHOP_HIT_TICK - 5) playSound(Asterion.MINOTAUR_AXE_SWING, .9F, 1.0F);
                 if (bossAttackTicks == AXE_CHOP_HIT_TICK) performAxeChop(level);
                 if (bossAttackTicks >= 40) finishBossAttack(32);
             }
             case CLEAVE -> {
+                if (bossAttackTicks == 13) playSound(Asterion.MINOTAUR_AXE_SWING, .9F, 1.0F);
                 if (bossAttackTicks == 18) performCleave(level);
                 if (bossAttackTicks >= 48) finishBossAttack(24);
             }
             case SLAM -> {
                 getNavigation().stop();
                 setDeltaMovement(0, getDeltaMovement().y, 0);
+                if (bossAttackTicks == AXE_CHOP_HIT_TICK - 5) playSound(Asterion.MINOTAUR_AXE_SWING, .9F, 1.0F);
                 if (bossAttackTicks == AXE_CHOP_HIT_TICK) performGroundSlam(level);
                 if (bossAttackTicks >= 44) { riposteTicks = 30; finishBossAttack(42); }
             }

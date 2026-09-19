@@ -49,17 +49,26 @@
   },
   "debris_1": {
     "sounds": [
-      "asterion:sfx/misc/debris_1"
+      {
+        "name": "asterion:sfx/misc/debris_1",
+        "attenuation_distance": 16
+      }
     ]
   },
   "debris_2": {
     "sounds": [
-      "asterion:sfx/misc/debris_2"
+      {
+        "name": "asterion:sfx/misc/debris_2",
+        "attenuation_distance": 16
+      }
     ]
   },
   "debris_3": {
     "sounds": [
-      "asterion:sfx/misc/debris_3"
+      {
+        "name": "asterion:sfx/misc/debris_3",
+        "attenuation_distance": 16
+      }
     ]
   },
   "arena_ceiling_fall": {
@@ -333,6 +342,42 @@
       {
         "name": "asterion:ambiance/limbo/mystery_hell_themed_ambience",
         "stream": true
+      }
+    ]
+  },
+  "minotaur_axe_draw": {
+    "sounds": [
+      {
+        "name": "asterion:sfx/minotaur/axe_draw",
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "minotaur_axe_throw": {
+    "sounds": [
+      {
+        "name": "asterion:sfx/minotaur/axe_throw",
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "minotaur_axe_flight_loop": {
+    "sounds": [
+      {
+        "name": "asterion:sfx/minotaur/axe_flight_loop",
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "minotaur_axe_swing": {
+    "sounds": [
+      {
+        "name": "asterion:sfx/minotaur/axe_swing1",
+        "attenuation_distance": 24
+      },
+      {
+        "name": "asterion:sfx/minotaur/axe_swing2",
+        "attenuation_distance": 24
       }
     ]
   }
