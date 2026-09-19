@@ -136,7 +136,7 @@ final class PortMinotaurPose {
         boolean tracking = minotaur.isPerformingGrab() || minotaur.animationState() == MinotaurEntity.AnimationState.IDLE
                 || minotaur.animationState() == MinotaurEntity.AnimationState.WALK
                 || minotaur.animationState() == MinotaurEntity.AnimationState.CHASE;
-        if (!tracking || minotaur.doorEntryTicks() > 0 || minotaur.collapseAnimationTicks() > 0) {
+        if (!tracking || minotaur.isChainGrappleActive() || minotaur.doorEntryTicks() > 0 || minotaur.collapseAnimationTicks() > 0) {
             blend(minotaur,state,bones,partialTick); return;
         }
         float yaw = state.getOrDefaultGeckolibData(LOOK_YAW, 0.0F);

@@ -46,6 +46,21 @@ public final class ProceduralStabilitySmoke {
                     throw new AssertionError("Procedural translation/scale drift on "+bone.getName());
             }
         }
+        var grappler = new MinotaurEntity(Asterion.MINOTAUR,level);
+        PolishSmoke.data(grappler,"DATA_PHASE",PolishSmoke.ordinal("BehaviorPhase","BOSS"));
+        PolishSmoke.data(grappler,"DATA_BOSS_ATTACK",PolishSmoke.ordinal("BossAttack","CHAIN_GRAPPLE"));
+        PolishSmoke.data(grappler,"DATA_BOSS_ATTACK_TICKS",24);
+        grappler.yHeadRot=grappler.yHeadRotO=65;grappler.setXRot(30);grappler.xRotO=30;
+        if(!grappler.isChainGrappleActive())throw new AssertionError("Invalid grapple fixture");
+        for(int frame=0;frame<120;frame++) {
+            grappler.tickCount=frame;
+            for(var bone:processor.getRegisteredBones()) { bone.setRotX(.25F);bone.setRotY(-.4F);bone.setRotZ(.1F); }
+            apply.invoke(null,grappler,processor.getRegisteredBones(),.5F);
+            for(var bone:processor.getRegisteredBones())
+                if(bone.getRotX()!=.25F || bone.getRotY()!=-.4F || bone.getRotZ()!=.1F)
+                    throw new AssertionError("Procedural offsets changed the authored grapple pose");
+        }
+        Asterion.LOGGER.info("ASTERION_GRAPPLE PASSED: authored grapple bone rotations preserved for 120 frames");
         Asterion.LOGGER.info("ASTERION_PROCEDURAL PASSED: 6000 GeckoLib frames, alternating Minotaurs, no rotation/translation/scale drift");
     }
 }

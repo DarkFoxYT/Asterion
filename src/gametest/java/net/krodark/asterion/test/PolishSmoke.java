@@ -21,11 +21,11 @@ final class PolishSmoke {
         });
     }
     @SuppressWarnings({"unchecked","rawtypes"})
-    private static void data(MinotaurEntity boss,String field,Object value) {
+    static void data(MinotaurEntity boss,String field,Object value) {
         try {var f=MinotaurEntity.class.getDeclaredField(field);f.setAccessible(true);boss.getEntityData().set((EntityDataAccessor)f.get(null),value);}
         catch(ReflectiveOperationException e){throw new AssertionError(e);}
     }
-    private static int ordinal(String type,String name) {
+    static int ordinal(String type,String name) {
         for(var c:MinotaurEntity.class.getDeclaredClasses()) if(c.getSimpleName().equals(type))
             for(var v:c.getEnumConstants())if(((Enum<?>)v).name().equals(name))return ((Enum<?>)v).ordinal();
         throw new AssertionError(name);
