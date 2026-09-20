@@ -219,6 +219,12 @@ public class Asterion implements ModInitializer {
     public static final Block CELESTIAL_GOLD_ORE = registerBlock("celestial_gold_ore", MapColor.GOLD,
             properties -> new Block(properties.strength(4.5F, 9.0F).sound(SoundType.DEEPSLATE)));
     public static final Block SHALE = registerBlock("shale", MapColor.DEEPSLATE, p -> new Block(p.requiresCorrectToolForDrops()));
+    public static final Block DEAD_STONE = registerBlock("dead_stone", MapColor.COLOR_GRAY, p -> new Block(p.requiresCorrectToolForDrops()));
+    public static final Block DEAD_STONE_2 = registerBlock("dead_stone_2", MapColor.COLOR_BROWN, p -> new Block(p.requiresCorrectToolForDrops()));
+    public static final Block SHALE_SPIKE = registerBlock("shale_spike", MapColor.DEEPSLATE,
+            p -> new net.krodark.asterion.block.ShaleSpikeBlock(p.noOcclusion().randomTicks().dynamicShape()
+                    .strength(1.5F, 3F).sound(SoundType.POINTED_DRIPSTONE)
+                    .offsetType(BlockBehaviour.OffsetType.XZ)));
     public static final Block SHALE_SLAB = registerBlock("shale_slab", MapColor.DEEPSLATE, p -> new SlabBlock(p.requiresCorrectToolForDrops()));
     public static final Block SHALE_STAIRS = registerBlock("shale_stairs", MapColor.DEEPSLATE, p -> new StairBlock(SHALE.defaultBlockState(), p.requiresCorrectToolForDrops()));
     public static final Block SHALE_FORMATION = registerBlock("shale_formation", MapColor.DEEPSLATE, p -> new net.krodark.asterion.block.ShaleFormationBlock(p.requiresCorrectToolForDrops().noOcclusion()));
@@ -665,6 +671,9 @@ public class Asterion implements ModInitializer {
                         output.accept(SHATTERED_DEAD_WOOD);
                         output.accept(ANCIENT_STONE);
                         output.accept(SHALE);
+                        output.accept(DEAD_STONE);
+                        output.accept(DEAD_STONE_2);
+                        output.accept(SHALE_SPIKE);
                         output.accept(SHALE_SLAB);
                         output.accept(SHALE_STAIRS);
                         output.accept(SHALE_WALL);

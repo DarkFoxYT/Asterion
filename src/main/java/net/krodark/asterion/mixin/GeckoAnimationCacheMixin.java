@@ -55,13 +55,20 @@ public abstract class GeckoAnimationCacheMixin {
         NativeImage buffer = ((GeckoInterpolationBufferAccessor)interpolation).asterion$buffer();
         long bytes = (long)buffer.getWidth() * buffer.getHeight() * 4;
 
-        if (asterion$bytes + bytes > 32L * 1024 * 1024) return;
+        if (asterion$bytes + bytes > 8L * 1024 * 1024
+                || !net.krodark.asterion.client.render.TextureFrameBudget.reserve(bytes)) return;
+        try {
         cached = new NativeImage(buffer.getWidth(), buffer.getHeight(), false);
         if (!net.krodark.asterion.client.render.TextureFrameCopy.tryCopy(buffer, cached,
                 0, 0, 0, 0, buffer.getWidth(), buffer.getHeight(), false, false))
             buffer.copyRect(cached, 0, 0, 0, 0, buffer.getWidth(), buffer.getHeight(), false, false);
         asterion$frames.put(key, cached);
         asterion$bytes += bytes;
+        } catch (RuntimeException | Error failure) {
+            if (cached != null) cached.close();
+            net.krodark.asterion.client.render.TextureFrameBudget.release(bytes);
+            throw failure;
+        }
     }
     @Inject(method = "close", at = @At("HEAD"))
     private void asterion$releaseFrames(CallbackInfo ci) {
@@ -70,6 +77,7 @@ public abstract class GeckoAnimationCacheMixin {
     @Unique private void asterion$clearFrames() {
         asterion$frames.values().forEach(NativeImage::close);
         asterion$frames.clear();
+        net.krodark.asterion.client.render.TextureFrameBudget.release(asterion$bytes);
         asterion$bytes = 0;
     }
 }

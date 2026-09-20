@@ -34,8 +34,8 @@ vec3 unproject(float depth) {
 void main() {
     vec4 scene = vec4(0.0, 0.0, 0.0, 1.0);
     float strength = clamp(Value, 0.0, 1.0);
-    // Leave underwater rendering entirely to the native fluid renderer.
-    if (strength < .001 || (CameraData.y < River.x + 3.0 && CameraData.y < River.x + sampleWave(CameraData.xz, Time).x - .25)) {
+    // CameraForward.w carries the shared CPU surface height, evaluated once per frame.
+    if (strength < .001 || (CameraData.y < River.x + CameraForward.w - .25)) {
         fragColor = scene;
         return;
     }
@@ -44,21 +44,45 @@ void main() {
     vec3 ray = normalize(unproject(.9999) - unproject(.0001));
     if (dot(ray, CameraForward.xyz) < 0.0) ray = -ray;
     float travel = depth >= .9999 ? 192.0 : min(length(endpoint), 192.0);
-    // One haze layer, with clear foreground and a soft sea horizon.
-    float horizonNoise = noise(ray.xz * 4.0 + CameraData.xz * .004 + Time * .0004);
-    float haze = (1.0 - exp(-max(0.0, travel - 22.0) * (.0052 + horizonNoise * .0018)
-            * River.z)) * .86;
-    vec3 color = vec3(.19, .245, .235) * haze;
+    // Cheap dark distance extinction replaces detailed fog beyond thirty blocks.
+    float haze = (1.0 - exp(-max(0.0, travel - 24.0) * .085 * River.z));
+    vec3 color = vec3(.035, .05, .039) * haze;
     float transmission = 1.0 - haze;
+    // A separate dim canopy hangs below the cave roof; the foreground stays clear.
+    float cloudEnter = 3.0, cloudLeave = min(travel, 30.0);
+    float cloudBottom = River.x + 15.0, cloudTop = River.x + 31.0;
+    if (abs(ray.y) < .0001) {
+        if (CameraData.y < cloudBottom || CameraData.y > cloudTop) cloudLeave = 0.0;
+    } else {
+        float ca = (cloudBottom - CameraData.y) / ray.y;
+        float cb = (cloudTop - CameraData.y) / ray.y;
+        cloudEnter = max(3.0, min(ca, cb));
+        cloudLeave = min(cloudLeave, max(ca, cb));
+    }
+    float cloudSpan = max(0.0, cloudLeave - cloudEnter);
+    if (cloudSpan > .01 && River.w > .001) {
+        float cloudDepth = 0.0;
+        for (int c = 0; c < 2; ++c) {
+            float cd = cloudEnter + (float(c) + .5) * cloudSpan * .5;
+            vec3 cp = CameraData.xyz + ray * cd;
+            float ch = (cp.y - cloudBottom) / (cloudTop - cloudBottom);
+            float shape = noise(floor(cp.xz * 4.0) * .018 + vec2(Time * .0006, -Time * .0004) + ch);
+            float band = smoothstep(0.0, .25, ch) * (1.0 - smoothstep(.65, 1.0, ch));
+            cloudDepth += shape * band * cloudSpan * .022 * smoothstep(3.0, 7.0, cd);
+        }
+        float cloud = 1.0 - exp(-min(cloudDepth * River.w, .65));
+        color = mix(color, vec3(.055, .079, .052), cloud);
+        transmission *= 1.0 - cloud;
+    }
     float bottom = River.x - 3.0, top = River.x + River.y + 3.0;
-    float enter = 0.0, leave = travel;
+    float enter = 3.0, leave = min(travel, 30.0);
     if (abs(ray.y) < .0001) {
         if (CameraData.y < bottom || CameraData.y > top) leave = 0.0;
     } else {
         float a = (bottom - CameraData.y) / ray.y;
         float b = (top - CameraData.y) / ray.y;
-        enter = max(0.0, min(a, b));
-        leave = min(travel, max(a, b));
+        enter = max(3.0, min(a, b));
+        leave = min(min(travel, 30.0), max(a, b));
     }
     float span = max(0.0, leave - enter);
     if (span < .001 || River.w <= .001) {
@@ -76,21 +100,22 @@ void main() {
     for (int i = 0; i < 3; ++i) {
         float distance = enter + (float(i) + jitter) * stepLength;
         vec3 p = CameraData.xyz + ray * distance;
+        vec2 mistPixel = floor(p.xz * 8.0) / 8.0;
         float along = (distance - enter) / span;
         float localSurface = River.x + (along < .5 ? mix(surfaceA, surfaceB, along * 2.0)
                 : mix(surfaceB, surfaceC, along * 2.0 - 1.0));
         float height = clamp((p.y - localSurface - .35) / River.y, 0.0, 1.0);
-        float billow = noise(p.xz * .04 + wind + height * vec2(.8, -.55));
-        float wisp = noise(p.xz * .10 - wind * .7 + height * 1.5);
+        float billow = noise(mistPixel * .04 + wind + height * vec2(.8, -.55));
+        float wisp = noise(mistPixel * .10 - wind * .7 + height * 1.5);
         float profile = smoothstep(0.0, .12, height)
                 * (1.0 - smoothstep(.25 + billow * .25, 1.0, height));
         float density = mix(.09, .9, billow * .7 + wisp * .3) * profile;
         // Soft contacts, no planar water overlay, refraction, or scene-UV displacement.
-        float contact = smoothstep(0.0, 2.5, travel - distance) * smoothstep(5.0, 20.0, distance);
-        opticalDepth += density * contact * stepLength * .032 * River.w;
+        float contact = smoothstep(0.0, 2.5, travel - distance) * smoothstep(3.0, 7.0, distance) * (1.0 - smoothstep(24.0, 30.0, distance));
+        opticalDepth += density * contact * stepLength * .11 * River.w;
     }
-    float mist = 1.0 - exp(-min(opticalDepth, .55));
-    color = mix(color, vec3(.31, .375, .35), mist);
+    float mist = 1.0 - exp(-min(opticalDepth, .9));
+    color = mix(color, vec3(.23, .30, .205), mist);
     transmission *= 1.0 - mist;
     fragColor = vec4(color * strength, mix(1.0, transmission, strength));
 }

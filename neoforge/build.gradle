@@ -105,7 +105,8 @@ tasks.withType(ProcessResources).configureEach {
     filesMatching("META-INF/neoforge.mods.toml") {
         expand "version": project.version,
                 "minecraft_version": rootProject.minecraft_version,
-                "neoforge_version": rootProject.neoforge_version
+                "neoforge_version": rootProject.neoforge_version,
+                "amnetic_version": rootProject.amnetic_version
     }
 }
 

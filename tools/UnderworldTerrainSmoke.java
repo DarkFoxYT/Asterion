@@ -43,10 +43,36 @@ public final class UnderworldTerrainSmoke {
             }
             for (int z = UnderworldTerrain.SPAWN_Z; z <= UnderworldTerrain.END_Z; z++)
                 for (double side : new double[]{-1.0625, 0, 1.0625})
-                    check(seed, (int)Math.floor(UnderworldTerrain.riverCenter(z) + side), z, false);
+                    check(seed, (int)Math.floor(UnderworldTerrain.riverCenter(z) + side), z, z < 18);
             for (int x : new int[]{-10000, -512, 0, 512, 10000})
                 for (int z : new int[]{200, 1024, 4096, 10000}) check(seed, x, z, false);
         }
+        Method details = UnderworldTerrain.class.getDeclaredMethod("details", long.class, int.class, int.class, SAMPLE.getReturnType());
+        details.setAccessible(true);
+        Class<?> shape = details.getReturnType();
+        Method mud = shape.getDeclaredMethod("mud"), rock = shape.getDeclaredMethod("rock"),
+                spike = shape.getDeclaredMethod("spike"), hanging = shape.getDeclaredMethod("hanging"),
+                waterfall = shape.getDeclaredMethod("waterfall");
+        for (Method m : new Method[]{mud, rock, spike, hanging, waterfall}) m.setAccessible(true);
+        int muddy=0, spikes=0, curtains=0, drops=0, tallest=0;
+        for (int seed=0;seed<8;seed++) for (int z=-158;z<60;z++) for (int x=-60;x<=60;x++) {
+            Object c=SAMPLE.invoke(null, (long)seed, x,z);
+            if (!(boolean)OPEN.invoke(c)) continue;
+            Object d=details.invoke(null, (long)seed, x,z,c);
+            int r=(int)rock.invoke(d), s=(int)spike.invoke(d), h=(int)hanging.invoke(d);
+            if(s>0&&r==0)throw new AssertionError("Floating ground spike at "+x+","+z);
+            if(r+s+h>Math.max(0,(int)ROOF.invoke(c)-(int)FLOOR.invoke(c)-5))
+                throw new AssertionError("Formation blocks passage clearance");
+            if((boolean)mud.invoke(d))muddy++;
+            if(s>0)spikes++;
+            if(h>0)curtains++;
+            if((boolean)waterfall.invoke(d))drops++;
+            tallest=Math.max(tallest,(int)ROOF.invoke(c)-(int)FLOOR.invoke(c));
+        }
+        if(muddy<100||spikes<20||curtains<20||drops<8||tallest<60)
+            throw new AssertionError("Missing cave variety: "+muddy+","+spikes+","+curtains+","+drops+","+tallest);
+        System.out.println("PASS rooted formations, narrow waterfalls, muddy banks and tall chambers: "
+                +muddy+" mud, "+spikes+" spikes, "+curtains+" hanging, "+drops+" waterfall columns.");
         System.out.println("PASS: 64 seeds; safe spawn, continuous bank/landing, clear ferry route, unbounded sea.");
     }
 }

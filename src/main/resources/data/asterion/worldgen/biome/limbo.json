@@ -9,14 +9,14 @@
       }
     },
     "minecraft:visual/ambient_light_color": "#343D2E",
-    "minecraft:visual/fog_color": "#4A644D",
+    "minecraft:visual/fog_color": "#090D0A",
     "minecraft:visual/sky_color": "#000000"
   },
   "carvers": [],
   "downfall": 0.0,
   "effects": {
-    "water_color": "#466E60",
-    "water_fog_color": "#2F493B"
+    "water_color": "#667264",
+    "water_fog_color": "#080D09"
   },
   "features": [[], [], [], [], [], [], [], [], [], [], []],
   "has_precipitation": false,

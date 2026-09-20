@@ -10,6 +10,7 @@ import net.minecraft.world.phys.Vec3;
 
 public final class LedAmneticLight {
     private static final Map<Object, Long> UPDATED = new HashMap<>();
+    private static net.minecraft.client.multiplayer.ClientLevel trackedLevel;
 
     private LedAmneticLight() {}
 
@@ -25,15 +26,19 @@ public final class LedAmneticLight {
         if (key == null || client.level == null) {
             return;
         }
-        UPDATED.put(key, client.level.getGameTime());
-        LedAmneticPointLights.update(key,
-                new LedPointLightSample(position, red, green, blue, strength, radius, castsShadow));
+        if (trackedLevel != client.level) {
+            UPDATED.clear(); LedAmneticPointLights.clear(); trackedLevel = client.level;
+        }
+        if (LedAmneticPointLights.update(key,
+                new LedPointLightSample(position, red, green, blue, strength, radius, castsShadow)))
+            UPDATED.put(key, client.level.getGameTime());
     }
 
     public static void tickCleanup(Minecraft client) {
-        if (client.level == null) {
+        if (client.level == null || client.level != trackedLevel) {
             UPDATED.clear();
             LedAmneticPointLights.clear();
+            trackedLevel = client.level;
             return;
         }
          

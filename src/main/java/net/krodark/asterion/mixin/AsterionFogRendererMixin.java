@@ -40,9 +40,16 @@ abstract class AsterionFogRendererMixin {
     private void asterion$deepSeaVisibility(Camera camera, int renderDistance, DeltaTracker deltaTracker,
                                            float darkenWorldAmount, ClientLevel level,
                                            CallbackInfoReturnable<FogData> result) {
-        if (!level.dimension().equals(Asterion.LIMBO_LEVEL)
-                || camera.getFluidInCamera() != FogType.WATER) return;
+        if (!level.dimension().equals(Asterion.LIMBO_LEVEL)) return;
         FogData fog = result.getReturnValue();
+        if (camera.getFluidInCamera() == FogType.NONE) {
+            // Native distance fog hides distant geometry even with post effects disabled.
+            fog.environmentalStart = 24F;
+            fog.environmentalEnd = Math.min(fog.environmentalEnd, 48F);
+            fog.color.set(.035F, .05F, .039F, 1F);
+            return;
+        }
+        if (camera.getFluidInCamera() != FogType.WATER) return;
         float depth = (float)Math.max(0, UnderworldTerrain.WATER_Y + 8.0 / 9.0 - camera.position().y);
         // A little visibility at the surface, falling to three blocks in the lightless depths.
         float visibility = 3F + 4F * (float)Math.exp(-depth / 5F);

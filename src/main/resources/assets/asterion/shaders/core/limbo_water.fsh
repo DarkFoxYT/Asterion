@@ -31,7 +31,7 @@ float waterTexture(vec2 p) {
     // Vanilla/resource-pack water strip: use one tile, scrolled in world space.
     vec2 size = vec2(textureSize(Sampler0, 0));
     vec2 scale = vec2(1.0, size.x / size.y);
-    vec2 uv = (fract(p) * (size.x - 1.0) + .5) / size;
+    vec2 uv = (floor(fract(p) * size.x) + .5) / size;
     return textureGrad(Sampler0, uv, dFdx(p) * scale, dFdy(p) * scale).r;
 }
 void main() {
@@ -58,12 +58,12 @@ void main() {
     float fresnel = .025 + .975 * pow(1.0 - facing, 5.0);
     vec3 reflection = reflect(-view, n);
     float ceiling = smoothstep(-.3, .85, reflection.y);
-    vec3 reflected = mix(vec3(.075, .13, .15), vec3(.34, .43, .46), ceiling);
+    vec3 reflected = mix(vec3(.085, .105, .09), vec3(.25, .29, .25), ceiling);
     float sheen = pow(max(dot(reflection, normalize(vec3(-.4, .8, .3))), 0.0), 22.0);
     float slopeLight = clamp(dot(n, normalize(vec3(-.5, 1, .35))), 0.0, 1.0);
-    vec3 body = vec3(.036, .10, .12) * (.65 + .65 * slopeLight + textureDetail * .7);
+    vec3 body = vec3(.115, .145, .122) * (.8 + .35 * slopeLight + textureDetail * .45);
     vec3 water = mix(body, reflected, fresnel);
-    water += vec3(.045, .061, .058) * sheen * (.35 + fresnel) * (1.0 + textureDetail);
+    water += vec3(.025, .029, .024) * sheen * (.25 + fresnel) * (1.0 + textureDetail);
     // Broken patches of froth, rather than continuous luminous contour lines.
     float breakup = surfaceNoise(p * .43 + ripples.yz * .16).x;
     float patches = smoothstep(.25, .70, breakup + (grain - .5) * .25);
@@ -72,7 +72,10 @@ void main() {
             * (1.0 - smoothstep(.8, 1.6, abs(hullPosition.z - .2)));
     float wake = persistentWake(worldSurface).x * shoreExposure;
     whitecap = max(whitecap, max(contact * (.12 + .65 * wakeStrength) * (.4 + .6 * patches), wake * patches * .85));
-    water = mix(water, vec3(.82, .90, .91), whitecap);
+    // World-space texture steps keep the flecks pixelated without a block grid.
+    float fleck = smoothstep(.53, .72, grain) * nearDetail;
+    whitecap *= mix(.65, 1.0, fleck);
+    water = mix(water, vec3(.57, .62, .54), whitecap);
     // Fully opaque: the increased surface detail never reveals the seabed.
     fragColor = apply_fog(vec4(water, 1.0), fog_spherical_distance(surfacePosition),
         fog_cylindrical_distance(surfacePosition), FogEnvironmentalStart, FogEnvironmentalEnd,

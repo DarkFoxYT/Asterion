@@ -70,6 +70,7 @@ public final class UnderworldPostEffects {
                 new UniformValue.Vec4Uniform(new Vector4f((float)cameraPosition.x, (float)cameraPosition.y,
                         (float)cameraPosition.z, RenderSystem.getDevice().isZZeroToOne() ? 1F : 0F)),
                 new UniformValue.Vec4Uniform(new Vector4f((float)cameraForward.x, (float)cameraForward.y,
-                        (float)cameraForward.z, 0F)));
+                        (float)cameraForward.z, (float)UnderworldTerrain.waveHeight(
+                                cameraPosition.x, cameraPosition.z, time()))));
     }
 }

@@ -91,6 +91,9 @@
     "asterion:shaded_shale_celestial_gold_ore",
     "asterion:shaded_shale_tarnished_gold_ore",
     "asterion:shale_formation",
-    "asterion:shaded_shale_formation"
+    "asterion:shaded_shale_formation",
+    "asterion:dead_stone",
+    "asterion:dead_stone_2",
+    "asterion:shale_spike"
   ]
 }

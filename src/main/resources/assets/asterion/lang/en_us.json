@@ -572,5 +572,8 @@
   "tooltip.asterion.minotaur_hide": "Can be crafted into 2 leather.",
   "subtitles.asterion.minotaur_sword_swing": "Minotaur swings his sword",
   "subtitles.asterion.minotaur_fist_swing": "Minotaur swings his fist",
-  "subtitles.asterion.minotaur_fist_swing_combo": "Minotaur unleashes a fist combo"
+  "subtitles.asterion.minotaur_fist_swing_combo": "Minotaur unleashes a fist combo",
+  "block.asterion.dead_stone": "Dead Stone",
+  "block.asterion.dead_stone_2": "Weathered Dead Stone",
+  "block.asterion.shale_spike": "Shale Spike"
 }

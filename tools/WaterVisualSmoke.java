@@ -81,11 +81,12 @@ public final class WaterVisualSmoke {
         BufferedImage image=new BufferedImage(width,height,BufferedImage.TYPE_INT_RGB);int white=0;
         for(int y=0;y<height;y++)for(int x=0;x<width;x++) {
             int i=(y*width+x)*4,r=pixels.get(i)&255,g=pixels.get(i+1)&255,b=pixels.get(i+2)&255;
-            image.setRGB(x,height-1-y,(r<<16)|(g<<8)|b);if(r>120&&g>130&&b>130)white++;
+            // Muted gray-green froth must still separate visibly from the dark body.
+            image.setRGB(x,height-1-y,(r<<16)|(g<<8)|b);if(r>85&&g>100&&b>80 && g>=b)white++;
         }
         MemoryUtil.memFree(pixels);Files.createDirectories(Path.of("build/reports"));
         ImageIO.write(image,"png",Path.of(boat ? "build/reports/limbo-water-hull-preview.png" : "build/reports/limbo-water-preview.png").toFile());
-        if(white<100)throw new AssertionError("Whitecaps are not visibly bright: "+white);
+        if(white<100)throw new AssertionError("Muted foam is not visibly distinct: "+white);
         if(GL11.glGetError()!=GL11.GL_NO_ERROR)throw new AssertionError("Preview GL error");
         System.out.println("PASS rendered wave preview: "+white+" bright foam pixels.");
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER,0);GL20.glUseProgram(0);

@@ -98,7 +98,10 @@ public final class LimboWaterRenderer {
                 break; // There is one shared ferry per Limbo instance.
             }
             FerryWakeTexture.prepare(level, frameFerry);
-            int radius = client.options.getEffectiveRenderDistance();
+            // Limbo's native distance fog is fully opaque at 48 blocks. Four chunks
+            // leave a full chunk of padding even when the camera crosses a boundary.
+            // Do not stream thousands of invisible water quads at large view distances.
+            int radius = Math.min(client.options.getEffectiveRenderDistance(), 4);
             int cx = ((int)Math.floor(camera.x)) >> 4, cz = ((int)Math.floor(camera.z)) >> 4;
             List<Tile> next = new ArrayList<>();
             int refreshBudget = 2;

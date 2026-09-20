@@ -19,13 +19,29 @@ final class LedAmneticPointLights {
     private LedAmneticPointLights() {
     }
 
-    static void update(Object key, LedAmneticLight.LedPointLightSample sample) {
+    static boolean update(Object key, LedAmneticLight.LedPointLightSample sample) {
         AsterionConfig config = AsterionConfig.INSTANCE;
         if (!config.dynamicLightsEnabled || !computeLightingAvailable()) {
             remove(key);
-            return;
+            return false;
         }
         int quality = effectiveQuality(config);
+        int budget = Math.max(0, Math.min(quality == 0 ? 24 : quality == 1 ? 56 : 96, config.maxDynamicLights));
+        if (budget == 0) { remove(key); return false; }
+        // Do not create and immediately evict every light when a dense room exceeds
+        // the budget. Admit nearer lights; keep an existing, stable set otherwise.
+        var camera = net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera().position();
+        if (!LIGHTS.containsKey(key) && LIGHTS.size() >= budget) {
+            if (budget == 0) return false;
+            Object farthest = null;
+            double farDistance = sample.position().distanceToSqr(camera) * 1.1;
+            for (var entry : BUFFERED.entrySet()) {
+                double distance = entry.getValue().position().distanceToSqr(camera);
+                if (distance > farDistance) { farDistance = distance; farthest = entry.getKey(); }
+            }
+            if (farthest == null) return false;
+            remove(farthest);
+        }
         boolean shadows = quality >= 2 && sample.castsShadow();
         boolean godrays = quality >= 2 && sample.radius() >= 2.5F;
         Light light = LIGHTS.computeIfAbsent(key, ignored -> createLight(sample));
@@ -39,7 +55,7 @@ final class LedAmneticPointLights {
                 && previous.castsShadow() == sample.castsShadow()
                 && CONFIGURED_QUALITY.getOrDefault(key,-1)==quality) {
             trimToBudget(key);
-            return;
+            return true;
         }
         light.setPosition(sample.position())
                 .setColor(sample.red(), sample.green(), sample.blue())
@@ -55,6 +71,7 @@ final class LedAmneticPointLights {
                 .setEnabled(true);
         CONFIGURED_QUALITY.put(key,quality);
         trimToBudget(key);
+        return true;
     }
 
     private static boolean computeLightingAvailable() {
