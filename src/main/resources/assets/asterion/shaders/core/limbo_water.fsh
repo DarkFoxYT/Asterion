@@ -79,12 +79,12 @@ void main() {
     float fresnel = .025 + .975 * pow(1.0 - facing, 5.0);
     vec3 reflection = reflect(-view, n);
     float ceiling = smoothstep(-.3, .85, reflection.y);
-    vec3 reflected = mix(vec3(.018, .031, .022), vec3(.075, .105, .078), ceiling);
+    vec3 reflected = mix(vec3(.006, .007, .008), vec3(.048, .052, .055), ceiling);
     float sheen = pow(max(dot(reflection, normalize(vec3(-.4, .8, .3))), 0.0), 34.0);
     float slopeLight = clamp(dot(n, normalize(vec3(-.5, 1, .35))), 0.0, 1.0);
-    vec3 body = vec3(.026, .046, .032) * (.72 + .48 * slopeLight + textureDetail * .58);
+    vec3 body = vec3(.0045, .0052, .0058) * (.68 + .52 * slopeLight + textureDetail * .58);
     vec3 water = mix(body, reflected, fresnel);
-    water += vec3(.12, .205, .13) * sheen * (.34 + fresnel) * (1.15 + textureDetail);
+    water += vec3(.19, .205, .215) * sheen * (.34 + fresnel) * (1.15 + textureDetail);
     const float causticTexel = .30;
     vec2 causticWorld = (floor(worldSurface / causticTexel) + .5) * causticTexel;
     float ghostLarge = ghostCurrent(causticWorld * .017, waterTime * .0072);
@@ -94,13 +94,13 @@ void main() {
     float opacityNoise = .58 + .42 * surfaceNoise(causticWorld * .052
             + vec2(waterTime * .00085, -waterTime * .00055)).x;
     float shoreFade = smoothstep(.12, .82, shoreExposure);
-    // Tight, ink-black spectral fissures instead of broad luminous caustics.
+    // Tight silver-grey caustics over an otherwise pitch-black body.
     float spectral = pow(smoothstep(.24, .68, spectralBase), 3.65)
             * (.48 + .52 * fresnel) * nearDetail * pulse * opacityNoise * shoreFade;
-    water = mix(water, vec3(.012, .072, .034), .24 + fresnel * .16);
-    float blackVein = clamp(spectral * (.92 + .34 * detailQuality), 0.0, .985);
-    water = mix(water, vec3(.00002, .000025, .00002), blackVein);
-    water += vec3(.055, .17, .12) * pow(max(0.0, 1.0 - facing), 2.8) * .32;
+    water = mix(water, vec3(.0012, .00135, .0015), .30 + fresnel * .18);
+    float silverCaustic = clamp(spectral * (.82 + .30 * detailQuality), 0.0, .88);
+    water = mix(water, vec3(.19, .205, .215), silverCaustic);
+    water += vec3(.035, .039, .043) * pow(max(0.0, 1.0 - facing), 2.8) * .32;
     float breakup = surfaceNoise(p * .43 + ripples.yz * .16).x;
     float patches = smoothstep(.25, .70, breakup + (grain - .5) * .25);
     float whitecap = foam * mix(.7, .16 + .84 * patches, nearDetail);
@@ -111,7 +111,7 @@ void main() {
     whitecap = max(whitecap, max(contact * (.12 + .65 * wakeStrength) * (.72 + .28 * breakup), smoothWake * .78));
     float fleck = smoothstep(.53, .72, grain) * nearDetail;
     whitecap = max(whitecap * mix(.65, 1.0, fleck), smoothWake * .78);
-    water = mix(water, vec3(.27, .42, .29), whitecap);
+    water = mix(water, vec3(.28, .30, .31), whitecap);
     fragColor = apply_fog(vec4(water, 1.0), fog_spherical_distance(surfacePosition),
         fog_cylindrical_distance(surfacePosition), FogEnvironmentalStart, FogEnvironmentalEnd,
         FogRenderDistanceStart, FogRenderDistanceEnd, FogColor);

@@ -164,9 +164,9 @@ void main(){
     float depth=texture(DepthSampler,texCoord).r;vec3 end=unproject(depth),ray=normalize(unproject(.9999)-unproject(.0001));
     if(dot(ray,CameraForward.xyz)<0.0)ray=-ray;
     float travel=depth>=.9999?160.0:min(length(end),160.0),haze=1.0-exp(-max(0.0,travel-23.0)*.088*River.z);
-    vec3 color=vec3(.001,.0,.0)*haze;float transmission=1.0-haze;
+    vec3 color=vec3(.004,.0045,.005)*haze;float transmission=1.0-haze;
     float canopyBottom=River.x+10.5,canopyTop=River.x+29.0;
-    float canopyEnter=5.0,canopyLeave=min(travel,46.0);
+    float canopyEnter=5.0,canopyLeave=min(travel,96.0);
     if(abs(ray.y)<.0001){if(CameraData.y<canopyBottom||CameraData.y>canopyTop)canopyLeave=0.0;}
     else{float ca=(canopyBottom-CameraData.y)/ray.y,cb=(canopyTop-CameraData.y)/ray.y;canopyEnter=max(5.0,min(ca,cb));canopyLeave=min(canopyLeave,max(ca,cb));}
     float canopySpan=max(0.0,canopyLeave-canopyEnter),canopyOptical=0.0,canopyLight=0.0,canopyChurn=0.0;
@@ -176,19 +176,19 @@ void main(){
             float d=canopyEnter+(float(c)+canopyJitter)*canopyStep;vec3 p=CameraData.xyz+ray*d;float lit,clearing,churn;p=disturb(p,clearing,churn);
             float den=hangingDensity(p,canopyBottom,canopyTop,lit);
             den*=1.0-clearing*.55;
-            float contact=smoothstep(0.0,2.5,travel-d)*smoothstep(5.0,9.0,d)*exp(-pow(d/34.0,3.0));
+            float contact=smoothstep(0.0,2.5,travel-d)*smoothstep(5.0,9.0,d);
             canopyOptical+=den*contact*canopyStep*.052*River.w;
             canopyLight+=den*contact*(.12+lit)*canopyStep*.035;
             canopyChurn+=den*contact*churn*canopyStep*.018;
         }
         float canopy=1.0-exp(-min(canopyOptical,.72));
-        vec3 canopyColor=mix(vec3(.028,.052,.036),vec3(.105,.158,.105),1.0-exp(-canopyLight));
-        canopyColor=mix(canopyColor,vec3(.58,.64,.59),clamp(1.0-exp(-canopyChurn),0.0,.16));
+        vec3 canopyColor=mix(vec3(.018,.019,.021),vec3(.29,.305,.315),1.0-exp(-canopyLight));
+        canopyColor=mix(canopyColor,vec3(.72,.73,.74),clamp(1.0-exp(-canopyChurn),0.0,.16));
         color=mix(color,canopyColor,canopy);transmission*=1.0-canopy;
     }
     float middleBottom=River.x+3.35,middleTop=River.x+12.25;
     float middleVolumeBottom=middleBottom-2.65,middleVolumeTop=middleTop+3.05;
-    float middleEnter=4.0,middleLeave=min(travel,42.0);
+    float middleEnter=4.0,middleLeave=min(travel,88.0);
     if(abs(ray.y)<.0001){if(CameraData.y<middleVolumeBottom||CameraData.y>middleVolumeTop)middleLeave=0.0;}
     else{float ma=(middleVolumeBottom-CameraData.y)/ray.y,mb=(middleVolumeTop-CameraData.y)/ray.y;middleEnter=max(4.0,min(ma,mb));middleLeave=min(middleLeave,max(ma,mb));}
     float middleSpan=max(0.0,middleLeave-middleEnter),middleOptical=0.0,middleLight=0.0,middleChurn=0.0;
@@ -198,17 +198,17 @@ void main(){
             float d=middleEnter+(float(m)+middleJitter)*middleStep;vec3 p=CameraData.xyz+ray*d;float lit,clearing,churn;p=disturb(p,clearing,churn);
             float den=middleBlobDensity(p,middleBottom,middleTop,lit);
             den*=1.0-clearing*.72;
-            float contact=smoothstep(0.0,2.2,travel-d)*smoothstep(4.0,7.5,d)*exp(-pow(d/31.0,3.1));
+            float contact=smoothstep(0.0,2.2,travel-d)*smoothstep(4.0,7.5,d);
             middleOptical+=den*contact*middleStep*.128*River.w;
             middleLight+=den*contact*(.12+lit)*middleStep*.052;
             middleChurn+=den*contact*churn*middleStep*.026;
         }
         float middleFog=1.0-exp(-min(middleOptical,1.28));
-        vec3 middleColor=mix(vec3(.025,.047,.031),vec3(.108,.178,.113),1.0-exp(-middleLight));
-        middleColor=mix(middleColor,vec3(.62,.68,.63),clamp(1.0-exp(-middleChurn),0.0,.22));
+        vec3 middleColor=mix(vec3(.016,.017,.019),vec3(.35,.365,.375),1.0-exp(-middleLight));
+        middleColor=mix(middleColor,vec3(.78,.79,.80),clamp(1.0-exp(-middleChurn),0.0,.22));
         color=mix(color,middleColor,middleFog);transmission*=1.0-middleFog;
     }
-    float bottom=River.x-1.0,top=River.x+River.y*1.55,enter=1.5,leave=min(travel,38.0);
+    float bottom=River.x-1.0,top=River.x+River.y*1.55,enter=1.5,leave=min(travel,72.0);
     if(abs(ray.y)<.0001){if(CameraData.y<bottom||CameraData.y>top)leave=0.0;}else{float a=(bottom-CameraData.y)/ray.y,b=(top-CameraData.y)/ray.y;enter=max(1.5,min(a,b));leave=min(leave,max(a,b));}
     float span=max(0.0,leave-enter);if(span<.001||River.w<=.001){fragColor=vec4(color*strength,mix(1.0,transmission,strength));return;}
     float sa=sampleWave(CameraData.xz+ray.xz*enter,Time).x,sb=sampleWave(CameraData.xz+ray.xz*(enter+span*.5),Time).x,sc=sampleWave(CameraData.xz+ray.xz*leave,Time).x;
@@ -222,7 +222,7 @@ void main(){
         float surface=River.x+(along<.5?mix(sa,sb,along*2.0):mix(sb,sc,along*2.0-1.0));
         float clearing,churn;p=disturb(p,clearing,churn);float lit;
         float den=densityAt(p,surface,lit)*(1.0-clearing)*mix(1.0,1.32,churn*(.35+lit));
-        float contact=smoothstep(0.0,2.0,travel-d)*smoothstep(1.5,4.5,d)*exp(-pow(d/22.0,3.4));
+        float contact=smoothstep(0.0,2.0,travel-d)*smoothstep(1.5,4.5,d);
         float sliceDensity=den*contact*stepLength*.245*River.w*viewDensity;
         // Front-to-back extinction makes deep lobes shade the slices behind them,
         // matching the reference's sliced volumetric self-shadowing model.
@@ -241,16 +241,16 @@ void main(){
     phase=clamp(phase*.23,.08,.72);
     float deepAbsorption=smoothstep(.18,1.18,optical);
     float multipleScatter=(1.0-exp(-optical*.42))*(1.0-exp(-light*.55));
-    vec3 shadowColor=vec3(.025,.045,.032);
-    vec3 bodyColor=vec3(.072,.118,.079);
-    vec3 scatterColor=vec3(.22,.34,.235);
+    vec3 shadowColor=vec3(.012,.013,.015);
+    vec3 bodyColor=vec3(.052,.055,.059);
+    vec3 scatterColor=vec3(.48,.50,.52);
     vec3 fog=mix(bodyColor,scatterColor,clamp(inner*.56+phase*.34,0.0,1.0));
     fog=mix(fog,shadowColor,deepAbsorption*.48);
-    fog+=vec3(.028,.072,.037)*(inner+multipleScatter*.7);
+    fog+=vec3(.055,.058,.062)*(inner+multipleScatter*.7);
     // A faint far-field veil connects the local volume to the dimension's air.
-    fog=mix(fog,vec3(.052,.081,.058),haze*.24);
+    fog=mix(fog,vec3(.026,.028,.031),haze*.24);
     // A restrained pearl mist marks the moving pressure front around the player
     // and ferry wake without bleaching the underlying green volume.
-    fog=mix(fog,vec3(.68,.73,.69),clamp(1.0-exp(-lowChurn),0.0,.26));
+    fog=mix(fog,vec3(.78,.79,.80),clamp(1.0-exp(-lowChurn),0.0,.26));
     color=mix(color,fog,mist);transmission*=1.0-mist;fragColor=vec4(color*strength,mix(1.0,transmission,strength));
 }
