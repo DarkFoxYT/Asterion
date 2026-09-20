@@ -4,7 +4,7 @@ plugins {
 }
 
 version = project.mod_version
-group = project.maven_group
+// Stonecutter owns project groups to distinguish version nodes.
 
 base {
     archivesName = project.archives_base_name
@@ -24,7 +24,7 @@ repositories {
     }
     ivy {
         name = "LocalRendererDependencies"
-        url = uri("libs")
+        url = rootProject.uri("libs")
         patternLayout {
             artifact "[artifact]-[revision].[ext]"
             artifact "[artifact].[ext]"
@@ -47,7 +47,7 @@ repositories {
     maven { name = "Quilt"; url = "https://maven.quiltmc.org/repository/release" }
 }
 
-def loaderPlatform = providers.gradleProperty("loader_platform").getOrElse("fabric")
+def loaderPlatform = project.name.tokenize("-").last()
 if (!(loaderPlatform in ["fabric", "quilt"])) {
     throw new GradleException("Unsupported loader_platform '${loaderPlatform}'. Expected 'fabric' or 'quilt'.")
 }
@@ -104,12 +104,12 @@ def resourceProperties = [
 ]
 
 processResources {
-    from('src/main/resources/assets/asterion/textures/armor') {
+    from(rootProject.file('src/main/resources/assets/asterion/textures/armor')) {
         include '*_top.png'
         into 'assets/asterion/textures/entity/equipment/humanoid'
         rename { it.replace('_top.png', '.png') }
     }
-    from('src/main/resources/assets/asterion/textures/armor') {
+    from(rootProject.file('src/main/resources/assets/asterion/textures/armor')) {
         include '*_bottom.png'
         into 'assets/asterion/textures/entity/equipment/humanoid_leggings'
         rename { it.replace('_bottom.png', '.png') }
@@ -125,10 +125,10 @@ processResources {
         path = path.toLowerCase(java.util.Locale.ROOT).replaceAll('[^a-z0-9/._-]', '_')
     }
     doLast {
-        def sounds = new groovy.json.JsonSlurper().parse(file('src/main/resources/assets/asterion/sounds.json'))
+        def sounds = new groovy.json.JsonSlurper().parse(rootProject.file('src/main/resources/assets/asterion/sounds.json'))
         def tracks = []
         def seen = new HashSet<String>()
-        fileTree('src/main/resources/assets/asterion/sounds/music').matching { include '**/*.ogg' }.files.sort().each { track ->
+        rootProject.fileTree('src/main/resources/assets/asterion/sounds/music').matching { include '**/*.ogg' }.files.sort().each { track ->
             def group = track.parentFile.name
             if (!(group in ['ancient', 'overgrown', 'crimsonmarshlands', 'arena', 'forge'])) return
             def stem = track.name.substring(0, track.name.length() - 4)
@@ -171,7 +171,7 @@ jar {
                 'Mod-Loader': loaderPlatform == 'quilt' ? 'Quilt' : 'Fabric'
         )
     }
-    from("LICENSE.txt") {
+    from(rootProject.file("LICENSE.txt")) {
         rename { "LICENSE_${project.archives_base_name}.txt" }
     }
 }
@@ -196,7 +196,7 @@ if (loaderPlatform == "quilt") {
     }
 }
 
-apply from: 'gradle/forge-assets.gradle'
+apply from: rootProject.file('gradle/forge-assets.gradle')
 
 def essentialRuntimePointer = layout.buildDirectory.file("essential-runtime-jar.path")
 tasks.register("stageEssentialRuntimeJar") {
@@ -215,7 +215,7 @@ tasks.register("stageEssentialRuntimeJar") {
             input.transferTo(new java.security.DigestOutputStream(java.io.OutputStream.nullOutputStream(), digest))
         }
         def token = java.util.HexFormat.of().formatHex(digest.digest())
-        def target = file("run/.asterion-runtime/${token}/${source.name}")
+        def target = rootProject.file("run/.asterion-runtime/${token}/${source.name}")
         target.parentFile.mkdirs()
         if (!target.isFile()) java.nio.file.Files.copy(source.toPath(), target.toPath())
         essentialRuntimePointer.get().asFile.text = target.absolutePath
@@ -225,6 +225,7 @@ tasks.register("stageEssentialRuntimeJar") {
 publishing {
     publications {
         create("mavenJava", MavenPublication) {
+            groupId = project.maven_group
             artifactId = project.archives_base_name
             from components.java
         }
@@ -233,11 +234,13 @@ publishing {
 }
 
 loom {
+    fabricModJsonPath = rootProject.file("src/main/resources/fabric.mod.json")
     mods {
         asterion { sourceSet sourceSets.main }
     }
     runs {
         client {
+            runDir((loaderPlatform == "fabric" ? rootProject.file("run") : file("build/run/quilt")).absolutePath)
             mainClass = "net.krodark.asterion.dev.EssentialClientLaunch"
             vmArg "-Dasterion.essential.modJarPathFile=${essentialRuntimePointer.get().asFile.absolutePath}"
             if (project.hasProperty('startupProfile')) vmArg "-XX:StartFlightRecording=settings=profile,filename=${layout.buildDirectory.file('startup-profile.jfr').get().asFile.absolutePath},dumponexit=true"
@@ -249,7 +252,7 @@ loom {
             vmArg "-Dasterion.essential.modJarPathFile=${essentialRuntimePointer.get().asFile.absolutePath}"
 
             mainClass = "net.krodark.asterion.dev.EssentialClientLaunch"
-            runDir "run"
+            runDir((loaderPlatform == "fabric" ? rootProject.file("run") : file("build/run/quilt")).absolutePath)
             ideConfigGenerated = false
         }
     }
@@ -257,7 +260,15 @@ loom {
 
 tasks.matching { it.name in ["runClient", "runEssentialClient"] }.configureEach { dependsOn "stageEssentialRuntimeJar" }
 
+def asterionClientLauncher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(25)
+    vendor = JvmVendorSpec.JETBRAINS
+}
+
 tasks.withType(JavaExec).configureEach {
+    if (providers.gradleProperty('asterionUseJetBrainsRuntime').getOrElse('false').toBoolean()) {
+        javaLauncher = asterionClientLauncher
+    }
     doFirst {
         if (providers.gradleProperty('asterionSafeJvm').getOrElse('false').toBoolean()
                 && allJvmArgs.any { it == '-Dfabric.dli.env=client' }) {
@@ -265,6 +276,10 @@ tasks.withType(JavaExec).configureEach {
             def safeTier = providers.gradleProperty('asterionSafeJvmTier').getOrElse('1')
             if (!(safeTier in ['1', '3'])) throw new GradleException('asterionSafeJvmTier must be 1 or 3')
             jvmArgs "-XX:TieredStopAtLevel=${safeTier}"
+            // Temurin 25.0.2 can crash in its getCallerClass intrinsic when C1 compiles
+            // MemorySegment.reinterpret. Minecraft hits this path from BufferBuilder while
+            // rendering option-screen text, so keep this one tiny method interpreted.
+            jvmArgs '-XX:CompileCommand=exclude,jdk.internal.foreign.AbstractMemorySegmentImpl::reinterpret'
             logger.lifecycle("Asterion client stability mode: C1 tier ${safeTier}; crash-prone C2 tier disabled.")
         }
     }
@@ -286,5 +301,5 @@ tasks.register("modDistribution", Sync) {
     dependsOn tasks.named("jar")
     into layout.buildDirectory.dir("distribution")
     from(tasks.named("jar"))
-    from("docs/INSTALL-MODS.txt")
+    from(rootProject.file("docs/INSTALL-MODS.txt"))
 }

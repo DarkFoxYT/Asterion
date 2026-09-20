@@ -1,12 +1,7 @@
 {
   "targets": {
     "dead_sun_raw": {
-      "clear_color": [
-        0.0,
-        0.0,
-        0.0,
-        0.0
-      ]
+      "clear_color": 0
     },
     "dead_sun_scene": {}
   },

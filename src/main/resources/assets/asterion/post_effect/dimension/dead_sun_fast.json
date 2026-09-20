@@ -1,6 +1,6 @@
 {
   "targets": {
-    "dead_sun_fast_raw": { "clear_color": [0.0, 0.0, 0.0, 0.0] },
+    "dead_sun_fast_raw": { "clear_color": 0 },
     "dead_sun_fast_scene": {}
   },
   "passes": [

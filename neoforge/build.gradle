@@ -5,7 +5,7 @@ plugins {
 }
 
 version = rootProject.mod_version
-group = rootProject.maven_group
+// Stonecutter owns project groups to distinguish version nodes.
 
 base {
     archivesName = rootProject.archives_base_name
@@ -29,8 +29,9 @@ repositories {
 
 sourceSets {
     main {
+        resources.setSrcDirs([rootProject.file("neoforge/src/main/resources")])
         java {
-            srcDir rootProject.file("src/main/java")
+            srcDir rootProject.file("neoforge/src/main/java")
             exclude "net/krodark/asterion/dev/**"
         }
     }
@@ -43,18 +44,18 @@ java {
 
 neoForge {
     version = rootProject.neoforge_version
-    interfaceInjectionData.from project.file("geckolib_interfaces.json")
+    interfaceInjectionData.from rootProject.file("neoforge/geckolib_interfaces.json")
 
     runs {
         client {
             client()
             ideName = "Asterion NeoForge Client"
-            gameDirectory = project.file("run/client")
+            gameDirectory = rootProject.file("neoforge/run/client")
         }
         server {
             server()
             ideName = "Asterion NeoForge Server"
-            gameDirectory = project.file("run/server")
+            gameDirectory = rootProject.file("neoforge/run/server")
             programArgument "--nogui"
         }
     }
@@ -95,11 +96,11 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 tasks.withType(ProcessResources).configureEach {
-    dependsOn rootProject.tasks.named("processResources")
+    dependsOn project(":26.1.2-fabric").tasks.named("processResources")
     inputs.property "version", project.version
     inputs.property "minecraft_version", rootProject.minecraft_version
     inputs.property "neoforge_version", rootProject.neoforge_version
-    from(rootProject.layout.buildDirectory.dir("resources/main")) {
+    from(project(":26.1.2-fabric").layout.buildDirectory.dir("resources/main")) {
         exclude "fabric.mod.json"
     }
     filesMatching("META-INF/neoforge.mods.toml") {

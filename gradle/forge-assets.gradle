@@ -1,7 +1,7 @@
 def forgeAssets = layout.buildDirectory.dir('generated/forge-assets')
 def minecraftTextureJar = file("${gradle.gradleUserHomeDir}/caches/fabric-loom/${minecraft_version}/minecraft-client.jar")
 tasks.register('generateForgeAssets') {
-    inputs.dir('src/main/resources/assets/asterion/textures/forging')
+    inputs.dir(rootProject.file('src/main/resources/assets/asterion/textures/forging'))
     inputs.file(minecraftTextureJar)
     outputs.dir(forgeAssets)
     doLast {
@@ -65,7 +65,7 @@ tasks.register('generateForgeAssets') {
                     def textureName = "${material}_${part}${suffix}"
                     def texture = "asterion:item/forging/${material}/${textureName}"
                     if (layer == 1) {
-                        def source = javax.imageio.ImageIO.read(file(
+                        def source = javax.imageio.ImageIO.read(rootProject.file(
                                 "src/main/resources/assets/asterion/textures/forging/${material}/${textureName}.png"))
                         writeHalfAlpha(source, file("${overlayTextureDir}/${material}/${textureName}.png"))
                     }
@@ -103,7 +103,7 @@ tasks.register('generateForgeAssets') {
          
          
         def ingotTextures = materials.collectEntries { material ->
-            def custom = file("src/main/resources/assets/asterion/textures/forging/${material}/${material}_ingot.png")
+            def custom = rootProject.file("src/main/resources/assets/asterion/textures/forging/${material}/${material}_ingot.png")
             [(material): custom.exists()
                     ? "asterion:item/forging/${material}/${material}_ingot"
                     : "minecraft:item/${material == 'tarnished_gold' ? 'gold' : material}_ingot"]
@@ -114,7 +114,7 @@ tasks.register('generateForgeAssets') {
                 def texture = ingotTextures[material]
                 if (layer == 1) {
                     java.awt.image.BufferedImage source
-                    def custom = file("src/main/resources/assets/asterion/textures/forging/${material}/${material}_ingot.png")
+                    def custom = rootProject.file("src/main/resources/assets/asterion/textures/forging/${material}/${material}_ingot.png")
                     if (custom.exists()) source = javax.imageio.ImageIO.read(custom)
                     else {
                         def vanilla = material == 'tarnished_gold' ? 'gold' : material
@@ -142,7 +142,7 @@ tasks.register('generateForgeAssets') {
         file("${itemDir}/forged_ingot.json").text = groovy.json.JsonOutput.toJson(
                 [model: [type: 'minecraft:composite', models: ingotLayers]])
         copy {
-            from file('src/main/resources/assets/asterion/textures/forging')
+            from rootProject.file('src/main/resources/assets/asterion/textures/forging')
             into atlasTextureDir
         }
     }
@@ -157,4 +157,3 @@ tasks.named('processResources').configure {
         duplicatesStrategy = DuplicatesStrategy.INCLUDE
     }
 }
-
