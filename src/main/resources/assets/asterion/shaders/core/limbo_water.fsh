@@ -94,11 +94,12 @@ void main() {
     float opacityNoise = .58 + .42 * surfaceNoise(causticWorld * .052
             + vec2(waterTime * .00085, -waterTime * .00055)).x;
     float shoreFade = smoothstep(.12, .82, shoreExposure);
-    float spectral = pow(smoothstep(.025, .46, spectralBase), 1.38)
-            * (.34 + .66 * fresnel) * nearDetail * pulse * opacityNoise * shoreFade;
-    vec3 ghostColor = vec3(.055, .72, .16);
+    // Tight, ink-black spectral fissures instead of broad luminous caustics.
+    float spectral = pow(smoothstep(.24, .68, spectralBase), 3.65)
+            * (.48 + .52 * fresnel) * nearDetail * pulse * opacityNoise * shoreFade;
     water = mix(water, vec3(.012, .072, .034), .24 + fresnel * .16);
-    water += ghostColor * spectral * (.68 + .44 * detailQuality);
+    float blackVein = clamp(spectral * (.92 + .34 * detailQuality), 0.0, .985);
+    water = mix(water, vec3(.00002, .000025, .00002), blackVein);
     water += vec3(.055, .17, .12) * pow(max(0.0, 1.0 - facing), 2.8) * .32;
     float breakup = surfaceNoise(p * .43 + ripples.yz * .16).x;
     float patches = smoothstep(.25, .70, breakup + (grain - .5) * .25);
