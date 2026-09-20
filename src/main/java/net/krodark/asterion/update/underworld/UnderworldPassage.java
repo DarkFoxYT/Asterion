@@ -51,6 +51,8 @@ public final class UnderworldPassage {
 
         for (ServerPlayer player : java.util.List.copyOf(level.players())) {
             if (FerryRejoin.recover(player)) continue;
+            net.krodark.asterion.update.underworld.world.UnderworldWaterPhysics.alignSurface(
+                    player, level.getGameTime());
             // The Styx is crossed aboard the paid ferry, not by swimming or walking around it.
             if (player.isAlive() && !player.isSpectator() && !player.getAbilities().instabuild
                     && player.getZ() > 105

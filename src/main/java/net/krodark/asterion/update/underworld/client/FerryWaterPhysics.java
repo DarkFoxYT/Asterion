@@ -21,9 +21,6 @@ public final class FerryWaterPhysics {
     private static double previousFeet=Double.NaN;
     private FerryWaterPhysics() { }
     public static void initialize() { ClientTickEvents.END_CLIENT_TICK.register(FerryWaterPhysics::tick); }
-    private static double surface(double x,double z,long time) {
-        return UnderworldTerrain.WATER_Y+8.0/9.0+UnderworldTerrain.waveHeight(x,z,time);
-    }
     private static void tick(Minecraft client) {
         if(client.level!=world) { world=client.level;CONTACTS.clear();previousFeet=Double.NaN; }
         if(world==null || client.player==null || client.isPaused() || !world.dimension().equals(Asterion.LIMBO_LEVEL))return;
@@ -62,8 +59,9 @@ public final class FerryWaterPhysics {
         }
         CONTACTS.keySet().removeIf(id->world.getEntity(id)==null);
         var player=client.player;
-        double water=surface(player.getX(),player.getZ(),time),feet=player.getY();
-        if(Double.isFinite(previousFeet) && previousFeet>water+.08 && feet<=water+.08 && player.getDeltaMovement().y<-.06
+        net.krodark.asterion.update.underworld.world.UnderworldWaterPhysics.alignSurface(player, time);
+        double water=net.krodark.asterion.update.underworld.world.UnderworldWaterPhysics.surfaceAt(player,time),feet=player.getY();
+        if(Double.isFinite(water) && Double.isFinite(previousFeet) && previousFeet>water+.08 && feet<=water+.08 && player.getDeltaMovement().y<-.06
                 && CharonsFerryEntity.supporting(player)==null) {
             int count=Math.min(18,6+(int)(Math.abs(player.getDeltaMovement().y)*12));
             for(int i=0;i<count;i++) {
@@ -72,7 +70,7 @@ public final class FerryWaterPhysics {
                         player.getZ()+Math.sin(a)*.35,Math.cos(a)*.08,.10,Math.sin(a)*.08);
             }
         }
-        if(player.getEyeY()<water-.15 && time%3==0 && quality>0) {
+        if(Double.isFinite(water) && player.getEyeY()<water-.15 && time%3==0 && quality>0) {
             world.addParticle(ParticleTypes.BUBBLE,player.getX()+(random.nextDouble()-.5)*1.5,
                     player.getY()+random.nextDouble()*1.6,player.getZ()+(random.nextDouble()-.5)*1.5,
                     player.getDeltaMovement().x*.2,.02,player.getDeltaMovement().z*.2);

@@ -22,12 +22,15 @@ public final class WaterShoreline {
         return (float)(shore * shore * (3 - 2 * shore) * shallow * shallow * (3 - 2 * shallow));
     }
     public static float sample(BlockGetter level, int x, int z) {
+        return sample(level, x, UnderworldTerrain.WATER_Y, z);
+    }
+    public static float sample(BlockGetter level, int x, int surfaceY, int z) {
         int[] depths = new int[18 * 18];
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int dz = 0; dz < 18; dz++) for (int dx = 0; dx < 18; dx++) {
             int depth = 0;
             while (depth < 6 && level.getFluidState(pos.set(x + dx - 9,
-                    UnderworldTerrain.WATER_Y - depth, z + dz - 9)).is(FluidTags.WATER)) depth++;
+                    surfaceY - depth, z + dz - 9)).is(FluidTags.WATER)) depth++;
             depths[dz * 18 + dx] = depth;
         }
         return attenuation(depths, 18, 9, 9);

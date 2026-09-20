@@ -16,6 +16,10 @@ out vec4 fragColor;
 const float TAU=6.28318530718;
 
 float hash12(vec2 p){vec3 q=fract(vec3(p.xyx)*.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}
+float hash13(vec3 p){p=fract(p*.1031);p+=dot(p,p.yzx+33.33);return fract((p.x+p.y)*p.z);}
+vec3 hash33(vec3 p){return vec3(hash13(p+1.7),hash13(p+9.2),hash13(p+21.4));}
+float puffBall(vec3 cell,vec3 local,vec3 offset){vec3 id=cell+offset,center=offset+.12+hash33(id)*.76;float radius=mix(.38,.68,hash13(id+31.0));vec3 d=(local-center)*vec3(1.0,1.34,1.0);return 1.0-smoothstep(radius*.52,radius,length(d));}
+float puffBalls(vec3 p){vec3 q=p*.105,cell=floor(q),local=fract(q);float f=puffBall(cell,local,vec3(0));f=max(f,puffBall(cell,local,vec3(1,0,0)));f=max(f,puffBall(cell,local,vec3(-1,0,0)));f=max(f,puffBall(cell,local,vec3(0,1,0)));f=max(f,puffBall(cell,local,vec3(0,-1,0)));f=max(f,puffBall(cell,local,vec3(0,0,1)));return max(f,puffBall(cell,local,vec3(0,0,-1)));}
 float atlasNoise(vec3 p){
     vec2 uv=p.xz+vec2(p.y*.071,-p.y*.053);
     return texture(NoiseSampler,fract(uv)).r;
@@ -121,6 +125,29 @@ float hangingDensity(vec3 p,float bottom,float top,out float glow){
     return (bank*.58+curtains*.42)*pulse;
 }
 
+// Dense rounded islands bridge the water mist into the hanging canopy while
+// retaining their own slower motion and large, readable silhouettes.
+float middleBlobDensity(vec3 p,float bottom,float top,out float glow){
+    float h=(p.y-bottom)/max(top-bottom,.001);
+    float verticalFade=smoothstep(-.30,.12,h)*(1.0-smoothstep(.88,1.34,h));
+    vec3 drift=vec3(Time*.00055,0.0,-Time*.00038);
+    float broad=atlasNoise(p*vec3(.024,.075,.024)+drift+vec3(5.2,1.7,9.4));
+    float shape=atlasNoise(p*vec3(.057,.14,.057)-drift*.73+vec3(13.1,4.6,2.8));
+    float detail=atlasNoise(p*vec3(.115,.23,.115)+drift*1.31+vec3(1.4,8.3,16.7));
+    vec3 puffPosition=p+vec3(Time*.010,0.0,-Time*.0065);
+    puffPosition.xz+=vec2(shape-.5,broad-.5)*1.7;
+    float spheres=puffBalls(puffPosition);
+    float center=.50+(broad-.5)*.13;
+    float oval=1.0-smoothstep(.36,.70,abs(h-center));
+    float softFill=smoothstep(.34,.62,broad*.61+shape*.54+detail*.10);
+    float joined=max(spheres,softFill*.58);
+    float puffy=smoothstep(.08,.76,joined)*oval;
+    float scallops=smoothstep(.24,.82,spheres+.22*detail);
+    float edge=clamp(puffy*mix(.78,1.25,scallops)*verticalFade,0.0,1.18);
+    glow=clamp(.08+(shape-detail)*.22+scallops*.34,0.0,.58);
+    return edge*(1.02+.34*smoothstep(.28,.78,broad));
+}
+
 void main(){
     float strength=clamp(Value,0.0,1.0);
     if(strength<.001||CameraData.y<River.x+CameraForward.w-.25){fragColor=vec4(0,0,0,1);return;}
@@ -145,6 +172,25 @@ void main(){
         float canopy=1.0-exp(-min(canopyOptical,.72));
         vec3 canopyColor=mix(vec3(.028,.052,.036),vec3(.105,.158,.105),1.0-exp(-canopyLight));
         color=mix(color,canopyColor,canopy);transmission*=1.0-canopy;
+    }
+    float middleBottom=River.x+3.35,middleTop=River.x+12.25;
+    float middleVolumeBottom=middleBottom-2.65,middleVolumeTop=middleTop+3.05;
+    float middleEnter=4.0,middleLeave=min(travel,42.0);
+    if(abs(ray.y)<.0001){if(CameraData.y<middleVolumeBottom||CameraData.y>middleVolumeTop)middleLeave=0.0;}
+    else{float ma=(middleVolumeBottom-CameraData.y)/ray.y,mb=(middleVolumeTop-CameraData.y)/ray.y;middleEnter=max(4.0,min(ma,mb));middleLeave=min(middleLeave,max(ma,mb));}
+    float middleSpan=max(0.0,middleLeave-middleEnter),middleOptical=0.0,middleLight=0.0;
+    if(middleSpan>.001&&River.w>.001){
+        float middleStep=middleSpan/8.0,middleJitter=hash12(floor(texCoord*OutSize)+83.0)*.72+.14;
+        for(int m=0;m<8;++m){
+            float d=middleEnter+(float(m)+middleJitter)*middleStep;vec3 p=CameraData.xyz+ray*d;float lit;
+            float den=middleBlobDensity(p,middleBottom,middleTop,lit);
+            float contact=smoothstep(0.0,2.2,travel-d)*smoothstep(4.0,7.5,d)*exp(-pow(d/31.0,3.1));
+            middleOptical+=den*contact*middleStep*.128*River.w;
+            middleLight+=den*contact*(.12+lit)*middleStep*.052;
+        }
+        float middleFog=1.0-exp(-min(middleOptical,1.28));
+        vec3 middleColor=mix(vec3(.025,.047,.031),vec3(.108,.178,.113),1.0-exp(-middleLight));
+        color=mix(color,middleColor,middleFog);transmission*=1.0-middleFog;
     }
     float bottom=River.x-1.0,top=River.x+River.y*1.55,enter=1.5,leave=min(travel,38.0);
     if(abs(ray.y)<.0001){if(CameraData.y<bottom||CameraData.y>top)leave=0.0;}else{float a=(bottom-CameraData.y)/ray.y,b=(top-CameraData.y)/ray.y;enter=max(1.5,min(a,b));leave=min(leave,max(a,b));}
