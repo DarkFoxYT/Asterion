@@ -1,121 +1,190 @@
 #version 330
 #moj_import <asterion:limbo_waves.glsl>
 
-
 uniform sampler2D DepthSampler;
+uniform sampler2D NoiseSampler;
 layout(std140) uniform SamplerInfo { vec2 OutSize; vec2 InSize; };
 layout(std140) uniform WorldData { mat4 InvViewProj; vec4 CameraData; vec4 CameraForward; };
 layout(std140) uniform UnderworldTime { float Time; };
 layout(std140) uniform Intensity { float Value; };
-// x: mist base, y: thickness, z: distance haze, w: low mist.
 layout(std140) uniform RiverData { vec4 River; };
+layout(std140) uniform PresenceData { vec4 Presence; };
+layout(std140) uniform PresenceMotion { vec4 Motion; };
 in vec2 texCoord;
 out vec4 fragColor;
 
-float hash(vec2 p) {
-    vec3 q = fract(vec3(p.xyx) * .1031);
-    q += dot(q, q.yzx + 33.33);
-    return fract((q.x + q.y) * q.z);
+const float TAU=6.28318530718;
+
+float hash12(vec2 p){vec3 q=fract(vec3(p.xyx)*.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}
+float atlasNoise(vec3 p){
+    vec2 uv=p.xz+vec2(p.y*.071,-p.y*.053);
+    return texture(NoiseSampler,fract(uv)).r;
 }
 
-float noise(vec2 p) {
-    vec2 i = floor(p), f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x),
-               mix(hash(i + vec2(0, 1)), hash(i + vec2(1)), f.x), f.y);
+vec3 unproject(float d){float z=CameraData.w>.5?d:d*2.0-1.0;vec4 p=InvViewProj*vec4(texCoord*2.0-1.0,z,1);return p.xyz/max(abs(p.w),.00001);}
+
+vec3 disturb(vec3 p,out float clearing,out float churn){
+    vec2 pd=p.xz-CameraData.xz;float pl=length(pd),pf=exp(-pl*pl/5.0);vec2 pt=vec2(-pd.y,pd.x)/max(pl,.5);
+    vec2 fd=p.xz-Presence.xz;float fl=length(fd),ff=Presence.w*exp(-fl*fl/36.0);vec2 ft=vec2(-fd.y,fd.x)/max(fl,.7);
+    float ps=min(length(Motion.xy)*5.0,1.0),fs=min(length(Motion.zw)*8.0,1.0);
+    p.xz+=pt*pf*(.20+ps*.48)-Motion.xy*pf*1.15+ft*ff*(.3+fs*.6)-Motion.zw*ff*2.1;
+    p.y+=pf*sin(atan(pd.y,pd.x)*2.0+Time*.045)*(.08+ps*.24);
+    clearing=clamp(pf*.035+ff*.24,0.0,.32);churn=clamp(pf*(.38+ps)+ff*(.35+fs),0.0,1.0);return p;
 }
 
-vec3 unproject(float depth) {
-    float z = CameraData.w > .5 ? depth : depth * 2.0 - 1.0;
-    vec4 p = InvViewProj * vec4(texCoord * 2.0 - 1.0, z, 1.0);
-    return p.xyz / (abs(p.w) < .00001 ? .00001 : p.w);
+vec2 advectedFlow(vec3 p){
+    vec2 q=p.xz*.115;
+    float t=Time*.012;
+    vec2 v=vec2(sin(q.y*1.7+t)+cos(q.x*.83-t*.71),
+                -cos(q.x*1.43-t*.84)+sin(q.y*.91+t*.63));
+    vec2 r=mat2(.643,-.766,.766,.643)*q*2.17;
+    v+=vec2(sin(r.y-t*1.09),-cos(r.x+t*.77))*.43;
+    return v*.34;
 }
 
-void main() {
-    vec4 scene = vec4(0.0, 0.0, 0.0, 1.0);
-    float strength = clamp(Value, 0.0, 1.0);
-    // CameraForward.w carries the shared CPU surface height, evaluated once per frame.
-    if (strength < .001 || (CameraData.y < River.x + CameraForward.w - .25)) {
-        fragColor = scene;
-        return;
-    }
-    float depth = texture(DepthSampler, texCoord).r;
-    vec3 endpoint = unproject(depth);
-    vec3 ray = normalize(unproject(.9999) - unproject(.0001));
-    if (dot(ray, CameraForward.xyz) < 0.0) ray = -ray;
-    float travel = depth >= .9999 ? 192.0 : min(length(endpoint), 192.0);
-    // Cheap dark distance extinction replaces detailed fog beyond thirty blocks.
-    float haze = (1.0 - exp(-max(0.0, travel - 24.0) * .085 * River.z));
-    vec3 color = vec3(.035, .05, .039) * haze;
-    float transmission = 1.0 - haze;
-    // A separate dim canopy hangs below the cave roof; the foreground stays clear.
-    float cloudEnter = 3.0, cloudLeave = min(travel, 30.0);
-    float cloudBottom = River.x + 15.0, cloudTop = River.x + 31.0;
-    if (abs(ray.y) < .0001) {
-        if (CameraData.y < cloudBottom || CameraData.y > cloudTop) cloudLeave = 0.0;
-    } else {
-        float ca = (cloudBottom - CameraData.y) / ray.y;
-        float cb = (cloudTop - CameraData.y) / ray.y;
-        cloudEnter = max(3.0, min(ca, cb));
-        cloudLeave = min(cloudLeave, max(ca, cb));
-    }
-    float cloudSpan = max(0.0, cloudLeave - cloudEnter);
-    if (cloudSpan > .01 && River.w > .001) {
-        float cloudDepth = 0.0;
-        for (int c = 0; c < 2; ++c) {
-            float cd = cloudEnter + (float(c) + .5) * cloudSpan * .5;
-            vec3 cp = CameraData.xyz + ray * cd;
-            float ch = (cp.y - cloudBottom) / (cloudTop - cloudBottom);
-            float shape = noise(floor(cp.xz * 4.0) * .018 + vec2(Time * .0006, -Time * .0004) + ch);
-            float band = smoothstep(0.0, .25, ch) * (1.0 - smoothstep(.65, 1.0, ch));
-            cloudDepth += shape * band * cloudSpan * .022 * smoothstep(3.0, 7.0, cd);
+vec2 livingVortex(vec3 p){
+    const float cellSize=11.0;
+    vec2 id=floor(p.xz/cellSize),rnd=vec2(hash12(id+4.7),hash12(id+19.3));
+    vec2 center=(id+.28+rnd*.44)*cellSize;
+    vec2 d=p.xz-center;float radius=length(d);
+    float envelope=1.0-smoothstep(1.1,4.8,radius);
+    float direction=hash12(id+31.8)>.5?1.0:-1.0;
+    float phase=Time*(.018+hash12(id+8.2)*.018)+hash12(id)*TAU;
+    vec2 tangent=vec2(-d.y,d.x)/max(radius,.35);
+    vec2 breathe=d/max(radius,.35)*sin(phase+radius*1.35)*.28;
+    return (tangent*direction*(.46+.24*sin(phase*.7))+breathe)*envelope;
+}
+
+float densityAt(vec3 p,float surface,out float lighting){
+    float h=(p.y-surface-.1)/River.y;
+    float vertical=smoothstep(-.06,.07,h)*(1.0-smoothstep(.57,.96,h));
+    vec2 flow=advectedFlow(p);
+    vec2 vortex=livingVortex(p);
+    p.xz+=flow*mix(.34,.88,smoothstep(.05,.82,h));
+    p.xz+=vortex*mix(.32,1.45,smoothstep(.18,1.22,h));
+    p.y+=sin(length(vortex)*4.0+h*9.0-Time*.022)*length(vortex)*.17;
+    vec3 windA=p*vec3(.018,.08,.018)+vec3(Time*.00035,0,-Time*.00024);
+    vec3 windB=p*vec3(.041,.13,.041)+vec3(-Time*.00021,2.7,Time*.00031);
+    windB.xz=mat2(.766,.643,-.643,.766)*windB.xz;
+    float broad=atlasNoise(windA);
+    float shape=atlasNoise(windB);
+    float detail=atlasNoise(p*vec3(.083,.19,.083)+vec3(Time*.00042,5.1,-Time*.00037));
+    float micro=atlasNoise(p*vec3(.19,.31,.19)+vec3(-Time*.0007,9.3,Time*.00058));
+    float mass=smoothstep(.27,.67,broad*.62+shape*.48);
+    float layered=shape*.49+detail*.34+micro*.17;
+    float erosion=mix(.52,1.12,smoothstep(.28,.74,layered));
+    float lifeNoise=atlasNoise(p*vec3(.012,.04,.012)+vec3(Time*.00012,13.1,-Time*.00009));
+    float breathing=.88+.20*smoothstep(.2,.8,lifeNoise);
+    float topHeight=.54+(broad-.5)*.14+(shape-.5)*.10;
+    float blanket=smoothstep(-.05,.07,h)*(1.0-smoothstep(topHeight-.11,topHeight+.06,h));
+    float body=blanket*mix(.68,1.08,smoothstep(.24,.68,mass+layered*.22));
+    float crestBand=smoothstep(topHeight-.10,topHeight+.02,h)*(1.0-smoothstep(topHeight+.03,topHeight+.34,h));
+    float crests=mass*crestBand*smoothstep(.47,.72,layered)*.58;
+    float wisps=smoothstep(.48,.65,h)*(1.0-smoothstep(.96,1.38,h))*smoothstep(.58,.80,layered);
+    vec2 curlOffset=vec2(sin(h*8.2+Time*.014),cos(h*6.7-Time*.011))*mix(.25,1.7,smoothstep(.42,1.75,h));
+    vec3 tendrilPos=vec3(p.xz*.047+curlOffset*.035+flow*.04,p.y*.09+Time*.0003);
+    float ridgeA=1.0-smoothstep(.06,.22,abs(atlasNoise(tendrilPos)-.5));
+    tendrilPos.xz=mat2(.342,-.94,.94,.342)*tendrilPos.xz*1.37-curlOffset*.018;
+    float ridgeB=1.0-smoothstep(.06,.21,abs(atlasNoise(tendrilPos+vec3(7.2,-Time*.0005,3.1))-.5));
+    float rise=smoothstep(.34,.62,h)*(1.0-smoothstep(1.06,1.52,h));
+    float tendrils=max(ridgeA,ridgeB*.78)*rise*smoothstep(.43,.69,shape)*.28;
+    float particles=smoothstep(.75,.91,detail*.58+micro*.52)*mass
+            * (vertical+crestBand*.7)*.22;
+    float shedding=smoothstep(.77,.91,micro)*smoothstep(topHeight-.02,topHeight+.18,h)
+            *(1.0-smoothstep(topHeight+.22,topHeight+.62,h))*(.08+.22*lifeNoise);
+    float crownFade=(1.0-smoothstep(.72,1.42,h))*smoothstep(.52,.76,layered);
+    float crowns=mass*crownFade*smoothstep(.57,.78,h)*.27;
+    float directionalLight=clamp(.13+(shape-detail)*.27+(micro-.5)*.12,0.0,.48);
+    lighting=clamp(directionalLight+wisps*.34+crowns*.18+tendrils*.60+particles*.92
+            +shedding*.75-crests*.16,0.0,1.0);
+    return (body*erosion+crests)*breathing+wisps*.13+crowns*.72+tendrils*.76+particles+shedding;
+}
+
+// A second atmosphere hangs well above the river mist.  Long, sparse curtains
+// descend from its underside so looking across the cavern has moving depth in
+// front of the camera, while the first few blocks around the player stay clear.
+float hangingDensity(vec3 p,float bottom,float top,out float glow){
+    float h=clamp((p.y-bottom)/max(top-bottom,.001),0.0,1.0);
+    vec3 driftA=p*vec3(.014,.035,.014)+vec3(Time*.00018,17.3,-Time*.00013);
+    vec3 driftB=p*vec3(.037,.074,.037)+vec3(-Time*.00031,4.7,Time*.00022);
+    float broad=atlasNoise(driftA),fold=atlasNoise(driftB);
+    float torn=atlasNoise(p*vec3(.081,.12,.081)+vec3(Time*.00042,11.1,-Time*.00035));
+    float ceiling=smoothstep(.12,.42,h)*(1.0-smoothstep(.78,1.0,h));
+    float bank=smoothstep(.34,.66,broad*.68+fold*.46)*ceiling;
+    float underside=1.0-smoothstep(.18,.58,h);
+    float ridges=1.0-smoothstep(.055,.19,abs(fold-.5));
+    float curtainLength=mix(.18,.74,smoothstep(.38,.78,broad));
+    float curtains=ridges*smoothstep(.27,.57,torn)*underside
+            *(1.0-smoothstep(curtainLength,curtainLength+.16,h));
+    float pulse=.88+.12*sin(Time*.006+broad*6.283+p.x*.025-p.z*.019);
+    glow=clamp((fold-torn)*.35+curtains*.28+.12,0.0,.58);
+    return (bank*.58+curtains*.42)*pulse;
+}
+
+void main(){
+    float strength=clamp(Value,0.0,1.0);
+    if(strength<.001||CameraData.y<River.x+CameraForward.w-.25){fragColor=vec4(0,0,0,1);return;}
+    float depth=texture(DepthSampler,texCoord).r;vec3 end=unproject(depth),ray=normalize(unproject(.9999)-unproject(.0001));
+    if(dot(ray,CameraForward.xyz)<0.0)ray=-ray;
+    float travel=depth>=.9999?160.0:min(length(end),160.0),haze=1.0-exp(-max(0.0,travel-23.0)*.088*River.z);
+    vec3 color=vec3(.001,.0,.0)*haze;float transmission=1.0-haze;
+    float canopyBottom=River.x+10.5,canopyTop=River.x+29.0;
+    float canopyEnter=5.0,canopyLeave=min(travel,46.0);
+    if(abs(ray.y)<.0001){if(CameraData.y<canopyBottom||CameraData.y>canopyTop)canopyLeave=0.0;}
+    else{float ca=(canopyBottom-CameraData.y)/ray.y,cb=(canopyTop-CameraData.y)/ray.y;canopyEnter=max(5.0,min(ca,cb));canopyLeave=min(canopyLeave,max(ca,cb));}
+    float canopySpan=max(0.0,canopyLeave-canopyEnter),canopyOptical=0.0,canopyLight=0.0;
+    if(canopySpan>.001&&River.w>.001){
+        float canopyStep=canopySpan/7.0,canopyJitter=hash12(floor(texCoord*OutSize)+37.0)*.72+.14;
+        for(int c=0;c<7;++c){
+            float d=canopyEnter+(float(c)+canopyJitter)*canopyStep;vec3 p=CameraData.xyz+ray*d;float lit;
+            float den=hangingDensity(p,canopyBottom,canopyTop,lit);
+            float contact=smoothstep(0.0,2.5,travel-d)*smoothstep(5.0,9.0,d)*exp(-pow(d/34.0,3.0));
+            canopyOptical+=den*contact*canopyStep*.052*River.w;
+            canopyLight+=den*contact*(.12+lit)*canopyStep*.035;
         }
-        float cloud = 1.0 - exp(-min(cloudDepth * River.w, .65));
-        color = mix(color, vec3(.055, .079, .052), cloud);
-        transmission *= 1.0 - cloud;
+        float canopy=1.0-exp(-min(canopyOptical,.72));
+        vec3 canopyColor=mix(vec3(.028,.052,.036),vec3(.105,.158,.105),1.0-exp(-canopyLight));
+        color=mix(color,canopyColor,canopy);transmission*=1.0-canopy;
     }
-    float bottom = River.x - 3.0, top = River.x + River.y + 3.0;
-    float enter = 3.0, leave = min(travel, 30.0);
-    if (abs(ray.y) < .0001) {
-        if (CameraData.y < bottom || CameraData.y > top) leave = 0.0;
-    } else {
-        float a = (bottom - CameraData.y) / ray.y;
-        float b = (top - CameraData.y) / ray.y;
-        enter = max(3.0, min(a, b));
-        leave = min(min(travel, 30.0), max(a, b));
+    float bottom=River.x-1.0,top=River.x+River.y*1.55,enter=1.5,leave=min(travel,38.0);
+    if(abs(ray.y)<.0001){if(CameraData.y<bottom||CameraData.y>top)leave=0.0;}else{float a=(bottom-CameraData.y)/ray.y,b=(top-CameraData.y)/ray.y;enter=max(1.5,min(a,b));leave=min(leave,max(a,b));}
+    float span=max(0.0,leave-enter);if(span<.001||River.w<=.001){fragColor=vec4(color*strength,mix(1.0,transmission,strength));return;}
+    float sa=sampleWave(CameraData.xz+ray.xz*enter,Time).x,sb=sampleWave(CameraData.xz+ray.xz*(enter+span*.5),Time).x,sc=sampleWave(CameraData.xz+ray.xz*leave,Time).x;
+    // Looking down crosses the shallowest part of the volume. Compensate for that
+    // shorter path so the rounded cloud piles stay readable from cliffs and flight.
+    float overhead=smoothstep(.18,.92,-ray.y);
+    float viewDensity=mix(1.0,1.68,overhead);
+    float stepLength=span/16.0,jitter=hash12(floor(texCoord*OutSize))*.74+.13,optical=0.0,light=0.0;
+    for(int i=0;i<16;++i){
+        float d=enter+(float(i)+jitter)*stepLength;vec3 p=CameraData.xyz+ray*d;float along=(d-enter)/max(span,.001);
+        float surface=River.x+(along<.5?mix(sa,sb,along*2.0):mix(sb,sc,along*2.0-1.0));
+        float clearing,churn;p=disturb(p,clearing,churn);float lit;
+        float den=densityAt(p,surface,lit)*(1.0-clearing)*mix(1.0,1.32,churn*(.35+lit));
+        float contact=smoothstep(0.0,2.0,travel-d)*smoothstep(1.5,4.5,d)*exp(-pow(d/22.0,3.4));
+        float sliceDensity=den*contact*stepLength*.245*River.w*viewDensity;
+        // Front-to-back extinction makes deep lobes shade the slices behind them,
+        // matching the reference's sliced volumetric self-shadowing model.
+        float sliceTransmittance=exp(-optical*1.45);
+        light+=den*contact*(.12+lit+overhead*.16)*stepLength*.09*viewDensity*sliceTransmittance;
+        optical+=sliceDensity;
+        if(optical>1.48)break;
     }
-    float span = max(0.0, leave - enter);
-    if (span < .001 || River.w <= .001) {
-        fragColor = vec4(color * strength, mix(1.0, transmission, strength));
-        return;
-    }
-    // Fit the mist base along the ray; depth contact still protects each actual crest.
-    float surfaceA = sampleWave(CameraData.xz + ray.xz * enter, Time).x;
-    float surfaceB = sampleWave(CameraData.xz + ray.xz * (enter + span * .5), Time).x;
-    float surfaceC = sampleWave(CameraData.xz + ray.xz * leave, Time).x;
-    float opticalDepth = 0.0;
-    float jitter = .5;
-    float stepLength = span / 8.0;
-    vec2 wind = vec2(Time * .0015, -Time * .001);
-    for (int i = 0; i < 8; ++i) {
-        float distance = enter + (float(i) + jitter) * stepLength;
-        vec3 p = CameraData.xyz + ray * distance;
-        vec2 mistPixel = floor(p.xz * 8.0) / 8.0;
-        float along = (distance - enter) / span;
-        float localSurface = River.x + (along < .5 ? mix(surfaceA, surfaceB, along * 2.0)
-                : mix(surfaceB, surfaceC, along * 2.0 - 1.0));
-        float height = clamp((p.y - localSurface - .35) / River.y, 0.0, 1.0);
-        float billow = noise(mistPixel * .040 + wind + height * vec2(.8, -.55));
-        float wisp = noise(mistPixel * .105 - wind * .7 + height * 1.7);
-        float profile = smoothstep(0.0, .12, height)
-                * (1.0 - smoothstep(.25 + billow * .25, 1.0, height));
-        float density = mix(.08, .92, billow * .68 + wisp * .32) * profile;
-        // Soft contacts, no planar water overlay, refraction, or scene-UV displacement.
-        float contact = smoothstep(0.0, 2.5, travel - distance) * smoothstep(3.0, 7.0, distance) * (1.0 - smoothstep(24.0, 30.0, distance));
-        opticalDepth += density * contact * stepLength * .11 * River.w;
-    }
-    float mist = 1.0 - exp(-min(opticalDepth, .9));
-    color = mix(color, vec3(.23, .30, .205), mist);
-    transmission *= 1.0 - mist;
-    fragColor = vec4(color * strength, mix(1.0, transmission, strength));
+    // Beer-Lambert extinction plus a compact Henyey-Greenstein phase term gives
+    // the volume a real lighting direction instead of a uniform brightness wash.
+    float mist=1.0-exp(-min(optical,1.55)),inner=1.0-exp(-light);
+    vec3 atmosphericDir=normalize(vec3(-.46,.76,.31));
+    float mu=dot(ray,atmosphericDir),g=.38;
+    float phase=(1.0-g*g)/pow(max(.12,1.0+g*g-2.0*g*mu),1.5);
+    phase=clamp(phase*.23,.08,.72);
+    float deepAbsorption=smoothstep(.18,1.18,optical);
+    float multipleScatter=(1.0-exp(-optical*.42))*(1.0-exp(-light*.55));
+    vec3 shadowColor=vec3(.025,.045,.032);
+    vec3 bodyColor=vec3(.072,.118,.079);
+    vec3 scatterColor=vec3(.22,.34,.235);
+    vec3 fog=mix(bodyColor,scatterColor,clamp(inner*.56+phase*.34,0.0,1.0));
+    fog=mix(fog,shadowColor,deepAbsorption*.48);
+    fog+=vec3(.028,.072,.037)*(inner+multipleScatter*.7);
+    // A faint far-field veil connects the local volume to the dimension's air.
+    fog=mix(fog,vec3(.052,.081,.058),haze*.24);
+    color=mix(color,fog,mist);transmission*=1.0-mist;fragColor=vec4(color*strength,mix(1.0,transmission,strength));
 }

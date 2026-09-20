@@ -6,8 +6,8 @@ import com.meekdev.amnetic.client.post.RenderPhase;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
-import net.krodark.asterion.client.PerformanceGovernor;
 import net.krodark.asterion.update.underworld.world.UnderworldTerrain;
+import net.krodark.asterion.update.underworld.entity.CharonsFerryEntity;
 import net.minecraft.client.Minecraft;
 import com.meekdev.amnetic.client.post.UniformValue;
 import net.minecraft.world.phys.Vec3;
@@ -25,24 +25,16 @@ public final class UnderworldPostEffects {
     private UnderworldPostEffects() { }
 
     public static void register() {
-        PostEffects.register(Asterion.id("underworld/river_atmosphere"), config -> net.krodark.asterion.client.render.post.AmneticPostBuffers.attach(config, "underworld_mist", 1F / 3F)
-                .when(() -> active() && AsterionConfig.INSTANCE.cinematicQuality > 0
-                        && PerformanceGovernor.quality() > 0)
+        PostEffects.register(Asterion.id("underworld/river_atmosphere"), config -> net.krodark.asterion.client.render.post.AmneticPostBuffers.attach(config, "underworld_mist", .50F)
+                .when(UnderworldPostEffects::active)
                 .phase(RenderPhase.POST_WORLD).priority(18).fade(8, 0)
+                .texture("Noise", Asterion.id("textures/effect/underworld_fog_atlas.png"))
                 .uniform("UnderworldTime", UnderworldPostEffects::time)
                 .uniformRaw("WorldData", UnderworldPostEffects::worldData)
+                .uniformVec4("PresenceData", UnderworldPostEffects::presenceData)
+                .uniformVec4("PresenceMotion", UnderworldPostEffects::presenceMotion)
                 .uniformVec4("RiverData", () -> new Vector4f(
-                        UnderworldTerrain.WATER_Y + .85F, 3.6F,
-                        active() ? AsterionConfig.INSTANCE.limboFogStrength : 0F,
-                        active() ? AsterionConfig.INSTANCE.limboMistStrength : 0F)));
-        PostEffects.register(Asterion.id("underworld/river_atmosphere_fast"), config -> net.krodark.asterion.client.render.post.AmneticPostBuffers.attach(config, "underworld_fast_mist", .25F)
-                .when(() -> active() && (AsterionConfig.INSTANCE.cinematicQuality <= 0
-                        || PerformanceGovernor.quality() == 0))
-                .phase(RenderPhase.POST_WORLD).priority(18).fade(3, 0)
-                .uniform("UnderworldTime", UnderworldPostEffects::time)
-                .uniformRaw("WorldData", UnderworldPostEffects::worldData)
-                .uniformVec4("RiverData", () -> new Vector4f(
-                        UnderworldTerrain.WATER_Y + .85F, 3.3F,
+                        UnderworldTerrain.WATER_Y + .38F, 2.65F,
                         active() ? AsterionConfig.INSTANCE.limboFogStrength : 0F,
                         active() ? AsterionConfig.INSTANCE.limboMistStrength : 0F)));
     }
@@ -72,5 +64,28 @@ public final class UnderworldPostEffects {
                 new UniformValue.Vec4Uniform(new Vector4f((float)cameraForward.x, (float)cameraForward.y,
                         (float)cameraForward.z, (float)UnderworldTerrain.waveHeight(
                                 cameraPosition.x, cameraPosition.z, time()))));
+    }
+
+    private static Vector4f presenceData() {
+        CharonsFerryEntity ferry = ferry();
+        return ferry == null ? new Vector4f(0F) : new Vector4f(
+                (float)ferry.getX(), (float)ferry.getY(), (float)ferry.getZ(), 1F);
+    }
+
+    private static Vector4f presenceMotion() {
+        Minecraft client = Minecraft.getInstance();
+        Vec3 playerMotion = client.player == null ? Vec3.ZERO : client.player.getDeltaMovement();
+        CharonsFerryEntity ferry = ferry();
+        Vec3 ferryMotion = ferry == null ? Vec3.ZERO : ferry.getDeltaMovement();
+        return new Vector4f((float)playerMotion.x, (float)playerMotion.z,
+                (float)ferryMotion.x, (float)ferryMotion.z);
+    }
+
+    private static CharonsFerryEntity ferry() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null) return null;
+        for (var entity : client.level.entitiesForRendering())
+            if (entity instanceof CharonsFerryEntity ferry) return ferry;
+        return null;
     }
 }

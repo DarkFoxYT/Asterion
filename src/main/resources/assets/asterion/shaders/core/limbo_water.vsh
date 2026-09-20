@@ -17,12 +17,11 @@ out float hullActive;
 out float wakeStrength;
 out float shoreExposure;
 out vec2 worldSurface;
+out float waterTime;
 
 #moj_import <asterion:limbo_waves.glsl>
 #moj_import <asterion:limbo_wake.glsl>
 vec4 meshWave(vec2 p, float ticks) {
-    // Fine shoreline vertices lie on the same two-block surface as neighboring large quads.
-    // This stitches the mesh without skirts or cracks between resolutions.
     vec2 base = floor(p * .5) * 2.0, f = (p - base) * .5;
     vec4 a = sampleWave(base, ticks);
     if (f.x > .01) a = mix(a, sampleWave(base + vec2(2, 0), ticks), f.x);
@@ -37,25 +36,23 @@ void main() {
     vec2 chunkEdge = mod(UV0, 16.0);
     bool fine = (flags & 128) != 0 && chunkEdge.x > .01 && chunkEdge.y > .01;
     vec4 w = (fine ? sampleWave(UV0, ticks) : meshWave(UV0, ticks)) * Color.r;
-    // Overlay coordinates are signed fixed-point, not an overlay texture lookup.
     vec2 relative = vec2((UV1 << 16) >> 16) / 128.0 + w.yz * .9;
     vec2 heading = Normal.xz;
     vec2 local = vec2(-relative.x * heading.x - relative.y * heading.y,
                       relative.x * heading.y - relative.y * heading.x);
     hullActive = (hullFlags & 128) != 0 ? 1.0 : 0.0;
     wakeStrength = (hullFlags & 64) != 0 ? hullActive : 0.0;
-    // The field retains old positions through turns and after the boat stops.
     w.x += persistentWake(UV0 + w.yz * .9).y * Color.r;
     float pitch = radians(float((flags & 63) - 32) * .5);
     float roll = radians(float((hullFlags & 63) - 32) * .5);
     vec3 hull = vec3(local.x, w.x - Normal.y * 8.0 - 17.5 / 16.0, local.y);
-    // Inverse of the same deck-pivot pitch/roll used by the ferry renderer.
     hull.yz = mat2(cos(pitch), -sin(pitch), sin(pitch), cos(pitch)) * hull.yz;
     hull.xy = mat2(cos(roll), -sin(roll), sin(roll), cos(roll)) * hull.xy;
     hull.y += 17.5 / 16.0 - .01;
     hullPosition = hull.xzy;
     shoreExposure = Color.r;
     worldSurface = UV0 + w.yz * .9;
+    waterTime = ticks;
     vec3 position = Position + vec3(w.y * .9, w.x, w.z * .9);
     gl_Position = ProjMat * ModelViewMat * vec4(position, 1.0);
     surfacePosition = position;

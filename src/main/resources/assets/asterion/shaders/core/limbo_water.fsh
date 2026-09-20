@@ -13,7 +13,11 @@ in float hullActive;
 in float wakeStrength;
 in float shoreExposure;
 in vec2 worldSurface;
+in float waterTime;
 out vec4 fragColor;
+
+#define TAU 6.28318530718
+#define MAX_ITER 5
 
 float foamHash(vec2 p) {
     vec3 q = fract(vec3(p.xyx) * .1031);
@@ -28,11 +32,28 @@ vec3 surfaceNoise(vec2 p) {
 }
 
 float waterTexture(vec2 p) {
-    // Vanilla/resource-pack water strip: use one tile, scrolled in world space.
     vec2 size = vec2(textureSize(Sampler0, 0));
     vec2 scale = vec2(1.0, size.x / size.y);
     vec2 uv = (floor(fract(p) * size.x) + .5) / size;
     return textureGrad(Sampler0, uv, dFdx(p) * scale, dFdy(p) * scale).r;
+}
+
+float ghostCurrent(vec2 uv, float time) {
+    vec2 p = mod(uv * TAU, TAU) - 250.0;
+    vec2 q = p;
+    float c = 1.0;
+    const float intensity = .005;
+    for (int n = 0; n < MAX_ITER; ++n) {
+        float t = time * (1.0 - 3.5 / float(n + 1));
+        q = p + vec2(cos(t - q.x) + sin(t + q.y),
+                     sin(t - q.y) + cos(t + q.x));
+        vec2 divisor = vec2(sin(q.x + t), cos(q.y + t));
+        divisor.x = divisor.x < 0.0 ? min(divisor.x, -.025) : max(divisor.x, .025);
+        divisor.y = divisor.y < 0.0 ? min(divisor.y, -.025) : max(divisor.y, .025);
+        c += 1.0 / max(length(p / (divisor / intensity)), .001);
+    }
+    c /= float(MAX_ITER);
+    return clamp(pow(abs(1.17 - pow(max(c, 0.0), 1.4)), 8.0), 0.0, 1.0);
 }
 void main() {
     float hullEdge = hullDistance(hullPosition);
@@ -64,19 +85,32 @@ void main() {
     vec3 body = vec3(.115, .145, .122) * (.8 + .35 * slopeLight + textureDetail * .45);
     vec3 water = mix(body, reflected, fresnel);
     water += vec3(.025, .029, .024) * sheen * (.25 + fresnel) * (1.0 + textureDetail);
-    // Broken patches of froth, rather than continuous luminous contour lines.
+    const float causticTexel = .30;
+    vec2 causticWorld = (floor(worldSurface / causticTexel) + .5) * causticTexel;
+    float ghostLarge = ghostCurrent(causticWorld * .017, waterTime * .0072);
+    float ghostFine = ghostCurrent(causticWorld.yx * .028 + vec2(.17, -.31), -waterTime * .0054);
+    float spectralBase = mix(ghostLarge, ghostFine, .27);
+    float pulse = .84 + .16 * sin(waterTime * .026 + ghostLarge * TAU * 1.15);
+    float opacityNoise = .58 + .42 * surfaceNoise(causticWorld * .052
+            + vec2(waterTime * .00085, -waterTime * .00055)).x;
+    float shoreFade = smoothstep(.12, .82, shoreExposure);
+    float spectral = pow(smoothstep(.025, .46, spectralBase), 1.38)
+            * (.34 + .66 * fresnel) * nearDetail * pulse * opacityNoise * shoreFade;
+    vec3 ghostColor = vec3(.085, .61, .19);
+    water = mix(water, vec3(.04, .13, .075), .18 + fresnel * .12);
+    water += ghostColor * spectral * (.58 + .36 * detailQuality);
+    water += vec3(.09, .18, .19) * pow(max(0.0, 1.0 - facing), 2.2) * .22;
     float breakup = surfaceNoise(p * .43 + ripples.yz * .16).x;
     float patches = smoothstep(.25, .70, breakup + (grain - .5) * .25);
     float whitecap = foam * mix(.7, .16 + .84 * patches, nearDetail);
     float contact = hullActive * (1.0 - smoothstep(.025, .22, abs(hullEdge)))
             * (1.0 - smoothstep(.8, 1.6, abs(hullPosition.z - .2)));
     float wake = persistentWake(worldSurface).x * shoreExposure;
-    whitecap = max(whitecap, max(contact * (.12 + .65 * wakeStrength) * (.4 + .6 * patches), wake * patches * .85));
-    // World-space texture steps keep the flecks pixelated without a block grid.
+    float smoothWake = smoothstep(.015, .62, wake);
+    whitecap = max(whitecap, max(contact * (.12 + .65 * wakeStrength) * (.72 + .28 * breakup), smoothWake * .78));
     float fleck = smoothstep(.53, .72, grain) * nearDetail;
-    whitecap *= mix(.65, 1.0, fleck);
+    whitecap = max(whitecap * mix(.65, 1.0, fleck), smoothWake * .78);
     water = mix(water, vec3(.57, .62, .54), whitecap);
-    // Fully opaque: the increased surface detail never reveals the seabed.
     fragColor = apply_fog(vec4(water, 1.0), fog_spherical_distance(surfacePosition),
         fog_cylindrical_distance(surfacePosition), FogEnvironmentalStart, FogEnvironmentalEnd,
         FogRenderDistanceStart, FogRenderDistanceEnd, FogColor);

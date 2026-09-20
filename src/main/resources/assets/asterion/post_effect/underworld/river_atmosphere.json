@@ -11,6 +11,13 @@
           "sampler_name": "Depth",
           "target": "minecraft:main",
           "use_depth_buffer": true
+        },
+        {
+          "sampler_name": "Noise",
+          "location": "asterion:textures/effect/underworld_fog_atlas.png",
+          "width": 256,
+          "height": 256,
+          "bilinear": true
         }
       ],
       "output": "asterion:underworld_mist"
