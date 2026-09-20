@@ -75,7 +75,13 @@ public final class CharonEntity extends Entity implements GeoEntity {
         // the ferryman with the ferry instead of two independent position streams.
         if (level() instanceof ServerLevel server
                 && server.getEntity(CharonsFerryEntity.SHARED_ID) instanceof CharonsFerryEntity ferry) {
-            startRiding(ferry);
+            if (ferry.playerControlled()) {
+                setInvisible(true);
+                setPos(ferry.getX(), ferry.getY() - 2, ferry.getZ());
+            } else {
+                setInvisible(false);
+                startRiding(ferry);
+            }
         } else if (level().isClientSide()) {
             interpolation.interpolate();
         }

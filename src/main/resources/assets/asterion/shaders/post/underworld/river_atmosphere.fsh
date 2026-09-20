@@ -193,7 +193,9 @@ void main(){
     else{float ma=(middleVolumeBottom-CameraData.y)/ray.y,mb=(middleVolumeTop-CameraData.y)/ray.y;middleEnter=max(4.0,min(ma,mb));middleLeave=min(middleLeave,max(ma,mb));}
     float middleSpan=max(0.0,middleLeave-middleEnter),middleOptical=0.0,middleLight=0.0,middleChurn=0.0;
     if(middleSpan>.001&&River.w>.001){
-        float middleStep=middleSpan/8.0,middleJitter=hash12(floor(texCoord*OutSize)+83.0)*.72+.14;
+        // Stable midpoint sampling keeps the puffs in world space. Screen-pixel
+        // jitter made this particular band look like a texture following the camera.
+        float middleStep=middleSpan/8.0,middleJitter=.5;
         for(int m=0;m<8;++m){
             float d=middleEnter+(float(m)+middleJitter)*middleStep;vec3 p=CameraData.xyz+ray*d;float lit,clearing,churn;p=disturb(p,clearing,churn);
             float den=middleBlobDensity(p,middleBottom,middleTop,lit);

@@ -96,19 +96,39 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
     }
 
     @Override protected boolean canAddPassenger(Entity passenger) {
-        return passenger instanceof CharonEntity && getPassengers().isEmpty();
+        return (passenger instanceof CharonEntity || passenger instanceof Player) && getPassengers().isEmpty();
     }
 
     @Override protected void positionRider(Entity passenger, Entity.MoveFunction move) {
-        if (!(passenger instanceof CharonEntity)) {
+        if (!(passenger instanceof CharonEntity) && !(passenger instanceof Player)) {
             super.positionRider(passenger, move);
             return;
         }
-        // Keep the ferryman inside the stern deck, not beyond its port rail.
-        Vec3 stern = deckPoint(0, 1.0);
-        move.accept(passenger, stern.x, stern.y, stern.z);
-        passenger.setYRot(getYRot());
+        // Charon keeps the stern; the temporary player control seat sits centrally.
+        Vec3 seat = deckPoint(0, passenger instanceof Player ? -.15 : 1.0);
+        move.accept(passenger, seat.x, seat.y, seat.z);
+        // The player's look yaw is the steering input; only lock Charon to the hull.
+        if (passenger instanceof CharonEntity) passenger.setYRot(getYRot());
         passenger.resetFallDistance();
+    }
+    public boolean playerControlled() { return getFirstPassenger() instanceof Player; }
+    public boolean beginPlayerControl(Player player) {
+        if (level().isClientSide() || playerControlled()) return false;
+        for (Entity passenger : java.util.List.copyOf(getPassengers())) {
+            passenger.stopRiding();
+            if (passenger instanceof CharonEntity) passenger.setInvisible(true);
+        }
+        entityData.set(SAILING, false);
+        return player.startRiding(this);
+    }
+    public void finishPlayerControl() {
+        if (level().isClientSide()) return;
+        entityData.set(SAILING, false);
+        if (level() instanceof ServerLevel server
+                && server.getEntity(CharonEntity.SHARED_ID) instanceof CharonEntity charon) {
+            charon.setInvisible(false);
+            if (!charon.isPassenger() && getPassengers().isEmpty()) charon.startRiding(this);
+        }
     }
     public boolean sailing() { return entityData.get(SAILING); }
     public int emergenceTicks() { return entityData.get(EMERGENCE); }
@@ -243,6 +263,9 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
             }
             return;
         }
+        if (!playerControlled() && level() instanceof ServerLevel server
+                && server.getEntity(CharonEntity.SHARED_ID) instanceof CharonEntity charon
+                && charon.isInvisible()) finishPlayerControl();
         var walkers = level().getEntities(this, getBoundingBox().inflate(.8, 2.1, .8), this::supports);
         if (!level().isClientSide()) {
             String ids = walkers.stream().filter(Player.class::isInstance).map(Entity::getId).sorted()
@@ -274,11 +297,15 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
         double oldX = getX(), oldY = getY(), oldZ = getZ();
         double tangent = (UnderworldTerrain.riverCenter(oldZ + .5)
                 - UnderworldTerrain.riverCenter(oldZ - .5));
-        double desiredSpeed = sailing() ? .072 : 0;
+        Player pilot = getFirstPassenger() instanceof Player player ? player : null;
+        double desiredSpeed = pilot != null ? Math.clamp(pilot.zza, -1F, 1F) * .092 : sailing() ? .072 : 0;
         surgeSpeed += Math.clamp(desiredSpeed - surgeSpeed, -.0035, .0025);
-        double nextZ = Math.min(UnderworldTerrain.END_Z - 54,
-                oldZ + surgeSpeed / Math.sqrt(1 + tangent * tangent));
-        double nextX = surgeSpeed > .0001 ? UnderworldTerrain.riverCenter(nextZ) : oldX;
+        float pilotYaw = pilot == null ? getYRot() : pilot.getYRot();
+        double nextZ = pilot == null ? Math.min(UnderworldTerrain.END_Z - 54,
+                oldZ + surgeSpeed / Math.sqrt(1 + tangent * tangent))
+                : oldZ + Math.cos(Math.toRadians(pilotYaw)) * surgeSpeed;
+        double nextX = pilot == null ? (surgeSpeed > .0001 ? UnderworldTerrain.riverCenter(nextZ) : oldX)
+                : oldX - Math.sin(Math.toRadians(pilotYaw)) * surgeSpeed;
         int sx = (int)Math.floor(nextX), sz = (int)Math.floor(nextZ);
         if (sx != shoreX || sz != shoreZ || tickCount % 20 == 0) {
             shoreX = sx; shoreZ = sz;
@@ -299,8 +326,8 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
         heaveSpeed = Math.clamp(heaveSpeed + (targetY - oldY) * .075 - heaveSpeed * .42, -.14, .14);
         double nextY = oldY + heaveSpeed;
         float oldYaw = getYRot();
-        float targetYaw = sailing() ? (float)Math.toDegrees(Math.atan2(-tangent, 1.0)) : oldYaw;
-        setYRot(oldYaw + net.minecraft.util.Mth.wrapDegrees(targetYaw - oldYaw) * .065F);
+        float targetYaw = pilot != null ? pilotYaw : sailing() ? (float)Math.toDegrees(Math.atan2(-tangent, 1.0)) : oldYaw;
+        setYRot(oldYaw + net.minecraft.util.Mth.wrapDegrees(targetYaw - oldYaw) * (pilot != null ? .12F : .065F));
         entityData.set(PITCH, net.minecraft.util.Mth.lerp(.22F, entityData.get(PITCH),
                 Math.clamp((float)Math.toDegrees(Math.atan2((bow - stern) * shoreFactor, 5.6)), -12F, 12F)));
         setXRot(entityData.get(PITCH));
@@ -324,7 +351,7 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
             walker.setOnGround(true);
             walker.resetFallDistance();
         }
-        if (nextZ >= UnderworldTerrain.END_Z - 54) entityData.set(SAILING, false);
+        if (pilot == null && nextZ >= UnderworldTerrain.END_Z - 54) entityData.set(SAILING, false);
     }
 
     @Override protected void addAdditionalSaveData(ValueOutput out) {

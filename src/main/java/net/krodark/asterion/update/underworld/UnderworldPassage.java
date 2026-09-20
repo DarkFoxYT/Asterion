@@ -26,6 +26,7 @@ public final class UnderworldPassage {
 
     public static void initialize() {
         FerryRejoin.initialize();
+        FerryCommands.register();
         // Registered after Asterion's existing respawn recovery, so the one-time story passage wins cleanly.
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> enterAfterFirstDeath(newPlayer));
         ServerTickEvents.END_SERVER_TICK.register(UnderworldPassage::tick);

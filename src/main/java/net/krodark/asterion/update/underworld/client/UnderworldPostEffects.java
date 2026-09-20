@@ -29,7 +29,7 @@ public final class UnderworldPostEffects {
     private UnderworldPostEffects() { }
 
     public static void register() {
-        PostEffects.register(Asterion.id("underworld/river_atmosphere"), config -> net.krodark.asterion.client.render.post.AmneticPostBuffers.attach(config, "underworld_mist", .50F)
+        PostEffects.register(Asterion.id("underworld/river_atmosphere"), config -> net.krodark.asterion.client.render.post.AmneticPostBuffers.attach(config, "underworld_mist", .67F)
                 .when(UnderworldPostEffects::active)
                 .phase(RenderPhase.POST_WORLD).priority(18).fade(8, 0)
                 .texture("Noise", Asterion.id("textures/effect/underworld_fog_atlas.png"))

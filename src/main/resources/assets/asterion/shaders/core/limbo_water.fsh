@@ -101,6 +101,13 @@ void main() {
     float silverCaustic = clamp(spectral * (.82 + .30 * detailQuality), 0.0, .88);
     water = mix(water, vec3(.19, .205, .215), silverCaustic);
     water += vec3(.035, .039, .043) * pow(max(0.0, 1.0 - facing), 2.8) * .32;
+    // The bow lantern acts as this subterranean sea's local sun. hullPosition is
+    // ferry-local, so the pool follows rocking and steering without another pass.
+    vec3 lanternDelta = hullPosition - vec3(0.0, -2.75, 2.15);
+    float lanternRange = 1.0 - smoothstep(1.5, 19.0, length(lanternDelta));
+    float lanternFacing = .20 + .80 * clamp(dot(n, normalize(lanternDelta)), 0.0, 1.0);
+    float lanternPool = hullActive * lanternRange * lanternRange * lanternFacing;
+    water += vec3(.42, .405, .37) * lanternPool * (.30 + .70 * (1.0 - fresnel));
     float breakup = surfaceNoise(p * .43 + ripples.yz * .16).x;
     float patches = smoothstep(.25, .70, breakup + (grain - .5) * .25);
     float whitecap = foam * mix(.7, .16 + .84 * patches, nearDetail);
