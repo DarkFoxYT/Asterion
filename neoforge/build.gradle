@@ -108,6 +108,33 @@ def resourceProperties = [
 ]
 
 tasks.named('processResources').configure {
+    // Dormant Underworld art shared with the Fabric/Quilt beta jars.
+    from(rootProject.file('ports/26.1.2/src/main/resources')) {
+        include 'assets/asterion/post_effect/underworld/**'
+        include 'assets/asterion/shaders/post/underworld/**'
+        include 'assets/asterion/shaders/core/limbo_water.*'
+        include 'assets/asterion/shaders/include/limbo_*'
+        include 'assets/asterion/textures/effect/underworld_*'
+        include 'assets/asterion/textures/entity/charon*'
+        include 'assets/asterion/textures/block/dead_stone*'
+        include 'assets/asterion/textures/block/shale_spike*'
+        include 'assets/asterion/sounds/ambiance/limbo/**'
+        include 'assets/asterion/blockstates/dead_stone*'
+        include 'assets/asterion/blockstates/shale_spike*'
+        include 'assets/asterion/models/block/dead_stone*'
+        include 'assets/asterion/models/block/shale_spike*'
+        include 'assets/asterion/models/item/dead_stone*'
+        include 'assets/asterion/models/item/shale_spike*'
+        include 'assets/asterion/geckolib/**/charon*'
+    }
+    from(rootProject.file('ports/26.1.2/src/main/resources/assets/asterion/geckolib/models/entity')) {
+        include 'charon*.geo.json'
+        into 'assets/asterion/geo/entity'
+    }
+    from(rootProject.file('ports/26.1.2/src/main/resources/assets/asterion/geckolib/animations/entity')) {
+        include 'charon*.animation.json'
+        into 'assets/asterion/animations/entity'
+    }
     // The shared generator produces the 729 legacy CustomModelData sword
     // combinations required by Minecraft 1.21.1.  Without this input NeoForge
     // packaged the nine blade-only source fallbacks, dropping guard and pommel.

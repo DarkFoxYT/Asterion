@@ -127,11 +127,17 @@ tasks.named("jar", Jar) {
     }
 }
 
+configurations { distributionMods { transitive = false } }
+dependencies {
+    distributionMods "com.geckolib:geckolib-neoforge-${rootProject.minecraft_version}:${rootProject.geckolib_version}"
+}
+
 tasks.register("modDistribution", Sync) {
     group = "distribution"
     dependsOn tasks.named("jar")
     into layout.buildDirectory.dir("distribution")
-    from(tasks.named("jar"))
+    from(tasks.named("jar")) { into "mods" }
+    from(configurations.distributionMods) { into "mods" }
     from(rootProject.file("docs/INSTALL-MODS.txt"))
 }
 

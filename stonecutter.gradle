@@ -80,11 +80,28 @@ stonecutter.parameters {
 }
 tasks.register('buildAllVersions') {
     group = 'build'
-    description = 'Build both Minecraft versions with Stonecutter.'
-    dependsOn ':1.20.1:build', ':1.21.1:build'
+    description = 'Build Minecraft 1.20.1, 1.21.1, and 26.1.2 targets.'
+    dependsOn ':1.20.1:build', ':1.21.1:build', ':neoforge:build', 'build26_1_2'
+}
+
+tasks.register('build26_1_2', GradleBuild) {
+    group = 'build'
+    description = 'Build the self-contained Minecraft 26.1.2 Fabric, Quilt, and NeoForge port.'
+    dir = file('ports/26.1.2')
+    tasks = ['build', ':26.1.2-fabric:modDistribution', ':26.1.2-quilt:modDistribution', ':26.1.2-neoforge:modDistribution']
+}
+
+tasks.register('stage26_1_2', Sync) {
+    group = 'distribution'
+    description = 'Stage the Minecraft 26.1.2 loader jars.'
+    dependsOn tasks.named('build26_1_2')
+    into layout.buildDirectory.dir('ported-builds/26.1.2')
+    from('ports/26.1.2/versions/26.1.2-fabric/build/distribution') { into 'fabric' }
+    from('ports/26.1.2/versions/26.1.2-quilt/build/distribution') { into 'quilt' }
+    from('ports/26.1.2/versions/26.1.2-neoforge/build/distribution') { into 'neoforge' }
 }
 
 tasks.register('stageTestBuilds') {
     group = 'distribution'
-    dependsOn ':1.20.1:stagePlayableBuild', ':1.21.1:stagePlayableBuild', ':neoforge:stagePlayableBuild'
+    dependsOn ':1.20.1:stagePlayableBuild', ':1.21.1:stagePlayableBuild', ':neoforge:stagePlayableBuild', 'stage26_1_2'
 }

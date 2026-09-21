@@ -295,12 +295,19 @@ tasks.withType(JavaExec).configureEach {
     }
 }
 
+configurations { distributionMods { transitive = false } }
+dependencies {
+    distributionMods "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    distributionMods "com.geckolib:geckolib-fabric-${project.minecraft_version}:${project.geckolib_version}"
+}
+
 tasks.register("modDistribution", Sync) {
     group = "distribution"
     description = "Stages the self-contained Asterion jar and installation notes."
     dependsOn tasks.named("jar")
     into layout.buildDirectory.dir("distribution")
-    from(tasks.named("jar"))
+    from(tasks.named("jar")) { into "mods" }
+    from(configurations.distributionMods) { into "mods" }
     from(rootProject.file("docs/INSTALL-MODS.txt"))
 }
 
