@@ -136,16 +136,19 @@ float hangingDensity(vec3 p,float bottom,float top,out float glow){
     return (bank*.58+curtains*.42)*pulse;
 }
 
-// Dense rounded islands bridge the water mist into the hanging canopy while
-// retaining their own slower motion and large, readable silhouettes.
+// Dense rounded islands bridge the water mist into the hanging canopy with
+// fixed world-space silhouettes.
 float middleBlobDensity(vec3 p,float bottom,float top,out float glow){
     float h=(p.y-bottom)/max(top-bottom,.001);
-    float verticalFade=smoothstep(-.30,.12,h)*(1.0-smoothstep(.88,1.34,h));
-    vec3 drift=vec3(Time*.00055,0.0,-Time*.00038);
-    float broad=atlasNoise(p*vec3(.024,.075,.024)+drift+vec3(5.2,1.7,9.4));
-    float shape=atlasNoise(p*vec3(.057,.14,.057)-drift*.73+vec3(13.1,4.6,2.8));
-    float detail=atlasNoise(p*vec3(.115,.23,.115)+drift*1.31+vec3(1.4,8.3,16.7));
-    vec3 puffPosition=p+vec3(Time*.010,0.0,-Time*.0065);
+    // Reach zero well inside the marched volume, including at grazing angles.
+    float verticalFade=smoothstep(-.48,.08,h)*(1.0-smoothstep(.88,1.48,h));
+    if(verticalFade<.001){glow=0.0;return 0.0;}
+    // Keep this band fixed in world space; scrolling independent noise fields
+    // made its silhouettes appear to switch and reverse while walking.
+    float broad=atlasNoise(p*vec3(.024,.075,.024)+vec3(5.2,1.7,9.4));
+    float shape=atlasNoise(p*vec3(.057,.14,.057)+vec3(13.1,4.6,2.8));
+    float detail=atlasNoise(p*vec3(.115,.23,.115)+vec3(1.4,8.3,16.7));
+    vec3 puffPosition=p;
     puffPosition.xz+=vec2(shape-.5,broad-.5)*1.7;
     float spheres=puffBalls(puffPosition);
     float center=.50+(broad-.5)*.13;
@@ -192,28 +195,26 @@ void main(){
         color=mix(color,canopyColor,canopy);transmission*=1.0-canopy;
     }
     float middleBottom=River.x+3.35,middleTop=River.x+12.25;
-    float middleVolumeBottom=middleBottom-2.65,middleVolumeTop=middleTop+3.05;
+    float middleVolumeBottom=middleBottom-5.0,middleVolumeTop=middleTop+5.0;
     float middleEnter=4.0,middleLeave=min(travel,88.0);
     if(abs(ray.y)<.0001){if(CameraData.y<middleVolumeBottom||CameraData.y>middleVolumeTop)middleLeave=0.0;}
     else{float ma=(middleVolumeBottom-CameraData.y)/ray.y,mb=(middleVolumeTop-CameraData.y)/ray.y;middleEnter=max(4.0,min(ma,mb));middleLeave=min(middleLeave,max(ma,mb));}
-    float middleSpan=max(0.0,middleLeave-middleEnter),middleOptical=0.0,middleLight=0.0,middleChurn=0.0;
+    float middleSpan=max(0.0,middleLeave-middleEnter),middleOptical=0.0,middleLight=0.0;
     if(middleSpan>.001&&River.w>.001){
         // Stable midpoint sampling keeps the puffs in world space. Screen-pixel
         // jitter made this particular band look like a texture following the camera.
         float middleStep=middleSpan/float(middleSamples),middleJitter=.5;
         for(int m=0;m<8;++m){
             if(m>=middleSamples)break;
-            float d=middleEnter+(float(m)+middleJitter)*middleStep;vec3 p=CameraData.xyz+ray*d;float lit,clearing,churn;p=disturb(p,clearing,churn);
+            float d=middleEnter+(float(m)+middleJitter)*middleStep;vec3 p=CameraData.xyz+ray*d;float lit;
             float den=middleBlobDensity(p,middleBottom,middleTop,lit);
-            den*=1.0-clearing*.72;
-            float contact=smoothstep(0.0,2.2,travel-d)*smoothstep(4.0,7.5,d);
+            float contact=smoothstep(0.0,2.2,travel-d)*smoothstep(4.0,7.5,d)
+                    *(1.0-smoothstep(65.0,88.0,d));
             middleOptical+=den*contact*middleStep*.128*River.w;
             middleLight+=den*contact*(.12+lit)*middleStep*.052;
-            middleChurn+=den*contact*churn*middleStep*.026;
         }
         float middleFog=1.0-exp(-min(middleOptical,1.28));
         vec3 middleColor=mix(vec3(.016,.017,.019),vec3(.35,.365,.375),1.0-exp(-middleLight));
-        middleColor=mix(middleColor,vec3(.78,.79,.80),clamp(1.0-exp(-middleChurn),0.0,.22));
         color=mix(color,middleColor,middleFog);transmission*=1.0-middleFog;
     }
     float bottom=River.x-1.0,top=River.x+River.y*1.55,enter=1.5,leave=min(travel,72.0);
