@@ -20,6 +20,8 @@ import java.util.Set;
 
 /** Owns the one-time death transition and the persistent ferry at the river's threshold. */
 public final class UnderworldPassage {
+    // Keep the chapter available for development while Labyrinth is the active beta.
+    private static final boolean ENABLED = Boolean.getBoolean("asterion.enableUnderworld");
     private static int ferryCheck;
 
     private UnderworldPassage() { }
@@ -28,7 +30,9 @@ public final class UnderworldPassage {
         FerryRejoin.initialize();
         FerryCommands.register();
         // Registered after Asterion's existing respawn recovery, so the one-time story passage wins cleanly.
-        ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> enterAfterFirstDeath(newPlayer));
+        if (ENABLED) {
+            ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> enterAfterFirstDeath(newPlayer));
+        }
         ServerTickEvents.END_SERVER_TICK.register(UnderworldPassage::tick);
     }
 
