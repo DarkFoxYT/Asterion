@@ -23,7 +23,11 @@ public abstract class GeckoTextureCacheLifecycleMixin implements TextureCacheOwn
         if (idle > 30_000_000_000L) asterion$clearFrames();
         if (idle > 1_000_000_000L) ci.cancel();
     }
-    @Override public void asterion$setFrameCleanup(Runnable cleanup) { asterion$cleanup = cleanup; }
+    @Override public void asterion$setFrameCleanup(Runnable cleanup) {
+        asterion$cleanup = cleanup;
+        net.krodark.asterion.client.render.TextureFrameCaches.track(this);
+    }
+    @Override public void asterion$releaseFrameCache() { asterion$clearFrames(); }
     @Unique private void asterion$clearFrames() {
         if (asterion$cleanup != null) { asterion$cleanup.run(); asterion$cleanup = null; }
     }

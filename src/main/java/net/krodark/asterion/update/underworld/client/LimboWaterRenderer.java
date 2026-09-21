@@ -43,6 +43,10 @@ public final class LimboWaterRenderer {
                     .withTexture("Sampler0", net.minecraft.resources.Identifier.withDefaultNamespace("textures/block/water_still.png"))
                     .withTexture("Sampler1", FerryWakeTexture.ID)
                     .createRenderSetup());
+    // Compute the near-first scan order once, not a sort/allocation on every frame.
+    private static final List<BlockPos> SCAN_ORDER = java.util.stream.IntStream.rangeClosed(-4, 4).boxed()
+            .flatMap(x -> java.util.stream.IntStream.rangeClosed(-4, 4).mapToObj(z -> new BlockPos(x, 0, z)))
+            .sorted(java.util.Comparator.comparingInt(p -> p.getX()*p.getX()+p.getZ()*p.getZ())).toList();
     private static final Map<Long, Tile> TILES = new HashMap<>();
     private static ClientLevel trackedLevel;
     private static List<Tile> frame = List.of();
@@ -70,7 +74,7 @@ public final class LimboWaterRenderer {
     public static void initialize() {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             TILES.clear(); frame = List.of(); trackedLevel = null; enabled = false;
-            FerryWakeTexture.clear();
+            FerryWakeTexture.release();
         });
         LevelRenderEvents.END_EXTRACTION.register(context -> {
             var client = Minecraft.getInstance();
@@ -78,6 +82,7 @@ public final class LimboWaterRenderer {
             boolean active = level.dimension().equals(Asterion.LIMBO_LEVEL) && !ShaderPackCompatibility.active();
             if (trackedLevel != level || enabled != active) {
                 TILES.clear(); frame = List.of(); trackedLevel = level;
+                FerryWakeTexture.release();
                 boolean changed = enabled != active;
                 enabled = active;
                 if (changed) client.levelRenderer.allChanged();
@@ -107,20 +112,26 @@ public final class LimboWaterRenderer {
             int radius = Math.min(client.options.getEffectiveRenderDistance(), 4);
             int cx = ((int)Math.floor(camera.x)) >> 4, cz = ((int)Math.floor(camera.z)) >> 4;
             List<Tile> next = new ArrayList<>();
-            int refreshBudget = 2, creationBudget = 3;
+            // Share a single scan budget instead of performing up to five scans per frame.
+            int topologyBudget = 1;
             var frustum = context.levelState().cameraRenderState.cullFrustum;
-            for (int x = cx - radius; x <= cx + radius; x++) for (int z = cz - radius; z <= cz + radius; z++) {
+            for (BlockPos offset : SCAN_ORDER) {
+                if (Math.abs(offset.getX()) > radius || Math.abs(offset.getZ()) > radius) continue;
+                int x = cx + offset.getX(), z = cz + offset.getZ();
                 if (!level.getChunkSource().hasChunk(x, z)) continue;
                 long key = BlockPos.asLong(x, 0, z);
                 Tile tile = TILES.get(key);
                 if (frustum != null && !frustum.isVisible(new AABB(x * 16, tile == null ? camera.y - 32 : tile.minY - 4,
                         z * 16, x * 16 + 16, tile == null ? camera.y + 20 : tile.maxY + 5, z * 16 + 16))) continue;
                 // Refresh edits gradually, rather than rescanning all visible seabed in one frame.
-                if (tile == null || (refreshBudget > 0 && level.getGameTime() - tile.refreshed > 100)) {
-                    if (tile == null) {
-                        if (creationBudget-- <= 0) continue;
-                    } else refreshBudget--;
-                    tile = topology(level, x * 16, z * 16, (int)Math.floor(camera.y)); TILES.put(key, tile);
+                if (tile == null || level.getGameTime() - tile.refreshed > (frameQuality == 0 ? 200 : 100)) {
+                    if (topologyBudget <= 0) {
+                        if (tile == null) continue;
+                    } else {
+                        topologyBudget--;
+                        tile = topology(level, x * 16, z * 16, (int)Math.floor(camera.y));
+                        TILES.put(key, tile);
+                    }
                 }
                 if (!tile.layers.isEmpty()) next.add(tile);
             }
@@ -140,7 +151,7 @@ public final class LimboWaterRenderer {
             // Color carries shoreline attenuation, sub-tick time, and adaptive detail quality.
             int timeLow = (int)(wholeTick & 65535), timeHigh = (int)((wholeTick >>> 16) & 65535);
             for (Tile tile : frame) {
-                boolean fine = frameQuality > 0 && Math.abs(tile.x + 8 - camera.x) < 40
+                boolean fine = frameQuality > 1 && Math.abs(tile.x + 8 - camera.x) < 40
                         && Math.abs(tile.z + 8 - camera.z) < 40;
                 for (Layer layer : tile.layers) for (int vertex : fine ? layer.fineVertices : layer.vertices) {
                     int x = tile.x + vertex % 17, z = tile.z + vertex / 17;

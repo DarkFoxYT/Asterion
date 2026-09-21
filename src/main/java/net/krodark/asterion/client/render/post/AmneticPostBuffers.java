@@ -14,12 +14,22 @@ public final class AmneticPostBuffers {
     private record Buffer(RenderTarget target, long used) { }
     private static final Map<String, Buffer> BUFFERS = new HashMap<>();
     private static boolean initialized;
+    private static net.minecraft.client.multiplayer.ClientLevel trackedLevel;
     private AmneticPostBuffers() { }
 
     public static PostEffectConfig attach(PostEffectConfig config, String name, float scale) {
+        return attach(config, name, () -> scale);
+    }
+
+    public static PostEffectConfig attach(PostEffectConfig config, String name, java.util.function.DoubleSupplier scale) {
         if (!initialized) {
             initialized = true;
             ClientTickEvents.END_CLIENT_TICK.register(client -> {
+                if (trackedLevel != client.level) {
+                    BUFFERS.values().forEach(buffer -> buffer.target.destroyBuffers());
+                    BUFFERS.clear();
+                    trackedLevel = client.level;
+                }
                 long now = System.nanoTime();
                 BUFFERS.entrySet().removeIf(entry -> {
                     if (client.level != null && now - entry.getValue().used < 2_000_000_000L) return false;
@@ -29,7 +39,7 @@ public final class AmneticPostBuffers {
             });
         }
         // Amnetic PostEffects consumes RenderTarget suppliers (its standalone Framebuffer is a separate API).
-        return config.externalTarget(Asterion.id(name), () -> get(name, scale));
+        return config.externalTarget(Asterion.id(name), () -> get(name, (float)scale.getAsDouble()));
     }
 
     private static RenderTarget get(String name, float scale) {

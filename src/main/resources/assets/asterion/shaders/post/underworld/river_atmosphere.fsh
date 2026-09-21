@@ -7,6 +7,7 @@ layout(std140) uniform SamplerInfo { vec2 OutSize; vec2 InSize; };
 layout(std140) uniform WorldData { mat4 InvViewProj; vec4 CameraData; vec4 CameraForward; };
 layout(std140) uniform UnderworldTime { float Time; };
 layout(std140) uniform Intensity { float Value; };
+layout(std140) uniform MistQuality { vec4 MarchSteps; };
 layout(std140) uniform RiverData { vec4 River; };
 layout(std140) uniform PresenceData { vec4 Presence; };
 layout(std140) uniform PresenceMotion { vec4 Motion; };
@@ -159,6 +160,9 @@ float middleBlobDensity(vec3 p,float bottom,float top,out float glow){
 }
 
 void main(){
+    int canopySamples=int(clamp(MarchSteps.x,3.0,7.0));
+    int middleSamples=int(clamp(MarchSteps.y,4.0,8.0));
+    int waterSamples=int(clamp(MarchSteps.z,8.0,16.0));
     float strength=clamp(Value,0.0,1.0);
     if(strength<.001||CameraData.y<River.x+CameraForward.w-.25){fragColor=vec4(0,0,0,1);return;}
     float depth=texture(DepthSampler,texCoord).r;vec3 end=unproject(depth),ray=normalize(unproject(.9999)-unproject(.0001));
@@ -171,8 +175,9 @@ void main(){
     else{float ca=(canopyBottom-CameraData.y)/ray.y,cb=(canopyTop-CameraData.y)/ray.y;canopyEnter=max(5.0,min(ca,cb));canopyLeave=min(canopyLeave,max(ca,cb));}
     float canopySpan=max(0.0,canopyLeave-canopyEnter),canopyOptical=0.0,canopyLight=0.0,canopyChurn=0.0;
     if(canopySpan>.001&&River.w>.001){
-        float canopyStep=canopySpan/7.0,canopyJitter=hash12(floor(texCoord*OutSize)+37.0)*.72+.14;
+        float canopyStep=canopySpan/float(canopySamples),canopyJitter=hash12(floor(texCoord*OutSize)+37.0)*.72+.14;
         for(int c=0;c<7;++c){
+            if(c>=canopySamples)break;
             float d=canopyEnter+(float(c)+canopyJitter)*canopyStep;vec3 p=CameraData.xyz+ray*d;float lit,clearing,churn;p=disturb(p,clearing,churn);
             float den=hangingDensity(p,canopyBottom,canopyTop,lit);
             den*=1.0-clearing*.55;
@@ -195,8 +200,9 @@ void main(){
     if(middleSpan>.001&&River.w>.001){
         // Stable midpoint sampling keeps the puffs in world space. Screen-pixel
         // jitter made this particular band look like a texture following the camera.
-        float middleStep=middleSpan/8.0,middleJitter=.5;
+        float middleStep=middleSpan/float(middleSamples),middleJitter=.5;
         for(int m=0;m<8;++m){
+            if(m>=middleSamples)break;
             float d=middleEnter+(float(m)+middleJitter)*middleStep;vec3 p=CameraData.xyz+ray*d;float lit,clearing,churn;p=disturb(p,clearing,churn);
             float den=middleBlobDensity(p,middleBottom,middleTop,lit);
             den*=1.0-clearing*.72;
@@ -218,8 +224,9 @@ void main(){
     // shorter path so the rounded cloud piles stay readable from cliffs and flight.
     float overhead=smoothstep(.18,.92,-ray.y);
     float viewDensity=mix(1.0,1.68,overhead);
-    float stepLength=span/16.0,jitter=hash12(floor(texCoord*OutSize))*.74+.13,optical=0.0,light=0.0,lowChurn=0.0;
+    float stepLength=span/float(waterSamples),jitter=hash12(floor(texCoord*OutSize))*.74+.13,optical=0.0,light=0.0,lowChurn=0.0;
     for(int i=0;i<16;++i){
+        if(i>=waterSamples)break;
         float d=enter+(float(i)+jitter)*stepLength;vec3 p=CameraData.xyz+ray*d;float along=(d-enter)/max(span,.001);
         float surface=River.x+(along<.5?mix(sa,sb,along*2.0):mix(sb,sc,along*2.0-1.0));
         float clearing,churn;p=disturb(p,clearing,churn);float lit;

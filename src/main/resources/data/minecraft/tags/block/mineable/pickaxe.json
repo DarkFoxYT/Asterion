@@ -94,6 +94,12 @@
     "asterion:shaded_shale_formation",
     "asterion:dead_stone",
     "asterion:dead_stone_2",
-    "asterion:shale_spike"
+    "asterion:shale_spike",
+    "asterion:dead_stone_stairs",
+    "asterion:dead_stone_slab",
+    "asterion:dead_stone_wall",
+    "asterion:dead_stone_2_stairs",
+    "asterion:dead_stone_2_slab",
+    "asterion:dead_stone_2_wall"
   ]
 }

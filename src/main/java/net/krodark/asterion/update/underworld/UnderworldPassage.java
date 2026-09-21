@@ -60,8 +60,9 @@ public final class UnderworldPassage {
                     && CharonsFerryEntity.supporting(player) == null
                     && !(level.getEntity(CharonsFerryEntity.SHARED_ID) instanceof CharonsFerryEntity escort
                     && escort.hasPaid(player) && escort.distanceToSqr(player) < 144)) {
-                player.teleportTo(level, UnderworldTerrain.riverCenter(UnderworldTerrain.FERRY_Z) - 4,
-                        UnderworldTerrain.WATER_Y + 2, UnderworldTerrain.FERRY_Z,
+                level.getChunk(UnderworldTerrain.SPAWN_X >> 4, UnderworldTerrain.SPAWN_Z >> 4);
+                player.teleportTo(level, UnderworldTerrain.SPAWN_X + .5,
+                        UnderworldTerrain.SPAWN_Y, UnderworldTerrain.SPAWN_Z + .5,
                         Set.of(), 0, 0, true);
                 player.setDeltaMovement(Vec3.ZERO);
                 player.resetFallDistance();

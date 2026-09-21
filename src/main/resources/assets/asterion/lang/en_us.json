@@ -454,7 +454,6 @@
   "item.asterion.forged_sword_guard": "Forged Sword Guard",
   "item.asterion.forged_sword_pommel": "Forged Sword Pommel",
   "item.asterion.forged_sword": "Forged Sword",
-
   "advancement.asterion.living_stone.title": "Living Stone",
   "advancement.asterion.living_stone.description": "Collect Ancient Moss from the labyrinth.",
   "advancement.asterion.hanging_by_a_thread.title": "Hanging by a Thread",
@@ -575,5 +574,12 @@
   "subtitles.asterion.minotaur_fist_swing_combo": "Minotaur unleashes a fist combo",
   "block.asterion.dead_stone": "Dead Stone",
   "block.asterion.dead_stone_2": "Weathered Dead Stone",
-  "block.asterion.shale_spike": "Shale Spike"
+  "block.asterion.shale_spike": "Shale Spike",
+  "itemGroup.asterion.underworld": "Asterion: Underworld",
+  "block.asterion.dead_stone_stairs": "Dead Stone Stairs",
+  "block.asterion.dead_stone_slab": "Dead Stone Slab",
+  "block.asterion.dead_stone_wall": "Dead Stone Wall",
+  "block.asterion.dead_stone_2_stairs": "Dead Stone II Stairs",
+  "block.asterion.dead_stone_2_slab": "Dead Stone II Slab",
+  "block.asterion.dead_stone_2_wall": "Dead Stone II Wall"
 }

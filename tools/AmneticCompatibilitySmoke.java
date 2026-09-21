@@ -20,6 +20,29 @@ public final class AmneticCompatibilitySmoke {
     }
     public static void main(String[] args) throws Exception {
         var config=com.google.gson.JsonParser.parseString(Files.readString(Path.of("src/main/resources/asterion.mixins.json"))).getAsJsonObject();
+        // Exercise the actual Limbo intensity binding against the bundled Amnetic implementation.
+        var entryType = com.meekdev.amnetic.client.post.internal.PostEffectEntry.class;
+        var ctor = entryType.getDeclaredConstructor(net.minecraft.resources.Identifier.class);
+        ctor.setAccessible(true);
+        var entry = ctor.newInstance(net.minecraft.resources.Identifier.fromNamespaceAndPath("asterion", "underworld/river_atmosphere"));
+        var configType = com.meekdev.amnetic.client.post.PostEffectConfig.class;
+        var configCtor = configType.getDeclaredConstructor(entryType);
+        configCtor.setAccessible(true);
+        var fogConfig = configCtor.newInstance(entry);
+        fogConfig.fade(0, 0);
+        var effective = entryType.getDeclaredMethod("buildEffectiveUniforms");
+        effective.setAccessible(true);
+        if (((java.util.Map<?, ?>)effective.invoke(entry)).containsKey("Intensity"))
+            throw new AssertionError("Update regression: Amnetic now supplies unfaded intensity itself");
+        var bind = net.krodark.asterion.update.underworld.client.UnderworldPostEffects.class
+                .getDeclaredMethod("withIntensity", configType);
+        bind.setAccessible(true);
+        bind.invoke(null, fogConfig);
+        var slots = (java.util.Map<?, ?>)effective.invoke(entry);
+        var intensity = (java.util.List<?>)slots.get("Intensity");
+        if (intensity == null || !(((com.meekdev.amnetic.client.post.UniformValue.FloatUniform)intensity.getFirst()).value() > .99f))
+            throw new AssertionError("Limbo fog intensity is missing/zero with fades disabled");
+        System.out.println("PASS actual Limbo registration supplies full fog intensity with fades disabled");
         int checks=0;
         for(var item:config.getAsJsonArray("client")) {
             String name=item.getAsString();if(!name.startsWith("Amnetic"))continue;

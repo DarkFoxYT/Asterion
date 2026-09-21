@@ -24,14 +24,37 @@ public final class UnderworldPostEffects {
     private static Vec3 cameraPosition = Vec3.ZERO;
     private static Vec3 cameraForward = new Vec3(0, 0, 1);
     private static long sampledWaterTick = Long.MIN_VALUE;
+    private static net.minecraft.client.multiplayer.ClientLevel sampledLevel;
+    private static BlockPos sampledOrigin;
+    private static CharonsFerryEntity cachedFerry;
+    private static long ferryTick = Long.MIN_VALUE;
+    private static long waterSearchTick = Long.MIN_VALUE;
+    private static float targetWaterLevel = UnderworldTerrain.WATER_Y + .38F;
     private static float sampledWaterLevel = UnderworldTerrain.WATER_Y + .38F;
 
     private UnderworldPostEffects() { }
 
     public static void register() {
-        PostEffects.register(Asterion.id("underworld/river_atmosphere"), config -> net.krodark.asterion.client.render.post.AmneticPostBuffers.attach(config, "underworld_mist", .67F)
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (sampledLevel != client.level) {
+                sampledLevel = client.level; sampledOrigin = null;
+                cachedFerry = null; ferryTick = Long.MIN_VALUE;
+                sampledWaterTick = waterSearchTick = Long.MIN_VALUE;
+                targetWaterLevel = sampledWaterLevel = UnderworldTerrain.WATER_Y + .38F;
+            }
+        });
+        // Retain all three volumetric layers even on low quality; scale pixels and samples instead.
+        PostEffects.register(Asterion.id("underworld/river_atmosphere"), config -> net.krodark.asterion.client.render.post.AmneticPostBuffers.attach(withIntensity(config), "underworld_mist",
+                        () -> switch (net.krodark.asterion.client.PerformanceGovernor.quality()) {
+                            case 0 -> .30; case 1 -> .45; default -> .60;
+                        })
                 .when(UnderworldPostEffects::active)
-                .phase(RenderPhase.POST_WORLD).priority(18).fade(8, 0)
+                .uniformVec4("MistQuality", () -> switch (net.krodark.asterion.client.PerformanceGovernor.quality()) {
+                    case 0 -> new Vector4f(3, 4, 8, 0);
+                    case 1 -> new Vector4f(5, 6, 12, 0);
+                    default -> new Vector4f(7, 8, 16, 0);
+                })
+                .phase(RenderPhase.POST_WORLD).priority(18).fade(0, 0)
                 .texture("Noise", Asterion.id("textures/effect/underworld_fog_atlas.png"))
                 .uniform("UnderworldTime", UnderworldPostEffects::time)
                 .uniformRaw("WorldData", UnderworldPostEffects::worldData)
@@ -41,6 +64,12 @@ public final class UnderworldPostEffects {
                         waterLevel(), 2.65F,
                         active() ? AsterionConfig.INSTANCE.limboFogStrength : 0F,
                         active() ? AsterionConfig.INSTANCE.limboMistStrength : 0F)));
+    }
+
+    private static com.meekdev.amnetic.client.post.PostEffectConfig withIntensity(
+            com.meekdev.amnetic.client.post.PostEffectConfig config) {
+        // Amnetic only auto-binds Intensity for nonzero fades. This effect uses fade(0, 0).
+        return config.uniform("Intensity", () -> 1.0);
     }
 
     private static boolean active() {
@@ -75,9 +104,24 @@ public final class UnderworldPostEffects {
         Minecraft client = Minecraft.getInstance();
         if (client.level == null) return UnderworldTerrain.WATER_Y + .38F;
         long tick = client.level.getGameTime();
+        if (sampledLevel != client.level) {
+            sampledLevel = client.level;
+            sampledOrigin = null;
+            sampledWaterTick = waterSearchTick = Long.MIN_VALUE;
+            targetWaterLevel = sampledWaterLevel = UnderworldTerrain.WATER_Y + .38F;
+        }
         if (tick == sampledWaterTick) return sampledWaterLevel;
         sampledWaterTick = tick;
         BlockPos origin = BlockPos.containing(cameraPosition);
+        // Search at most four times a second while moving, once a second at rest.
+        // Smooth the cached target every tick so the atmosphere still moves continuously.
+        if (sampledOrigin != null && tick >= waterSearchTick
+                && tick - waterSearchTick < (origin.equals(sampledOrigin) ? 20 : 5)) {
+            sampledWaterLevel += (targetWaterLevel - sampledWaterLevel) * .22F;
+            return sampledWaterLevel;
+        }
+        sampledOrigin = origin;
+        waterSearchTick = tick;
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         float target = UnderworldTerrain.WATER_Y + .38F;
         double best = Double.MAX_VALUE;
@@ -86,6 +130,8 @@ public final class UnderworldPostEffects {
         for (int radius = 0; radius <= 12; radius++) {
             for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
                 if (radius > 0 && Math.abs(dx) != radius && Math.abs(dz) != radius) continue;
+                // A farther column cannot beat the current nearest surface.
+                if (dx * dx + dz * dz >= best) continue;
                 int x = origin.getX() + dx, z = origin.getZ() + dz;
                 if (!client.level.getChunkSource().hasChunk(x >> 4, z >> 4)) continue;
                 for (int y = maxY; y >= minY; y--) {
@@ -104,7 +150,8 @@ public final class UnderworldPostEffects {
             }
             if (best <= radius * radius) break;
         }
-        sampledWaterLevel += (target - sampledWaterLevel) * .22F;
+        targetWaterLevel = target;
+        sampledWaterLevel += (targetWaterLevel - sampledWaterLevel) * .22F;
         return sampledWaterLevel;
     }
 
@@ -126,8 +173,13 @@ public final class UnderworldPostEffects {
     private static CharonsFerryEntity ferry() {
         Minecraft client = Minecraft.getInstance();
         if (client.level == null) return null;
+        long tick = client.level.getGameTime();
+        if (cachedFerry != null && cachedFerry.level() == client.level && !cachedFerry.isRemoved()) return cachedFerry;
+        if (ferryTick == tick) return null;
+        ferryTick = tick;
+        cachedFerry = null;
         for (var entity : client.level.entitiesForRendering())
-            if (entity instanceof CharonsFerryEntity ferry) return ferry;
-        return null;
+            if (entity instanceof CharonsFerryEntity ferry) { cachedFerry = ferry; break; }
+        return cachedFerry;
     }
 }

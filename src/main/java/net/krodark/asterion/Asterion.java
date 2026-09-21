@@ -221,6 +221,12 @@ public class Asterion implements ModInitializer {
     public static final Block SHALE = registerBlock("shale", MapColor.DEEPSLATE, p -> new Block(p.requiresCorrectToolForDrops()));
     public static final Block DEAD_STONE = registerBlock("dead_stone", MapColor.COLOR_GRAY, p -> new Block(p.requiresCorrectToolForDrops()));
     public static final Block DEAD_STONE_2 = registerBlock("dead_stone_2", MapColor.COLOR_BROWN, p -> new Block(p.requiresCorrectToolForDrops()));
+    public static final Block DEAD_STONE_SLAB = registerBlock("dead_stone_slab", MapColor.COLOR_GRAY, p -> new SlabBlock(p.requiresCorrectToolForDrops()));
+    public static final Block DEAD_STONE_STAIRS = registerBlock("dead_stone_stairs", MapColor.COLOR_GRAY, p -> new StairBlock(DEAD_STONE.defaultBlockState(), p.requiresCorrectToolForDrops()));
+    public static final Block DEAD_STONE_WALL = registerBlock("dead_stone_wall", MapColor.COLOR_GRAY, p -> new WallBlock(p.requiresCorrectToolForDrops()));
+    public static final Block DEAD_STONE_2_SLAB = registerBlock("dead_stone_2_slab", MapColor.COLOR_BROWN, p -> new SlabBlock(p.requiresCorrectToolForDrops()));
+    public static final Block DEAD_STONE_2_STAIRS = registerBlock("dead_stone_2_stairs", MapColor.COLOR_BROWN, p -> new StairBlock(DEAD_STONE_2.defaultBlockState(), p.requiresCorrectToolForDrops()));
+    public static final Block DEAD_STONE_2_WALL = registerBlock("dead_stone_2_wall", MapColor.COLOR_BROWN, p -> new WallBlock(p.requiresCorrectToolForDrops()));
     public static final Block SHALE_SPIKE = registerBlock("shale_spike", MapColor.DEEPSLATE,
             p -> new net.krodark.asterion.block.ShaleSpikeBlock(p.noOcclusion().randomTicks().dynamicShape()
                     .strength(1.5F, 3F).sound(SoundType.POINTED_DRIPSTONE)
@@ -739,6 +745,60 @@ public class Asterion implements ModInitializer {
                     })
                     .build()
     );
+    public static final CreativeModeTab UNDERWORLD_ITEM_GROUP = Registry.register(
+            BuiltInRegistries.CREATIVE_MODE_TAB,
+            ResourceKey.create(Registries.CREATIVE_MODE_TAB, id("underworld")),
+            FabricCreativeModeTab.builder().title(Component.translatable("itemGroup.asterion.underworld"))
+                    .icon(() -> new ItemStack(DEAD_STONE)).displayItems((parameters, output) -> {
+                        output.accept(DEAD_WOOD);
+                        output.accept(DEAD_WOOD_PLANKS);
+                        output.accept(DEADWOOD_STICK);
+                        output.accept(DEAD_WOOD_SLAB);
+                        output.accept(DEAD_WOOD_STAIRS);
+                        output.accept(DEAD_WOOD_FENCE);
+                        output.accept(DEAD_WOOD_FENCE_GATE);
+                        output.accept(SHATTERED_DEAD_WOOD);
+                        output.accept(SHALE);
+                        output.accept(DEAD_STONE);
+                        output.accept(DEAD_STONE_2);
+                        output.accept(SHALE_SPIKE);
+                        output.accept(SHALE_SLAB);
+                        output.accept(SHALE_STAIRS);
+                        output.accept(SHALE_WALL);
+                        output.accept(SHALE_FORMATION);
+                        output.accept(SHALE_BRICKS);
+                        output.accept(SHALE_BRICK_SLAB);
+                        output.accept(SHALE_BRICK_STAIRS);
+                        output.accept(SHALE_BRICK_WALL);
+                        output.accept(SHADED_SHALE);
+                        output.accept(SHADED_SHALE_SLAB);
+                        output.accept(SHADED_SHALE_STAIRS);
+                        output.accept(SHADED_SHALE_WALL);
+                        output.accept(SHADED_SHALE_FORMATION);
+                        output.accept(SHADED_SHALE_BRICKS);
+                        output.accept(SHADED_SHALE_BRICK_SLAB);
+                        output.accept(SHADED_SHALE_BRICK_STAIRS);
+                        output.accept(SHADED_SHALE_BRICK_WALL);
+                        output.accept(SHALE_CELESTIAL_GOLD_ORE);
+                        output.accept(SHALE_TARNISHED_GOLD_ORE);
+                        output.accept(SHADED_SHALE_CELESTIAL_GOLD_ORE);
+                        output.accept(SHADED_SHALE_TARNISHED_GOLD_ORE);
+                        output.accept(DEAD_STONE_SLAB);
+                        output.accept(DEAD_STONE_STAIRS);
+                        output.accept(DEAD_STONE_WALL);
+                        output.accept(DEAD_STONE_2_SLAB);
+                        output.accept(DEAD_STONE_2_STAIRS);
+                        output.accept(DEAD_STONE_2_WALL);
+                        output.accept(GREEK_FIRE_FLOOR_TORCH);
+                        output.accept(GREEK_FIRE_WALL_TORCH);
+                        output.accept(GREEK_BRAZIER);
+                        output.accept(LAMENTER);
+                        output.accept(SKELETON);
+                        output.accept(RED_FIRE_FLOOR_TORCH);
+                        output.accept(RED_FIRE_WALL_TORCH);
+                        output.accept(ORANGE_FIRE_FLOOR_TORCH);
+                        output.accept(ORANGE_FIRE_WALL_TORCH);
+                    }).build());
     public static final CreativeModeTab FORGING_ITEM_GROUP = Registry.register(
             BuiltInRegistries.CREATIVE_MODE_TAB,
             ResourceKey.create(Registries.CREATIVE_MODE_TAB, id("forging")),

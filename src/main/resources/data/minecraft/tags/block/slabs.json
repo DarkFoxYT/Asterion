@@ -7,6 +7,8 @@
     "asterion:shale_slab",
     "asterion:shale_brick_slab",
     "asterion:shaded_shale_slab",
-    "asterion:shaded_shale_brick_slab"
+    "asterion:shaded_shale_brick_slab",
+    "asterion:dead_stone_slab",
+    "asterion:dead_stone_2_slab"
   ]
 }

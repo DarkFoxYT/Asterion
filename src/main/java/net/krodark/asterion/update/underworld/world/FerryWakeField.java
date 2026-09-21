@@ -6,7 +6,7 @@ import java.util.Arrays;
 /** A bounded history in world coordinates. Moving the sampling window never moves a wake. */
 public final class FerryWakeField {
     public static final int SIZE = 128;
-    public static final double EXTENT = 64, LIFETIME = 360;
+    public static final double EXTENT = 64, LIFETIME = 240;
     private record Stamp(double x, double z, double dx, double dz, double time, double strength) { }
     private final ArrayDeque<Stamp> stamps = new ArrayDeque<>();
     private final float[] foam = new float[SIZE * SIZE], height = new float[SIZE * SIZE];
@@ -18,7 +18,8 @@ public final class FerryWakeField {
     public void record(double x, double z, double time, double immersion) {
         if (!Double.isFinite(lastX)) { lastX=x; lastZ=z; lastTime=time; return; }
         double dx=x-lastX, dz=z-lastZ, distance=Math.hypot(dx,dz), elapsed=time-lastTime;
-        if (elapsed<=0 || distance>8 || elapsed>40) { lastX=x; lastZ=z; lastTime=time; return; }
+        if (elapsed == 0) return; // Several render frames share one game tick: do not reset the trail anchor.
+        if (elapsed<0 || distance>8 || elapsed>40) { lastX=x; lastZ=z; lastTime=time; return; }
         if (distance < .45) return;
         double speed=distance/elapsed;
         stamps.addLast(new Stamp(x,z,dx/distance,dz/distance,time,Math.clamp(speed/.072,0,1.5)*immersion));
@@ -32,7 +33,9 @@ public final class FerryWakeField {
         stamps.removeIf(s -> time-s.time > LIFETIME || time < s.time);
         for(Stamp s:stamps) {
             double age=time-s.time, fade=Math.pow(1-age/LIFETIME,2)*s.strength;
-            double spread=.75+age*.012, width=.55+age*.003;
+            double birth=Math.clamp(age/6,0,1);
+            fade*=birth*birth*(3-2*birth);
+            double spread=.75+age*.010, width=.48+age*.0025;
             for(int side=-1;side<=1;side+=2) {
                 double cx=s.x+s.dz*spread*side, cz=s.z-s.dx*spread*side;
                 int x0=Math.max(0,(int)Math.floor((cx-originX-width*3)*2));
@@ -49,6 +52,26 @@ public final class FerryWakeField {
                     height[at]+=(float)(.026*Math.cos(radius*3-age*.055)*density);
                 }
             }
+        }
+    }
+    /** Small, pose-sized contact rings; rasterized into the existing field without another texture/pass. */
+    public void addPresence(double x, double z, double halfWidth, double halfLength, double yaw, double time, double strength) {
+        halfWidth=Math.clamp(halfWidth,.15,1.5); halfLength=Math.clamp(halfLength,.15,2);
+        double reach=Math.max(halfWidth,halfLength)+1.5;
+        int x0=Math.max(0,(int)Math.floor((x-originX-reach)*2)), x1=Math.min(SIZE-1,(int)Math.ceil((x-originX+reach)*2));
+        int z0=Math.max(0,(int)Math.floor((z-originZ-reach)*2)), z1=Math.min(SIZE-1,(int)Math.ceil((z-originZ+reach)*2));
+        double c=Math.cos(Math.toRadians(yaw)),s=Math.sin(Math.toRadians(yaw));
+        for(int pz=z0;pz<=z1;pz++)for(int px=x0;px<=x1;px++) {
+            double dx=originX+(px+.5)*.5-x,dz=originZ+(pz+.5)*.5-z;
+            double lx=dx*c+dz*s,lz=-dx*s+dz*c;
+            double distance=Math.sqrt(lx*lx/(halfWidth*halfWidth)+lz*lz/(halfLength*halfLength));
+            double edge=(distance-1)*Math.min(halfWidth,halfLength);
+            if(edge<-.1 || edge>1.5)continue;
+            double ring=.5+.5*Math.cos(edge*9-time*.16);
+            double value=Math.exp(-Math.max(0,edge)*2)*ring*Math.clamp(strength,0,1)*.35;
+            int at=pz*SIZE+px;
+            foam[at]=Math.max(foam[at],(float)value);
+            height[at]+=(float)(.008*value);
         }
     }
     public int pixel(int x,int z) {

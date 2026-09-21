@@ -72,7 +72,8 @@
     "SodiumWaterSurfaceMixin",
     "RagdollLocalPlayerMixin",
     "RagdollItemInHandRendererMixin",
-    "ForgedTooltipOutlineMixin"
+    "ForgedTooltipOutlineMixin",
+    "SodiumVisibilityMixin"
   ],
   "injectors": {
     "defaultRequire": 1

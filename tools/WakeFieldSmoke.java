@@ -4,6 +4,16 @@ import org.lwjgl.system.MemoryUtil;
 
 public final class WakeFieldSmoke {
     public static void check() {
+        var repeated=new FerryWakeField();
+        for(int tick=0;tick<100;tick++)for(int frame=0;frame<8;frame++)repeated.record(0,tick*.072,tick,1);
+        if(repeated.size()<5)throw new AssertionError("Repeated render frames erase wake anchors");
+        var presence=new FerryWakeField();presence.rasterize(0,0,20);
+        presence.addPresence(0,0,.3,.9,0,20,1);
+        double contact=0;for(int z=0;z<128;z++)for(int x=0;x<128;x++)contact+=presence.foamAt(x,z);
+        if(contact<=0)throw new AssertionError("Player water contact missing");
+        presence.rasterize(0,0,21);
+        for(int z=0;z<128;z++)for(int x=0;x<128;x++)if(presence.foamAt(x,z)!=0)throw new AssertionError("Player contact persists after exit");
+        System.out.println("PASS repeat-frame wake stability and pose-sized player contact cleanup");
         var field=new FerryWakeField();
         for(int t=0;t<260;t++)field.record(Math.sin(t*.012)*3,170+t*.072,t,1);
         field.rasterize(0,185,260);

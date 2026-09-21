@@ -7,6 +7,8 @@
     "asterion:shale_stairs",
     "asterion:shale_brick_stairs",
     "asterion:shaded_shale_stairs",
-    "asterion:shaded_shale_brick_stairs"
+    "asterion:shaded_shale_brick_stairs",
+    "asterion:dead_stone_stairs",
+    "asterion:dead_stone_2_stairs"
   ]
 }

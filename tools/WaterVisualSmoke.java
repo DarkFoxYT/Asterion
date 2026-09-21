@@ -81,14 +81,15 @@ public final class WaterVisualSmoke {
         BufferedImage image=new BufferedImage(width,height,BufferedImage.TYPE_INT_RGB);int white=0;
         for(int y=0;y<height;y++)for(int x=0;x<width;x++) {
             int i=(y*width+x)*4,r=pixels.get(i)&255,g=pixels.get(i+1)&255,b=pixels.get(i+2)&255;
-            // Muted gray-green froth must still separate visibly from the dark body.
-            image.setRGB(x,height-1-y,(r<<16)|(g<<8)|b);if(r>85&&g>100&&b>80 && g>=b)white++;
+            // The current silver-blue highlights must separate from the near-black body.
+            // The old green-foam threshold exceeded even the shader's maximum foam color.
+            image.setRGB(x,height-1-y,(r<<16)|(g<<8)|b);if(r>35&&g>35&&b>35 && Math.max(r,Math.max(g,b))-Math.min(r,Math.min(g,b))<20)white++;
         }
         MemoryUtil.memFree(pixels);Files.createDirectories(Path.of("build/reports"));
         ImageIO.write(image,"png",Path.of(boat ? "build/reports/limbo-water-hull-preview.png" : "build/reports/limbo-water-preview.png").toFile());
-        if(white<100)throw new AssertionError("Muted foam is not visibly distinct: "+white);
+        if(white<100)throw new AssertionError("Silver water detail is not visibly distinct: "+white);
         if(GL11.glGetError()!=GL11.GL_NO_ERROR)throw new AssertionError("Preview GL error");
-        System.out.println("PASS rendered wave preview: "+white+" bright foam pixels.");
+        System.out.println("PASS rendered wave preview: "+white+" silver highlight pixels.");
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER,0);GL20.glUseProgram(0);
         for(int b:buffers)GL15.glDeleteBuffers(b);GL15.glDeleteBuffers(mesh);GL15.glDeleteBuffers(hullBuffer);GL30.glDeleteVertexArrays(vao);
         GL30.glDeleteRenderbuffers(depth);GL30.glDeleteFramebuffers(fbo);GL11.glDeleteTextures(output);GL11.glDeleteTextures(tex);GL11.glDeleteTextures(wakeTexture);

@@ -85,12 +85,15 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
         return net.minecraft.util.Mth.lerp(partialTick, previousVisualPitch, visualPitch);
     }
 
+    private float deckPitch() { return level().isClientSide() ? visualPitch : entityData.get(PITCH); }
+    private float deckRoll() { return level().isClientSide() ? visualRoll : rockingRoll(); }
+
     public double deckHeightAt(double x, double z) {
         double yaw = Math.toRadians(getYRot());
         double dx = x - getX(), dz = z - getZ();
         double localX = -dx * Math.cos(yaw) - dz * Math.sin(yaw);
         double localZ = dx * Math.sin(yaw) - dz * Math.cos(yaw);
-        double pitch = Math.toRadians(entityData.get(PITCH)), roll = Math.toRadians(rockingRoll());
+        double pitch = Math.toRadians(deckPitch()), roll = Math.toRadians(deckRoll());
         return getY() + FerryHull.PIVOT + (FerryHull.DECK - FerryHull.PIVOT + FerryHull.RENDER_OFFSET) / (Math.cos(pitch) * Math.cos(roll))
                 + localX * Math.tan(roll) / Math.cos(pitch) - localZ * Math.tan(pitch);
     }
@@ -161,10 +164,10 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
     @Override public boolean ignoreExplosion(net.minecraft.world.level.Explosion explosion) { return true; }
 
     public Vec3 deckPoint(double localX, double localZ) {
-        return position().add(FerryHull.world(new Vec3(localX,FerryHull.DECK,localZ),getYRot(),entityData.get(PITCH),rockingRoll()));
+        return position().add(FerryHull.world(new Vec3(localX,FerryHull.DECK,localZ),getYRot(),deckPitch(),deckRoll()));
     }
     public Vec3 deckLocal(double x,double z) {
-        return FerryHull.local(new Vec3(x-getX(),deckHeightAt(x,z)-getY(),z-getZ()),getYRot(),entityData.get(PITCH),rockingRoll());
+        return FerryHull.local(new Vec3(x-getX(),deckHeightAt(x,z)-getY(),z-getZ()),getYRot(),deckPitch(),deckRoll());
     }
     public boolean overlapsDeck(AABB bounds) {
         Vec3 p=deckLocal((bounds.minX+bounds.maxX)*.5,(bounds.minZ+bounds.maxZ)*.5);
@@ -240,23 +243,27 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
             previousVisualRoll = visualRoll = rockingRoll();
             previousVisualPitch = visualPitch = entityData.get(PITCH);
         }
+        // Capture deck-local feet before any interpolation or visual rocking changes.
+        var clientWalkers = level().isClientSide()
+                ? level().getEntities(this, getBoundingBox().inflate(3, 3, 3), this::supports)
+                : java.util.List.<Entity>of();
+        var clientFeet = clientWalkers.stream().map(w -> deckLocal(w.getX(), w.getZ())).toList();
         previousVisualRoll = visualRoll;
         visualRoll = net.minecraft.util.Mth.lerp(.55F, visualRoll, rockingRoll());
         previousVisualPitch = visualPitch;
         visualPitch = net.minecraft.util.Mth.lerp(.55F, visualPitch, entityData.get(PITCH));
         if (level().isClientSide()) {
-            double beforeX = getX(), beforeZ = getZ();
             float beforeYaw = getYRot();
-            var supported = level().getEntities(this, getBoundingBox().inflate(1, 2.1, 1), this::supports);
             interpolation.interpolate();
-            for (Entity walker : supported) {
+            for (int i = 0; i < clientWalkers.size(); i++) {
+                Entity walker = clientWalkers.get(i);
                 if (walker instanceof Player player && player.isLocalPlayer()) {
-                    double turn = -Math.toRadians(net.minecraft.util.Mth.wrapDegrees(getYRot() - beforeYaw));
-                    double rx = walker.getX() - beforeX, rz = walker.getZ() - beforeZ;
-                    double x = getX() + rx * Math.cos(turn) - rz * Math.sin(turn);
-                    double z = getZ() + rx * Math.sin(turn) + rz * Math.cos(turn);
+                    Vec3 local = clientFeet.get(i);
+                    Vec3 feet = deckPoint(local.x, local.z);
                     walker.setYRot(walker.getYRot() + net.minecraft.util.Mth.wrapDegrees(getYRot() - beforeYaw));
-                    walker.setPos(x, deckHeightAt(x, z), z);
+                    walker.setPos(feet.x, feet.y, feet.z);
+                    if (walker.getDeltaMovement().y < 0)
+                        walker.setDeltaMovement(walker.getDeltaMovement().multiply(1, 0, 1));
                     walker.setOnGround(true);
                     walker.resetFallDistance();
                 }
@@ -266,7 +273,8 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
         if (!playerControlled() && level() instanceof ServerLevel server
                 && server.getEntity(CharonEntity.SHARED_ID) instanceof CharonEntity charon
                 && charon.isInvisible()) finishPlayerControl();
-        var walkers = level().getEntities(this, getBoundingBox().inflate(.8, 2.1, .8), this::supports);
+        var walkers = level().getEntities(this, getBoundingBox().inflate(3, 3, 3), this::supports);
+        var walkerFeet = walkers.stream().map(w -> deckLocal(w.getX(), w.getZ())).toList();
         if (!level().isClientSide()) {
             String ids = walkers.stream().filter(Player.class::isInstance).map(Entity::getId).sorted()
                     .map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
@@ -337,15 +345,12 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
         if (tickCount % 20 == 0) net.krodark.asterion.update.underworld.FerryJourneyState.get((ServerLevel)level()).track(this);
         setDeltaMovement(Vec3.ZERO);
 
-        Vec3 movement = new Vec3(nextX - oldX, nextY - oldY, nextZ - oldZ);
-        for (Entity walker : walkers) {
-            if (level().isClientSide() && !(walker instanceof Player player && player.isLocalPlayer())) continue;
-            double turn = -Math.toRadians(net.minecraft.util.Mth.wrapDegrees(getYRot() - oldYaw));
+        for (int i = 0; i < walkers.size(); i++) {
+            Entity walker = walkers.get(i);
             walker.setYRot(walker.getYRot() + net.minecraft.util.Mth.wrapDegrees(getYRot() - oldYaw));
-            double relativeX = walker.getX() - oldX, relativeZ = walker.getZ() - oldZ;
-            double x = nextX + relativeX * Math.cos(turn) - relativeZ * Math.sin(turn);
-            double z = nextZ + relativeX * Math.sin(turn) + relativeZ * Math.cos(turn);
-            walker.setPos(x, deckHeightAt(x, z), z);
+            Vec3 local = walkerFeet.get(i);
+            Vec3 feet = deckPoint(local.x, local.z);
+            walker.setPos(feet.x, feet.y, feet.z);
             if (walker.getDeltaMovement().y < 0)
                 walker.setDeltaMovement(walker.getDeltaMovement().multiply(1, 0, 1));
             walker.setOnGround(true);

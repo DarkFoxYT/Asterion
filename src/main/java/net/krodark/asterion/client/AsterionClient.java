@@ -274,6 +274,7 @@ public final class AsterionClient implements ClientModInitializer {
                 context.client().execute(() -> DismembermentEngine.INSTANCE.applyRemotePose(context.client(), payload)));
         ClientPlayNetworking.registerGlobalReceiver(RagdollStatePayload.TYPE, (payload, context) ->
                 context.client().execute(() -> DismembermentEngine.INSTANCE.applyRemoteState(context.client(), payload)));
+        net.krodark.asterion.client.render.TextureFrameCaches.initialize();
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
         ClientTickEvents.END_CLIENT_TICK.register(ForgeItemFlights::tick);
         BiomeMusic.initialize();

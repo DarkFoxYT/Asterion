@@ -50,9 +50,10 @@ public final class FerryRejoin {
             player.setDeltaMovement(Vec3.ZERO);player.setOnGround(true);player.resetFallDistance();
             state.seats.remove(player.getUUID().toString());state.setDirty();pending.remove(player.getUUID());
         } else if(attempts>=100) {
-            // A removed ferry cannot be restored. Use the existing safe landing, never a guessed sea position.
-            player.teleportTo(player.level(),UnderworldTerrain.riverCenter(58)-4,UnderworldTerrain.WATER_Y+2,
-                    58,Set.of(),0,0,true);
+            // A removed ferry returns the player to the dry mainland entrance.
+            player.level().getChunk(UnderworldTerrain.SPAWN_X >> 4, UnderworldTerrain.SPAWN_Z >> 4);
+            player.teleportTo(player.level(),UnderworldTerrain.SPAWN_X+.5,UnderworldTerrain.SPAWN_Y,
+                    UnderworldTerrain.SPAWN_Z+.5,Set.of(),0,0,true);
             player.setDeltaMovement(Vec3.ZERO);player.resetFallDistance();
             state.seats.remove(player.getUUID().toString());state.setDirty();pending.remove(player.getUUID());
         } else {

@@ -14,6 +14,19 @@ public final class FerryHullSmoke {
             Vec3 world=FerryHull.world(local,yaw,pitch,roll);
             if(FerryHull.local(world,yaw,pitch,roll).distanceTo(local)>1e-8)throw new AssertionError("Deck frame roundtrip");
         }
+        // Standing feet must retain their local deck position through sustained turns and rocking.
+        Vec3 feet = new Vec3(.35, FerryHull.DECK, 2.6);
+        Vec3 carried = FerryHull.world(feet, 0, 0, 0);
+        float previousYaw = 0, previousPitch = 0, previousRoll = 0;
+        for (int tick = 1; tick <= 1200; tick++) {
+            Vec3 local = FerryHull.local(carried, previousYaw, previousPitch, previousRoll);
+            float yaw = tick * .3F, pitch = (float)Math.sin(tick * .03) * 10, roll = (float)Math.cos(tick * .02) * 8;
+            carried = FerryHull.world(new Vec3(local.x, FerryHull.DECK, local.z), yaw, pitch, roll);
+            if (FerryHull.local(carried, yaw, pitch, roll).distanceTo(feet) > 1e-7)
+                throw new AssertionError("Walking deck carry drifts during rocking");
+            previousYaw = yaw; previousPitch = pitch; previousRoll = roll;
+        }
+        System.out.println("PASS 1200 ticks of deck-local carry without drift while turning, pitching and rolling");
         Vec3 clipped=FerryHull.constrain(0,0,8,4,.25);
         if(FerryHull.deckDistance(clipped.x,clipped.z)>-.249)throw new AssertionError("Rail collision escaped hull");
         if(FerryHull.deckDistance(0,3.2)>0 || FerryHull.deckDistance(1.8,0)<0)throw new AssertionError("Deck footprint disagrees with model");

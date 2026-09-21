@@ -25,6 +25,10 @@ final class LedAmneticPointLights {
             remove(key);
             return false;
         }
+        if (!net.krodark.asterion.client.render.SodiumVisibility.lightVisible(sample.position(), sample.radius())) {
+            remove(key);
+            return false;
+        }
         int quality = effectiveQuality(config);
         int budget = Math.max(0, Math.min(quality == 0 ? 24 : quality == 1 ? 56 : 96, config.maxDynamicLights));
         if (budget == 0) { remove(key); return false; }

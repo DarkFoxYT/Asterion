@@ -10,6 +10,8 @@
     "asterion:shale_wall",
     "asterion:shale_brick_wall",
     "asterion:shaded_shale_wall",
-    "asterion:shaded_shale_brick_wall"
+    "asterion:shaded_shale_brick_wall",
+    "asterion:dead_stone_wall",
+    "asterion:dead_stone_2_wall"
   ]
 }
