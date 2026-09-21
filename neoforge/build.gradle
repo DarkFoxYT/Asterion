@@ -1,0 +1,189 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev' version "${moddev_version}"
+    id 'idea'
+}
+
+version = rootProject.mod_version
+// Stonecutter owns project groups to distinguish version nodes.
+
+base {
+    archivesName = rootProject.archives_base_name
+}
+
+repositories {
+    ivy {
+        name = "LocalRendererDependencies"
+        url = rootProject.uri("libs")
+        patternLayout { artifact "[artifact]-[revision].[ext]" }
+        metadataSources { artifact() }
+    }
+    maven { name = "Fabric"; url = "https://maven.fabricmc.net/" }
+    maven { name = "Sinytra"; url = "https://maven.sinytra.org" }
+    maven { name = "GeckoLib"; url = "https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/" }
+    maven { name = "Terraformers"; url = "https://maven.terraformersmc.com/releases/" }
+    maven { name = "BlameJared"; url = "https://maven.blamejared.com/" }
+    maven { name = "Shedaniel"; url = "https://maven.shedaniel.me/" }
+    maven { name = "Modrinth"; url = "https://api.modrinth.com/maven" }
+}
+
+sourceSets {
+    main {
+        resources.setSrcDirs([rootProject.file("neoforge/src/main/resources")])
+        java {
+            srcDir rootProject.file("neoforge/src/main/java")
+            exclude "net/krodark/asterion/dev/**"
+        }
+    }
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
+    withSourcesJar()
+}
+
+neoForge {
+    version = rootProject.neoforge_version
+    interfaceInjectionData.from rootProject.file("neoforge/geckolib_interfaces.json")
+
+    runs {
+        client {
+            client()
+            ideName = "Asterion NeoForge Client"
+            gameDirectory = rootProject.file("neoforge/run/client")
+        }
+        server {
+            server()
+            ideName = "Asterion NeoForge Server"
+            gameDirectory = rootProject.file("neoforge/run/server")
+            programArgument "--nogui"
+        }
+    }
+
+    mods {
+        asterion {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+configurations {
+    runtimeClasspath.extendsFrom localRuntime
+}
+
+dependencies {
+    implementation "org.sinytra.forgified-fabric-api:forgified-fabric-api:${rootProject.forgified_fabric_api_version}"
+    jarJar("org.sinytra.forgified-fabric-api:forgified-fabric-api:${rootProject.forgified_fabric_api_version}") { version { strictly "[${rootProject.forgified_fabric_api_version}]" } }
+    implementation "com.geckolib:geckolib-neoforge-${rootProject.minecraft_version}:${rootProject.geckolib_version}"
+    compileOnly "asterion.local:amnetic-neoforge:${rootProject.amnetic_version}"
+
+
+    // Shared optional integrations are compiled but remain optional at runtime.
+    compileOnly "net.fabricmc:fabric-loader:${rootProject.loader_version}"
+    compileOnly "com.terraformersmc:modmenu:${rootProject.modmenu_version}"
+    compileOnly "mezz.jei:jei-${rootProject.minecraft_version}-fabric-api:${rootProject.jei_version}"
+    compileOnly "me.shedaniel:RoughlyEnoughItems-api-fabric:${rootProject.rei_version}"
+    compileOnly "dev.architectury:architectury-fabric:${rootProject.architectury_version}"
+    compileOnly "me.shedaniel.cloth:cloth-config-fabric:${rootProject.cloth_config_version}"
+    compileOnly "maven.modrinth:jade:${rootProject.jade_version}"
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = "UTF-8"
+    options.compilerArgs.addAll(["-Xlint:deprecation", "-Xlint:unchecked"])
+    options.release.set(25)
+}
+
+tasks.withType(ProcessResources).configureEach {
+    dependsOn project(":26.1.2-fabric").tasks.named("processResources")
+    inputs.property "version", project.version
+    inputs.property "minecraft_version", rootProject.minecraft_version
+    inputs.property "neoforge_version", rootProject.neoforge_version
+    from(project(":26.1.2-fabric").layout.buildDirectory.dir("resources/main")) {
+        exclude "fabric.mod.json"
+    }
+    filesMatching("META-INF/neoforge.mods.toml") {
+        expand "version": project.version,
+                "minecraft_version": rootProject.minecraft_version,
+                "neoforge_version": rootProject.neoforge_version,
+                "amnetic_version": rootProject.amnetic_version
+    }
+}
+
+tasks.named("jar", Jar) {
+    archiveFileName = "${rootProject.archives_base_name}-${project.version}-neoforge-mc${rootProject.minecraft_version}.jar"
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    manifest {
+        attributes(
+                'Implementation-Title': 'Asterion',
+                'Implementation-Version': project.version.toString(),
+                'Minecraft-Version': rootProject.minecraft_version.toString(),
+                'Mod-Loader': 'NeoForge'
+        )
+    }
+    from(rootProject.file("LICENSE.txt")) {
+        rename { "LICENSE_${rootProject.archives_base_name}.txt" }
+    }
+}
+
+tasks.register("modDistribution", Sync) {
+    group = "distribution"
+    dependsOn tasks.named("jar")
+    into layout.buildDirectory.dir("distribution")
+    from(tasks.named("jar"))
+    from(rootProject.file("docs/INSTALL-MODS.txt"))
+}
+
+
+// Keep the platform native paths visible to LWJGL without requiring Connector.
+configurations { amneticNativeBinaries { transitive = false } }
+dependencies {
+    ['natives-windows','natives-linux','natives-linux-arm64','natives-macos','natives-macos-arm64'].each {
+        amneticNativeBinaries "org.lwjgl:lwjgl-assimp:3.4.1:${it}"
+    }
+}
+tasks.named('jar', Jar) {
+    from({ configurations.amneticNativeBinaries.collect { zipTree(it) } }) {
+        include '**/*.dll', '**/*.so', '**/*.dylib'
+    }
+}
+sourceSets { polishSmoke {
+    java.srcDir rootProject.file('src/polishSmoke/java')
+    compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+    runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+} }
+neoForge.addModdingDependenciesTo(sourceSets.polishSmoke)
+neoForge {
+    mods { asterion_polish_tests { sourceSet sourceSets.polishSmoke } }
+    runs { polishSmokeClient {
+        client()
+        sourceSet = sourceSets.polishSmoke
+        gameDirectory = layout.buildDirectory.dir('run/polish-smoke').get().asFile
+        systemProperty 'asterion.polishSmoke', 'true'
+    } }
+}
+
+
+def polishHarness = tasks.register('polishHarnessJar', Jar) {
+    from sourceSets.polishSmoke.output
+    archiveClassifier = 'polish-tests'
+    destinationDirectory = layout.buildDirectory.dir('test-harness')
+}
+sourceSets { packagedPolish }
+neoForge.addModdingDependenciesTo(sourceSets.packagedPolish)
+dependencies {
+    packagedPolishRuntimeOnly files(tasks.named('jar'), polishHarness)
+    packagedPolishRuntimeOnly "com.geckolib:geckolib-neoforge-${rootProject.minecraft_version}:${rootProject.geckolib_version}"
+}
+neoForge.runs {
+    packagedPolishClient {
+        client()
+        sourceSet = sourceSets.packagedPolish
+        loadedMods = []
+        gameDirectory = layout.buildDirectory.dir('run/packaged-polish').get().asFile
+        systemProperty 'asterion.polishSmoke', 'true'
+    }
+}
+
+apply from: rootProject.file("gradle/amnetic-neoforge.gradle")

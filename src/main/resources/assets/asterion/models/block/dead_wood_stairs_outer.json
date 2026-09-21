@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/outer_stairs",
+  "textures": {
+    "bottom": "asterion:block/dead_wood_planks",
+    "side": "asterion:block/dead_wood_planks",
+    "top": "asterion:block/dead_wood_planks"
+  }
+}

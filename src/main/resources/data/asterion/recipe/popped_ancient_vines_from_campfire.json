@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:campfire_cooking",
+  "category": "food",
+  "ingredient": "asterion:labyrinth_vine",
+  "result": { "id": "asterion:popped_ancient_vines" },
+  "experience": 0.35,
+  "cookingtime": 600
+}

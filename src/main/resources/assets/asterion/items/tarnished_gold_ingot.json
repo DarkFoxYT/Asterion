@@ -1,0 +1,1 @@
+{"model":{"type":"minecraft:range_dispatch","property":"minecraft:custom_model_data","index":0,"entries":[{"threshold":0.91,"model":{"type":"minecraft:model","model":"asterion:item/pure_gold_ingot"}}],"fallback":{"type":"minecraft:model","model":"asterion:item/tarnished_gold_ingot"}}}

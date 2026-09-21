@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "": [
+      { "model": "asterion:block/tainted_leaves", "weight": 3 },
+      { "model": "asterion:block/tainted_leaves_variant", "weight": 2 }
+    ]
+  }
+}

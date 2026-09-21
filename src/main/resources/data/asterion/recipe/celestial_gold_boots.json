@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "I I",
+    "I I"
+  ],
+  "key": {
+    "I": "asterion:celestial_gold_ingot"
+  },
+  "result": {
+    "id": "asterion:celestial_gold_boots",
+    "count": 1
+  }
+}

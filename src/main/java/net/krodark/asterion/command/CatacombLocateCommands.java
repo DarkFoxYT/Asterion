@@ -1,0 +1,85 @@
+package net.krodark.asterion.command;
+
+import com.mojang.brigadier.Command;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.krodark.asterion.Asterion;
+import net.krodark.asterion.worldgen.AuthoredCatacombs;
+import net.krodark.asterion.worldgen.ZoneRunePlacement;
+import net.minecraft.ChatFormatting;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.permissions.Permissions;
+
+ 
+public final class CatacombLocateCommands {
+    private CatacombLocateCommands() { }
+
+    public static void register() {
+        CommandRegistrationCallback.EVENT.register((dispatcher, context, environment) -> {
+             
+            dispatcher.register(Commands.literal("locate")
+                    .then(Commands.literal("catacomb_brazier_room")
+                            .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
+                            .executes(command -> locateBrazierRoom(command.getSource()))));
+            dispatcher.register(Commands.literal("locate")
+                    .then(Commands.literal("structure")
+                            .then(Commands.literal("asterion:tree_beetle")
+                                    .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
+                                    .executes(command -> locateQueenTree(command.getSource())))));
+            dispatcher.register(Commands.literal("locate")
+                    .then(Commands.literal("tree_beetle")
+                            .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
+                            .executes(command -> locateQueenTree(command.getSource()))));
+             
+            dispatcher.register(Commands.literal("asterion")
+                    .then(Commands.literal("locate")
+                            .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
+                            .then(Commands.literal("brazier_room")
+                                    .executes(command -> locateBrazierRoom(command.getSource())))));
+        });
+    }
+
+    private static int locateQueenTree(CommandSourceStack source) {
+        ServerLevel level = source.getServer().getLevel(Asterion.ASTERION_LEVEL);
+        if (level == null) {
+            net.krodark.asterion.game.PlayerNotices.failure(source, Component.literal("The Asterion dimension is not available."));
+            return 0;
+        }
+        BlockPos target = net.krodark.asterion.worldgen.WorldGenerator.nearestQueenTree(level, source.getPosition());
+        if (target == null) {
+            net.krodark.asterion.game.PlayerNotices.failure(source, Component.literal("No Queen tree fits this world's maze and overgrowth settings."));
+            return 0;
+        }
+        net.krodark.asterion.game.PlayerNotices.success(source, () -> Component.literal("Nearest Queen Beetle tree: ")
+                .append(Component.literal("[" + target.getX() + " " + target.getY() + " " + target.getZ() + "]")
+                        .withStyle(ChatFormatting.GREEN))
+                .append(Component.literal(" in asterion:asterion_dimension")), false);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int locateBrazierRoom(CommandSourceStack source) {
+        ServerLevel level = source.getServer().getLevel(Asterion.ASTERION_LEVEL);
+        if (level == null) {
+            net.krodark.asterion.game.PlayerNotices.failure(source, Component.literal("The Asterion dimension is not available."));
+            return 0;
+        }
+
+        int nearest = 0;
+        double nearestDistance = Double.MAX_VALUE;
+        for (int index = 0; index < AuthoredCatacombs.BRAZIER_ROOM_ORIGINS.size(); index++) {
+            BlockPos center = AuthoredCatacombs.BRAZIER_ROOM_ORIGINS.get(index).offset(25, 5, 25);
+            double distance = source.getPosition().distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(center));
+            if (distance < nearestDistance) { nearest = index; nearestDistance = distance; }
+        }
+        ZoneRunePlacement.enqueueCursedBrazierRoom(level, nearest);
+        BlockPos target = AuthoredCatacombs.BRAZIER_ROOM_ORIGINS.get(nearest).offset(25, 5, 25);
+        String coordinates = target.getX() + " " + target.getY() + " " + target.getZ();
+        net.krodark.asterion.game.PlayerNotices.success(source, () -> Component.literal("Nearest catacomb brazier room: ")
+                .append(Component.literal("[" + coordinates + "]").withStyle(ChatFormatting.GREEN))
+                .append(Component.literal(" in asterion:asterion_dimension")), false);
+        return Command.SINGLE_SUCCESS;
+    }
+}

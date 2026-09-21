@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "III",
+    "I I"
+  ],
+  "key": {
+    "I": "asterion:tarnished_gold_ingot"
+  },
+  "result": {
+    "id": "asterion:tarnished_gold_helmet",
+    "count": 1
+  }
+}

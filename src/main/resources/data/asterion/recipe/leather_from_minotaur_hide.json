@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "asterion:minotaur_hide"
+  ],
+  "result": {
+    "id": "minecraft:leather",
+    "count": 2
+  }
+}

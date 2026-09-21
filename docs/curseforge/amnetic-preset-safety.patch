@@ -1,0 +1,271 @@
+diff --git a/build.gradle b/build.gradle
+index 31cc851..292f71d 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -91,7 +91,7 @@ java {
+ }
+ 
+ jar {
+-    from("LICENSE") {
++    from("LICENSE.txt") {
+         rename { "${it}_${project.archives_base_name}" }
+     }
+ }
+@@ -107,3 +107,13 @@ publishing {
+     repositories {
+     }
+ }
++
++tasks.register('presetSecurityRegression', JavaExec) {
++    group = 'verification'
++    dependsOn testClasses
++    classpath = sourceSets.test.runtimeClasspath
++    mainClass = 'com.meekdev.amnetic.client.particle.editor.EffectPresetFilesRegression'
++}
++tasks.named('check') { dependsOn 'presetSecurityRegression' }
++// This regression is a standalone Java main, not a JUnit test.
++tasks.named('test') { failOnNoDiscoveredTests = false }
+diff --git a/src/main/java/com/meekdev/amnetic/client/particle/editor/EffectIO.java b/src/main/java/com/meekdev/amnetic/client/particle/editor/EffectIO.java
+index cc3c9d8..5541ea1 100644
+--- a/src/main/java/com/meekdev/amnetic/client/particle/editor/EffectIO.java
++++ b/src/main/java/com/meekdev/amnetic/client/particle/editor/EffectIO.java
+@@ -7,12 +7,9 @@ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ 
+ import java.io.IOException;
+-import java.nio.file.Files;
++import java.io.UncheckedIOException;
+ import java.nio.file.Path;
+-import java.util.ArrayList;
+-import java.util.Collections;
+ import java.util.List;
+-import java.util.stream.Stream;
+ 
+ public final class EffectIO {
+ 
+@@ -21,29 +18,28 @@ public final class EffectIO {
+ 
+     private EffectIO() {}
+ 
++    private static EffectPresetFiles files() {
++        return new EffectPresetFiles(Minecraft.getInstance().gameDirectory.toPath());
++    }
++
+     public static Path dir() {
+-        Path p = Minecraft.getInstance().gameDirectory.toPath().resolve("amnetic").resolve("particles");
+-        try { Files.createDirectories(p); } catch (IOException ignored) {}
+-        return p;
++        try { return files().directory(); }
++        catch (IOException e) { throw new UncheckedIOException(e); }
+     }
+ 
+     public static List<String> list() {
+-        List<String> out = new ArrayList<>();
+-        try (Stream<Path> s = Files.list(dir())) {
+-            s.filter(f -> f.getFileName().toString().endsWith(".json"))
+-                    .forEach(f -> {
+-                        String n = f.getFileName().toString();
+-                        out.add(n.substring(0, n.length() - 5));
+-                    });
+-        } catch (IOException ignored) {}
+-        Collections.sort(out);
+-        return out;
++        try { return files().list(); }
++        catch (IOException e) {
++            LOGGER.warn("Unable to list local particle presets", e);
++            return List.of();
++        }
+     }
+ 
+     public static boolean save(EffectDraft draft) {
++        if (draft == null) return false;
+         String stem = sanitize(draft.name);
+         try {
+-            Files.writeString(dir().resolve(stem + ".json"), GSON.toJson(draft));
++            files().write(stem, GSON.toJson(draft));
+             return true;
+         } catch (IOException e) {
+             LOGGER.warn("failed to save particle effect '{}'", stem, e);
+@@ -53,7 +49,7 @@ public final class EffectIO {
+ 
+     public static EffectDraft load(String name) {
+         try {
+-            EffectDraft d = GSON.fromJson(Files.readString(dir().resolve(name + ".json")), EffectDraft.class);
++            EffectDraft d = GSON.fromJson(files().read(name), EffectDraft.class);
+             if (d != null && d.name == null) d.name = name;
+             return d;
+         } catch (Exception e) {
+@@ -63,7 +59,8 @@ public final class EffectIO {
+     }
+ 
+     public static void delete(String name) {
+-        try { Files.deleteIfExists(dir().resolve(name + ".json")); } catch (IOException ignored) {}
++        try { files().delete(name); }
++        catch (IOException e) { LOGGER.warn("Unable to delete local particle preset", e); }
+     }
+ 
+     private static String sanitize(String name) {
+diff --git a/src/main/java/com/meekdev/amnetic/client/particle/editor/EffectPresetFiles.java b/src/main/java/com/meekdev/amnetic/client/particle/editor/EffectPresetFiles.java
+new file mode 100644
+index 0000000..c9e9e21
+--- /dev/null
++++ b/src/main/java/com/meekdev/amnetic/client/particle/editor/EffectPresetFiles.java
+@@ -0,0 +1,85 @@
++package com.meekdev.amnetic.client.particle.editor;
++
++import java.io.IOException;
++import java.nio.channels.Channels;
++import java.nio.charset.StandardCharsets;
++import java.nio.file.*;
++import java.util.List;
++import java.util.Locale;
++import java.util.regex.Pattern;
++
++/** Local JSON preset storage only; never accepts a path supplied by the editor. */
++final class EffectPresetFiles {
++    static final int MAX_BYTES = 1024 * 1024;
++    private static final Pattern STEM = Pattern.compile("[a-zA-Z0-9_-][a-zA-Z0-9._-]{0,127}");
++    private final Path gameDirectory;
++
++    EffectPresetFiles(Path gameDirectory) { this.gameDirectory = gameDirectory; }
++
++    static boolean validName(String name) {
++        if (name == null || !STEM.matcher(name).matches() || name.endsWith(".")) return false;
++        String base = name.split("\\.", 2)[0].toUpperCase(Locale.ROOT);
++        return !base.matches("CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9]");
++    }
++
++    Path directory() throws IOException {
++        // The launcher may itself use a linked game directory. Resolve that trusted root once,
++        // then reject links/junctions underneath it rather than following them outside the root.
++        Path root = gameDirectory.toRealPath();
++        Path library = checkedDirectory(root.resolve("amnetic"));
++        return checkedDirectory(library.resolve("particles"));
++    }
++
++    private static Path checkedDirectory(Path path) throws IOException {
++        try { Files.createDirectory(path); } catch (FileAlreadyExistsException ignored) { }
++        if (!Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS) || !path.toRealPath().equals(path))
++            throw new IOException("Preset directory must be a local directory, not a link");
++        return path;
++    }
++
++    private Path file(String name) throws IOException {
++        if (!validName(name)) throw new IOException("Invalid preset name");
++        Path root = directory();
++        Path target = root.resolve(name + ".json").normalize();
++        if (!root.equals(target.getParent())) throw new IOException("Preset path escapes its directory");
++        if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)
++                && (!Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS) || !target.toRealPath().equals(target)))
++            throw new IOException("Preset must be a regular local file");
++        return target;
++    }
++
++    List<String> list() throws IOException {
++        try (var paths = Files.list(directory())) {
++            return paths.filter(p -> Files.isRegularFile(p, LinkOption.NOFOLLOW_LINKS))
++                    .map(p -> p.getFileName().toString()).filter(n -> n.endsWith(".json"))
++                    .map(n -> n.substring(0, n.length() - 5)).filter(EffectPresetFiles::validName)
++                    .sorted().toList();
++        }
++    }
++
++    String read(String name) throws IOException {
++        Path target = file(name);
++        try (var channel = Files.newByteChannel(target, StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS);
++             var input = Channels.newInputStream(channel)) {
++            if (channel.size() > MAX_BYTES) throw new IOException("Preset exceeds 1 MiB");
++            byte[] bytes = input.readNBytes(MAX_BYTES + 1);
++            if (bytes.length > MAX_BYTES) throw new IOException("Preset exceeds 1 MiB");
++            return new String(bytes, StandardCharsets.UTF_8);
++        }
++    }
++
++    void write(String name, String json) throws IOException {
++        Path target = file(name);
++        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
++        if (bytes.length > MAX_BYTES) throw new IOException("Preset exceeds 1 MiB");
++        Path temporary = Files.createTempFile(target.getParent(), "effect-", ".tmp");
++        try {
++            Files.write(temporary, bytes, StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS);
++            // Replace the directory entry instead of truncating a potentially hard-linked file.
++            // Fail closed on file systems without atomic replacement support.
++            Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
++        } finally { Files.deleteIfExists(temporary); }
++    }
++
++    void delete(String name) throws IOException { Files.deleteIfExists(file(name)); }
++}
+diff --git a/src/test/java/com/meekdev/amnetic/client/particle/editor/EffectPresetFilesRegression.java b/src/test/java/com/meekdev/amnetic/client/particle/editor/EffectPresetFilesRegression.java
+new file mode 100644
+index 0000000..29b7b0a
+--- /dev/null
++++ b/src/test/java/com/meekdev/amnetic/client/particle/editor/EffectPresetFilesRegression.java
+@@ -0,0 +1,67 @@
++package com.meekdev.amnetic.client.particle.editor;
++
++import java.io.IOException;
++import java.nio.file.*;
++import java.util.Comparator;
++
++public final class EffectPresetFilesRegression {
++    public static void main(String[] args) throws Exception {
++        Path temporary = Files.createTempDirectory("amnetic-presets-test-");
++        try {
++            Path game = Files.createDirectory(temporary.resolve("game"));
++            Path outside = Files.writeString(temporary.resolve("outside.json"), "untouched");
++            EffectPresetFiles files = new EffectPresetFiles(game);
++            files.write("Greek-fire_01", "{\"name\":\"fire\"}");
++            require(files.read("Greek-fire_01").contains("fire"), "round trip");
++            files.write("Greek-fire_01", "{}");
++            require(files.read("Greek-fire_01").equals("{}"), "atomic replacement");
++            require(files.list().equals(java.util.List.of("Greek-fire_01")), "listing");
++            for (String name : new String[] {null, "", "..", "../outside", "..\\outside", "/outside",
++                    "C:\\outside", "file:stream", "CON", "aux.txt", "LPT1", "trailing.", "x".repeat(129)}) {
++                rejected(() -> files.read(name));
++                rejected(() -> files.write(name, "damage"));
++                rejected(() -> files.delete(name));
++            }
++            rejected(() -> files.write("large", "x".repeat(EffectPresetFiles.MAX_BYTES + 1)));
++            Files.writeString(files.directory().resolve("large.json"), "x".repeat(EffectPresetFiles.MAX_BYTES + 1));
++            rejected(() -> files.read("large"));
++            Path linked = files.directory().resolve("linked.json");
++            try {
++                Files.createSymbolicLink(linked, outside);
++                rejected(() -> files.read("linked"));
++                rejected(() -> files.write("linked", "damage"));
++                rejected(() -> files.delete("linked"));
++                require(!files.list().contains("linked"), "symlink listing");
++                Files.delete(linked);
++                Path otherGame = Files.createDirectory(temporary.resolve("linked-game"));
++                Files.createSymbolicLink(otherGame.resolve("amnetic"), files.directory());
++                rejected(() -> new EffectPresetFiles(otherGame).write("escaped", "damage"));
++                System.out.println("PASS: file and parent symlink rejection");
++            } catch (UnsupportedOperationException | FileSystemException e) {
++                System.out.println("SKIP: symbolic links unavailable: " + e.getMessage());
++            }
++            // An existing hard link must be replaced, never truncate its external target.
++            Files.createLink(linked, outside);
++            files.write("linked", "{}");
++            require(Files.readString(outside).equals("untouched"), "external hard-link target changed");
++            files.delete("Greek-fire_01");
++            files.delete("missing");
++            require(!files.list().contains("Greek-fire_01"), "delete");
++            require(Files.readString(outside).equals("untouched"), "outside sentinel changed");
++            System.out.println("PASS: preset round trips, replacement, traversal/absolute/ADS/device names, size limits, hard links and deletion");
++        } finally {
++            try (var paths = Files.walk(temporary)) {
++                for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) Files.deleteIfExists(path);
++            }
++        }
++    }
++
++    private interface Action { void run() throws IOException; }
++    private static void rejected(Action action) throws IOException {
++        try { action.run(); } catch (IOException expected) { return; }
++        throw new AssertionError("Unsafe operation accepted");
++    }
++    private static void require(boolean condition, String label) {
++        if (!condition) throw new AssertionError(label);
++    }
++}

@@ -1,0 +1,6 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "building",
+  "ingredients": ["asterion:mazesteel_block"],
+  "result": {"count": 8, "id": "asterion:mazesteel_chain"}
+}

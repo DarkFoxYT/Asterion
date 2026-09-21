@@ -1,0 +1,26 @@
+pluginManagement {
+    repositories {
+        maven { name = 'Fabric'; url = 'https://maven.fabricmc.net/' }
+        maven { name = 'KikuGie'; url = 'https://maven.kikugie.dev/releases' }
+        gradlePluginPortal()
+    }
+}
+
+plugins {
+    // Provision the Java versions required by Minecraft and NeoForge's tools.
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+plugins {
+    id 'dev.kikugie.stonecutter' version '0.9.8'
+}
+
+rootProject.name = 'Asterion'
+stonecutter {
+    create(rootProject) {
+        version('26.1.2-fabric', '26.1.2').buildscript = 'build.gradle'
+        version('26.1.2-quilt', '26.1.2').buildscript = 'build.gradle'
+        version('26.1.2-neoforge', '26.1.2').buildscript = 'neoforge/build.gradle'
+        vcsVersion = '26.1.2-fabric'
+    }
+}

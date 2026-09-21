@@ -1,0 +1,1169 @@
+package net.krodark.asterion.entity;
+
+import com.geckolib.animatable.GeoEntity;
+import com.geckolib.animatable.instance.AnimatableInstanceCache;
+import com.geckolib.animatable.manager.AnimatableManager;
+import com.geckolib.animation.AnimationController;
+import com.geckolib.animation.RawAnimation;
+import com.geckolib.util.GeckoLibUtil;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import net.krodark.asterion.Asterion;
+import net.krodark.asterion.worldgen.WorldGenerator;
+import net.krodark.asterion.block.GreekBrazierBlock;
+import net.krodark.asterion.effect.GreekFireBurn;
+import net.krodark.asterion.game.GameplayContent;
+import net.krodark.asterion.game.GasClouds;
+import net.krodark.asterion.network.CursedBrazierAwakeningPayload;
+import net.krodark.asterion.network.MazeShiftPayload;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.particles.DustParticleOptions;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerBossEvent;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.world.BossEvent;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+
+public final class CursedBrazierEntity extends PathfinderMob implements GeoEntity {
+    private static final RawAnimation IDLE_ANIMATION =
+            RawAnimation.begin().thenLoop("animation.cursed_brazier.idle");
+    private static final RawAnimation SHOOT_BEAM_ANIMATION =
+            RawAnimation.begin().thenPlayAndHold("shoot_beam");
+    private final java.util.Set<UUID> encounterParticipants = new java.util.HashSet<>();
+    private final java.util.Set<UUID> eliminatedParticipants = new java.util.HashSet<>();
+    private int emptyArenaTicks;
+    private static final int TARGET_RANGE = 30;
+    private static final int AWAKEN_RANGE = 23;
+    public static final int AWAKENING_DURATION = 112;
+    private static final int ENCOUNTER_DOOR_RANGE = 32;
+    private static final int SHIELD_BRAZIER_COUNT = 7;
+    private static final int BRAZIER_SEARCH_RANGE = 30;
+    public static final int DASH_MOVE_TICKS = 10;
+    public static final int DASH_PAUSE_TICKS = 20;
+    public static final int DASH_LEG_TICKS = DASH_MOVE_TICKS + DASH_PAUSE_TICKS;
+    private static final List<Vec3> CARDINAL_DIRECTIONS = List.of(
+            new Vec3(1, 0, 0), new Vec3(-1, 0, 0),
+            new Vec3(0, 0, 1), new Vec3(0, 0, -1));
+    private static final EntityDataAccessor<Boolean> SHIELDED = SynchedEntityData.defineId(
+            CursedBrazierEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Integer> ATTACK_ID = SynchedEntityData.defineId(
+            CursedBrazierEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> PHASE_ID = SynchedEntityData.defineId(
+            CursedBrazierEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> PHASE_STARTED_AT = SynchedEntityData.defineId(
+            CursedBrazierEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> ATTACK_STARTED_AT = SynchedEntityData.defineId(
+            CursedBrazierEntity.class, EntityDataSerializers.INT);
+
+    private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
+    private final ServerBossEvent bossBar = new ServerBossEvent(
+            UUID.randomUUID(), Component.translatable("entity.asterion.cursed_brazier"),
+            BossEvent.BossBarColor.GREEN, BossEvent.BossBarOverlay.NOTCHED_10);
+    private final List<Vec3> jetPositions = new ArrayList<>();
+    private final List<BlockPos> shieldBraziers = new ArrayList<>();
+    private final Map<UUID, Integer> hitCooldowns = new java.util.HashMap<>();
+    private final int[] attackUses = new int[Attack.values().length];
+
+    private int cooldown = 50;
+    private int attackTicks;
+    private int attacksStarted;
+    private int dashLeg;
+    private int phaseTicks;
+    private Attack attack = Attack.NONE;
+    private Attack lastAttack = Attack.NONE;
+    private Vec3 aim = Vec3.ZERO;
+    private Vec3 lockedPosition = Vec3.ZERO;
+    private boolean middleShieldUsed;
+    private boolean finalShieldUsed;
+    private boolean initialShieldUsed;
+    private float fury;
+    private int pressureHits;
+    private int pressureWindow;
+    private int retaliationCooldown;
+    private boolean retaliationQueued;
+    private Vec3 restingPosition;
+    private float desiredYaw;
+    private Vec3 gridMoveStart = Vec3.ZERO;
+    private Vec3 gridMoveTarget = Vec3.ZERO;
+    private int gridMoveTicks;
+    private int gridMoveDuration;
+    private boolean gridStepTaken;
+    private UUID attackTargetId;
+    private UUID lastTargetId;
+    private int sameTargetStreak;
+
+    public enum Attack {
+        NONE, FLOOR_JETS, FIRE_BEAM, SPIN_TORNADO, CARDINAL_DASH, OVERLOAD_PULSE
+    }
+
+    public enum Phase {
+        DORMANT, AWAKENING, ACTIVE
+    }
+
+    public CursedBrazierEntity(EntityType<? extends CursedBrazierEntity> type, Level level) {
+        super(type, level);
+        xpReward = 35;
+        setPersistenceRequired();
+        setNoGravity(true);
+        desiredYaw = getYRot();
+    }
+
+    public static AttributeSupplier.Builder createAttributes() {
+        return createMobAttributes()
+                .add(Attributes.MAX_HEALTH, 140)
+                .add(Attributes.MOVEMENT_SPEED, 0)
+                .add(Attributes.ARMOR, 5)
+                .add(Attributes.KNOCKBACK_RESISTANCE, 1)
+                .add(Attributes.FOLLOW_RANGE, 28);
+    }
+
+    @Override
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(SHIELDED, false);
+        builder.define(ATTACK_ID, 0);
+        builder.define(PHASE_ID, Phase.DORMANT.ordinal());
+        builder.define(PHASE_STARTED_AT, 0);
+        builder.define(ATTACK_STARTED_AT, 0);
+    }
+
+    @Override
+    protected void registerGoals() {
+    }
+
+    public Attack attack() {
+        if (!level().isClientSide()) return attack;
+        int index = Math.clamp(entityData.get(ATTACK_ID), 0, Attack.values().length - 1);
+        return Attack.values()[index];
+    }
+
+    public boolean shielded() {
+        return entityData.get(SHIELDED);
+    }
+
+    public Phase phase() {
+        int index = Math.clamp(entityData.get(PHASE_ID), 0, Phase.values().length - 1);
+        return Phase.values()[index];
+    }
+
+    public float phaseAge(float partialTick) {
+        if (!level().isClientSide()) return phaseTicks + partialTick;
+        return Math.max(0, tickCount + partialTick - entityData.get(PHASE_STARTED_AT));
+    }
+
+    public float attackAge(float partialTick) {
+        return attack() == Attack.NONE
+                ? 0
+                : Math.max(0, tickCount + partialTick - entityData.get(ATTACK_STARTED_AT));
+    }
+
+    public boolean flamesActive() {
+        boolean lit = phase() == Phase.ACTIVE
+                || phase() == Phase.AWAKENING && phaseAge(0) >= 42;
+        return lit && isAlive() && !isInWater();
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        setDeltaMovement(Vec3.ZERO);
+        if (!(level() instanceof ServerLevel level)) return;
+        hitCooldowns.replaceAll((uuid, ticks) -> ticks - 1);
+        hitCooldowns.values().removeIf(ticks -> ticks <= 0);
+        if (pressureWindow > 0 && --pressureWindow == 0) pressureHits = 0;
+        if (retaliationCooldown > 0) retaliationCooldown--;
+        fury = Math.max(0F, fury - 0.018F);
+
+        updateBossBar();
+        if (!isAlive() || isNoAi()) return;
+        if (restingPosition == null) restingPosition = position();
+        if (phase() == Phase.DORMANT) {
+            tickDormant(level);
+            return;
+        }
+        level.players().stream().filter(this::canFight).forEach(player -> encounterParticipants.add(player.getUUID()));
+        emptyArenaTicks = level.players().stream().anyMatch(this::canFight) ? 0 : emptyArenaTicks + 1;
+        if (emptyArenaTicks >= 100) { resetAfterPlayerDeath(level); return; }
+        if (phase() == Phase.AWAKENING) {
+            tickAwakening(level);
+            return;
+        }
+        tickBurningRubble(level);
+        if (isInWater()) {
+            setShielded(false);
+            finishAttack(80);
+            GasClouds.clearOwner(level, getUUID());
+            return;
+        }
+
+        if (tickCount % 8 == 0) {
+            level.sendParticles(Asterion.BRAZIER_FIRE,
+                    getX(), getY() + getBbHeight() * 0.78, getZ(),
+                    2, 0.4, 0.1, 0.4, 0.01);
+        }
+
+        ServerPlayer target = attack == Attack.NONE ? tacticalTarget(level) : lockedTarget(level);
+        if (target == null) {
+            leaveCombat(level);
+            return;
+        }
+
+        level.players().stream().filter(this::canFight).forEach(bossBar::addPlayer);
+        if (!shielded()) tryStartShieldPhase(level);
+        updateShield(level);
+        if (shielded()) return;
+
+        if (attack == Attack.NONE && retaliationQueued) {
+            retaliationQueued = false;
+            startAttack(Attack.OVERLOAD_PULSE, target);
+        }
+
+        if (attack == Attack.NONE) {
+            trackPlayerAltitude(level, target, 0.16);
+            if (!gridStepTaken && beginGridStep(level, target)) return;
+            if (gridMoveTicks > 0) {
+                tickGridStep();
+                return;
+            }
+            if (--cooldown > 0) return;
+            startAttack(chooseAttack(level, target), target);
+            attacksStarted++;
+        }
+
+        switch (attack) {
+            case FLOOR_JETS -> tickFloorJets(level, target);
+            case FIRE_BEAM -> tickFireBeam(level, target);
+            case SPIN_TORNADO -> tickSpinTornado(level, target);
+            case CARDINAL_DASH -> tickCardinalDash(level, target);
+            case OVERLOAD_PULSE -> tickOverloadPulse(level);
+            case NONE -> { }
+        }
+        if (attack != Attack.SPIN_TORNADO && gridMoveTicks == 0) updateFacing();
+    }
+
+    private void tickDormant(ServerLevel level) {
+        setPos(restingPosition);
+        setInvulnerable(true);
+        setShielded(false);
+        ServerPlayer player = level.players().stream()
+                .filter(this::canFight)
+                .filter(candidate -> candidate.distanceToSqr(this) <= AWAKEN_RANGE * AWAKEN_RANGE)
+                .min(Comparator.comparingDouble(this::distanceToSqr))
+                .orElse(null);
+        if (player != null) beginAwakening(level);
+    }
+
+    private void beginAwakening(ServerLevel level) {
+        if (restingPosition == null) restingPosition = position();
+        encounterParticipants.clear();
+        eliminatedParticipants.clear();
+        emptyArenaTicks = 0;
+        setPhase(Phase.AWAKENING);
+        setInvulnerable(true);
+        attack = Attack.NONE;
+        entityData.set(ATTACK_ID, Attack.NONE.ordinal());
+        List<Vec3> entrances = new java.util.ArrayList<>();
+        visitEncounterDoors(level, door -> {
+            entrances.add(Vec3.atBottomCenterOf(door.getBlockPos()));
+            door.sealForFight();
+        });
+        level.playSound(null, blockPosition(), SoundEvents.TRIAL_SPAWNER_ABOUT_TO_SPAWN_ITEM,
+                SoundSource.HOSTILE, 1.8F, 0.55F);
+
+        MazeShiftPayload shake = new MazeShiftPayload(blockPosition(), 30F, 0.32F, 62);
+        for (ServerPlayer viewer : level.players()) {
+            if (!net.krodark.asterion.game.EncounterProximity.canJoin(viewer, level, restingPosition)
+                    && entrances.stream().noneMatch(entrance ->
+                    net.krodark.asterion.game.EncounterProximity.canJoin(viewer, level, entrance))) continue;
+            encounterParticipants.add(viewer.getUUID());
+            if (ServerPlayNetworking.canSend(viewer, CursedBrazierAwakeningPayload.TYPE)) {
+                ServerPlayNetworking.send(viewer,
+                        new CursedBrazierAwakeningPayload(getId(), AWAKENING_DURATION));
+            }
+            if (ServerPlayNetworking.canSend(viewer, MazeShiftPayload.TYPE)) {
+                ServerPlayNetworking.send(viewer, shake);
+            }
+        }
+    }
+
+    private void tickAwakening(ServerLevel level) {
+        setPos(restingPosition);
+        int age = ++phaseTicks;
+        if (age >= 30 && age <= 66 && age % 3 == 0) {
+            float strength = Math.clamp((age - 30) / 24F, 0F, 1F);
+            level.sendParticles(Asterion.GREEK_FIRE,
+                    getX(), getY() + getBbHeight() * 0.62, getZ(),
+                    2 + Math.round(strength * 6), 0.8, 0.35, 0.8,
+                    0.02 + strength * 0.02);
+        }
+        if (age == 46) {
+            level.playSound(null, blockPosition(), SoundEvents.FIRECHARGE_USE,
+                    SoundSource.HOSTILE, 1.8F, 0.55F);
+        }
+        if (age < AWAKENING_DURATION) return;
+
+        setInvulnerable(false);
+        setPhase(Phase.ACTIVE);
+        cooldown = 36;
+        level.playSound(null, blockPosition(), SoundEvents.BLAZE_SHOOT,
+                SoundSource.HOSTILE, 1.6F, 0.72F);
+    }
+
+    private void setPhase(Phase phase) {
+        entityData.set(PHASE_ID, phase.ordinal());
+        entityData.set(PHASE_STARTED_AT, tickCount);
+        phaseTicks = 0;
+    }
+
+    private void updateBossBar() {
+        bossBar.setProgress(Math.clamp(getHealth() / getMaxHealth(), 0, 1));
+        bossBar.setName(shielded()
+                ? Component.translatable("boss.asterion.cursed_brazier.shield", shieldBraziers.size())
+                : Component.translatable("entity.asterion.cursed_brazier"));
+        for (ServerPlayer player : List.copyOf(bossBar.getPlayers())) {
+            if (!isAlive() || phase() != Phase.ACTIVE || !canFight(player)) bossBar.removePlayer(player);
+        }
+    }
+
+    private ServerPlayer tacticalTarget(ServerLevel level) {
+        List<ServerPlayer> candidates=level.players().stream().filter(this::canFight).toList();
+        return candidates.stream().max(Comparator.comparingDouble(player -> {
+            double distance=Math.sqrt(horizontalDistanceSqr(player.position(),position()));
+            double healthPressure=1.0-player.getHealth()/Math.max(1F,player.getMaxHealth());
+            double motion=new Vec3(player.getDeltaMovement().x,0,player.getDeltaMovement().z).length();
+            long allies=candidates.stream().filter(other->other!=player
+                    && horizontalDistanceSqr(other.position(),player.position())<36).count();
+            double score=18-Math.min(18,distance)+healthPressure*4+motion*2+allies*1.2;
+            if(hasLineOfSight(player))score+=2;
+            if(player.getUUID().equals(lastTargetId)&&sameTargetStreak>=2)score-=5+sameTargetStreak;
+            return score;
+        })).orElse(null);
+    }
+
+    private ServerPlayer lockedTarget(ServerLevel level) {
+        ServerPlayer locked=attackTargetId==null?null:level.getServer().getPlayerList().getPlayer(attackTargetId);
+        return locked!=null&&canFight(locked)?locked:tacticalTarget(level);
+    }
+
+    public boolean isParticipant(ServerPlayer player) {
+        return phase() != Phase.DORMANT && player.level() == level()
+                && encounterParticipants.contains(player.getUUID()) && !eliminatedParticipants.contains(player.getUUID());
+    }
+
+    public boolean hasSurvivingParticipant(ServerPlayer fallen) {
+        return ((ServerLevel)level()).players().stream().anyMatch(player -> player != fallen && canFight(player));
+    }
+
+    public void eliminate(ServerPlayer player) {
+        eliminatedParticipants.add(player.getUUID());
+        bossBar.removePlayer(player);
+    }
+
+    public Vec3 recoveryPosition() {
+        Vec3 home = restingPosition == null ? position() : restingPosition;
+        int room = net.krodark.asterion.worldgen.AuthoredCatacombs.cursedBrazierRoomIndex(BlockPos.containing(home));
+        if (room >= 0) return Vec3.atBottomCenterOf(net.krodark.asterion.worldgen.AuthoredCatacombs.cursedBrazierEntrance(room).west(5));
+        List<Vec3> exits = new ArrayList<>();
+        visitEncounterDoors((ServerLevel)level(), door -> {
+            Vec3 entrance = Vec3.atBottomCenterOf(door.getBlockPos());
+            Vec3 outward = entrance.subtract(home).multiply(1, 0, 1).normalize();
+            exits.add(entrance.add(outward.scale(5)));
+        });
+        return exits.stream().min(Comparator.comparingDouble(home::distanceToSqr)).orElse(home.add(TARGET_RANGE + 5, 0, 0));
+    }
+
+    private boolean insideEncounterRoom(ServerPlayer player) {
+        Vec3 home = restingPosition == null ? position() : restingPosition;
+        int room = net.krodark.asterion.worldgen.AuthoredCatacombs.cursedBrazierRoomIndex(BlockPos.containing(home));
+        return Math.abs(player.getY() - home.y) <= 12
+                && (room < 0 || net.krodark.asterion.worldgen.AuthoredCatacombs.cursedBrazierRoomIndex(player.blockPosition()) == room);
+    }
+
+    private boolean canFight(ServerPlayer player) {
+        return player.isAlive()
+                && !net.krodark.asterion.game.ArenaDeathRecovery.isRecovering(player)
+                && !eliminatedParticipants.contains(player.getUUID())
+                && insideEncounterRoom(player)
+                && !player.isCreative()
+                && !player.isSpectator()
+                && player.level() == level()
+                && distanceToSqr(player) <= TARGET_RANGE * TARGET_RANGE
+                && !WorldGenerator.isNearSafeRune((ServerLevel) level(), player.blockPosition());
+    }
+
+    private void leaveCombat(ServerLevel level) {
+        if (attack != Attack.NONE) finishAttack(30);
+         
+        pressureHits = 0;
+        pressureWindow = 0;
+        retaliationQueued = false;
+        GasClouds.clearOwner(level, getUUID());
+    }
+
+    private Attack chooseAttack(ServerLevel level, ServerPlayer target) {
+        double distance = Math.sqrt(horizontalDistanceSqr(target.position(), position()));
+        Vec3 velocity=new Vec3(target.getDeltaMovement().x,0,target.getDeltaMovement().z);
+        double movement=Math.min(1.5,velocity.length());
+        boolean sight=hasLineOfSight(target);
+        double clear=clearance(level,cardinalToward(target),10);
+        boolean spinRoom=level.noCollision(this,getBoundingBox().inflate(2.2,0,2.2));
+        long closePlayers=level.players().stream().filter(this::canFight)
+                .filter(player->horizontalDistanceSqr(player.position(),position())<100).count();
+        int mostUsed=0;
+        for(Attack candidate:Attack.values())mostUsed=Math.max(mostUsed,attackUses[candidate.ordinal()]);
+        double aggression = aggression();
+
+        Map<Attack,Double> score=new java.util.EnumMap<>(Attack.class);
+        score.put(Attack.FLOOR_JETS,2.2+movement*5.5+(distance>7&&distance<20?1.4:0)+closePlayers*.55+aggression);
+        score.put(Attack.FIRE_BEAM,sight?3.0+Math.clamp((distance-6)/4,0,3)+(1-Math.min(1,movement))*1.8+aggression*.7:-100.0);
+        score.put(Attack.CARDINAL_DASH,clear>=3.5?2.8+Math.min(3,distance/5)+(sight?0:2.2)+aggression*2.2: -100.0);
+        score.put(Attack.SPIN_TORNADO,spinRoom?2.0+Math.max(0,10-distance)*.55+closePlayers*1.15+aggression*2.8:-100.0);
+
+        Attack best=Attack.FLOOR_JETS;
+        double bestScore=-Double.MAX_VALUE;
+        for(Attack candidate:List.of(Attack.FLOOR_JETS,Attack.FIRE_BEAM,Attack.CARDINAL_DASH,Attack.SPIN_TORNADO)) {
+            double tactical=score.get(candidate);
+            if(candidate==lastAttack)tactical-=4.5;
+            tactical+=(mostUsed-attackUses[candidate.ordinal()])*1.15;
+            tactical+=random.nextDouble()*.28;
+            if(tactical>bestScore){bestScore=tactical;best=candidate;}
+        }
+        return best;
+    }
+
+    private void startAttack(Attack next, ServerPlayer target) {
+        attack = next;
+        attackTargetId=target.getUUID();
+        if(attackTargetId.equals(lastTargetId))sameTargetStreak++;
+        else {lastTargetId=attackTargetId;sameTargetStreak=1;}
+        lastAttack = next;
+        attackUses[next.ordinal()]++;
+        entityData.set(ATTACK_ID, next.ordinal());
+        entityData.set(ATTACK_STARTED_AT, tickCount);
+        attackTicks = 0;
+        dashLeg = 0;
+        jetPositions.clear();
+        lockedPosition = target.position();
+        aim = directionOrForward(target.getEyePosition().subtract(mouth()));
+        face(aim);
+        updateFacingImmediate();
+        playSound(SoundEvents.FIRE_AMBIENT, 1.2F, 0.65F);
+    }
+
+    private void finishAttack(int delay) {
+        attack = Attack.NONE;
+        entityData.set(ATTACK_ID, 0);
+        attackTicks = 0;
+        dashLeg = 0;
+        jetPositions.clear();
+        gridStepTaken = false;
+        gridMoveTicks = 0;
+        attackTargetId=null;
+        int recovery = 14 + Math.min(delay, 8) * 2;
+        cooldown = Math.max(8, Math.round(recovery * (1F - aggression() * 0.42F))) + random.nextInt(5);
+    }
+
+    private record BurningRubble(Vec3 position, Vec3 velocity, int age) {}
+    private final java.util.List<BurningRubble> burningRubble = new java.util.ArrayList<>();
+
+    private void launchBurningRubble(ServerLevel level, ServerPlayer target) {
+        for (Vec3 floor : jetPositions) {
+            if (burningRubble.size() >= 5) break;
+            Vec3 start = floor.add(0, .65, 0);
+            Vec3 delta = target.position().add(0, .7, 0).subtract(start);
+            double flight = Math.clamp(delta.horizontalDistance() / .65, 12, 28);
+            Vec3 velocity = new Vec3(delta.x / flight, delta.y / flight + .0275 * flight, delta.z / flight);
+            burningRubble.add(new BurningRubble(start, velocity, 0));
+            net.krodark.asterion.worldgen.ArenaDebris.queue(level, start, velocity, .55F);
+        }
+    }
+
+    private void tickBurningRubble(ServerLevel level) {
+        for (int i = burningRubble.size() - 1; i >= 0; i--) {
+            BurningRubble stone = burningRubble.get(i);
+            Vec3 next = stone.position.add(stone.velocity);
+            var hit = level.clip(new net.minecraft.world.level.ClipContext(stone.position, next,
+                    net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                    net.minecraft.world.level.ClipContext.Fluid.ANY, this));
+            if (hit.getType() != net.minecraft.world.phys.HitResult.Type.MISS || stone.age > 50) {
+                level.sendParticles(Asterion.GREEK_FIRE, hit.getLocation().x, hit.getLocation().y,
+                        hit.getLocation().z, 5, .2, .2, .2, .02);
+                burningRubble.remove(i);
+                continue;
+            }
+            AABB sweep = new AABB(stone.position, next).inflate(.35);
+            boolean struck = level.players().stream().anyMatch(p -> canFight(p) && p.getBoundingBox().intersects(sweep));
+            if (struck) {
+                damagePlayers(level, sweep, scaledDamage(6F), 30, false);
+                burningRubble.remove(i);
+                continue;
+            }
+            if ((stone.age & 1) == 0) level.sendParticles(Asterion.GREEK_FIRE, next.x, next.y, next.z, 2, .12, .12, .12, .01);
+            burningRubble.set(i, new BurningRubble(next, stone.velocity.add(0, -.055, 0), stone.age + 1));
+        }
+    }
+
+    private void tickFloorJets(ServerLevel level, ServerPlayer target) {
+        int tick = ++attackTicks;
+        if (tick == 1) prepareFloorJets(level, target);
+        if (tick == 40) launchBurningRubble(level, target);
+        if (tick <= 38 && tick % 5 == 0) {
+            for (Vec3 position : jetPositions) {
+                level.sendParticles(new DustParticleOptions(0xFF170D, 1.15F),
+                        position.x, position.y + 0.035, position.z,
+                        6, 0.48, 0.015, 0.48, 0.005);
+                level.sendParticles(Asterion.GREEK_FIRE_SOOT, position.x, position.y, position.z,
+                        2, 0.35, 0.03, 0.35, 0.01);
+            }
+        }
+        if (tick >= 40 && tick <= 70 && tick % 6 == 0) {
+            for (Vec3 position : jetPositions) {
+                for (int burst = 0; burst < 2; burst++) {
+                    spawnFlame(level, position, new Vec3(0, 0.22 + burst * 0.055, 0));
+                }
+                damagePlayers(level, new AABB(position.subtract(0.9, 0.2, 0.9),
+                        position.add(0.9, 3.4, 0.9)), scaledDamage(8.5F), 45, false);
+            }
+        }
+        if (tick > 82) finishAttack(4);
+    }
+
+    private void tickFireBeam(ServerLevel level, ServerPlayer target) {
+        int tick = ++attackTicks;
+        if (tick < 35) trackPlayerAltitude(level, target, 0.075);
+        Vec3 desired = directionOrForward(target.getEyePosition().subtract(mouth()));
+        aim = directionOrForward(aim.lerp(desired, tick < 35 ? 0.09 : 0.025));
+        face(aim);
+        if (tick < 35 && tick % 4 == 0) {
+            Vec3 mouth = mouth();
+            level.sendParticles(Asterion.GREEK_FIRE_SOOT, mouth.x, mouth.y, mouth.z,
+                    2, 0.18, 0.12, 0.18, 0.015);
+        }
+        if (tick >= 35 && tick <= 82) traceFireBeam(level, tick);
+        if (tick > 92) finishAttack(5);
+    }
+
+    private void traceFireBeam(ServerLevel level, int tick) {
+        Vec3 origin = mouth();
+        for (double distance = 1; distance <= 26; distance += 1.2) {
+            Vec3 point = origin.add(aim.scale(distance));
+            BlockPos block = BlockPos.containing(point);
+            if (!level.getBlockState(block).getCollisionShape(level, block).isEmpty()) return;
+            if ((tick + (int) (distance * 2)) % 4 == 0) spawnFlame(level, point, aim.scale(0.08));
+            damagePlayers(level, new AABB(point.subtract(0.7, 0.7, 0.7),
+                    point.add(0.7, 0.7, 0.7)), scaledDamage(9.5F), 18, false);
+        }
+    }
+
+    private void tickSpinTornado(ServerLevel level, ServerPlayer target) {
+        int tick = ++attackTicks;
+         
+         
+        double targetHeight = target.getY();
+        if (tick <= 45) {
+            Vec3 next = position().add(0, Math.clamp(targetHeight - getY(), -0.12, 0.12), 0);
+            if (canOccupy(level, next)) setPos(next);
+        } else if (tick == 46) {
+            lockedPosition = position();
+        } else {
+            setPos(lockedPosition);
+        }
+
+        if (tick < 70) {
+            if (tick % 5 == 0) {
+                level.sendParticles(Asterion.GREEK_FIRE_SOOT,
+                        getX(), getY() + getBbHeight() * 0.55, getZ(),
+                        3, 0.7, 0.25, 0.7, 0.02);
+            }
+            return;
+        }
+
+        double progress = Math.clamp((tick - 70) / 68.0, 0, 1);
+        double eased = progress * progress * (3.0 - 2.0 * progress);
+        double speed = 2.0 + 14.0 * eased;
+        setYRot((float) (getYRot() + speed));
+        yBodyRot = getYRot();
+        int streams = progress < 0.5 ? 2 : 3;
+        Vec3 flameRoot = position().add(0, 0.18, 0);
+        for (int stream = 0; tick % 2 == 0 && stream < streams; stream++) {
+            double angle = Math.toRadians(getYRot()) + stream * Math.PI * 2 / streams;
+            Vec3 direction = new Vec3(Math.cos(angle), 0.015 + progress * 0.025, Math.sin(angle));
+            spawnFlame(level, flameRoot.add(direction.scale(1.1)),
+                    direction.scale(0.35 + progress * 0.52));
+        }
+        damagePlayers(level, getBoundingBox().inflate(1.35, 0.55, 1.35),
+                scaledDamage(10.5F), 12, true);
+        if (tick > 160) finishAttack(5);
+    }
+
+    private void tickCardinalDash(ServerLevel level, ServerPlayer target) {
+        int tick = ++attackTicks;
+        int legTick = (tick - 1) % DASH_LEG_TICKS;
+        if (legTick == 0) {
+            aim = bestCardinalDirection(level, target);
+            if (clearance(level, aim, 8) < 1.2) {
+                finishAttack(35);
+                return;
+            }
+            face(aim);
+            updateFacingImmediate();
+            dashLeg++;
+        }
+        if (legTick < DASH_MOVE_TICKS) {
+            Vec3 next = position().add(aim.scale(0.92));
+            if (canOccupy(level, next)) setPos(next);
+            else attackTicks += DASH_MOVE_TICKS - legTick;
+            GasClouds.emit(level, position().add(0, 0.45, 0), aim.scale(-0.045), getUUID());
+            if (tick % 2 == 0) level.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 0.45, getZ(),
+                    2, 0.3, 0.18, 0.3, 0.01);
+            damagePlayers(level, getBoundingBox().inflate(0.65, 0.3, 0.65),
+                    scaledDamage(12.5F), 16, true);
+        }
+         
+         
+        if (dashLeg >= 7 && legTick >= DASH_MOVE_TICKS) finishAttack(4);
+    }
+
+    private void tickOverloadPulse(ServerLevel level) {
+        int tick = ++attackTicks;
+        double centerY = getY() + getBbHeight() * 0.48;
+        if (tick == 1) {
+            level.playSound(null, blockPosition(), SoundEvents.RESPAWN_ANCHOR_CHARGE,
+                    SoundSource.HOSTILE, 1.4F, 0.62F);
+        }
+        if (tick <= 23 && tick % 2 == 0) {
+            double radius = 6.2 - tick * 0.13;
+            for (int index = 0; index < 20; index++) {
+                double angle = Math.PI * 2 * index / 20 + tick * 0.09;
+                level.sendParticles(new DustParticleOptions(0x72FF55, 1.25F),
+                        getX() + Math.cos(angle) * radius, centerY,
+                        getZ() + Math.sin(angle) * radius,
+                        1, 0.015, 0.04, 0.015, 0);
+            }
+        }
+        if (tick == 24) {
+            level.sendParticles(Asterion.GREEK_FIRE, getX(), centerY, getZ(),
+                    70, 3.8, 2.3, 3.8, 0.12);
+            level.sendParticles(ParticleTypes.EXPLOSION, getX(), centerY, getZ(),
+                    5, 2.2, 1.2, 2.2, 0.04);
+            level.playSound(null, blockPosition(), SoundEvents.GENERIC_EXPLODE.value(),
+                    SoundSource.HOSTILE, 1.65F, 0.72F);
+            damagePlayers(level, getBoundingBox().inflate(5.8, 2.2, 5.8),
+                    scaledDamage(13.5F), 24, true);
+            MazeShiftPayload impact = new MazeShiftPayload(blockPosition(), 24F, 0.42F, 16);
+            for (ServerPlayer player : level.players()) {
+                if (player.distanceToSqr(this) <= 34 * 34
+                        && ServerPlayNetworking.canSend(player, MazeShiftPayload.TYPE))
+                    ServerPlayNetworking.send(player, impact);
+            }
+        }
+        if (tick > 42) finishAttack(8);
+    }
+
+    private void tryStartShieldPhase(ServerLevel level) {
+        float health = getHealth() / getMaxHealth();
+        boolean initial = attacksStarted == 0 && !initialShieldUsed;
+        boolean middle = health <= 0.58F && !middleShieldUsed;
+        boolean ending = health <= 0.24F && !finalShieldUsed;
+        if (!initial && !middle && !ending) return;
+        if (tickCount % 10 != 0) return;
+
+        List<BlockPos> candidates = findLitBraziers(level);
+        if (candidates.size() < SHIELD_BRAZIER_COUNT) return;
+        if (attack != Attack.NONE) finishAttack(0);
+        shieldBraziers.clear();
+        shieldBraziers.addAll(candidates.subList(0, SHIELD_BRAZIER_COUNT));
+        if (initial) initialShieldUsed = true;
+        else if (middle) middleShieldUsed = true;
+        else finalShieldUsed = true;
+        lockedPosition = snapToGrid(position());
+        if (canOccupy(level, lockedPosition)) setPos(lockedPosition);
+        else lockedPosition = position();
+        setShielded(true);
+        level.playSound(null, blockPosition(), SoundEvents.BEACON_ACTIVATE,
+                SoundSource.HOSTILE, 1.8F, 0.52F);
+    }
+
+    private List<BlockPos> findLitBraziers(ServerLevel level) {
+        List<BlockPos> found = new ArrayList<>();
+        BlockPos center = blockPosition();
+        for (BlockPos cursor : BlockPos.betweenClosed(
+                center.offset(-BRAZIER_SEARCH_RANGE, -10, -BRAZIER_SEARCH_RANGE),
+                center.offset(BRAZIER_SEARCH_RANGE, 10, BRAZIER_SEARCH_RANGE))) {
+            var state = level.getBlockState(cursor);
+            if (!(state.getBlock() instanceof GreekBrazierBlock)
+                    || !GreekBrazierBlock.isRoot(state)
+                    || !state.getValue(BlockStateProperties.LIT)) continue;
+            found.add(cursor.immutable());
+        }
+        found.sort(Comparator.comparingDouble(pos -> pos.distSqr(center)));
+        return found;
+    }
+
+    private boolean beginGridStep(ServerLevel level, ServerPlayer target) {
+        gridStepTaken = true;
+        Vec3 origin = snapToGrid(position());
+        double currentDistance=Math.sqrt(horizontalDistanceSqr(origin,target.position()));
+        boolean currentSight=hasLineOfSight(target);
+         
+         
+        if(currentSight&&currentDistance>=6&&currentDistance<=14&&random.nextFloat()<.25F)return false;
+        List<Vec3> candidates = new ArrayList<>();
+        double restY=restingPosition==null?origin.y:restingPosition.y;
+        double targetY = combatAltitude(target);
+        candidates.add(new Vec3(origin.x, targetY, origin.z));
+        for(int blocks:new int[]{-5,-3,3,5}) {
+            Vec3 vertical=origin.add(0,blocks,0);
+            if(vertical.y>=restY-8&&vertical.y<=restY+8)candidates.add(vertical);
+        }
+        for (Vec3 direction : CARDINAL_DIRECTIONS) {
+            candidates.add(origin.add(direction.scale(3)));
+            candidates.add(new Vec3(origin.x + direction.x * 3, targetY,
+                    origin.z + direction.z * 3));
+        }
+        candidates.removeIf(candidate -> !canOccupy(level, candidate));
+        if (candidates.isEmpty()) return false;
+        candidates.sort(Comparator.comparingDouble(candidate -> positionCost(level,candidate,target)));
+        double currentCost=positionCost(level,origin,target);
+        if(positionCost(level,candidates.getFirst(),target)>currentCost-.65)return false;
+        gridMoveStart = position();
+        gridMoveTarget = candidates.getFirst();
+        gridMoveTicks = 1;
+        gridMoveDuration = Math.abs(gridMoveTarget.y-gridMoveStart.y)>0.5?12:7;
+        Vec3 travel = gridMoveTarget.subtract(gridMoveStart);
+        face(travel);
+        updateFacingImmediate();
+        return true;
+    }
+
+    private void trackPlayerAltitude(ServerLevel level, ServerPlayer target, double maximumStep) {
+        double difference = combatAltitude(target) - getY();
+        if (Math.abs(difference) < 0.08) return;
+        Vec3 next = position().add(0, Math.clamp(difference, -maximumStep, maximumStep), 0);
+        if (canOccupy(level, next)) setPos(next);
+    }
+
+    private double combatAltitude(ServerPlayer target) {
+        double restY = restingPosition == null ? getY() : restingPosition.y;
+        double eyeAligned = target.getEyeY() - getBbHeight() * 0.55;
+        return Math.rint(Math.clamp(eyeAligned, restY - 10, restY + 10));
+    }
+
+    private double positionCost(ServerLevel level,Vec3 candidate,ServerPlayer target) {
+        double distance=Math.sqrt(horizontalDistanceSqr(candidate,target.position()));
+        double cost=Math.abs(distance-10.0);
+        double horizontalTravel=Math.sqrt(horizontalDistanceSqr(candidate,position()));
+        double verticalTravel=Math.abs(candidate.y-position().y);
+         
+         
+        cost+=horizontalTravel*1.15;
+        if(verticalTravel>0.5)cost-=2.4+Math.min(1.4,verticalTravel*.22);
+        double desiredY=target.getY()+target.getBbHeight()*.55;
+        cost+=Math.abs(candidate.y-desiredY)*.16;
+        Vec3 eye=candidate.add(0,getBbHeight()*.68,0);
+        var hit=level.clip(new net.minecraft.world.level.ClipContext(eye,target.getEyePosition(),
+                net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                net.minecraft.world.level.ClipContext.Fluid.NONE,this));
+        if(hit.getType()!=net.minecraft.world.phys.HitResult.Type.MISS)cost+=4.5;
+        long crowd=level.players().stream().filter(this::canFight)
+                .filter(player->horizontalDistanceSqr(candidate,player.position())<25).count();
+        return cost+crowd*1.35;
+    }
+
+    private void tickGridStep() {
+        float progress = Math.clamp(gridMoveTicks++ / (float) gridMoveDuration, 0F, 1F);
+        float eased = progress * progress * (3F - 2F * progress);
+        setPos(gridMoveStart.lerp(gridMoveTarget, eased));
+        if (progress < 1F) return;
+        setPos(gridMoveTarget);
+        gridMoveTicks = 0;
+    }
+
+    private static Vec3 snapToGrid(Vec3 position) {
+        return new Vec3(Math.floor(position.x) + 0.5,
+                Math.rint(position.y), Math.floor(position.z) + 0.5);
+    }
+
+    private void prepareFloorJets(ServerLevel level, ServerPlayer target) {
+        Vec3 velocity = new Vec3(target.getDeltaMovement().x, 0, target.getDeltaMovement().z);
+        Vec3 center = target.position().add(velocity.scale(16));
+        Vec3 forward = velocity.lengthSqr() > 0.01
+                ? velocity.normalize()
+                : directionOrForward(new Vec3(target.getX() - getX(), 0, target.getZ() - getZ()));
+        Vec3 right = new Vec3(-forward.z, 0, forward.x);
+        for (int index = -2; index <= 2; index++) {
+            Vec3 position = center.add(right.scale(index * 1.8))
+                    .add(forward.scale((index & 1) == 0 ? 1.25 : -1.25));
+            jetPositions.add(findFloor(level, position));
+        }
+    }
+
+    private Vec3 findFloor(ServerLevel level, Vec3 position) {
+        BlockPos origin = BlockPos.containing(position);
+        for (int offset = 4; offset >= -8; offset--) {
+            BlockPos floor = origin.offset(0, offset, 0);
+            BlockPos feet = floor.above();
+            if (level.getBlockState(floor).getCollisionShape(level, floor).isEmpty()) continue;
+            if (!level.getBlockState(feet).getCollisionShape(level, feet).isEmpty()) continue;
+            return new Vec3(position.x, feet.getY() + 0.08, position.z);
+        }
+        return new Vec3(position.x, position.y + 0.08, position.z);
+    }
+
+    private Vec3 cardinalToward(ServerPlayer target) {
+        Vec3 offset = target.position().subtract(position());
+        return Math.abs(offset.x) > Math.abs(offset.z)
+                ? new Vec3(Math.copySign(1, offset.x), 0, 0)
+                : new Vec3(0, 0, Math.copySign(1, offset.z));
+    }
+
+    private Vec3 bestCardinalDirection(ServerLevel level, ServerPlayer target) {
+        Vec3 toward = directionOrForward(new Vec3(target.getX() - getX(), 0, target.getZ() - getZ()));
+        Vec3 best = cardinalToward(target);
+        double bestScore = -Double.MAX_VALUE;
+        for (Vec3 candidate : CARDINAL_DIRECTIONS) {
+            double score = clearance(level, candidate, 8) * 1.6 + candidate.dot(toward) * 3;
+            if (candidate.equals(aim)) score -= 1.4;
+            if (score > bestScore) {
+                bestScore = score;
+                best = candidate;
+            }
+        }
+        return best;
+    }
+
+    private double clearance(ServerLevel level, Vec3 direction, double maximum) {
+        double clear = 0;
+        for (double distance = 0.7; distance <= maximum; distance += 0.7) {
+            if (!level.noCollision(this, getBoundingBox().move(direction.scale(distance)))) break;
+            clear = distance;
+        }
+        return clear;
+    }
+
+    private boolean canOccupy(ServerLevel level, Vec3 target) {
+        return level.noCollision(this, getBoundingBox().move(target.subtract(position())));
+    }
+
+    private void updateShield(ServerLevel level) {
+        if (!shielded()) return;
+        setPos(lockedPosition);
+        if (tickCount % 4 == 0) {
+            double centerY = getY() + getBbHeight() * 0.52;
+            level.sendParticles(ParticleTypes.ELECTRIC_SPARK, getX(), centerY, getZ(),
+                    4, 2.2, 1.7, 2.2, 0.035);
+            level.sendParticles(Asterion.GREEK_FIRE, getX(), centerY, getZ(),
+                    3, 2.0, 1.55, 2.0, 0.018);
+        }
+        int stillLit = 0;
+        for (BlockPos brazier : shieldBraziers) {
+            var state = level.getBlockState(brazier);
+            if (!(state.getBlock() instanceof GreekBrazierBlock)
+                    || !state.getValue(BlockStateProperties.LIT)) continue;
+            stillLit++;
+            if (tickCount % 6 == 0) {
+                double x = brazier.getX() + 0.5;
+                double y = brazier.getY() + 1.35;
+                double z = brazier.getZ() + 0.5;
+                level.sendParticles(ParticleTypes.ELECTRIC_SPARK, x, y, z,
+                        2, 1.35, 1.15, 1.35, 0.03);
+                level.sendParticles(Asterion.GREEK_FIRE, x, y, z,
+                        2, 1.15, 0.9, 1.15, 0.015);
+                Vec3 linkStart = new Vec3(x, y, z);
+                Vec3 linkEnd = position().add(0, getBbHeight() * 0.52, 0);
+                for (int step = 1; step < 9; step++) {
+                    Vec3 point = linkStart.lerp(linkEnd, step / 9.0);
+                    level.sendParticles(ParticleTypes.ELECTRIC_SPARK,
+                            point.x, point.y, point.z, 1, 0.035, 0.035, 0.035, 0.002);
+                }
+            }
+        }
+        shieldBraziers.removeIf(brazier -> {
+            var state = level.getBlockState(brazier);
+            return !(state.getBlock() instanceof GreekBrazierBlock)
+                    || !state.getValue(BlockStateProperties.LIT);
+        });
+        if (stillLit == 0) {
+            setShielded(false);
+            shieldBraziers.clear();
+            cooldown = 3;
+            gridStepTaken = true;
+            level.sendParticles(ParticleTypes.CLOUD,
+                    getX(), getY() + getBbHeight() * 0.52, getZ(),
+                    16, 2.1, 1.5, 2.1, 0.08);
+            playSound(SoundEvents.FIRE_EXTINGUISH, 1.6F, 0.7F);
+        }
+    }
+
+    private void setShielded(boolean value) {
+        entityData.set(SHIELDED, value);
+        setGlowingTag(value);
+    }
+
+    @Override
+    public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
+        if (source.is(DamageTypeTags.IS_FIRE)) return false;
+        if (shielded()) {
+            level.sendParticles(ParticleTypes.ELECTRIC_SPARK,
+                    getX(), getY() + getBbHeight() * 0.52, getZ(),
+                    12, 2.1, 1.6, 2.1, 0.055);
+            playSound(SoundEvents.SHIELD_BLOCK.value(), 1.15F, 0.62F);
+            return false;
+        }
+        float before = getHealth();
+        boolean damaged = super.hurtServer(level, source, amount);
+        if (!damaged || phase() != Phase.ACTIVE) return damaged;
+        float dealt = Math.max(0F, before - getHealth());
+        fury = Math.min(100F, fury + dealt * 3.2F);
+        cooldown = Math.min(cooldown, Math.max(3, 12 - Math.round(aggression() * 6F)));
+        if (source.getEntity() instanceof ServerPlayer attacker && canFight(attacker)) {
+            pressureHits = pressureWindow > 0 ? pressureHits + 1 : 1;
+            pressureWindow = 42;
+            if (pressureHits >= 4 && retaliationCooldown == 0) {
+                retaliationQueued = true;
+                retaliationCooldown = 160;
+                pressureHits = 0;
+            }
+        }
+        return true;
+    }
+
+    private float aggression() {
+        float missingHealth = 1F - getHealth() / Math.max(1F, getMaxHealth());
+        return Math.clamp(missingHealth * 0.72F + fury / 100F * 0.28F, 0F, 1F);
+    }
+
+    private float scaledDamage(float baseDamage) {
+        return baseDamage * (1F + aggression() * 0.24F);
+    }
+
+    private void face(Vec3 direction) {
+        float raw = (float) Math.toDegrees(Math.atan2(-direction.x, direction.z));
+        desiredYaw = Math.round(raw / 90F) * 90F;
+    }
+
+    private void updateFacing() {
+        float difference = net.minecraft.util.Mth.wrapDegrees(desiredYaw - getYRot());
+        setYRot(getYRot() + Math.clamp(difference, -7.5F, 7.5F));
+        yBodyRot = getYRot();
+        yHeadRot = getYRot();
+    }
+
+    private void updateFacingImmediate() {
+        setYRot(desiredYaw);
+        yRotO = desiredYaw;
+        yBodyRot = desiredYaw;
+        yHeadRot = desiredYaw;
+    }
+
+    private void damagePlayers(ServerLevel level, AABB area, float damage,
+                               int immunityTicks, boolean heavyImpact) {
+        for (ServerPlayer player : level.getEntitiesOfClass(ServerPlayer.class, area, this::canFight)) {
+            if (hitCooldowns.containsKey(player.getUUID())) continue;
+            if (!player.hurtServer(level, level.damageSources().mobAttack(this), damage)) continue;
+            GreekFireBurn.ignite(player, heavyImpact ? 3F : 6F);
+            hitCooldowns.put(player.getUUID(), immunityTicks);
+            Vec3 impulse = directionOrForward(player.position().subtract(position()))
+                    .scale(heavyImpact ? 1.25 : 0.42).add(0, heavyImpact ? 0.42 : 0.12, 0);
+            player.push(impulse.x, impulse.y, impulse.z);
+            player.hurtMarked = true;
+        }
+    }
+
+    private Vec3 mouth() {
+        return position().add(0, getBbHeight() * 0.68, 0);
+    }
+
+    private void closeEncounterDoors(ServerLevel level) {
+        visitEncounterDoors(level,
+                net.krodark.asterion.block.CursedBrazierDoorBlockEntity::sealForFight);
+    }
+
+    private void openEncounterDoors(ServerLevel level) {
+        visitEncounterDoors(level,
+                net.krodark.asterion.block.CursedBrazierDoorBlockEntity::openAfterVictory);
+    }
+
+    private void visitEncounterDoors(ServerLevel level,
+                                     java.util.function.Consumer<net.krodark.asterion.block.CursedBrazierDoorBlockEntity> action) {
+        BlockPos center = blockPosition();
+        for (BlockPos cursor : BlockPos.betweenClosed(
+                center.offset(-ENCOUNTER_DOOR_RANGE, -12, -ENCOUNTER_DOOR_RANGE),
+                center.offset(ENCOUNTER_DOOR_RANGE, 12, ENCOUNTER_DOOR_RANGE))) {
+            if (level.getBlockEntity(cursor)
+                    instanceof net.krodark.asterion.block.CursedBrazierDoorBlockEntity door) {
+                action.accept(door);
+            }
+        }
+    }
+
+    private void spawnFlame(ServerLevel level, Vec3 position, Vec3 velocity) {
+        GasClouds.emitFlamethrower(level, position, velocity, getUUID());
+        GasClouds.ignite(level, position, getUUID());
+    }
+
+    private static double horizontalDistanceSqr(Vec3 first, Vec3 second) {
+        double x = first.x - second.x;
+        double z = first.z - second.z;
+        return x * x + z * z;
+    }
+
+    private static Vec3 directionOrForward(Vec3 vector) {
+        return vector.lengthSqr() < 1.0E-6 ? new Vec3(0, 0, 1) : vector.normalize();
+    }
+
+    @Override
+    public void stopSeenByPlayer(ServerPlayer player) {
+        super.stopSeenByPlayer(player);
+        bossBar.removePlayer(player);
+    }
+
+    @Override
+    public void die(DamageSource source) {
+        if (level() instanceof ServerLevel level) {
+            int roomIndex = net.krodark.asterion.worldgen.AuthoredCatacombs
+                    .cursedBrazierRoomIndex(blockPosition());
+            if (roomIndex >= 0)
+                net.krodark.asterion.AsterionWorldState.get(level).markCursedBrazierDefeated(roomIndex);
+            openEncounterDoors(level);
+        }
+        clearCombatState();
+        super.die(source);
+    }
+
+     
+    public void resetAfterPlayerDeath(ServerLevel level) {
+        for (UUID id : encounterParticipants) {
+            net.krodark.asterion.game.EncounterKeyRecovery.refundAttemptKey(level, id,
+                    net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER_KEY);
+        }
+        encounterParticipants.clear();
+        eliminatedParticipants.clear();
+        emptyArenaTicks = 0;
+        clearCombatState();
+        setHealth(getMaxHealth());
+        middleShieldUsed = false;
+        finalShieldUsed = false;
+        initialShieldUsed = false;
+        fury = 0F;
+        pressureHits = 0;
+        pressureWindow = 0;
+        retaliationCooldown = 0;
+        retaliationQueued = false;
+        attacksStarted = 0;
+        lastAttack = Attack.NONE;
+        lastTargetId = null;
+        sameTargetStreak = 0;
+        java.util.Arrays.fill(attackUses, 0);
+        gridStepTaken = false;
+        cooldown = 40;
+        if (restingPosition == null) restingPosition = position();
+        setPos(restingPosition.x, restingPosition.y, restingPosition.z);
+        setPhase(Phase.DORMANT);
+        setInvulnerable(true);
+        openEncounterDoors(level);
+    }
+
+    @Override
+    public boolean removeWhenFarAway(double distanceToClosestPlayer) {
+        return false;
+    }
+
+    @Override
+    public void remove(RemovalReason reason) {
+        clearCombatState();
+        super.remove(reason);
+    }
+
+    private void clearCombatState() {
+        bossBar.removeAllPlayers();
+        setShielded(false);
+        shieldBraziers.clear();
+        attack = Attack.NONE;
+        retaliationQueued = false;
+        pressureHits = 0;
+        pressureWindow = 0;
+        if (level() instanceof ServerLevel level) GasClouds.clearOwner(level, getUUID());
+    }
+
+    @Override
+    protected void dropCustomDeathLoot(ServerLevel level, DamageSource source, boolean killedByPlayer) {
+        super.dropCustomDeathLoot(level, source, killedByPlayer);
+        spawnAtLocation(level, new ItemStack(GameplayContent.CURSED_BRAZIER_KEY));
+        var keyMold=spawnAtLocation(level, new ItemStack(Asterion.MINOTAUR_KEY_CAST));
+        net.krodark.asterion.game.EncounterKeyRecovery.track(level,keyMold,
+                source.getEntity() instanceof ServerPlayer player?player:null);
+    }
+
+    @Override
+    protected void addAdditionalSaveData(ValueOutput output) {
+        super.addAdditionalSaveData(output);
+        output.putInt("BrazierPhase", phase().ordinal());
+        output.putInt("BrazierPhaseTicks", phaseTicks);
+        Vec3 rest = restingPosition == null ? position() : restingPosition;
+        output.putDouble("RestX", rest.x);
+        output.putDouble("RestY", rest.y);
+        output.putDouble("RestZ", rest.z);
+        output.putBoolean("MiddleShieldUsed", middleShieldUsed);
+        output.putBoolean("FinalShieldUsed", finalShieldUsed);
+        output.putBoolean("InitialShieldUsed", initialShieldUsed);
+        output.putFloat("BrazierFury", fury);
+    }
+
+    @Override
+    protected void readAdditionalSaveData(ValueInput input) {
+        super.readAdditionalSaveData(input);
+        int phaseIndex = Math.clamp(input.getIntOr("BrazierPhase", Phase.DORMANT.ordinal()),
+                0, Phase.values().length - 1);
+        Phase restored = Phase.values()[phaseIndex];
+        entityData.set(PHASE_ID, restored.ordinal());
+        entityData.set(PHASE_STARTED_AT, tickCount);
+        phaseTicks = Math.max(0, input.getIntOr("BrazierPhaseTicks", 0));
+        restingPosition = new Vec3(
+                input.getDoubleOr("RestX", getX()),
+                input.getDoubleOr("RestY", getY()),
+                input.getDoubleOr("RestZ", getZ()));
+        middleShieldUsed = input.getBooleanOr("MiddleShieldUsed", false);
+        finalShieldUsed = input.getBooleanOr("FinalShieldUsed", false);
+        initialShieldUsed = input.getBooleanOr("InitialShieldUsed", false);
+        fury = Math.clamp(input.getFloatOr("BrazierFury", 0F), 0F, 100F);
+        setInvulnerable(restored != Phase.ACTIVE);
+    }
+
+    @Override
+    public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+        controllers.add(new AnimationController<CursedBrazierEntity>("attack", 2, state ->
+                state.setAndContinue(attack() == Attack.FIRE_BEAM
+                        ? SHOOT_BEAM_ANIMATION
+                        : IDLE_ANIMATION)));
+    }
+
+    @Override
+    public AnimatableInstanceCache getAnimatableInstanceCache() {
+        return animationCache;
+    }
+}

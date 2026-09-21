@@ -1,0 +1,10 @@
+// The supplied checkout references an absent optional benchmark project.
+// Redirect only that empty project for this build; do not alter Amnetic's source/settings.
+settingsEvaluated { settings ->
+    def bench = settings.findProject(':bench')
+    if (bench != null && !bench.projectDir.exists()) {
+        def empty = new File(initscript.sourceFile.parentFile, '../build/amnetic-empty-bench')
+        empty.mkdirs()
+        bench.projectDir = empty
+    }
+}

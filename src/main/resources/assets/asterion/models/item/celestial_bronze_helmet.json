@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "asterion:item/celestial_bronze_helmet_icon"
+  }
+}

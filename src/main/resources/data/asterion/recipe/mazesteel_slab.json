@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "key": {
+    "#": "asterion:mazesteel_block"
+  },
+  "pattern": [
+    "###"
+  ],
+  "result": {
+    "id": "asterion:mazesteel_slab",
+    "count": 6
+  }
+}

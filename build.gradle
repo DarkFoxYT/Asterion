@@ -1,0 +1,307 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version '1.17-SNAPSHOT'
+    id 'maven-publish'
+}
+
+version = project.mod_version
+// Stonecutter owns project groups to distinguish version nodes.
+
+base {
+    archivesName = project.archives_base_name
+}
+
+fabricApi {
+    configureDataGeneration {
+        client = true
+    }
+}
+
+repositories {
+    maven {
+        name = "RyanHCode"
+        url = "https://maven.ryanhcode.dev/releases"
+        content { includeGroup "foundry.imguimc" }
+    }
+    ivy {
+        name = "LocalRendererDependencies"
+        url = rootProject.uri("libs")
+        patternLayout {
+            artifact "[artifact]-[revision].[ext]"
+            artifact "[artifact].[ext]"
+        }
+        metadataSources { artifact() }
+    }
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "GeckoLib"
+                url = "https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/"
+            }
+        }
+        filter { includeGroupAndSubgroups "com.geckolib" }
+    }
+    maven { name = "Terraformers"; url = "https://maven.terraformersmc.com/releases/" }
+    maven { name = "BlameJared"; url = "https://maven.blamejared.com/" }
+    maven { name = "Shedaniel"; url = "https://maven.shedaniel.me/" }
+    maven { name = "Modrinth"; url = "https://api.modrinth.com/maven" }
+    maven { name = "Quilt"; url = "https://maven.quiltmc.org/repository/release" }
+}
+
+def loaderPlatform = project.name.tokenize("-").last()
+if (!(loaderPlatform in ["fabric", "quilt"])) {
+    throw new GradleException("Unsupported loader_platform '${loaderPlatform}'. Expected 'fabric' or 'quilt'.")
+}
+
+if (loaderPlatform == "quilt") {
+    configurations.configureEach {
+        // Quilt Loader supplies Fabric Loader's compatibility API. Keeping a
+        // transitive, signed Fabric Loader jar beside it causes split-package
+        // signer failures before Knot can start.
+        exclude group: "net.fabricmc", module: "fabric-loader"
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    if (loaderPlatform == "quilt") {
+        implementation "org.quiltmc:quilt-loader:${project.quilt_loader_version}"
+        implementation "org.quiltmc:quilt-loader-dependencies:${project.quilt_loader_version}"
+    } else {
+        implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    }
+
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    implementation "com.geckolib:geckolib-fabric-${project.minecraft_version}:${project.geckolib_version}"
+
+    implementation "com.terraformersmc:modmenu:${project.modmenu_version}"
+
+    compileOnly "mezz.jei:jei-${project.minecraft_version}-fabric-api:${project.jei_version}"
+    compileOnly "me.shedaniel:RoughlyEnoughItems-api-fabric:${project.rei_version}"
+    compileOnly "dev.architectury:architectury-fabric:${project.architectury_version}"
+    compileOnly "me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}"
+    compileOnly "maven.modrinth:jade:${project.jade_version}"
+
+    implementation "com.meekdev:amnetic:${project.amnetic_version}"
+    include "com.meekdev:amnetic:${project.amnetic_version}"
+
+    // Amnetic keeps its editor optional for production, but an IDE client should
+    // have the ImGui host available so the Right Shift editor shortcut works.
+    // runtimeOnly deliberately keeps ImGuiMC out of Asterion's distributable jar.
+    runtimeOnly "foundry.imguimc:imguimc-fabric-26.1:${project.imguimc_version}"
+
+    implementation "asterion.bundled:bb4j:0.0.0-c2242d5"
+    include "asterion.bundled:bb4j:0.0.0-c2242d5"
+
+    runtimeOnly "org.lwjgl:lwjgl-assimp:3.4.1:natives-linux-arm64"
+    include "org.lwjgl:lwjgl-assimp:3.4.1:natives-linux-arm64"
+
+}
+
+def resourceProperties = [
+        version          : version,
+        minecraft_version: minecraft_version,
+        loader_version   : loader_version
+]
+
+processResources {
+    from(rootProject.file('src/main/resources/assets/asterion/textures/armor')) {
+        include '*_top.png'
+        into 'assets/asterion/textures/entity/equipment/humanoid'
+        rename { it.replace('_top.png', '.png') }
+    }
+    from(rootProject.file('src/main/resources/assets/asterion/textures/armor')) {
+        include '*_bottom.png'
+        into 'assets/asterion/textures/entity/equipment/humanoid_leggings'
+        rename { it.replace('_bottom.png', '.png') }
+    }
+    inputs.properties resourceProperties
+    filteringCharset = "UTF-8"
+
+    filesMatching("fabric.mod.json") {
+        expand resourceProperties
+    }
+
+    filesMatching("assets/asterion/sounds/music/**/*.ogg") {
+        path = path.toLowerCase(java.util.Locale.ROOT).replaceAll('[^a-z0-9/._-]', '_')
+    }
+    doLast {
+        def sounds = new groovy.json.JsonSlurper().parse(rootProject.file('src/main/resources/assets/asterion/sounds.json'))
+        def tracks = []
+        def seen = new HashSet<String>()
+        rootProject.fileTree('src/main/resources/assets/asterion/sounds/music').matching { include '**/*.ogg' }.files.sort().each { track ->
+            def group = track.parentFile.name
+            if (!(group in ['ancient', 'overgrown', 'crimsonmarshlands', 'arena', 'forge'])) return
+            def stem = track.name.substring(0, track.name.length() - 4)
+            def split = stem.lastIndexOf(' - ')
+            def title = split < 0 ? stem : stem.substring(0, split).trim()
+            def artist = split < 0 ? 'Unknown artist' : stem.substring(split + 3).trim()
+            def resource = "music/${group}/${stem}".toLowerCase(java.util.Locale.ROOT).replaceAll('[^a-z0-9/._-]', '_')
+            if (!seen.add(resource)) throw new GradleException("Duplicate music resource: ${resource}")
+            def event = resource.replace('/', '.')
+            sounds[event] = [sounds: [[name: "asterion:${resource}", stream: true]]]
+            tracks.add([group: group, sound: "asterion:${event}", title: title, artist: artist])
+        }
+        file("${destinationDir}/assets/asterion/sounds.json").text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(sounds))
+        file("${destinationDir}/assets/asterion/music_tracks.json").text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(tracks))
+    }
+}
+
+def targetJavaVersion = 25
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = "UTF-8"
+    options.compilerArgs.addAll(["-Xlint:deprecation", "-Xlint:unchecked"])
+    options.release.set(targetJavaVersion)
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    withSourcesJar()
+}
+
+jar {
+    exclude 'net/krodark/asterion/dev/**'
+    archiveFileName = "${project.archives_base_name}-${project.version}-${loaderPlatform}-mc${project.minecraft_version}.jar"
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    manifest {
+        attributes(
+                'Implementation-Title': 'Asterion',
+                'Implementation-Version': project.version.toString(),
+                'Minecraft-Version': project.minecraft_version.toString(),
+                'Mod-Loader': loaderPlatform == 'quilt' ? 'Quilt' : 'Fabric'
+        )
+    }
+    from(rootProject.file("LICENSE.txt")) {
+        rename { "LICENSE_${project.archives_base_name}.txt" }
+    }
+}
+
+if (loaderPlatform == "quilt") {
+    def prepareQuiltRunMods = tasks.register("prepareQuiltRunMods", Sync) {
+        dependsOn tasks.named("jar")
+        from tasks.named("jar", Jar).flatMap { it.archiveFile }
+        from(configurations.runtimeClasspath) {
+            include "fabric-api-*.jar"
+            include "geckolib-fabric-*.jar"
+            include "modmenu-*.jar"
+        }
+        into layout.buildDirectory.dir("run/quilt/mods")
+    }
+
+    loom.runs.configureEach {
+        runDir "build/run/quilt"
+    }
+    tasks.matching { it.name.startsWith("run") }.configureEach {
+        dependsOn prepareQuiltRunMods
+    }
+}
+
+apply from: rootProject.file('gradle/forge-assets.gradle')
+
+def essentialRuntimePointer = layout.buildDirectory.file("essential-runtime-jar.path")
+tasks.register("stageEssentialRuntimeJar") {
+    dependsOn tasks.named("jar")
+    def sourceJar = tasks.named("jar", Jar).flatMap { it.archiveFile }
+    inputs.file(sourceJar)
+    outputs.file(essentialRuntimePointer)
+    outputs.upToDateWhen {
+        def pointer = essentialRuntimePointer.get().asFile
+        pointer.isFile() && file(pointer.text.trim()).isFile()
+    }
+    doLast {
+        def source = sourceJar.get().asFile
+        def digest = java.security.MessageDigest.getInstance("SHA-256")
+        source.withInputStream { input ->
+            input.transferTo(new java.security.DigestOutputStream(java.io.OutputStream.nullOutputStream(), digest))
+        }
+        def token = java.util.HexFormat.of().formatHex(digest.digest())
+        def target = rootProject.file("run/.asterion-runtime/${token}/${source.name}")
+        target.parentFile.mkdirs()
+        if (!target.isFile()) java.nio.file.Files.copy(source.toPath(), target.toPath())
+        essentialRuntimePointer.get().asFile.text = target.absolutePath
+    }
+}
+
+publishing {
+    publications {
+        create("mavenJava", MavenPublication) {
+            groupId = project.maven_group
+            artifactId = project.archives_base_name
+            from components.java
+        }
+    }
+
+}
+
+loom {
+    fabricModJsonPath = rootProject.file("src/main/resources/fabric.mod.json")
+    mods {
+        asterion { sourceSet sourceSets.main }
+    }
+    runs {
+        client {
+            runDir((loaderPlatform == "fabric" ? rootProject.file("run") : file("build/run/quilt")).absolutePath)
+            mainClass = "net.krodark.asterion.dev.EssentialClientLaunch"
+            vmArg "-Dasterion.essential.modJarPathFile=${essentialRuntimePointer.get().asFile.absolutePath}"
+            if (project.hasProperty('startupProfile')) vmArg "-XX:StartFlightRecording=settings=profile,filename=${layout.buildDirectory.file('startup-profile.jfr').get().asFile.absolutePath},dumponexit=true"
+            ideConfigGenerated = false
+        }
+        essentialClient {
+            client()
+            name = "Minecraft Client with Essential"
+            vmArg "-Dasterion.essential.modJarPathFile=${essentialRuntimePointer.get().asFile.absolutePath}"
+
+            mainClass = "net.krodark.asterion.dev.EssentialClientLaunch"
+            runDir((loaderPlatform == "fabric" ? rootProject.file("run") : file("build/run/quilt")).absolutePath)
+            ideConfigGenerated = false
+        }
+    }
+}
+
+tasks.matching { it.name in ["runClient", "runEssentialClient"] }.configureEach { dependsOn "stageEssentialRuntimeJar" }
+
+def asterionClientLauncher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(25)
+    vendor = JvmVendorSpec.JETBRAINS
+}
+
+tasks.withType(JavaExec).configureEach {
+    if (providers.gradleProperty('asterionUseJetBrainsRuntime').getOrElse('false').toBoolean()) {
+        javaLauncher = asterionClientLauncher
+    }
+    doFirst {
+        if (providers.gradleProperty('asterionSafeJvm').getOrElse('false').toBoolean()
+                && allJvmArgs.any { it == '-Dfabric.dli.env=client' }) {
+            setJvmArgs(jvmArgs.findAll { !it.startsWith('-XX:TieredStopAtLevel=') })
+            def safeTier = providers.gradleProperty('asterionSafeJvmTier').getOrElse('1')
+            if (!(safeTier in ['1', '3'])) throw new GradleException('asterionSafeJvmTier must be 1 or 3')
+            jvmArgs "-XX:TieredStopAtLevel=${safeTier}"
+            // Temurin 25.0.2 can crash in its getCallerClass intrinsic when C1 compiles
+            // MemorySegment.reinterpret. Minecraft hits this path from BufferBuilder while
+            // rendering option-screen text, so keep this one tiny method interpreted.
+            jvmArgs '-XX:CompileCommand=exclude,jdk.internal.foreign.AbstractMemorySegmentImpl::reinterpret'
+            logger.lifecycle("Asterion client stability mode: C1 tier ${safeTier}; crash-prone C2 tier disabled.")
+        }
+    }
+    if (name == 'net.fabricmc.devlaunchinjector.Main.main()') {
+        dependsOn 'stageEssentialRuntimeJar'
+        doFirst {
+            if (allJvmArgs.any { it == '-Dfabric.dli.env=client' }) {
+                setJvmArgs(jvmArgs.findAll { !it.startsWith('-Dfabric.dli.main=') && !it.startsWith('-Dasterion.essential.modJar=') && !it.startsWith('-Dasterion.essential.modJarPathFile=') })
+                systemProperty 'fabric.dli.main', 'net.krodark.asterion.dev.EssentialClientLaunch'
+                systemProperty 'asterion.essential.modJarPathFile', essentialRuntimePointer.get().asFile.absolutePath
+            }
+        }
+    }
+}
+
+tasks.register("modDistribution", Sync) {
+    group = "distribution"
+    description = "Stages the self-contained Asterion jar and installation notes."
+    dependsOn tasks.named("jar")
+    into layout.buildDirectory.dir("distribution")
+    from(tasks.named("jar"))
+    from(rootProject.file("docs/INSTALL-MODS.txt"))
+}
+
+apply from: rootProject.file("gradle/polish-smoke.gradle")
