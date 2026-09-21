@@ -1,0 +1,28 @@
+{
+  "variants": {
+    "facing=north,top=false": {
+      "model": "asterion:block/greek_fire_torch_particles"
+    },
+    "facing=north,top=true": {
+      "model": "asterion:block/greek_fire_torch_particles"
+    },
+    "facing=east,top=false": {
+      "model": "asterion:block/greek_fire_torch_particles"
+    },
+    "facing=east,top=true": {
+      "model": "asterion:block/greek_fire_torch_particles"
+    },
+    "facing=south,top=false": {
+      "model": "asterion:block/greek_fire_torch_particles"
+    },
+    "facing=south,top=true": {
+      "model": "asterion:block/greek_fire_torch_particles"
+    },
+    "facing=west,top=false": {
+      "model": "asterion:block/greek_fire_torch_particles"
+    },
+    "facing=west,top=true": {
+      "model": "asterion:block/greek_fire_torch_particles"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "asterion:block/minotaur_skull_trophy",
+      "y": 0
+    },
+    "facing=east": {
+      "model": "asterion:block/minotaur_skull_trophy",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "asterion:block/minotaur_skull_trophy",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "asterion:block/minotaur_skull_trophy",
+      "y": 270
+    }
+  }
+}

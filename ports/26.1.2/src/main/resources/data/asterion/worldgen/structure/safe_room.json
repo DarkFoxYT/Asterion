@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:jigsaw",
+  "biomes": "minecraft:the_void",
+  "liquid_settings": "ignore_waterlogging",
+  "max_distance_from_center": 16,
+  "size": 1,
+  "spawn_overrides": {},
+  "start_height": {
+    "absolute": 49
+  },
+  "start_pool": "asterion:safe_room",
+  "step": "surface_structures",
+  "terrain_adaptation": "none",
+  "use_expansion_hack": false
+}

@@ -1,0 +1,339 @@
+package net.krodark.asterion.client;
+
+import net.krodark.asterion.client.audio.BiomeMusic;
+import net.krodark.asterion.client.audio.MazeAmbience;
+import net.krodark.asterion.client.cinematic.BossEntranceCinematic;
+import net.krodark.asterion.client.cinematic.BossFinaleOverlay;
+import net.krodark.asterion.client.cinematic.CinematicControls;
+import net.krodark.asterion.client.cinematic.CinematicHud;
+import net.krodark.asterion.client.cinematic.CrucibleCamera;
+import net.krodark.asterion.client.cinematic.CursedBrazierCinematic;
+import net.krodark.asterion.client.cinematic.DeadSunEntryCinematic;
+import net.krodark.asterion.client.cinematic.DimensionTransitionOverlay;
+import net.krodark.asterion.client.cinematic.RoofCollapseCinematic;
+import net.krodark.asterion.client.forge.CrucibleScreen;
+import net.krodark.asterion.client.forge.ForgeItemFlights;
+import net.krodark.asterion.client.hud.DazeOverlay;
+import net.krodark.asterion.client.hud.MazeObjectiveOverlay;
+import net.krodark.asterion.client.hud.QueenBeetleQuestOverlay;
+import net.krodark.asterion.client.hud.RagdollGetUpOverlay;
+
+import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.krodark.asterion.Asterion;
+import net.krodark.asterion.client.event.DeadSunClientEvents;
+import net.krodark.asterion.client.light.HeldItemDynamicLights;
+import net.krodark.asterion.client.light.LedAmneticLight;
+import net.krodark.asterion.client.light.AsterionEmissiveConfig;
+import net.krodark.asterion.client.lightning.MazeZapRenderer;
+import net.krodark.asterion.client.ragdoll.DismembermentEngine;
+import net.krodark.asterion.client.ragdoll.PhysicsDebrisSystem;
+import net.krodark.asterion.client.ragdoll.RagdollClientController;
+import net.krodark.asterion.client.render.entity.MinotaurGeoRenderer;
+import net.krodark.asterion.client.render.entity.BombadierBeetleGeoRenderer;
+import net.krodark.asterion.client.render.entity.ScarletCentipedeGeoRenderer;
+import net.krodark.asterion.client.particle.BombardierStenchParticle;
+import net.krodark.asterion.client.particle.BombardierGasFireParticle;
+import net.krodark.asterion.client.particle.GreekFireParticle;
+import net.krodark.asterion.client.particle.AnimatedEmissiveParticle;
+import net.krodark.asterion.client.particle.AsterionEmissiveParticles;
+import net.krodark.asterion.client.particle.FlyingInsectParticle;
+import net.krodark.asterion.client.particle.AncientWallDustParticle;
+import net.krodark.asterion.client.particle.RumbleSmokeParticle;
+import net.krodark.asterion.client.particle.HostileFireflyParticle;
+import net.krodark.asterion.client.render.block.RuneGeoRenderer;
+import net.krodark.asterion.client.render.block.LabyrinthVineGeoRenderer;
+import net.krodark.asterion.client.render.block.SkeletonGeoRenderer;
+import net.krodark.asterion.client.render.block.ShatteredDeadWoodGeoRenderer;
+import net.krodark.asterion.client.render.portal.AsterionPortalRenderer;
+import net.krodark.asterion.client.render.post.AsterionPostEffects;
+import net.krodark.asterion.network.*;
+import net.krodark.asterion.network.ragdoll.*;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.entity.EntityRenderers;
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderers;
+import net.fabricmc.fabric.api.client.particle.v1.ParticleProviderRegistry;
+
+public final class AsterionClient implements ClientModInitializer {
+    @Override
+    public void onInitializeClient() {
+        net.krodark.asterion.client.render.HeavyWaterRendering.initialize();
+        net.krodark.asterion.update.underworld.client.UnderworldClient.initialize();
+        AsterionEmissiveConfig.load();
+        AsterionEmissiveParticles.initialize();
+        AnimatedEmissiveParticle.initialize();
+        AsterionPostEffects.register();
+        AsterionPortalRenderer.register();
+        DimensionTransitionOverlay.register();
+        BossFinaleOverlay.register();
+        BossEntranceCinematic.register();
+        CursedBrazierCinematic.register();
+        PressureButtonClient.initialize();
+        MazeObjectiveOverlay.register();
+        QueenBeetleQuestOverlay.register();
+        MazeZapRenderer.register();
+        DazeOverlay.register();
+        RagdollGetUpOverlay.register();
+        RagdollClientController.initialize();
+        CentipedeInteractionClient.initialize();
+        EntityRenderers.register(Asterion.MINOTAUR, MinotaurGeoRenderer::new);
+        EntityRenderers.register(net.krodark.asterion.game.AncientContent.SKELETON, net.krodark.asterion.client.render.entity.AncientSkeletonRenderer::new);
+        EntityRenderers.register(net.krodark.asterion.game.ChainLiftContent.CALL_RUNE, net.krodark.asterion.client.render.entity.LiftCallRuneRenderer::new);
+        net.krodark.asterion.client.ReplayCompatibility.addHud(Asterion.id("lift_call_prompt"), (graphics, tracker) -> {
+            var client = net.minecraft.client.Minecraft.getInstance();
+            if (client.player == null || client.screen != null || CinematicHud.isHidden()) return;
+            if (client.hitResult instanceof net.minecraft.world.phys.EntityHitResult hit
+                    && hit.getEntity() instanceof net.krodark.asterion.entity.LiftCallRuneEntity
+                    && client.player.distanceToSqr(hit.getEntity()) <= 36)
+                graphics.text(client.font, net.minecraft.network.chat.Component.translatable("interaction.asterion.call_lift"),
+                        graphics.guiWidth() / 2 + 12, graphics.guiHeight() / 2 - 4, 0xFFB4ECFF, true);
+        });
+        EntityRenderers.register(net.krodark.asterion.game.ChainLiftContent.LIFT, net.krodark.asterion.client.render.entity.ChainLiftRenderer::new);
+        EntityRenderers.register(Asterion.MINOTAUR_AXE, net.krodark.asterion.client.render.entity.MinotaurAxeRenderer::new);
+        EntityRenderers.register(Asterion.BOMBARDIER_BEETLE, BombadierBeetleGeoRenderer::new);
+         
+        EntityRenderers.register(net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER, net.krodark.asterion.client.render.entity.CursedBrazierRenderer::new);
+        EntityRenderers.register(Asterion.RUNE_BEETLE, net.krodark.asterion.client.render.entity.RuneBeetleRenderer::new);
+        EntityRenderers.register(Asterion.SCARLET_CENTIPEDE, ScarletCentipedeGeoRenderer::new);
+        EntityRenderers.register(Asterion.CONSTRUCT,
+                net.krodark.asterion.client.render.entity.ConstructGeoRenderer::new);
+        EntityRenderers.register(Asterion.QUEEN_BEETLE,
+                net.krodark.asterion.client.render.entity.QueenBeetleGeoRenderer::new);
+        ParticleProviderRegistry.getInstance().register(Asterion.GREEK_FIRE, sprites ->
+                (type, level, x, y, z, vx, vy, vz, random) ->
+                        GreekFireParticle.create(level, x, y, z, vx, vy, vz, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.MINOTAUR_BELCH_FIRE, sprites ->
+                (type, level, x, y, z, vx, vy, vz, random) ->
+                        GreekFireParticle.createBelch(level, x, y, z, vx, vy, vz, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.GREEK_FIRE_SOOT, sprites ->
+                (type, level, x, y, z, vx, vy, vz, random) ->
+                        net.krodark.asterion.client.particle.DoorSmokeParticle.soot(level, x, y, z, vx, vy, vz, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.BRAZIER_FIRE, sprites ->
+                (type, level, x, y, z, vx, vy, vz, random) ->
+                        GreekFireParticle.createBrazier(level, x, y, z, vx, vy, vz, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.LAMENTER_TEAR, sprites ->
+                (type, level, x, y, z, vx, vy, vz, random) ->
+                        new net.krodark.asterion.client.particle.LamenterTearParticle(level, x, y, z, vx, vz, sprites));
+        ParticleProviderRegistry.getInstance().register(Asterion.DOOR_SMOKE, sprites ->
+                (type, level, x, y, z, vx, vy, vz, random) ->
+                        new net.krodark.asterion.client.particle.DoorSmokeParticle(level, x, y, z, vx, vy, vz, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.DOOR_DUST, sprites ->
+                (type, level, x, y, z, vx, vy, vz, random) ->
+                        new net.krodark.asterion.client.particle.DoorDustParticle(level, x, y, z, vx, vy, vz, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.MINOTAUR_BELCH_SMOKE, sprites ->
+                (type, level, x, y, z, vx, vy, vz, random) ->
+                        BombardierStenchParticle.createBelch(level, x, y, z, vx, vy, vz, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.BOMBARDIER_STENCH, sprites ->
+                (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
+                        BombardierStenchParticle.create(level, x, y, z,
+                                velocityX, velocityY, velocityZ, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.FLAMETHROWER_GAS_FIRE, sprites ->
+                (type, level, x, y, z, vx, vy, vz, random) ->
+                        BombardierGasFireParticle.createFlamethrower(level, x, y, z, vx, vy, vz, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.FLAMETHROWER_GAS, sprites ->
+                (type, level, x, y, z, vx, vy, vz, random) ->
+                        BombardierStenchParticle.createFlamethrower(level, x, y, z, vx, vy, vz, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.BOMBARDIER_GAS_FIRE, sprites ->
+                (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
+                        BombardierGasFireParticle.create(level, x, y, z,
+                                velocityX, velocityY, velocityZ, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.FLY, sprites ->
+                (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
+                        FlyingInsectParticle.createFly(level, x, y, z,
+                                velocityX, velocityY, velocityZ, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.FIREFLY, sprites ->
+                (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
+                        FlyingInsectParticle.createFirefly(level, x, y, z,
+                                velocityX, velocityY, velocityZ, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.HOSTILE_FIREFLY, sprites ->
+                (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
+                        HostileFireflyParticle.create(level, x, y, z,
+                                velocityX, velocityY, velocityZ, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.ANCIENT_WALL_DUST, sprites ->
+                (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
+                        AncientWallDustParticle.create(level, x, y, z,
+                                velocityX, velocityY, velocityZ, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.RUMBLE_SMOKE, sprites ->
+                (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
+                        RumbleSmokeParticle.create(level, x, y, z,
+                                velocityX, velocityY, velocityZ, sprites, random));
+        BlockEntityRenderers.register(Asterion.RUNE_BLOCK_ENTITY, RuneGeoRenderer::new);
+        BlockEntityRenderers.register(Asterion.PILLAR_BLOCK_ENTITY, net.krodark.asterion.client.render.block.PillarRenderer::new);
+        BlockEntityRenderers.register(Asterion.MINOTAUR_DOOR_BLOCK_ENTITY,
+                net.krodark.asterion.client.render.block.MinotaurDoorRenderer::new);
+        BlockEntityRenderers.register(Asterion.CURSED_BRAZIER_DOOR_BLOCK_ENTITY,
+                net.krodark.asterion.client.render.block.CursedBrazierDoorRenderer::new);
+        BlockEntityRenderers.register(Asterion.BARREL_DOOR_BLOCK_ENTITY,
+                net.krodark.asterion.client.render.block.BarrelDoorRenderer::new);
+        BlockEntityRenderers.register(net.krodark.asterion.block.RespawnObelisks.BLOCK_ENTITY,
+                net.krodark.asterion.client.render.block.SanctuaryRenderer::new);
+        BlockEntityRenderers.register(Asterion.LABYRINTH_VINE_BLOCK_ENTITY, LabyrinthVineGeoRenderer::new);
+        BlockEntityRenderers.register(net.krodark.asterion.game.AncientContent.TROPHY_BLOCK_ENTITY,
+                net.krodark.asterion.client.render.block.MinotaurTrophyRenderer::new);
+        BlockEntityRenderers.register(net.krodark.asterion.game.PedestalContent.BLOCK_ENTITY, net.krodark.asterion.client.render.block.PedestalRenderer::new);
+        BlockEntityRenderers.register(Asterion.CRUCIBLE_BLOCK_ENTITY,
+                net.krodark.asterion.client.render.block.CrucibleGaugeRenderer::new);
+        BlockEntityRenderers.register(Asterion.GREEK_FIRE_TORCH_BLOCK_ENTITY,
+                net.krodark.asterion.client.render.block.GreekFireTorchRenderer::new);
+        BlockEntityRenderers.register(Asterion.SKELETON_BLOCK_ENTITY, SkeletonGeoRenderer::new);
+        BlockEntityRenderers.register(Asterion.SHATTERED_DEAD_WOOD_BLOCK_ENTITY,
+                ShatteredDeadWoodGeoRenderer::new);
+        ClientPlayNetworking.registerGlobalReceiver(DimensionTransitionPayload.TYPE, (payload, context) ->
+                context.client().execute(() ->
+                        { if (!isPlayback(context.client())) DimensionTransitionOverlay.begin(payload.fadeInTicks(), payload.holdTicks(), payload.deathMessage()); }));
+        ClientPlayNetworking.registerGlobalReceiver(EntryOmenPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> {
+                    var level = context.client().level;
+                    if (level == null || !level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
+                    var pos = payload.position();
+                    level.playLocalSound(pos.x, pos.y, pos.z, Asterion.MINOTAUR_ROAR,
+                            net.minecraft.sounds.SoundSource.HOSTILE, 2.0F, 0.72F, false);
+                }));
+        ClientPlayNetworking.registerGlobalReceiver(MinotaurGlobalSoundPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> net.krodark.asterion.client.audio.MinotaurSoundPlayback.play(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(ObjectiveProgressPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> MazeObjectiveOverlay.receiveSharedProgress(payload.stage())));
+        ClientPlayNetworking.registerGlobalReceiver(BossFinalePayload.TYPE, (payload, context) ->
+                context.client().execute(() -> { if (!isPlayback(context.client())) BossFinaleOverlay.begin(); }));
+        ClientPlayNetworking.registerGlobalReceiver(
+                net.krodark.asterion.network.RoofCollapsePayload.TYPE, (payload, context) ->
+                        context.client().execute(() -> { if (!isPlayback(context.client())) RoofCollapseCinematic.begin(payload); }));
+        ClientPlayNetworking.registerGlobalReceiver(BossEntrancePayload.TYPE, (payload, context) ->
+                context.client().execute(() -> { if (!isPlayback(context.client())) BossEntranceCinematic.receive(payload); }));
+        ClientPlayNetworking.registerGlobalReceiver(CursedBrazierAwakeningPayload.TYPE,
+                (payload, context) -> context.client().execute(
+                        () -> { if (!isPlayback(context.client())) CursedBrazierCinematic.receive(payload); }));
+        ClientPlayNetworking.registerGlobalReceiver(GatewayPortalPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> AsterionPortalRenderer.receive(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(MazeZapPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> {
+                    MazeZapRenderer.receive(payload);
+                    DeadSunClientEvents.receiveWardZap(payload);
+                }));
+        ClientPlayNetworking.registerGlobalReceiver(DeadSunEventPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> DeadSunClientEvents.receive(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(MazeShiftPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> DeadSunClientEvents.receiveShift(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(net.krodark.asterion.network.ArenaDebrisPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> PhysicsDebrisSystem.spawnArenaDebris(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(net.krodark.asterion.network.MinotaurImpactPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> DeadSunClientEvents.impact(payload.position(), payload.radius(),
+                        payload.strength(), payload.duration())));
+        ClientPlayNetworking.registerGlobalReceiver(DoorBreakPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> PhysicsDebrisSystem.spawnDoors(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(DeadSunStrikePayload.TYPE, (payload, context) ->
+                context.client().execute(() -> {
+                    DeadSunClientEvents.receiveStrike(payload);
+                    MazeZapRenderer.receiveGroundStrike(payload);
+                }));
+        ClientPlayNetworking.registerGlobalReceiver(BossTelegraphPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> MazeZapRenderer.receiveTelegraph(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(BossEncounterResetPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> {
+                    MazeZapRenderer.clearTransientCombatEffects();
+                    MazeObjectiveOverlay.armAfterBossWipe();
+                    BossEntranceCinematic.finish(context.client());
+                    CursedBrazierCinematic.finish(context.client());
+                    RoofCollapseCinematic.finish(context.client());
+                    PhysicsDebrisSystem.clear();
+                }));
+        ClientPlayNetworking.registerGlobalReceiver(DazePayload.TYPE, (payload, context) ->
+                context.client().execute(() -> DazeOverlay.begin(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(BiomeAtmospherePayload.TYPE, (payload, context) ->
+                context.client().execute(() -> {
+                    AsterionPostEffects.setBiome(payload.biome());
+                    BiomeMusic.setBiome(payload.biome());
+                }));
+        ClientPlayNetworking.registerGlobalReceiver(QueenBeetleQuestPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> QueenBeetleQuestOverlay.receive(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(
+                net.krodark.asterion.network.CrucibleScreenPayload.TYPE, (payload, context) ->
+                        context.client().execute(() -> {
+                            if (context.client().screen instanceof CrucibleScreen screen
+                                    && screen.matches(payload.pos())) screen.update(payload);
+                            else if (!isPlayback(context.client())) context.client().setScreen(new CrucibleScreen(payload));
+                        }));
+        ClientPlayNetworking.registerGlobalReceiver(net.krodark.asterion.network.ForgeInsertPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> ForgeItemFlights.receive(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(RagdollImpulsePayload.TYPE, (payload, context) ->
+                context.client().execute(() -> {
+                    var client = context.client();
+                    if (client.player != null && !client.player.isSpectator() && !isPlayback(client))
+                        DismembermentEngine.INSTANCE.forcePlayerTumble(client, payload.source(), payload.impulse(), payload.force());
+                }));
+        ClientPlayNetworking.registerGlobalReceiver(RagdollExplosionPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> {
+                    DismembermentEngine.INSTANCE.applyExplosion(context.client(), payload.center(), payload.radius());
+                    PhysicsDebrisSystem.throwDoors(payload.center(), payload.radius());
+                }));
+        ClientPlayNetworking.registerGlobalReceiver(RagdollAuthorityPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> DismembermentEngine.INSTANCE.reconcilePlayerAuthority(
+                        context.client(), payload.position(), payload.velocity(), payload.serverTick())));
+        ClientPlayNetworking.registerGlobalReceiver(RagdollPosePayload.TYPE, (payload, context) ->
+                context.client().execute(() -> DismembermentEngine.INSTANCE.applyRemotePose(context.client(), payload)));
+        ClientPlayNetworking.registerGlobalReceiver(RagdollStatePayload.TYPE, (payload, context) ->
+                context.client().execute(() -> DismembermentEngine.INSTANCE.applyRemoteState(context.client(), payload)));
+        net.krodark.asterion.client.render.TextureFrameCaches.initialize();
+        ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(ForgeItemFlights::tick);
+        BiomeMusic.initialize();
+        MazeAmbience.initialize();
+    }
+
+    private static final class PlaybackProbes {
+        private static final java.util.List<java.lang.reflect.Method> METHODS = find();
+
+        private static java.util.List<java.lang.reflect.Method> find() {
+            var probes = new java.util.ArrayList<java.lang.reflect.Method>();
+            for (String name : new String[]{"com.moulberry.flashback.Flashback", "com.moulberry.flashback.FlashbackClient", "com.moulberry.flashback.ReplayManager"}) {
+                try {
+                    Class<?> type = Class.forName(name, false, AsterionClient.class.getClassLoader());
+                    for (String method : new String[]{"isInReplay", "isExporting", "isReplaying", "isPlayback"}) {
+                        try {
+                            var probe = type.getDeclaredMethod(method);
+                            if (java.lang.reflect.Modifier.isStatic(probe.getModifiers())
+                                    && java.lang.reflect.Modifier.isPublic(probe.getModifiers())
+                                    && probe.getReturnType() == boolean.class) probes.add(probe);
+                        } catch (NoSuchMethodException ignored) { }
+                    }
+                } catch (ClassNotFoundException ignored) { }
+            }
+            return java.util.List.copyOf(probes);
+        }
+    }
+
+    public static boolean isPlayback(Minecraft client) {
+        if (client.player != null && client.gameRenderer.getMainCamera().entity() != null
+                && client.gameRenderer.getMainCamera().entity() != client.player) return true;
+        for (var probe : PlaybackProbes.METHODS) {
+            try {
+                if ((boolean)probe.invoke(null)) return true;
+            } catch (ReflectiveOperationException ignored) { }
+        }
+        return false;
+    }
+
+    private void tick(Minecraft client) {
+        if (isPlayback(client)) ReplayCompatibility.cancelCinematics(client);
+        CrucibleCamera.tick(client);
+        DimensionTransitionOverlay.tick(client);
+        DeadSunEntryCinematic.tick(client);
+        BossFinaleOverlay.tick(client);
+        BossEntranceCinematic.tick(client);
+        RoofCollapseCinematic.tick(client);
+        CursedBrazierCinematic.tick(client);
+        PressureButtonClient.tick(client);
+        CinematicControls.tick(client);
+        MazeObjectiveOverlay.tick(client);
+        QueenBeetleQuestOverlay.tick(client);
+        DeadSunClientEvents.tick(client);
+        PhysicsDebrisSystem.tick(client);
+        net.krodark.asterion.client.audio.AxeFlightAudio.tick(client);
+        DazeOverlay.tick(client);
+        HeldItemDynamicLights.tick(client);
+        net.krodark.asterion.client.light.BrazierAmneticLights.tick(client);
+        LedAmneticLight.tickCleanup(client);
+        AsterionPostEffects.tickBiomeAtmosphere(client);
+    }
+}

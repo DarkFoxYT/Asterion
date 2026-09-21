@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "#",
+    "#"
+  ],
+  "key": {
+    "#": "asterion:dead_wood_planks"
+  },
+  "result": {
+    "id": "asterion:deadwood_stick",
+    "count": 4
+  }
+}

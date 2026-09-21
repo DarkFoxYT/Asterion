@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:item/handheld",
+  "textures": {
+    "layer0": "asterion:forging/deadwood_stick/deadwood_stick",
+    "layer1": "asterion:forging/celestial_bronze/celestial_bronze_blade",
+    "layer2": "asterion:forging/celestial_bronze/celestial_bronze_guard",
+    "layer3": "asterion:forging/celestial_bronze/celestial_bronze_pommel"
+  }
+}

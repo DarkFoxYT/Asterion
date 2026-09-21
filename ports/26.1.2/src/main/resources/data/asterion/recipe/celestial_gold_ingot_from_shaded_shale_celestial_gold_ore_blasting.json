@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:blasting",
+  "category": "misc",
+  "ingredient": "asterion:shaded_shale_celestial_gold_ore",
+  "result": {
+    "id": "asterion:celestial_gold_ingot"
+  },
+  "experience": 1.5,
+  "cookingtime": 120
+}

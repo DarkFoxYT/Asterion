@@ -1,0 +1,7 @@
+{
+  "textures": {"particle": "asterion:block/ancient_stone", "stone": "asterion:block/ancient_stone"},
+  "elements": [
+    {"from":[6,0,6],"to":[10,16,10],"faces":{"north":{"texture":"#stone"},"south":{"texture":"#stone"},"east":{"texture":"#stone"},"west":{"texture":"#stone"},"up":{"texture":"#stone"},"down":{"texture":"#stone"}}},
+    {"from":[0,7,6],"to":[16,9,10],"faces":{"north":{"texture":"#stone"},"south":{"texture":"#stone"},"east":{"texture":"#stone"},"west":{"texture":"#stone"},"up":{"texture":"#stone"},"down":{"texture":"#stone"}}}
+  ]
+}

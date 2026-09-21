@@ -1,0 +1,17 @@
+{
+  "parent": "asterion:defeat_brazier",
+  "criteria": {
+    "omega_key": {
+      "conditions": { "items": [{ "items": "asterion:omega_key" }] },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "description": { "translate": "advancement.asterion.defeat_minotaur.description" },
+    "frame": "challenge",
+    "icon": { "id": "asterion:omega_key" },
+    "title": { "translate": "advancement.asterion.defeat_minotaur.title" }
+  },
+  "requirements": [["omega_key"]],
+  "sends_telemetry_event": false
+}

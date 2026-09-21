@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "building",
+  "ingredients": [
+    "asterion:ancient_bricks",
+    "asterion:ancient_moss"
+  ],
+  "result": {
+    "count": 1,
+    "id": "asterion:ancient_mossy_bricks"
+  }
+}

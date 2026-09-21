@@ -1,0 +1,101 @@
+#version 330 core
+
+uniform sampler2D PortalSampler;
+uniform sampler2D OverworldSampler;
+
+in vec2 vUv;
+flat in vec4 vPortal;
+flat in vec4 vEffect;
+out vec4 FragColor;
+
+void main() {
+    vec2 view = vEffect.xy;
+    float viewAmount = clamp(length(view), 0.0, 1.6);
+     
+    vec2 centered = vUv - 0.5;
+    float squareDistance = max(abs(centered.x), abs(centered.y)) * 2.0;
+    float haloLayer = step(0.5, vEffect.w);
+    float exitPortal = step(0.5, vPortal.z);
+    if (haloLayer > 0.5) {
+         
+        if (exitPortal > 0.5) {
+            FragColor = vec4(0.0);
+            return;
+        }
+         
+         
+        float ring = smoothstep(0.62, 0.76, squareDistance)
+                * (1.0 - smoothstep(0.84, 0.98, squareDistance));
+        float gridPhase = (centered.x + centered.y) * 18.0 - vEffect.z * 0.38;
+        float cadence = 0.72 + 0.28 * sin(gridPhase);
+        float breath = 0.87 + 0.13 * sin(vEffect.z * 0.67);
+        vec3 dustTint = mix(vec3(0.2607004, 0.07607989, 0.07607989), vec3(0.08, 0.42, 1.0), exitPortal);
+        vec3 fogTint = mix(vec3(0.15294118, 0.1364837, 0.049780853), vec3(0.025, 0.16, 0.46), exitPortal);
+        vec3 haloColor = mix(fogTint, dustTint, 0.58 + cadence * 0.22) * (1.18 + cadence);
+        FragColor = vec4(haloColor, ring * cadence * breath * vPortal.w * 0.58);
+        return;
+    }
+    if (exitPortal > 0.5) {
+         
+         
+        vec2 uv = vec2(0.5 + centered.x * 0.60, vUv.y);
+        vec2 stepUv = view * 0.036 / 10.0;
+        float depth = 0.0;
+        for (int i = 0; i < 10; ++i) {
+            vec3 probe = texture(OverworldSampler, clamp(uv, 0.002, 0.998)).rgb;
+            float height = dot(probe, vec3(0.2126, 0.7152, 0.0722));
+            depth += 0.1;
+            if (depth >= 1.0 - height) break;
+            uv -= stepUv;
+        }
+        vec3 color = texture(OverworldSampler, clamp(uv, 0.002, 0.998)).rgb;
+        float rectangularEdge = 1.0 - smoothstep(0.92, 1.0, squareDistance);
+        FragColor = vec4(color, rectangularEdge * vPortal.w);
+        return;
+    }
+    float perspective = 1.0 + dot(centered, normalize(view + vec2(0.0001))) * viewAmount * 0.12;
+    vec2 uv = centered / perspective + 0.5;
+     
+    float abyss = 1.0 - smoothstep(0.12, 0.43, squareDistance);
+    uv += vec2(sin(centered.y * 28.0 - vEffect.z * 0.48),
+            cos(centered.x * 28.0 + vEffect.z * 0.42)) * 0.0045 * abyss;
+    const float layers = 8.0;
+    vec2 stepUv = view * 0.105 / layers;
+    float depth = 0.0;
+    float sampledHeight = 0.0;
+    for (int i = 0; i < 8; ++i) {
+        vec4 probe = texture(PortalSampler, clamp(uv, 0.001, 0.999));
+         
+        float height = dot(probe.rgb, vec3(0.2126, 0.7152, 0.0722));
+        sampledHeight = height;
+        depth += 1.0 / layers;
+        if (depth >= 1.0 - height) break;
+        uv -= stepUv;
+    }
+    vec4 image = texture(PortalSampler, clamp(uv, 0.001, 0.999));
+
+     
+    vec2 texel = 1.0 / vec2(textureSize(PortalSampler, 0));
+    float hL = dot(texture(PortalSampler, clamp(uv-vec2(texel.x,0.0),0.001,0.999)).rgb,
+                   vec3(0.2126,0.7152,0.0722));
+    float hR = dot(texture(PortalSampler, clamp(uv+vec2(texel.x,0.0),0.001,0.999)).rgb,
+                   vec3(0.2126,0.7152,0.0722));
+    float hD = dot(texture(PortalSampler, clamp(uv-vec2(0.0,texel.y),0.001,0.999)).rgb,
+                   vec3(0.2126,0.7152,0.0722));
+    float hU = dot(texture(PortalSampler, clamp(uv+vec2(0.0,texel.y),0.001,0.999)).rgb,
+                   vec3(0.2126,0.7152,0.0722));
+    vec3 normal = normalize(vec3((hL-hR)*7.0, (hD-hU)*7.0, 1.0));
+    float reliefLight = 0.72 + max(dot(normal, normalize(vec3(-0.45,0.55,0.8))), 0.0) * 0.38;
+    float cavity = mix(0.68, 1.08, sampledHeight);
+    vec3 color = image.rgb * reliefLight * cavity;
+    float aperture = 1.0 - smoothstep(0.91, 1.0, squareDistance);
+    float innerVignette = mix(0.72 + 0.28 * (1.0 - squareDistance), 1.0, sampledHeight);
+    float pitRim = smoothstep(0.18, 0.28, squareDistance)
+            * (1.0 - smoothstep(0.34, 0.47, squareDistance));
+    vec3 dustTint = mix(vec3(0.2607004, 0.07607989, 0.07607989), vec3(0.08, 0.42, 1.0), exitPortal);
+    vec3 fogTint = mix(vec3(0.15294118, 0.1364837, 0.049780853), vec3(0.025, 0.16, 0.46), exitPortal);
+    vec3 riftColor = mix(color * innerVignette,
+            mix(fogTint, dustTint, 0.68) + color * 0.32, pitRim * 0.54);
+    float coreAlpha = image.a * aperture;
+    FragColor = vec4(riftColor, coreAlpha * vPortal.w);
+}

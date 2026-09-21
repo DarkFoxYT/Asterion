@@ -1,0 +1,40 @@
+{
+	"format_version": "1.12.0",
+	"minecraft:geometry": [
+		{
+			"description": {
+				"identifier": "geometry.unknown",
+				"texture_width": 256,
+				"texture_height": 256,
+				"visible_bounds_width": 4,
+				"visible_bounds_height": 6.5,
+				"visible_bounds_offset": [0, 2.75, 0]
+			},
+			"bones": [
+				{
+					"name": "full",
+					"pivot": [-48, 0, 0]
+				},
+				{
+					"name": "rightdoor",
+					"parent": "full",
+					"pivot": [-16, 3, 0],
+					"cubes": [
+						{
+							"origin": [-24, 0, -5],
+							"size": [48, 80, 10],
+							"uv": {
+								"north": {"uv": [0, 0], "uv_size": [48, 80]},
+								"east": {"uv": [0, 81], "uv_size": [10, 80]},
+								"south": {"uv": [49, 0], "uv_size": [48, 80]},
+								"west": {"uv": [11, 81], "uv_size": [10, 80]},
+								"up": {"uv": [22, 81], "uv_size": [48, 10]},
+								"down": {"uv": [71, 91], "uv_size": [48, -10]}
+							}
+						}
+					]
+				}
+			]
+		}
+	]
+}

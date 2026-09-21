@@ -1,0 +1,23 @@
+AMALGAM PROPRIETARY LICENSE
+
+Copyright © 2026 DarkFox and Kronoz. All rights reserved.
+
+This software and its associated source code, assets, documentation, and
+compiled files (collectively, the "Software") are proprietary.
+
+No license or permission is granted to use, copy, modify, merge, publish,
+distribute, sublicense, sell, reverse engineer, or create derivative works from
+the Software without prior written permission from the copyright holders.
+Access to the Software or its source repository does not grant any ownership,
+license, or other rights except where the copyright holders expressly agree in
+writing.
+
+Third-party components included with the Software remain subject to their own
+copyright notices and license terms. Those notices and terms are provided with
+the relevant components and are not replaced by this license.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR
+A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. TO THE MAXIMUM EXTENT PERMITTED BY
+LAW, THE COPYRIGHT HOLDERS SHALL NOT BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY ARISING FROM OR RELATED TO THE SOFTWARE OR ITS USE.

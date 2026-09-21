@@ -1,0 +1,22 @@
+{
+  "parent": "asterion:find_brazier_key",
+  "criteria": {
+    "brazier": {
+      "conditions": {
+        "entity": [{
+          "condition": "minecraft:entity_properties",
+          "entity": "this",
+          "predicate": { "type": "asterion:cursed_brazier" }
+        }]
+      },
+      "trigger": "minecraft:player_killed_entity"
+    }
+  },
+  "display": {
+    "description": { "translate": "advancement.asterion.defeat_brazier.description" },
+    "icon": { "id": "asterion:minotaur_key" },
+    "title": { "translate": "advancement.asterion.defeat_brazier.title" }
+  },
+  "requirements": [["brazier"]],
+  "sends_telemetry_event": false
+}

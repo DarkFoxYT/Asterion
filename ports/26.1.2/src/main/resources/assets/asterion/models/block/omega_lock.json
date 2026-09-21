@@ -1,0 +1,47 @@
+{
+	"format_version": "1.21.11",
+	"credit": "Made with Blockbench",
+	"texture_size": [64, 64],
+	"textures": {
+		"0": "asterion:block/omega_lock",
+		"particle": "asterion:block/omega_lock"
+	},
+	"elements": [
+		{
+			"from": [0, 0, 5],
+			"to": [16, 16, 11],
+			"rotation": {"angle": 0, "axis": "y", "origin": [7, 0, 7]},
+			"faces": {
+				"north": {"uv": [0, 0, 4, 4], "texture": "#0"},
+				"east": {"uv": [0, 8.5, 1.5, 12.5], "texture": "#0"},
+				"south": {"uv": [0, 4.25, 4, 8.25], "texture": "#0"},
+				"west": {"uv": [8.5, 0, 10, 4], "texture": "#0"},
+				"up": {"uv": [5.75, 10, 1.75, 8.5], "texture": "#0"},
+				"down": {"uv": [12.5, 4.25, 8.5, 5.75], "texture": "#0"}
+			}
+		},
+		{
+			"name": "inner",
+			"from": [0.5, 0.5, 5.5],
+			"to": [15.5, 15.5, 10.5],
+			"rotation": {"angle": 0, "axis": "y", "origin": [7, 0, 7]},
+			"faces": {
+				"north": {"uv": [4.25, 0, 8.25, 4], "texture": "#0"},
+				"east": {"uv": [6, 8.5, 7.5, 12.5], "texture": "#0"},
+				"south": {"uv": [4.25, 4.25, 8.25, 8.25], "texture": "#0"},
+				"west": {"uv": [8.5, 6, 10, 10], "texture": "#0"},
+				"up": {"uv": [14.25, 1.5, 10.25, 0], "texture": "#0"},
+				"down": {"uv": [5.75, 10.25, 1.75, 11.75], "texture": "#0"}
+			}
+		}
+	],
+	"groups": [
+		{
+			"name": "full",
+			"origin": [8, 8, 8],
+			"scope": 0,
+			"color": 0,
+			"children": [0, 1]
+		}
+	]
+}

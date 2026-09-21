@@ -1,0 +1,32 @@
+{
+  "elements": [
+    {
+      "element": {
+        "location": "asterion:catacombs/ossuary_01",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element",
+        "processors": "minecraft:empty"
+      },
+      "weight": 4
+    },
+    {
+      "element": {
+        "location": "asterion:catacombs/parkour",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element",
+        "processors": "minecraft:empty"
+      },
+      "weight": 2
+    },
+    {
+      "element": {
+        "location": "asterion:catacombs/puzzleroom",
+        "projection": "rigid",
+        "element_type": "minecraft:single_pool_element",
+        "processors": "minecraft:empty"
+      },
+      "weight": 1
+    }
+  ],
+  "fallback": "minecraft:empty"
+}
