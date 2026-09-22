@@ -7,7 +7,8 @@ public final class CinematicControls {
     private CinematicControls() { }
     public static boolean locked() {
         if (net.krodark.asterion.client.AsterionClient.isPlayback(Minecraft.getInstance())) return false;
-        return BossEntranceCinematic.isActive()
+        return net.krodark.asterion.client.cinematic.studio.CutsceneStudio.active()
+                || BossEntranceCinematic.isActive()
                 || CursedBrazierCinematic.isActive()
                 || DeadSunEntryCinematic.isActive()
                 || RoofCollapseCinematic.isActive()

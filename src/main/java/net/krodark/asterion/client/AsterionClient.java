@@ -277,6 +277,7 @@ public final class AsterionClient implements ClientModInitializer {
         net.krodark.asterion.client.render.TextureFrameCaches.initialize();
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
         ClientTickEvents.END_CLIENT_TICK.register(ForgeItemFlights::tick);
+        net.krodark.asterion.client.cinematic.studio.CutsceneStudio.initialize();
         BiomeMusic.initialize();
         MazeAmbience.initialize();
     }

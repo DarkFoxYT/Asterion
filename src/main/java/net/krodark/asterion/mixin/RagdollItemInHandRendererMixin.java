@@ -16,6 +16,7 @@ abstract class RagdollItemInHandRendererMixin {
     private void asterion$hideHands(float partial, PoseStack poses, SubmitNodeCollector output,
                                      LocalPlayer player, int light, CallbackInfo ci) {
         if (net.krodark.asterion.client.cinematic.CrucibleCamera.active()
+                || net.krodark.asterion.client.cinematic.studio.CutsceneStudio.active()
                 || DismembermentEngine.INSTANCE.isPlayerTumbling(player.getId())) ci.cancel();
     }
 }
