@@ -7,7 +7,6 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.update.underworld.world.UnderworldTerrain;
-import net.krodark.asterion.update.underworld.entity.CharonsFerryEntity;
 import net.minecraft.client.Minecraft;
 import com.meekdev.amnetic.client.post.UniformValue;
 import net.minecraft.world.phys.Vec3;
@@ -21,8 +20,6 @@ public final class UnderworldPostEffects {
     private static final Matrix4f inverseViewProjection = new Matrix4f();
     private static Vec3 cameraPosition = Vec3.ZERO;
     private static Vec3 cameraForward = new Vec3(0, 0, 1);
-    private static CharonsFerryEntity cachedFerry;
-    private static long ferryTick = Long.MIN_VALUE;
 
     private UnderworldPostEffects() { }
 
@@ -30,20 +27,17 @@ public final class UnderworldPostEffects {
         // Retain all three volumetric layers even on low quality; scale pixels and samples instead.
         PostEffects.register(Asterion.id("underworld/river_atmosphere"), config -> net.krodark.asterion.client.render.post.AmneticPostBuffers.attach(withIntensity(config), "underworld_mist",
                         () -> switch (net.krodark.asterion.client.PerformanceGovernor.quality()) {
-                            case 0 -> .30; case 1 -> .45; default -> .60;
+                            case 0 -> .38; case 1 -> .50; default -> .64;
                         })
                 .when(UnderworldPostEffects::active)
                 .uniformVec4("MistQuality", () -> switch (net.krodark.asterion.client.PerformanceGovernor.quality()) {
-                    case 0 -> new Vector4f(3, 4, 8, 0);
-                    case 1 -> new Vector4f(5, 6, 12, 0);
+                    case 0 -> new Vector4f(4, 5, 10, 0);
+                    case 1 -> new Vector4f(5, 6, 14, 0);
                     default -> new Vector4f(7, 8, 16, 0);
                 })
                 .phase(RenderPhase.POST_WORLD).priority(18).fade(0, 0)
                 .texture("Noise", Asterion.id("textures/effect/underworld_fog_atlas.png"))
-                .uniform("UnderworldTime", UnderworldPostEffects::time)
                 .uniformRaw("WorldData", UnderworldPostEffects::worldData)
-                .uniformVec4("PresenceData", UnderworldPostEffects::presenceData)
-                .uniformVec4("PresenceMotion", UnderworldPostEffects::presenceMotion)
                 .uniformVec4("RiverData", () -> new Vector4f(
                         UnderworldTerrain.WATER_Y + .38F, 2.65F,
                         active() ? AsterionConfig.INSTANCE.limboFogStrength : 0F,
@@ -62,12 +56,6 @@ public final class UnderworldPostEffects {
         return limbo && !ShaderPackCompatibility.active() && AmneticCamera.isReady();
     }
 
-    private static double time() {
-        Minecraft client = Minecraft.getInstance();
-        return client.level == null ? 0 : client.level.getGameTime()
-                + client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-    }
-
     private static List<UniformValue> worldData() {
         if (AmneticCamera.isReady()) {
             inverseViewProjection.set(AmneticCamera.inverseViewProjection());
@@ -79,35 +67,6 @@ public final class UnderworldPostEffects {
                 new UniformValue.Vec4Uniform(new Vector4f((float)cameraPosition.x, (float)cameraPosition.y,
                         (float)cameraPosition.z, RenderSystem.getDevice().isZZeroToOne() ? 1F : 0F)),
                 new UniformValue.Vec4Uniform(new Vector4f((float)cameraForward.x, (float)cameraForward.y,
-                        (float)cameraForward.z, (float)UnderworldTerrain.waveHeight(
-                                cameraPosition.x, cameraPosition.z, time()))));
-    }
-
-    private static Vector4f presenceData() {
-        CharonsFerryEntity ferry = ferry();
-        return ferry == null ? new Vector4f(0F) : new Vector4f(
-                (float)ferry.getX(), (float)ferry.getY(), (float)ferry.getZ(), 1F);
-    }
-
-    private static Vector4f presenceMotion() {
-        Minecraft client = Minecraft.getInstance();
-        Vec3 playerMotion = client.player == null ? Vec3.ZERO : client.player.getDeltaMovement();
-        CharonsFerryEntity ferry = ferry();
-        Vec3 ferryMotion = ferry == null ? Vec3.ZERO : ferry.getDeltaMovement();
-        return new Vector4f((float)playerMotion.x, (float)playerMotion.z,
-                (float)ferryMotion.x, (float)ferryMotion.z);
-    }
-
-    private static CharonsFerryEntity ferry() {
-        Minecraft client = Minecraft.getInstance();
-        if (client.level == null) return null;
-        long tick = client.level.getGameTime();
-        if (cachedFerry != null && cachedFerry.level() == client.level && !cachedFerry.isRemoved()) return cachedFerry;
-        if (ferryTick == tick) return null;
-        ferryTick = tick;
-        cachedFerry = null;
-        for (var entity : client.level.entitiesForRendering())
-            if (entity instanceof CharonsFerryEntity ferry) { cachedFerry = ferry; break; }
-        return cachedFerry;
+                        (float)cameraForward.z, 0F)));
     }
 }

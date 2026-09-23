@@ -13,12 +13,44 @@ public final class UnderworldTerrain {
     public static final int MIN_Y = -64;
     public static final int MAX_Y = 159;
     public static final int WATER_Y = 47;
-    public static final int START_Z = -176;
+    public static final int START_Z = -840;
     public static final int END_Z = 1024;
-    public static final int SPAWN_Z = -112;
+    public static final int SPAWN_Z = -780;
     public static final int SPAWN_X = (int)Math.floor(riverCenter(SPAWN_Z) - 15);
     public static final int SPAWN_Y = WATER_Y + 3;
     public static final int FERRY_Z = 58;
+    private static final int BRANCH_SPACING = 80;
+
+    /** Branches use a fixed topology salt so teleport and web placement match chunk generation. */
+    private static Branch branch(int z) {
+        int slot = Math.floorDiv(z - SPAWN_Z, BRANCH_SPACING);
+        int centerZ = SPAWN_Z + slot * BRANCH_SPACING + BRANCH_SPACING / 2;
+        long shape = hash(0x51DECA7EL, slot, 0);
+        int side = (shape & 1L) == 0 ? -1 : 1;
+        int reach = 28 + (int)((shape >>> 4) & 15);
+        return new Branch(slot, centerZ, side, reach);
+    }
+    private record Branch(int slot, int centerZ, int side, int reach) { }
+    public static BlockPos chamberCenter(int slot) {
+        Branch b = branch(SPAWN_Z + slot * BRANCH_SPACING + BRANCH_SPACING / 2);
+        int z = b.centerZ + 21;
+        int x = (int)Math.round(riverCenter(z) - 15 + b.side * b.reach);
+        return new BlockPos(x, pathFloor(z) + 1, z);
+    }
+    public static BlockPos randomSpawn(java.util.UUID player) {
+        int slot = Math.floorMod(player.hashCode(), 4);
+        return chamberCenter(slot);
+    }
+    public static boolean inChamber(BlockPos pos) {
+        Branch b = branch(pos.getZ());
+        BlockPos center = chamberCenter(b.slot);
+        double dx = (pos.getX() - center.getX()) / 9.0, dz = (pos.getZ() - center.getZ()) / 10.0;
+        return dx * dx + dz * dz < 1.0;
+    }
+    public static double chamberWebX(int z) {
+        Branch b = branch(z);
+        return Math.abs(z - (b.centerZ + 21)) <= 9 ? chamberCenter(b.slot).getX() : Double.NaN;
+    }
 
     private UnderworldTerrain() { }
 
@@ -60,6 +92,8 @@ public final class UnderworldTerrain {
                 boolean post = dock && (z == FERRY_Z - 6 || z == FERRY_Z + 4)
                         && (x == dockRight() - 6 || x == dockRight());
                 boolean joined = joinedPillar(seed, x, z, c);
+                boolean sideHall = sideHall(x, z);
+                boolean chamber = inChamber(new BlockPos(x, c.floor + 1, z));
                 long texture = hash(seed, x, z);
                 net.minecraft.core.Direction shoulder = d.rock > 1 && d.spike == 0 && !joined && (texture & 3) == 1
                         ? spireFacing(seed ^ 0xB16, x, z) : net.minecraft.core.Direction.NORTH;
@@ -84,6 +118,16 @@ public final class UnderworldTerrain {
                         }
                         // Paving owns the entire clear route, with stair transitions between terraces.
                         if (c.path && y == c.floor) state = pathSurface;
+                        if (sideHall && !c.path && y == c.floor) state = (texture & 3) == 0
+                                ? Asterion.DEAD_STONE_2.defaultBlockState() : pathSurface;
+                        if (sideHall && !chamber && !c.path && y == c.floor + 1 && (texture & 31) == 3)
+                            state = Asterion.DEAD_STONE_SLAB.defaultBlockState();
+                        if (sideHall && !chamber && !c.path && y == c.floor + 1 && (texture & 63) == 7)
+                            state = Asterion.DEAD_STONE_WALL.defaultBlockState();
+                        if (sideHall && !chamber && !c.path && y == c.floor + 1
+                                && pathFloor(z + 1) > c.floor)
+                            state = Asterion.DEAD_STONE_STAIRS.defaultBlockState()
+                                    .setValue(BlockStateProperties.HORIZONTAL_FACING, net.minecraft.core.Direction.SOUTH);
                         if (paving && !dock && y == c.floor + 1) {
                             if (nextFloor > c.floor || previousFloor > c.floor)
                                 state = Asterion.DEAD_STONE_STAIRS.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING,
@@ -170,9 +214,21 @@ public final class UnderworldTerrain {
         double routeX = z >= 12 ? landingX(z) : center - 15;
         boolean path = tunnel && Math.abs(x - routeX) <= 4 && z < FERRY_Z - 6
                 && (z < 18 || x + 1 <= center - 1.25);
+        SideShape side = sideShape(x, z);
         double floor = pathFloor(z) + Math.floor(smooth((Math.abs(offset + 15) - 4) / 10) * 3);
         double arch = Math.sqrt(Math.max(0, 1 - Math.pow(lateral / Math.max(1, width), 2)));
         double roof = floor + 5 + arch * (15 + 8 * (1 - tunnelConstriction(seed, z))) * cap;
+        if (side.open && z < -36) {
+            open = true;
+            floor = Math.min(floor, side.floor);
+            roof = Math.max(roof, side.roof);
+        }
+        int ravine = ravineDepth(x, z);
+        if (ravine > 0 && !side.open && !path) {
+            open = true;
+            floor -= ravine;
+            roof += 3;
+        }
         if (z >= 18) {
             double channel = 8.5 + 1.5 * octaves(seed ^ 0x71AE, z * .018, 0);
             double dryFloor = floor;
@@ -205,9 +261,39 @@ public final class UnderworldTerrain {
         }
         double seabed = floor;
         if (path) { floor = pathFloor(z); roof = Math.max(roof, floor + 10); }
-        if (tunnel && !path && puddleShape(seed, x, z) <= 1.03) floor = puddleWaterY(seed, z) - 1;
+        if (tunnel && !path && !side.open && puddleShape(seed, x, z) <= 1.03) floor = puddleWaterY(seed, z) - 1;
         if (dockColumn(x, z)) { open = true; path = true; floor = seabed; roof = Math.max(roof, WATER_Y + 12); }
         return new Column(open, (int)Math.floor(floor), (int)Math.ceil(Math.min(MAX_Y - 1, roof)), path);
+    }
+
+    private record SideShape(boolean open, int floor, int roof) { }
+    private static int ravineDepth(int x, int z) {
+        if (z < SPAWN_Z + 32 || z > -70) return 0;
+        int slot = Math.floorDiv(z - SPAWN_Z, 160);
+        long shape = hash(0x4A7E11EL, slot, 0);
+        int centerZ = SPAWN_Z + slot * 160 + 92 + (int)((shape >>> 7) & 15);
+        int side = (shape & 1L) == 0 ? -1 : 1;
+        double route = riverCenter(z) - 15;
+        double band = Math.abs(x - route - side * 11);
+        if (Math.abs(z - centerZ) > 30 || band > 3.4) return 0;
+        double taper = (1D - Math.abs(z - centerZ) / 31D) * (1D - band / 4D);
+        return Math.max(0, (int)Math.round(taper * (11 + (shape >>> 12 & 7))));
+    }
+    private static boolean sideHall(int x, int z) { return sideShape(x, z).open; }
+    private static SideShape sideShape(int x, int z) {
+        if (z < SPAWN_Z - 12 || z > -42) return new SideShape(false, 0, 0);
+        Branch b = branch(z);
+        double progress = (z - (b.centerZ - 23.0)) / 44.0;
+        double route = riverCenter(z) - 15;
+        double passageX = route + b.side * (3 + b.reach * smooth(progress));
+        double width = 2.7 + .8 * Math.sin(z * .14 + b.slot);
+        boolean hall = progress >= 0 && progress <= 1 && Math.abs(x - passageX) < width;
+        BlockPos chamber = chamberCenter(b.slot);
+        double dx = (x - chamber.getX()) / 9.0, dz = (z - chamber.getZ()) / 10.0;
+        boolean room = dx * dx + dz * dz < 1.0;
+        int floor = pathFloor(z);
+        int roof = floor + (room ? 14 : 6 + (int)((hash(0x721L, b.slot, 0) >>> 8) & 3));
+        return new SideShape(hall || room, floor, roof);
     }
 
     private static int puddleWaterY(long seed, int z) {
@@ -267,7 +353,7 @@ public final class UnderworldTerrain {
         double offset = x - riverCenter(z);
         boolean mud = puddleShape(seed, x, z) <= 1.3;
         // Protect the entire approach, spawn and boat lane, including overhead clearance.
-        if (column.path || puddleShape(seed, x, z) <= 1.5 || (z >= 18 && Math.abs(offset) < 13) || z < START_Z + 8)
+        if (column.path || sideHall(x, z) || puddleShape(seed, x, z) <= 1.5 || (z >= 18 && Math.abs(offset) < 13) || z < START_Z + 8)
             return new Details(mud, 0, 0, 0, false);
         int cellX = Math.floorDiv(x, 9), cellZ = Math.floorDiv(z, 9);
         long cell = hash(seed ^ 0x571CE, cellX, cellZ);

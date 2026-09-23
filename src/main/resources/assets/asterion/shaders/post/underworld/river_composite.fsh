@@ -12,14 +12,9 @@ float viewDistance(vec2 uv) {
     return min(length(p.xyz / max(abs(p.w), .00001)), 192.0);
 }
 vec4 filteredVolume() {
-    // A subtle 4x4 pixel grain keeps the stylized texture without making the
-    // volume look censored or hiding its smaller particulate detail.
-    vec2 screenSize = vec2(textureSize(SceneSampler, 0));
-    vec2 pixelUv = (floor(texCoord * screenSize / 4.0) * 4.0 + 2.0) / screenSize;
-    // Keep the depth-aware path around silhouettes so large fog pixels do not
-    // leak across terrain, entities, or the water edge.
+    // Smooth upscale in open regions; depth-aware taps protect silhouettes.
     float centerDepth = texture(DepthSampler, texCoord).r;
-    if (fwidth(centerDepth) < .00002) return texture(VolumeSampler, pixelUv);
+    if (fwidth(centerDepth) < .00002) return texture(VolumeSampler, texCoord);
     vec2 size = vec2(textureSize(VolumeSampler, 0));
     vec2 p = texCoord * size - .5, f = fract(p);
     vec2 base = (floor(p) + .5) / size;

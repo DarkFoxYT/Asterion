@@ -35,12 +35,16 @@ public final class WebPatchGenerator {
         int z = cellZ * CELL_SIZE + 1 + (int)Math.floorMod(seed >>> 8, CELL_SIZE - 1);
         if (z < UnderworldTerrain.START_Z + 12 || z > UnderworldTerrain.END_Z - 24) return null;
         double path = UnderworldTerrain.riverCenter(z) - 15; int side = (seed & 4) == 0 ? -1 : 1;
-        BlockPos center = new BlockPos((int)Math.round(path + side * (3 + Math.floorMod(seed >>> 12, 12))),
+        double chamberX = UnderworldTerrain.chamberWebX(z);
+        double webX = Double.isNaN(chamberX) || (cellZ & 3) == 0
+                ? path + side * (3 + Math.floorMod(seed >>> 12, 12)) : chamberX;
+        BlockPos center = new BlockPos((int)Math.round(webX),
                 UnderworldTerrain.WATER_Y + 3 + (int)Math.floorMod(seed >>> 17, 7), z);
         if (!level.getChunkSource().hasChunk(center.getX() >> 4, center.getZ() >> 4)) return null;
         Direction preferred = (seed & 8) == 0 ? Direction.EAST : Direction.SOUTH;
-        Pair pair = findGap(level, center, preferred);
-        if (pair == null) pair = findGap(level, center, preferred == Direction.EAST ? Direction.SOUTH : Direction.EAST);
+        int reach = Double.isNaN(chamberX) ? 8 : 13;
+        Pair pair = findGap(level, center, preferred, reach);
+        if (pair == null) pair = findGap(level, center, preferred == Direction.EAST ? Direction.SOUTH : Direction.EAST, reach);
         if (pair == null) return null;
         List<Vec3> anchors = new ArrayList<>(); List<Vec3> normals = new ArrayList<>();
         anchors.add(face(pair.a, pair.axis, seed, 0));
@@ -84,16 +88,19 @@ public final class WebPatchGenerator {
         return Vec3.atCenterOf(block).add(inward.getUnitVec3().scale(.501))
                 .add(tangentA.scale(first)).add(tangentB.scale(second));
     }
-    private static Pair findGap(Level level, BlockPos center, Direction axis) {
+    private static Pair findGap(Level level, BlockPos center, Direction axis, int reach) {
         Direction lateral = axis == Direction.EAST ? Direction.SOUTH : Direction.EAST;
         for (int dy = 3; dy >= -3; dy--) for (int slide = -4; slide <= 4; slide++) {
-            BlockPos origin = center.above(dy).relative(lateral, slide); if (!level.getBlockState(origin).isAir()) continue;
-            BlockPos a = findAnchor(level, origin, axis.getOpposite(), 8), b = findAnchor(level, origin, axis, 8);
+            BlockPos origin = center.above(dy).relative(lateral, slide);
+            if (!level.getChunkSource().hasChunk(origin.getX() >> 4, origin.getZ() >> 4)
+                    || !level.getBlockState(origin).isAir()) continue;
+            BlockPos a = findAnchor(level, origin, axis.getOpposite(), reach), b = findAnchor(level, origin, axis, reach);
             if (a != null && b != null && a.distManhattan(b) >= 3) return new Pair(a, b, axis);
         } return null;
     }
     private static BlockPos findAnchor(Level level, BlockPos origin, Direction direction, int reach) {
         for (int d = 1; d <= reach; d++) { BlockPos pos = origin.relative(direction, d);
+            if (!level.getChunkSource().hasChunk(pos.getX() >> 4, pos.getZ() >> 4)) return null;
             if (level.getBlockState(pos).isSolidRender()) return pos; if (!level.getBlockState(pos).isAir()) return null; }
         return null;
     }

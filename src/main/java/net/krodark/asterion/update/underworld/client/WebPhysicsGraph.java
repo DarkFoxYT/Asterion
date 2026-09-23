@@ -1,6 +1,7 @@
 package net.krodark.asterion.update.underworld.client;
 import net.krodark.asterion.update.underworld.WebPatch;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
@@ -13,8 +14,8 @@ import java.util.List;
 final class WebPhysicsGraph {
     record Influence(Vec3 position, Vec3 velocity, double radius) { }
     record Link(int a,int b,double rest,int edge,int index) { }
-    final WebPatch patch; final List<Vec3> p=new ArrayList<>(), old=new ArrayList<>(); final List<Boolean> pinned=new ArrayList<>(); final List<Link> links=new ArrayList<>();
-    WebPhysicsGraph(WebPatch patch) { this.patch=patch; for(Vec3 anchor:patch.anchors()){p.add(anchor);old.add(anchor);pinned.add(true);} build(); }
+    final WebPatch patch; final AABB bounds; final List<Vec3> p=new ArrayList<>(), old=new ArrayList<>(); final List<Boolean> pinned=new ArrayList<>(); final List<Link> links=new ArrayList<>();
+    WebPhysicsGraph(WebPatch patch) { this.patch=patch; AABB box=new AABB(patch.anchors().getFirst(),patch.anchors().getFirst());for(Vec3 anchor:patch.anchors()){p.add(anchor);old.add(anchor);pinned.add(true);box=box.minmax(new AABB(anchor,anchor));}bounds=box.inflate(2);build(); }
     private void build(){ int index=0;for(int edge=0;edge<patch.edges().size();edge++){WebPatch.Edge e=patch.edges().get(edge);Vec3 a=patch.anchors().get(e.a()),b=patch.anchors().get(e.b());int previous=e.a();int pieces=patch.pieces(edge);double rest=a.distanceTo(b)/pieces*1.035;for(int i=1;i<pieces;i++){Vec3 point=a.lerp(b,i/(double)pieces).add(0,-Math.sin(Math.PI*i/pieces)*.035,0);int n=p.size();p.add(point);old.add(point);pinned.add(false);links.add(new Link(previous,n,rest,edge,index++));previous=n;}links.add(new Link(previous,e.b(),rest,edge,index++));} }
     void step(Level level,List<Influence> influences,java.util.BitSet cuts){
         // Two small Verlet steps prevent fast moving silk from tunnelling through cave geometry.
