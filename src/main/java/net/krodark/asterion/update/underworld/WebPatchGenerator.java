@@ -35,7 +35,7 @@ public final class WebPatchGenerator {
         int z = cellZ * CELL_SIZE + 1 + (int)Math.floorMod(seed >>> 8, CELL_SIZE - 1);
         if (z < UnderworldTerrain.START_Z + 12 || z > UnderworldTerrain.END_Z - 24) return null;
         double path = UnderworldTerrain.riverCenter(z) - 15; int side = (seed & 4) == 0 ? -1 : 1;
-        BlockPos center = new BlockPos((int)Math.round(path + side * (9 + Math.floorMod(seed >>> 12, 7))),
+        BlockPos center = new BlockPos((int)Math.round(path + side * (3 + Math.floorMod(seed >>> 12, 12))),
                 UnderworldTerrain.WATER_Y + 3 + (int)Math.floorMod(seed >>> 17, 7), z);
         if (!level.getChunkSource().hasChunk(center.getX() >> 4, center.getZ() >> 4)) return null;
         Direction preferred = (seed & 8) == 0 ? Direction.EAST : Direction.SOUTH;
@@ -46,15 +46,23 @@ public final class WebPatchGenerator {
         anchors.add(face(pair.a, pair.axis, seed, 0));
         anchors.add(face(pair.b, pair.axis.getOpposite(), seed, 1));
         normals.add(pair.axis.getUnitVec3()); normals.add(pair.axis.getOpposite().getUnitVec3());
-        if ((seed & 16) != 0) {
-            BlockPos mid = BlockPos.containing(anchors.get(0).lerp(anchors.get(1), .5));
-            Direction vertical = (seed & 32) == 0 ? Direction.UP : Direction.DOWN;
-            BlockPos third = findAnchor(level, mid, vertical, 6);
-            if (third != null) { anchors.add(face(third, vertical.getOpposite(), seed, 2)); normals.add(vertical.getOpposite().getUnitVec3()); }
+        BlockPos mid = BlockPos.containing(anchors.get(0).lerp(anchors.get(1), .5));
+        Direction[] extraDirections = (seed & 32) == 0
+                ? new Direction[]{Direction.UP, Direction.DOWN, Direction.NORTH, Direction.SOUTH}
+                : new Direction[]{Direction.DOWN, Direction.UP, Direction.SOUTH, Direction.NORTH};
+        for (Direction direction : extraDirections) {
+            if (anchors.size() == 4) break;
+            BlockPos surface = findAnchor(level, mid, direction, 7);
+            if (surface == null) continue;
+            Vec3 anchor = face(surface, direction.getOpposite(), seed, anchors.size());
+            if (anchors.stream().anyMatch(existing -> existing.distanceToSqr(anchor) < 2.25D)) continue;
+            anchors.add(anchor);
+            normals.add(direction.getOpposite().getUnitVec3());
         }
-        List<WebPatch.Edge> edges = anchors.size() == 3
-                ? List.of(new WebPatch.Edge(0, 1), new WebPatch.Edge(1, 2), new WebPatch.Edge(2, 0))
-                : List.of(new WebPatch.Edge(0, 1));
+        // A small connected lattice, including diagonals, reads as a tangled web rather than a rope.
+        List<WebPatch.Edge> edges = new ArrayList<>();
+        for (int a = 0; a < anchors.size(); a++) for (int b = a + 1; b < anchors.size(); b++)
+            edges.add(new WebPatch.Edge(a, b));
         return new WebPatch(mix(seed ^ pair.a.asLong() ^ Long.rotateLeft(pair.b.asLong(), 23)), List.copyOf(anchors), List.copyOf(normals), edges);
     }
     private static Vec3 face(BlockPos block, Direction inward, long seed, int endpoint) {

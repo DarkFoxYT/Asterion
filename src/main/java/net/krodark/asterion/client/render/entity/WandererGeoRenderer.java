@@ -12,11 +12,13 @@ import net.krodark.asterion.entity.WandererEntity;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
 
 public final class WandererGeoRenderer extends GeoEntityRenderer<WandererEntity, EntityRenderState> {
     private static final DataTicket<Boolean> WATCHING = DataTickets.create("asterion_wanderer_watching", Boolean.class);
-    private static final DataTicket<Float> EYE_YAW = DataTickets.create("asterion_wanderer_eye_yaw", Float.class);
-    private static final DataTicket<Float> EYE_PITCH = DataTickets.create("asterion_wanderer_eye_pitch", Float.class);
+    private static final DataTicket<Float> EYE_X = DataTickets.create("asterion_wanderer_eye_x", Float.class);
+    private static final DataTicket<Float> EYE_Y = DataTickets.create("asterion_wanderer_eye_y", Float.class);
     public WandererGeoRenderer(EntityRendererProvider.Context context) {
         super(context, new WandererGeoModel());
         withRenderLayer(eyeLayer("eyeleft"));
@@ -24,7 +26,7 @@ public final class WandererGeoRenderer extends GeoEntityRenderer<WandererEntity,
         shadowRadius = 0.45F;
     }
     private AsterionEmissiveBoneLayer<WandererEntity, Void, EntityRenderState> eyeLayer(String bone) {
-        return new AsterionEmissiveBoneLayer<>(this, bone, Asterion.id("textures/entity/wanderer.png")) {
+        return new AsterionEmissiveBoneLayer<>(this, bone, Asterion.id("textures/entity/limbo_web_white.png")) {
             @Override protected float surfaceBrightness(EntityRenderState state) { return 1.0F; }
             @Override protected float emissiveStrength(EntityRenderState state) { return 4.0F; }
             @Override protected boolean enhancedSurface(EntityRenderState state) { return true; }
@@ -39,20 +41,27 @@ public final class WandererGeoRenderer extends GeoEntityRenderer<WandererEntity,
     }
     @Override public void addRenderData(WandererEntity wanderer, Void related, EntityRenderState state, float partialTick) {
         state.addGeckolibData(WATCHING, wanderer.isWatching());
-        // Each pair takes a long, irregular glance, then goes still again in the fog.
         boolean tracking = wanderer.isWatching()
                 && Math.floorMod(wanderer.tickCount + wanderer.getId() * 31, 120) < 72;
-        float bodyYaw = Mth.rotLerp(partialTick, wanderer.yBodyRotO, wanderer.yBodyRot);
-        float headYaw = Mth.rotLerp(partialTick, wanderer.yHeadRotO, wanderer.yHeadRot);
-        state.addGeckolibData(EYE_YAW, tracking
-                ? Mth.clamp(Mth.wrapDegrees(headYaw - bodyYaw), -34F, 34F) * Mth.DEG_TO_RAD : 0F);
-        state.addGeckolibData(EYE_PITCH, tracking
-                ? Mth.clamp(Mth.lerp(partialTick, wanderer.xRotO, wanderer.getXRot()), -20F, 20F) * Mth.DEG_TO_RAD : 0F);
+        Player player = tracking ? wanderer.level().getNearestPlayer(wanderer, 32D) : null;
+        if (player == null) {
+            state.addGeckolibData(EYE_X, 0F);
+            state.addGeckolibData(EYE_Y, 0F);
+            return;
+        }
+        float yaw = Mth.rotLerp(partialTick, wanderer.yBodyRotO, wanderer.yBodyRot) * Mth.DEG_TO_RAD;
+        Vec3 toward = player.getEyePosition().subtract(wanderer.getEyePosition());
+        double forward = toward.z * Math.cos(yaw) - toward.x * Math.sin(yaw);
+        double right = toward.x * Math.cos(yaw) + toward.z * Math.sin(yaw);
+        double depth = Math.max(1D, Math.abs(forward));
+        // The eyes slide only over the mask's X/Y plane; the mask keeps their depth fixed.
+        state.addGeckolibData(EYE_X, (float)Mth.clamp(right / depth * .8D, -.38D, .38D));
+        state.addGeckolibData(EYE_Y, (float)Mth.clamp(toward.y / depth * .8D, -.32D, .32D));
     }
     @Override public void adjustModelBonesForRender(RenderPassInfo<EntityRenderState> pass, BoneSnapshots bones) {
         super.adjustModelBonesForRender(pass, bones);
-        float yaw = pass.getOrDefaultGeckolibData(EYE_YAW, 0F), pitch = pass.getOrDefaultGeckolibData(EYE_PITCH, 0F);
-        bones.ifPresent("eyeleft", bone -> bone.setRotation(bone.getRotX() + pitch, bone.getRotY() + yaw, bone.getRotZ()));
-        bones.ifPresent("eyeright", bone -> bone.setRotation(bone.getRotX() + pitch, bone.getRotY() + yaw, bone.getRotZ()));
+        float x = pass.getOrDefaultGeckolibData(EYE_X, 0F), y = pass.getOrDefaultGeckolibData(EYE_Y, 0F);
+        bones.ifPresent("eyeleft", bone -> bone.setTranslation(bone.getTranslateX() + x, bone.getTranslateY() + y, bone.getTranslateZ()));
+        bones.ifPresent("eyeright", bone -> bone.setTranslation(bone.getTranslateX() + x, bone.getTranslateY() + y, bone.getTranslateZ()));
     }
 }
