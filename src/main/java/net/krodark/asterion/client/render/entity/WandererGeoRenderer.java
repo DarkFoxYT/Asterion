@@ -26,7 +26,7 @@ public final class WandererGeoRenderer extends GeoEntityRenderer<WandererEntity,
     private AsterionEmissiveBoneLayer<WandererEntity, Void, EntityRenderState> eyeLayer(String bone) {
         return new AsterionEmissiveBoneLayer<>(this, bone, Asterion.id("textures/entity/wanderer.png")) {
             @Override protected float surfaceBrightness(EntityRenderState state) { return 1.0F; }
-            @Override protected float emissiveStrength(EntityRenderState state) { return 2.4F; }
+            @Override protected float emissiveStrength(EntityRenderState state) { return 4.0F; }
             @Override protected boolean enhancedSurface(EntityRenderState state) { return true; }
             @Override protected net.minecraft.resources.Identifier amneticEmissionMesh(EntityRenderState state) {
                 return getGeoModel().getModelResource(state);
