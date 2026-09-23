@@ -10,8 +10,6 @@ import net.krodark.asterion.update.underworld.world.UnderworldTerrain;
 import net.krodark.asterion.update.underworld.entity.CharonsFerryEntity;
 import net.minecraft.client.Minecraft;
 import com.meekdev.amnetic.client.post.UniformValue;
-import net.minecraft.core.BlockPos;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
@@ -23,26 +21,12 @@ public final class UnderworldPostEffects {
     private static final Matrix4f inverseViewProjection = new Matrix4f();
     private static Vec3 cameraPosition = Vec3.ZERO;
     private static Vec3 cameraForward = new Vec3(0, 0, 1);
-    private static long sampledWaterTick = Long.MIN_VALUE;
-    private static net.minecraft.client.multiplayer.ClientLevel sampledLevel;
-    private static BlockPos sampledOrigin;
     private static CharonsFerryEntity cachedFerry;
     private static long ferryTick = Long.MIN_VALUE;
-    private static long waterSearchTick = Long.MIN_VALUE;
-    private static float targetWaterLevel = UnderworldTerrain.WATER_Y + .38F;
-    private static float sampledWaterLevel = UnderworldTerrain.WATER_Y + .38F;
 
     private UnderworldPostEffects() { }
 
     public static void register() {
-        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (sampledLevel != client.level) {
-                sampledLevel = client.level; sampledOrigin = null;
-                cachedFerry = null; ferryTick = Long.MIN_VALUE;
-                sampledWaterTick = waterSearchTick = Long.MIN_VALUE;
-                targetWaterLevel = sampledWaterLevel = UnderworldTerrain.WATER_Y + .38F;
-            }
-        });
         // Retain all three volumetric layers even on low quality; scale pixels and samples instead.
         PostEffects.register(Asterion.id("underworld/river_atmosphere"), config -> net.krodark.asterion.client.render.post.AmneticPostBuffers.attach(withIntensity(config), "underworld_mist",
                         () -> switch (net.krodark.asterion.client.PerformanceGovernor.quality()) {
@@ -61,7 +45,7 @@ public final class UnderworldPostEffects {
                 .uniformVec4("PresenceData", UnderworldPostEffects::presenceData)
                 .uniformVec4("PresenceMotion", UnderworldPostEffects::presenceMotion)
                 .uniformVec4("RiverData", () -> new Vector4f(
-                        waterLevel(), 2.65F,
+                        UnderworldTerrain.WATER_Y + .38F, 2.65F,
                         active() ? AsterionConfig.INSTANCE.limboFogStrength : 0F,
                         active() ? AsterionConfig.INSTANCE.limboMistStrength : 0F)));
     }
@@ -97,62 +81,6 @@ public final class UnderworldPostEffects {
                 new UniformValue.Vec4Uniform(new Vector4f((float)cameraForward.x, (float)cameraForward.y,
                         (float)cameraForward.z, (float)UnderworldTerrain.waveHeight(
                                 cameraPosition.x, cameraPosition.z, time()))));
-    }
-
-    /** Tracks the closest real, exposed source-water surface instead of pinning atmosphere to sea level. */
-    private static float waterLevel() {
-        Minecraft client = Minecraft.getInstance();
-        if (client.level == null) return UnderworldTerrain.WATER_Y + .38F;
-        long tick = client.level.getGameTime();
-        if (sampledLevel != client.level) {
-            sampledLevel = client.level;
-            sampledOrigin = null;
-            sampledWaterTick = waterSearchTick = Long.MIN_VALUE;
-            targetWaterLevel = sampledWaterLevel = UnderworldTerrain.WATER_Y + .38F;
-        }
-        if (tick == sampledWaterTick) return sampledWaterLevel;
-        sampledWaterTick = tick;
-        BlockPos origin = BlockPos.containing(cameraPosition);
-        // Search at most four times a second while moving, once a second at rest.
-        // Smooth the cached target every tick so the atmosphere still moves continuously.
-        if (sampledOrigin != null && tick >= waterSearchTick
-                && tick - waterSearchTick < (origin.equals(sampledOrigin) ? 20 : 5)) {
-            sampledWaterLevel += (targetWaterLevel - sampledWaterLevel) * .22F;
-            return sampledWaterLevel;
-        }
-        sampledOrigin = origin;
-        waterSearchTick = tick;
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        float target = UnderworldTerrain.WATER_Y + .38F;
-        double best = Double.MAX_VALUE;
-        int minY = Math.max(client.level.getMinY(), Math.min(origin.getY() - 20, UnderworldTerrain.WATER_Y - 8));
-        int maxY = Math.min(client.level.getMaxY() - 1, Math.max(origin.getY() + 12, UnderworldTerrain.WATER_Y + 8));
-        for (int radius = 0; radius <= 12; radius++) {
-            for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
-                if (radius > 0 && Math.abs(dx) != radius && Math.abs(dz) != radius) continue;
-                // A farther column cannot beat the current nearest surface.
-                if (dx * dx + dz * dz >= best) continue;
-                int x = origin.getX() + dx, z = origin.getZ() + dz;
-                if (!client.level.getChunkSource().hasChunk(x >> 4, z >> 4)) continue;
-                for (int y = maxY; y >= minY; y--) {
-                    pos.set(x, y, z);
-                    var fluid = client.level.getFluidState(pos);
-                    if (!fluid.is(FluidTags.WATER) || !fluid.isSource()
-                            || client.level.getFluidState(pos.above()).is(FluidTags.WATER)) continue;
-                    double distance = dx * dx + dz * dz + (y + 1.0 - cameraPosition.y) * (y + 1.0 - cameraPosition.y) * .2;
-                    if (distance < best) {
-                        best = distance;
-                        // Preserve the tuned mist contact offset relative to the actual block-fluid surface.
-                        target = y + fluid.getHeight(client.level, pos) - .51F;
-                    }
-                    break;
-                }
-            }
-            if (best <= radius * radius) break;
-        }
-        targetWaterLevel = target;
-        sampledWaterLevel += (targetWaterLevel - sampledWaterLevel) * .22F;
-        return sampledWaterLevel;
     }
 
     private static Vector4f presenceData() {

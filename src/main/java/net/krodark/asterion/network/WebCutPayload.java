@@ -22,7 +22,7 @@ public record WebCutPayload(long key, int link) implements CustomPacketPayload {
         ServerPlayNetworking.registerGlobalReceiver(TYPE, (payload, context) -> context.server().execute(() -> handle(context.player(), payload)));
     }
     private static void handle(ServerPlayer player, WebCutPayload request) {
-        if (!player.level().dimension().equals(Asterion.LIMBO_LEVEL) || request.link < 0 || request.link > 127) return;
+        if (!player.level().dimension().equals(Asterion.LIMBO_LEVEL) || request.link < 0 || request.link > 4096) return;
         Vec3 eye = player.getEyePosition(), look = player.getLookAngle(), end = eye.add(look.scale(player.blockInteractionRange() + .75));
         for (WebPatch patch : WebPatchGenerator.around(player.level(), eye, 7)) if (patch.key() == request.key && request.link < patch.linkCount()) {
             int base=0;Vec3 a=null,b=null;

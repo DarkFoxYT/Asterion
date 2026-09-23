@@ -19,8 +19,6 @@ const float TAU=6.28318530718;
 float hash12(vec2 p){vec3 q=fract(vec3(p.xyx)*.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}
 float hash13(vec3 p){p=fract(p*.1031);p+=dot(p,p.yzx+33.33);return fract((p.x+p.y)*p.z);}
 vec3 hash33(vec3 p){return vec3(hash13(p+1.7),hash13(p+9.2),hash13(p+21.4));}
-float puffBall(vec3 cell,vec3 local,vec3 offset){vec3 id=cell+offset,center=offset+.12+hash33(id)*.76;float radius=mix(.38,.68,hash13(id+31.0));vec3 d=(local-center)*vec3(1.0,1.34,1.0);return 1.0-smoothstep(radius*.52,radius,length(d));}
-float puffBalls(vec3 p){vec3 q=p*.105,cell=floor(q),local=fract(q);float f=puffBall(cell,local,vec3(0));f=max(f,puffBall(cell,local,vec3(1,0,0)));f=max(f,puffBall(cell,local,vec3(-1,0,0)));f=max(f,puffBall(cell,local,vec3(0,1,0)));f=max(f,puffBall(cell,local,vec3(0,-1,0)));f=max(f,puffBall(cell,local,vec3(0,0,1)));return max(f,puffBall(cell,local,vec3(0,0,-1)));}
 float atlasNoise(vec3 p){
     vec2 uv=p.xz+vec2(p.y*.071,-p.y*.053);
     return texture(NoiseSampler,fract(uv)).r;
@@ -136,8 +134,7 @@ float hangingDensity(vec3 p,float bottom,float top,out float glow){
     return (bank*.58+curtains*.42)*pulse;
 }
 
-// Dense rounded islands bridge the water mist into the hanging canopy with
-// fixed world-space silhouettes.
+// Broad, world-fixed wisps bridge the water mist into the hanging canopy.
 float middleBlobDensity(vec3 p,float bottom,float top,out float glow){
     float h=(p.y-bottom)/max(top-bottom,.001);
     // Reach zero well inside the marched volume, including at grazing angles.
@@ -148,18 +145,11 @@ float middleBlobDensity(vec3 p,float bottom,float top,out float glow){
     float broad=atlasNoise(p*vec3(.024,.075,.024)+vec3(5.2,1.7,9.4));
     float shape=atlasNoise(p*vec3(.057,.14,.057)+vec3(13.1,4.6,2.8));
     float detail=atlasNoise(p*vec3(.115,.23,.115)+vec3(1.4,8.3,16.7));
-    vec3 puffPosition=p;
-    puffPosition.xz+=vec2(shape-.5,broad-.5)*1.7;
-    float spheres=puffBalls(puffPosition);
-    float center=.50+(broad-.5)*.13;
-    float oval=1.0-smoothstep(.36,.70,abs(h-center));
-    float softFill=smoothstep(.34,.62,broad*.61+shape*.54+detail*.10);
-    float joined=max(spheres,softFill*.58);
-    float puffy=smoothstep(.08,.76,joined)*oval;
-    float scallops=smoothstep(.24,.82,spheres+.22*detail);
-    float edge=clamp(puffy*mix(.78,1.25,scallops)*verticalFade,0.0,1.18);
-    glow=clamp(.08+(shape-detail)*.22+scallops*.34,0.0,.58);
-    return edge*(1.02+.34*smoothstep(.28,.78,broad));
+    float ribbon=atlasNoise(vec3(p.x*.035+p.z*.012,p.y*.085,p.z*.048)+vec3(7.3,2.1,3.9));
+    float folded=smoothstep(.34,.65,broad*.36+shape*.37+ribbon*.24+detail*.08);
+    float height=1.0-smoothstep(.28,.58,abs(h-(.46+(broad-.5)*.12)));
+    glow=clamp(.10+shape*.18+detail*.08,0.0,.38);
+    return folded*height*verticalFade*(.52+.34*ribbon);
 }
 
 void main(){
@@ -167,7 +157,7 @@ void main(){
     int middleSamples=int(clamp(MarchSteps.y,4.0,8.0));
     int waterSamples=int(clamp(MarchSteps.z,8.0,16.0));
     float strength=clamp(Value,0.0,1.0);
-    if(strength<.001||CameraData.y<River.x+CameraForward.w-.25){fragColor=vec4(0,0,0,1);return;}
+    if(strength<.001){fragColor=vec4(0,0,0,1);return;}
     float depth=texture(DepthSampler,texCoord).r;vec3 end=unproject(depth),ray=normalize(unproject(.9999)-unproject(.0001));
     if(dot(ray,CameraForward.xyz)<0.0)ray=-ray;
     float travel=depth>=.9999?160.0:min(length(end),160.0),haze=1.0-exp(-max(0.0,travel-23.0)*.088*River.z);

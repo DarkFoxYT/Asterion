@@ -18,6 +18,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.ArrayList;
 
 /** World renderer and local high-frequency PBD simulation; there is deliberately no web entity. */
 public final class LimboWebWorldRenderer {
@@ -33,8 +34,14 @@ public final class LimboWebWorldRenderer {
         if(client.level==null||client.player==null||!client.level.dimension().equals(Asterion.LIMBO_LEVEL)){GRAPHS.clear();CUT.clear();return;}
         Vec3 body=client.player.position().add(0,client.player.getBbHeight()*.48,0);
         var patches=WebPatchGenerator.around(client.level,body,16); java.util.HashSet<Long> live=new java.util.HashSet<>();
-        Vec3 playerVelocity=client.player.getDeltaMovement();
-        for(WebPatch patch:patches){live.add(patch.key());GRAPHS.computeIfAbsent(patch.key(),ignored->new WebPhysicsGraph(patch)).step(client.level,body,playerVelocity,.94,CUT.computeIfAbsent(patch.key(),ignored->new java.util.BitSet()));}
+        var influences=new ArrayList<WebPhysicsGraph.Influence>();
+        influences.add(new WebPhysicsGraph.Influence(body,client.player.getDeltaMovement(),.95));
+        for(var entity:client.level.entitiesForRendering()) {
+            if(entity==client.player || !(entity instanceof net.minecraft.world.entity.LivingEntity) || entity.distanceToSqr(client.player)>32*32)continue;
+            influences.add(new WebPhysicsGraph.Influence(entity.position().add(0,entity.getBbHeight()*.48,0),
+                    entity.getDeltaMovement(),Math.max(.55,entity.getBbWidth()*.65)));
+        }
+        for(WebPatch patch:patches){live.add(patch.key());GRAPHS.computeIfAbsent(patch.key(),ignored->new WebPhysicsGraph(patch)).step(client.level,influences,CUT.computeIfAbsent(patch.key(),ignored->new java.util.BitSet()));}
         GRAPHS.keySet().removeIf(key->!live.contains(key));
         boolean down=client.options.keyAttack.isDown(); if(down&&!attack)cutLookedAt(client); attack=down;
     }

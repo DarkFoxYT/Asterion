@@ -37,5 +37,9 @@ vec4 filteredVolume() {
 void main() {
     vec4 scene = texture(SceneSampler, texCoord);
     vec4 volume = filteredVolume();
-    fragColor = vec4(scene.rgb * volume.a + volume.rgb, scene.a);
+    vec3 fogged = scene.rgb * volume.a + volume.rgb;
+    // The atmosphere is composited after Amnetic bloom; keep bright emissive
+    // pixels and their halos above it while ordinary surfaces remain fogged.
+    float emissive = smoothstep(.48, 1.12, max(scene.r, max(scene.g, scene.b)));
+    fragColor = vec4(mix(fogged, scene.rgb, emissive * .92), scene.a);
 }

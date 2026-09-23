@@ -5,10 +5,14 @@ import net.krodark.asterion.network.WebCutPayload;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.phys.Vec3;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.BitSet;
+import java.util.HashSet;
 /** Server authority for virtual strands: player impulses, drag, and force/tension tearing. */
 public final class LimboWebSystem {
     private static final Map<Long, BitSet> CUT = new HashMap<>();
@@ -18,9 +22,18 @@ public final class LimboWebSystem {
     public static void sever(long key, int link) { if(link>=0)CUT.computeIfAbsent(key,ignored->new BitSet()).set(link); }
     private static void tick(MinecraftServer server) {
         ServerLevel level = server.getLevel(Asterion.LIMBO_LEVEL); if (level == null) return;
+        HashSet<Integer> visited = new HashSet<>();
         for (ServerPlayer player : level.players()) {
             if (!player.isAlive() || player.isSpectator()) continue;
-            Vec3 center = player.position().add(0, player.getBbHeight() * .48, 0), velocity = player.getDeltaMovement();
+            if (visited.add(player.getId())) affect(level, player, false);
+            for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class,
+                    player.getBoundingBox().inflate(20), other -> other != player && other.isAlive())) {
+                if (visited.add(entity.getId())) affect(level, entity, true);
+            }
+        }
+    }
+    private static void affect(ServerLevel level, LivingEntity entity, boolean cutsOnContact) {
+            Vec3 center = entity.position().add(0, entity.getBbHeight() * .48, 0), velocity = entity.getDeltaMovement();
             double strongestContact = 0;
             Vec3 resistance = Vec3.ZERO;
             double grip = 0;
@@ -31,26 +44,29 @@ public final class LimboWebSystem {
                 double distance = contact.distanceTo(center); if (distance > 1.04) continue;
                 // Strands yield only to a deliberate hard impact; normal movement is caught and slowed.
                 double impact = velocity.length();
-                if (impact > .48 || velocity.y < -.62 || impact > .22 && player.getRandom().nextFloat() < .035F) {
+                if (cutsOnContact && (impact > .15 || entity.getRandom().nextFloat() < .12F)
+                        || impact > .48 || velocity.y < -.62
+                        || impact > .22 && entity.getRandom().nextFloat() < .035F) {
                     sever(patch.key(),link); WebCutPayload.broadcast(level,contact,patch.key(),link); continue;
                 }
                 double engagement = Math.clamp((1.04D - distance) / .7D, 0D, 1D);
                 grip = 1D - (1D - grip) * (1D - .52D * engagement);
                 if (engagement <= strongestContact) continue;
                 strongestContact = engagement;
-                Vec3 axis = ab.normalize();
-                Vec3 crossing = velocity.subtract(axis.scale(velocity.dot(axis)));
                 Vec3 normal = center.subtract(contact);
                 normal = normal.lengthSqr() < 1.0e-5 ? Vec3.ZERO : normal.normalize();
-                // A taut strand resists motion through it, while movement along its length stays free.
-                resistance = crossing.scale(-.2D * engagement).add(normal.scale(.018D * engagement));
+                resistance = normal.scale(.018D * engagement);
             }
             if (grip > 0) {
                 // A single thread catches; a cluster can hold the player almost still.
-                player.setDeltaMovement(velocity.scale(1D - Math.min(.97D, grip)).add(resistance));
-                if (velocity.y < 0) player.resetFallDistance();
+                entity.setDeltaMovement(velocity.scale(1D - Math.min(.97D, grip)).add(resistance));
+                if (velocity.y < 0) entity.resetFallDistance();
+                // Player input is client-driven, so velocity alone cannot reliably hold
+                // them. A short hidden slowdown lets dense clusters block forward input.
+                if (entity instanceof ServerPlayer && grip > .42D)
+                    entity.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 5, grip > .88D ? 6 : grip > .7D ? 3 : 1,
+                            false, false, false));
             }
-        }
     }
     public static Vec3 nearest(Vec3 a, Vec3 b, Vec3 p) { Vec3 ab = b.subtract(a); double length = ab.lengthSqr();
         return length < 1.0e-8 ? a : a.add(ab.scale(Math.clamp(p.subtract(a).dot(ab) / length, 0, 1))); }
