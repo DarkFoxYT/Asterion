@@ -118,13 +118,15 @@ public final class LimboWaterRenderer {
             for (BlockPos offset : SCAN_ORDER) {
                 if (Math.abs(offset.getX()) > radius || Math.abs(offset.getZ()) > radius) continue;
                 int x = cx + offset.getX(), z = cz + offset.getZ();
+                double dx = x * 16 + 8 - camera.x, dz = z * 16 + 8 - camera.z;
+                if (dx * dx + dz * dz > 68 * 68) continue;
                 if (!level.getChunkSource().hasChunk(x, z)) continue;
                 long key = BlockPos.asLong(x, 0, z);
                 Tile tile = TILES.get(key);
                 if (frustum != null && !frustum.isVisible(new AABB(x * 16, tile == null ? camera.y - 32 : tile.minY - 4,
                         z * 16, x * 16 + 16, tile == null ? camera.y + 20 : tile.maxY + 5, z * 16 + 16))) continue;
                 // Refresh edits gradually, rather than rescanning all visible seabed in one frame.
-                if (tile == null || level.getGameTime() - tile.refreshed > (frameQuality == 0 ? 200 : 100)) {
+                if (tile == null || level.getGameTime() - tile.refreshed > (frameQuality == 0 ? 400 : 240)) {
                     if (topologyBudget <= 0) {
                         if (tile == null) continue;
                     } else {

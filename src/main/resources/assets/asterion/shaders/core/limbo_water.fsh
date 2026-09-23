@@ -17,7 +17,7 @@ in float waterTime;
 out vec4 fragColor;
 
 #define TAU 6.28318530718
-#define MAX_ITER 5
+#define MAX_ITER 3
 
 float foamHash(vec2 p) {
     vec3 q = fract(vec3(p.xyx) * .1031);
@@ -87,14 +87,19 @@ void main() {
     water += vec3(.19, .205, .215) * sheen * (.34 + fresnel) * (1.15 + textureDetail);
     const float causticTexel = .25;
     vec2 causticWorld = (floor(worldSurface / causticTexel) + .5) * causticTexel;
-    float ghostLarge = ghostCurrent(causticWorld * .017, waterTime * .0072);
-    float ghostFine = ghostLarge;
-    if (detailQuality > .5 && nearDetail > .05)
-        ghostFine = ghostCurrent(causticWorld.yx * .028 + vec2(.17, -.31), -waterTime * .0054);
-    float spectralBase = mix(ghostLarge, ghostFine, .27);
-    float pulse = .84 + .16 * sin(waterTime * .026 + ghostLarge * TAU * 1.15);
-    float opacityNoise = .58 + .42 * surfaceNoise(causticWorld * .052
-            + vec2(waterTime * .00085, -waterTime * .00055)).x;
+    float spectralBase = 0.0;
+    float pulse = 1.0;
+    float opacityNoise = 1.0;
+    if (nearDetail > .01 && shoreExposure > .05) {
+        float ghostLarge = ghostCurrent(causticWorld * .017, waterTime * .0072);
+        spectralBase = ghostLarge;
+        if (detailQuality > .5 && nearDetail > .3)
+            spectralBase = mix(ghostLarge, ghostCurrent(causticWorld.yx * .028
+                    + vec2(.17, -.31), -waterTime * .0054), .27);
+        pulse = .84 + .16 * sin(waterTime * .026 + ghostLarge * TAU * 1.15);
+        opacityNoise = .58 + .42 * surfaceNoise(causticWorld * .052
+                + vec2(waterTime * .00085, -waterTime * .00055)).x;
+    }
     float shoreFade = smoothstep(.12, .82, shoreExposure);
     // Tight silver-grey caustics over an otherwise pitch-black body.
     float spectral = pow(smoothstep(.22, .64, spectralBase), 2.8)
@@ -110,12 +115,12 @@ void main() {
     float lanternPool = hullActive * lanternRange * lanternRange;
     float lanternGlint = pow(max(dot(reflection, normalize(vec3(-.25,.9,.3))),0.0),24.0);
     water += vec3(.09, .07, .042) * lanternPool * (.30 + .55*lanternGlint + .25*fresnel);
-    float breakup = surfaceNoise(p * .43 + ripples.yz * .16).x;
+    float breakup = nearDetail > .01 ? surfaceNoise(p * .43 + ripples.yz * .16).x : .5;
     float patches = smoothstep(.25, .70, breakup + (grain - .5) * .25);
     float whitecap = foam * mix(.7, .16 + .84 * patches, nearDetail);
     float contact = hullActive * (1.0 - smoothstep(.025, .22, abs(hullEdge)))
             * (1.0 - smoothstep(.8, 1.6, abs(hullPosition.z - .2)));
-    float wake = persistentWake(causticWorld).x * shoreExposure;
+    float wake = distance < 56.0 ? persistentWake(causticWorld).x * shoreExposure : 0.0;
     float smoothWake = smoothstep(.015, .62, wake);
     whitecap = max(whitecap, max(contact * (.12 + .65 * wakeStrength) * (.72 + .28 * breakup), smoothWake * .62));
     float fleck = smoothstep(.53, .72, grain) * nearDetail;
