@@ -57,7 +57,7 @@ public class AsterionEmissiveBoneLayer<T extends GeoAnimatable, O, R extends Geo
                         mesh.render(pose, buffer, color, uScale, vScale);
                         if (emissionMesh != null)
                             AmneticBoneEmission.submit(emissionMesh, mesh, texture, pose.pose(), color,
-                                    uScale, vScale, emissiveStrength(state), backfaceCulling(state));
+                                    uScale, vScale, emissiveStrength(state), backfaceCulling(state), bone.name());
                     });
         } finally {
             stack.popPose();

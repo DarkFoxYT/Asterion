@@ -41,6 +41,12 @@ public final class AmneticBoneEmission {
     public static void submit(Identifier model, EmissiveBoneMesh geometry, Identifier texture,
                               Matrix4fc pose, int color, float uScale, float vScale, float strength,
                               boolean backfaceCulling) {
+        submit(model, geometry, texture, pose, color, uScale, vScale, strength, backfaceCulling, "whole");
+    }
+
+    public static void submit(Identifier model, EmissiveBoneMesh geometry, Identifier texture,
+                              Matrix4fc pose, int color, float uScale, float vScale, float strength,
+                              boolean backfaceCulling, String part) {
         if (!Bloom.settings().isEnabled() || strength <= 0 || (color >>> 24) == 0
                 || (color & 0xFFFFFF) == 0) return;
         if (!initialized) {
@@ -52,12 +58,12 @@ public final class AmneticBoneEmission {
             });
             initialized = true;
         }
-        MeshKey key = new MeshKey(model, texture, backfaceCulling);
+        MeshKey key = new MeshKey(model, texture, backfaceCulling, part);
         Entry entry = ENTRIES.get(key);
         if (entry == null || entry.geometry != geometry) {
             Identifier id = Asterion.id("bone_emission/" + model.getNamespace() + "/" + model.getPath()
                     + "/" + texture.getNamespace() + "/" + texture.getPath()
-                    + (backfaceCulling ? "/culled" : "/two_sided"));
+                    + (backfaceCulling ? "/culled/" : "/two_sided/") + part);
             if (entry != null) {
                 ACTIVE.remove(entry);
                 InstanceMeshRegistry.INSTANCE.unregister(id);
@@ -81,7 +87,7 @@ public final class AmneticBoneEmission {
         final Vector4f color = new Vector4f(), uv = new Vector4f();
     }
 
-    private record MeshKey(Identifier model, Identifier texture, boolean backfaceCulling) { }
+    private record MeshKey(Identifier model, Identifier texture, boolean backfaceCulling, String part) { }
 
     private static final class Entry {
         final Identifier id;

@@ -27,9 +27,10 @@ public final class WandererGeoRenderer extends GeoEntityRenderer<WandererEntity,
     }
     private AsterionEmissiveBoneLayer<WandererEntity, Void, EntityRenderState> eyeLayer(String bone) {
         return new AsterionEmissiveBoneLayer<>(this, bone, Asterion.id("textures/entity/limbo_web_white.png")) {
-            @Override protected float surfaceBrightness(EntityRenderState state) { return 1.0F; }
-            @Override protected float emissiveStrength(EntityRenderState state) { return 4.0F; }
+            @Override protected float surfaceBrightness(EntityRenderState state) { return .7F; }
+            @Override protected float emissiveStrength(EntityRenderState state) { return 1.2F; }
             @Override protected boolean enhancedSurface(EntityRenderState state) { return true; }
+            @Override protected boolean backfaceCulling(EntityRenderState state) { return false; }
             @Override protected net.minecraft.resources.Identifier amneticEmissionMesh(EntityRenderState state) {
                 return getGeoModel().getModelResource(state);
             }
@@ -41,22 +42,23 @@ public final class WandererGeoRenderer extends GeoEntityRenderer<WandererEntity,
     }
     @Override public void addRenderData(WandererEntity wanderer, Void related, EntityRenderState state, float partialTick) {
         state.addGeckolibData(WATCHING, wanderer.isWatching());
-        boolean tracking = wanderer.isWatching()
-                && Math.floorMod(wanderer.tickCount + wanderer.getId() * 31, 120) < 72;
+        int glancePhase = Math.floorMod(wanderer.tickCount + wanderer.getId() * 31, 120);
+        float glance = (float)(.5D - .5D * Math.cos(glancePhase * Math.PI / 60D));
+        boolean tracking = wanderer.isWatching();
         Player player = tracking ? wanderer.level().getNearestPlayer(wanderer, 32D) : null;
         if (player == null) {
             state.addGeckolibData(EYE_X, 0F);
             state.addGeckolibData(EYE_Y, 0F);
             return;
         }
-        float yaw = Mth.rotLerp(partialTick, wanderer.yBodyRotO, wanderer.yBodyRot) * Mth.DEG_TO_RAD;
+        float yaw = Mth.rotLerp(partialTick, wanderer.yHeadRotO, wanderer.yHeadRot) * Mth.DEG_TO_RAD;
         Vec3 toward = player.getEyePosition().subtract(wanderer.getEyePosition());
         double forward = toward.z * Math.cos(yaw) - toward.x * Math.sin(yaw);
         double right = toward.x * Math.cos(yaw) + toward.z * Math.sin(yaw);
         double depth = Math.max(1D, Math.abs(forward));
         // The eyes slide only over the mask's X/Y plane; the mask keeps their depth fixed.
-        state.addGeckolibData(EYE_X, (float)Mth.clamp(right / depth * .8D, -.38D, .38D));
-        state.addGeckolibData(EYE_Y, (float)Mth.clamp(toward.y / depth * .8D, -.32D, .32D));
+        state.addGeckolibData(EYE_X, (float)Mth.clamp(right / depth * .8D, -.38D, .38D) * glance);
+        state.addGeckolibData(EYE_Y, (float)Mth.clamp(toward.y / depth * .8D, -.32D, .32D) * glance);
     }
     @Override public void adjustModelBonesForRender(RenderPassInfo<EntityRenderState> pass, BoneSnapshots bones) {
         super.adjustModelBonesForRender(pass, bones);

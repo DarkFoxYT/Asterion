@@ -47,11 +47,20 @@ public final class WebPatchGenerator {
         anchors.add(face(pair.b, pair.axis.getOpposite(), seed, 1));
         normals.add(pair.axis.getUnitVec3()); normals.add(pair.axis.getOpposite().getUnitVec3());
         BlockPos mid = BlockPos.containing(anchors.get(0).lerp(anchors.get(1), .5));
+        // Prefer a true floor-to-ceiling span through the open gap, not just side-wall ropes.
+        BlockPos floor = findAnchor(level, mid, Direction.DOWN, 9);
+        BlockPos ceiling = findAnchor(level, mid, Direction.UP, 9);
+        if (floor != null && ceiling != null && ceiling.getY() - floor.getY() >= 4) {
+            anchors.add(face(floor, Direction.UP, seed, anchors.size()));
+            normals.add(Direction.UP.getUnitVec3());
+            anchors.add(face(ceiling, Direction.DOWN, seed, anchors.size()));
+            normals.add(Direction.DOWN.getUnitVec3());
+        }
         Direction[] extraDirections = (seed & 32) == 0
                 ? new Direction[]{Direction.UP, Direction.DOWN, Direction.NORTH, Direction.SOUTH}
                 : new Direction[]{Direction.DOWN, Direction.UP, Direction.SOUTH, Direction.NORTH};
         for (Direction direction : extraDirections) {
-            if (anchors.size() == 4) break;
+            if (anchors.size() == 5) break;
             BlockPos surface = findAnchor(level, mid, direction, 7);
             if (surface == null) continue;
             Vec3 anchor = face(surface, direction.getOpposite(), seed, anchors.size());

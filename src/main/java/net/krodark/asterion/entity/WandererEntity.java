@@ -33,26 +33,34 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 public final class WandererEntity extends PathfinderMob implements GeoEntity {
     private static final RawAnimation WALK = RawAnimation.begin().thenLoop("walk");
     private static final EntityDataAccessor<Integer> STATE = SynchedEntityData.defineId(WandererEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Boolean> MOVING = SynchedEntityData.defineId(WandererEntity.class, EntityDataSerializers.BOOLEAN);
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private int stateTicks;
     private Vec3 destination;
     private boolean gaitAnimationInitialized;
+    private int movingGraceTicks;
 
     public enum State { PURPOSEFUL, ROAMING, WATCHING, HIDING, DROWNING, STAMPEDE }
     public WandererEntity(EntityType<? extends WandererEntity> type, Level level) { super(type, level); xpReward = 5; }
     public static AttributeSupplier.Builder createAttributes() { return createMobAttributes().add(Attributes.MAX_HEALTH, 20).add(Attributes.MOVEMENT_SPEED, .20).add(Attributes.FOLLOW_RANGE, 32).add(Attributes.KNOCKBACK_RESISTANCE, .15); }
     @Override public boolean checkSpawnRules(LevelAccessor level, EntitySpawnReason reason) { return reason != EntitySpawnReason.NATURAL || level instanceof ServerLevel server && server.dimension().equals(Asterion.LIMBO_LEVEL) && super.checkSpawnRules(level, reason); }
-    @Override protected void defineSynchedData(SynchedEntityData.Builder builder) { super.defineSynchedData(builder); builder.define(STATE, State.ROAMING.ordinal()); }
+    @Override protected void defineSynchedData(SynchedEntityData.Builder builder) { super.defineSynchedData(builder); builder.define(STATE, State.ROAMING.ordinal()); builder.define(MOVING, false); }
     @Override protected void registerGoals() { goalSelector.addGoal(0, new FloatGoal(this)); }
 
     @Override public void tick() {
         super.tick(); if (!(level() instanceof ServerLevel level) || !isAlive()) return;
         if (tickCount == 1 && random.nextFloat() < .58F) setState(State.PURPOSEFUL);
         stateTicks++;
-        if (state() == State.DROWNING) { tickDrowning(); return; }
-        if (isInWater() || getBlockZ() >= 18 && getY() < UnderworldTerrain.WATER_Y) { setState(State.DROWNING); navigation.stop(); return; }
-        if (scatterFromCharge(level)) return;
+        if (state() == State.DROWNING) { tickDrowning(); entityData.set(MOVING, false); return; }
+        if (isInWater() || getBlockZ() >= 18 && getY() < UnderworldTerrain.WATER_Y) { setState(State.DROWNING); navigation.stop(); entityData.set(MOVING, false); return; }
+        if (scatterFromCharge(level)) { updateMoving(); return; }
         switch (state()) { case PURPOSEFUL -> purposeful(level); case ROAMING -> roaming(level); case WATCHING -> watching(level); case HIDING -> hiding(); case STAMPEDE -> stampede(); default -> { } }
+        updateMoving();
+    }
+    private void updateMoving() {
+        if (!navigation.isDone() && getDeltaMovement().horizontalDistanceSqr() > .0001D) movingGraceTicks = 5;
+        else if (movingGraceTicks > 0) movingGraceTicks--;
+        entityData.set(MOVING, movingGraceTicks > 0);
     }
     private void purposeful(ServerLevel level) {
         double z = getZ() + 9;
@@ -103,7 +111,7 @@ public final class WandererEntity extends PathfinderMob implements GeoEntity {
     private double gaitSpeed() {
         int phase = gaitPhase();
         int fromPlant = Math.min(Math.abs(phase - 20), Math.min(phase, 40 - phase));
-        return .18D + .82D * Math.min(1D, fromPlant / 6D);
+        return .45D + .55D * Math.min(1D, fromPlant / 7D);
     }
     private static double distanceToLane(Vec3 from, Vec3 to, Vec3 point) { Vec3 lane = to.subtract(from); double length = lane.lengthSqr(); return length < .001 ? point.distanceTo(from) : point.distanceTo(from.add(lane.scale(Math.clamp(point.subtract(from).dot(lane) / length, 0, 1)))); }
     public State state() { return State.values()[entityData.get(STATE)]; }
@@ -111,9 +119,7 @@ public final class WandererEntity extends PathfinderMob implements GeoEntity {
     private void setState(State state) { entityData.set(STATE, state.ordinal()); stateTicks = 0; if (state != State.WATCHING && state != State.HIDING && state != State.STAMPEDE) destination = null; }
     @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<WandererEntity>("movement", 0, state -> {
-            boolean walking = state() == State.PURPOSEFUL || state() == State.ROAMING
-                    || (state() == State.WATCHING || state() == State.HIDING || state() == State.STAMPEDE)
-                    && !getNavigation().isDone();
+            boolean walking = entityData.get(MOVING);
             if (!walking) {
                 gaitAnimationInitialized = false;
                 return PlayState.STOP;
