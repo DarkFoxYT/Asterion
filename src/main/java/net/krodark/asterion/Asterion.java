@@ -682,7 +682,6 @@ public class Asterion implements ModInitializer {
                         output.accept(ANCIENT_PLANK_STAIRS);
                         output.accept(ANCIENT_PLANK_FENCE);
                         output.accept(DEAD_WOOD);
-                        output.accept(WANDERER_SPAWN_EGG);
                         output.accept(DEAD_WOOD_PLANKS);
                         output.accept(DEADWOOD_STICK);
                         output.accept(DEAD_WOOD_SLAB);
@@ -766,6 +765,7 @@ public class Asterion implements ModInitializer {
             FabricCreativeModeTab.builder().title(Component.translatable("itemGroup.asterion.underworld"))
                     .icon(() -> new ItemStack(DEAD_STONE)).displayItems((parameters, output) -> {
                         output.accept(DEAD_WOOD);
+                        output.accept(WANDERER_SPAWN_EGG);
                         output.accept(DEAD_WOOD_PLANKS);
                         output.accept(DEADWOOD_STICK);
                         output.accept(DEAD_WOOD_SLAB);

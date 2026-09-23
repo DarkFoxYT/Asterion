@@ -22,7 +22,7 @@ import java.util.Map;
 /** World renderer and local high-frequency PBD simulation; there is deliberately no web entity. */
 public final class LimboWebWorldRenderer {
     // A neutral white sheet keeps the strands independent of Minecraft's chunky cobweb sprite.
-    private static final Identifier SILK=Identifier.withDefaultNamespace("textures/misc/white.png");
+    private static final Identifier SILK=Asterion.id("textures/entity/limbo_web_white.png");
     private static final Map<Long,WebPhysicsGraph> GRAPHS=new HashMap<>(); private static final Map<Long,java.util.BitSet> CUT=new HashMap<>(); private static boolean attack;
     private LimboWebWorldRenderer(){}
     public static void initialize(){
@@ -33,7 +33,8 @@ public final class LimboWebWorldRenderer {
         if(client.level==null||client.player==null||!client.level.dimension().equals(Asterion.LIMBO_LEVEL)){GRAPHS.clear();CUT.clear();return;}
         Vec3 body=client.player.position().add(0,client.player.getBbHeight()*.48,0);
         var patches=WebPatchGenerator.around(client.level,body,16); java.util.HashSet<Long> live=new java.util.HashSet<>();
-        for(WebPatch patch:patches){live.add(patch.key());GRAPHS.computeIfAbsent(patch.key(),ignored->new WebPhysicsGraph(patch)).step(client.level,body,.94,CUT.computeIfAbsent(patch.key(),ignored->new java.util.BitSet()));}
+        Vec3 playerVelocity=client.player.getDeltaMovement();
+        for(WebPatch patch:patches){live.add(patch.key());GRAPHS.computeIfAbsent(patch.key(),ignored->new WebPhysicsGraph(patch)).step(client.level,body,playerVelocity,.94,CUT.computeIfAbsent(patch.key(),ignored->new java.util.BitSet()));}
         GRAPHS.keySet().removeIf(key->!live.contains(key));
         boolean down=client.options.keyAttack.isDown(); if(down&&!attack)cutLookedAt(client); attack=down;
     }
