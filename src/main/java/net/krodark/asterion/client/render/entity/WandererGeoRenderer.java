@@ -16,7 +16,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 
 public final class WandererGeoRenderer extends GeoEntityRenderer<WandererEntity, EntityRenderState> {
-    private static final DataTicket<Boolean> WATCHING = DataTickets.create("asterion_wanderer_watching", Boolean.class);
+    private static final DataTicket<Boolean> EYES_VISIBLE = DataTickets.create("asterion_wanderer_eyes_visible", Boolean.class);
     private static final DataTicket<Float> EYE_X = DataTickets.create("asterion_wanderer_eye_x", Float.class);
     private static final DataTicket<Float> EYE_Y = DataTickets.create("asterion_wanderer_eye_y", Float.class);
     public WandererGeoRenderer(EntityRendererProvider.Context context) {
@@ -36,15 +36,15 @@ public final class WandererGeoRenderer extends GeoEntityRenderer<WandererEntity,
             }
             @Override protected void renderBone(RenderPassInfo<EntityRenderState> pass, GeoBone bone,
                     net.minecraft.client.renderer.SubmitNodeCollector tasks) {
-                if (pass.getOrDefaultGeckolibData(WATCHING, false)) super.renderBone(pass, bone, tasks);
+                if (pass.getOrDefaultGeckolibData(EYES_VISIBLE, false)) super.renderBone(pass, bone, tasks);
             }
         };
     }
     @Override public void addRenderData(WandererEntity wanderer, Void related, EntityRenderState state, float partialTick) {
-        state.addGeckolibData(WATCHING, wanderer.isWatching());
+        state.addGeckolibData(EYES_VISIBLE, wanderer.state() != WandererEntity.State.DROWNING);
         int glancePhase = Math.floorMod(wanderer.tickCount + wanderer.getId() * 31, 120);
         float glance = (float)(.5D - .5D * Math.cos(glancePhase * Math.PI / 60D));
-        boolean tracking = wanderer.isWatching();
+        boolean tracking = wanderer.state() != WandererEntity.State.DROWNING;
         Player player = tracking ? wanderer.level().getNearestPlayer(wanderer, 32D) : null;
         if (player == null) {
             state.addGeckolibData(EYE_X, 0F);

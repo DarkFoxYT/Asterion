@@ -11,7 +11,7 @@ import java.util.WeakHashMap;
 /** Builds webs directly from loaded cave surfaces. It creates no blocks, block entities or entities. */
 public final class WebPatchGenerator {
     /** Dense cells make Limbo feel filled with individual, traversable silk strands. */
-    public static final int CELL_SIZE = 3;
+    public static final int CELL_SIZE = 2;
     private static final Map<Level, Map<Integer, Cached>> CACHE = new WeakHashMap<>();
     private record Cached(WebPatch patch, long expires) { }
     private WebPatchGenerator() { }
@@ -86,9 +86,9 @@ public final class WebPatchGenerator {
     }
     private static Pair findGap(Level level, BlockPos center, Direction axis) {
         Direction lateral = axis == Direction.EAST ? Direction.SOUTH : Direction.EAST;
-        for (int dy = 2; dy >= -2; dy--) for (int slide = -3; slide <= 3; slide++) {
+        for (int dy = 3; dy >= -3; dy--) for (int slide = -4; slide <= 4; slide++) {
             BlockPos origin = center.above(dy).relative(lateral, slide); if (!level.getBlockState(origin).isAir()) continue;
-            BlockPos a = findAnchor(level, origin, axis.getOpposite(), 6), b = findAnchor(level, origin, axis, 6);
+            BlockPos a = findAnchor(level, origin, axis.getOpposite(), 8), b = findAnchor(level, origin, axis, 8);
             if (a != null && b != null && a.distManhattan(b) >= 3) return new Pair(a, b, axis);
         } return null;
     }

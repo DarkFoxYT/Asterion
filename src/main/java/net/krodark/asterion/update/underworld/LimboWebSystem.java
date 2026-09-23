@@ -23,14 +23,19 @@ public final class LimboWebSystem {
             Vec3 center = player.position().add(0, player.getBbHeight() * .48, 0), velocity = player.getDeltaMovement();
             double strongestContact = 0;
             Vec3 resistance = Vec3.ZERO;
+            double grip = 0;
             for (WebPatch patch : WebPatchGenerator.around(level, center, 7)) for (int i = 0; i < patch.edges().size(); i++) {
                 WebPatch.Edge edge = patch.edges().get(i);Vec3 a=patch.anchors().get(edge.a()),b=patch.anchors().get(edge.b());
                 Vec3 contact = nearest(a,b,center);Vec3 ab=b.subtract(a);double along=ab.lengthSqr()<1e-8?0:Math.clamp(contact.subtract(a).dot(ab)/ab.lengthSqr(),0,1);
                 int link=patch.linkIndex(i,along);if(cut(patch.key(),link))continue;
                 double distance = contact.distanceTo(center); if (distance > 1.04) continue;
                 // Strands yield only to a deliberate hard impact; normal movement is caught and slowed.
-                if (velocity.length() > .72 || velocity.y < -.82) { sever(patch.key(),link); WebCutPayload.broadcast(level,contact,patch.key(),link); continue; }
+                double impact = velocity.length();
+                if (impact > .48 || velocity.y < -.62 || impact > .22 && player.getRandom().nextFloat() < .035F) {
+                    sever(patch.key(),link); WebCutPayload.broadcast(level,contact,patch.key(),link); continue;
+                }
                 double engagement = Math.clamp((1.04D - distance) / .7D, 0D, 1D);
+                grip = 1D - (1D - grip) * (1D - .52D * engagement);
                 if (engagement <= strongestContact) continue;
                 strongestContact = engagement;
                 Vec3 axis = ab.normalize();
@@ -38,10 +43,11 @@ public final class LimboWebSystem {
                 Vec3 normal = center.subtract(contact);
                 normal = normal.lengthSqr() < 1.0e-5 ? Vec3.ZERO : normal.normalize();
                 // A taut strand resists motion through it, while movement along its length stays free.
-                resistance = crossing.scale(-.22D * engagement).add(normal.scale(.018D * engagement));
+                resistance = crossing.scale(-.2D * engagement).add(normal.scale(.018D * engagement));
             }
-            if (strongestContact > 0) {
-                player.setDeltaMovement(velocity.add(resistance));
+            if (grip > 0) {
+                // A single thread catches; a cluster can hold the player almost still.
+                player.setDeltaMovement(velocity.scale(1D - Math.min(.97D, grip)).add(resistance));
                 if (velocity.y < 0) player.resetFallDistance();
             }
         }
