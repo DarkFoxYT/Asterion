@@ -13,6 +13,7 @@ public final class WebPatchGenerator {
     /** Dense cells make Limbo feel filled with individual, traversable silk strands. */
     public static final int CELL_SIZE = 2;
     private static final Map<Level, Map<Integer, Cached>> CACHE = new WeakHashMap<>();
+    private static final Map<Level, Map<Long, Cached>> CAVE_CACHE = new WeakHashMap<>();
     private record Cached(WebPatch patch, long expires) { }
     private WebPatchGenerator() { }
     public static List<WebPatch> around(Level level, Vec3 center, int cells) {
@@ -28,6 +29,27 @@ public final class WebPatchGenerator {
             WebPatch patch = known.patch;
             if (patch != null && patch.anchors().getFirst().distanceToSqr(center) < 52 * 52) result.add(patch);
         }
+        double route = UnderworldTerrain.riverCenter(center.z) - 15;
+        if (center.z < -42 && Math.abs(center.x - route) > 18) {
+            int gx = Math.floorDiv((int)Math.floor(center.x), 8);
+            int gz = Math.floorDiv((int)Math.floor(center.z), 8);
+            int radius = cells >= 16 ? 3 : 2;
+            Map<Long, Cached> caveCache = CAVE_CACHE.computeIfAbsent(level, ignored -> new java.util.HashMap<>());
+            long now = level.getGameTime();
+            for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
+                int cellX = gx + dx, cellZ = gz + dz;
+                long key = net.minecraft.world.level.ChunkPos.pack(cellX, cellZ);
+                Cached known = caveCache.get(key);
+                if (known == null || known.expires < now) {
+                    long seed = mix(0x5B1DE3L ^ key);
+                    known = new Cached(patchAt(level, seed, cellX * 8 + 4, cellZ * 8 + 4), now + 100);
+                    caveCache.put(key, known);
+                }
+                if (known.patch != null && known.patch.anchors().getFirst().distanceToSqr(center) < 52 * 52)
+                    result.add(known.patch);
+            }
+            if (caveCache.size() > 320) caveCache.entrySet().removeIf(e -> e.getValue().expires < now);
+        }
         return result;
     }
     private static WebPatch patch(Level level, long worldSeed, int cellZ) {
@@ -38,11 +60,14 @@ public final class WebPatchGenerator {
         double chamberX = UnderworldTerrain.chamberWebX(z);
         double webX = Double.isNaN(chamberX) || (cellZ & 3) == 0
                 ? path + side * (3 + Math.floorMod(seed >>> 12, 12)) : chamberX;
-        BlockPos center = new BlockPos((int)Math.round(webX),
+        return patchAt(level, seed, (int)Math.round(webX), z);
+    }
+    private static WebPatch patchAt(Level level, long seed, int x, int z) {
+        BlockPos center = new BlockPos(x,
                 UnderworldTerrain.WATER_Y + 3 + (int)Math.floorMod(seed >>> 17, 7), z);
         if (!level.getChunkSource().hasChunk(center.getX() >> 4, center.getZ() >> 4)) return null;
         Direction preferred = (seed & 8) == 0 ? Direction.EAST : Direction.SOUTH;
-        int reach = Double.isNaN(chamberX) ? 8 : 13;
+        int reach = Math.abs(x - (UnderworldTerrain.riverCenter(z) - 15)) > 18 ? 13 : 8;
         Pair pair = findGap(level, center, preferred, reach);
         if (pair == null) pair = findGap(level, center, preferred == Direction.EAST ? Direction.SOUTH : Direction.EAST, reach);
         if (pair == null) return null;
