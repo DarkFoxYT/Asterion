@@ -12,6 +12,14 @@ Current narrative slice:
 - A gently curved stone landing leads to the moored ferry. Charon stands aboard as a persistent
   passenger; paying one gold nugget and boarding starts the shared crossing.
 - Repeated arrival instructions are removed. Fare responses appear only when interacting with Charon.
+- The rocky margins grow virtual two- and three-surface strand networks. They use no entities or
+  block entities: loaded cave surfaces deterministically define the anchors, a client PBD/Verlet
+  solver supplies sag and player deformation, and the server resolves spring drag and impulse-based
+  tearing. Anchors are scattered across exposed block faces rather than snapped to their centres.
+  Weapon rays and sufficiently hard sprint, fall, or launch impacts break the exact constraint they
+  touch, leaving both surviving lengths loose and fully simulated instead of deleting the whole web.
+  Six-block placement cells make the field dense throughout loaded caves; cached surface searches,
+  distance culling, and fixed iteration/strand budgets keep generation and rendering bounded.
 - Water uses the normal Minecraft fluid surface and a muted jade-green biome tint. There is no
   black-water overlay, extra water plane, UV distortion or Charon motion-blur pass.
 

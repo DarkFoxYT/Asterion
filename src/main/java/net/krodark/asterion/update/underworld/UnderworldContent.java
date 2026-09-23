@@ -30,5 +30,5 @@ public final class UnderworldContent {
                     .fireImmune().build(CHARON_KEY));
 
     private UnderworldContent() { }
-    public static void initialize() { }
+    public static void initialize() { LimboWebSystem.initialize(); }
 }

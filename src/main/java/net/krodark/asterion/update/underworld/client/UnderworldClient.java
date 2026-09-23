@@ -13,5 +13,6 @@ public final class UnderworldClient {
         LimboWaterRenderer.initialize();
         LimboMusic.initialize();
         UnderworldPostEffects.register();
+        LimboWebWorldRenderer.initialize();
     }
 }
