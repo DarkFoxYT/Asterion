@@ -50,11 +50,13 @@ public final class WandererEntity extends PathfinderMob implements GeoEntity {
         switch (state()) { case PURPOSEFUL -> purposeful(level); case ROAMING -> roaming(level); case WATCHING -> watching(level); case HIDING -> hiding(); case STAMPEDE -> stampede(); default -> { } }
     }
     private void purposeful(ServerLevel level) {
+        if (!gaitAllowsMotion()) { navigation.stop(); return; }
         double z = getZ() + 9, x = UnderworldTerrain.riverCenter(z) - 15;
         if (navigation.isDone() || tickCount % 30 == 0) navigation.moveTo(x, getY(), z, .68);
         for (WandererEntity dead : level.getEntitiesOfClass(WandererEntity.class, getBoundingBox().inflate(3.2), other -> other != this && other.state() == State.ROAMING)) if (random.nextInt(90) == 0) { dead.setState(State.PURPOSEFUL); dead.playSound(SoundEvents.HUSK_AMBIENT, .55F, .75F); }
     }
     private void roaming(ServerLevel level) {
+        if (!gaitAllowsMotion()) { navigation.stop(); return; }
         if (stateTicks > 90 && random.nextInt(100) == 0 && level.getNearestPlayer(this, 28) != null) { destination = shelter(); setState(State.WATCHING); return; }
         if (navigation.isDone() || tickCount % 45 == 0) { double z = getZ() + (random.nextDouble() - .5) * 9, x = UnderworldTerrain.riverCenter(z) - 15; navigation.moveTo(x + (random.nextBoolean() ? 1 : -1) * (3 + random.nextDouble() * 4), getY(), z, .45); }
     }
@@ -69,10 +71,21 @@ public final class WandererEntity extends PathfinderMob implements GeoEntity {
     }
     private Vec3 shelter() { double z = getZ() + (random.nextDouble() - .5) * 5, pathX = UnderworldTerrain.riverCenter(z) - 15; return new Vec3(pathX + (getX() < pathX ? -1 : 1) * (5 + random.nextDouble() * 5), getY(), z); }
     private void tickDrowning() { navigation.stop(); setDeltaMovement(getDeltaMovement().multiply(.82, .7, .82).add(0, -.025, .035)); if (stateTicks == 1) playSound(SoundEvents.PLAYER_SPLASH, .65F, .6F); if (stateTicks >= 300) discard(); }
+    /** 48 animation frames: travel through frames 0-23, hold frames 24-47, then repeat. */
+    private boolean gaitAllowsMotion() {
+        long stagger = getUUID().getLeastSignificantBits() ^ getUUID().getMostSignificantBits();
+        return Math.floorMod((long) tickCount + stagger, 48L) < 24L;
+    }
     private static double distanceToLane(Vec3 from, Vec3 to, Vec3 point) { Vec3 lane = to.subtract(from); double length = lane.lengthSqr(); return length < .001 ? point.distanceTo(from) : point.distanceTo(from.add(lane.scale(Math.clamp(point.subtract(from).dot(lane) / length, 0, 1)))); }
     public State state() { return State.values()[entityData.get(STATE)]; }
     public boolean isWatching() { return state() == State.WATCHING; }
     private void setState(State state) { entityData.set(STATE, state.ordinal()); stateTicks = 0; if (state != State.WATCHING && state != State.HIDING && state != State.STAMPEDE) destination = null; }
-    @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) { controllers.add(new AnimationController<WandererEntity>("movement", 3, state -> getDeltaMovement().horizontalDistanceSqr() > 1E-4 ? state.setAndContinue(WALK) : PlayState.STOP)); }
+    @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+        // GeckoLib's movement flag is pose-aware; the navigation fallback covers the tiny velocity gaps
+        // between pathfinder steering updates that previously made the walk animation blink out.
+        controllers.add(new AnimationController<WandererEntity>("movement", 0, state ->
+                (state.isMoving() || !getNavigation().isDone()) && gaitAllowsMotion()
+                        ? state.setAndContinue(WALK) : PlayState.STOP));
+    }
     @Override public AnimatableInstanceCache getAnimatableInstanceCache() { return cache; }
 }
