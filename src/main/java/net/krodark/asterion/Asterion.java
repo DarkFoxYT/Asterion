@@ -44,6 +44,7 @@ import net.krodark.asterion.entity.BombadierBeetleEntity;
 import net.krodark.asterion.entity.ScarletCentipedeEntity;
 import net.krodark.asterion.entity.ConstructEntity;
 import net.krodark.asterion.entity.QueenBeetleEntity;
+import net.krodark.asterion.entity.WandererEntity;
 import net.krodark.asterion.block.ShortGrassBlock;
 import net.krodark.asterion.event.DeadSunEventSystem;
 import net.krodark.asterion.game.light.DynamicBlockLights;
@@ -473,6 +474,13 @@ public class Asterion implements ModInitializer {
                     .eyeHeight(2.35F * AsterionConfig.INSTANCE.minotaurScale)
                     .clientTrackingRange(16).build(MINOTAUR_ENTITY_KEY)
     );
+    private static final ResourceKey<EntityType<?>> WANDERER_ENTITY_KEY = ResourceKey.create(
+            Registries.ENTITY_TYPE, id("wanderer"));
+    public static final EntityType<WandererEntity> WANDERER = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, WANDERER_ENTITY_KEY,
+            EntityType.Builder.of(WandererEntity::new, MobCategory.MONSTER)
+                    .sized(.6F, 1.95F).eyeHeight(1.72F).clientTrackingRange(10)
+                    .build(WANDERER_ENTITY_KEY));
     private static final ResourceKey<EntityType<?>> MINOTAUR_AXE_KEY = ResourceKey.create(Registries.ENTITY_TYPE, id("minotaur_axe"));
     public static final EntityType<net.krodark.asterion.entity.MinotaurAxeEntity> MINOTAUR_AXE = Registry.register(
             BuiltInRegistries.ENTITY_TYPE, MINOTAUR_AXE_KEY,
@@ -518,6 +526,11 @@ public class Asterion implements ModInitializer {
     public static final Item QUEEN_BEETLE_SPAWN_EGG = Registry.register(BuiltInRegistries.ITEM,
             QUEEN_BEETLE_EGG_KEY, new SpawnEggItem(new Item.Properties().setId(QUEEN_BEETLE_EGG_KEY)
                     .spawnEgg(QUEEN_BEETLE)));
+    private static final ResourceKey<Item> WANDERER_EGG_KEY = ResourceKey.create(
+            Registries.ITEM, id("wanderer_spawn_egg"));
+    public static final Item WANDERER_SPAWN_EGG = Registry.register(BuiltInRegistries.ITEM,
+            WANDERER_EGG_KEY, new SpawnEggItem(new Item.Properties().setId(WANDERER_EGG_KEY)
+                    .spawnEgg(WANDERER)));
     private static final ResourceKey<EntityType<?>> SCARLET_CENTIPEDE_KEY = ResourceKey.create(
             Registries.ENTITY_TYPE, id("scarlet_centipede"));
     public static final EntityType<ScarletCentipedeEntity> SCARLET_CENTIPEDE = Registry.register(
@@ -656,6 +669,7 @@ public class Asterion implements ModInitializer {
                         output.accept(SCARLET_CENTIPEDE_SPAWN_EGG);
                         output.accept(CONSTRUCT_SPAWN_EGG);
                         output.accept(QUEEN_BEETLE_SPAWN_EGG);
+                        output.accept(WANDERER_SPAWN_EGG);
                         output.accept(TAINTED_HEART);
                         output.accept(TAINTED_HEART_EATABLE);
                         output.accept(ANCIENT_BRICKS);
@@ -1035,6 +1049,7 @@ public class Asterion implements ModInitializer {
         FabricDefaultAttributeRegistry.register(SCARLET_CENTIPEDE, ScarletCentipedeEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(CONSTRUCT, ConstructEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(QUEEN_BEETLE, QueenBeetleEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(WANDERER, WandererEntity.createAttributes());
         ServerChunkEvents.CHUNK_LOAD.register(WorldGenerator::onChunkLoad);
         ServerChunkEvents.CHUNK_LOAD.register(CatacombFloodState::onChunkLoad);
         ServerChunkEvents.CHUNK_LOAD.register(net.krodark.asterion.worldgen.AuthoredForge::onChunkLoad);
@@ -1088,6 +1103,8 @@ public class Asterion implements ModInitializer {
                 MobCategory.MONSTER, CONSTRUCT, 1, 1, 1);
         BiomeModifications.addSpawn(BiomeSelectors.includeByKey(CATACOMBS_BIOME),
                 MobCategory.MONSTER, net.krodark.asterion.game.AncientContent.SKELETON, 36, 1, 3);
+        BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID),
+                MobCategory.MONSTER, WANDERER, 18, 1, 3);
         BiomeModifications.addSpawn(BiomeSelectors.includeByKey(FORGE_BIOME,
                         ResourceKey.create(Registries.BIOME, id("shale_caves"))),
                 MobCategory.MONSTER, net.krodark.asterion.game.AncientContent.SKELETON, 12, 1, 1);

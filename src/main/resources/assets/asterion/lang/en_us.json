@@ -1,5 +1,7 @@
 {
   "dimension.asterion.limbo": "Limbo",
+  "entity.asterion.wanderer": "Wanderer",
+  "item.asterion.wanderer_spawn_egg": "Wanderer Spawn Egg",
   "item.asterion.minotaur_skull_trophy": "Minotaur Skull Trophy",
   "subtitles.asterion.respawn_obelisk_bind": " ",
   "death.asterion.you_died": "You died",

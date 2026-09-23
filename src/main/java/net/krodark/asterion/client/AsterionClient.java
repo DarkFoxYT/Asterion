@@ -78,6 +78,8 @@ public final class AsterionClient implements ClientModInitializer {
         RagdollClientController.initialize();
         CentipedeInteractionClient.initialize();
         EntityRenderers.register(Asterion.MINOTAUR, MinotaurGeoRenderer::new);
+        EntityRenderers.register(Asterion.WANDERER,
+                net.krodark.asterion.client.render.entity.WandererGeoRenderer::new);
         EntityRenderers.register(net.krodark.asterion.game.AncientContent.SKELETON, net.krodark.asterion.client.render.entity.AncientSkeletonRenderer::new);
         EntityRenderers.register(net.krodark.asterion.game.ChainLiftContent.CALL_RUNE, net.krodark.asterion.client.render.entity.LiftCallRuneRenderer::new);
         net.krodark.asterion.client.ReplayCompatibility.addHud(Asterion.id("lift_call_prompt"), (graphics, tracker) -> {

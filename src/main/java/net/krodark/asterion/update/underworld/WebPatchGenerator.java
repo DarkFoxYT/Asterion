@@ -10,7 +10,8 @@ import java.util.Map;
 import java.util.WeakHashMap;
 /** Builds webs directly from loaded cave surfaces. It creates no blocks, block entities or entities. */
 public final class WebPatchGenerator {
-    public static final int CELL_SIZE = 6;
+    /** Dense cells make Limbo feel filled with individual, traversable silk strands. */
+    public static final int CELL_SIZE = 3;
     private static final Map<Level, Map<Integer, Cached>> CACHE = new WeakHashMap<>();
     private record Cached(WebPatch patch, long expires) { }
     private WebPatchGenerator() { }
@@ -30,7 +31,7 @@ public final class WebPatchGenerator {
         return result;
     }
     private static WebPatch patch(Level level, long worldSeed, int cellZ) {
-        long seed = mix(worldSeed ^ cellZ * 0x9E3779B97F4A7C15L); if ((seed & 7) == 0) return null;
+        long seed = mix(worldSeed ^ cellZ * 0x9E3779B97F4A7C15L);
         int z = cellZ * CELL_SIZE + 1 + (int)Math.floorMod(seed >>> 8, CELL_SIZE - 1);
         if (z < UnderworldTerrain.START_Z + 12 || z > UnderworldTerrain.END_Z - 24) return null;
         double path = UnderworldTerrain.riverCenter(z) - 15; int side = (seed & 4) == 0 ? -1 : 1;

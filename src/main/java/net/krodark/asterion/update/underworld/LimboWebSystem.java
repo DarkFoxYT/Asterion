@@ -25,10 +25,11 @@ public final class LimboWebSystem {
                 WebPatch.Edge edge = patch.edges().get(i);Vec3 a=patch.anchors().get(edge.a()),b=patch.anchors().get(edge.b());
                 Vec3 contact = nearest(a,b,center);Vec3 ab=b.subtract(a);double along=ab.lengthSqr()<1e-8?0:Math.clamp(contact.subtract(a).dot(ab)/ab.lengthSqr(),0,1);
                 int link=patch.linkIndex(i,along);if(cut(patch.key(),link))continue;
-                double distance = contact.distanceTo(center); if (distance > .86) continue;
-                if (velocity.length() > .31 || velocity.y < -.44) { sever(patch.key(),link); WebCutPayload.broadcast(level,contact,patch.key(),link); continue; }
+                double distance = contact.distanceTo(center); if (distance > 1.04) continue;
+                // Strands yield only to a deliberate hard impact; normal movement is caught and slowed.
+                if (velocity.length() > .72 || velocity.y < -.82) { sever(patch.key(),link); WebCutPayload.broadcast(level,contact,patch.key(),link); continue; }
                 Vec3 normal = center.subtract(contact); normal = normal.lengthSqr() < 1.0e-5 ? new Vec3(0, 1, 0) : normal.normalize();
-                Vec3 spring = normal.scale((.82 - distance) * .16).subtract(velocity.scale(.86));
+                Vec3 spring = normal.scale((1.0 - distance) * .28).subtract(velocity.scale(.94));
                 player.setDeltaMovement(velocity.add(spring)); player.resetFallDistance();
             }
         }
