@@ -8,7 +8,9 @@ public final class FerryMotion {
         if (!piloted && !sailing) return speed * .85;
         double thrust = piloted ? throttle * (throttle < 0 ? .00105 : .00125) : .00050;
         double drag = piloted ? (throttle == 0 ? .992 : .988) : .993;
-        double gravity = Math.clamp(forwardSlope, -.5, .5) * (piloted ? .0017 : .0012);
-        return Math.clamp(speed * drag + thrust + gravity, -.09, .20);
+        double slope = Math.clamp(forwardSlope, -.8, .8);
+        double gravity = slope * (slope < 0 ? .0042 : .0026);
+        double uphillDrag = Math.max(0, -slope) * .0035;
+        return Math.clamp(speed * (drag - uphillDrag) + thrust + gravity, -.11, .25);
     }
 }

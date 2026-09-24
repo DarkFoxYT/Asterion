@@ -63,7 +63,8 @@ public abstract class CameraMixin {
         rotation.premul(tilt); forwards.rotate(tilt); up.rotate(tilt); left.rotate(tilt);
         if (client.player.getVehicle() == boat) {
             Quaternionf sway = new Quaternionf()
-                    .rotationX(boat.rockingPitch(partial) * .12F * Mth.DEG_TO_RAD)
+                    .rotationX((boat.rockingPitch(partial) * .12F
+                            + Math.max(0F, -boat.plungeSpeed()) * 8F) * Mth.DEG_TO_RAD)
                     .rotateZ(boat.rockingRoll(partial) * .12F * Mth.DEG_TO_RAD);
             rotation.premul(sway); forwards.rotate(sway); up.rotate(sway); left.rotate(sway);
         }
@@ -134,6 +135,12 @@ public abstract class CameraMixin {
         if (studio != null) { result.setReturnValue((float)studio.fov()); return; }
         float cinematicFov = BossEntranceCinematic.fov(result.getReturnValueF(), minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(true));
         if (cinematicFov != result.getReturnValueF()) { result.setReturnValue(cinematicFov); return; }
+        if (minecraft.player != null && minecraft.player.getVehicle()
+                instanceof net.krodark.asterion.update.underworld.entity.CharonsFerryEntity ferry) {
+            float downhill = Math.max(0F, -ferry.plungeSpeed());
+            float momentum = Math.min(1F, Math.abs(ferry.sailingSpeed()) / .25F);
+            result.setReturnValue(result.getReturnValueF() + downhill * 7F + momentum * 1.4F);
+        }
         boolean spraying = minecraft.player != null && minecraft.player.isUsingItem()
                 && minecraft.player.getUseItem().is(net.krodark.asterion.game.GameplayContent.FLAMETHROWER);
         asterion$flamethrowerFovStrength = Mth.lerp(.12F, asterion$flamethrowerFovStrength,

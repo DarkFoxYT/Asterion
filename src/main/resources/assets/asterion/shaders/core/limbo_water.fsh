@@ -18,6 +18,7 @@ in float waterTime;
 in float waterLight;
 in float eventTempest;
 in float eventWhirlpool;
+in vec2 eventWhirlpoolCenter;
 out vec4 fragColor;
 
 #define TAU 6.28318530718
@@ -62,6 +63,7 @@ float ghostCurrent(vec2 uv, float time) {
 void main() {
     seaTempestStrength = eventTempest;
     seaWhirlpoolStrength = eventWhirlpool;
+    seaWhirlpoolCenter = eventWhirlpoolCenter;
     float hullEdge = hullDistance(hullPosition);
     if (hullActive > .5 && hullEdge < -.035 && hullPosition.z > 3.0 / 16.0) discard;
     float distance = length(surfacePosition);
@@ -130,17 +132,21 @@ void main() {
     float breakup = nearDetail > .01 ? surfaceNoise(p * .43 + ripples.yz * .16).x : .5;
     float patches = smoothstep(.25, .70, breakup + (grain - .5) * .25);
     float whitecap = foam * mix(.7, .16 + .84 * patches, nearDetail);
-    vec2 whirlDelta = worldSurface - vec2(14.0, 350.0);
+    vec2 whirlDelta = worldSurface - seaWhirlpoolCenter;
     float whirlRadius = length(whirlDelta);
     float whirlStrength = limboWhirlpool(waterTime);
-    if (whirlStrength > .001 && whirlRadius < 58.0) {
+    if (whirlStrength > .001 && whirlRadius < 120.0) {
         float angle = atan(whirlDelta.y, whirlDelta.x);
-        float spiral = sin(whirlRadius * .9 - angle * 5.0 + waterTime * .055);
-        float ring = sin(whirlRadius * .64 + waterTime * .025);
+        float spiral = sin(whirlRadius * .52 - angle * 7.0 + waterTime * .045);
+        float ring = sin(whirlRadius * .33 + waterTime * .022);
         float rotatingFoam = smoothstep(.53, .9, spiral * .65 + ring * .35)
-                * smoothstep(5.0, 15.0, whirlRadius)
-                * (1.0 - smoothstep(42.0, 58.0, whirlRadius)) * whirlStrength;
-        whitecap = max(whitecap, rotatingFoam * .78);
+                * smoothstep(8.0, 22.0, whirlRadius)
+                * (1.0 - smoothstep(92.0, 120.0, whirlRadius)) * whirlStrength;
+        float lip = exp(-pow((whirlRadius - 83.0) / 12.0, 2.0))
+                * (.55 + .45 * smoothstep(-.1, .8, spiral)) * whirlStrength;
+        water = mix(water, vec3(.001, .0012, .0015),
+                whirlStrength * (1.0 - smoothstep(16.0, 75.0, whirlRadius)) * .55);
+        whitecap = max(whitecap, max(rotatingFoam * .82, lip * .28));
     }
     float tempest = limboTempest(waterTime);
     if (nearDetail > .01) {

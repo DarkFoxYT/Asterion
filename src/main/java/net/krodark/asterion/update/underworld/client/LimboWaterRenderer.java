@@ -158,6 +158,8 @@ public final class LimboWaterRenderer {
                     net.krodark.asterion.event.LimboTempest.strength(frameTicks) * 255), 0, 255);
             int whirlpoolByte = (int)Math.clamp(Math.round(
                     net.krodark.asterion.event.LimboWhirlpool.strength(frameTicks) * 255), 0, 255);
+            float centerCodeX = ((net.krodark.asterion.event.LimboWhirlpool.x() / 4 + 128) + .5F) / 512F;
+            float centerCodeZ = (net.krodark.asterion.event.LimboWhirlpool.z() / 4 + .5F) / 512F;
             for (Tile tile : frame) {
                 double tileDx = tile.x + 8 - camera.x, tileDz = tile.z + 8 - camera.z;
                 double distanceSq = tileDx * tileDx + tileDz * tileDz;
@@ -189,7 +191,7 @@ public final class LimboWaterRenderer {
                             (frameBoat.y - layer.y - 8.0 / 9.0) / 8, -1, 1);
                     out.addVertex(pose, (float)(x - camera.x),
                                     (float)(layer.y + 8.0 / 9.0 - camera.y), (float)(z - camera.z))
-                            .setUv(x, z).setUv2(timeLow, timeHigh)
+                            .setUv(x + centerCodeX, z + centerCodeZ).setUv2(timeLow, timeHigh)
                             .setUv1((tempestByte << 8) | (bx & 255),
                                     (whirlpoolByte << 8) | (bz & 255))
                             .setNormal(boatCos, boatHeight, boatSin)

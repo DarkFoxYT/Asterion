@@ -20,17 +20,21 @@ public final class LimboSeaCommands {
     public static long whirlpoolStart() { return whirlpoolStart; }
     public static void receive(LimboSeaEventPayload state) {
         receive(state.tempestStart(), state.whirlpoolStart());
+        LimboWhirlpool.setCenter(state.centerX(), state.centerZ());
     }
     public static void receive(long tempest, long whirlpool) {
         tempestStart = tempest; whirlpoolStart = whirlpool;
     }
     public static void sync(ServerLevel level) {
-        var state = new LimboSeaEventPayload(tempestStart, whirlpoolStart);
+        var state = new LimboSeaEventPayload(tempestStart, whirlpoolStart,
+                LimboWhirlpool.x(), LimboWhirlpool.z());
         for (var player : level.players()) if (ServerPlayNetworking.canSend(player, LimboSeaEventPayload.TYPE))
             ServerPlayNetworking.send(player, state);
     }
     public static void register() {
-        ServerLifecycleEvents.SERVER_STOPPED.register(server -> receive(new LimboSeaEventPayload(NATURAL, NATURAL)));
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+            receive(NATURAL, NATURAL); LimboWhirlpool.setCenter(16, 352);
+        });
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(
                 Commands.literal("limboevent")
                         .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
@@ -46,6 +50,7 @@ public final class LimboSeaCommands {
     private static int change(ServerLevel level, boolean tempest, int action) {
         if (!level.dimension().equals(Asterion.LIMBO_LEVEL)) return 0;
         long start = action > 0 ? level.getGameTime() : action == 0 ? STOPPED : NATURAL;
+        if (!tempest && action > 0) LimboWhirlpool.placeAhead(level);
         if (tempest) tempestStart = start; else whirlpoolStart = start;
         sync(level);
         level.players().forEach(player -> player.sendSystemMessage(Component.literal(

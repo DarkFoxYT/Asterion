@@ -135,18 +135,18 @@ public final class FerryWaterPhysics {
 
     private static void whirlpoolSpray(Minecraft client, int quality, long time) {
         double strength = LimboWhirlpool.strength(time);
-        if (strength < .05 || client.player.distanceToSqr(LimboWhirlpool.X,
-                client.player.getY(), LimboWhirlpool.Z) > 70 * 70) return;
+        if (strength < .05 || client.player.distanceToSqr(LimboWhirlpool.x(),
+                client.player.getY(), LimboWhirlpool.z()) > 132 * 132) return;
         var random = world.getRandom();
         int count = quality == 0 ? 1 : quality == 1 ? 3 : 5;
         for (int i = 0; i < count; i++) {
-            double radius = 12 + random.nextDouble() * 34;
+            double radius = 18 + random.nextDouble() * 82;
             double angle = random.nextDouble() * Math.PI * 2;
-            double x = LimboWhirlpool.X + Math.cos(angle) * radius;
-            double z = LimboWhirlpool.Z + Math.sin(angle) * radius;
+            double x = LimboWhirlpool.x() + Math.cos(angle) * radius;
+            double z = LimboWhirlpool.z() + Math.sin(angle) * radius;
             double y = UnderworldTerrain.WATER_Y + 8.0 / 9.0
                     + UnderworldTerrain.waveHeight(x, z, time);
-            double speed = (.045 + (46 - radius) * .0015) * strength;
+            double speed = (.065 + (100 - radius) * .0008) * strength;
             world.addParticle(i % 3 == 0 ? ParticleTypes.BUBBLE_POP : ParticleTypes.SPLASH,
                     x, y + .06, z, -Math.sin(angle) * speed,
                     .04 + random.nextDouble() * .08 * strength,

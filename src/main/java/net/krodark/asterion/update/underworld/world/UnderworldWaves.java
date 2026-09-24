@@ -10,7 +10,7 @@ public final class UnderworldWaves {
     private record Noise(double value, double dx, double dz) { }
     private static final double[] kx = {.065, -.088, .039, -.19};
     private static final double[] kz = {.042, .052, -.148, -.083};
-    private static final double[] amplitude = {1.35, .95, .60, .28};
+    private static final double[] amplitude = {1.75, 1.22, .78, .36};
     private static final double[] offset = {.20, 1.8, 3.1, .7};
     private static final double[] warp = {8.0, -9.0, 7.0, -8.0};
     private UnderworldWaves() { }
@@ -58,7 +58,7 @@ public final class UnderworldWaves {
         double ex = exposure * .45 * energy.dx * .011 * .65;
         double ez = exposure * .45 * energy.dz * .011 * .65 + group * .88 * 6 * t * (1 - t) / 125;
         double height=h*exposure*group, limiter=1;
-        double crestLimit = 1.8 + storm * 1.2, softness = .7 + storm * .7;
+        double crestLimit = 2.8 + storm * 1.7, softness = 1.1 + storm * .9;
         if(Math.abs(height)>crestLimit) {
             double bend=Math.tanh((Math.abs(height)-crestLimit)/softness);
             height=Math.copySign(crestLimit+softness*bend,height);limiter=1-bend*bend;

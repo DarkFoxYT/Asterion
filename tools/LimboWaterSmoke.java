@@ -22,10 +22,13 @@ public final class LimboWaterSmoke {
             throw new AssertionError("Limbo tempest did not ramp in and out on schedule");
         if (net.krodark.asterion.event.LimboWhirlpool.strength(20000) != 0
                 || net.krodark.asterion.event.LimboWhirlpool.strength(22000) < .99
-                || net.krodark.asterion.event.LimboWhirlpool.strength(26000) != 0
-                || net.krodark.asterion.event.LimboWhirlpool.funnel(14, 350, 22000) > -6.9
-                || net.krodark.asterion.event.LimboWhirlpool.funnel(80, 350, 22000) != 0)
+                || net.krodark.asterion.event.LimboWhirlpool.strength(48000) != 0
+                || net.krodark.asterion.event.LimboWhirlpool.funnel(16, 352, 22000) > -9.9
+                || net.krodark.asterion.event.LimboWhirlpool.funnel(142, 352, 22000) != 0)
             throw new AssertionError("Limbo whirlpool envelope or footprint changed");
+        net.krodark.asterion.event.LimboSeaCommands.receive(-1, 1000);
+        if (net.krodark.asterion.event.LimboWhirlpool.strength(100000) < .99)
+            throw new AssertionError("Manual whirlpool should persist until stopped");
         net.krodark.asterion.event.LimboSeaCommands.receive(1000, -2);
         if (net.krodark.asterion.event.LimboTempest.strength(1500) < .99
                 || net.krodark.asterion.event.LimboWhirlpool.strength(22000) != 0)
@@ -123,7 +126,7 @@ public final class LimboWaterSmoke {
             int whirlpool = (int)Math.round(net.krodark.asterion.event.LimboWhirlpool.strength(whole + partial) * 255);
             GL30.glVertexAttribI2i(GL20.glGetAttribLocation(program, "UV1"), tempest << 8, whirlpool << 8);
             GL30.glVertexAttribI2i(GL20.glGetAttribLocation(program, "UV2"), (short)(whole & 65535), (short)(whole >>> 16));
-            for (int x : new int[]{-32, 0, 14, 18}) for (int z : new int[]{58, 180, 280, 350}) {
+            for (int x : new int[]{-32, 0, 14, 18, 80, 110}) for (int z : new int[]{58, 180, 280, 350, 410}) {
                 GL20.glVertexAttrib2f(GL20.glGetAttribLocation(program, "UV0"), x, z);
                 GL30.glBeginTransformFeedback(org.lwjgl.opengl.GL11.GL_POINTS);
                 org.lwjgl.opengl.GL11.glDrawArrays(org.lwjgl.opengl.GL11.GL_POINTS, 0, 1);
@@ -137,6 +140,21 @@ public final class LimboWaterSmoke {
                 if (Math.abs(worldHeight - position[1]) > .012) throw new AssertionError("Deformed surface buoyancy mismatch");
             }
         }
+        net.krodark.asterion.event.LimboWhirlpool.setCenter(32, 200);
+        GL20.glVertexAttrib4f(GL20.glGetAttribLocation(program, "Color"), 1, 0, 1, 0);
+        GL30.glVertexAttribI2i(GL20.glGetAttribLocation(program, "UV2"), 22000, 0);
+        GL30.glVertexAttribI2i(GL20.glGetAttribLocation(program, "UV1"), 0,
+                (int)Math.round(net.krodark.asterion.event.LimboWhirlpool.strength(22000) * 255) << 8);
+        GL20.glVertexAttrib2f(GL20.glGetAttribLocation(program, "UV0"),
+                32 + (32 / 4 + 128.5F) / 512F, 200 + (200 / 4 + .5F) / 512F);
+        GL30.glBeginTransformFeedback(org.lwjgl.opengl.GL11.GL_POINTS);
+        org.lwjgl.opengl.GL11.glDrawArrays(org.lwjgl.opengl.GL11.GL_POINTS, 0, 1);
+        GL30.glEndTransformFeedback();
+        float[] moved = new float[3];
+        GL15.glGetBufferSubData(GL30.GL_TRANSFORM_FEEDBACK_BUFFER, 0, moved);
+        if (Math.abs(moved[1] - net.krodark.asterion.update.underworld.world.UnderworldWaves.sample(32, 200, 22000).height()) > .008)
+            throw new AssertionError("Relocated whirlpool mesh and buoyancy differ");
+        net.krodark.asterion.event.LimboWhirlpool.setCenter(16, 352);
         org.lwjgl.opengl.GL11.glDisable(GL30.GL_RASTERIZER_DISCARD);
         GL15.glDeleteBuffers(buffer); GL30.glDeleteVertexArrays(vao); org.lwjgl.opengl.GL11.glDeleteTextures(wakeTexture); GL20.glUseProgram(0);
         System.out.printf("PASS GPU displacement matches boat waves across clock rollover: max error %.5f blocks.%n", maxError);

@@ -1,6 +1,7 @@
 // Integer-hashed, continuously interpolated noise, mirrored by UnderworldWaves on the server.
 float seaTempestStrength = -1.0;
 float seaWhirlpoolStrength = -1.0;
+vec2 seaWhirlpoolCenter = vec2(16.0, 352.0);
 float limboTempest(float ticks) {
     if (seaTempestStrength >= 0.0) return seaTempestStrength;
     float phase = mod(ticks - 12000.0 + 24000.0, 24000.0);
@@ -9,15 +10,15 @@ float limboTempest(float ticks) {
 }
 float limboWhirlpool(float ticks) {
     if (seaWhirlpoolStrength >= 0.0) return seaWhirlpoolStrength;
-    float phase = mod(ticks - 20000.0 + 32000.0, 32000.0);
-    return (1.0 - step(6000.0, phase)) * smoothstep(0.0, 800.0, phase)
-            * (1.0 - smoothstep(5000.0, 6000.0, phase));
+    float phase = mod(ticks - 20000.0 + 48000.0, 48000.0);
+    return (1.0 - step(28000.0, phase)) * smoothstep(0.0, 1200.0, phase)
+            * (1.0 - smoothstep(26400.0, 28000.0, phase));
 }
 float whirlFunnel(vec2 p, float ticks) {
-    float r = length(p - vec2(14.0, 350.0));
-    if (r >= 58.0) return 0.0;
-    float edge = 1.0 - smoothstep(12.0, 58.0, r);
-    return -7.0 * limboWhirlpool(ticks) * exp(-r / 23.0) * edge;
+    float r = length(p - seaWhirlpoolCenter);
+    if (r >= 120.0) return 0.0;
+    float edge = 1.0 - smoothstep(24.0, 120.0, r);
+    return -10.0 * limboWhirlpool(ticks) * exp(-r / 55.0) * edge;
 }
 float waveHash(ivec2 p) {
     uint h = uint(p.x) * 0x1f123bb5u ^ uint(p.y) * 0x5f356495u;
@@ -55,14 +56,14 @@ vec4 sampleWave(vec2 p,float ticks) {
     float t=clamp((seaZ-55.0)/125.0,0.0,1.0);
     float exposure=.12+.88*t*t*(3.0-2.0*t), group=.55+.45*energy.x;
     float boost = 1.0 + storm * .85;
-    vec4 w=swell(p,ticks,vec2(.065,.042),1.35*boost,.20,phase,8.0,phaseB)
-          +swell(p,ticks,vec2(-.088,.052),.95*boost,1.8,phaseB,-9.0,phaseC)
-          +swell(p,ticks,vec2(.039,-.148),.60*boost,3.1,phaseC,7.0,phase)
-          +swell(p,ticks,vec2(-.19,-.083),.28*boost,.7,phaseD,-8.0,phaseB);
+    vec4 w=swell(p,ticks,vec2(.065,.042),1.75*boost,.20,phase,8.0,phaseB)
+          +swell(p,ticks,vec2(-.088,.052),1.22*boost,1.8,phaseB,-9.0,phaseC)
+          +swell(p,ticks,vec2(.039,-.148),.78*boost,3.1,phaseC,7.0,phase)
+          +swell(p,ticks,vec2(-.19,-.083),.36*boost,.7,phaseD,-8.0,phaseB);
     vec2 envelopeSlope=exposure*.45*energy.yz*.011*.65;
     envelopeSlope.y+=group*.88*6.0*t*(1.0-t)/125.0;
     vec4 result=vec4(w.x*exposure*group,w.yz*exposure*group*.65+w.x*envelopeSlope,w.w*exposure*group*.4225);
-    float limit = 1.8 + storm * 1.2, softness = .7 + storm * .7;
+    float limit = 2.8 + storm * 1.7, softness = 1.1 + storm * .9;
     if(abs(result.x)>limit) {
         float bend=tanh((abs(result.x)-limit)/softness);
         result.x=sign(result.x)*(limit+softness*bend);result.yzw*=1.0-bend*bend;

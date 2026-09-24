@@ -21,6 +21,7 @@ out float waterTime;
 out float waterLight;
 out float eventTempest;
 out float eventWhirlpool;
+out vec2 eventWhirlpoolCenter;
 
 #moj_import <asterion:limbo_waves.glsl>
 #moj_import <asterion:limbo_wake.glsl>
@@ -42,17 +43,23 @@ void main() {
     eventWhirlpool = float((UV1.y >> 8) & 255) / 255.0;
     seaTempestStrength = eventTempest;
     seaWhirlpoolStrength = eventWhirlpool;
+    vec2 waterWorld = floor(UV0 + vec2(.0001));
+    vec2 encodedCenter = fract(UV0);
+    if (encodedCenter.x > .0001 && encodedCenter.y > .0001)
+        seaWhirlpoolCenter = vec2((floor(encodedCenter.x * 512.0) - 128.0) * 4.0,
+                floor(encodedCenter.y * 512.0) * 4.0);
+    eventWhirlpoolCenter = seaWhirlpoolCenter;
     int flags = int(Color.b * 255.0 + .5), hullFlags = int(Color.a * 255.0 + .5);
-    vec2 chunkEdge = mod(UV0, 16.0);
+    vec2 chunkEdge = mod(waterWorld, 16.0);
     bool fine = (flags & 128) != 0 && chunkEdge.x > .01 && chunkEdge.y > .01;
-    vec4 w = (fine ? sampleWave(UV0, ticks) : meshWave(UV0, ticks)) * Color.r;
+    vec4 w = (fine ? sampleWave(waterWorld, ticks) : meshWave(waterWorld, ticks)) * Color.r;
     vec2 relative = vec2((UV1 << 24) >> 24) / 8.0 + w.yz * .9;
     vec2 heading = Normal.xz;
     vec2 local = vec2(-relative.x * heading.x - relative.y * heading.y,
                       relative.x * heading.y - relative.y * heading.x);
     hullActive = (hullFlags & 128) != 0 ? 1.0 : 0.0;
     wakeStrength = (hullFlags & 64) != 0 ? hullActive : 0.0;
-    w.x += persistentWake(UV0 + w.yz * .9).y * Color.r;
+    w.x += persistentWake(waterWorld + w.yz * .9).y * Color.r;
     float pitch = radians(float((flags & 63) - 32) * .5);
     float roll = radians(float((hullFlags & 63) - 32) * .5);
     vec3 hull = vec3(local.x, w.x - Normal.y * 8.0 - 17.5 / 16.0, local.y);
@@ -61,16 +68,16 @@ void main() {
     hull.y += 17.5 / 16.0 - .01;
     hullPosition = hull.xzy;
     shoreExposure = Color.r;
-    worldSurface = UV0 + w.yz * .9;
+    worldSurface = waterWorld + w.yz * .9;
     waterTime = ticks;
     vec3 position = Position + vec3(w.y * .9, w.x, w.z * .9);
     gl_Position = ProjMat * ModelViewMat * vec4(position, 1.0);
     surfacePosition = position;
     vec2 funnelSlope = vec2(
-        whirlFunnel(UV0 + vec2(.05, 0), ticks) - whirlFunnel(UV0 - vec2(.05, 0), ticks),
-        whirlFunnel(UV0 + vec2(0, .05), ticks) - whirlFunnel(UV0 - vec2(0, .05), ticks)) * 10.0;
+        whirlFunnel(waterWorld + vec2(.05, 0), ticks) - whirlFunnel(waterWorld - vec2(.05, 0), ticks),
+        whirlFunnel(waterWorld + vec2(0, .05), ticks) - whirlFunnel(waterWorld - vec2(0, .05), ticks)) * 10.0;
     surfaceNormal = normalize(vec3(-w.y - funnelSlope.x, 1, -w.z - funnelSlope.y));
     foam = smoothstep(.00127, .0093, w.w) * smoothstep(-.1, .55, w.x);
-    ripplePosition = UV0 + vec2(ticks * .0022, -ticks * .0013);
+    ripplePosition = waterWorld + vec2(ticks * .0022, -ticks * .0013);
     detailQuality = (flags & 64) != 0 ? 1.0 : 0.0;
 }
