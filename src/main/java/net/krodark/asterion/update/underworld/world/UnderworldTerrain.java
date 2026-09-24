@@ -76,7 +76,8 @@ public final class UnderworldTerrain {
                 BlockState shale = (shaded ? Asterion.SHADED_SHALE : Asterion.SHALE).defaultBlockState();
                 Details d = details(seed, x, z, c);
                 double pool = puddleShape(seed, x, z);
-                boolean spiderPuddle = c.spider && !c.path && spiderPuddle(seed, x, z, c.floor + 1);
+                boolean spiderPuddle = c.spider && !c.path && (z >= 18 || Math.abs(x - riverCenter(z)) > 4)
+                        && spiderPuddle(seed, x, z, c.floor + 1);
                 int poolY = puddleWaterY(seed, z);
                 int torch = pillarHeight(seed, x, z, c);
                 double offset = x - riverCenter(z);
@@ -141,7 +142,7 @@ public final class UnderworldTerrain {
                                         nextFloor > c.floor ? net.minecraft.core.Direction.SOUTH : net.minecraft.core.Direction.NORTH);
                         }
                         // Isolated basins have their own surface elevation; the ocean never fills them.
-                        if (pool <= 1.3 && !c.path && !c.spider) {
+                        if (pool <= 1.3 && Math.abs(offset) > 4 && !c.path && !c.spider) {
                             if (y >= poolY - 2 && y <= poolY - 1) state = Blocks.MUD.defaultBlockState();
                             if (pool <= 1.03 && y == poolY)
                                 state = Asterion.DEAD_STONE_SLAB.defaultBlockState()
@@ -236,7 +237,7 @@ public final class UnderworldTerrain {
             floor = Math.min(floor, spider.floor);
             roof = Math.max(roof, spider.roof);
         }
-        int ravine = ravineDepth(x, z);
+        int ravine = ravineDepth(seed, x, z);
         if (ravine > 0 && !side.open && !spider.open && !path) {
             open = true;
             floor -= ravine;
@@ -274,11 +275,16 @@ public final class UnderworldTerrain {
         }
         double seabed = floor;
         if (path) { floor = pathFloor(z); roof = Math.max(roof, floor + 10); }
-        if (tunnel && !path && !side.open && !spider.open && puddleShape(seed, x, z) <= 1.03) floor = puddleWaterY(seed, z) - 1;
+        if (tunnel && Math.abs(offset) > 4 && !path && !side.open && !spider.open
+                && puddleShape(seed, x, z) <= 1.03) floor = puddleWaterY(seed, z) - 1;
         if (dockColumn(x, z)) { open = true; path = true; floor = seabed; roof = Math.max(roof, WATER_Y + 12); }
+        // Side chambers may cross the central tunnel, but their wet floor must not
+        // cut a submerged trench through the dry route before the river mouth.
+        if (z < 18 && tunnel && Math.abs(offset) <= 4) floor = Math.max(floor, WATER_Y + 1);
         int floorBlock = (int)Math.floor(floor);
         boolean spiderSurface = side.open || spider.open;
-        if (spiderSurface && !path && spiderPuddle(seed, x, z, floorBlock)) floorBlock--;
+        if (spiderSurface && !path && (z >= 18 || Math.abs(offset) > 4)
+                && spiderPuddle(seed, x, z, floorBlock)) floorBlock--;
         return new Column(open, floorBlock, (int)Math.ceil(Math.min(MAX_Y - 1, roof)), path, spiderSurface);
     }
 
@@ -324,12 +330,14 @@ public final class UnderworldTerrain {
             Branch branch = branch(entrance.getZ());
             CaveNode nearest = caveNode(seed, branch.side > 0 ? 0 : -1, Math.floorDiv(entrance.getZ(), 48), nodes);
             double entranceU = entrance.getX() - (riverCenter(entrance.getZ()) - 15);
+            clearance = Math.max(clearance, 14 - Math.hypot((u - entranceU) * .95,
+                    (z - entrance.getZ()) * .8));
             clearance = Math.max(clearance, 3.5 - segmentDistance(u, z, entranceU,
                     entrance.getZ(), nearest.x, nearest.z));
         }
         if (clearance <= .35) return new SideShape(false, 0, 0);
         double round = Math.sqrt(Math.clamp(clearance / 8, 0, 1));
-        double height = 6 + Math.min(13, Math.max(0, clearance) * 1.05);
+        double height = 7 + Math.min(25, Math.max(0, clearance) * 1.8);
         double base = pathFloor(z) - 1 + 1.8 * octaves(seed ^ 0x6A0DL, u * .025, z * .025);
         int floor = (int)Math.floor(base + height * (1 - round) * .24);
         int roof = (int)Math.ceil(base + height * (1 + round) * .76);
@@ -341,17 +349,27 @@ public final class UnderworldTerrain {
         double fine = octaves(seed ^ 0x71DEL, x * .21, z * .21);
         return broad > .28 && fine > .04 && (hash(seed ^ 0xF100DL, x >> 3, z >> 3) & 3) != 0;
     }
-    private static int ravineDepth(int x, int z) {
-        if (z < SPAWN_Z + 32 || z > -70) return 0;
-        int slot = Math.floorDiv(z - SPAWN_Z, 160);
-        long shape = hash(0x4A7E11EL, slot, 0);
-        int centerZ = SPAWN_Z + slot * 160 + 92 + (int)((shape >>> 7) & 15);
-        int side = (shape & 1L) == 0 ? -1 : 1;
+    private static int ravineDepth(long seed, int x, int z) {
+        if (z < SPAWN_Z + 48 || z > -90) return 0;
+        int slot = Math.floorDiv(z - SPAWN_Z, 232);
+        long shape = hash(seed ^ 0x4A7E11EL, slot, 0);
+        if ((shape & 3L) != 0) return 0; // Most regions have no ravine at all.
+        int centerZ = SPAWN_Z + slot * 232 + 92 + (int)((shape >>> 7) & 63);
+        double halfLength = 16 + ((shape >>> 14) & 15);
+        double along = (z - centerZ) / halfLength;
+        if (Math.abs(along) >= 1) return 0;
+        int side = (shape & 4L) == 0 ? -1 : 1;
+        double meander = octaves(seed ^ 0x4A71L, z * .033, slot * .71) * 4.5
+                + Math.sin(z * .087 + (shape & 255)) * 1.6;
         double route = riverCenter(z) - 15;
-        double band = Math.abs(x - route - side * 11);
-        if (Math.abs(z - centerZ) > 30 || band > 3.4) return 0;
-        double taper = (1D - Math.abs(z - centerZ) / 31D) * (1D - band / 4D);
-        return Math.max(0, (int)Math.round(taper * (11 + (shape >>> 12 & 7))));
+        double centerX = route + side * (12 + ((shape >>> 20) & 5)) + meander;
+        double width = 2.2 + ((shape >>> 26) & 3) * .45
+                + octaves(seed ^ 0x8A91L, z * .068, slot) * .7;
+        double across = Math.abs(x - centerX) / Math.max(1.6, width);
+        if (across >= 1) return 0;
+        double taper = (1 - smooth(Math.abs(along))) * (1 - smooth(across));
+        double rough = .75 + .25 * octaves(seed ^ 0xA71EL, x * .16, z * .12);
+        return Math.max(0, (int)Math.round(taper * rough * (7 + ((shape >>> 30) & 5))));
     }
     private static boolean sideHall(int x, int z) { return sideShape(x, z).open; }
     private static SideShape sideShape(int x, int z) {

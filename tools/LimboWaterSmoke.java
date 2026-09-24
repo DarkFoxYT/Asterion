@@ -101,8 +101,9 @@ public final class LimboWaterSmoke {
         double maxError = 0;
         for (double ticks : new double[]{0, 1234.5, 65535.9, 65536.1, 180000.25}) {
             long whole = (long)ticks;
-            float partial = (float)Math.floor((ticks - whole) * 255) / 255;
-            GL20.glVertexAttrib4f(GL20.glGetAttribLocation(program, "Color"), 1, partial, 1, 0);
+            int fraction = (int)((ticks - whole) * 15);
+            float partial = fraction / 16F;
+            GL20.glVertexAttrib4f(GL20.glGetAttribLocation(program, "Color"), 1, fraction / 255F, 1, 0);
             GL30.glVertexAttribI2i(GL20.glGetAttribLocation(program, "UV2"), (short)(whole & 65535), (short)(whole >>> 16));
             for (int x : new int[]{-32, 0, 18}) for (int z : new int[]{58, 180, 280}) {
                 GL20.glVertexAttrib2f(GL20.glGetAttribLocation(program, "UV0"), x, z);

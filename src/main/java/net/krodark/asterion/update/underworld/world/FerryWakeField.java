@@ -2,19 +2,33 @@ package net.krodark.asterion.update.underworld.world;
 
 import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 /** A bounded history in world coordinates. Moving the sampling window never moves a wake. */
 public final class FerryWakeField {
     public static final int SIZE = 128;
     public static final double EXTENT = 64, LIFETIME = 240;
     private record Stamp(double x, double z, double dx, double dz, double time, double strength) { }
+    private record Track(double x, double z, double time) { }
     private final ArrayDeque<Stamp> stamps = new ArrayDeque<>();
+    private final Map<Integer, Track> presences = new HashMap<>();
     private final float[] foam = new float[SIZE * SIZE], height = new float[SIZE * SIZE];
     private double lastX = Double.NaN, lastZ, lastTime;
     public int originX, originZ;
 
-    public void clear() { stamps.clear(); lastX = Double.NaN; Arrays.fill(foam, 0); Arrays.fill(height, 0); }
+    public void clear() { stamps.clear(); presences.clear(); lastX = Double.NaN; Arrays.fill(foam, 0); Arrays.fill(height, 0); }
     public int size() { return stamps.size(); }
+    public void recordPresence(int id, double x, double z, double time, double strength) {
+        Track previous = presences.put(id, new Track(x, z, time));
+        if (previous == null) return;
+        double elapsed = time - previous.time;
+        double dx = x - previous.x, dz = z - previous.z, distance = Math.hypot(dx, dz);
+        if (elapsed <= 0 || elapsed > 12 || distance < .24 || distance > 5) return;
+        stamps.addLast(new Stamp(x, z, dx / distance, dz / distance, time,
+                Math.clamp(strength * distance / elapsed * 3, 0, .75)));
+        while (stamps.size() > 96) stamps.removeFirst();
+    }
     public void record(double x, double z, double time, double immersion) {
         if (!Double.isFinite(lastX)) { lastX=x; lastZ=z; lastTime=time; return; }
         double dx=x-lastX, dz=z-lastZ, distance=Math.hypot(dx,dz), elapsed=time-lastTime;
@@ -31,6 +45,7 @@ public final class FerryWakeField {
         originZ=(int)Math.floor((centerZ-EXTENT*.5)/8)*8;
         Arrays.fill(foam,0); Arrays.fill(height,0);
         stamps.removeIf(s -> time-s.time > LIFETIME || time < s.time);
+        presences.entrySet().removeIf(e -> time - e.getValue().time > 40 || time < e.getValue().time);
         for(Stamp s:stamps) {
             double age=time-s.time, fade=Math.pow(1-age/LIFETIME,2)*s.strength;
             double birth=Math.clamp(age/6,0,1);

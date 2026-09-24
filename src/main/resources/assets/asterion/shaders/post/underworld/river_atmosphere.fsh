@@ -7,11 +7,13 @@ layout(std140) uniform WorldData { mat4 InvViewProj; vec4 CameraData; vec4 Camer
 layout(std140) uniform Intensity { float Value; };
 layout(std140) uniform MistQuality { vec4 MarchSteps; };
 layout(std140) uniform RiverData { vec4 River; };
+layout(std140) uniform UnderworldTime { float Time; };
+layout(std140) uniform Submersion { vec4 Underwater; };
 in vec2 texCoord;
 out vec4 fragColor;
 
 float atlasNoise(vec3 p){
-    vec2 uv=p.xz+vec2(p.y*.071,-p.y*.053);
+    vec2 uv=p.xz+vec2(p.y*.071,-p.y*.053)+vec2(Time*.00013,-Time*.00009);
     return texture(NoiseSampler,fract(uv)).r;
 }
 
@@ -96,15 +98,23 @@ float middleBlobDensity(vec3 p,float bottom,float top,out float glow){
     return folded*height*verticalFade*(.52+.34*ribbon);
 }
 
+vec4 finishVolume(vec3 color, float transmission, float strength, float travel) {
+    float submerged = clamp(Underwater.x, 0.0, 1.0);
+    float waterAbsorption = exp(-travel * .16);
+    transmission *= mix(1.0, .075 * waterAbsorption, submerged);
+    color = mix(color, vec3(.0012,.0018,.0032) * (1.0 - exp(-travel * .12)), submerged);
+    return vec4(color * strength, mix(1.0, transmission, strength));
+}
+
 void main(){
     int canopySamples=int(clamp(MarchSteps.x,3.0,7.0));
     int middleSamples=int(clamp(MarchSteps.y,4.0,8.0));
-    int waterSamples=int(clamp(MarchSteps.z,10.0,16.0));
+    int waterSamples=int(clamp(MarchSteps.z,10.0,20.0));
     float strength=clamp(Value,0.0,1.0);
     if(strength<.001){fragColor=vec4(0,0,0,1);return;}
     float depth=texture(DepthSampler,texCoord).r;vec3 end=unproject(depth),ray=normalize(unproject(.9999)-unproject(.0001));
     if(dot(ray,CameraForward.xyz)<0.0)ray=-ray;
-    float travel=depth>=.9999?160.0:min(length(end),160.0),haze=1.0-exp(-max(0.0,travel-23.0)*.088*River.z);
+    float travel=depth>=.9999?160.0:min(length(end-CameraData.xyz),160.0),haze=1.0-exp(-max(0.0,travel-23.0)*.088*River.z);
     vec3 color=vec3(.004,.0045,.005)*haze;float transmission=1.0-haze;
     float canopyBottom=River.x+10.5,canopyTop=River.x+29.0;
     float canopyEnter=5.0,canopyLeave=min(travel,96.0);
@@ -150,12 +160,12 @@ void main(){
     }
     float bottom=River.x-1.0,top=River.x+River.y*1.55,enter=1.5,leave=min(travel,72.0);
     if(abs(ray.y)<.0001){if(CameraData.y<bottom||CameraData.y>top)leave=0.0;}else{float a=(bottom-CameraData.y)/ray.y,b=(top-CameraData.y)/ray.y;enter=max(1.5,min(a,b));leave=min(leave,max(a,b));}
-    float span=max(0.0,leave-enter);if(span<.001||River.w<=.001){fragColor=vec4(color*strength,mix(1.0,transmission,strength));return;}
+    float span=max(0.0,leave-enter);if(span<.001||River.w<=.001){fragColor=finishVolume(color,transmission,strength,travel);return;}
     // The fog is tied to a fixed world-height band, not the animated water mesh.
     float overhead=smoothstep(.18,.92,-ray.y);
     float viewDensity=mix(1.0,1.68,overhead);
     float stepLength=span/float(waterSamples),jitter=.5,optical=0.0,light=0.0;
-    for(int i=0;i<16;++i){
+    for(int i=0;i<20;++i){
         if(i>=waterSamples)break;
         float d=enter+(float(i)+jitter)*stepLength;vec3 p=CameraData.xyz+ray*d;float lit;
         float den=densityAt(p,River.x,lit);
@@ -185,5 +195,5 @@ void main(){
     fog+=vec3(.055,.058,.062)*(inner+multipleScatter*.7);
     // A faint far-field veil connects the local volume to the dimension's air.
     fog=mix(fog,vec3(.026,.028,.031),haze*.24);
-    color=mix(color,fog,mist);transmission*=1.0-mist;fragColor=vec4(color*strength,mix(1.0,transmission,strength));
+    color=mix(color,fog,mist);transmission*=1.0-mist;fragColor=finishVolume(color,transmission,strength,travel);
 }

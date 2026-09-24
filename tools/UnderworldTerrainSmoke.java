@@ -138,7 +138,7 @@ public final class UnderworldTerrainSmoke {
         int wet = 0, rims = 0;
         for (int z = -158; z < -20; z++) for (int x = -40; x < 40; x++) {
             double shape = (double)puddle.invoke(null, 42L, x, z);
-            if (shape <= 1.03) {
+            if (shape <= 1.03 && Math.abs(x - UnderworldTerrain.riverCenter(z)) > 4) {
                 Object c = sample(42L, x, z);
                 if (!(boolean)SPIDER.invoke(c) && !(boolean)PATH.invoke(c)
                         && (int)FLOOR.invoke(c) != (int)waterY.invoke(null, 42L, z) - 1)

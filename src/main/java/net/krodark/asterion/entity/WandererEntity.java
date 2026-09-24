@@ -62,7 +62,7 @@ public final class WandererEntity extends PathfinderMob implements GeoEntity {
         }
         if (state() == State.STAMPEDE) setState(State.PURPOSEFUL);
         if (scatterFromCharge(level)) return;
-        switch (state()) { case PURPOSEFUL -> purposeful(level); case ROAMING -> roaming(level); case WATCHING -> watching(level); case HIDING -> hiding(); case STAMPEDE -> stampede(); default -> { } }
+        switch (state()) { case PURPOSEFUL -> purposeful(level); case ROAMING -> roaming(level); case WATCHING -> watching(level); case HIDING -> hiding(level); case STAMPEDE -> stampede(); default -> { } }
     }
     private void purposeful(ServerLevel level) {
         double z = getZ() + 9;
@@ -74,12 +74,32 @@ public final class WandererEntity extends PathfinderMob implements GeoEntity {
     }
     private void roaming(ServerLevel level) {
         Player viewer = level.getNearestPlayer(this, 28);
-        if (stateTicks > 90 && random.nextInt(100) == 0 && viewer != null) { destination = shelter(level, viewer); setState(State.WATCHING); return; }
+        if (stateTicks > 90 && random.nextInt(100) == 0 && viewer != null) {
+            destination = shelter(level, viewer);
+            setState(destination != null && random.nextFloat() < .7F ? State.HIDING : State.WATCHING);
+            return;
+        }
         if (navigation.isDone() || tickCount % 45 == 0) { double z = getZ() + (random.nextDouble() - .5) * 9, x = UnderworldTerrain.riverCenter(z) - 15; navigation.moveTo(x + (random.nextBoolean() ? 1 : -1) * (3 + random.nextDouble() * 4), getY(), z, .45); }
         navigation.setSpeedModifier(.45 * gaitSpeed());
     }
     private void watching(ServerLevel level) { Player player = level.getNearestPlayer(this, 32); if (player == null || stateTicks > 100) { setState(State.ROAMING); return; } if (destination != null && distanceToSqr(destination) > 2.25) navigation.moveTo(destination.x, destination.y, destination.z, .52); else { navigation.stop(); getLookControl().setLookAt(player, 12, 12); } }
-    private void hiding() { if (destination != null && distanceToSqr(destination) > 2) navigation.moveTo(destination.x, destination.y, destination.z, 1.18); else if (stateTicks > 80) setState(random.nextBoolean() ? State.ROAMING : State.PURPOSEFUL); }
+    private void hiding(ServerLevel level) {
+        Player viewer = level.getNearestPlayer(this, 32);
+        if (viewer == null || stateTicks > 180) { setState(State.ROAMING); return; }
+        // Re-evaluate cover sparingly. If spotted, slip toward a different edge of the scene.
+        if (stateTicks % 40 == 0 && (destination == null || viewer.hasLineOfSight(this))) {
+            Vec3 cover = shelter(level, viewer);
+            if (cover != null) destination = cover;
+        }
+        if (destination != null && distanceToSqr(destination) > 2.25) {
+            if (navigation.isDone() || stateTicks % 20 == 0)
+                navigation.moveTo(destination.x, destination.y, destination.z, .72);
+        } else {
+            navigation.stop();
+            getLookControl().setLookAt(viewer, 12, 12);
+            if (stateTicks > 100 && viewer.hasLineOfSight(this)) setState(State.ROAMING);
+        }
+    }
     private void stampede() { }
     private boolean scatterFromCharge(ServerLevel level) {
         MinotaurEntity minotaur = level.getNearestEntity(MinotaurEntity.class, net.minecraft.world.entity.ai.targeting.TargetingConditions.forNonCombat().range(32), this, getX(), getY(), getZ(), getBoundingBox().inflate(32));
@@ -88,25 +108,33 @@ public final class WandererEntity extends PathfinderMob implements GeoEntity {
         Vec3 side = new Vec3(-direction.z, 0, direction.x); if (side.dot(position().subtract(origin)) < 0) side = side.scale(-1); destination = position().add(side.scale(8)); setState(State.HIDING); return true;
     }
     private Vec3 shelter(ServerLevel level, Player viewer) {
-        Vec3 fallback = null;
-        for (int attempt = 0; attempt < 12; attempt++) {
-            double z = getZ() + (random.nextDouble() - .5D) * 9D;
+        Vec3 best = null;
+        double bestScore = Double.NEGATIVE_INFINITY;
+        Vec3 look = viewer.getLookAngle();
+        for (int attempt = 0; attempt < 28; attempt++) {
+            double z = getZ() + (random.nextDouble() - .5D) * 24D;
             double pathX = UnderworldTerrain.riverCenter(z) - 15D;
-            double x = pathX + (getX() < pathX ? -1 : 1) * (4D + random.nextDouble() * 6D);
+            double x = pathX + (random.nextBoolean() ? -1 : 1) * (5D + random.nextDouble() * 11D);
             BlockPos feet = BlockPos.containing(x, getY(), z);
             if (!level.getBlockState(feet).isAir() || !level.getBlockState(feet.above()).isAir()
                     || !level.getBlockState(feet.below()).isSolidRender()) continue;
             Vec3 candidate = Vec3.atBottomCenterOf(feet);
-            if (fallback == null) fallback = candidate;
+            double distance = candidate.distanceTo(viewer.position());
+            if (distance < 6 || distance > 28) continue;
             boolean bodyCovered = level.clip(new ClipContext(viewer.getEyePosition(), candidate.add(0, .7D, 0),
                     ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, CollisionContext.empty()))
                     .getType() == HitResult.Type.BLOCK;
+            if (!bodyCovered) continue;
             boolean eyesVisible = level.clip(new ClipContext(viewer.getEyePosition(), candidate.add(0, 1.55D, 0),
                     ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, CollisionContext.empty()))
                     .getType() != HitResult.Type.BLOCK;
-            if (bodyCovered && eyesVisible) return candidate;
+            Vec3 toward = candidate.subtract(viewer.position()).normalize();
+            double view = look.x * toward.x + look.z * toward.z;
+            double score = (eyesVisible ? 3 : 1) + (view < .55 && view > -.45 ? 2 : 0)
+                    - Math.abs(distance - 14) * .08 - candidate.distanceTo(position()) * .035;
+            if (score > bestScore) { best = candidate; bestScore = score; }
         }
-        return fallback == null ? position() : fallback;
+        return best;
     }
     private void tickDrowning() { navigation.stop(); setDeltaMovement(getDeltaMovement().multiply(.82, .7, .82).add(0, -.025, .035)); if (stateTicks == 1) playSound(SoundEvents.PLAYER_SPLASH, .65F, .6F); if (stateTicks >= 300) discard(); }
     /** The model's two-second loop plants a foot at 0, 1 and 2 seconds. Ease down at each contact. */
@@ -123,8 +151,7 @@ public final class WandererEntity extends PathfinderMob implements GeoEntity {
     public State state() { return State.values()[entityData.get(STATE)]; }
     public boolean isWatching() { return state() == State.WATCHING; }
     public void debugState(State requested, ServerLevel level, Player viewer) {
-        destination = requested == State.WATCHING ? shelter(level, viewer)
-                : requested == State.HIDING ? position().add(5, 0, 0) : null;
+        destination = requested == State.WATCHING || requested == State.HIDING ? shelter(level, viewer) : null;
         setState(requested);
     }
     private void setState(State state) { entityData.set(STATE, state.ordinal()); stateTicks = 0; if (state != State.WATCHING && state != State.HIDING && state != State.STAMPEDE) destination = null; }

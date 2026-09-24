@@ -4,10 +4,15 @@ import com.mojang.blaze3d.platform.NativeImage;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.update.underworld.entity.CharonsFerryEntity;
 import net.krodark.asterion.update.underworld.world.FerryWakeField;
+import net.krodark.asterion.update.underworld.world.UnderworldTerrain;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.AABB;
 
 public final class FerryWakeTexture {
     public static final Identifier ID=Asterion.id("dynamic/ferry_wake");
@@ -46,11 +51,13 @@ public final class FerryWakeTexture {
             FIELD.record(centerX+Math.sin(yaw)*3.2,centerZ-Math.cos(yaw)*3.2,time,1);
         }
         var player = Minecraft.getInstance().player;
-        boolean presence = player != null && player.isInWater() && !player.isSpectator()
-                && !player.isPassenger() && !player.getAbilities().flying;
         if (player != null && (boat == null || boat.distanceToSqr(player) > 24*24)) {
             centerX=player.getX(); centerZ=player.getZ();
         }
+        AABB nearby = new AABB(centerX-30, UnderworldTerrain.WATER_Y-5, centerZ-30,
+                centerX+30, UnderworldTerrain.WATER_Y+7, centerZ+30);
+        var contacts = level.getEntities((Entity)null, nearby, entity -> entity instanceof Player || entity instanceof ItemEntity);
+        boolean presence = !contacts.isEmpty();
         // Upload an empty field once, including the frame that removes the final contact ring.
         if (uploaded != Long.MIN_VALUE && FIELD.size() == 0 && !presence && !hadPresence) return;
         int interval = net.krodark.asterion.client.PerformanceGovernor.quality() == 0 ? 4 : 2;
@@ -58,14 +65,17 @@ public final class FerryWakeTexture {
         uploaded=time;
         FIELD.rasterize(centerX,centerZ,time);
         hadPresence=presence;
-        if (presence) {
-            double surface=net.krodark.asterion.update.underworld.world.UnderworldWaterPhysics.surfaceAt(player,time);
-            var body=player.getBoundingBox();
+        for (Entity entity : contacts) {
+            if (entity instanceof Player p && (p.isSpectator() || p.isPassenger() || p.getAbilities().flying)) continue;
+            double surface=net.krodark.asterion.update.underworld.world.UnderworldWaterPhysics.surfaceAt(entity,time);
+            var body=entity.getBoundingBox();
             if (Double.isFinite(surface) && body.minY < surface+.2 && body.maxY > surface-.2) {
-                double width=player.getBbWidth()*.5;
-                double length=player.isSwimming() ? width*3 : width;
-                FIELD.addPresence(player.getX(),player.getZ(),width,length,player.getYRot(),time,
-                        .35+Math.min(.65,player.getDeltaMovement().horizontalDistance()*3));
+                double width=entity.getBbWidth()*.5;
+                double length=entity instanceof Player p && p.isSwimming() ? width*3 : width;
+                double strength=(entity instanceof ItemEntity ? .28 : .4)
+                        +Math.min(.5,entity.getDeltaMovement().horizontalDistance()*3);
+                FIELD.recordPresence(entity.getId(),entity.getX(),entity.getZ(),time,strength);
+                FIELD.addPresence(entity.getX(),entity.getZ(),width,length,entity.getYRot(),time,strength);
             }
         }
         for(int z=0;z<128;z++)for(int x=0;x<128;x++)pixels.setPixel(x,z,FIELD.pixel(x,z));

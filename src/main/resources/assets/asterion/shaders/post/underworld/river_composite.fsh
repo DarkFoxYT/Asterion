@@ -9,7 +9,7 @@ float viewDistance(vec2 uv) {
     float d = texture(DepthSampler, uv).r;
     if (d >= .9999) return 192.0;
     vec4 p = InvViewProj * vec4(uv * 2.0 - 1.0, CameraData.w > .5 ? d : d * 2.0 - 1.0, 1);
-    return min(length(p.xyz / max(abs(p.w), .00001)), 192.0);
+    return min(length(p.xyz / max(abs(p.w), .00001) - CameraData.xyz), 192.0);
 }
 vec4 filteredVolume() {
     // Smooth upscale in open regions; depth-aware taps protect silhouettes.
