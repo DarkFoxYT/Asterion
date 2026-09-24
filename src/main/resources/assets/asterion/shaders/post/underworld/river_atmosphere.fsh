@@ -10,6 +10,7 @@ layout(std140) uniform MistQuality { vec4 MarchSteps; };
 layout(std140) uniform RiverData { vec4 River; };
 layout(std140) uniform UnderworldTime { float Time; };
 layout(std140) uniform Submersion { vec4 Underwater; };
+layout(std140) uniform LocalLights { vec4 LightPositionRadius[4]; vec4 LightColorStrength[4]; };
 in vec2 texCoord;
 out vec4 fragColor;
 
@@ -68,8 +69,24 @@ float densityAt(vec3 world, vec3 wind, out float light) {
     float high = smoothstep(River.x + 10.0, River.x + 16.0, world.y)
             * (1.0 - smoothstep(River.x + 29.0, River.x + 38.0, world.y));
     light = clamp(.15 + (banks - wisps) * .22 + high * .08, 0.0, .35);
-    return smoothstep(.30, .75, banks * .64 + wisps * .36 + circulation)
-            * (.16 + low * .76 + high * .22);
+    float ocean = smoothstep(12.0, 72.0, world.z)
+            * smoothstep(River.x - 12.0, River.x + 3.0, world.y);
+    return smoothstep(.27, .73, banks * .64 + wisps * .36 + circulation)
+            * (.22 + low * .85 + high * .25) * (1.0 + ocean * .65);
+}
+
+float lightRelief(vec3 world, out vec3 glow) {
+    float relief = 0.0;
+    glow = vec3(0);
+    for (int i = 0; i < 4; i++) {
+        if (LightPositionRadius[i].w <= 0.0) continue;
+        float radius = LightPositionRadius[i].w;
+        float falloff = 1.0 - smoothstep(radius * .18, radius, distance(world, LightPositionRadius[i].xyz));
+        float strength = clamp(LightColorStrength[i].w * falloff, 0.0, 1.0);
+        relief = max(relief, strength);
+        glow += LightColorStrength[i].rgb * strength * .018;
+    }
+    return relief;
 }
 
 void main() {
@@ -80,8 +97,8 @@ void main() {
     }
     float depth = sceneDepth();
     vec3 direction = worldRay(texCoord);
-    float travel = depth >= .9999 ? 112.0
-            : max(0.0, min(length(reconstructWorld(depth) - CameraData.xyz) - .12, 112.0));
+    float travel = depth >= .9999 ? 136.0
+            : max(0.0, min(length(reconstructWorld(depth) - CameraData.xyz) - .12, 136.0));
     int samples = int(clamp(MarchSteps.x, 4.0, 8.0));
     float stepLength = travel / float(samples);
     float opticalDepth = 0.0;
@@ -94,11 +111,15 @@ void main() {
         vec3 world = CameraData.xyz + direction * along;
         float localLight;
         float density = densityAt(world, wind, localLight);
-        float extinction = min(density * stepLength * .010 * River.z * River.w,
-                max(0.0, .50 - opticalDepth));
+        vec3 lightGlow;
+        float relief = lightRelief(world, lightGlow);
+        float nearRamp = smoothstep(2.0, 13.0, along);
+        float extinction = min(density * mix(.45, 1.0, nearRamp)
+                * (1.0 - relief * .58) * stepLength * .015 * River.z * River.w,
+                max(0.0, 1.32 - opticalDepth));
         float visibility = exp(-opticalDepth);
         opticalDepth += extinction;
-        vec3 grey = mix(vec3(.075, .079, .084), vec3(.16, .17, .18), localLight);
+        vec3 grey = mix(vec3(.075, .079, .084), vec3(.16, .17, .18), localLight) + lightGlow;
         scattering += visibility * (1.0 - exp(-extinction)) * grey;
     }
 

@@ -6,9 +6,13 @@ import com.meekdev.amnetic.client.post.RenderPhase;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
+import net.krodark.asterion.client.light.LedAmneticLight;
 import net.krodark.asterion.update.underworld.world.UnderworldTerrain;
 import net.krodark.asterion.update.underworld.world.UnderworldWaterPhysics;
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
 import com.meekdev.amnetic.client.post.UniformValue;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
@@ -40,6 +44,7 @@ public final class UnderworldPostEffects {
                 .uniform("UnderworldTime", UnderworldPostEffects::renderTime)
                 .uniformVec4("Submersion", UnderworldPostEffects::submersion)
                 .uniformRaw("WorldData", UnderworldPostEffects::worldData)
+                .uniformRaw("LocalLights", UnderworldPostEffects::localLights)
                 .uniformVec4("RiverData", () -> new Vector4f(
                         UnderworldTerrain.WATER_Y + 8F / 9F, 2.65F,
                         active() ? AsterionConfig.INSTANCE.limboFogStrength : 0F,
@@ -70,6 +75,36 @@ public final class UnderworldPostEffects {
                         (float)cameraPosition.z, RenderSystem.getDevice().isZZeroToOne() ? 1F : 0F)),
                 new UniformValue.Vec4Uniform(new Vector4f((float)cameraForward.x, (float)cameraForward.y,
                         (float)cameraForward.z, 0F)));
+    }
+
+    private static List<UniformValue> localLights() {
+        Minecraft client = Minecraft.getInstance();
+        Vec3 camera = AmneticCamera.isReady() ? AmneticCamera.position() : cameraPosition;
+        java.util.ArrayList<UniformValue> values = new java.util.ArrayList<>(8);
+        java.util.ArrayList<LedAmneticLight.LedPointLightSample> visible = new java.util.ArrayList<>(4);
+        if (client.level != null) for (var light : LedAmneticLight.nearbyFogLights(camera, 12)) {
+            if (visible.size() >= 4) break;
+            if (camera.distanceToSqr(light.position()) > 2 && client.level.clip(new ClipContext(
+                    camera, light.position(), ClipContext.Block.COLLIDER,
+                    ClipContext.Fluid.NONE, CollisionContext.empty())).getType() != HitResult.Type.MISS) continue;
+            visible.add(light);
+        }
+        for (int i = 0; i < 4; i++) {
+            if (i < visible.size()) {
+                var light = visible.get(i);
+                values.add(new UniformValue.Vec4Uniform(new Vector4f((float)light.position().x,
+                        (float)light.position().y, (float)light.position().z,
+                        Math.max(2.5F, light.radius() * 2.25F))));
+            } else values.add(new UniformValue.Vec4Uniform(new Vector4f()));
+        }
+        for (int i = 0; i < 4; i++) {
+            if (i < visible.size()) {
+                var light = visible.get(i);
+                values.add(new UniformValue.Vec4Uniform(new Vector4f(light.red(), light.green(),
+                        light.blue(), Math.min(2F, light.strength()))));
+            } else values.add(new UniformValue.Vec4Uniform(new Vector4f()));
+        }
+        return values;
     }
 
     private static double renderTime() {

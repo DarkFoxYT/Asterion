@@ -76,8 +76,6 @@ public final class UnderworldTerrain {
                 BlockState shale = (shaded ? Asterion.SHADED_SHALE : Asterion.SHALE).defaultBlockState();
                 Details d = details(seed, x, z, c);
                 double pool = puddleShape(seed, x, z);
-                boolean spiderPuddle = c.spider && !c.path && (z >= 18 || Math.abs(x - riverCenter(z)) > 4)
-                        && spiderPuddle(seed, x, z, c.floor + 1);
                 int poolY = puddleWaterY(seed, z);
                 int torch = pillarHeight(seed, x, z, c);
                 double offset = x - riverCenter(z);
@@ -99,6 +97,12 @@ public final class UnderworldTerrain {
                 boolean sideHall = sideHall(x, z);
                 boolean chamber = inChamber(new BlockPos(x, c.floor + 1, z));
                 long texture = hash(seed, x, z);
+                int ceilingSpike = c.spider && c.roof - c.floor > 13 && d.hanging > 1
+                        ? Math.min(1 + (int)((texture >>> 18) & 3L),
+                        Math.max(0, c.roof - c.floor - 5 - d.rock - d.spike - d.hanging)) : 0;
+                Column[] neighbors = c.spider && !c.path && c.roof - c.floor > 10 && (texture & 3L) == 0
+                        ? new Column[]{column(seed, x - 1, z, caveNodes), column(seed, x + 1, z, caveNodes),
+                        column(seed, x, z - 1, caveNodes), column(seed, x, z + 1, caveNodes)} : null;
                 net.minecraft.core.Direction shoulder = d.rock > 1 && d.spike == 0 && !joined && (texture & 3) == 1
                         ? spireFacing(seed ^ 0xB16, x, z) : net.minecraft.core.Direction.NORTH;
                 for (int y = MIN_Y; y <= MAX_Y; y++) {
@@ -111,16 +115,15 @@ public final class UnderworldTerrain {
                         if (c.spider && y == c.roof && c.roof - c.floor > 5 && (texture & 3) == 0)
                             state = (shaded ? Asterion.SHADED_SHALE_SLAB : Asterion.SHALE_SLAB)
                                     .defaultBlockState().setValue(BlockStateProperties.SLAB_TYPE, SlabType.TOP);
-                        if (y == c.floor && !c.path) state = d.mud || spiderPuddle ? Blocks.MUD.defaultBlockState() : shale;
-                        if (spiderPuddle && y == c.floor + 1) state = Asterion.DEAD_STONE_SLAB.defaultBlockState()
-                                .setValue(BlockStateProperties.WATERLOGGED, true);
+                        if (y == c.floor && !c.path) state = d.mud ? Blocks.MUD.defaultBlockState() : shale;
                         if (y > c.floor && y < c.roof && !c.path && pool > 1.3 && torch == 0) {
                             if (joined || y <= c.floor + d.rock || y >= c.roof - d.hanging)
                                 state = y % 5 == 0 ? stone : shale;
                             else if (y <= c.floor + d.rock + d.spike)
                                 state = formation(false, c.floor + d.rock + d.spike - y, d.spike, y <= WATER_Y && z >= 18);
-                            else if (c.spider && d.hanging > 1 && y == c.roof - d.hanging - 1)
-                                state = formation(true, 0, 1, false);
+                            else if (ceilingSpike > 0 && y >= c.roof - d.hanging - ceilingSpike
+                                    && y < c.roof - d.hanging)
+                                state = formation(true, y - (c.roof - d.hanging - ceilingSpike), ceilingSpike, false);
                             if (!joined && d.rock > 1 && d.spike == 0 && y == c.floor + d.rock) {
                                 if ((texture & 3) == 0) state = (shaded ? Asterion.DEAD_STONE_2_SLAB : Asterion.DEAD_STONE_SLAB).defaultBlockState();
                                 else if ((texture & 3) == 1) state = (shaded ? Asterion.DEAD_STONE_2_STAIRS : Asterion.DEAD_STONE_STAIRS).defaultBlockState()
@@ -129,8 +132,18 @@ public final class UnderworldTerrain {
                         }
                         // Paving owns the entire clear route, with stair transitions between terraces.
                         if (c.path && y == c.floor) state = pathSurface;
-                        if (c.spider && !spiderPuddle && !c.path && y == c.floor) state = (texture & 3) == 0
+                        if (c.spider && !c.path && y == c.floor) state = (texture & 3) == 0
                                 ? Asterion.DEAD_STONE_2.defaultBlockState() : pathSurface;
+                        if (neighbors != null && state.isAir() && y > c.floor + 3 && y < c.roof - 3) {
+                            boolean wallContact = false;
+                            for (Column neighbor : neighbors) if (!neighbor.open || y <= neighbor.floor || y >= neighbor.roof) {
+                                wallContact = true;
+                                break;
+                            }
+                            if (wallContact && octaves(seed ^ 0xA11FA5L,
+                                    x * .16 + y * .055, z * .16 - y * .043) > .16)
+                                state = (texture & 8L) == 0 ? stone : shale;
+                        }
                         boolean webbedCorridor = (hash(seed ^ 0x5EBA11L, x >> 5, z >> 5) & 7L) < 2;
                         int curtain = webbedCorridor ? 1 + (int)((texture >>> 15) & 2L) : 1;
                         if (c.spider && c.roof - c.floor > 7 && y >= c.roof - curtain && y < c.roof
@@ -138,11 +151,11 @@ public final class UnderworldTerrain {
                                 && (hash(seed ^ 0xC0B5E8L, x >> 2, z >> 2) & 7L) < (webbedCorridor ? 5 : 2)
                                 && (texture & (webbedCorridor ? 3L : 7L)) == 0 && state.isAir())
                             state = Blocks.COBWEB.defaultBlockState();
-                        if (sideHall && !chamber && !spiderPuddle && !c.path && y == c.floor + 1 && (texture & 31) == 3)
+                        if (sideHall && !chamber && !c.path && y == c.floor + 1 && (texture & 31) == 3)
                             state = Asterion.DEAD_STONE_SLAB.defaultBlockState();
-                        if (sideHall && !chamber && !spiderPuddle && !c.path && y == c.floor + 1 && (texture & 63) == 7)
+                        if (sideHall && !chamber && !c.path && y == c.floor + 1 && (texture & 63) == 7)
                             state = Asterion.DEAD_STONE_WALL.defaultBlockState();
-                        if (sideHall && !chamber && !spiderPuddle && !c.path && y == c.floor + 1
+                        if (sideHall && !chamber && !c.path && y == c.floor + 1
                                 && pathFloor(z + 1) > c.floor)
                             state = Asterion.DEAD_STONE_STAIRS.defaultBlockState()
                                     .setValue(BlockStateProperties.HORIZONTAL_FACING, net.minecraft.core.Direction.SOUTH);
@@ -154,9 +167,7 @@ public final class UnderworldTerrain {
                         // Isolated basins have their own surface elevation; the ocean never fills them.
                         if (pool <= 1.3 && Math.abs(offset) > 4 && !c.path && !c.spider) {
                             if (y >= poolY - 2 && y <= poolY - 1) state = Blocks.MUD.defaultBlockState();
-                            if (pool <= 1.03 && y == poolY)
-                                state = Asterion.DEAD_STONE_SLAB.defaultBlockState()
-                                        .setValue(BlockStateProperties.WATERLOGGED, true);
+                            if (pool <= 1.03 && y == poolY) state = Blocks.AIR.defaultBlockState();
                             if (pool > 1.03 && y == poolY) state = Blocks.MUD.defaultBlockState();
                             if (pool > 1.03 && y > poolY && y <= c.floor) state = Blocks.AIR.defaultBlockState();
                         }
@@ -234,9 +245,17 @@ public final class UnderworldTerrain {
                 && (z < 18 || x + 1 <= center - 1.25);
         SideShape side = sideShape(x, z);
         SideShape spider = spiderCave(seed, x, z, caveNodes);
-        double floor = pathFloor(z) + Math.floor(smooth((Math.abs(offset + 15) - 4) / 10) * 3);
+        double shoulder = smooth((Math.abs(offset + 15) - 4) / 10);
+        double floor = pathFloor(z) + shoulder * 3;
+        if (tunnel && z < 18 && !path) {
+            double roughPatch = smooth((octaves(seed ^ 0xFA17EL, x * .027, z * .027) + .12) / .38);
+            double safeLane = smooth((Math.abs(offset) - 3) / 5);
+            floor += shoulder * safeLane * (2.7 * octaves(seed ^ 0xF1007L, x * .055, z * .055)
+                    + (.4 + roughPatch * 1.3) * octaves(seed ^ 0xF1A6EL, x * .19, z * .19));
+        }
         double arch = Math.sqrt(Math.max(0, 1 - Math.pow(lateral / Math.max(1, width), 2)));
-        double roof = floor + 5 + arch * (15 + 8 * (1 - tunnelConstriction(seed, z))) * cap;
+        double roof = floor + 5 + arch * (15 + 8 * (1 - tunnelConstriction(seed, z))
+                + 3 * octaves(seed ^ 0xC3A11L, x * .035, z * .035)) * cap;
         if (side.open && z < -36) {
             open = true;
             floor = Math.min(floor, side.floor);
@@ -292,10 +311,7 @@ public final class UnderworldTerrain {
         // cut a submerged trench through the dry route before the river mouth.
         if (z < 18 && tunnel && Math.abs(offset) <= 4) floor = Math.max(floor, WATER_Y + 1);
         int floorBlock = (int)Math.floor(floor);
-        boolean spiderSurface = side.open || spider.open;
-        if (spiderSurface && !path && (z >= 18 || Math.abs(offset) > 4)
-                && spiderPuddle(seed, x, z, floorBlock)) floorBlock--;
-        return new Column(open, floorBlock, (int)Math.ceil(Math.min(MAX_Y - 1, roof)), path, spiderSurface);
+        return new Column(open, floorBlock, (int)Math.ceil(Math.min(MAX_Y - 1, roof)), path, side.open || spider.open);
     }
 
     private record SideShape(boolean open, int floor, int roof) { }
@@ -333,8 +349,9 @@ public final class UnderworldTerrain {
                     - Math.hypot(u - node.x, (z - node.z) * node.stretch));
             CaveNode east = caveNode(seed, ix + 1, iz, nodes);
             CaveNode south = caveNode(seed, ix, iz + 1, nodes);
-            double width = 2.15 + ((hash(seed ^ 0x51DE, ix, iz) >>> 8) & 3) * .38;
-            width += .55 * octaves(seed ^ 0xC0111DL, u * .14, z * .14);
+            double width = 2.7 + ((hash(seed ^ 0x51DE, ix, iz) >>> 8) & 3) * .57;
+            width += 1.1 * octaves(seed ^ 0xC0111DL, u * .075, z * .075);
+            width = Math.clamp(width, 1.9, 5.8);
             clearance = Math.max(clearance, width - segmentDistance(u, z, node.x, node.z, east.x, east.z));
             clearance = Math.max(clearance, width - segmentDistance(u, z, node.x, node.z, south.x, south.z));
         }
@@ -374,20 +391,16 @@ public final class UnderworldTerrain {
         double round = Math.sqrt(Math.clamp(clearance / 8, 0, 1));
         double height = (4.5 + Math.min(29, Math.max(0, clearance) * 1.7))
                 * (.83 + .24 * octaves(seed ^ 0xCA7E5L, u * .043, z * .043));
+        double roughPatch = smooth((octaves(seed ^ 0x5C4B1L, u * .022, z * .022) + .1) / .4);
         double layers = 8 * octaves(seed ^ 0x6A0DL, u * .018, z * .018)
-                + 3 * octaves(seed ^ 0xFA11L, u * .071, z * .071);
-        double base = pathFloor(z) - 1 + layers + Math.floor(layers / 5) * 1.6;
+                + 3.5 * octaves(seed ^ 0xFA11L, u * .071, z * .071)
+                + (.5 + roughPatch * 2) * octaves(seed ^ 0xFA12L, u * .21, z * .21);
+        double base = pathFloor(z) - 1 + layers + Math.floor(layers / 6) * 1.2;
         int floor = (int)Math.floor(base + height * (1 - round) * .24 - voidStrength * 70);
         int roof = (int)Math.ceil(base + height * (1 + round) * .76 + voidStrength * 75);
         floor = Math.max(MIN_Y + 2, floor);
         roof = Math.min(MAX_Y - 2, roof);
         return new SideShape(roof - floor >= 4, floor, roof);
-    }
-    private static boolean spiderPuddle(long seed, int x, int z, int floor) {
-        if (floor < WATER_Y - 2) return false;
-        double broad = octaves(seed ^ 0xBADD1EL, x * .075, z * .075);
-        double fine = octaves(seed ^ 0x71DEL, x * .21, z * .21);
-        return broad > .28 && fine > .04 && (hash(seed ^ 0xF100DL, x >> 3, z >> 3) & 3) != 0;
     }
     private static int ravineDepth(long seed, int x, int z) {
         if (z < SPAWN_Z + 48 || z > -90) return 0;
@@ -488,15 +501,20 @@ public final class UnderworldTerrain {
         if (column.spider) {
             int room = column.roof - column.floor - 5;
             if (room < 3) return new Details(false, 0, 0, 0, false);
-            int rock = Math.min(room / 3, blockSpire(seed ^ 0x5B1DE5L, x, z) / 3);
-            int hanging = Math.min(room / 3, blockSpire(seed ^ 0xCE1115L, x, z) / 3);
+            long variation = hash(seed ^ 0x5B1E5L, Math.floorDiv(x, 11), Math.floorDiv(z, 11));
+            double roomScale = Math.clamp((room - 5) / 18.0, .15, 1);
+            int rock = Math.min(room / 2, (int)(blockSpire(seed ^ 0x5B1DE5L, x, z)
+                    * roomScale * (.28 + ((variation >>> 9) & 7) * .08)));
+            int hanging = Math.min(room / 2, (int)(blockSpire(seed ^ 0xCE1115L, x, z)
+                    * roomScale * (.3 + ((variation >>> 17) & 7) * .09)));
             long bridge = hash(seed ^ 0xB81D6EL, Math.floorDiv(x, 13), Math.floorDiv(z, 13));
             if ((bridge & 63L) == 0 && (bridge >>> 8 & 15L) < 4 && rock > 1 && hanging > 1) {
                 rock = Math.max(rock, room / 2);
                 hanging = Math.max(hanging, room - rock);
             }
-            int spike = rock > 1 && hanging + rock + 2 < room && (hash(seed ^ 0x5A1EEL, x, z) & 15L) == 0
-                    ? 1 + (int)(hash(seed ^ 0x711L, x, z) & 1L) : 0;
+            int spike = rock > 1 && room > 12 && hanging + rock + 2 < room
+                    && (hash(seed ^ 0x5A1EEL, x, z) & 7L) == 0
+                    ? Math.min(1 + (int)(hash(seed ^ 0x711L, x, z) & 3L), room - rock - hanging - 2) : 0;
             return new Details(false, rock, spike, hanging, false);
         }
         if (column.path || puddleShape(seed, x, z) <= 1.5 || (z >= 18 && Math.abs(offset) < 13) || z < START_Z + 8)

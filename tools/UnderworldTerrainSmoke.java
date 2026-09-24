@@ -147,7 +147,7 @@ public final class UnderworldTerrainSmoke {
             }
         }
         if (wet < 20 || rims < 20) throw new AssertionError("Missing water basins or stair rims");
-        System.out.println("PASS puddles: " + wet + " inner slab cells, " + rims + " outer slab cells");
+        System.out.println("PASS dry basins: " + wet + " inner cells, " + rims + " rim cells");
         Method spire = UnderworldTerrain.class.getDeclaredMethod("blockSpire", long.class, int.class, int.class);
         spire.setAccessible(true);
         int broad = 0, giant = 0, crossing = 0;

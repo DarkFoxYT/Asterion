@@ -69,6 +69,10 @@ public final class LedAmneticLight {
         return origin == null ? null : LedAmneticPointLights.nearestAttractor(origin, maxDistance);
     }
 
+    public static java.util.List<LedPointLightSample> nearbyFogLights(Vec3 origin, int limit) {
+        return origin == null ? java.util.List.of() : LedAmneticPointLights.fogSamples(origin, limit);
+    }
+
     public record LedPointLightSample(Vec3 position, float red, float green, float blue,
                                       float strength, float radius, boolean castsShadow) {
         public LedPointLightSample(Vec3 position, float red, float green, float blue,
