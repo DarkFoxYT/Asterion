@@ -67,44 +67,48 @@ public final class WebPatchGenerator {
         // strands whose anchor search would otherwise reach in from a nearby cell.
         if (z >= -42) return null;
         BlockPos center = new BlockPos(x,
-                UnderworldTerrain.WATER_Y + 3 + (int)Math.floorMod(seed >>> 17, 7), z);
+                UnderworldTerrain.WATER_Y - 18 + (int)Math.floorMod(seed >>> 17, 78), z);
         if (!level.getChunkSource().hasChunk(center.getX() >> 4, center.getZ() >> 4)) return null;
+        if (!level.getBlockState(center).isAir()) {
+            BlockPos found = null;
+            for (int step = 1; step <= 24 && found == null; step++) {
+                BlockPos up = center.above(step), down = center.below(step);
+                if (level.getBlockState(up).isAir()) found = up;
+                else if (level.getBlockState(down).isAir()) found = down;
+            }
+            if (found == null) return null;
+            center = found;
+        }
         Direction preferred = (seed & 8) == 0 ? Direction.EAST : Direction.SOUTH;
         int reach = Math.abs(x - (UnderworldTerrain.riverCenter(z) - 15)) > 18 ? 13 : 8;
         Pair pair = findGap(level, center, preferred, reach);
         if (pair == null) pair = findGap(level, center, preferred == Direction.EAST ? Direction.SOUTH : Direction.EAST, reach);
-        if (pair == null) return null;
+        if (pair == null) return singleAnchor(level, center, seed, reach);
         List<Vec3> anchors = new ArrayList<>(); List<Vec3> normals = new ArrayList<>();
         anchors.add(face(pair.a, pair.axis, seed, 0));
         anchors.add(face(pair.b, pair.axis.getOpposite(), seed, 1));
         normals.add(pair.axis.getUnitVec3()); normals.add(pair.axis.getOpposite().getUnitVec3());
-        BlockPos mid = BlockPos.containing(anchors.get(0).lerp(anchors.get(1), .5));
-        // Prefer a true floor-to-ceiling span through the open gap, not just side-wall ropes.
-        BlockPos floor = findAnchor(level, mid, Direction.DOWN, 9);
-        BlockPos ceiling = findAnchor(level, mid, Direction.UP, 9);
-        if (floor != null && ceiling != null && ceiling.getY() - floor.getY() >= 4) {
-            anchors.add(face(floor, Direction.UP, seed, anchors.size()));
-            normals.add(Direction.UP.getUnitVec3());
-            anchors.add(face(ceiling, Direction.DOWN, seed, anchors.size()));
-            normals.add(Direction.DOWN.getUnitVec3());
+        // One tensioned span per patch. The former complete graph made X/+ webs
+        // and multiplied both physics links and draw calls across every gap.
+        return new WebPatch(mix(seed ^ pair.a.asLong() ^ Long.rotateLeft(pair.b.asLong(), 23)),
+                List.copyOf(anchors), List.copyOf(normals), List.of(new WebPatch.Edge(0, 1)));
+    }
+    private static WebPatch singleAnchor(Level level, BlockPos center, long seed, int reach) {
+        Direction[] directions = {Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST, Direction.UP, Direction.DOWN};
+        for (int i = 0; i < directions.length; i++) {
+            Direction outward = directions[(i + (int)(seed & 7)) % directions.length];
+            BlockPos anchorBlock = findAnchor(level, center, outward, reach);
+            if (anchorBlock == null) continue;
+            Direction inward = outward.getOpposite();
+            Vec3 anchor = face(anchorBlock, inward, seed, 0);
+            int length = Math.min(5, Math.max(2, anchorBlock.distManhattan(center) - 1));
+            Vec3 free = anchor.add(inward.getUnitVec3().scale(length)).add(0, -.35, 0);
+            if (!level.getBlockState(BlockPos.containing(free)).isAir()) continue;
+            return new WebPatch(mix(seed ^ anchorBlock.asLong() ^ 0x51A61EL),
+                    List.of(anchor, free), List.of(inward.getUnitVec3(), Vec3.ZERO),
+                    List.of(new WebPatch.Edge(0, 1)));
         }
-        Direction[] extraDirections = (seed & 32) == 0
-                ? new Direction[]{Direction.UP, Direction.DOWN, Direction.NORTH, Direction.SOUTH}
-                : new Direction[]{Direction.DOWN, Direction.UP, Direction.SOUTH, Direction.NORTH};
-        for (Direction direction : extraDirections) {
-            if (anchors.size() == 5) break;
-            BlockPos surface = findAnchor(level, mid, direction, 7);
-            if (surface == null) continue;
-            Vec3 anchor = face(surface, direction.getOpposite(), seed, anchors.size());
-            if (anchors.stream().anyMatch(existing -> existing.distanceToSqr(anchor) < 2.25D)) continue;
-            anchors.add(anchor);
-            normals.add(direction.getOpposite().getUnitVec3());
-        }
-        // A small connected lattice, including diagonals, reads as a tangled web rather than a rope.
-        List<WebPatch.Edge> edges = new ArrayList<>();
-        for (int a = 0; a < anchors.size(); a++) for (int b = a + 1; b < anchors.size(); b++)
-            edges.add(new WebPatch.Edge(a, b));
-        return new WebPatch(mix(seed ^ pair.a.asLong() ^ Long.rotateLeft(pair.b.asLong(), 23)), List.copyOf(anchors), List.copyOf(normals), edges);
+        return null;
     }
     private static Vec3 face(BlockPos block, Direction inward, long seed, int endpoint) {
         long random = mix(seed ^ block.asLong() ^ endpoint * 0xD1B54A32D192ED03L);

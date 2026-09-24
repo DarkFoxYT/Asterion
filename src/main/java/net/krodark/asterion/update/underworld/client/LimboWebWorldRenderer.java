@@ -44,7 +44,8 @@ public final class LimboWebWorldRenderer {
                     entity.getDeltaMovement(),Math.max(.55,entity.getBbWidth()*.65)));
         }
         for(WebPatch patch:patches){live.add(patch.key());GRAPHS.computeIfAbsent(patch.key(),ignored->new WebPhysicsGraph(patch)).step(client.level,influences,CUT.computeIfAbsent(patch.key(),ignored->new java.util.BitSet()));}
-        GRAPHS.keySet().removeIf(key->!live.contains(key));
+        GRAPHS.entrySet().removeIf(entry->!live.contains(entry.getKey())
+                && !entry.getValue().bounds.inflate(20).contains(body));
         boolean down=client.options.keyAttack.isDown(); if(down&&!attack)cutLookedAt(client); attack=down;
     }
     private static void cutLookedAt(Minecraft client){
@@ -57,10 +58,20 @@ public final class LimboWebWorldRenderer {
         double partial = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         poses.pushPose();poses.translate(-camera.x,-camera.y,-camera.z);
         var frustum=state.cameraRenderState.cullFrustum;
-        output.submitCustomGeometry(poses,RenderTypes.entityTranslucent(SILK,false),(pose,out)->{for(WebPhysicsGraph graph:GRAPHS.values()){if(frustum!=null&&!frustum.isVisible(graph.bounds))continue;java.util.BitSet cut=CUT.computeIfAbsent(graph.patch.key(),ignored->new java.util.BitSet());int alpha=(mix(graph.patch.key())&3L)==0L?0x60:0xB8;for(WebPhysicsGraph.Link link:graph.links)if(!cut.get(link.index())){double weight=.012+((mix(graph.patch.key()+link.index())>>>58)&7)*.003;Vec3 a=graph.rendered(link.a(),partial),b=graph.rendered(link.b(),partial);strand(pose,out,a,b,weight,alpha,LevelRenderer.getLightCoords(client.level,BlockPos.containing(a)));}}});
+        output.submitCustomGeometry(poses,RenderTypes.entityTranslucent(SILK,false),(pose,out)->{for(WebPhysicsGraph graph:GRAPHS.values()){if(frustum!=null&&!frustum.isVisible(graph.bounds))continue;java.util.BitSet cut=CUT.computeIfAbsent(graph.patch.key(),ignored->new java.util.BitSet());int alpha=0x48+(int)((mix(graph.patch.key())>>>56)&0x5f);for(WebPhysicsGraph.Link link:graph.links)if(!cut.get(link.index())){double weight=.012+((mix(graph.patch.key()+link.index())>>>58)&7)*.003;Vec3 a=graph.rendered(link.a(),partial),b=graph.rendered(link.b(),partial);strand(pose,out,a,b,weight,alpha,LevelRenderer.getLightCoords(client.level,BlockPos.containing(a)));}}});
         poses.popPose();
     }
-    private static void strand(PoseStack.Pose pose,VertexConsumer out,Vec3 a,Vec3 b,double width,int alpha,int light){Vec3 delta=b.subtract(a);if(delta.lengthSqr()<1e-8)return;Vec3 axis=delta.normalize(),side=axis.cross(Math.abs(axis.y)>.9?new Vec3(1,0,0):new Vec3(0,1,0)).normalize().scale(width);quad(pose,out,a,b,side,alpha,light);quad(pose,out,a,b,axis.cross(side).normalize().scale(width*.78),alpha,light);}
+    private static void strand(PoseStack.Pose pose,VertexConsumer out,Vec3 a,Vec3 b,double width,int alpha,int light){
+        Vec3 delta=b.subtract(a);
+        if(delta.lengthSqr()<1e-8)return;
+        Vec3 axis=delta.normalize();
+        // A single vertical-facing ribbon, not the two perpendicular quads that
+        // made every silk link look like an X or a plus from different angles.
+        Vec3 up=new Vec3(0,1,0);
+        Vec3 side=up.subtract(axis.scale(axis.dot(up)));
+        if(side.lengthSqr()<1e-6)side=new Vec3(1,0,0);
+        quad(pose,out,a,b,side.normalize().scale(width),alpha,light);
+    }
     private static void quad(PoseStack.Pose pose,VertexConsumer out,Vec3 a,Vec3 b,Vec3 w,int alpha,int light){vertex(pose,out,a.subtract(w),0,0,alpha,light);vertex(pose,out,a.add(w),1,0,alpha,light);vertex(pose,out,b.add(w),1,1,alpha,light);vertex(pose,out,b.subtract(w),0,1,alpha,light);}
     private static void vertex(PoseStack.Pose pose,VertexConsumer out,Vec3 p,float u,float v,int alpha,int light){org.joml.Vector3f q=pose.pose().transformPosition((float)p.x,(float)p.y,(float)p.z,new org.joml.Vector3f());out.addVertex(q.x,q.y,q.z,(alpha<<24)|0x00D4D8D4,u,v,OverlayTexture.NO_OVERLAY,light,0,1,0);}
     private static double distance(Vec3 p1,Vec3 q1,Vec3 p2,Vec3 q2){Vec3 d1=q1.subtract(p1),d2=q2.subtract(p2),r=p1.subtract(p2);double a=d1.dot(d1),e=d2.dot(d2),f=d2.dot(r),s,t;if(a<=1e-8&&e<=1e-8)return p1.distanceToSqr(p2);if(a<=1e-8){s=0;t=Math.clamp(f/e,0,1);}else{double c=d1.dot(r);if(e<=1e-8){t=0;s=Math.clamp(-c/a,0,1);}else{double b=d1.dot(d2),den=a*e-b*b;s=den==0?0:Math.clamp((b*f-c*e)/den,0,1);t=(b*s+f)/e;if(t<0){t=0;s=Math.clamp(-c/a,0,1);}else if(t>1){t=1;s=Math.clamp((b-c)/a,0,1);}}}return p1.add(d1.scale(s)).distanceToSqr(p2.add(d2.scale(t)));}

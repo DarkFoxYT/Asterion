@@ -112,12 +112,15 @@ public final class UnderworldTerrain {
                             state = (shaded ? Asterion.SHADED_SHALE_SLAB : Asterion.SHALE_SLAB)
                                     .defaultBlockState().setValue(BlockStateProperties.SLAB_TYPE, SlabType.TOP);
                         if (y == c.floor && !c.path) state = d.mud || spiderPuddle ? Blocks.MUD.defaultBlockState() : shale;
-                        if (spiderPuddle && y == c.floor + 1) state = Blocks.WATER.defaultBlockState();
+                        if (spiderPuddle && y == c.floor + 1) state = Asterion.DEAD_STONE_SLAB.defaultBlockState()
+                                .setValue(BlockStateProperties.WATERLOGGED, true);
                         if (y > c.floor && y < c.roof && !c.path && pool > 1.3 && torch == 0) {
                             if (joined || y <= c.floor + d.rock || y >= c.roof - d.hanging)
                                 state = y % 5 == 0 ? stone : shale;
                             else if (y <= c.floor + d.rock + d.spike)
                                 state = formation(false, c.floor + d.rock + d.spike - y, d.spike, y <= WATER_Y && z >= 18);
+                            else if (c.spider && d.hanging > 1 && y == c.roof - d.hanging - 1)
+                                state = formation(true, 0, 1, false);
                             if (!joined && d.rock > 1 && d.spike == 0 && y == c.floor + d.rock) {
                                 if ((texture & 3) == 0) state = (shaded ? Asterion.DEAD_STONE_2_SLAB : Asterion.DEAD_STONE_SLAB).defaultBlockState();
                                 else if ((texture & 3) == 1) state = (shaded ? Asterion.DEAD_STONE_2_STAIRS : Asterion.DEAD_STONE_STAIRS).defaultBlockState()
@@ -128,6 +131,10 @@ public final class UnderworldTerrain {
                         if (c.path && y == c.floor) state = pathSurface;
                         if (c.spider && !spiderPuddle && !c.path && y == c.floor) state = (texture & 3) == 0
                                 ? Asterion.DEAD_STONE_2.defaultBlockState() : pathSurface;
+                        if (c.spider && y == c.roof - 1 && c.roof - c.floor > 11
+                                && (hash(seed ^ 0xC0B5E8L, x >> 2, z >> 2) & 7L) < 2
+                                && (texture & 7L) == 0 && state.isAir())
+                            state = Blocks.COBWEB.defaultBlockState();
                         if (sideHall && !chamber && !spiderPuddle && !c.path && y == c.floor + 1 && (texture & 31) == 3)
                             state = Asterion.DEAD_STONE_SLAB.defaultBlockState();
                         if (sideHall && !chamber && !spiderPuddle && !c.path && y == c.floor + 1 && (texture & 63) == 7)
@@ -335,12 +342,31 @@ public final class UnderworldTerrain {
             clearance = Math.max(clearance, 3.5 - segmentDistance(u, z, entranceU,
                     entrance.getZ(), nearest.x, nearest.z));
         }
+        // Rare wide shafts cut through several vertical cave layers. Their edges
+        // remain irregular instead of repeating the ordinary rounded node shape.
+        double voidStrength = 0;
+        int vx = (int)Math.floor(u / 112), vz = Math.floorDiv(z, 112);
+        for (int ix = vx - 1; ix <= vx + 1; ix++) for (int iz = vz - 1; iz <= vz + 1; iz++) {
+            long shape = hash(seed ^ 0xAB155L, ix, iz);
+            if ((shape & 7L) != 0) continue;
+            double mx = ix * 112 + 28 + ((shape >>> 8) & 55);
+            double mz = iz * 112 + 28 + ((shape >>> 15) & 55);
+            double warp = 3 * octaves(seed ^ 0xF0551L, u * .052, z * .052);
+            double distance = Math.hypot((u - mx + warp) / 19, (z - mz - warp) / 32);
+            voidStrength = Math.max(voidStrength, Math.clamp((1.16 - distance) / .62, 0, 1));
+        }
+        clearance = Math.max(clearance, voidStrength * 8);
         if (clearance <= .35) return new SideShape(false, 0, 0);
         double round = Math.sqrt(Math.clamp(clearance / 8, 0, 1));
-        double height = 7 + Math.min(25, Math.max(0, clearance) * 1.8);
-        double base = pathFloor(z) - 1 + 1.8 * octaves(seed ^ 0x6A0DL, u * .025, z * .025);
-        int floor = (int)Math.floor(base + height * (1 - round) * .24);
-        int roof = (int)Math.ceil(base + height * (1 + round) * .76);
+        double height = (6 + Math.min(27, Math.max(0, clearance) * 1.85))
+                * (.83 + .24 * octaves(seed ^ 0xCA7E5L, u * .043, z * .043));
+        double layers = 8 * octaves(seed ^ 0x6A0DL, u * .018, z * .018)
+                + 3 * octaves(seed ^ 0xFA11L, u * .071, z * .071);
+        double base = pathFloor(z) - 1 + layers + Math.floor(layers / 5) * 1.6;
+        int floor = (int)Math.floor(base + height * (1 - round) * .24 - voidStrength * 70);
+        int roof = (int)Math.ceil(base + height * (1 + round) * .76 + voidStrength * 75);
+        floor = Math.max(MIN_Y + 2, floor);
+        roof = Math.min(MAX_Y - 2, roof);
         return new SideShape(roof - floor >= 4, floor, roof);
     }
     private static boolean spiderPuddle(long seed, int x, int z, int floor) {
@@ -445,7 +471,21 @@ public final class UnderworldTerrain {
         double offset = x - riverCenter(z);
         boolean mud = puddleShape(seed, x, z) <= 1.3;
         // Protect the entire approach, spawn and boat lane, including overhead clearance.
-        if (column.path || column.spider || puddleShape(seed, x, z) <= 1.5 || (z >= 18 && Math.abs(offset) < 13) || z < START_Z + 8)
+        if (column.spider) {
+            int room = column.roof - column.floor - 5;
+            if (room < 3) return new Details(false, 0, 0, 0, false);
+            int rock = Math.min(room / 2, blockSpire(seed ^ 0x5B1DE5L, x, z) / 2);
+            int hanging = Math.min(room / 2, blockSpire(seed ^ 0xCE1115L, x, z) / 2);
+            long bridge = hash(seed ^ 0xB81D6EL, Math.floorDiv(x, 13), Math.floorDiv(z, 13));
+            if ((bridge & 31L) == 0 && (bridge >>> 8 & 15L) < 5 && rock > 1 && hanging > 1) {
+                rock = Math.max(rock, room / 2);
+                hanging = Math.max(hanging, room - rock);
+            }
+            int spike = rock > 1 && hanging + rock + 2 < room && (hash(seed ^ 0x5A1EEL, x, z) & 3L) == 0
+                    ? 1 + (int)(hash(seed ^ 0x711L, x, z) & 1L) : 0;
+            return new Details(false, rock, spike, hanging, false);
+        }
+        if (column.path || puddleShape(seed, x, z) <= 1.5 || (z >= 18 && Math.abs(offset) < 13) || z < START_Z + 8)
             return new Details(mud, 0, 0, 0, false);
         int cellX = Math.floorDiv(x, 9), cellZ = Math.floorDiv(z, 9);
         long cell = hash(seed ^ 0x571CE, cellX, cellZ);
@@ -496,10 +536,11 @@ public final class UnderworldTerrain {
     private static int blockSpire(long seed, int x, int z) {
         int cellX = Math.floorDiv(x, 16), cellZ = Math.floorDiv(z, 16);
         int result = 0;
+        double weathering = octaves(seed ^ 0x57A7AL, x * .075, z * .075);
         for (int dz = -1; dz <= 1; dz++) for (int dx = -1; dx <= 1; dx++) {
             int cx = cellX + dx, cz = cellZ + dz;
             long shape = hash(seed, cx, cz);
-            if ((shape & 3) == 0) continue;
+            if ((shape & 3) < 2) continue;
             int rootX = cx * 16 + (int)((shape >>> 4) & 15);
             int rootZ = cz * 16 + (int)((shape >>> 8) & 15);
             int radius = 5 + (int)((shape >>> 12) & 3);
@@ -507,13 +548,17 @@ public final class UnderworldTerrain {
             if (rootZ < 36 && Math.abs(rootX - (riverCenter(rootZ) - 15)) < radius + 6) continue;
             int rx = Math.abs(x - rootX), rz = Math.abs(z - rootZ);
             if (rx > radius || rz > radius) continue;
-            // Angular diamond/octagon cross sections, with uneven stepped sides.
-            double distance = Math.max(rx, rz) + Math.min(rx, rz) * .45;
-            double taper = 1 - distance / (radius + .5);
+            // Rounded but lopsided weathered bases; a continuous gradient bends
+            // neighboring block columns together instead of making cell stamps.
+            double stretchX = .85 + ((shape >>> 20) & 3) * .09;
+            double stretchZ = .85 + ((shape >>> 23) & 3) * .09;
+            double distance = Math.hypot(rx * stretchX, rz * stretchZ)
+                    + weathering * 1.15;
+            double taper = 1 - distance / (radius + .8);
             if (taper <= 0) continue;
-            int height = 15 + (int)((shape >>> 16) & 15);
+            int height = 16 + (int)((shape >>> 16) & 15);
             int chips = distance < 1 ? 0 : (int)(hash(seed ^ shape, x, z) & 1);
-            result = Math.max(result, Math.max(0, (int)Math.floor(height * taper * taper) - chips));
+            result = Math.max(result, Math.max(0, (int)Math.floor(height * Math.pow(taper, 1.55)) - chips));
         }
         return result;
     }

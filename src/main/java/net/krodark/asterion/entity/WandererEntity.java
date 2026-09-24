@@ -120,7 +120,7 @@ public final class WandererEntity extends PathfinderMob implements GeoEntity {
             if (!findCover(level, viewer)) setState(State.ROAMING);
             return;
         }
-        navigation.setSpeedModifier(.64 * gaitSpeed());
+        navigation.setSpeedModifier(remaining < 9 ? 1.25 : 1.7);
     }
     private void hiding(ServerLevel level) {
         Player viewer = level.getNearestPlayer(this, 32);
@@ -177,7 +177,7 @@ public final class WandererEntity extends PathfinderMob implements GeoEntity {
         coverProgress = distanceToSqr(best);
         coverStallTicks = exposedTicks = 0;
         setState(State.SEEKING_COVER);
-        navigation.moveTo(bestPath, .64);
+        navigation.moveTo(bestPath, 1.7);
         return true;
     }
     private void rejectCover() {

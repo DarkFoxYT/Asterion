@@ -32,12 +32,11 @@ public final class UnderworldPostEffects {
                         })
                 .when(UnderworldPostEffects::active)
                 .uniformVec4("MistQuality", () -> switch (net.krodark.asterion.client.PerformanceGovernor.quality()) {
-                    case 0 -> new Vector4f(4, 5, 12, 0);
-                    case 1 -> new Vector4f(6, 7, 16, 0);
-                    default -> new Vector4f(8, 10, 20, 0);
+                    case 0 -> new Vector4f(4, 0, 0, 0);
+                    case 1 -> new Vector4f(6, 0, 0, 0);
+                    default -> new Vector4f(8, 0, 0, 0);
                 })
                 .phase(RenderPhase.POST_WORLD).priority(18).fade(0, 0)
-                .texture("Noise", Asterion.id("textures/effect/underworld_fog_atlas.png"))
                 .uniform("UnderworldTime", UnderworldPostEffects::renderTime)
                 .uniformVec4("Submersion", UnderworldPostEffects::submersion)
                 .uniformRaw("WorldData", UnderworldPostEffects::worldData)

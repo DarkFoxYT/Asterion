@@ -1,7 +1,7 @@
 package net.krodark.asterion.update.underworld;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
-/** Immutable world-derived web topology. A patch has either one strand or a connected triangle. */
+/** Immutable world-derived topology for one anchored silk strand. */
 public record WebPatch(long key, List<Vec3> anchors, List<Vec3> normals, List<Edge> edges) {
     public record Edge(int a, int b) { }
     public int pieces(int edge) { Edge e=edges.get(edge); return Math.max(5,(int)Math.ceil(anchors.get(e.a).distanceTo(anchors.get(e.b))/.38)); }
