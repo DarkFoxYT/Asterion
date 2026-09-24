@@ -25,8 +25,27 @@ public final class WaterShoreline {
         return sample(level, x, UnderworldTerrain.WATER_Y, z);
     }
     public static float sample(BlockGetter level, int x, int surfaceY, int z) {
-        int[] depths = new int[18 * 18];
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        int centerDepth = 6;
+        for (int dz = -1; dz <= 0; dz++) for (int dx = -1; dx <= 0; dx++) {
+            int depth = 0;
+            while (depth < 6 && level.getFluidState(pos.set(x + dx, surfaceY - depth, z + dz))
+                    .is(FluidTags.WATER)) depth++;
+            centerDepth = Math.min(centerDepth, depth);
+        }
+        if (centerDepth <= 1) return 0;
+        boolean openWater = true;
+        for (int dz = -8; dz < 8 && openWater; dz++) for (int dx = -8; dx < 8; dx++) {
+            if (!level.getFluidState(pos.set(x + dx, surfaceY, z + dz)).is(FluidTags.WATER)) {
+                openWater = false;
+                break;
+            }
+        }
+        if (openWater) {
+            double shallow = Math.clamp((centerDepth - 1) / 5.0, 0, 1);
+            return (float)(shallow * shallow * (3 - 2 * shallow));
+        }
+        int[] depths = new int[18 * 18];
         for (int dz = 0; dz < 18; dz++) for (int dx = 0; dx < 18; dx++) {
             int depth = 0;
             while (depth < 6 && level.getFluidState(pos.set(x + dx - 9,

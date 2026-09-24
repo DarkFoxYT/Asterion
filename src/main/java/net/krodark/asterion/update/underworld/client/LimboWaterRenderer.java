@@ -213,6 +213,12 @@ public final class LimboWaterRenderer {
         for (int dz = 0; dz < 34; dz++) for (int dx = 0; dx < 34; dx++) {
             int wx=x+dx-9,wz=z+dz-9;
             if (!level.getChunkSource().hasChunk(wx >> 4, wz >> 4)) continue;
+            // Most Limbo sea columns have the authored surface at WATER_Y. A
+            // direct probe avoids a tall vertical scan for every such column.
+            if (surface(level, pos.set(wx, UnderworldTerrain.WATER_Y, wz))) {
+                surfaceY[dz * 34 + dx] = UnderworldTerrain.WATER_Y;
+                continue;
+            }
             for (int y=maxScan;y>=minScan;y--) if (surface(level,pos.set(wx,y,wz))) {surfaceY[dz*34+dx]=y;break;}
         }
         Set<Integer> elevations=new HashSet<>();

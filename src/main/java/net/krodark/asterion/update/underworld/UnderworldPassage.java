@@ -95,6 +95,22 @@ public final class UnderworldPassage {
                 net.krodark.asterion.worldgen.WorldGenerator.beginLimboExit(player);
         }
 
+        // Nearby dropped items ride the same displaced surface as players and
+        // the ferry. Bound the query to active players and every other tick.
+        if ((level.getGameTime() & 1L) == 0L) {
+            java.util.Set<Integer> seenItems = new java.util.HashSet<>();
+            for (ServerPlayer player : level.players()) {
+                int itemBudget = 64;
+                for (var item : level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
+                        player.getBoundingBox().inflate(32, 8, 32))) {
+                    if (itemBudget-- <= 0) break;
+                    if (seenItems.add(item.getId()))
+                        net.krodark.asterion.update.underworld.world.UnderworldWaterPhysics.alignItem(
+                                item, level.getGameTime());
+                }
+            }
+        }
+
         if (FerryRejoin.hasPending() || ++ferryCheck < 80) return;
         ferryCheck = 0;
         if (level.getEntity(CharonsFerryEntity.SHARED_ID) instanceof CharonsFerryEntity ferry) {

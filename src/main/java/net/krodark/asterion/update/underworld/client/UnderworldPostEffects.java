@@ -7,6 +7,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
 import net.krodark.asterion.update.underworld.world.UnderworldTerrain;
+import net.krodark.asterion.update.underworld.world.UnderworldWaterPhysics;
 import net.minecraft.client.Minecraft;
 import com.meekdev.amnetic.client.post.UniformValue;
 import net.minecraft.world.phys.Vec3;
@@ -15,7 +16,7 @@ import org.joml.Vector4f;
 
 import java.util.List;
 
-/** Depth-tested low mist; the animated water surface has its own geometry pass. */
+/** Depth-tested, animated Limbo atmosphere; water keeps its own geometry pass. */
 public final class UnderworldPostEffects {
     private static final Matrix4f inverseViewProjection = new Matrix4f();
     private static Vec3 cameraPosition = Vec3.ZERO;
@@ -24,22 +25,24 @@ public final class UnderworldPostEffects {
     private UnderworldPostEffects() { }
 
     public static void register() {
-        // Retain all three volumetric layers even on low quality; scale pixels and samples instead.
+        // All quality levels retain the same atmosphere; only resolution and ray samples change.
         PostEffects.register(Asterion.id("underworld/river_atmosphere"), config -> net.krodark.asterion.client.render.post.AmneticPostBuffers.attach(withIntensity(config), "underworld_mist",
                         () -> switch (net.krodark.asterion.client.PerformanceGovernor.quality()) {
                             case 0 -> .38; case 1 -> .50; default -> .64;
                         })
                 .when(UnderworldPostEffects::active)
                 .uniformVec4("MistQuality", () -> switch (net.krodark.asterion.client.PerformanceGovernor.quality()) {
-                    case 0 -> new Vector4f(4, 5, 10, 0);
-                    case 1 -> new Vector4f(5, 6, 14, 0);
-                    default -> new Vector4f(7, 8, 16, 0);
+                    case 0 -> new Vector4f(0, 0, 12, 0);
+                    case 1 -> new Vector4f(0, 0, 16, 0);
+                    default -> new Vector4f(0, 0, 20, 0);
                 })
                 .phase(RenderPhase.POST_WORLD).priority(18).fade(0, 0)
                 .texture("Noise", Asterion.id("textures/effect/underworld_fog_atlas.png"))
+                .uniform("UnderworldTime", UnderworldPostEffects::renderTime)
+                .uniformVec4("Submersion", UnderworldPostEffects::submersion)
                 .uniformRaw("WorldData", UnderworldPostEffects::worldData)
                 .uniformVec4("RiverData", () -> new Vector4f(
-                        UnderworldTerrain.WATER_Y + .38F, 2.65F,
+                        UnderworldTerrain.WATER_Y + 8F / 9F, 2.65F,
                         active() ? AsterionConfig.INSTANCE.limboFogStrength : 0F,
                         active() ? AsterionConfig.INSTANCE.limboMistStrength : 0F)));
     }
@@ -68,5 +71,24 @@ public final class UnderworldPostEffects {
                         (float)cameraPosition.z, RenderSystem.getDevice().isZZeroToOne() ? 1F : 0F)),
                 new UniformValue.Vec4Uniform(new Vector4f((float)cameraForward.x, (float)cameraForward.y,
                         (float)cameraForward.z, 0F)));
+    }
+
+    private static double renderTime() {
+        return (System.nanoTime() * 0.000000001 % 100000.0) * 20.0;
+    }
+
+    private static Vector4f submersion() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null || client.player == null || !AmneticCamera.isReady())
+            return new Vector4f();
+        if (!client.player.isInWater() && (client.player.getY() < UnderworldTerrain.WATER_Y - 2
+                || client.player.getY() > UnderworldTerrain.WATER_Y + 4
+                || client.level.getBlockState(client.player.blockPosition().below()).isSolidRender()))
+            return new Vector4f();
+        double ticks = client.level.getGameTime() + client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        double surface = UnderworldWaterPhysics.surfaceAt(client.player, ticks);
+        if (!Double.isFinite(surface)) return new Vector4f();
+        float amount = (float)Math.clamp((surface - AmneticCamera.position().y + .1) * 1.3, 0, 1);
+        return new Vector4f(amount, (float)surface, 0, 0);
     }
 }

@@ -96,45 +96,16 @@ float middleBlobDensity(vec3 p,float bottom,float top,out float glow){
     return folded*height*verticalFade*(.52+.34*ribbon);
 }
 
-// A bounded, world-space volume settles in the long dry ravines. The depth
-// buffer stops the march at the cave walls, so rock never receives fog.
-float ravineDensity(vec3 p){
-    if(p.z < -750.0 || p.z > -65.0 || p.y > 42.0) return 0.0;
-    float slot=mod(p.z+780.0,260.0);
-    float along=1.0-smoothstep(63.0,96.0,abs(slot-143.0));
-    float route=sin(p.z*.008)*18.0+sin(p.z*.019+1.7)*9.0
-            +sin(p.z*.043+.4)*4.0-15.0;
-    float lateral=min(abs(p.x-route-12.0),abs(p.x-route+12.0));
-    float across=1.0-smoothstep(6.0,10.0,lateral);
-    float depth=1.0-smoothstep(10.0,40.0,p.y);
-    float fold=atlasNoise(p*vec3(.026,.035,.026)+vec3(3.1,7.2,9.4));
-    return along*across*depth*(.63+.37*fold);
-}
-
 void main(){
     int canopySamples=int(clamp(MarchSteps.x,3.0,7.0));
     int middleSamples=int(clamp(MarchSteps.y,4.0,8.0));
     int waterSamples=int(clamp(MarchSteps.z,10.0,16.0));
     float strength=clamp(Value,0.0,1.0);
     if(strength<.001){fragColor=vec4(0,0,0,1);return;}
-    float depth=texture(DepthSampler,texCoord).r;
-    // An empty or unavailable depth buffer must never fog the whole frame.
-    if(depth>=.9999){fragColor=vec4(0,0,0,1);return;}
-    vec3 end=unproject(depth),ray=normalize(unproject(.9999)-unproject(.0001));
+    float depth=texture(DepthSampler,texCoord).r;vec3 end=unproject(depth),ray=normalize(unproject(.9999)-unproject(.0001));
     if(dot(ray,CameraForward.xyz)<0.0)ray=-ray;
-    float travel=min(distance(end,CameraData.xyz),160.0);
-    float haze=min(.16,1.0-exp(-max(0.0,travel-38.0)*.012*River.z));
+    float travel=depth>=.9999?160.0:min(length(end),160.0),haze=1.0-exp(-max(0.0,travel-23.0)*.088*River.z);
     vec3 color=vec3(.004,.0045,.005)*haze;float transmission=1.0-haze;
-    if(CameraData.z < -45.0 && CameraData.z > -820.0 && travel > 6.0){
-        float fogTravel=min(travel,96.0),stepSize=(fogTravel-5.0)/6.0,optical=0.0;
-        for(int v=0;v<6;++v){
-            float d=5.0+(float(v)+.5)*stepSize;
-            vec3 p=CameraData.xyz+ray*d;
-            optical+=ravineDensity(p)*stepSize*.105;
-        }
-        float fog=1.0-exp(-min(optical,.55));
-        color=mix(color,vec3(.035,.041,.044),fog);transmission*=1.0-fog;
-    }
     float canopyBottom=River.x+10.5,canopyTop=River.x+29.0;
     float canopyEnter=5.0,canopyLeave=min(travel,96.0);
     if(abs(ray.y)<.0001){if(CameraData.y<canopyBottom||CameraData.y>canopyTop)canopyLeave=0.0;}
@@ -147,7 +118,7 @@ void main(){
             float d=canopyEnter+(float(c)+canopyJitter)*canopyStep;vec3 p=CameraData.xyz+ray*d;float lit;
             float den=hangingDensity(p,canopyBottom,canopyTop,lit);
             float contact=smoothstep(0.0,2.5,travel-d)*smoothstep(5.0,9.0,d);
-            canopyOptical+=den*contact*canopyStep*.038*River.w;
+            canopyOptical+=den*contact*canopyStep*.052*River.w;
             canopyLight+=den*contact*(.12+lit)*canopyStep*.035;
         }
         float canopy=1.0-exp(-min(canopyOptical,.72));
@@ -170,7 +141,7 @@ void main(){
             float den=middleBlobDensity(p,middleBottom,middleTop,lit);
             float contact=smoothstep(0.0,2.2,travel-d)*smoothstep(4.0,7.5,d)
                     *(1.0-smoothstep(65.0,88.0,d));
-            middleOptical+=den*contact*middleStep*.085*River.w;
+            middleOptical+=den*contact*middleStep*.128*River.w;
             middleLight+=den*contact*(.12+lit)*middleStep*.052;
         }
         float middleFog=1.0-exp(-min(middleOptical,1.28));
@@ -189,7 +160,7 @@ void main(){
         float d=enter+(float(i)+jitter)*stepLength;vec3 p=CameraData.xyz+ray*d;float lit;
         float den=densityAt(p,River.x,lit);
         float contact=smoothstep(0.0,2.0,travel-d)*smoothstep(1.5,4.5,d);
-        float sliceDensity=den*contact*stepLength*.17*River.w*viewDensity;
+        float sliceDensity=den*contact*stepLength*.245*River.w*viewDensity;
         // Front-to-back extinction makes deep lobes shade the slices behind them,
         // matching the reference's sliced volumetric self-shadowing model.
         float sliceTransmittance=exp(-optical*1.45);

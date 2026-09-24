@@ -13,6 +13,15 @@ public final class WakeFieldSmoke {
         if(contact<=0)throw new AssertionError("Player water contact missing");
         presence.rasterize(0,0,21);
         for(int z=0;z<128;z++)for(int x=0;x<128;x++)if(presence.foamAt(x,z)!=0)throw new AssertionError("Player contact persists after exit");
+        var moving=new FerryWakeField();
+        moving.recordPresence(1,0,0,10,.75);
+        moving.recordPresence(1,1,0,12,.75);
+        moving.recordPresence(2,0,2,10,.3);
+        moving.recordPresence(2,0,3,12,.3);
+        moving.rasterize(0,0,16);
+        if(moving.size()!=2)throw new AssertionError("Player and item trails did not both register");
+        moving.rasterize(0,0,300);
+        if(moving.size()!=0)throw new AssertionError("Entity presence trail did not expire");
         System.out.println("PASS repeat-frame wake stability and pose-sized player contact cleanup");
         var field=new FerryWakeField();
         for(int t=0;t<260;t++)field.record(Math.sin(t*.012)*3,170+t*.072,t,1);

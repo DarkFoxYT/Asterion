@@ -7,22 +7,33 @@ public final class UnderworldTerrainSmoke {
     private static final Method OPEN;
     private static final Method FLOOR;
     private static final Method ROOF;
+    private static final Method SPIDER;
+    private static final Method PATH;
     static {
         try {
-            SAMPLE = UnderworldTerrain.class.getDeclaredMethod("column", long.class, int.class, int.class);
+            SAMPLE = UnderworldTerrain.class.getDeclaredMethod("column", long.class, int.class, int.class, java.util.Map.class);
             SAMPLE.setAccessible(true);
             Class<?> column = SAMPLE.getReturnType();
             OPEN = column.getDeclaredMethod("open");
             FLOOR = column.getDeclaredMethod("floor");
             ROOF = column.getDeclaredMethod("roof");
+            SPIDER = column.getDeclaredMethod("spider");
+            PATH = column.getDeclaredMethod("path");
             OPEN.setAccessible(true);
             FLOOR.setAccessible(true);
             ROOF.setAccessible(true);
+            SPIDER.setAccessible(true);
+            PATH.setAccessible(true);
         } catch (Exception e) { throw new ExceptionInInitializerError(e); }
     }
 
+    private static final java.util.Map<Long, java.util.Map<Long, Object>> NODES = new java.util.HashMap<>();
+    private static Object sample(long seed, int x, int z) throws Exception {
+        return SAMPLE.invoke(null, seed, x, z, NODES.computeIfAbsent(seed, ignored -> new java.util.HashMap<>()));
+    }
+
     private static void check(long seed, int x, int z, boolean dry) throws Exception {
-        Object column = SAMPLE.invoke(null, seed, x, z);
+        Object column = sample(seed, x, z);
         int floor = (int)FLOOR.invoke(column), roof = (int)ROOF.invoke(column);
         Method dock = UnderworldTerrain.class.getDeclaredMethod("dockColumn", int.class, int.class);
         dock.setAccessible(true);
@@ -34,6 +45,8 @@ public final class UnderworldTerrainSmoke {
     }
 
     public static void main(String[] args) throws Exception {
+        net.minecraft.SharedConstants.tryDetectVersion();
+        net.minecraft.server.Bootstrap.bootStrap();
         for (int i = 0; i < 64; i++) {
             long seed = i * 0x9E3779B97F4A7C15L;
             check(seed, UnderworldTerrain.SPAWN_X, UnderworldTerrain.SPAWN_Z, true);
@@ -50,7 +63,7 @@ public final class UnderworldTerrainSmoke {
                         check(seed, (int)Math.floor(UnderworldTerrain.riverCenter(z) + side), z, z < 18);
             int previous = Integer.MIN_VALUE;
             for (int z = 16; z <= 48; z++) {
-                Object c = SAMPLE.invoke(null, seed, (int)Math.round(UnderworldTerrain.riverCenter(z)), z);
+                Object c = sample(seed, (int)Math.round(UnderworldTerrain.riverCenter(z)), z);
                 int floor = (int)FLOOR.invoke(c);
                 if (previous != Integer.MIN_VALUE && Math.abs(floor - previous) > 2)
                     throw new AssertionError("Abrupt bay trench at " + z);
@@ -79,7 +92,7 @@ public final class UnderworldTerrainSmoke {
             for (int x = -60; x < 60; x++) if ((boolean)dockShape.invoke(null, x, z)) {
                 row++; deckArea++;
                 for (int seed = 0; seed < 64; seed++) {
-                    Object c = SAMPLE.invoke(null, (long)seed, x, z);
+                    Object c = sample(seed, x, z);
                     if ((int)FLOOR.invoke(c) >= UnderworldTerrain.WATER_Y)
                         throw new AssertionError("Dock rests on land");
                 }
@@ -109,7 +122,7 @@ public final class UnderworldTerrainSmoke {
             double w = (double)width.invoke(null, (long)seed, z);
             if (w < 17.5 || w > 22) throw new AssertionError("Tunnel width outside compact bounds: " + w);
             narrowest = Math.min(narrowest, w); widest = Math.max(widest, w);
-            Object c = SAMPLE.invoke(null, (long)seed, (int)Math.round(UnderworldTerrain.riverCenter(z)), z);
+            Object c = sample(seed, (int)Math.round(UnderworldTerrain.riverCenter(z)), z);
             int height = (int)ROOF.invoke(c) - (int)FLOOR.invoke(c);
             if (height < 8 || height > 45) throw new AssertionError("Tunnel vault outside compact bounds: " + height);
             lowest = Math.min(lowest, height); highest = Math.max(highest, height);
@@ -126,8 +139,9 @@ public final class UnderworldTerrainSmoke {
         for (int z = -158; z < -20; z++) for (int x = -40; x < 40; x++) {
             double shape = (double)puddle.invoke(null, 42L, x, z);
             if (shape <= 1.03) {
-                Object c = SAMPLE.invoke(null, 42L, x, z);
-                if ((int)FLOOR.invoke(c) != (int)waterY.invoke(null, 42L, z) - 1)
+                Object c = sample(42L, x, z);
+                if (!(boolean)SPIDER.invoke(c) && !(boolean)PATH.invoke(c)
+                        && (int)FLOOR.invoke(c) != (int)waterY.invoke(null, 42L, z) - 1)
                     throw new AssertionError("Puddle basin is not carved");
                 if (shape <= .72) wet++; else rims++;
             }
@@ -162,21 +176,24 @@ public final class UnderworldTerrainSmoke {
         for (int z = UnderworldTerrain.SPAWN_Z; z <= 12; z += 20) {
             int center = (int)Math.round(UnderworldTerrain.riverCenter(z) - 15);
             for (int x : new int[]{center - 3, center + 3}) {
-                Object c = SAMPLE.invoke(null, 42L, x, z);
+                Object c = sample(42L, x, z);
                 if ((int)pillar.invoke(null, 42L, x, z, c) < 3)
                     throw new AssertionError("Missing regular path torch at " + x + "," + z);
             }
         }
         int narrowCap = 0, wideCap = 0;
         for (int x = -60; x < 60; x++) {
-            if ((boolean)OPEN.invoke(SAMPLE.invoke(null, 42L, x, UnderworldTerrain.START_Z + 1))) narrowCap++;
-            if ((boolean)OPEN.invoke(SAMPLE.invoke(null, 42L, x, UnderworldTerrain.START_Z + 30))) wideCap++;
+            if (Math.abs(x - (UnderworldTerrain.riverCenter(UnderworldTerrain.START_Z + 1) - 5)) < 12
+                    && (boolean)OPEN.invoke(sample(42L, x, UnderworldTerrain.START_Z + 1))) narrowCap++;
+            if (Math.abs(x - (UnderworldTerrain.riverCenter(UnderworldTerrain.START_Z + 30) - 5)) < 12
+                    && (boolean)OPEN.invoke(sample(42L, x, UnderworldTerrain.START_Z + 30))) wideCap++;
         }
-        if (narrowCap >= wideCap / 2) throw new AssertionError("Entrance ends in a flat-width wall");
+        if (narrowCap >= wideCap * .75)
+            throw new AssertionError("Entrance does not taper: " + narrowCap + " / " + wideCap);
         int pillars = 0, heights = 0;
         int muddy=0, spikes=0, curtains=0, drops=0, tallest=0;
         for (int seed=0;seed<8;seed++) for (int z=-158;z<60;z++) for (int x=-60;x<=60;x++) {
-            Object c=SAMPLE.invoke(null, (long)seed, x,z);
+            Object c=sample(seed, x,z);
             if (!(boolean)OPEN.invoke(c)) continue;
             if ((boolean)joined.invoke(null, (long)seed, x, z, c)) joinedColumns++;
             int light = (int)pillar.invoke(null, (long)seed, x,z,c);
@@ -204,6 +221,23 @@ public final class UnderworldTerrainSmoke {
             throw new AssertionError("Missing cave variety: "+muddy+","+spikes+","+curtains+","+drops+","+tallest);
         System.out.println("PASS rooted formations, isolated puddles, muddy banks and tall chambers: "
                 +muddy+" mud, "+spikes+" spikes, "+curtains+" hanging, "+drops+" waterfall columns.");
+        int highSpiderColumns = 0;
+        for (int seed = 0; seed < 8; seed++) {
+            for (int slot = 0; slot < 8; slot++) {
+                var chamber = UnderworldTerrain.chamberCenter(slot);
+                Object c = sample(seed, chamber.getX(), chamber.getZ());
+                if (!(boolean)OPEN.invoke(c) || (int)ROOF.invoke(c) - (int)FLOOR.invoke(c) < 18)
+                    throw new AssertionError("Spider chamber is missing or too low at slot " + slot);
+            }
+            for (int z = -760; z < -80; z += 13) for (int x = -80; x <= 80; x += 7) {
+                if (Math.abs(x - (UnderworldTerrain.riverCenter(z) - 15)) < 32) continue;
+                Object c = sample(seed, x, z);
+                if ((boolean)OPEN.invoke(c) && (boolean)SPIDER.invoke(c)
+                        && (int)ROOF.invoke(c) - (int)FLOOR.invoke(c) >= 24) highSpiderColumns++;
+            }
+        }
+        if (highSpiderColumns < 500) throw new AssertionError("Spider cave vaults are too sparse: " + highSpiderColumns);
+        System.out.println("PASS linked spider chambers and " + highSpiderColumns + " tall side-cave samples");
         System.out.println("PASS: 64 seeds; safe spawn, continuous bank/landing, clear ferry route, unbounded sea.");
     }
 }

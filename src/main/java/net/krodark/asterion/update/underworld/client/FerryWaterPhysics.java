@@ -19,10 +19,11 @@ public final class FerryWaterPhysics {
     private static final Map<Integer,Contact> CONTACTS=new HashMap<>();
     private static ClientLevel world;
     private static double previousFeet=Double.NaN;
+    private static double previousSurface=Double.NaN;
     private FerryWaterPhysics() { }
     public static void initialize() { ClientTickEvents.END_CLIENT_TICK.register(FerryWaterPhysics::tick); }
     private static void tick(Minecraft client) {
-        if(client.level!=world) { world=client.level;CONTACTS.clear();previousFeet=Double.NaN; }
+        if(client.level!=world) { world=client.level;CONTACTS.clear();previousFeet=Double.NaN;previousSurface=Double.NaN; }
         if(world==null || client.player==null || client.isPaused() || !world.dimension().equals(Asterion.LIMBO_LEVEL))return;
         int quality=PerformanceGovernor.quality(), budget=quality==0?5:quality==1?14:24;
         long time=world.getGameTime();var random=world.getRandom();
@@ -44,6 +45,7 @@ public final class FerryWaterPhysics {
                 double entering=old==null?0:Math.max(0,depths[i]-old.depth[i]);
                 double energy=Math.min(1,entering*8+velocity.horizontalDistance()*4);
                 if(depths[i]<-.04 || depths[i]>.85 || energy<.04)continue;
+                if (budget <= 0) continue;
                 int count=Math.min(budget,1+(int)(energy*(quality+1)*2));budget-=count;
                 double yaw=Math.toRadians(boat.getYRot());
                 for(int n=0;n<count;n++) {
@@ -61,9 +63,11 @@ public final class FerryWaterPhysics {
         var player=client.player;
         net.krodark.asterion.update.underworld.world.UnderworldWaterPhysics.alignSurface(player, time);
         double water=net.krodark.asterion.update.underworld.world.UnderworldWaterPhysics.surfaceAt(player,time),feet=player.getY();
-        if(Double.isFinite(water) && Double.isFinite(previousFeet) && previousFeet>water+.08 && feet<=water+.08 && player.getDeltaMovement().y<-.06
+        if(Double.isFinite(water) && Double.isFinite(previousFeet) && Double.isFinite(previousSurface)
+                && previousFeet>previousSurface+.08 && feet<=water+.08 && player.getDeltaMovement().y<-.06
                 && CharonsFerryEntity.supporting(player)==null) {
-            int count=Math.min(18,6+(int)(Math.abs(player.getDeltaMovement().y)*12));
+            int count=Math.min(quality==0?4:quality==1?9:18,
+                    6+(int)(Math.abs(player.getDeltaMovement().y)*12));
             for(int i=0;i<count;i++) {
                 double a=i*Math.PI*2/count;
                 world.addParticle(ParticleTypes.SPLASH,player.getX()+Math.cos(a)*.35,water+.05,
@@ -76,5 +80,6 @@ public final class FerryWaterPhysics {
                     player.getDeltaMovement().x*.2,.02,player.getDeltaMovement().z*.2);
         }
         previousFeet=feet;
+        previousSurface=water;
     }
 }
