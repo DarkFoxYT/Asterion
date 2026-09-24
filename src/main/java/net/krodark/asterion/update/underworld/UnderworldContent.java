@@ -20,7 +20,7 @@ public final class UnderworldContent {
     public static final EntityType<CharonsFerryEntity> CHARONS_FERRY = Registry.register(
             BuiltInRegistries.ENTITY_TYPE, FERRY_KEY,
             EntityType.Builder.of(CharonsFerryEntity::new, MobCategory.MISC)
-                    .sized(5.6F, .52F).clientTrackingRange(24).updateInterval(1)
+                    .sized(5.6F, 2.25F).clientTrackingRange(24).updateInterval(1)
                     .fireImmune().build(FERRY_KEY));
 
     public static final EntityType<CharonEntity> CHARON = Registry.register(

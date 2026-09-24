@@ -965,6 +965,7 @@ public class Asterion implements ModInitializer {
         net.krodark.asterion.game.ChainLiftContent.initialize();
         net.krodark.asterion.game.PedestalContent.initialize();
         net.krodark.asterion.update.underworld.UnderworldContent.initialize();
+        net.krodark.asterion.network.WandererDebugPayload.initialize();
         net.krodark.asterion.game.EncounterKeyRecovery.initialize();
         net.krodark.asterion.game.ArenaDeathRecovery.initialize();
         ServerTickEvents.END_SERVER_TICK.register(net.krodark.asterion.forging.LegacyPurityCleanup::tick);
@@ -1040,6 +1041,7 @@ public class Asterion implements ModInitializer {
                 TransitionReadyPayload.TYPE, (payload, context) -> context.server().execute(() ->
                         WorldGenerator.markTransitionReady(context.player())));
         DeadSunEventSystem.registerCommands();
+        net.krodark.asterion.event.DeadStampede.register();
         net.krodark.asterion.command.CentipedeCommands.register();
         net.krodark.asterion.event.CatacombFloodState.registerCommands();
         DynamicBlockLights.initialize();

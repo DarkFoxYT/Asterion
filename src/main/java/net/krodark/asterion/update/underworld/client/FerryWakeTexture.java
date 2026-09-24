@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
+import net.minecraft.tags.FluidTags;
 
 public final class FerryWakeTexture {
     public static final Identifier ID=Asterion.id("dynamic/ferry_wake");
@@ -46,22 +47,34 @@ public final class FerryWakeTexture {
             FIELD.record(centerX+Math.sin(yaw)*3.2,centerZ-Math.cos(yaw)*3.2,time,1);
         }
         var player = Minecraft.getInstance().player;
-        boolean presence = player != null && player.isInWater() && !player.isSpectator()
+        boolean eligible = player != null && !player.isSpectator()
                 && !player.isPassenger() && !player.getAbilities().flying;
+        if (eligible) {
+            var feet = player.blockPosition();
+            eligible = player.isInWater() || level.getFluidState(feet).is(FluidTags.WATER)
+                    || level.getFluidState(feet.above()).is(FluidTags.WATER)
+                    || level.getFluidState(feet.below()).is(FluidTags.WATER);
+        }
+        double surface = eligible ? net.krodark.asterion.update.underworld.world.UnderworldWaterPhysics.surfaceAt(player,time)
+                : Double.NaN;
+        boolean touching = eligible && Double.isFinite(surface)
+                && player.getBoundingBox().minY < surface+.15 && player.getBoundingBox().maxY > surface-.15;
+        if (touching) FIELD.recordPlayer(player.getX(),player.getZ(),time,
+                player.isSwimming() ? .8 : 1);
+        else FIELD.stopPlayer();
         if (player != null && (boat == null || boat.distanceToSqr(player) > 24*24)) {
             centerX=player.getX(); centerZ=player.getZ();
         }
         // Upload an empty field once, including the frame that removes the final contact ring.
-        if (uploaded != Long.MIN_VALUE && FIELD.size() == 0 && !presence && !hadPresence) return;
+        if (uploaded != Long.MIN_VALUE && FIELD.size() == 0 && !touching && !hadPresence) return;
         int interval = net.krodark.asterion.client.PerformanceGovernor.quality() == 0 ? 4 : 2;
         if(uploaded==time || time%interval!=0 && uploaded!=Long.MIN_VALUE)return;
         uploaded=time;
         FIELD.rasterize(centerX,centerZ,time);
-        hadPresence=presence;
-        if (presence) {
-            double surface=net.krodark.asterion.update.underworld.world.UnderworldWaterPhysics.surfaceAt(player,time);
+        hadPresence=touching;
+        if (touching) {
             var body=player.getBoundingBox();
-            if (Double.isFinite(surface) && body.minY < surface+.2 && body.maxY > surface-.2) {
+            if (body.minY < surface+.2 && body.maxY > surface-.2) {
                 double width=player.getBbWidth()*.5;
                 double length=player.isSwimming() ? width*3 : width;
                 FIELD.addPresence(player.getX(),player.getZ(),width,length,player.getYRot(),time,

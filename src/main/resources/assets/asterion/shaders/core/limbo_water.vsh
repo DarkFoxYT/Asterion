@@ -18,6 +18,7 @@ out float wakeStrength;
 out float shoreExposure;
 out vec2 worldSurface;
 out float waterTime;
+out float waterLight;
 
 #moj_import <asterion:limbo_waves.glsl>
 #moj_import <asterion:limbo_wake.glsl>
@@ -31,7 +32,10 @@ vec4 meshWave(vec2 p, float ticks) {
     return mix(a, b, f.y);
 }
 void main() {
-    float ticks = float(UV2.x & 65535) + float(UV2.y & 65535) * 65536.0 + Color.g;
+    int timeAndLight = int(Color.g * 255.0 + .5);
+    float ticks = float(UV2.x & 65535) + float(UV2.y & 65535) * 65536.0
+            + float(timeAndLight & 15) / 16.0;
+    waterLight = float(timeAndLight >> 4) / 15.0;
     int flags = int(Color.b * 255.0 + .5), hullFlags = int(Color.a * 255.0 + .5);
     vec2 chunkEdge = mod(UV0, 16.0);
     bool fine = (flags & 128) != 0 && chunkEdge.x > .01 && chunkEdge.y > .01;

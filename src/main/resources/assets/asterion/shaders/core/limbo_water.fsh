@@ -14,6 +14,7 @@ in float wakeStrength;
 in float shoreExposure;
 in vec2 worldSurface;
 in float waterTime;
+in float waterLight;
 out vec4 fragColor;
 
 #define TAU 6.28318530718
@@ -115,13 +116,19 @@ void main() {
     float lanternPool = hullActive * lanternRange * lanternRange;
     float lanternGlint = pow(max(dot(reflection, normalize(vec3(-.25,.9,.3))),0.0),24.0);
     water += vec3(.09, .07, .042) * lanternPool * (.30 + .55*lanternGlint + .25*fresnel);
+    // Match nearby block and Amnetic point lights instead of leaving the
+    // replacement mesh as a dark cutout against lit shore geometry.
+    float localLight = waterLight * waterLight;
+    water += vec3(.075, .105, .12) * localLight * (.42 + .58 * slopeLight);
+    water += vec3(.12, .15, .16) * localLight * pow(max(dot(reflection,
+            normalize(vec3(-.3, .88, .36))), 0.0), 18.0);
     float breakup = nearDetail > .01 ? surfaceNoise(p * .43 + ripples.yz * .16).x : .5;
     float patches = smoothstep(.25, .70, breakup + (grain - .5) * .25);
     float whitecap = foam * mix(.7, .16 + .84 * patches, nearDetail);
     float contact = hullActive * (1.0 - smoothstep(.025, .22, abs(hullEdge)))
             * (1.0 - smoothstep(.8, 1.6, abs(hullPosition.z - .2)));
     float wake = distance < 56.0 ? persistentWake(causticWorld).x * shoreExposure : 0.0;
-    float smoothWake = smoothstep(.015, .62, wake);
+    float smoothWake = smoothstep(.01, .42, wake);
     whitecap = max(whitecap, max(contact * (.12 + .65 * wakeStrength) * (.72 + .28 * breakup), smoothWake * .62));
     float fleck = smoothstep(.53, .72, grain) * nearDetail;
     whitecap = max(whitecap * mix(.80, 1.0, fleck), smoothWake * .62);

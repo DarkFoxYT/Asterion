@@ -55,7 +55,7 @@ public final class WebPatchGenerator {
     private static WebPatch patch(Level level, long worldSeed, int cellZ) {
         long seed = mix(worldSeed ^ cellZ * 0x9E3779B97F4A7C15L);
         int z = cellZ * CELL_SIZE + 1 + (int)Math.floorMod(seed >>> 8, CELL_SIZE - 1);
-        if (z < UnderworldTerrain.START_Z + 12 || z > UnderworldTerrain.END_Z - 24) return null;
+        if (z < UnderworldTerrain.START_Z + 12 || z >= -42) return null;
         double path = UnderworldTerrain.riverCenter(z) - 15; int side = (seed & 4) == 0 ? -1 : 1;
         double chamberX = UnderworldTerrain.chamberWebX(z);
         double webX = Double.isNaN(chamberX) || (cellZ & 3) == 0
@@ -63,6 +63,9 @@ public final class WebPatchGenerator {
         return patchAt(level, seed, (int)Math.round(webX), z);
     }
     private static WebPatch patchAt(Level level, long seed, int x, int z) {
+        // Keep the entire ferry landing and boarding approach clear of silk, including
+        // strands whose anchor search would otherwise reach in from a nearby cell.
+        if (z >= -42) return null;
         BlockPos center = new BlockPos(x,
                 UnderworldTerrain.WATER_Y + 3 + (int)Math.floorMod(seed >>> 17, 7), z);
         if (!level.getChunkSource().hasChunk(center.getX() >> 4, center.getZ() >> 4)) return null;

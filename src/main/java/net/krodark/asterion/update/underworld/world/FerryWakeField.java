@@ -7,13 +7,14 @@ import java.util.Arrays;
 public final class FerryWakeField {
     public static final int SIZE = 128;
     public static final double EXTENT = 64, LIFETIME = 240;
-    private record Stamp(double x, double z, double dx, double dz, double time, double strength) { }
+    private record Stamp(double x, double z, double dx, double dz, double time, double strength, boolean player) { }
     private final ArrayDeque<Stamp> stamps = new ArrayDeque<>();
     private final float[] foam = new float[SIZE * SIZE], height = new float[SIZE * SIZE];
     private double lastX = Double.NaN, lastZ, lastTime;
+    private double playerX = Double.NaN, playerZ, playerTime;
     public int originX, originZ;
 
-    public void clear() { stamps.clear(); lastX = Double.NaN; Arrays.fill(foam, 0); Arrays.fill(height, 0); }
+    public void clear() { stamps.clear(); lastX = playerX = Double.NaN; Arrays.fill(foam, 0); Arrays.fill(height, 0); }
     public int size() { return stamps.size(); }
     public void record(double x, double z, double time, double immersion) {
         if (!Double.isFinite(lastX)) { lastX=x; lastZ=z; lastTime=time; return; }
@@ -22,20 +23,38 @@ public final class FerryWakeField {
         if (elapsed<0 || distance>8 || elapsed>40) { lastX=x; lastZ=z; lastTime=time; return; }
         if (distance < .45) return;
         double speed=distance/elapsed;
-        stamps.addLast(new Stamp(x,z,dx/distance,dz/distance,time,Math.clamp(speed/.072,0,1.5)*immersion));
+        stamps.addLast(new Stamp(x,z,dx/distance,dz/distance,time,Math.clamp(speed/.072,0,1.5)*immersion,false));
         while(stamps.size()>64) stamps.removeFirst();
         lastX=x; lastZ=z; lastTime=time;
+    }
+    public void stopPlayer() { playerX = Double.NaN; }
+    public void recordPlayer(double x, double z, double time, double strength) {
+        if (time == playerTime && Double.isFinite(playerX)) return;
+        if (!Double.isFinite(playerX) || time < playerTime || time-playerTime > 20
+                || Math.hypot(x-playerX,z-playerZ) > 5) {
+            playerX=x; playerZ=z; playerTime=time; return;
+        }
+        double dx=x-playerX,dz=z-playerZ,distance=Math.hypot(dx,dz);
+        if (distance < .22) return;
+        double speed=distance/(time-playerTime);
+        stamps.addLast(new Stamp(x,z,dx/distance,dz/distance,time,
+                Math.clamp(speed/.15,0,1)*strength*.85,true));
+        while(stamps.size()>96) stamps.removeFirst();
+        playerX=x; playerZ=z; playerTime=time;
     }
     public void rasterize(double centerX, double centerZ, double time) {
         originX=(int)Math.floor((centerX-EXTENT*.5)/8)*8;
         originZ=(int)Math.floor((centerZ-EXTENT*.5)/8)*8;
         Arrays.fill(foam,0); Arrays.fill(height,0);
-        stamps.removeIf(s -> time-s.time > LIFETIME || time < s.time);
+        stamps.removeIf(s -> time-s.time > (s.player ? 85 : LIFETIME) || time < s.time);
         for(Stamp s:stamps) {
-            double age=time-s.time, fade=Math.pow(1-age/LIFETIME,2)*s.strength;
+            double age=time-s.time, lifetime=s.player?85:LIFETIME;
+            if (age >= lifetime) continue;
+            double fade=Math.pow(1-age/lifetime,2)*s.strength;
             double birth=Math.clamp(age/6,0,1);
             fade*=birth*birth*(3-2*birth);
-            double spread=.75+age*.010, width=.48+age*.0025;
+            double spread=s.player ? .22+age*.006 : .75+age*.010;
+            double width=s.player ? .25+age*.0015 : .48+age*.0025;
             for(int side=-1;side<=1;side+=2) {
                 double cx=s.x+s.dz*spread*side, cz=s.z-s.dx*spread*side;
                 int x0=Math.max(0,(int)Math.floor((cx-originX-width*3)*2));
@@ -68,7 +87,7 @@ public final class FerryWakeField {
             double edge=(distance-1)*Math.min(halfWidth,halfLength);
             if(edge<-.1 || edge>1.5)continue;
             double ring=.5+.5*Math.cos(edge*9-time*.16);
-            double value=Math.exp(-Math.max(0,edge)*2)*ring*Math.clamp(strength,0,1)*.35;
+            double value=Math.exp(-Math.max(0,edge)*2)*ring*Math.clamp(strength,0,1)*.55;
             int at=pz*SIZE+px;
             foam[at]=Math.max(foam[at],(float)value);
             height[at]+=(float)(.008*value);

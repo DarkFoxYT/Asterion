@@ -7,6 +7,7 @@ import net.krodark.asterion.Asterion;
 import net.krodark.asterion.network.WebCutPayload;
 import net.krodark.asterion.update.underworld.WebPatch;
 import net.krodark.asterion.update.underworld.WebPatchGenerator;
+import net.krodark.asterion.update.underworld.WebPlayerShape;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -35,7 +36,8 @@ public final class LimboWebWorldRenderer {
         Vec3 body=client.player.position().add(0,client.player.getBbHeight()*.48,0);
         var patches=WebPatchGenerator.around(client.level,body,16); java.util.HashSet<Long> live=new java.util.HashSet<>();
         var influences=new ArrayList<WebPhysicsGraph.Influence>();
-        influences.add(new WebPhysicsGraph.Influence(body,client.player.getDeltaMovement(),.95));
+        for(var part:WebPlayerShape.parts(client.player))
+            influences.add(new WebPhysicsGraph.Influence(part.middle(),client.player.getDeltaMovement(),part.radius()+.22));
         for(var entity:client.level.entitiesForRendering()) {
             if(entity==client.player || !(entity instanceof net.minecraft.world.entity.LivingEntity) || entity.distanceToSqr(client.player)>32*32)continue;
             influences.add(new WebPhysicsGraph.Influence(entity.position().add(0,entity.getBbHeight()*.48,0),
@@ -52,14 +54,15 @@ public final class LimboWebWorldRenderer {
     }
     public static void submit(PoseStack poses,LevelRenderState state,SubmitNodeCollector output){
         Minecraft client=Minecraft.getInstance();if(client.level==null||!client.level.dimension().equals(Asterion.LIMBO_LEVEL)||GRAPHS.isEmpty())return;Vec3 camera=state.cameraRenderState.pos;
+        double partial = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         poses.pushPose();poses.translate(-camera.x,-camera.y,-camera.z);
         var frustum=state.cameraRenderState.cullFrustum;
-        output.submitCustomGeometry(poses,RenderTypes.entityTranslucent(SILK,false),(pose,out)->{for(WebPhysicsGraph graph:GRAPHS.values()){if(frustum!=null&&!frustum.isVisible(graph.bounds))continue;java.util.BitSet cut=CUT.computeIfAbsent(graph.patch.key(),ignored->new java.util.BitSet());for(WebPhysicsGraph.Link link:graph.links)if(!cut.get(link.index())){double weight=.012+((mix(graph.patch.key()+link.index())>>>58)&7)*.003;strand(pose,out,graph.p.get(link.a()),graph.p.get(link.b()),weight,LevelRenderer.getLightCoords(client.level,BlockPos.containing(graph.p.get(link.a()))));}}});
+        output.submitCustomGeometry(poses,RenderTypes.entityTranslucent(SILK,false),(pose,out)->{for(WebPhysicsGraph graph:GRAPHS.values()){if(frustum!=null&&!frustum.isVisible(graph.bounds))continue;java.util.BitSet cut=CUT.computeIfAbsent(graph.patch.key(),ignored->new java.util.BitSet());int alpha=(mix(graph.patch.key())&3L)==0L?0x60:0xB8;for(WebPhysicsGraph.Link link:graph.links)if(!cut.get(link.index())){double weight=.012+((mix(graph.patch.key()+link.index())>>>58)&7)*.003;Vec3 a=graph.rendered(link.a(),partial),b=graph.rendered(link.b(),partial);strand(pose,out,a,b,weight,alpha,LevelRenderer.getLightCoords(client.level,BlockPos.containing(a)));}}});
         poses.popPose();
     }
-    private static void strand(PoseStack.Pose pose,VertexConsumer out,Vec3 a,Vec3 b,double width,int light){Vec3 delta=b.subtract(a);if(delta.lengthSqr()<1e-8)return;Vec3 axis=delta.normalize(),side=axis.cross(Math.abs(axis.y)>.9?new Vec3(1,0,0):new Vec3(0,1,0)).normalize().scale(width);quad(pose,out,a,b,side,light);quad(pose,out,a,b,axis.cross(side).normalize().scale(width*.78),light);}
-    private static void quad(PoseStack.Pose pose,VertexConsumer out,Vec3 a,Vec3 b,Vec3 w,int light){vertex(pose,out,a.subtract(w),0,0,light);vertex(pose,out,a.add(w),1,0,light);vertex(pose,out,b.add(w),1,1,light);vertex(pose,out,b.subtract(w),0,1,light);}
-    private static void vertex(PoseStack.Pose pose,VertexConsumer out,Vec3 p,float u,float v,int light){org.joml.Vector3f q=pose.pose().transformPosition((float)p.x,(float)p.y,(float)p.z,new org.joml.Vector3f());out.addVertex(q.x,q.y,q.z,0xA8D4D8D4,u,v,OverlayTexture.NO_OVERLAY,light,0,1,0);}
+    private static void strand(PoseStack.Pose pose,VertexConsumer out,Vec3 a,Vec3 b,double width,int alpha,int light){Vec3 delta=b.subtract(a);if(delta.lengthSqr()<1e-8)return;Vec3 axis=delta.normalize(),side=axis.cross(Math.abs(axis.y)>.9?new Vec3(1,0,0):new Vec3(0,1,0)).normalize().scale(width);quad(pose,out,a,b,side,alpha,light);quad(pose,out,a,b,axis.cross(side).normalize().scale(width*.78),alpha,light);}
+    private static void quad(PoseStack.Pose pose,VertexConsumer out,Vec3 a,Vec3 b,Vec3 w,int alpha,int light){vertex(pose,out,a.subtract(w),0,0,alpha,light);vertex(pose,out,a.add(w),1,0,alpha,light);vertex(pose,out,b.add(w),1,1,alpha,light);vertex(pose,out,b.subtract(w),0,1,alpha,light);}
+    private static void vertex(PoseStack.Pose pose,VertexConsumer out,Vec3 p,float u,float v,int alpha,int light){org.joml.Vector3f q=pose.pose().transformPosition((float)p.x,(float)p.y,(float)p.z,new org.joml.Vector3f());out.addVertex(q.x,q.y,q.z,(alpha<<24)|0x00D4D8D4,u,v,OverlayTexture.NO_OVERLAY,light,0,1,0);}
     private static double distance(Vec3 p1,Vec3 q1,Vec3 p2,Vec3 q2){Vec3 d1=q1.subtract(p1),d2=q2.subtract(p2),r=p1.subtract(p2);double a=d1.dot(d1),e=d2.dot(d2),f=d2.dot(r),s,t;if(a<=1e-8&&e<=1e-8)return p1.distanceToSqr(p2);if(a<=1e-8){s=0;t=Math.clamp(f/e,0,1);}else{double c=d1.dot(r);if(e<=1e-8){t=0;s=Math.clamp(-c/a,0,1);}else{double b=d1.dot(d2),den=a*e-b*b;s=den==0?0:Math.clamp((b*f-c*e)/den,0,1);t=(b*s+f)/e;if(t<0){t=0;s=Math.clamp(-c/a,0,1);}else if(t>1){t=1;s=Math.clamp((b-c)/a,0,1);}}}return p1.add(d1.scale(s)).distanceToSqr(p2.add(d2.scale(t)));}
     private static long mix(long z){z=(z^z>>>30)*0xbf58476d1ce4e5b9L;z=(z^z>>>27)*0x94d049bb133111ebL;return z^z>>>31;}
 }

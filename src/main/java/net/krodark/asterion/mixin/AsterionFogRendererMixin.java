@@ -8,6 +8,8 @@ import net.minecraft.client.renderer.fog.FogData;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.world.level.material.FogType;
 import net.krodark.asterion.update.underworld.world.UnderworldTerrain;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.LightLayer;
 import org.joml.Vector4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -32,7 +34,7 @@ abstract class AsterionFogRendererMixin {
             color.set(0.0F, 0.0F, 0.0F, 1.0F);
         } else if (level.dimension().equals(Asterion.LIMBO_LEVEL)
                 && camera.getFluidInCamera() == FogType.WATER) {
-            color.set(.003F, .009F, .011F, 1F);
+            color.set(.008F, .020F, .026F, 1F);
         }
     }
 
@@ -51,10 +53,16 @@ abstract class AsterionFogRendererMixin {
         }
         if (camera.getFluidInCamera() != FogType.WATER) return;
         float depth = (float)Math.max(0, UnderworldTerrain.WATER_Y + 8.0 / 9.0 - camera.position().y);
-        // A little visibility at the surface, falling to three blocks in the lightless depths.
-        float visibility = 3F + 4F * (float)Math.exp(-depth / 5F);
-        fog.environmentalStart = 0F;
-        fog.environmentalEnd = Math.min(fog.environmentalEnd, visibility);
-        fog.color.set(.003F, .009F, .011F, 1F);
+        float blockLight = level.getBrightness(LightLayer.BLOCK, BlockPos.containing(camera.position())) / 15F;
+        var dynamic = net.krodark.asterion.client.light.LedAmneticLight.nearestAttractor(camera.position(), 18);
+        float dynamicLight = dynamic == null ? 0F : (float)(1D - Math.clamp(camera.position().distanceTo(dynamic) / 18D, 0D, 1D));
+        float light = Math.max(blockLight, dynamicLight);
+        // Leave the distant water dim while allowing lit objects and Amnetic lights
+        // to remain visible through the near field.
+        float visibility = 13F + 13F * (float)Math.exp(-depth / 14F) + light * 10F;
+        fog.environmentalStart = 2F;
+        fog.environmentalEnd = Math.max(fog.environmentalEnd, visibility);
+        fog.color.set(.007F + light * .020F, .019F + light * .027F,
+                .024F + light * .030F, 1F);
     }
 }

@@ -10,6 +10,10 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.core.BlockPos;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -50,7 +54,8 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
     private float visualPitch;
     private float shoreFactor = 1;
     private int shoreX = Integer.MIN_VALUE, shoreZ = Integer.MIN_VALUE;
-    private double surgeSpeed, heaveSpeed;
+    private double surgeSpeed, heaveSpeed, turnSpeed;
+    private int controlThrottle, controlTurn, lastControlTick = -100;
     public static final int EMERGENCE_TICKS = 110;
 
     public CharonsFerryEntity(EntityType<? extends CharonsFerryEntity> type, Level level) {
@@ -59,7 +64,7 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
     }
 
     public void berth() {
-        surgeSpeed = heaveSpeed = 0;
+        surgeSpeed = heaveSpeed = turnSpeed = 0;
         double z = UnderworldTerrain.FERRY_Z;
         setPos(UnderworldTerrain.riverCenter(z), UnderworldTerrain.WATER_Y + .65, z);
         setYRot(0F);
@@ -110,7 +115,7 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
         // Charon keeps the stern; the temporary player control seat sits centrally.
         Vec3 seat = deckPoint(0, passenger instanceof Player ? -.15 : 1.0);
         move.accept(passenger, seat.x, seat.y, seat.z);
-        // The player's look yaw is the steering input; only lock Charon to the hull.
+        // Keep the rider's camera free; directional keys steer the hull.
         if (passenger instanceof CharonEntity) passenger.setYRot(getYRot());
         passenger.resetFallDistance();
     }
@@ -122,11 +127,15 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
             if (passenger instanceof CharonEntity) passenger.setInvisible(true);
         }
         entityData.set(SAILING, false);
+        controlThrottle = controlTurn = 0;
+        lastControlTick = -100;
         return player.startRiding(this);
     }
     public void finishPlayerControl() {
         if (level().isClientSide()) return;
         entityData.set(SAILING, false);
+        controlThrottle = controlTurn = 0;
+        turnSpeed = 0;
         if (level() instanceof ServerLevel server
                 && server.getEntity(CharonEntity.SHARED_ID) instanceof CharonEntity charon) {
             charon.setInvisible(false);
@@ -162,6 +171,21 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
     @Override public boolean canCollideWith(Entity other) { return false; }
     @Override public boolean hurtServer(ServerLevel level, DamageSource source, float amount) { return false; }
     @Override public boolean ignoreExplosion(net.minecraft.world.level.Explosion explosion) { return true; }
+
+    @Override public InteractionResult interact(Player player, InteractionHand hand, Vec3 hit) {
+        if (hand != InteractionHand.MAIN_HAND || player.isSpectator() || player.isPassenger()
+                || player.distanceToSqr(this) > 64) return InteractionResult.PASS;
+        if (!level().isClientSide()) beginPlayerControl(player);
+        return InteractionResult.SUCCESS;
+    }
+
+    public void receiveControl(Player player, int throttle, int turn) {
+        if (level().isClientSide() || getFirstPassenger() != player
+                || throttle < -1 || throttle > 1 || turn < -1 || turn > 1) return;
+        controlThrottle = throttle;
+        controlTurn = turn;
+        lastControlTick = tickCount;
+    }
 
     public Vec3 deckPoint(double localX, double localZ) {
         return position().add(FerryHull.world(new Vec3(localX,FerryHull.DECK,localZ),getYRot(),deckPitch(),deckRoll()));
@@ -306,14 +330,30 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
         double tangent = (UnderworldTerrain.riverCenter(oldZ + .5)
                 - UnderworldTerrain.riverCenter(oldZ - .5));
         Player pilot = getFirstPassenger() instanceof Player player ? player : null;
-        double desiredSpeed = pilot != null ? Math.clamp(pilot.zza, -1F, 1F) * .092 : sailing() ? .072 : 0;
-        surgeSpeed += Math.clamp(desiredSpeed - surgeSpeed, -.0035, .0025);
-        float pilotYaw = pilot == null ? getYRot() : pilot.getYRot();
+        int throttle = pilot != null && tickCount - lastControlTick <= 10 ? controlThrottle : 0;
+        int turn = pilot != null && tickCount - lastControlTick <= 10 ? controlTurn : 0;
+        double desiredSpeed = pilot != null ? throttle * (throttle < 0 ? .052 : .105) : sailing() ? .072 : 0;
+        surgeSpeed += Math.clamp(desiredSpeed - surgeSpeed, -.003, .0024);
+        if (pilot != null && throttle == 0) surgeSpeed *= .96;
+        float oldYaw = getYRot();
+        if (pilot != null) {
+            turnSpeed = Math.clamp(turnSpeed * .82 + turn * (Math.abs(surgeSpeed) > .012 ? .34 : .14), -2.2, 2.2);
+            setYRot((float)(oldYaw + turnSpeed));
+            entityData.set(SAILING, Math.abs(surgeSpeed) > .006 || Math.abs(turnSpeed) > .15);
+        } else {
+            turnSpeed *= .8;
+            float targetYaw = sailing() ? (float)Math.toDegrees(Math.atan2(-tangent, 1.0)) : oldYaw;
+            setYRot(oldYaw + net.minecraft.util.Mth.wrapDegrees(targetYaw - oldYaw) * .065F);
+        }
+        double heading = Math.toRadians(getYRot());
         double nextZ = pilot == null ? Math.min(UnderworldTerrain.END_Z - 54,
                 oldZ + surgeSpeed / Math.sqrt(1 + tangent * tangent))
-                : oldZ + Math.cos(Math.toRadians(pilotYaw)) * surgeSpeed;
+                : oldZ + Math.cos(heading) * surgeSpeed;
         double nextX = pilot == null ? (surgeSpeed > .0001 ? UnderworldTerrain.riverCenter(nextZ) : oldX)
-                : oldX - Math.sin(Math.toRadians(pilotYaw)) * surgeSpeed;
+                : oldX - Math.sin(heading) * surgeSpeed;
+        if (pilot != null && !hasWaterUnderHull(nextX,nextZ,heading)) {
+            nextX = oldX; nextZ = oldZ; surgeSpeed = 0;
+        }
         int sx = (int)Math.floor(nextX), sz = (int)Math.floor(nextZ);
         if (sx != shoreX || sz != shoreZ || tickCount % 20 == 0) {
             shoreX = sx; shoreZ = sz;
@@ -333,9 +373,6 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
         // Damped vertical inertia: the displaced hull volume restores the waterline gradually.
         heaveSpeed = Math.clamp(heaveSpeed + (targetY - oldY) * .075 - heaveSpeed * .42, -.14, .14);
         double nextY = oldY + heaveSpeed;
-        float oldYaw = getYRot();
-        float targetYaw = pilot != null ? pilotYaw : sailing() ? (float)Math.toDegrees(Math.atan2(-tangent, 1.0)) : oldYaw;
-        setYRot(oldYaw + net.minecraft.util.Mth.wrapDegrees(targetYaw - oldYaw) * (pilot != null ? .12F : .065F));
         entityData.set(PITCH, net.minecraft.util.Mth.lerp(.22F, entityData.get(PITCH),
                 Math.clamp((float)Math.toDegrees(Math.atan2((bow - stern) * shoreFactor, 5.6)), -12F, 12F)));
         setXRot(entityData.get(PITCH));
@@ -357,6 +394,18 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
             walker.resetFallDistance();
         }
         if (pilot == null && nextZ >= UnderworldTerrain.END_Z - 54) entityData.set(SAILING, false);
+    }
+
+    private boolean hasWaterUnderHull(double x, double z, double yaw) {
+        double forwardX=-Math.sin(yaw), forwardZ=Math.cos(yaw);
+        double sideX=Math.cos(yaw), sideZ=Math.sin(yaw);
+        return waterAt(x,z) && waterAt(x+forwardX*2.1,z+forwardZ*2.1)
+                && waterAt(x-forwardX*2.1,z-forwardZ*2.1)
+                && waterAt(x+sideX*.85,z+sideZ*.85)
+                && waterAt(x-sideX*.85,z-sideZ*.85);
+    }
+    private boolean waterAt(double x,double z) {
+        return level().getFluidState(BlockPos.containing(x,UnderworldTerrain.WATER_Y,z)).is(FluidTags.WATER);
     }
 
     @Override protected void addAdditionalSaveData(ValueOutput out) {

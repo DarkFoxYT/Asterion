@@ -18,6 +18,7 @@ import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.FluidTags;
+import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.AABB;
@@ -53,11 +54,12 @@ public final class LimboWaterRenderer {
     private static double frameTicks;
     private static int frameQuality;
     private static Vec3 frameBoat;
+    private static Vec3 frameLantern;
     private static float boatCos, boatSin;
     private static int boatActivity;
     private static int boatPitch = 32, boatRoll = 32;
     private static volatile boolean enabled;
-    private record Layer(int y, int[] vertices, int[] fineVertices, int[] shore) { }
+    private record Layer(int y, int[] vertices, int[] fineVertices, int[] farVertices, int[] shore) { }
     private record Tile(int x, int z, List<Layer> layers, int minY, int maxY, long refreshed) { }
     private LimboWaterRenderer() { }
 
@@ -105,6 +107,7 @@ public final class LimboWaterRenderer {
                 boatRoll = Math.clamp(Math.round(ferry.rockingRoll(partial) * 2) + 32, 0, 63);
                 break; // There is one shared ferry per Limbo instance.
             }
+            frameLantern = frameFerry == null ? null : FerryLanternLight.position(frameFerry);
             FerryWakeTexture.prepare(level, frameFerry);
             // Limbo's native distance fog is fully opaque at 48 blocks. Four chunks
             // leave a full chunk of padding even when the camera crosses a boundary.
@@ -148,15 +151,32 @@ public final class LimboWaterRenderer {
             var pose = context.poseStack().last();
             Vec3 camera = context.levelState().cameraRenderState.pos;
             long wholeTick = (long)frameTicks;
-            int fraction = (int)((frameTicks - wholeTick) * 255);
+            int fraction = (int)((frameTicks - wholeTick) * 15);
             // UV2 is a pair of raw shorts, used as the integer world clock, not a lightmap lookup.
             // Color carries shoreline attenuation, sub-tick time, and adaptive detail quality.
             int timeLow = (int)(wholeTick & 65535), timeHigh = (int)((wholeTick >>> 16) & 65535);
             for (Tile tile : frame) {
-                boolean fine = frameQuality > 1 && Math.abs(tile.x + 8 - camera.x) < 40
-                        && Math.abs(tile.z + 8 - camera.z) < 40;
-                for (Layer layer : tile.layers) for (int vertex : fine ? layer.fineVertices : layer.vertices) {
+                double tileDx = tile.x + 8 - camera.x, tileDz = tile.z + 8 - camera.z;
+                double distanceSq = tileDx * tileDx + tileDz * tileDz;
+                boolean fine = frameQuality > 1 && distanceSq < 40 * 40;
+                boolean far = distanceSq > 36 * 36;
+                for (Layer layer : tile.layers) {
+                    int lightY = layer.y - 2;
+                    float light00 = trackedLevel.getBrightness(LightLayer.BLOCK,new BlockPos(tile.x,lightY,tile.z)) / 15F;
+                    float light10 = trackedLevel.getBrightness(LightLayer.BLOCK,new BlockPos(tile.x+16,lightY,tile.z)) / 15F;
+                    float light01 = trackedLevel.getBrightness(LightLayer.BLOCK,new BlockPos(tile.x,lightY,tile.z+16)) / 15F;
+                    float light11 = trackedLevel.getBrightness(LightLayer.BLOCK,new BlockPos(tile.x+16,lightY,tile.z+16)) / 15F;
+                    Vec3 dynamic = net.krodark.asterion.client.light.LedAmneticLight.nearestAttractor(
+                            new Vec3(tile.x+8,layer.y,tile.z+8), 24);
+                    for (int vertex : fine ? layer.fineVertices : far ? layer.farVertices : layer.vertices) {
                     int x = tile.x + vertex % 17, z = tile.z + vertex / 17;
+                    double u=(x-tile.x)/16.0,v=(z-tile.z)/16.0;
+                    float blockLight=(float)((light00*(1-u)+light10*u)*(1-v)
+                            +(light01*(1-u)+light11*u)*v);
+                    double waterY=layer.y+8.0/9.0;
+                    float dynamicLight=dynamic==null?0F:softLight(Math.sqrt(dynamic.distanceToSqr(x,waterY,z)),9.0);
+                    float lanternLight=frameLantern==null?0F:softLight(Math.sqrt(frameLantern.distanceToSqr(x,waterY,z)),8.0);
+                    int packedTimeAndLight=fraction | (Math.round(Math.max(blockLight,Math.max(dynamicLight,lanternLight))*15) << 4);
                     // Standard overlay/normal attributes carry hull-relative coordinates and heading.
                     // No extra render pass, per-vertex wave evaluation, or per-frame GPU allocation.
                     int bx = frameBoat == null ? 0 : (int)Math.clamp(Math.round((x - frameBoat.x) * 128), -32767, 32767);
@@ -167,13 +187,19 @@ public final class LimboWaterRenderer {
                                     (float)(layer.y + 8.0 / 9.0 - camera.y), (float)(z - camera.z))
                             .setUv(x, z).setUv2(timeLow, timeHigh)
                             .setUv1(bx, bz).setNormal(boatCos, boatHeight, boatSin)
-                            .setColor(layer.shore[vertex], fraction,
+                            .setColor(layer.shore[vertex], packedTimeAndLight,
                                     (fine ? 128 : 0) | (frameQuality > 0 ? 64 : 0) | boatPitch,
                                     frameBoat == null ? 0 : boatActivity | boatRoll);
+                    }
                 }
             }
             context.bufferSource().endBatch(SURFACE);
         });
+    }
+
+    private static float softLight(double distance,double radius) {
+        double t=Math.clamp((distance-1.0)/(radius-1.0),0.0,1.0);
+        return (float)(1.0-t*t*(3.0-2.0*t));
     }
 
     private static Tile topology(ClientLevel level, int x, int z, int cameraY) {
@@ -206,7 +232,8 @@ public final class LimboWaterRenderer {
             if(!any)continue;
             int[] shore=new int[17*17];
             for(int dz=0;dz<=16;dz++)for(int dx=0;dx<=16;dx++)shore[dz*17+dx]=Math.round(255*net.krodark.asterion.update.underworld.world.WaterShoreline.attenuation(depths,34,dx+9,dz+9));
-            layers.add(new Layer(elevation,WaterSurfaceMesh.vertices(wet,shore),WaterSurfaceMesh.vertices(wet,new int[289]),shore));
+            layers.add(new Layer(elevation, WaterSurfaceMesh.vertices(wet, shore),
+                    WaterSurfaceMesh.vertices(wet, new int[289]), WaterSurfaceMesh.vertices(wet, shore, 4), shore));
             minY=Math.min(minY,elevation);maxY=Math.max(maxY,elevation);
         }
         if(layers.isEmpty()){minY=UnderworldTerrain.WATER_Y;maxY=minY;}

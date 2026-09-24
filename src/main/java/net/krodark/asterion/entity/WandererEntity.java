@@ -8,6 +8,7 @@ import com.geckolib.animation.RawAnimation;
 import com.geckolib.animation.object.PlayState;
 import com.geckolib.util.GeckoLibUtil;
 import net.krodark.asterion.Asterion;
+import net.krodark.asterion.event.DeadStampede;
 import net.krodark.asterion.update.underworld.world.UnderworldTerrain;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -51,6 +52,15 @@ public final class WandererEntity extends PathfinderMob implements GeoEntity {
         stateTicks++;
         if (state() == State.DROWNING) { tickDrowning(); return; }
         if (isInWater() || getBlockZ() >= 18 && getY() < UnderworldTerrain.WATER_Y) { setState(State.DROWNING); navigation.stop(); return; }
+        double front = DeadStampede.front(level);
+        if (!Double.isNaN(front) && Math.abs(getZ() - front) < 100) {
+            if (state() != State.STAMPEDE) setState(State.STAMPEDE);
+            double targetZ = DeadStampede.gathering(level) ? front - 3 : front - 2 - Math.floorMod(getId(), 5) * 1.2;
+            double targetX = UnderworldTerrain.riverCenter(targetZ) - 15 + (Math.floorMod(getId(), 7) - 3) * .9;
+            if (tickCount % 8 == 0 || navigation.isDone()) navigation.moveTo(targetX, getY(), targetZ, 1.35);
+            return;
+        }
+        if (state() == State.STAMPEDE) setState(State.PURPOSEFUL);
         if (scatterFromCharge(level)) return;
         switch (state()) { case PURPOSEFUL -> purposeful(level); case ROAMING -> roaming(level); case WATCHING -> watching(level); case HIDING -> hiding(); case STAMPEDE -> stampede(); default -> { } }
     }
@@ -70,7 +80,7 @@ public final class WandererEntity extends PathfinderMob implements GeoEntity {
     }
     private void watching(ServerLevel level) { Player player = level.getNearestPlayer(this, 32); if (player == null || stateTicks > 100) { setState(State.ROAMING); return; } if (destination != null && distanceToSqr(destination) > 2.25) navigation.moveTo(destination.x, destination.y, destination.z, .52); else { navigation.stop(); getLookControl().setLookAt(player, 12, 12); } }
     private void hiding() { if (destination != null && distanceToSqr(destination) > 2) navigation.moveTo(destination.x, destination.y, destination.z, 1.18); else if (stateTicks > 80) setState(random.nextBoolean() ? State.ROAMING : State.PURPOSEFUL); }
-    private void stampede() { if (destination != null) navigation.moveTo(destination.x, destination.y, destination.z, 1.25); if (stateTicks > 140) setState(State.PURPOSEFUL); }
+    private void stampede() { }
     private boolean scatterFromCharge(ServerLevel level) {
         MinotaurEntity minotaur = level.getNearestEntity(MinotaurEntity.class, net.minecraft.world.entity.ai.targeting.TargetingConditions.forNonCombat().range(32), this, getX(), getY(), getZ(), getBoundingBox().inflate(32));
         if (minotaur == null || !minotaur.isSpineCharging()) return false; Vec3 velocity = minotaur.getDeltaMovement().multiply(1, 0, 1); if (velocity.lengthSqr() < .02) return false;
@@ -88,9 +98,13 @@ public final class WandererEntity extends PathfinderMob implements GeoEntity {
                     || !level.getBlockState(feet.below()).isSolidRender()) continue;
             Vec3 candidate = Vec3.atBottomCenterOf(feet);
             if (fallback == null) fallback = candidate;
-            if (level.clip(new ClipContext(viewer.getEyePosition(), candidate.add(0, 1.25D, 0),
+            boolean bodyCovered = level.clip(new ClipContext(viewer.getEyePosition(), candidate.add(0, .7D, 0),
                     ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, CollisionContext.empty()))
-                    .getType() == HitResult.Type.BLOCK) return candidate;
+                    .getType() == HitResult.Type.BLOCK;
+            boolean eyesVisible = level.clip(new ClipContext(viewer.getEyePosition(), candidate.add(0, 1.55D, 0),
+                    ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, CollisionContext.empty()))
+                    .getType() != HitResult.Type.BLOCK;
+            if (bodyCovered && eyesVisible) return candidate;
         }
         return fallback == null ? position() : fallback;
     }
@@ -108,6 +122,11 @@ public final class WandererEntity extends PathfinderMob implements GeoEntity {
     private static double distanceToLane(Vec3 from, Vec3 to, Vec3 point) { Vec3 lane = to.subtract(from); double length = lane.lengthSqr(); return length < .001 ? point.distanceTo(from) : point.distanceTo(from.add(lane.scale(Math.clamp(point.subtract(from).dot(lane) / length, 0, 1)))); }
     public State state() { return State.values()[entityData.get(STATE)]; }
     public boolean isWatching() { return state() == State.WATCHING; }
+    public void debugState(State requested, ServerLevel level, Player viewer) {
+        destination = requested == State.WATCHING ? shelter(level, viewer)
+                : requested == State.HIDING ? position().add(5, 0, 0) : null;
+        setState(requested);
+    }
     private void setState(State state) { entityData.set(STATE, state.ordinal()); stateTicks = 0; if (state != State.WATCHING && state != State.HIDING && state != State.STAMPEDE) destination = null; }
     @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<WandererEntity>("movement", 0, state -> {

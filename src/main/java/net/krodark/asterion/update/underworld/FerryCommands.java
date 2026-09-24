@@ -39,7 +39,7 @@ public final class FerryCommands {
                                                 return 0;
                                             }
                                             context.getSource().sendSuccess(() -> Component.literal(
-                                                    "You are controlling Charon's ferry. Look to steer; move forward/back to sail."), true);
+                                                    "You are controlling Charon's ferry. Left/right steers; forward/back sails."), true);
                                             return 1;
                                         })))));
     }

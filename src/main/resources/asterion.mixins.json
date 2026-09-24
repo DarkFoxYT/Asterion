@@ -59,6 +59,7 @@
     "AmneticEmissiveSourcesMixin",
     "AmneticInstanceBufferMixin",
     "AsterionFogRendererMixin",
+    "LimboUnderwaterOverlayMixin",
     "CameraMixin",
     "CentipedeInteractionMixin",
     "FallingBlockRendererMixin",

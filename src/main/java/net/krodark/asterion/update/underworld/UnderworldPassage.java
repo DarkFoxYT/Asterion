@@ -28,8 +28,6 @@ import java.util.UUID;
 
 /** Owns the one-time death transition and the persistent ferry at the river's threshold. */
 public final class UnderworldPassage {
-    // Keep the chapter available for development while Labyrinth is the active beta.
-    private static final boolean ENABLED = Boolean.getBoolean("asterion.enableUnderworld");
     private static int ferryCheck;
     private static final Map<UUID, Set<Integer>> CHAMBER_EVENTS = new HashMap<>();
 
@@ -38,17 +36,19 @@ public final class UnderworldPassage {
     public static void initialize() {
         FerryRejoin.initialize();
         FerryCommands.register();
-        // Registered after Asterion's existing respawn recovery, so the one-time story passage wins cleanly.
-        if (ENABLED) {
-            ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> enterAfterFirstDeath(newPlayer));
-        }
+        net.krodark.asterion.network.FerryControlPayload.initialize();
+        // Registered after Asterion's recovery so death always leads into Limbo.
+        ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
+            if (!alive) enterAfterDeath(newPlayer);
+        });
         ServerTickEvents.END_SERVER_TICK.register(UnderworldPassage::tick);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> CHAMBER_EVENTS.clear());
     }
 
-    private static void enterAfterFirstDeath(ServerPlayer player) {
+    private static void enterAfterDeath(ServerPlayer player) {
         ServerLevel destination = player.level().getServer().getLevel(Asterion.LIMBO_LEVEL);
-        if (destination == null || !AsterionWorldState.get(destination).beginUnderworldPassage(player.getUUID())) return;
+        if (destination == null) return;
+        boolean firstPassage = AsterionWorldState.get(destination).beginUnderworldPassage(player.getUUID());
         var spawn = UnderworldTerrain.randomSpawn(player.getUUID());
         destination.getChunk(spawn.getX() >> 4, spawn.getZ() >> 4);
         player.stopRiding();
@@ -57,7 +57,7 @@ public final class UnderworldPassage {
         player.setDeltaMovement(Vec3.ZERO);
         player.resetFallDistance();
         // Charon always gives a newly dead soul exactly one fare.
-        if (!player.getInventory().contains(new ItemStack(Items.GOLD_NUGGET)))
+        if (firstPassage && !player.getInventory().contains(new ItemStack(Items.GOLD_NUGGET)))
             player.getInventory().add(new ItemStack(Items.GOLD_NUGGET));
     }
 

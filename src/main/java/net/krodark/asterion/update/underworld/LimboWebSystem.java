@@ -34,23 +34,26 @@ public final class LimboWebSystem {
     }
     private static void affect(ServerLevel level, LivingEntity entity, boolean cutsOnContact) {
             Vec3 center = entity.position().add(0, entity.getBbHeight() * .48, 0), velocity = entity.getDeltaMovement();
+            var playerParts = entity instanceof ServerPlayer player ? WebPlayerShape.parts(player) : null;
             double strongestContact = 0;
             Vec3 resistance = Vec3.ZERO;
             double grip = 0;
             for (WebPatch patch : WebPatchGenerator.around(level, center, 7)) for (int i = 0; i < patch.edges().size(); i++) {
                 WebPatch.Edge edge = patch.edges().get(i);Vec3 a=patch.anchors().get(edge.a()),b=patch.anchors().get(edge.b());
-                Vec3 contact = nearest(a,b,center);Vec3 ab=b.subtract(a);double along=ab.lengthSqr()<1e-8?0:Math.clamp(contact.subtract(a).dot(ab)/ab.lengthSqr(),0,1);
+                WebPlayerShape.Contact modelContact = playerParts == null ? null : WebPlayerShape.contact(a,b,playerParts);
+                Vec3 contact = modelContact == null ? nearest(a,b,center) : modelContact.strand();
+                Vec3 ab=b.subtract(a);double along=ab.lengthSqr()<1e-8?0:Math.clamp(contact.subtract(a).dot(ab)/ab.lengthSqr(),0,1);
                 int link=patch.linkIndex(i,along);if(cut(patch.key(),link))continue;
-                double distance = contact.distanceTo(center); if (distance > 1.04) continue;
-                // Strands yield only to a deliberate hard impact; normal movement is caught and slowed.
+                double distance = modelContact == null ? contact.distanceTo(center) : Math.max(0,modelContact.gap());
+                double reach = modelContact == null ? 1.04 : .48;
+                if (distance > reach) continue;
+                // Contact stretches and catches silk. Only a hard collision tears it.
                 double impact = velocity.length();
-                if (cutsOnContact && (impact > .15 || entity.getRandom().nextFloat() < .12F)
-                        || impact > .48 || velocity.y < -.62
-                        || impact > .22 && entity.getRandom().nextFloat() < .035F) {
+                if (impact > (cutsOnContact ? .85 : 1.15) || velocity.y < -1.05) {
                     sever(patch.key(),link); WebCutPayload.broadcast(level,contact,patch.key(),link); continue;
                 }
-                double engagement = Math.clamp((1.04D - distance) / .7D, 0D, 1D);
-                grip = 1D - (1D - grip) * (1D - .52D * engagement);
+                double engagement = Math.clamp((reach - distance) / (reach * .8), 0D, 1D);
+                grip = 1D - (1D - grip) * (1D - .32D * engagement);
                 if (engagement <= strongestContact) continue;
                 strongestContact = engagement;
                 Vec3 normal = center.subtract(contact);
