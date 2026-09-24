@@ -28,13 +28,13 @@ public final class UnderworldPostEffects {
         // All quality levels retain the same atmosphere; only resolution and ray samples change.
         PostEffects.register(Asterion.id("underworld/river_atmosphere"), config -> net.krodark.asterion.client.render.post.AmneticPostBuffers.attach(withIntensity(config), "underworld_mist",
                         () -> switch (net.krodark.asterion.client.PerformanceGovernor.quality()) {
-                            case 0 -> .38; case 1 -> .50; default -> .64;
+                            case 0 -> .40; case 1 -> .62; default -> 1.0;
                         })
                 .when(UnderworldPostEffects::active)
                 .uniformVec4("MistQuality", () -> switch (net.krodark.asterion.client.PerformanceGovernor.quality()) {
-                    case 0 -> new Vector4f(0, 0, 12, 0);
-                    case 1 -> new Vector4f(0, 0, 16, 0);
-                    default -> new Vector4f(0, 0, 20, 0);
+                    case 0 -> new Vector4f(4, 5, 12, 0);
+                    case 1 -> new Vector4f(6, 7, 16, 0);
+                    default -> new Vector4f(8, 10, 20, 0);
                 })
                 .phase(RenderPhase.POST_WORLD).priority(18).fade(0, 0)
                 .texture("Noise", Asterion.id("textures/effect/underworld_fog_atlas.png"))

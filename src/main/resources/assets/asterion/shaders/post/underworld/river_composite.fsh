@@ -9,12 +9,13 @@ float viewDistance(vec2 uv) {
     float d = texture(DepthSampler, uv).r;
     if (d >= .9999) return 192.0;
     vec4 p = InvViewProj * vec4(uv * 2.0 - 1.0, CameraData.w > .5 ? d : d * 2.0 - 1.0, 1);
-    return min(length(p.xyz / max(abs(p.w), .00001) - CameraData.xyz), 192.0);
+    return min(length(p.xyz / (abs(p.w) < .00001 ? .00001 : p.w) - CameraData.xyz), 192.0);
 }
 vec4 filteredVolume() {
-    // Smooth upscale in open regions; depth-aware taps protect silhouettes.
-    float centerDepth = texture(DepthSampler, texCoord).r;
-    if (fwidth(centerDepth) < .00002) return texture(VolumeSampler, texCoord);
+    // Full-resolution quality needs no reconstruction. Lower settings must not
+    // blend fog belonging to the far side of a wall into its foreground pixels.
+    if (all(equal(textureSize(VolumeSampler, 0), textureSize(DepthSampler, 0))))
+        return texture(VolumeSampler, texCoord);
     vec2 size = vec2(textureSize(VolumeSampler, 0));
     vec2 p = texCoord * size - .5, f = fract(p);
     vec2 base = (floor(p) + .5) / size;
@@ -23,11 +24,14 @@ vec4 filteredVolume() {
     for (int y = 0; y < 2; y++) for (int x = 0; x < 2; x++) {
         vec2 uv = base + vec2(x, y) / size;
         float weight = (x == 0 ? 1.0 - f.x : f.x) * (y == 0 ? 1.0 - f.y : f.y);
-        weight /= 1.0 + abs(viewDistance(uv) - reference) * 4.0;
+        float difference = abs(viewDistance(uv) - reference);
+        float tolerance = min(1.0, max(.4, reference * .008));
+        if (difference > tolerance) continue;
+        weight *= exp(-4.0 * difference * difference / (tolerance * tolerance));
         result += texture(VolumeSampler, uv) * weight;
         total += weight;
     }
-    return result / max(total, .000001);
+    return total < .000001 ? vec4(0, 0, 0, 1) : result / total;
 }
 void main() {
     vec4 scene = texture(SceneSampler, texCoord);
@@ -36,5 +40,5 @@ void main() {
     // The atmosphere is composited after Amnetic bloom; keep bright emissive
     // pixels and their halos above it while ordinary surfaces remain fogged.
     float emissive = smoothstep(.48, 1.12, max(scene.r, max(scene.g, scene.b)));
-    fragColor = vec4(mix(fogged, scene.rgb, emissive * .92), scene.a);
+    fragColor = vec4(mix(fogged, scene.rgb, emissive * .35), scene.a);
 }
