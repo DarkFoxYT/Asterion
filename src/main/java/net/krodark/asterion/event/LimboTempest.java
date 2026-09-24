@@ -13,8 +13,11 @@ public final class LimboTempest {
     private LimboTempest() { }
 
     public static double strength(double ticks) {
-        double phase = Math.floorMod((long)Math.floor(ticks) - START, CYCLE)
-                + (ticks - Math.floor(ticks));
+        long manual = LimboSeaCommands.tempestStart();
+        if (manual == LimboSeaCommands.STOPPED) return 0;
+        double phase = manual >= 0 ? ticks - manual
+                : Math.floorMod((long)Math.floor(ticks) - START, CYCLE) + (ticks - Math.floor(ticks));
+        if (phase < 0) return 0;
         if (phase >= DURATION) return 0;
         return smooth(phase / 320.0) * (1.0 - smooth((phase - DURATION + 480.0) / 480.0));
     }
@@ -28,6 +31,8 @@ public final class LimboTempest {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             var level = server.getLevel(Asterion.LIMBO_LEVEL);
             if (level == null || level.players().isEmpty()) return;
+            if (level.getGameTime() % 100 == 0) LimboSeaCommands.sync(level);
+            if (LimboSeaCommands.tempestStart() != LimboSeaCommands.NATURAL) return;
             long phase = Math.floorMod(level.getGameTime() - START, CYCLE);
             if (phase != 0 && phase != DURATION) return;
             Component message = Component.literal(phase == 0

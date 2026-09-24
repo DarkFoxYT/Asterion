@@ -154,6 +154,10 @@ public final class LimboWaterRenderer {
             // UV2 is a pair of raw shorts, used as the integer world clock, not a lightmap lookup.
             // Color carries shoreline attenuation, sub-tick time, and adaptive detail quality.
             int timeLow = (int)(wholeTick & 65535), timeHigh = (int)((wholeTick >>> 16) & 65535);
+            int tempestByte = (int)Math.clamp(Math.round(
+                    net.krodark.asterion.event.LimboTempest.strength(frameTicks) * 255), 0, 255);
+            int whirlpoolByte = (int)Math.clamp(Math.round(
+                    net.krodark.asterion.event.LimboWhirlpool.strength(frameTicks) * 255), 0, 255);
             for (Tile tile : frame) {
                 double tileDx = tile.x + 8 - camera.x, tileDz = tile.z + 8 - camera.z;
                 double distanceSq = tileDx * tileDx + tileDz * tileDz;
@@ -179,14 +183,16 @@ public final class LimboWaterRenderer {
                     int packedTimeAndLight=fraction | (Math.round(Math.max(blockLight,Math.max(dynamicLight,lanternLight))*15) << 4);
                     // Standard overlay/normal attributes carry hull-relative coordinates and heading.
                     // No extra render pass, per-vertex wave evaluation, or per-frame GPU allocation.
-                    int bx = frameBoat == null ? 0 : (int)Math.clamp(Math.round((x - frameBoat.x) * 128), -32767, 32767);
-                    int bz = frameBoat == null ? 0 : (int)Math.clamp(Math.round((z - frameBoat.z) * 128), -32767, 32767);
+                    int bx = frameBoat == null ? 0 : (int)Math.clamp(Math.round((x - frameBoat.x) * 8), -127, 127);
+                    int bz = frameBoat == null ? 0 : (int)Math.clamp(Math.round((z - frameBoat.z) * 8), -127, 127);
                     float boatHeight = frameBoat == null ? 0 : (float)Math.clamp(
                             (frameBoat.y - layer.y - 8.0 / 9.0) / 8, -1, 1);
                     out.addVertex(pose, (float)(x - camera.x),
                                     (float)(layer.y + 8.0 / 9.0 - camera.y), (float)(z - camera.z))
                             .setUv(x, z).setUv2(timeLow, timeHigh)
-                            .setUv1(bx, bz).setNormal(boatCos, boatHeight, boatSin)
+                            .setUv1((tempestByte << 8) | (bx & 255),
+                                    (whirlpoolByte << 8) | (bz & 255))
+                            .setNormal(boatCos, boatHeight, boatSin)
                             .setColor(layer.shore[vertex], packedTimeAndLight,
                                     (fine ? 128 : 0) | (frameQuality > 0 ? 64 : 0) | boatPitch,
                                     frameBoat == null ? 0 : boatActivity | boatRoll);

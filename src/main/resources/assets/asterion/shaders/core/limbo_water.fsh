@@ -16,6 +16,8 @@ in float shoreExposure;
 in vec2 worldSurface;
 in float waterTime;
 in float waterLight;
+in float eventTempest;
+in float eventWhirlpool;
 out vec4 fragColor;
 
 #define TAU 6.28318530718
@@ -58,6 +60,8 @@ float ghostCurrent(vec2 uv, float time) {
     return clamp(pow(abs(1.17 - pow(max(c, 0.0), 1.4)), 8.0), 0.0, 1.0);
 }
 void main() {
+    seaTempestStrength = eventTempest;
+    seaWhirlpoolStrength = eventWhirlpool;
     float hullEdge = hullDistance(hullPosition);
     if (hullActive > .5 && hullEdge < -.035 && hullPosition.z > 3.0 / 16.0) discard;
     float distance = length(surfacePosition);

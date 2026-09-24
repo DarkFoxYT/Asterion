@@ -45,10 +45,11 @@ abstract class AsterionFogRendererMixin {
         if (!level.dimension().equals(Asterion.LIMBO_LEVEL)) return;
         FogData fog = result.getReturnValue();
         if (camera.getFluidInCamera() == FogType.NONE) {
+            float sea = (float)Math.clamp((camera.position().z - 50) / 110, 0, 1);
             // Let the depth-tested volume shape the near and middle distances.
             // Keep native fog as a far safety net so large structures retain a silhouette.
-            fog.environmentalStart = 52F;
-            fog.environmentalEnd = Math.min(fog.environmentalEnd, 136F);
+            fog.environmentalStart = 52F - sea * 20F;
+            fog.environmentalEnd = Math.min(fog.environmentalEnd, 136F - sea * 48F);
             fog.color.set(.075F, .079F, .084F, 1F);
             return;
         }

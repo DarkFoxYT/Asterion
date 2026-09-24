@@ -146,6 +146,9 @@ public final class UnderworldPostEffects {
         Minecraft client = Minecraft.getInstance();
         if (client.level == null || client.player == null || !AmneticCamera.isReady())
             return new Vector4f();
+        if (client.player.getVehicle() instanceof net.krodark.asterion.update.underworld.entity.CharonsFerryEntity
+                || net.krodark.asterion.update.underworld.entity.CharonsFerryEntity.supporting(client.player) != null)
+            return new Vector4f();
         if (!client.player.isInWater() && (client.player.getY() < UnderworldTerrain.WATER_Y - 2
                 || client.player.getY() > UnderworldTerrain.WATER_Y + 4
                 || client.level.getBlockState(client.player.blockPosition().below()).isSolidRender()))

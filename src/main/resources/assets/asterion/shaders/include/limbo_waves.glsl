@@ -1,10 +1,14 @@
 // Integer-hashed, continuously interpolated noise, mirrored by UnderworldWaves on the server.
+float seaTempestStrength = -1.0;
+float seaWhirlpoolStrength = -1.0;
 float limboTempest(float ticks) {
+    if (seaTempestStrength >= 0.0) return seaTempestStrength;
     float phase = mod(ticks - 12000.0 + 24000.0, 24000.0);
     return (1.0 - step(3600.0, phase)) * smoothstep(0.0, 320.0, phase)
             * (1.0 - smoothstep(3120.0, 3600.0, phase));
 }
 float limboWhirlpool(float ticks) {
+    if (seaWhirlpoolStrength >= 0.0) return seaWhirlpoolStrength;
     float phase = mod(ticks - 20000.0 + 32000.0, 32000.0);
     return (1.0 - step(6000.0, phase)) * smoothstep(0.0, 800.0, phase)
             * (1.0 - smoothstep(5000.0, 6000.0, phase));

@@ -11,8 +11,11 @@ public final class LimboWhirlpool {
     private LimboWhirlpool() { }
 
     public static double strength(double ticks) {
-        double phase = Math.floorMod((long)Math.floor(ticks) - START, CYCLE)
-                + ticks - Math.floor(ticks);
+        long manual = LimboSeaCommands.whirlpoolStart();
+        if (manual == LimboSeaCommands.STOPPED) return 0;
+        double phase = manual >= 0 ? ticks - manual
+                : Math.floorMod((long)Math.floor(ticks) - START, CYCLE) + ticks - Math.floor(ticks);
+        if (phase < 0) return 0;
         if (phase >= DURATION) return 0;
         return smooth(phase / 800) * (1 - smooth((phase - DURATION + 1000) / 1000));
     }
@@ -38,6 +41,7 @@ public final class LimboWhirlpool {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             var level = server.getLevel(Asterion.LIMBO_LEVEL);
             if (level == null || level.players().isEmpty()) return;
+            if (LimboSeaCommands.whirlpoolStart() != LimboSeaCommands.NATURAL) return;
             long phase = Math.floorMod(level.getGameTime() - START, CYCLE);
             if (phase != 0 && phase != DURATION) return;
             Component message = Component.literal(phase == 0

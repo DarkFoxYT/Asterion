@@ -19,6 +19,8 @@ out float shoreExposure;
 out vec2 worldSurface;
 out float waterTime;
 out float waterLight;
+out float eventTempest;
+out float eventWhirlpool;
 
 #moj_import <asterion:limbo_waves.glsl>
 #moj_import <asterion:limbo_wake.glsl>
@@ -36,11 +38,15 @@ void main() {
     float ticks = float(UV2.x & 65535) + float(UV2.y & 65535) * 65536.0
             + float(timeAndLight & 15) / 16.0;
     waterLight = float(timeAndLight >> 4) / 15.0;
+    eventTempest = float((UV1.x >> 8) & 255) / 255.0;
+    eventWhirlpool = float((UV1.y >> 8) & 255) / 255.0;
+    seaTempestStrength = eventTempest;
+    seaWhirlpoolStrength = eventWhirlpool;
     int flags = int(Color.b * 255.0 + .5), hullFlags = int(Color.a * 255.0 + .5);
     vec2 chunkEdge = mod(UV0, 16.0);
     bool fine = (flags & 128) != 0 && chunkEdge.x > .01 && chunkEdge.y > .01;
     vec4 w = (fine ? sampleWave(UV0, ticks) : meshWave(UV0, ticks)) * Color.r;
-    vec2 relative = vec2((UV1 << 16) >> 16) / 128.0 + w.yz * .9;
+    vec2 relative = vec2((UV1 << 24) >> 24) / 8.0 + w.yz * .9;
     vec2 heading = Normal.xz;
     vec2 local = vec2(-relative.x * heading.x - relative.y * heading.y,
                       relative.x * heading.y - relative.y * heading.x);

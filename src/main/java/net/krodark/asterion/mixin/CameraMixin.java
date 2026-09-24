@@ -12,6 +12,7 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -28,6 +29,14 @@ import org.joml.Vector3f;
 
 @Mixin(Camera.class)
 public abstract class CameraMixin {
+    @Inject(method = "getFluidInCamera", at = @At("HEAD"), cancellable = true)
+    private void asterion$ferryKeepsCameraAboveWater(CallbackInfoReturnable<FogType> result) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || ((Camera)(Object)this).entity() != client.player) return;
+        if (client.player.getVehicle() instanceof net.krodark.asterion.update.underworld.entity.CharonsFerryEntity
+                || net.krodark.asterion.update.underworld.entity.CharonsFerryEntity.supporting(client.player) != null)
+            result.setReturnValue(FogType.NONE);
+    }
     @Unique private Vec3 asterion$smoothedRagdollCamera;
     @Unique private float asterion$flamethrowerFovStrength;
     @Shadow protected abstract void setPosition(Vec3 position);
@@ -52,6 +61,12 @@ public abstract class CameraMixin {
         if (boat == null) return;
         Quaternionf tilt = net.krodark.asterion.update.underworld.client.FerryDeckRender.tilt(boat, partial);
         rotation.premul(tilt); forwards.rotate(tilt); up.rotate(tilt); left.rotate(tilt);
+        if (client.player.getVehicle() == boat) {
+            Quaternionf sway = new Quaternionf()
+                    .rotationX(boat.rockingPitch(partial) * .12F * Mth.DEG_TO_RAD)
+                    .rotateZ(boat.rockingRoll(partial) * .12F * Mth.DEG_TO_RAD);
+            rotation.premul(sway); forwards.rotate(sway); up.rotate(sway); left.rotate(sway);
+        }
         matrixPropertiesDirty |= 3;
     }
 

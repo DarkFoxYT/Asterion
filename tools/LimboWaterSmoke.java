@@ -26,6 +26,11 @@ public final class LimboWaterSmoke {
                 || net.krodark.asterion.event.LimboWhirlpool.funnel(14, 350, 22000) > -6.9
                 || net.krodark.asterion.event.LimboWhirlpool.funnel(80, 350, 22000) != 0)
             throw new AssertionError("Limbo whirlpool envelope or footprint changed");
+        net.krodark.asterion.event.LimboSeaCommands.receive(1000, -2);
+        if (net.krodark.asterion.event.LimboTempest.strength(1500) < .99
+                || net.krodark.asterion.event.LimboWhirlpool.strength(22000) != 0)
+            throw new AssertionError("Manual Limbo event override did not apply");
+        net.krodark.asterion.event.LimboSeaCommands.receive(-1, -1);
         double min = 0, max = 0, dockMax = 0, maxStep = 0;
         for (int tick = 0; tick < 2400; tick += 3) {
             for (int x = -64; x <= 64; x += 4) {
@@ -114,6 +119,9 @@ public final class LimboWaterSmoke {
             int fraction = (int)((ticks - whole) * 15);
             float partial = fraction / 16F;
             GL20.glVertexAttrib4f(GL20.glGetAttribLocation(program, "Color"), 1, fraction / 255F, 1, 0);
+            int tempest = (int)Math.round(net.krodark.asterion.event.LimboTempest.strength(whole + partial) * 255);
+            int whirlpool = (int)Math.round(net.krodark.asterion.event.LimboWhirlpool.strength(whole + partial) * 255);
+            GL30.glVertexAttribI2i(GL20.glGetAttribLocation(program, "UV1"), tempest << 8, whirlpool << 8);
             GL30.glVertexAttribI2i(GL20.glGetAttribLocation(program, "UV2"), (short)(whole & 65535), (short)(whole >>> 16));
             for (int x : new int[]{-32, 0, 14, 18}) for (int z : new int[]{58, 180, 280, 350}) {
                 GL20.glVertexAttrib2f(GL20.glGetAttribLocation(program, "UV0"), x, z);

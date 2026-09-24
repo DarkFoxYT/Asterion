@@ -49,7 +49,8 @@ public final class WaterVisualSmoke {
             int vx=x+(c>=2?1:0),vz=z+(c==1||c==2?1:0);
             vertices[at++]=vx+8;vertices[at++]=47+8F/9F-52;vertices[at++]=vz-174;
             vertices[at++]=vx;vertices[at++]=vz;
-            hull[hullAt++]=(short)(vx*128); hull[hullAt++]=(short)((vz-190)*128);
+            hull[hullAt++]=(short)((int)Math.clamp(vx*8,-127,127)&255);
+            hull[hullAt++]=(short)((int)Math.clamp((vz-190)*8,-127,127)&255);
         }
         int mesh=GL15.glGenBuffers();GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER,mesh);GL15.glBufferData(GL15.GL_ARRAY_BUFFER,vertices,GL15.GL_STATIC_DRAW);
         int position=GL20.glGetAttribLocation(program,"Position"),uv=GL20.glGetAttribLocation(program,"UV0");

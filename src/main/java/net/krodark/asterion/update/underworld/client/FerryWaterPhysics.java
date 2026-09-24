@@ -49,7 +49,8 @@ public final class FerryWaterPhysics {
                         +UnderworldTerrain.waveHeight(hull.x,hull.z,time)*shore[i];
                 depths[i]=water-hull.y;
                 double entering=old==null?0:Math.max(0,depths[i]-old.depth[i]);
-                double energy=Math.min(1,entering*8+velocity.horizontalDistance()*4);
+                double impact = Math.max(0, -velocity.y - .11);
+                double energy=Math.min(1,entering*8+velocity.horizontalDistance()*4+impact*3.2);
                 if(depths[i]<-.04 || depths[i]>.85 || energy<.04)continue;
                 if (budget <= 0) continue;
                 int count=Math.min(budget,1+(int)(energy*(quality+1)*2));budget-=count;
@@ -59,7 +60,7 @@ public final class FerryWaterPhysics {
                     double vz=velocity.z+side*Math.sin(yaw)*(.02+energy*.08);
                     double x=hull.x+(random.nextDouble()-.5)*.3,z=hull.z+(random.nextDouble()-.5)*.3;
                     world.addParticle(ParticleTypes.SPLASH,x,water+.03,z,vx,.03+energy*.16,vz);
-                    if(entering>.025 && quality>0)world.addParticle(ParticleTypes.FALLING_WATER,
+                    if((entering>.025 || impact>.045) && quality>0)world.addParticle(ParticleTypes.FALLING_WATER,
                             x,water+.10+energy*.25,z,vx,.07+energy*.14,vz);
                 }
             }
@@ -75,7 +76,8 @@ public final class FerryWaterPhysics {
         double water=net.krodark.asterion.update.underworld.world.UnderworldWaterPhysics.surfaceAt(player,time),feet=player.getY();
         if(Double.isFinite(water) && Double.isFinite(previousFeet) && Double.isFinite(previousSurface)
                 && previousFeet>previousSurface+.08 && feet<=water+.08 && player.getDeltaMovement().y<-.06
-                && CharonsFerryEntity.supporting(player)==null) {
+                && CharonsFerryEntity.supporting(player)==null
+                && !(player.getVehicle() instanceof CharonsFerryEntity)) {
             int count=Math.min(quality==0?4:quality==1?9:18,
                     6+(int)(Math.abs(player.getDeltaMovement().y)*12));
             for(int i=0;i<count;i++) {
@@ -84,7 +86,8 @@ public final class FerryWaterPhysics {
                         player.getZ()+Math.sin(a)*.35,Math.cos(a)*.08,.10,Math.sin(a)*.08);
             }
         }
-        if(Double.isFinite(water) && player.getEyeY()<water-.15 && time%3==0 && quality>0) {
+        if(Double.isFinite(water) && player.getEyeY()<water-.15 && time%3==0 && quality>0
+                && !(player.getVehicle() instanceof CharonsFerryEntity)) {
             world.addParticle(ParticleTypes.BUBBLE,player.getX()+(random.nextDouble()-.5)*1.5,
                     player.getY()+random.nextDouble()*1.6,player.getZ()+(random.nextDouble()-.5)*1.5,
                     player.getDeltaMovement().x*.2,.02,player.getDeltaMovement().z*.2);

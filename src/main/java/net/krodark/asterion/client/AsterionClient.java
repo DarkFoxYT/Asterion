@@ -215,6 +215,9 @@ public final class AsterionClient implements ClientModInitializer {
                 }));
         ClientPlayNetworking.registerGlobalReceiver(DeadSunEventPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> DeadSunClientEvents.receive(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(net.krodark.asterion.network.LimboSeaEventPayload.TYPE,
+                (payload, context) -> context.client().execute(() ->
+                        net.krodark.asterion.event.LimboSeaCommands.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(MazeShiftPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> DeadSunClientEvents.receiveShift(payload)));
         ClientPlayNetworking.registerGlobalReceiver(net.krodark.asterion.network.ArenaDebrisPayload.TYPE, (payload, context) ->

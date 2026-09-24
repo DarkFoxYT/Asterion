@@ -386,10 +386,15 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
         // Buoyancy follows the hull's footprint, smoothing little chop instead of snapping to one point.
         double targetY = UnderworldTerrain.WATER_Y + .65 + (wave * 2 + bow + stern + port + starboard) * shoreFactor / 6;
         // Damped vertical inertia: the displaced hull volume restores the waterline gradually.
-        heaveSpeed = Math.clamp(heaveSpeed + (targetY - oldY) * .075 - heaveSpeed * .42, -.14, .14);
+        double heightError = targetY - oldY;
+        double restoring = heightError * (heightError < 0 ? .19 : .075);
+        double damping = heaveSpeed * (heaveSpeed < 0 ? .22 : .42);
+        heaveSpeed = Math.clamp(heaveSpeed + restoring - damping, -.38, .15);
         double nextY = oldY + heaveSpeed;
-        entityData.set(PITCH, net.minecraft.util.Mth.lerp(.22F, entityData.get(PITCH),
-                Math.clamp((float)Math.toDegrees(Math.atan2((bow - stern) * shoreFactor, 5.6)), -12F, 12F)));
+        float wavePitch = (float)Math.toDegrees(Math.atan2((bow - stern) * shoreFactor, 5.6));
+        float plungePitch = (float)Math.clamp(heaveSpeed * 28, -10, 4);
+        entityData.set(PITCH, net.minecraft.util.Mth.lerp(.32F, entityData.get(PITCH),
+                Math.clamp(wavePitch + plungePitch, -24F, 17F)));
         setXRot(entityData.get(PITCH));
         entityData.set(ROLL, net.minecraft.util.Mth.lerp(.2F, rockingRoll(),
                 Math.clamp((float)Math.toDegrees(Math.atan2((port - starboard) * shoreFactor, 1.4)), -10F, 10F)));

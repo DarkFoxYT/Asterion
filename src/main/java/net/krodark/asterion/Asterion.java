@@ -988,6 +988,8 @@ public class Asterion implements ModInitializer {
         PayloadTypeRegistry.serverboundPlay().register(PressureButtonHoldPayload.TYPE,PressureButtonHoldPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(MazeZapPayload.TYPE, MazeZapPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(DeadSunEventPayload.TYPE, DeadSunEventPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.LimboSeaEventPayload.TYPE,
+                net.krodark.asterion.network.LimboSeaEventPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(MazeShiftPayload.TYPE, MazeShiftPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.ArenaDebrisPayload.TYPE, net.krodark.asterion.network.ArenaDebrisPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.MinotaurImpactPayload.TYPE,
@@ -1044,6 +1046,7 @@ public class Asterion implements ModInitializer {
         net.krodark.asterion.event.DeadStampede.register();
         net.krodark.asterion.event.LimboTempest.register();
         net.krodark.asterion.event.LimboWhirlpool.register();
+        net.krodark.asterion.event.LimboSeaCommands.register();
         net.krodark.asterion.command.CentipedeCommands.register();
         net.krodark.asterion.event.CatacombFloodState.registerCommands();
         DynamicBlockLights.initialize();
