@@ -137,16 +137,20 @@ void main() {
     float whirlStrength = limboWhirlpool(waterTime);
     if (whirlStrength > .001 && whirlRadius < 120.0) {
         float angle = atan(whirlDelta.y, whirlDelta.x);
-        float spiral = sin(whirlRadius * .52 - angle * 7.0 + waterTime * .045);
-        float ring = sin(whirlRadius * .33 + waterTime * .022);
-        float rotatingFoam = smoothstep(.53, .9, spiral * .65 + ring * .35)
-                * smoothstep(8.0, 22.0, whirlRadius)
-                * (1.0 - smoothstep(92.0, 120.0, whirlRadius)) * whirlStrength;
-        float lip = exp(-pow((whirlRadius - 83.0) / 12.0, 2.0))
-                * (.55 + .45 * smoothstep(-.1, .8, spiral)) * whirlStrength;
+        float phase = angle * 8.0 + log(whirlRadius + 5.0) * 11.0 - waterTime * .064;
+        float lineWidth = clamp(fwidth(phase) * .6, .12, .55);
+        float arm = 1.0 - smoothstep(.045, lineWidth + .15, abs(sin(phase * .5)));
+        float seam = 1.0 - smoothstep(.045, lineWidth + .11, abs(sin((phase + 2.1) * .5)));
+        float radiusFade = smoothstep(4.0, 18.0, whirlRadius)
+                * (1.0 - smoothstep(100.0, 120.0, whirlRadius));
+        float rotatingFoam = max(arm, seam * .52) * radiusFade * whirlStrength;
+        float lip = exp(-pow((whirlRadius - 87.0) / 11.0, 2.0))
+                * (.46 + .54 * arm) * whirlStrength;
         water = mix(water, vec3(.001, .0012, .0015),
-                whirlStrength * (1.0 - smoothstep(16.0, 75.0, whirlRadius)) * .55);
-        whitecap = max(whitecap, max(rotatingFoam * .82, lip * .28));
+                whirlStrength * (1.0 - smoothstep(18.0, 78.0, whirlRadius)) * .68);
+        whitecap = max(whitecap, max(rotatingFoam * .95, lip * .38));
+        float whiteCore = (1.0 - smoothstep(5.0, 21.0, whirlRadius)) * whirlStrength;
+        whitecap = max(whitecap, whiteCore);
     }
     float tempest = limboTempest(waterTime);
     if (nearDetail > .01) {
@@ -164,6 +168,9 @@ void main() {
     float fleck = smoothstep(.53, .72, grain) * nearDetail;
     whitecap = max(whitecap * mix(.80, 1.0, fleck), smoothWake * .62);
     water = mix(water, vec3(.28, .30, .31), whitecap);
+    if (whirlStrength > .001)
+        water = mix(water, vec3(.82, .84, .85),
+                (1.0 - smoothstep(4.0, 13.0, whirlRadius)) * whirlStrength);
     fragColor = apply_fog(vec4(water, 1.0), fog_spherical_distance(surfacePosition),
         fog_cylindrical_distance(surfacePosition), FogEnvironmentalStart, FogEnvironmentalEnd,
         FogRenderDistanceStart, FogRenderDistanceEnd, FogColor);

@@ -507,17 +507,24 @@ public final class UnderworldTerrain {
             if (room < 3) return new Details(false, 0, 0, 0, false);
             long variation = hash(seed ^ 0x5B1E5L, Math.floorDiv(x, 11), Math.floorDiv(z, 11));
             double roomScale = Math.clamp((room - 5) / 18.0, .15, 1);
-            int rock = Math.min(room / 2, (int)(blockSpire(seed ^ 0x5B1DE5L, x, z)
-                    * roomScale * (.28 + ((variation >>> 9) & 7) * .08)));
-            int hanging = Math.min(room / 2, (int)(blockSpire(seed ^ 0xCE1115L, x, z)
-                    * roomScale * (.3 + ((variation >>> 17) & 7) * .09)));
+            int rock = Math.min(room / 2, (int)(Math.max(blockSpire(seed ^ 0x5B1DE5L, x, z) * .68,
+                    spiderSpire(seed ^ 0x5B1DE5L, x, z))
+                    * roomScale * (.42 + ((variation >>> 9) & 7) * .085)));
+            int hanging = Math.min(room / 2, (int)(Math.max(blockSpire(seed ^ 0xCE1115L, x, z) * .65,
+                    spiderSpire(seed ^ 0xCE1115L, x, z))
+                    * roomScale * (.44 + ((variation >>> 17) & 7) * .085)));
             long bridge = hash(seed ^ 0xB81D6EL, Math.floorDiv(x, 13), Math.floorDiv(z, 13));
             if ((bridge & 63L) == 0 && (bridge >>> 8 & 15L) < 4 && rock > 1 && hanging > 1) {
                 rock = Math.max(rock, room / 2);
                 hanging = Math.max(hanging, room - rock);
             }
-            int spike = rock > 1 && room > 12 && hanging + rock + 2 < room
-                    && (hash(seed ^ 0x5A1EEL, x, z) & 7L) == 0
+            if (rock + hanging > room - 3) {
+                double factor = Math.max(0, room - 3) / (double)(rock + hanging);
+                rock = (int)Math.floor(rock * factor);
+                hanging = (int)Math.floor(hanging * factor);
+            }
+            int spike = rock > 1 && room > 12 && hanging + rock + 3 < room
+                    && (hash(seed ^ 0x5A1EEL, x, z) & 3L) == 0
                     ? Math.min(1 + (int)(hash(seed ^ 0x711L, x, z) & 3L), room - rock - hanging - 2) : 0;
             return new Details(false, rock, spike, hanging, false);
         }
@@ -595,6 +602,33 @@ public final class UnderworldTerrain {
             int height = 16 + (int)((shape >>> 16) & 15);
             int chips = distance < 1 ? 0 : (int)(hash(seed ^ shape, x, z) & 1);
             result = Math.max(result, Math.max(0, (int)Math.floor(height * Math.pow(taper, 1.55)) - chips));
+        }
+        return result;
+    }
+
+    /** Cave-sized relatives of the shore cones, with broad block bases crossing chunk borders. */
+    private static int spiderSpire(long seed, int x, int z) {
+        int cellX = Math.floorDiv(x, 12), cellZ = Math.floorDiv(z, 12);
+        int result = 0;
+        double weathering = octaves(seed ^ 0x57A7AL, x * .09, z * .09);
+        for (int dz = -1; dz <= 1; dz++) for (int dx = -1; dx <= 1; dx++) {
+            int cx = cellX + dx, cz = cellZ + dz;
+            long shape = hash(seed, cx, cz);
+            if ((shape & 7L) < 3) continue;
+            int rootX = cx * 12 + (int)((shape >>> 4) % 12);
+            int rootZ = cz * 12 + (int)((shape >>> 9) % 12);
+            int radius = 3 + (int)((shape >>> 16) & 3);
+            if (rootZ < 36 && Math.abs(rootX - (riverCenter(rootZ) - 15)) < radius + 7) continue;
+            int rx = Math.abs(x - rootX), rz = Math.abs(z - rootZ);
+            if (rx > radius || rz > radius) continue;
+            double stretchX = .8 + ((shape >>> 21) & 3) * .12;
+            double stretchZ = .8 + ((shape >>> 24) & 3) * .12;
+            double distance = Math.hypot(rx * stretchX, rz * stretchZ) + weathering * .9;
+            double taper = 1 - distance / (radius + .65);
+            if (taper <= 0) continue;
+            int height = 10 + (int)((shape >>> 28) & 15);
+            int chips = distance < 1 ? 0 : (int)(hash(seed ^ shape, x, z) & 1);
+            result = Math.max(result, Math.max(0, (int)Math.floor(height * Math.pow(taper, 1.4)) - chips));
         }
         return result;
     }

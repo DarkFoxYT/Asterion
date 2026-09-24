@@ -304,6 +304,16 @@
 					]
 				},
 				{
+					"name": "right_hand_item",
+					"parent": "right_arm",
+					"pivot": [-5.75, 10, 0]
+				},
+				{
+					"name": "left_hand_item",
+					"parent": "left_arm",
+					"pivot": [5.75, 10, 0]
+				},
+				{
 					"name": "loincloth",
 					"parent": "body",
 					"pivot": [-0.5, 10, 0],

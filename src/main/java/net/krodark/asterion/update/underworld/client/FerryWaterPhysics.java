@@ -71,6 +71,7 @@ public final class FerryWaterPhysics {
             shoreBreakers(client, quality, time);
             whirlpoolSpray(client, quality, time);
         }
+        tempestRain(client, quality, time);
         var player=client.player;
         net.krodark.asterion.update.underworld.world.UnderworldWaterPhysics.alignSurface(player, time);
         double water=net.krodark.asterion.update.underworld.world.UnderworldWaterPhysics.surfaceAt(player,time),feet=player.getY();
@@ -151,6 +152,19 @@ public final class FerryWaterPhysics {
                     x, y + .06, z, -Math.sin(angle) * speed,
                     .04 + random.nextDouble() * .08 * strength,
                     Math.cos(angle) * speed);
+        }
+    }
+
+    private static void tempestRain(Minecraft client, int quality, long time) {
+        double storm = LimboTempest.strength(time);
+        if (storm < .05 || client.player.getZ() < 18) return;
+        var random = world.getRandom();
+        int count = (int)Math.ceil(storm * (quality == 0 ? 5 : quality == 1 ? 10 : 16));
+        for (int i = 0; i < count; i++) {
+            double x = client.player.getX() + (random.nextDouble() - .5) * 30;
+            double z = client.player.getZ() + (random.nextDouble() - .5) * 30;
+            double y = client.player.getY() + 5 + random.nextDouble() * 9;
+            world.addParticle(ParticleTypes.RAIN, x, y, z, -.035 * storm, -.18, .012 * storm);
         }
     }
 }

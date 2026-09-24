@@ -161,6 +161,18 @@ public final class UnderworldTerrainSmoke {
         if (giant < 10 || broad < 100 || crossing < 10)
             throw new AssertionError("Missing large, broad, chunk-crossing block spires");
         System.out.println("PASS solid spires: " + giant + " tall cores, " + broad + " broad columns, " + crossing + " boundary crossings");
+        Method spiderSpire = UnderworldTerrain.class.getDeclaredMethod("spiderSpire", long.class, int.class, int.class);
+        spiderSpire.setAccessible(true);
+        int caveBroad = 0, caveCrossing = 0;
+        for (int z = -320; z < -160; z++) for (int x = -100; x < 100; x++) {
+            int h = (int)spiderSpire.invoke(null, 42L, x, z);
+            int neighbor = (int)spiderSpire.invoke(null, 42L, x + 1, z);
+            if (h >= 4 && neighbor >= 4) caveBroad++;
+            if (Math.floorMod(x, 16) == 15 && h > 0 && neighbor > 0) caveCrossing++;
+        }
+        if (caveBroad < 80 || caveCrossing < 5)
+            throw new AssertionError("Spider cave block spires lost their broad bases or chunk continuity");
+        System.out.println("PASS spider cave block spires: " + caveBroad + " broad columns, " + caveCrossing + " boundary crossings");
         Method details = UnderworldTerrain.class.getDeclaredMethod("details", long.class, int.class, int.class, SAMPLE.getReturnType());
         details.setAccessible(true);
         Class<?> shape = details.getReturnType();

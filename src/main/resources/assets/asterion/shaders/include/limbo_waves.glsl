@@ -18,7 +18,8 @@ float whirlFunnel(vec2 p, float ticks) {
     float r = length(p - seaWhirlpoolCenter);
     if (r >= 120.0) return 0.0;
     float edge = 1.0 - smoothstep(24.0, 120.0, r);
-    return -10.0 * limboWhirlpool(ticks) * exp(-r / 55.0) * edge;
+    float core = 1.0 - smoothstep(0.0, 24.0, r);
+    return limboWhirlpool(ticks) * (-14.0 * exp(-r / 55.0) * edge - 4.0 * core * core);
 }
 float waveHash(ivec2 p) {
     uint h = uint(p.x) * 0x1f123bb5u ^ uint(p.y) * 0x5f356495u;

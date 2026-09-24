@@ -29,13 +29,14 @@ public final class DeadStampede {
             ServerLevel level = server.getLevel(Asterion.LIMBO_LEVEL);
             if (level == null) return;
             Wave wave = WAVES.get(level);
-            if (wave == null && level.getGameTime() % 12000 == 0) {
+            if (wave == null && level.getGameTime() % 8000 == 0) {
                 for (ServerPlayer player : level.players()) {
                     double z = player.getZ();
                     if (z > UnderworldTerrain.SPAWN_Z + 70 && z < -80
                             && Math.abs(player.getX() - (UnderworldTerrain.riverCenter(z) - 15)) < 7) {
                         wave = new Wave(z - 45, level.getGameTime());
                         WAVES.put(level, wave);
+                        spawnRunners(level, wave.startZ);
                         for (ServerPlayer listener : level.players())
                             listener.sendSystemMessage(Component.literal("A roar of footsteps gathers behind you."));
                         break;
@@ -63,6 +64,7 @@ public final class DeadStampede {
                             if (!level.dimension().equals(Asterion.LIMBO_LEVEL)) return 0;
                             double z = ctx.getSource().getPosition().z - 45;
                             WAVES.put(level, new Wave(z, level.getGameTime()));
+                            spawnRunners(level, z);
                             ctx.getSource().sendSuccess(() -> Component.literal("The dead are gathering. The wave arrives in five seconds."), true);
                             return 1;
                         })).then(Commands.literal("stop").executes(ctx -> {
@@ -95,6 +97,25 @@ public final class DeadStampede {
         if (wave == null) return Double.NaN;
         long age = level.getGameTime() - wave.started;
         return wave.startZ + Math.max(0, age - GATHER_TICKS) * .20;
+    }
+
+    private static void spawnRunners(ServerLevel level, double frontZ) {
+        double laneX = UnderworldTerrain.riverCenter(frontZ) - 15;
+        if (level.getEntitiesOfClass(WandererEntity.class,
+                new AABB(laneX - 12, UnderworldTerrain.MIN_Y, frontZ - 8,
+                        laneX + 12, UnderworldTerrain.MAX_Y, frontZ + 12)).size() >= 8) return;
+        for (int i = 0; i < 6; i++) {
+            int z = (int)Math.floor(frontZ) - (i / 3) * 3;
+            int x = (int)Math.round(UnderworldTerrain.riverCenter(z) - 15) + i % 3 - 1;
+            if (!level.getChunkSource().hasChunk(x >> 4, z >> 4)) continue;
+            var feet = LimboWanderers.findFloor(level, x, z,
+                    UnderworldTerrain.WATER_Y + 15, UnderworldTerrain.WATER_Y - 5);
+            if (feet == null) continue;
+            var runner = Asterion.WANDERER.create(level, net.minecraft.world.entity.EntitySpawnReason.EVENT);
+            if (runner == null) break;
+            runner.setPos(x + .5, feet.getY(), z + .5);
+            if (level.noCollision(runner)) level.addFreshEntity(runner);
+        }
     }
 
     public static boolean gathering(ServerLevel level) {

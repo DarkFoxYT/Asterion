@@ -59,7 +59,9 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
     private float visualPitch;
     private float shoreFactor = 1;
     private int shoreX = Integer.MIN_VALUE, shoreZ = Integer.MIN_VALUE;
-    private double surgeSpeed, heaveSpeed, turnSpeed;
+    private double surgeSpeed, heaveSpeed, turnSpeed, whirlTurnSpeed, waveTurnSpeed;
+    private double impactPulse;
+    private boolean airborne;
     private int controlThrottle, controlTurn, lastControlTick = -100;
     public static final int EMERGENCE_TICKS = 110;
 
@@ -69,7 +71,9 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
     }
 
     public void berth() {
-        surgeSpeed = heaveSpeed = turnSpeed = 0;
+        surgeSpeed = heaveSpeed = turnSpeed = whirlTurnSpeed = waveTurnSpeed = 0;
+        impactPulse = 0;
+        airborne = false;
         double z = UnderworldTerrain.FERRY_Z;
         setPos(UnderworldTerrain.riverCenter(z), UnderworldTerrain.WATER_Y + .65, z);
         setYRot(0F);
@@ -358,16 +362,17 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
             float targetYaw = sailing() ? (float)Math.toDegrees(Math.atan2(-tangent, 1.0)) : oldYaw;
             setYRot(oldYaw + net.minecraft.util.Mth.wrapDegrees(targetYaw - oldYaw) * .065F);
         }
-        if (whirlPull > .001) {
-            double yawCurrent = (.28 + .62 * (1 - Math.clamp(whirlRadius / 85, 0, 1)))
-                    * (1 + .28 * Math.sin(sampleTime * .071 + whirlRadius * .12));
-            setYRot((float)(getYRot() + whirlPull * yawCurrent));
-        }
+        double yawCurrent = whirlPull * (.28 + .62 * (1 - Math.clamp(whirlRadius / 85, 0, 1)))
+                * (1 + .12 * Math.sin(sampleTime * .045 + whirlRadius * .06));
+        whirlTurnSpeed += Math.clamp(yawCurrent - whirlTurnSpeed, -.045, .045);
+        setYRot((float)(getYRot() + whirlTurnSpeed));
         double sideAngle = Math.toRadians(getYRot());
         double sideX = Math.cos(sideAngle) * 1.5, sideZ = Math.sin(sideAngle) * 1.5;
         double crossWave = UnderworldTerrain.waveHeight(oldX + sideX, oldZ + sideZ, sampleTime)
                 - UnderworldTerrain.waveHeight(oldX - sideX, oldZ - sideZ, sampleTime);
-        setYRot((float)(getYRot() + Math.clamp(crossWave * (.15 + Math.abs(surgeSpeed) * .65), -.85, .85)));
+        double waveTurn = Math.clamp(crossWave * (.15 + Math.abs(surgeSpeed) * .65), -.85, .85);
+        waveTurnSpeed += (waveTurn - waveTurnSpeed) * .14;
+        setYRot((float)(getYRot() + waveTurnSpeed));
         double heading = Math.toRadians(getYRot());
         double bowSlope = UnderworldTerrain.waveHeight(oldX - Math.sin(heading) * 2.4,
                 oldZ + Math.cos(heading) * 2.4, sampleTime);
@@ -418,26 +423,49 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
                 nextZ + Math.sin(Math.toRadians(getYRot())) * .7, level().getGameTime());
         // Buoyancy follows the hull's footprint, smoothing little chop instead of snapping to one point.
         double targetY = UnderworldTerrain.WATER_Y + .65 + (wave * 2 + bow + stern + port + starboard) * shoreFactor / 6;
-        // Damped vertical inertia: the displaced hull volume restores the waterline gradually.
+        // The hull can leave a retreating crest; gravity takes over until it meets water again.
         double heightError = targetY - oldY;
-        double restoring = heightError * (heightError < 0 ? .19 : .075);
-        double damping = heaveSpeed * (heaveSpeed < 0 ? .22 : .42);
-        heaveSpeed = Math.clamp(heaveSpeed + restoring - damping, -.38, .15);
+        if (!airborne && heightError < -.65 && heaveSpeed > -.18) airborne = true;
+        double nextY;
+        if (airborne) {
+            heaveSpeed = Math.max(-.72, heaveSpeed - .042);
+            nextY = oldY + heaveSpeed;
+            if (nextY <= targetY) {
+                impactPulse = Math.max(impactPulse, Math.min(1, Math.abs(heaveSpeed) / .55));
+                nextY = targetY;
+                heaveSpeed = .08;
+                airborne = false;
+            }
+        } else {
+            double restoring = heightError * (heightError < 0 ? .17 : .11);
+            double damping = heaveSpeed * (heaveSpeed < 0 ? .22 : .36);
+            heaveSpeed = Math.clamp(heaveSpeed + restoring - damping, -.38, .27);
+            nextY = oldY + heaveSpeed;
+        }
         entityData.set(PLUNGE, (float)heaveSpeed);
         entityData.set(SPEED, (float)surgeSpeed);
-        double nextY = oldY + heaveSpeed;
         float wavePitch = (float)Math.toDegrees(Math.atan2((bow - stern) * shoreFactor, 5.6));
         float plungePitch = (float)Math.clamp(heaveSpeed * 28, -10, 4);
         float whirlPitch = (float)(whirlPull * (5.5 * Math.sin(sampleTime * .16 + whirlRadius * .15)
                 + 2.5 * Math.sin(sampleTime * .37)));
+        double chop = Math.abs(net.krodark.asterion.update.underworld.world.UnderworldWaves
+                .sample(nextX, nextZ, sampleTime).curvature()) * 12;
+        double storm = net.krodark.asterion.event.LimboTempest.strength(sampleTime);
+        double shudder = Math.clamp((chop * .75 + storm * .8 + whirlPull * 1.3)
+                * (airborne ? .35 : 1) + impactPulse * 3.1, 0, 4.2);
+        float jitterPitch = (float)(shudder * (.55 * Math.sin(sampleTime * .53 + nextX * .17)
+                + .24 * Math.sin(sampleTime * .91 + nextZ * .11)));
         entityData.set(PITCH, net.minecraft.util.Mth.lerp(.36F, entityData.get(PITCH),
-                Math.clamp(wavePitch + plungePitch + whirlPitch, -30F, 25F)));
+                Math.clamp(wavePitch + plungePitch + whirlPitch + jitterPitch, -30F, 25F)));
         setXRot(entityData.get(PITCH));
         float whirlRoll = (float)(whirlPull * (10 * Math.sin(sampleTime * .13 + whirlRadius * .11)
                 + 3 * Math.sin(sampleTime * .31 + .9)));
+        float jitterRoll = (float)(shudder * (.68 * Math.sin(sampleTime * .47 + nextZ * .14)
+                + .22 * Math.sin(sampleTime * .83 + nextX * .09)));
         entityData.set(ROLL, net.minecraft.util.Mth.lerp(.28F, rockingRoll(),
                 Math.clamp((float)Math.toDegrees(Math.atan2((port - starboard) * shoreFactor, 1.4))
-                        + whirlRoll, -22F, 22F)));
+                        + whirlRoll + jitterRoll, -22F, 22F)));
+        impactPulse *= .72;
         setPos(nextX, nextY, nextZ);
         if (tickCount % 20 == 0) net.krodark.asterion.update.underworld.FerryJourneyState.get((ServerLevel)level()).track(this);
         setDeltaMovement(Vec3.ZERO);

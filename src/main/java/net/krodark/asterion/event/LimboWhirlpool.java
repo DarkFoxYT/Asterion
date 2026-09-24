@@ -43,7 +43,8 @@ public final class LimboWhirlpool {
         double r = Math.hypot(x - centerX, z - centerZ);
         if (r >= RADIUS) return 0;
         double edge = 1 - smooth((r - 24) / (RADIUS - 24));
-        return -10 * strength(ticks) * Math.exp(-r / 55) * edge;
+        double core = 1 - smooth(r / 24);
+        return strength(ticks) * (-14 * Math.exp(-r / 55) * edge - 4 * core * core);
     }
 
     public static double pull(double x, double z, double ticks) {

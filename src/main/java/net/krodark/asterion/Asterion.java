@@ -1044,6 +1044,7 @@ public class Asterion implements ModInitializer {
                         WorldGenerator.markTransitionReady(context.player())));
         DeadSunEventSystem.registerCommands();
         net.krodark.asterion.event.DeadStampede.register();
+        net.krodark.asterion.event.LimboWanderers.register();
         net.krodark.asterion.event.LimboTempest.register();
         net.krodark.asterion.event.LimboWhirlpool.register();
         net.krodark.asterion.event.LimboSeaCommands.register();

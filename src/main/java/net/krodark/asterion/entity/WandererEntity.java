@@ -18,7 +18,13 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.pathfinder.Path;
@@ -30,6 +36,7 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
+import java.util.UUID;
 
 /** The dead are Limbo ambience: procession, curiosity, panic, then the river. */
 public final class WandererEntity extends PathfinderMob implements GeoEntity {
@@ -44,14 +51,22 @@ public final class WandererEntity extends PathfinderMob implements GeoEntity {
     private int coverStallTicks;
     private int exposedTicks;
     private boolean gaitAnimationInitialized;
+    private boolean treasureRolled;
+    private boolean caveDweller;
+    private UUID droppedTreasure;
+    private Vec3 lastTreasurePosition;
+    private UUID angerTarget;
+    private int attackCooldown;
 
-    public enum State { PURPOSEFUL, ROAMING, WATCHING, HIDING, DROWNING, STAMPEDE, SEEKING_COVER }
+    public enum State { PURPOSEFUL, ROAMING, WATCHING, HIDING, DROWNING, STAMPEDE, SEEKING_COVER,
+        TRIPPED, RECOVERING, RETALIATING }
     public WandererEntity(EntityType<? extends WandererEntity> type, Level level) {
         super(type, level);
         xpReward = 5;
         setPathfindingMalus(PathType.WATER, -1F);
         setPathfindingMalus(PathType.WATER_BORDER, 8F);
     }
+    public void setCaveDweller(boolean cave) { caveDweller = cave; }
     public static AttributeSupplier.Builder createAttributes() { return createMobAttributes().add(Attributes.MAX_HEALTH, 20).add(Attributes.MOVEMENT_SPEED, .20).add(Attributes.FOLLOW_RANGE, 32).add(Attributes.KNOCKBACK_RESISTANCE, .15); }
     @Override public boolean checkSpawnRules(LevelAccessor level, EntitySpawnReason reason) { return reason != EntitySpawnReason.NATURAL || level instanceof ServerLevel server && server.dimension().equals(Asterion.LIMBO_LEVEL) && super.checkSpawnRules(level, reason); }
     @Override protected void defineSynchedData(SynchedEntityData.Builder builder) { super.defineSynchedData(builder); builder.define(STATE, State.ROAMING.ordinal()); }
@@ -59,12 +74,24 @@ public final class WandererEntity extends PathfinderMob implements GeoEntity {
 
     @Override public void tick() {
         super.tick(); if (!(level() instanceof ServerLevel level) || !isAlive()) return;
-        if (tickCount == 1 && random.nextFloat() < .58F) setState(State.PURPOSEFUL);
+        if (!treasureRolled) rollTreasure();
+        if (tickCount == 1 && !caveDweller && random.nextFloat() < .58F) setState(State.PURPOSEFUL);
         stateTicks++;
+        if (attackCooldown > 0) attackCooldown--;
         if (state() == State.DROWNING) { tickDrowning(); return; }
         if (isInWater() || getBlockZ() >= 18 && getY() < UnderworldTerrain.WATER_Y) { setState(State.DROWNING); navigation.stop(); return; }
+        if (state() == State.TRIPPED) { tickTrip(level); return; }
+        if (droppedTreasure != null && state() != State.RECOVERING && state() != State.RETALIATING)
+            setState(State.RECOVERING);
+        if (state() == State.RECOVERING) { recoverTreasure(level); return; }
+        if (state() == State.RETALIATING) { retaliate(level); return; }
+        if (state() != State.STAMPEDE && !getMainHandItem().isEmpty()
+                && getDeltaMovement().horizontalDistanceSqr() > .001
+                && level.getNearestPlayer(this, 24) != null && random.nextInt(850) == 0) {
+            trip(level); return;
+        }
         double front = DeadStampede.front(level);
-        if (!Double.isNaN(front) && Math.abs(getZ() - front) < 100) {
+        if (!caveDweller && !Double.isNaN(front) && Math.abs(getZ() - front) < 100) {
             if (state() != State.STAMPEDE) setState(State.STAMPEDE);
             double targetZ = DeadStampede.gathering(level) ? front - 3 : front - 2 - Math.floorMod(getId(), 5) * 1.2;
             double targetX = UnderworldTerrain.riverCenter(targetZ) - 15 + (Math.floorMod(getId(), 7) - 3) * .9;
@@ -75,7 +102,97 @@ public final class WandererEntity extends PathfinderMob implements GeoEntity {
         if (scatterFromCharge(level)) return;
         switch (state()) { case PURPOSEFUL -> purposeful(level); case ROAMING -> roaming(level); case WATCHING -> watching(level); case SEEKING_COVER -> seekingCover(level); case HIDING -> hiding(level); case STAMPEDE -> stampede(); default -> { } }
     }
+    private void rollTreasure() {
+        treasureRolled = true;
+        if (!getMainHandItem().isEmpty() || random.nextFloat() >= .12F) return;
+        int roll = random.nextInt(10);
+        setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(roll < 6 ? Items.EMERALD
+                : roll < 9 ? Items.AMETHYST_SHARD : Items.ECHO_SHARD));
+    }
+    private void trip(ServerLevel level) {
+        ItemStack stack = getMainHandItem().copy();
+        if (stack.isEmpty()) return;
+        setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+        ItemEntity item = new ItemEntity(level, getX(), getY() + .55, getZ(), stack);
+        item.setDeltaMovement((random.nextDouble() - .5) * .18, .18,
+                (random.nextDouble() - .5) * .18);
+        level.addFreshEntity(item);
+        droppedTreasure = item.getUUID();
+        lastTreasurePosition = item.position();
+        navigation.stop();
+        setState(State.TRIPPED);
+        playSound(SoundEvents.HUSK_HURT, .75F, .8F);
+    }
+    private void tickTrip(ServerLevel level) {
+        navigation.stop();
+        setDeltaMovement(getDeltaMovement().multiply(.45, 1, .45));
+        if (droppedTreasure != null) {
+            var item = level.getEntity(droppedTreasure);
+            if (item instanceof ItemEntity loose && loose.isAlive()) lastTreasurePosition = loose.position();
+            else if (angerTarget == null && lastTreasurePosition != null) {
+                Player thief = level.players().stream().filter(player -> player.isAlive()
+                        && player.position().distanceToSqr(lastTreasurePosition) < 36)
+                        .min(java.util.Comparator.comparingDouble(player ->
+                                player.position().distanceToSqr(lastTreasurePosition))).orElse(null);
+                if (thief != null) angerTarget = thief.getUUID();
+            }
+        }
+        if (stateTicks >= 42) setState(State.RECOVERING);
+    }
+    private void recoverTreasure(ServerLevel level) {
+        if (droppedTreasure == null) { setState(State.ROAMING); return; }
+        var entity = level.getEntity(droppedTreasure);
+        if (entity instanceof ItemEntity item && item.isAlive()) {
+            lastTreasurePosition = item.position();
+            if (distanceToSqr(item) < 2.5) {
+                setItemSlot(EquipmentSlot.MAINHAND, item.getItem().copy());
+                item.discard(); droppedTreasure = null; lastTreasurePosition = null;
+                setState(State.WATCHING);
+            } else if (stateTicks > 360 || distanceToSqr(item) > 48 * 48) {
+                droppedTreasure = null; lastTreasurePosition = null; setState(State.ROAMING);
+            } else if (stateTicks % 12 == 0 || navigation.isDone())
+                navigation.moveTo(item, 1.1);
+            return;
+        }
+        Player thief = angerTarget == null ? null : level.getPlayerByUUID(angerTarget);
+        if (thief == null && lastTreasurePosition != null) thief = level.players().stream()
+                .filter(p -> p.isAlive() && !p.isSpectator()
+                        && p.position().distanceToSqr(lastTreasurePosition) < 36)
+                .min(java.util.Comparator.comparingDouble(p -> p.position().distanceToSqr(lastTreasurePosition)))
+                .orElse(null);
+        droppedTreasure = null; lastTreasurePosition = null;
+        if (thief == null) { setState(State.ROAMING); return; }
+        rally(level, thief);
+    }
+    private void rally(ServerLevel level, Player thief) {
+        joinRetaliation(thief.getUUID());
+        playSound(SoundEvents.HUSK_AMBIENT, 1.2F, .55F);
+        for (WandererEntity friend : level.getEntitiesOfClass(WandererEntity.class,
+                getBoundingBox().inflate(26), other -> other != this && other.isAlive()
+                        && other.state() != State.DROWNING && other.state() != State.TRIPPED))
+            friend.joinRetaliation(thief.getUUID());
+    }
+    private void joinRetaliation(UUID player) {
+        angerTarget = player;
+        navigation.stop();
+        setState(State.RETALIATING);
+    }
+    private void retaliate(ServerLevel level) {
+        Player player = angerTarget == null ? null : level.getPlayerByUUID(angerTarget);
+        if (player == null || !player.isAlive() || player.isSpectator()
+                || stateTicks > 300 || distanceToSqr(player) > 55 * 55) {
+            angerTarget = null; setState(State.ROAMING); return;
+        }
+        getLookControl().setLookAt(player, 20, 20);
+        if (stateTicks % 9 == 0 || navigation.isDone()) navigation.moveTo(player, 1.25);
+        if (distanceToSqr(player) < 2.5 * 2.5 && attackCooldown == 0) {
+            attackCooldown = 25;
+            player.hurtServer(level, damageSources().mobAttack(this), 3F);
+            playSound(SoundEvents.HUSK_HURT, .6F, .7F);
+        }
+    }
     private void purposeful(ServerLevel level) {
+        if (caveDweller) { setState(State.ROAMING); return; }
         double z = getZ() + 9;
         double towardWater = Math.clamp((z - 12D) / 30D, 0D, 1D);
         double x = UnderworldTerrain.riverCenter(z) - 15 + towardWater * 13;
@@ -90,7 +207,13 @@ public final class WandererEntity extends PathfinderMob implements GeoEntity {
             setState(State.WATCHING);
             return;
         }
-        if (navigation.isDone() || tickCount % 45 == 0) { double z = getZ() + (random.nextDouble() - .5) * 9, x = UnderworldTerrain.riverCenter(z) - 15; navigation.moveTo(x + (random.nextBoolean() ? 1 : -1) * (3 + random.nextDouble() * 4), getY(), z, .45); }
+        if (navigation.isDone() || tickCount % 45 == 0) {
+            double z = getZ() + (random.nextDouble() - .5) * (caveDweller ? 18 : 9);
+            double x = caveDweller ? getX() + (random.nextDouble() - .5) * 18
+                    : UnderworldTerrain.riverCenter(z) - 15
+                    + (random.nextBoolean() ? 1 : -1) * (3 + random.nextDouble() * 4);
+            if (!caveDweller || safeFeet(level, x, z) != null) navigation.moveTo(x, getY(), z, .45);
+        }
         navigation.setSpeedModifier(.45 * gaitSpeed());
     }
     private void watching(ServerLevel level) {
@@ -152,7 +275,7 @@ public final class WandererEntity extends PathfinderMob implements GeoEntity {
         Vec3 look = viewer.getLookAngle();
         for (int attempt = 0; attempt < 36; attempt++) {
             double z = getZ() + (random.nextDouble() - .5D) * 26D;
-            double pathX = UnderworldTerrain.riverCenter(z) - 15D;
+            double pathX = caveDweller ? getX() : UnderworldTerrain.riverCenter(z) - 15D;
             double x = pathX + (random.nextBoolean() ? -1 : 1) * (5D + random.nextDouble() * 11D);
             BlockPos feet = safeFeet(level, x, z);
             if (feet == null) continue;
@@ -256,11 +379,28 @@ public final class WandererEntity extends PathfinderMob implements GeoEntity {
                 && state != State.SEEKING_COVER && state != State.HIDING) navigation.stop();
         if (state != State.SEEKING_COVER && state != State.HIDING) destination = null;
     }
+    @Override protected void addAdditionalSaveData(ValueOutput out) {
+        super.addAdditionalSaveData(out);
+        out.putBoolean("TreasureRolled", treasureRolled);
+        out.putBoolean("CaveDweller", caveDweller);
+        if (droppedTreasure != null) out.putString("DroppedTreasure", droppedTreasure.toString());
+        if (angerTarget != null) out.putString("AngerTarget", angerTarget.toString());
+    }
+    @Override protected void readAdditionalSaveData(ValueInput in) {
+        super.readAdditionalSaveData(in);
+        treasureRolled = in.getBooleanOr("TreasureRolled", false);
+        caveDweller = in.getBooleanOr("CaveDweller", false);
+        try { droppedTreasure = UUID.fromString(in.getStringOr("DroppedTreasure", "")); }
+        catch (IllegalArgumentException ignored) { droppedTreasure = null; }
+        try { angerTarget = UUID.fromString(in.getStringOr("AngerTarget", "")); }
+        catch (IllegalArgumentException ignored) { angerTarget = null; }
+    }
     @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<WandererEntity>("movement", 0, state -> {
             // Keep the loop running through brief pathfinding pauses; restarting it at each
             // MOVING packet made the legs and mask visibly snap between poses.
-            if (state() == State.DROWNING || state() == State.HIDING || state() == State.WATCHING) {
+            if (state() == State.DROWNING || state() == State.HIDING || state() == State.WATCHING
+                    || state() == State.TRIPPED) {
                 gaitAnimationInitialized = false;
                 return PlayState.STOP;
             }

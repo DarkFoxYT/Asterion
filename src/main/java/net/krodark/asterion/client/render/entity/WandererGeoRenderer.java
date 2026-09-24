@@ -6,6 +6,9 @@ import com.geckolib.renderer.base.BoneSnapshots;
 import com.geckolib.cache.model.GeoBone;
 import com.geckolib.constant.DataTickets;
 import com.geckolib.constant.dataticket.DataTicket;
+import com.geckolib.renderer.layer.builtin.ItemInHandGeoLayer;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.client.light.AsterionEmissiveBoneLayer;
 import net.krodark.asterion.entity.WandererEntity;
@@ -19,10 +22,12 @@ public final class WandererGeoRenderer extends GeoEntityRenderer<WandererEntity,
     private static final DataTicket<Boolean> EYES_VISIBLE = DataTickets.create("asterion_wanderer_eyes_visible", Boolean.class);
     private static final DataTicket<Float> EYE_X = DataTickets.create("asterion_wanderer_eye_x", Float.class);
     private static final DataTicket<Float> EYE_Y = DataTickets.create("asterion_wanderer_eye_y", Float.class);
+    private static final DataTicket<Boolean> TRIPPED = DataTickets.create("asterion_wanderer_tripped", Boolean.class);
     public WandererGeoRenderer(EntityRendererProvider.Context context) {
         super(context, new WandererGeoModel());
         withRenderLayer(eyeLayer("eyeleft"));
         withRenderLayer(eyeLayer("eyeright"));
+        withRenderLayer(new ItemInHandGeoLayer<>(context, this, "right_hand_item", "left_hand_item"));
         shadowRadius = 0.45F;
     }
     private AsterionEmissiveBoneLayer<WandererEntity, Void, EntityRenderState> eyeLayer(String bone) {
@@ -44,6 +49,7 @@ public final class WandererGeoRenderer extends GeoEntityRenderer<WandererEntity,
     }
     @Override public void addRenderData(WandererEntity wanderer, Void related, EntityRenderState state, float partialTick) {
         state.addGeckolibData(EYES_VISIBLE, wanderer.state() != WandererEntity.State.DROWNING);
+        state.addGeckolibData(TRIPPED, wanderer.state() == WandererEntity.State.TRIPPED);
         int glancePhase = Math.floorMod(wanderer.tickCount + wanderer.getId() * 31, 120);
         float glance = (float)(.5D - .5D * Math.cos(glancePhase * Math.PI / 60D));
         boolean tracking = wanderer.state() != WandererEntity.State.DROWNING;
@@ -61,6 +67,14 @@ public final class WandererGeoRenderer extends GeoEntityRenderer<WandererEntity,
         // The eyes slide only over the mask's X/Y plane; the mask keeps their depth fixed.
         state.addGeckolibData(EYE_X, (float)Mth.clamp(right / depth * .8D, -.38D, .38D) * glance);
         state.addGeckolibData(EYE_Y, (float)Mth.clamp(toward.y / depth * .8D, -.32D, .32D) * glance);
+    }
+    @Override protected void applyRotations(RenderPassInfo<EntityRenderState> pass, PoseStack poses, float rotation) {
+        super.applyRotations(pass, poses, rotation);
+        if (pass.getOrDefaultGeckolibData(TRIPPED, false)) {
+            poses.translate(0, .48, 0);
+            poses.mulPose(Axis.ZP.rotationDegrees(67));
+            poses.translate(0, -.48, 0);
+        }
     }
     @Override public void adjustModelBonesForRender(RenderPassInfo<EntityRenderState> pass, BoneSnapshots bones) {
         super.adjustModelBonesForRender(pass, bones);
