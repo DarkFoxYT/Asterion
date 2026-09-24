@@ -45,8 +45,8 @@ public final class LimboWaterRenderer {
                     .withTexture("Sampler1", FerryWakeTexture.ID)
                     .createRenderSetup());
     // Compute the near-first scan order once, not a sort/allocation on every frame.
-    private static final List<BlockPos> SCAN_ORDER = java.util.stream.IntStream.rangeClosed(-4, 4).boxed()
-            .flatMap(x -> java.util.stream.IntStream.rangeClosed(-4, 4).mapToObj(z -> new BlockPos(x, 0, z)))
+    private static final List<BlockPos> SCAN_ORDER = java.util.stream.IntStream.rangeClosed(-9, 9).boxed()
+            .flatMap(x -> java.util.stream.IntStream.rangeClosed(-9, 9).mapToObj(z -> new BlockPos(x, 0, z)))
             .sorted(java.util.Comparator.comparingInt(p -> p.getX()*p.getX()+p.getZ()*p.getZ())).toList();
     private static final Map<Long, Tile> TILES = new HashMap<>();
     private static ClientLevel trackedLevel;
@@ -109,20 +109,19 @@ public final class LimboWaterRenderer {
             }
             frameLantern = frameFerry == null ? null : FerryLanternLight.position(frameFerry);
             FerryWakeTexture.prepare(level, frameFerry);
-            // Limbo's native distance fog is fully opaque at 48 blocks. Four chunks
-            // leave a full chunk of padding even when the camera crosses a boundary.
-            // Do not stream thousands of invisible water quads at large view distances.
-            int radius = Math.min(client.options.getEffectiveRenderDistance(), 4);
+            // The newer depth fog leaves large silhouettes visible much farther away.
+            // Keep replacement water present through that horizon, with a bounded scan.
+            int radius = Math.min(client.options.getEffectiveRenderDistance(), 9);
             int cx = ((int)Math.floor(camera.x)) >> 4, cz = ((int)Math.floor(camera.z)) >> 4;
             List<Tile> next = new ArrayList<>();
             // Share a single scan budget instead of performing up to five scans per frame.
-            int topologyBudget = 1;
+            int topologyBudget = frameQuality > 0 ? 2 : 1;
             var frustum = context.levelState().cameraRenderState.cullFrustum;
             for (BlockPos offset : SCAN_ORDER) {
                 if (Math.abs(offset.getX()) > radius || Math.abs(offset.getZ()) > radius) continue;
                 int x = cx + offset.getX(), z = cz + offset.getZ();
                 double dx = x * 16 + 8 - camera.x, dz = z * 16 + 8 - camera.z;
-                if (dx * dx + dz * dz > 68 * 68) continue;
+                if (dx * dx + dz * dz > 150 * 150) continue;
                 if (!level.getChunkSource().hasChunk(x, z)) continue;
                 long key = BlockPos.asLong(x, 0, z);
                 Tile tile = TILES.get(key);
@@ -162,12 +161,13 @@ public final class LimboWaterRenderer {
                 boolean far = distanceSq > 36 * 36;
                 for (Layer layer : tile.layers) {
                     int lightY = layer.y - 2;
-                    float light00 = trackedLevel.getBrightness(LightLayer.BLOCK,new BlockPos(tile.x,lightY,tile.z)) / 15F;
-                    float light10 = trackedLevel.getBrightness(LightLayer.BLOCK,new BlockPos(tile.x+16,lightY,tile.z)) / 15F;
-                    float light01 = trackedLevel.getBrightness(LightLayer.BLOCK,new BlockPos(tile.x,lightY,tile.z+16)) / 15F;
-                    float light11 = trackedLevel.getBrightness(LightLayer.BLOCK,new BlockPos(tile.x+16,lightY,tile.z+16)) / 15F;
-                    Vec3 dynamic = net.krodark.asterion.client.light.LedAmneticLight.nearestAttractor(
-                            new Vec3(tile.x+8,layer.y,tile.z+8), 24);
+                    boolean nearLight = distanceSq < 64 * 64;
+                    float light00 = nearLight ? trackedLevel.getBrightness(LightLayer.BLOCK,new BlockPos(tile.x,lightY,tile.z)) / 15F : 0F;
+                    float light10 = nearLight ? trackedLevel.getBrightness(LightLayer.BLOCK,new BlockPos(tile.x+16,lightY,tile.z)) / 15F : 0F;
+                    float light01 = nearLight ? trackedLevel.getBrightness(LightLayer.BLOCK,new BlockPos(tile.x,lightY,tile.z+16)) / 15F : 0F;
+                    float light11 = nearLight ? trackedLevel.getBrightness(LightLayer.BLOCK,new BlockPos(tile.x+16,lightY,tile.z+16)) / 15F : 0F;
+                    Vec3 dynamic = nearLight ? net.krodark.asterion.client.light.LedAmneticLight.nearestAttractor(
+                            new Vec3(tile.x+8,layer.y,tile.z+8), 24) : null;
                     for (int vertex : fine ? layer.fineVertices : far ? layer.farVertices : layer.vertices) {
                     int x = tile.x + vertex % 17, z = tile.z + vertex / 17;
                     double u=(x-tile.x)/16.0,v=(z-tile.z)/16.0;

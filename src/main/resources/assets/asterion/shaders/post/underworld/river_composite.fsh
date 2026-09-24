@@ -36,9 +36,15 @@ vec4 filteredVolume() {
 void main() {
     vec4 scene = texture(SceneSampler, texCoord);
     vec4 volume = filteredVolume();
-    vec3 fogged = scene.rgb * volume.a + volume.rgb;
-    // The atmosphere is composited after Amnetic bloom; keep bright emissive
-    // pixels and their halos above it while ordinary surfaces remain fogged.
-    float emissive = smoothstep(.48, 1.12, max(scene.r, max(scene.g, scene.b)));
-    fragColor = vec4(mix(fogged, scene.rgb, emissive * .35), scene.a);
+    float high = max(scene.r, max(scene.g, scene.b));
+    float low = min(scene.r, min(scene.g, scene.b));
+    float luma = dot(scene.rgb, vec3(.2126, .7152, .0722));
+    float saturated = smoothstep(.22, .72, (high - low) / max(high, .001));
+    float fogAmount = clamp(1.0 - volume.a, 0.0, 1.0);
+    // Amnetic's colored bloom belongs to the light source, not the fog volume.
+    // Keep nearby fire vivid but prevent distant red spill from coloring the haze.
+    vec3 sceneThroughFog = mix(scene.rgb, vec3(luma), saturated * fogAmount * .65);
+    vec3 fogged = sceneThroughFog * volume.a + volume.rgb;
+    float neutralHighlight = smoothstep(.58, 1.15, luma) * (1.0 - saturated);
+    fragColor = vec4(mix(fogged, scene.rgb, neutralHighlight * .28), scene.a);
 }

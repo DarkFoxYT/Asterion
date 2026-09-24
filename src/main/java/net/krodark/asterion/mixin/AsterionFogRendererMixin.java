@@ -9,7 +9,6 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.world.level.material.FogType;
 import net.krodark.asterion.update.underworld.world.UnderworldTerrain;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.LightLayer;
 import org.joml.Vector4f;
 import org.spongepowered.asm.mixin.Mixin;
@@ -48,11 +47,8 @@ abstract class AsterionFogRendererMixin {
         if (camera.getFluidInCamera() == FogType.NONE) {
             // Let the depth-tested volume shape the near and middle distances.
             // Keep native fog as a far safety net so large structures retain a silhouette.
-            Vec3 light = net.krodark.asterion.client.light.LedAmneticLight.nearestAttractor(camera.position(), 24);
-            float relief = light == null ? 0F : (float)(1D - Math.clamp(
-                    camera.position().distanceTo(light) / 24D, 0D, 1D));
-            fog.environmentalStart = 52F + relief * 10F;
-            fog.environmentalEnd = Math.min(fog.environmentalEnd, 136F + relief * 20F);
+            fog.environmentalStart = 52F;
+            fog.environmentalEnd = Math.min(fog.environmentalEnd, 136F);
             fog.color.set(.075F, .079F, .084F, 1F);
             return;
         }

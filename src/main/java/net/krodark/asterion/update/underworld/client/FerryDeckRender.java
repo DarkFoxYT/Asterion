@@ -22,6 +22,7 @@ public final class FerryDeckRender {
         double y = center.y + net.krodark.asterion.update.underworld.world.FerryHull.PIVOT
                 + (net.krodark.asterion.update.underworld.world.FerryHull.DECK - net.krodark.asterion.update.underworld.world.FerryHull.PIVOT + .01) / normal.y
                 - (normal.x * (position.x - center.x) + normal.z * (position.z - center.z)) / normal.y;
+        if (player.getVehicle() == boat) y -= net.krodark.asterion.update.underworld.world.FerryHull.RIDER_DROP;
         return new Vec3(position.x, y, position.z);
     }
 }

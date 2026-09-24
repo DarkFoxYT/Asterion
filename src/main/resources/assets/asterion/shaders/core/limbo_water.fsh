@@ -1,6 +1,7 @@
 #version 330
 #moj_import <minecraft:fog.glsl>
 #moj_import <asterion:limbo_wake.glsl>
+#moj_import <asterion:limbo_waves.glsl>
 #moj_import <asterion:limbo_hull.glsl>
 uniform sampler2D Sampler0;
 in vec3 surfacePosition;
@@ -125,6 +126,26 @@ void main() {
     float breakup = nearDetail > .01 ? surfaceNoise(p * .43 + ripples.yz * .16).x : .5;
     float patches = smoothstep(.25, .70, breakup + (grain - .5) * .25);
     float whitecap = foam * mix(.7, .16 + .84 * patches, nearDetail);
+    vec2 whirlDelta = worldSurface - vec2(14.0, 350.0);
+    float whirlRadius = length(whirlDelta);
+    float whirlStrength = limboWhirlpool(waterTime);
+    if (whirlStrength > .001 && whirlRadius < 58.0) {
+        float angle = atan(whirlDelta.y, whirlDelta.x);
+        float spiral = sin(whirlRadius * .9 - angle * 5.0 + waterTime * .055);
+        float ring = sin(whirlRadius * .64 + waterTime * .025);
+        float rotatingFoam = smoothstep(.53, .9, spiral * .65 + ring * .35)
+                * smoothstep(5.0, 15.0, whirlRadius)
+                * (1.0 - smoothstep(42.0, 58.0, whirlRadius)) * whirlStrength;
+        whitecap = max(whitecap, rotatingFoam * .78);
+    }
+    float tempest = limboTempest(waterTime);
+    if (nearDetail > .01) {
+        float shoreBreak = 1.0 - smoothstep(.015, .42, shoreExposure);
+        float breakerNoise = surfaceNoise(worldSurface * .55
+                + vec2(waterTime * .026, -waterTime * .019)).x;
+        whitecap = max(whitecap, shoreBreak * smoothstep(.32, .69, breakerNoise)
+                * (.16 + tempest * .48) * nearDetail);
+    }
     float contact = hullActive * (1.0 - smoothstep(.025, .22, abs(hullEdge)))
             * (1.0 - smoothstep(.8, 1.6, abs(hullPosition.z - .2)));
     float wake = distance < 56.0 ? persistentWake(causticWorld).x * shoreExposure : 0.0;

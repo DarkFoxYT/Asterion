@@ -1,5 +1,8 @@
 package net.krodark.asterion.update.underworld.world;
 
+import net.krodark.asterion.event.LimboTempest;
+import net.krodark.asterion.event.LimboWhirlpool;
+
 /** CPU counterpart of limbo_water.vsh: noise-modulated Stokes waves and horizontal crest compression. */
 public final class UnderworldWaves {
     public static final double CHOPPINESS = .9;
@@ -23,6 +26,7 @@ public final class UnderworldWaves {
     }
 
     public static Sample sample(double x, double z, double ticks) {
+        double storm = LimboTempest.strength(ticks);
         double seaZ = z;
         // Stretch the horizontal footprint by 1/.65 without increasing wave amplitude.
         x *= .65; z *= .65;
@@ -39,13 +43,14 @@ public final class UnderworldWaves {
         for (int i = 0; i < 4; i++) {
             Noise phase = i==0?phaseA:i==1?phaseB:i==2?phaseC:phaseD;
             Noise packet = i==0?phaseB:i==1?phaseC:i==2?phaseA:phaseB;
-            double k = Math.hypot(kx[i], kz[i]), a = amplitude[i]*(.8+.4*packet.value);
+            double boosted = amplitude[i] * (1 + storm * .85);
+            double k = Math.hypot(kx[i], kz[i]), a = boosted*(.8+.4*packet.value);
             double angle = kx[i] * x + kz[i] * z - Math.sqrt(9.81 * k) * ticks / 20 + offset[i]
                     + (phase.value - .5) * warp[i];
             double c = Math.cos(angle), s = Math.sin(angle), c2 = 2 * c * c - 1, s2 = 2 * s * c;
             double slope = -a * (s + k * a * s2);
             h += a * (c + .5 * k * a * c2);
-            double amplitudeSlope=amplitude[i]*.4*.055*(c+k*a*c2);
+            double amplitudeSlope=boosted*.4*.055*(c+k*a*c2);
             dx += slope * (kx[i] + phase.dx * .055 * warp[i])+amplitudeSlope*packet.dx;
             dz += slope * (kz[i] + phase.dz * .055 * warp[i])+amplitudeSlope*packet.dz;
             curvature += a * k * k * (c + 2 * k * a * c2);
@@ -53,12 +58,15 @@ public final class UnderworldWaves {
         double ex = exposure * .45 * energy.dx * .011 * .65;
         double ez = exposure * .45 * energy.dz * .011 * .65 + group * .88 * 6 * t * (1 - t) / 125;
         double height=h*exposure*group, limiter=1;
-        if(Math.abs(height)>1.8) {
-            double bend=Math.tanh((Math.abs(height)-1.8)/.7);
-            height=Math.copySign(1.8+.7*bend,height);limiter=1-bend*bend;
+        double crestLimit = 1.8 + storm * 1.2, softness = .7 + storm * .7;
+        if(Math.abs(height)>crestLimit) {
+            double bend=Math.tanh((Math.abs(height)-crestLimit)/softness);
+            height=Math.copySign(crestLimit+softness*bend,height);limiter=1-bend*bend;
         }
-        return new Sample(height, (dx * exposure * group * .65 + h * ex)*limiter,
-                (dz * exposure * group * .65 + h * ez)*limiter, curvature * exposure * group * .4225*limiter);
+        double funnel = LimboWhirlpool.funnel(x / .65, seaZ, ticks / .42);
+        double fx = (dx * exposure * group * .65 + h * ex)*limiter;
+        double fz = (dz * exposure * group * .65 + h * ez)*limiter;
+        return new Sample(height + funnel, fx, fz, curvature * exposure * group * .4225*limiter);
     }
 
     private static double hash(int x, int z) {

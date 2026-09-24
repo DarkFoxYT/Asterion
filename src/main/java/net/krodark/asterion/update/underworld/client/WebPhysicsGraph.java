@@ -15,10 +15,15 @@ final class WebPhysicsGraph {
     record Influence(Vec3 position, Vec3 velocity, double radius) { }
     record Link(int a,int b,double rest,int edge,int index) { }
     final WebPatch patch; final AABB bounds; final List<Vec3> p=new ArrayList<>(), old=new ArrayList<>(), renderPrevious=new ArrayList<>(); final List<Boolean> pinned=new ArrayList<>(); final List<Link> links=new ArrayList<>();
+    private final java.util.BitSet knownCuts = new java.util.BitSet();
     private final boolean stiff;
     WebPhysicsGraph(WebPatch patch) { this.patch=patch;stiff=(patch.key()&3L)!=0; AABB box=new AABB(patch.anchors().getFirst(),patch.anchors().getFirst());for(int i=0;i<patch.anchors().size();i++){Vec3 anchor=patch.anchors().get(i);p.add(anchor);old.add(anchor);pinned.add(patch.normals().get(i).lengthSqr()>.001);box=box.minmax(new AABB(anchor,anchor));}bounds=box.inflate(2);build();renderPrevious.addAll(p); }
-    private void build(){ int index=0;for(int edge=0;edge<patch.edges().size();edge++){WebPatch.Edge e=patch.edges().get(edge);Vec3 a=patch.anchors().get(e.a()),b=patch.anchors().get(e.b());int previous=e.a();int pieces=patch.pieces(edge);double rest=a.distanceTo(b)/pieces*(stiff?1.003:1.045);for(int i=1;i<pieces;i++){Vec3 point=a.lerp(b,i/(double)pieces).add(0,-Math.sin(Math.PI*i/pieces)*.035,0);int n=p.size();p.add(point);old.add(point);pinned.add(false);links.add(new Link(previous,n,rest,edge,index++));previous=n;}links.add(new Link(previous,e.b(),rest,edge,index++));} }
+    private void build(){ int index=0;for(int edge=0;edge<patch.edges().size();edge++){WebPatch.Edge e=patch.edges().get(edge);Vec3 a=patch.anchors().get(e.a()),b=patch.anchors().get(e.b());int previous=e.a();int pieces=patch.pieces(edge);double rest=a.distanceTo(b)/pieces*(a.distanceTo(b)>18?1.035:stiff?1.003:1.045);for(int i=1;i<pieces;i++){Vec3 point=a.lerp(b,i/(double)pieces).add(0,-Math.sin(Math.PI*i/pieces)*.035,0);int n=p.size();p.add(point);old.add(point);pinned.add(false);links.add(new Link(previous,n,rest,edge,index++));previous=n;}links.add(new Link(previous,e.b(),rest,edge,index++));} }
     void step(Level level,List<Influence> influences,java.util.BitSet cuts){
+        for(Link link:links)if(cuts.get(link.index())&&!knownCuts.get(link.index())){
+            knownCuts.set(link.index());
+            snap(link);
+        }
         for(int i=0;i<p.size();i++)renderPrevious.set(i,p.get(i));
         // Two small Verlet steps prevent fast moving silk from tunnelling through cave geometry.
         for(int substep=0;substep<2;substep++){
@@ -30,6 +35,22 @@ final class WebPhysicsGraph {
         for(int i=0;i<patch.anchors().size();i++)if(pinned.get(i)){p.set(i,patch.anchors().get(i));old.set(i,patch.anchors().get(i));}
     }
     Vec3 rendered(int index, double partialTick) { return renderPrevious.get(index).lerp(p.get(index), partialTick); }
+    private void snap(Link link) {
+        Vec3 tangent = p.get(link.b).subtract(p.get(link.a));
+        if (tangent.lengthSqr() < 1e-6) return;
+        tangent = tangent.normalize();
+        Vec3 sideways = tangent.cross(new Vec3(0, 1, 0));
+        if (sideways.lengthSqr() < 1e-5) sideways = new Vec3(1, 0, 0);
+        sideways = sideways.normalize();
+        boolean taut = stiff && patch.anchors().getFirst().distanceTo(patch.anchors().getLast()) > 7
+                && (patch.key() & 3L) == 1L;
+        double kick = taut ? .48 : .11;
+        impulse(link.a, tangent.scale(-kick).add(sideways.scale(kick * .55)));
+        impulse(link.b, tangent.scale(kick).add(sideways.scale(-kick * .55)));
+    }
+    private void impulse(int index, Vec3 velocity) {
+        if (!pinned.get(index)) old.set(index, p.get(index).subtract(velocity));
+    }
     private static Vec3 collide(Level level,Vec3 from,Vec3 to){
         if(from.distanceToSqr(to)<.16 && level.getBlockState(net.minecraft.core.BlockPos.containing(to)).isAir()
                 && level.getBlockState(net.minecraft.core.BlockPos.containing(from)).isAir()) return to;

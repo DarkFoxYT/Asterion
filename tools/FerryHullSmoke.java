@@ -5,6 +5,22 @@ import java.nio.file.*;
 
 public final class FerryHullSmoke {
     public static void check() throws Exception {
+        double flat = 0, downhill = 0, uphill = 0;
+        for (int tick = 0; tick < 120; tick++) {
+            flat = net.krodark.asterion.update.underworld.world.FerryMotion.advance(flat, 1, true, true, 0);
+            downhill = net.krodark.asterion.update.underworld.world.FerryMotion.advance(downhill, 1, true, true, .25);
+            uphill = net.krodark.asterion.update.underworld.world.FerryMotion.advance(uphill, 1, true, true, -.25);
+        }
+        if (downhill < flat + .015 || uphill > flat - .015)
+            throw new AssertionError("Wave slopes must change forward speed");
+        double coasting = flat;
+        for (int tick = 0; tick < 30; tick++)
+            coasting = net.krodark.asterion.update.underworld.world.FerryMotion.advance(coasting, 0, true, true, 0);
+        if (coasting <= flat * .65 || coasting >= flat)
+            throw new AssertionError("Ferry coasting lost momentum or failed to slow");
+        if (FerryHull.DECK >= 21.0 / 16.0 || FerryHull.RIDER_DROP < .2)
+            throw new AssertionError("Player stance or riding seat was not lowered");
+        System.out.println("PASS downhill momentum, uphill drag, coasting inertia, and lower player stance/seat.");
         var seat=new net.krodark.asterion.update.underworld.FerryJourneyState.Seat(.35,2.6,47,true);
         var json=net.krodark.asterion.update.underworld.FerryJourneyState.Seat.CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE,seat).getOrThrow();
         var restored=net.krodark.asterion.update.underworld.FerryJourneyState.Seat.CODEC.parse(com.mojang.serialization.JsonOps.INSTANCE,json).getOrThrow();

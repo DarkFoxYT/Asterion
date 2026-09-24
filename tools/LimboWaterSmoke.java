@@ -16,6 +16,16 @@ public final class LimboWaterSmoke {
         checkMesh();
         WakeFieldSmoke.check();
         checkShoreAndDeck();
+        if (net.krodark.asterion.event.LimboTempest.strength(12000) != 0
+                || net.krodark.asterion.event.LimboTempest.strength(13200) < .99
+                || net.krodark.asterion.event.LimboTempest.strength(15600) != 0)
+            throw new AssertionError("Limbo tempest did not ramp in and out on schedule");
+        if (net.krodark.asterion.event.LimboWhirlpool.strength(20000) != 0
+                || net.krodark.asterion.event.LimboWhirlpool.strength(22000) < .99
+                || net.krodark.asterion.event.LimboWhirlpool.strength(26000) != 0
+                || net.krodark.asterion.event.LimboWhirlpool.funnel(14, 350, 22000) > -6.9
+                || net.krodark.asterion.event.LimboWhirlpool.funnel(80, 350, 22000) != 0)
+            throw new AssertionError("Limbo whirlpool envelope or footprint changed");
         double min = 0, max = 0, dockMax = 0, maxStep = 0;
         for (int tick = 0; tick < 2400; tick += 3) {
             for (int x = -64; x <= 64; x += 4) {
@@ -99,13 +109,13 @@ public final class LimboWaterSmoke {
         org.lwjgl.opengl.GL11.glEnable(GL30.GL_RASTERIZER_DISCARD);
         GL20.glVertexAttrib3f(GL20.glGetAttribLocation(program, "Position"), 0, 0, 0);
         double maxError = 0;
-        for (double ticks : new double[]{0, 1234.5, 65535.9, 65536.1, 180000.25}) {
+        for (double ticks : new double[]{0, 1234.5, 13200.25, 22000.25, 65535.9, 65536.1, 180000.25}) {
             long whole = (long)ticks;
             int fraction = (int)((ticks - whole) * 15);
             float partial = fraction / 16F;
             GL20.glVertexAttrib4f(GL20.glGetAttribLocation(program, "Color"), 1, fraction / 255F, 1, 0);
             GL30.glVertexAttribI2i(GL20.glGetAttribLocation(program, "UV2"), (short)(whole & 65535), (short)(whole >>> 16));
-            for (int x : new int[]{-32, 0, 18}) for (int z : new int[]{58, 180, 280}) {
+            for (int x : new int[]{-32, 0, 14, 18}) for (int z : new int[]{58, 180, 280, 350}) {
                 GL20.glVertexAttrib2f(GL20.glGetAttribLocation(program, "UV0"), x, z);
                 GL30.glBeginTransformFeedback(org.lwjgl.opengl.GL11.GL_POINTS);
                 org.lwjgl.opengl.GL11.glDrawArrays(org.lwjgl.opengl.GL11.GL_POINTS, 0, 1);

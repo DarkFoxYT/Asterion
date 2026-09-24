@@ -47,7 +47,8 @@ public abstract class CameraMixin {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null || ((Camera)(Object)this).entity() != client.player
                 || net.krodark.asterion.client.AsterionClient.isPlayback(client)) return;
-        var boat = net.krodark.asterion.update.underworld.entity.CharonsFerryEntity.supporting(client.player);
+        var boat = client.player.getVehicle() instanceof net.krodark.asterion.update.underworld.entity.CharonsFerryEntity ferry
+                ? ferry : net.krodark.asterion.update.underworld.entity.CharonsFerryEntity.supporting(client.player);
         if (boat == null) return;
         Quaternionf tilt = net.krodark.asterion.update.underworld.client.FerryDeckRender.tilt(boat, partial);
         rotation.premul(tilt); forwards.rotate(tilt); up.rotate(tilt); left.rotate(tilt);
@@ -60,7 +61,8 @@ public abstract class CameraMixin {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null || ((Camera)(Object)this).entity() != client.player
                 || net.krodark.asterion.client.AsterionClient.isPlayback(client)) return;
-        var boat = net.krodark.asterion.update.underworld.entity.CharonsFerryEntity.supporting(client.player);
+        var boat = client.player.getVehicle() instanceof net.krodark.asterion.update.underworld.entity.CharonsFerryEntity ferry
+                ? ferry : net.krodark.asterion.update.underworld.entity.CharonsFerryEntity.supporting(client.player);
         if (boat == null) return;
         Vec3 feet = net.krodark.asterion.update.underworld.client.FerryDeckRender.feet(client.player, boat, partial);
         Vector3f eye = net.krodark.asterion.update.underworld.client.FerryDeckRender.tilt(boat, partial)

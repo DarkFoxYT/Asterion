@@ -85,7 +85,8 @@ public final class WebPatchGenerator {
             center = found;
         }
         Direction preferred = (seed & 8) == 0 ? Direction.EAST : Direction.SOUTH;
-        int reach = Math.abs(x - (UnderworldTerrain.riverCenter(z) - 15)) > 18 ? 13 : 8;
+        boolean deepCave = Math.abs(x - (UnderworldTerrain.riverCenter(z) - 15)) > 18;
+        int reach = deepCave ? (seed & 3L) == 0 ? 27 : 13 : 8;
         Pair pair = findGap(level, center, preferred, reach);
         if (pair == null) pair = findGap(level, center, preferred == Direction.EAST ? Direction.SOUTH : Direction.EAST, reach);
         if (pair == null) return singleAnchor(level, center, seed, reach);

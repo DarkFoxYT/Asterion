@@ -349,11 +349,15 @@ public final class UnderworldTerrain {
                     - Math.hypot(u - node.x, (z - node.z) * node.stretch));
             CaveNode east = caveNode(seed, ix + 1, iz, nodes);
             CaveNode south = caveNode(seed, ix, iz + 1, nodes);
+            CaveNode diagonal = caveNode(seed, ix + ((hash(seed ^ 0xD1A60AL, ix, iz) & 1L) == 0 ? 1 : -1), iz + 1, nodes);
             double width = 2.7 + ((hash(seed ^ 0x51DE, ix, iz) >>> 8) & 3) * .57;
             width += 1.1 * octaves(seed ^ 0xC0111DL, u * .075, z * .075);
             width = Math.clamp(width, 1.9, 5.8);
             clearance = Math.max(clearance, width - segmentDistance(u, z, node.x, node.z, east.x, east.z));
             clearance = Math.max(clearance, width - segmentDistance(u, z, node.x, node.z, south.x, south.z));
+            if ((hash(seed ^ 0xD1A60AL, ix, iz) & 3L) == 0)
+                clearance = Math.max(clearance, (width * .85) - segmentDistance(
+                        u, z, node.x, node.z, diagonal.x, diagonal.z));
         }
         // Every authored spider chamber has a short, guaranteed join to the grid.
         int nearbySlot = branch(z).slot;
@@ -374,7 +378,7 @@ public final class UnderworldTerrain {
         int vx = (int)Math.floor(u / 176), vz = Math.floorDiv(z, 176);
         for (int ix = vx - 1; ix <= vx + 1; ix++) for (int iz = vz - 1; iz <= vz + 1; iz++) {
             long shape = hash(seed ^ 0xAB155L, ix, iz);
-            if ((shape & 3L) != 0) continue;
+            if ((shape & 7L) >= 3) continue;
             double mx = ix * 176 + 40 + ((shape >>> 8) & 95);
             double mz = iz * 176 + 40 + ((shape >>> 17) & 95);
             double length = 65 + ((shape >>> 26) & 63);
@@ -388,7 +392,7 @@ public final class UnderworldTerrain {
         }
         clearance = Math.max(clearance, voidStrength * 8);
         if (clearance <= .35) return new SideShape(false, 0, 0);
-        double round = Math.sqrt(Math.clamp(clearance / 8, 0, 1));
+        double round = Math.sqrt(Math.clamp(clearance / 7, 0, 1));
         double height = (4.5 + Math.min(29, Math.max(0, clearance) * 1.7))
                 * (.83 + .24 * octaves(seed ^ 0xCA7E5L, u * .043, z * .043));
         double roughPatch = smooth((octaves(seed ^ 0x5C4B1L, u * .022, z * .022) + .1) / .4);
@@ -396,8 +400,8 @@ public final class UnderworldTerrain {
                 + 3.5 * octaves(seed ^ 0xFA11L, u * .071, z * .071)
                 + (.5 + roughPatch * 2) * octaves(seed ^ 0xFA12L, u * .21, z * .21);
         double base = pathFloor(z) - 1 + layers + Math.floor(layers / 6) * 1.2;
-        int floor = (int)Math.floor(base + height * (1 - round) * .24 - voidStrength * 70);
-        int roof = (int)Math.ceil(base + height * (1 + round) * .76 + voidStrength * 75);
+        int floor = (int)Math.floor(base - height * round * .17 - voidStrength * 70);
+        int roof = (int)Math.ceil(base + height * (.48 + round * .54) + voidStrength * 75);
         floor = Math.max(MIN_Y + 2, floor);
         roof = Math.min(MAX_Y - 2, roof);
         return new SideShape(roof - floor >= 4, floor, roof);

@@ -25,6 +25,13 @@ public final class UnderworldPostEffects {
     private static final Matrix4f inverseViewProjection = new Matrix4f();
     private static Vec3 cameraPosition = Vec3.ZERO;
     private static Vec3 cameraForward = new Vec3(0, 0, 1);
+    private static net.minecraft.client.multiplayer.ClientLevel fogLightLevel;
+    private static final FogLight[] fogLights = new FogLight[4];
+    private static final class FogLight {
+        Vec3 position;
+        float radius, strength;
+        FogLight(Vec3 position, float radius) { this.position = position; this.radius = radius; }
+    }
 
     private UnderworldPostEffects() { }
 
@@ -80,30 +87,54 @@ public final class UnderworldPostEffects {
     private static List<UniformValue> localLights() {
         Minecraft client = Minecraft.getInstance();
         Vec3 camera = AmneticCamera.isReady() ? AmneticCamera.position() : cameraPosition;
+        if (fogLightLevel != client.level) {
+            java.util.Arrays.fill(fogLights, null);
+            fogLightLevel = client.level;
+        }
         java.util.ArrayList<UniformValue> values = new java.util.ArrayList<>(8);
-        java.util.ArrayList<LedAmneticLight.LedPointLightSample> visible = new java.util.ArrayList<>(4);
+        java.util.ArrayList<LedAmneticLight.LedPointLightSample> visible = new java.util.ArrayList<>(8);
         if (client.level != null) for (var light : LedAmneticLight.nearbyFogLights(camera, 12)) {
-            if (visible.size() >= 4) break;
+            if (visible.size() >= 8) break;
             if (camera.distanceToSqr(light.position()) > 2 && client.level.clip(new ClipContext(
                     camera, light.position(), ClipContext.Block.COLLIDER,
                     ClipContext.Fluid.NONE, CollisionContext.empty())).getType() != HitResult.Type.MISS) continue;
             visible.add(light);
         }
+        boolean[] used = new boolean[visible.size()];
         for (int i = 0; i < 4; i++) {
-            if (i < visible.size()) {
-                var light = visible.get(i);
-                values.add(new UniformValue.Vec4Uniform(new Vector4f((float)light.position().x,
-                        (float)light.position().y, (float)light.position().z,
-                        Math.max(2.5F, light.radius() * 2.25F))));
-            } else values.add(new UniformValue.Vec4Uniform(new Vector4f()));
+            FogLight slot = fogLights[i];
+            int match = -1;
+            double best = 100;
+            if (slot != null) for (int j = 0; j < visible.size(); j++) if (!used[j]) {
+                double distance = slot.position.distanceToSqr(visible.get(j).position());
+                if (distance < best) { best = distance; match = j; }
+            }
+            if (match < 0 && (slot == null || slot.strength < .08F))
+                for (int j = 0; j < visible.size(); j++) if (!used[j]) { match = j; break; }
+            if (match >= 0) {
+                used[match] = true;
+                var light = visible.get(match);
+                if (slot == null) fogLights[i] = slot = new FogLight(light.position(), light.radius());
+                slot.position = slot.position.lerp(light.position(), .22);
+                slot.radius += (Math.max(2.5F, light.radius() * 2.25F) - slot.radius) * .18F;
+                float brightest = Math.max(light.red(), Math.max(light.green(), light.blue()));
+                float dimmest = Math.min(light.red(), Math.min(light.green(), light.blue()));
+                float saturation = brightest <= .001F ? 0F : Math.clamp((brightest - dimmest) / brightest, 0F, 1F);
+                float target = Math.min(1.5F, light.strength()) * (1F - saturation * .42F);
+                slot.strength += (target - slot.strength) * .16F;
+            } else if (slot != null) {
+                slot.strength *= .82F;
+                if (slot.strength < .01F) fogLights[i] = slot = null;
+            }
         }
         for (int i = 0; i < 4; i++) {
-            if (i < visible.size()) {
-                var light = visible.get(i);
-                values.add(new UniformValue.Vec4Uniform(new Vector4f(light.red(), light.green(),
-                        light.blue(), Math.min(2F, light.strength()))));
-            } else values.add(new UniformValue.Vec4Uniform(new Vector4f()));
+            FogLight slot = fogLights[i];
+            values.add(new UniformValue.Vec4Uniform(slot == null ? new Vector4f()
+                    : new Vector4f((float)slot.position.x, (float)slot.position.y,
+                    (float)slot.position.z, slot.radius)));
         }
+        for (int i = 0; i < 4; i++) values.add(new UniformValue.Vec4Uniform(
+                new Vector4f(0, 0, 0, fogLights[i] == null ? 0 : fogLights[i].strength)));
         return values;
     }
 

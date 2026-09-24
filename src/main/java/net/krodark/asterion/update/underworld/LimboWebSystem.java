@@ -45,7 +45,7 @@ public final class LimboWebSystem {
                 Vec3 ab=b.subtract(a);double along=ab.lengthSqr()<1e-8?0:Math.clamp(contact.subtract(a).dot(ab)/ab.lengthSqr(),0,1);
                 int link=patch.linkIndex(i,along);if(cut(patch.key(),link))continue;
                 double distance = modelContact == null ? contact.distanceTo(center) : Math.max(0,modelContact.gap());
-                double reach = modelContact == null ? 1.04 : .48;
+                double reach = modelContact == null ? 1.04 : .78;
                 if (distance > reach) continue;
                 // Contact stretches and catches silk. Only a hard collision tears it.
                 double impact = velocity.length();
@@ -66,8 +66,8 @@ public final class LimboWebSystem {
                 if (velocity.y < 0) entity.resetFallDistance();
                 // Player input is client-driven, so velocity alone cannot reliably hold
                 // them. A short hidden slowdown lets dense clusters block forward input.
-                if (entity instanceof ServerPlayer && grip > .42D)
-                    entity.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 5, grip > .88D ? 6 : grip > .7D ? 3 : 1,
+                if (entity instanceof ServerPlayer && grip > .08D)
+                    entity.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 8, grip > .8D ? 5 : grip > .55D ? 3 : grip > .3D ? 1 : 0,
                             false, false, false));
             }
     }

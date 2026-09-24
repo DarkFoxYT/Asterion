@@ -75,16 +75,14 @@ float densityAt(vec3 world, vec3 wind, out float light) {
             * (.22 + low * .85 + high * .25) * (1.0 + ocean * .65);
 }
 
-float lightRelief(vec3 world, out vec3 glow) {
+float lightRelief(vec3 world) {
     float relief = 0.0;
-    glow = vec3(0);
     for (int i = 0; i < 4; i++) {
         if (LightPositionRadius[i].w <= 0.0) continue;
         float radius = LightPositionRadius[i].w;
         float falloff = 1.0 - smoothstep(radius * .18, radius, distance(world, LightPositionRadius[i].xyz));
         float strength = clamp(LightColorStrength[i].w * falloff, 0.0, 1.0);
         relief = max(relief, strength);
-        glow += LightColorStrength[i].rgb * strength * .018;
     }
     return relief;
 }
@@ -111,15 +109,14 @@ void main() {
         vec3 world = CameraData.xyz + direction * along;
         float localLight;
         float density = densityAt(world, wind, localLight);
-        vec3 lightGlow;
-        float relief = lightRelief(world, lightGlow);
+        float relief = lightRelief(world);
         float nearRamp = smoothstep(2.0, 13.0, along);
         float extinction = min(density * mix(.45, 1.0, nearRamp)
                 * (1.0 - relief * .58) * stepLength * .015 * River.z * River.w,
                 max(0.0, 1.32 - opticalDepth));
         float visibility = exp(-opticalDepth);
         opticalDepth += extinction;
-        vec3 grey = mix(vec3(.075, .079, .084), vec3(.16, .17, .18), localLight) + lightGlow;
+        vec3 grey = mix(vec3(.075, .079, .084), vec3(.16, .17, .18), localLight);
         scattering += visibility * (1.0 - exp(-extinction)) * grey;
     }
 

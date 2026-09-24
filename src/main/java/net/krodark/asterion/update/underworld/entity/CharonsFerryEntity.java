@@ -6,6 +6,7 @@ import com.geckolib.animatable.manager.AnimatableManager;
 import com.geckolib.util.GeckoLibUtil;
 import net.krodark.asterion.update.underworld.world.UnderworldTerrain;
 import net.krodark.asterion.update.underworld.world.FerryHull;
+import net.krodark.asterion.update.underworld.world.FerryMotion;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -80,7 +81,7 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
         returnWait = 0;
     }
 
-    // The supplied model's main deck ends at 21 model pixels (16 pixels per block).
+    // Feet rest slightly into the thick deck; the seated rider drops farther into the hull.
     public double deckY() { return deckHeightAt(getX(), getZ()); }
     public float rockingRoll() { return entityData.get(ROLL); }
     public float rockingRoll(float partialTick) {
@@ -114,6 +115,7 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
         }
         // Charon keeps the stern; the temporary player control seat sits centrally.
         Vec3 seat = deckPoint(0, passenger instanceof Player ? -.15 : 1.0);
+        if (passenger instanceof Player) seat = seat.add(0, -FerryHull.RIDER_DROP, 0);
         move.accept(passenger, seat.x, seat.y, seat.z);
         // Keep the rider's camera free; directional keys steer the hull.
         if (passenger instanceof CharonEntity) passenger.setYRot(getYRot());
@@ -332,25 +334,38 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
         Player pilot = getFirstPassenger() instanceof Player player ? player : null;
         int throttle = pilot != null && tickCount - lastControlTick <= 10 ? controlThrottle : 0;
         int turn = pilot != null && tickCount - lastControlTick <= 10 ? controlTurn : 0;
-        double desiredSpeed = pilot != null ? throttle * (throttle < 0 ? .052 : .105) : sailing() ? .072 : 0;
-        surgeSpeed += Math.clamp(desiredSpeed - surgeSpeed, -.003, .0024);
-        if (pilot != null && throttle == 0) surgeSpeed *= .96;
         float oldYaw = getYRot();
         if (pilot != null) {
             turnSpeed = Math.clamp(turnSpeed * .82 + turn * (Math.abs(surgeSpeed) > .012 ? .34 : .14), -2.2, 2.2);
             setYRot((float)(oldYaw + turnSpeed));
-            entityData.set(SAILING, Math.abs(surgeSpeed) > .006 || Math.abs(turnSpeed) > .15);
         } else {
             turnSpeed *= .8;
             float targetYaw = sailing() ? (float)Math.toDegrees(Math.atan2(-tangent, 1.0)) : oldYaw;
             setYRot(oldYaw + net.minecraft.util.Mth.wrapDegrees(targetYaw - oldYaw) * .065F);
         }
         double heading = Math.toRadians(getYRot());
+        double sampleTime = level().getGameTime();
+        double bowSlope = UnderworldTerrain.waveHeight(oldX - Math.sin(heading) * 2.4,
+                oldZ + Math.cos(heading) * 2.4, sampleTime);
+        double sternSlope = UnderworldTerrain.waveHeight(oldX + Math.sin(heading) * 3.2,
+                oldZ - Math.cos(heading) * 3.2, sampleTime);
+        surgeSpeed = FerryMotion.advance(surgeSpeed, throttle, pilot != null, sailing(),
+                (sternSlope - bowSlope) * shoreFactor / 5.6);
+        if (pilot != null) entityData.set(SAILING, Math.abs(surgeSpeed) > .006 || Math.abs(turnSpeed) > .15);
         double nextZ = pilot == null ? Math.min(UnderworldTerrain.END_Z - 54,
                 oldZ + surgeSpeed / Math.sqrt(1 + tangent * tangent))
                 : oldZ + Math.cos(heading) * surgeSpeed;
         double nextX = pilot == null ? (surgeSpeed > .0001 ? UnderworldTerrain.riverCenter(nextZ) : oldX)
                 : oldX - Math.sin(heading) * surgeSpeed;
+        double whirlPull = net.krodark.asterion.event.LimboWhirlpool.pull(oldX, oldZ, sampleTime);
+        if (whirlPull > 0) {
+            double rx = net.krodark.asterion.event.LimboWhirlpool.X - oldX;
+            double rz = net.krodark.asterion.event.LimboWhirlpool.Z - oldZ;
+            double radius = Math.max(1, Math.hypot(rx, rz));
+            // A pilot can make headway against the current; the center remains dangerous.
+            nextX += whirlPull * (.028 * rx - .010 * rz) / radius;
+            nextZ += whirlPull * (.028 * rz + .010 * rx) / radius;
+        }
         if (pilot != null && !hasWaterUnderHull(nextX,nextZ,heading)) {
             nextX = oldX; nextZ = oldZ; surgeSpeed = 0;
         }

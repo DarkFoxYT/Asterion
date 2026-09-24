@@ -4,7 +4,8 @@ import net.minecraft.world.phys.Vec3;
 
 /** The three solid deck/hull pieces in charons_ferry.geo.json, in GeckoLib's baked coordinates. */
 public final class FerryHull {
-    public static final double PIVOT = 17.5 / 16.0, DECK = 21.0 / 16.0, RENDER_OFFSET = .01;
+    public static final double PIVOT = 17.5 / 16.0, DECK = 19.0 / 16.0, RENDER_OFFSET = .01;
+    public static final double RIDER_DROP = .27;
     public record Region(double x, double z, double halfX, double halfZ, double angle) {
         double distance(double px,double pz) {
             double c=Math.cos(angle),s=Math.sin(angle),dx=px-x,dz=pz-z;

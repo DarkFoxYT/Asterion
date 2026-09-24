@@ -3,12 +3,18 @@ package net.krodark.asterion.update.underworld.client;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.client.PerformanceGovernor;
+import net.krodark.asterion.event.LimboTempest;
+import net.krodark.asterion.event.LimboWhirlpool;
 import net.krodark.asterion.update.underworld.entity.CharonsFerryEntity;
 import net.krodark.asterion.update.underworld.world.FerryHull;
 import net.krodark.asterion.update.underworld.world.UnderworldTerrain;
+import net.krodark.asterion.update.underworld.world.UnderworldWaves;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.phys.Vec3;
 import java.util.HashMap;
 import java.util.Map;
@@ -60,6 +66,10 @@ public final class FerryWaterPhysics {
             CONTACTS.put(boat.getId(),new Contact(boat.position(),depths,shore));
         }
         CONTACTS.keySet().removeIf(id->world.getEntity(id)==null);
+        if (time % 3 == 0) {
+            shoreBreakers(client, quality, time);
+            whirlpoolSpray(client, quality, time);
+        }
         var player=client.player;
         net.krodark.asterion.update.underworld.world.UnderworldWaterPhysics.alignSurface(player, time);
         double water=net.krodark.asterion.update.underworld.world.UnderworldWaterPhysics.surfaceAt(player,time),feet=player.getY();
@@ -81,5 +91,63 @@ public final class FerryWaterPhysics {
         }
         previousFeet=feet;
         previousSurface=water;
+    }
+
+    private static void shoreBreakers(Minecraft client, int quality, long time) {
+        if (client.player.getZ() < 12) return;
+        double storm = LimboTempest.strength(time);
+        int attempts = quality == 0 ? 5 : quality == 1 ? 12 : 20;
+        if (storm > .25) attempts += quality == 0 ? 2 : 8;
+        int emitted = 0, limit = quality == 0 ? 2 : quality == 1 ? 5 : 9;
+        var random = world.getRandom();
+        for (int i = 0; i < attempts && emitted < limit; i++) {
+            int x = client.player.getBlockX() + random.nextInt(49) - 24;
+            int z = client.player.getBlockZ() + random.nextInt(49) - 24;
+            if (!world.getChunkSource().hasChunk(x >> 4, z >> 4)) continue;
+            BlockPos water = new BlockPos(x, UnderworldTerrain.WATER_Y, z);
+            if (!world.getFluidState(water).is(FluidTags.WATER)
+                    || world.getFluidState(water.above()).is(FluidTags.WATER)) continue;
+            Direction rock = null;
+            for (Direction side : Direction.Plane.HORIZONTAL) {
+                BlockPos edge = water.relative(side);
+                if (world.getBlockState(edge).isSolidRender()
+                        || world.getBlockState(edge.above()).isSolidRender()) { rock = side; break; }
+            }
+            if (rock == null) continue;
+            var wave = UnderworldWaves.sample(x + .5, z + .5, time);
+            double energy = Math.abs(wave.height()) * .24 + Math.abs(wave.curvature()) * 4 + storm * .6;
+            if (energy < .18 || random.nextDouble() > Math.min(.9, energy)) continue;
+            double surface = UnderworldTerrain.WATER_Y + 8.0 / 9.0;
+            double vx = -rock.getStepX() * (.035 + energy * .09);
+            double vz = -rock.getStepZ() * (.035 + energy * .09);
+            world.addParticle(ParticleTypes.SPLASH, x + .5, surface + .03, z + .5,
+                    vx, .06 + energy * .16, vz);
+            if (quality > 0 && (storm > .4 || random.nextBoolean()))
+                world.addParticle(storm > .55 ? ParticleTypes.FALLING_WATER : ParticleTypes.BUBBLE_POP,
+                        x + .5 + random.nextDouble() * .3 - .15, surface + .12,
+                        z + .5 + random.nextDouble() * .3 - .15, vx * .55, .05 + energy * .1, vz * .55);
+            emitted++;
+        }
+    }
+
+    private static void whirlpoolSpray(Minecraft client, int quality, long time) {
+        double strength = LimboWhirlpool.strength(time);
+        if (strength < .05 || client.player.distanceToSqr(LimboWhirlpool.X,
+                client.player.getY(), LimboWhirlpool.Z) > 70 * 70) return;
+        var random = world.getRandom();
+        int count = quality == 0 ? 1 : quality == 1 ? 3 : 5;
+        for (int i = 0; i < count; i++) {
+            double radius = 12 + random.nextDouble() * 34;
+            double angle = random.nextDouble() * Math.PI * 2;
+            double x = LimboWhirlpool.X + Math.cos(angle) * radius;
+            double z = LimboWhirlpool.Z + Math.sin(angle) * radius;
+            double y = UnderworldTerrain.WATER_Y + 8.0 / 9.0
+                    + UnderworldTerrain.waveHeight(x, z, time);
+            double speed = (.045 + (46 - radius) * .0015) * strength;
+            world.addParticle(i % 3 == 0 ? ParticleTypes.BUBBLE_POP : ParticleTypes.SPLASH,
+                    x, y + .06, z, -Math.sin(angle) * speed,
+                    .04 + random.nextDouble() * .08 * strength,
+                    Math.cos(angle) * speed);
+        }
     }
 }
