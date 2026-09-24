@@ -131,9 +131,12 @@ public final class UnderworldTerrain {
                         if (c.path && y == c.floor) state = pathSurface;
                         if (c.spider && !spiderPuddle && !c.path && y == c.floor) state = (texture & 3) == 0
                                 ? Asterion.DEAD_STONE_2.defaultBlockState() : pathSurface;
-                        if (c.spider && y == c.roof - 1 && c.roof - c.floor > 11
-                                && (hash(seed ^ 0xC0B5E8L, x >> 2, z >> 2) & 7L) < 2
-                                && (texture & 7L) == 0 && state.isAir())
+                        boolean webbedCorridor = (hash(seed ^ 0x5EBA11L, x >> 5, z >> 5) & 7L) < 2;
+                        int curtain = webbedCorridor ? 1 + (int)((texture >>> 15) & 2L) : 1;
+                        if (c.spider && c.roof - c.floor > 7 && y >= c.roof - curtain && y < c.roof
+                                && y > c.floor + 3
+                                && (hash(seed ^ 0xC0B5E8L, x >> 2, z >> 2) & 7L) < (webbedCorridor ? 5 : 2)
+                                && (texture & (webbedCorridor ? 3L : 7L)) == 0 && state.isAir())
                             state = Blocks.COBWEB.defaultBlockState();
                         if (sideHall && !chamber && !spiderPuddle && !c.path && y == c.floor + 1 && (texture & 31) == 3)
                             state = Asterion.DEAD_STONE_SLAB.defaultBlockState();
@@ -303,8 +306,10 @@ public final class UnderworldTerrain {
             long shape = hash(seed ^ 0x5A1EC4A7EL, cx, cz);
             double jitterX = ((shape >>> 11) * 0x1.0p-53 - .5) * 13;
             double jitterZ = ((hash(shape, cx, cz) >>> 11) * 0x1.0p-53 - .5) * 13;
+            // Most cells are merely corridor junctions; a few bloom into unique rooms.
+            double radius = (shape & 7L) < 2 ? 15 + ((shape >>> 32) & 12) : 4 + ((shape >>> 32) & 5);
             return new CaveNode(cx * 48 + 24 + jitterX, cz * 48 + 24 + jitterZ,
-                    11 + ((shape >>> 32) & 7), .8 + ((shape >>> 40) & 7) * .055);
+                    radius, .72 + ((shape >>> 40) & 7) * .085);
         });
     }
     private static double segmentDistance(double x, double z, double ax, double az, double bx, double bz) {
@@ -322,10 +327,14 @@ public final class UnderworldTerrain {
         double clearance = -100;
         for (int ix = cx - 1; ix <= cx + 1; ix++) for (int iz = cz - 1; iz <= cz + 1; iz++) {
             CaveNode node = caveNode(seed, ix, iz, nodes);
-            clearance = Math.max(clearance, node.radius - Math.hypot(u - node.x, (z - node.z) * node.stretch));
+            double roomNoise = 2.4 * octaves(seed ^ 0xC4A6EL, u * .12, z * .12)
+                    + 1.1 * octaves(seed ^ 0xC9A7EL, u * .31, z * .31);
+            clearance = Math.max(clearance, node.radius + roomNoise
+                    - Math.hypot(u - node.x, (z - node.z) * node.stretch));
             CaveNode east = caveNode(seed, ix + 1, iz, nodes);
             CaveNode south = caveNode(seed, ix, iz + 1, nodes);
-            double width = 2.7 + ((hash(seed ^ 0x51DE, ix, iz) >>> 8) & 3) * .48;
+            double width = 2.15 + ((hash(seed ^ 0x51DE, ix, iz) >>> 8) & 3) * .38;
+            width += .55 * octaves(seed ^ 0xC0111DL, u * .14, z * .14);
             clearance = Math.max(clearance, width - segmentDistance(u, z, node.x, node.z, east.x, east.z));
             clearance = Math.max(clearance, width - segmentDistance(u, z, node.x, node.z, south.x, south.z));
         }
@@ -342,23 +351,28 @@ public final class UnderworldTerrain {
             clearance = Math.max(clearance, 3.5 - segmentDistance(u, z, entranceU,
                     entrance.getZ(), nearest.x, nearest.z));
         }
-        // Rare wide shafts cut through several vertical cave layers. Their edges
-        // remain irregular instead of repeating the ordinary rounded node shape.
+        // Rare long, fault-like chasms: independently noisy edges and abrupt cliffs,
+        // not oval rooms. They open both above and below the ordinary cave layer.
         double voidStrength = 0;
-        int vx = (int)Math.floor(u / 112), vz = Math.floorDiv(z, 112);
+        int vx = (int)Math.floor(u / 176), vz = Math.floorDiv(z, 176);
         for (int ix = vx - 1; ix <= vx + 1; ix++) for (int iz = vz - 1; iz <= vz + 1; iz++) {
             long shape = hash(seed ^ 0xAB155L, ix, iz);
-            if ((shape & 7L) != 0) continue;
-            double mx = ix * 112 + 28 + ((shape >>> 8) & 55);
-            double mz = iz * 112 + 28 + ((shape >>> 15) & 55);
-            double warp = 3 * octaves(seed ^ 0xF0551L, u * .052, z * .052);
-            double distance = Math.hypot((u - mx + warp) / 19, (z - mz - warp) / 32);
-            voidStrength = Math.max(voidStrength, Math.clamp((1.16 - distance) / .62, 0, 1));
+            if ((shape & 3L) != 0) continue;
+            double mx = ix * 176 + 40 + ((shape >>> 8) & 95);
+            double mz = iz * 176 + 40 + ((shape >>> 17) & 95);
+            double length = 65 + ((shape >>> 26) & 63);
+            double bend = 9 * octaves(seed ^ shape, z * .021, ix * .31);
+            double edge = 13 + ((shape >>> 34) & 15)
+                    + 3 * octaves(seed ^ 0xF0551L, u * .083, z * .083);
+            double cross = Math.abs(u - mx - bend) / Math.max(5, edge);
+            double along = Math.abs(z - mz) / length;
+            double fault = Math.max(cross, along);
+            voidStrength = Math.max(voidStrength, Math.clamp((1.12 - fault) / .4, 0, 1));
         }
         clearance = Math.max(clearance, voidStrength * 8);
         if (clearance <= .35) return new SideShape(false, 0, 0);
         double round = Math.sqrt(Math.clamp(clearance / 8, 0, 1));
-        double height = (6 + Math.min(27, Math.max(0, clearance) * 1.85))
+        double height = (4.5 + Math.min(29, Math.max(0, clearance) * 1.7))
                 * (.83 + .24 * octaves(seed ^ 0xCA7E5L, u * .043, z * .043));
         double layers = 8 * octaves(seed ^ 0x6A0DL, u * .018, z * .018)
                 + 3 * octaves(seed ^ 0xFA11L, u * .071, z * .071);
@@ -474,14 +488,14 @@ public final class UnderworldTerrain {
         if (column.spider) {
             int room = column.roof - column.floor - 5;
             if (room < 3) return new Details(false, 0, 0, 0, false);
-            int rock = Math.min(room / 2, blockSpire(seed ^ 0x5B1DE5L, x, z) / 2);
-            int hanging = Math.min(room / 2, blockSpire(seed ^ 0xCE1115L, x, z) / 2);
+            int rock = Math.min(room / 3, blockSpire(seed ^ 0x5B1DE5L, x, z) / 3);
+            int hanging = Math.min(room / 3, blockSpire(seed ^ 0xCE1115L, x, z) / 3);
             long bridge = hash(seed ^ 0xB81D6EL, Math.floorDiv(x, 13), Math.floorDiv(z, 13));
-            if ((bridge & 31L) == 0 && (bridge >>> 8 & 15L) < 5 && rock > 1 && hanging > 1) {
+            if ((bridge & 63L) == 0 && (bridge >>> 8 & 15L) < 4 && rock > 1 && hanging > 1) {
                 rock = Math.max(rock, room / 2);
                 hanging = Math.max(hanging, room - rock);
             }
-            int spike = rock > 1 && hanging + rock + 2 < room && (hash(seed ^ 0x5A1EEL, x, z) & 3L) == 0
+            int spike = rock > 1 && hanging + rock + 2 < room && (hash(seed ^ 0x5A1EEL, x, z) & 15L) == 0
                     ? 1 + (int)(hash(seed ^ 0x711L, x, z) & 1L) : 0;
             return new Details(false, rock, spike, hanging, false);
         }

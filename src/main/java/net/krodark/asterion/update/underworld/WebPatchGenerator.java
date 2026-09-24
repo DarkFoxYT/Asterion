@@ -38,17 +38,22 @@ public final class WebPatchGenerator {
             long now = level.getGameTime();
             for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
                 int cellX = gx + dx, cellZ = gz + dz;
-                long key = net.minecraft.world.level.ChunkPos.pack(cellX, cellZ);
+                boolean webbed = (mix(net.minecraft.world.level.ChunkPos.pack(Math.floorDiv(cellX, 4), Math.floorDiv(cellZ, 4)) ^ 0x5EBA11L) & 7L) < 2;
+                for (int variant = 0; variant < (webbed ? 4 : 2); variant++) {
+                long key = mix(net.minecraft.world.level.ChunkPos.pack(cellX, cellZ) ^ variant * 0x9E3779B97F4A7C15L);
                 Cached known = caveCache.get(key);
                 if (known == null || known.expires < now) {
                     long seed = mix(0x5B1DE3L ^ key);
-                    known = new Cached(patchAt(level, seed, cellX * 8 + 4, cellZ * 8 + 4), now + 100);
+                    int x = cellX * 8 + 1 + (int)((seed >>> 9) & 7);
+                    int z = cellZ * 8 + 1 + (int)((seed >>> 17) & 7);
+                    known = new Cached(patchAt(level, seed, x, z), now + 100);
                     caveCache.put(key, known);
                 }
                 if (known.patch != null && known.patch.anchors().getFirst().distanceToSqr(center) < 52 * 52)
                     result.add(known.patch);
+                }
             }
-            if (caveCache.size() > 320) caveCache.entrySet().removeIf(e -> e.getValue().expires < now);
+            if (caveCache.size() > 960) caveCache.entrySet().removeIf(e -> e.getValue().expires < now);
         }
         return result;
     }

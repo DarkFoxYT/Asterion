@@ -156,6 +156,7 @@ public final class WandererEntity extends PathfinderMob implements GeoEntity {
             double x = pathX + (random.nextBoolean() ? -1 : 1) * (5D + random.nextDouble() * 11D);
             BlockPos feet = safeFeet(level, x, z);
             if (feet == null) continue;
+            if (nearFireTorch(level, feet, 3)) continue;
             Vec3 candidate = Vec3.atBottomCenterOf(feet);
             if (tickCount < failedCoverUntil && failedCover != null
                     && candidate.distanceToSqr(failedCover) < 9) continue;
@@ -203,10 +204,19 @@ public final class WandererEntity extends PathfinderMob implements GeoEntity {
         for (int i = 0; i < path.getNodeCount(); i++) {
             BlockPos node = path.getNode(i).asBlockPos();
             if (!level.getFluidState(node).isEmpty() || !level.getFluidState(node.below()).isEmpty()) return false;
+            if (nearFireTorch(level, node, 1)) return false;
             if (previous != null && node.getY() > previous.getY() && ++climbs > 2) return false;
             previous = node;
         }
         return true;
+    }
+    private boolean nearFireTorch(ServerLevel level, BlockPos center, int radius) {
+        for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
+            if (dx * dx + dz * dz > radius * radius) continue;
+            for (int dy = -1; dy <= 4; dy++)
+                if (level.getBlockState(center.offset(dx, dy, dz)).is(Asterion.GREEK_FIRE_FLOOR_TORCH)) return true;
+        }
+        return false;
     }
     private boolean blocked(ServerLevel level, Player viewer, Vec3 target) {
         return level.clip(new ClipContext(viewer.getEyePosition(), target,
