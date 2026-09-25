@@ -55,9 +55,17 @@ import net.minecraft.client.renderer.entity.EntityRenderers;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderers;
 import net.fabricmc.fabric.api.client.particle.v1.ParticleProviderRegistry;
 
+// Keep the Fabric-compatible entrypoint used by all three loader adapters.
+@SuppressWarnings("deprecation")
 public final class AsterionClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
+        net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((stack, context, flag, lines) -> {
+            if (stack.getItem() instanceof net.krodark.asterion.item.AfterblowItem afterblow
+                    && !stack.getOrDefault(net.minecraft.core.component.DataComponents.TOOLTIP_DISPLAY,
+                    net.minecraft.world.item.component.TooltipDisplay.DEFAULT).hideTooltip())
+                afterblow.appendTooltip(stack, lines::add);
+        });
         net.krodark.asterion.client.render.HeavyWaterRendering.initialize();
         net.krodark.asterion.update.underworld.client.UnderworldClient.initialize();
         AsterionEmissiveConfig.load();

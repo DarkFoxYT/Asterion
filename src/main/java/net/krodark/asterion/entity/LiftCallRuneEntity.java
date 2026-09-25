@@ -34,7 +34,7 @@ public final class LiftCallRuneEntity extends Entity {
     }
     @Override public void tick() {
         super.tick();
-        if (!level().isClientSide() && tickCount % 40 == 0 && level().hasChunkAt(entityData.get(ANCHOR))
+        if (!level().isClientSide() && tickCount % 40 == 0 && level().getChunkSource().hasChunk(entityData.get(ANCHOR).getX() >> 4, entityData.get(ANCHOR).getZ() >> 4)
                 && !level().getBlockState(entityData.get(ANCHOR)).is(ChainLiftContent.ANCHOR)) discard();
     }
     @Override protected void addAdditionalSaveData(ValueOutput out) { out.putLong("Anchor", entityData.get(ANCHOR).asLong()); out.putBoolean("Upper", entityData.get(UPPER)); }

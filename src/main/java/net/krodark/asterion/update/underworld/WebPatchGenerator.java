@@ -38,8 +38,9 @@ public final class WebPatchGenerator {
             long now = level.getGameTime();
             for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
                 int cellX = gx + dx, cellZ = gz + dz;
-                boolean webbed = (mix(net.minecraft.world.level.ChunkPos.pack(Math.floorDiv(cellX, 4), Math.floorDiv(cellZ, 4)) ^ 0x5EBA11L) & 7L) < 2;
-                for (int variant = 0; variant < (webbed ? 4 : 2); variant++) {
+                boolean nest = UnderworldTerrain.isNest(cellX * 8 + 4, cellZ * 8 + 4);
+                boolean webbed = nest || (mix(net.minecraft.world.level.ChunkPos.pack(Math.floorDiv(cellX, 4), Math.floorDiv(cellZ, 4)) ^ 0x5EBA11L) & 7L) < 2;
+                for (int variant = 0; variant < (nest ? 7 : webbed ? 4 : 2); variant++) {
                 long key = mix(net.minecraft.world.level.ChunkPos.pack(cellX, cellZ) ^ variant * 0x9E3779B97F4A7C15L);
                 Cached known = caveCache.get(key);
                 if (known == null || known.expires < now) {

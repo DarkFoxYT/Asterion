@@ -84,6 +84,8 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
         xpReward = 2;
     }
 
+    // Vanilla callback retained for the shared Fabric/Quilt/NeoForge entity.
+    @SuppressWarnings("deprecation")
     @Override public boolean canBreatheUnderwater() { return true; }
 
     public static AttributeSupplier.Builder createAttributes() {

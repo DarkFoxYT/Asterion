@@ -3,16 +3,19 @@ package net.krodark.asterion.update.underworld;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionWorldState;
 import net.krodark.asterion.update.underworld.entity.CharonsFerryEntity;
 import net.krodark.asterion.update.underworld.entity.CharonEntity;
+import net.krodark.asterion.update.underworld.entity.LimboSpiderEntity;
 import net.krodark.asterion.update.underworld.world.UnderworldTerrain;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.item.ItemStack;
@@ -37,6 +40,13 @@ public final class UnderworldPassage {
         FerryRejoin.initialize();
         FerryCommands.register();
         net.krodark.asterion.network.FerryControlPayload.initialize();
+        PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
+            if (!(world instanceof ServerLevel level) || !level.dimension().equals(Asterion.LIMBO_LEVEL)
+                    || !state.is(Blocks.COBWEB)) return;
+            for (LimboSpiderEntity spider : level.getEntitiesOfClass(LimboSpiderEntity.class,
+                    new AABB(pos).inflate(36), LimboSpiderEntity::isAlive))
+                spider.hunt(player);
+        });
         // Registered after Asterion's recovery so death always leads into Limbo.
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
             if (!alive) enterAfterDeath(newPlayer);
@@ -136,6 +146,32 @@ public final class UnderworldPassage {
         if (!CHAMBER_EVENTS.computeIfAbsent(player.getUUID(), ignored -> new HashSet<>()).add(slot)) return;
         var center = UnderworldTerrain.chamberCenter(slot);
         level.playSound(null, center, SoundEvents.HUSK_AMBIENT, SoundSource.AMBIENT, .65F, .55F);
+        if (UnderworldTerrain.nestSlot(slot)) {
+            if (level.getEntitiesOfClass(LimboSpiderEntity.class,new AABB(center).inflate(48)).isEmpty()) {
+                LimboSpiderEntity spider = UnderworldContent.SPIDER.create(level,EntitySpawnReason.EVENT);
+                if (spider != null) {
+                    spider.setNest(center);
+                    level.addFreshEntity(spider);
+                    // Motionless bodies are caught high in the web canopy around the perch.
+                    if (level.getEntitiesOfClass(net.minecraft.world.entity.monster.skeleton.Skeleton.class,
+                            new AABB(center).inflate(22)).isEmpty()) {
+                        for (int i = 0; i < 3; i++) {
+                            var victim = EntityType.SKELETON.create(level,EntitySpawnReason.EVENT);
+                            if (victim == null) break;
+                            victim.setPos(center.getX() + (i - 1) * 5.5,
+                                    center.getY() + 14 + (i & 1) * 2,
+                                    center.getZ() + (i == 1 ? -5 : 4));
+                            victim.setNoAi(true);
+                            victim.setNoGravity(true);
+                            victim.setSilent(true);
+                            victim.setInvulnerable(true);
+                            level.addFreshEntity(victim);
+                        }
+                    }
+                }
+            }
+            return;
+        }
         // Encounter budget is per chamber/player; revisiting never piles up mobs.
         if ((slot & 1) == 0 && level.getEntitiesOfClass(net.minecraft.world.entity.Mob.class,
                 new AABB(center).inflate(15), mob -> mob.getType() == EntityType.CAVE_SPIDER).size() < 3) {

@@ -33,6 +33,9 @@ public final class LimboWebSystem {
         }
     }
     private static void affect(ServerLevel level, LivingEntity entity, boolean cutsOnContact) {
+            // Native silk walkers grip strands themselves; generic drag would stop
+            // their crawl and generic impact tearing would destroy their own route.
+            if (entity instanceof net.krodark.asterion.update.underworld.entity.LimboSpiderEntity) return;
             Vec3 center = entity.position().add(0, entity.getBbHeight() * .48, 0), velocity = entity.getDeltaMovement();
             var playerParts = entity instanceof ServerPlayer player ? WebPlayerShape.parts(player) : null;
             double strongestContact = 0;

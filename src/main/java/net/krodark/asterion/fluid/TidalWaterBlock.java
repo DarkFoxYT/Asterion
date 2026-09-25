@@ -45,5 +45,7 @@ public final class TidalWaterBlock extends Block implements BucketPickup {
         level.setBlock(pos, Blocks.AIR.defaultBlockState(), 11);
         return new ItemStack(HeavyWater.BUCKET);
     }
+    // The sound is state-independent; NeoForge's contextual overload delegates here.
+    @SuppressWarnings("deprecation")
     @Override public Optional<SoundEvent> getPickupSound() { return HeavyWater.FLUID.getPickupSound(); }
 }

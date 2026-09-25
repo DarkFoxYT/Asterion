@@ -16,6 +16,8 @@ import net.minecraft.util.Mth;
  
 public final class AsterionEmissiveConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    // Quilt provides this shared Fabric loader API as a compatibility shim.
+    @SuppressWarnings("deprecation")
     private static final Path PATH = FabricLoader.getInstance().getConfigDir()
             .resolve("asterion-emissive.json");
     private static Values values = new Values();

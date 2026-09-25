@@ -25,7 +25,7 @@ final class AsterionNeoForgeClient {
                 new Material(Identifier.withDefaultNamespace("block/water_still")),
                 new Material(Identifier.withDefaultNamespace("block/water_flow")),
                 new Material(Identifier.withDefaultNamespace("block/water_overlay")),
-                BlockTintSources.constant(HeavyWater.COLOR));
+                net.neoforged.neoforge.client.fluid.FluidTintSources.of(BlockTintSources.constant(HeavyWater.COLOR)));
         event.register(model, HeavyWater.STILL, HeavyWater.FLOWING);
         event.register(model, HeavyWater.FLUID);
     }

@@ -68,11 +68,19 @@ float densityAt(vec3 world, vec3 wind, out float light) {
             * (1.0 - smoothstep(River.x + 6.0, River.x + 13.0, world.y));
     float high = smoothstep(River.x + 10.0, River.x + 16.0, world.y)
             * (1.0 - smoothstep(River.x + 29.0, River.x + 38.0, world.y));
-    light = clamp(.15 + (banks - wisps) * .22 + high * .08, 0.0, .35);
+    // Thin, pale smoke filaments drift through the existing broader fog banks.
+    vec3 filamentPos = (world - wind * .65) * vec3(.048, .072, .048);
+    float filamentNoise = noise3(filamentPos + vec3(7.3, 2.1, -3.7));
+    float filament = (1.0 - smoothstep(.035, .13, abs(filamentNoise - .5)))
+            * smoothstep(.42, .69, wisps)
+            * smoothstep(River.x + 1.0, River.x + 5.0, world.y)
+            * (1.0 - smoothstep(River.x + 16.0, River.x + 27.0, world.y));
+    light = clamp(.15 + (banks - wisps) * .22 + high * .08 + filament * .7, 0.0, .9);
     float ocean = smoothstep(12.0, 72.0, world.z)
             * smoothstep(River.x - 12.0, River.x + 3.0, world.y);
     return smoothstep(.27, .73, banks * .64 + wisps * .36 + circulation)
-            * (.22 + low * .85 + high * .25) * (1.0 + ocean * .65);
+            * (.22 + low * .85 + high * .25) * (1.0 + ocean * .65)
+            + filament * .22;
 }
 
 float lightRelief(vec3 world) {
@@ -116,7 +124,7 @@ void main() {
                 max(0.0, 1.32 - opticalDepth));
         float visibility = exp(-opticalDepth);
         opticalDepth += extinction;
-        vec3 grey = mix(vec3(.075, .079, .084), vec3(.16, .17, .18), localLight);
+        vec3 grey = mix(vec3(.075, .079, .084), vec3(.39, .40, .41), localLight);
         scattering += visibility * (1.0 - exp(-extinction)) * grey;
     }
 

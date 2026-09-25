@@ -652,6 +652,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 AsterionConfig.INSTANCE.minotaurDamageMin, AsterionConfig.INSTANCE.minotaurDamageMax);
     }
 
+    // Shared vanilla callback; NeoForge's fluid-type overload delegates here.
+    @SuppressWarnings("deprecation")
     @Override public boolean isPushedByFluid() { return false; }
 
     @Override protected float getWaterSlowDown() { return .96F; }

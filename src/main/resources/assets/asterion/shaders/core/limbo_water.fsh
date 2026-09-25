@@ -72,8 +72,9 @@ void main() {
     float grain = .5;
     float crossing = .5;
     if (nearDetail > .01) {
-        grain = waterTexture(p * .22);
-        if (detailQuality > .5) crossing = waterTexture(p.yx * .37 + vec2(.31, .17));
+        // One 16x16 source tile per world block; the old scale spread it over several blocks.
+        grain = waterTexture(p);
+        if (detailQuality > .5) crossing = waterTexture(p.yx * 1.37 + vec2(.31, .17));
     }
     float textureDetail = (grain * .65 + crossing * .35 - .5) * nearDetail;
     vec3 n = normalize(surfaceNormal);
@@ -146,11 +147,10 @@ void main() {
         float rotatingFoam = max(arm, seam * .52) * radiusFade * whirlStrength;
         float lip = exp(-pow((whirlRadius - 87.0) / 11.0, 2.0))
                 * (.46 + .54 * arm) * whirlStrength;
-        water = mix(water, vec3(.001, .0012, .0015),
-                whirlStrength * (1.0 - smoothstep(18.0, 78.0, whirlRadius)) * .68);
-        whitecap = max(whitecap, max(rotatingFoam * .95, lip * .38));
-        float whiteCore = (1.0 - smoothstep(5.0, 21.0, whirlRadius)) * whirlStrength;
-        whitecap = max(whitecap, whiteCore);
+        float abyss = (1.0 - smoothstep(9.0, 72.0, whirlRadius)) * whirlStrength;
+        water = mix(water, vec3(.00025, .00033, .00048), abyss * .92);
+        whitecap = max(whitecap, max(rotatingFoam * .58, lip * .32));
+        whitecap *= 1.0 - (1.0 - smoothstep(7.0, 24.0, whirlRadius)) * whirlStrength;
     }
     float tempest = limboTempest(waterTime);
     if (nearDetail > .01) {
@@ -169,8 +169,8 @@ void main() {
     whitecap = max(whitecap * mix(.80, 1.0, fleck), smoothWake * .62);
     water = mix(water, vec3(.28, .30, .31), whitecap);
     if (whirlStrength > .001)
-        water = mix(water, vec3(.82, .84, .85),
-                (1.0 - smoothstep(4.0, 13.0, whirlRadius)) * whirlStrength);
+        water = mix(water, vec3(.00008, .00012, .00022),
+                (1.0 - smoothstep(5.0, 20.0, whirlRadius)) * whirlStrength);
     fragColor = apply_fog(vec4(water, 1.0), fog_spherical_distance(surfacePosition),
         fog_cylindrical_distance(surfacePosition), FogEnvironmentalStart, FogEnvironmentalEnd,
         FogRenderDistanceStart, FogRenderDistanceEnd, FogColor);

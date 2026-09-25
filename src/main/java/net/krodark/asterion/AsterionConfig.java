@@ -18,6 +18,8 @@ public final class AsterionConfig {
     private static final int CURRENT_VERSION = 26;
     private static final Logger LOGGER = LoggerFactory.getLogger("asterion.config");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    // Quilt provides this shared Fabric loader API as a compatibility shim.
+    @SuppressWarnings("deprecation")
     private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("asterion.json");
     public static AsterionConfig INSTANCE = load();
 

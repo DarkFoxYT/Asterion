@@ -131,6 +131,8 @@ import net.krodark.asterion.worldgen.MazeChunkGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// Quilt deprecates its Fabric shim; this shared entrypoint is also loaded by Fabric and NeoForge.
+@SuppressWarnings("deprecation")
 public class Asterion implements ModInitializer {
     public static final String MOD_ID = "asterion";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);

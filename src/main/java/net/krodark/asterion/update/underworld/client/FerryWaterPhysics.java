@@ -14,6 +14,8 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.phys.Vec3;
 import java.util.HashMap;
@@ -70,6 +72,14 @@ public final class FerryWaterPhysics {
         if (time % 3 == 0) {
             shoreBreakers(client, quality, time);
             whirlpoolSpray(client, quality, time);
+        }
+        if (time % 70 == 0 && LimboWhirlpool.strength(time) > .2) {
+            double range = Math.hypot(client.player.getX() - LimboWhirlpool.x(),
+                    client.player.getZ() - LimboWhirlpool.z());
+            if (range < 125) world.playLocalSound(LimboWhirlpool.x(),
+                    UnderworldTerrain.WATER_Y, LimboWhirlpool.z(),
+                    SoundEvents.BUBBLE_COLUMN_WHIRLPOOL_AMBIENT, SoundSource.AMBIENT,
+                    (float)((1 - range / 125) * .85), .58F, false);
         }
         tempestRain(client, quality, time);
         var player=client.player;
@@ -139,19 +149,19 @@ public final class FerryWaterPhysics {
         if (strength < .05 || client.player.distanceToSqr(LimboWhirlpool.x(),
                 client.player.getY(), LimboWhirlpool.z()) > 132 * 132) return;
         var random = world.getRandom();
-        int count = quality == 0 ? 1 : quality == 1 ? 3 : 5;
+        int count = quality == 0 ? 2 : quality == 1 ? 6 : 10;
         for (int i = 0; i < count; i++) {
-            double radius = 18 + random.nextDouble() * 82;
+            double radius = 14 + random.nextDouble() * 91;
             double angle = random.nextDouble() * Math.PI * 2;
             double x = LimboWhirlpool.x() + Math.cos(angle) * radius;
             double z = LimboWhirlpool.z() + Math.sin(angle) * radius;
             double y = UnderworldTerrain.WATER_Y + 8.0 / 9.0
                     + UnderworldTerrain.waveHeight(x, z, time);
-            double speed = (.065 + (100 - radius) * .0008) * strength;
+            double speed = (.07 + (105 - radius) * .0011) * strength;
             world.addParticle(i % 3 == 0 ? ParticleTypes.BUBBLE_POP : ParticleTypes.SPLASH,
-                    x, y + .06, z, -Math.sin(angle) * speed,
-                    .04 + random.nextDouble() * .08 * strength,
-                    Math.cos(angle) * speed);
+                    x, y + .06, z, (-Math.sin(angle) - Math.cos(angle) * .38) * speed,
+                    .06 + random.nextDouble() * .12 * strength,
+                    (Math.cos(angle) - Math.sin(angle) * .38) * speed);
         }
     }
 

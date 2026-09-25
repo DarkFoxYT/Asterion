@@ -27,6 +27,24 @@ public final class LimboWebWorldRenderer {
     private static final Identifier SILK=Asterion.id("textures/entity/limbo_web_white.png");
     private static final Map<Long,WebPhysicsGraph> GRAPHS=new HashMap<>(); private static final Map<Long,java.util.BitSet> CUT=new HashMap<>(); private static boolean attack;
     private LimboWebWorldRenderer(){}
+    /** Foot targets use the same deformed links that are drawn, excluding cuts. */
+    public static Vec3 spiderContact(Vec3 foot, double reach) {
+        Vec3 result = null;
+        double best = reach * reach;
+        double partial = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        for (WebPhysicsGraph graph : GRAPHS.values()) {
+            if (!graph.bounds.inflate(reach).contains(foot)) continue;
+            var cuts = CUT.get(graph.patch.key());
+            for (WebPhysicsGraph.Link link : graph.links) {
+                if (cuts != null && cuts.get(link.index())) continue;
+                Vec3 point = net.krodark.asterion.update.underworld.LimboWebSystem.nearest(
+                        graph.rendered(link.a(),partial),graph.rendered(link.b(),partial),foot);
+                double distance = point.distanceToSqr(foot);
+                if (distance < best) { best = distance; result = point; }
+            }
+        }
+        return result;
+    }
     public static void initialize(){
         ClientTickEvents.END_CLIENT_TICK.register(LimboWebWorldRenderer::tick);
         ClientPlayNetworking.registerGlobalReceiver(WebCutPayload.TYPE,(payload,context)->context.client().execute(()->CUT.computeIfAbsent(payload.key(),ignored->new java.util.BitSet()).set(payload.link())));

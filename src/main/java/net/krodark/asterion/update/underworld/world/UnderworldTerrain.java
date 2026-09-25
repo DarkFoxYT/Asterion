@@ -43,14 +43,24 @@ public final class UnderworldTerrain {
         return chamberCenter(slot);
     }
     public static boolean inChamber(BlockPos pos) {
+        if (pos.getZ() >= -42) return false;
         Branch b = branch(pos.getZ());
         BlockPos center = chamberCenter(b.slot);
-        double dx = (pos.getX() - center.getX()) / 9.0, dz = (pos.getZ() - center.getZ()) / 10.0;
+        double dx = (pos.getX() - center.getX()) / (nestSlot(b.slot) ? 16.0 : 9.0);
+        double dz = (pos.getZ() - center.getZ()) / (nestSlot(b.slot) ? 18.0 : 10.0);
         return dx * dx + dz * dz < 1.0;
     }
-    public static double chamberWebX(int z) {
+    public static boolean isNest(int x, int z) {
+        if (z >= -42) return false;
         Branch b = branch(z);
-        return Math.abs(z - (b.centerZ + 21)) <= 9 ? chamberCenter(b.slot).getX() : Double.NaN;
+        return nestSlot(b.slot) && inChamber(new BlockPos(x, pathFloor(z) + 1, z));
+    }
+    public static boolean nestSlot(int slot) { return slot >= 4 && slot % 3 == 2 && chamberCenter(slot).getZ() < -42; }
+    public static double chamberWebX(int z) {
+        if (z >= -42) return Double.NaN;
+        Branch b = branch(z);
+        return Math.abs(z - (b.centerZ + 21)) <= (nestSlot(b.slot) ? 17 : 9)
+                ? chamberCenter(b.slot).getX() : Double.NaN;
     }
 
     private UnderworldTerrain() { }
@@ -96,6 +106,7 @@ public final class UnderworldTerrain {
                 boolean joined = joinedPillar(seed, x, z, c);
                 boolean sideHall = sideHall(x, z);
                 boolean chamber = inChamber(new BlockPos(x, c.floor + 1, z));
+                boolean nest = isNest(x,z);
                 long texture = hash(seed, x, z);
                 int ceilingSpike = c.spider && c.roof - c.floor > 13 && d.hanging > 1
                         ? Math.min(1 + (int)((texture >>> 18) & 3L),
@@ -144,21 +155,27 @@ public final class UnderworldTerrain {
                                     x * .16 + y * .055, z * .16 - y * .043) > .16)
                                 state = (texture & 8L) == 0 ? stone : shale;
                         }
-                        boolean webbedCorridor = (hash(seed ^ 0x5EBA11L, x >> 5, z >> 5) & 7L) < 2;
-                        int curtain = webbedCorridor ? 1 + (int)((texture >>> 15) & 2L) : 1;
+                        boolean webbedCorridor = nest || (hash(seed ^ 0x5EBA11L, x >> 5, z >> 5) & 7L) < 2;
+                        int curtain = nest ? 3 + (int)((texture >>> 15) & 3L)
+                                : webbedCorridor ? 1 + (int)((texture >>> 15) & 2L) : 1;
                         if (c.spider && c.roof - c.floor > 7 && y >= c.roof - curtain && y < c.roof
                                 && y > c.floor + 3
-                                && (hash(seed ^ 0xC0B5E8L, x >> 2, z >> 2) & 7L) < (webbedCorridor ? 5 : 2)
-                                && (texture & (webbedCorridor ? 3L : 7L)) == 0 && state.isAir())
+                                && (hash(seed ^ 0xC0B5E8L, x >> 2, z >> 2) & 7L) < (nest ? 7 : webbedCorridor ? 5 : 2)
+                                && (texture & (nest ? 1L : webbedCorridor ? 3L : 7L)) == 0 && state.isAir())
+                            state = Blocks.COBWEB.defaultBlockState();
+                        if (nest && !c.path && y >= c.floor + 2 && y <= c.floor + 5
+                                && ((texture >>> 10) & 7L) == 0 && state.isAir())
                             state = Blocks.COBWEB.defaultBlockState();
                         if (sideHall && !chamber && !c.path && y == c.floor + 1 && (texture & 31) == 3)
                             state = Asterion.DEAD_STONE_SLAB.defaultBlockState();
                         if (sideHall && !chamber && !c.path && y == c.floor + 1 && (texture & 63) == 7)
                             state = Asterion.DEAD_STONE_WALL.defaultBlockState();
                         if (sideHall && !chamber && !c.path && y == c.floor + 1
-                                && pathFloor(z + 1) > c.floor)
+                                && (pathFloor(z + 1) > c.floor || pathFloor(z - 1) > c.floor))
                             state = Asterion.DEAD_STONE_STAIRS.defaultBlockState()
-                                    .setValue(BlockStateProperties.HORIZONTAL_FACING, net.minecraft.core.Direction.SOUTH);
+                                    .setValue(BlockStateProperties.HORIZONTAL_FACING,
+                                            pathFloor(z + 1) > c.floor ? net.minecraft.core.Direction.SOUTH
+                                                    : net.minecraft.core.Direction.NORTH);
                         if (paving && !dock && y == c.floor + 1) {
                             if (nextFloor > c.floor || previousFloor > c.floor)
                                 state = Asterion.DEAD_STONE_STAIRS.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING,
@@ -438,10 +455,12 @@ public final class UnderworldTerrain {
         double width = 2.7 + .8 * Math.sin(z * .14 + b.slot);
         boolean hall = progress >= 0 && progress <= 1 && Math.abs(x - passageX) < width;
         BlockPos chamber = chamberCenter(b.slot);
-        double dx = (x - chamber.getX()) / 9.0, dz = (z - chamber.getZ()) / 10.0;
+        double dx = (x - chamber.getX()) / (nestSlot(b.slot) ? 16.0 : 9.0);
+        double dz = (z - chamber.getZ()) / (nestSlot(b.slot) ? 18.0 : 10.0);
         boolean room = dx * dx + dz * dz < 1.0;
         int floor = pathFloor(z);
-        int roof = floor + (room ? 14 : 6 + (int)((hash(0x721L, b.slot, 0) >>> 8) & 3));
+        int roof = floor + (room ? nestSlot(b.slot) ? 24 : 14
+                : 6 + (int)((hash(0x721L, b.slot, 0) >>> 8) & 3));
         return new SideShape(hall || room, floor, roof);
     }
 

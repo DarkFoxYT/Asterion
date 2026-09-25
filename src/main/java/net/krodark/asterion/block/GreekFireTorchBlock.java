@@ -111,7 +111,7 @@ public final class GreekFireTorchBlock extends BaseEntityBlock implements Simple
         return state.setValue(FACING,rotation.rotate(state.getValue(FACING)));
     }
     @Override protected BlockState mirror(BlockState state,Mirror mirror) {
-        return state.rotate(mirror.getRotation(state.getValue(FACING)));
+        return rotate(state, mirror.getRotation(state.getValue(FACING)));
     }
     @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
     @Override protected VoxelShape getShape(BlockState state,BlockGetter level,BlockPos pos,CollisionContext context) {

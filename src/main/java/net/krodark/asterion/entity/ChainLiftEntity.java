@@ -61,9 +61,9 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
             BlockPos position = BlockPos.containing(getX() + 2, y, getZ());
             for (var direction : net.minecraft.core.Direction.Plane.HORIZONTAL) {
                 BlockPos candidate = BlockPos.containing(getX() + direction.getStepX() * 2, y, getZ() + direction.getStepZ() * 2);
-                if (level.hasChunkAt(candidate) && level.getBlockState(candidate).getCollisionShape(level, candidate).isEmpty()) { position = candidate; break; }
+                if (level.hasChunk(candidate.getX() >> 4, candidate.getZ() >> 4) && level.getBlockState(candidate).getCollisionShape(level, candidate).isEmpty()) { position = candidate; break; }
             }
-            if (!level.hasChunkAt(position)) continue;
+            if (!level.hasChunk(position.getX() >> 4, position.getZ() >> 4)) continue;
             var rune = ChainLiftContent.CALL_RUNE.create(level, EntitySpawnReason.EVENT);
             if (rune == null) continue;
             rune.setUUID(id); rune.configure(anchor(), upper);

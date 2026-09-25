@@ -38,7 +38,7 @@ public final class LamenterBlock extends BaseEntityBlock {
         return state.setValue(FACING, rotation.rotate(state.getValue(FACING)));
     }
     @Override protected BlockState mirror(BlockState state, Mirror mirror) {
-        return state.rotate(mirror.getRotation(state.getValue(FACING)));
+        return rotate(state, mirror.getRotation(state.getValue(FACING)));
     }
     @Override protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
                                                         Player player, BlockHitResult hit) {

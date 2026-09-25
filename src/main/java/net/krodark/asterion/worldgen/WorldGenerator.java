@@ -738,6 +738,8 @@ public final class WorldGenerator {
                             level.getGameTime() + 10L));
                     continue;
                 }
+                // Restoration uses the saved state defaults on every supported loader.
+                @SuppressWarnings("deprecation")
                 var sound = entry.state.getSoundType();
                 level.playSound(null, entry.pos, sound.getPlaceSound(), SoundSource.BLOCKS,
                         (sound.getVolume() + 1.0F) * 0.5F, sound.getPitch() * 0.8F);

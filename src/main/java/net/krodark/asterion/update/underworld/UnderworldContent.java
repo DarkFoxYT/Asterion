@@ -3,6 +3,7 @@ package net.krodark.asterion.update.underworld;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.update.underworld.entity.CharonsFerryEntity;
 import net.krodark.asterion.update.underworld.entity.CharonEntity;
+import net.krodark.asterion.update.underworld.entity.LimboSpiderEntity;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -16,6 +17,8 @@ public final class UnderworldContent {
             Registries.ENTITY_TYPE, Asterion.id("charons_ferry"));
     private static final ResourceKey<EntityType<?>> CHARON_KEY = ResourceKey.create(
             Registries.ENTITY_TYPE, Asterion.id("charon"));
+    private static final ResourceKey<EntityType<?>> SPIDER_KEY = ResourceKey.create(
+            Registries.ENTITY_TYPE, Asterion.id("limbo_spider"));
 
     public static final EntityType<CharonsFerryEntity> CHARONS_FERRY = Registry.register(
             BuiltInRegistries.ENTITY_TYPE, FERRY_KEY,
@@ -29,6 +32,17 @@ public final class UnderworldContent {
                     .sized(.9F, 2.55F).clientTrackingRange(24).updateInterval(1)
                     .fireImmune().build(CHARON_KEY));
 
+    public static final EntityType<LimboSpiderEntity> SPIDER = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE, SPIDER_KEY,
+            EntityType.Builder.of(LimboSpiderEntity::new, MobCategory.MONSTER)
+                    .sized(1.45F,1.3F).clientTrackingRange(12).updateInterval(1)
+                    .build(SPIDER_KEY));
+
     private UnderworldContent() { }
-    public static void initialize() { LimboWebSystem.initialize(); }
+    public static void initialize() {
+        net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry.register(
+                SPIDER,LimboSpiderEntity.createAttributes());
+        LimboWebSystem.initialize();
+        SpiderCommands.register();
+    }
 }

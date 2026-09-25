@@ -42,9 +42,12 @@ public final class LimboWhirlpool {
     public static double funnel(double x, double z, double ticks) {
         double r = Math.hypot(x - centerX, z - centerZ);
         if (r >= RADIUS) return 0;
-        double edge = 1 - smooth((r - 24) / (RADIUS - 24));
-        double core = 1 - smooth(r / 24);
-        return strength(ticks) * (-14 * Math.exp(-r / 55) * edge - 4 * core * core);
+        double edge = 1 - smooth((r - 18) / (RADIUS - 18));
+        double core = 1 - smooth(r / 25);
+        double wall = 1 - smooth((r - 13) / 54);
+        double lip = Math.exp(-Math.pow((r - 87) / 13, 2));
+        return strength(ticks) * (-19 * Math.exp(-r / 48) * edge - 4 * core * core
+                - wall + 1.1 * lip);
     }
 
     public static double pull(double x, double z, double ticks) {
