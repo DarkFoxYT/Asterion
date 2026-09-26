@@ -11,12 +11,12 @@ import net.minecraft.world.level.gamerules.GameRules;
 
 /** Persistent cave populations: bounded local density, no forced chunk loading. */
 public final class SpiderPopulation {
-    public static final int LOCAL_CAP=4;
+    public static final int LOCAL_CAP=5;
     private SpiderPopulation() { }
     public static void initialize() {
         ServerTickEvents.END_SERVER_TICK.register(server->{
             var level=server.getLevel(Asterion.LIMBO_LEVEL);
-            if(level==null || level.getGameTime()%200!=0 || level.getDifficulty()==Difficulty.PEACEFUL
+            if(level==null || level.getGameTime()%180!=0 || level.getDifficulty()==Difficulty.PEACEFUL
                     || !level.getGameRules().get(GameRules.SPAWN_MOBS))return;
             int budget=1;
             for(var player:level.players()) {

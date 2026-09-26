@@ -47,9 +47,7 @@ public final class UnderworldPassage {
         PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
             if (!(world instanceof ServerLevel level) || !level.dimension().equals(Asterion.LIMBO_LEVEL)
                     || !state.is(Blocks.COBWEB)) return;
-            for (LimboSpiderEntity spider : level.getEntitiesOfClass(LimboSpiderEntity.class,
-                    new AABB(pos).inflate(36), LimboSpiderEntity::isAlive))
-                spider.hunt(player);
+            LimboWebSystem.alertSpiders(level, player, pos.getCenter());
         });
         // Registered after Asterion's recovery so death always leads into Limbo.
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
@@ -95,6 +93,9 @@ public final class UnderworldPassage {
         if (level == null || level.players().isEmpty()) return;
 
         for (ServerPlayer player : java.util.List.copyOf(level.players())) {
+            if (level.getGameTime() % 10 == 0 && net.minecraft.core.BlockPos.betweenClosedStream(player.getBoundingBox())
+                    .anyMatch(pos -> level.getBlockState(pos).is(Blocks.COBWEB)))
+                LimboWebSystem.alertSpiders(level, player, player.position());
             Long rescueAt=WHIRLPOOL_RESCUES.get(player.getUUID());
             if (rescueAt!=null && level.getGameTime()>=rescueAt) {
                 WHIRLPOOL_RESCUES.remove(player.getUUID());

@@ -43,7 +43,7 @@ public final class SpiderCamouflageLayer extends GeoRenderLayer<LimboSpiderEntit
     public SpiderCamouflageLayer(LimboSpiderRenderer renderer) { super(renderer); }
 
     @Override public void addRenderData(LimboSpiderEntity spider, Void unused, EntityRenderState state, float partialTick) {
-        state.addGeckolibData(CAMOUFLAGED, spider.camouflaged());
+        state.addGeckolibData(CAMOUFLAGED, spider.camouflaged() && spider.hasCamouflageSupport());
     }
 
     @Override public void preRender(RenderPassInfo<EntityRenderState> pass, SubmitNodeCollector tasks) {
@@ -75,9 +75,10 @@ public final class SpiderCamouflageLayer extends GeoRenderLayer<LimboSpiderEntit
         // The model rotates onto walls and ceilings; use the entity's synced support direction via render data.
         Direction towardSurface = pass.getOrDefaultGeckolibData(SURFACE, Direction.DOWN);
         BlockState under = blockUnder(client, origin, towardSurface);
-        if (under == null) return;
-        TextureAtlasSprite sprite = client.getModelManager().getBlockStateModelSet().getParticleMaterial(under).sprite();
-        tasks.submitCustomGeometry(pass.poseStack(), RenderTypes.entityCutout(sprite.atlasLocation(), false), (pose, out) -> {
+        TextureAtlasSprite sprite = under == null ? null
+                : client.getModelManager().getBlockStateModelSet().getParticleMaterial(under).sprite();
+        var texture = sprite == null ? renderer.getTextureLocation(pass.renderState()) : sprite.atlasLocation();
+        tasks.submitCustomGeometry(pass.poseStack(), RenderTypes.entityCutout(texture, false), (pose, out) -> {
             PoseStack stack = pass.poseStack();
             stack.pushPose();
             stack.last().set(pose);
@@ -105,7 +106,8 @@ public final class SpiderCamouflageLayer extends GeoRenderLayer<LimboSpiderEntit
                         Vector4f point = matrix.transform(new Vector4f(vertex.posX(), vertex.posY(), vertex.posZ(), 1));
                         float u = (vertex.texU() - minU) / Math.max(.000001F, maxU - minU);
                         float v = (vertex.texV() - minV) / Math.max(.000001F, maxV - minV);
-                        out.addVertex(point.x(), point.y(), point.z(), pass.renderColor(), sprite.getU(u), sprite.getV(v),
+                        out.addVertex(point.x(), point.y(), point.z(), pass.renderColor(),
+                                sprite == null ? vertex.texU() : sprite.getU(u), sprite == null ? vertex.texV() : sprite.getV(v),
                                 pass.packedOverlay(), pass.packedLight(), normal.x(), normal.y(), normal.z());
                     }
                 }
@@ -128,7 +130,7 @@ public final class SpiderCamouflageLayer extends GeoRenderLayer<LimboSpiderEntit
             if (!state.isAir() && state.getFluidState().isEmpty() && !state.getCollisionShape(level, pos).isEmpty())
                 return state;
         }
-        return net.minecraft.world.level.block.Blocks.STONE.defaultBlockState();
+        return null;
     }
 
 }

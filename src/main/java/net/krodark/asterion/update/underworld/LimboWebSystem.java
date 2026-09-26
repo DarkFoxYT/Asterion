@@ -14,6 +14,12 @@ import java.util.HashSet;
 /** Server authority for virtual strands: player impulses, drag, and force/tension tearing. */
 public final class LimboWebSystem {
     private LimboWebSystem() { }
+    public static void alertSpiders(ServerLevel level, net.minecraft.world.entity.player.Player player, Vec3 point) {
+        if (!player.isAlive() || player.isSpectator()) return;
+        for (var spider : level.getEntitiesOfClass(net.krodark.asterion.update.underworld.entity.LimboSpiderEntity.class,
+                new net.minecraft.world.phys.AABB(point, point).inflate(30),
+                spider -> spider.isAlive() && spider.distanceToSqr(point) <= 900)) spider.hunt(player);
+    }
     public static void initialize() {
         WebCutPayload.initialize(); net.krodark.asterion.network.WebSpinPayload.initialize();
         ServerTickEvents.END_SERVER_TICK.register(LimboWebSystem::tick);
@@ -62,6 +68,7 @@ public final class LimboWebSystem {
             Vec3 center = entity.position().add(0, entity.getBbHeight() * .48, 0), velocity = entity.getDeltaMovement();
             var playerParts = entity instanceof ServerPlayer player ? WebPlayerShape.parts(player) : null;
             double strongestContact = 0;
+            boolean alerted = false;
             Vec3 resistance = Vec3.ZERO;
             double grip = 0;
             for (WebPatch patch : WebPatchGenerator.around(level, center, 7)) for (int i = 0; i < patch.edges().size(); i++) {
@@ -78,6 +85,10 @@ public final class LimboWebSystem {
                 double distance = modelContact == null ? contact.distanceTo(center) : Math.max(0,modelContact.gap());
                 double reach = modelContact == null ? 1.04 : .78;
                 if (distance > reach) continue;
+                if (!alerted && entity instanceof ServerPlayer player && level.getGameTime() % 10 == 0) {
+                    alertSpiders(level, player, contact);
+                    alerted = true;
+                }
                 // Contact stretches and catches silk. Only a hard collision tears it.
                 double impact = velocity.length();
                 if (impact > (cutsOnContact ? .85 : 1.15) || velocity.y < -1.05) {

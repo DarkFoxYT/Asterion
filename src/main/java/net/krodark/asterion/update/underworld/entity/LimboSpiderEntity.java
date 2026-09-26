@@ -52,6 +52,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private BlockPos nest;
     private UUID huntTarget;
+    private int huntUntil;
     private int stateTicks, approachTicks, attackCooldown, unseenTicks;
     private int lungePhase;
     private double previousDistance = Double.POSITIVE_INFINITY;
@@ -319,16 +320,42 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
     }
     public void hunt(Player player) {
         if (!isAlive() || state() == State.FLEEING_HURT) return;
+        if (!player.isAlive() || player.isSpectator() || player.getAbilities().instabuild
+                || player.level() != level()) return;
+        huntUntil = tickCount + 600;
+        if (player.getUUID().equals(huntTarget) && (state() == State.HUNTING || state() == State.ATTACKING
+                || state() == State.LUNGING)) return;
+        homebound = false;
+        patrolGoal = null;
+        webTrip = null;
+        thread(null);
+        surfaceRoute.clear();
+        routeRetry = tickCount;
+        pauseUntil = tickCount;
+        getNavigation().stop();
         huntTarget = player.getUUID(); state(State.HUNTING);
         playSound(SoundEvents.SPIDER_AMBIENT,1.3F,.6F);
+    }
+    public boolean hasCamouflageSupport() {
+        return !onWeb() && touching(attachedSurface());
+    }
+    private Vec3 huntDestination(Player player) {
+        if (!level().dimension().equals(net.krodark.asterion.Asterion.LIMBO_LEVEL)
+                || UnderworldTerrain.inChamber(player.blockPosition())) return player.position();
+        Vec3 home = Vec3.atBottomCenterOf(nest);
+        // Keep the provoker targeted while respecting the protected main path.
+        for (int step = 1; step <= 32; step++) {
+            Vec3 point = player.position().lerp(home, step / 32.0);
+            if (UnderworldTerrain.inChamber(BlockPos.containing(point))) return point;
+        }
+        return home;
     }
     private Player prey(ServerLevel level) {
         if(nest==null)return null;
         Player marked = huntTarget == null ? null : level.getServer().getPlayerList().getPlayer(huntTarget);
         if (marked != null && marked.level() == level && marked.isAlive() && !marked.isSpectator()
-                && !marked.getAbilities().instabuild && distanceToSqr(marked) < 42*42
-                && UnderworldTerrain.inChamber(marked.blockPosition())
-                && marked.distanceToSqr(nest.getX()+.5,nest.getY(),nest.getZ()+.5)<42*42) return marked;
+                && !marked.getAbilities().instabuild && tickCount < huntUntil
+                && distanceToSqr(marked) < 64*64) return marked;
         Player nearest = level.getNearestPlayer(this,42);
         return nearest != null && !nearest.isSpectator() && !nearest.getAbilities().instabuild
                 && UnderworldTerrain.inChamber(nearest.blockPosition())
@@ -782,6 +809,12 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
         previousDistance = distance;
         boolean noticed = player != null && seenBy(player);
         boolean night = SpiderBehavior.night(level.getGameTime());
+        if (player != null && player.getUUID().equals(huntTarget) && tickCount < huntUntil
+                && state() != State.HUNTING && state() != State.ATTACKING && state() != State.LUNGING
+                && state() != State.FLEEING_HURT) {
+            homebound = false;
+            state(State.HUNTING);
+        }
         switch (state()) {
             case HANGING, HIDING_CAMOUFLAGED -> {
                 getNavigation().stop(); setDeltaMovement(Vec3.ZERO);
@@ -863,6 +896,8 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
                     if (attackCooldown == 0) {
                         attackCooldown = 30;
                         if (player.hurtServer(level,damageSources().mobAttack(this),7F)) {
+                            huntTarget = player.getUUID();
+                            huntUntil = tickCount + 600;
                             Vec3 knock = player.position().subtract(position()).multiply(1,0,1)
                                     .normalize().scale(.46).add(0,.18,0);
                             if (player instanceof ServerPlayer victim && (stateTicks<35 || random.nextInt(4) == 0))
@@ -870,8 +905,8 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
                             else player.push(knock.x,knock.y,knock.z);
                         }
                     }
-                } else move(player.position(),state() == State.HUNTING ? 1.4 : 1.15);
-                if (stateTicks > 380 && distance > 27) {
+                } else move(huntDestination(player),state() == State.HUNTING ? 1.4 : 1.15);
+                if (tickCount >= huntUntil && stateTicks > 380 && distance > 27) {
                     homebound = true; state(State.WANDERING);
                 }
             }
@@ -1036,6 +1071,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
     }
     @Override public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
         boolean hurt = super.hurtServer(level,source,amount);
+        if (hurt && isAlive() && source.getEntity() instanceof Player attacker) hunt(attacker);
         if (hurt && isAlive() && SpiderBehavior.flee(getHealth(),getMaxHealth(),amount)) {
             if(source.getEntity() instanceof Player attacker)huntTarget=attacker.getUUID();
             homebound = false;

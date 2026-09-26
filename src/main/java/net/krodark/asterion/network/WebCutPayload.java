@@ -40,8 +40,7 @@ public record WebCutPayload(long key, int link) implements CustomPacketPayload {
             if (a!=null&&!LimboWebSystem.cut((ServerLevel)player.level(),request.key,request.link)
                     &&segmentDistanceSqr(eye,end,a,b)<=.85*.85) {
                 LimboWebSystem.sever((ServerLevel)player.level(),request.key,request.link);broadcast((ServerLevel)player.level(),a.lerp(b,.5),request.key,request.link);
-                for(var spider:player.level().getEntitiesOfClass(net.krodark.asterion.update.underworld.entity.LimboSpiderEntity.class,
-                        new net.minecraft.world.phys.AABB(a,b).inflate(24)))spider.hunt(player);
+                LimboWebSystem.alertSpiders((ServerLevel)player.level(),player,a.lerp(b,.5));
             }
             return;
         }
