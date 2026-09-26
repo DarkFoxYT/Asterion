@@ -328,14 +328,15 @@ public final class WorldGenerator {
      
 
     public static void prepareRapidRespawn(ServerPlayer player) {
-        if (!player.level().dimension().equals(Asterion.ASTERION_LEVEL)) return;
-        ServerLevel maze = player.level();
-        BlockPos checkpoint = findRespawnCheckpoint(maze, player.getUUID(), player.blockPosition());
-        maze.getChunkAt(checkpoint);
-        PREPARED_RESPAWNS.put(player.getUUID(), checkpoint.immutable());
+        if (!player.level().dimension().equals(Asterion.ASTERION_LEVEL)
+                && !player.level().dimension().equals(Asterion.LIMBO_LEVEL)) return;
+        ServerLevel destination = player.level().getServer().getLevel(Asterion.LIMBO_LEVEL);
+        if (destination == null) return;
+        BlockPos checkpoint = net.krodark.asterion.update.underworld.world.UnderworldTerrain.randomSpawn(player.getUUID());
+        destination.getChunkAt(checkpoint);
         PRE_MAZE_RESPAWNS.putIfAbsent(player.getUUID(), Optional.ofNullable(player.getRespawnConfig()));
         LevelData.RespawnData data = LevelData.RespawnData.of(
-                Asterion.ASTERION_LEVEL, checkpoint, player.getYRot(), 0.0F);
+                Asterion.LIMBO_LEVEL, checkpoint, player.getYRot(), 0.0F);
         player.setRespawnPosition(new ServerPlayer.RespawnConfig(data, true), false);
     }
 

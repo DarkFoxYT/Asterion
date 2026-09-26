@@ -1175,7 +1175,8 @@ public class Asterion implements ModInitializer {
                         (net.minecraft.server.level.ServerLevel)oldPlayer.level(), deathPosition);
                 WorldGenerator.finishRapidRespawn(newPlayer);
                 boolean bossWipe = WorldGenerator.resetBossEncounterAfterDeath(oldPlayer);
-                WorldGenerator.respawnAtRune(newPlayer, deathPosition);
+                // UnderworldPassage owns the final destination. Visiting a rune here
+                // generated and sent a second, immediately discarded set of chunks.
                 if (bossWipe && net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(
                         newPlayer, BossEncounterResetPayload.TYPE))
                     net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(

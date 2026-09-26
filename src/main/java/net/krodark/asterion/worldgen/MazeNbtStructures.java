@@ -193,6 +193,7 @@ public final class MazeNbtStructures {
     private static void addQueenTrees(ServerLevel level, List<Placement> placements, long seed,
                                       int limit, int cell, ReservationFilter filter) {
         var template = level.getStructureManager().get(QUEEN_TREE).orElseThrow();
+        int queenTrees = 0;
         var candidates = new ArrayList<BlockPos>();
         int edge = limit - 80;
         for (int x = -edge; x <= edge; x += 16) for (int z = -edge; z <= edge; z += 16) {
@@ -219,9 +220,9 @@ public final class MazeNbtStructures {
                     Math.floorDiv(reserved.maxX() + limit, cell), Math.floorDiv(reserved.maxZ() + limit, cell))) continue;
             if (placements.stream().anyMatch(p -> p.reserved.inflatedBy(128, 0, 128).intersects(reserved))) continue;
             placements.add(new Placement(QUEEN_TREE, template, origin, settings, box, reserved, mix(seed ^ center.asLong())));
-            if (placements.size() == 2) return;
+            if (++queenTrees == 4) return;
         }
-        Asterion.LOGGER.error("Only {} of two Queen trees fit the configured maze/overgrowth area", placements.size());
+        Asterion.LOGGER.warn("Only {} of four Queen trees fit the configured maze/overgrowth area", queenTrees);
     }
 
     private static void spawnTreeQueen(ServerLevel level, Placement placement) {

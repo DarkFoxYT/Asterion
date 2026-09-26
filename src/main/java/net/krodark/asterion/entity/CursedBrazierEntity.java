@@ -269,12 +269,25 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         setPos(restingPosition);
         setInvulnerable(true);
         setShielded(false);
+        int room = net.krodark.asterion.worldgen.AuthoredCatacombs.cursedBrazierRoomIndex(blockPosition());
+        if (room >= 0) {
+            BlockPos entrance = net.krodark.asterion.worldgen.AuthoredCatacombs.cursedBrazierEntrance(room);
+            if (level.getBlockEntity(entrance) instanceof net.krodark.asterion.block.CursedBrazierDoorBlockEntity door
+                    && !door.readyForEncounter()) return;
+        }
         ServerPlayer player = level.players().stream()
                 .filter(this::canFight)
                 .filter(candidate -> candidate.distanceToSqr(this) <= AWAKEN_RANGE * AWAKEN_RANGE)
                 .min(Comparator.comparingDouble(this::distanceToSqr))
                 .orElse(null);
-        if (player != null) beginAwakening(level);
+        if (player != null && tickCount % 10 == 0) {
+            boolean[] waitingForEntry = {false};
+            visitEncounterDoors(level, door -> {
+                if (net.krodark.asterion.block.CursedBrazierDoorBlock.isRoot(door.getBlockState())
+                        && !door.readyForEncounter()) waitingForEntry[0] = true;
+            });
+            if (!waitingForEntry[0]) beginAwakening(level);
+        }
     }
 
     private void beginAwakening(ServerLevel level) {

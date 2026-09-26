@@ -72,12 +72,15 @@ public final class UnderworldPassage {
     }
 
     private static void enterAfterDeath(ServerPlayer player) {
+        net.krodark.asterion.worldgen.WorldGenerator.finishRapidRespawn(player);
         ServerLevel destination = player.level().getServer().getLevel(Asterion.LIMBO_LEVEL);
         if (destination == null) return;
         boolean firstPassage = AsterionWorldState.get(destination).beginUnderworldPassage(player.getUUID());
         var spawn = UnderworldTerrain.randomSpawn(player.getUUID());
         destination.getChunk(spawn.getX() >> 4, spawn.getZ() >> 4);
+        net.krodark.asterion.network.ragdoll.RagdollServerNetworking.resetAfterRespawn(player);
         player.stopRiding();
+        player.setPose(net.minecraft.world.entity.Pose.STANDING);
         player.teleportTo(destination, spawn.getX() + .5, spawn.getY(),
                 spawn.getZ() + .5, Set.of(), 0F, 0F, true);
         player.setDeltaMovement(Vec3.ZERO);

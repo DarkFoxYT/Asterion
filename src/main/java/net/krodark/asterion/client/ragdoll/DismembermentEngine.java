@@ -256,6 +256,20 @@ public final class DismembermentEngine {
                     point, direction, Math.max(0.7, force * 0.42), false, texture);
         spawnCape(entity);
         spawnElytraWings(entity);
+        if (entity instanceof net.minecraft.world.entity.monster.skeleton.AbstractSkeleton) {
+            Vec3 fall = new Vec3(direction.x, 0, direction.z);
+            if (fall.lengthSqr() < .0001) fall = new Vec3(entity.getLookAngle().x, 0, entity.getLookAngle().z);
+            fall = RagdollMath.safeNormalize(fall, new Vec3(0, 0, 1));
+            Vec3 tippingAxis = new Vec3(fall.z, 0, -fall.x);
+            for (RigidBodyPiece part : pieces) if (part.entityId == entity.getId()) {
+                part.skeletonBody = true;
+                // Break the perfectly upright equilibrium, even for stationary deaths.
+                // This is initial angular momentum; joints and collisions still solve the fall.
+                double spin = part.region == 1 ? .13 : part.region == 0 ? .09 : .055;
+                part.angularVelocity = part.angularVelocity.add(tippingAxis.scale(spin));
+                part.sleeping = false;
+            }
+        }
         applyPlayerGlobalFlightPose(entity);
         Minecraft minecraft = Minecraft.getInstance();
         if (!(entity instanceof Player player && minecraft.player == player)) {
@@ -2373,6 +2387,20 @@ public final class DismembermentEngine {
     private void applyJointGravityTorque(RigidBodyPiece part, double verticalAcceleration,
                                          int substeps) {
         if (!part.anchoredJoint || part.parentRegion < 0 || part == grabbed) return;
+        if (part.skeletonBody && (part.region == 4 || part.region == 5)
+                && part.supportTicks > 0 && !part.sleeping) {
+            RigidBodyPiece torso = find(part.entityId, 1);
+            if (torso != null && torso.supportTicks == 0) {
+                // A planted foot supports the torso's weight; otherwise both legs
+                // can lock upright while the old grounded fast-path suppresses torque.
+                Vec3 foot = part.position.add(0, -part.halfExtents.y, 0);
+                Vec3 load = new Vec3(0, torso.mass() * verticalAcceleration * .5, 0);
+                Vec3 torque = torso.position.subtract(foot).cross(load);
+                Vec3 spin = torso.inverseInertia(torque).scale(1.0 / substeps);
+                if (spin.lengthSqr() > .0064) spin = spin.normalize().scale(.08);
+                torso.angularVelocity = torso.angularVelocity.add(spin);
+            }
+        }
         if (part.region == 0 && hasNonHeadSupport(part.entityId)) return;
         if (part.region != 0 && part.supportTicks > 0 && part.velocity.lengthSqr() < 0.035) return;
         RigidBodyPiece parent = find(part.entityId, part.parentRegion);

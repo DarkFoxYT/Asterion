@@ -220,10 +220,10 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
             bones.get(bone).skipRender(removed || (skeleton ? !harvested : harvested && !retained));
         }
         int held = pass.getOrDefaultGeckolibData(HELD_PLAYER, -1);
-        if (held >= 0) pass.addLocatorPositionListener(
+        if (held >= 0) pass.addBonePositionListener(
                 pass.getOrDefaultGeckolibData(GRAB_ARM, 1) >= 0 ? "right_player_grip" : "left_player_grip",
                 (world, model, local) -> MinotaurHandAttachment.capture(held, world));
-        if (held >= 0) pass.addLocatorPositionListener(
+        if (held >= 0) pass.addBonePositionListener(
                 pass.getOrDefaultGeckolibData(GRAB_ARM, 1) >= 0 ? "right_player_grip_up" : "left_player_grip_up",
                 (world, model, local) -> MinotaurHandAttachment.captureUp(held, world));
          

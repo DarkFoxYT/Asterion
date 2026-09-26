@@ -57,6 +57,19 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
         shadowRadius = net.krodark.asterion.update.underworld.entity.SpiderDimensions.RENDER_SCALE;
         withRenderLayer(new SpiderSilkLayer(this));
         withRenderLayer(new SpiderCamouflageLayer(this));
+        for (String eye : new String[]{"eyeleft", "eyeright"})
+            withRenderLayer(new net.krodark.asterion.client.light.AsterionEmissiveBoneLayer<>(
+                    this, eye, Asterion.id("textures/entity/spider.png")) {
+                @Override public boolean shouldRenderBone(EntityRenderState state) {
+                    return !state.getOrDefaultGeckolibData(MIMIC, false);
+                }
+                @Override protected boolean usesModelTextureCoordinates() { return true; }
+                @Override protected float surfaceBrightness(EntityRenderState state) { return 1F; }
+                @Override protected boolean backfaceCulling(EntityRenderState state) { return false; }
+                @Override protected Identifier amneticEmissionMesh(EntityRenderState state) {
+                    return Asterion.id("entity/spider");
+                }
+            });
     }
     @Override public void addRenderData(LimboSpiderEntity spider, Void related,
                                         EntityRenderState state, float partialTick) {

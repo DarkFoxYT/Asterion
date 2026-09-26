@@ -31,6 +31,11 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
     private boolean victoryOpen;
     private boolean fightSealed;
     private long motionStart;
+    private long entryReadyAt;
+
+    public boolean readyForEncounter() {
+        return level != null && unlocked && entryReadyAt > 0 && level.getGameTime() >= entryReadyAt;
+    }
 
     public CursedBrazierDoorBlockEntity(BlockPos pos, BlockState state) {
         super(Asterion.CURSED_BRAZIER_DOOR_BLOCK_ENTITY, pos, state);
@@ -99,6 +104,7 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
         raising = open;
         moving = true;
         motionStart = level.getGameTime();
+        if (open) entryReadyAt = motionStart + MOVE_TICKS + 40;
         passageEntered = false;
         if (open) CursedBrazierDoorBlock.setOpen(level, worldPosition,
                 getBlockState().getValue(CursedBrazierDoorBlock.FACING), true);
@@ -137,7 +143,7 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
         if (door.victoryOpen || !state.getValue(CursedBrazierDoorBlock.OPEN)) return;
         boolean occupied = !level.getEntitiesOfClass(Player.class, door.passage(), Player::isAlive).isEmpty();
         if (occupied) door.passageEntered = true;
-        else if (door.passageEntered) door.begin(false);
+        else if (door.passageEntered && level.getGameTime() >= door.entryReadyAt) door.begin(false);
     }
     private void sync() {
         setChanged();
@@ -151,6 +157,7 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
         out.putBoolean("victoryOpen", victoryOpen);
         out.putBoolean("fightSealed", fightSealed);
         out.putLong("motionStart", motionStart);
+        out.putLong("entryReadyAt", entryReadyAt);
     }
     @Override protected void loadAdditional(ValueInput in) {
         super.loadAdditional(in);
@@ -161,6 +168,7 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
         victoryOpen = in.getBooleanOr("victoryOpen", false);
         fightSealed = in.getBooleanOr("fightSealed", false);
         motionStart = in.getLongOr("motionStart", 0);
+        entryReadyAt = in.getLongOr("entryReadyAt", unlocked ? motionStart + MOVE_TICKS + 40 : 0);
     }
     @Override public CompoundTag getUpdateTag(HolderLookup.Provider registries) { return saveCustomOnly(registries); }
     @Override public ClientboundBlockEntityDataPacket getUpdatePacket() { return ClientboundBlockEntityDataPacket.create(this); }

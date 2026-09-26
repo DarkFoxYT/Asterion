@@ -34,8 +34,8 @@ import java.util.function.BiConsumer;
 /** Re-textures each body/leg segment with the block material directly beneath that part. */
 public final class SpiderCamouflageLayer extends GeoRenderLayer<LimboSpiderEntity, Void, EntityRenderState> {
     private static final DataTicket<Boolean> CAMOUFLAGED = DataTickets.create("asterion_spider_block_camouflage", Boolean.class);
-    private static final List<String> BONES = List.of("body", "abnomen", "head", "mask", "jaw", "sectionleft",
-            "sectionright", "eyeleft", "eyeright", "webmaker", "leftlegfront", "leftlegfrontmid",
+    private static final List<String> BONES = List.of("body", "abnomen", "abdomen", "head", "mask", "jaw", "sectionleft",
+            "sectionright", "webmaker", "leftlegfront", "leftlegfrontmid",
             "leftlegback", "leftlegbackmid", "rightlegfront", "rightlegfrontmid", "rightlegback",
             "rightlegbackmid", "leftlegfrontish", "leftlegfrontishmid", "leftlegbackish",
             "leftlegbackishmid", "rightlegfrontish", "rightlegfrontishmid", "rightlegbackish", "rightlegbackishmid");
@@ -91,11 +91,20 @@ public final class SpiderCamouflageLayer extends GeoRenderLayer<LimboSpiderEntit
                 Matrix4f matrix = new Matrix4f(stack.last().pose());
                 for (GeoQuad quad : cube.quads()) {
                     if (quad == null) continue;
-                    Vector3f normal = normalMatrix.transform(quad.normalVec());
+                    Vector3f normal = normalMatrix.transform(new Vector3f(quad.normalVec()));
+                    com.geckolib.util.RenderUtil.fixInvertedFlatCube(cube, normal);
+                    // Model UVs are normalized against the spider skin. Remap each
+                    // face to the sampled block sprite, not a tiny patch of that sprite.
+                    float minU = Float.POSITIVE_INFINITY, minV = Float.POSITIVE_INFINITY;
+                    float maxU = Float.NEGATIVE_INFINITY, maxV = Float.NEGATIVE_INFINITY;
+                    for (GeoVertex vertex : quad.vertices()) {
+                        minU = Math.min(minU, vertex.texU()); maxU = Math.max(maxU, vertex.texU());
+                        minV = Math.min(minV, vertex.texV()); maxV = Math.max(maxV, vertex.texV());
+                    }
                     for (GeoVertex vertex : quad.vertices()) {
                         Vector4f point = matrix.transform(new Vector4f(vertex.posX(), vertex.posY(), vertex.posZ(), 1));
-                        float u = wrap(vertex.texU());
-                        float v = wrap(vertex.texV());
+                        float u = (vertex.texU() - minU) / Math.max(.000001F, maxU - minU);
+                        float v = (vertex.texV() - minV) / Math.max(.000001F, maxV - minV);
                         out.addVertex(point.x(), point.y(), point.z(), pass.renderColor(), sprite.getU(u), sprite.getV(v),
                                 pass.packedOverlay(), pass.packedLight(), normal.x(), normal.y(), normal.z());
                     }
@@ -122,8 +131,4 @@ public final class SpiderCamouflageLayer extends GeoRenderLayer<LimboSpiderEntit
         return net.minecraft.world.level.block.Blocks.STONE.defaultBlockState();
     }
 
-    private static float wrap(float pixel) {
-        float uv = pixel % 16F;
-        return uv < 0 ? uv + 16F : uv;
-    }
 }
