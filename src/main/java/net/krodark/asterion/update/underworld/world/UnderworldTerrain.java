@@ -65,6 +65,10 @@ public final class UnderworldTerrain {
 
     private UnderworldTerrain() { }
 
+    public static int seaFloor(long seed, int x, int z) {
+        return column(seed, x, z, new java.util.HashMap<>()).floor;
+    }
+
     public static double riverCenter(double z) {
         return Math.sin(z * .008) * 18.0
                 + Math.sin(z * .019 + 1.7) * 9.0

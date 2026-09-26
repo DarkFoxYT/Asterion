@@ -47,6 +47,11 @@ public final class UnderworldChunkGenerator extends net.minecraft.world.level.ch
             RandomState random, long seed) { return flat.createState(structures, random, seed); }
     @Override public void buildSurface(net.minecraft.server.level.WorldGenRegion region, StructureManager structures,
                                        RandomState random, ChunkAccess chunk) { }
+    @Override public void applyBiomeDecoration(net.minecraft.world.level.WorldGenLevel world, ChunkAccess chunk,
+                                               StructureManager structures) {
+        super.applyBiomeDecoration(world, chunk, structures);
+        LimboMonoliths.place(world, chunk.getPos());
+    }
     @Override public void applyCarvers(net.minecraft.server.level.WorldGenRegion region, long seed, RandomState random,
                                        net.minecraft.world.level.biome.BiomeManager biomes, StructureManager structures,
                                        ChunkAccess chunk) { }
