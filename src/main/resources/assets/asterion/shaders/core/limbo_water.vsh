@@ -75,9 +75,7 @@ void main() {
     vec3 position = Position + vec3(w.y * .9, w.x, w.z * .9);
     gl_Position = ProjMat * ModelViewMat * vec4(position, 1.0);
     surfacePosition = position;
-    vec2 funnelSlope = vec2(
-        whirlFunnel(waterWorld + vec2(.05, 0), ticks) - whirlFunnel(waterWorld - vec2(.05, 0), ticks),
-        whirlFunnel(waterWorld + vec2(0, .05), ticks) - whirlFunnel(waterWorld - vec2(0, .05), ticks)) * 10.0;
+    vec2 funnelSlope = whirlFunnelSlope(waterWorld, ticks);
     surfaceNormal = normalize(vec3(-w.y - funnelSlope.x, 1, -w.z - funnelSlope.y));
     foam = smoothstep(.00127, .0093, w.w) * smoothstep(-.1, .55, w.x);
     ripplePosition = waterWorld + vec2(ticks * .0022, -ticks * .0013);

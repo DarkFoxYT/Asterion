@@ -41,7 +41,8 @@ import net.krodark.asterion.update.underworld.LimboWebSystem;
 /** One territorial spider per nest. All eleven encounter modes share one server state machine. */
 public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity {
     public enum State { HANGING, WAITING, MIMICKING, WANDERING_CAMOUFLAGED, WANDERING,
-        STALKING_CAMOUFLAGED, STALKING, HUNTING, ATTACKING, FLEEING_HURT, FLEEING_SEEN }
+        STALKING_CAMOUFLAGED, STALKING, HUNTING, ATTACKING, FLEEING_HURT, FLEEING_SEEN,
+        HIDING_CAMOUFLAGED, LUNGING }
     private static final EntityDataAccessor<Integer> STATE = SynchedEntityData.defineId(
             LimboSpiderEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> SURFACE = SynchedEntityData.defineId(
@@ -52,6 +53,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
     private BlockPos nest;
     private UUID huntTarget;
     private int stateTicks, approachTicks, attackCooldown, unseenTicks;
+    private int lungePhase;
     private double previousDistance = Double.POSITIVE_INFINITY;
     private double previousWaitingDistance=Double.POSITIVE_INFINITY;
     private UUID observedPrey;
@@ -218,10 +220,13 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
                 && world.getDifficulty()!=net.minecraft.world.Difficulty.PEACEFUL;
     }
     @Override public boolean removeWhenFarAway(double distance) { return false; }
-    public boolean camouflaged() { return state()==State.WANDERING_CAMOUFLAGED || state()==State.STALKING_CAMOUFLAGED; }
+    public boolean camouflaged() { return state()==State.WANDERING_CAMOUFLAGED || state()==State.STALKING_CAMOUFLAGED
+            || state()==State.HIDING_CAMOUFLAGED; }
     public void settleNaturally() {
-        nest=blockPosition();setPersistenceRequired();
-        state(random.nextBoolean()?State.WANDERING_CAMOUFLAGED:State.WANDERING);
+        int slot=Math.floorDiv(getBlockZ()-UnderworldTerrain.SPAWN_Z,80);
+        nest=UnderworldTerrain.chamberCenter(slot);setPersistenceRequired();
+        state(!SpiderBehavior.night(level().getGameTime())?State.HIDING_CAMOUFLAGED:
+                random.nextBoolean()?State.WANDERING_CAMOUFLAGED:State.WANDERING);
         setNoGravity(false);refreshSupport();
     }
     @Override protected void registerGoals() { }
@@ -260,6 +265,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
                 entityData.set(SURFACE,Direction.DOWN.ordinal());
             } else entityData.set(SURFACE,Direction.UP.ordinal());
             setNoGravity(true);
+            state(State.HIDING_CAMOUFLAGED);
         } else {
             setPos(pos.getX()+.5,pos.getY()+1,pos.getZ()+.5);
             state(State.WANDERING);
@@ -303,7 +309,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
         if (next == State.FLEEING_SEEN) { unseenTicks = 0; escapeGoal = null; }
         // Camouflage is a per-bone block material, never entity invisibility.
         setInvisible(false);
-        boolean perched = next == State.HANGING || next == State.WAITING;
+        boolean perched = next == State.HANGING || next == State.WAITING || next == State.HIDING_CAMOUFLAGED;
         setNoGravity(perched || attachedSurface() != Direction.DOWN || onWeb());
         if (perched) {
             if (!onWeb() && perch != null && position().distanceToSqr(perch) < 2
@@ -317,11 +323,16 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
         playSound(SoundEvents.SPIDER_AMBIENT,1.3F,.6F);
     }
     private Player prey(ServerLevel level) {
+        if(nest==null)return null;
         Player marked = huntTarget == null ? null : level.getServer().getPlayerList().getPlayer(huntTarget);
         if (marked != null && marked.level() == level && marked.isAlive() && !marked.isSpectator()
-                && !marked.getAbilities().instabuild && distanceToSqr(marked) < 60*60) return marked;
+                && !marked.getAbilities().instabuild && distanceToSqr(marked) < 42*42
+                && UnderworldTerrain.inChamber(marked.blockPosition())
+                && marked.distanceToSqr(nest.getX()+.5,nest.getY(),nest.getZ()+.5)<42*42) return marked;
         Player nearest = level.getNearestPlayer(this,42);
-        return nearest != null && !nearest.isSpectator() && !nearest.getAbilities().instabuild ? nearest : null;
+        return nearest != null && !nearest.isSpectator() && !nearest.getAbilities().instabuild
+                && UnderworldTerrain.inChamber(nearest.blockPosition())
+                && nearest.distanceToSqr(nest.getX()+.5,nest.getY(),nest.getZ()+.5)<42*42 ? nearest : null;
     }
     private boolean seenBy(Player player) {
         Vec3 toward = getEyePosition().subtract(player.getEyePosition());
@@ -331,6 +342,15 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
     }
     private void move(Vec3 target,double speed) {
         surfaceGoal = target;
+        double cruise = switch(state()) {
+            case HUNTING, ATTACKING, LUNGING, FLEEING_HURT, FLEEING_SEEN -> 1.0;
+            case WANDERING, WANDERING_CAMOUFLAGED, HIDING_CAMOUFLAGED -> .48;
+            case STALKING, STALKING_CAMOUFLAGED, MIMICKING -> .64;
+            default -> .72;
+        };
+        if(attachedSurface()!=Direction.DOWN && state()!=State.HUNTING && state()!=State.ATTACKING && state()!=State.LUNGING)
+            cruise*=.72;
+        speed *= cruise;
         crawlSpeed = speed;
         if (attachedSurface() != Direction.DOWN || onWeb() || !surfaceRoute.isEmpty()) return;
         if ((tickCount+getId()) % 10 == 0)
@@ -425,10 +445,12 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
     private void crawl() {
         State mode = state();
         refreshSupport();
-        if (mode == State.HANGING || mode == State.WAITING) {
+        if (mode == State.HANGING || mode == State.WAITING || mode == State.HIDING_CAMOUFLAGED) {
             surfaceRoute.clear();
             if(onWeb()) {
-                if(webStillSupports() && crawlWeb(position()))return;
+                if(webStillSupports()) {
+                    getNavigation().stop();setNoGravity(true);setDeltaMovement(Vec3.ZERO);return;
+                }
                 detach();state(State.WANDERING);return;
             }
             setNoGravity(smoothSupport!=null); setDeltaMovement(Vec3.ZERO); return;
@@ -761,7 +783,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
         boolean noticed = player != null && seenBy(player);
         boolean night = SpiderBehavior.night(level.getGameTime());
         switch (state()) {
-            case HANGING -> {
+            case HANGING, HIDING_CAMOUFLAGED -> {
                 getNavigation().stop(); setDeltaMovement(Vec3.ZERO);
                 if (!(onWeb()?webStillSupports():touching(Direction.UP))) {
                     state(State.WANDERING); detach(); break;
@@ -781,20 +803,19 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
                 if(!(onWeb()?webStillSupports():touching(Direction.UP))) { state(State.WANDERING); detach(); break; }
                 if (approaching) approachTicks = Math.min(80,approachTicks+1);
                 if (player != null && SpiderBehavior.ambush(approachTicks,distance,previousWaitingDistance,noticed,stateTicks)) {
-                    state(State.ATTACKING);
+                    state(State.LUNGING);
                     detach();
-                    Vec3 jump = player.position().subtract(position()).normalize().scale(.55);
-                    setDeltaMovement(jump.x,Math.min(-.08,jump.y),jump.z);
+                    lungePhase=1;
                     playSound(SoundEvents.SPIDER_AMBIENT,1.5F,.52F);
-                } else if (player == null || distance > 38 || stateTicks > 260) state(State.HANGING);
+                } else if (player == null || distance > 38 || stateTicks > 260)
+                    state(!night?State.HIDING_CAMOUFLAGED:State.HANGING);
                 previousWaitingDistance=distance;
             }
             case MIMICKING -> {
                 if (attachedSurface() == Direction.UP) detach();
                 if (player != null && (distance < 12 || noticed)) state(State.STALKING);
                 else if (stateTicks > 220 || night) state(State.WANDERING_CAMOUFLAGED);
-                else move(new Vec3(UnderworldTerrain.riverCenter(getZ()+12)-15,
-                        nest.getY(),getZ()+12),.8);
+                else move(new Vec3(nest.getX()+.5,nest.getY()+1,nest.getZ()+.5),.55);
             }
             case WANDERING_CAMOUFLAGED, WANDERING -> {
                 if (player != null && distance < 30 && !homebound) {
@@ -853,6 +874,24 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
                 if (stateTicks > 380 && distance > 27) {
                     homebound = true; state(State.WANDERING);
                 }
+            }
+            case LUNGING -> {
+                if(player==null) { lungePhase=0;homebound=true;state(State.WANDERING);break; }
+                surfaceGoal=player.position();
+                Vec3 toward=player.position().subtract(position());
+                Vec3 horizontal=toward.multiply(1,0,1).normalize();
+                if(lungePhase<4) {
+                    Vec3 recoil=horizontal.scale(-.075);
+                    setDeltaMovement(recoil.x,Math.min(0,getDeltaMovement().y),recoil.z);
+                    lungePhase++;
+                } else if(lungePhase==4) {
+                    // A ceiling ambush drops down onto prey; a level ambush gets a short leap.
+                    double vertical=toward.y < -1.3 ? -.34 : .28;
+                    Vec3 launch=horizontal.scale(.82).add(0,vertical,0);
+                    setDeltaMovement(launch);lungePhase=5;
+                } else if(getBoundingBox().inflate(.55).intersects(player.getBoundingBox())) {
+                    lungePhase=0;state(State.ATTACKING);
+                } else if(stateTicks>24) { lungePhase=0;state(State.HUNTING); }
             }
             case FLEEING_HURT -> {
                 if (stateTicks % 40 == 0 && getHealth() < getMaxHealth()) heal(1F);
@@ -939,7 +978,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
             move(perch,speed);
             if (position().distanceToSqr(perch) < .45*.45 && (onWeb()?webStillSupports():attachedSurface()==Direction.UP && touching(Direction.UP))
                     && (state() != State.FLEEING_HURT || getHealth() >= getMaxHealth()*.65F)) {
-                homebound = false; state(State.HANGING);
+                homebound = false; state(State.HIDING_CAMOUFLAGED);
             }
             return;
         }

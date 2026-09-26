@@ -177,6 +177,12 @@ public final class FerryWaterPhysics {
             double angle = random.nextDouble() * Math.PI * 2;
             double x = LimboWhirlpool.x() + Math.cos(angle) * radius;
             double z = LimboWhirlpool.z() + Math.sin(angle) * radius;
+            // Cull before the expensive wave sample; distant spray cannot be seen
+            // through Limbo fog and must not spend the local particle budget.
+            double dx = x - client.player.getX(), dz = z - client.player.getZ();
+            int sprayRange = quality == 0 ? 24 : quality == 1 ? 40 : 56;
+            if (dx * dx + dz * dz > sprayRange * sprayRange
+                    || !world.getChunkSource().hasChunk((int)Math.floor(x) >> 4, (int)Math.floor(z) >> 4)) continue;
             double y = UnderworldTerrain.WATER_Y + 8.0 / 9.0
                     + UnderworldTerrain.waveHeight(x, z, time);
             double speed = (.07 + (105 - radius) * .0011) * strength;
@@ -191,16 +197,51 @@ public final class FerryWaterPhysics {
         double storm = LimboTempest.strength(time);
         if (storm < .05 || client.player.getZ() < 18) return;
         var random = world.getRandom();
-        int count = (int)Math.ceil(storm * (quality == 0 ? 14 : quality == 1 ? 36 : 64));
+        int count = (int)Math.ceil(storm * (quality == 0 ? 8 : quality == 1 ? 20 : 34));
         double gust=.75+.25*Math.sin(time*.037)+.12*Math.sin(time*.091);
         for (int i = 0; i < count; i++) {
-            double x = client.player.getX() + (random.nextDouble() - .5) * 30;
-            double z = client.player.getZ() + (random.nextDouble() - .5) * 30;
-            double y = client.player.getY() + 5 + random.nextDouble() * 9;
-            if (!world.getBlockState(BlockPos.containing(x,y,z)).getCollisionShape(world,BlockPos.containing(x,y,z)).isEmpty()) continue;
+            double x = client.player.getX() + (random.nextDouble() - .5) * 48;
+            double z = client.player.getZ() + (random.nextDouble() - .5) * 48;
+            double y = client.player.getY() + 6 + random.nextDouble() * 12;
+            BlockPos drop = BlockPos.containing(x,y,z);
+            if (!world.getBlockState(drop).getCollisionShape(world,drop).isEmpty()) continue;
+            // Rain only starts below the actual cave roof: overhangs and ceilings shelter players.
+            boolean sheltered = false;
+            for (int dy = 1; dy <= 10; dy++) {
+                BlockPos above = drop.above(dy);
+                if (!world.getChunkSource().hasChunk(above.getX() >> 4, above.getZ() >> 4)) { sheltered = true; break; }
+                if (!world.getBlockState(above).getCollisionShape(world,above).isEmpty()) { sheltered = true; break; }
+            }
+            if (sheltered) continue;
             world.addParticle(ParticleTypes.RAIN, x, y, z, -.30 * storm*gust, -.85, .13 * storm*gust);
         }
+        if (time % (storm > .55 ? 5 : 11) == 0) ceilingDrips(client, quality, random, time);
         if(time%40==0) world.playLocalSound(client.player.getX(),client.player.getY()+3,client.player.getZ(),
                 SoundEvents.WEATHER_RAIN,SoundSource.WEATHER,(float)(storm*.75),.78F,false);
+    }
+
+    private static void ceilingDrips(Minecraft client, int quality, net.minecraft.util.RandomSource random, long time) {
+        int count = quality == 0 ? 1 : quality == 1 ? 2 : 3;
+        for (int i = 0; i < count; i++) {
+            int x = client.player.getBlockX() + random.nextInt(25) - 12;
+            int z = client.player.getBlockZ() + random.nextInt(25) - 12;
+            int startY = Math.min(UnderworldTerrain.MAX_Y - 1, client.player.getBlockY() + 22);
+            BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(x,startY,z);
+            for (int y = startY; y > client.player.getBlockY() + 3; y--) {
+                pos.setY(y);
+                var state = world.getBlockState(pos);
+                if (!state.getCollisionShape(world,pos).isEmpty()) {
+                    if ((state.is(net.minecraft.world.level.block.Blocks.POINTED_DRIPSTONE)
+                            || state.getBlock() instanceof net.krodark.asterion.block.ShaleSpikeBlock)
+                            && state.hasProperty(net.minecraft.world.level.block.PointedDripstoneBlock.TIP_DIRECTION)
+                            && state.getValue(net.minecraft.world.level.block.PointedDripstoneBlock.TIP_DIRECTION)
+                            == Direction.DOWN && random.nextInt(5) == 0) {
+                        world.addParticle(ParticleTypes.FALLING_WATER,x+.5,y-.05,z+.5,
+                                .012*Math.sin(time*.04+x),-.08,.012*Math.cos(time*.04+z));
+                    }
+                    break;
+                }
+            }
+        }
     }
 }

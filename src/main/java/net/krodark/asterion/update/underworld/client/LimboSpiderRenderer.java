@@ -35,6 +35,7 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
     private static final DataTicket<Float> ABDOMEN_Y = DataTickets.create("asterion_spider_abdomen_y",Float.class);
     private static final DataTicket<Float> HEAD_X = DataTickets.create("asterion_spider_head_x",Float.class);
     private static final DataTicket<Float> HEAD_Y = DataTickets.create("asterion_spider_head_y",Float.class);
+    private static final DataTicket<Direction> CAMOUFLAGE_SURFACE = DataTickets.create("asterion_spider_camouflage_surface",Direction.class);
     private static final DataTicket<SpiderLegIK.Frame> IK = DataTickets.create("asterion_spider_ik",SpiderLegIK.Frame.class);
     private static final DataTicket<Vec3> SILK_OFFSET = DataTickets.create("asterion_spider_silk_offset",Vec3.class);
     private final Map<LimboSpiderEntity,SurfacePose> poses = new WeakHashMap<>();
@@ -55,11 +56,13 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
         withScale(net.krodark.asterion.update.underworld.entity.SpiderDimensions.RENDER_SCALE);
         shadowRadius = net.krodark.asterion.update.underworld.entity.SpiderDimensions.RENDER_SCALE;
         withRenderLayer(new SpiderSilkLayer(this));
+        withRenderLayer(new SpiderCamouflageLayer(this));
     }
     @Override public void addRenderData(LimboSpiderEntity spider, Void related,
                                         EntityRenderState state, float partialTick) {
         state.addGeckolibData(MIMIC, spider.state() == LimboSpiderEntity.State.MIMICKING);
         state.addGeckolibData(SIZE_RATIO, spider.spiderScale() / net.krodark.asterion.update.underworld.entity.SpiderDimensions.MAX_SIZE);
+        state.addGeckolibData(CAMOUFLAGE_SURFACE,spider.attachedSurface());
         Direction face = spider.attachedSurface();
         float yaw = calculateYRot(spider,0,partialTick);
         SurfacePose pose = poses.computeIfAbsent(spider,ignored -> new SurfacePose());

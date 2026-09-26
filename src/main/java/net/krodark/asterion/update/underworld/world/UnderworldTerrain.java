@@ -287,7 +287,7 @@ public final class UnderworldTerrain {
                 double depth = smooth((seaDistance + 3) / 90);
                 double seaFloor = WATER_Y + 4 - depth * 34 + octaves(seed ^ 0x5EA, x * .012, z * .012) * 2 * depth;
                 floor = tunnel ? Math.min(floor, seaFloor) : seaFloor;
-                roof += (133 + 12 * octaves(seed ^ 0xA2C4, x * .008, z * .008) - roof) * smooth((seaDistance + 24) / 55);
+                roof += (150 + 7 * octaves(seed ^ 0xA2C4, x * .008, z * .008) - roof) * smooth((seaDistance + 24) / 55);
             }
             if (tunnel && Math.abs(offset) < channel) floor = Math.min(floor, WATER_Y - 7);
             // Ease into the submerged channel instead of cutting a trench at z=18.

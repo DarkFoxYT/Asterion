@@ -50,7 +50,7 @@ public final class FerryWakeField {
             double age=time-s.time, fade=Math.pow(1-age/LIFETIME,2)*s.strength;
             double birth=Math.clamp(age/6,0,1);
             fade*=birth*birth*(3-2*birth);
-            double spread=.75+age*.010, width=.48+age*.0025;
+            double spread=.62+age*.006, width=.31+age*.0012;
             for(int side=-1;side<=1;side+=2) {
                 double cx=s.x+s.dz*spread*side, cz=s.z-s.dx*spread*side;
                 int x0=Math.max(0,(int)Math.floor((cx-originX-width*3)*2));

@@ -4,8 +4,10 @@ import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionWorldState;
+import net.krodark.asterion.event.LimboWhirlpool;
 import net.krodark.asterion.update.underworld.entity.CharonsFerryEntity;
 import net.krodark.asterion.update.underworld.entity.CharonEntity;
 import net.krodark.asterion.update.underworld.entity.LimboSpiderEntity;
@@ -28,11 +30,13 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /** Owns the one-time death transition and the persistent ferry at the river's threshold. */
 public final class UnderworldPassage {
     private static int ferryCheck;
     private static final Map<UUID, Set<Integer>> CHAMBER_EVENTS = new HashMap<>();
+    private static final Map<UUID, Long> WHIRLPOOL_RESCUES = new ConcurrentHashMap<>();
 
     private UnderworldPassage() { }
 
@@ -50,6 +54,18 @@ public final class UnderworldPassage {
         // Registered after Asterion's recovery so death always leads into Limbo.
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
             if (!alive) enterAfterDeath(newPlayer);
+        });
+        ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
+            if (!(entity instanceof ServerPlayer player) || player.getHealth() > 0
+                    || !(player.level() instanceof ServerLevel level)
+                    || !level.dimension().equals(Asterion.LIMBO_LEVEL)
+                    || LimboWhirlpool.strength(level.getGameTime()) < .25) return true;
+            double dx=player.getX()-LimboWhirlpool.x(), dz=player.getZ()-LimboWhirlpool.z();
+            if (dx*dx+dz*dz > 34*34 || CharonsFerryEntity.supporting(player)!=null) return true;
+            WHIRLPOOL_RESCUES.put(player.getUUID(),level.getGameTime()+1);
+            player.setHealth(1);
+            player.setDeltaMovement(Vec3.ZERO);
+            return false;
         });
         ServerTickEvents.END_SERVER_TICK.register(UnderworldPassage::tick);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> CHAMBER_EVENTS.clear());
@@ -76,6 +92,12 @@ public final class UnderworldPassage {
         if (level == null || level.players().isEmpty()) return;
 
         for (ServerPlayer player : java.util.List.copyOf(level.players())) {
+            Long rescueAt=WHIRLPOOL_RESCUES.get(player.getUUID());
+            if (rescueAt!=null && level.getGameTime()>=rescueAt) {
+                WHIRLPOOL_RESCUES.remove(player.getUUID());
+                rescueAtWhirlpool(player,level);
+                continue;
+            }
             if (FerryRejoin.recover(player)) continue;
             net.krodark.asterion.update.underworld.world.UnderworldWaterPhysics.alignSurface(
                     player, level.getGameTime());
@@ -143,6 +165,32 @@ public final class UnderworldPassage {
         ferry.setUUID(CharonsFerryEntity.SHARED_ID);
         ferry.berth();
         if(level.addFreshEntity(ferry))ensureCharon(level, ferry);
+    }
+
+    private static void rescueAtWhirlpool(ServerPlayer player, ServerLevel level) {
+        CharonsFerryEntity ferry=level.getEntity(CharonsFerryEntity.SHARED_ID) instanceof CharonsFerryEntity existing
+                ? existing : null;
+        if (ferry==null) {
+            ferry=UnderworldContent.CHARONS_FERRY.create(level,EntitySpawnReason.EVENT);
+            if (ferry!=null) {
+                ferry.setUUID(CharonsFerryEntity.SHARED_ID);
+                ferry.berth();
+                level.addFreshEntity(ferry);
+            }
+        } else ferry.berth();
+        double x=UnderworldTerrain.riverCenter(UnderworldTerrain.FERRY_Z)-10;
+        int blockX=(int)Math.floor(x), blockZ=UnderworldTerrain.FERRY_Z;
+        level.getChunk(blockX>>4,blockZ>>4);
+        player.stopRiding();
+        player.teleportTo(level,x,UnderworldTerrain.WATER_Y+2,blockZ+.5,Set.of(),180,0,true);
+        player.setHealth(player.getMaxHealth());
+        player.getFoodData().setFoodLevel(20);
+        player.setDeltaMovement(Vec3.ZERO);
+        player.resetFallDistance();
+        player.clearFire();
+        player.invulnerableTime=80;
+        player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                "The whirlpool spits you back onto the ferry dock."));
     }
 
     private static void chamberEvent(ServerLevel level, ServerPlayer player) {

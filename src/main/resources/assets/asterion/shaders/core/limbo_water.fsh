@@ -148,7 +148,9 @@ void main() {
         vec2 advected=mat2(cos(rotation),-sin(rotation),sin(rotation),cos(rotation))*whirlDelta*.13
                 +vec2(whirlRadius*.027,waterTime*.006);
         float turbulence=surfaceNoise(advected).x;
-        float fineTurbulence=surfaceNoise(advected*2.7+vec2(31.7,-8.2)).x;
+        float fineTurbulence=turbulence;
+        if (detailQuality > .5 && nearDetail > .01)
+            fineTurbulence=mix(turbulence, surfaceNoise(advected*2.7+vec2(31.7,-8.2)).x, nearDetail);
         float phase = angle * 8.0 + log(whirlRadius + 5.0) * 11.0 - waterTime * .064
                 + sin(whirlRadius*.17-waterTime*.019)*1.2+(turbulence-.5)*3.8;
         float lineWidth = clamp(fwidth(phase) * .6, .12, .55);
@@ -177,10 +179,10 @@ void main() {
     float contact = hullActive * (1.0 - smoothstep(.025, .22, abs(hullEdge)))
             * (1.0 - smoothstep(.8, 1.6, abs(hullPosition.z - .2)));
     float wake = distance < 56.0 ? persistentWake(causticWorld).x * shoreExposure : 0.0;
-    float smoothWake = smoothstep(.008, .30, wake);
-    whitecap = max(whitecap, max(contact * (.18 + .72 * wakeStrength) * (.72 + .28 * breakup), smoothWake * .82));
+    float smoothWake = smoothstep(.004, .18, wake);
+    whitecap = max(whitecap, max(contact * (.24 + .76 * wakeStrength) * (.72 + .28 * breakup), smoothWake * .94));
     float fleck = smoothstep(.53, .72, grain) * nearDetail;
-    whitecap = max(whitecap * mix(.80, 1.0, fleck), smoothWake * .82);
+    whitecap = max(whitecap * mix(.80, 1.0, fleck), smoothWake * .94);
     water = mix(water, vec3(.28, .30, .31), whitecap);
     if (whirlStrength > .001)
         water = mix(water, vec3(.00008, .00012, .00022),

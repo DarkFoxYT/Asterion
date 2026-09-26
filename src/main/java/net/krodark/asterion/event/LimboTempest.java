@@ -15,11 +15,12 @@ public final class LimboTempest {
     public static double strength(double ticks) {
         long manual = LimboSeaCommands.tempestStart();
         if (manual == LimboSeaCommands.STOPPED) return 0;
+        double drizzle = manual >= 0 ? 0 : .13 + .035 * Math.sin(ticks * (Math.PI * 2 / 9600.0));
         double phase = manual >= 0 ? ticks - manual
                 : Math.floorMod((long)Math.floor(ticks) - START, CYCLE) + (ticks - Math.floor(ticks));
-        if (phase < 0) return 0;
-        if (phase >= DURATION) return 0;
-        return smooth(phase / 320.0) * (1.0 - smooth((phase - DURATION + 480.0) / 480.0));
+        if (phase < 0 || phase >= DURATION) return drizzle;
+        double storm = smooth(phase / 320.0) * (1.0 - smooth((phase - DURATION + 480.0) / 480.0));
+        return manual >= 0 ? storm : Math.max(drizzle, storm);
     }
 
     private static double smooth(double value) {

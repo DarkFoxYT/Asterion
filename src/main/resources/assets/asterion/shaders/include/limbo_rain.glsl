@@ -10,7 +10,8 @@ float rainRing(float d) {
     return sin(31.0*d)*smoothstep(-.6,-.3,d)*(1.0-smoothstep(-.3,0.0,d));
 }
 vec2 rainRipples(vec2 world, float ticks, float quality) {
-    vec2 uv=world*1.7, cell=floor(uv), normal=vec2(0);
+    // Quantized world cells keep the ripple scale aligned with individual rain drops.
+    vec2 uv=floor(world*2.0)*.5, cell=floor(uv*1.7), normal=vec2(0);
     int radius=quality>.5?2:1;
     for(int y=-2;y<=2;y++)for(int x=-2;x<=2;x++) {
         if(abs(x)>radius||abs(y)>radius)continue;

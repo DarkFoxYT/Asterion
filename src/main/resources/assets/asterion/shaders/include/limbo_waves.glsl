@@ -15,6 +15,7 @@ float limboWhirlpool(float ticks) {
             * (1.0 - smoothstep(26400.0, 28000.0, phase));
 }
 float whirlFunnel(vec2 p, float ticks) {
+    if (limboWhirlpool(ticks) <= 0.0) return 0.0;
     float r = length(p - seaWhirlpoolCenter);
     if (r >= 120.0) return 0.0;
     float edge = 1.0 - smoothstep(18.0, 120.0, r);
@@ -23,6 +24,29 @@ float whirlFunnel(vec2 p, float ticks) {
     float lip = exp(-pow((r - 87.0) / 13.0, 2.0));
     return limboWhirlpool(ticks) * (-19.0 * exp(-r / 48.0) * edge
             - 4.0 * core * core - wall + 1.1 * lip);
+}
+// Derivative of the same radial profile used by whirlFunnel. Avoid four
+// displaced funnel evaluations for every water vertex, including distant tiles.
+vec2 whirlFunnelSlope(vec2 p, float ticks) {
+    float strength = limboWhirlpool(ticks);
+    if (strength <= 0.0) return vec2(0.0);
+    vec2 delta = p - seaWhirlpoolCenter;
+    float r2 = dot(delta, delta);
+    if (r2 >= 14400.0 || r2 < .000001) return vec2(0.0);
+    float r = sqrt(r2);
+    float e = clamp((r - 18.0) / 102.0, 0.0, 1.0);
+    float c = clamp(r / 25.0, 0.0, 1.0);
+    float w = clamp((r - 13.0) / 54.0, 0.0, 1.0);
+    float edge = 1.0 - e * e * (3.0 - 2.0 * e);
+    float core = 1.0 - c * c * (3.0 - 2.0 * c);
+    float edgeDerivative = -6.0 * e * (1.0 - e) / 102.0;
+    float coreDerivative = -6.0 * c * (1.0 - c) / 25.0;
+    float wallDerivative = -6.0 * w * (1.0 - w) / 54.0;
+    float lipOffset = (r - 87.0) / 13.0;
+    float slope = -19.0 * exp(-r / 48.0) * (edgeDerivative - edge / 48.0)
+            - 8.0 * core * coreDerivative - wallDerivative
+            - 2.2 * lipOffset / 13.0 * exp(-lipOffset * lipOffset);
+    return delta * (strength * slope / r);
 }
 float waveHash(ivec2 p) {
     uint h = uint(p.x) * 0x1f123bb5u ^ uint(p.y) * 0x5f356495u;

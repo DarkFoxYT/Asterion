@@ -355,7 +355,9 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
         float oldYaw = getYRot();
         if (pilot != null) {
             double helm = (Math.abs(surgeSpeed) > .012 ? .34 : .14) * (1 - whirlPull * .55);
-            turnSpeed = Math.clamp(turnSpeed * .82 + turn * helm, -2.2, 2.2);
+            double targetTurn = turn * helm;
+            turnSpeed += (targetTurn - turnSpeed) * .16;
+            turnSpeed = Math.clamp(turnSpeed, -1.7, 1.7);
             setYRot((float)(oldYaw + turnSpeed));
         } else {
             turnSpeed *= .8;
