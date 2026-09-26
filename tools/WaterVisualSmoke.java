@@ -10,10 +10,11 @@ import java.util.*;
 /** Controlled preview of the actual water shaders, mesh, and vanilla water texture. */
 public final class WaterVisualSmoke {
     public static void render(int program) throws Exception {
-        render(program, false);
-        render(program, true);
+        render(program, false, false);
+        render(program, true, false);
+        render(program, false, true);
     }
-    private static void render(int program, boolean boat) throws Exception {
+    private static void render(int program, boolean boat, boolean storm) throws Exception {
         int width=960,height=540;
         GL20.glUseProgram(program);
         int wakeTexture=WakeFieldSmoke.upload(program,boat);
@@ -49,7 +50,7 @@ public final class WaterVisualSmoke {
             int vx=x+(c>=2?1:0),vz=z+(c==1||c==2?1:0);
             vertices[at++]=vx+8;vertices[at++]=47+8F/9F-52;vertices[at++]=vz-174;
             vertices[at++]=vx;vertices[at++]=vz;
-            hull[hullAt++]=(short)((int)Math.clamp(vx*8,-127,127)&255);
+            hull[hullAt++]=(short)(((int)Math.clamp(vx*8,-127,127)&255)|(storm?127<<8:0));
             hull[hullAt++]=(short)((int)Math.clamp((vz-190)*8,-127,127)&255);
         }
         int mesh=GL15.glGenBuffers();GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER,mesh);GL15.glBufferData(GL15.GL_ARRAY_BUFFER,vertices,GL15.GL_STATIC_DRAW);
@@ -87,7 +88,7 @@ public final class WaterVisualSmoke {
             image.setRGB(x,height-1-y,(r<<16)|(g<<8)|b);if(r>35&&g>35&&b>35 && Math.max(r,Math.max(g,b))-Math.min(r,Math.min(g,b))<20)white++;
         }
         MemoryUtil.memFree(pixels);Files.createDirectories(Path.of("build/reports"));
-        ImageIO.write(image,"png",Path.of(boat ? "build/reports/limbo-water-hull-preview.png" : "build/reports/limbo-water-preview.png").toFile());
+        ImageIO.write(image,"png",Path.of(storm ? "build/reports/limbo-water-storm-preview.png" : boat ? "build/reports/limbo-water-hull-preview.png" : "build/reports/limbo-water-preview.png").toFile());
         if(white<100)throw new AssertionError("Silver water detail is not visibly distinct: "+white);
         if(GL11.glGetError()!=GL11.GL_NO_ERROR)throw new AssertionError("Preview GL error");
         System.out.println("PASS rendered wave preview: "+white+" silver highlight pixels.");

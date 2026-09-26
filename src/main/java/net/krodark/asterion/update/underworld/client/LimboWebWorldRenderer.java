@@ -28,6 +28,12 @@ public final class LimboWebWorldRenderer {
     private static final Map<Long,WebPhysicsGraph> GRAPHS=new HashMap<>(); private static final Map<Long,java.util.BitSet> CUT=new HashMap<>(); private static boolean attack;
     private LimboWebWorldRenderer(){}
     private static net.minecraft.client.multiplayer.ClientLevel trackedLevel;
+    private record LiveThread(Vec3 from,Vec3 to,long tick) { }
+    private static final Map<Integer,LiveThread> LIVE_THREADS=new HashMap<>();
+    static void liveThread(int spider,Vec3 from,Vec3 to) {
+        var level=Minecraft.getInstance().level;
+        if(level!=null)LIVE_THREADS.put(spider,new LiveThread(from,to,level.getGameTime()));
+    }
     /** Body and IK both sample the strand actually submitted by the renderer. */
     public static Vec3 spiderOffset(net.krodark.asterion.update.underworld.entity.LimboSpiderEntity spider,Vec3 origin) {
         if(!spider.onWeb())return Vec3.ZERO;
@@ -80,7 +86,8 @@ public final class LimboWebWorldRenderer {
         }));
     }
     private static void tick(Minecraft client){
-        if(trackedLevel!=client.level){GRAPHS.clear();CUT.clear();attack=false;trackedLevel=client.level;}
+        if(trackedLevel!=client.level){GRAPHS.clear();CUT.clear();LIVE_THREADS.clear();attack=false;trackedLevel=client.level;}
+        if(client.level!=null)LIVE_THREADS.entrySet().removeIf(e->client.level.getGameTime()-e.getValue().tick()>2);
         if(client.level==null||client.player==null||!client.level.dimension().equals(Asterion.LIMBO_LEVEL)){GRAPHS.clear();CUT.clear();return;}
         Vec3 body=client.player.position().add(0,client.player.getBbHeight()*.48,0);
         var patches=WebPatchGenerator.around(client.level,body,16); java.util.HashSet<Long> live=new java.util.HashSet<>();
@@ -103,7 +110,14 @@ public final class LimboWebWorldRenderer {
     private static void cutLookedAt(Minecraft client){
         Vec3 eye=client.player.getEyePosition(),end=eye.add(client.player.getLookAngle().scale(client.player.blockInteractionRange()+.75));double best=.16*.16;long key=0;int edge=-1;
         for(WebPhysicsGraph graph:GRAPHS.values())for(WebPhysicsGraph.Link link:graph.links){if(CUT.computeIfAbsent(graph.patch.key(),ignored->new java.util.BitSet()).get(link.index()))continue;double d=distance(eye,end,graph.p.get(link.a()),graph.p.get(link.b()));if(d<best){best=d;key=graph.patch.key();edge=link.index();}}
-        if(edge>=0&&ClientPlayNetworking.canSend(WebCutPayload.TYPE))ClientPlayNetworking.send(new WebCutPayload(key,edge));
+        boolean found=edge>=0;
+        for(var entry:LIVE_THREADS.entrySet()) {
+            var spider=client.level.getEntity(entry.getKey());
+            if(!(spider instanceof net.krodark.asterion.update.underworld.entity.LimboSpiderEntity crawler) || crawler.threadAnchor()==null)continue;
+            double d=distance(eye,end,entry.getValue().from(),entry.getValue().to());
+            if(d<best){best=d;key=entry.getKey();edge=-1;found=true;}
+        }
+        if(found&&ClientPlayNetworking.canSend(WebCutPayload.TYPE))ClientPlayNetworking.send(new WebCutPayload(key,edge));
     }
     public static void submit(PoseStack poses,LevelRenderState state,SubmitNodeCollector output){
         Minecraft client=Minecraft.getInstance();if(client.level==null||!client.level.dimension().equals(Asterion.LIMBO_LEVEL)||GRAPHS.isEmpty())return;Vec3 camera=state.cameraRenderState.pos;
@@ -113,7 +127,7 @@ public final class LimboWebWorldRenderer {
         output.submitCustomGeometry(poses,RenderTypes.entityTranslucent(SILK,false),(pose,out)->{for(WebPhysicsGraph graph:GRAPHS.values()){if(frustum!=null&&!frustum.isVisible(graph.bounds))continue;java.util.BitSet cut=CUT.computeIfAbsent(graph.patch.key(),ignored->new java.util.BitSet());int alpha=0x48+(int)((mix(graph.patch.key())>>>56)&0x5f);for(WebPhysicsGraph.Link link:graph.links)if(!cut.get(link.index())){double weight=.012+((mix(graph.patch.key()+link.index())>>>58)&7)*.003;Vec3 a=graph.rendered(link.a(),partial),b=graph.rendered(link.b(),partial);strand(pose,out,a,b,weight,alpha,LevelRenderer.getLightCoords(client.level,BlockPos.containing(a)));}}});
         poses.popPose();
     }
-    private static void strand(PoseStack.Pose pose,VertexConsumer out,Vec3 a,Vec3 b,double width,int alpha,int light){
+    static void strand(PoseStack.Pose pose,VertexConsumer out,Vec3 a,Vec3 b,double width,int alpha,int light){
         Vec3 delta=b.subtract(a);
         if(delta.lengthSqr()<1e-8)return;
         Vec3 axis=delta.normalize();

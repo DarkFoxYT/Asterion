@@ -16,6 +16,7 @@ out vec3 hullPosition;
 out float hullActive;
 out float wakeStrength;
 out float shoreExposure;
+out float shorelineContact;
 out vec2 worldSurface;
 out float waterTime;
 out float waterLight;
@@ -39,7 +40,8 @@ void main() {
     float ticks = float(UV2.x & 65535) + float(UV2.y & 65535) * 65536.0
             + float(timeAndLight & 15) / 16.0;
     waterLight = float(timeAndLight >> 4) / 15.0;
-    eventTempest = float((UV1.x >> 8) & 255) / 255.0;
+    eventTempest = float((UV1.x >> 8) & 127) / 127.0;
+    shorelineContact = (UV1.x & 32768) != 0 ? 1.0 : 0.0;
     eventWhirlpool = float((UV1.y >> 8) & 255) / 255.0;
     seaTempestStrength = eventTempest;
     seaWhirlpoolStrength = eventWhirlpool;

@@ -46,8 +46,9 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
                 return Asterion.id("entity/spider");
             }
         });
-        withScale(.7F);
-        shadowRadius = .7F;
+        withScale(net.krodark.asterion.update.underworld.entity.SpiderDimensions.RENDER_SCALE);
+        shadowRadius = net.krodark.asterion.update.underworld.entity.SpiderDimensions.RENDER_SCALE;
+        withRenderLayer(new SpiderSilkLayer(this));
     }
     @Override public void addRenderData(LimboSpiderEntity spider, Void related,
                                         EntityRenderState state, float partialTick) {
@@ -118,6 +119,11 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
         if (pass.getOrDefaultGeckolibData(MIMIC,false)) return;
         Vec3 offset=pass.getOrDefaultGeckolibData(SILK_OFFSET,Vec3.ZERO);
         pass.poseStack().translate(offset.x,offset.y,offset.z);
+    }
+    @Override protected net.minecraft.world.phys.AABB getBoundingBoxForCulling(LimboSpiderEntity spider) {
+        var box=super.getBoundingBoxForCulling(spider);
+        Vec3 anchor=spider.threadAnchor();
+        return anchor==null?box:box.minmax(new net.minecraft.world.phys.AABB(anchor,anchor)).inflate(.3);
     }
     @Override public void adjustRenderPose(RenderPassInfo<EntityRenderState> pass) {
         super.adjustRenderPose(pass);

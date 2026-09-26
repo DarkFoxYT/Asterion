@@ -124,6 +124,18 @@ public final class SpiderSupportSmoke {
         require(climbedWall && reachedCeiling && crawler.getCenter().distanceTo(roofTarget)<.5,
                 "Ascent did not connect floor, wall and ceiling: "+crawler.getCenter());
         require(diagonal,"Surface route did not use diagonal movement");
+        double width=net.krodark.asterion.update.underworld.entity.SpiderDimensions.WIDTH;
+        double height=net.krodark.asterion.update.underworld.entity.SpiderDimensions.HEIGHT;
+        AABB large=new AABB(-width/2,.025,-width/2,width/2,.025+height,width/2);
+        Vec3 largeGoal=new Vec3(0,9-height/2-.025,0);
+        var largeRoute=SpiderSurfaceRoute.navigate(room,large,Direction.DOWN,largeGoal);
+        require(!largeRoute.isEmpty(),"Larger spider cannot plan a ceiling ascent");
+        for(var point:largeRoute) {
+            Vec3 advance=point.center().subtract(large.getCenter());
+            require(SpiderSurfaceRoute.clear(room,large,advance),"Larger spider route clips its body");
+            large=large.move(advance);
+        }
+        require(large.getCenter().distanceTo(largeGoal)<.5,"Larger spider failed to reach ceiling");
         require(SpiderSurfaceRoute.navigate(List.of(room.getFirst(),room.getLast()),grounded,Direction.DOWN,roofTarget).isEmpty(),
                 "Roof without connecting wall was treated as reachable");
         // The user's diagrams: a one-block step, and a ceiling lip that must
@@ -176,8 +188,10 @@ public final class SpiderSupportSmoke {
             var shapes=net.krodark.asterion.entity.BugSurfaces.collectCollision(level,new AABB(-5,-2,-5,6,4,5));
             for(var shape:partial.getCollisionShape(level,net.minecraft.core.BlockPos.ZERO).toAabbs())
                 require(shapes.contains(shape),"Planner omitted actual partial-block shape: "+block);
-            AABB body=new AABB(-2.725,.025,-.225,-1.275,1.325,1.225);
-            Vec3 goal=new Vec3(3,.675,.5);
+            double width=net.krodark.asterion.update.underworld.entity.SpiderDimensions.WIDTH;
+            double height=net.krodark.asterion.update.underworld.entity.SpiderDimensions.HEIGHT;
+            AABB body=new AABB(-2-width/2,.025,.5-width/2,-2+width/2,.025+height,.5+width/2);
+            Vec3 goal=new Vec3(3,.025+height/2,.5);
             var route=SpiderSurfaceRoute.navigate(shapes,body,Direction.DOWN,goal);
             require(!route.isEmpty(),"No route around partial block "+block);
             for(var point:route) {

@@ -19,6 +19,8 @@ public final class SpiderIKSmoke {
             var bone = value.getAsJsonObject(); bones.put(bone.get("name").getAsString(),bone);
         }
         int cases = 0;
+        if(!bones.containsKey("webmaker") || !bones.get("webmaker").get("parent").getAsString().equals("abnomen"))
+            throw new AssertionError("Missing authored spinneret attachment");
         for(int leg=0;leg<8;leg++) {
             var last=SpiderLegIK.airborneOffset(leg,0,42);
             double motion=0;
@@ -64,7 +66,8 @@ public final class SpiderIKSmoke {
                 for (Vector3f normal : new Vector3f[]{new Vector3f(0,1,0),new Vector3f(0,-1,0),
                         new Vector3f(1,0,0),new Vector3f(-1,0,0),new Vector3f(0,0,1),new Vector3f(0,0,-1)}) {
                     Matrix4f world = new Matrix4f().translation(5,12,-8).rotateY(.8F)
-                            .rotate(new org.joml.Quaternionf().rotationTo(new Vector3f(0,1,0),normal)).scale(.7F);
+                            .rotate(new org.joml.Quaternionf().rotationTo(new Vector3f(0,1,0),normal))
+                            .scale(net.krodark.asterion.update.underworld.entity.SpiderDimensions.RENDER_SCALE);
                     Vector3f back = new Matrix4f(world).invert().transformPosition(world.transformPosition(new Vector3f(target)));
                     if (back.distance(target)>.0001F) throw new AssertionError("Surface transform");
                     cases++;
@@ -117,7 +120,8 @@ public final class SpiderIKSmoke {
                 Vector3f liftAxis=q.transform(new Vector3f(0,1,0));
                 var error=new net.minecraft.world.phys.Vec3(liftAxis.x*.2,liftAxis.y*.2,liftAxis.z*.2);
                 double lift=SpiderLegIK.bodyLift(new SpiderLegIK.Debug(feet,0,error),q,0);
-                if(lift<.13 || lift>.15)throw new AssertionError("Torso did not rise toward planted feet on "+face);
+                if(Math.abs(lift-.1/net.krodark.asterion.update.underworld.entity.SpiderDimensions.RENDER_SCALE)>.001)
+                    throw new AssertionError("Torso did not rise toward planted feet on "+face);
                 if(SpiderLegIK.bodyLift(new SpiderLegIK.Debug(feet,0,error.scale(-1)),q,0)>=0)
                     throw new AssertionError("Torso did not lower toward feet");
                 if(Math.abs(SpiderLegIK.bodyLift(new SpiderLegIK.Debug(feet,0,error.scale(100)),q,.2)-.26)>.0001)

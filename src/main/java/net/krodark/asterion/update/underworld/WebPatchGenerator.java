@@ -24,9 +24,9 @@ public final class WebPatchGenerator {
         SPUN.computeIfAbsent(level,ignored->new java.util.LinkedHashMap<>()).putIfAbsent(patch.key(),patch);
     }
     /** Spins between two real block faces; all silk remains renderer geometry. */
-    public static boolean spin(net.minecraft.server.level.ServerLevel level,Vec3 origin,Vec3 heading) {
+    public static WebPatch planSpin(net.minecraft.server.level.ServerLevel level,Vec3 origin,Vec3 heading) {
         Map<Long,WebPatch> spun=spun(level);
-        if(spun.size()>=512 || spun.values().stream().filter(p->p.anchors().getFirst().distanceToSqr(origin)<16*16 && LimboWebSystem.supports(level,p,0)).count()>=8)return false;
+        if(spun.size()>=512 || spun.values().stream().filter(p->p.anchors().getFirst().distanceToSqr(origin)<16*16 && LimboWebSystem.supports(level,p,0)).count()>=8)return null;
         Direction[] directions=Direction.values();
         int first=(int)Math.floorMod(mix(level.getGameTime()^BlockPos.containing(origin).asLong()),directions.length);
         for(int attempt=0;attempt<directions.length;attempt++) {
@@ -49,20 +49,17 @@ public final class WebPatchGenerator {
                 if(hit.getType()!=net.minecraft.world.phys.HitResult.Type.MISS){clear=false;break;}
             }
             if(!clear)continue;
-            spun.put(key,patch);
-            WebSavedState.get(level).setDirty();
-            for(var player:level.players())if(player.distanceToSqr(origin)<72*72)net.krodark.asterion.network.WebSpinPayload.send(player,patch);
-            return true;
+            return patch;
         }
-        return false;
+        return null;
     }
     /** A goal-directed, two-bank crossing. Never invent anchors over open air. */
-    public static boolean bridge(net.minecraft.server.level.ServerLevel level,Vec3 center,Vec3 goal,double height) {
+    public static WebPatch planBridge(net.minecraft.server.level.ServerLevel level,Vec3 center,Vec3 goal,double height) {
         Vec3 direction=goal.subtract(center).multiply(1,0,1).normalize();
-        if(direction.lengthSqr()<.5)return false;
+        if(direction.lengthSqr()<.5)return null;
         Map<Long,WebPatch> existing=spun(level);
         if(existing.size()>=512 || existing.values().stream().filter(p->p.anchors().getFirst().distanceToSqr(center)<16*16
-                && LimboWebSystem.supports(level,p,0)).count()>=8)return false;
+                && LimboWebSystem.supports(level,p,0)).count()>=8)return null;
         // Find open air just below the near bank, then ray back to its actual rim.
         for(double reach=1;reach<=3;reach+=.5) {
             Vec3 seed=center.add(direction.scale(reach)).add(0,-height*.5-.05,0);
@@ -75,7 +72,7 @@ public final class WebPatchGenerator {
             if(from.distanceToSqr(to)<9 || from.distanceToSqr(to)>24*24)continue;
             if(existing.values().stream().anyMatch(p->LimboWebSystem.supports(level,p,0)
                     && (p.anchors().getFirst().distanceToSqr(from)<1 && p.anchors().getLast().distanceToSqr(to)<1
-                    || p.anchors().getFirst().distanceToSqr(to)<1 && p.anchors().getLast().distanceToSqr(from)<1)))return true;
+                    || p.anchors().getFirst().distanceToSqr(to)<1 && p.anchors().getLast().distanceToSqr(from)<1)))return null;
             long key=mix(a.getBlockPos().asLong()^Long.rotateLeft(b.getBlockPos().asLong(),23)^level.getGameTime());
             WebPatch patch=new WebPatch(key,List.of(from,to),List.of(a.getDirection().getUnitVec3(),b.getDirection().getUnitVec3()),List.of(new WebPatch.Edge(0,1)));
             boolean clear=true;
@@ -84,11 +81,23 @@ public final class WebPatchGenerator {
                 if(hit.getType()!=net.minecraft.world.phys.HitResult.Type.MISS){clear=false;break;}
             }
             if(!clear)continue;
-            existing.put(key,patch);WebSavedState.get(level).setDirty();
-            for(var player:level.players())if(player.distanceToSqr(center)<72*72)net.krodark.asterion.network.WebSpinPayload.send(player,patch);
-            return true;
+            return patch;
         }
-        return false;
+        return null;
+    }
+    /** Called only after the builder has physically visited both attachment points. */
+    public static boolean finishSpin(net.minecraft.server.level.ServerLevel level,WebPatch patch) {
+        if(spun(level).size()>=512 || !LimboWebSystem.supports(level,patch,0))return false;
+        for(int i=0;i<patch.pieces(0);i++) {
+            var hit=level.clip(new net.minecraft.world.level.ClipContext(patch.point(0,i/(double)patch.pieces(0)),
+                    patch.point(0,(i+1D)/patch.pieces(0)),net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                    net.minecraft.world.level.ClipContext.Fluid.NONE,net.minecraft.world.phys.shapes.CollisionContext.empty()));
+            if(hit.getType()!=net.minecraft.world.phys.HitResult.Type.MISS)return false;
+        }
+        spun(level).put(patch.key(),patch);WebSavedState.get(level).setDirty();
+        for(var player:level.players())if(player.distanceToSqr(patch.anchors().getFirst())<72*72
+                || player.distanceToSqr(patch.anchors().getLast())<72*72)net.krodark.asterion.network.WebSpinPayload.send(player,patch);
+        return true;
     }
     private record Cached(WebPatch patch, long expires) { }
     private WebPatchGenerator() { }

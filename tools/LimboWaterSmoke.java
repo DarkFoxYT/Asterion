@@ -122,7 +122,7 @@ public final class LimboWaterSmoke {
             int fraction = (int)((ticks - whole) * 15);
             float partial = fraction / 16F;
             GL20.glVertexAttrib4f(GL20.glGetAttribLocation(program, "Color"), 1, fraction / 255F, 1, 0);
-            int tempest = (int)Math.round(net.krodark.asterion.event.LimboTempest.strength(whole + partial) * 255);
+            int tempest = (int)Math.round(net.krodark.asterion.event.LimboTempest.strength(whole + partial) * 127);
             int whirlpool = (int)Math.round(net.krodark.asterion.event.LimboWhirlpool.strength(whole + partial) * 255);
             GL30.glVertexAttribI2i(GL20.glGetAttribLocation(program, "UV1"), tempest << 8, whirlpool << 8);
             GL30.glVertexAttribI2i(GL20.glGetAttribLocation(program, "UV2"), (short)(whole & 65535), (short)(whole >>> 16));

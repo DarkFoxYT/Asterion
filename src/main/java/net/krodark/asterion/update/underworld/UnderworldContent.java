@@ -35,7 +35,8 @@ public final class UnderworldContent {
     public static final EntityType<LimboSpiderEntity> SPIDER = Registry.register(
             BuiltInRegistries.ENTITY_TYPE, SPIDER_KEY,
             EntityType.Builder.of(LimboSpiderEntity::new, MobCategory.MONSTER)
-                    .sized(1.45F,1.3F).clientTrackingRange(12).updateInterval(1)
+                    .sized(net.krodark.asterion.update.underworld.entity.SpiderDimensions.WIDTH,
+                            net.krodark.asterion.update.underworld.entity.SpiderDimensions.HEIGHT).clientTrackingRange(12).updateInterval(1)
                     .build(SPIDER_KEY));
 
     private UnderworldContent() { }

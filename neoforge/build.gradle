@@ -95,6 +95,8 @@ tasks.withType(JavaCompile).configureEach {
     options.release.set(25)
 }
 
+def resourceVersions = [version: project.version, minecraft_version: rootProject.minecraft_version,
+                        neoforge_version: rootProject.neoforge_version, amnetic_version: rootProject.amnetic_version]
 tasks.withType(ProcessResources).configureEach {
     dependsOn project(":26.1.2-fabric").tasks.named("processResources")
     inputs.property "version", project.version
@@ -104,10 +106,7 @@ tasks.withType(ProcessResources).configureEach {
         exclude "fabric.mod.json"
     }
     filesMatching("META-INF/neoforge.mods.toml") {
-        expand "version": project.version,
-                "minecraft_version": rootProject.minecraft_version,
-                "neoforge_version": rootProject.neoforge_version,
-                "amnetic_version": rootProject.amnetic_version
+        expand resourceVersions
     }
 }
 

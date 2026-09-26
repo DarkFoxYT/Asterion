@@ -3,6 +3,7 @@
 #moj_import <asterion:limbo_wake.glsl>
 #moj_import <asterion:limbo_waves.glsl>
 #moj_import <asterion:limbo_hull.glsl>
+#moj_import <asterion:limbo_rain.glsl>
 uniform sampler2D Sampler0;
 in vec3 surfacePosition;
 in vec3 surfaceNormal;
@@ -13,6 +14,7 @@ in vec3 hullPosition;
 in float hullActive;
 in float wakeStrength;
 in float shoreExposure;
+in float shorelineContact;
 in vec2 worldSurface;
 in float waterTime;
 in float waterLight;
@@ -82,6 +84,10 @@ void main() {
     vec3 ripples = vec3(.5, 0, 0);
     if (detail > .01) ripples = surfaceNoise(p * 1.8 + vec2(crossing, grain) * .6);
     n = normalize(n + vec3(-ripples.y, 0, -ripples.z) * .085 * detail);
+    if (eventTempest > .02 && detail > .01) {
+        vec2 rain = rainRipples(worldSurface, waterTime, detailQuality);
+        n=normalize(n+vec3(rain.x,0,rain.y)*eventTempest*.32*detail);
+    }
     vec3 view = normalize(-surfacePosition);
     if (!gl_FrontFacing) n = -n;
     float facing = max(dot(n, view), 0.0);
@@ -138,13 +144,20 @@ void main() {
     float whirlStrength = limboWhirlpool(waterTime);
     if (whirlStrength > .001 && whirlRadius < 120.0) {
         float angle = atan(whirlDelta.y, whirlDelta.x);
-        float phase = angle * 8.0 + log(whirlRadius + 5.0) * 11.0 - waterTime * .064;
+        float rotation=waterTime*.002;
+        vec2 advected=mat2(cos(rotation),-sin(rotation),sin(rotation),cos(rotation))*whirlDelta*.13
+                +vec2(whirlRadius*.027,waterTime*.006);
+        float turbulence=surfaceNoise(advected).x;
+        float fineTurbulence=surfaceNoise(advected*2.7+vec2(31.7,-8.2)).x;
+        float phase = angle * 8.0 + log(whirlRadius + 5.0) * 11.0 - waterTime * .064
+                + sin(whirlRadius*.17-waterTime*.019)*1.2+(turbulence-.5)*3.8;
         float lineWidth = clamp(fwidth(phase) * .6, .12, .55);
         float arm = 1.0 - smoothstep(.045, lineWidth + .15, abs(sin(phase * .5)));
         float seam = 1.0 - smoothstep(.045, lineWidth + .11, abs(sin((phase + 2.1) * .5)));
         float radiusFade = smoothstep(4.0, 18.0, whirlRadius)
                 * (1.0 - smoothstep(100.0, 120.0, whirlRadius));
-        float rotatingFoam = max(arm, seam * .52) * radiusFade * whirlStrength;
+        float rotatingFoam = max(arm, seam * .52) * radiusFade * whirlStrength
+                * smoothstep(.16,.69,turbulence*.55+fineTurbulence*.45);
         float lip = exp(-pow((whirlRadius - 87.0) / 11.0, 2.0))
                 * (.46 + .54 * arm) * whirlStrength;
         float abyss = (1.0 - smoothstep(9.0, 72.0, whirlRadius)) * whirlStrength;
@@ -154,19 +167,20 @@ void main() {
     }
     float tempest = limboTempest(waterTime);
     if (nearDetail > .01) {
-        float shoreBreak = 1.0 - smoothstep(.015, .42, shoreExposure);
+        // Only the last ~quarter-block against a solid bank, not the entire shoal.
+        float shoreBreak = smoothstep(.74,.98,shorelineContact);
         float breakerNoise = surfaceNoise(worldSurface * .55
                 + vec2(waterTime * .026, -waterTime * .019)).x;
         whitecap = max(whitecap, shoreBreak * smoothstep(.32, .69, breakerNoise)
-                * (.16 + tempest * .48) * nearDetail);
+                * (.34 + tempest * .56) * nearDetail);
     }
     float contact = hullActive * (1.0 - smoothstep(.025, .22, abs(hullEdge)))
             * (1.0 - smoothstep(.8, 1.6, abs(hullPosition.z - .2)));
     float wake = distance < 56.0 ? persistentWake(causticWorld).x * shoreExposure : 0.0;
-    float smoothWake = smoothstep(.01, .42, wake);
-    whitecap = max(whitecap, max(contact * (.12 + .65 * wakeStrength) * (.72 + .28 * breakup), smoothWake * .62));
+    float smoothWake = smoothstep(.008, .30, wake);
+    whitecap = max(whitecap, max(contact * (.18 + .72 * wakeStrength) * (.72 + .28 * breakup), smoothWake * .82));
     float fleck = smoothstep(.53, .72, grain) * nearDetail;
-    whitecap = max(whitecap * mix(.80, 1.0, fleck), smoothWake * .62);
+    whitecap = max(whitecap * mix(.80, 1.0, fleck), smoothWake * .82);
     water = mix(water, vec3(.28, .30, .31), whitecap);
     if (whirlStrength > .001)
         water = mix(water, vec3(.00008, .00012, .00022),

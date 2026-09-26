@@ -59,7 +59,7 @@ public final class LimboWaterRenderer {
     private static int boatActivity;
     private static int boatPitch = 32, boatRoll = 32;
     private static volatile boolean enabled;
-    private record Layer(int y, int[] vertices, int[] fineVertices, int[] farVertices, int[] shore) { }
+    private record Layer(int y, int[] vertices, int[] fineVertices, int[] farVertices, int[] shore, boolean[] edge) { }
     private record Tile(int x, int z, List<Layer> layers, int minY, int maxY, long refreshed) { }
     private LimboWaterRenderer() { }
 
@@ -155,7 +155,7 @@ public final class LimboWaterRenderer {
             // Color carries shoreline attenuation, sub-tick time, and adaptive detail quality.
             int timeLow = (int)(wholeTick & 65535), timeHigh = (int)((wholeTick >>> 16) & 65535);
             int tempestByte = (int)Math.clamp(Math.round(
-                    net.krodark.asterion.event.LimboTempest.strength(frameTicks) * 255), 0, 255);
+                    net.krodark.asterion.event.LimboTempest.strength(frameTicks) * 127), 0, 127);
             int whirlpoolByte = (int)Math.clamp(Math.round(
                     net.krodark.asterion.event.LimboWhirlpool.strength(frameTicks) * 255), 0, 255);
             float centerCodeX = ((net.krodark.asterion.event.LimboWhirlpool.x() / 4 + 128) + .5F) / 512F;
@@ -192,7 +192,7 @@ public final class LimboWaterRenderer {
                     out.addVertex(pose, (float)(x - camera.x),
                                     (float)(layer.y + 8.0 / 9.0 - camera.y), (float)(z - camera.z))
                             .setUv(x + centerCodeX, z + centerCodeZ).setUv2(timeLow, timeHigh)
-                            .setUv1((tempestByte << 8) | (bx & 255),
+                            .setUv1((tempestByte << 8) | (layer.edge[vertex] ? 32768 : 0) | (bx & 255),
                                     (whirlpoolByte << 8) | (bz & 255))
                             .setNormal(boatCos, boatHeight, boatSin)
                             .setColor(layer.shore[vertex], packedTimeAndLight,
@@ -245,9 +245,18 @@ public final class LimboWaterRenderer {
             for(int i=0;i<wet.length;i++){wet[i]=depths[(i/16+9)*34+i%16+9]>0;any|=wet[i];}
             if(!any)continue;
             int[] shore=new int[17*17];
+            boolean[] edge=new boolean[17*17];
+            for(int dz=0;dz<=16;dz++)for(int dx=0;dx<=16;dx++) {
+                for(int oz=-1;oz<=0;oz++)for(int ox=-1;ox<=0;ox++) {
+                    below.set(x+dx+ox,elevation,z+dz+oz);
+                    if(!level.getFluidState(below).is(FluidTags.WATER)
+                            && !level.getBlockState(below).getCollisionShape(level,below).isEmpty())
+                        edge[dz*17+dx]=true;
+                }
+            }
             for(int dz=0;dz<=16;dz++)for(int dx=0;dx<=16;dx++)shore[dz*17+dx]=Math.round(255*net.krodark.asterion.update.underworld.world.WaterShoreline.attenuation(depths,34,dx+9,dz+9));
             layers.add(new Layer(elevation, WaterSurfaceMesh.vertices(wet, shore),
-                    WaterSurfaceMesh.vertices(wet, new int[289]), WaterSurfaceMesh.vertices(wet, shore, 4), shore));
+                    WaterSurfaceMesh.vertices(wet, new int[289]), WaterSurfaceMesh.vertices(wet, shore, 4), shore, edge));
             minY=Math.min(minY,elevation);maxY=Math.max(maxY,elevation);
         }
         if(layers.isEmpty()){minY=UnderworldTerrain.WATER_Y;maxY=minY;}

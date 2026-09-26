@@ -37,7 +37,7 @@ public final class UnderworldPostEffects {
 
     public static void register() {
         // All quality levels retain the same atmosphere; only resolution and ray samples change.
-        PostEffects.register(Asterion.id("underworld/river_atmosphere"), config -> net.krodark.asterion.client.render.post.AmneticPostBuffers.attach(withIntensity(config), "underworld_mist",
+        var atmosphere = PostEffects.register(Asterion.id("underworld/river_atmosphere"), config -> net.krodark.asterion.client.render.post.AmneticPostBuffers.attach(withIntensity(config), "underworld_mist",
                         () -> switch (net.krodark.asterion.client.PerformanceGovernor.quality()) {
                             case 0 -> .40; case 1 -> .62; default -> 1.0;
                         })
@@ -56,6 +56,13 @@ public final class UnderworldPostEffects {
                         UnderworldTerrain.WATER_Y + 8F / 9F, 2.65F,
                         active() ? AsterionConfig.INSTANCE.limboFogStrength : 0F,
                         active() ? AsterionConfig.INSTANCE.limboMistStrength : 0F)));
+        // POST priority 5 is TAA; 10 captures emissive sources and composites bloom.
+        // Keep depth-aware fog between them, including when bloom is disabled.
+        com.meekdev.amnetic.client.pipeline.Pipeline.add(
+                com.meekdev.amnetic.client.pipeline.RenderStage.POST, 9, "Limbo atmosphere before bloom", ctx ->
+                        ((net.krodark.asterion.mixin.AmneticPostEffectHandleAccessor)(Object)atmosphere)
+                                .asterion$entry().apply(RenderPhase.POST_WORLD,
+                                        Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(true)));
     }
 
     private static com.meekdev.amnetic.client.post.PostEffectConfig withIntensity(
@@ -146,15 +153,10 @@ public final class UnderworldPostEffects {
         Minecraft client = Minecraft.getInstance();
         if (client.level == null || client.player == null || !AmneticCamera.isReady())
             return new Vector4f();
-        if (client.player.getVehicle() instanceof net.krodark.asterion.update.underworld.entity.CharonsFerryEntity
-                || net.krodark.asterion.update.underworld.entity.CharonsFerryEntity.supporting(client.player) != null)
-            return new Vector4f();
-        if (!client.player.isInWater() && (client.player.getY() < UnderworldTerrain.WATER_Y - 2
-                || client.player.getY() > UnderworldTerrain.WATER_Y + 4
-                || client.level.getBlockState(client.player.blockPosition().below()).isSolidRender()))
+        if (UnderworldWaterPhysics.sheltered(client.player))
             return new Vector4f();
         double ticks = client.level.getGameTime() + client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        double surface = UnderworldWaterPhysics.surfaceAt(client.player, ticks);
+        double surface = UnderworldWaterPhysics.surfaceAt(client.level, AmneticCamera.position(), ticks);
         if (!Double.isFinite(surface)) return new Vector4f();
         float amount = (float)Math.clamp((surface - AmneticCamera.position().y + .1) * 1.3, 0, 1);
         return new Vector4f(amount, (float)surface, 0, 0);

@@ -16,6 +16,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.krodark.asterion.network.ragdoll.RagdollImpulsePayload;
+import net.krodark.asterion.network.DazePayload;
 import net.krodark.asterion.network.ragdoll.RagdollServerNetworking;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.damagesource.DamageSource;
@@ -50,6 +51,13 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
     private UUID huntTarget;
     private int stateTicks, approachTicks, attackCooldown, unseenTicks;
     private double previousDistance = Double.POSITIVE_INFINITY;
+    private double previousWaitingDistance=Double.POSITIVE_INFINITY;
+    private UUID observedPrey;
+    private net.krodark.asterion.update.underworld.WebPatch perchSilk;
+    private int perchEdge=-1;
+    private boolean restoreSilk;
+    private long savedSilkKey;
+    private int savedSilkEdge=-1;
     private Vec3 surfaceGoal;
     private final java.util.ArrayDeque<SpiderSurfaceRoute.Point> surfaceRoute=new java.util.ArrayDeque<>();
     private int routeRetry;
@@ -76,6 +84,33 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
     private net.krodark.asterion.update.underworld.WebPatch silkPatch;
     private int webReleaseUntil, nextSpin;
     private int nextBridge;
+    private SpiderWebTrip webTrip;
+    private int tripDeadline;
+    private static final EntityDataAccessor<Boolean> THREAD = SynchedEntityData.defineId(LimboSpiderEntity.class,EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Float> THREAD_X = SynchedEntityData.defineId(LimboSpiderEntity.class,EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Float> THREAD_Y = SynchedEntityData.defineId(LimboSpiderEntity.class,EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Float> THREAD_Z = SynchedEntityData.defineId(LimboSpiderEntity.class,EntityDataSerializers.FLOAT);
+    public Vec3 threadAnchor() { return entityData.get(THREAD)?new Vec3(entityData.get(THREAD_X),entityData.get(THREAD_Y),entityData.get(THREAD_Z)):null; }
+    private void thread(Vec3 anchor) {
+        entityData.set(THREAD,anchor!=null);
+        if(anchor!=null) { entityData.set(THREAD_X,(float)anchor.x);entityData.set(THREAD_Y,(float)anchor.y);entityData.set(THREAD_Z,(float)anchor.z); }
+    }
+    public Vec3 estimatedWebmaker() {
+        Vec3 up=attachmentNormal().scale(-1);
+        return position().add(0,.84*SpiderDimensions.RENDER_SCALE,0)
+                .add(up.scale(-.39*SpiderDimensions.RENDER_SCALE))
+                .subtract(crawlHeading.normalize().scale(23.0/16*SpiderDimensions.RENDER_SCALE));
+    }
+    public void cutThread(Player player) {
+        webTrip=null;thread(null);nextSpin=tickCount+200;webReleaseUntil=tickCount+30;
+        if(state()==State.HANGING || state()==State.WAITING)detach();
+        hunt(player);
+    }
+    private void beginWeb(net.krodark.asterion.update.underworld.WebPatch patch) {
+        if(patch==null || webTrip!=null)return;
+        webTrip=new SpiderWebTrip(patch);tripDeadline=tickCount+600;
+        surfaceRoute.clear();routeRetry=tickCount;
+    }
     private Vec3 progressPosition;
     private int stalledTicks;
     private int stalledAttempts;
@@ -184,6 +219,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
         data.define(STATE, State.HANGING.ordinal());
         data.define(SURFACE, Direction.DOWN.ordinal());
         data.define(WEB, false);
+        data.define(THREAD,false);data.define(THREAD_X,0F);data.define(THREAD_Y,0F);data.define(THREAD_Z,0F);
         data.define(HEADING_X,0F);data.define(HEADING_Y,0F);data.define(HEADING_Z,1F);
         data.define(SILK_KEY,0L);data.define(SILK_EDGE,-1);
         data.define(NORMAL_X,0F); data.define(NORMAL_Y,-1F); data.define(NORMAL_Z,0F); data.define(SUPPORT_DISTANCE,0F);
@@ -197,7 +233,11 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
         perch = findPerch();
         if (perch != null) {
             setPos(perch.x,perch.y,perch.z);
-            entityData.set(SURFACE,Direction.UP.ordinal());
+            if(perchSilk!=null) {
+                silkPatch=perchSilk;silkKey=perchSilk.key();silkEdge=perchEdge;
+                entityData.set(WEB,true);entityData.set(SILK_KEY,silkKey);entityData.set(SILK_EDGE,silkEdge);
+                entityData.set(SURFACE,Direction.DOWN.ordinal());
+            } else entityData.set(SURFACE,Direction.UP.ordinal());
             setNoGravity(true);
         } else {
             setPos(pos.getX()+.5,pos.getY()+1,pos.getZ()+.5);
@@ -206,6 +246,19 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
     }
     private Vec3 findPerch() {
         if (nest == null) return null;
+        perchSilk=null;perchEdge=-1;
+        if(level() instanceof ServerLevel && level().dimension().equals(net.krodark.asterion.Asterion.LIMBO_LEVEL)) {
+            for(var patch:WebPatchGenerator.around(level(),Vec3.atCenterOf(nest),3))for(int edge=0;edge<patch.edges().size();edge++) {
+                var link=patch.edges().get(edge);
+                Vec3 span=patch.anchors().get(link.b()).subtract(patch.anchors().get(link.a()));
+                Vec3 at=patch.point(edge,.5).add(0,.08,0);
+                if(span.lengthSqr()<36 || Math.abs(span.normalize().y)>.35 || at.distanceToSqr(Vec3.atCenterOf(nest))>20*20
+                        || !LimboWebSystem.supports(level(),patch,edge))continue;
+                if(level().noCollision(this,getBoundingBox().move(at.subtract(position())))) {
+                    perchSilk=patch;perchEdge=edge;return at;
+                }
+            }
+        }
         for (int radius = 0; radius <= 3; radius++) {
             for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
                 if (Math.max(Math.abs(dx),Math.abs(dz)) != radius) continue;
@@ -225,13 +278,14 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
         if (state() == next) return;
         entityData.set(STATE,next.ordinal()); stateTicks = 0;
         if (next == State.HANGING) restDuration = 100 + random.nextInt(220);
+        if(next==State.WAITING)previousWaitingDistance=previousDistance;
         if (next == State.FLEEING_SEEN) { unseenTicks = 0; escapeGoal = null; }
         boolean hidden = next == State.WANDERING_CAMOUFLAGED || next == State.STALKING_CAMOUFLAGED;
         setInvisible(hidden);
         boolean perched = next == State.HANGING || next == State.WAITING;
         setNoGravity(perched || attachedSurface() != Direction.DOWN || onWeb());
         if (perched) {
-            if (perch != null && position().distanceToSqr(perch) < 2
+            if (!onWeb() && perch != null && position().distanceToSqr(perch) < 2
                     && touching(Direction.UP)) entityData.set(SURFACE,Direction.UP.ordinal());
             getNavigation().stop(); setDeltaMovement(Vec3.ZERO);
         } else if (attachedSurface() != Direction.DOWN && !onWeb() && !touching(attachedSurface())) detach();
@@ -348,6 +402,10 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
         refreshSupport();
         if (mode == State.HANGING || mode == State.WAITING) {
             surfaceRoute.clear();
+            if(onWeb()) {
+                if(webStillSupports() && crawlWeb(position()))return;
+                detach();state(State.WANDERING);return;
+            }
             setNoGravity(smoothSupport!=null); setDeltaMovement(Vec3.ZERO); return;
         }
         Direction surface = attachedSurface();
@@ -372,12 +430,14 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
                 && SpiderSupportSurface.contact(localSupport(),getBoundingBox().move(ahead.scale(2)).move(0,-2,0),Direction.DOWN)==null;
         if(pit && tickCount>=nextBridge && level() instanceof ServerLevel server) {
             nextBridge=tickCount+60+Math.floorMod(getId(),20);
-            WebPatchGenerator.bridge(server,getBoundingBox().getCenter(),goal,getBbHeight());
+            beginWeb(WebPatchGenerator.planBridge(server,getBoundingBox().getCenter(),goal,getBbHeight()));
         }
         if(pit && tickCount>=webReleaseUntil && crawlWeb(goal))return;
         // A roof target requires a connected route to a wall before climbing.
         if(goal!=null && (smoothSupport!=null || onGround())
-                && (ledge || Math.abs(goal.y-getY())>1.5 || horizontalCollision || getNavigation().isStuck())
+                && (ledge || Math.abs(goal.y-getY())>1.5
+                || surface!=Direction.DOWN && Math.abs(goal.subtract(position()).dot(surface.getUnitVec3()))>1.2
+                || horizontalCollision || getNavigation().isStuck())
                 && planSurfaceRoute(goal) && followSurfaceRoute())return;
         if(pit) { getNavigation().stop();setDeltaMovement(Vec3.ZERO);return; }
         if (supportMotion && smoothSupport != null) {
@@ -628,6 +688,14 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
         return true;
     }
     @Override public void tick() {
+        if(restoreSilk && level() instanceof ServerLevel) {
+            restoreSilk=false;
+            for(var patch:WebPatchGenerator.around(level(),position(),5))if(patch.key()==savedSilkKey
+                    && savedSilkEdge>=0 && savedSilkEdge<patch.edges().size() && LimboWebSystem.supports(level(),patch,savedSilkEdge)) {
+                silkPatch=patch;silkKey=patch.key();silkEdge=savedSilkEdge;
+                entityData.set(WEB,true);entityData.set(SILK_KEY,silkKey);entityData.set(SILK_EDGE,silkEdge);setNoGravity(true);break;
+            }
+        }
         super.tick();
         if (!(level() instanceof ServerLevel level) || !isAlive()) return;
         refreshSupport();
@@ -658,15 +726,19 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
         }
         surfaceGoal = null;
         Player player = prey(level);
+        UUID observing=player==null?null:player.getUUID();
+        if(!java.util.Objects.equals(observing,observedPrey)) {
+            observedPrey=observing;approachTicks=0;previousDistance=Double.POSITIVE_INFINITY;previousWaitingDistance=Double.POSITIVE_INFINITY;
+        }
         double distance = player == null ? Double.POSITIVE_INFINITY : Math.sqrt(distanceToSqr(player));
         boolean approaching = distance + .06 < previousDistance;
         previousDistance = distance;
         boolean noticed = player != null && seenBy(player);
-        boolean night = Math.floorMod(level.getGameTime(),24000L) >= 12000;
+        boolean night = SpiderBehavior.night(level.getGameTime());
         switch (state()) {
             case HANGING -> {
                 getNavigation().stop(); setDeltaMovement(Vec3.ZERO);
-                if (!touching(Direction.UP)) {
+                if (!(onWeb()?webStillSupports():touching(Direction.UP))) {
                     state(State.WANDERING); detach(); break;
                 }
                 if (player != null && distance < 30 && approaching) {
@@ -674,23 +746,23 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
                     if (approachTicks >= 14) state(State.WAITING);
                 } else approachTicks = Math.max(0,approachTicks-2);
                 if (noticed && player != null && distance < 24) state(State.WAITING);
-                else if (stateTicks > restDuration) {
+                else if (night && stateTicks > restDuration) {
                     patrolGoal = null;
                     state(night && random.nextBoolean() ? State.WANDERING_CAMOUFLAGED : State.WANDERING);
                 }
             }
             case WAITING -> {
                 getNavigation().stop(); setDeltaMovement(Vec3.ZERO);
-                if(!touching(Direction.UP)) { state(State.WANDERING); detach(); break; }
+                if(!(onWeb()?webStillSupports():touching(Direction.UP))) { state(State.WANDERING); detach(); break; }
                 if (approaching) approachTicks = Math.min(80,approachTicks+1);
-                if (player != null && distance < 23 && stateTicks > 8
-                        && (noticed || approachTicks > 22 && !approaching || distance < 5)) {
+                if (player != null && SpiderBehavior.ambush(approachTicks,distance,previousWaitingDistance,noticed,stateTicks)) {
                     state(State.ATTACKING);
                     detach();
                     Vec3 jump = player.position().subtract(position()).normalize().scale(.55);
                     setDeltaMovement(jump.x,Math.min(-.08,jump.y),jump.z);
                     playSound(SoundEvents.SPIDER_AMBIENT,1.5F,.52F);
                 } else if (player == null || distance > 38 || stateTicks > 260) state(State.HANGING);
+                previousWaitingDistance=distance;
             }
             case MIMICKING -> {
                 if (attachedSurface() == Direction.UP) detach();
@@ -703,7 +775,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
                 if (player != null && distance < 30 && !homebound) {
                     state(state() == State.WANDERING_CAMOUFLAGED
                             ? State.STALKING_CAMOUFLAGED : State.STALKING);
-                } else if (homebound || stateTicks > roamDuration
+                } else if (homebound || !night && stateTicks>100 || stateTicks > roamDuration
                         || position().distanceToSqr(Vec3.atCenterOf(nest)) > 46*46) {
                     homebound = true; returnHome(1.05);
                 } else {
@@ -759,12 +831,12 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
             }
             case FLEEING_HURT -> {
                 if (stateTicks % 40 == 0 && getHealth() < getMaxHealth()) heal(1F);
-                if (perch != null) returnHome(1.35);
+                if (perch != null && stalledAttempts<2) returnHome(1.35);
                 else if (player != null) {
                     Vec3 away = position().subtract(player.position()).multiply(1,0,1).normalize();
                     move(position().add(away.scale(17)),1.3);
                 }
-                if (perch == null && getHealth() >= getMaxHealth()*.65F && stateTicks > 100) {
+                if ((perch == null || stalledAttempts>=2) && getHealth() >= getMaxHealth()*.65F && stateTicks > 100) {
                     homebound = true; state(State.WANDERING);
                 }
             }
@@ -785,7 +857,25 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
                 }
             }
         }
+        boolean weaving=!homebound && (state()==State.WANDERING || state()==State.WANDERING_CAMOUFLAGED) || state()==State.HUNTING;
+        if(webTrip!=null) {
+            if(!weaving || tickCount>tripDeadline || !LimboWebSystem.supports(level,webTrip.patch(),0)) {
+                webTrip=null;surfaceRoute.clear();thread(null);
+            } else if(webTrip.visit(position(),getBoundingBox(),smoothSupport!=null || onGround() || onWeb())) {
+                WebPatchGenerator.finishSpin(level,webTrip.patch());webTrip=null;thread(null);surfaceRoute.clear();
+            } else move(webTrip.goal(getBoundingBox()),.85);
+        }
         crawl();
+        if(webTrip!=null && webTrip.attached())thread(webTrip.patch().anchors().getFirst());
+        else if(state()==State.HANGING || state()==State.WAITING) {
+            if(onWeb() && webStillSupports())thread(silkPatch.point(silkEdge,silkPatch.nearestAlong(silkEdge,estimatedWebmaker())));
+            else {
+                Vec3 maker=estimatedWebmaker();
+                var hit=level.clip(new net.minecraft.world.level.ClipContext(maker,maker.add(attachmentNormal().scale(4)),
+                        net.minecraft.world.level.ClipContext.Block.COLLIDER,net.minecraft.world.level.ClipContext.Fluid.NONE,this));
+                thread(hit.getType()==net.minecraft.world.phys.HitResult.Type.BLOCK?hit.getLocation():null);
+            }
+        } else thread(null);
         boolean trying=surfaceGoal!=null && surfaceGoal.distanceToSqr(position())>1
                 && state()!=State.HANGING && state()!=State.WAITING && tickCount>=pauseUntil;
         if(trying && progressPosition!=null && position().distanceToSqr(progressPosition)<.0004)stalledTicks++;
@@ -796,6 +886,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
             // waypoint, replan once, then choose another patrol destination.
             surfaceRoute.clear();routeRetry=Math.min(routeRetry,tickCount);
             if(++stalledAttempts>=2 || !planSurfaceRoute(surfaceGoal)) {
+                if(webTrip!=null) { webTrip=null;thread(null);nextSpin=tickCount+200; }
                 if(state()==State.WANDERING || state()==State.WANDERING_CAMOUFLAGED) {
                     patrolGoal=null;patrolUntil=0;pauseUntil=0;
                     stalledAttempts=0;
@@ -803,21 +894,26 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
             }
             stalledTicks=0;
         }
-        entityData.set(HEADING_X,(float)(Math.rint(crawlHeading.x*1000)/1000));
-        entityData.set(HEADING_Y,(float)(Math.rint(crawlHeading.y*1000)/1000));
-        entityData.set(HEADING_Z,(float)(Math.rint(crawlHeading.z*1000)/1000));
-        if(tickCount>=nextSpin && !onWeb() && smoothSupport!=null
-                && (state()==State.WANDERING || state()==State.WANDERING_CAMOUFLAGED || state()==State.HANGING)) {
+        Vec3 visibleHeading=crawlHeading;
+        if(state()==State.FLEEING_SEEN && player!=null) {
+            Vec3 watch=SpiderSurfaceMotion.tangent(attachedSurface(),player.position().subtract(position()));
+            if(watch.lengthSqr()>.01)visibleHeading=watch.normalize();
+        }
+        entityData.set(HEADING_X,(float)(Math.rint(visibleHeading.x*1000)/1000));
+        entityData.set(HEADING_Y,(float)(Math.rint(visibleHeading.y*1000)/1000));
+        entityData.set(HEADING_Z,(float)(Math.rint(visibleHeading.z*1000)/1000));
+        if(tickCount>=nextSpin && webTrip==null && !onWeb() && smoothSupport!=null && !homebound
+                && (state()==State.WANDERING || state()==State.WANDERING_CAMOUFLAGED)) {
             nextSpin=tickCount+160+random.nextInt(200);
-            WebPatchGenerator.spin(level,getBoundingBox().getCenter(),crawlHeading);
+            beginWeb(WebPatchGenerator.planSpin(level,getBoundingBox().getCenter(),crawlHeading));
         }
     }
     private void returnHome(double speed) {
         if (nest == null) return;
-        if (attachedSurface() != Direction.DOWN && perch != null) {
+        if ((attachedSurface() != Direction.DOWN || onWeb()) && perch != null) {
             move(perch,speed);
-            if (attachedSurface() == Direction.UP && position().distanceToSqr(perch) < 2.25
-                    && touching(Direction.UP) && (state() != State.FLEEING_HURT || getHealth() >= getMaxHealth()*.65F)) {
+            if (position().distanceToSqr(perch) < .45*.45 && (onWeb()?webStillSupports():attachedSurface()==Direction.UP && touching(Direction.UP))
+                    && (state() != State.FLEEING_HURT || getHealth() >= getMaxHealth()*.65F)) {
                 homebound = false; state(State.HANGING);
             }
             return;
@@ -868,13 +964,16 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
         victim.setDeltaMovement(impulse);
         victim.hurtMarked = true;
         victim.resetFallDistance();
-        RagdollServerNetworking.markRagdolled(victim,38);
+        RagdollServerNetworking.markRagdolled(victim,86);
         if (ServerPlayNetworking.canSend(victim,RagdollImpulsePayload.TYPE))
             ServerPlayNetworking.send(victim,new RagdollImpulsePayload(position(),impulse,1.1F));
+        if (ServerPlayNetworking.canSend(victim,DazePayload.TYPE))
+            ServerPlayNetworking.send(victim,new DazePayload(82,5));
     }
     @Override public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
         boolean hurt = super.hurtServer(level,source,amount);
-        if (hurt && isAlive() && (getHealth() < getMaxHealth()*.5F || amount >= 30F)) {
+        if (hurt && isAlive() && SpiderBehavior.flee(getHealth(),getMaxHealth(),amount)) {
+            if(source.getEntity() instanceof Player attacker)huntTarget=attacker.getUUID();
             homebound = false;
             state(State.FLEEING_HURT);
         }
@@ -884,6 +983,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
         super.addAdditionalSaveData(out);
         out.putInt("SpiderState",state().ordinal());
         out.putInt("SpiderSurface",attachedSurface().ordinal());
+        if(onWeb()) { out.putLong("SilkKey",silkKey);out.putInt("SilkEdge",silkEdge); }
         if (nest != null) { out.putInt("NestX",nest.getX());out.putInt("NestY",nest.getY());out.putInt("NestZ",nest.getZ()); }
     }
     @Override protected void readAdditionalSaveData(ValueInput in) {
@@ -893,6 +993,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
         state(State.values()[Math.clamp(in.getIntOr("SpiderState",0),0,State.values().length-1)]);
         entityData.set(SURFACE,Math.clamp(in.getIntOr("SpiderSurface",Direction.DOWN.ordinal()),
                 0,Direction.values().length-1));
+        savedSilkKey=in.getLongOr("SilkKey",0L);savedSilkEdge=in.getIntOr("SilkEdge",-1);restoreSilk=savedSilkEdge>=0;
         syncSupport();
     }
     @Override public AnimatableInstanceCache getAnimatableInstanceCache() { return cache; }

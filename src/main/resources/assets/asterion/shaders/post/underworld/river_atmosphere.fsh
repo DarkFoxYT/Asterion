@@ -122,8 +122,14 @@ void main() {
 
     float transmission = exp(-opticalDepth);
     float submerged = clamp(Underwater.x, 0.0, 1.0);
-    transmission *= mix(1.0, .075 * exp(-travel * .16), submerged);
+    // Darkness follows the submerged ray; local lights open a visible pool instead
+    // of being erased by a constant full-screen blackout.
+    float litWater = max(lightRelief(CameraData.xyz),lightRelief(CameraData.xyz+direction*min(travel,12.0)));
+    litWater = smoothstep(.025,.65,litWater);
+    float waterTransmission = exp(-travel * mix(.85,.065,litWater));
+    transmission = mix(transmission,waterTransmission,submerged);
     scattering = mix(scattering,
-            vec3(.0012, .0018, .0032) * (1.0 - exp(-travel * .12)), submerged);
+            mix(vec3(.00008,.00012,.0002),vec3(.007,.012,.017),litWater)
+                    * (1.0-waterTransmission), submerged);
     fragColor = vec4(scattering * strength, mix(1.0, transmission, strength));
 }

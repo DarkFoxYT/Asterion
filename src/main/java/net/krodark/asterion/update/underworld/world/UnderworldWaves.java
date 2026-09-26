@@ -8,11 +8,11 @@ public final class UnderworldWaves {
     public static final double CHOPPINESS = .9;
     public record Sample(double height, double dx, double dz, double curvature) { }
     private record Noise(double value, double dx, double dz) { }
-    private static final double[] kx = {.065, -.088, .039, -.19};
-    private static final double[] kz = {.042, .052, -.148, -.083};
-    private static final double[] amplitude = {1.75, 1.22, .78, .36};
-    private static final double[] offset = {.20, 1.8, 3.1, .7};
-    private static final double[] warp = {8.0, -9.0, 7.0, -8.0};
+    private static final double[] kx = {.065, -.088, .039, -.19, .52};
+    private static final double[] kz = {.042, .052, -.148, -.083, .21};
+    private static final double[] amplitude = {1.75, 1.22, .78, .36, .13};
+    private static final double[] offset = {.20, 1.8, 3.1, .7, 2.4};
+    private static final double[] warp = {8.0, -9.0, 7.0, -8.0, 3.0};
     private UnderworldWaves() { }
 
     public static double height(double x, double z, double ticks) {
@@ -40,7 +40,7 @@ public final class UnderworldWaves {
         double exposure = .12 + .88 * t * t * (3 - 2 * t);
         double group = .55 + .45 * energy.value;
         double h = 0, dx = 0, dz = 0, curvature = 0;
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < amplitude.length; i++) {
             Noise phase = i==0?phaseA:i==1?phaseB:i==2?phaseC:phaseD;
             Noise packet = i==0?phaseB:i==1?phaseC:i==2?phaseA:phaseB;
             double boosted = amplitude[i] * (1 + storm * .85);

@@ -63,7 +63,8 @@ vec4 sampleWave(vec2 p,float ticks) {
     vec4 w=swell(p,ticks,vec2(.065,.042),1.75*boost,.20,phase,8.0,phaseB)
           +swell(p,ticks,vec2(-.088,.052),1.22*boost,1.8,phaseB,-9.0,phaseC)
           +swell(p,ticks,vec2(.039,-.148),.78*boost,3.1,phaseC,7.0,phase)
-          +swell(p,ticks,vec2(-.19,-.083),.36*boost,.7,phaseD,-8.0,phaseB);
+          +swell(p,ticks,vec2(-.19,-.083),.36*boost,.7,phaseD,-8.0,phaseB)
+          +swell(p,ticks,vec2(.52,.21),.13*boost,2.4,phaseD,3.0,phaseB);
     vec2 envelopeSlope=exposure*.45*energy.yz*.011*.65;
     envelopeSlope.y+=group*.88*6.0*t*(1.0-t)/125.0;
     vec4 result=vec4(w.x*exposure*group,w.yz*exposure*group*.65+w.x*envelopeSlope,w.w*exposure*group*.4225);

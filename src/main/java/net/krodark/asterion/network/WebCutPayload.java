@@ -22,13 +22,26 @@ public record WebCutPayload(long key, int link) implements CustomPacketPayload {
         ServerPlayNetworking.registerGlobalReceiver(TYPE, (payload, context) -> context.server().execute(() -> handle(context.player(), payload)));
     }
     private static void handle(ServerPlayer player, WebCutPayload request) {
-        if (!player.level().dimension().equals(Asterion.LIMBO_LEVEL) || request.link < 0 || request.link > 4096) return;
+        if (!player.level().dimension().equals(Asterion.LIMBO_LEVEL) || request.link < -1 || request.link > 4096) return;
         Vec3 eye = player.getEyePosition(), look = player.getLookAngle(), end = eye.add(look.scale(player.blockInteractionRange() + .75));
+        var obstruction=player.level().clip(new net.minecraft.world.level.ClipContext(eye,end,net.minecraft.world.level.ClipContext.Block.COLLIDER,net.minecraft.world.level.ClipContext.Fluid.NONE,player));
+        if(obstruction.getType()==net.minecraft.world.phys.HitResult.Type.BLOCK)end=obstruction.getLocation();
+        if(request.link==-1) {
+            if(request.key<0 || request.key>Integer.MAX_VALUE)return;
+            if(player.level().getEntity((int)request.key) instanceof net.krodark.asterion.update.underworld.entity.LimboSpiderEntity spider
+                    && spider.threadAnchor()!=null && segmentDistanceSqr(eye,end,spider.estimatedWebmaker(),spider.threadAnchor())<=.85*.85)
+                spider.cutThread(player);
+            return;
+        }
         for (WebPatch patch : WebPatchGenerator.around(player.level(), eye, 16)) if (patch.key() == request.key && request.link < patch.linkCount()) {
             int base=0;Vec3 a=null,b=null;
             for(int edgeIndex=0;edgeIndex<patch.edges().size();edgeIndex++){int pieces=patch.pieces(edgeIndex);if(request.link<base+pieces){int local=request.link-base;a=patch.point(edgeIndex,local/(double)pieces);b=patch.point(edgeIndex,(local+1)/(double)pieces);break;}base+=pieces;}
             // Account for the bounded local deflection of the visible strand.
-            if (a!=null&&segmentDistanceSqr(eye,end,a,b)<=.85*.85) { LimboWebSystem.sever((ServerLevel)player.level(),request.key,request.link); broadcast((ServerLevel)player.level(),a.lerp(b,.5),request.key,request.link); }
+            if (a!=null&&segmentDistanceSqr(eye,end,a,b)<=.85*.85) {
+                LimboWebSystem.sever((ServerLevel)player.level(),request.key,request.link);broadcast((ServerLevel)player.level(),a.lerp(b,.5),request.key,request.link);
+                for(var spider:player.level().getEntitiesOfClass(net.krodark.asterion.update.underworld.entity.LimboSpiderEntity.class,
+                        new net.minecraft.world.phys.AABB(a,b).inflate(24)))spider.hunt(player);
+            }
             return;
         }
     }

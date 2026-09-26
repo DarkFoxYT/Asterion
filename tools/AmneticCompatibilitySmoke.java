@@ -44,8 +44,11 @@ public final class AmneticCompatibilitySmoke {
             throw new AssertionError("Limbo fog intensity is missing/zero with fades disabled");
         System.out.println("PASS actual Limbo registration supplies full fog intensity with fades disabled");
         int checks=0;
-        for(var item:config.getAsJsonArray("client")) {
-            String name=item.getAsString();if(!name.startsWith("Amnetic"))continue;
+        var mixins=new com.google.gson.JsonArray();
+        mixins.addAll(config.getAsJsonArray("client"));mixins.addAll(config.getAsJsonArray("mixins"));
+        for(var item:mixins) {
+            String name=item.getAsString();if(!name.startsWith("Amnetic") && !name.equals("LimboCameraWaterMixin")
+                    && !name.equals("LimboFluidInteractionMixin"))continue;
             var mixin=read("net/krodark/asterion/mixin/"+name);ClassNode target=null;
             for(var a:annotations(mixin.visibleAnnotations,mixin.invisibleAnnotations))if(a.desc.endsWith("/Mixin;")) {
                 var values=(List<?>)value(a,"value");var targets=(List<?>)value(a,"targets");
@@ -57,6 +60,13 @@ public final class AmneticCompatibilitySmoke {
                 checks++;
             }
             for(var m:mixin.methods)for(var a:annotations(m.visibleAnnotations,m.invisibleAnnotations)) {
+                if(a.desc.endsWith("/Accessor;")) {
+                    String field=(String)value(a,"value");
+                    String descriptor=Type.getReturnType(m.desc).getDescriptor();
+                    if(target.fields.stream().noneMatch(t->t.name.equals(field)&&t.desc.equals(descriptor)))
+                        throw new AssertionError(name+" missing accessor field "+field);
+                    checks++;
+                }
                 if(a.desc.endsWith("/Shadow;")||a.desc.endsWith("/Invoker;")) {
                     String method=value(a,"value") instanceof String v?v:m.name;
                     if(target.methods.stream().noneMatch(t->t.name.equals(method)&&t.desc.equals(m.desc)))throw new AssertionError(name+" missing method "+method);

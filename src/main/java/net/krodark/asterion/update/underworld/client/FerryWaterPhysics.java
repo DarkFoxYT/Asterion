@@ -29,7 +29,19 @@ public final class FerryWaterPhysics {
     private static double previousFeet=Double.NaN;
     private static double previousSurface=Double.NaN;
     private FerryWaterPhysics() { }
-    public static void initialize() { ClientTickEvents.END_CLIENT_TICK.register(FerryWaterPhysics::tick); }
+    public static void initialize() {
+        ClientTickEvents.END_CLIENT_TICK.register(FerryWaterPhysics::tick);
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.register(
+                (handler,client)->LimboRainParticle.clearCache());
+        net.fabricmc.fabric.api.client.particle.v1.ParticleProviderRegistry.getInstance().register(
+                ParticleTypes.RAIN, sprites -> {
+                    var vanilla = new net.minecraft.client.particle.WaterDropParticle.Provider(sprites);
+                    return (options, level, x, y, z, vx, vy, vz, random) ->
+                            level.dimension().equals(Asterion.LIMBO_LEVEL) && LimboTempest.strength(level.getGameTime()) > .02
+                                    ? new LimboRainParticle(level,x,y,z,vx,vy,vz,sprites)
+                                    : vanilla.createParticle(options,level,x,y,z,vx,vy,vz,random);
+                });
+    }
     private static void tick(Minecraft client) {
         if(client.level!=world) { world=client.level;CONTACTS.clear();previousFeet=Double.NaN;previousSurface=Double.NaN; }
         if(world==null || client.player==null || client.isPaused() || !world.dimension().equals(Asterion.LIMBO_LEVEL))return;
@@ -88,7 +100,7 @@ public final class FerryWaterPhysics {
         if(Double.isFinite(water) && Double.isFinite(previousFeet) && Double.isFinite(previousSurface)
                 && previousFeet>previousSurface+.08 && feet<=water+.08 && player.getDeltaMovement().y<-.06
                 && CharonsFerryEntity.supporting(player)==null
-                && !(player.getVehicle() instanceof CharonsFerryEntity)) {
+                && !net.krodark.asterion.update.underworld.world.UnderworldWaterPhysics.sheltered(player)) {
             int count=Math.min(quality==0?4:quality==1?9:18,
                     6+(int)(Math.abs(player.getDeltaMovement().y)*12));
             for(int i=0;i<count;i++) {
@@ -134,8 +146,18 @@ public final class FerryWaterPhysics {
             double surface = UnderworldTerrain.WATER_Y + 8.0 / 9.0;
             double vx = -rock.getStepX() * (.035 + energy * .09);
             double vz = -rock.getStepZ() * (.035 + energy * .09);
-            world.addParticle(ParticleTypes.SPLASH, x + .5, surface + .03, z + .5,
+            double edgeX=x+.5+rock.getStepX()*.46, edgeZ=z+.5+rock.getStepZ()*.46;
+            world.addParticle(ParticleTypes.SPLASH, edgeX, surface + .03, edgeZ,
                     vx, .06 + energy * .16, vz);
+            if(quality>0) {
+                var spray=client.particleEngine.createParticle(ParticleTypes.CLOUD,
+                        edgeX,surface+.18,edgeZ,vx*.8,.10+energy*.17,vz*.8);
+                if(spray instanceof net.minecraft.client.particle.SingleQuadParticle quad) {
+                    quad.setColor(.92F,.96F,1F);
+                    spray.scale((float)(.65+Math.min(energy,1.5)*.55));
+                    spray.setLifetime(12+random.nextInt(10));
+                }
+            }
             if (quality > 0 && (storm > .4 || random.nextBoolean()))
                 world.addParticle(storm > .55 ? ParticleTypes.FALLING_WATER : ParticleTypes.BUBBLE_POP,
                         x + .5 + random.nextDouble() * .3 - .15, surface + .12,
@@ -169,12 +191,16 @@ public final class FerryWaterPhysics {
         double storm = LimboTempest.strength(time);
         if (storm < .05 || client.player.getZ() < 18) return;
         var random = world.getRandom();
-        int count = (int)Math.ceil(storm * (quality == 0 ? 5 : quality == 1 ? 10 : 16));
+        int count = (int)Math.ceil(storm * (quality == 0 ? 14 : quality == 1 ? 36 : 64));
+        double gust=.75+.25*Math.sin(time*.037)+.12*Math.sin(time*.091);
         for (int i = 0; i < count; i++) {
             double x = client.player.getX() + (random.nextDouble() - .5) * 30;
             double z = client.player.getZ() + (random.nextDouble() - .5) * 30;
             double y = client.player.getY() + 5 + random.nextDouble() * 9;
-            world.addParticle(ParticleTypes.RAIN, x, y, z, -.035 * storm, -.18, .012 * storm);
+            if (!world.getBlockState(BlockPos.containing(x,y,z)).getCollisionShape(world,BlockPos.containing(x,y,z)).isEmpty()) continue;
+            world.addParticle(ParticleTypes.RAIN, x, y, z, -.30 * storm*gust, -.85, .13 * storm*gust);
         }
+        if(time%40==0) world.playLocalSound(client.player.getX(),client.player.getY()+3,client.player.getZ(),
+                SoundEvents.WEATHER_RAIN,SoundSource.WEATHER,(float)(storm*.75),.78F,false);
     }
 }

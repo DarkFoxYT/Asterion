@@ -61,10 +61,10 @@ abstract class AsterionFogRendererMixin {
         float light = Math.max(blockLight, dynamicLight);
         // Leave the distant water dim while allowing lit objects and Amnetic lights
         // to remain visible through the near field.
-        float visibility = 13F + 13F * (float)Math.exp(-depth / 14F) + light * 10F;
-        fog.environmentalStart = 2F;
-        fog.environmentalEnd = Math.max(fog.environmentalEnd, visibility);
-        fog.color.set(.007F + light * .020F, .019F + light * .027F,
-                .024F + light * .030F, 1F);
+        float visibility = 4F + light * 38F;
+        fog.environmentalStart = .4F + light * 3F;
+        fog.environmentalEnd = visibility;
+        fog.color.set(.0001F + light * .004F, .0002F + light * .007F,
+                .0003F + light * .011F, 1F);
     }
 }

@@ -38,12 +38,28 @@ public final class UnderworldWaterPhysics {
     }
 
     public static double surfaceAt(Entity entity, double ticks) {
-        int x = (int)Math.floor(entity.getX()), z = (int)Math.floor(entity.getZ());
-        int surfaceY = exposedSurface(entity, x, z);
+        return surfaceAt(entity.level(), entity.position(), ticks);
+    }
+
+    public static boolean sheltered(Entity entity) {
+        if (!entity.level().dimension().equals(Asterion.LIMBO_LEVEL)) return false;
+        if (entity.getVehicle() instanceof CharonsFerryEntity) return true;
+        for (var ferry : entity.level().getEntitiesOfClass(CharonsFerryEntity.class,
+                entity.getBoundingBox().inflate(4,2,4))) {
+            double deckOffset=entity.getY()-ferry.deckHeightAt(entity.getX(),entity.getZ());
+            if (ferry.supports(entity) || ferry.carries(entity) && deckOffset>=-.4 && deckOffset<1.2
+                    && ferry.overlapsDeck(entity.getBoundingBox())) return true;
+        }
+        return false;
+    }
+
+    public static double surfaceAt(net.minecraft.world.level.Level level, Vec3 position, double ticks) {
+        int x = (int)Math.floor(position.x), z = (int)Math.floor(position.z);
+        int surfaceY = exposedSurface(level, position.y, x, z);
         if (surfaceY == Integer.MIN_VALUE) return Double.NaN;
-        float shore = WaterShoreline.sample(entity.level(), x, surfaceY, z);
+        float shore = WaterShoreline.sample(level, x, surfaceY, z);
         return surfaceY + 8.0 / 9.0
-                + UnderworldTerrain.waveHeight(entity.getX(), entity.getZ(), ticks) * shore;
+                + UnderworldTerrain.waveHeight(position.x, position.z, ticks) * shore;
     }
 
     public static void alignItem(ItemEntity item, double ticks) {
@@ -61,20 +77,20 @@ public final class UnderworldWaterPhysics {
         item.setDeltaMovement(motion.x, motion.y + correction, motion.z);
     }
 
-    private static int exposedSurface(Entity entity, int x, int z) {
+    private static int exposedSurface(net.minecraft.world.level.Level level, double height, int x, int z) {
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        int center = (int)Math.floor(entity.getY());
+        int center = (int)Math.floor(height);
         for (int y = center + 3; y >= center - 4; y--) {
             pos.set(x, y, z);
-            var fluid = entity.level().getFluidState(pos);
+            var fluid = level.getFluidState(pos);
             if (fluid.is(FluidTags.WATER) && fluid.isSource()
-                    && !entity.level().getFluidState(pos.above()).is(FluidTags.WATER)) return y;
+                    && !level.getFluidState(pos.above()).is(FluidTags.WATER)) return y;
         }
         if (center < UnderworldTerrain.WATER_Y - 2) {
             pos.set(x, UnderworldTerrain.WATER_Y, z);
-            var fluid = entity.level().getFluidState(pos);
+            var fluid = level.getFluidState(pos);
             if (fluid.is(FluidTags.WATER) && fluid.isSource()
-                    && !entity.level().getFluidState(pos.above()).is(FluidTags.WATER)) return UnderworldTerrain.WATER_Y;
+                    && !level.getFluidState(pos.above()).is(FluidTags.WATER)) return UnderworldTerrain.WATER_Y;
         }
         return Integer.MIN_VALUE;
     }
