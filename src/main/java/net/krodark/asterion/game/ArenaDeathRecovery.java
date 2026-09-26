@@ -88,9 +88,24 @@ public final class ArenaDeathRecovery {
             if (minotaur) BossArenaEncounter.releaseMovementLock(player);
             pending.put(player.getUUID(), new Recovery(level, player.blockPosition().immutable(), gate,
                     player.isInvulnerable(), player.isNoGravity(), minotaur, level.getServer().getTickCount() + 20));
-            boolean wipe;
-            if (minotaur) wipe = !BossArenaEncounter.hasSurvivingParticipant(player);
-            else wipe = !brazier.hasSurvivingParticipant(player);
+            boolean wipe = true;
+            // One death resets the room as a group; capture members before resetting the encounter.
+            for (ServerPlayer member : List.copyOf(level.players())) {
+                if (member == player || member.isSpectator() || !member.isAlive()
+                        || !(minotaur ? BossArenaEncounter.isParticipant(member)
+                        || WorldGenerator.isInsideBossArena(member.position()) : brazier.isInEncounterRoom(member))) continue;
+                if (minotaur) BossArenaEncounter.releaseMovementLock(member);
+                pending.putIfAbsent(member.getUUID(), new Recovery(level, member.blockPosition().immutable(), gate,
+                        member.isInvulnerable(), member.isNoGravity(), minotaur, level.getServer().getTickCount() + 20));
+                releaseBossGrip(member, level);
+                member.setInvulnerable(true);
+                member.setNoGravity(true);
+                member.setDeltaMovement(Vec3.ZERO);
+                if (ServerPlayNetworking.canSend(member, BossEncounterResetPayload.TYPE))
+                    ServerPlayNetworking.send(member, BossEncounterResetPayload.INSTANCE);
+                if (ServerPlayNetworking.canSend(member, DimensionTransitionPayload.TYPE))
+                    ServerPlayNetworking.send(member, new DimensionTransitionPayload(20, 120, 1));
+            }
             releaseBossGrip(player, level);
             if (wipe) {
                 for (ServerPlayer member : List.copyOf(level.players()))

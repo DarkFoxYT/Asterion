@@ -231,6 +231,27 @@ public abstract class CameraMixin {
             setPosition(position().add(sample.cameraOffset()));
             setRotation(yRot() + sample.yawDegrees(), xRot() + sample.pitchDegrees());
         }
+        // Apply after camera shake: setRotation above would otherwise erase grip roll.
+        // Vanilla rebuilds the base camera each frame, so this never accumulates rotation.
+        if (localCamera && shot == null && finale == null && entrance == null
+                && brazier == null && collapse == null && forge == null) {
+            Quaternionf grip = net.krodark.asterion.client.render.entity.MinotaurHandAttachment.rotation(minecraft.player);
+            Vec3 feet = net.krodark.asterion.client.render.entity.MinotaurHandAttachment.feet(minecraft.player);
+            if (grip != null && feet != null) {
+                Vec3 hand = feet.add(0, minecraft.player.getBbHeight() * .52, 0);
+                if (minecraft.options.getCameraType().isFirstPerson()) {
+                    Vector3f eyeOffset = grip.transform(new Vector3f(0,
+                            minecraft.player.getEyeHeight() - minecraft.player.getBbHeight() * .52F, 0));
+                    setPosition(asterion$clipCamera(minecraft, hand,
+                            hand.add(eyeOffset.x, eyeOffset.y, eyeOffset.z)));
+                }
+                rotation.premul(grip).normalize();
+                forwards.rotate(grip); up.rotate(grip); left.rotate(grip);
+                matrixPropertiesDirty |= 3;
+                asterion$smoothedRagdollCamera = null;
+                asterion$rebuildCinematicFrustum(minecraft);
+            }
+        }
         if (localCamera && (shot != null || finale != null || entrance != null || brazier != null || collapse != null))
             asterion$rebuildCinematicFrustum(minecraft);
         var studio = net.krodark.asterion.client.cinematic.studio.CutsceneStudio.camera(partial);

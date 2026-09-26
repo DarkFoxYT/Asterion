@@ -124,6 +124,7 @@ public final class WorldGenerator {
     private static final PriorityQueue<RestoringBlock> RESTORING_BLOCKS = new PriorityQueue<>(
             Comparator.comparingLong(RestoringBlock::dueTick));
     private static final Map<BlockKey, Block> PLAYER_PLACED_BLOCKS = new HashMap<>();
+    private static final Map<BlockKey, Long> CATACOMB_PLACEMENT_EXPIRY = new HashMap<>();
     private static long prewarmSeed = Long.MIN_VALUE;
     private static int prewarmIndex;
     private static BlockPos sharedPortalArrival;
@@ -175,6 +176,16 @@ public final class WorldGenerator {
         tickRestoringBlocks(server);
         ServerLevel maze = server.getLevel(Asterion.ASTERION_LEVEL);
         if (maze != null) {
+            var expired = CATACOMB_PLACEMENT_EXPIRY.entrySet().iterator();
+            while (expired.hasNext()) {
+                var entry = expired.next();
+                if (maze.getGameTime() < entry.getValue() || !maze.isLoaded(entry.getKey().pos)) continue;
+                BlockKey key = entry.getKey();
+                expired.remove();
+                Block expected = PLAYER_PLACED_BLOCKS.remove(key);
+                if (expected != null && maze.getBlockState(key.pos).is(expected))
+                    maze.destroyBlock(key.pos, true);
+            }
             tickMaze(maze);
         }
         server.getPlayerList().getPlayers().forEach(WorldGenerator::tickPlayer);
@@ -456,6 +467,8 @@ public final class WorldGenerator {
     public static void trackPlayerPlacement(ServerLevel level, BlockPos pos, BlockState state) {
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
         PLAYER_PLACED_BLOCKS.put(new BlockKey(level.dimension(), pos.immutable()), state.getBlock());
+        if (CatacombLayout.contains(pos))
+            CATACOMB_PLACEMENT_EXPIRY.put(new BlockKey(level.dimension(), pos.immutable()), level.getGameTime() + 20);
         RESTORING_BLOCKS.removeIf(entry -> entry.dimension.equals(level.dimension()) && entry.pos.equals(pos));
     }
 
@@ -465,6 +478,7 @@ public final class WorldGenerator {
         Block placed = PLAYER_PLACED_BLOCKS.get(key);
         if (placed == state.getBlock()) {
             PLAYER_PLACED_BLOCKS.remove(key);
+            CATACOMB_PLACEMENT_EXPIRY.remove(key);
             return;
         }
         RESTORING_BLOCKS.removeIf(entry -> entry.dimension.equals(level.dimension()) && entry.pos.equals(pos));
@@ -2007,6 +2021,7 @@ public final class WorldGenerator {
         LAST_BIOME_ATMOSPHERE.clear();
         GATEWAY_SURFACE_Y.clear();
         PLAYER_PLACED_BLOCKS.clear();
+        CATACOMB_PLACEMENT_EXPIRY.clear();
         RESTORING_BLOCKS.clear();
         MAZE_TOPOLOGIES.clear();
         prewarmSeed = Long.MIN_VALUE;

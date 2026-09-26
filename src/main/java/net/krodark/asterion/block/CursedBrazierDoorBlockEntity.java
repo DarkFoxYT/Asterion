@@ -29,6 +29,7 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
     private boolean passageEntered;
     private boolean unlocked;
     private boolean victoryOpen;
+    private boolean fightSealed;
     private long motionStart;
 
     public CursedBrazierDoorBlockEntity(BlockPos pos, BlockState state) {
@@ -41,9 +42,9 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
         return startProgress + ((raising ? 1F : 0F) - startProgress) * t;
     }
     public void toggle(Player player, ItemStack held) {
-        if (level == null || moving || victoryOpen) return;
+        if (level == null || level.isClientSide() || moving || victoryOpen || fightSealed) return;
         if (!unlocked) {
-            if (!held.is(net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER_KEY) && !player.isCreative()) {
+            if (!held.is(net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER_KEY)) {
                 player.sendOverlayMessage(net.minecraft.network.chat.Component.translatable(
                         "message.asterion.cursed_brazier_door_locked"));
                 level.playSound(null, worldPosition, net.minecraft.sounds.SoundEvents.CHAIN_HIT,
@@ -65,6 +66,7 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
 
     public void sealForFight() {
         if (level == null) return;
+        fightSealed = true;
         unlocked = true;
         victoryOpen = false;
         passageEntered = false;
@@ -79,6 +81,7 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
 
     public void openAfterVictory() {
         if (level == null) return;
+        fightSealed = false;
         unlocked = true;
         victoryOpen = true;
         passageEntered = false;
@@ -146,6 +149,7 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
         out.putBoolean("raising", raising); out.putBoolean("moving", moving);
         out.putBoolean("passageEntered", passageEntered); out.putBoolean("unlocked", unlocked);
         out.putBoolean("victoryOpen", victoryOpen);
+        out.putBoolean("fightSealed", fightSealed);
         out.putLong("motionStart", motionStart);
     }
     @Override protected void loadAdditional(ValueInput in) {
@@ -155,6 +159,7 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
         passageEntered = in.getBooleanOr("passageEntered", false);
         unlocked = in.getBooleanOr("unlocked", false);
         victoryOpen = in.getBooleanOr("victoryOpen", false);
+        fightSealed = in.getBooleanOr("fightSealed", false);
         motionStart = in.getLongOr("motionStart", 0);
     }
     @Override public CompoundTag getUpdateTag(HolderLookup.Provider registries) { return saveCustomOnly(registries); }

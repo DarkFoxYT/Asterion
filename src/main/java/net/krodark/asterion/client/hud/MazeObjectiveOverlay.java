@@ -16,6 +16,8 @@ import net.minecraft.world.phys.Vec3;
 
 public final class MazeObjectiveOverlay {
     private static final Component INTRO = Component.translatable("objective.asterion.new");
+    private static final Component ECLIPSE_WARNING = Component.literal("ECLYPSE !!!")
+            .withStyle(net.minecraft.ChatFormatting.BOLD);
     private static boolean armed;
     private static boolean sawTumble;
     private static boolean visible;
@@ -123,14 +125,16 @@ public final class MazeObjectiveOverlay {
     }
 
     private static void render(GuiGraphicsExtractor graphics, net.minecraft.client.DeltaTracker tracker) {
-        if (!visible || sharedStage < 0 || sharedStage == Stage.values().length || CinematicHud.isHidden() || !AsterionConfig.INSTANCE.objectiveHudEnabled) return;
-        if (bossFightActive(Minecraft.getInstance())) return;
+        boolean eclipse = net.krodark.asterion.client.event.DeadSunClientEvents.isEclipseActive();
+        if (CinematicHud.isHidden() || !AsterionConfig.INSTANCE.objectiveHudEnabled) return;
+        if (!eclipse && (!visible || sharedStage < 0 || sharedStage == Stage.values().length)) return;
+        if (!eclipse && bossFightActive(Minecraft.getInstance())) return;
         int displaySeconds = AsterionConfig.INSTANCE.objectiveHudSeconds;
-        if (displaySeconds > 0 && visibleTicks > displaySeconds * 20) return;
+        if (!eclipse && displaySeconds > 0 && visibleTicks > displaySeconds * 20) return;
         Minecraft client = Minecraft.getInstance();
         float renderTicks = visibleTicks + Mth.clamp(tracker.getGameTimeDeltaPartialTick(false), 0.0F, 1.0F);
-        float appear = smootherstep(Mth.clamp(renderTicks / 14.0F, 0.0F, 1.0F));
-        float completionFade = 1.0F - smootherstep(Mth.clamp(completionTicks / 18.0F, 0.0F, 1.0F));
+        float appear = eclipse ? 1.0F : smootherstep(Mth.clamp(renderTicks / 14.0F, 0.0F, 1.0F));
+        float completionFade = eclipse ? 1.0F : 1.0F - smootherstep(Mth.clamp(completionTicks / 18.0F, 0.0F, 1.0F));
         int alpha = Math.round(appear * completionFade * 245.0F);
 
         Component waypointText = waypoint == null ? Component.empty() : Component.translatable(
@@ -180,6 +184,34 @@ public final class MazeObjectiveOverlay {
                     alpha << 24 | 0xE8B94A, false);
             graphics.text(client.font, waypointText, textLeft + 13, panelTop + waypointY,
                     Math.round(alpha * 0.84F) << 24 | 0xD8C7A2, false);
+        }
+        if (eclipse) renderEclipseWarning(graphics, client, left, panelTop, panelWidth, panelHeight);
+    }
+
+    private static void renderEclipseWarning(GuiGraphicsExtractor graphics, Minecraft client,
+                                             int left, int top, int width, int height) {
+        // Tick-based noise stays stable across different frame rates and freezes when paused.
+        long tick = client.level.getGameTime();
+        int noise = (int)(tick ^ (tick >>> 32)) * 0x45d9f3b;
+        noise ^= noise >>> 16;
+        float jitterX = (noise & 7) - 3.5F;
+        float jitterY = ((noise >>> 3) & 3) - 1.5F;
+        float angle = (-12F + ((noise >>> 5) & 7) - 3.5F) * Mth.DEG_TO_RAD;
+        int textWidth = client.font.width(ECLIPSE_WARNING);
+        float scale = Math.min(2.65F, (width - 22F) / textWidth);
+        var pose = graphics.pose();
+        pose.pushMatrix();
+        try {
+            pose.translate(left + width * .5F + jitterX, top + height * .5F + jitterY);
+            pose.rotate(angle);
+            pose.scale(scale, scale);
+            int x = -textWidth / 2;
+            graphics.fill(x - 3, -7, x + textWidth + 3, 7, 0xDB160307);
+            graphics.text(client.font, ECLIPSE_WARNING, x - 1, -5, 0xB0601028, false);
+            graphics.text(client.font, ECLIPSE_WARNING, x + 1, -3, 0xB0F07757, false);
+            graphics.text(client.font, ECLIPSE_WARNING, x, -4, 0xFFFF394F, true);
+        } finally {
+            pose.popMatrix();
         }
     }
 

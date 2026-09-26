@@ -2004,7 +2004,8 @@ public final class DismembermentEngine {
             part.previous = part.position;
             part.previousOrientation.set(part.orientation);
             incomingVelocities.put(part, part.velocity);
-            if (isAnatomicalRegion(part.region) && part.region != 0 && part.supportTicks > 0)
+            if (isAnatomicalRegion(part.region) && part.region != 0 && part.supportTicks > 0
+                    && (!part.sleeping || hasGroundSupport(level, part)))
                 supportedAnatomicalIslands.add(part.entityId);
             if (!remoteDriven.contains(part.entityId)
                     && (part == grabbed || part.position.distanceToSqr(collisionContext.position()) <= 128.0 * 128.0))
@@ -3360,7 +3361,31 @@ public final class DismembermentEngine {
     }
 
     Vec3 renderCenter(RigidBodyPiece part, float partial) {
-        return renderSocketCenter(part, partial, 0).add(heldRenderOffset(part.entityId, partial));
+        Vec3 center = renderSocketCenter(part, partial, 0);
+        Quaternionf grip = heldRotation(part.entityId, partial);
+        RigidBodyPiece torso = find(part.entityId, 1);
+        if (grip != null && torso != null) {
+            Vec3 pivot = torso.previous.lerp(torso.position, partial);
+            Vector3f offset = grip.transform(center.subtract(pivot).toVector3f());
+            center = pivot.add(offset.x, offset.y, offset.z);
+        }
+        return center.add(heldRenderOffset(part.entityId, partial));
+    }
+
+    private Quaternionf heldRotation(int entityId, float partial) {
+        var level = Minecraft.getInstance().level;
+        Entity player = level == null ? null : level.getEntity(entityId);
+        RigidBodyPiece torso = find(entityId, 1);
+        if (player == null || torso == null) return null;
+        Quaternionf hand = net.krodark.asterion.client.render.entity.MinotaurHandAttachment.rotation(player);
+        return hand == null ? null : hand.mul(new Quaternionf(torso.previousOrientation)
+                .slerp(torso.orientation, partial).conjugate());
+    }
+
+    Quaternionf renderOrientation(RigidBodyPiece part, float partial) {
+        Quaternionf rotation = new Quaternionf(part.previousOrientation).slerp(part.orientation, partial);
+        Quaternionf grip = heldRotation(part.entityId, partial);
+        return grip == null ? rotation : grip.mul(rotation);
     }
 
     private Vec3 renderSocketCenter(RigidBodyPiece part, float partial, int depth) {
@@ -3665,7 +3690,7 @@ public final class DismembermentEngine {
             boolean playerIsland = island.stream().anyMatch(part -> part.playerBody);
             boolean supportedIsland = island.stream()
                     .anyMatch(part -> part.region != 0 && isAnatomicalRegion(part.region)
-                            && part.supportTicks >= 2);
+                            && part.supportTicks >= 2 && part.supportMissTicks == 0);
             boolean groundedPlayer = playerIsland && supportedIsland;
             boolean stableManifolds = !groundedPlayer || island.stream()
                     .filter(part -> part.region != 0 && isAnatomicalRegion(part.region)
@@ -3690,11 +3715,16 @@ public final class DismembermentEngine {
             for (RigidBodyPiece part : island) {
                 if (isAttachmentRegion(part.region)) continue;
                 quiet &= part.velocity.lengthSqr() < linearSleep
-                        && part.angularVelocity.lengthSqr() < angularSleep;
+                        && part.angularVelocity.lengthSqr() < angularSleep
+                        // Constraint corrections move bodies without adding velocity.
+                        // Include that movement before deciding an island has settled.
+                        && part.age >= 40
+                        && part.position.distanceToSqr(part.previous) < 0.000025
+                        && Math.abs(part.orientation.dot(part.previousOrientation)) > 0.99995F;
             }
             int quietTicks = quiet ? islandSleepTicks.getOrDefault(entry.getKey(), 0) + 1 : 0;
             islandSleepTicks.put(entry.getKey(), quietTicks);
-            int sleepDelay = groundedPlayer ? stableManifolds ? 8 : 14 : playerIsland ? 36 : 14;
+            int sleepDelay = groundedPlayer && stableManifolds ? 30 : 40;
             if (quietTicks >= sleepDelay) {
                 for (RigidBodyPiece part : island) {
                     part.velocity = Vec3.ZERO;

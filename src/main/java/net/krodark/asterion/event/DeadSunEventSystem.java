@@ -128,7 +128,10 @@ public final class DeadSunEventSystem {
         register(new Definition() {
             @Override public Identifier id() { return ECLIPSE; }
             @Override public boolean eligible(ServerLevel level) {
-                return level.players().stream().anyMatch(player -> player.isAlive() && !player.isSpectator());
+                return level.players().stream().anyMatch(player -> player.isAlive() && !player.isSpectator())
+                        && level.players().stream().noneMatch(player -> player.isAlive() && !player.isSpectator()
+                        && (level.getBiome(player.blockPosition()).is(Asterion.FORGE_BIOME)
+                        || net.krodark.asterion.worldgen.AuthoredForge.contains(level, player.blockPosition())));
             }
             @Override public int weight() { return 1; }
             @Override public int minDurationTicks() { return 20 * 60; }

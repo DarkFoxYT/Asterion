@@ -223,6 +223,9 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         if (held >= 0) pass.addLocatorPositionListener(
                 pass.getOrDefaultGeckolibData(GRAB_ARM, 1) >= 0 ? "right_player_grip" : "left_player_grip",
                 (world, model, local) -> MinotaurHandAttachment.capture(held, world));
+        if (held >= 0) pass.addLocatorPositionListener(
+                pass.getOrDefaultGeckolibData(GRAB_ARM, 1) >= 0 ? "right_player_grip_up" : "left_player_grip_up",
+                (world, model, local) -> MinotaurHandAttachment.captureUp(held, world));
          
         if (pass.getOrDefaultGeckolibData(AUTHORED_POSE, false)) {
             MinotaurPoseBlend.apply(pass, bones);
