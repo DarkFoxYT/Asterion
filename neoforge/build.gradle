@@ -111,6 +111,7 @@ tasks.withType(ProcessResources).configureEach {
     }
 }
 
+def licenseArchiveName = "LICENSE_${rootProject.archives_base_name}.txt"
 tasks.named("jar", Jar) {
     archiveFileName = "${rootProject.archives_base_name}-${project.version}-neoforge-mc${rootProject.minecraft_version}.jar"
     preserveFileTimestamps = false
@@ -124,7 +125,7 @@ tasks.named("jar", Jar) {
         )
     }
     from(rootProject.file("LICENSE.txt")) {
-        rename { "LICENSE_${rootProject.archives_base_name}.txt" }
+        rename { licenseArchiveName }
     }
 }
 

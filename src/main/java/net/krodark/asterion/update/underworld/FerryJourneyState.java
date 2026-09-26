@@ -29,7 +29,6 @@ public final class FerryJourneyState extends SavedData {
     private FerryJourneyState(Map<String,Seat> seats,double x,double z) { this.seats=new HashMap<>(seats);boatX=x;boatZ=z; }
     public static FerryJourneyState get(ServerLevel level) { return level.getDataStorage().computeIfAbsent(TYPE); }
     public void track(CharonsFerryEntity boat) {
-        if(seats.isEmpty())return;
         if(Math.abs(boatX-boat.getX())+Math.abs(boatZ-boat.getZ())>.5) { boatX=boat.getX();boatZ=boat.getZ();setDirty(); }
     }
 }

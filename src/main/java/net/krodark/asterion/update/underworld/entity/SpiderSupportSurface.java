@@ -23,11 +23,29 @@ public final class SpiderSupportSurface {
         }
     }
     private SpiderSupportSurface() { }
+    /** Visual support frame from a 3x3 neighborhood; physical grip stays exact. */
+    public static Vec3 neighborhoodNormal(List<AABB> blocks,AABB body,Direction face) {
+        Vec3 normal=face.getUnitVec3();
+        Vec3 u=face.getAxis()==Direction.Axis.X?new Vec3(0,0,1):new Vec3(1,0,0);
+        Vec3 v=normal.cross(u),sum=normal.scale(2);
+        int sameFace=0;
+        for(int x=-1;x<=1;x++)for(int y=-1;y<=1;y++) {
+            AABB sample=body.move(u.scale(x).add(v.scale(y)));
+            if(contact(blocks,sample,face)!=null)sameFace++;
+            if(x==0 && y==0)continue;
+            // Samples are for a broad support frame, never collision permission.
+            Direction nearby=SpiderSurfaceRoute.support(blocks,sample,null,body.getCenter());
+            if(nearby!=null && nearby!=face.getOpposite())sum=sum.add(nearby.getUnitVec3());
+        }
+        // Do not tilt a genuinely continuous plane toward neighboring block
+        // seams merely because a diagonal sample is closer to a cube's edge.
+        return sameFace==9?normal:sum.normalize();
+    }
     public static Plane find(BlockGetter level, AABB body, Direction face) {
-        return fit(BugSurfaces.collect(level,body.inflate(2.3).expandTowards(face.getUnitVec3().scale(2))),body,face);
+        return fit(BugSurfaces.collectCollision(level,body.inflate(2.3).expandTowards(face.getUnitVec3().scale(2))),body,face);
     }
     public static Plane contact(BlockGetter level,AABB body,Direction face) {
-        return contact(BugSurfaces.collect(level,body.inflate(.08).expandTowards(face.getUnitVec3().scale(.65))),body,face);
+        return contact(BugSurfaces.collectCollision(level,body.inflate(.08).expandTowards(face.getUnitVec3().scale(.65))),body,face);
     }
     /** A footprint of contact probes also supports flat ceilings and narrow ledges. */
     public static Plane contact(List<AABB> blocks,AABB body,Direction face) {

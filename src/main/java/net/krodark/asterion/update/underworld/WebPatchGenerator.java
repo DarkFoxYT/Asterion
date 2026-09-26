@@ -12,8 +12,84 @@ import java.util.WeakHashMap;
 public final class WebPatchGenerator {
     /** Dense cells make Limbo feel filled with individual, traversable silk strands. */
     public static final int CELL_SIZE = 2;
-    private static final Map<Level, Map<Integer, Cached>> CACHE = new WeakHashMap<>();
-    private static final Map<Level, Map<Long, Cached>> CAVE_CACHE = new WeakHashMap<>();
+    private static final Map<Level, Map<Integer, Cached>> CACHE = java.util.Collections.synchronizedMap(new WeakHashMap<>());
+    private static final Map<Level, Map<Long, Cached>> CAVE_CACHE = java.util.Collections.synchronizedMap(new WeakHashMap<>());
+    private static final Map<Level, Map<Long, WebPatch>> SPUN = java.util.Collections.synchronizedMap(new WeakHashMap<>());
+    private static Map<Long,WebPatch> spun(Level level) {
+        return level instanceof net.minecraft.server.level.ServerLevel server?WebSavedState.get(server).spun:
+                SPUN.computeIfAbsent(level,ignored->new java.util.LinkedHashMap<>());
+    }
+    public static boolean isSpun(Level level,long key) { return spun(level).containsKey(key); }
+    public static void receive(Level level,WebPatch patch) {
+        SPUN.computeIfAbsent(level,ignored->new java.util.LinkedHashMap<>()).putIfAbsent(patch.key(),patch);
+    }
+    /** Spins between two real block faces; all silk remains renderer geometry. */
+    public static boolean spin(net.minecraft.server.level.ServerLevel level,Vec3 origin,Vec3 heading) {
+        Map<Long,WebPatch> spun=spun(level);
+        if(spun.size()>=512 || spun.values().stream().filter(p->p.anchors().getFirst().distanceToSqr(origin)<16*16 && LimboWebSystem.supports(level,p,0)).count()>=8)return false;
+        Direction[] directions=Direction.values();
+        int first=(int)Math.floorMod(mix(level.getGameTime()^BlockPos.containing(origin).asLong()),directions.length);
+        for(int attempt=0;attempt<directions.length;attempt++) {
+            Direction direction=directions[(first+attempt)%directions.length];
+            Vec3 axis=direction.getUnitVec3();
+            Vec3 aim=axis.add(heading.normalize().scale(.35)).normalize();
+            var a=level.clip(new net.minecraft.world.level.ClipContext(origin,origin.subtract(aim.scale(5)),net.minecraft.world.level.ClipContext.Block.COLLIDER,net.minecraft.world.level.ClipContext.Fluid.NONE,net.minecraft.world.phys.shapes.CollisionContext.empty()));
+            var b=level.clip(new net.minecraft.world.level.ClipContext(origin,origin.add(aim.scale(18)),net.minecraft.world.level.ClipContext.Block.COLLIDER,net.minecraft.world.level.ClipContext.Fluid.NONE,net.minecraft.world.phys.shapes.CollisionContext.empty()));
+            if(a.getType()!=net.minecraft.world.phys.HitResult.Type.BLOCK || b.getType()!=net.minecraft.world.phys.HitResult.Type.BLOCK || a.getLocation().distanceToSqr(b.getLocation())<9)continue;
+            Vec3 from=a.getLocation().add(a.getDirection().getUnitVec3().scale(.012));
+            Vec3 to=b.getLocation().add(b.getDirection().getUnitVec3().scale(.012));
+            if(spun.values().stream().anyMatch(p->LimboWebSystem.supports(level,p,0) &&
+                    (p.anchors().getFirst().distanceToSqr(from)<1 && p.anchors().getLast().distanceToSqr(to)<1
+                    || p.anchors().getFirst().distanceToSqr(to)<1 && p.anchors().getLast().distanceToSqr(from)<1)))continue;
+            long key=mix(a.getBlockPos().asLong()^Long.rotateLeft(b.getBlockPos().asLong(),23)^level.getGameTime());
+            WebPatch patch=new WebPatch(key,List.of(from,to),List.of(a.getDirection().getUnitVec3(),b.getDirection().getUnitVec3()),List.of(new WebPatch.Edge(0,1)));
+            boolean clear=true;
+            for(int i=0;i<patch.pieces(0);i++) {
+                var hit=level.clip(new net.minecraft.world.level.ClipContext(patch.point(0,i/(double)patch.pieces(0)),patch.point(0,(i+1D)/patch.pieces(0)),net.minecraft.world.level.ClipContext.Block.COLLIDER,net.minecraft.world.level.ClipContext.Fluid.NONE,net.minecraft.world.phys.shapes.CollisionContext.empty()));
+                if(hit.getType()!=net.minecraft.world.phys.HitResult.Type.MISS){clear=false;break;}
+            }
+            if(!clear)continue;
+            spun.put(key,patch);
+            WebSavedState.get(level).setDirty();
+            for(var player:level.players())if(player.distanceToSqr(origin)<72*72)net.krodark.asterion.network.WebSpinPayload.send(player,patch);
+            return true;
+        }
+        return false;
+    }
+    /** A goal-directed, two-bank crossing. Never invent anchors over open air. */
+    public static boolean bridge(net.minecraft.server.level.ServerLevel level,Vec3 center,Vec3 goal,double height) {
+        Vec3 direction=goal.subtract(center).multiply(1,0,1).normalize();
+        if(direction.lengthSqr()<.5)return false;
+        Map<Long,WebPatch> existing=spun(level);
+        if(existing.size()>=512 || existing.values().stream().filter(p->p.anchors().getFirst().distanceToSqr(center)<16*16
+                && LimboWebSystem.supports(level,p,0)).count()>=8)return false;
+        // Find open air just below the near bank, then ray back to its actual rim.
+        for(double reach=1;reach<=3;reach+=.5) {
+            Vec3 seed=center.add(direction.scale(reach)).add(0,-height*.5-.05,0);
+            if(!level.getBlockState(BlockPos.containing(seed)).getCollisionShape(level,BlockPos.containing(seed)).isEmpty())continue;
+            var a=level.clip(new net.minecraft.world.level.ClipContext(seed,seed.subtract(direction.scale(4)),net.minecraft.world.level.ClipContext.Block.COLLIDER,net.minecraft.world.level.ClipContext.Fluid.NONE,net.minecraft.world.phys.shapes.CollisionContext.empty()));
+            var b=level.clip(new net.minecraft.world.level.ClipContext(seed,seed.add(direction.scale(24)),net.minecraft.world.level.ClipContext.Block.COLLIDER,net.minecraft.world.level.ClipContext.Fluid.NONE,net.minecraft.world.phys.shapes.CollisionContext.empty()));
+            if(a.getType()!=net.minecraft.world.phys.HitResult.Type.BLOCK || b.getType()!=net.minecraft.world.phys.HitResult.Type.BLOCK)continue;
+            Vec3 from=a.getLocation().add(a.getDirection().getUnitVec3().scale(.012));
+            Vec3 to=b.getLocation().add(b.getDirection().getUnitVec3().scale(.012));
+            if(from.distanceToSqr(to)<9 || from.distanceToSqr(to)>24*24)continue;
+            if(existing.values().stream().anyMatch(p->LimboWebSystem.supports(level,p,0)
+                    && (p.anchors().getFirst().distanceToSqr(from)<1 && p.anchors().getLast().distanceToSqr(to)<1
+                    || p.anchors().getFirst().distanceToSqr(to)<1 && p.anchors().getLast().distanceToSqr(from)<1)))return true;
+            long key=mix(a.getBlockPos().asLong()^Long.rotateLeft(b.getBlockPos().asLong(),23)^level.getGameTime());
+            WebPatch patch=new WebPatch(key,List.of(from,to),List.of(a.getDirection().getUnitVec3(),b.getDirection().getUnitVec3()),List.of(new WebPatch.Edge(0,1)));
+            boolean clear=true;
+            for(int i=0;i<patch.pieces(0);i++) {
+                var hit=level.clip(new net.minecraft.world.level.ClipContext(patch.point(0,i/(double)patch.pieces(0)),patch.point(0,(i+1D)/patch.pieces(0)),net.minecraft.world.level.ClipContext.Block.COLLIDER,net.minecraft.world.level.ClipContext.Fluid.NONE,net.minecraft.world.phys.shapes.CollisionContext.empty()));
+                if(hit.getType()!=net.minecraft.world.phys.HitResult.Type.MISS){clear=false;break;}
+            }
+            if(!clear)continue;
+            existing.put(key,patch);WebSavedState.get(level).setDirty();
+            for(var player:level.players())if(player.distanceToSqr(center)<72*72)net.krodark.asterion.network.WebSpinPayload.send(player,patch);
+            return true;
+        }
+        return false;
+    }
     private record Cached(WebPatch patch, long expires) { }
     private WebPatchGenerator() { }
     public static List<WebPatch> around(Level level, Vec3 center, int cells) {
@@ -56,6 +132,8 @@ public final class WebPatchGenerator {
             }
             if (caveCache.size() > 960) caveCache.entrySet().removeIf(e -> e.getValue().expires < now);
         }
+        for(WebPatch patch:spun(level).values())
+            if(new net.minecraft.world.phys.AABB(patch.anchors().getFirst(),patch.anchors().getLast()).inflate(52).contains(center))result.add(patch);
         return result;
     }
     private static WebPatch patch(Level level, long worldSeed, int cellZ) {

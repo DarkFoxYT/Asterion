@@ -9,21 +9,44 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.phys.Vec3;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.BitSet;
 import java.util.HashSet;
 /** Server authority for virtual strands: player impulses, drag, and force/tension tearing. */
 public final class LimboWebSystem {
-    private static final Map<Long, BitSet> CUT = new HashMap<>();
     private LimboWebSystem() { }
-    public static void initialize() { WebCutPayload.initialize(); ServerTickEvents.END_SERVER_TICK.register(LimboWebSystem::tick); }
-    public static boolean cut(long key, int link) { BitSet bits=CUT.get(key);return bits!=null&&bits.get(link); }
-    public static void sever(long key, int link) { if(link>=0)CUT.computeIfAbsent(key,ignored->new BitSet()).set(link); }
+    public static void initialize() {
+        WebCutPayload.initialize(); net.krodark.asterion.network.WebSpinPayload.initialize();
+        ServerTickEvents.END_SERVER_TICK.register(LimboWebSystem::tick);
+    }
+    public static boolean supports(net.minecraft.world.level.Level level, WebPatch patch, int edge) {
+        if (!(level instanceof ServerLevel server) || !patch.intact(edge,WebSavedState.get(server).cuts.getOrDefault(patch.key(), new BitSet()))) return false;
+        var e = patch.edges().get(edge);
+        for (int index : new int[]{e.a(),e.b()}) {
+            var block = net.minecraft.core.BlockPos.containing(patch.anchors().get(index).subtract(patch.normals().get(index).scale(.04)));
+            if (!level.getChunkSource().hasChunk(block.getX()>>4,block.getZ()>>4) || level.getBlockState(block).getCollisionShape(level,block).isEmpty()) return false;
+        }
+        return true;
+    }
+    public static boolean cut(ServerLevel level,long key, int link) { BitSet bits=WebSavedState.get(level).cuts.get(key);return bits!=null&&bits.get(link); }
+    public static void sever(ServerLevel level,long key, int link) {
+        if(link<0 || link>=4096)return;
+        var saved=WebSavedState.get(level);
+        saved.cuts.computeIfAbsent(key,ignored->new BitSet()).set(link);saved.setDirty();
+    }
     private static void tick(MinecraftServer server) {
         ServerLevel level = server.getLevel(Asterion.LIMBO_LEVEL); if (level == null) return;
         HashSet<Integer> visited = new HashSet<>();
         for (ServerPlayer player : level.players()) {
+            if (level.getGameTime() % 40 == 0) {
+                for (WebPatch patch : WebPatchGenerator.around(level,player.position(),16)) {
+                    if (WebPatchGenerator.isSpun(level,patch.key()))
+                        net.krodark.asterion.network.WebSpinPayload.send(player,patch);
+                    BitSet cuts=WebSavedState.get(level).cuts.get(patch.key());
+                    if (cuts!=null && net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(player,WebCutPayload.TYPE))
+                        for(int link=cuts.nextSetBit(0);link>=0;link=cuts.nextSetBit(link+1))
+                            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player,new WebCutPayload(patch.key(),link));
+                }
+            }
             if (!player.isAlive() || player.isSpectator()) continue;
             if (visited.add(player.getId())) affect(level, player, false);
             for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class,
@@ -42,18 +65,23 @@ public final class LimboWebSystem {
             Vec3 resistance = Vec3.ZERO;
             double grip = 0;
             for (WebPatch patch : WebPatchGenerator.around(level, center, 7)) for (int i = 0; i < patch.edges().size(); i++) {
+                // A severed span no longer catches bodies along its old position.
+                if (!supports(level,patch,i)) continue;
                 WebPatch.Edge edge = patch.edges().get(i);Vec3 a=patch.anchors().get(edge.a()),b=patch.anchors().get(edge.b());
+                double t=patch.nearestAlong(i,center);
+                int piece=(int)Math.min(patch.pieces(i)-1,Math.floor(t*patch.pieces(i)));
+                a=patch.point(i,piece/(double)patch.pieces(i));b=patch.point(i,(piece+1D)/patch.pieces(i));
                 WebPlayerShape.Contact modelContact = playerParts == null ? null : WebPlayerShape.contact(a,b,playerParts);
                 Vec3 contact = modelContact == null ? nearest(a,b,center) : modelContact.strand();
                 Vec3 ab=b.subtract(a);double along=ab.lengthSqr()<1e-8?0:Math.clamp(contact.subtract(a).dot(ab)/ab.lengthSqr(),0,1);
-                int link=patch.linkIndex(i,along);if(cut(patch.key(),link))continue;
+                int link=patch.linkIndex(i,(piece+along)/patch.pieces(i));if(cut(level,patch.key(),link))continue;
                 double distance = modelContact == null ? contact.distanceTo(center) : Math.max(0,modelContact.gap());
                 double reach = modelContact == null ? 1.04 : .78;
                 if (distance > reach) continue;
                 // Contact stretches and catches silk. Only a hard collision tears it.
                 double impact = velocity.length();
                 if (impact > (cutsOnContact ? .85 : 1.15) || velocity.y < -1.05) {
-                    sever(patch.key(),link); WebCutPayload.broadcast(level,contact,patch.key(),link); continue;
+                    sever(level,patch.key(),link); WebCutPayload.broadcast(level,contact,patch.key(),link); continue;
                 }
                 double engagement = Math.clamp((reach - distance) / (reach * .8), 0D, 1D);
                 grip = 1D - (1D - grip) * (1D - .32D * engagement);

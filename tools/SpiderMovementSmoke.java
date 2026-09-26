@@ -39,6 +39,15 @@ public final class SpiderMovementSmoke {
         require(corner != null && corner.face()==Direction.UP,"Wall-to-ceiling support probe missed");
         for (Direction face : Direction.values()) {
             Vec3 forward = SpiderSurfaceMotion.heading(face,new Vec3(.3,.8,.6),Vec3.ZERO,false);
+            Vec3 turned=forward;
+            for(int i=0;i<12;i++) {
+                Vec3 next=SpiderSurfaceMotion.turn(face.getUnitVec3(),turned,forward.scale(-1),.42);
+                require(next.dot(turned)>=Math.cos(.42001),"Turn exceeded angular speed limit");
+                require(Math.abs(next.dot(face.getUnitVec3()))<1e-8,"Turn left support plane");
+                require(Double.isFinite(next.x) && Math.abs(next.length()-1)<1e-8,"Reversal collapsed heading");
+                turned=next;checks++;
+            }
+            require(turned.dot(forward)<-.999,"Bounded turn never completed reversal");
             Quaternionf expected = null;
             for (int yaw=-180;yaw<=180;yaw+=5) {
                 Quaternionf base = new Quaternionf().rotationY((float)Math.toRadians(180-yaw));
@@ -46,6 +55,8 @@ public final class SpiderMovementSmoke {
                 if (expected == null) expected = new Quaternionf(world);
                 require(Math.abs(expected.dot(world))>.9999,"Body yaw changed world orientation on "+face);
                 Vector3f up = world.transform(new Vector3f(0,1,0));
+                require(world.transform(new Vector3f(0,0,-1)).distance(new Vector3f((float)forward.x,(float)forward.y,(float)forward.z))<.001,
+                        "Rendered spider faces backwards");
                 require(up.distance(new Vector3f((float)-face.getStepX(),(float)-face.getStepY(),(float)-face.getStepZ()))<.001,
                         "Body not aligned to support");
                 checks++;

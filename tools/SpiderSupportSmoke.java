@@ -62,6 +62,8 @@ public final class SpiderSupportSmoke {
                 if(tick>0)require(settle.length()<1e-6,"Stationary support jitter on "+face);
             }
             require(SpiderSupportSurface.contact(List.of(),resting,face)==null,"Removed support still attached");
+            require(SpiderSupportSurface.neighborhoodNormal(flat,resting,face).dot(face.getUnitVec3())>.99999,
+                    "3x3 frame tilted a flat surface on "+face);
             stairs.remove(5);
             require(SpiderSupportSurface.fit(stairs,body,face)==null,"Fit bridged a missing center column");
             checks++;
@@ -100,7 +102,92 @@ public final class SpiderSupportSmoke {
             }
             require(body.getCenter().distanceTo(goal)<.5,"Wall route did not reach destination on "+face);
         }
-        System.out.println("Spider support: "+checks+" orientations passed: slopes, isolated ledges, 120-tick flat adhesion, clearance and removal; raised-ceiling route, swept clearance and missing-support checks passed.");
+        List<AABB> room=List.of(new AABB(-14,-1,-14,14,0,14),
+                new AABB(5,0,-14,6,9,14),new AABB(-14,9,-14,6,10,14));
+        AABB grounded=new AABB(-.725,.025,-.725,.725,1.325,.725);
+        Vec3 roofTarget=new Vec3(0,8.325,0);
+        long started=System.nanoTime();
+        var climb=SpiderSurfaceRoute.navigate(room,grounded,Direction.DOWN,roofTarget);
+        require(!climb.isEmpty(),"No floor-to-wall approach for roof directly overhead");
+        boolean climbedWall=false,reachedCeiling=false,diagonal=false;
+        AABB crawler=grounded;
+        for(var point:climb) {
+            Vec3 step=point.center().subtract(crawler.getCenter());
+            require(SpiderSurfaceRoute.clear(room,crawler,step),"Full ascent clips terrain");
+            for(int i=0;i<=10;i++)require(SpiderSurfaceRoute.support(room,crawler.move(step.scale(i/10.0)),point.face())!=null,
+                    "Full ascent loses grip between route nodes");
+            diagonal|=Math.abs(step.x)>.01 && Math.abs(step.y)>.01;
+            crawler=crawler.move(step);
+            climbedWall|=point.face()==Direction.EAST;
+            reachedCeiling|=point.face()==Direction.UP;
+        }
+        require(climbedWall && reachedCeiling && crawler.getCenter().distanceTo(roofTarget)<.5,
+                "Ascent did not connect floor, wall and ceiling: "+crawler.getCenter());
+        require(diagonal,"Surface route did not use diagonal movement");
+        require(SpiderSurfaceRoute.navigate(List.of(room.getFirst(),room.getLast()),grounded,Direction.DOWN,roofTarget).isEmpty(),
+                "Roof without connecting wall was treated as reachable");
+        // The user's diagrams: a one-block step, and a ceiling lip that must
+        // lead back up the exposed outside wall instead of dropping the spider.
+        List<AABB> stepBlocks=List.of(new AABB(-8,-2,-5,0,0,5),new AABB(0,-2,-5,8,1,5));
+        AABB stepBody=grounded.move(-2,0,0);
+        var stepRoute=SpiderSurfaceRoute.navigate(stepBlocks,stepBody,Direction.DOWN,new Vec3(3,1.675,0));
+        require(!stepRoute.isEmpty(),"Single step requires a jump");
+        for(var point:stepRoute) {
+            Vec3 advance=point.center().subtract(stepBody.getCenter());
+            require(SpiderSurfaceRoute.clear(stepBlocks,stepBody,advance),"Step envelope intersects blocks");
+            stepBody=stepBody.move(advance);
+        }
+        require(stepBody.getCenter().distanceTo(new Vec3(3,1.675,0))<.5,"Step climb stops below tread");
+        List<AABB> lip=List.of(new AABB(0,3,-5,8,8,5));
+        AABB under=new AABB(1.275,1.675,-.725,2.725,2.975,.725);
+        var wrap=SpiderSurfaceRoute.navigate(lip,under,Direction.UP,new Vec3(-.8,5,0));
+        require(!wrap.isEmpty(),"Ceiling lip cannot reach outside wall");
+        for(var point:wrap) {
+            Vec3 advance=point.center().subtract(under.getCenter());
+            require(SpiderSurfaceRoute.clear(lip,under,advance),"Ceiling wrap clips corner");
+            for(int i=0;i<=20;i++)require(SpiderSurfaceRoute.support(lip,under.move(advance.scale(i/20.0)),point.face())!=null,"Ceiling wrap loses grip");
+            under=under.move(advance);
+        }
+        require(under.getCenter().distanceTo(new Vec3(-.8,5,0))<.5,"Ceiling wrap never climbed outside wall");
+        partialBlocks();
+        var ledgeFrame=SpiderSupportSurface.neighborhoodNormal(
+                List.of(new AABB(0,-5,-5,1,5,5),new AABB(-1,1.5,0,0,2.5,1)),
+                new AABB(-1.5,.175,-.225,-.05,1.475,1.225),Direction.UP);
+        require(ledgeFrame.x>.1 && ledgeFrame.y>.1 && Math.abs(ledgeFrame.length()-1)<1e-8,
+                "One-block lip dominated the entire body frame: "+ledgeFrame);
+        System.out.println("Spider support: "+checks+" orientations, ledges/removal, diagonal floor-wall-ceiling route, single step and outer ceiling wrap passed (route suite "+((System.nanoTime()-started)/1_000_000)+" ms).");
+    }
+    private static void partialBlocks() {
+        net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();
+        for(var block:List.of(net.minecraft.world.level.block.Blocks.POINTED_DRIPSTONE,
+                net.minecraft.world.level.block.Blocks.OAK_FENCE,net.minecraft.world.level.block.Blocks.STONE_SLAB,
+                net.minecraft.world.level.block.Blocks.OAK_TRAPDOOR,net.minecraft.world.level.block.Blocks.CHEST)) {
+            var partial=block.defaultBlockState();
+            net.minecraft.world.level.BlockGetter level=new net.minecraft.world.level.BlockGetter() {
+                public net.minecraft.world.level.block.entity.BlockEntity getBlockEntity(net.minecraft.core.BlockPos pos) { return null; }
+                public net.minecraft.world.level.block.state.BlockState getBlockState(net.minecraft.core.BlockPos pos) {
+                    return pos.getY()==-1?net.minecraft.world.level.block.Blocks.STONE.defaultBlockState()
+                            :pos.equals(net.minecraft.core.BlockPos.ZERO)?partial:net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
+                }
+                public net.minecraft.world.level.material.FluidState getFluidState(net.minecraft.core.BlockPos pos) { return getBlockState(pos).getFluidState(); }
+                public int getHeight() { return 384; }
+                public int getMinY() { return -64; }
+            };
+            var shapes=net.krodark.asterion.entity.BugSurfaces.collectCollision(level,new AABB(-5,-2,-5,6,4,5));
+            for(var shape:partial.getCollisionShape(level,net.minecraft.core.BlockPos.ZERO).toAabbs())
+                require(shapes.contains(shape),"Planner omitted actual partial-block shape: "+block);
+            AABB body=new AABB(-2.725,.025,-.225,-1.275,1.325,1.225);
+            Vec3 goal=new Vec3(3,.675,.5);
+            var route=SpiderSurfaceRoute.navigate(shapes,body,Direction.DOWN,goal);
+            require(!route.isEmpty(),"No route around partial block "+block);
+            for(var point:route) {
+                Vec3 advance=point.center().subtract(body.getCenter());
+                require(SpiderSurfaceRoute.clear(shapes,body,advance),"Route intersects partial block "+block);
+                body=body.move(advance);
+            }
+            require(body.getCenter().distanceTo(goal)<.5,"Partial block still traps crawler "+block);
+        }
+        System.out.println("Actual voxel-shape collection and routes passed: dripstone spikes, fences, slabs, trapdoors, chests.");
     }
     private static AABB rotate(AABB b,Quaternionf q) {
         AABB result=null;

@@ -194,17 +194,21 @@ public final class MazeNbtStructures {
                                       int limit, int cell, ReservationFilter filter) {
         var template = level.getStructureManager().get(QUEEN_TREE).orElseThrow();
         var candidates = new ArrayList<BlockPos>();
-        int edge = Math.min(450, limit - 80);
-        for (int x = -edge; x <= edge; x += 32) for (int z = -edge; z <= edge; z += 32) {
+        int edge = limit - 80;
+        for (int x = -edge; x <= edge; x += 16) for (int z = -edge; z <= edge; z += 16) {
             long distance = (long)x * x + (long)z * z;
-            if (distance < 350L * 350 || distance > 450L * 450) continue;
+            if (distance < 350L * 350) continue;
             boolean overgrown = true;
             for (int dx : new int[]{-32, 0, 32}) for (int dz : new int[]{-38, 0, 38})
                 if (WorldGenerator.mazeBiomeAt(seed, x + dx, z + dz, cell).kind() != MazeBiomes.Kind.OVERGROWTH)
                     overgrown = false;
             if (overgrown) candidates.add(new BlockPos(x, 0, z));
         }
-        candidates.sort(java.util.Comparator.comparingLong(p -> mix(seed ^ p.asLong())));
+        // Prefer the original quest ring, then expand to actual overgrowth interiors.
+        // A narrow 350–450 ring can miss every region's usable interior for some seeds.
+        candidates.sort(java.util.Comparator.<BlockPos>comparingInt(p ->
+                (long)p.getX()*p.getX()+(long)p.getZ()*p.getZ()<=450L*450?0:1)
+                .thenComparingLong(p -> mix(seed ^ p.asLong())));
         for (BlockPos center : candidates) {
             var origin = new BlockPos(center.getX() - 28,
                     WorldGenerator.mazeFloorHeight(seed, center.getX(), center.getZ()), center.getZ() - 33);

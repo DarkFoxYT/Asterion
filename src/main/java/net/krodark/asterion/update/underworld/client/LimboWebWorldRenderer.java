@@ -27,6 +27,30 @@ public final class LimboWebWorldRenderer {
     private static final Identifier SILK=Asterion.id("textures/entity/limbo_web_white.png");
     private static final Map<Long,WebPhysicsGraph> GRAPHS=new HashMap<>(); private static final Map<Long,java.util.BitSet> CUT=new HashMap<>(); private static boolean attack;
     private LimboWebWorldRenderer(){}
+    private static net.minecraft.client.multiplayer.ClientLevel trackedLevel;
+    /** Body and IK both sample the strand actually submitted by the renderer. */
+    public static Vec3 spiderOffset(net.krodark.asterion.update.underworld.entity.LimboSpiderEntity spider,Vec3 origin) {
+        if(!spider.onWeb())return Vec3.ZERO;
+        WebPhysicsGraph graph=GRAPHS.get(spider.silkKey());
+        if(graph==null || spider.silkEdge()<0 || spider.silkEdge()>=graph.patch.edges().size())return Vec3.ZERO;
+        var cuts=CUT.getOrDefault(graph.patch.key(),new java.util.BitSet());
+        if(!graph.patch.intact(spider.silkEdge(),cuts))return Vec3.ZERO;
+        Vec3 center=origin.add(0,spider.getBbHeight()*.5,0);
+        double clearance=spider.attachedSurface().getAxis()==net.minecraft.core.Direction.Axis.Y
+                ?spider.getBbHeight()*.5+.08:spider.getBbWidth()*.5+.08;
+        Vec3 expected=center.add(spider.attachmentNormal().scale(clearance));
+        // Render only strand deformation. Projecting the body itself onto silk
+        // teleported the mesh ahead of its collider during boarding/landing.
+        Vec3 resting=graph.patch.point(spider.silkEdge(),graph.patch.nearestAlong(spider.silkEdge(),expected));
+        Vec3 contact=null;double best=1;
+        double partial=Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        for(var link:graph.links)if(link.edge()==spider.silkEdge()) {
+            Vec3 point=net.krodark.asterion.update.underworld.LimboWebSystem.nearest(graph.rendered(link.a(),partial),graph.rendered(link.b(),partial),resting);
+            double distance=point.distanceToSqr(resting);
+            if(distance<best){best=distance;contact=point;}
+        }
+        return contact==null?Vec3.ZERO:contact.subtract(resting);
+    }
     /** Foot targets use the same deformed links that are drawn, excluding cuts. */
     public static Vec3 spiderContact(Vec3 foot, double reach) {
         Vec3 result = null;
@@ -36,7 +60,9 @@ public final class LimboWebWorldRenderer {
             if (!graph.bounds.inflate(reach).contains(foot)) continue;
             var cuts = CUT.get(graph.patch.key());
             for (WebPhysicsGraph.Link link : graph.links) {
-                if (cuts != null && cuts.get(link.index())) continue;
+                if (!graph.patch.intact(link.edge(),cuts==null?new java.util.BitSet():cuts)) continue;
+                var edge=graph.patch.edges().get(link.edge());
+                if(!graph.pinned.get(edge.a()) || !graph.pinned.get(edge.b()))continue;
                 Vec3 point = net.krodark.asterion.update.underworld.LimboWebSystem.nearest(
                         graph.rendered(link.a(),partial),graph.rendered(link.b(),partial),foot);
                 double distance = point.distanceToSqr(foot);
@@ -48,8 +74,13 @@ public final class LimboWebWorldRenderer {
     public static void initialize(){
         ClientTickEvents.END_CLIENT_TICK.register(LimboWebWorldRenderer::tick);
         ClientPlayNetworking.registerGlobalReceiver(WebCutPayload.TYPE,(payload,context)->context.client().execute(()->CUT.computeIfAbsent(payload.key(),ignored->new java.util.BitSet()).set(payload.link())));
+        ClientPlayNetworking.registerGlobalReceiver(net.krodark.asterion.network.WebSpinPayload.TYPE,(payload,context)->context.client().execute(()->{
+            if(context.client().level!=null && context.client().level.dimension().equals(Asterion.LIMBO_LEVEL))
+                WebPatchGenerator.receive(context.client().level,payload.patch());
+        }));
     }
     private static void tick(Minecraft client){
+        if(trackedLevel!=client.level){GRAPHS.clear();CUT.clear();attack=false;trackedLevel=client.level;}
         if(client.level==null||client.player==null||!client.level.dimension().equals(Asterion.LIMBO_LEVEL)){GRAPHS.clear();CUT.clear();return;}
         Vec3 body=client.player.position().add(0,client.player.getBbHeight()*.48,0);
         var patches=WebPatchGenerator.around(client.level,body,16); java.util.HashSet<Long> live=new java.util.HashSet<>();
@@ -57,19 +88,22 @@ public final class LimboWebWorldRenderer {
         for(var part:WebPlayerShape.parts(client.player))
             influences.add(new WebPhysicsGraph.Influence(part.middle(),client.player.getDeltaMovement(),part.radius()+.22));
         for(var entity:client.level.entitiesForRendering()) {
-            if(entity==client.player || !(entity instanceof net.minecraft.world.entity.LivingEntity) || entity.distanceToSqr(client.player)>32*32)continue;
+            if(entity==client.player || entity instanceof net.krodark.asterion.update.underworld.entity.LimboSpiderEntity
+                    || !(entity instanceof net.minecraft.world.entity.LivingEntity) || entity.distanceToSqr(client.player)>32*32)continue;
             influences.add(new WebPhysicsGraph.Influence(entity.position().add(0,entity.getBbHeight()*.48,0),
                     entity.getDeltaMovement(),Math.max(.55,entity.getBbWidth()*.65)));
         }
-        for(WebPatch patch:patches){live.add(patch.key());GRAPHS.computeIfAbsent(patch.key(),ignored->new WebPhysicsGraph(patch)).step(client.level,influences,CUT.computeIfAbsent(patch.key(),ignored->new java.util.BitSet()));}
+        for(WebPatch patch:patches){live.add(patch.key());GRAPHS.computeIfAbsent(patch.key(),ignored->new WebPhysicsGraph(patch));}
         GRAPHS.entrySet().removeIf(entry->!live.contains(entry.getKey())
                 && !entry.getValue().bounds.inflate(20).contains(body));
+        // Retained long spans keep simulating after their generation cell leaves the query.
+        for(WebPhysicsGraph graph:GRAPHS.values())graph.step(client.level,influences,CUT.computeIfAbsent(graph.patch.key(),ignored->new java.util.BitSet()));
         boolean down=client.options.keyAttack.isDown(); if(down&&!attack)cutLookedAt(client); attack=down;
     }
     private static void cutLookedAt(Minecraft client){
         Vec3 eye=client.player.getEyePosition(),end=eye.add(client.player.getLookAngle().scale(client.player.blockInteractionRange()+.75));double best=.16*.16;long key=0;int edge=-1;
         for(WebPhysicsGraph graph:GRAPHS.values())for(WebPhysicsGraph.Link link:graph.links){if(CUT.computeIfAbsent(graph.patch.key(),ignored->new java.util.BitSet()).get(link.index()))continue;double d=distance(eye,end,graph.p.get(link.a()),graph.p.get(link.b()));if(d<best){best=d;key=graph.patch.key();edge=link.index();}}
-        if(edge>=0&&ClientPlayNetworking.canSend(WebCutPayload.TYPE)){CUT.computeIfAbsent(key,ignored->new java.util.BitSet()).set(edge);ClientPlayNetworking.send(new WebCutPayload(key,edge));}
+        if(edge>=0&&ClientPlayNetworking.canSend(WebCutPayload.TYPE))ClientPlayNetworking.send(new WebCutPayload(key,edge));
     }
     public static void submit(PoseStack poses,LevelRenderState state,SubmitNodeCollector output){
         Minecraft client=Minecraft.getInstance();if(client.level==null||!client.level.dimension().equals(Asterion.LIMBO_LEVEL)||GRAPHS.isEmpty())return;Vec3 camera=state.cameraRenderState.pos;

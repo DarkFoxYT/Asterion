@@ -17,10 +17,17 @@ public final class BugSurfaces {
                 || state.getBlock() instanceof StairBlock;
     }
     public static List<AABB> collect(BlockGetter level, AABB bounds) {
+        return collect(level,bounds,false);
+    }
+    /** Actual voxel collisions for spiders, including spikes, fences and custom partial blocks. */
+    public static List<AABB> collectCollision(BlockGetter level,AABB bounds) {
+        return collect(level,bounds,true);
+    }
+    private static List<AABB> collect(BlockGetter level,AABB bounds,boolean allShapes) {
         var result = new ArrayList<AABB>();
         for (BlockPos pos : BlockPos.betweenClosed((int)Math.floor(bounds.minX), (int)Math.floor(bounds.minY), (int)Math.floor(bounds.minZ),
                 (int)Math.floor(bounds.maxX), (int)Math.floor(bounds.maxY), (int)Math.floor(bounds.maxZ))) {
-            if (!allowed(level, pos)) continue;
+            if (!allShapes && !allowed(level, pos)) continue;
             for (AABB shape : level.getBlockState(pos).getCollisionShape(level, pos).toAabbs()) {
                 AABB world = shape.move(pos);
                 if (world.intersects(bounds)) result.add(world);

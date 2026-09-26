@@ -25,4 +25,13 @@ public final class SpiderSurfaceMotion {
         // Continue away from the old wall instead of stopping or turning back onto it.
         return projected.lengthSqr() > .04 ? projected.normalize() : previous.getUnitVec3().scale(-1);
     }
+    public static Vec3 turn(Vec3 normal,Vec3 previous,Vec3 desired,double maxAngle) {
+        Vec3 from=previous.subtract(normal.scale(previous.dot(normal))).normalize();
+        Vec3 to=desired.subtract(normal.scale(desired.dot(normal))).normalize();
+        if(to.lengthSqr()<.001)return from;
+        if(from.lengthSqr()<.001)return to;
+        double angle=Math.atan2(normal.dot(from.cross(to)),Math.clamp(from.dot(to),-1,1));
+        angle=Math.clamp(angle,-maxAngle,maxAngle);
+        return from.scale(Math.cos(angle)).add(normal.cross(from).scale(Math.sin(angle))).normalize();
+    }
 }

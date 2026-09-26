@@ -127,6 +127,13 @@ public final class UnderworldPassage {
             ensureCharon(level, ferry);
             return;
         }
+        // getEntity only exposes accessible sections; hidden entities still own their UUID.
+        if (((net.krodark.asterion.mixin.ServerEntityManagerAccessor)level).asterion$entityManager().isLoaded(CharonsFerryEntity.SHARED_ID)) return;
+        var journey=FerryJourneyState.get(level);
+        int boatChunkX=(int)Math.floor(journey.boatX)>>4,boatChunkZ=(int)Math.floor(journey.boatZ)>>4;
+        level.getChunk(boatChunkX,boatChunkZ);
+        if(!level.areEntitiesLoaded(net.minecraft.world.level.ChunkPos.pack(boatChunkX,boatChunkZ)))return;
+        if (((net.krodark.asterion.mixin.ServerEntityManagerAccessor)level).asterion$entityManager().isLoaded(CharonsFerryEntity.SHARED_ID)) return;
         AABB route = new AABB(-96, UnderworldTerrain.WATER_Y - 8, UnderworldTerrain.START_Z,
                 96, UnderworldTerrain.WATER_Y + 16, UnderworldTerrain.END_Z);
         if (!level.getEntitiesOfClass(CharonsFerryEntity.class, route).isEmpty()) return;
@@ -135,8 +142,7 @@ public final class UnderworldPassage {
         if (ferry == null) return;
         ferry.setUUID(CharonsFerryEntity.SHARED_ID);
         ferry.berth();
-        level.addFreshEntity(ferry);
-        ensureCharon(level, ferry);
+        if(level.addFreshEntity(ferry))ensureCharon(level, ferry);
     }
 
     private static void chamberEvent(ServerLevel level, ServerPlayer player) {
@@ -189,11 +195,12 @@ public final class UnderworldPassage {
             if (existing.getVehicle() != ferry) existing.startRiding(ferry);
             return;
         }
+        if (((net.krodark.asterion.mixin.ServerEntityManagerAccessor)level).asterion$entityManager().isLoaded(CharonEntity.SHARED_ID)
+                || !level.areEntitiesLoaded(net.minecraft.world.level.ChunkPos.pack(ferry.getBlockX()>>4,ferry.getBlockZ()>>4)))return;
         CharonEntity charon = UnderworldContent.CHARON.create(level, EntitySpawnReason.EVENT);
         if (charon == null) return;
         charon.setUUID(CharonEntity.SHARED_ID);
         charon.setPos(ferry.getX(), ferry.deckY(), ferry.getZ());
-        level.addFreshEntity(charon);
-        charon.startRiding(ferry);
+        if(level.addFreshEntity(charon))charon.startRiding(ferry);
     }
 }

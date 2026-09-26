@@ -48,9 +48,9 @@ abstract class AsterionFogRendererMixin {
             float sea = (float)Math.clamp((camera.position().z - 50) / 110, 0, 1);
             // Let the depth-tested volume shape the near and middle distances.
             // Keep native fog as a far safety net so large structures retain a silhouette.
-            fog.environmentalStart = 52F - sea * 20F;
-            fog.environmentalEnd = Math.min(fog.environmentalEnd, 136F - sea * 48F);
-            fog.color.set(.075F, .079F, .084F, 1F);
+            fog.environmentalStart = 34F - sea * 12F;
+            fog.environmentalEnd = Math.min(fog.environmentalEnd, 108F - sea * 30F);
+            fog.color.set(.034F, .038F, .044F, 1F);
             return;
         }
         if (camera.getFluidInCamera() != FogType.WATER) return;

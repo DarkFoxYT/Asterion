@@ -13,7 +13,9 @@ public final class SpiderSurfaceRoute {
     private SpiderSurfaceRoute() { }
 
     public static Direction support(List<AABB> blocks,AABB body,Direction previous) {
-        Vec3 p=body.getCenter();
+        return support(blocks,body,previous,body.getCenter());
+    }
+    static Direction support(List<AABB> blocks,AABB body,Direction previous,Vec3 p) {
         double best=.45*.45;
         Direction face=null;
         for(AABB block:blocks) {
@@ -40,10 +42,25 @@ public final class SpiderSurfaceRoute {
         return blocks.stream().noneMatch(swept::intersects);
     }
     public static List<Point> find(List<AABB> blocks,AABB body,Direction face,Vec3 target) {
+        return find(blocks,body,face,target,.35,13,1800);
+    }
+    /** Longer surface navigation, including approach to a wall before climbing it. */
+    public static List<Point> navigate(List<AABB> blocks,AABB body,Direction face,Vec3 target) {
+        return find(blocks,body,face,target,.5,24,1600);
+    }
+    private static List<Point> find(List<AABB> blocks,AABB body,Direction face,Vec3 target,
+                                    double spacing,int radius,int budget) {
         Vec3 origin=body.getCenter();
-        Vec3 toward=target.subtract(origin);
-        if(toward.length()>4)toward=toward.normalize().scale(4);
-        Vec3 goal=origin.add(toward);
+        Vec3 goal=target;
+        // Index collision shapes once, instead of scanning an entire cave for
+        // every successor. Each bucket contains only nearby collision shapes.
+        Map<Cell,List<AABB>> buckets=new HashMap<>();
+        for(AABB block:blocks) {
+            for(int x=(int)Math.floor(block.minX/2);x<=(int)Math.floor(block.maxX/2);x++)
+                for(int y=(int)Math.floor(block.minY/2);y<=(int)Math.floor(block.maxY/2);y++)
+                    for(int z=(int)Math.floor(block.minZ/2);z<=(int)Math.floor(block.maxZ/2);z++)
+                        buckets.computeIfAbsent(new Cell(x,y,z),ignored->new ArrayList<>()).add(block);
+        }
         Cell start=new Cell(0,0,0),best=start;
         Map<Cell,Double> costs=new HashMap<>();
         Map<Cell,Cell> parents=new HashMap<>();
@@ -53,31 +70,69 @@ public final class SpiderSurfaceRoute {
         double initial=origin.distanceTo(goal),nearest=initial;
         open.add(new Node(start,0,initial));
         int visited=0;
-        while(!open.isEmpty() && visited++<1800) {
+        while(!open.isEmpty() && visited++<budget) {
             Node node=open.remove();Cell c=node.cell;
             if(node.cost>costs.get(c)+1e-6)continue;
-            Vec3 offset=new Vec3(c.x*.35,c.y*.35,c.z*.35);
+            Vec3 offset=new Vec3(c.x*spacing,c.y*spacing,c.z*spacing);
             double remaining=origin.add(offset).distanceTo(goal);
             if(remaining<nearest) { nearest=remaining;best=c; }
             if(remaining<.4)break;
-            for(Direction direction:Direction.values()) {
-                Cell next=new Cell(c.x+direction.getStepX(),c.y+direction.getStepY(),c.z+direction.getStepZ());
-                if(Math.abs(next.x)>13 || Math.abs(next.y)>13 || Math.abs(next.z)>13)continue;
-                Vec3 step=direction.getUnitVec3().scale(.35);
-                AABB current=body.move(offset),moved=current.move(step);
-                if(!clear(blocks,current,step))continue;
-                Direction support=support(blocks,moved,faces.get(c));
+            AABB current=body.move(offset);
+            AABB bounds=current.inflate(spacing+.5);
+            Set<AABB> nearbySet=new HashSet<>();
+            for(int x=(int)Math.floor(bounds.minX/2);x<=(int)Math.floor(bounds.maxX/2);x++)
+                for(int y=(int)Math.floor(bounds.minY/2);y<=(int)Math.floor(bounds.maxY/2);y++)
+                    for(int z=(int)Math.floor(bounds.minZ/2);z<=(int)Math.floor(bounds.maxZ/2);z++) {
+                        var bucket=buckets.get(new Cell(x,y,z));
+                        if(bucket!=null)nearbySet.addAll(bucket);
+                    }
+            List<AABB> nearby=List.copyOf(nearbySet);
+            for(int dx=-1;dx<=1;dx++) for(int dy=-1;dy<=1;dy++) for(int dz=-1;dz<=1;dz++) {
+                if(dx==0 && dy==0 && dz==0)continue;
+                Cell next=new Cell(c.x+dx,c.y+dy,c.z+dz);
+                if(Math.abs(next.x)>radius || Math.abs(next.y)>radius || Math.abs(next.z)>radius)continue;
+                Vec3 step=new Vec3(dx*spacing,dy*spacing,dz*spacing);
+                double cost=node.cost+step.length();
+                if(cost>=costs.getOrDefault(next,Double.POSITIVE_INFINITY))continue;
+                AABB moved=current.move(step);
+                if(!clear(nearby,current,step))continue;
+                Direction support=support(nearby,moved,faces.get(c));
                 if(support==null)continue;
-                double cost=node.cost+.35+(support==faces.get(c)?0:.08);
+                // Endpoints alone must not allow diagonal hops across empty air.
+                if(support(nearby,current.move(step.scale(.5)),faces.get(c))==null)continue;
+                cost+=support==faces.get(c)?0:.08;
                 if(cost>=costs.getOrDefault(next,Double.POSITIVE_INFINITY))continue;
                 costs.put(next,cost);parents.put(next,c);faces.put(next,support);
-                open.add(new Node(next,cost,cost+moved.getCenter().distanceTo(goal)));
+                open.add(new Node(next,cost,cost+1.3*moved.getCenter().distanceTo(goal)));
             }
         }
         if(initial-nearest<.5)return List.of();
         LinkedList<Point> route=new LinkedList<>();
         for(Cell c=best;!c.equals(start);c=parents.get(c))
-            route.addFirst(new Point(origin.add(c.x*.35,c.y*.35,c.z*.35),faces.get(c)));
-        return List.copyOf(route);
+            route.addFirst(new Point(origin.add(c.x*spacing,c.y*spacing,c.z*spacing),faces.get(c)));
+        return smooth(blocks,body,route);
+    }
+    /** Safe string-pulling across the leg-reach envelope, not voxel stair jumps. */
+    public static List<Point> smooth(List<AABB> blocks,AABB body,List<Point> raw) {
+        List<Point> result=new ArrayList<>();
+        int index=0;
+        while(index<raw.size()) {
+            AABB bounds=body.inflate(2.5);
+            List<AABB> nearby=blocks.stream().filter(bounds::intersects).toList();
+            int last=index;
+            for(int candidate=index+1;candidate<Math.min(raw.size(),index+7);candidate++) {
+                Vec3 step=raw.get(candidate).center().subtract(body.getCenter());
+                if(step.length()>2 || !clear(nearby,body,step))break;
+                boolean supported=true;
+                int samples=Math.max(2,(int)Math.ceil(step.length()/.1));
+                for(int sample=1;sample<=samples;sample++)
+                    if(support(nearby,body.move(step.scale(sample/(double)samples)),raw.get(candidate).face())==null) { supported=false;break; }
+                if(!supported)break;
+                last=candidate;
+            }
+            Point point=raw.get(last);result.add(point);
+            body=body.move(point.center().subtract(body.getCenter()));index=last+1;
+        }
+        return List.copyOf(result);
     }
 }

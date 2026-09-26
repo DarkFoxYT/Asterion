@@ -2,11 +2,18 @@
 allprojects {
     afterEvaluate { p ->
         if (p.name == '26.1.2-fabric') {
+            tasks.withType(JavaExec).configureEach {
+                if (name.startsWith('check') || name == 'profileAmneticShaders') {
+                    systemProperty 'joml.nounsafe', 'true'
+                    jvmArgs '--enable-native-access=ALL-UNNAMED'
+                    workingDir = rootProject.projectDir
+                }
+            }
             def smokeCompile = tasks.register('compileUnderworldSmoke', JavaCompile) {
                 dependsOn tasks.named('classes')
                 source = rootProject.files('tools/UnderworldTerrainSmoke.java', 'tools/LimboShaderSmoke.java',
                         'tools/EmissiveUploadSmoke.java', 'tools/DepthBlitSmoke.java', 'tools/LimboWaterSmoke.java',
-                        'tools/AmneticShaderProfile.java', 'tools/WaterVisualSmoke.java', 'tools/ShaderIncludes.java', 'tools/WakeFieldSmoke.java', 'tools/FerryHullSmoke.java', 'tools/AmneticCompatibilitySmoke.java')
+                        'tools/AmneticShaderProfile.java', 'tools/WaterVisualSmoke.java', 'tools/ShaderIncludes.java', 'tools/WakeFieldSmoke.java', 'tools/FerryHullSmoke.java', 'tools/AmneticCompatibilitySmoke.java', 'tools/StartupCompatibilitySmoke.java')
                 classpath = p.sourceSets.main.runtimeClasspath
                 destinationDirectory = layout.buildDirectory.dir('underworld-smoke')
                 javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(25) }
@@ -15,6 +22,14 @@ allprojects {
                 dependsOn smokeCompile
                 classpath = p.sourceSets.main.runtimeClasspath + files(smokeCompile.flatMap { it.destinationDirectory })
                 mainClass = 'AmneticCompatibilitySmoke'
+                javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+            tasks.register('checkStartupCompatibility', JavaExec) {
+                dependsOn smokeCompile
+                classpath = p.sourceSets.main.runtimeClasspath + files(smokeCompile.flatMap { it.destinationDirectory })
+                mainClass = 'StartupCompatibilitySmoke'
+                def pack = providers.gradleProperty('packToCheck')
+                if (pack.isPresent()) args rootProject.file(pack.get()).absolutePath
                 javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
             }
             tasks.register('profileAmneticShaders', JavaExec) {

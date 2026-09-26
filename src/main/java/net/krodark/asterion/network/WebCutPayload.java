@@ -24,10 +24,11 @@ public record WebCutPayload(long key, int link) implements CustomPacketPayload {
     private static void handle(ServerPlayer player, WebCutPayload request) {
         if (!player.level().dimension().equals(Asterion.LIMBO_LEVEL) || request.link < 0 || request.link > 4096) return;
         Vec3 eye = player.getEyePosition(), look = player.getLookAngle(), end = eye.add(look.scale(player.blockInteractionRange() + .75));
-        for (WebPatch patch : WebPatchGenerator.around(player.level(), eye, 7)) if (patch.key() == request.key && request.link < patch.linkCount()) {
+        for (WebPatch patch : WebPatchGenerator.around(player.level(), eye, 16)) if (patch.key() == request.key && request.link < patch.linkCount()) {
             int base=0;Vec3 a=null,b=null;
-            for(int edgeIndex=0;edgeIndex<patch.edges().size();edgeIndex++){int pieces=patch.pieces(edgeIndex);if(request.link<base+pieces){WebPatch.Edge edge=patch.edges().get(edgeIndex);Vec3 from=patch.anchors().get(edge.a()),to=patch.anchors().get(edge.b());int local=request.link-base;a=from.lerp(to,local/(double)pieces);b=from.lerp(to,(local+1)/(double)pieces);break;}base+=pieces;}
-            if (a!=null&&segmentDistanceSqr(eye,end,a,b)<=.20*.20) { LimboWebSystem.sever(request.key,request.link); broadcast((ServerLevel)player.level(),a.lerp(b,.5),request.key,request.link); }
+            for(int edgeIndex=0;edgeIndex<patch.edges().size();edgeIndex++){int pieces=patch.pieces(edgeIndex);if(request.link<base+pieces){int local=request.link-base;a=patch.point(edgeIndex,local/(double)pieces);b=patch.point(edgeIndex,(local+1)/(double)pieces);break;}base+=pieces;}
+            // Account for the bounded local deflection of the visible strand.
+            if (a!=null&&segmentDistanceSqr(eye,end,a,b)<=.85*.85) { LimboWebSystem.sever((ServerLevel)player.level(),request.key,request.link); broadcast((ServerLevel)player.level(),a.lerp(b,.5),request.key,request.link); }
             return;
         }
     }

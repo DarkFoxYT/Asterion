@@ -5,12 +5,12 @@ allprojects {
             // JOML's supported NIO backend avoids its optional sun.misc.Unsafe
             // initialization on Java 25; leave JVM/compiler diagnostics enabled.
             tasks.withType(JavaExec).configureEach {
-                if (name in ['checkSpiderIK', 'checkSpiderMovement', 'checkSpiderSupport'])
+                if (name in ['checkSpiderIK', 'checkSpiderMovement', 'checkSpiderSupport', 'checkWebPhysics', 'checkWebPersistence'])
                     systemProperty 'joml.nounsafe', 'true'
             }
             def compile = tasks.register('compileSpiderSmoke', JavaCompile) {
                 dependsOn tasks.named('classes')
-                source = rootProject.files('tools/SpiderIKSmoke.java', 'tools/SpiderMovementSmoke.java', 'tools/SpiderSupportSmoke.java')
+                source = rootProject.files('tools/SpiderIKSmoke.java', 'tools/SpiderMovementSmoke.java', 'tools/SpiderSupportSmoke.java', 'tools/WebPhysicsSmoke.java', 'tools/WebPersistenceSmoke.java')
                 classpath = p.sourceSets.main.runtimeClasspath
                 destinationDirectory = layout.buildDirectory.dir('spider-smoke')
                 javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(25) }
@@ -19,6 +19,20 @@ allprojects {
                 dependsOn compile
                 classpath = p.sourceSets.main.runtimeClasspath + files(compile.flatMap { it.destinationDirectory })
                 mainClass = 'net.krodark.asterion.update.underworld.client.SpiderIKSmoke'
+                workingDir = rootProject.projectDir
+                javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+            tasks.register('checkWebPhysics', JavaExec) {
+                dependsOn compile
+                classpath = p.sourceSets.main.runtimeClasspath + files(compile.flatMap { it.destinationDirectory })
+                mainClass = 'net.krodark.asterion.update.underworld.client.WebPhysicsSmoke'
+                workingDir = rootProject.projectDir
+                javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+            tasks.register('checkWebPersistence', JavaExec) {
+                dependsOn compile
+                classpath = p.sourceSets.main.runtimeClasspath + files(compile.flatMap { it.destinationDirectory })
+                mainClass = 'net.krodark.asterion.update.underworld.WebPersistenceSmoke'
                 workingDir = rootProject.projectDir
                 javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
             }

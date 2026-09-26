@@ -158,6 +158,7 @@ java {
     withSourcesJar()
 }
 
+def licenseArchiveName = "LICENSE_${project.archives_base_name}.txt"
 jar {
     exclude 'net/krodark/asterion/dev/**'
     archiveFileName = "${project.archives_base_name}-${project.version}-${loaderPlatform}-mc${project.minecraft_version}.jar"
@@ -172,7 +173,7 @@ jar {
         )
     }
     from(rootProject.file("LICENSE.txt")) {
-        rename { "LICENSE_${project.archives_base_name}.txt" }
+        rename { licenseArchiveName }
     }
 }
 

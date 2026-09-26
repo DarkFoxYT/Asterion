@@ -1,0 +1,30 @@
+// Reproducible, narrow patch to the supplied renderer jars; upstream binaries remain intact.
+allprojects {
+    afterEvaluate { p ->
+        if (p.name == '26.1.2-fabric') {
+            def compile = tasks.register('compileAmneticWindowCompatibility', JavaCompile) {
+                source = rootProject.fileTree('tools/amnetic-compat') { include '**/*.java' }
+                classpath = p.sourceSets.main.compileClasspath
+                destinationDirectory = layout.buildDirectory.dir('amnetic-window-compat')
+                javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(25) }
+                options.compilerArgs.add('-proc:none')
+            }
+            ['amnetic', 'amnetic-neoforge'].each { artifact ->
+                tasks.register("patch${artifact.replace('-', '')}Window", Jar) {
+                    dependsOn compile
+                    archiveFileName = "${artifact}-1.0.0-asterion.3.jar"
+                    destinationDirectory = rootProject.layout.projectDirectory.dir('libs')
+                    preserveFileTimestamps = false
+                    reproducibleFileOrder = true
+                    from(rootProject.zipTree("libs/${artifact}-1.0-SNAPSHOT-0b72718.jar")) {
+                        exclude 'com/meekdev/amnetic/mixin/WindowGlContextMixin.class'
+                    }
+                    from compile.flatMap { it.destinationDirectory }
+                }
+            }
+            tasks.register('rebuildAmneticWindowCompatibility') {
+                dependsOn 'patchamneticWindow', 'patchamneticneoforgeWindow'
+            }
+        }
+    }
+}

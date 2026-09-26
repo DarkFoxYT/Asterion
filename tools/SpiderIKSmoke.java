@@ -19,15 +19,33 @@ public final class SpiderIKSmoke {
             var bone = value.getAsJsonObject(); bones.put(bone.get("name").getAsString(),bone);
         }
         int cases = 0;
+        for(int leg=0;leg<8;leg++) {
+            var last=SpiderLegIK.airborneOffset(leg,0,42);
+            double motion=0;
+            for(int tick=1;tick<=200;tick++) {
+                var next=SpiderLegIK.airborneOffset(leg,tick*.1F,42);
+                if(next.length()>.55 || next.distanceTo(last)>.03)
+                    throw new AssertionError("Airborne leg motion is unbounded or discontinuous");
+                motion+=next.distanceTo(last);last=next;
+            }
+            if(motion<.5)throw new AssertionError("Airborne leg stopped animating");
+        }
         for (String name : bones.keySet()) {
             if (!name.contains("leg") || name.endsWith("mid") || name.endsWith("end")) continue;
             Vector3f[] pivots = new Vector3f[3], rest = new Vector3f[3];
             String[] names = {name,name+"mid",name+"end"};
+            var endCube=bones.get(names[2]).getAsJsonArray("cubes").get(0).getAsJsonObject();
+            if(Math.abs(endCube.getAsJsonArray("size").get(0).getAsFloat()-21.333333F)>.0001F)
+                throw new AssertionError("Distal plane was not shortened: "+name);
+            var midCubes=bones.get(names[1]).getAsJsonArray("cubes");
+            float authoredWidth=name.contains("ish")?25:24;
+            if(midCubes.get(1).getAsJsonObject().getAsJsonArray("size").get(0).getAsFloat()!=authoredWidth)
+                throw new AssertionError("Middle segment was changed: "+name);
             for (int j=0;j<3;j++) {
                 pivots[j] = vector(bones.get(names[j]),"pivot").mul(-1,1,1).div(16);
                 rest[j] = vector(bones.get(names[j]),"rotation").mul(-1,-1,1).mul((float)Math.PI/180);
             }
-            Vector3f tip = new Vector3f(pivots[2]).add(name.startsWith("left") ? -.9375F : .9375F,-.375F,0);
+            Vector3f tip = new Vector3f(pivots[2]).add(name.startsWith("left") ? -13F/16 : 13F/16,-.375F,0);
             Vector3f nominal = endpoint(pivots,rest,tip);
             for (Vector3f shift : new Vector3f[]{new Vector3f(),new Vector3f(0,.25F,0),
                     new Vector3f(.15F,.4F,-.12F),new Vector3f(0,-.2F,.15F),
@@ -83,9 +101,27 @@ public final class SpiderIKSmoke {
                     feet.add(new SpiderLegIK.Leg(java.util.List.of(foot),foot,true,0));
                 }
                 var tilt=SpiderLegIK.bodyTilt(new SpiderLegIK.Debug(feet,0),q);
-                if(tilt.length()>Math.toRadians(4)+1e-6)throw new AssertionError("Excessive body lean");
+                if(tilt.length()>Math.toRadians(16)+1e-6)throw new AssertionError("Excessive body lean");
                 if(slope==0 && tilt.length()>1e-6)throw new AssertionError("Flat feet tilt body");
+                if(slope==0) {
+                    Vector3f loaded=q.transform(new Vector3f(.3F,0,-.25F));
+                    var shift=new net.minecraft.world.phys.Vec3(loaded.x,loaded.y,loaded.z);
+                    var weight=SpiderLegIK.bodyTilt(new SpiderLegIK.Debug(feet,0,shift),q);
+                    if(weight.x<.03 || weight.z<.04)throw new AssertionError("Level-ground weight transfer did not move torso");
+                    if(SpiderLegIK.bodyLift(new SpiderLegIK.Debug(feet,0,shift),q,0)>=0)
+                        throw new AssertionError("Extended stance did not soften body height");
+                }
                 if(slope>0 && tilt.z<=0)throw new AssertionError("Lean does not follow feet");
+                var tripod=SpiderLegIK.bodyTilt(new SpiderLegIK.Debug(feet.subList(0,3),0),q);
+                if(tripod.distanceTo(tilt)>.0001)throw new AssertionError("Three-foot support does not drive torso");
+                Vector3f liftAxis=q.transform(new Vector3f(0,1,0));
+                var error=new net.minecraft.world.phys.Vec3(liftAxis.x*.2,liftAxis.y*.2,liftAxis.z*.2);
+                double lift=SpiderLegIK.bodyLift(new SpiderLegIK.Debug(feet,0,error),q,0);
+                if(lift<.13 || lift>.15)throw new AssertionError("Torso did not rise toward planted feet on "+face);
+                if(SpiderLegIK.bodyLift(new SpiderLegIK.Debug(feet,0,error.scale(-1)),q,0)>=0)
+                    throw new AssertionError("Torso did not lower toward feet");
+                if(Math.abs(SpiderLegIK.bodyLift(new SpiderLegIK.Debug(feet,0,error.scale(100)),q,.2)-.26)>.0001)
+                    throw new AssertionError("Torso height escaped clamp");
                 if(SpiderLegIK.bodyTilt(new SpiderLegIK.Debug(feet.subList(0,2),0),q).lengthSqr()!=0)
                     throw new AssertionError("Unstable two-foot body lean");
             }

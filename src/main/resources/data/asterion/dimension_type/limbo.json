@@ -14,8 +14,8 @@
       "explodes": false
     },
     "minecraft:gameplay/respawn_anchor_works": false,
-    "minecraft:visual/ambient_light_color": "#343D2E",
-    "minecraft:visual/fog_color": "#25282B",
+    "minecraft:visual/ambient_light_color": "#262B29",
+    "minecraft:visual/fog_color": "#090A0C",
     "minecraft:visual/sky_color": "#000000",
     "minecraft:visual/sky_light_color": "#34373A",
     "minecraft:visual/sky_light_factor": 0.0
@@ -26,7 +26,7 @@
   "has_skylight": false,
   "coordinate_scale": 1.0,
   "default_clock": "minecraft:the_end",
-  "ambient_light": 0.12,
+  "ambient_light": 0.08,
   "min_y": -64,
   "height": 224,
   "logical_height": 224,
