@@ -179,6 +179,12 @@ public class Asterion implements ModInitializer {
     public static final SoundEvent RESPAWN_OBELISK_REVIVE = registerSound("respawn_obelisk_revive");
 
     public static final Block ANCIENT_BRICKS = registerBlock("ancient_bricks", MapColor.COLOR_BROWN, Block::new);
+    public static final Block VERDANT_TILES = registerBlock("verdant_tiles", MapColor.TERRACOTTA_GREEN,
+            properties -> new Block(properties.strength(2.2F, 6.0F).requiresCorrectToolForDrops()));
+    public static final Block BONIFIED_PILLAR = registerBlock("bonified_pillar", MapColor.COLOR_BROWN,
+            properties -> new RotatedPillarBlock(properties.strength(2.0F, 3.0F).sound(SoundType.WOOD).ignitedByLava()));
+    public static final Block BONIFIED_BLOCK = registerBlock("bonifiedblock", MapColor.COLOR_BROWN,
+            properties -> new Block(properties.strength(2.0F, 3.0F).sound(SoundType.WOOD).ignitedByLava()));
     public static final Block ANCIENT_MOSSY_BRICKS = registerBlock(
             "ancient_mossy_bricks", MapColor.TERRACOTTA_GREEN, Block::new);
     public static final Block ANCIENT_BRICK_SLAB = registerBlock("ancient_brick_slab", MapColor.COLOR_BROWN, SlabBlock::new);
@@ -675,6 +681,9 @@ public class Asterion implements ModInitializer {
                         output.accept(TAINTED_HEART);
                         output.accept(TAINTED_HEART_EATABLE);
                         output.accept(ANCIENT_BRICKS);
+                        output.accept(VERDANT_TILES);
+                        output.accept(BONIFIED_PILLAR);
+                        output.accept(BONIFIED_BLOCK);
                         output.accept(ANCIENT_MOSSY_BRICKS);
                         output.accept(ANCIENT_BRICK_SLAB);
                         output.accept(ANCIENT_BRICK_STAIRS);

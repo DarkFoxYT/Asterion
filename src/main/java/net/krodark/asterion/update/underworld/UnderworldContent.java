@@ -45,5 +45,6 @@ public final class UnderworldContent {
                 SPIDER,LimboSpiderEntity.createAttributes());
         LimboWebSystem.initialize();
         SpiderCommands.register();
+        SpiderPopulation.initialize();
     }
 }

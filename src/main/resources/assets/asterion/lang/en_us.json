@@ -1,4 +1,7 @@
 {
+  "block.asterion.verdant_tiles": "Verdant Tiles",
+  "block.asterion.bonified_pillar": "Bonified Pillar",
+  "block.asterion.bonifiedblock": "Bonified Block",
   "dimension.asterion.limbo": "Limbo",
   "entity.asterion.wanderer": "Wanderer",
   "item.asterion.wanderer_spawn_egg": "Wanderer Spawn Egg",

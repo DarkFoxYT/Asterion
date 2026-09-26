@@ -29,14 +29,14 @@ public final class SpiderLegIK {
         public Debug(List<Leg> legs,float age) { this(legs,age,Vec3.ZERO); }
     }
     public static Debug debug(LimboSpiderEntity spider) { return DEBUG.get(spider); }
-    static double bodyLift(Debug debug,Quaternionf orientation,double previous) {
+    static double bodyLift(Debug debug,Quaternionf orientation,double previous,double modelScale) {
         if(debug==null)return 0;
         Vec3 up=vec(orientation.transform(new Vector3f(0,1,0))).normalize();
         // Error is measured after the current body transform: accumulate a
         // bounded correction rather than cancelling the previous frame's lift.
         double vertical=debug.stanceError().dot(up);
         double extension=debug.stanceError().subtract(up.scale(vertical)).lengthSqr();
-        return Math.clamp(previous+(vertical-Math.min(.06,extension*.12))*.5/net.krodark.asterion.update.underworld.entity.SpiderDimensions.RENDER_SCALE,-.26,.26);
+        return Math.clamp(previous+(vertical-Math.min(.06,extension*.12))*.5/modelScale,-.26,.26);
     }
 
     /** Fit the support triangle/plane, expressed in the un-tilted body frame. */
@@ -131,8 +131,8 @@ public final class SpiderLegIK {
                     || memory.probeTicks[leg]!=(int)frame.age
                     || memory.probePositions[leg].distanceToSqr(nominal)>.04;
             if(probe) {
-            Vec3 start = nominal.add(probeUp.scale(1.2*net.krodark.asterion.update.underworld.entity.SpiderDimensions.SIZE));
-            Vec3 end = nominal.subtract(probeUp.scale(1.6*net.krodark.asterion.update.underworld.entity.SpiderDimensions.SIZE));
+            Vec3 start = nominal.add(probeUp.scale(1.2*frame.spider.spiderScale()));
+            Vec3 end = nominal.subtract(probeUp.scale(1.6*frame.spider.spiderScale()));
             var hit = frame.spider.level().clip(new ClipContext(start,end,ClipContext.Block.COLLIDER,
                     ClipContext.Fluid.NONE,frame.spider));
             contact = hit.getType() != HitResult.Type.MISS;
@@ -143,8 +143,8 @@ public final class SpiderLegIK {
                 // inward, within the leg's reach, instead of letting it dangle.
                 Vec3 hip=vec(world.transformPosition(new Vector3f(pivots[0])));
                 Vec3 inset=nominal.lerp(hip,.22);
-                var nearby=frame.spider.level().clip(new ClipContext(inset.add(probeUp.scale(1.2*net.krodark.asterion.update.underworld.entity.SpiderDimensions.SIZE)),
-                        inset.subtract(probeUp.scale(1.6*net.krodark.asterion.update.underworld.entity.SpiderDimensions.SIZE)),ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,frame.spider));
+                var nearby=frame.spider.level().clip(new ClipContext(inset.add(probeUp.scale(1.2*frame.spider.spiderScale())),
+                        inset.subtract(probeUp.scale(1.6*frame.spider.spiderScale())),ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,frame.spider));
                 if(nearby.getType()!=HitResult.Type.MISS) {
                     contact=true; contactNormal=nearby.getDirection().getUnitVec3();
                     target=nearby.getLocation().add(contactNormal.scale(.035));
@@ -166,7 +166,7 @@ public final class SpiderLegIK {
             } else {
                 contact=memory.probeContacts[leg];target=memory.probeTargets[leg];contactNormal=memory.probeNormals[leg];
             }
-            Vec3 silk = frame.spider.onWeb()?LimboWebWorldRenderer.spiderContact(nominal, 1.25*net.krodark.asterion.update.underworld.entity.SpiderDimensions.SIZE):null;
+            Vec3 silk = frame.spider.onWeb()?LimboWebWorldRenderer.spiderContact(nominal, 1.25*frame.spider.spiderScale()):null;
             if (silk != null && (!contact || silk.distanceToSqr(nominal) < target.distanceToSqr(nominal))) {
                 target = silk.add(probeUp.scale(.025)); contact = true; contactNormal=probeUp;
             }
@@ -194,7 +194,7 @@ public final class SpiderLegIK {
                     Vec3 movingSilk=LimboWebWorldRenderer.spiderContact(old,.3);
                     if(movingSilk!=null){old=movingSilk.add(probeUp.scale(.025));memory.feet[leg]=old;}
                 }
-                if (reset || old == null || released || !contact && !frame.spider.hasSurfaceSupport() && !frame.spider.onGround() && !frame.spider.onWeb() || old.distanceToSqr(target) > 3.24*net.krodark.asterion.update.underworld.entity.SpiderDimensions.SIZE*net.krodark.asterion.update.underworld.entity.SpiderDimensions.SIZE) {
+                if (reset || old == null || released || !contact && !frame.spider.hasSurfaceSupport() && !frame.spider.onGround() && !frame.spider.onWeb() || old.distanceToSqr(target) > 3.24*frame.spider.spiderScale()*frame.spider.spiderScale()) {
                     memory.feet[leg] = !contact && old!=null && !reset
                             ? old.lerp(target,1-Math.pow(.35,Math.clamp(frame.age-memory.age,0,2))) : target;
                     memory.destinations[leg] = null;
@@ -217,7 +217,7 @@ public final class SpiderLegIK {
                         // Check the actual terrain along the swing, not just its
                         // destination: a tread can lie above both endpoints.
                         Vec3 swing=memory.feet[leg];
-                        var obstacle=frame.spider.level().clip(new ClipContext(swing.add(probeUp.scale(1.25*net.krodark.asterion.update.underworld.entity.SpiderDimensions.SIZE)),
+                        var obstacle=frame.spider.level().clip(new ClipContext(swing.add(probeUp.scale(1.25*frame.spider.spiderScale())),
                                 swing,ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,frame.spider));
                         if(obstacle.getType()!=HitResult.Type.MISS)
                             memory.feet[leg]=obstacle.getLocation().add(probeUp.scale(.06));

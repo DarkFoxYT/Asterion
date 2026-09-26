@@ -155,7 +155,7 @@ public final class DismembermentEngine {
     }
 
     public void applyExplosion(Minecraft client, Vec3 center, float radius) {
-        if (client.level == null || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) {
+        if (client.level == null || !ragdollDimension(client.level.dimension())) {
             return;
         }
         if (center == null || !Float.isFinite(radius) || radius <= 0.0f) {
@@ -3787,7 +3787,10 @@ public final class DismembermentEngine {
     }
 
     private static boolean inAsterion(Entity entity) {
-        return entity != null && entity.level().dimension().equals(Asterion.ASTERION_LEVEL);
+        return entity != null && ragdollDimension(entity.level().dimension());
+    }
+    public static boolean ragdollDimension(net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension) {
+        return dimension.equals(Asterion.ASTERION_LEVEL) || dimension.equals(Asterion.LIMBO_LEVEL);
     }
 
     private void tickWailing() {

@@ -15,6 +15,7 @@ import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.resources.Identifier;
 import net.minecraft.core.Direction;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 
@@ -29,6 +30,11 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
     private static final DataTicket<Float> ROT_Z = DataTickets.create("asterion_spider_rot_z",Float.class);
     private static final DataTicket<Float> ROT_W = DataTickets.create("asterion_spider_rot_w",Float.class);
     private static final DataTicket<Float> LOWER = DataTickets.create("asterion_spider_lower",Float.class);
+    private static final DataTicket<Float> SIZE_RATIO = DataTickets.create("asterion_spider_size_ratio",Float.class);
+    private static final DataTicket<Float> ABDOMEN_X = DataTickets.create("asterion_spider_abdomen_x",Float.class);
+    private static final DataTicket<Float> ABDOMEN_Y = DataTickets.create("asterion_spider_abdomen_y",Float.class);
+    private static final DataTicket<Float> HEAD_X = DataTickets.create("asterion_spider_head_x",Float.class);
+    private static final DataTicket<Float> HEAD_Y = DataTickets.create("asterion_spider_head_y",Float.class);
     private static final DataTicket<SpiderLegIK.Frame> IK = DataTickets.create("asterion_spider_ik",SpiderLegIK.Frame.class);
     private static final DataTicket<Vec3> SILK_OFFSET = DataTickets.create("asterion_spider_silk_offset",Vec3.class);
     private final Map<LimboSpiderEntity,SurfacePose> poses = new WeakHashMap<>();
@@ -53,6 +59,7 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
     @Override public void addRenderData(LimboSpiderEntity spider, Void related,
                                         EntityRenderState state, float partialTick) {
         state.addGeckolibData(MIMIC, spider.state() == LimboSpiderEntity.State.MIMICKING);
+        state.addGeckolibData(SIZE_RATIO, spider.spiderScale() / net.krodark.asterion.update.underworld.entity.SpiderDimensions.MAX_SIZE);
         Direction face = spider.attachedSurface();
         float yaw = calculateYRot(spider,0,partialTick);
         SurfacePose pose = poses.computeIfAbsent(spider,ignored -> new SurfacePose());
@@ -75,6 +82,23 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
         pose.heading = pose.heading.subtract(normal.scale(pose.heading.dot(normal)));
         if (pose.heading.lengthSqr() < .001) pose.heading = SpiderSurfaceMotion.heading(face,Vec3.ZERO,Vec3.ZERO,false);
         pose.heading = pose.heading.normalize();
+        float turn=pose.headingOld==null?0:(float)Math.atan2(normal.dot(pose.headingOld.cross(pose.heading)),pose.headingOld.dot(pose.heading));
+        float abdomenY=(float)Math.clamp(-turn*.65,-.22,.22);
+        float abdomenX=(float)Math.clamp(-spider.getDeltaMovement().length()*.045,-.12,.12);
+        Player prey=spider.level().getNearestPlayer(spider,32);
+        float headY=0,headX=0;
+        if(prey!=null && (spider.camouflaged() || spider.state()==LimboSpiderEntity.State.HUNTING)) {
+            Vec3 toward=prey.getEyePosition().subtract(spider.position()).normalize();
+            Vec3 right=pose.heading.cross(normal).normalize();
+            headY=(float)Math.clamp(Math.atan2(toward.dot(right),toward.dot(pose.heading)),-.48,.48);
+            headX=(float)Math.clamp(Math.asin(Math.clamp(toward.dot(normal),-1,1)),-.30,.30);
+        }
+        float smoothing=1-(float)Math.pow(.72,delta);
+        pose.abdomenX+=(abdomenX-pose.abdomenX)*smoothing;pose.abdomenY+=(abdomenY-pose.abdomenY)*smoothing;
+        pose.headX+=(headX-pose.headX)*smoothing;pose.headY+=(headY-pose.headY)*smoothing;
+        pose.headingOld=pose.heading;
+        state.addGeckolibData(ABDOMEN_X,pose.abdomenX);state.addGeckolibData(ABDOMEN_Y,pose.abdomenY);
+        state.addGeckolibData(HEAD_X,pose.headX);state.addGeckolibData(HEAD_Y,pose.headY);
         Quaternionf base = new Quaternionf().rotationY((float)Math.toRadians(180-yaw));
         Quaternionf target = new Quaternionf(base).mul(SurfaceOrientation.beetleSurfaceRotation(
                 normal,pose.heading,yaw));
@@ -96,7 +120,7 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
         // torso flat every time one foot lifts. Airborne bodies relax smoothly.
         Vec3 lean=planted?SpiderLegIK.bodyTilt(contacts,pose.orientation)
                 :age-pose.lastSupportAge<3?pose.lean:Vec3.ZERO;
-        double lift=planted?SpiderLegIK.bodyLift(contacts,pose.orientation,pose.lift)
+        double lift=planted?SpiderLegIK.bodyLift(contacts,pose.orientation,pose.lift,spider.modelScale())
                 :age-pose.lastSupportAge<3?pose.lift:0;
         pose.lean=pose.lean.lerp(lean,1-Math.pow(.65,delta));
         pose.lift+=(lift-pose.lift)*(1-Math.pow(.6,delta));
@@ -128,6 +152,8 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
     @Override public void adjustRenderPose(RenderPassInfo<EntityRenderState> pass) {
         super.adjustRenderPose(pass);
         if (pass.getOrDefaultGeckolibData(MIMIC,false)) return;
+        float sizeRatio = pass.getOrDefaultGeckolibData(SIZE_RATIO,1F);
+        pass.poseStack().scale(sizeRatio,sizeRatio,sizeRatio);
         // Rotate around the model's body, not its feet. This keeps the abdomen
         // inside the collision body while turning onto a wall or ceiling.
         pass.poseStack().translate(0,.84,0);
@@ -146,6 +172,11 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
         if (pass.getOrDefaultGeckolibData(MIMIC,false)) return;
         SpiderLegIK.Frame frame = pass.getGeckolibData(IK);
         if (frame != null) SpiderLegIK.apply(pass, bones, frame);
+        float abdomenX=pass.getOrDefaultGeckolibData(ABDOMEN_X,0F),abdomenY=pass.getOrDefaultGeckolibData(ABDOMEN_Y,0F);
+        bones.ifPresent("abnomen",bone->{bone.setRotX(bone.getRotX()+abdomenX);bone.setRotY(bone.getRotY()+abdomenY);});
+        bones.ifPresent("abdomen",bone->{bone.setRotX(bone.getRotX()+abdomenX);bone.setRotY(bone.getRotY()+abdomenY);});
+        float headX=pass.getOrDefaultGeckolibData(HEAD_X,0F),headY=pass.getOrDefaultGeckolibData(HEAD_Y,0F);
+        bones.ifPresent("head",bone->{bone.setRotX(bone.getRotX()+headX);bone.setRotY(bone.getRotY()+headY);});
     }
     private static final class SurfacePose {
         private final Quaternionf orientation = new Quaternionf();
@@ -156,6 +187,8 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
         private Vec3 lean=Vec3.ZERO;
         private Vec3 position;
         private Vec3 heading = new Vec3(0,0,1);
+        private Vec3 headingOld;
+        private float abdomenX,abdomenY,headX,headY;
         private Direction face = Direction.DOWN;
         private final SpiderLegIK.Memory legs = new SpiderLegIK.Memory();
     }

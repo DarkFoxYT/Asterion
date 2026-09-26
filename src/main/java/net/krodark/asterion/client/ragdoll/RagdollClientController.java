@@ -129,7 +129,7 @@ public final class RagdollClientController {
                     client.player.getBoundingBox().inflate(scanRange),
                      entity -> !entity.isAlive() && !DismembermentEngine.isRagdollExcluded(entity)
                              && (entity instanceof net.minecraft.world.entity.player.Player
-                             || client.level.dimension().equals(Asterion.ASTERION_LEVEL)))) {
+                             || DismembermentEngine.ragdollDimension(client.level.dimension())))) {
                 if (!engine.isRagdolled(entity.getId())) {
                     Vec3 motion = entity.getDeltaMovement();
                     Vec3 direction = motion.lengthSqr() > 1.0e-6 ? motion.normalize() : entity.getLookAngle();

@@ -37,7 +37,8 @@ public record WebCutPayload(long key, int link) implements CustomPacketPayload {
             int base=0;Vec3 a=null,b=null;
             for(int edgeIndex=0;edgeIndex<patch.edges().size();edgeIndex++){int pieces=patch.pieces(edgeIndex);if(request.link<base+pieces){int local=request.link-base;a=patch.point(edgeIndex,local/(double)pieces);b=patch.point(edgeIndex,(local+1)/(double)pieces);break;}base+=pieces;}
             // Account for the bounded local deflection of the visible strand.
-            if (a!=null&&segmentDistanceSqr(eye,end,a,b)<=.85*.85) {
+            if (a!=null&&!LimboWebSystem.cut((ServerLevel)player.level(),request.key,request.link)
+                    &&segmentDistanceSqr(eye,end,a,b)<=.85*.85) {
                 LimboWebSystem.sever((ServerLevel)player.level(),request.key,request.link);broadcast((ServerLevel)player.level(),a.lerp(b,.5),request.key,request.link);
                 for(var spider:player.level().getEntitiesOfClass(net.krodark.asterion.update.underworld.entity.LimboSpiderEntity.class,
                         new net.minecraft.world.phys.AABB(a,b).inflate(24)))spider.hunt(player);
