@@ -53,6 +53,8 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
     private BlockPos nest;
     private UUID huntTarget;
     private int huntUntil;
+    private int attackDropUntil;
+    private int nextAttackDrop;
     private int stateTicks, approachTicks, attackCooldown, unseenTicks;
     private int lungePhase;
     private double previousDistance = Double.POSITIVE_INFINITY;
@@ -225,8 +227,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
     public boolean camouflaged() { return state()==State.WANDERING_CAMOUFLAGED || state()==State.STALKING_CAMOUFLAGED
             || state()==State.HIDING_CAMOUFLAGED; }
     public void settleNaturally() {
-        int slot=Math.floorDiv(getBlockZ()-UnderworldTerrain.SPAWN_Z,80);
-        nest=UnderworldTerrain.chamberCenter(slot);setPersistenceRequired();
+        nest=blockPosition();setPersistenceRequired();
         state(!SpiderBehavior.night(level().getGameTime())?State.HIDING_CAMOUFLAGED:
                 random.nextBoolean()?State.WANDERING_CAMOUFLAGED:State.WANDERING);
         setNoGravity(false);refreshSupport();
@@ -342,12 +343,12 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
     }
     private Vec3 huntDestination(Player player) {
         if (!level().dimension().equals(net.krodark.asterion.Asterion.LIMBO_LEVEL)
-                || UnderworldTerrain.inChamber(player.blockPosition())) return player.position();
+                || !UnderworldTerrain.isMainPath(player.getX(),player.getZ())) return player.position();
         Vec3 home = Vec3.atBottomCenterOf(nest);
         // Keep the provoker targeted while respecting the protected main path.
         for (int step = 1; step <= 32; step++) {
             Vec3 point = player.position().lerp(home, step / 32.0);
-            if (UnderworldTerrain.inChamber(BlockPos.containing(point))) return point;
+            if (!UnderworldTerrain.isMainPath(point.x,point.z)) return point;
         }
         return home;
     }
@@ -359,7 +360,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
                 && distanceToSqr(marked) < 64*64) return marked;
         Player nearest = level.getNearestPlayer(this,42);
         return nearest != null && !nearest.isSpectator() && !nearest.getAbilities().instabuild
-                && UnderworldTerrain.inChamber(nearest.blockPosition())
+                && !UnderworldTerrain.isMainPath(nearest.getX(),nearest.getZ())
                 && nearest.distanceToSqr(nest.getX()+.5,nest.getY(),nest.getZ()+.5)<42*42 ? nearest : null;
     }
     private boolean seenBy(Player player) {
@@ -485,6 +486,13 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
         }
         Direction surface = attachedSurface();
         Vec3 goal = surfaceGoal;
+        if (tickCount < attackDropUntil && !onGround()) {
+            // Do not reattach to the same ceiling on the frame after an attack drop.
+            setNoGravity(false);
+            smoothSupport = null;
+            supportMotion = false;
+            return;
+        }
         if (surface == Direction.DOWN && goal != null && !onWeb() && !isInWater() && !isInLava()
                 && (onGround() || smoothSupport != null) && stepGroundObstacle(goal)) return;
         if(goal!=null && routeGoal!=null && goal.distanceToSqr(routeGoal)>16)surfaceRoute.clear();
@@ -641,6 +649,35 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
     }
     private boolean tallWall(Direction face) {
         return SpiderSupportSurface.contact(localSupport(), getBoundingBox().move(0, 1.15, 0), face) != null;
+    }
+    private boolean dropTowardPrey(ServerLevel level, Player player) {
+        if (tickCount < nextAttackDrop || attachedSurface() == Direction.DOWN && !onWeb()
+                || player == null || !getSensing().hasLineOfSight(player)
+                || UnderworldTerrain.isMainPath(player.getX(), player.getZ())) return false;
+        Vec3 delta = player.position().subtract(position());
+        if (delta.y > -1 || delta.y < -18 || delta.horizontalDistanceSqr() > 64) return false;
+        Vec3 outward = attachedSurface().getUnitVec3().scale(-.3);
+        Vec3 launch = delta.multiply(1, 0, 1).normalize().scale(.42).add(outward);
+        launch = new Vec3(launch.x, -.18, launch.z);
+        if (!level.noCollision(this, getBoundingBox().expandTowards(launch))) return false;
+        // Require solid, dry ground below the approach instead of diving into a pit.
+        Vec3 probe = getBoundingBox().getCenter().add(launch.x * 3, 0, launch.z * 3);
+        var landing = level.clip(new net.minecraft.world.level.ClipContext(probe, probe.add(0, -20, 0),
+                net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                net.minecraft.world.level.ClipContext.Fluid.ANY, this));
+        if (landing.getType() != net.minecraft.world.phys.HitResult.Type.BLOCK
+                || !level.getFluidState(landing.getBlockPos()).isEmpty()
+                || UnderworldTerrain.isMainPath(landing.getLocation().x, landing.getLocation().z)) return false;
+        webTrip = null;
+        thread(null);
+        detach();
+        attackDropUntil = tickCount + 30;
+        nextAttackDrop = tickCount + 45;
+        webReleaseUntil = attackDropUntil;
+        getNavigation().stop();
+        setDeltaMovement(launch);
+        state(State.ATTACKING);
+        return true;
     }
 
     private boolean stepGroundObstacle(Vec3 goal) {
@@ -922,10 +959,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
             case HUNTING, ATTACKING -> {
                 if (player == null) { homebound = true; state(State.WANDERING); break; }
                 Vec3 toPrey = player.position().subtract(position());
-                if (attachedSurface() == Direction.UP && toPrey.y < -2.5
-                        && toPrey.horizontalDistanceSqr() < 9 && attackCooldown == 0 && getSensing().hasLineOfSight(player)) {
-                    detach(); state(State.ATTACKING);
-                    setDeltaMovement(toPrey.normalize().scale(.65));
+                if (attachedSurface() == Direction.UP && attackCooldown == 0 && dropTowardPrey(level, player)) {
                     break;
                 }
                 if (getBoundingBox().inflate(.65).intersects(player.getBoundingBox()) && getSensing().hasLineOfSight(player)) {
@@ -1022,6 +1056,8 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
             // waypoint, replan once, then choose another patrol destination.
             surfaceRoute.clear();routeRetry=Math.min(routeRetry,tickCount);
             if(++stalledAttempts>=2 || !planSurfaceRoute(surfaceGoal)) {
+                if ((state()==State.HUNTING || state()==State.ATTACKING) && player!=null)
+                    dropTowardPrey(level, player);
                 if(webTrip!=null) { webTrip=null;thread(null);nextSpin=tickCount+200; }
                 if(state()==State.WANDERING || state()==State.WANDERING_CAMOUFLAGED) {
                     patrolGoal=null;patrolUntil=0;pauseUntil=0;

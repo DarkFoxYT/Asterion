@@ -13,6 +13,10 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.*;
 /** Seeded sea landmarks, clipped per chunk so generation never writes into unloaded neighbours. */
 public final class LimboMonoliths {
     private static final int SPACING = 192;
+    private static final String[] VARIANTS = {"limbo_monolith", "limbo_monolith_2",
+            "limbo_monolith_3", "limbo_monolith_4"};
+    // Largest footprint is 59 blocks; cover every quarter-turn across chunk edges.
+    private static final int MAX_FOOTPRINT = 59;
     private LimboMonoliths() { }
     private static final StructureProcessor WATERLOG = new StructureProcessor() {
         @SuppressWarnings("deprecation")
@@ -33,8 +37,6 @@ public final class LimboMonoliths {
     public static void place(WorldGenLevel world, ChunkPos chunk) {
         if (chunk.getMaxBlockZ() < 180) return;
         var level = world.getLevel();
-        var template = level.getStructureManager().get(Asterion.id("limbo_monolith")).orElse(null);
-        if (template == null) return;
         long terrainSeed = level.getChunkSource().randomState()
                 .getOrCreateRandomFactory(Asterion.id("underworld_river")).at(0, 0, 0).nextLong();
         int cellX = Math.floorDiv(chunk.getMinBlockX(), SPACING);
@@ -49,8 +51,12 @@ public final class LimboMonoliths {
             int z = cz * SPACING + 48 + random.nextInt(96);
             if (z < 180 || Math.abs(x - UnderworldTerrain.riverCenter(z)) < 28) continue;
             // Cheap footprint rejection before querying terrain or allocating placement settings.
-            if (x < chunk.getMinBlockX() - 40 || x > chunk.getMaxBlockX() + 40
-                    || z < chunk.getMinBlockZ() - 40 || z > chunk.getMaxBlockZ() + 40) continue;
+            if (x < chunk.getMinBlockX() - MAX_FOOTPRINT || x > chunk.getMaxBlockX() + MAX_FOOTPRINT
+                    || z < chunk.getMinBlockZ() - MAX_FOOTPRINT || z > chunk.getMaxBlockZ() + MAX_FOOTPRINT) continue;
+            // Separate seeded choice keeps placement and rotation consistent across chunk borders.
+            String variant = VARIANTS[RandomSource.create(seed ^ 0x56415249414E54L).nextInt(VARIANTS.length)];
+            var template = level.getStructureManager().get(Asterion.id(variant)).orElse(null);
+            if (template == null) continue;
             int y = UnderworldTerrain.seaFloor(terrainSeed, x, z) - 2;
             if (y >= UnderworldTerrain.WATER_Y - 8 || y + template.getSize().getY() >= 145) continue;
             var origin = new BlockPos(x, y, z);

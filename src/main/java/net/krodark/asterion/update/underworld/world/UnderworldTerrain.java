@@ -64,6 +64,12 @@ public final class UnderworldTerrain {
     }
 
     private UnderworldTerrain() { }
+    public static boolean isMainPath(double x, double z) {
+        if (z < START_Z || z > FERRY_Z + 4) return false;
+        double center = z >= 12 ? landingX((int)Math.floor(z)) : riverCenter(z) - 15;
+        return Math.abs(x - center) <= 5 || z >= FERRY_Z - 6
+                && x >= dockRight() - 7 && x <= dockRight() + 1;
+    }
 
     public static int seaFloor(long seed, int x, int z) {
         return column(seed, x, z, new java.util.HashMap<>()).floor;
