@@ -255,6 +255,22 @@ jar {
     manifest { attributes 'MixinConfigs': 'asterion.mixins.json' }
 }
 
+configurations { forgeDistributionMods { transitive = false } }
+dependencies {
+    forgeDistributionMods "software.bernie.geckolib:geckolib-forge-${minecraftVersion}:${geckolibVersion}"
+}
+tasks.register('stageForgeBuild', Sync) {
+    group = 'distribution'
+    description = 'Stage Asterion and its matching Forge runtime dependencies.'
+    dependsOn tasks.named('jar')
+    into rootProject.layout.buildDirectory.dir("ported-builds/${minecraftVersion}/forge")
+    from(tasks.named('jar')) { into 'mods' }
+    from(configurations.forgeDistributionMods) { into 'mods' }
+    from(amneticJar) { into 'mods' }
+    from(forgifiedJar) { into 'mods' }
+    from(rootProject.file('docs/INSTALL-MODS.txt'))
+}
+
 tasks.matching { it.name == 'createMinecraftArtifacts' }.configureEach {
     dependsOn tasks.named('stonecutterGenerate')
 }

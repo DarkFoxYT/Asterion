@@ -5,8 +5,14 @@ Copy every JAR from ONE matching mods folder into that profile.
 
 Fabric (default): Fabric Loader 0.19.5; bundled folder includes Fabric API and GeckoLib.
 Quilt: Quilt Loader 0.30.1; use the same Fabric/Quilt mods folder, including Fabric API.
-Fabric/Quilt: install the supplied matching standalone Amnetic JAR alongside Asterion.
+Fabric/Quilt: the staged mods folder includes the matching standalone Amnetic JAR.
 Do not install more than one Amnetic JAR for the same profile.
+
+Forge 1.20.1 and 1.21.1: use the matching stageForgeBuild mods folder. It includes
+Asterion, Forge GeckoLib, Forge Amnetic and Forgified Fabric API. Do not add
+Connector or a second Fabric API to this native Forge profile.
+The Forge 1.20.1 development client still has a dependency mapping failure;
+its staged production profile has not yet passed an in-game smoke run.
 
 NeoForge 1.21.1: NeoForge 21.1.248. Use the two supplied JARs: Asterion and GeckoLib.
 This NeoForge beta still uses the older native Amnetic adapter and embedded Forgified Fabric API. Connector is not needed.
