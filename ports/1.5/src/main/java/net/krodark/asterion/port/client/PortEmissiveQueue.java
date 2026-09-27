@@ -33,6 +33,7 @@ final class PortEmissiveQueue {
     private static final Matrix4f WORLD_PROJECTION = new Matrix4f();
     private static final Matrix4f WORLD_MODEL_VIEW = new Matrix4f();
     private static boolean initialized;
+    private static int emissiveBatchVao;
 
     private PortEmissiveQueue() {}
 
@@ -57,10 +58,16 @@ final class PortEmissiveQueue {
                     //?}
                     RenderSystem.setProjectionMatrix(WORLD_PROJECTION, VertexSorting.DISTANCE_TO_ORIGIN);
                     RenderSystem.applyModelViewMatrix();
+                    int previousVao = org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL30.GL_VERTEX_ARRAY_BINDING);
+                    if (previousVao == 0) {
+                        if (emissiveBatchVao == 0) emissiveBatchVao = org.lwjgl.opengl.GL30.glGenVertexArrays();
+                        com.mojang.blaze3d.platform.GlStateManager._glBindVertexArray(emissiveBatchVao);
+                    }
                     try {
                         for (int i = 0; i < count; i++) POOL.get(i).render(source);
                         source.endBatch();
                     } finally {
+                        com.mojang.blaze3d.platform.GlStateManager._glBindVertexArray(previousVao);
                         //? if >=1.20.5 {
                         modelView.popMatrix();
                         //?} else {

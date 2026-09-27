@@ -4,13 +4,15 @@ The `underworld` branch is the consolidated workspace. Its root project is Aster
 
 | Release | Minecraft | Fabric | Quilt | Forge | NeoForge |
 | --- | --- | --- | --- | --- | --- |
-| 1.5 | 1.20.1 | Builds | Fabric-compatible jar; game tests pass | Builds | Builds; client launch fails in Fabric API mixin |
-| 1.5 | 1.21.1 | Builds | Fabric-compatible jar; game tests pass | Builds | Builds |
+| 1.5 | 1.20.1 | Production client smoke passes | Fabric-compatible jar; game tests pass | Builds | Builds; client launch fails in Fabric API mixin |
+| 1.5 | 1.21.1 | Production client smoke passes | Fabric-compatible jar; game tests pass | Builds | Builds |
 | 1.5 | 26.1.2 | Builds | Builds | Builds | Builds |
 | 2.0.0 | 1.20.1 | Underworld backport pending | Underworld backport pending | Underworld backport pending | Underworld backport pending |
 | 2.0.0 | 1.21.1 | Underworld backport pending | Underworld backport pending | Underworld backport pending | Underworld backport pending |
 | 2.0.0 | 26.1.2 | Builds, default | Builds | Builds | Builds |
 
 "Builds" means the Gradle build succeeded; it does not imply a complete gameplay playthrough. The 1.20.1 NeoForge jar builds but its dev client currently fails in `fabric-screen-api-v1.mixins.json:MinecraftClientMixin`, so it is not a working release. Do not relabel a 1.5 jar as 2.0: the older 2.0 builds require a real Underworld Java and asset backport to the older Minecraft APIs.
+
+The 1.20.1 and 1.21.1 Fabric production smoke runs enter a Labyrinth world and exercise rendering, OpenGL error checks, physics, forging, the Cursed Brazier encounter, and cutscenes. Their Amnetic jars contain the vertex-array state restoration from Amnetic commit `908be63`; the 1.5 emissive Geo queue also binds a vertex array for its deferred vanilla flush. These runs do not validate the Forge, NeoForge, or 26.1.2 clients.
 
 Minecraft 26.1.2 Fabric, Quilt, NeoForge, and Forge build from the repository root. The 1.5 projects build independently from `ports/1.5` and `ports/1.5/ports/26.1.2`.
