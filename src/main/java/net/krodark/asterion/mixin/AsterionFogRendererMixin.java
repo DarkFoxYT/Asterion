@@ -4,18 +4,11 @@ import net.krodark.asterion.Asterion;
 import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.fog.FogRenderer;
-import net.minecraft.client.renderer.fog.FogData;
-import net.minecraft.client.DeltaTracker;
-import net.minecraft.world.level.material.FogType;
-import net.krodark.asterion.update.underworld.world.UnderworldTerrain;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.LightLayer;
 import org.joml.Vector4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
  
 
@@ -32,39 +25,6 @@ abstract class AsterionFogRendererMixin {
                                                   CallbackInfo ci) {
         if (level.dimension().equals(Asterion.ASTERION_LEVEL)) {
             color.set(0.0F, 0.0F, 0.0F, 1.0F);
-        } else if (level.dimension().equals(Asterion.LIMBO_LEVEL)
-                && camera.getFluidInCamera() == FogType.WATER) {
-            color.set(.008F, .020F, .026F, 1F);
         }
-    }
-
-    @Inject(method = "setupFog", at = @At("RETURN"))
-    private void asterion$deepSeaVisibility(Camera camera, int renderDistance, DeltaTracker deltaTracker,
-                                           float darkenWorldAmount, ClientLevel level,
-                                           CallbackInfoReturnable<FogData> result) {
-        if (!level.dimension().equals(Asterion.LIMBO_LEVEL)) return;
-        FogData fog = result.getReturnValue();
-        if (camera.getFluidInCamera() == FogType.NONE) {
-            float sea = (float)Math.clamp((camera.position().z - 50) / 110, 0, 1);
-            // Let the depth-tested volume shape the near and middle distances.
-            // Keep native fog as a far safety net so large structures retain a silhouette.
-            fog.environmentalStart = 34F - sea * 12F;
-            fog.environmentalEnd = Math.min(fog.environmentalEnd, 108F - sea * 30F);
-            fog.color.set(.034F, .038F, .044F, 1F);
-            return;
-        }
-        if (camera.getFluidInCamera() != FogType.WATER) return;
-        float depth = (float)Math.max(0, UnderworldTerrain.WATER_Y + 8.0 / 9.0 - camera.position().y);
-        float blockLight = level.getBrightness(LightLayer.BLOCK, BlockPos.containing(camera.position())) / 15F;
-        var dynamic = net.krodark.asterion.client.light.LedAmneticLight.nearestAttractor(camera.position(), 18);
-        float dynamicLight = dynamic == null ? 0F : (float)(1D - Math.clamp(camera.position().distanceTo(dynamic) / 18D, 0D, 1D));
-        float light = Math.max(blockLight, dynamicLight);
-        // Leave the distant water dim while allowing lit objects and Amnetic lights
-        // to remain visible through the near field.
-        float visibility = 4F + light * 38F;
-        fog.environmentalStart = .4F + light * 3F;
-        fog.environmentalEnd = visibility;
-        fog.color.set(.0001F + light * .004F, .0002F + light * .007F,
-                .0003F + light * .011F, 1F);
     }
 }

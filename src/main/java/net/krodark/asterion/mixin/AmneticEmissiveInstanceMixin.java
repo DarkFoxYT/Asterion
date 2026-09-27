@@ -2,9 +2,9 @@ package net.krodark.asterion.mixin;
 
 import com.meekdev.amnetic.client.instanced.InstanceRenderContext;
 import com.meekdev.amnetic.client.instanced.internal.InstanceMeshEntry;
-import net.krodark.asterion.client.light.EmissivePassFrame;
+import net.krodark.asterion.port.client.light.EmissivePassFrame;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
@@ -14,8 +14,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.gen.Invoker;
 
 @Mixin(value = InstanceMeshEntry.class, remap = false)
-public abstract class AmneticEmissiveInstanceMixin implements net.krodark.asterion.client.light.EmissiveBatchState {
-    @Shadow @Final private Identifier id;
+public abstract class AmneticEmissiveInstanceMixin {
+    @Shadow @Final private ResourceLocation id;
     @Shadow @Final private Matrix4f projViewScratch;
     @Shadow private int lastInstanceCount;
     @Unique private long asterion$preparedFrame = -1;
@@ -23,10 +23,6 @@ public abstract class AmneticEmissiveInstanceMixin implements net.krodark.asteri
     @Unique private Vec3 asterion$camera;
     @Unique private final Matrix4f asterion$projection = new Matrix4f();
     @Unique private final Matrix4f asterion$view = new Matrix4f();
-
-    @Override public boolean asterion$emptyThisFrame() {
-        return asterion$preparedFrame == EmissivePassFrame.frame && lastInstanceCount == 0;
-    }
 
     @Invoker("drawNow")
     protected abstract void asterion$drawPrepared(Matrix4f combined, Matrix4fc projection, Matrix4fc view,

@@ -8,6 +8,9 @@ tasks.register('generateForgeAssets') {
         def destinationDir = forgeAssets.get().asFile
         def materials = ['bone_steel', 'celestial_bronze', 'celestial_gold', 'celestial_steel',
                          'copper', 'gold', 'iron', 'netherite', 'tarnished_gold']
+        def materialsByIndex = ['iron', 'copper', 'tarnished_gold', 'netherite',
+                                'celestial_bronze', 'bone_steel', 'celestial_steel',
+                                'celestial_gold', 'gold']
         def parts = ['blade', 'guard', 'pommel']
         def modelDir = file("${destinationDir}/assets/asterion/models/item")
         def itemDir = file("${destinationDir}/assets/asterion/items")
@@ -41,17 +44,17 @@ tasks.register('generateForgeAssets') {
             def parent = sword ? 'asterion:item/forged_sword_layer' : 'minecraft:item/generated'
             if (layer == 0) return [parent: parent,
                     textures: [particle: texture, layer0: texture]]
-             
-             
-             
-             
-             
+
+
+
+
+
             double grow = layer * 0.015D
             [ambientocclusion: false, gui_light: 'front', render_type: 'minecraft:translucent',
              textures: [particle: texture, coating: texture], display: sword ? swordDisplay : generatedDisplay,
              elements: [[from: [-grow, -grow, 7.49D - grow], to: [16D + grow, 16D + grow, 8.51D + grow],
-                  
-                  
+
+
                  faces: [north: [uv: [16, 0, 0, 16], texture: '#coating', tintindex: 0],
                          south: [uv: [0, 0, 16, 16], texture: '#coating', tintindex: 0],
                          west: [uv: [0, 0, 1, 16], texture: '#coating', tintindex: 0],
@@ -88,8 +91,21 @@ tasks.register('generateForgeAssets') {
             def layers = (0..<4).collect { layer -> selectLayer(part, true, layer, layer, layer) }
             file("${itemDir}/forged_sword_${part}.json").text = groovy.json.JsonOutput.toJson(
                     [model: [type: 'minecraft:composite', models: layers]])
+
+            materialsByIndex.each { material ->
+                file("${modelDir}/forge_legacy_${material}_${part}.json").text =
+                        groovy.json.JsonOutput.toJson([parent: 'minecraft:item/generated', textures: [
+                                layer0: "asterion:item/forging/${material}/${material}_${part}_icon"]])
+            }
+            file("${modelDir}/forged_sword_${part}.json").text = groovy.json.JsonOutput.toJson([
+                    parent: 'minecraft:item/generated',
+                    textures: [layer0: 'asterion:item/forging/iron/iron_' + part + '_icon'],
+                    overrides: materialsByIndex.withIndex().collect { material, index -> [
+                            predicate: [custom_model_data: index + 1],
+                            model: "asterion:item/forge_legacy_${material}_${part}"] }
+            ])
         }
-         
+
         def swordLayers = [[type: 'minecraft:model', model: 'asterion:item/forged_sword_handle']]
         parts.eachWithIndex { part, partIndex ->
             (0..<4).each { layer ->
@@ -100,8 +116,41 @@ tasks.register('generateForgeAssets') {
         file("${itemDir}/forged_sword.json").text = groovy.json.JsonOutput.toJson(
                 [model: [type: 'minecraft:composite', models: swordLayers]])
 
-         
-         
+        def swordOverrides = []
+        materialsByIndex.eachWithIndex { bladeMaterial, bladeIndex ->
+            materialsByIndex.eachWithIndex { guardMaterial, guardIndex ->
+                materialsByIndex.eachWithIndex { pommelMaterial, pommelIndex ->
+                    def combination = "${bladeMaterial}_${guardMaterial}_${pommelMaterial}"
+                    int predicate = 1 + bladeIndex + guardIndex * 9 + pommelIndex * 81
+                    file("${modelDir}/forge_legacy_${combination}_sword.json").text =
+                            groovy.json.JsonOutput.toJson([parent: 'asterion:item/forged_sword_layer', textures: [
+                                    layer0: "asterion:item/forging/${bladeMaterial}/${bladeMaterial}_blade",
+                                    layer1: 'asterion:item/forging/deadwood_stick/deadwood_stick',
+                                    layer2: "asterion:item/forging/${guardMaterial}/${guardMaterial}_guard",
+                                    layer3: "asterion:item/forging/${pommelMaterial}/${pommelMaterial}_pommel"]])
+                    swordOverrides.add([predicate: [custom_model_data: predicate],
+                                        model: "asterion:item/forge_legacy_${combination}_sword"])
+                }
+            }
+        }
+        // 1.21.1 applies legacy overrides in declaration order.  The encoded
+        // material combinations are generated in three nested loops, so sort
+        // them numerically or a later low predicate can mask the requested
+        // guard/pommel combination.
+        swordOverrides.sort { left, right ->
+            left.predicate.custom_model_data <=> right.predicate.custom_model_data
+        }
+        file("${modelDir}/forged_sword.json").text = groovy.json.JsonOutput.toJson([
+                parent: 'asterion:item/forged_sword_layer',
+                textures: [layer0: 'asterion:item/forging/iron/iron_blade',
+                           layer1: 'asterion:item/forging/deadwood_stick/deadwood_stick',
+                           layer2: 'asterion:item/forging/iron/iron_guard',
+                           layer3: 'asterion:item/forging/iron/iron_pommel'],
+                overrides: swordOverrides
+        ])
+
+
+
         def ingotTextures = materials.collectEntries { material ->
             def custom = rootProject.file("src/main/resources/assets/asterion/textures/forging/${material}/${material}_ingot.png")
             [(material): custom.exists()
@@ -148,9 +197,9 @@ tasks.register('generateForgeAssets') {
     }
 }
 
- 
- 
- 
+
+
+
 tasks.named('processResources').configure {
     from(tasks.named('generateForgeAssets')) {
         // Generated models intentionally replace their source templates.

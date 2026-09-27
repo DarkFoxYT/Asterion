@@ -91,7 +91,7 @@ public final class AsterionReiClientPlugin implements REIClientPlugin {
                     .entries(display.getInputEntries().get(display.materialSlots + 1)).markInput());
             widgets.add(Widgets.createArrow(new Point(x + 105, y + 11)));
             widgets.add(Widgets.createSlot(new Point(x + 145, y + 11))
-                    .entries(display.getOutputEntries().getFirst()).markOutput());
+                    .entries(display.getOutputEntries().get(0)).markOutput());
             widgets.add(Widgets.createLabel(new Point(bounds.getCenterX(), y + 42),
                     Component.translatable(display.instructionKey)).centered());
             widgets.add(Widgets.createLabel(new Point(bounds.getCenterX(), y + 55),
@@ -132,7 +132,7 @@ public final class AsterionReiClientPlugin implements REIClientPlugin {
                         .entries(display.getInputEntries().get(index)).markInput());
             widgets.add(Widgets.createArrow(new Point(x + 105, y + 9)));
             widgets.add(Widgets.createSlot(new Point(x + 145, y + 9))
-                    .entries(display.getOutputEntries().getFirst()).markOutput());
+                    .entries(display.getOutputEntries().get(0)).markOutput());
             widgets.add(Widgets.createLabel(new Point(bounds.getCenterX(), y + 39),
                     Component.translatable("recipe.asterion.forged_sword_assembly.inherits")).centered());
             return widgets;

@@ -79,7 +79,7 @@ public final class MinotaurBodyPicking {
                 || entry.getKey().level() != client.level || client.level.getGameTime() - entry.getValue().tick > 2);
         if (BODIES.isEmpty()) return;
         Vec3 eye = client.player.getEyePosition(partial);
-        Vec3 end = eye.add(client.player.getViewVector(partial).scale(client.player.entityInteractionRange()));
+        Vec3 end = eye.add(client.player.getViewVector(partial).scale(net.krodark.asterion.port.compat.EntityCompat.reach(client.player)));
         var block = client.level.clip(new ClipContext(eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, client.player));
         double limit = eye.distanceToSqr(block.getLocation());
         if (client.hitResult instanceof EntityHitResult existing && !(existing.getEntity() instanceof MinotaurEntity))

@@ -8,7 +8,6 @@ public final class PerformanceGovernor {
     private static double frameMillis = 16.0;
     private static int quality = 1;
     private static double slowMillis, fastMillis;
-    private static int appliedBloomQuality = -1;
 
     private PerformanceGovernor() { }
 
@@ -18,7 +17,6 @@ public final class PerformanceGovernor {
             previousFrame = 0L;
             slowMillis = fastMillis = 0;
             quality = 1;
-            syncBloomQuality();
             return;
         }
         if (previousFrame == 0L) {
@@ -56,14 +54,6 @@ public final class PerformanceGovernor {
         } else {
             slowMillis = fastMillis = 0;
         }
-        syncBloomQuality();
-    }
-
-    private static void syncBloomQuality() {
-        int effective = net.krodark.asterion.client.light.AsterionEmissiveConfig.effectiveBloomQuality();
-        if (effective == appliedBloomQuality) return;
-        appliedBloomQuality = effective;
-        net.krodark.asterion.client.light.AsterionEmissiveConfig.apply();
     }
 
     public static int quality() {

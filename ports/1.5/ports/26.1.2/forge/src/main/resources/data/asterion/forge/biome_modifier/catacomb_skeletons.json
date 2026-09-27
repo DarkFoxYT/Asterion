@@ -1,1 +1,0 @@
-{"type":"forge:add_spawns","biomes":"asterion:catacombs","spawners":[{"type":"asterion:ancient_skeleton","weight":36,"minCount":1,"maxCount":3}]}

@@ -5,15 +5,15 @@ import net.krodark.asterion.worldgen.WorldGenerator;
 import net.krodark.asterion.entity.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.level.gamerules.GameRules;
+import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.level.GameRules;
 import net.minecraft.world.phys.AABB;
 
  
 public final class MazeWildlife {
     private MazeWildlife() { }
     public static void tick(ServerLevel level) {
-        if (level.getGameTime() % 200 != 0 || !level.getGameRules().get(GameRules.SPAWN_MOBS)) return;
+        if (level.getGameTime() % 200 != 0 || !level.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING)) return;
         for (var player : level.players()) {
             if (player.isSpectator() || !player.isAlive()) continue;
             if (ShaleCaves.contains(player.blockPosition())) {
@@ -35,8 +35,8 @@ public final class MazeWildlife {
                     BlockPos feet = new BlockPos(x, y, z);
                     if (Math.abs(x) < 65 && Math.abs(z) < 65 || WorldGenerator.isNearSafeRune(level, feet)
                             || !BugSurfaces.allowed(level, feet.below())) continue;
-                    var mob = sewer ? Asterion.SCARLET_CENTIPEDE.create(level, EntitySpawnReason.NATURAL)
-                            : Asterion.BOMBARDIER_BEETLE.create(level, EntitySpawnReason.NATURAL);
+                    var mob = sewer ? Asterion.SCARLET_CENTIPEDE.create(level)
+                            : Asterion.BOMBARDIER_BEETLE.create(level);
                     if (mob == null) return;
                     mob.setPos(x + .5, y, z + .5);
                     if (!level.noCollision(mob) || !level.isUnobstructed(mob)
@@ -61,7 +61,7 @@ public final class MazeWildlife {
                 if (!level.getBlockState(feet).isAir() || !BugSurfaces.allowed(level, feet.below())
                         || WorldGenerator.isNearSafeRune(level, feet)
                         || !CaveSpawnSpace.nearOccupiedChamber(level, feet)) continue;
-                var mob = Asterion.SCARLET_CENTIPEDE.create(level, EntitySpawnReason.NATURAL);
+                var mob = Asterion.SCARLET_CENTIPEDE.create(level);
                 if (mob == null) return;
                 mob.setPos(x + .5, y, z + .5);
                 if (!level.noCollision(mob) || !level.isUnobstructed(mob)

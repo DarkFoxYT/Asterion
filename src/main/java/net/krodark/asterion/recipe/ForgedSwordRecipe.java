@@ -22,13 +22,29 @@ import net.minecraft.world.level.Level;
 
 import java.util.List;
 
- 
+
 public final class ForgedSwordRecipe extends CustomRecipe {
+    public ForgedSwordRecipe() {
+
+//? if >=1.20.5 {
+super(net.minecraft.world.item.crafting.CraftingBookCategory.MISC);
+//?} else {
+/*super(Asterion.id("forged_sword"), net.minecraft.world.item.crafting.CraftingBookCategory.MISC);*/
+//?}
+
+    }
+
     @Override public boolean matches(CraftingInput input, Level level) {
         return parts(input) != null;
     }
 
-    @Override public ItemStack assemble(CraftingInput input) {
+    @Override public ItemStack assemble(CraftingInput input,
+//? if >=1.20.5 {
+net.minecraft.core.HolderLookup.Provider registries
+//?} else {
+/*net.minecraft.core.RegistryAccess registries*/
+//?}
+) {
         ItemStack[] parts = parts(input);
         if (parts == null) return ItemStack.EMPTY;
         CompoundTag blade = data(parts[0]), guard = data(parts[1]), pommel = data(parts[2]);
@@ -40,19 +56,19 @@ public final class ForgedSwordRecipe extends CustomRecipe {
         int damageRating = weighted(parts, "damage_rating", 10);
         int speedRating = weighted(parts, "speed_rating", 8);
         int durabilityRating = weighted(parts, "durability_rating", 10);
-         
-        double damage = Math.clamp(2D + damageRating * .45D + edge * .10D, 4D, 18D);
-        double attackSpeed = Math.clamp(1.25D + speedRating * .025D - weight * .012D, 1.1D, 1.8D);
-        int durability = Math.clamp(200 + durabilityRating * 65 + hardness * 15,
+
+        double damage = net.krodark.asterion.port.compat.MathCompat.clamp(2D + damageRating * .45D + edge * .10D, 4D, 18D);
+        double attackSpeed = net.krodark.asterion.port.compat.MathCompat.clamp(1.25D + speedRating * .025D - weight * .012D, 1.1D, 1.8D);
+        int durability = net.krodark.asterion.port.compat.MathCompat.clamp(200 + durabilityRating * 65 + hardness * 15,
                 250, 3000);
 
         ItemStack result = new ItemStack(Asterion.FORGED_SWORD);
-        result.set(DataComponents.MAX_DAMAGE, durability);
-        result.set(DataComponents.DAMAGE, 0);
-        result.set(DataComponents.ATTRIBUTE_MODIFIERS, ItemAttributeModifiers.builder()
-                .add(Attributes.ATTACK_DAMAGE, new AttributeModifier(Item.BASE_ATTACK_DAMAGE_ID,
+        net.krodark.asterion.port.compat.ItemData.set(result, DataComponents.MAX_DAMAGE, durability);
+        net.krodark.asterion.port.compat.ItemData.set(result, DataComponents.DAMAGE, 0);
+        net.krodark.asterion.port.compat.ItemData.set(result, DataComponents.ATTRIBUTE_MODIFIERS, ItemAttributeModifiers.builder()
+                .add(Attributes.ATTACK_DAMAGE, net.krodark.asterion.port.compat.AttributeCompat.of(net.krodark.asterion.port.compat.AttributeCompat.ATTACK_DAMAGE,
                         damage - 1D, AttributeModifier.Operation.ADD_VALUE), EquipmentSlotGroup.MAINHAND)
-                .add(Attributes.ATTACK_SPEED, new AttributeModifier(Item.BASE_ATTACK_SPEED_ID,
+                .add(Attributes.ATTACK_SPEED, net.krodark.asterion.port.compat.AttributeCompat.of(net.krodark.asterion.port.compat.AttributeCompat.ATTACK_SPEED,
                         attackSpeed - 4D, AttributeModifier.Operation.ADD_VALUE), EquipmentSlotGroup.MAINHAND)
                 .build());
         String bladeMaterial = primaryMaterial(blade), guardMaterial = primaryMaterial(guard);
@@ -62,12 +78,17 @@ public final class ForgedSwordRecipe extends CustomRecipe {
         appendLayers(blade, renderMaterials, renderColors);
         appendLayers(guard, renderMaterials, renderColors);
         appendLayers(pommel, renderMaterials, renderColors);
-        result.set(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(List.of(), List.of(),
-                renderMaterials, renderColors));
+        // Encode all three visible components into the 1.21.1 integer predicate.  The
+        // generated model table decodes this into independent blade/guard/pommel textures.
+        int bladeIndex = materialIndex(bladeMaterial);
+        int guardIndex = materialIndex(guardMaterial);
+        int pommelIndex = materialIndex(pommelMaterial);
+        net.krodark.asterion.port.compat.ItemData.set(result, DataComponents.CUSTOM_MODEL_DATA,
+                new CustomModelData(1 + bladeIndex + guardIndex * 9 + pommelIndex * 81));
         boolean uniform = bladeMaterial.equals(guardMaterial) && bladeMaterial.equals(pommelMaterial);
         String title = uniform ? displayName(bladeMaterial) + " Sword" : "Custom Forged Sword";
-        result.set(DataComponents.CUSTOM_NAME, Component.literal(title).withStyle(ChatFormatting.WHITE));
-        result.set(DataComponents.LORE, new ItemLore(List.of(
+        net.krodark.asterion.port.compat.ItemData.set(result, DataComponents.CUSTOM_NAME, Component.literal(title).withStyle(ChatFormatting.WHITE));
+        net.krodark.asterion.port.compat.ItemData.set(result, DataComponents.LORE, new ItemLore(List.of(
                 Component.literal("Blade: " + displayName(bladeMaterial)).withStyle(ChatFormatting.GRAY),
                 Component.literal("Guard: " + displayName(guardMaterial)).withStyle(ChatFormatting.GRAY),
                 Component.literal("Pommel: " + displayName(pommelMaterial)).withStyle(ChatFormatting.GRAY),
@@ -80,15 +101,17 @@ public final class ForgedSwordRecipe extends CustomRecipe {
         CompoundTag forged = new CompoundTag();
         forged.putString("blade_material", bladeMaterial); forged.putString("guard_material", guardMaterial);
         forged.putString("pommel_material", pommelMaterial);
-        forged.putString("metal_sequence", blade.getStringOr("metal_sequence", ""));
+        forged.putString("metal_sequence", net.krodark.asterion.port.compat.NbtCompat.getString(blade, "metal_sequence", ""));
         forged.putInt("edge", edge); forged.putInt("hardness", hardness); forged.putInt("weight", weight);
         forged.putInt("damage_rating", damageRating); forged.putInt("speed_rating", speedRating);
         forged.putInt("durability_rating", durabilityRating);
         forged.putDouble("attack_damage", damage); forged.putDouble("attack_speed", attackSpeed);
         forged.putInt("durability", durability);
-        result.set(DataComponents.CUSTOM_DATA, CustomData.of(forged));
+        net.krodark.asterion.port.compat.ItemData.set(result, DataComponents.CUSTOM_DATA, CustomData.of(forged));
         return result;
     }
+
+    @Override public boolean canCraftInDimensions(int width, int height) { return width * height >= 4; }
 
     private static ItemStack[] parts(CraftingInput input) {
         ItemStack blade = ItemStack.EMPTY, guard = ItemStack.EMPTY, pommel = ItemStack.EMPTY;
@@ -103,21 +126,21 @@ public final class ForgedSwordRecipe extends CustomRecipe {
         return !handle || blade.isEmpty() || guard.isEmpty() || pommel.isEmpty() ? null : new ItemStack[]{blade, guard, pommel};
     }
     private static CompoundTag data(ItemStack stack) {
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        CustomData data = net.krodark.asterion.port.compat.ItemData.get(stack, DataComponents.CUSTOM_DATA);
         return data == null ? new CompoundTag() : data.copyTag();
     }
-    private static int value(CompoundTag tag, String key, int fallback) { return tag.getIntOr(key, fallback); }
+    private static int value(CompoundTag tag, String key, int fallback) { return net.krodark.asterion.port.compat.NbtCompat.getInt(tag, key, fallback); }
     private static int weighted(ItemStack[] parts, String key, int fallback) {
         return Math.round((value(data(parts[0]), key, fallback) * 2
                 + value(data(parts[1]), key, fallback) + value(data(parts[2]), key, fallback)) / 4F);
     }
     private static String primaryMaterial(CompoundTag tag) {
-        String sequence = tag.getStringOr("metal_sequence", "");
+        String sequence = net.krodark.asterion.port.compat.NbtCompat.getString(tag, "metal_sequence", "");
         return sequence.isEmpty() ? "iron" : CrucibleBlockEntity.metalId(sequence.charAt(0) - '0');
     }
     private static void appendLayers(CompoundTag tag, java.util.List<String> materials,
                                      java.util.List<Integer> colors) {
-        String sequence = tag.getStringOr("metal_sequence", "");
+        String sequence = net.krodark.asterion.port.compat.NbtCompat.getString(tag, "metal_sequence", "");
         for (int layer = 0; layer < 4; layer++) {
             materials.add(layer < sequence.length()
                     ? CrucibleBlockEntity.metalId(sequence.charAt(layer) - '0') : "none");
@@ -136,4 +159,8 @@ public final class ForgedSwordRecipe extends CustomRecipe {
         return -1;
     }
     @Override public RecipeSerializer<? extends CustomRecipe> getSerializer() { return Asterion.FORGED_SWORD_RECIPE; }
+
+//? if <1.20.5 {
+/*public ForgedSwordRecipe(net.minecraft.resources.ResourceLocation id){super(id,net.minecraft.world.item.crafting.CraftingBookCategory.MISC);}*/
+//?}
 }

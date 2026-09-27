@@ -18,8 +18,8 @@ public final class MinotaurSoundPlayback {
     public static final class GlobalRoar extends AbstractSoundInstance {
         public GlobalRoar(SoundEvent event, MinotaurGlobalSoundPayload payload) {
             super(event, SoundSource.HOSTILE, RandomSource.create(payload.seed()));
-            volume = Math.clamp(payload.volume(), 0F, 1F);
-            pitch = Math.clamp(payload.pitch(), .5F, 2F);
+            volume = net.krodark.asterion.port.compat.MathCompat.clamp(payload.volume(), 0F, 1F);
+            pitch = net.krodark.asterion.port.compat.MathCompat.clamp(payload.pitch(), .5F, 2F);
             relative = true;
             attenuation = Attenuation.NONE;
         }

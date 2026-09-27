@@ -8,7 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
- 
+
 public final class RoofCollapseCinematic {
     private static boolean active, showShot;
     private static int ticks, duration;
@@ -24,7 +24,7 @@ public final class RoofCollapseCinematic {
         finish(client);
         if (client.player == null || client.level == null) return;
         center = payload.center();
-        duration = Math.clamp(payload.duration(), 60, 180);
+        duration = net.krodark.asterion.port.compat.MathCompat.clamp(payload.duration(), 60, 180);
         ticks = 0;
         active = true;
         showShot = AsterionConfig.INSTANCE.cinematicsEnabled;

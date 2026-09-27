@@ -1,1 +1,0 @@
-{"type":"forge:add_spawns","biomes":["asterion:forge","asterion:shale_caves"],"spawners":[{"type":"asterion:ancient_skeleton","weight":12,"minCount":1,"maxCount":1}]}

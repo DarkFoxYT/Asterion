@@ -10,7 +10,9 @@ import net.minecraft.world.level.block.entity.BarrelBlockEntity;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
+//? if >=1.20.5 {
 import net.minecraft.world.level.levelgen.structure.templatesystem.LiquidSettings;
+//?}
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
 
 public final class UnderwaterRuinFeature extends Feature<NoneFeatureConfiguration> {
@@ -36,14 +38,20 @@ public final class UnderwaterRuinFeature extends Feature<NoneFeatureConfiguratio
         StructurePlaceSettings settings = new StructurePlaceSettings()
                 .setRotation(Rotation.getRandom(context.random()))
                 .setRotationPivot(TEMPLATE_CENTER)
-                .setLiquidSettings(LiquidSettings.APPLY_WATERLOGGING)
+
+//? if >=1.20.5 {
+.setLiquidSettings(LiquidSettings.APPLY_WATERLOGGING)
+//?} else {
+/*.setKeepLiquids(true)*/
+//?}
+
                 .setIgnoreEntities(true);
         if (!template.get().placeInWorld(context.level(), corner, corner, settings, context.random(), 2)) return false;
 
         BlockPos barrelPos = StructurePlaceSettingsTransform.transformBarrel(corner, settings);
         if (context.level().getBlockEntity(barrelPos) instanceof BarrelBlockEntity barrel) {
-            barrel.setLootTable(net.minecraft.resources.ResourceKey.create(
-                    net.minecraft.core.registries.Registries.LOOT_TABLE,
+            net.krodark.asterion.port.compat.LootCompat.set(barrel, net.minecraft.resources.ResourceKey.create(
+                    net.krodark.asterion.port.compat.LootCompat.REGISTRY,
                     Asterion.id("chests/underwater_ruin")));
             barrel.setChanged();
         }

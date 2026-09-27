@@ -1,1 +1,1 @@
-{"type":"minecraft:stonecutting","ingredient":"asterion:polished_mazesteel","result":{"count":1,"id":"asterion:polished_mazesteel_wall"}}
+{"type":"minecraft:stonecutting","ingredient":{"item":"asterion:polished_mazesteel"},"result":{"count":1,"id":"asterion:polished_mazesteel_wall"}}

@@ -62,8 +62,8 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
             }
         });
 
-         
-         
+
+
         withRenderLayer(new CustomBoneTextureGeoLayer<>(this, "full", CHARGE_TEXTURE) {
             @Override
             public boolean shouldRenderBone(EntityRenderState state) {
@@ -73,7 +73,7 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
             @Override
             public void preRender(RenderPassInfo<EntityRenderState> pass,
                                   SubmitNodeCollector tasks) {
-                 
+
             }
 
             @Override
@@ -158,8 +158,8 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
         float phaseAge = pass.getOrDefaultGeckolibData(PHASE_AGE, 0F);
         float time = pass.getOrDefaultGeckolibData(TIME, 0F);
 
-         
-         
+
+
         for (String glowBone : GLOW_BONES)
             bones.ifPresent(glowBone, bone -> bone.skipRender(true)
                     .skipChildrenRender(false).setScale(1F, 1F, 1F));
@@ -201,13 +201,13 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
     private static void applyAttackMotion(com.geckolib.animation.state.BoneSnapshot bone,
                                           int attack, float age) {
         if (attack == CursedBrazierEntity.Attack.SPIN_TORNADO.ordinal()) {
-            float acceleration = Math.clamp((age - 70F) / 90F, 0F, 1F);
+            float acceleration = net.krodark.asterion.port.compat.MathCompat.clamp((age - 70F) / 90F, 0F, 1F);
             bone.setRotation(bone.getRotX(),
                     bone.getRotY(),
                     bone.getRotZ() + Mth.sin(age * 0.22F) * 0.035F * acceleration);
         } else if (attack == CursedBrazierEntity.Attack.CARDINAL_DASH.ordinal()) {
             float leg = age % CursedBrazierEntity.DASH_LEG_TICKS;
-            float stride = Math.clamp(leg / CursedBrazierEntity.DASH_MOVE_TICKS, 0F, 1F);
+            float stride = net.krodark.asterion.port.compat.MathCompat.clamp(leg / CursedBrazierEntity.DASH_MOVE_TICKS, 0F, 1F);
             float lean = leg < CursedBrazierEntity.DASH_MOVE_TICKS
                     ? Mth.sin(stride * Mth.PI) * 0.12F : 0F;
             bone.setRotation(bone.getRotX() + lean, bone.getRotY(), bone.getRotZ());
@@ -226,7 +226,7 @@ public final class CursedBrazierRenderer extends GeoEntityRenderer<CursedBrazier
     }
 
     private static float smooth(float value) {
-        value = Math.clamp(value, 0F, 1F);
+        value = net.krodark.asterion.port.compat.MathCompat.clamp(value, 0F, 1F);
         return value * value * (3F - 2F * value);
     }
 }

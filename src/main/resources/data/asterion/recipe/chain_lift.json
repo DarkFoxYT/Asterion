@@ -6,9 +6,9 @@
     "III"
   ],
   "key": {
-    "C": "asterion:mazesteel_chain",
-    "I": "asterion:celestial_steel_ingot",
-    "S": "asterion:polished_mazesteel"
+    "C": {"item":"asterion:mazesteel_chain"},
+    "I": {"item":"asterion:celestial_steel_ingot"},
+    "S": {"item":"asterion:polished_mazesteel"}
   },
   "result": {
     "id": "asterion:chain_lift",

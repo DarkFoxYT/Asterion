@@ -12,8 +12,10 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 @Mixin(LivingEntity.class)
 public abstract class AfterblowDamageMixin {
-    @ModifyVariable(method = "hurtServer", at = @At("HEAD"), argsOnly = true, ordinal = 0)
-    private float asterion$addAfterblowCharge(float damage, ServerLevel level, DamageSource source) {
+    @ModifyVariable(method = "hurt", at = @At("HEAD"), argsOnly = true, ordinal = 0)
+    private float asterion$addAfterblowCharge(float damage, DamageSource source) {
+        LivingEntity self = (LivingEntity)(Object)this;
+        if (!(self.level() instanceof ServerLevel level)) return damage;
         float chargedDamage = WeaponCombatSystem.afterblowDamage(source, damage, level.getGameTime());
         if (chargedDamage > damage) ((LivingEntity)(Object)this).invulnerableTime = 0;
         return chargedDamage;

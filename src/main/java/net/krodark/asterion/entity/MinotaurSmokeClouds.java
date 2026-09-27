@@ -40,7 +40,7 @@ final class MinotaurSmokeClouds {
                 var hit = level.clip(new ClipContext(cloud.position, next, ClipContext.Block.COLLIDER,
                         ClipContext.Fluid.NONE, owner));
                 cloud.position = hit.getType() == HitResult.Type.MISS ? next
-                        : hit.getLocation().add(hit.getDirection().getUnitVec3().scale(.08));
+                        : hit.getLocation().add(Vec3.atLowerCornerOf(hit.getDirection().getNormal()).scale(.08));
                 cloud.velocity = hit.getType() == HitResult.Type.MISS
                         ? cloud.velocity.multiply(.982, 1, .982).add(0, -.003, 0)
                         : hit.getDirection().getStepY() > 0 ? Vec3.ZERO : new Vec3(0, -.06, 0);
@@ -66,7 +66,7 @@ final class MinotaurSmokeClouds {
                         ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, owner));
                 if (sight.getType() != HitResult.Type.MISS) continue;
                 damaged.add(player.getUUID());
-                player.hurtServer(level, level.damageSources().inFire(), 4F);
+                player.hurt(level.damageSources().inFire(), 4F);
                 net.krodark.asterion.effect.GreekFireBurn.ignite(player, 2);
             }
         }

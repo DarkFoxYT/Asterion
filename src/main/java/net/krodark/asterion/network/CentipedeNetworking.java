@@ -13,13 +13,13 @@ public final class CentipedeNetworking {
     private CentipedeNetworking() {}
 
     public static void initialize() {
-        PayloadTypeRegistry.serverboundPlay().register(CentipedeDriverFramePayload.TYPE, CentipedeDriverFramePayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(CentipedeDriverFramePayload.TYPE, CentipedeDriverFramePayload.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(CentipedeDriverFramePayload.TYPE, (payload, context) ->
                 context.server().execute(() -> {
                     if (context.player().level().getEntity(payload.entityId()) instanceof ScarletCentipedeEntity centipede)
                         centipede.receiveDriverFrame(context.player(), payload.surface(), payload.forward());
                 }));
-        PayloadTypeRegistry.serverboundPlay().register(CentipedeMountPayload.TYPE, CentipedeMountPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(CentipedeMountPayload.TYPE, CentipedeMountPayload.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(CentipedeMountPayload.TYPE, (payload, context) ->
                 context.server().execute(() -> mount(context.player(), payload)));
     }
@@ -29,11 +29,11 @@ public final class CentipedeNetworking {
         if (!(player.level().getEntity(request.entityId()) instanceof ScarletCentipedeEntity centipede)
                 || !centipede.isAlive() || request.seat() < 0 || request.seat() >= centipede.chainSegmentCount()) return;
         Vec3 point = request.point(), eye = player.getEyePosition();
-        double reach = player.entityInteractionRange() + .35;
+        double reach = net.krodark.asterion.port.compat.EntityCompat.reach(player) + .35;
         if (!Double.isFinite(point.x) || !Double.isFinite(point.y) || !Double.isFinite(point.z)
                 || eye.distanceToSqr(point) > reach * reach) return;
-         
-         
+
+
         boolean inside = false;
         for (float partial : new float[]{0, .5F, 1})
             inside |= CentipedeInteraction.contains(point, request.seat(), centipede.chainPose(request.seat(), partial), .35);

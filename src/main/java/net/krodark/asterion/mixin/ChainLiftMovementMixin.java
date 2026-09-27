@@ -1,7 +1,6 @@
 package net.krodark.asterion.mixin;
 
 import net.krodark.asterion.entity.ChainLiftEntity;
-import net.krodark.asterion.update.underworld.entity.CharonsFerryEntity;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.player.Player;
@@ -17,27 +16,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(Entity.class)
 public abstract class ChainLiftMovementMixin {
     @Unique private ChainLiftEntity asterion$supportingLift;
-    @Unique private CharonsFerryEntity asterion$supportingFerry;
 
     @ModifyVariable(method = "move", at = @At("HEAD"), argsOnly = true)
     private Vec3 asterion$moveOnDeck(Vec3 movement) {
         asterion$supportingLift = null;
-        asterion$supportingFerry = null;
         Entity entity = (Entity)(Object)this;
-        if (!(entity instanceof Player) || entity.noPhysics) return movement;
-        movement = CharonsFerryEntity.collideNearbyHulls(entity, movement);
-        if (entity.getDeltaMovement().y > .08 || movement.y > .65) return movement;
+        if (!(entity instanceof Player) || entity.noPhysics
+                || entity.getDeltaMovement().y > .08 || movement.y > .65) return movement;
         ChainLiftEntity lift = ChainLiftEntity.supporting(entity);
-        if (lift == null) {
-            CharonsFerryEntity ferry = CharonsFerryEntity.supporting(entity);
-            if (ferry == null) ferry = CharonsFerryEntity.landing(entity, movement);
-            if (ferry == null) return movement;
-            movement = ferry.collideDeckMovement(entity, movement);
-            if (!ferry.overlapsDeck(entity.getBoundingBox().move(movement.x, 0, movement.z))) return movement;
-            asterion$supportingFerry = ferry;
-            entity.setPos(entity.getX(), ferry.deckHeightAt(entity.getX(), entity.getZ()), entity.getZ());
-            return new Vec3(movement.x, 0, movement.z);
-        }
+        if (lift == null) return movement;
          
         if (!lift.overlapsDeck(entity.getBoundingBox().move(movement.x, 0, movement.z))) return movement;
         asterion$supportingLift = lift;
@@ -49,13 +36,9 @@ public abstract class ChainLiftMovementMixin {
     private void asterion$standOnDeck(MoverType type, Vec3 movement, CallbackInfo ci) {
         ChainLiftEntity lift = asterion$supportingLift;
         asterion$supportingLift = null;
-        CharonsFerryEntity ferry = asterion$supportingFerry;
-        asterion$supportingFerry = null;
-        if (lift == null && ferry == null) return;
+        if (lift == null) return;
         Entity entity = (Entity)(Object)this;
-        if (lift != null && !lift.overlapsDeck(entity.getBoundingBox())
-                || ferry != null && !ferry.overlapsDeck(entity.getBoundingBox())) return;
-        if (ferry != null) entity.setPos(entity.getX(), ferry.deckHeightAt(entity.getX(), entity.getZ()), entity.getZ());
+        if (!lift.overlapsDeck(entity.getBoundingBox())) return;
         entity.verticalCollision = true;
         entity.verticalCollisionBelow = true;
         entity.setOnGround(true);

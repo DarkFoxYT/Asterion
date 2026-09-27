@@ -70,12 +70,10 @@ public final class DimensionTransitionOverlay {
 
     private static boolean destinationChunksReady(Minecraft client) {
         if (client.screen instanceof LevelLoadingScreen || client.level == null || client.player == null
-                || !(client.level.dimension().equals(Asterion.ASTERION_LEVEL)
-                || deathMessage != 0 && client.level.dimension().equals(Asterion.LIMBO_LEVEL))) return false;
+                || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) return false;
         int centerX = client.player.getBlockX() >> 4;
         int centerZ = client.player.getBlockZ() >> 4;
-        int radius = client.level.dimension().equals(Asterion.LIMBO_LEVEL)
-                ? 1 : DeadSunEntryCinematic.requiredChunkRadius();
+        int radius = DeadSunEntryCinematic.requiredChunkRadius();
         for (int dx = -radius; dx <= radius; dx++)
             for (int dz = -radius; dz <= radius; dz++) {
                 if (dx * dx + dz * dz > radius * radius) continue;

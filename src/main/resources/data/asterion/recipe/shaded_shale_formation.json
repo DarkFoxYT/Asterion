@@ -1,7 +1,7 @@
 {
   "type": "minecraft:crafting_shapeless",
   "ingredients": [
-    "asterion:shaded_shale_wall"
+    {"item":"asterion:shaded_shale_wall"}
   ],
   "result": {
     "id": "asterion:shaded_shale_formation",

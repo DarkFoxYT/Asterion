@@ -4,12 +4,13 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.minecraft.world.level.saveddata.SavedDataType;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.HolderLookup;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -38,12 +39,11 @@ public final class AsterionWorldState extends SavedData {
             Codec.BOOL.optionalFieldOf("omega_gate_unlocked", false).forGetter(state -> state.omegaGateUnlocked),
             Codec.INT.optionalFieldOf("portal_layout_version", 0).forGetter(state -> state.portalLayoutVersion),
             Codec.INT.optionalFieldOf("gateway_rift_y", Integer.MIN_VALUE).forGetter(state -> state.gatewayRiftY),
-            Codec.LONG.optionalFieldOf("gateway_center", Long.MIN_VALUE).forGetter(state -> state.gatewayCenter),
-            Codec.STRING.listOf().optionalFieldOf("underworld_passengers", java.util.List.of())
-                    .forGetter(state -> state.underworldPassengers.stream().sorted().toList())
+            Codec.LONG.optionalFieldOf("gateway_center", Long.MIN_VALUE).forGetter(state -> state.gatewayCenter)
     ).apply(instance, AsterionWorldState::new));
-    private static final SavedDataType<AsterionWorldState> TYPE = new SavedDataType<>(
-            Asterion.id("world_state"), AsterionWorldState::new, CODEC, DataFixTypes.LEVEL);
+    private static final net.krodark.asterion.port.compat.SavedDataCompat.Factory<AsterionWorldState> FACTORY =
+            net.krodark.asterion.port.compat.SavedDataCompat.factory(CODEC, AsterionWorldState::new);
+    private static final String DATA_NAME = "asterion_world_state";
 
     private boolean omegaGateUnlocked;
     public boolean omegaGateUnlocked() { return omegaGateUnlocked; }
@@ -62,25 +62,22 @@ public final class AsterionWorldState extends SavedData {
     private int portalLayoutVersion;
     private int gatewayRiftY;
     private long gatewayCenter;
-    private final java.util.Set<String> underworldPassengers;
     public int portalLayoutVersion() { return portalLayoutVersion; }
     public int gatewayRiftY(net.minecraft.core.BlockPos center) { return center.asLong() == gatewayCenter ? gatewayRiftY : Integer.MIN_VALUE; }
     public void setGatewayRiftY(net.minecraft.core.BlockPos center, int y) { gatewayCenter = center.asLong(); gatewayRiftY = y; setDirty(); }
 
     public AsterionWorldState() {
-        this(false, false, java.util.List.of(), Map.of(), Long.MIN_VALUE, 0, 0L, "minecraft:overworld", 0, false, false, 1, Integer.MIN_VALUE, Long.MIN_VALUE, java.util.List.of());
+        this(false, false, java.util.List.of(), Map.of(), Long.MIN_VALUE, 0, 0L, "minecraft:overworld", 0, false, false, 1, Integer.MIN_VALUE, Long.MIN_VALUE);
     }
     private AsterionWorldState(boolean minotaurDefeated, boolean cursedBrazierDefeated,
                                java.util.List<Integer> cursedBrazierDefeatedRooms,
                                Map<String, Long> runeCheckpoints,
                                long summonedPortalCenter, int summonedPortalY,
                                long summonedPortalSeed, String summonedPortalDimension, int bossArenaRevision,
-                               boolean arenaLamentersInstalled, boolean omegaGateUnlocked, int portalLayoutVersion, int gatewayRiftY, long gatewayCenter,
-                               java.util.List<String> underworldPassengers) {
+                               boolean arenaLamentersInstalled, boolean omegaGateUnlocked, int portalLayoutVersion, int gatewayRiftY, long gatewayCenter) {
         this.portalLayoutVersion = portalLayoutVersion;
         this.gatewayRiftY = gatewayRiftY;
         this.gatewayCenter = gatewayCenter;
-        this.underworldPassengers = new java.util.HashSet<>(underworldPassengers);
         this.omegaGateUnlocked = omegaGateUnlocked;
         this.minotaurDefeated = minotaurDefeated;
         this.cursedBrazierDefeated = cursedBrazierDefeated;
@@ -95,18 +92,11 @@ public final class AsterionWorldState extends SavedData {
     }
 
     public static AsterionWorldState get(ServerLevel level) {
-        return level.getServer().overworld().getDataStorage().computeIfAbsent(TYPE);
+        return net.krodark.asterion.port.compat.SavedDataCompat.get(level.getServer().overworld().getDataStorage(), FACTORY, DATA_NAME);
     }
 
-    /** Returns true exactly once per player and persists that passage in the world save. */
-    public boolean beginUnderworldPassage(UUID playerId) {
-        if (!underworldPassengers.add(playerId.toString())) return false;
-        setDirty();
-        return true;
-    }
-
-    public boolean hasEnteredUnderworld(UUID playerId) {
-        return underworldPassengers.contains(playerId.toString());
+    public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        return net.krodark.asterion.port.compat.SavedDataCompat.save(CODEC, this, tag, registries);
     }
 
     public boolean minotaurDefeated() { return minotaurDefeated; }
@@ -132,7 +122,7 @@ public final class AsterionWorldState extends SavedData {
 
     public SavedPortal summonedPortal() {
         if (summonedPortalCenter == Long.MIN_VALUE) return null;
-        Identifier id = Identifier.tryParse(summonedPortalDimension);
+        ResourceLocation id = ResourceLocation.tryParse(summonedPortalDimension);
         if (id == null) return null;
         return new SavedPortal(net.minecraft.core.BlockPos.of(summonedPortalCenter), summonedPortalY,
                 summonedPortalSeed, ResourceKey.create(Registries.DIMENSION, id));
@@ -143,7 +133,7 @@ public final class AsterionWorldState extends SavedData {
         summonedPortalCenter = center.asLong();
         summonedPortalY = surfaceY;
         summonedPortalSeed = visualSeed;
-        summonedPortalDimension = dimension.identifier().toString();
+        summonedPortalDimension = dimension.location().toString();
         portalLayoutVersion = 1;
         setDirty();
     }
@@ -183,4 +173,7 @@ public final class AsterionWorldState extends SavedData {
         else cursedBrazierDefeatedRooms.add(roomIndex);
         setDirty();
     }
+//? if <1.20.5 {
+/*    @Override public net.minecraft.nbt.CompoundTag save(net.minecraft.nbt.CompoundTag tag) { return save(tag, null); }*/
+//?}
 }

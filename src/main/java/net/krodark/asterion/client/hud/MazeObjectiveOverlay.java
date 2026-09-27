@@ -122,20 +122,8 @@ public final class MazeObjectiveOverlay {
                 .asterion$bossEvents().isEmpty();
     }
 
-    public static int questStackTop(int guiWidth) {
-        var client = Minecraft.getInstance();
-        int seconds = AsterionConfig.INSTANCE.objectiveHudSeconds;
-        if (!visible || sharedStage < 0 || sharedStage == Stage.values().length
-                || !AsterionConfig.INSTANCE.objectiveHudEnabled
-                || seconds > 0 && visibleTicks > seconds * 20) return 12;
-        int width = Math.min(guiWidth - 24, 236);
-        int lines = Math.min(2, client.font.split(stage.hint, width - 18).size());
-        return 12 + 31 + lines * 9 + (waypoint == null ? 3 : 14) + 8;
-    }
-
     private static void render(GuiGraphicsExtractor graphics, net.minecraft.client.DeltaTracker tracker) {
-        if (CinematicHud.isHidden() || !AsterionConfig.INSTANCE.objectiveHudEnabled) return;
-        if (!visible || sharedStage < 0 || sharedStage == Stage.values().length) return;
+        if (!visible || sharedStage < 0 || sharedStage == Stage.values().length || CinematicHud.isHidden() || !AsterionConfig.INSTANCE.objectiveHudEnabled) return;
         if (bossFightActive(Minecraft.getInstance())) return;
         int displaySeconds = AsterionConfig.INSTANCE.objectiveHudSeconds;
         if (displaySeconds > 0 && visibleTicks > displaySeconds * 20) return;
@@ -150,7 +138,7 @@ public final class MazeObjectiveOverlay {
                 Math.max(1, Math.round((float)Math.sqrt(
                         Math.pow(waypoint.x - client.player.getX(), 2)
                                 + Math.pow(waypoint.z - client.player.getZ(), 2)))));
-        int panelWidth = Math.min(graphics.guiWidth() - 24, 236);
+        int panelWidth = Math.min(graphics.guiWidth() - 20, 236);
         var language = net.minecraft.locale.Language.getInstance();
         if (layoutStage != stage || layoutWidth != panelWidth || layoutLanguage != language) {
             layoutStage = stage;
@@ -166,8 +154,6 @@ public final class MazeObjectiveOverlay {
         int panelHeight = waypointY + (waypoint == null ? 3 : 14);
         int left = Math.round(Mth.lerp(appear, -panelWidth - 4.0F, 12.0F));
         int panelTop = 12;
-        graphics.fill(left + 2, panelTop + 2, left + panelWidth + 2, panelTop + panelHeight + 2,
-                Math.round(appear * completionFade * 95F) << 24);
         graphics.fill(left, panelTop, left + panelWidth, panelTop + panelHeight,
                 Math.round(appear * completionFade * 210.0F) << 24 | 0x090707);
         graphics.fill(left, panelTop, left + 3, panelTop + panelHeight,
@@ -175,8 +161,6 @@ public final class MazeObjectiveOverlay {
         graphics.fill(left + 3, panelTop, left + panelWidth, panelTop + 1,
                 Math.round(alpha * 0.35F) << 24 | 0x8B4A3C);
         int textLeft = left + 9;
-        graphics.fill(textLeft, panelTop + 14, left + panelWidth - 8, panelTop + 15,
-                Math.round(alpha * .22F) << 24 | 0xC18468);
         graphics.text(client.font, INTRO, textLeft, panelTop + 5,
                 Math.round(alpha * 0.74F) << 24 | 0xC18468, false);
         graphics.text(client.font, progressLabel, left + panelWidth - 8 - progressWidth, panelTop + 5,

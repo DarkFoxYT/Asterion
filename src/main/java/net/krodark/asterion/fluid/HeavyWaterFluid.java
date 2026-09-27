@@ -10,6 +10,11 @@ import net.minecraft.world.level.material.WaterFluid;
 
  
 public abstract class HeavyWaterFluid extends WaterFluid {
+    //? if forge {
+    /*@Override public net.minecraftforge.fluids.FluidType getFluidType() {
+        return net.krodark.asterion.port.forge.ForgeHeavyWaterType.INSTANCE;
+    }
+    *///?}
     @Override protected void spreadTo(net.minecraft.world.level.LevelAccessor level, net.minecraft.core.BlockPos pos,
                                        BlockState state, net.minecraft.core.Direction direction, FluidState fluid) {
         if (HeavyWaterlogging.supports(state)) HeavyWaterlogging.fill(level, pos, state, fluid);

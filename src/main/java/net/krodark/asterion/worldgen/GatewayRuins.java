@@ -20,7 +20,7 @@ public final class GatewayRuins {
         for (int dx = -6; dx <= 6; dx += 3) for (int dz = -6; dz <= 6; dz += 3)
             heights[index++] = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x + dx, z + dz);
         Arrays.sort(heights);
-        return Math.min(level.getMaxY() - 12, heights[heights.length / 2]);
+        return Math.min(level.getMaxBuildHeight() - 12, heights[heights.length / 2]);
     }
 
     public static void build(ServerLevel level, int x, int y, int z) {
@@ -40,7 +40,7 @@ public final class GatewayRuins {
                     : edge >= 7 ? Asterion.SHALE_BRICKS : Asterion.ANCIENT_BRICKS;
             level.setBlock(pos.set(x + dx, y - 1, z + dz), paving.defaultBlockState(), 2);
              
-            for (int support = y - 2; support > level.getMinY(); support--) {
+            for (int support = y - 2; support > level.getMinBuildHeight(); support--) {
                 pos.set(x + dx, support, z + dz);
                 if (level.getBlockState(pos).isCollisionShapeFullBlock(level, pos)
                         && level.getFluidState(pos).isEmpty()) break;

@@ -1,9 +1,9 @@
 package net.krodark.asterion.block;
 
-import com.geckolib.animatable.GeoBlockEntity;
-import com.geckolib.animatable.instance.AnimatableInstanceCache;
-import com.geckolib.animatable.manager.AnimatableManager;
-import com.geckolib.util.GeckoLibUtil;
+import software.bernie.geckolib.animatable.GeoBlockEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animation.AnimatableManager;
+import software.bernie.geckolib.util.GeckoLibUtil;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.network.DoorBreakPayload;
@@ -24,12 +24,12 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.storage.ValueInput;
-import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlockEntity {
+public final class MinotaurDoorBlockEntity extends net.krodark.asterion.port.compat.VersionedBlockEntity implements GeoBlockEntity {
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private boolean unlocked;
     private boolean unlockedWithKey;
@@ -58,12 +58,12 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
     }
     public void interact(Player player, ItemStack held) {
         if (level == null || breaching) return;
-         
+
         if (level.dimension().equals(Asterion.ASTERION_LEVEL)
                 && worldPosition.equals(net.krodark.asterion.worldgen.MinotaurArenaEntrances.door(
                         net.krodark.asterion.worldgen.MinotaurArenaEntrances.BOSS_ENTRANCE))) return;
         if (net.krodark.asterion.worldgen.BossArenaEncounter.sealsDoor(level, worldPosition, facing())) return;
-        if (!held.is(Asterion.MINOTAUR_KEY)) {
+        if (!player.isCreative() && !held.is(Asterion.MINOTAUR_KEY)) {
             net.krodark.asterion.game.PlayerNotices.show(player, Component.translatable("message.asterion.minotaur_door_locked"));
             level.playSound(null, worldPosition, SoundEvents.CHAIN_HIT, SoundSource.BLOCKS, .5F, .6F);
             return;
@@ -94,14 +94,14 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
         startAngle = angle(0);
         targetAngle = targetAngle > 0 ? 0 : MinotaurDoorMotion.OPEN_ANGLE;
         motionStart = level.getGameTime();
-         
+
         MinotaurDoorBlock.setOpen(level, worldPosition, facing(), true);
         sync();
     }
     private boolean occupied() {
         BlockPos a = MinotaurDoorBlock.part(worldPosition, facing(), 0, 0);
         BlockPos b = MinotaurDoorBlock.part(worldPosition, facing(), 6, 4);
-        return !level.getEntities((net.minecraft.world.entity.Entity)null, AABB.encapsulatingFullBlocks(a, b), e -> e.isAlive() && !e.isSpectator()).isEmpty();
+        return !level.getEntities((net.minecraft.world.entity.Entity)null, net.krodark.asterion.port.compat.GeometryCompat.fullBlocks(a, b), e -> e.isAlive() && !e.isSpectator()).isEmpty();
     }
     public void closeForEncounter() {
         if (level == null || breaching || targetAngle == 0) return;
@@ -138,8 +138,8 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
         }
         server.playSound(null, worldPosition, SoundEvents.ZOMBIE_BREAK_WOODEN_DOOR, SoundSource.BLOCKS, 3.5F, .55F);
         server.playSound(null, worldPosition, Asterion.METAL_HIT, SoundSource.BLOCKS, 2.5F, .85F);
-        Vec3 inward = facing.getOpposite().getUnitVec3();
-        Vec3 across = facing.getClockWise().getUnitVec3();
+        Vec3 inward = net.minecraft.world.phys.Vec3.atLowerCornerOf(facing.getOpposite().getNormal());
+        Vec3 across = net.minecraft.world.phys.Vec3.atLowerCornerOf(facing.getClockWise().getNormal());
         Vec3 smokeCenter = Vec3.atBottomCenterOf(worldPosition).add(inward.scale(1.15D)).add(0, 3.2D, 0);
         server.sendParticles(Asterion.DOOR_SMOKE, smokeCenter.x, smokeCenter.y, smokeCenter.z,
                 110, 3.8D, 3.1D, 2.2D, 0.075D);
@@ -184,8 +184,8 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
     }
     private void dropCeilingRubble(ServerLevel level, int count) {
         Direction acrossDirection = facing().getClockWise();
-        Vec3 across = acrossDirection.getUnitVec3();
-        Vec3 inward = facing().getOpposite().getUnitVec3();
+        Vec3 across = net.minecraft.world.phys.Vec3.atLowerCornerOf(acrossDirection.getNormal());
+        Vec3 inward = net.minecraft.world.phys.Vec3.atLowerCornerOf(facing().getOpposite().getNormal());
         Vec3 ceiling = Vec3.atBottomCenterOf(worldPosition).add(0, 22.5D, 0).add(inward.scale(2.0D));
         for (int i = 0; i < count; i++) {
             double side = (level.getRandom().nextDouble() - .5D) * 9.0D;
@@ -201,11 +201,12 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
     private void scrapeDust() {
         long elapsed = level.getGameTime() - motionStart;
         if (breaching && elapsed >= 78 && elapsed < MinotaurDoorMotion.BREAK_TICK) {
-            Vec3 inward = facing().getOpposite().getUnitVec3();
+            Vec3 inward = net.minecraft.world.phys.Vec3.atLowerCornerOf(facing().getOpposite().getNormal());
             for (int i = 0; i < 3; i++) {
                 Vec3 point = Vec3.atBottomCenterOf(worldPosition).add(inward.scale(.65))
-                        .add(facing().getClockWise().getUnitVec3().scale((level.getRandom().nextDouble() - .5) * 6));
-                level.addParticle(Asterion.DOOR_SMOKE, true, false, point.x, point.y + .25, point.z,
+                        .add(Vec3.atLowerCornerOf(facing().getClockWise().getNormal())
+                                .scale((level.getRandom().nextDouble() - .5) * 6));
+                level.addParticle(Asterion.DOOR_SMOKE, point.x, point.y + .25, point.z,
                         inward.x * .04, .05 + level.getRandom().nextDouble() * .03, inward.z * .04);
             }
         }
@@ -213,7 +214,7 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
         float movement = Float.isFinite(previousDustAngle) ? Math.abs(current - previousDustAngle) : 0;
         previousDustAngle = current;
         if (movement < .001F) return;
-        int count = Math.clamp((int)(movement * 60), 1, 5);
+        int count = net.krodark.asterion.port.compat.MathCompat.clamp((int)(movement * 60), 1, 5);
         for (int side = -1; side <= 1; side += 2) {
             Vec3 point = MinotaurDoorMotion.emitter(worldPosition, facing(), side, current);
             for (int i = 0; i < count; i++) level.addParticle(Asterion.DOOR_DUST,
@@ -226,18 +227,18 @@ public final class MinotaurDoorBlockEntity extends BlockEntity implements GeoBlo
         setChanged();
         if (level != null) level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
     }
-    @Override protected void saveAdditional(ValueOutput out) {
-        super.saveAdditional(out);
+    @Override protected void saveAdditional(CompoundTag out, net.minecraft.core.HolderLookup.Provider registries) {
+        super.saveAdditional(out, registries);
         out.putBoolean("unlocked", unlocked); out.putBoolean("breaching", breaching);
         out.putBoolean("unlockedWithKey", unlockedWithKey);
         out.putLong("motionStart", motionStart); out.putFloat("startAngle", startAngle); out.putFloat("targetAngle", targetAngle);
     }
-    @Override protected void loadAdditional(ValueInput in) {
-        super.loadAdditional(in);
-        unlocked = in.getBooleanOr("unlocked", false); breaching = in.getBooleanOr("breaching", false);
-        unlockedWithKey = in.getBooleanOr("unlockedWithKey", false);
-        motionStart = in.getLongOr("motionStart", 0);
-        startAngle = in.getFloatOr("startAngle", 0); targetAngle = in.getFloatOr("targetAngle", 0);
+    @Override protected void loadAdditional(CompoundTag in, net.minecraft.core.HolderLookup.Provider registries) {
+        super.loadAdditional(in, registries);
+        unlocked = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "unlocked", false); breaching = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "breaching", false);
+        unlockedWithKey = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "unlockedWithKey", false);
+        motionStart = net.krodark.asterion.port.compat.NbtCompat.getLong(in, "motionStart", 0);
+        startAngle = net.krodark.asterion.port.compat.NbtCompat.getFloat(in, "startAngle", 0); targetAngle = net.krodark.asterion.port.compat.NbtCompat.getFloat(in, "targetAngle", 0);
         previousDustAngle = Float.NaN;
     }
     @Override public CompoundTag getUpdateTag(HolderLookup.Provider registries) { return saveCustomOnly(registries); }

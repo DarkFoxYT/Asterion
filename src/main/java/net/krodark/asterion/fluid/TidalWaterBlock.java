@@ -4,7 +4,7 @@ import com.mojang.serialization.MapCodec;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.LevelAccessor;
@@ -22,7 +22,7 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
- 
+
 public final class TidalWaterBlock extends Block implements BucketPickup {
     public static final MapCodec<TidalWaterBlock> CODEC = simpleCodec(TidalWaterBlock::new);
     public static final IntegerProperty LEVEL = IntegerProperty.create("level", 1, 8);
@@ -30,22 +30,33 @@ public final class TidalWaterBlock extends Block implements BucketPickup {
         super(properties);
         registerDefaultState(stateDefinition.any().setValue(LEVEL, 8));
     }
-    @Override public MapCodec<TidalWaterBlock> codec() { return CODEC; }
+    public MapCodec<TidalWaterBlock> codec() { return CODEC; }
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) { builder.add(LEVEL); }
-    @Override protected FluidState getFluidState(BlockState state) {
+    @Override public FluidState getFluidState(BlockState state) {
         return HeavyWater.FLUID.getFlowing(state.getValue(LEVEL), false);
     }
-    @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
-    @Override protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    @Override public RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
+    @Override public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return Shapes.empty();
     }
-    @Override protected boolean isPathfindable(BlockState state, PathComputationType type) { return true; }
-    @Override public ItemStack pickupBlock(@Nullable LivingEntity user, LevelAccessor level, BlockPos pos, BlockState state) {
+    @Override
+//? if >=1.20.5 {
+protected boolean isPathfindable(BlockState state, PathComputationType type)
+//?} else {
+/*public boolean isPathfindable(BlockState state, net.minecraft.world.level.BlockGetter level, net.minecraft.core.BlockPos pos, PathComputationType type)*/
+//?}
+ { return true; }
+    @Override
+//? if >=1.20.5 {
+public ItemStack pickupBlock(@Nullable Player user,
+//?} else {
+/*public ItemStack pickupBlock(*/
+//?}
+ LevelAccessor level, BlockPos pos, BlockState state) {
         if (state.getValue(LEVEL) != 8) return ItemStack.EMPTY;
         level.setBlock(pos, Blocks.AIR.defaultBlockState(), 11);
         return new ItemStack(HeavyWater.BUCKET);
     }
-    // The sound is state-independent; NeoForge's contextual overload delegates here.
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings("deprecation") // Fabric 1.21.1's BucketPickup contract still requires this method.
     @Override public Optional<SoundEvent> getPickupSound() { return HeavyWater.FLUID.getPickupSound(); }
 }

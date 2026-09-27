@@ -4,7 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.krodark.asterion.Asterion;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 
@@ -15,9 +15,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
- 
+
 public final class MazeBiomes {
-    private static final Identifier CATALOG = Asterion.id("maze_biomes.json");
+    private static final ResourceLocation CATALOG = Asterion.id("maze_biomes.json");
     private static final Catalog FALLBACK = new Catalog(20, 7, 2.0F, 4.0F, List.of(
             new Biome(Kind.ANCIENT, 50, 0, 13, Set.of()),
             new Biome(Kind.OVERGROWTH, 30, 9, 3,
@@ -133,7 +133,7 @@ public final class MazeBiomes {
                           List<Biome> biomes) {
         public Biome ancient() {
             return biomes.stream().filter(biome -> biome.kind == Kind.ANCIENT)
-                    .findFirst().orElse(FALLBACK.biomes.getFirst());
+                    .findFirst().orElse(FALLBACK.biomes.get(0));
         }
 
         public Biome select(long random) {

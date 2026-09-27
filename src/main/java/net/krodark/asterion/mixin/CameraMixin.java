@@ -12,7 +12,6 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -29,14 +28,6 @@ import org.joml.Vector3f;
 
 @Mixin(Camera.class)
 public abstract class CameraMixin {
-    @Inject(method = "getFluidInCamera", at = @At("HEAD"), cancellable = true)
-    private void asterion$ferryKeepsCameraAboveWater(CallbackInfoReturnable<FogType> result) {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null || ((Camera)(Object)this).entity() != client.player) return;
-        if (client.player.getVehicle() instanceof net.krodark.asterion.update.underworld.entity.CharonsFerryEntity
-                || net.krodark.asterion.update.underworld.entity.CharonsFerryEntity.supporting(client.player) != null)
-            result.setReturnValue(FogType.NONE);
-    }
     @Unique private Vec3 asterion$smoothedRagdollCamera;
     @Unique private float asterion$flamethrowerFovStrength;
     @Shadow protected abstract void setPosition(Vec3 position);
@@ -49,42 +40,6 @@ public abstract class CameraMixin {
     @Shadow private Vector3f up;
     @Shadow private Vector3f left;
     @Shadow private int matrixPropertiesDirty;
-
-    @Inject(method = "alignWithEntity", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/Camera;setRotation(FF)V", shift = At.Shift.AFTER))
-    private void asterion$tiltFerryView(float partial, CallbackInfo ci) {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null || ((Camera)(Object)this).entity() != client.player
-                || net.krodark.asterion.client.AsterionClient.isPlayback(client)) return;
-        var boat = client.player.getVehicle() instanceof net.krodark.asterion.update.underworld.entity.CharonsFerryEntity ferry
-                ? ferry : net.krodark.asterion.update.underworld.entity.CharonsFerryEntity.supporting(client.player);
-        if (boat == null) return;
-        Quaternionf tilt = net.krodark.asterion.update.underworld.client.FerryDeckRender.tilt(boat, partial);
-        rotation.premul(tilt); forwards.rotate(tilt); up.rotate(tilt); left.rotate(tilt);
-        if (client.player.getVehicle() == boat) {
-            Quaternionf sway = new Quaternionf()
-                    .rotationX((boat.rockingPitch(partial) * .12F
-                            + Math.max(0F, -boat.plungeSpeed()) * 8F) * Mth.DEG_TO_RAD)
-                    .rotateZ(boat.rockingRoll(partial) * .12F * Mth.DEG_TO_RAD);
-            rotation.premul(sway); forwards.rotate(sway); up.rotate(sway); left.rotate(sway);
-        }
-        matrixPropertiesDirty |= 3;
-    }
-
-    @Inject(method = "alignWithEntity", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/CameraType;isFirstPerson()Z"))
-    private void asterion$followFerryDeck(float partial, CallbackInfo ci) {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null || ((Camera)(Object)this).entity() != client.player
-                || net.krodark.asterion.client.AsterionClient.isPlayback(client)) return;
-        var boat = client.player.getVehicle() instanceof net.krodark.asterion.update.underworld.entity.CharonsFerryEntity ferry
-                ? ferry : net.krodark.asterion.update.underworld.entity.CharonsFerryEntity.supporting(client.player);
-        if (boat == null) return;
-        Vec3 feet = net.krodark.asterion.update.underworld.client.FerryDeckRender.feet(client.player, boat, partial);
-        Vector3f eye = net.krodark.asterion.update.underworld.client.FerryDeckRender.tilt(boat, partial)
-                .transform(new Vector3f(0, client.player.getEyeHeight(), 0));
-        setPosition(feet.add(eye.x, eye.y, eye.z));
-    }
 
     @Inject(method = "alignWithEntity", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/CameraType;isFirstPerson()Z"))
@@ -131,16 +86,8 @@ public abstract class CameraMixin {
     private void asterion$flamethrowerFovPulse(CallbackInfoReturnable<Float> result) {
         Minecraft minecraft = Minecraft.getInstance();
         if (net.krodark.asterion.client.AsterionClient.isPlayback(minecraft)) return;
-        var studio = net.krodark.asterion.client.cinematic.studio.CutsceneStudio.camera(minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(true));
-        if (studio != null) { result.setReturnValue((float)studio.fov()); return; }
         float cinematicFov = BossEntranceCinematic.fov(result.getReturnValueF(), minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(true));
         if (cinematicFov != result.getReturnValueF()) { result.setReturnValue(cinematicFov); return; }
-        if (minecraft.player != null && minecraft.player.getVehicle()
-                instanceof net.krodark.asterion.update.underworld.entity.CharonsFerryEntity ferry) {
-            float downhill = Math.max(0F, -ferry.plungeSpeed());
-            float momentum = Math.min(1F, Math.abs(ferry.sailingSpeed()) / .25F);
-            result.setReturnValue(result.getReturnValueF() + downhill * 7F + momentum * 1.4F);
-        }
         boolean spraying = minecraft.player != null && minecraft.player.isUsingItem()
                 && minecraft.player.getUseItem().is(net.krodark.asterion.game.GameplayContent.FLAMETHROWER);
         asterion$flamethrowerFovStrength = Mth.lerp(.12F, asterion$flamethrowerFovStrength,
@@ -231,39 +178,8 @@ public abstract class CameraMixin {
             setPosition(position().add(sample.cameraOffset()));
             setRotation(yRot() + sample.yawDegrees(), xRot() + sample.pitchDegrees());
         }
-        // Apply after camera shake: setRotation above would otherwise erase grip roll.
-        // Vanilla rebuilds the base camera each frame, so this never accumulates rotation.
-        if (localCamera && shot == null && finale == null && entrance == null
-                && brazier == null && collapse == null && forge == null) {
-            Quaternionf grip = net.krodark.asterion.client.render.entity.MinotaurHandAttachment.rotation(minecraft.player);
-            Vec3 feet = net.krodark.asterion.client.render.entity.MinotaurHandAttachment.feet(minecraft.player);
-            if (grip != null && feet != null) {
-                Vec3 hand = feet.add(0, minecraft.player.getBbHeight() * .52, 0);
-                if (minecraft.options.getCameraType().isFirstPerson()) {
-                    Vector3f eyeOffset = grip.transform(new Vector3f(0,
-                            minecraft.player.getEyeHeight() - minecraft.player.getBbHeight() * .52F, 0));
-                    setPosition(asterion$clipCamera(minecraft, hand,
-                            hand.add(eyeOffset.x, eyeOffset.y, eyeOffset.z)));
-                }
-                rotation.premul(grip).normalize();
-                forwards.rotate(grip); up.rotate(grip); left.rotate(grip);
-                matrixPropertiesDirty |= 3;
-                asterion$smoothedRagdollCamera = null;
-                asterion$rebuildCinematicFrustum(minecraft);
-            }
-        }
         if (localCamera && (shot != null || finale != null || entrance != null || brazier != null || collapse != null))
             asterion$rebuildCinematicFrustum(minecraft);
-        var studio = net.krodark.asterion.client.cinematic.studio.CutsceneStudio.camera(partial);
-        if (localCamera && studio != null) {
-            setPosition(net.krodark.asterion.client.cinematic.studio.CutsceneStudio.position(studio));
-            setRotation(net.krodark.asterion.client.cinematic.studio.CutsceneStudio.yaw(studio),
-                    net.krodark.asterion.client.cinematic.studio.CutsceneStudio.pitch(studio));
-            Quaternionf bank = new Quaternionf().rotationAxis((float)studio.roll() * Mth.DEG_TO_RAD, forwards);
-            rotation.premul(bank); forwards.rotate(bank); up.rotate(bank); left.rotate(bank);
-            matrixPropertiesDirty |= 3;
-            asterion$rebuildCinematicFrustum(minecraft);
-        }
     }
 
      
@@ -274,8 +190,6 @@ public abstract class CameraMixin {
         int width = Math.max(1, minecraft.getWindow().getWidth());
         int height = Math.max(1, minecraft.getWindow().getHeight());
         float cullingFov = Math.max(110.0F, minecraft.options.fov().get().floatValue());
-        var studio = net.krodark.asterion.client.cinematic.studio.CutsceneStudio.camera(minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(true));
-        if (studio != null) cullingFov = Math.max(cullingFov, (float)studio.fov());
         float farPlane = Math.max(256.0F, minecraft.options.getEffectiveRenderDistance() * 64.0F);
         Matrix4f view = ((Camera)(Object)this).getViewRotationMatrix(new Matrix4f());
         Matrix4f projection = new Matrix4f().perspective(cullingFov * Mth.DEG_TO_RAD,

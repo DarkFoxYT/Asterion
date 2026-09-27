@@ -22,8 +22,8 @@ public final class MinotaurSounds {
         for (int i = 0; i < 4; i++) if (globalSound(i) == sound) { index = i; break; }
         if (index < 0) return false;
         // Positional call sites used volume to extend range. Global playback needs bounded gain instead.
-        var payload = new MinotaurGlobalSoundPayload(index, Math.clamp(volume, .75F, 1F),
-                Math.clamp(pitch, .5F, 2F), level.getRandom().nextLong());
+        var payload = new MinotaurGlobalSoundPayload(index, net.krodark.asterion.port.compat.MathCompat.clamp(volume, .75F, 1F),
+                net.krodark.asterion.port.compat.MathCompat.clamp(pitch, .5F, 2F), level.getRandom().nextLong());
         for (var player : level.players())
             if (ServerPlayNetworking.canSend(player, MinotaurGlobalSoundPayload.TYPE))
                 ServerPlayNetworking.send(player, payload);

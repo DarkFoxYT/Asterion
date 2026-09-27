@@ -3,7 +3,7 @@ package net.krodark.asterion.worldgen;
 import net.krodark.asterion.Asterion;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
@@ -31,16 +31,16 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.WeakHashMap;
 
- 
+
 
 
 
 
 public final class AuthoredForge {
     private static final ResourceKey<LootTable> FORGE_CACHE = ResourceKey.create(
-            Registries.LOOT_TABLE, Identifier.fromNamespaceAndPath("asterion", "chests/forge_cache"));
+            net.krodark.asterion.port.compat.LootCompat.REGISTRY, ResourceLocation.fromNamespaceAndPath("asterion", "chests/forge_cache"));
     private static final ResourceKey<LootTable> FORGE_GOLD_RESERVE = ResourceKey.create(
-            Registries.LOOT_TABLE, Identifier.fromNamespaceAndPath("asterion", "chests/forge_gold_reserve"));
+            net.krodark.asterion.port.compat.LootCompat.REGISTRY, ResourceLocation.fromNamespaceAndPath("asterion", "chests/forge_gold_reserve"));
     private static final int DISTRICT_ROOMS = 52;
     public static final int DISTRICT_SPACING = 228;
     private static final Map<ServerLevel, Map<String, Optional<ResolvedPiece>>> PIECE_CACHE = new WeakHashMap<>();
@@ -48,7 +48,7 @@ public final class AuthoredForge {
     public static final List<String> PIECES = List.of(
             "forge", "t_junction_1", "t_junction_2", "t_junction_3",
             "corner_1", "corner_2", "hallway_1", "hallway_2", "hallway_3", "t_junction_4", "gold_reserves");
-    public static final Identifier DOOR = Identifier.fromNamespaceAndPath("asterion", "catacombs/door");
+    public static final ResourceLocation DOOR = ResourceLocation.fromNamespaceAndPath("asterion", "catacombs/door");
     private static final Map<ServerLevel, Map<Long, Layout>> LAYOUTS = new WeakHashMap<>();
     private static final Map<ServerLevel, java.util.ArrayDeque<PendingChunk>> REPAIRS = new WeakHashMap<>();
 
@@ -56,7 +56,7 @@ public final class AuthoredForge {
 
     private AuthoredForge() { }
 
-     
+
 
     public static void onChunkLoad(ServerLevel level, net.minecraft.world.level.chunk.LevelChunk chunk, boolean newlyGenerated) {
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
@@ -66,18 +66,18 @@ public final class AuthoredForge {
     public static void tickRepairs(ServerLevel level) {
         var pending = REPAIRS.get(level);
         if (pending == null || pending.isEmpty()) return;
-         
+
         PendingChunk entry = pending.removeFirst();
         ChunkPos pos = entry.pos();
-        var chunk = level.getChunkSource().getChunkNow(pos.x(), pos.z());
+        var chunk = level.getChunkSource().getChunkNow(pos.x, pos.z);
         if (chunk == null) {
             if (entry.attempts() < 3) pending.addLast(new PendingChunk(pos, entry.attempts() + 1));
             return;
         }
         repairEmptyChunk(level, chunk);
         ShaleCaves.repairEmptyChunk(chunk, MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState()));
-         
-         
+
+
     }
 
     public static void repairEmptyChunk(ServerLevel level, net.minecraft.world.level.chunk.LevelChunk chunk) {
@@ -97,7 +97,7 @@ public final class AuthoredForge {
             placeRoom(level, placement, clip);
             for (Port seam : layout.seams()) openSeam(level, seam, clip);
             for (Port cap : layout.caps()) sealPort(level, cap, clip);
-            chunk.markUnsaved();
+            chunk.setUnsaved(true);
         }
     }
 
@@ -106,8 +106,8 @@ public final class AuthoredForge {
         Layout layout = layoutFor(level, chunk);
         if (layout.placements().isEmpty()) return;
 
-        BoundingBox clip = new BoundingBox(chunk.getMinBlockX(), level.getMinY(), chunk.getMinBlockZ(),
-                chunk.getMaxBlockX(), level.getMaxY() - 1, chunk.getMaxBlockZ());
+        BoundingBox clip = new BoundingBox(chunk.getMinBlockX(), level.getMinBuildHeight(), chunk.getMinBlockZ(),
+                chunk.getMaxBlockX(), level.getMaxBuildHeight() - 1, chunk.getMaxBlockZ());
         for (Placement placement : placements(level, layout, chunk)) {
             placeRoom(world, placement, clip);
         }
@@ -132,8 +132,8 @@ public final class AuthoredForge {
                 if (pos.getX() < minX || pos.getX() > maxX || pos.getY() < minY || pos.getY() > maxY
                         || pos.getZ() < minZ || pos.getZ() > maxZ) continue;
                 if (world.getBlockEntity(pos) instanceof RandomizableContainerBlockEntity container) {
-                    container.setLootTable(loot);
-                    container.setLootTableSeed(CatacombLayout.hash(placement.origin().asLong(), pos.getX(), pos.getZ()) ^ pos.getY());
+                    net.krodark.asterion.port.compat.LootCompat.set(container, loot);
+                    net.krodark.asterion.port.compat.LootCompat.seed(container, CatacombLayout.hash(placement.origin().asLong(), pos.getX(), pos.getZ()) ^ pos.getY());
                     container.setChanged();
                 }
             }
@@ -151,8 +151,9 @@ public final class AuthoredForge {
     }
 
     public static BlockPos westSocket(ServerLevel level, ChunkPos chunk) {
-        var root = layoutFor(level, chunk).placements().getFirst();
-        return root.template().getJigsaws(root.origin(), root.rotation()).stream()
+        var root = layoutFor(level, chunk).placements().get(0);
+        return net.krodark.asterion.port.compat.JigsawCompat.getJigsaws(
+                        root.template(), root.origin(), root.rotation()).stream()
                 .filter(port -> JigsawBlock.getFrontFacing(port.info().state()) == Direction.WEST
                         && port.name().equals(DOOR)).findFirst().orElseThrow().info().pos();
     }
@@ -186,8 +187,8 @@ public final class AuthoredForge {
     }
 
     private static List<Placement> placements(ServerLevel level, Layout layout, ChunkPos chunk) {
-        BoundingBox column = new BoundingBox(chunk.getMinBlockX(), level.getMinY(), chunk.getMinBlockZ(),
-                chunk.getMaxBlockX(), level.getMaxY(), chunk.getMaxBlockZ());
+        BoundingBox column = new BoundingBox(chunk.getMinBlockX(), level.getMinBuildHeight(), chunk.getMinBlockZ(),
+                chunk.getMaxBlockX(), level.getMaxBuildHeight(), chunk.getMaxBlockZ());
         return layout.placements().stream().filter(p -> p.bounds().intersects(column)).toList();
     }
 
@@ -196,10 +197,10 @@ public final class AuthoredForge {
         REPAIRS.clear();
     }
 
-     
+
     public static boolean contains(ServerLevel level, BlockPos pos) {
-        Layout layout = layoutFor(level, ChunkPos.containing(pos));
-        return placements(level, layout, ChunkPos.containing(pos)).stream().anyMatch(placement -> placement.bounds().isInside(pos));
+        Layout layout = layoutFor(level, new ChunkPos(pos));
+        return placements(level, layout, new ChunkPos(pos)).stream().anyMatch(placement -> placement.bounds().isInside(pos));
     }
 
     private static Layout createLayout(ServerLevel level, int variant) {
@@ -223,9 +224,9 @@ public final class AuthoredForge {
         Placement rootPlacement = placement(root, Rotation.NONE, rootOrigin);
         placed.add(rootPlacement);
         open.addAll(ports(root, Rotation.NONE, rootOrigin));
-        open.removeIf(port -> port.front() == Direction.WEST);  
+        open.removeIf(port -> port.front() == Direction.WEST);
 
-         
+
         List<ResolvedPiece> remaining = new ArrayList<>(loaded.values());
         remaining.sort(Comparator.comparingInt((ResolvedPiece piece) -> piece.localPorts().get(Rotation.NONE).size()).reversed());
         long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState()) ^ variant * 0x9E3779B97F4A7C15L;
@@ -244,9 +245,9 @@ public final class AuthoredForge {
             children.removeIf(port -> port.position().equals(attachment.childPosition()));
             open.addAll(children);
         }
-         
-         
-         
+
+
+
         List<ResolvedPiece> palette = new ArrayList<>(loaded.values());
         palette.add(root);
         int attempts = 0;
@@ -281,7 +282,7 @@ public final class AuthoredForge {
         return choices.get((int)Math.floorMod(roll >>> 8, choices.size()));
     }
 
-     
+
     private static void openSeam(ServerLevelAccessor world, Port port, BoundingBox clip) {
         Direction across = port.front().getClockWise();
         for (int depth = 0; depth <= 1; depth++) for (int side = -2; side <= 2; side++)
@@ -292,7 +293,7 @@ public final class AuthoredForge {
             }
     }
 
-     
+
     private static void sealPort(ServerLevelAccessor world, Port port, BoundingBox clip) {
         Direction across = port.front().getClockWise();
         for (int depth = 0; depth <= 1; depth++) for (int side = -3; side <= 3; side++)
@@ -314,7 +315,7 @@ public final class AuthoredForge {
         if (name.matches(".*_[123]$")) candidates.add(name.substring(0, name.length() - 1) + "0" + name.charAt(name.length() - 1));
         for (String path : candidates) {
             for (String prefix : List.of("forge/", "catacombs/", "")) {
-                Identifier id = Asterion.id(prefix + path);
+                ResourceLocation id = Asterion.id(prefix + path);
                 Optional<StructureTemplate> template = level.getStructureManager().get(id);
                 if (template.isPresent()) return Optional.of(new ResolvedPiece(name, id, template.get()));
             }
@@ -347,10 +348,10 @@ public final class AuthoredForge {
                     int center = CatacombLayout.ROOT_CENTER;
                     if (bounds.minX() < center - 96 || bounds.maxX() > center + 96
                             || bounds.minZ() < center - 96 || bounds.maxZ() > center + 96) continue;
-                     
+
                     if (bounds.intersects(new BoundingBox(center - 28, 28, center - 9,
                             center - 19, 78, center + 9))) continue;
-                     
+
                     if (bounds.intersects(new BoundingBox(center - 50, LabyrinthLevels.CAVE_BOTTOM_Y + 3, center - 11,
                             center - 19, 36, center + 11))) continue;
                     if (placed.stream().anyMatch(other -> other.bounds().intersects(candidate.bounds()))) continue;
@@ -358,8 +359,8 @@ public final class AuthoredForge {
                     long centerZ = (long)candidate.bounds().minZ() + candidate.bounds().maxZ();
                     long root = CatacombLayout.ROOT_CENTER * 2L;
                     long dx = centerX - root, dz = centerZ - root;
-                     
-                     
+
+
                     long score = (dx * dx + dz * dz) * 1024L
                             + Math.floorMod(CatacombLayout.hash(seed, origin.getX(), origin.getZ()), 1024L);
                     if (score > bestScore) {
@@ -400,27 +401,33 @@ public final class AuthoredForge {
 
     private static List<Port> localPorts(StructureTemplate template, Rotation rotation) {
         List<Port> ports = new ArrayList<>();
-        for (StructureTemplate.JigsawBlockInfo jigsaw : template.getJigsaws(BlockPos.ZERO, rotation)) {
+        for (net.krodark.asterion.port.compat.JigsawCompat.JigsawInfo jigsaw
+                : net.krodark.asterion.port.compat.JigsawCompat.getJigsaws(template, BlockPos.ZERO, rotation)) {
             Direction front = JigsawBlock.getFrontFacing(jigsaw.info().state());
             if (!front.getAxis().isHorizontal()) continue;
-             
-             
-             
+
+
+
             if (!jigsaw.name().equals(DOOR) || !jigsaw.target().equals(DOOR)) continue;
             ports.add(new Port(jigsaw.info().pos(), front, jigsaw.name(), jigsaw.target()));
         }
         return List.copyOf(ports);
     }
 
-     
+
     private static final StructureProcessor CRUCIBLE_PART_DATA = new StructureProcessor() {
-        // NeoForge's context-rich process overload delegates to this vanilla callback.
         @SuppressWarnings("deprecation")
         @Override public StructureTemplate.StructureBlockInfo processBlock(
                 net.minecraft.world.level.LevelReader world, BlockPos origin, BlockPos reference,
                 StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed,
                 StructurePlaceSettings settings) {
-            if (!(transformed.state().getBlock() instanceof net.krodark.asterion.block.CrucibleBlock)) return transformed;
+            if (!(transformed.state().getBlock() instanceof net.krodark.asterion.block.CrucibleBlock)) {
+                // Some authored templates contain legacy/DUMMY NBT on decorative blocks.
+                // Never pass block-entity data to a state that cannot own a block entity.
+                return transformed.state().hasBlockEntity() ? transformed
+                        : new StructureTemplate.StructureBlockInfo(
+                                transformed.pos(), transformed.state(), null);
+            }
             net.minecraft.nbt.CompoundTag data = null;
             if (net.krodark.asterion.block.CrucibleBlock.isRoot(transformed.state())) {
                 data = new net.minecraft.nbt.CompoundTag();
@@ -431,14 +438,14 @@ public final class AuthoredForge {
         @Override protected StructureProcessorType<?> getType() { return StructureProcessorType.BLOCK_IGNORE; }
     };
 
-    private record ResolvedPiece(String name, Identifier id, StructureTemplate template,
+    private record ResolvedPiece(String name, ResourceLocation id, StructureTemplate template,
                                  Map<Rotation, List<Port>> localPorts) {
-        ResolvedPiece(String name, Identifier id, StructureTemplate template) {
+        ResolvedPiece(String name, ResourceLocation id, StructureTemplate template) {
             this(name, id, template, resolvePorts(template));
         }
     }
-    private record Port(BlockPos position, Direction front, Identifier name, Identifier target) { }
-    private record Placement(Identifier id, StructureTemplate template, Rotation rotation,
+    private record Port(BlockPos position, Direction front, ResourceLocation name, ResourceLocation target) { }
+    private record Placement(ResourceLocation id, StructureTemplate template, Rotation rotation,
                              BlockPos origin, BoundingBox bounds) { }
     private record Attachment(Port parent, BlockPos childPosition, Placement placement) { }
     private record Layout(List<Placement> placements, List<Port> caps, List<Port> seams) { }

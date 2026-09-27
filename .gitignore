@@ -19,11 +19,9 @@ hs_err_pid*
 
 # Common working directory
 run
+run-*/
 
 # Runtime diagnostics stay local, never in source control.
 logs/
 *.log
 *.log.gz
-
-# Locally assembled release shelf. Keep the manifest, not binary builds.
-/modbuilds/*.jar

@@ -18,12 +18,9 @@ import net.minecraft.world.item.CompassItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.LodestoneTracker;
-import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
-
 import java.util.Optional;
-import java.util.function.Consumer;
+import java.util.List;
 
 public final class AntikytheraMechanismItem extends CompassItem {
     public AntikytheraMechanismItem(Properties properties) {
@@ -32,67 +29,70 @@ public final class AntikytheraMechanismItem extends CompassItem {
 
     @Override
     public Component getName(ItemStack stack) {
-         
-         
+
+
         return Component.translatable(getDescriptionId());
     }
 
     @Override
     public boolean isFoil(ItemStack stack) {
-         
-         
+
+
         return stack.isEnchanted();
     }
 
     @Override
-    public InteractionResult use(Level level, Player player, InteractionHand hand) {
-        if (!(level instanceof ServerLevel serverLevel) || !(player instanceof ServerPlayer serverPlayer)) {
-            return InteractionResult.SUCCESS;
-        }
+    public net.minecraft.world.InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
-        if (level.dimension().equals(Asterion.ASTERION_LEVEL)) {
-            Vec3 look = player.getLookAngle();
-            Vec3 direction = new Vec3(look.x, 0.0D, look.z);
-            if (direction.lengthSqr() < 1.0E-6D) direction = new Vec3(0.0D, 0.0D, 1.0D);
-            direction = direction.normalize();
-            BlockPos bearing = BlockPos.containing(player.position().add(direction.scale(1_000_000.0D)));
-            stack.set(DataComponents.LODESTONE_TRACKER, new LodestoneTracker(
-                    Optional.of(GlobalPos.of(Asterion.ASTERION_LEVEL, bearing)), false));
-            net.krodark.asterion.game.PlayerNotices.show(serverPlayer, Component.translatable("message.asterion.mechanism_bearing_locked"));
-            return InteractionResult.SUCCESS;
+        if (!(level instanceof ServerLevel serverLevel) || !(player instanceof ServerPlayer serverPlayer)) {
+            return net.minecraft.world.InteractionResultHolder.sidedSuccess(stack, true);
         }
-        boolean wasDormant = stack.get(DataComponents.LODESTONE_TRACKER) == null;
-        bindToGateway(stack, serverLevel);
+        if (level.dimension().equals(Asterion.ASTERION_LEVEL)) {
+            bindToPortal(stack, serverLevel);
+            net.krodark.asterion.game.PlayerNotices.show(serverPlayer,
+                    Component.translatable("message.asterion.mechanism_points"));
+            return net.minecraft.world.InteractionResultHolder.success(stack);
+        }
+        boolean wasDormant = net.krodark.asterion.port.compat.ItemData.get(stack, DataComponents.LODESTONE_TRACKER) == null;
+        bindToPortal(stack, serverLevel);
         if (wasDormant) {
             net.krodark.asterion.game.PlayerNotices.show(serverPlayer, Component.translatable("message.asterion.mechanism_awakened"));
         } else {
             net.krodark.asterion.game.PlayerNotices.show(serverPlayer, Component.translatable("message.asterion.mechanism_points"));
         }
-        return InteractionResult.SUCCESS;
+        return net.minecraft.world.InteractionResultHolder.success(stack);
     }
 
     @Override
-    public void inventoryTick(ItemStack stack, ServerLevel level, Entity entity, EquipmentSlot slot) {
-        if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) bindToGateway(stack, level);
+    public void inventoryTick(ItemStack stack, Level level, Entity entity, int slot, boolean selected) {
+        if (level instanceof ServerLevel serverLevel) bindToPortal(stack, serverLevel);
     }
 
-    private static void bindToGateway(ItemStack stack, ServerLevel level) {
-        BlockPos target = WorldGenerator.gatewayPosition(level.getServer().overworld().getSeed());
-        GlobalPos expected = GlobalPos.of(Level.OVERWORLD, target);
-        LodestoneTracker current = stack.get(DataComponents.LODESTONE_TRACKER);
+    private static void bindToPortal(ItemStack stack, ServerLevel level) {
+        net.krodark.asterion.AsterionWorldState.SavedPortal summoned =
+                net.krodark.asterion.AsterionWorldState.get(level).summonedPortal();
+        GlobalPos expected;
+        if (summoned != null) {
+            expected = GlobalPos.of(summoned.dimension(), summoned.center().atY(summoned.surfaceY()));
+        } else {
+            BlockPos target = WorldGenerator.gatewayPosition(level.getServer().overworld().getSeed());
+            expected = GlobalPos.of(Level.OVERWORLD, target);
+        }
+        LodestoneTracker current = net.krodark.asterion.port.compat.ItemData.get(stack, DataComponents.LODESTONE_TRACKER);
         if (current == null || current.tracked() || current.target().isEmpty()
                 || !current.target().get().equals(expected)) {
-            stack.set(DataComponents.LODESTONE_TRACKER, new LodestoneTracker(Optional.of(expected), false));
+            net.krodark.asterion.port.compat.ItemData.set(stack, DataComponents.LODESTONE_TRACKER,
+                    new LodestoneTracker(Optional.of(expected), false));
         }
     }
 
     @Override
     @SuppressWarnings("deprecation")
-    public void appendHoverText(ItemStack stack, TooltipContext context, TooltipDisplay display,
-                                Consumer<Component> tooltip, TooltipFlag flag) {
-        tooltip.accept(Component.translatable(stack.get(DataComponents.LODESTONE_TRACKER) == null
+    public void appendHoverText(ItemStack stack, TooltipContext context,
+                                List<Component> tooltip, TooltipFlag flag) {
+        tooltip.add(Component.translatable(net.krodark.asterion.port.compat.ItemData.get(stack, DataComponents.LODESTONE_TRACKER) == null
                 ? "tooltip.asterion.antikythera_mechanism.dormant"
                 : "tooltip.asterion.antikythera_mechanism.bound"));
-        tooltip.accept(Component.translatable("tooltip.asterion.antikythera_mechanism.maze_bearing"));
+        tooltip.add(Component.translatable("tooltip.asterion.antikythera_mechanism.maze_bearing"));
     }
 }

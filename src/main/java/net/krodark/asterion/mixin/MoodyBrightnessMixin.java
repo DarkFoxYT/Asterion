@@ -6,13 +6,13 @@ import net.minecraft.client.renderer.LightmapRenderStateExtractor;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
- 
+
 @Mixin(LightmapRenderStateExtractor.class)
 public abstract class MoodyBrightnessMixin {
     @ModifyExpressionValue(method = "extract", at = @At(value = "INVOKE",
             target = "Ljava/lang/Double;floatValue()F", ordinal = 0))
     private float asterion$brightness(float vanillaBrightness) {
         int brightness = AsterionConfig.INSTANCE.brightnessPercent;
-        return brightness < 0 ? vanillaBrightness : Math.clamp(brightness, 0, 100) / 100F;
+        return brightness < 0 ? vanillaBrightness : net.krodark.asterion.port.compat.MathCompat.clamp(brightness, 0, 100) / 100F;
     }
 }

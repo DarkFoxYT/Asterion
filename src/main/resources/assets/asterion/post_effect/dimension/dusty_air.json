@@ -22,8 +22,8 @@
       "output": "composited_scene"
     },
     {
-      "vertex_shader": "minecraft:core/screenquad",
-      "fragment_shader": "minecraft:post/blit",
+      "vertex_shader": "asterion:post/dimension/volumetric",
+      "fragment_shader": "asterion:post/dimension/blit",
       "inputs": [
         { "sampler_name": "In", "target": "composited_scene", "bilinear": true }
       ],

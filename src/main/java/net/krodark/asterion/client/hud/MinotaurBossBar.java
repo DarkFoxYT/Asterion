@@ -65,7 +65,7 @@ public final class MinotaurBossBar {
             eventId = event.getId(); previousProgress = event.getProgress(); impactTime = -100;
             lastTime = time; blue = 0;
         }
-        float dt = (float)Math.clamp(time - lastTime, 0, 2);
+        float dt = (float)net.krodark.asterion.port.compat.MathCompat.clamp(time - lastTime, 0, 2);
         lastTime = time;
         float progress = Mth.clamp(event.getProgress(), 0, 1);
         if (progress < previousProgress - .002F) impactTime = time;
@@ -84,7 +84,7 @@ public final class MinotaurBossBar {
         float scale = scale(g);
         g.pose().translate(x + 91 - 128 * scale + shakeX, y - 5 + shakeY);
         g.pose().scale(scale, scale);
-         
+
         int filled = Math.round(164 * progress);
         for (int offset = 3; offset >= 1; offset--) {
             int glow = (30 / offset) << 24 | 0xA40920;

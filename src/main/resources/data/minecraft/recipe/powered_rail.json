@@ -2,9 +2,9 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "#": "#c:rods/wooden",
-    "R": "minecraft:redstone",
-    "X": "minecraft:gold_ingot"
+    "#": {"tag":"c:rods/wooden"},
+    "R": {"item":"minecraft:redstone"},
+    "X": {"item":"minecraft:gold_ingot"}
   },
   "pattern": [
     "X X",

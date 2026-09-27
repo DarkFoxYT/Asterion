@@ -13,11 +13,11 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
  
 public final class CatacombEntrances {
     private CatacombEntrances() { }
-    public static boolean selected(ChunkPos chunk) { return Math.floorMod(chunk.x(), 8) == 4 && Math.floorMod(chunk.z(), 8) == 4; }
+    public static boolean selected(ChunkPos chunk) { return Math.floorMod(chunk.x, 8) == 4 && Math.floorMod(chunk.z, 8) == 4; }
     public static void place(WorldGenLevel world, ChunkPos chunk, long seed) {
          
-        for (int cx = chunk.x() - 2; cx <= chunk.x() + 2; cx++)
-            for (int cz = chunk.z() - 2; cz <= chunk.z() + 2; cz++) {
+        for (int cx = chunk.x - 2; cx <= chunk.x + 2; cx++)
+            for (int cz = chunk.z - 2; cz <= chunk.z + 2; cz++) {
                 ChunkPos candidate = new ChunkPos(cx, cz);
                 if (selected(candidate) && allowed(seed, candidate)) connect(world, chunk, candidate);
             }
@@ -103,8 +103,8 @@ public final class CatacombEntrances {
                     && level.getBlockState(landing).getCollisionShape(level, landing).isEmpty()
                     && level.getBlockState(landing.above()).getCollisionShape(level, landing.above()).isEmpty() ? landing : null;
         }
-        ChunkPos chunk = ChunkPos.containing(position);
-        if (!selected(chunk) || !level.getChunkSource().hasChunk(chunk.x(), chunk.z())) return null;
+        ChunkPos chunk = new ChunkPos(position);
+        if (!selected(chunk) || !level.getChunkSource().hasChunk(chunk.x, chunk.z)) return null;
         int x = chunk.getMinBlockX() + 8, z = chunk.getMinBlockZ() + 8;
         if (Math.abs(position.getX() - x) > 6 || Math.abs(position.getZ() - z) > 6) return null;
         int expectedFloor = WorldGenerator.mazeFloorHeight(MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState()), x, z) - 7;

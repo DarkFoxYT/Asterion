@@ -16,7 +16,7 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
- 
+
 public final class CentipedeInteractionClient {
     private static int lastEntity = -1, lastSurface = -1, frameTicks;
     private static Vec3 lastHeading = Vec3.ZERO;
@@ -52,7 +52,7 @@ public final class CentipedeInteractionClient {
                 || !ClientPlayNetworking.canSend(CentipedeMountPayload.TYPE)) return false;
         float partial = client.getDeltaTracker().getGameTimeDeltaPartialTick(true);
         Vec3 eye = player.getEyePosition(partial);
-        Vec3 end = eye.add(player.getViewVector(partial).scale(player.entityInteractionRange()));
+        Vec3 end = eye.add(player.getViewVector(partial).scale(net.krodark.asterion.port.compat.EntityCompat.reach(player)));
         var block = client.level.clip(new ClipContext(eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
         double limit = eye.distanceToSqr(end);
         if (block.getType() != HitResult.Type.MISS) limit = eye.distanceToSqr(block.getLocation());
@@ -61,7 +61,7 @@ public final class CentipedeInteractionClient {
             limit = Math.min(limit, eye.distanceToSqr(entityHit.getLocation()));
         ScarletCentipedeEntity target = null;
         CentipedeInteraction.Hit nearest = null;
-         
+
         AABB search = new AABB(eye, end).inflate(CentipedeChain.MAX_SEGMENTS * CentipedeFrame.LINK_LENGTH + 4);
         for (var centipede : client.level.getEntitiesOfClass(ScarletCentipedeEntity.class, search,
                 mob -> mob.isAlive() && !mob.isInvisible())) {

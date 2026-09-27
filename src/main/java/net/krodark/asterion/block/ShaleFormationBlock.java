@@ -17,7 +17,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
- 
+
 public final class ShaleFormationBlock extends Block implements WaterloggedDecoration {
     public static final IntegerProperty THICKNESS = IntegerProperty.create("thickness", 1, 4);
     public static final BooleanProperty HANGING = BooleanProperty.create("hanging");
@@ -53,18 +53,26 @@ public final class ShaleFormationBlock extends Block implements WaterloggedDecor
                 .setValue(THICKNESS, thickness), context.getLevel().getFluidState(context.getClickedPos()));
     }
 
-    @Override protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
                                                           Player player, BlockHitResult hit) {
         if (!player.mayBuild()) return InteractionResult.PASS;
         if (!level.isClientSide()) level.setBlock(pos, state.cycle(THICKNESS), Block.UPDATE_ALL);
         return InteractionResult.SUCCESS;
     }
 
-    @Override protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    @Override public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPES[state.getValue(THICKNESS) - 1];
     }
 
-    @Override protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    @Override public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return getShape(state, level, pos, context);
     }
+
+//? if <1.20.5 {
+/*    @Override public net.minecraft.world.InteractionResult use(net.minecraft.world.level.block.state.BlockState state,
+        net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos, net.minecraft.world.entity.player.Player player,
+        net.minecraft.world.InteractionHand hand, net.minecraft.world.phys.BlockHitResult hit) {
+        return useWithoutItem(state, level, pos, player, hit);
+    }*/
+//?}
 }

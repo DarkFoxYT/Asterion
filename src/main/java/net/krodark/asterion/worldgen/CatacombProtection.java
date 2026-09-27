@@ -19,7 +19,7 @@ public final class CatacombProtection {
     public static boolean isOre(BlockState state) {
         var id = BuiltInRegistries.BLOCK.getKey(state.getBlock());
         return state.is(net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.BLOCK,
-                net.minecraft.resources.Identifier.fromNamespaceAndPath("c", "ores")))
+                net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("c", "ores")))
                 || id.getPath().endsWith("_ore") || id.getPath().equals("ancient_debris");
     }
 }

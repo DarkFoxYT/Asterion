@@ -27,7 +27,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 
- 
+
 public final class CrucibleGaugeRenderer extends GeoBlockRenderer<CrucibleBlockEntity, BlockEntityRenderState> {
     private static final Identifier GAUGE = Asterion.id("textures/gui/forge/temp_gauge_highres.png");
     private static final DataTicket<Float> TEMPERATURE = DataTickets.create("asterion_crucible_temperature", Float.class);
@@ -62,7 +62,7 @@ public final class CrucibleGaugeRenderer extends GeoBlockRenderer<CrucibleBlockE
                 return 0xFF000000 | state.getOrDefaultGeckolibData(MIX_COLOR, 0xFFAA44);
             }
             @Override protected float surfaceBrightness(BlockEntityRenderState state) {
-                return Math.clamp((state.getOrDefaultGeckolibData(TEMPERATURE, 0F) - 100) / 500F, 0, 1);
+                return net.krodark.asterion.port.compat.MathCompat.clamp((state.getOrDefaultGeckolibData(TEMPERATURE, 0F) - 100) / 500F, 0, 1);
             }
             @Override protected float emissiveStrength(BlockEntityRenderState state) {
                 return surfaceBrightness(state) * .35F;
@@ -73,11 +73,11 @@ public final class CrucibleGaugeRenderer extends GeoBlockRenderer<CrucibleBlockE
 
     private static void loadVentMask() {
         var client = Minecraft.getInstance();
-         
+
         try (var stream = client.getResourceManager().open(Asterion.id("textures/block/crucible.png"));
              var source = com.mojang.blaze3d.platform.NativeImage.read(stream)) {
             var mask = new com.mojang.blaze3d.platform.NativeImage(1024, 1024, true);
-             
+
             int[][] faces = {{243, 162}, {243, 227}, {243, 292}, {0, 324}};
             for (int[] face : faces) for (int y = 29; y <= 48; y++) for (int x = 0; x < 80; x++) {
                 int u = face[0] + x, v = face[1] + y;
@@ -137,7 +137,7 @@ public final class CrucibleGaugeRenderer extends GeoBlockRenderer<CrucibleBlockE
                 int shine = net.minecraft.util.ARGB.linearLerp(.22F, color, 0xFFFFE0A0);
                 out.submitCustomGeometry(poses, RenderTypes.entityTranslucent(FILL, false), (pose, vertices) -> {
                     float rim = radius - .05F;
-                     
+
                     strip(pose, vertices, .5F - rim, .5F + rim, y + .003F, .5F - rim, .5F - rim + .045F, edge);
                     strip(pose, vertices, .5F - rim, .5F + rim, y + .003F, .5F + rim - .045F, .5F + rim, edge);
                     strip(pose, vertices, .5F - rim * .72F, .5F + rim * .22F, y + .005F, .5F - rim * .38F, .5F - rim * .35F, shine);
@@ -168,7 +168,7 @@ public final class CrucibleGaugeRenderer extends GeoBlockRenderer<CrucibleBlockE
         float height = .72F, width = height * (64F / 208F);
         collector.submitCustomGeometry(poses, RenderTypes.entityTranslucent(GAUGE, false),
                 (pose, vertices) -> quad(pose, vertices, width, height));
-        float ratio = Math.clamp(temperature / CrucibleBlockEntity.MAX_TEMPERATURE, 0F, 1F);
+        float ratio = net.krodark.asterion.port.compat.MathCompat.clamp(temperature / CrucibleBlockEntity.MAX_TEMPERATURE, 0F, 1F);
         float markerY = -height * .37F + height * .74F * ratio;
         collector.submitCustomGeometry(poses, RenderTypes.linesTranslucent(), (pose, vertices) -> {
             lineVertex(pose, vertices, -width * .32F, markerY);

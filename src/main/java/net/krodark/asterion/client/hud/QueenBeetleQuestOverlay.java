@@ -14,9 +14,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.EntityHitResult;
 
- 
+
 public final class QueenBeetleQuestOverlay {
-    private static final int CARD_WIDTH = 236;
+    private static final int CARD_WIDTH = 202;
     private static int stage = -1;
     private static int dialogueTicks;
     private static int dialogueDuration;
@@ -39,7 +39,7 @@ public final class QueenBeetleQuestOverlay {
     public static void receive(QueenBeetleQuestPayload payload) {
         boolean restoring = payload.stage() == QueenBeetleQuestPayload.RESTORE_ACTIVE;
         boolean wasActive = isActive() && questIndex == payload.questIndex();
-        questIndex = Math.clamp(payload.questIndex(), 0, QueenBeetleQuests.ALL.size() - 1);
+        questIndex = net.krodark.asterion.port.compat.MathCompat.clamp(payload.questIndex(), 0, QueenBeetleQuests.ALL.size() - 1);
         var request = quest();
         questTitle = Component.translatable(request.key("title"));
         questItem = new ItemStack(request.item()).getHoverName();
@@ -50,8 +50,8 @@ public final class QueenBeetleQuestOverlay {
         target = Math.max(1, payload.target());
         anger = Mth.clamp(payload.anger(), 0, 4);
         if (!wasActive || restoring) displayedProgress = payload.progress();
-         
-         
+
+
         if (!wasActive) objectiveTicks = restoring ? 12 : 0;
         dialogueDuration = payload.stage() == QueenBeetleQuestPayload.REWARDED ? 150 : 120;
         if (stage == QueenBeetleQuestPayload.ACCEPTED || stage == QueenBeetleQuestPayload.REWARDED) {
@@ -122,21 +122,18 @@ public final class QueenBeetleQuestOverlay {
         int width = Math.min(CARD_WIDTH, graphics.guiWidth() - 24);
         Component hint = actualProgress >= target
                 ? Component.translatable("quest.asterion.queen_beetle.return") : questHint;
-        var allHintLines = client.font.split(hint, width - 17);
-        var hintLines = allHintLines.subList(0, Math.min(2, allHintLines.size()));
+        var hintLines = client.font.split(hint, width - 17);
         int rewardY = 37 + Math.max(1, hintLines.size()) * 11;
         int height = rewardY + 11;
         float appear = smootherstep(Mth.clamp(objectiveTicks / 12.0F, 0.0F, 1.0F));
-        int left = 12 - Math.round((1.0F - appear) * 18.0F);
-        int top = MazeObjectiveOverlay.questStackTop(graphics.guiWidth());
-        graphics.fill(left + 2, top + 2, left + width + 2, top + height + 2, alpha(0, Math.round(95 * appear)));
+        int left = graphics.guiWidth() - width - 12 + Math.round((1.0F - appear) * 18.0F);
+        int top = 12;
 
         graphics.fill(left, top, left + width, top + height, alpha(0x090C08, Math.round(218 * appear)));
         graphics.fill(left, top, left + 3, top + height, alpha(0xD5A53E, Math.round(255 * appear)));
         graphics.fill(left + 3, top, left + width, top + 1, alpha(0x836B38, Math.round(150 * appear)));
 
         Component title = questTitle;
-        graphics.fill(left + 9, top + 14, left + width - 8, top + 15, alpha(0xDDBB6D, Math.round(54 * appear)));
         Component temper = Component.translatable("quest.asterion.queen_beetle.temper." + anger);
         graphics.text(client.font, client.font.plainSubstrByWidth(title.getString(), width - 30 - client.font.width(temper)), left + 9, top + 5, alpha(0xDDBB6D, Math.round(255 * appear)), false);
         graphics.text(client.font, temper, left + width - 8 - client.font.width(temper), top + 5,
@@ -160,7 +157,7 @@ public final class QueenBeetleQuestOverlay {
             graphics.text(client.font, hintLines.get(line), left + 9, top + 37 + line * 11,
                     alpha(0xB8AD91, Math.round(230 * appear)), false);
         Component reward = questReward;
-        graphics.text(client.font, client.font.plainSubstrByWidth(reward.getString(), width - 17), left + 9, top + rewardY, alpha(0xB5A88B, Math.round(230 * appear)), false);
+        graphics.text(client.font, client.font.plainSubstrByWidth(reward.getString(), width - 17), left + 9, top + rewardY, alpha(0x817A67, Math.round(205 * appear)), false);
     }
 
     private static void renderDialogue(GuiGraphicsExtractor graphics, Minecraft client) {

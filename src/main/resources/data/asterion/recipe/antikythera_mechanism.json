@@ -2,11 +2,11 @@
   "type": "minecraft:crafting_shaped",
   "category": "equipment",
   "key": {
-    "B": "asterion:antikythera_blueprint",
-    "C": "minecraft:compass",
-    "E": "minecraft:echo_shard",
-    "H": "minecraft:heart_of_the_sea",
-    "N": "minecraft:nautilus_shell"
+    "B": {"item":"asterion:antikythera_blueprint"},
+    "C": {"item":"minecraft:compass"},
+    "E": {"item":"minecraft:echo_shard"},
+    "H": {"item":"minecraft:heart_of_the_sea"},
+    "N": {"item":"minecraft:nautilus_shell"}
   },
   "pattern": [
     "EBE",

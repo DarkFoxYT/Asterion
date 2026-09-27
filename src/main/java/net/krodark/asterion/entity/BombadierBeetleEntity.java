@@ -1,11 +1,11 @@
 package net.krodark.asterion.entity;
 
-import com.geckolib.animatable.GeoEntity;
-import com.geckolib.animatable.instance.AnimatableInstanceCache;
-import com.geckolib.animatable.manager.AnimatableManager;
-import com.geckolib.animation.AnimationController;
-import com.geckolib.animation.RawAnimation;
-import com.geckolib.util.GeckoLibUtil;
+import software.bernie.geckolib.animatable.GeoEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animation.AnimatableManager;
+import software.bernie.geckolib.animation.AnimationController;
+import software.bernie.geckolib.animation.RawAnimation;
+import software.bernie.geckolib.util.GeckoLibUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
@@ -18,7 +18,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
@@ -81,12 +81,12 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
 
     public BombadierBeetleEntity(EntityType<? extends BombadierBeetleEntity> type, Level level) {
         super(type, level);
+//? if <1.20.5 {
+/*setMaxUpStep(1F);*/
+//?}
         xpReward = 2;
     }
 
-    // Vanilla callback retained for the shared Fabric/Quilt/NeoForge entity.
-    @SuppressWarnings("deprecation")
-    @Override public boolean canBreatheUnderwater() { return true; }
 
     public static AttributeSupplier.Builder createAttributes() {
         return PathfinderMob.createMobAttributes()
@@ -94,20 +94,35 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
                 .add(Attributes.MOVEMENT_SPEED, 0.23D)
                 .add(Attributes.FOLLOW_RANGE, 12.0D)
                 .add(Attributes.ARMOR, 2.0D)
-                .add(Attributes.STEP_HEIGHT, 1.0D);
+
+//? if >=1.20.5 {
+.add(Attributes.STEP_HEIGHT, 1.0D)
+//?}
+;
     }
 
     @Override
-    public boolean checkSpawnRules(LevelAccessor level, EntitySpawnReason reason) {
-        if (reason == EntitySpawnReason.NATURAL
+    public boolean checkSpawnRules(LevelAccessor level, MobSpawnType reason) {
+        if (reason == MobSpawnType.NATURAL
                 && (!(level instanceof ServerLevel serverLevel)
                 || !serverLevel.dimension().equals(Asterion.ASTERION_LEVEL))) return false;
         return super.checkSpawnRules(level, reason);
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        super.defineSynchedData(builder);
+    //? if >=1.20.5 {
+protected void defineSynchedData(SynchedEntityData.Builder builder) {
+//?} else {
+/*protected void defineSynchedData() {
+        var builder = this.entityData;*/
+//?}
+
+        //? if >=1.20.5 {
+super.defineSynchedData(builder);
+//?} else {
+/*super.defineSynchedData();*/
+//?}
+
         builder.define(DATA_DEFENCE_STATE, DefenceState.CALM.ordinal());
         builder.define(DATA_ATTACHED_SURFACE, Direction.DOWN.ordinal());
     }
@@ -137,8 +152,11 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
     }
 
     @Override
-    public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
-        boolean hurt = super.hurtServer(level, source, amount);
+    public boolean hurt(DamageSource source, float amount) {
+        boolean hurt = super.hurt(source, amount);
+        // hurt() is predicted on the logical client when the local player attacks.
+        // Defence state, gas trails and damage must only be mutated by the server.
+        if (!(level() instanceof ServerLevel)) return hurt;
         if (hurt && isAlive() && defenceState() == DefenceState.CALM && defenceCooldown == 0) {
             Entity attacker = source.getEntity();
             beginDefence(attacker == null ? null : attacker.position());
@@ -147,7 +165,7 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
     }
 
     @Override
-    public boolean causeFallDamage(double fallDistance, float damageMultiplier, DamageSource source) {
+    public boolean causeFallDamage(float fallDistance, float damageMultiplier, DamageSource source) {
         resetFallDistance();
         return false;
     }
@@ -386,7 +404,7 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
         wallLateralMotion = Mth.lerp(steering, wallLateralMotion, targetWallLateralMotion);
         wallVerticalMotion = Mth.lerp(steering, wallVerticalMotion, targetWallVerticalMotion);
 
-        Vec3 normal = surface.getUnitVec3();
+        Vec3 normal = net.minecraft.world.phys.Vec3.atLowerCornerOf(surface.getNormal());
         Vec3 sideways = surface.getAxis() == Direction.Axis.X
                 ? new Vec3(0.0D, 0.0D, 1.0D)
                 : new Vec3(1.0D, 0.0D, 0.0D);
@@ -425,7 +443,7 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
 
         navigation.stop();
         wallApproachTicks--;
-        Vec3 toward = wallApproachDirection.getUnitVec3();
+        Vec3 toward = net.minecraft.world.phys.Vec3.atLowerCornerOf(wallApproachDirection.getNormal());
         Vec3 weave = wallApproachDirection.getAxis() == Direction.Axis.X
                 ? new Vec3(0.0D, 0.0D, wallRunSide * 0.12D)
                 : new Vec3(wallRunSide * 0.12D, 0.0D, 0.0D);
@@ -479,7 +497,7 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
         Vec3 facing = Vec3.directionFromRotation(0.0F, getYRot());
         for (Direction direction : WALL_DIRECTIONS) {
             if (!touchingSurface(direction)) continue;
-            Vec3 normal = direction.getUnitVec3();
+            Vec3 normal = net.minecraft.world.phys.Vec3.atLowerCornerOf(direction.getNormal());
             double alignment = facing.dot(normal);
             if (alignment > bestAlignment) {
                 bestAlignment = alignment;
@@ -490,7 +508,7 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
     }
 
     private boolean touchingSurface(Direction direction) {
-        Vec3 normal = direction.getUnitVec3();
+        Vec3 normal = net.minecraft.world.phys.Vec3.atLowerCornerOf(direction.getNormal());
         return BugSurfaces.touches(level(), getBoundingBox().move(normal.scale(0.26D)));
     }
 
@@ -503,7 +521,7 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
         }
         setNoGravity(true);
         resetFallDistance();
-        Vec3 normal = surface.getUnitVec3();
+        Vec3 normal = net.minecraft.world.phys.Vec3.atLowerCornerOf(surface.getNormal());
         setDeltaMovement(normal.scale(0.095D));
     }
 
@@ -518,8 +536,8 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
         for (LivingEntity victim : level.getEntitiesOfClass(LivingEntity.class, fireCloud,
                 entity -> entity != this && entity.isAlive())) {
             if (!ignitedVictims.add(victim.getUUID())) continue;
-            victim.igniteForSeconds(4.0F);
-            victim.hurtServer(level, level.damageSources().inFire(), 4.0F);
+            net.krodark.asterion.port.compat.EntityCompat.ignite(victim, 4.0F);
+            victim.hurt(level.damageSources().inFire(), 4.0F);
         }
     }
 
@@ -553,7 +571,7 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<BombadierBeetleEntity>("movement", 3, state -> {
+        controllers.add(new AnimationController<BombadierBeetleEntity>(this, "movement", 3, state -> {
             boolean moving = defenceState() == DefenceState.FLEEING
                     || getDeltaMovement().lengthSqr() > 0.0004D;
             state.setControllerSpeed(defenceState() == DefenceState.FLEEING ? 2.15F : 1.0F);
@@ -579,4 +597,7 @@ public final class BombadierBeetleEntity extends PathfinderMob implements GeoEnt
             this.position = position;
         }
     }
+//? if <1.20.5 {
+/*@Override protected float getStandingEyeHeight(net.minecraft.world.entity.Pose pose,net.minecraft.world.entity.EntityDimensions dimensions){return .3F;}*/
+//?}
 }

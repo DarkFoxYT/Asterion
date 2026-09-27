@@ -9,7 +9,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 
- 
+
 public final class CursedBrazierCinematic {
     private static boolean active;
     private static boolean showShot;
@@ -43,7 +43,7 @@ public final class CursedBrazierCinematic {
         if (client.player == null || client.level == null || payload.durationTicks() <= 0) return;
 
         bossId = payload.entityId();
-        duration = Math.clamp(payload.durationTicks(), 30, 160);
+        duration = net.krodark.asterion.port.compat.MathCompat.clamp(payload.durationTicks(), 30, 160);
         ticks = 0;
         active = true;
         showShot = AsterionConfig.INSTANCE.cinematicsEnabled;
@@ -139,7 +139,7 @@ public final class CursedBrazierCinematic {
     }
 
     private static float smooth(float value) {
-        value = Math.clamp(value, 0F, 1F);
+        value = net.krodark.asterion.port.compat.MathCompat.clamp(value, 0F, 1F);
         return value * value * value * (value * (value * 6F - 15F) + 10F);
     }
 

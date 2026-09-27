@@ -1,9 +1,9 @@
 package net.krodark.asterion.block;
 
-import com.geckolib.animatable.GeoBlockEntity;
-import com.geckolib.animatable.instance.AnimatableInstanceCache;
-import com.geckolib.animatable.manager.AnimatableManager;
-import com.geckolib.util.GeckoLibUtil;
+import software.bernie.geckolib.animatable.GeoBlockEntity;
+import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.animation.AnimatableManager;
+import software.bernie.geckolib.util.GeckoLibUtil;
 import net.krodark.asterion.Asterion;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -15,11 +15,11 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.storage.ValueInput;
-import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.phys.AABB;
 
-public final class CursedBrazierDoorBlockEntity extends BlockEntity implements GeoBlockEntity {
+public final class CursedBrazierDoorBlockEntity extends net.krodark.asterion.port.compat.VersionedBlockEntity implements GeoBlockEntity {
     public static final int MOVE_TICKS = 90;
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private float progress;
@@ -29,29 +29,23 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
     private boolean passageEntered;
     private boolean unlocked;
     private boolean victoryOpen;
-    private boolean fightSealed;
     private long motionStart;
-    private long entryReadyAt;
-
-    public boolean readyForEncounter() {
-        return level != null && unlocked && entryReadyAt > 0 && level.getGameTime() >= entryReadyAt;
-    }
 
     public CursedBrazierDoorBlockEntity(BlockPos pos, BlockState state) {
         super(Asterion.CURSED_BRAZIER_DOOR_BLOCK_ENTITY, pos, state);
     }
     public float progress(float partialTick) {
         if (!moving || level == null) return progress;
-        float t = Math.clamp((level.getGameTime() - motionStart + partialTick) / MOVE_TICKS, 0F, 1F);
+        float t = net.krodark.asterion.port.compat.MathCompat.clamp((level.getGameTime() - motionStart + partialTick) / MOVE_TICKS, 0F, 1F);
         t = t * t * (3F - 2F * t);
         return startProgress + ((raising ? 1F : 0F) - startProgress) * t;
     }
     public void toggle(Player player, ItemStack held) {
-        if (level == null || level.isClientSide() || moving || victoryOpen || fightSealed) return;
+        if (level == null || moving || victoryOpen) return;
         if (!unlocked) {
-            if (!held.is(net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER_KEY)) {
-                player.sendOverlayMessage(net.minecraft.network.chat.Component.translatable(
-                        "message.asterion.cursed_brazier_door_locked"));
+            if (!held.is(net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER_KEY) && !player.isCreative()) {
+                player.displayClientMessage(net.minecraft.network.chat.Component.translatable(
+                        "message.asterion.cursed_brazier_door_locked"), true);
                 level.playSound(null, worldPosition, net.minecraft.sounds.SoundEvents.CHAIN_HIT,
                         net.minecraft.sounds.SoundSource.BLOCKS, .9F, .55F);
                 return;
@@ -71,7 +65,6 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
 
     public void sealForFight() {
         if (level == null) return;
-        fightSealed = true;
         unlocked = true;
         victoryOpen = false;
         passageEntered = false;
@@ -86,7 +79,6 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
 
     public void openAfterVictory() {
         if (level == null) return;
-        fightSealed = false;
         unlocked = true;
         victoryOpen = true;
         passageEntered = false;
@@ -104,7 +96,6 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
         raising = open;
         moving = true;
         motionStart = level.getGameTime();
-        if (open) entryReadyAt = motionStart + MOVE_TICKS + 40;
         passageEntered = false;
         if (open) CursedBrazierDoorBlock.setOpen(level, worldPosition,
                 getBlockState().getValue(CursedBrazierDoorBlock.FACING), true);
@@ -116,7 +107,7 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
         var facing = getBlockState().getValue(CursedBrazierDoorBlock.FACING);
         BlockPos a = CursedBrazierDoorBlock.part(worldPosition, facing, 0, 0);
         BlockPos b = CursedBrazierDoorBlock.part(worldPosition, facing, 2, 4);
-        return AABB.encapsulatingFullBlocks(a, b).inflate(.35D, 0, .35D);
+        return net.krodark.asterion.port.compat.GeometryCompat.fullBlocks(a, b).inflate(.35D, 0, .35D);
     }
     public static void tick(Level level, BlockPos pos, BlockState state, CursedBrazierDoorBlockEntity door) {
         if (level.isClientSide() || !CursedBrazierDoorBlock.isRoot(state)) return;
@@ -143,32 +134,28 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
         if (door.victoryOpen || !state.getValue(CursedBrazierDoorBlock.OPEN)) return;
         boolean occupied = !level.getEntitiesOfClass(Player.class, door.passage(), Player::isAlive).isEmpty();
         if (occupied) door.passageEntered = true;
-        else if (door.passageEntered && level.getGameTime() >= door.entryReadyAt) door.begin(false);
+        else if (door.passageEntered) door.begin(false);
     }
     private void sync() {
         setChanged();
         if (level != null) level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
     }
-    @Override protected void saveAdditional(ValueOutput out) {
-        super.saveAdditional(out);
+    @Override protected void saveAdditional(CompoundTag out, net.minecraft.core.HolderLookup.Provider registries) {
+        super.saveAdditional(out, registries);
         out.putFloat("progress", progress(0)); out.putFloat("startProgress", startProgress);
         out.putBoolean("raising", raising); out.putBoolean("moving", moving);
         out.putBoolean("passageEntered", passageEntered); out.putBoolean("unlocked", unlocked);
         out.putBoolean("victoryOpen", victoryOpen);
-        out.putBoolean("fightSealed", fightSealed);
         out.putLong("motionStart", motionStart);
-        out.putLong("entryReadyAt", entryReadyAt);
     }
-    @Override protected void loadAdditional(ValueInput in) {
-        super.loadAdditional(in);
-        progress = in.getFloatOr("progress", 0); startProgress = in.getFloatOr("startProgress", progress);
-        raising = in.getBooleanOr("raising", false); moving = in.getBooleanOr("moving", false);
-        passageEntered = in.getBooleanOr("passageEntered", false);
-        unlocked = in.getBooleanOr("unlocked", false);
-        victoryOpen = in.getBooleanOr("victoryOpen", false);
-        fightSealed = in.getBooleanOr("fightSealed", false);
-        motionStart = in.getLongOr("motionStart", 0);
-        entryReadyAt = in.getLongOr("entryReadyAt", unlocked ? motionStart + MOVE_TICKS + 40 : 0);
+    @Override protected void loadAdditional(CompoundTag in, net.minecraft.core.HolderLookup.Provider registries) {
+        super.loadAdditional(in, registries);
+        progress = net.krodark.asterion.port.compat.NbtCompat.getFloat(in, "progress", 0); startProgress = net.krodark.asterion.port.compat.NbtCompat.getFloat(in, "startProgress", progress);
+        raising = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "raising", false); moving = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "moving", false);
+        passageEntered = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "passageEntered", false);
+        unlocked = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "unlocked", false);
+        victoryOpen = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "victoryOpen", false);
+        motionStart = net.krodark.asterion.port.compat.NbtCompat.getLong(in, "motionStart", 0);
     }
     @Override public CompoundTag getUpdateTag(HolderLookup.Provider registries) { return saveCustomOnly(registries); }
     @Override public ClientboundBlockEntityDataPacket getUpdatePacket() { return ClientboundBlockEntityDataPacket.create(this); }

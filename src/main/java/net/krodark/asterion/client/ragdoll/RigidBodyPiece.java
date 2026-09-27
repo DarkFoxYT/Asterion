@@ -49,7 +49,6 @@ final class RigidBodyPiece {
     int age;
     int bounces;
     boolean sleeping;
-    boolean skeletonBody;
     float physicsBlend;
     double lastEnergyDelta;
     float bloodReservoir = 0.42f;

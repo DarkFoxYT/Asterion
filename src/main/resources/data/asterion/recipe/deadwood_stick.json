@@ -5,7 +5,7 @@
     "#"
   ],
   "key": {
-    "#": "asterion:dead_wood_planks"
+    "#": {"item":"asterion:dead_wood_planks"}
   },
   "result": {
     "id": "asterion:deadwood_stick",

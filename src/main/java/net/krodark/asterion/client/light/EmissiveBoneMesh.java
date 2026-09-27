@@ -9,13 +9,13 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import java.util.Map;
 import org.joml.Vector3f;
 
- 
+
 public final class EmissiveBoneMesh {
-     
-     
+
+
     private static final Map<CuboidGeoBone, EmissiveBoneMesh> CACHE = new MapMaker().weakKeys().makeMap();
     private static final ThreadLocal<Vector3f> POSITION = ThreadLocal.withInitial(Vector3f::new);
-     
+
     private final float[] vertices;
     private final int[] positionIndices;
     private final float[] positions;
@@ -95,7 +95,7 @@ public final class EmissiveBoneMesh {
         return vertices;
     }
 
-     
+
     public com.meekdev.amnetic.client.instanced.MeshData amneticGeometry() {
         int count = vertices.length / 5;
         int[] indices = new int[count / 4 * 6];
@@ -109,7 +109,7 @@ public final class EmissiveBoneMesh {
         return geometry;
     }
 
-     
+
     public void render(PoseStack.Pose pose, VertexConsumer buffer, int color, float uScale, float vScale) {
         Vector3f position = POSITION.get();
         float[] transformed = TRANSFORMED.get();
@@ -129,9 +129,9 @@ public final class EmissiveBoneMesh {
         }
     }
 
-     
+
     public static int dimColor(int argb, float strength) {
-        float brightness = Float.isFinite(strength) ? Math.clamp(strength, 0f, 1f) : 0.8f;
+        float brightness = Float.isFinite(strength) ? net.krodark.asterion.port.compat.MathCompat.clamp(strength, 0f, 1f) : 0.8f;
         int red = Math.round(((argb >>> 16) & 255) * brightness);
         int green = Math.round(((argb >>> 8) & 255) * brightness);
         int blue = Math.round((argb & 255) * brightness);

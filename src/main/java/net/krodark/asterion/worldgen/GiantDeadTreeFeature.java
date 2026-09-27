@@ -51,12 +51,12 @@ public final class GiantDeadTreeFeature extends Feature<NoneFeatureConfiguration
                     cursor.set(repairX, floorY + step, repairZ);
                     if (chunk.getBlockState(cursor).isAir())
                         chunk.setBlockState(cursor, Asterion.DEAD_WOOD.defaultBlockState()
-                                .setValue(RotatedPillarBlock.AXIS, Direction.Axis.Y), 0);
+                                .setValue(RotatedPillarBlock.AXIS, Direction.Axis.Y), false);
                 }
             }
         }
         chunk.setBlockState(marker, net.minecraft.world.level.block.Blocks.LIGHT.defaultBlockState()
-                .setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 0), 0);
+                .setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 0), false);
     }
 
     private static BlockPos nearestUpperTrunk(LevelChunk chunk, int x, int y, int z,

@@ -21,18 +21,6 @@ public final class EssentialClientLaunch {
         }
         System.setProperty("fabric.addMods", String.join(java.io.File.pathSeparator, mods));
         System.setProperty("fabric.development", "false");
-        String knotClient = classExists("org.quiltmc.loader.impl.launch.knot.KnotClient")
-                ? "org.quiltmc.loader.impl.launch.knot.KnotClient"
-                : "net.fabricmc.loader.impl.launch.knot.KnotClient";
-        Class.forName(knotClient).getMethod("main", String[].class).invoke(null, (Object) args);
-    }
-
-    private static boolean classExists(String name) {
-        try {
-            Class.forName(name, false, EssentialClientLaunch.class.getClassLoader());
-            return true;
-        } catch (ClassNotFoundException ignored) {
-            return false;
-        }
+        net.fabricmc.loader.impl.launch.knot.KnotClient.main(args);
     }
 }

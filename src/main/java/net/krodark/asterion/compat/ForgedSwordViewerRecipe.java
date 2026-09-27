@@ -2,14 +2,14 @@ package net.krodark.asterion.compat;
 
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.recipe.ForgedSwordRecipe;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingInput;
 
 import java.util.List;
 
  
-public record ForgedSwordViewerRecipe(Identifier id, List<ItemStack> inputs, ItemStack output) {
+public record ForgedSwordViewerRecipe(ResourceLocation id, List<ItemStack> inputs, ItemStack output) {
     public static ForgedSwordViewerRecipe create() {
         List<ItemStack> parts = List.of(
                 new ItemStack(Asterion.FORGED_SWORD_BLADE),
@@ -17,6 +17,6 @@ public record ForgedSwordViewerRecipe(Identifier id, List<ItemStack> inputs, Ite
                 new ItemStack(Asterion.FORGED_SWORD_POMMEL),
                 new ItemStack(Asterion.DEADWOOD_STICK));
         return new ForgedSwordViewerRecipe(Asterion.id("forged_sword_assembly"), parts,
-                new ForgedSwordRecipe().assemble(CraftingInput.of(2, 2, parts)));
+                new ItemStack(Asterion.FORGED_SWORD));
     }
 }

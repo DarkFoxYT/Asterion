@@ -1,7 +1,7 @@
 package net.krodark.asterion.fluid;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.LiquidBlockContainer;
@@ -13,11 +13,11 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 import org.jspecify.annotations.Nullable;
 
- 
+
 public final class HeavyWaterlogging {
     public static final IntegerProperty LEVEL = IntegerProperty.create("heavy_water", 0, 9);
     public static final int NORMAL = 9;
-     
+
     public static boolean ready;
     private HeavyWaterlogging() { }
 
@@ -39,12 +39,18 @@ public final class HeavyWaterlogging {
     public static BlockState dry(BlockState state) {
         return state.setValue(BlockStateProperties.WATERLOGGED, false).setValue(LEVEL, 0);
     }
-    public static boolean canFill(@Nullable LivingEntity user, BlockGetter level, BlockPos pos, BlockState state) {
+    public static boolean canFill(@Nullable Player user, BlockGetter level, BlockPos pos, BlockState state) {
         if (state.getBlock() instanceof net.krodark.asterion.block.HeavyWaterRedstone)
             return supports(state) && !state.getValue(BlockStateProperties.WATERLOGGED);
         return supports(state) && !state.getValue(BlockStateProperties.WATERLOGGED)
                 && state.getBlock() instanceof LiquidBlockContainer container
-                && container.canPlaceLiquid(user, level, pos, state, Fluids.WATER);
+                &&
+//? if >=1.20.5 {
+container.canPlaceLiquid(user, level, pos, state, Fluids.WATER)
+//?} else {
+/*container.canPlaceLiquid(level, pos, state, Fluids.WATER)*/
+//?}
+;
     }
     public static boolean fill(LevelAccessor level, BlockPos pos, BlockState state, FluidState fluid) {
         if (!canFill(null, level, pos, state)) return false;
@@ -57,7 +63,7 @@ public final class HeavyWaterlogging {
             return true;
         }
         var container = (LiquidBlockContainer)state.getBlock();
-         
+
         if (!container.placeLiquid(level, pos, state, Fluids.WATER.defaultFluidState())) return false;
         if (!level.isClientSide()) {
             BlockState placed = level.getBlockState(pos);

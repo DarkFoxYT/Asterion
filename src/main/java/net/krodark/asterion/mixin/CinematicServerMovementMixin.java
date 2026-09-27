@@ -12,17 +12,21 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ServerGamePacketListenerImpl.class)
 abstract class CinematicServerMovementMixin {
     @Shadow public ServerPlayer player;
-    @Inject(method = {"handleMovePlayer", "handleMoveVehicle", "handlePlayerAction", "handleUseItemOn", "handleUseItem", "handleInteract", "handleAttack"},
+    @Inject(method = {"handleMovePlayer", "handleMoveVehicle", "handlePlayerAction", "handleUseItemOn", "handleUseItem", "handleInteract"},
             at = @At("HEAD"), cancellable = true)
     private void asterion$lockCinematicBody(CallbackInfo ci) {
-         
+
         if (player.level().getServer().isSameThread() && (BossArenaEncounter.isMovementLocked(player)
                 || net.krodark.asterion.entity.MinotaurEntity.controlsPlayer(player))) ci.cancel();
     }
 
+    //? if >=1.20.5 {
     @Inject(method = "removePlayerFromWorld", at = @At("HEAD"))
+    //?} else {
+    /*@Inject(method = "onDisconnect", at = @At("HEAD"))*/
+    //?}
     private void asterion$releaseBeforePlayerSave(CallbackInfo ci) {
-         
+
         BossArenaEncounter.releasePlayer(player);
     }
 }

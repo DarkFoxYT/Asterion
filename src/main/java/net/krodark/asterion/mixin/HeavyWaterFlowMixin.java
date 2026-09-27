@@ -27,9 +27,9 @@ public abstract class HeavyWaterFlowMixin {
             ci.cancel();
         }
     }
-    @Inject(method = "canHoldSpecificFluid", at = @At("HEAD"), cancellable = true)
-    private static void asterion$flowIntoWaterloggable(BlockGetter level, BlockPos pos, BlockState state,
-                                                     Fluid fluid, CallbackInfoReturnable<Boolean> result) {
+    @Inject(method = "canHoldFluid", at = @At("HEAD"), cancellable = true)
+    private void asterion$flowIntoWaterloggable(BlockGetter level, BlockPos pos, BlockState state,
+                                                Fluid fluid, CallbackInfoReturnable<Boolean> result) {
         if (HeavyWaterlogging.isHeavy(fluid) && HeavyWaterlogging.supports(state))
             result.setReturnValue(HeavyWaterlogging.canFill(null, level, pos, state));
     }

@@ -10,7 +10,6 @@ import net.minecraft.world.phys.Vec3;
 
 public final class LedAmneticLight {
     private static final Map<Object, Long> UPDATED = new HashMap<>();
-    private static net.minecraft.client.multiplayer.ClientLevel trackedLevel;
 
     private LedAmneticLight() {}
 
@@ -26,19 +25,15 @@ public final class LedAmneticLight {
         if (key == null || client.level == null) {
             return;
         }
-        if (trackedLevel != client.level) {
-            UPDATED.clear(); LedAmneticPointLights.clear(); trackedLevel = client.level;
-        }
-        if (LedAmneticPointLights.update(key,
-                new LedPointLightSample(position, red, green, blue, strength, radius, castsShadow)))
-            UPDATED.put(key, client.level.getGameTime());
+        UPDATED.put(key, client.level.getGameTime());
+        LedAmneticPointLights.update(key,
+                new LedPointLightSample(position, red, green, blue, strength, radius, castsShadow));
     }
 
     public static void tickCleanup(Minecraft client) {
-        if (client.level == null || client.level != trackedLevel) {
+        if (client.level == null) {
             UPDATED.clear();
             LedAmneticPointLights.clear();
-            trackedLevel = client.level;
             return;
         }
          
@@ -67,10 +62,6 @@ public final class LedAmneticLight {
      
     public static Vec3 nearestAttractor(Vec3 origin, double maxDistance) {
         return origin == null ? null : LedAmneticPointLights.nearestAttractor(origin, maxDistance);
-    }
-
-    public static java.util.List<LedPointLightSample> nearbyFogLights(Vec3 origin, int limit) {
-        return origin == null ? java.util.List.of() : LedAmneticPointLights.fogSamples(origin, limit);
     }
 
     public record LedPointLightSample(Vec3 position, float red, float green, float blue,

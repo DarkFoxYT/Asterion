@@ -26,11 +26,11 @@ public final class MazeRuins {
                 var state = (y == 1 ? Asterion.SHALE_BRICKS : Asterion.ANCIENT_BRICKS).defaultBlockState();
                 if (y == height) state = Asterion.ANCIENT_BRICK_STAIRS.defaultBlockState()
                         .setValue(StairBlock.FACING, turn ? Direction.WEST : Direction.NORTH);
-                chunk.setBlockState(new BlockPos(x, floor + y, z), state, 0);
+                chunk.setBlockState(new BlockPos(x, floor + y, z), state, false);
             }
         } else if (along >= low && along <= high && across == low + 1 && !door
                 && Math.floorMod(CatacombLayout.hash(seed, x, z), 3) == 0) {
-            chunk.setBlockState(new BlockPos(x, floor + 1, z), Asterion.SHALE_BRICK_SLAB.defaultBlockState(), 0);
+            chunk.setBlockState(new BlockPos(x, floor + 1, z), Asterion.SHALE_BRICK_SLAB.defaultBlockState(), false);
         }
     }
 }

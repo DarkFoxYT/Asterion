@@ -1,6 +1,6 @@
 package net.krodark.asterion.item;
 
-import java.util.function.Consumer;
+import java.util.List;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -11,11 +11,12 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.ItemUseAnimation;
+import net.minecraft.world.item.UseAnim;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 
- 
+
 public final class AfterblowItem extends Item {
     private static final String STORED_DAMAGE = "afterblow_damage";
     private static final String STORED_AT = "afterblow_stored_at";
@@ -27,31 +28,36 @@ public final class AfterblowItem extends Item {
     }
 
     @Override
-    public InteractionResult use(Level level, net.minecraft.world.entity.player.Player player,
+    public net.minecraft.world.InteractionResultHolder<ItemStack> use(Level level, net.minecraft.world.entity.player.Player player,
                                  InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
-         
-         
-        if (player.getCooldowns().isOnCooldown(stack) || storedAt(stack, level.getGameTime()) > .001F)
-            return InteractionResult.FAIL;
+
+
+        if (player.getCooldowns().isOnCooldown(stack.getItem()) || storedAt(stack, level.getGameTime()) > .001F)
+            return net.minecraft.world.InteractionResultHolder.fail(stack);
         player.startUsingItem(hand);
-        return InteractionResult.CONSUME;
+        return net.minecraft.world.InteractionResultHolder.consume(stack);
     }
 
-    @Override public int getUseDuration(ItemStack stack, LivingEntity user) { return 40; }
-    @Override public ItemUseAnimation getUseAnimation(ItemStack stack) { return ItemUseAnimation.BLOCK; }
+    @Override public int
+//? if >=1.20.5 {
+getUseDuration(ItemStack stack, LivingEntity user)
+//?} else {
+/*getUseDuration(ItemStack stack)*/
+//?}
+ { return 40; }
+    @Override public UseAnim getUseAnimation(ItemStack stack) { return UseAnim.BLOCK; }
 
     @Override
-    public boolean releaseUsing(ItemStack stack, Level level, LivingEntity user, int remaining) {
+    public void releaseUsing(ItemStack stack, Level level, LivingEntity user, int remaining) {
         if (user instanceof ServerPlayer player)
-            player.getCooldowns().addCooldown(stack, BLOCK_COOLDOWN_TICKS);
-        return false;
+            player.getCooldowns().addCooldown(stack.getItem(), BLOCK_COOLDOWN_TICKS);
     }
 
     @Override
     public ItemStack finishUsingItem(ItemStack stack, Level level, LivingEntity user) {
         if (user instanceof ServerPlayer player)
-            player.getCooldowns().addCooldown(stack, BLOCK_COOLDOWN_TICKS);
+            player.getCooldowns().addCooldown(stack.getItem(), BLOCK_COOLDOWN_TICKS);
         return stack;
     }
 
@@ -60,44 +66,46 @@ public final class AfterblowItem extends Item {
                 || source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_SHIELD)
                 || source.getDirectEntity() == null) return false;
         ItemStack stack = player.getUseItem();
-        if (!(stack.getItem() instanceof AfterblowItem) || player.getCooldowns().isOnCooldown(stack)
+        if (!(stack.getItem() instanceof AfterblowItem) || player.getCooldowns().isOnCooldown(stack.getItem())
                 || storedAt(stack, player.level().getGameTime()) > .001F) return false;
 
         long now = player.level().getGameTime();
         writeStored(stack, damage, now);
-        player.getCooldowns().addCooldown(stack, BLOCK_COOLDOWN_TICKS);
+        player.getCooldowns().addCooldown(stack.getItem(), BLOCK_COOLDOWN_TICKS);
         int durability = Math.max(1, (int)Math.ceil(damage));
         InteractionHand hand = player.getUsedItemHand();
         player.stopUsingItem();
-        stack.hurtAndBreak(durability, player, hand);
+        net.krodark.asterion.port.compat.EntityCompat.hurtAndBreak(stack, durability, player, hand == InteractionHand.MAIN_HAND
+                ? net.minecraft.world.entity.EquipmentSlot.MAINHAND
+                : net.minecraft.world.entity.EquipmentSlot.OFFHAND);
         player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
                 net.krodark.asterion.Asterion.AFTERBLOW_PARRY,
                 net.minecraft.sounds.SoundSource.PLAYERS, 0.9F, 1.0F);
         return true;
     }
 
-     
+
     public static float consumeStored(ItemStack stack, long now) {
         float stored = storedAt(stack, now);
-         
-         
+
+
         if (rawStored(stack) > 0) writeStored(stack, 0, now);
         return stored;
     }
 
     public static float storedAt(ItemStack stack, long now) {
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        CustomData data = net.krodark.asterion.port.compat.ItemData.get(stack, DataComponents.CUSTOM_DATA);
         if (data == null) return 0;
         CompoundTag tag = data.copyTag();
-        float raw = tag.getFloatOr(STORED_DAMAGE, 0);
+        float raw = net.krodark.asterion.port.compat.NbtCompat.getFloat(tag, STORED_DAMAGE, 0);
         float value = Float.isFinite(raw) ? Math.max(0, raw) : 0;
-        long elapsed = Math.max(0, now - tag.getLongOr(STORED_AT, now));
+        long elapsed = Math.max(0, now - net.krodark.asterion.port.compat.NbtCompat.getLong(tag, STORED_AT, now));
         if (elapsed >= EXPIRES_TICKS) return 0;
         return value;
     }
 
     private static void writeStored(ItemStack stack, float value, long now) {
-        CustomData old = stack.get(DataComponents.CUSTOM_DATA);
+        CustomData old = net.krodark.asterion.port.compat.ItemData.get(stack, DataComponents.CUSTOM_DATA);
         CompoundTag tag = old == null ? new CompoundTag() : old.copyTag();
         if (value <= .001F) {
             tag.remove(STORED_DAMAGE);
@@ -106,39 +114,41 @@ public final class AfterblowItem extends Item {
             tag.putFloat(STORED_DAMAGE, value);
             tag.putLong(STORED_AT, now);
         }
-        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        net.krodark.asterion.port.compat.ItemData.set(stack, DataComponents.CUSTOM_DATA, CustomData.of(tag));
         updateModel(stack, value > .001F);
     }
 
     @Override
-    public void inventoryTick(ItemStack stack, net.minecraft.server.level.ServerLevel level,
-                              net.minecraft.world.entity.Entity entity, net.minecraft.world.entity.EquipmentSlot slot) {
-        float stored = storedAt(stack, level.getGameTime());
-        if (stored <= .001F && rawStored(stack) > 0) writeStored(stack, 0, level.getGameTime());
+    public void inventoryTick(ItemStack stack, Level level,
+                              net.minecraft.world.entity.Entity entity, int slot, boolean selected) {
+        if (!(level instanceof net.minecraft.server.level.ServerLevel serverLevel)) return;
+        float stored = storedAt(stack, serverLevel.getGameTime());
+        if (stored <= .001F && rawStored(stack) > 0) writeStored(stack, 0, serverLevel.getGameTime());
         else updateModel(stack, stored > .001F);
     }
 
     private static float rawStored(ItemStack stack) {
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        CustomData data = net.krodark.asterion.port.compat.ItemData.get(stack, DataComponents.CUSTOM_DATA);
         if (data == null) return 0;
-        float value = data.copyTag().getFloatOr(STORED_DAMAGE, 0);
+        float value = net.krodark.asterion.port.compat.NbtCompat.getFloat(data.copyTag(), STORED_DAMAGE, 0);
         return Float.isFinite(value) ? Math.max(0, value) : 0;
     }
 
     private static void updateModel(ItemStack stack, boolean powered) {
-        var model = new net.minecraft.world.item.component.CustomModelData(
-                java.util.List.of(), java.util.List.of(powered), java.util.List.of(), java.util.List.of());
-        if (!model.equals(stack.get(DataComponents.CUSTOM_MODEL_DATA))) stack.set(DataComponents.CUSTOM_MODEL_DATA, model);
+        var model = new net.minecraft.world.item.component.CustomModelData(powered ? 1 : 0);
+        if (!model.equals(net.krodark.asterion.port.compat.ItemData.get(stack, DataComponents.CUSTOM_MODEL_DATA))) net.krodark.asterion.port.compat.ItemData.set(stack, DataComponents.CUSTOM_MODEL_DATA, model);
     }
 
-    public void appendTooltip(ItemStack stack, Consumer<Component> tooltip) {
+    @Override
+    public void appendHoverText(ItemStack stack, TooltipContext context,
+                                List<Component> tooltip, TooltipFlag flag) {
         float stored = rawStored(stack);
         if (stored > .01F)
-            tooltip.accept(Component.translatable("tooltip.asterion.afterblow.stored", stored)
+            tooltip.add(Component.translatable("tooltip.asterion.afterblow.stored", stored)
                     .withStyle(ChatFormatting.GOLD));
-        tooltip.accept(Component.translatable("tooltip.asterion.afterblow.guard.1").withStyle(ChatFormatting.DARK_GRAY));
-        tooltip.accept(Component.translatable("tooltip.asterion.afterblow.guard.2").withStyle(ChatFormatting.DARK_GRAY));
-        tooltip.accept(Component.translatable("tooltip.asterion.afterblow.guard.3").withStyle(ChatFormatting.DARK_GRAY));
-        tooltip.accept(Component.translatable("tooltip.asterion.afterblow.guard.4").withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.add(Component.translatable("tooltip.asterion.afterblow.guard.1").withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.add(Component.translatable("tooltip.asterion.afterblow.guard.2").withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.add(Component.translatable("tooltip.asterion.afterblow.guard.3").withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.add(Component.translatable("tooltip.asterion.afterblow.guard.4").withStyle(ChatFormatting.DARK_GRAY));
     }
 }

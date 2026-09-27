@@ -26,7 +26,7 @@ public final class MinotaurAxeRenderer extends EntityRenderer<MinotaurAxeEntity,
         state.releaseOffset = net.minecraft.world.phys.Vec3.ZERO;
         var release = !state.sword && axe.tickCount < 4 ? MinotaurAxeVisual.release(axe.throwerId()) : null;
         if (release != null) {
-            float blend = Math.clamp((axe.tickCount + partial) / 4F, 0, 1);
+            float blend = net.krodark.asterion.port.compat.MathCompat.clamp((axe.tickCount + partial) / 4F, 0, 1);
             blend = blend * blend * (3 - 2 * blend);
             state.releaseOffset = release.center().subtract(new net.minecraft.world.phys.Vec3(state.x, state.y, state.z)).scale(1 - blend);
             state.rotation.set(release.rotation()).slerp(axe.renderRotation(partial), blend);

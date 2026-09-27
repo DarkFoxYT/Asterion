@@ -11,11 +11,11 @@ import net.minecraft.world.phys.AABB;
 import net.krodark.asterion.block.DirectionalGateBlock;
 import net.minecraft.world.level.block.state.properties.AttachFace;
 
- 
+
 public final class MinotaurArenaEntrances {
     public static final int DOOR_RADIUS = 61, FLOOR_Y = AuthoredCatacombs.ARENA_FLOOR_Y;
     public static final Direction PLAYER_ENTRANCE = Direction.SOUTH, BOSS_ENTRANCE = Direction.NORTH;
-     
+
     public static final java.util.List<Direction> DOORS = java.util.List.of(PLAYER_ENTRANCE);
     public static final int BOSS_ROOM_BACK = 44;
     public static final BlockPos AUTHORED_BOSS_GATE = new BlockPos(0, AuthoredCatacombs.ARENA_FLOOR_Y, -41);
@@ -32,7 +32,7 @@ public final class MinotaurArenaEntrances {
     public static AABB gateBounds(Direction facing) { return panelBounds(gate(facing), facing, gateHeight()); }
     public static AABB doorBounds(Direction facing) { return panelBounds(door(facing), facing, 5); }
     private static AABB panelBounds(BlockPos root, Direction facing, int height) {
-        return AABB.encapsulatingFullBlocks(root.relative(facing.getClockWise(), -3),
+        return net.krodark.asterion.port.compat.GeometryCompat.fullBlocks(root.relative(facing.getClockWise(), -3),
                 root.relative(facing.getClockWise(), 3).above(height - 1));
     }
     public static boolean isGate(BlockPos pos) {
@@ -46,8 +46,9 @@ public final class MinotaurArenaEntrances {
         if (position.y < floorY - .5 || position.y > floorY + 7) return null;
         for (Direction facing : java.util.List.of(PLAYER_ENTRANCE)) {
             Vec3 offset = position.subtract(Vec3.atBottomCenterOf(door(facing)));
-            double depth = offset.dot(facing.getUnitVec3());
-            if (depth >= -4 && depth <= 8 && Math.abs(offset.dot(facing.getClockWise().getUnitVec3())) < 3.5) return facing;
+            double depth = offset.dot(Vec3.atLowerCornerOf(facing.getNormal()));
+            if (depth >= -4 && depth <= 8
+                    && Math.abs(offset.dot(Vec3.atLowerCornerOf(facing.getClockWise().getNormal()))) < 3.5) return facing;
         }
         return null;
     }
@@ -81,7 +82,7 @@ public final class MinotaurArenaEntrances {
             BlockPos center = facing == BOSS_ENTRANCE ? AUTHORED_BOSS_GATE : gate(PLAYER_ENTRANCE);
             int authoredHeight = facing == BOSS_ENTRANCE ? 6 : 5;
             int normalizedClosed = facing == BOSS_ENTRANCE && omegaGateLocked(level) ? authoredHeight
-                    : Math.clamp(closedRows, 0, gateHeight()) * authoredHeight / gateHeight();
+                    : net.krodark.asterion.port.compat.MathCompat.clamp(closedRows, 0, gateHeight()) * authoredHeight / gateHeight();
             var base = Asterion.MAZESTEEL_GATE.defaultBlockState()
                     .setValue(DirectionalGateBlock.FACE, AttachFace.FLOOR)
                     .setValue(DirectionalGateBlock.FACING, facing.getOpposite());
@@ -105,7 +106,7 @@ public final class MinotaurArenaEntrances {
             var next = state.setValue(DirectionalGateBlock.OPEN, row < gateHeight() - closedRows);
             if (!level.getBlockState(pos).equals(next)) level.setBlock(pos, next, 2);
         }
-         
+
         for (int side = -3; side <= 3; side++) {
             BlockPos pos=gate(facing).relative(facing.getClockWise(), side).above(gateHeight());
             var next=state.setValue(DirectionalGateBlock.OPEN, false);
@@ -114,7 +115,7 @@ public final class MinotaurArenaEntrances {
     }
     public static boolean entranceLane(int x, int z) { return Math.abs(x) <= 4; }
 
-     
+
     public static java.util.List<BlockPos> pillarCenters(int count) {
         var centers = new java.util.ArrayList<BlockPos>(count);
         for (int quadrant = 0; quadrant < 4; quadrant++) {
@@ -129,14 +130,14 @@ public final class MinotaurArenaEntrances {
         return centers;
     }
 
-     
+
     public static Direction crossedEntrance(Vec3 previous, Vec3 current) {
         for (Direction facing : java.util.List.of(PLAYER_ENTRANCE)) {
             Vec3 center = Vec3.atBottomCenterOf(door(facing));
-            Vec3 outward = facing.getUnitVec3();
+            Vec3 outward = net.minecraft.world.phys.Vec3.atLowerCornerOf(facing.getNormal());
             Vec3 relative = current.subtract(center);
             double after = relative.dot(outward);
-            double across = Math.abs(relative.dot(facing.getClockWise().getUnitVec3()));
+            double across = Math.abs(relative.dot(Vec3.atLowerCornerOf(facing.getClockWise().getNormal())));
             boolean justInside = after < 0 && after >= -8 && across <= 3.5
                     && relative.y >= -.25 && relative.y < 4.5;
             if (previous == null || previous.distanceToSqr(current) > 16 * 16) {
@@ -146,18 +147,18 @@ public final class MinotaurArenaEntrances {
             double before = previous.subtract(center).dot(outward);
             if (before >= 0 && after < 0) {
                 Vec3 crossing = previous.lerp(current, before / (before - after)).subtract(center);
-                if (Math.abs(crossing.dot(facing.getClockWise().getUnitVec3())) <= 3.5
+                if (Math.abs(crossing.dot(Vec3.atLowerCornerOf(facing.getClockWise().getNormal()))) <= 3.5
                         && crossing.y >= -.25 && crossing.y < 4.5) return facing;
             }
-             
-             
-             
-             
+
+
+
+
             if (justInside) return facing;
         }
         return null;
     }
-    public static int floorAt(int radius) { return FLOOR_Y + Math.clamp(radius - 42, 0, 12); }
+    public static int floorAt(int radius) { return FLOOR_Y + net.krodark.asterion.port.compat.MathCompat.clamp(radius - 42, 0, 12); }
     public static void build(ServerLevel level) {
         if (AuthoredCatacombs.enabled()) {
             if(level.getChunkSource().hasChunk(0,3))buildForChunk(level,new net.minecraft.world.level.ChunkPos(0,3));
@@ -165,14 +166,14 @@ public final class MinotaurArenaEntrances {
             for(Direction facing:java.util.List.of(PLAYER_ENTRANCE,BOSS_ENTRANCE))
                 if(!(level.getBlockEntity(door(facing)) instanceof net.krodark.asterion.block.MinotaurDoorBlockEntity))
                     MinotaurDoorBlock.place(level,door(facing),facing);
-             
-             
-             
+
+
+
             setGates(level,0,null);
             return;
         }
         int heightLimit = Math.max(8, (int)Math.ceil(2.75 * net.krodark.asterion.AsterionConfig.INSTANCE.minotaurScale) + 2);
-         
+
         for (Direction removed : java.util.List.of(Direction.EAST, Direction.WEST, BOSS_ENTRANCE)) {
             int start = removed == BOSS_ENTRANCE ? BOSS_ROOM_BACK : DOOR_RADIUS + 1;
             for (int radius = start; radius <= 56; radius++) for (int side = -4; side <= 4; side++)
@@ -202,20 +203,20 @@ public final class MinotaurArenaEntrances {
         setGates(level, 0, null);
     }
     public static void buildForChunk(ServerLevel level,net.minecraft.world.level.ChunkPos chunk) {
-        if(chunk.x()!=0)return;
-         
-         
-         
-        if(chunk.equals(net.minecraft.world.level.ChunkPos.containing(gate(PLAYER_ENTRANCE))))
+        if(chunk.x!=0)return;
+
+
+
+        if(chunk.equals(new net.minecraft.world.level.ChunkPos(gate(PLAYER_ENTRANCE))))
             setGate(level,PLAYER_ENTRANCE,0);
-        if(chunk.z()==-3)setAuthoredBossGate(level,0);
+        if(chunk.z==-3)setAuthoredBossGate(level,0);
         if (net.krodark.asterion.AsterionWorldState.get(level).minotaurDefeated()
-                && chunk.equals(net.minecraft.world.level.ChunkPos.containing(door(PLAYER_ENTRANCE)))
+                && chunk.equals(new net.minecraft.world.level.ChunkPos(door(PLAYER_ENTRANCE)))
                 && level.getBlockEntity(door(PLAYER_ENTRANCE)) instanceof net.krodark.asterion.block.MinotaurDoorBlockEntity door)
             door.openAfterVictory();
     }
 
-     
+
     private static void ensureOmegaLock(ServerLevel level) {
         if (BossArenaEncounter.isIntroCinematic(level)) return;
         var state = level.getBlockState(OMEGA_LOCK_POSITION);
@@ -225,7 +226,7 @@ public final class MinotaurArenaEntrances {
     }
 
     public static void repairOmegaLock(ServerLevel level, net.minecraft.world.level.ChunkPos chunk) {
-        if (chunk.equals(net.minecraft.world.level.ChunkPos.containing(OMEGA_LOCK_POSITION))
+        if (chunk.equals(new net.minecraft.world.level.ChunkPos(OMEGA_LOCK_POSITION))
                 && omegaGateLocked(level)) ensureOmegaLock(level);
     }
 
@@ -269,8 +270,8 @@ public final class MinotaurArenaEntrances {
     }
 
     public static void breakLintel(ServerLevel level, Direction facing, double bossHeight) {
-         
-         
+
+
         if (AuthoredCatacombs.enabled()) return;
         int height = (int)Math.ceil(bossHeight) + 1;
         BlockPos root = door(facing);
@@ -279,7 +280,7 @@ public final class MinotaurArenaEntrances {
                 BlockPos pos = root.relative(facing, depth).relative(facing.getClockWise(), side).above(y);
                 if (level.getBlockState(pos).is(Asterion.ANCIENT_BRICKS)) {
                     if (level.getRandom().nextInt(4) == 0)
-                        ArenaDebris.queue(level, Vec3.atCenterOf(pos), facing.getOpposite().getUnitVec3()
+                        ArenaDebris.queue(level, Vec3.atCenterOf(pos), net.minecraft.world.phys.Vec3.atLowerCornerOf(facing.getOpposite().getNormal())
                                 .scale(.5 + level.getRandom().nextDouble() * .5).add(0, .2, 0));
                     level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2);
                 }

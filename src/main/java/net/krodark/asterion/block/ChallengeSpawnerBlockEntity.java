@@ -5,6 +5,7 @@ import net.krodark.asterion.Asterion;
 import net.krodark.asterion.game.GameplayContent;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.*;
@@ -17,29 +18,30 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.*;
 
-public final class ChallengeSpawnerBlockEntity extends BlockEntity {
+public final class ChallengeSpawnerBlockEntity extends net.krodark.asterion.port.compat.VersionedBlockEntity {
     private boolean started, complete;
     private int spawnVersion = 1;
     private int remaining = 60 * 20;
     private final List<UUID> mobs = new ArrayList<>();
     private UUID label;
     public ChallengeSpawnerBlockEntity(BlockPos pos, BlockState state) { super(GameplayContent.CHALLENGE_SPAWNER_ENTITY, pos, state); }
-    @Override protected void saveAdditional(ValueOutput out) {
-        super.saveAdditional(out);
+    @Override protected void saveAdditional(CompoundTag out, net.minecraft.core.HolderLookup.Provider registries) {
+        super.saveAdditional(out, registries);
         out.putInt("SpawnVersion", spawnVersion);
         out.putBoolean("Started", started); out.putBoolean("Complete", complete); out.putInt("Remaining", remaining);
         out.putString("Mobs", String.join(",", mobs.stream().map(UUID::toString).toList()));
         if (label != null) out.putString("Label", label.toString());
     }
-    @Override protected void loadAdditional(ValueInput in) {
-        super.loadAdditional(in);
-        spawnVersion = in.getIntOr("SpawnVersion", 0);
-        started = in.getBooleanOr("Started", false); complete = in.getBooleanOr("Complete", false);
-        remaining = Math.clamp(in.getIntOr("Remaining", 1200), 0, 1200);
+    @Override protected void loadAdditional(CompoundTag in, net.minecraft.core.HolderLookup.Provider registries) {
+        super.loadAdditional(in, registries);
+        spawnVersion = net.krodark.asterion.port.compat.NbtCompat.getInt(in, "SpawnVersion", 0);
+        started = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "Started", false); complete = net.krodark.asterion.port.compat.NbtCompat.getBoolean(in, "Complete", false);
+        remaining = net.krodark.asterion.port.compat.MathCompat.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(in, "Remaining", 1200), 0, 1200);
         mobs.clear();
-        for (String id : in.getStringOr("Mobs", "").split(",")) if (!id.isEmpty()) mobs.add(UUID.fromString(id));
-        String id = in.getStringOr("Label", ""); label = id.isEmpty() ? null : UUID.fromString(id);
+        for (String id : net.krodark.asterion.port.compat.NbtCompat.getString(in, "Mobs", "").split(",")) if (!id.isEmpty()) mobs.add(UUID.fromString(id));
+        String id = net.krodark.asterion.port.compat.NbtCompat.getString(in, "Label", ""); label = id.isEmpty() ? null : UUID.fromString(id);
     }
+    @SuppressWarnings("deprecation") // The portable 1.21.1 spawn finalization signature.
     public static void tick(Level world, BlockPos pos, BlockState state, ChallengeSpawnerBlockEntity spawner) {
         if (!(world instanceof ServerLevel level)) return;
         if (spawner.spawnVersion == 0) {
@@ -67,12 +69,17 @@ public final class ChallengeSpawnerBlockEntity extends BlockEntity {
             int groupSize = 2 + level.getRandom().nextInt(3);
             for (int attempt = 0; attempt < 64 && spawner.mobs.size() < groupSize; attempt++) {
                 EntityType<? extends Mob> type = Asterion.CONSTRUCT;
-                Mob mob = type.create(level, EntitySpawnReason.SPAWNER);
+                Mob mob = type.create(level);
                 if (mob == null) continue;
                 BlockPos spawn = pos.offset(level.getRandom().nextInt(9) - 4, level.getRandom().nextInt(5) - 2, level.getRandom().nextInt(9) - 4);
                 mob.setPos(spawn.getX() + .5, spawn.getY(), spawn.getZ() + .5);
                 if (!level.noCollision(mob) || !level.getBlockState(spawn.below()).isFaceSturdy(level, spawn.below(), net.minecraft.core.Direction.UP)) continue;
-                initializeSpawn(mob, level, spawn);
+                //? if >=1.20.5 {
+mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawn), MobSpawnType.SPAWNER, null);
+//?} else {
+/*mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawn), MobSpawnType.SPAWNER, null, null);*/
+//?}
+
                 mob.setPersistenceRequired(); mob.setTarget(player);
                 mob.addTag(net.krodark.asterion.game.ChallengeDeaths.TAG);
                 if (level.addFreshEntity(mob) && !mob.isRemoved()) spawner.mobs.add(mob.getUUID());
@@ -81,7 +88,7 @@ public final class ChallengeSpawnerBlockEntity extends BlockEntity {
             spawner.started = true;
             spawner.setChanged();
         }
-         
+
         var deaths = net.krodark.asterion.game.ChallengeDeaths.get(level);
         boolean changed = spawner.mobs.removeIf(deaths::consume);
         if (spawner.mobs.isEmpty()) {
@@ -111,12 +118,6 @@ public final class ChallengeSpawnerBlockEntity extends BlockEntity {
         if (label != null && level.getEntity(label) != null) level.getEntity(label).discard();
         label = null;
     }
-    // The shared source set uses vanilla spawn initialization on all loaders.
-    @SuppressWarnings("deprecation")
-    private static void initializeSpawn(Mob mob, ServerLevel level, BlockPos pos) {
-        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(pos), EntitySpawnReason.SPAWNER, null);
-    }
-
     private static void dropRewards(ServerLevel level, BlockPos pos) {
         var random = level.getRandom();
         Block.popResource(level, pos.above(), new ItemStack(Asterion.SHALE_TARNISHED_GOLD_ORE, 3 + random.nextInt(4)));
@@ -139,9 +140,8 @@ public final class ChallengeSpawnerBlockEntity extends BlockEntity {
         if (random.nextInt(100) == 0) Block.popResource(level, pos.above(), new ItemStack(net.krodark.asterion.game.AncientContent.ANCIENT_BONE));
     }
 
-    @Override public void preRemoveSideEffects(BlockPos pos, BlockState state) {
+    public void removeDisplay() {
         if (level instanceof ServerLevel server) removeLabel(server);
-        super.preRemoveSideEffects(pos, state);
     }
 }
 

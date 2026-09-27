@@ -7,8 +7,8 @@
     "PPP"
   ],
   "key": {
-    "P": "#minecraft:planks",
-    "I": "minecraft:iron_ingot"
+    "P": {"tag":"minecraft:planks"},
+    "I": {"item":"minecraft:iron_ingot"}
   },
   "result": {
     "id": "asterion:barrel_door",

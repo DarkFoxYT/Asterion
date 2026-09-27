@@ -15,8 +15,7 @@ public abstract class BiomeMusicMixin {
     @Shadow public abstract void stopPlaying();
     @Inject(method = "tick", at = @At("HEAD"), cancellable = true)
     private void asterion$ownMazeMusic(CallbackInfo ci) {
-        boolean maze = BiomeMusic.ownsMusic()
-                || net.krodark.asterion.update.underworld.client.LimboMusic.ownsMusic();
+        boolean maze = BiomeMusic.ownsMusic();
         if (maze) {
             if (!asterion$wasInMaze) stopPlaying();
             ci.cancel();

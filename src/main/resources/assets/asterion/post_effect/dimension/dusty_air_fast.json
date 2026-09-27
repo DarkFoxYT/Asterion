@@ -11,8 +11,8 @@
       "output": "dusty_fast_scene"
     },
     {
-      "vertex_shader": "minecraft:core/screenquad",
-      "fragment_shader": "minecraft:post/blit",
+      "vertex_shader": "asterion:post/dimension/volumetric",
+      "fragment_shader": "asterion:post/dimension/blit",
       "inputs": [{ "sampler_name": "In", "target": "dusty_fast_scene", "bilinear": true }],
       "output": "minecraft:main",
       "uniforms": { "BlitConfig": [{ "name": "ColorModulate", "type": "vec4", "value": [1.0, 1.0, 1.0, 1.0] }] }

@@ -1,4 +1,0 @@
-{
-  "parent": "minecraft:block/leaves",
-  "textures": { "all": "asterion:block/tainted_leaf_varriant" }
-}

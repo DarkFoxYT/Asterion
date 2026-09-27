@@ -15,16 +15,20 @@ final class OvergrowthFeatureSupport {
     static boolean canWrite(WorldGenLevel level, BlockPos pos) {
         if (level.isOutsideBuildHeight(pos)) return false;
         if (level instanceof WorldGenRegion region) {
+            //? if >=1.20.5 {
             int radius = ((WorldGenRegionAccessor) region).asterion$generatingStep().blockStateWriteRadius();
+            //?} else {
+            /*int radius = ((WorldGenRegionAccessor) region).asterion$writeRadius();*/
+            //?}
             if (!withinWriteRadius(region.getCenter(), pos, radius)) return false;
         }
-         
+
         return level.ensureCanWrite(pos);
     }
 
     static boolean withinWriteRadius(ChunkPos center, BlockPos pos, int radius) {
-        return Math.abs((long) (pos.getX() >> 4) - center.x()) <= radius
-                && Math.abs((long) (pos.getZ() >> 4) - center.z()) <= radius;
+        return Math.abs((long) (pos.getX() >> 4) - center.x) <= radius
+                && Math.abs((long) (pos.getZ() >> 4) - center.z) <= radius;
     }
 
     static boolean enabled(WorldGenLevel level, BlockPos pos, String feature) {

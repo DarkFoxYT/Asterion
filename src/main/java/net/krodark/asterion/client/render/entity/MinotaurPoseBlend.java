@@ -8,7 +8,7 @@ import net.krodark.asterion.entity.MinotaurEntity;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import java.util.*;
 
- 
+
 final class MinotaurPoseBlend {
     private static final DataTicket<Frame> FRAME = DataTickets.create("asterion_pose_blend", Frame.class);
     private static final Map<MinotaurEntity, History> HISTORIES = new WeakHashMap<>();
@@ -39,7 +39,7 @@ final class MinotaurPoseBlend {
             history.pose = frame.pose;
             history.start = age;
         }
-        float t = (float)Math.clamp((age - history.start) / 6, 0, 1);
+        float t = (float)net.krodark.asterion.port.compat.MathCompat.clamp((age - history.start) / 6, 0, 1);
         float blend = t * t * (3 - 2 * t);
         for (var bone : pass.model().boneLookup().get().values()) {
             var pose = bones.get(bone);

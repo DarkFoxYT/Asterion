@@ -30,7 +30,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 
- 
+
 
 
 
@@ -52,7 +52,7 @@ public final class PhysicsDebrisSystem {
             new VariantProfile(new Vec3(0.25, 0.25, 0.25), new Vec3(0.0, 0.25, 0.0),
                     0.09F, 0.62, 0.970, 0.36, 0.055, Double.POSITIVE_INFINITY,
                     Integer.MAX_VALUE, 2.15F, true, true, 220, 420),
-             
+
             new VariantProfile(new Vec3(1.75, 2.5, .25), new Vec3(.6 / 16.0, 2.5, 0),
                     8F, 1.35, .996, .14, .62, Double.POSITIVE_INFINITY,
                     Integer.MAX_VALUE, .3F, true, false, 900, 1100)
@@ -89,7 +89,7 @@ public final class PhysicsDebrisSystem {
         Random random = new Random(payload.seed());
         float angle = Float.isFinite(payload.angle()) ? Mth.clamp(payload.angle(), 0, MinotaurDoorMotion.OPEN_ANGLE) : 0;
         Vec3 inward = payload.facing().getOpposite().getUnitVec3();
-        if (DOOR_CLOUDS.size() >= 4) DOOR_CLOUDS.removeFirst();
+        if (DOOR_CLOUDS.size() >= 4) DOOR_CLOUDS.remove(0);
         DoorCloud cloud = new DoorCloud(Vec3.atBottomCenterOf(payload.root()), inward, random);
         DOOR_CLOUDS.add(cloud);
         cloud.emit(client.level, 160);
@@ -98,7 +98,7 @@ public final class PhysicsDebrisSystem {
             float yaw = MinotaurDoorMotion.yaw(payload.facing()) + side * angle;
             door.orientation.rotationY(yaw);
             door.previousOrientation.set(door.orientation);
-             
+
             Vec3 across = payload.facing().getClockWise().getUnitVec3();
             door.velocity = inward.scale(1.55 + random.nextDouble() * .18)
                     .add(across.scale(side * .22)).add(0, .48 + random.nextDouble() * .10, 0);
@@ -131,8 +131,8 @@ public final class PhysicsDebrisSystem {
             Vec3 pos = fragment.position(), velocity = fragment.velocity();
             if (!Double.isFinite(pos.lengthSqr()) || !Double.isFinite(velocity.lengthSqr())
                     || pos.distanceToSqr(client.player.position()) > 96 * 96) continue;
-             
-             
+
+
             int variant = random.nextInt(12) == 0 ? 1 : 2 + random.nextInt(5);
             Piece piece = new Piece(pos, variant, fragment.scale(), random);
             piece.velocity = velocity.lengthSqr() > 9 ? velocity.normalize().scale(3) : velocity;
@@ -165,7 +165,7 @@ public final class PhysicsDebrisSystem {
             Vec3 across = new Vec3(inward.z, 0, -inward.x);
             for (int i = 0; i < count; i++) {
                 double side = (random.nextBoolean() ? 3 : -3) + (random.nextDouble() - .5) * .3;
-                 
+
                 double height = (random.nextBoolean() ? 1.0 : 4.0) + random.nextDouble() * .3;
                 Vec3 pos = root.add(across.scale(side)).add(inward.scale(random.nextDouble() * .25)).add(0, height, 0);
                 Vec3 drift = inward.scale(.12 + random.nextDouble() * .20).add(across.scale(side * .014));
@@ -217,7 +217,7 @@ public final class PhysicsDebrisSystem {
             piece.previousOrientation.set(piece.orientation);
             piece.age++;
             boolean shattered = false;
-             
+
             if (!piece.sleeping || piece.age % 10 == 0)
                 for (int step = 0; step < substeps && !shattered && (step == 0 || !piece.sleeping); step++)
                     shattered = simulateStep(client.level, piece, 1.0 / substeps, fracturedChildren);
@@ -358,8 +358,8 @@ public final class PhysicsDebrisSystem {
     }
 
     private static void simulateDoorStep(ClientLevel level, Piece door, double dt) {
-         
-         
+
+
         if (door.velocity.lengthSqr() > 3.2 * 3.2) door.velocity = door.velocity.normalize().scale(3.2);
         if (door.angularVelocity.lengthSquared() > 1) door.angularVelocity.normalize();
         int sweeps = Mth.clamp((int)Math.ceil((door.velocity.length()
@@ -419,7 +419,7 @@ public final class PhysicsDebrisSystem {
         // Require sustained support and low rotation, but do not keep resting doors awake for that jitter.
         boolean slow = door.velocity.horizontalDistanceSqr() < .0025 && Math.abs(door.velocity.y) < .16
                 && door.angularVelocity.lengthSquared() < .004;
-         
+
         if (slow && !supported) supported = !isWorldClear(level, door, door.position.add(0, -.06, 0));
         boolean quiet = slow && supported;
         door.restingTime = quiet ? door.restingTime + dt : 0;
@@ -441,7 +441,7 @@ public final class PhysicsDebrisSystem {
         }
     }
 
-     
+
 
 
 
@@ -462,8 +462,8 @@ public final class PhysicsDebrisSystem {
 
         Vec3 towardPlayer = contact.normal;
         double mass = piece.mass();
-         
-         
+
+
         double debrisShare = 1.0D / (1.0D + mass);
         double playerShare = 1.0D - debrisShare;
         double depth = Math.min(contact.depth + 0.0015D, 0.32D);
@@ -494,8 +494,8 @@ public final class PhysicsDebrisSystem {
         boolean overhead = towardPlayer.y < -0.42D;
         boolean massive = mass >= 18.0D;
         if (massive && overhead) {
-             
-             
+
+
             Vec3 velocity = player.getDeltaMovement();
             player.setDeltaMovement(velocity.x * 0.08D, Math.min(velocity.y, -0.035D), velocity.z * 0.08D);
             player.setJumping(false);
@@ -529,7 +529,7 @@ public final class PhysicsDebrisSystem {
                 piece.position, radius, strength, duration);
     }
 
-     
+
     public static void throwDoors(Vec3 center, float radius) {
         if (!Float.isFinite(radius) || radius <= 0) return;
         double reach = Math.min(32, radius * 2.0 + 3);
@@ -576,7 +576,7 @@ public final class PhysicsDebrisSystem {
                 .add(normal.scale(outwardSpeed * (piece.variant == 6 ? 0.18D : 0.34D)));
     }
 
-     
+
     private static void splitPrimaryDebris(ClientLevel level, Piece parent, Vec3 normal,
                                            double impactSpeed, List<Piece> output) {
         burst(level, parent, normal, impactSpeed);

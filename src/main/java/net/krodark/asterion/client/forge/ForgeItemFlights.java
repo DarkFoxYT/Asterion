@@ -13,7 +13,7 @@ import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 
- 
+
 public final class ForgeItemFlights {
     private record Flight(Vec3 from, Vec3 to, long tick, ItemStackRenderState item) {}
     private static final ArrayList<Flight> flights = new ArrayList<>();
@@ -30,7 +30,7 @@ public final class ForgeItemFlights {
         if (level != client.level) { flights.clear(); level = client.level; }
         var state = new ItemStackRenderState();
         client.getItemModelResolver().updateForTopItem(state, payload.item(), ItemDisplayContext.FIXED, level, null, 0);
-        if (flights.size() >= 32) flights.removeFirst();
+        if (flights.size() >= 32) flights.remove(0);
         flights.add(new Flight(payload.from(), payload.pos().getCenter().add(0, 3.05, 0), level.getGameTime(), state));
     }
     public static void submit(PoseStack poses, LevelRenderState state, SubmitNodeCollector out) {
@@ -41,8 +41,8 @@ public final class ForgeItemFlights {
         Vec3 camera = state.cameraRenderState.pos;
         for (var flight : flights) {
             double age = now - flight.tick;
-            float melt = (float)Math.clamp((age - 22) / 18, 0, 1);
-            double t = Math.clamp((now - flight.tick) / 22, 0, 1);
+            float melt = (float)net.krodark.asterion.port.compat.MathCompat.clamp((age - 22) / 18, 0, 1);
+            double t = net.krodark.asterion.port.compat.MathCompat.clamp((now - flight.tick) / 22, 0, 1);
             Vec3 point = flight.from.lerp(flight.to, t).add(0, 4.5 * Math.sin(t * Math.PI), 0).add(0, -melt * .3, 0).subtract(camera);
             poses.pushPose();
             poses.translate(point.x, point.y, point.z);

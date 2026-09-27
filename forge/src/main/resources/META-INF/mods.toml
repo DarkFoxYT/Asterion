@@ -7,7 +7,8 @@ modId="asterion"
 version="${version}"
 displayName="Asterion"
 authors="Kronoz, DarkFox"
-description='''Descend into the living labyrinth and survive the Minotaur.'''
+description='''Descend into an infinite living labyrinth, explore its flooded catacombs, and survive the Minotaur at its heart.'''
+logoFile="assets/asterion/icon.png"
 
 [[dependencies.asterion]]
 modId="forge"
@@ -29,6 +30,13 @@ mandatory=true
 versionRange="[0,)"
 ordering="AFTER"
 side="CLIENT"
+
+[[dependencies.asterion]]
+modId="geckolib"
+mandatory=true
+versionRange="[${geckolib_version},)"
+ordering="AFTER"
+side="BOTH"
 
 [[mixins]]
 config="asterion.mixins.json"

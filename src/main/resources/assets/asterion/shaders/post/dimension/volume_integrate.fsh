@@ -119,6 +119,7 @@ void main() {
         float heightLight = smoothstep(20.0, 112.0, sampleWorld.y);
         float dustMix = 0.24 + heightLight * 0.18;
         vec3 scatterColor = mix(FogTint, neutralDust, dustMix);
+        // Retain the biome and level tint through the full view distance.
         scattering += visibility * extinction * scatterColor;
     }
 

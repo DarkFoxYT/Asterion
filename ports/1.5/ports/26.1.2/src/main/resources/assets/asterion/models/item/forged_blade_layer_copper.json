@@ -1,6 +1,0 @@
-{
-  "parent": "minecraft:item/handheld",
-  "textures": {
-    "layer0": "asterion:forging/copper/copper_blade_icon"
-  }
-}

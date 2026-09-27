@@ -15,18 +15,23 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.WaterFluid;
 import net.minecraft.world.phys.Vec3;
 
- 
+
 public final class TidalWaterFluid extends WaterFluid {
+    //? if forge {
+    /*@Override public net.minecraftforge.fluids.FluidType getFluidType() {
+        return net.krodark.asterion.port.forge.ForgeHeavyWaterType.INSTANCE;
+    }
+    *///?}
     public TidalWaterFluid() { registerDefaultState(stateDefinition.any().setValue(LEVEL, 8)); }
     @Override protected void createFluidStateDefinition(StateDefinition.Builder<Fluid, FluidState> builder) {
-         
+
         builder.add(LEVEL);
     }
     @Override public Fluid getSource() { return this; }
     @Override public Fluid getFlowing() { return this; }
     @Override public FluidState getSource(boolean falling) { return defaultFluidState(); }
     @Override public FluidState getFlowing(int amount, boolean falling) {
-        return defaultFluidState().setValue(LEVEL, Math.clamp(amount, 1, 8));
+        return defaultFluidState().setValue(LEVEL, net.krodark.asterion.port.compat.MathCompat.clamp(amount, 1, 8));
     }
     @Override public Item getBucket() { return HeavyWater.BUCKET; }
     @Override public int getAmount(FluidState state) { return state.getValue(LEVEL); }
@@ -34,13 +39,13 @@ public final class TidalWaterFluid extends WaterFluid {
     @Override public float getOwnHeight(FluidState state) { return getAmount(state) / 8.0F; }
     @Override public boolean isSame(Fluid other) { return other == this || other == HeavyWater.STILL || other == HeavyWater.FLOWING; }
     @Override public Vec3 getFlow(BlockGetter level, BlockPos pos, FluidState state) { return Vec3.ZERO; }
-    @Override protected boolean canConvertToSource(ServerLevel level) { return false; }
+    @Override protected boolean canConvertToSource(Level level) { return false; }
     @Override public boolean canBeReplacedWith(FluidState state, BlockGetter level, BlockPos pos,
                                              Fluid other, Direction direction) { return false; }
     @Override public BlockState createLegacyBlock(FluidState state) {
         return HeavyWater.BLOCK.defaultBlockState().setValue(TidalWaterBlock.LEVEL, getAmount(state));
     }
-    @Override public void tick(ServerLevel level, BlockPos pos, BlockState block, FluidState state) { }
+    @Override public void tick(Level level, BlockPos pos, FluidState state) { }
     @Override public void animateTick(Level level, BlockPos pos, FluidState state, RandomSource random) {
         if (random.nextInt(64) == 0) level.addParticle(ParticleTypes.UNDERWATER,
                 pos.getX() + random.nextDouble(), pos.getY() + random.nextDouble() * getOwnHeight(state),

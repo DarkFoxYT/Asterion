@@ -12,7 +12,7 @@ import net.minecraft.world.level.block.state.properties.Half;
 import net.minecraft.world.level.block.state.properties.SlabType;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
- 
+
 public final class ShaleCaves {
     private ShaleCaves() {}
     private record Column(double floor, double roof, double clearance) {}
@@ -45,15 +45,17 @@ public final class ShaleCaves {
                 (.7 + unit(seed ^ 991, x, z) * .7) / Math.sqrt(scale));
     }
 
-    private static Chamber chamber(long seed, int x, int z, java.util.Map<Long, Chamber> chambers) {
+    private static Chamber chamber(long seed, int x, int z, it.unimi.dsi.fastutil.longs.Long2ObjectMap<Chamber> chambers) {
         if (chambers == null) return chamber(seed, x, z);
-        long key = net.minecraft.world.level.ChunkPos.pack(x, z);
-        return chambers.computeIfAbsent(key, ignored -> chamber(seed, x, z));
+        long key = net.minecraft.world.level.ChunkPos.asLong(x, z);
+        Chamber cached = chambers.get(key);
+        if (cached == null) { cached = chamber(seed, x, z); chambers.put(key, cached); }
+        return cached;
     }
 
     private static double passage(double x, double z, double ax, double az, double bx, double bz) {
         double vx = bx - ax, vz = bz - az;
-        double t = Math.clamp(((x - ax) * vx + (z - az) * vz) / Math.max(1, vx * vx + vz * vz), 0, 1);
+        double t = net.krodark.asterion.port.compat.MathCompat.clamp(((x - ax) * vx + (z - az) * vz) / Math.max(1, vx * vx + vz * vz), 0, 1);
         return Math.hypot(x - ax - vx * t, z - az - vz * t);
     }
 
@@ -66,7 +68,7 @@ public final class ShaleCaves {
         return column(seed, x, z, null);
     }
 
-    private static Column column(long seed, int x, int z, java.util.Map<Long, Chamber> chambers) {
+    private static Column column(long seed, int x, int z, it.unimi.dsi.fastutil.longs.Long2ObjectMap<Chamber> chambers) {
         double wx = x + (noise(seed ^ 41, x / 38.0, z / 38.0) - .5) * 10;
         double wz = z + (noise(seed ^ 87, x / 43.0, z / 43.0) - .5) * 10;
         int gx = (int)Math.floor(wx / 64), gz = (int)Math.floor(wz / 64);
@@ -81,8 +83,8 @@ public final class ShaleCaves {
             Chamber east = chamber(seed, cx + 1, cz, chambers), south = chamber(seed, cx, cz + 1, chambers);
             clearance = Math.max(clearance, width - passage(wx, wz, room.x, room.z, east.x, east.z));
             clearance = Math.max(clearance, width - passage(wx, wz, room.x, room.z, south.x, south.z));
-             
-             
+
+
             long branch = CatacombLayout.hash(seed ^ 0x7A11E15L, cx, cz);
             int bx = cx + (((branch & 1L) == 0) ? 1 : -1);
             int bz = cz + (((branch & 2L) == 0) ? 1 : -1);
@@ -91,8 +93,8 @@ public final class ShaleCaves {
             clearance = Math.max(clearance,
                     branchWidth - passage(wx, wz, room.x, room.z, diagonal.x, diagonal.z));
         }
-         
-        double flat = Math.clamp((.85 - nearest / closest.radius) / .5, 0, 1);
+
+        double flat = net.krodark.asterion.port.compat.MathCompat.clamp((.85 - nearest / closest.radius) / .5, 0, 1);
         flat = flat * flat * (3 - 2 * flat);
         double floor = ground(seed, x, z) * (1 - flat) + Math.rint(ground(seed, closest.x, closest.z) / 3) * 3 * flat;
         int cx = AuthoredForge.districtCenter(x), cz = AuthoredForge.districtCenter(z);
@@ -100,23 +102,23 @@ public final class ShaleCaves {
         Chamber landing = chamber(seed, (int)Math.round(shaftX / 64.0), (int)Math.round(cz / 64.0), chambers);
         clearance = Math.max(clearance, 16 - Math.hypot(x - shaftX, z - cz));
         clearance = Math.max(clearance, 6 - passage(x, z, shaftX, cz, landing.x, landing.z));
-        double chamberSpace = Math.clamp((closest.radius - nearest) / 9, 0, 1);
+        double chamberSpace = net.krodark.asterion.port.compat.MathCompat.clamp((closest.radius - nearest) / 9, 0, 1);
         double height = 5.5 + noise(seed ^ 6197, x / 58.0, z / 58.0) * 6
                 + chamberSpace * (13 + noise(seed ^ 379, x / 83.0, z / 83.0) * 22);
         height = Math.min(height, LabyrinthLevels.CAVE_ROOF_Y - 1 - floor);
-        double round = Math.sqrt(Math.clamp(clearance / 7, 0, 1));
+        double round = Math.sqrt(net.krodark.asterion.port.compat.MathCompat.clamp(clearance / 7, 0, 1));
         return new Column(floor + height * (1 - round) * .5, floor + height * (1 + round) * .5, clearance);
     }
 
     public static int floorY(long seed, int x, int z) { return (int)Math.floor(column(seed, x, z).floor); }
 
     public static void generate(ChunkAccess chunk, long seed) {
-        if (chunk.getMinY() > LabyrinthLevels.CAVE_BOTTOM_Y) return;
+        if (chunk.getMinBuildHeight() > LabyrinthLevels.CAVE_BOTTOM_Y) return;
         var pos = new BlockPos.MutableBlockPos();
         int minX = chunk.getPos().getMinBlockX(), minZ = chunk.getPos().getMinBlockZ();
-         
-         
-        var chambers = new java.util.HashMap<Long, Chamber>();
+
+
+        var chambers = new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<Chamber>(64);
         Column[][] columns = new Column[18][18];
         for (int dx = 0; dx < 18; dx++) for (int dz = 0; dz < 18; dz++)
             columns[dx][dz] = column(seed, minX + dx - 1, minZ + dz - 1, chambers);
@@ -145,34 +147,34 @@ public final class ShaleCaves {
                                 && cave.roof - Math.floor(cave.roof) < .5)
                             state = slab(shaded(seed, x, y, z)).defaultBlockState().setValue(SlabBlock.TYPE, SlabType.TOP);
                     }
-                    chunk.setBlockState(pos.set(x, y, z), state, 0);
+                    chunk.setBlockState(pos.set(x, y, z), state, false);
                 }
                 if (open && !puddle && !flooded && cave.clearance > 4
                         && noise(seed ^ 7119, x / 31.0, z / 31.0) > .56) {
                     if (!CatacombProtection.isOre(chunk.getBlockState(pos.set(x, floor, z)))
                             && chunk.getBlockState(pos).isCollisionShapeFullBlock(chunk, pos)) {
-                        chunk.setBlockState(pos, Asterion.ANCIENT_MOSS.defaultBlockState(), 0);
+                        chunk.setBlockState(pos, Asterion.ANCIENT_MOSS.defaultBlockState(), false);
                         long plant = CatacombLayout.hash(seed ^ 727, x, z);
                         if (Math.floorMod(plant, 9) == 0)
-                            chunk.setBlockState(pos.set(x, floor + 1, z), Asterion.ANCIENT_MOSS_CARPET.defaultBlockState(), 0);
+                            chunk.setBlockState(pos.set(x, floor + 1, z), Asterion.ANCIENT_MOSS_CARPET.defaultBlockState(), false);
                         else if (Math.floorMod(plant, 23) == 0)
-                            chunk.setBlockState(pos.set(x, floor + 1, z), Blocks.BROWN_MUSHROOM.defaultBlockState(), 0);
+                            chunk.setBlockState(pos.set(x, floor + 1, z), Blocks.BROWN_MUSHROOM.defaultBlockState(), false);
                     }
                 }
                 if (open && !puddle && !flooded) spikes(chunk, seed, x, z, floor, roof, cave.clearance);
                 if (flooded) underwaterVines(chunk, seed, x, z, floor, waterLine, cave.clearance);
                 if (open && roof + 2 <= LabyrinthLevels.CAVE_ROOF_Y && wet(seed ^ 0xD21FL, x, z)
                         && Math.floorMod(CatacombLayout.hash(seed, x, z), 5) == 0) {
-                     
-                    chunk.setBlockState(pos.set(x, roof, z), base(shaded(seed, x, roof, z)).defaultBlockState(), 0);
-                    chunk.setBlockState(pos.set(x, roof + 1, z), Blocks.WATER.defaultBlockState(), 0);
+
+                    chunk.setBlockState(pos.set(x, roof, z), base(shaded(seed, x, roof, z)).defaultBlockState(), false);
+                    chunk.setBlockState(pos.set(x, roof + 1, z), Blocks.WATER.defaultBlockState(), false);
                 }
             }
-        chunk.setBlockState(marker(chunk), revision(), 0);
+        chunk.setBlockState(marker(chunk), revision(), false);
     }
 
     public static void repairEmptyChunk(net.minecraft.world.level.chunk.LevelChunk chunk, long seed) {
-        if (chunk.getMinY() > LabyrinthLevels.CAVE_BOTTOM_Y || chunk.getBlockState(marker(chunk)).equals(revision())) return;
+        if (chunk.getMinBuildHeight() > LabyrinthLevels.CAVE_BOTTOM_Y || chunk.getBlockState(marker(chunk)).equals(revision())) return;
         for (BlockPos pos : BlockPos.betweenClosed(chunk.getPos().getMinBlockX(), LabyrinthLevels.CAVE_BOTTOM_Y,
                 chunk.getPos().getMinBlockZ(), chunk.getPos().getMaxBlockX(), LabyrinthLevels.CAVE_ROOF_Y,
                 chunk.getPos().getMaxBlockZ())) {
@@ -180,7 +182,7 @@ public final class ShaleCaves {
             if (!state.isAir()) return;
         }
         generate(chunk, seed);
-        chunk.markUnsaved();
+        chunk.setUnsaved(true);
     }
 
     private static BlockPos marker(ChunkAccess chunk) {
@@ -193,7 +195,7 @@ public final class ShaleCaves {
                 && noise(seed ^ 929, x / 7.0, z / 7.0) > .4;
     }
 
-     
+
     private static boolean floodRegion(long seed, int x, int z) {
         double basin = noise(seed ^ 0xF100D5L, x / 118.0, z / 118.0);
         double shore = noise(seed ^ 0xA911L, x / 29.0, z / 29.0);
@@ -215,12 +217,12 @@ public final class ShaleCaves {
             chunk.setBlockState(new BlockPos(x, floor + offset, z), Asterion.LABYRINTH_VINE.defaultBlockState()
                     .setValue(net.krodark.asterion.block.LabyrinthVineBlock.FACING, Direction.UP)
                     .setValue(net.krodark.asterion.block.LabyrinthVineBlock.END, offset == length)
-                    .setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED, true), 0);
+                    .setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED, true), false);
         }
     }
 
     static boolean shaded(long seed, int x, int y, int z) {
-        double depth = Math.clamp((13.0 - y) / 77.0, 0.0, 1.0);
+        double depth = net.krodark.asterion.port.compat.MathCompat.clamp((13.0 - y) / 77.0, 0.0, 1.0);
         double patches = noise(seed ^ 0x5A1EL, x / 5.0 + y / 9.0, z / 5.0 - y / 11.0);
         double grain = unit(seed ^ (long)y * 0x51EDL, x, z);
         return patches * .55 + grain * .45 < .29 + depth * .42;
@@ -280,7 +282,7 @@ public final class ShaleCaves {
                     .defaultBlockState()
                     .setValue(net.krodark.asterion.block.ShaleFormationBlock.THICKNESS, (remaining + 1) / 2)
                     .setValue(net.krodark.asterion.block.ShaleFormationBlock.HANGING, hanging);
-            chunk.setBlockState(new BlockPos(x, y, z), state, 0);
+            chunk.setBlockState(new BlockPos(x, y, z), state, false);
         }
     }
 

@@ -10,7 +10,7 @@ import net.krodark.asterion.client.event.DeadSunClientEvents;
 import net.krodark.asterion.client.cinematic.DeadSunEntryCinematic;
 import net.krodark.asterion.client.cinematic.BossFinaleOverlay;
 import net.minecraft.client.Minecraft;
-import com.meekdev.amnetic.client.post.UniformValue;
+import net.minecraft.client.renderer.UniformValue;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
@@ -37,12 +37,12 @@ public final class AsterionPostEffects {
     }
 
     public static void register() {
-        PostEffects.register(Asterion.id("dimension/dead_sun"), config -> AmneticPostBuffers.attach(AmneticPostBuffers.attach(config, "dead_sun_bloom_h", .25F), "dead_sun_bloom_v", .25F)
+        PostEffects.register(Asterion.id("dimension/dead_sun"), config -> config
                 .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.deadSunEnabled
                         && effectQuality() > 0)
                 .phase(RenderPhase.POST_WORLD)
                 .priority(10)
-                .fade(8, 0)
+                .fade(32, 16)
                 .uniform("DustTime", AsterionPostEffects::renderTime)
                 .uniform("AsterionStrength", () -> AsterionConfig.INSTANCE.deadSunStrength)
                 .uniform("AsterionQuality", AsterionPostEffects::effectQuality)
@@ -60,14 +60,14 @@ public final class AsterionPostEffects {
                         AsterionConfig.INSTANCE.deadSunCoronaG, AsterionConfig.INSTANCE.deadSunCoronaB)));
 
         PostEffects.register(Asterion.id("dimension/dusty_air"), config -> config
-                .when(() -> isDustReady() && AsterionConfig.INSTANCE.dustyAirEnabled
-                        && dustQuality() == 1)
+                .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.dustyAirEnabled
+                        && effectQuality() == 1)
                 .phase(RenderPhase.POST_WORLD)
                 .priority(20)
-                .fade(8, 0)
+                .fade(24, 16)
                 .uniform("DustTime", AsterionPostEffects::renderTime)
                 .uniform("AsterionStrength", () -> AsterionConfig.INSTANCE.dustyAirStrength)
-                .uniform("AsterionQuality", AsterionPostEffects::dustQuality)
+                .uniform("AsterionQuality", AsterionPostEffects::effectQuality)
                 .uniformVec3("AtmosphereSettings", AsterionPostEffects::atmosphereSettings)
                 .uniformVec3("DustColor", AsterionPostEffects::dustColor)
                 .uniformVec3("FogColor", AsterionPostEffects::fogColor)
@@ -77,14 +77,14 @@ public final class AsterionPostEffects {
          
          
         PostEffects.register(Asterion.id("dimension/dusty_air_high"), config -> config
-                .when(() -> isDustReady() && AsterionConfig.INSTANCE.dustyAirEnabled
-                        && dustQuality() >= 2)
+                .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.dustyAirEnabled
+                        && effectQuality() >= 2)
                 .phase(RenderPhase.POST_WORLD)
                 .priority(20)
-                .fade(8, 0)
+                .fade(24, 16)
                 .uniform("DustTime", AsterionPostEffects::renderTime)
                 .uniform("AsterionStrength", () -> AsterionConfig.INSTANCE.dustyAirStrength)
-                .uniform("AsterionQuality", AsterionPostEffects::dustQuality)
+                .uniform("AsterionQuality", AsterionPostEffects::effectQuality)
                 .uniformVec3("AtmosphereSettings", AsterionPostEffects::atmosphereSettings)
                 .uniformVec3("DustColor", AsterionPostEffects::dustColor)
                 .uniformVec3("FogColor", AsterionPostEffects::fogColor)
@@ -92,11 +92,11 @@ public final class AsterionPostEffects {
                 .uniformRaw("WorldData", AsterionPostEffects::worldData));
 
         PostEffects.register(Asterion.id("dimension/dusty_air_fast"), config -> config
-                .when(() -> isDustReady() && AsterionConfig.INSTANCE.dustyAirEnabled
-                        && dustQuality() <= 0)
+                .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.dustyAirEnabled
+                        && effectQuality() <= 0)
                 .phase(RenderPhase.POST_WORLD)
                 .priority(20)
-                .fade(3, 0)
+                .fade(3, 8)
                 .uniform("DustTime", AsterionPostEffects::renderTime)
                 .uniform("AsterionStrength", () -> AsterionConfig.INSTANCE.dustyAirStrength)
                 .uniform("AsterionQuality", 0)
@@ -111,7 +111,7 @@ public final class AsterionPostEffects {
         PostEffects.register(Asterion.id("dimension/dead_sun_fast"), config -> config
                 .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.deadSunEnabled
                         && effectQuality() <= 0)
-                .phase(RenderPhase.POST_WORLD).priority(10).fade(3, 0)
+                .phase(RenderPhase.POST_WORLD).priority(10).fade(3, 8)
                 .uniform("DustTime", AsterionPostEffects::renderTime)
                 .uniform("AsterionStrength", () -> AsterionConfig.INSTANCE.deadSunStrength)
                 .uniform("AsterionQuality", 0)
@@ -129,16 +129,6 @@ public final class AsterionPostEffects {
                         AsterionConfig.INSTANCE.deadSunCoronaG, AsterionConfig.INSTANCE.deadSunCoronaB)));
     }
 
-    private static boolean isLimbo() {
-        var level = Minecraft.getInstance().level;
-        return level != null && level.dimension().equals(Asterion.LIMBO_LEVEL);
-    }
-
-    private static boolean isDustReady() {
-        // Limbo has its own low mist and distance haze; do not stack a second dust volume.
-        return !isLimbo() && isPostProcessingReady();
-    }
-
     private static boolean isInsideAsterion() {
         Minecraft client = Minecraft.getInstance();
         return client.level != null && client.level.dimension().equals(Asterion.ASTERION_LEVEL);
@@ -154,14 +144,10 @@ public final class AsterionPostEffects {
         return AmneticCamera.isReady() || hasCameraSnapshot;
     }
 
-    private static double dustQuality() {
-        return Mth.clamp(AsterionConfig.INSTANCE.cinematicQuality, 0, 2);
-    }
-
     private static double effectQuality() {
          
          
-        return Math.min(Mth.clamp(AsterionConfig.INSTANCE.cinematicQuality, 0, 2), net.krodark.asterion.client.PerformanceGovernor.quality());
+        return Mth.clamp(AsterionConfig.INSTANCE.cinematicQuality, 0, 2);
     }
 
     private static double renderTime() {
@@ -201,7 +187,6 @@ public final class AsterionPostEffects {
     }
 
     private static Vector3f atmosphereSettings() {
-        if (isLimbo()) return new Vector3f(.45F, AsterionConfig.INSTANCE.limboFogStrength, .35F);
         AsterionConfig config = AsterionConfig.INSTANCE;
         float eclipse = darkness();
         return new Vector3f(
@@ -221,7 +206,6 @@ public final class AsterionPostEffects {
     }
 
     private static Vector3f dustColor() {
-        if (isLimbo()) return new Vector3f(.64F, .71F, .74F);
         AsterionConfig config = AsterionConfig.INSTANCE;
         float eclipse = darkness();
          
@@ -243,7 +227,6 @@ public final class AsterionPostEffects {
     }
 
     private static Vector3f fogColor() {
-        if (isLimbo()) return new Vector3f(.40F, .48F, .52F);
         AsterionConfig config = AsterionConfig.INSTANCE;
         float eclipse = darkness();
         float red = mix(config.fogR, 0.20F, overgrowthBlend);

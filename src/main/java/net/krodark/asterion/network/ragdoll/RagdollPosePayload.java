@@ -6,12 +6,12 @@ import net.krodark.asterion.Asterion;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 public record RagdollPosePayload(int entityId, int sequence, List<Part> parts)
         implements CustomPacketPayload {
     public static final Type<RagdollPosePayload> TYPE = new Type<>(
-            Identifier.fromNamespaceAndPath(Asterion.MOD_ID, "ragdoll_pose"));
+            ResourceLocation.fromNamespaceAndPath(Asterion.MOD_ID, "ragdoll_pose"));
     public static final StreamCodec<RegistryFriendlyByteBuf, RagdollPosePayload> CODEC =
             CustomPacketPayload.codec(RagdollPosePayload::write, RagdollPosePayload::read);
 

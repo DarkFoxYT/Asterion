@@ -15,15 +15,15 @@ import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.permissions.Permissions;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.minecraft.world.level.saveddata.SavedDataType;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
- 
+
 public final class CatacombFloodState extends SavedData {
     public static final int FLOOD_TOP_Y = net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y - 6;
     public static final int MAX_RISE = (FLOOD_TOP_Y - CatacombLayout.WATER_Y) * 8;
@@ -39,8 +39,8 @@ public final class CatacombFloodState extends SavedData {
             Codec.LONG.optionalFieldOf("ends_at", 0L).forGetter(s -> s.endsAt),
             Codec.LONG.optionalFieldOf("next_step", 0L).forGetter(s -> s.nextStep)
     ).apply(instance, CatacombFloodState::new));
-    private static final SavedDataType<CatacombFloodState> TYPE = new SavedDataType<>(
-            Asterion.id("catacomb_flood"), CatacombFloodState::new, CODEC, null);
+    private static final net.krodark.asterion.port.compat.SavedDataCompat.Factory<CatacombFloodState> FACTORY =
+            net.krodark.asterion.port.compat.SavedDataCompat.factory(CODEC, CatacombFloodState::new);
     private static final Map<ServerLevel, LoadedTide> LOADED = new WeakHashMap<>();
     private boolean active;
     private int rise;
@@ -50,7 +50,12 @@ public final class CatacombFloodState extends SavedData {
         this.active = active; this.rise = rise; this.endsAt = endsAt; this.nextStep = nextStep;
     }
 
-    public static CatacombFloodState get(ServerLevel level) { return level.getDataStorage().computeIfAbsent(TYPE); }
+    public static CatacombFloodState get(ServerLevel level) {
+        return net.krodark.asterion.port.compat.SavedDataCompat.get(level.getDataStorage(), FACTORY, "asterion_catacomb_flood");
+    }
+    public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        return net.krodark.asterion.port.compat.SavedDataCompat.save(CODEC, this, tag, registries);
+    }
     public int riseSteps() { return rise; }
     public double surfaceHeight() { return CatacombLayout.WATER_Y + 1 + rise / 8.0; }
 
@@ -75,7 +80,7 @@ public final class CatacombFloodState extends SavedData {
     public static void start(ServerLevel level, int durationTicks) {
         var state = get(level);
         state.active = true;
-        state.endsAt = level.getGameTime() + Math.clamp(durationTicks, 1, FLOOD_DURATION_TICKS);
+        state.endsAt = level.getGameTime() + net.krodark.asterion.port.compat.MathCompat.clamp(durationTicks, 1, FLOOD_DURATION_TICKS);
         state.nextStep = level.getGameTime() + STEP_TICKS;
         var loaded=LOADED.computeIfAbsent(level,ignored->new LoadedTide());
         loaded.pending.addAll(loaded.chunks);
@@ -85,13 +90,13 @@ public final class CatacombFloodState extends SavedData {
     public static void onChunkLoad(ServerLevel level, LevelChunk chunk, boolean newlyGenerated) {
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
         var loaded = LOADED.computeIfAbsent(level, ignored -> new LoadedTide());
-        loaded.chunks.add(chunk.getPos().pack());
-        loaded.pending.add(chunk.getPos().pack());
+        loaded.chunks.add(chunk.getPos().toLong());
+        loaded.pending.add(chunk.getPos().toLong());
     }
     public static void onChunkUnload(ServerLevel level, LevelChunk chunk) {
         var loaded = LOADED.get(level);
         if (loaded != null) {
-            long packed=chunk.getPos().pack();
+            long packed=chunk.getPos().toLong();
             loaded.chunks.remove(packed);loaded.pending.remove(packed);
         }
     }
@@ -110,7 +115,7 @@ public final class CatacombFloodState extends SavedData {
             setActive(level, false);
         var loaded = LOADED.computeIfAbsent(level, ignored -> new LoadedTide());
         int target = state.active ? MAX_RISE : 0;
-         
+
         if (state.rise != target && now >= state.nextStep) {
             state.rise += Integer.signum(target-state.rise)
                     * Math.min(state.active ? RISE_PER_STEP : DRAIN_PER_STEP, Math.abs(target-state.rise));
@@ -118,17 +123,17 @@ public final class CatacombFloodState extends SavedData {
             loaded.pending.addAll(loaded.chunks);
             state.setDirty();
         }
-         
+
         if (state.rise > 0 && now % 100 == 0) loaded.pending.addAll(loaded.chunks);
         if (now % 16 == 0) spread(level, state.rise);
         int budget=0;
-         
+
         for(var player:level.players())for(int dx=-1;dx<=1 && budget<8;dx++)for(int dz=-1;dz<=1 && budget<8;dz++) {
-            long packed=ChunkPos.pack(player.chunkPosition().x()+dx,player.chunkPosition().z()+dz);
+            long packed=ChunkPos.asLong(player.chunkPosition().x+dx,player.chunkPosition().z+dz);
             if(loaded.pending.remove(packed) && reconcileLoaded(level,loaded,packed,state.rise))budget++;
         }
         while(budget++<10 && !loaded.pending.isEmpty()) {
-            long packed=loaded.pending.removeFirst();
+            long packed=net.krodark.asterion.port.compat.CollectionsCompat.removeFirst(loaded.pending);
             reconcileLoaded(level,loaded,packed,state.rise);
         }
     }
@@ -140,10 +145,10 @@ public final class CatacombFloodState extends SavedData {
         return true;
     }
 
-     
+
     public static void reconcile(ServerLevel level, LevelChunk chunk, int riseSteps) {
         var loaded = LOADED.computeIfAbsent(level, ignored -> new LoadedTide());
-        int surface = (CatacombLayout.WATER_Y + 1) * 8 + Math.clamp(riseSteps, 0, MAX_RISE);
+        int surface = (CatacombLayout.WATER_Y + 1) * 8 + net.krodark.asterion.port.compat.MathCompat.clamp(riseSteps, 0, MAX_RISE);
         for (BlockPos pos : BlockPos.betweenClosed(chunk.getPos().getMinBlockX(), MIN_FLOOD_Y,
                 chunk.getPos().getMinBlockZ(), chunk.getPos().getMaxBlockX(), FLOOD_TOP_Y, chunk.getPos().getMaxBlockZ())) {
             if (net.krodark.asterion.worldgen.AuthoredCatacombs.insideCursedBrazierRoom(pos)) {
@@ -155,7 +160,7 @@ public final class CatacombFloodState extends SavedData {
             }
             if (!inFloodArea(pos)) continue;
             BlockState old = chunk.getBlockState(pos);
-            int amount = riseSteps == 0 ? 0 : Math.clamp(surface - pos.getY() * 8, 0, 8);
+            int amount = riseSteps == 0 ? 0 : net.krodark.asterion.port.compat.MathCompat.clamp(surface - pos.getY() * 8, 0, 8);
             if (HeavyWaterlogging.isTidal(old)) {
                 BlockState next = amount == 0 ? HeavyWaterlogging.dry(old)
                         : HeavyWaterlogging.withFluid(old, HeavyWater.FLUID.getFlowing(amount, false));
@@ -167,7 +172,7 @@ public final class CatacombFloodState extends SavedData {
             } else if (pos.getY() == CatacombLayout.WATER_Y && old.is(Blocks.WATER)) {
                 level.setBlock(pos, HeavyWater.WATER_BLOCK.defaultBlockState(), 2);
             } else if (amount > 0 && pos.getY() == CatacombLayout.WATER_Y && fillable(level, pos, old)) {
-                 
+
                 fill(level, pos, old, amount);
             }
             if (amount > 0 && wet(chunk.getBlockState(pos))) enqueueNeighbours(level, loaded, pos, surface);
@@ -179,18 +184,18 @@ public final class CatacombFloodState extends SavedData {
     private static final int MIN_FLOOD_Y = net.krodark.asterion.worldgen.AuthoredCatacombs.BASE_Y;
     private static final int SPREAD_BUDGET = 1024;
 
-     
+
     public static void spread(ServerLevel level, int riseSteps) {
         var loaded = LOADED.computeIfAbsent(level, ignored -> new LoadedTide());
         if (riseSteps <= 0) { loaded.frontier.clear(); return; }
-        int surface = (CatacombLayout.WATER_Y + 1) * 8 + Math.clamp(riseSteps, 0, MAX_RISE);
-         
+        int surface = (CatacombLayout.WATER_Y + 1) * 8 + net.krodark.asterion.port.compat.MathCompat.clamp(riseSteps, 0, MAX_RISE);
+
         int count = Math.min(SPREAD_BUDGET, loaded.frontier.size());
         for (int i = 0; i < count; i++) {
-            BlockPos pos = BlockPos.of(loaded.frontier.removeFirst());
+            BlockPos pos = BlockPos.of(net.krodark.asterion.port.compat.CollectionsCompat.removeFirst(loaded.frontier));
             var chunk = level.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4);
             if (chunk == null || !inFloodArea(pos)) continue;
-            int amount = Math.clamp(surface - pos.getY() * 8, 0, 8);
+            int amount = net.krodark.asterion.port.compat.MathCompat.clamp(surface - pos.getY() * 8, 0, 8);
             BlockState old = chunk.getBlockState(pos);
             if (amount == 0 || !fillable(level, pos, old) || !hasWetNeighbour(level, pos)) continue;
             fill(level, pos, old, amount);
@@ -276,8 +281,11 @@ public final class CatacombFloodState extends SavedData {
                     return 1;
                 }));
             dispatcher.register(Commands.literal("asterion")
-                    .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
+                    .requires(source -> source.hasPermission(2))
                     .then(Commands.literal("catacombs").then(flood)));
         });
     }
+//? if <1.20.5 {
+/*    @Override public net.minecraft.nbt.CompoundTag save(net.minecraft.nbt.CompoundTag tag) { return save(tag, null); }*/
+//?}
 }

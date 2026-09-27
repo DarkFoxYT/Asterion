@@ -2,7 +2,7 @@
   "type": "minecraft:crafting_shaped",
   "category": "building",
   "key": {
-    "#": "asterion:ancient_stone"
+    "#": {"item":"asterion:ancient_stone"}
   },
   "pattern": [
     "###",

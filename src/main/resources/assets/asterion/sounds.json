@@ -49,17 +49,26 @@
   },
   "debris_1": {
     "sounds": [
-      "asterion:sfx/misc/debris_1"
+      {
+        "name": "asterion:sfx/misc/debris_1",
+        "attenuation_distance": 16
+      }
     ]
   },
   "debris_2": {
     "sounds": [
-      "asterion:sfx/misc/debris_2"
+      {
+        "name": "asterion:sfx/misc/debris_2",
+        "attenuation_distance": 16
+      }
     ]
   },
   "debris_3": {
     "sounds": [
-      "asterion:sfx/misc/debris_3"
+      {
+        "name": "asterion:sfx/misc/debris_3",
+        "attenuation_distance": 16
+      }
     ]
   },
   "arena_ceiling_fall": {
@@ -328,57 +337,49 @@
       }
     ]
   },
-  "limbo_ambience": {
+  "minotaur_axe_draw": {
     "sounds": [
       {
-        "name": "asterion:ambiance/limbo/mystery_hell_themed_ambience",
-        "stream": true
+        "name": "asterion:sfx/minotaur/axe_draw",
+        "attenuation_distance": 32
       }
     ]
   },
-  "music_ancient_the_best_piece_of_music_ive_ever_made_keys": {
+  "minotaur_axe_throw": {
     "sounds": [
-      "asterion:music/ancient/the_best_piece_of_music_ive_ever_made_keys"
+      {
+        "name": "asterion:sfx/minotaur/axe_throw",
+        "attenuation_distance": 32
+      }
     ]
   },
-  "music_arena_atonement_mongopsy": {
+  "minotaur_axe_flight_loop": {
     "sounds": [
-      "asterion:music/arena/atonement_mongopsy"
+      {
+        "name": "asterion:sfx/minotaur/axe_flight_loop",
+        "attenuation_distance": 32
+      }
     ]
   },
-  "music_arena_i_made_a_dark_souls_boss_theme_keys": {
+  "music.ancient.best_piece": { "sounds": [{ "name": "asterion:music/ancient/best_piece_keys", "stream": true }] },
+  "music.arena.atonement": { "sounds": [{ "name": "asterion:music/arena/atonement_mongopsy", "stream": true }] },
+  "music.arena.dark_souls": { "sounds": [{ "name": "asterion:music/arena/dark_souls_boss_theme_keys", "stream": true }] },
+  "music.crimson.roll_back_credits": { "sounds": [{ "name": "asterion:music/crimsonmarshlands/roll_back_credits_keys", "stream": true }] },
+  "music.crimson.edge_of_world": { "sounds": [{ "name": "asterion:music/crimsonmarshlands/edge_of_world_keys", "stream": true }] },
+  "music.forge.green_hour": { "sounds": [{ "name": "asterion:music/forge/green_hour_mongopsy", "stream": true }] },
+  "music.forge.withered_remnant": { "sounds": [{ "name": "asterion:music/forge/withered_remnant_mongopsy", "stream": true }] },
+  "music.overgrown.mojang": { "sounds": [{ "name": "asterion:music/overgrown/mojang_please_hire_me_joabi", "stream": true }] },
+  "music.overgrown.stars": { "sounds": [{ "name": "asterion:music/overgrown/where_stars_fall_crypika", "stream": true }] },
+  "minotaur_axe_swing": {
     "sounds": [
-      "asterion:music/arena/i_made_a_dark_souls_boss_theme_keys"
-    ]
-  },
-  "music_crimsonmarshlands_if_we_could_roll_back_the_credits_one_last_time_keys": {
-    "sounds": [
-      "asterion:music/crimsonmarshlands/if_we_could_roll_back_the_credits_one_last_time_keys"
-    ]
-  },
-  "music_crimsonmarshlands_ill_see_you_at_the_edge_of_the_world_keys": {
-    "sounds": [
-      "asterion:music/crimsonmarshlands/ill_see_you_at_the_edge_of_the_world_keys"
-    ]
-  },
-  "music_forge_the_green_hour_mongopsy": {
-    "sounds": [
-      "asterion:music/forge/the_green_hour_mongopsy"
-    ]
-  },
-  "music_forge_the_withered_remnant_mongopsy": {
-    "sounds": [
-      "asterion:music/forge/the_withered_remnant_mongopsy"
-    ]
-  },
-  "music_overgrown_mojang_please_hire_me_joabi": {
-    "sounds": [
-      "asterion:music/overgrown/mojang_please_hire_me_joabi"
-    ]
-  },
-  "music_overgrown_where_the_stars_fall_crypika": {
-    "sounds": [
-      "asterion:music/overgrown/where_the_stars_fall_crypika"
+      {
+        "name": "asterion:sfx/minotaur/axe_swing1",
+        "attenuation_distance": 24
+      },
+      {
+        "name": "asterion:sfx/minotaur/axe_swing2",
+        "attenuation_distance": 24
+      }
     ]
   }
 }
