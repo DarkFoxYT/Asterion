@@ -9,7 +9,8 @@ def outputShelf = shelf
 
 gradle.projectsEvaluated {
     gradle.rootProject.allprojects.each { modProject ->
-        def taskName = modProject.tasks.findByName('reobfJar') != null ? 'reobfJar' :
+        def taskName = modProject.tasks.findByName('jarJar') instanceof org.gradle.api.tasks.bundling.AbstractArchiveTask ? 'jarJar' :
+                modProject.tasks.findByName('reobfJar') != null ? 'reobfJar' :
                 modProject.tasks.findByName('remapJar') != null ? 'remapJar' :
                 modProject.tasks.findByName('jar') != null ? 'jar' : null
         if (taskName == null || modProject == gradle.rootProject) return

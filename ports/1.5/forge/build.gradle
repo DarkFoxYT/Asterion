@@ -6,6 +6,7 @@ plugins {
     id 'net.minecraftforge.jarjar' version '0.2.3'
     id 'net.minecraftforge.renamer' version '1.0.14'
 }
+jarJar.register()
 
 stonecutter {
     constants['forge'] = true
@@ -254,6 +255,17 @@ jar {
     from(rootProject.file('LICENSE.txt')) { rename { "LICENSE_${rootProject.archives_base_name}.txt" } }
     manifest { attributes 'MixinConfigs': 'asterion.mixins.json' }
 }
+tasks.named('jarJar', Jar) {
+    archiveFileName = "${rootProject.archives_base_name}-${project.version}-forge-mc${minecraftVersion}.jar"
+    destinationDirectory = layout.buildDirectory.dir('packaged')
+}
+def amneticEmbed = dependencies.create(files(amneticJar))
+jarJar.configure(amneticEmbed) {
+    module { group = 'com.meekdev'; name = 'amnetic-forge' }
+    version = '1.0.0'
+    range = '[1.0.0,)'
+}
+dependencies.add('jarJar', amneticEmbed)
 
 configurations { forgeDistributionMods { transitive = false } }
 dependencies {
@@ -262,11 +274,10 @@ dependencies {
 tasks.register('stageForgeBuild', Sync) {
     group = 'distribution'
     description = 'Stage Asterion and its matching Forge runtime dependencies.'
-    dependsOn tasks.named('jar')
+    dependsOn tasks.named('jarJar')
     into rootProject.layout.buildDirectory.dir("ported-builds/${minecraftVersion}/forge")
-    from(tasks.named('jar')) { into 'mods' }
+    from(tasks.named('jarJar')) { into 'mods' }
     from(configurations.forgeDistributionMods) { into 'mods' }
-    from(amneticJar) { into 'mods' }
     from(forgifiedJar) { into 'mods' }
     from(rootProject.file('docs/INSTALL-MODS.txt'))
 }

@@ -5,6 +5,7 @@ plugins {
     id 'net.minecraftforge.jarjar' version '0.2.3'
     id 'net.minecraftforge.renamer' version '1.0.14'
 }
+jarJar.register()
 
 version = rootProject.mod_version
 group = rootProject.maven_group
@@ -76,6 +77,13 @@ dependencies {
     compileOnly files(rootProject.file('libs/amnetic-forge-26.1.2.jar'))
     runtimeOnly files(rootProject.file('libs/amnetic-forge-26.1.2.jar'))
 }
+def amneticEmbed = dependencies.create(files(rootProject.file('libs/amnetic-forge-26.1.2.jar')))
+jarJar.configure(amneticEmbed) {
+    module { group = 'com.meekdev'; name = 'amnetic-forge' }
+    version = '1.0.0'
+    range = '[1.0.0,)'
+}
+dependencies.add('jarJar', amneticEmbed)
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
@@ -93,4 +101,8 @@ processResources {
 jar {
     archiveFileName = "Asterion-${project.version}-forge-mc26.1.2.jar"
     manifest { attributes 'MixinConfigs': 'asterion.mixins.json,asterion.forge.mixins.json' }
+}
+tasks.named('jarJar', Jar) {
+    archiveFileName = "Asterion-${project.version}-forge-mc26.1.2.jar"
+    destinationDirectory = layout.buildDirectory.dir('packaged')
 }

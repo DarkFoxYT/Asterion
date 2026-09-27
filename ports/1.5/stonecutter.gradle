@@ -117,7 +117,7 @@ tasks.register('stageTestBuilds') {
 tasks.register('stageForge1201') {
     group = 'distribution'
     description = 'Stages the tested Minecraft Forge 1.20.1 compatibility pack.'
-    dependsOn ':1.20.1:remapJar'
+    dependsOn ':1.20.1-forge:jarJar'
 
     def outputDirectory = layout.buildDirectory.dir('ported-builds/1.20.1-forge')
     outputs.dir(outputDirectory)
@@ -128,8 +128,7 @@ tasks.register('stageForge1201') {
         mods.mkdirs()
 
         copy {
-            from project(':1.20.1').tasks.named('remapJar').flatMap { it.archiveFile }
-            from rootProject.file('libs/amnetic-forge-1.0-SNAPSHOT+1.20.1-forge.jar')
+            from project(':1.20.1-forge').tasks.named('jarJar').flatMap { it.archiveFile }
             into mods
         }
 

@@ -23,6 +23,14 @@ def amneticJar = rootProject.file("libs/amnetic-forge-1.0-SNAPSHOT+${minecraftVe
 def forgifiedJar = rootProject.file(legacy ? 'libs/forgified-fabric-api-1.20.1.jar' :
         'libs/forgified-fabric-api-1.21.1-neoforge.jar')
 def extractedForgified = layout.buildDirectory.dir('forgified-api-compile')
+def amneticNeoEmbedJar = tasks.register('amneticNeoEmbedJar', Jar) {
+    from(zipTree(amneticJar)) {
+        exclude 'META-INF/MANIFEST.MF', 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA'
+    }
+    archiveFileName = amneticJar.name
+    destinationDirectory = layout.buildDirectory.dir('amnetic-embed')
+    manifest { attributes 'Automatic-Module-Name': 'com.meekdev.amnetic' }
+}
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(legacy ? 17 : 21)
@@ -122,6 +130,7 @@ dependencies {
     implementation "software.bernie.geckolib:geckolib-forge-${minecraftVersion}:${geckolibVersion}"
     compileOnly files(amneticJar)
     runtimeOnly files(amneticJar)
+    jarJar files(amneticNeoEmbedJar)
     compileOnly 'org.jspecify:jspecify:1.0.0'
     compileOnly 'io.github.llamalad7:mixinextras-common:0.4.1'
     if (!legacy) runtimeOnly files(tasks.named('jar'))

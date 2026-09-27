@@ -88,6 +88,7 @@ repositories {
 
 dependencies {
     modImplementation files(rootProject.file("libs/amnetic-1.0-SNAPSHOT+${minecraft_version}.jar"))
+    include "asterion.local:amnetic:1.0-SNAPSHOT+${minecraft_version}"
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings loom.officialMojangMappings()
     modImplementation("net.fabricmc:fabric-loader:${project.loader_version}") {
@@ -356,7 +357,6 @@ tasks.register("modDistribution", Sync) {
     dependsOn tasks.named("remapJar")
     into layout.buildDirectory.dir("distribution")
     from(tasks.named("remapJar"))
-    from(rootProject.file("libs/amnetic-1.0-SNAPSHOT+${minecraft_version}.jar"))
     from(rootProject.file("docs/INSTALL-MODS.txt"))
 }
 

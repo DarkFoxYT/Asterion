@@ -1,8 +1,9 @@
 # Asterion mod builds
 
 This folder contains **Asterion jars only**. Names include the Asterion release,
-loader, and Minecraft version. Dependencies such as Amnetic, Fabric API, and
-GeckoLib are not copied here; install the matching dependencies separately.
+loader, and Minecraft version. **Amnetic is embedded in every Asterion jar**;
+do not install it separately. Other dependencies, including Fabric API and
+GeckoLib, still need matching external versions.
 
 From the repository root, run
 `powershell -ExecutionPolicy Bypass -File tools/build-all-mods.ps1` to build

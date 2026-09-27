@@ -8,7 +8,6 @@ dependencies {
     } else {
         distributionMods "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
         distributionMods "software.bernie.geckolib:geckolib-fabric-${mc}:${project.geckolib_version}"
-        distributionMods files(rootProject.file("libs/amnetic-1.0-SNAPSHOT+${mc}.jar"))
     }
 }
 tasks.register('stagePlayableBuild', Sync) {

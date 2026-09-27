@@ -41,4 +41,5 @@ Invoke-Build (Join-Path $v15 'ports/26.1.2') @(
     ':26.1.2-fabric:build', ':26.1.2-quilt:build',
     ':26.1.2-forge:build', ':26.1.2-neoforge:build'
  ) 25
+& (Join-Path $PSScriptRoot 'verify-modbuilds.ps1')
 Write-Output "Asterion jars: $(Join-Path $repo 'modbuilds')"
