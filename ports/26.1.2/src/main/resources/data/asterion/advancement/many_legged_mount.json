@@ -1,0 +1,32 @@
+{
+  "parent": "asterion:root",
+  "criteria": {
+    "milestone": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "asterion:scarlet_centipede_spawn_egg"
+    },
+    "title": {
+      "translate": "advancement.asterion.many_legged_mount.title"
+    },
+    "description": {
+      "translate": "advancement.asterion.many_legged_mount.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "milestone"
+    ]
+  ],
+  "rewards": {
+    "experience": 25
+  },
+  "sends_telemetry_event": false
+}

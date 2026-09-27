@@ -1,0 +1,83 @@
+package net.krodark.asterion.mixin;
+
+import com.geckolib.renderer.texture.GeckoLibAnimatedTexture;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.mojang.blaze3d.platform.NativeImage;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.GpuTexture;
+import org.spongepowered.asm.mixin.*;
+import org.spongepowered.asm.mixin.injection.*;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import java.util.HashMap;
+import java.util.Map;
+
+@Mixin(targets = "com.geckolib.renderer.texture.GeckoLibAnimatedTexture$AnimationInfo", remap = false)
+public abstract class GeckoAnimationCacheMixin {
+    @Shadow @Final java.util.List<?> frames;
+    @Shadow int currentFrame;
+    @Shadow int subFrame;
+    @Shadow @Final GeckoLibAnimatedTexture this$0;
+    @Unique private final Map<Long, NativeImage> asterion$frames = new HashMap<>();
+    @Unique private long asterion$bytes;
+
+    @WrapOperation(method = "tick", at = @At(value = "INVOKE",
+            target = "Lcom/mojang/blaze3d/platform/NativeImage;copyRect(Lcom/mojang/blaze3d/platform/NativeImage;IIIIIIZZ)V"))
+    private void asterion$copyFrame(NativeImage source, NativeImage target, int sx, int sy,
+            int tx, int ty, int width, int height, boolean flipX, boolean flipY, Operation<Void> original) {
+        if (!this$0.resourceId().getNamespace().equals("asterion")
+                || !net.krodark.asterion.client.render.TextureFrameCopy.tryCopy(
+                        source, target, sx, sy, tx, ty, width, height, flipX, flipY))
+            original.call(source, target, sx, sy, tx, ty, width, height, flipX, flipY);
+    }
+
+    @WrapOperation(method = "tick", at = @At(value = "INVOKE",
+            target = "Lcom/geckolib/renderer/texture/GeckoLibAnimatedTexture$AnimationInfo$InterpolationData;tickAndUpload(Lcom/mojang/blaze3d/platform/NativeImage;Lcom/mojang/blaze3d/textures/GpuTexture;)V"))
+    private void asterion$reuseFrame(@Coerce Object interpolation, NativeImage source, GpuTexture texture,
+                                    Operation<Void> original) {
+        if (!this$0.resourceId().getNamespace().equals("asterion")) {
+            original.call(interpolation, source, texture);
+            return;
+        }
+        int current = ((GeckoAnimationFrameAccessor)frames.get(currentFrame)).asterion$index();
+        int next = ((GeckoAnimationFrameAccessor)frames.get((currentFrame + 1) % frames.size())).asterion$index();
+        if (current == next) { original.call(interpolation, source, texture); return; }
+        if (asterion$frames.isEmpty())
+            ((net.krodark.asterion.client.render.TextureCacheOwner)this$0).asterion$setFrameCleanup(this::asterion$clearFrames);
+        long key = (long)currentFrame << 32 | Integer.toUnsignedLong(subFrame);
+        NativeImage cached = asterion$frames.get(key);
+        if (cached != null) {
+            RenderSystem.getDevice().createCommandEncoder().writeToTexture(texture, cached,
+                    0, 0, 0, 0, cached.getWidth(), cached.getHeight(), 0, 0);
+            return;
+        }
+        original.call(interpolation, source, texture);
+        NativeImage buffer = ((GeckoInterpolationBufferAccessor)interpolation).asterion$buffer();
+        long bytes = (long)buffer.getWidth() * buffer.getHeight() * 4;
+
+        if (asterion$bytes + bytes > 8L * 1024 * 1024
+                || !net.krodark.asterion.client.render.TextureFrameBudget.reserve(bytes)) return;
+        try {
+        cached = new NativeImage(buffer.getWidth(), buffer.getHeight(), false);
+        if (!net.krodark.asterion.client.render.TextureFrameCopy.tryCopy(buffer, cached,
+                0, 0, 0, 0, buffer.getWidth(), buffer.getHeight(), false, false))
+            buffer.copyRect(cached, 0, 0, 0, 0, buffer.getWidth(), buffer.getHeight(), false, false);
+        asterion$frames.put(key, cached);
+        asterion$bytes += bytes;
+        } catch (RuntimeException | Error failure) {
+            if (cached != null) cached.close();
+            net.krodark.asterion.client.render.TextureFrameBudget.release(bytes);
+            throw failure;
+        }
+    }
+    @Inject(method = "close", at = @At("HEAD"))
+    private void asterion$releaseFrames(CallbackInfo ci) {
+        asterion$clearFrames();
+    }
+    @Unique private void asterion$clearFrames() {
+        asterion$frames.values().forEach(NativeImage::close);
+        asterion$frames.clear();
+        net.krodark.asterion.client.render.TextureFrameBudget.release(asterion$bytes);
+        asterion$bytes = 0;
+    }
+}

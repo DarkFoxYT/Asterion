@@ -1,0 +1,30 @@
+// Resolve original production artifacts, not Loom's named development transforms.
+configurations { distributionMods { transitive = false } }
+def nativeNeo = project.name == 'neoforge'
+def mc = nativeNeo ? rootProject.minecraft_version : project.minecraft_version
+dependencies {
+    if (nativeNeo) {
+        distributionMods "software.bernie.geckolib:geckolib-neoforge-${mc}:${rootProject.geckolib_version}"
+    } else {
+        distributionMods "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+        distributionMods "software.bernie.geckolib:geckolib-fabric-${mc}:${project.geckolib_version}"
+    }
+}
+tasks.register('stagePlayableBuild', Sync) {
+    group = 'distribution'
+    def production = tasks.named(nativeNeo ? 'jar' : 'remapJar')
+    dependsOn production
+    into rootProject.layout.buildDirectory.dir("ported-builds/${mc}/${nativeNeo ? 'neoforge' : 'fabric-quilt'}")
+    from(production) { into 'mods' }
+    from(configurations.distributionMods) { into 'mods' }
+    from(rootProject.file('docs/INSTALL-MODS.txt'))
+}
+// Authoring-only resources have target-version equivalents generated into geo,
+// animations, and models/item. Keep sources intact, omit redundant release copies.
+tasks.withType(Jar).configureEach {
+    if (!name.toLowerCase().contains('sources')) {
+        exclude 'assets/asterion/geckolib/**'
+        exclude 'assets/asterion/items/**'
+        exclude 'assets/asterion/equipment/**'
+    }
+}

@@ -1,0 +1,16 @@
+{
+  "parent": "asterion:root",
+  "criteria": {
+    "key": {
+      "conditions": { "items": [{ "items": "asterion:cursed_brazier_key" }] },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "description": { "translate": "advancement.asterion.find_brazier_key.description" },
+    "icon": { "id": "asterion:cursed_brazier_key" },
+    "title": { "translate": "advancement.asterion.find_brazier_key.title" }
+  },
+  "requirements": [["key"]],
+  "sends_telemetry_event": false
+}

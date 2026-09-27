@@ -1,0 +1,1 @@
+{"type":"forge:add_spawns","biomes":"minecraft:the_void","spawners":[{"type":"asterion:bombadier_beetle","weight":12,"minCount":1,"maxCount":3},{"type":"asterion:scarlet_centipede","weight":5,"minCount":1,"maxCount":1},{"type":"asterion:construct","weight":1,"minCount":1,"maxCount":1}]}

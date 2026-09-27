@@ -1,0 +1,12 @@
+ASTERION 1.5 LABYRINTH BETA - MINECRAFT FORGE 1.20.1
+
+Use Minecraft Forge 47.1.3 and Java 17. Copy every JAR from the supplied mods
+folder into a clean profile. The folder includes Asterion, the native Forge
+Amnetic build, Connector, Forgified Fabric API, and the matching GeckoLib build.
+
+Do not add another Amnetic, Fabric API, Forgified Fabric API, Connector, or
+GeckoLib JAR to the same profile. This is a compatibility build: Connector runs
+Asterion's shared Fabric-facing code while Amnetic runs natively on Forge.
+
+Minecraft 1.21.1 and 26.1.2 use NeoForge, because Connector and Forgified Fabric
+API support NeoForge rather than Minecraft Forge on those versions.

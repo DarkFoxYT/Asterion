@@ -1,0 +1,14 @@
+{
+  "placement": {
+    "type": "minecraft:random_spread",
+    "salt": 918273645,
+    "separation": 20,
+    "spacing": 44
+  },
+  "structures": [
+    {
+      "structure": "asterion:safe_room",
+      "weight": 1
+    }
+  ]
+}

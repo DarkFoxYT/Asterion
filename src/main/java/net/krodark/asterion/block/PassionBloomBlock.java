@@ -1,0 +1,71 @@
+package net.krodark.asterion.block;
+
+import com.mojang.serialization.MapCodec;
+import net.krodark.asterion.Asterion;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
+
+
+public final class PassionBloomBlock extends Block {
+    public static final MapCodec<PassionBloomBlock> CODEC = simpleCodec(PassionBloomBlock::new);
+    private static final VoxelShape SHAPE = Block.box(4.0D, 3.0D, 4.0D, 12.0D, 16.0D, 12.0D);
+
+    public PassionBloomBlock(BlockBehaviour.Properties properties) {
+        super(properties);
+    }
+
+    protected MapCodec<? extends Block> codec() {
+        return CODEC;
+    }
+
+    @Override
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+        return level.getBlockState(pos.above()).is(Asterion.TAINTED_LEAVES);
+    }
+
+    @Override
+    public BlockState updateShape(BlockState state, Direction direction,
+                                     BlockState neighborState, net.minecraft.world.level.LevelAccessor level,
+                                     BlockPos pos, BlockPos neighborPos) {
+        return direction == Direction.UP && !canSurvive(state, level, pos)
+                ? Blocks.AIR.defaultBlockState()
+                : super.updateShape(state, direction, neighborState, level, pos, neighborPos);
+    }
+
+    @Override
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos,
+                                  CollisionContext context) {
+        return SHAPE;
+    }
+
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
+                                               Player player, BlockHitResult hit) {
+        if (level.isClientSide()) return InteractionResult.SUCCESS;
+        ItemStack bloom = new ItemStack(Asterion.TAINTED_HEART_EATABLE);
+        if (!player.getInventory().add(bloom)) player.drop(bloom, false);
+        level.removeBlock(pos, false);
+        return InteractionResult.SUCCESS;
+    }
+
+//? if <1.20.5 {
+/*    @Override public net.minecraft.world.InteractionResult use(net.minecraft.world.level.block.state.BlockState state,
+        net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos, net.minecraft.world.entity.player.Player player,
+        net.minecraft.world.InteractionHand hand, net.minecraft.world.phys.BlockHitResult hit) {
+        return useWithoutItem(state, level, pos, player, hit);
+    }*/
+//?}
+}

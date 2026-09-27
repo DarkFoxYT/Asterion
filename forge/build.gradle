@@ -1,0 +1,260 @@
+plugins {
+    id 'java'
+    id 'idea'
+    id 'maven-publish'
+    id 'net.minecraftforge.gradle' version '[7.0.17,8)'
+    id 'net.minecraftforge.jarjar' version '0.2.3'
+    id 'net.minecraftforge.renamer' version '1.0.14'
+}
+
+stonecutter {
+    constants['forge'] = true
+    properties.tags('forge')
+}
+
+version = rootProject.mod_version
+group = rootProject.maven_group
+base.archivesName = "${rootProject.archives_base_name}-forge"
+
+def minecraftVersion = sc.current.version
+def legacy = sc.current.parsed < '1.20.5'
+def forgeVersion = legacy ? '47.1.3' : '52.1.16'
+def geckolibVersion = legacy ? '4.8.2' : rootProject.geckolib_version
+def amneticJar = rootProject.file("libs/amnetic-forge-1.0-SNAPSHOT+${minecraftVersion}-forge.jar")
+def forgifiedJar = rootProject.file(legacy ? 'libs/forgified-fabric-api-1.20.1.jar' :
+        'libs/forgified-fabric-api-1.21.1-neoforge.jar')
+def extractedForgified = layout.buildDirectory.dir('forgified-api-compile')
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(legacy ? 17 : 21)
+    sourceCompatibility = JavaVersion.toVersion(legacy ? 17 : 21)
+    targetCompatibility = JavaVersion.toVersion(legacy ? 17 : 21)
+    withSourcesJar()
+}
+
+repositories {
+    minecraft.mavenizer(it)
+    maven fg.forgeMaven
+    maven fg.minecraftLibsMaven
+    mavenCentral()
+    maven { url = 'https://maven.sinytra.org/' }
+    maven { url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/' }
+}
+
+minecraft {
+    mappings channel: 'official', version: minecraftVersion
+    runs {
+        configureEach {
+            mods { asterion { source sourceSets.main } }
+        }
+        register('client') { workingDir = layout.projectDirectory.dir('run/client') }
+        register('server') {
+            workingDir = layout.projectDirectory.dir('run/server')
+            args '--nogui'
+        }
+    }
+}
+
+sourceSets.main {
+    java {
+        if (legacy) srcDir rootProject.file('forge/src/main/java')
+        srcDir rootProject.file("forge/src/${minecraftVersion}/java")
+        if (legacy) srcDir rootProject.file('src/legacy/java')
+        if (legacy) exclude 'net/krodark/asterion/port/legacy/gecko/**'
+        if (legacy) {
+            exclude 'net/krodark/asterion/port/client/**'
+            [
+                    'SimpleGeoBlockRenderer', 'SimpleGeoEntityRenderer',
+                    'LabyrinthVinePortRenderer', 'PortDoorRenderers',
+                    'PortGreekFireTorchRenderer', 'PortPedestalRenderer',
+                    'PortRuneRenderer', 'PortSanctuaryRenderer'
+            ].each { exclude "net/krodark/asterion/port/client/${it}.java" }
+            exclude 'net/krodark/asterion/port/client/ragdoll/DismembermentEngine.java'
+            exclude 'net/krodark/asterion/mixin/PortModelCubeAccessor.java'
+        }
+        exclude 'net/krodark/asterion/port/fabric/**'
+        exclude 'net/krodark/asterion/port/neoforge/**'
+        exclude 'net/krodark/asterion/client/**'
+        if (legacy) exclude 'net/krodark/asterion/port/client/**'
+        exclude 'net/krodark/asterion/compat/jei/**'
+        exclude 'net/krodark/asterion/compat/rei/**'
+        exclude 'net/krodark/asterion/compat/jade/**'
+        exclude 'net/krodark/asterion/dev/**'
+        [
+                'ForgeHudMixin', 'ForgeToastMixin', 'ForgePlayerRendererMixin',
+                'GeckoAnimationCacheMixin', 'GeckoAnimationFrameAccessor',
+                'GeckoTextureCacheLifecycleMixin', 'GeckoInterpolationBufferAccessor',
+                'MinotaurBossBarMixin', 'MinotaurBodyPickingMixin',
+                'FlamethrowerInputMixin', 'BiomeMusicMixin', 'MoodyBrightnessMixin',
+                'TidalWaterSurfaceMixin', 'AmneticDepthAttachmentMixin',
+                'AmneticDepthBlitMixin', 'AsterionFogRendererMixin', 'CameraMixin',
+                'CentipedeInteractionMixin', 'FallingBlockRendererMixin',
+                'LevelLoadingScreenMixin', 'RagdollEntityRendererMixin',
+                'RagdollLivingEntityRendererMixin', 'RagdollGeoEntityRendererMixin',
+                'InventoryEntityPreviewMixin', 'RagdollLevelRendererMixin',
+                'SodiumRenderRegionMixin', 'RagdollLocalPlayerMixin',
+                'RagdollItemInHandRendererMixin', 'ForgedTooltipOutlineMixin',
+                'AmneticBloomPerformanceMixin', 'AmneticEmissiveInstanceMixin',
+                'AmneticEmissivePassMixin', 'AmneticParticleCullingMixin',
+                'PortBiomeMusicMixin', 'PortCameraMixin',
+                'PortCentipedeInteractionMixin', 'PortGeckoInterpolationMixin',
+                'PortLevelLoadingScreenMixin', 'PortMinotaurBodyPickingMixin',
+                'PortMinotaurBossBarMixin', 'PortRagdollLocalPlayerMixin',
+                'PortRagdollRenderMixin', 'PortSpriteInterpolationMixin',
+                'RagdollClientUseGuardMixin'
+        ].each { exclude "net/krodark/asterion/mixin/${it}.java" }
+    }
+    resources {
+        srcDir rootProject.file('forge/src/main/resources')
+        exclude 'fabric.mod.json'
+        exclude 'META-INF/neoforge.mods.toml'
+    }
+}
+
+dependencies {
+    implementation minecraft.dependency("net.minecraftforge:forge:${minecraftVersion}-${forgeVersion}") {
+        accessTransformers.from(rootProject.file('forge/src/main/resources/META-INF/accesstransformer.cfg'))
+    }
+    if (legacy) {
+        implementation files(forgifiedJar)
+    } else {
+        compileOnly files(forgifiedJar)
+    }
+    implementation "software.bernie.geckolib:geckolib-forge-${minecraftVersion}:${geckolibVersion}"
+    compileOnly files(amneticJar)
+    runtimeOnly files(amneticJar)
+    compileOnly 'org.jspecify:jspecify:1.0.0'
+    compileOnly 'io.github.llamalad7:mixinextras-common:0.4.1'
+    if (!legacy) runtimeOnly files(tasks.named('jar'))
+}
+
+if (!legacy) {
+    tasks.matching { it.name in ['runClient', 'runServer'] }.configureEach {
+        dependsOn tasks.named('jar')
+        doFirst {
+            def mainOutputs = sourceSets.main.output.files.collect { it.canonicalFile } as Set
+            classpath = classpath.filter { !mainOutputs.contains(it.canonicalFile) }
+        }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    dependsOn tasks.named('extractForgifiedApi'), tasks.named('patchForgeGeneratedSources')
+    classpath += files(fileTree(extractedForgified) { include '*.jar' })
+    options.encoding = 'UTF-8'
+    options.release = legacy ? 17 : 21
+    options.compilerArgs.addAll(['-Xmaxerrs', '100000'])
+}
+
+tasks.register('patchForgeGeneratedSources') {
+    dependsOn tasks.named('stonecutterGenerate')
+    doLast {
+        if (minecraftVersion == '1.21.1') {
+            def generated = layout.buildDirectory.dir('generated/stonecutter/main/java').get().asFile
+            def recipe = new File(generated, 'net/krodark/asterion/recipe/ForgedSwordRecipe.java')
+            recipe.text = recipe.getText('UTF-8')
+                    .replace('import net.minecraft.world.entity.EquipmentSlot;',
+                            'import net.minecraft.world.entity.EquipmentSlotGroup;')
+                    .replace('EquipmentSlot.MAINHAND', 'EquipmentSlotGroup.MAINHAND')
+            def minotaur = new File(generated, 'net/krodark/asterion/entity/MinotaurEntity.java')
+            minotaur.text = minotaur.getText('UTF-8').replaceAll(
+                    'SoundEvents\\.ARMOR_EQUIP_IRON(?!\\.value\\(\\))',
+                    'SoundEvents.ARMOR_EQUIP_IRON.value()')
+            def entrypoint = new File(generated, 'net/krodark/asterion/Asterion.java')
+            entrypoint.text = entrypoint.getText('UTF-8').replace('\r\n', '\n')
+                    .replace('.clientTrackingRange(16).build(null)\n    );', '.clientTrackingRange(16).build("asterion:minotaur")\n    );')
+                    .replace('.updateInterval(1).build(null));', '.updateInterval(1).build("asterion:minotaur_axe"));')
+                    .replace('.clientTrackingRange(8).build(null));', '.clientTrackingRange(8).build("asterion:rune_beetle"));')
+                    .replace('.fireImmune().build(null)\n    );', '.fireImmune().build("asterion:bombadier_beetle")\n    );')
+                    .replace('.clientTrackingRange(10).fireImmune()\n                    .build(null));', '.clientTrackingRange(10).fireImmune()\n                    .build("asterion:construct"));')
+                    .replace('.clientTrackingRange(12)\n                    .build(null));', '.clientTrackingRange(12)\n                    .build("asterion:queen_beetle"));')
+                    .replace('.clientTrackingRange(48)\n                    .build(null)\n    );', '.clientTrackingRange(48)\n                    .build("asterion:scarlet_centipede")\n    );')
+            def gameplay = new File(generated, 'net/krodark/asterion/game/GameplayContent.java')
+            gameplay.text = gameplay.getText('UTF-8').replace('\r\n', '\n')
+                    .replace('.clientTrackingRange(12)\n                    .build(null));', '.clientTrackingRange(12)\n                    .build("asterion:cursed_brazier"));')
+            def ancient = new File(generated, 'net/krodark/asterion/game/AncientContent.java')
+            ancient.text = ancient.getText('UTF-8').replace('.clientTrackingRange(8).build(null));',
+                    '.clientTrackingRange(8).build("asterion:ancient_skeleton"));')
+            def lift = new File(generated, 'net/krodark/asterion/game/ChainLiftContent.java')
+            lift.text = lift.getText('UTF-8')
+                    .replace('.clientTrackingRange(16).updateInterval(1).fireImmune().build(null));',
+                            '.clientTrackingRange(16).updateInterval(1).fireImmune().build("asterion:chain_lift"));')
+                    .replace('.clientTrackingRange(10).updateInterval(20).fireImmune().build(null));',
+                            '.clientTrackingRange(10).updateInterval(20).fireImmune().build("asterion:lift_call_rune"));')
+        }
+    }
+}
+
+tasks.register('extractForgifiedApi', Sync) {
+    from(zipTree(forgifiedJar)) {
+        include 'META-INF/jars/*.jar', 'META-INF/jarjar/*.jar'
+        eachFile { path = name }
+    }
+    into extractedForgified
+    includeEmptyDirs = false
+}
+
+processResources {
+    from(rootProject.file('src/main/resources/assets/asterion/geckolib/models')) {
+        into 'assets/asterion/geo'
+    }
+    from(rootProject.file('src/main/resources/assets/asterion/geckolib/animations')) {
+        into 'assets/asterion/animations'
+    }
+    inputs.properties(version: project.version, minecraft_version: minecraftVersion,
+            forge_version: forgeVersion, geckolib_version: geckolibVersion)
+    filesMatching('META-INF/mods.toml') {
+        expand version: project.version, minecraft_version: minecraftVersion,
+                forge_version: forgeVersion, geckolib_version: geckolibVersion
+    }
+    filesMatching('asterion.mixins.json') {
+            filter { line -> line.contains('net.krodark.asterion.mixin.') ? line : line }
+            filter { line ->
+                def name = line.trim().replaceAll('[",]', '')
+                def absent = [
+                        'ForgeHudMixin', 'ForgeToastMixin', 'ForgePlayerRendererMixin',
+                        'GeckoAnimationCacheMixin', 'GeckoAnimationFrameAccessor',
+                        'GeckoTextureCacheLifecycleMixin', 'GeckoInterpolationBufferAccessor',
+                        'MinotaurBossBarMixin', 'MinotaurBodyPickingMixin',
+                        'FlamethrowerInputMixin', 'BiomeMusicMixin', 'MoodyBrightnessMixin',
+                        'TidalWaterSurfaceMixin', 'AmneticDepthAttachmentMixin',
+                        'AmneticDepthBlitMixin', 'AsterionFogRendererMixin', 'CameraMixin',
+                        'CentipedeInteractionMixin', 'FallingBlockRendererMixin',
+                        'LevelLoadingScreenMixin', 'RagdollEntityRendererMixin',
+                        'RagdollLivingEntityRendererMixin', 'RagdollGeoEntityRendererMixin',
+                        'InventoryEntityPreviewMixin', 'RagdollLevelRendererMixin',
+                        'SodiumRenderRegionMixin', 'RagdollLocalPlayerMixin',
+                        'RagdollItemInHandRendererMixin', 'ForgedTooltipOutlineMixin',
+                        'AmneticBloomPerformanceMixin', 'AmneticEmissiveInstanceMixin',
+                        'AmneticEmissivePassMixin', 'AmneticParticleCullingMixin',
+                        'PortBiomeMusicMixin', 'PortCameraMixin',
+                        'PortCentipedeInteractionMixin', 'PortGeckoInterpolationMixin',
+                        'PortLevelLoadingScreenMixin', 'PortMinotaurBodyPickingMixin',
+                        'PortMinotaurBossBarMixin', 'PortRagdollLocalPlayerMixin',
+                        'PortRagdollRenderMixin', 'PortSpriteInterpolationMixin',
+                        'RagdollClientUseGuardMixin'
+                ]
+                absent.any { name == it || name.endsWith('.' + it) } ? '' : line
+            }
+    }
+    doLast {
+        def pack = new File(destinationDir, 'pack.mcmeta')
+        def resourceFormat = legacy ? 15 : 34
+        def dataFormat = legacy ? 15 : 48
+        pack.text = groovy.json.JsonOutput.toJson([
+                pack: [description: 'Asterion resources and world data',
+                       pack_format: resourceFormat,
+                       supported_formats: [min_inclusive: resourceFormat, max_inclusive: dataFormat]]
+        ])
+    }
+}
+
+jar {
+    archiveFileName = "${rootProject.archives_base_name}-${project.version}-forge-mc${minecraftVersion}.jar"
+    from(rootProject.file('LICENSE.txt')) { rename { "LICENSE_${rootProject.archives_base_name}.txt" } }
+    manifest { attributes 'MixinConfigs': 'asterion.mixins.json' }
+}
+
+tasks.matching { it.name == 'createMinecraftArtifacts' }.configureEach {
+    dependsOn tasks.named('stonecutterGenerate')
+}

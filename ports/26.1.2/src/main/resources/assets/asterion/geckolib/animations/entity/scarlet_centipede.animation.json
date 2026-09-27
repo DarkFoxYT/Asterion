@@ -1,0 +1,44 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "idle": {
+      "loop": true,
+      "animation_length": 2.0,
+      "bones": {
+        "full": {"rotation": ["math.sin(query.anim_time * 180) * 1.5", 0, 0]},
+        "antenna_left": {"rotation": [-12, "-20 + math.sin(query.anim_time * 240) * 5", 0]},
+        "antenna_right": {"rotation": [-12, "20 - math.sin(query.anim_time * 240) * 5", 0]}
+      }
+    },
+    "walk": {
+      "loop": true,
+      "animation_length": 1.0,
+      "bones": {
+        "full": {"position": [0, "math.sin(query.anim_time * 720) * 0.25", 0]},
+        "segment_0": {"rotation": [0, "math.sin(query.anim_time * 360) * 4", 0]},
+        "segment_1": {"rotation": [0, "math.sin(query.anim_time * 360 + 40) * 5", 0]},
+        "segment_2": {"rotation": [0, "math.sin(query.anim_time * 360 + 80) * 6", 0]},
+        "segment_3": {"rotation": [0, "math.sin(query.anim_time * 360 + 120) * 7", 0]},
+        "segment_4": {"rotation": [0, "math.sin(query.anim_time * 360 + 160) * 7", 0]},
+        "segment_5": {"rotation": [0, "math.sin(query.anim_time * 360 + 200) * 6", 0]},
+        "segment_6": {"rotation": [0, "math.sin(query.anim_time * 360 + 240) * 5", 0]},
+        "leg_l0": {"rotation": [0, "math.sin(query.anim_time * 720) * 22", 10]},
+        "leg_r0": {"rotation": [0, "math.sin(query.anim_time * 720 + 180) * 22", -10]},
+        "leg_l1": {"rotation": [0, "math.sin(query.anim_time * 720 + 70) * 22", 10]},
+        "leg_r1": {"rotation": [0, "math.sin(query.anim_time * 720 + 250) * 22", -10]},
+        "leg_l2": {"rotation": [0, "math.sin(query.anim_time * 720 + 140) * 22", 10]},
+        "leg_r2": {"rotation": [0, "math.sin(query.anim_time * 720 + 320) * 22", -10]},
+        "leg_l3": {"rotation": [0, "math.sin(query.anim_time * 720 + 210) * 22", 10]},
+        "leg_r3": {"rotation": [0, "math.sin(query.anim_time * 720 + 30) * 22", -10]},
+        "leg_l4": {"rotation": [0, "math.sin(query.anim_time * 720 + 280) * 22", 10]},
+        "leg_r4": {"rotation": [0, "math.sin(query.anim_time * 720 + 100) * 22", -10]},
+        "leg_l5": {"rotation": [0, "math.sin(query.anim_time * 720 + 350) * 22", 10]},
+        "leg_r5": {"rotation": [0, "math.sin(query.anim_time * 720 + 170) * 22", -10]},
+        "leg_l6": {"rotation": [0, "math.sin(query.anim_time * 720 + 60) * 22", 10]},
+        "leg_r6": {"rotation": [0, "math.sin(query.anim_time * 720 + 240) * 22", -10]},
+        "antenna_left": {"rotation": [-12, "-20 + math.sin(query.anim_time * 720) * 8", 0]},
+        "antenna_right": {"rotation": [-12, "20 - math.sin(query.anim_time * 720) * 8", 0]}
+      }
+    }
+  }
+}

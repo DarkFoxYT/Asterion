@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "key": {
+    "B": "asterion:ancient_bricks",
+    "M": "asterion:mazesteel_block"
+  },
+  "pattern": ["BMB", "BMB", "BMB"],
+  "result": {"count": 6, "id": "asterion:mazesteel_gate"}
+}

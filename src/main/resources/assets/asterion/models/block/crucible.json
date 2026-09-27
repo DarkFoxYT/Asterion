@@ -1,0 +1,10 @@
+{
+  "parent": "minecraft:block/cauldron",
+  "textures": {
+    "particle": "asterion:block/mazesteel_block",
+    "top": "asterion:block/mazesteel_block",
+    "bottom": "asterion:block/mazesteel_block",
+    "side": "asterion:block/mazesteel_block",
+    "inside": "asterion:block/ancient_stone"
+  }
+}

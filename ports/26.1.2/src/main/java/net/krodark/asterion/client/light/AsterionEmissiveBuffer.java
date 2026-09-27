@@ -1,0 +1,75 @@
+package net.krodark.asterion.client.light;
+
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import net.krodark.asterion.mixin.RenderTypeFactory;
+import java.util.HashMap;
+import java.util.Map;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.resources.Identifier;
+ 
+public final class AsterionEmissiveBuffer {
+    private static final Map<Identifier, RenderType> TEXTURED = new HashMap<>();
+    private static final Map<CustomKey, RenderType> CUSTOM = new HashMap<>();
+
+    private AsterionEmissiveBuffer() {
+    }
+
+    public static RenderType renderType(Identifier texture) {
+        return TEXTURED.computeIfAbsent(texture, id -> RenderTypeFactory.create(
+                "asterion_amnetic_emissive/" + id,
+                RenderSetup.builder(RenderPipelines.ENTITY_TRANSLUCENT_EMISSIVE)
+                        .withTexture("Sampler0", id)
+                        .useLightmap()
+                        .useOverlay()
+                        .createRenderSetup()));
+    }
+
+    public static RenderType renderType(Identifier texture, boolean enhanced) {
+        return renderType(texture);
+    }
+
+    public static RenderType surfaceRenderType(Identifier texture) {
+        return renderType(texture);
+    }
+
+    public static RenderType entityRenderType(Identifier texture) {
+        return renderType(texture);
+    }
+
+    public static RenderType blockRenderType(Identifier texture) {
+        return renderType(texture);
+    }
+
+    public static RenderType itemRenderType(Identifier texture) {
+        return renderType(texture);
+    }
+
+    public static RenderType geckoLibRenderType(Identifier texture) {
+        return renderType(texture);
+    }
+
+    public static RenderType customRenderType(String name, RenderPipeline pipeline) {
+        return customRenderType(name, pipeline, null);
+    }
+
+    public static RenderType customRenderType(String name, RenderPipeline pipeline, Identifier texture) {
+        return CUSTOM.computeIfAbsent(new CustomKey(name, pipeline, texture), key -> {
+             
+             
+             
+             
+             
+            var setup = RenderSetup.builder(pipeline);
+            if (texture != null) {
+                setup.withTexture("Sampler0", texture).useLightmap().useOverlay();
+            }
+            return RenderTypeFactory.create(
+                    "asterion_amnetic_emissive/" + name, setup.createRenderSetup());
+        });
+    }
+
+    private record CustomKey(String name, RenderPipeline pipeline, Identifier texture) {
+    }
+}

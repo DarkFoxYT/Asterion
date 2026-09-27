@@ -1,0 +1,9 @@
+{
+  "model": {
+    "type": "minecraft:special",
+    "base": "asterion:item/pedestal",
+    "model": {
+      "type": "geckolib:geckolib"
+    }
+  }
+}

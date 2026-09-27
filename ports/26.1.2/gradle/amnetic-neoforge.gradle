@@ -1,0 +1,69 @@
+// Relocate the upstream package-private bridge out of Minecraft's JPMS module.
+// Class constants are remapped without changing any rendering logic.
+def bridgeFrom = 'net/minecraft/client/renderer/rendertype/AmneticRenderTypeAccess'
+def bridgeTo = 'com/meekdev/amnetic/client/compat/AmneticRenderTypeAccess'
+def relocateBridge = { byte[] bytes ->
+    def input = new DataInputStream(new ByteArrayInputStream(bytes))
+    def buffer = new ByteArrayOutputStream()
+    def output = new DataOutputStream(buffer)
+    output.writeInt(input.readInt()); output.writeInt(input.readInt())
+    int count = input.readUnsignedShort(); output.writeShort(count)
+    for (int i=1; i<count; i++) {
+        int tag=input.readUnsignedByte(); output.writeByte(tag)
+        if (tag==1) output.writeUTF(input.readUTF().replace(bridgeFrom,bridgeTo))
+        else {
+            int size = tag in [3,4,9,10,11,12,17,18] ? 4 : tag in [5,6] ? 8 : tag==15 ? 3 : tag in [7,8,16,19,20] ? 2 : -1
+            if(size<0) throw new GradleException("Unknown class constant ${tag}")
+            output.write(input.readNBytes(size))
+            if(tag in [5,6])i++
+        }
+    }
+    output.write(input.readAllBytes()); output.close(); buffer.toByteArray()
+}
+def nativeAmnetic = tasks.register('prepareNativeAmnetic') {
+    def source = rootProject.file("libs/amnetic-neoforge-${rootProject.amnetic_version}.jar")
+    def target = layout.buildDirectory.file("renderer/amnetic-neoforge-${rootProject.amnetic_version}.jar")
+    inputs.file(source)
+    inputs.property("adapterRevision", 3)
+    inputs.file(rootProject.file("libs/amnetic-neoforge-1.0-SNAPSHOT.jar"))
+    outputs.file(target)
+    doLast {
+        target.get().asFile.parentFile.mkdirs()
+        new java.util.zip.ZipFile(source).withCloseable { archive ->
+            new java.util.zip.ZipOutputStream(new FileOutputStream(target.get().asFile)).withCloseable { out ->
+                archive.entries().toList().each { entry ->
+                    if (!entry.directory && !entry.name.startsWith('META-INF/jars/')) {
+                        def name = entry.name.replace(bridgeFrom,bridgeTo)
+                        def replacement = new java.util.zip.ZipEntry(name); replacement.time=0
+                        out.putNextEntry(replacement)
+                        byte[] content = archive.getInputStream(entry).withCloseable { it.readAllBytes() }
+                        if (name == 'META-INF/MANIFEST.MF') {
+                            def manifest = new java.util.jar.Manifest(new ByteArrayInputStream(content))
+                            manifest.mainAttributes.putValue('Automatic-Module-Name','com.meekdev.amnetic')
+                            manifest.mainAttributes.putValue('Implementation-Version',rootProject.amnetic_version)
+                            def encoded = new ByteArrayOutputStream(); manifest.write(encoded); content=encoded.toByteArray()
+                        }
+                        out.write(name.endsWith('.class') ? relocateBridge(content) : content)
+                        out.closeEntry()
+                    }
+                }
+                // The bundled sampler mixin still references this guarded API helper.
+                new java.util.zip.ZipFile(rootProject.file('libs/amnetic-neoforge-1.0-SNAPSHOT.jar')).withCloseable { previous ->
+                    def name='com/meekdev/amnetic/client/compat/IrisCompat.class'
+                    def restored=new java.util.zip.ZipEntry(name); restored.time=0; out.putNextEntry(restored)
+                    previous.getInputStream(previous.getEntry(name)).withCloseable { out.write(it.readAllBytes()) }
+                    out.closeEntry()
+                }
+                def at = new java.util.zip.ZipEntry('META-INF/accesstransformer.cfg'); at.time=0; out.putNextEntry(at)
+                out.write('public net.minecraft.client.renderer.rendertype.RenderType create(Ljava/lang/String;Lnet/minecraft/client/renderer/rendertype/RenderSetup;)Lnet/minecraft/client/renderer/rendertype/RenderType;\n'.getBytes('UTF-8'))
+                out.closeEntry()
+            }
+        }
+    }
+}
+dependencies {
+    runtimeOnly files(nativeAmnetic)
+    jarJar files(nativeAmnetic)
+}
+
+

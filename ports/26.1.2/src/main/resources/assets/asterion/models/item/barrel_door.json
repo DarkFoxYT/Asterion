@@ -1,0 +1,91 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "door": "asterion:block/barrel_door",
+    "particle": "asterion:block/barrel_door"
+  },
+  "elements": [
+    {
+      "from": [
+        2,
+        0,
+        7.25
+      ],
+      "to": [
+        14,
+        16,
+        8.75
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0.0,
+            0.0,
+            3.0,
+            4.0
+          ],
+          "texture": "#door"
+        },
+        "south": {
+          "uv": [
+            3.0625,
+            0.0,
+            6.0625,
+            4.0
+          ],
+          "texture": "#door"
+        },
+        "east": {
+          "uv": [
+            0.0,
+            4.0625,
+            0.375,
+            8.0625
+          ],
+          "texture": "#door"
+        },
+        "west": {
+          "uv": [
+            0.4375,
+            4.0625,
+            0.8125,
+            8.0625
+          ],
+          "texture": "#door"
+        },
+        "up": {
+          "uv": [
+            0.875,
+            4.0625,
+            3.875,
+            4.4375
+          ],
+          "texture": "#door"
+        },
+        "down": {
+          "uv": [
+            3.9375,
+            4.0625,
+            6.9375,
+            4.4375
+          ],
+          "texture": "#door"
+        }
+      }
+    }
+  ],
+  "display": {
+    "gui": {
+      "rotation": [
+        15,
+        -25,
+        0
+      ],
+      "scale": [
+        0.85,
+        0.85,
+        0.85
+      ]
+    }
+  }
+}

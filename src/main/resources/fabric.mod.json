@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "asterion",
+  "version": "${version}",
+  "name": "Asterion",
+  "description": "Descend into an infinite living labyrinth, explore its flooded catacombs, and survive the Minotaur at its heart.",
+  "authors": [
+    "Kronoz",
+    "DarkFox"
+  ],
+  "license": "LicenseRef-AMALGAM-Proprietary",
+  "icon": "assets/asterion/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "client": [
+      "net.krodark.asterion.port.fabric.AsterionFabricClient"
+    ],
+    "main": [
+      "net.krodark.asterion.port.fabric.AsterionFabric"
+    ],
+    "modmenu": [
+      "net.krodark.asterion.port.fabric.PortAsterionModMenu"
+    ]
+  },
+  "mixins": [
+    "asterion.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": ">=${fabric_version}",
+    "minecraft": "${minecraft_version}",
+    "amnetic": "*",
+    "geckolib": ">=${geckolib_version}"
+  }
+}

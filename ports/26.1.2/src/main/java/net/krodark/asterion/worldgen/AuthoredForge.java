@@ -1,0 +1,443 @@
+package net.krodark.asterion.worldgen;
+
+import net.krodark.asterion.Asterion;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.ServerLevelAccessor;
+import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.block.JigsawBlock;
+import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.levelgen.structure.BoundingBox;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessor;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessorType;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.WeakHashMap;
+
+ 
+
+
+
+
+public final class AuthoredForge {
+    private static final ResourceKey<LootTable> FORGE_CACHE = ResourceKey.create(
+            Registries.LOOT_TABLE, Identifier.fromNamespaceAndPath("asterion", "chests/forge_cache"));
+    private static final ResourceKey<LootTable> FORGE_GOLD_RESERVE = ResourceKey.create(
+            Registries.LOOT_TABLE, Identifier.fromNamespaceAndPath("asterion", "chests/forge_gold_reserve"));
+    private static final int DISTRICT_ROOMS = 52;
+    public static final int DISTRICT_SPACING = 228;
+    private static final Map<ServerLevel, Map<String, Optional<ResolvedPiece>>> PIECE_CACHE = new WeakHashMap<>();
+    private static final Map<ServerLevel, Map<Integer, Layout>> VARIANTS = new WeakHashMap<>();
+    public static final List<String> PIECES = List.of(
+            "forge", "t_junction_1", "t_junction_2", "t_junction_3",
+            "corner_1", "corner_2", "hallway_1", "hallway_2", "hallway_3", "t_junction_4", "gold_reserves");
+    public static final Identifier DOOR = Identifier.fromNamespaceAndPath("asterion", "catacombs/door");
+    private static final Map<ServerLevel, Map<Long, Layout>> LAYOUTS = new WeakHashMap<>();
+    private static final Map<ServerLevel, java.util.ArrayDeque<PendingChunk>> REPAIRS = new WeakHashMap<>();
+
+    private record PendingChunk(ChunkPos pos, int attempts) {}
+
+    private AuthoredForge() { }
+
+     
+
+    public static void onChunkLoad(ServerLevel level, net.minecraft.world.level.chunk.LevelChunk chunk, boolean newlyGenerated) {
+        if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
+        REPAIRS.computeIfAbsent(level, ignored -> new java.util.ArrayDeque<>()).add(new PendingChunk(chunk.getPos(), 0));
+    }
+
+    public static void tickRepairs(ServerLevel level) {
+        var pending = REPAIRS.get(level);
+        if (pending == null || pending.isEmpty()) return;
+         
+        PendingChunk entry = pending.removeFirst();
+        ChunkPos pos = entry.pos();
+        var chunk = level.getChunkSource().getChunkNow(pos.x(), pos.z());
+        if (chunk == null) {
+            if (entry.attempts() < 3) pending.addLast(new PendingChunk(pos, entry.attempts() + 1));
+            return;
+        }
+        repairEmptyChunk(level, chunk);
+        ShaleCaves.repairEmptyChunk(chunk, MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState()));
+         
+         
+    }
+
+    public static void repairEmptyChunk(ServerLevel level, net.minecraft.world.level.chunk.LevelChunk chunk) {
+        Layout layout = layoutFor(level, chunk.getPos());
+        for (Placement placement : placements(level, layout, chunk.getPos())) {
+            BoundingBox bounds = placement.bounds();
+            BoundingBox slice = new BoundingBox(Math.max(chunk.getPos().getMinBlockX(), bounds.minX()), bounds.minY() + 1,
+                    Math.max(chunk.getPos().getMinBlockZ(), bounds.minZ()), Math.min(chunk.getPos().getMaxBlockX(), bounds.maxX()),
+                    bounds.maxY() - 3, Math.min(chunk.getPos().getMaxBlockZ(), bounds.maxZ()));
+            boolean empty = true;
+            for (BlockPos pos : BlockPos.betweenClosed(slice.minX(), slice.minY(), slice.minZ(),
+                    slice.maxX(), slice.maxY(), slice.maxZ())) {
+                if (!chunk.getBlockState(pos).isAir()) { empty = false; break; }
+            }
+            if (!empty) continue;
+            BoundingBox clip = new BoundingBox(slice.minX(), bounds.minY(), slice.minZ(), slice.maxX(), bounds.maxY(), slice.maxZ());
+            placeRoom(level, placement, clip);
+            for (Port seam : layout.seams()) openSeam(level, seam, clip);
+            for (Port cap : layout.caps()) sealPort(level, cap, clip);
+            chunk.markUnsaved();
+        }
+    }
+
+    public static void place(ServerLevelAccessor world, ChunkPos chunk) {
+        ServerLevel level = world instanceof ServerLevel server ? server : ((WorldGenLevel) world).getLevel();
+        Layout layout = layoutFor(level, chunk);
+        if (layout.placements().isEmpty()) return;
+
+        BoundingBox clip = new BoundingBox(chunk.getMinBlockX(), level.getMinY(), chunk.getMinBlockZ(),
+                chunk.getMaxBlockX(), level.getMaxY() - 1, chunk.getMaxBlockZ());
+        for (Placement placement : placements(level, layout, chunk)) {
+            placeRoom(world, placement, clip);
+        }
+        for (Port seam : layout.seams()) openSeam(world, seam, clip);
+        for (Port cap : layout.caps()) sealPort(world, cap, clip);
+    }
+
+    private static void placeRoom(ServerLevelAccessor world, Placement placement, BoundingBox clip) {
+        var settings = AuthoredCatacombs.settings(clip).setRotation(placement.rotation()).addProcessor(CRUCIBLE_PART_DATA);
+        placement.template().placeInWorld(world, placement.origin(), placement.origin(), settings,
+                RandomSource.create(placement.origin().asLong()), 18);
+        ResourceKey<LootTable> loot = placement.id().getPath().endsWith("gold_reserves")
+                ? FORGE_GOLD_RESERVE : FORGE_CACHE;
+        BoundingBox room = placement.bounds();
+        int minX = Math.max(room.minX(), clip.minX()), maxX = Math.min(room.maxX(), clip.maxX());
+        int minY = Math.max(room.minY(), clip.minY()), maxY = Math.min(room.maxY(), clip.maxY());
+        int minZ = Math.max(room.minZ(), clip.minZ()), maxZ = Math.min(room.maxZ(), clip.maxZ());
+        for (int cx = minX >> 4; cx <= maxX >> 4; cx++) for (int cz = minZ >> 4; cz <= maxZ >> 4; cz++) {
+            var chunk = world.getChunk(cx, cz, net.minecraft.world.level.chunk.status.ChunkStatus.EMPTY, false);
+            if (chunk == null) continue;
+            for (BlockPos pos : chunk.getBlockEntitiesPos()) {
+                if (pos.getX() < minX || pos.getX() > maxX || pos.getY() < minY || pos.getY() > maxY
+                        || pos.getZ() < minZ || pos.getZ() > maxZ) continue;
+                if (world.getBlockEntity(pos) instanceof RandomizableContainerBlockEntity container) {
+                    container.setLootTable(loot);
+                    container.setLootTableSeed(CatacombLayout.hash(placement.origin().asLong(), pos.getX(), pos.getZ()) ^ pos.getY());
+                    container.setChanged();
+                }
+            }
+        }
+    }
+
+    public static int districtCenter(int coordinate) {
+        return CatacombLayout.ROOT_CENTER + Math.floorDiv(coordinate - CatacombLayout.ROOT_CENTER
+                + DISTRICT_SPACING / 2, DISTRICT_SPACING) * DISTRICT_SPACING;
+    }
+
+    public static BlockPos entranceCenter(ServerLevel level, ChunkPos chunk) {
+        return new BlockPos(districtCenter(chunk.getMiddleBlockX()), LabyrinthLevels.FORGE_FLOOR_Y + 13,
+                districtCenter(chunk.getMiddleBlockZ()));
+    }
+
+    public static BlockPos westSocket(ServerLevel level, ChunkPos chunk) {
+        var root = layoutFor(level, chunk).placements().getFirst();
+        return root.template().getJigsaws(root.origin(), root.rotation()).stream()
+                .filter(port -> JigsawBlock.getFrontFacing(port.info().state()) == Direction.WEST
+                        && port.name().equals(DOOR)).findFirst().orElseThrow().info().pos();
+    }
+
+    private static Layout layoutFor(ServerLevel level, ChunkPos chunk) {
+        int cx = districtCenter(chunk.getMiddleBlockX()), cz = districtCenter(chunk.getMiddleBlockZ());
+        int dx = cx - CatacombLayout.ROOT_CENTER, dz = cz - CatacombLayout.ROOT_CENTER;
+        long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
+        int variant = dx == 0 && dz == 0 ? 0 : 1 + (int)Math.floorMod(CatacombLayout.hash(seed, cx, cz), 7);
+        synchronized (LAYOUTS) {
+            var districts = LAYOUTS.computeIfAbsent(level, ignored -> new LinkedHashMap<>(64, .75F, true) {
+                @Override protected boolean removeEldestEntry(Map.Entry<Long, Layout> eldest) { return size() > 64; }
+            });
+            long key = ((long)cx << 32) | (cz & 0xffffffffL);
+            Layout cached = districts.get(key);
+            if (cached != null) return cached;
+            Layout base = VARIANTS.computeIfAbsent(level, ignored -> new java.util.HashMap<>())
+                    .computeIfAbsent(variant, id -> createLayout(level, id));
+            Layout result = dx == 0 && dz == 0 ? base : new Layout(
+                    base.placements().stream().map(p -> new Placement(p.id(), p.template(), p.rotation(),
+                            p.origin().offset(dx, 0, dz), p.bounds().moved(dx, 0, dz))).toList(),
+                    base.caps().stream().map(p -> shift(p, dx, dz)).toList(),
+                    base.seams().stream().map(p -> shift(p, dx, dz)).toList());
+            districts.put(key, result);
+            return result;
+        }
+    }
+
+    private static Port shift(Port port, int x, int z) {
+        return new Port(port.position().offset(x, 0, z), port.front(), port.name(), port.target());
+    }
+
+    private static List<Placement> placements(ServerLevel level, Layout layout, ChunkPos chunk) {
+        BoundingBox column = new BoundingBox(chunk.getMinBlockX(), level.getMinY(), chunk.getMinBlockZ(),
+                chunk.getMaxBlockX(), level.getMaxY(), chunk.getMaxBlockZ());
+        return layout.placements().stream().filter(p -> p.bounds().intersects(column)).toList();
+    }
+
+    public static void clearRuntimeState() {
+        synchronized (LAYOUTS) { LAYOUTS.clear(); VARIANTS.clear(); PIECE_CACHE.clear(); }
+        REPAIRS.clear();
+    }
+
+     
+    public static boolean contains(ServerLevel level, BlockPos pos) {
+        Layout layout = layoutFor(level, ChunkPos.containing(pos));
+        return placements(level, layout, ChunkPos.containing(pos)).stream().anyMatch(placement -> placement.bounds().isInside(pos));
+    }
+
+    private static Layout createLayout(ServerLevel level, int variant) {
+        Map<String, ResolvedPiece> loaded = new LinkedHashMap<>();
+        for (String name : PIECES) resolve(level, name).ifPresent(piece -> loaded.put(name, piece));
+        ResolvedPiece root = loaded.remove("forge");
+        if (root == null) {
+            Asterion.LOGGER.warn("Forge room NBTs are not installed yet; expected data/asterion/structure/forge/forge.nbt");
+            return new Layout(List.of(), List.of(), List.of());
+        }
+
+        List<Placement> placed = new ArrayList<>();
+        List<Port> open = new ArrayList<>();
+        List<Port> seams = new ArrayList<>();
+        StructurePlaceSettings rootSettings = new StructurePlaceSettings().setRotation(Rotation.NONE);
+        BoundingBox relative = root.template().getBoundingBox(rootSettings, BlockPos.ZERO);
+        int center = CatacombLayout.ROOT_CENTER;
+        BlockPos rootOrigin = new BlockPos(center - (relative.minX() + relative.maxX()) / 2,
+                LabyrinthLevels.FORGE_FLOOR_Y - relative.minY(),
+                center - (relative.minZ() + relative.maxZ()) / 2);
+        Placement rootPlacement = placement(root, Rotation.NONE, rootOrigin);
+        placed.add(rootPlacement);
+        open.addAll(ports(root, Rotation.NONE, rootOrigin));
+        open.removeIf(port -> port.front() == Direction.WEST);  
+
+         
+        List<ResolvedPiece> remaining = new ArrayList<>(loaded.values());
+        remaining.sort(Comparator.comparingInt((ResolvedPiece piece) -> piece.localPorts().get(Rotation.NONE).size()).reversed());
+        long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState()) ^ variant * 0x9E3779B97F4A7C15L;
+        int salt = 0;
+        for (ResolvedPiece piece : remaining) {
+            Attachment attachment = findAttachment(piece, open, placed, seed ^ ++salt * 0x9E3779B97F4A7C15L);
+            if (attachment == null) {
+                Asterion.LOGGER.warn("Could not attach Forge room {} without overlapping another real NBT bound", piece.id());
+                continue;
+            }
+            placed.add(attachment.placement());
+            open.remove(attachment.parent());
+            seams.add(attachment.parent());
+            List<Port> children = new ArrayList<>(ports(piece, attachment.placement().rotation(),
+                    attachment.placement().origin()));
+            children.removeIf(port -> port.position().equals(attachment.childPosition()));
+            open.addAll(children);
+        }
+         
+         
+         
+        List<ResolvedPiece> palette = new ArrayList<>(loaded.values());
+        palette.add(root);
+        int attempts = 0;
+        while (placed.size() < DISTRICT_ROOMS && !open.isEmpty() && attempts++ < DISTRICT_ROOMS * 24) {
+            long roll = CatacombLayout.hash(seed ^ 0xF0A63D15L, attempts, placed.size());
+            ResolvedPiece piece = repeatedPiece(palette, roll);
+            Attachment attachment = findAttachment(piece, open, placed, roll);
+            if (attachment == null) continue;
+            placed.add(attachment.placement());
+            open.remove(attachment.parent());
+            seams.add(attachment.parent());
+            List<Port> children = new ArrayList<>(ports(piece, attachment.placement().rotation(),
+                    attachment.placement().origin()));
+            children.removeIf(port -> port.position().equals(attachment.childPosition()));
+            open.addAll(children);
+        }
+        List<Port> caps = open.stream().distinct().toList();
+        Asterion.LOGGER.info("Built Forge biome from {} authored NBT rooms (all {}/{} variants, {} sealed ends)",
+                placed.size(), PIECES.size(), PIECES.size(), caps.size());
+        return new Layout(List.copyOf(placed), caps, List.copyOf(seams));
+    }
+
+    private static ResolvedPiece repeatedPiece(List<ResolvedPiece> palette, long roll) {
+        int chance = (int)Math.floorMod(roll, 100);
+        String family = chance < 2 ? "gold_reserves" : chance < 7 ? "forge"
+                : chance < 76 ? "hallway" : chance < 89 ? "corner" : "t_junction";
+        List<ResolvedPiece> choices = palette.stream().filter(piece -> family.equals("forge")
+                ? piece.name().equals("forge") : family.equals("gold_reserves")
+                ? piece.name().equals("gold_reserves") : piece.name().startsWith(family)).toList();
+        if (choices.isEmpty()) choices = palette.stream()
+                .filter(piece -> piece.name().startsWith("hallway")).toList();
+        return choices.get((int)Math.floorMod(roll >>> 8, choices.size()));
+    }
+
+     
+    private static void openSeam(ServerLevelAccessor world, Port port, BoundingBox clip) {
+        Direction across = port.front().getClockWise();
+        for (int depth = 0; depth <= 1; depth++) for (int side = -2; side <= 2; side++)
+            for (int y = 0; y <= 5; y++) {
+                BlockPos pos = port.position().relative(port.front(), depth).relative(across, side).above(y);
+                if (clip.isInside(pos)) world.setBlock(pos,
+                        net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 18);
+            }
+    }
+
+     
+    private static void sealPort(ServerLevelAccessor world, Port port, BoundingBox clip) {
+        Direction across = port.front().getClockWise();
+        for (int depth = 0; depth <= 1; depth++) for (int side = -3; side <= 3; side++)
+            for (int y = -1; y <= 6; y++) {
+                BlockPos pos = port.position().relative(port.front(), depth).relative(across, side).above(y);
+                if (clip.isInside(pos)) world.setBlock(pos, Asterion.MAZESTEEL_BRICKS.defaultBlockState(), 18);
+            }
+    }
+
+    private static Optional<ResolvedPiece> resolve(ServerLevel level, String name) {
+        return PIECE_CACHE.computeIfAbsent(level, ignored -> new java.util.HashMap<>())
+                .computeIfAbsent(name, key -> loadPiece(level, key));
+    }
+
+    private static Optional<ResolvedPiece> loadPiece(ServerLevel level, String name) {
+        Set<String> candidates = new HashSet<>();
+        candidates.add(name);
+        candidates.add(name.replace("_1", "1").replace("_2", "2").replace("_3", "3"));
+        if (name.matches(".*_[123]$")) candidates.add(name.substring(0, name.length() - 1) + "0" + name.charAt(name.length() - 1));
+        for (String path : candidates) {
+            for (String prefix : List.of("forge/", "catacombs/", "")) {
+                Identifier id = Asterion.id(prefix + path);
+                Optional<StructureTemplate> template = level.getStructureManager().get(id);
+                if (template.isPresent()) return Optional.of(new ResolvedPiece(name, id, template.get()));
+            }
+        }
+        Asterion.LOGGER.warn("Missing authored Forge piece {} (looked under forge/ and catacombs/)", name);
+        return Optional.empty();
+    }
+
+    private static Attachment findAttachment(ResolvedPiece piece, List<Port> open, List<Placement> placed,
+                                             long seed) {
+        if (open.isEmpty()) return null;
+        int portOffset = (int) Math.floorMod(seed, open.size());
+        Rotation[] rotations = Rotation.values();
+        int rotationOffset = (int) Math.floorMod(seed >>> 8, rotations.length);
+        Attachment best = null;
+        long bestScore = Long.MIN_VALUE;
+        for (int oi = 0; oi < open.size(); oi++) {
+            Port parent = open.get((oi + portOffset) % open.size());
+            for (int ri = 0; ri < rotations.length; ri++) {
+                Rotation rotation = rotations[(ri + rotationOffset) % rotations.length];
+                List<Port> localPorts = ports(piece, rotation, BlockPos.ZERO);
+                int childOffset = localPorts.isEmpty() ? 0 : (int) Math.floorMod(seed >>> 16, localPorts.size());
+                for (int ci = 0; ci < localPorts.size(); ci++) {
+                    Port child = localPorts.get((ci + childOffset) % localPorts.size());
+                    if (!compatible(parent, child)) continue;
+                    BlockPos desired = parent.position().relative(parent.front());
+                    BlockPos origin = desired.subtract(child.position());
+                    Placement candidate = placement(piece, rotation, origin);
+                    BoundingBox bounds = candidate.bounds();
+                    int center = CatacombLayout.ROOT_CENTER;
+                    if (bounds.minX() < center - 96 || bounds.maxX() > center + 96
+                            || bounds.minZ() < center - 96 || bounds.maxZ() > center + 96) continue;
+                     
+                    if (bounds.intersects(new BoundingBox(center - 28, 28, center - 9,
+                            center - 19, 78, center + 9))) continue;
+                     
+                    if (bounds.intersects(new BoundingBox(center - 50, LabyrinthLevels.CAVE_BOTTOM_Y + 3, center - 11,
+                            center - 19, 36, center + 11))) continue;
+                    if (placed.stream().anyMatch(other -> other.bounds().intersects(candidate.bounds()))) continue;
+                    long centerX = (long)candidate.bounds().minX() + candidate.bounds().maxX();
+                    long centerZ = (long)candidate.bounds().minZ() + candidate.bounds().maxZ();
+                    long root = CatacombLayout.ROOT_CENTER * 2L;
+                    long dx = centerX - root, dz = centerZ - root;
+                     
+                     
+                    long score = (dx * dx + dz * dz) * 1024L
+                            + Math.floorMod(CatacombLayout.hash(seed, origin.getX(), origin.getZ()), 1024L);
+                    if (score > bestScore) {
+                        bestScore = score;
+                        best = new Attachment(parent, desired, candidate);
+                    }
+                }
+            }
+        }
+        return best;
+    }
+
+    private static boolean compatible(Port parent, Port child) {
+        return parent.front().getAxis().isHorizontal()
+                && child.front() == parent.front().getOpposite()
+                && parent.target().equals(child.name())
+                && child.target().equals(parent.name());
+    }
+
+    private static Placement placement(ResolvedPiece piece, Rotation rotation, BlockPos origin) {
+        StructurePlaceSettings settings = new StructurePlaceSettings().setRotation(rotation);
+        return new Placement(piece.id(), piece.template(), rotation, origin,
+                piece.template().getBoundingBox(settings, origin));
+    }
+
+    private static List<Port> ports(ResolvedPiece piece, Rotation rotation, BlockPos origin) {
+        var local = piece.localPorts().get(rotation);
+        if (origin.equals(BlockPos.ZERO)) return local;
+        return local.stream().map(port -> new Port(port.position().offset(origin),
+                port.front(), port.name(), port.target())).toList();
+    }
+
+    private static Map<Rotation, List<Port>> resolvePorts(StructureTemplate template) {
+        var rotations = new java.util.EnumMap<Rotation, List<Port>>(Rotation.class);
+        for (Rotation rotation : Rotation.values()) rotations.put(rotation, localPorts(template, rotation));
+        return Map.copyOf(rotations);
+    }
+
+    private static List<Port> localPorts(StructureTemplate template, Rotation rotation) {
+        List<Port> ports = new ArrayList<>();
+        for (StructureTemplate.JigsawBlockInfo jigsaw : template.getJigsaws(BlockPos.ZERO, rotation)) {
+            Direction front = JigsawBlock.getFrontFacing(jigsaw.info().state());
+            if (!front.getAxis().isHorizontal()) continue;
+             
+             
+             
+            if (!jigsaw.name().equals(DOOR) || !jigsaw.target().equals(DOOR)) continue;
+            ports.add(new Port(jigsaw.info().pos(), front, jigsaw.name(), jigsaw.target()));
+        }
+        return List.copyOf(ports);
+    }
+
+     
+    private static final StructureProcessor CRUCIBLE_PART_DATA = new StructureProcessor() {
+        @Override public StructureTemplate.StructureBlockInfo processBlock(
+                net.minecraft.world.level.LevelReader world, BlockPos origin, BlockPos reference,
+                StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed,
+                StructurePlaceSettings settings) {
+            if (!(transformed.state().getBlock() instanceof net.krodark.asterion.block.CrucibleBlock)) return transformed;
+            net.minecraft.nbt.CompoundTag data = null;
+            if (net.krodark.asterion.block.CrucibleBlock.isRoot(transformed.state())) {
+                data = new net.minecraft.nbt.CompoundTag();
+                data.putString("id", "asterion:crucible");
+            }
+            return new StructureTemplate.StructureBlockInfo(transformed.pos(), transformed.state(), data);
+        }
+        @Override protected StructureProcessorType<?> getType() { return StructureProcessorType.BLOCK_IGNORE; }
+    };
+
+    private record ResolvedPiece(String name, Identifier id, StructureTemplate template,
+                                 Map<Rotation, List<Port>> localPorts) {
+        ResolvedPiece(String name, Identifier id, StructureTemplate template) {
+            this(name, id, template, resolvePorts(template));
+        }
+    }
+    private record Port(BlockPos position, Direction front, Identifier name, Identifier target) { }
+    private record Placement(Identifier id, StructureTemplate template, Rotation rotation,
+                             BlockPos origin, BoundingBox bounds) { }
+    private record Attachment(Port parent, BlockPos childPosition, Placement placement) { }
+    private record Layout(List<Placement> placements, List<Port> caps, List<Port> seams) { }
+}
