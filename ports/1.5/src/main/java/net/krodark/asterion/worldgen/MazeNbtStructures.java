@@ -194,17 +194,23 @@ public final class MazeNbtStructures {
                                       int limit, int cell, ReservationFilter filter) {
         var template = level.getStructureManager().get(QUEEN_TREE).orElseThrow();
         var candidates = new ArrayList<BlockPos>();
-        int edge = Math.min(450, limit - 80);
+        // Keep the preferred 350-450 block ring, but search farther when that
+        // ring contains too little overgrowth for both large Queen templates.
+        int edge = Math.min(900, limit - 80);
+        int inner = Math.min(350, Math.max(0, edge / 3));
         for (int x = -edge; x <= edge; x += 32) for (int z = -edge; z <= edge; z += 32) {
             long distance = (long)x * x + (long)z * z;
-            if (distance < 350L * 350 || distance > 450L * 450) continue;
+            if (distance < (long)inner * inner || distance > (long)edge * edge) continue;
             boolean overgrown = true;
             for (int dx : new int[]{-32, 0, 32}) for (int dz : new int[]{-38, 0, 38})
                 if (WorldGenerator.mazeBiomeAt(seed, x + dx, z + dz, cell).kind() != MazeBiomes.Kind.OVERGROWTH)
                     overgrown = false;
             if (overgrown) candidates.add(new BlockPos(x, 0, z));
         }
-        candidates.sort(java.util.Comparator.comparingLong(p -> mix(seed ^ p.asLong())));
+        candidates.sort(java.util.Comparator
+                .comparingInt((BlockPos p) -> Math.abs((int)Math.sqrt((long)p.getX() * p.getX()
+                        + (long)p.getZ() * p.getZ()) - 400))
+                .thenComparingLong(p -> mix(seed ^ p.asLong())));
         for (BlockPos center : candidates) {
             var origin = new BlockPos(center.getX() - 28,
                     WorldGenerator.mazeFloorHeight(seed, center.getX(), center.getZ()), center.getZ() - 33);
