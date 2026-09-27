@@ -2,7 +2,7 @@
   "required": true,
   "minVersion": "0.8",
   "package": "net.krodark.asterion.mixin",
-  "compatibilityLevel": "JAVA_25",
+  "compatibilityLevel": "JAVA_21",
   "mixins": [
     "ServerEntityManagerAccessor",
     "MinotaurCinematicTrackingMixin",
@@ -70,6 +70,7 @@
     "FallingBlockRendererMixin",
     "LevelLoadingScreenMixin",
     "RagdollEntityRendererMixin",
+    "RenderTypeFactory",
     "RagdollLivingEntityRendererMixin",
     "RagdollGeoEntityRendererMixin",
     "InventoryEntityPreviewMixin",

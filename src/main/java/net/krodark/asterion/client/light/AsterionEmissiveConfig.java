@@ -8,7 +8,6 @@ import com.meekdev.amnetic.client.bloom.BloomSettings;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import net.fabricmc.loader.api.FabricLoader;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
 import net.minecraft.util.Mth;
@@ -16,10 +15,7 @@ import net.minecraft.util.Mth;
  
 public final class AsterionEmissiveConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    // Quilt provides this shared Fabric loader API as a compatibility shim.
-    @SuppressWarnings("deprecation")
-    private static final Path PATH = FabricLoader.getInstance().getConfigDir()
-            .resolve("asterion-emissive.json");
+    private static final Path PATH = Path.of("config", "asterion-emissive.json");
     private static Values values = new Values();
 
     private AsterionEmissiveConfig() {}

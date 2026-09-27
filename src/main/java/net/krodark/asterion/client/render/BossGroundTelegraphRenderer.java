@@ -1,7 +1,7 @@
 package net.krodark.asterion.client.render;
 
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import net.minecraft.client.renderer.rendertype.AmneticRenderTypeAccess;
+import net.krodark.asterion.mixin.RenderTypeFactory;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
@@ -25,7 +25,7 @@ import java.util.Map;
 
  
 public final class BossGroundTelegraphRenderer {
-    private static final RenderType SURFACE = AmneticRenderTypeAccess.create("asterion/boss_ground_warning",
+    private static final RenderType SURFACE = RenderTypeFactory.create("asterion/boss_ground_warning",
             RenderSetup.builder(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
                     .withLocation(Asterion.id("pipeline/boss_ground_warning")).withCull(false).build())
                     .createRenderSetup());

@@ -1,0 +1,34 @@
+modLoader="javafml"
+loaderVersion="[1,)"
+license="LicenseRef-AMALGAM-Proprietary"
+
+[[mods]]
+modId="asterion"
+version="${version}"
+displayName="Asterion"
+authors="Kronoz, DarkFox"
+description='''Descend into the living labyrinth and survive the Minotaur.'''
+
+[[dependencies.asterion]]
+modId="forge"
+mandatory=true
+versionRange="[${forge_version},)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.asterion]]
+modId="minecraft"
+mandatory=true
+versionRange="[${minecraft_version}]"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.asterion]]
+modId="amnetic"
+mandatory=true
+versionRange="[0,)"
+ordering="AFTER"
+side="CLIENT"
+
+[[mixins]]
+config="asterion.mixins.json"

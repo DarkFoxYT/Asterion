@@ -21,6 +21,7 @@ stonecutter {
         version('26.1.2-fabric', '26.1.2').buildscript = 'build.gradle'
         version('26.1.2-quilt', '26.1.2').buildscript = 'build.gradle'
         version('26.1.2-neoforge', '26.1.2').buildscript = 'neoforge/build.gradle'
+        version('26.1.2-forge', '26.1.2').buildscript = 'forge/build.gradle'
         vcsVersion = '26.1.2-fabric'
     }
 }

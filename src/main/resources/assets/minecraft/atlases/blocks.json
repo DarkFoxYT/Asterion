@@ -71,6 +71,230 @@
     {
       "type": "minecraft:single",
       "resource": "asterion:forging/celestial_bronze/celestial_bronze_pommel"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/bone_steel/bone_steel_blade_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/bone_steel/bone_steel_blade"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/bone_steel/bone_steel_guard_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/bone_steel/bone_steel_guard"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/bone_steel/bone_steel_ingot"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/bone_steel/bone_steel_pommel_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/bone_steel/bone_steel_pommel"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/celestial_bronze/celestial_bronze_blade_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/celestial_bronze/celestial_bronze_guard_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/celestial_bronze/celestial_bronze_ingot"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/celestial_bronze/celestial_bronze_pommel_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/celestial_gold/celestial_gold_blade_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/celestial_gold/celestial_gold_blade"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/celestial_gold/celestial_gold_guard_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/celestial_gold/celestial_gold_guard"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/celestial_gold/celestial_gold_ingot"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/celestial_gold/celestial_gold_pommel_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/celestial_gold/celestial_gold_pommel"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/celestial_steel/celestial_steel_blade_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/celestial_steel/celestial_steel_blade"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/celestial_steel/celestial_steel_guard_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/celestial_steel/celestial_steel_guard"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/celestial_steel/celestial_steel_ingot"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/celestial_steel/celestial_steel_pommel_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/celestial_steel/celestial_steel_pommel"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/copper/copper_blade_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/copper/copper_blade"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/copper/copper_guard_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/copper/copper_guard"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/copper/copper_pommel_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/copper/copper_pommel"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/gold/gold_blade_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/gold/gold_blade"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/gold/gold_guard_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/gold/gold_guard"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/gold/gold_pommel_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/gold/gold_pommel"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/iron/iron_blade_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/iron/iron_blade"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/iron/iron_guard_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/iron/iron_guard"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/iron/iron_pommel_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/iron/iron_pommel"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/netherite/netherite_blade_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/netherite/netherite_blade"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/netherite/netherite_guard_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/netherite/netherite_guard"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/netherite/netherite_pommel_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/netherite/netherite_pommel"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/tarnished_gold/tarnished_gold_blade_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/tarnished_gold/tarnished_gold_blade"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/tarnished_gold/tarnished_gold_guard_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/tarnished_gold/tarnished_gold_guard"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/tarnished_gold/tarnished_gold_ingot"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/tarnished_gold/tarnished_gold_pommel_icon"
+    },
+    {
+      "type": "minecraft:single",
+      "resource": "asterion:forging/tarnished_gold/tarnished_gold_pommel"
     }
   ]
 }

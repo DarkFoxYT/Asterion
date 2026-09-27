@@ -45,7 +45,7 @@ public abstract class LimboFluidInteractionMixin {
         if (fluid.equals(FluidTags.WATER) && Double.isFinite(asterion$depth)) cir.setReturnValue(asterion$eyes);
     }
     @Inject(method = "applyCurrentTo", at = @At("HEAD"), cancellable = true)
-    private void asterion$dryDeck(TagKey<Fluid> fluid, Entity entity, double scale, CallbackInfo ci) {
-        if (fluid.equals(FluidTags.WATER) && asterion$depth == 0) ci.cancel();
+    private void asterion$dryDeck(CallbackInfo ci) {
+        if (asterion$depth == 0) ci.cancel();
     }
 }

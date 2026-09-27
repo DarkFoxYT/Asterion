@@ -1,7 +1,7 @@
 package net.krodark.asterion.client.light;
 
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import net.minecraft.client.renderer.rendertype.AmneticRenderTypeAccess;
+import net.krodark.asterion.mixin.RenderTypeFactory;
 import java.util.HashMap;
 import java.util.Map;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -17,7 +17,7 @@ public final class AsterionEmissiveBuffer {
     }
 
     public static RenderType renderType(Identifier texture) {
-        return TEXTURED.computeIfAbsent(texture, id -> AmneticRenderTypeAccess.create(
+        return TEXTURED.computeIfAbsent(texture, id -> RenderTypeFactory.create(
                 "asterion_amnetic_emissive/" + id,
                 RenderSetup.builder(RenderPipelines.ENTITY_TRANSLUCENT_EMISSIVE)
                         .withTexture("Sampler0", id)
@@ -65,7 +65,7 @@ public final class AsterionEmissiveBuffer {
             if (texture != null) {
                 setup.withTexture("Sampler0", texture).useLightmap().useOverlay();
             }
-            return AmneticRenderTypeAccess.create(
+            return RenderTypeFactory.create(
                     "asterion_amnetic_emissive/" + name, setup.createRenderSetup());
         });
     }

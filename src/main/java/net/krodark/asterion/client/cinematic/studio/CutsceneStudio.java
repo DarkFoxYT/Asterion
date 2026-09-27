@@ -49,6 +49,7 @@ public final class CutsceneStudio {
 
     public static void initialize() {
         ClientTickEvents.END_CLIENT_TICK.register(CutsceneStudio::tick);
+        if (net.krodark.asterion.ForgeRuntime.isForge()) return;
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, access) -> dispatcher.register(literal("cutscene")
                 .then(literal("play").then(argument("file", StringArgumentType.word()).executes(context -> {
                     try { play(StringArgumentType.getString(context, "file")); context.getSource().sendFeedback(Component.literal("Cutscene playing. /cutscene stop exits.")); return 1; }
