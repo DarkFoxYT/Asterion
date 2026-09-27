@@ -1,14 +1,10 @@
-ASTERION 1.5 — MINECRAFT 26.1.2 LABYRINTH BETA
+ASTERION 2.0.0 — MINECRAFT 26.1.2 POLISH BUILDS
 
-Fabric: use Fabric Loader 0.19.5 with every JAR in the supplied mods folder.
-Quilt: use Quilt Loader 0.31.0-beta.4 with every JAR in the supplied Quilt mods folder.
-Both folders include Fabric API and GeckoLib 5.5.2.
-Install the supplied matching standalone Amnetic JAR alongside Asterion.
-Do not install more than one Amnetic JAR for the same profile.
+Fabric is the default. Use Fabric Loader 0.19.5 with the supplied Fabric API and GeckoLib 5.5.2 JARs.
+Amnetic is embedded; do not install another copy.
 
-NeoForge: use NeoForge 26.1.2.109 with every JAR in the supplied mods folder, including GeckoLib 5.5.2.
-This NeoForge beta still uses the older native Amnetic adapter. Connector is not needed.
+NeoForge: use NeoForge 26.1.2.109 and the supplied NeoForge GeckoLib 5.5.2 JAR.
+Native Amnetic, its platform libraries, and Forgified Fabric API are embedded. Connector is not needed.
 
 Java 25 is required. Use a separate test profile and world.
-Underworld assets and code are included, but first-death entry is disabled by default.
-This 1.5 build has passed compilation and packaging; in-game beta testing is still needed.
+The Fabric artifact may also be used with a compatible Quilt loader; this revision was runtime-tested on Fabric and NeoForge.

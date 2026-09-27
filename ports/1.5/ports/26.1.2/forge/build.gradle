@@ -1,18 +1,19 @@
 plugins {
-    id 'java-library'
-    id 'net.minecraftforge.gradle' version '[7.0.17,8)'
+    id 'java'
+    id 'maven-publish'
+    id 'net.minecraftforge.gradle' version '[7.0.29,8)'
     id 'net.minecraftforge.jarjar' version '0.2.3'
-    id 'idea'
+    id 'net.minecraftforge.renamer' version '1.0.14'
 }
 
 version = rootProject.mod_version
-base.archivesName = rootProject.archives_base_name + '-forge'
+group = rootProject.maven_group
+base.archivesName = 'Asterion-forge'
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(25)
     sourceCompatibility = JavaVersion.VERSION_25
     targetCompatibility = JavaVersion.VERSION_25
-    withSourcesJar()
 }
 
 repositories {
@@ -21,90 +22,59 @@ repositories {
     maven fg.minecraftLibsMaven
     mavenCentral()
     maven { url = 'https://maven.fabricmc.net/' }
-    maven { url = 'https://maven.sinytra.org/' }
     maven { url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/' }
+    maven { url = 'https://maven.sinytra.org/' }
 }
 
 minecraft {
+    facade = files(rootProject.file('forge/src/main/resources/asterion.facade.cfg'))
     runs {
         configureEach {
-            workingDir = rootProject.file('forge/run')
+            mods { asterion { source sourceSets.main } }
+            args '--mixin.config=asterion.mixins.json'
+            args '--mixin.config=asterion.forge.mixins.json'
         }
-        register('client')
-        register('server') { args '--nogui' }
+        register('client') { workingDir = layout.projectDirectory.dir('run/client') }
+        register('server') {
+            workingDir = layout.projectDirectory.dir('run/server')
+            args '--nogui'
+        }
     }
 }
 
 sourceSets.main {
     java {
         srcDir rootProject.file('forge/src/main/java')
-        srcDir rootProject.file('neoforge/src/main/java')
-        exclude 'net/krodark/asterion/neoforge/AsterionNeoForge.java'
-        exclude 'net/krodark/asterion/neoforge/AsterionNeoForgeClient.java'
-        exclude 'net/krodark/asterion/neoforge/mixin/**'
+        exclude 'net/krodark/asterion/neoforge/**'
         exclude 'net/krodark/asterion/dev/**'
-        exclude 'net/krodark/asterion/client/AsterionModMenu.java'
-        exclude 'net/krodark/asterion/client/**'
-        exclude 'net/krodark/asterion/update/underworld/client/**'
-        exclude 'net/krodark/asterion/compat/jade/**'
         exclude 'net/krodark/asterion/compat/jei/**'
         exclude 'net/krodark/asterion/compat/rei/**'
-        exclude { details ->
-            if (!details.path.startsWith('net/krodark/asterion/mixin/')) return false
-            def kept = ['MinotaurCinematicTrackingMixin.java', 'ChunkMapTrackingAccessor.java',
-                        'ChainLiftMovementMixin.java', 'ChainLiftServerMovementMixin.java',
-                        'AfterblowDamageMixin.java', 'MazesteelMiningMixin.java',
-                        'HeavyWaterMovementMixin.java', 'HeavyWaterRedstoneMixin.java',
-                        'HeavyWaterRedstoneDefaultsMixin.java', 'HeavyWaterWireMixin.java',
-                        'HeavyWaterTripwireMixin.java', 'HeavyWaterStateDefinitionMixin.java',
-                        'FloodDecorationMixin.java', 'RuneBlockEntityStateMixin.java',
-                        'RuneChunkDataMixin.java', 'ShaleSpikeDripstoneMixin.java',
-                        'HeavyWaterBlockStateMixin.java', 'HeavyWaterFlowMixin.java',
-                        'HeavyWaterBucketMixin.java', 'HeavyWaterPickupMixin.java',
-                        'BlockItemMixin.java', 'CatacombPlayerEditMixin.java',
-                        'CentipedeRiderSuffocationMixin.java', 'ChunkAccessAccessor.java',
-                        'CinematicServerMovementMixin.java', 'PrimaryLevelDataMixin.java',
-                        'StructureTemplateAccessor.java', 'WorldGenRegionAccessor.java',
-                        'SpawnPlacementsAccessor.java', 'RagdollUseGuardMixin.java']
-            !kept.contains(details.file.name)
-        }
+        exclude 'net/krodark/asterion/compat/jade/**'
+        exclude 'net/krodark/asterion/datagen/**'
+        exclude 'net/krodark/asterion/client/AsterionModMenu.java'
     }
     resources {
         srcDir rootProject.file('forge/src/main/resources')
-        exclude 'fabric.mod.json', 'quilt.mod.json', 'META-INF/neoforge.mods.toml'
+        exclude 'fabric.mod.json'
+        exclude 'META-INF/neoforge.mods.toml'
+        exclude 'data/asterion/dimension/limbo.json'
+        exclude 'data/asterion/dimension_type/limbo.json'
+        exclude 'data/asterion/worldgen/biome/limbo.json'
     }
 }
 
-configurations { forgifiedBundle }
-def extractedForgifiedRuntime = layout.buildDirectory.dir('forgified-runtime')
-
-tasks.register('extractForgifiedRuntime', Sync) {
-    from({ zipTree(configurations.forgifiedBundle.singleFile) }) {
-        include 'META-INF/jarjar/*.jar'
-        exclude 'META-INF/jarjar/forgified-fabric-loader-*.jar'
-        eachFile { path = name }
-    }
-    into extractedForgifiedRuntime
-    includeEmptyDirs = false
-}
+// Forge 26 scans each development mod path independently. Keep the mod
+// metadata and annotated entrypoint together in the same output directory.
+sourceSets.main.output.resourcesDir = sourceSets.main.java.destinationDirectory.get().asFile
 
 dependencies {
     implementation minecraft.dependency('net.minecraftforge:forge:26.1.2-64.1.3')
-    compileOnly "org.sinytra.forgified-fabric-api:forgified-fabric-api:${rootProject.forgified_fabric_api_version}"
-    forgifiedBundle("org.sinytra.forgified-fabric-api:forgified-fabric-api:${rootProject.forgified_fabric_api_version}") { transitive = false }
-    runtimeOnly fileTree(extractedForgifiedRuntime) { include '*.jar' }
-    implementation "com.geckolib:geckolib-forge-${rootProject.minecraft_version}:${rootProject.geckolib_version}"
-    compileOnly files(rootProject.file('libs/amnetic-forge-1.0-SNAPSHOT+26.1.2-forge.jar'))
-    runtimeOnly files(rootProject.file('libs/amnetic-forge-1.0-SNAPSHOT+26.1.2-forge.jar'))
-    runtimeOnly files(tasks.named('jar'))
-}
-
-tasks.matching { it.name in ['runClient', 'runServer'] }.configureEach {
-    dependsOn tasks.named('jar'), tasks.named('extractForgifiedRuntime')
-    doFirst {
-        def mainOutputs = sourceSets.main.output.files.collect { it.canonicalFile } as Set
-        classpath = classpath.filter { !mainOutputs.contains(it.canonicalFile) }
-    }
+    compileOnly("net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_version}") { transitive = true }
+    compileOnly "net.fabricmc:fabric-loader:${rootProject.loader_version}"
+    compileOnly "com.geckolib:geckolib-forge-26.1.2:${rootProject.geckolib_version}"
+    runtimeOnly "com.geckolib:geckolib-forge-26.1.2:${rootProject.geckolib_version}"
+    compileOnly files(rootProject.file('libs/amnetic-forge-26.1.2.jar'))
+    runtimeOnly files(rootProject.file('libs/amnetic-forge-26.1.2.jar'))
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -114,31 +84,13 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 processResources {
-    inputs.properties(version: project.version, minecraft_version: rootProject.minecraft_version)
+    inputs.properties(version: project.version.toString(), minecraft_version: '26.1.2', forge_version: '64.1.3')
     filesMatching('META-INF/mods.toml') {
-        expand version: project.version, minecraft_version: rootProject.minecraft_version
-    }
-    filesMatching('asterion.mixins.json') {
-        def inClientMixins = false
-        filter { line ->
-            line = line.replace('"JAVA_25"', '"JAVA_21"')
-                    .replace('"required": true', '"required": false')
-                    .replace('"defaultRequire": 1', '"defaultRequire": 0')
-            if (line.contains('"client": [')) {
-                inClientMixins = true
-                return line
-            }
-            if (inClientMixins && line.trim() == '],') {
-                inClientMixins = false
-                return line
-            }
-            inClientMixins ? '' : line
-        }
+        expand version: project.version, minecraft_version: '26.1.2', forge_version: '64.1.3'
     }
 }
 
 jar {
-    archiveFileName = "${rootProject.archives_base_name}-${project.version}-forge-mc${rootProject.minecraft_version}.jar"
-    from(rootProject.file('LICENSE.txt')) { rename { "LICENSE_${rootProject.archives_base_name}.txt" } }
-    manifest { attributes 'MixinConfigs': 'asterion.mixins.json' }
+    archiveFileName = "Asterion-${project.version}-forge-mc26.1.2.jar"
+    manifest { attributes 'MixinConfigs': 'asterion.mixins.json,asterion.forge.mixins.json' }
 }

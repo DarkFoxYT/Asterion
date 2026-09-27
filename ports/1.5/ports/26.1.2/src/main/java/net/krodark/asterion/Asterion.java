@@ -953,7 +953,7 @@ public class Asterion implements ModInitializer {
         net.krodark.asterion.game.ArmorContent.initialize();
         net.krodark.asterion.game.ChainLiftContent.initialize();
         net.krodark.asterion.game.PedestalContent.initialize();
-        net.krodark.asterion.update.underworld.UnderworldContent.initialize();
+        if (!ForgeRuntime.isForge()) net.krodark.asterion.update.underworld.UnderworldContent.initialize();
         net.krodark.asterion.game.EncounterKeyRecovery.initialize();
         net.krodark.asterion.game.ArenaDeathRecovery.initialize();
         ServerTickEvents.END_SERVER_TICK.register(net.krodark.asterion.forging.LegacyPurityCleanup::tick);
@@ -1149,7 +1149,7 @@ public class Asterion implements ModInitializer {
                             newPlayer, BossEncounterResetPayload.INSTANCE);
             }
         });
-        net.krodark.asterion.update.underworld.UnderworldPassage.initialize();
+        if (!ForgeRuntime.isForge()) net.krodark.asterion.update.underworld.UnderworldPassage.initialize();
         ServerLifecycleEvents.SERVER_STOPPING.register(WorldGenerator::clearRuntimeState);
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             var maze = server.getLevel(ASTERION_LEVEL);

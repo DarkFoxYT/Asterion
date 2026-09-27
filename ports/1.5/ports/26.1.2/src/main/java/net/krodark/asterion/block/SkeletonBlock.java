@@ -54,7 +54,7 @@ public final class SkeletonBlock extends BaseEntityBlock implements WaterloggedD
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING);
+        builder.add(FACING, BlockStateProperties.WATERLOGGED);
     }
 
     @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }

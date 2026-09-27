@@ -46,25 +46,28 @@ neoForge {
     version = rootProject.neoforge_version
     interfaceInjectionData.from rootProject.file("neoforge/geckolib_interfaces.json")
 
+    mods {
+        asterion {
+            sourceSet sourceSets.main
+        }
+    }
+
     runs {
         client {
             client()
+            loadedMods = [mods.asterion]
             ideName = "Asterion NeoForge Client"
             gameDirectory = rootProject.file("neoforge/run/client")
         }
         server {
             server()
+            loadedMods = [mods.asterion]
             ideName = "Asterion NeoForge Server"
             gameDirectory = rootProject.file("neoforge/run/server")
             programArgument "--nogui"
         }
     }
 
-    mods {
-        asterion {
-            sourceSet sourceSets.main
-        }
-    }
 }
 
 configurations {
@@ -127,17 +130,11 @@ tasks.named("jar", Jar) {
     }
 }
 
-configurations { distributionMods { transitive = false } }
-dependencies {
-    distributionMods "com.geckolib:geckolib-neoforge-${rootProject.minecraft_version}:${rootProject.geckolib_version}"
-}
-
 tasks.register("modDistribution", Sync) {
     group = "distribution"
     dependsOn tasks.named("jar")
     into layout.buildDirectory.dir("distribution")
-    from(tasks.named("jar")) { into "mods" }
-    from(configurations.distributionMods) { into "mods" }
+    from(tasks.named("jar"))
     from(rootProject.file("docs/INSTALL-MODS.txt"))
 }
 
@@ -155,7 +152,6 @@ tasks.named('jar', Jar) {
     }
 }
 sourceSets { polishSmoke {
-    java.srcDir rootProject.file('src/polishSmoke/java')
     compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
     runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
 } }
@@ -164,6 +160,7 @@ neoForge {
     mods { asterion_polish_tests { sourceSet sourceSets.polishSmoke } }
     runs { polishSmokeClient {
         client()
+        loadedMods = [mods.asterion, mods.asterion_polish_tests]
         sourceSet = sourceSets.polishSmoke
         gameDirectory = layout.buildDirectory.dir('run/polish-smoke').get().asFile
         systemProperty 'asterion.polishSmoke', 'true'

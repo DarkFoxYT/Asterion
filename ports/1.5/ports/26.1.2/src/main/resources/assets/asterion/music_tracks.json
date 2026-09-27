@@ -1,0 +1,56 @@
+[
+  {
+    "artist": "keys",
+    "group": "ancient",
+    "sound": "asterion:music_ancient_the_best_piece_of_music_ive_ever_made_keys",
+    "title": "the best piece of music ive ever made"
+  },
+  {
+    "artist": "MONGOPSY",
+    "group": "arena",
+    "sound": "asterion:music_arena_atonement_mongopsy",
+    "title": "ATONEMENT"
+  },
+  {
+    "artist": "keys",
+    "group": "arena",
+    "sound": "asterion:music_arena_i_made_a_dark_souls_boss_theme_keys",
+    "title": "i made a dark souls boss theme"
+  },
+  {
+    "artist": "keys",
+    "group": "crimsonmarshlands",
+    "sound": "asterion:music_crimsonmarshlands_if_we_could_roll_back_the_credits_one_last_time_keys",
+    "title": "if we could roll back the credits, one last time"
+  },
+  {
+    "artist": "keys",
+    "group": "crimsonmarshlands",
+    "sound": "asterion:music_crimsonmarshlands_ill_see_you_at_the_edge_of_the_world_keys",
+    "title": "ill see you, at the edge of the world"
+  },
+  {
+    "artist": "MONGOPSY",
+    "group": "forge",
+    "sound": "asterion:music_forge_the_green_hour_mongopsy",
+    "title": "the green hour."
+  },
+  {
+    "artist": "MONGOPSY",
+    "group": "forge",
+    "sound": "asterion:music_forge_the_withered_remnant_mongopsy",
+    "title": "the withered remnant"
+  },
+  {
+    "artist": "joabi",
+    "group": "overgrown",
+    "sound": "asterion:music_overgrown_mojang_please_hire_me_joabi",
+    "title": "mojang, please hire me"
+  },
+  {
+    "artist": "CryPika",
+    "group": "overgrown",
+    "sound": "asterion:music_overgrown_where_the_stars_fall_crypika",
+    "title": "Where the Stars Fall"
+  }
+]

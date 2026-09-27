@@ -1,8 +1,9 @@
 pluginManagement {
     repositories {
         maven { name = 'Fabric'; url = 'https://maven.fabricmc.net/' }
+        maven { name = 'Forge'; url = 'https://maven.minecraftforge.net/' }
+        maven { name = 'Sinytra'; url = 'https://maven.sinytra.org/' }
         maven { name = 'KikuGie'; url = 'https://maven.kikugie.dev/releases' }
-        maven { name = 'Forge'; url = 'https://maven.minecraftforge.net' }
         gradlePluginPortal()
     }
 }

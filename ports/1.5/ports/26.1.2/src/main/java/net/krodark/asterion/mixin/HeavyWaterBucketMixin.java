@@ -31,7 +31,7 @@ public abstract class HeavyWaterBucketMixin {
                 && net.krodark.asterion.worldgen.CatacombProtection.contains(level, pos)) result.setReturnValue(false);
     }
     @Shadow @Final private Fluid content;
-    @ModifyExpressionValue(method = {"use", "emptyContents"}, at = @At(value = "FIELD",
+    @ModifyExpressionValue(method = {"use", "emptyContents"}, require = 0, at = @At(value = "FIELD",
             target = "Lnet/minecraft/world/level/material/Fluids;WATER:Lnet/minecraft/world/level/material/FlowingFluid;"))
     private net.minecraft.world.level.material.FlowingFluid asterion$allowWaterContainer(net.minecraft.world.level.material.FlowingFluid water) {
         return HeavyWaterlogging.isHeavy(content) ? (net.minecraft.world.level.material.FlowingFluid)content : water;

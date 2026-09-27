@@ -1,0 +1,1 @@
+{"type":"forge:add_spawns","biomes":"minecraft:the_void","spawners":[{"type":"asterion:scarlet_centipede","weight":5,"minCount":1,"maxCount":1}]}

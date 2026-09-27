@@ -44,7 +44,7 @@ public final class RuneBlock extends BaseEntityBlock implements WaterloggedDecor
         return root.relative(facing.getClockWise(), column - 1).above(row);
     }
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, POWERED, COLUMN, ROW);
+        builder.add(FACING, POWERED, COLUMN, ROW, BlockStateProperties.WATERLOGGED);
     }
     @Override public @Nullable BlockState getStateForPlacement(BlockPlaceContext context) {
         var level = context.getLevel();

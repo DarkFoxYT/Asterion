@@ -1,17 +1,18 @@
 modLoader="javafml"
-loaderVersion="[64,)"
-license="All Rights Reserved"
+loaderVersion="[1,)"
+license="LicenseRef-AMALGAM-Proprietary"
 
 [[mods]]
 modId="asterion"
 version="${version}"
 displayName="Asterion"
-description='''The Labyrinth dimension and its creatures, native on Forge.'''
+authors="Kronoz, DarkFox"
+description='''Descend into the living labyrinth and survive the Minotaur.'''
 
 [[dependencies.asterion]]
 modId="forge"
 mandatory=true
-versionRange="[64,)"
+versionRange="[${forge_version},)"
 ordering="NONE"
 side="BOTH"
 
@@ -21,3 +22,13 @@ mandatory=true
 versionRange="[${minecraft_version}]"
 ordering="NONE"
 side="BOTH"
+
+[[dependencies.asterion]]
+modId="amnetic"
+mandatory=true
+versionRange="[0,)"
+ordering="AFTER"
+side="CLIENT"
+
+[[mixins]]
+config="asterion.mixins.json"

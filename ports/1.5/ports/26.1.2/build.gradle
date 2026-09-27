@@ -81,7 +81,8 @@ dependencies {
     compileOnly "me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}"
     compileOnly "maven.modrinth:jade:${project.jade_version}"
 
-    implementation files(rootProject.file("libs/amnetic-1.0-SNAPSHOT+${project.minecraft_version}.jar"))
+    implementation "com.meekdev:amnetic:${project.amnetic_version}"
+    include "com.meekdev:amnetic:${project.amnetic_version}"
 
     // Amnetic keeps its editor optional for production, but an IDE client should
     // have the ImGui host available so the Right Shift editor shortcut works.
@@ -294,20 +295,12 @@ tasks.withType(JavaExec).configureEach {
     }
 }
 
-configurations { distributionMods { transitive = false } }
-dependencies {
-    distributionMods "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-    distributionMods "com.geckolib:geckolib-fabric-${project.minecraft_version}:${project.geckolib_version}"
-}
-
 tasks.register("modDistribution", Sync) {
     group = "distribution"
     description = "Stages the self-contained Asterion jar and installation notes."
     dependsOn tasks.named("jar")
     into layout.buildDirectory.dir("distribution")
-    from(tasks.named("jar")) { into "mods" }
-    from(rootProject.file("libs/amnetic-1.0-SNAPSHOT+${project.minecraft_version}.jar")) { into "mods" }
-    from(configurations.distributionMods) { into "mods" }
+    from(tasks.named("jar"))
     from(rootProject.file("docs/INSTALL-MODS.txt"))
 }
 

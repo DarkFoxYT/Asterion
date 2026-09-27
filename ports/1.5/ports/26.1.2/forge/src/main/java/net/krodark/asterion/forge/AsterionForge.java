@@ -3,12 +3,10 @@ package net.krodark.asterion.forge;
 import net.krodark.asterion.Asterion;
 import net.minecraft.core.MappedRegistry;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.SpawnPlacementTypes;
-import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
-import net.minecraftforge.event.entity.SpawnPlacementRegisterEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.loading.FMLEnvironment;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -19,7 +17,6 @@ public final class AsterionForge {
 
     public AsterionForge() {
         EntityAttributeCreationEvent.BUS.addListener(AsterionForge::initializeSharedContent);
-        SpawnPlacementRegisterEvent.BUS.addListener(AsterionForge::registerSpawnPlacements);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked", "deprecation"})
@@ -31,6 +28,11 @@ public final class AsterionForge {
                 .toList();
         registries.forEach(AsterionForge::unlockRegistry);
         new Asterion().onInitialize();
+        net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry.apply(event);
+        net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.finishRegistration();
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            new net.krodark.asterion.client.AsterionClient().onInitializeClient();
+        }
     }
 
     private static void unlockRegistry(MappedRegistry<?> registry) {
@@ -58,21 +60,5 @@ public final class AsterionForge {
                 throw new IllegalStateException("Could not unlock Forge registry " + registry.key(), error);
             }
         }
-    }
-
-    private static void registerSpawnPlacements(SpawnPlacementRegisterEvent event) {
-        event.register(net.krodark.asterion.game.AncientContent.SKELETON,
-                SpawnPlacementTypes.ON_GROUND, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
-                net.krodark.asterion.entity.AncientSkeletonEntity::canSpawn,
-                SpawnPlacementRegisterEvent.Operation.REPLACE);
-        event.register(Asterion.BOMBARDIER_BEETLE, SpawnPlacementTypes.ON_GROUND,
-                Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Mob::checkMobSpawnRules,
-                SpawnPlacementRegisterEvent.Operation.REPLACE);
-        event.register(Asterion.CONSTRUCT, SpawnPlacementTypes.ON_GROUND,
-                Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Mob::checkMobSpawnRules,
-                SpawnPlacementRegisterEvent.Operation.REPLACE);
-        event.register(Asterion.SCARLET_CENTIPEDE, SpawnPlacementTypes.ON_GROUND,
-                Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Mob::checkMobSpawnRules,
-                SpawnPlacementRegisterEvent.Operation.REPLACE);
     }
 }
