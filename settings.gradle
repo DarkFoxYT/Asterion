@@ -16,6 +16,7 @@ plugins {
 }
 
 rootProject.name = 'Asterion'
+apply from: file('tools/collect-mod-builds.settings.gradle')
 stonecutter {
     create(rootProject) {
         version('26.1.2-fabric', '26.1.2').buildscript = 'build.gradle'

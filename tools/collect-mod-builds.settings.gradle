@@ -1,0 +1,41 @@
+// Shared by the Underworld and 1.5 Gradle builds. Keep only Asterion artifacts
+// on the repository shelf; dependencies remain in Gradle caches and profiles.
+def shelf = new File(settingsDir, 'modbuilds')
+while (!new File(shelf.parentFile, 'ports/1.5').isDirectory()) {
+    if (shelf.parentFile.parentFile == null) throw new GradleException('Cannot find the Asterion repository root')
+    shelf = new File(shelf.parentFile.parentFile, 'modbuilds')
+}
+def outputShelf = shelf
+
+gradle.projectsEvaluated {
+    gradle.rootProject.allprojects.each { modProject ->
+        def taskName = modProject.tasks.findByName('reobfJar') != null ? 'reobfJar' :
+                modProject.tasks.findByName('remapJar') != null ? 'remapJar' :
+                modProject.tasks.findByName('jar') != null ? 'jar' : null
+        if (taskName == null || modProject == gradle.rootProject) return
+
+        def artifact = modProject.tasks.named(taskName)
+        def collect = modProject.tasks.register('collectModJar', Copy) {
+            group = 'distribution'
+            description = 'Copy the finished Asterion jar to the repository modbuilds folder.'
+            dependsOn artifact
+            from artifact.flatMap { it.archiveFile }
+            into outputShelf
+        }
+        artifact.configure { finalizedBy collect }
+
+        // The older Fabric builds also produce a Quilt-labelled compatible jar.
+        def quilt = modProject.tasks.findByName('quiltCompatibleJar')
+        if (quilt != null) {
+            def collectQuilt = modProject.tasks.register('collectQuiltJar', Copy) {
+                group = 'distribution'
+                description = 'Copy the Quilt-compatible jar to the repository modbuilds folder.'
+                dependsOn quilt
+                from modProject.layout.buildDirectory.file("quilt/Asterion-${modProject.version}-quilt-mc${modProject.minecraft_version}.jar")
+                into outputShelf
+            }
+            quilt.finalizedBy collectQuilt
+            modProject.tasks.named('build').configure { finalizedBy quilt }
+        }
+    }
+}

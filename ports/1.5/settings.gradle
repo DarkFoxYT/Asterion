@@ -11,6 +11,7 @@ pluginManagement {
 plugins {
     id 'dev.kikugie.stonecutter' version '0.9.8'
 }
+apply from: file('../../tools/collect-mod-builds.settings.gradle')
 stonecutter {
     create(rootProject) {
         versions('1.20.1', '1.21.1')

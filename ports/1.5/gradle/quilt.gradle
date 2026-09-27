@@ -4,7 +4,7 @@ tasks.register('quiltCompatibleJar', Copy) {
     description = 'Names the Fabric-compatible artifact for Quilt installation.'
     dependsOn tasks.named('remapJar')
     from(tasks.named('remapJar'))
-    into layout.buildDirectory.dir('libs')
+    into layout.buildDirectory.dir('quilt')
     rename { "${project.archives_base_name}-${project.version}-quilt-mc${project.minecraft_version}.jar" }
 }
 configurations { quiltLoader }
