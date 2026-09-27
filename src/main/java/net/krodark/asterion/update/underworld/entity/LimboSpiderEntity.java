@@ -212,6 +212,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
     }
     public static AttributeSupplier.Builder createAttributes() {
         return createMobAttributes().add(Attributes.MAX_HEALTH, 60)
+                .add(Attributes.STEP_HEIGHT, 1.05)
                 .add(Attributes.MOVEMENT_SPEED, .42).add(Attributes.FOLLOW_RANGE, 40)
                 .add(Attributes.ATTACK_DAMAGE, 7).add(Attributes.KNOCKBACK_RESISTANCE, .35);
     }
@@ -484,6 +485,8 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
         }
         Direction surface = attachedSurface();
         Vec3 goal = surfaceGoal;
+        if (surface == Direction.DOWN && goal != null && !onWeb() && !isInWater() && !isInLava()
+                && (onGround() || smoothSupport != null) && stepGroundObstacle(goal)) return;
         if(goal!=null && routeGoal!=null && goal.distanceToSqr(routeGoal)>16)surfaceRoute.clear();
         if(!surfaceRoute.isEmpty()) {
             if(goal!=null && !isInWater() && !isInLava() && followSurfaceRoute())return;
@@ -547,7 +550,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
                 Direction best = null;
                 double score = .15;
                 for (Direction face : Direction.Plane.HORIZONTAL) {
-                    if (!touching(face)) continue;
+                    if (!touching(face) || !tallWall(face)) continue;
                     double candidate = face.getUnitVec3().dot(toward.normalize());
                     if (candidate > score) { score = candidate; best = face; }
                 }
@@ -635,6 +638,40 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
         return level().noCollision(this,getBoundingBox().expandTowards(step))
                 && (SpiderSupportSurface.contact(localSupport(),ahead,face)!=null
                 || SpiderSupportSurface.fit(localSupport(),ahead,face)!=null);
+    }
+    private boolean tallWall(Direction face) {
+        return SpiderSupportSurface.contact(localSupport(), getBoundingBox().move(0, 1.15, 0), face) != null;
+    }
+
+    private boolean stepGroundObstacle(Vec3 goal) {
+        Vec3 toward = goal.subtract(position()).multiply(1, 0, 1);
+        if (toward.lengthSqr() < .01) return false;
+        Vec3 step = toward.normalize().scale(Math.min(toward.length(), .26 * crawlSpeed * pace));
+        AABB body = getBoundingBox();
+        if (level().noCollision(this, body.expandTowards(step))) return false;
+        double rise = 0;
+        for (AABB obstacle : localSupport()) {
+            if (!obstacle.intersects(body.expandTowards(step).deflate(.001))) continue;
+            rise = Math.max(rise, obstacle.maxY - body.minY);
+        }
+        if (rise <= .001 || rise > 1.05) return false;
+        rise += .005;
+        AABB lifted = body.move(0, rise, 0);
+        if (!level().noCollision(this, body.expandTowards(0, rise, 0))
+                || !level().noCollision(this, lifted.expandTowards(step))
+                || level().noCollision(this, lifted.move(step).move(0, -.06, 0))) return false;
+        // Sweep vertically then horizontally: no jumping, tunnelling, or wall attachment.
+        getNavigation().stop();
+        surfaceRoute.clear();
+        move(MoverType.SELF, new Vec3(0, rise, 0));
+        move(MoverType.SELF, step);
+        setDeltaMovement(step.x, 0, step.z);
+        setNoGravity(false);
+        entityData.set(SURFACE, Direction.DOWN.ordinal());
+        geometryTick = -1;
+        refreshSupport();
+        resetFallDistance();
+        return true;
     }
     private Vec3 surfaceStep(Vec3 desired,Direction face) {
         if(supportedStep(desired,face))
