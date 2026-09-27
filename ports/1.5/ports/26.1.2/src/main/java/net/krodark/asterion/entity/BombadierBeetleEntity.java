@@ -1,0 +1,580 @@
+package net.krodark.asterion.entity;
+
+import com.geckolib.animatable.GeoEntity;
+import com.geckolib.animatable.instance.AnimatableInstanceCache;
+import com.geckolib.animatable.manager.AnimatableManager;
+import com.geckolib.animation.AnimationController;
+import com.geckolib.animation.RawAnimation;
+import com.geckolib.util.GeckoLibUtil;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.Mth;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.FloatGoal;
+import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
+import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
+import net.minecraft.world.entity.ai.util.DefaultRandomPos;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.pathfinder.Path;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+
+import net.krodark.asterion.Asterion;
+
+public final class BombadierBeetleEntity extends PathfinderMob implements GeoEntity {
+    private static final int FLEE_TICKS = 100;
+    private static final int IGNITION_SPREAD_TICKS = 24;
+    private static final int GAS_BURN_TICKS = 18;
+    private static final int DEFENCE_COOLDOWN_TICKS = 200;
+    private static final RawAnimation IDLE_ANIMATION = RawAnimation.begin().thenLoop("idle");
+    private static final RawAnimation WALK_ANIMATION = RawAnimation.begin().thenLoop("walk");
+    private static final EntityDataAccessor<Integer> DATA_DEFENCE_STATE = SynchedEntityData.defineId(
+            BombadierBeetleEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_ATTACHED_SURFACE = SynchedEntityData.defineId(
+            BombadierBeetleEntity.class, EntityDataSerializers.INT);
+    private static final Direction[] WALL_DIRECTIONS = {
+            Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST
+    };
+
+    private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
+    private final List<Vec3> smokeTrail = new ArrayList<>();
+    private final Set<UUID> ignitedVictims = new HashSet<>();
+    private final List<BurningGas> burningGas = new ArrayList<>();
+    private int defenceTicks;
+    private int defenceCooldown;
+    private int nextPanicTurn;
+    private Vec3 threatPosition;
+    private Vec3 lastPanicWaypoint;
+    private int zigzagSide = 1;
+    private int wallHeadingTicks;
+    private int wallRunSide = 1;
+    private double wallLateralMotion;
+    private double wallVerticalMotion = 1.0D;
+    private double targetWallLateralMotion;
+    private double targetWallVerticalMotion = 1.0D;
+    private Direction wallApproachDirection;
+    private int wallApproachTicks;
+    private int calmPatrolCooldown = 30;
+    private Vec3 lastCalmPatrol;
+    private Vec3 lastCalmPatrolDirection;
+
+    public BombadierBeetleEntity(EntityType<? extends BombadierBeetleEntity> type, Level level) {
+        super(type, level);
+        xpReward = 2;
+    }
+
+    @Override public boolean canBreatheUnderwater() { return true; }
+
+    public static AttributeSupplier.Builder createAttributes() {
+        return PathfinderMob.createMobAttributes()
+                .add(Attributes.MAX_HEALTH, 12.0D)
+                .add(Attributes.MOVEMENT_SPEED, 0.23D)
+                .add(Attributes.FOLLOW_RANGE, 12.0D)
+                .add(Attributes.ARMOR, 2.0D)
+                .add(Attributes.STEP_HEIGHT, 1.0D);
+    }
+
+    @Override
+    public boolean checkSpawnRules(LevelAccessor level, EntitySpawnReason reason) {
+        if (reason == EntitySpawnReason.NATURAL
+                && (!(level instanceof ServerLevel serverLevel)
+                || !serverLevel.dimension().equals(Asterion.ASTERION_LEVEL))) return false;
+        return super.checkSpawnRules(level, reason);
+    }
+
+    @Override
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(DATA_DEFENCE_STATE, DefenceState.CALM.ordinal());
+        builder.define(DATA_ATTACHED_SURFACE, Direction.DOWN.ordinal());
+    }
+
+    @Override
+    protected void registerGoals() {
+        goalSelector.addGoal(0, new FloatGoal(this));
+        goalSelector.addGoal(7, new LookAtPlayerGoal(this, Player.class, 6.0F));
+        goalSelector.addGoal(8, new RandomLookAroundGoal(this));
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (!(level() instanceof ServerLevel serverLevel) || !isAlive()) return;
+
+        if (defenceCooldown > 0) defenceCooldown--;
+        if (defenceState() == DefenceState.CALM) {
+            boolean wallRunning = tickSurfaceLocomotion(false);
+            if (!wallRunning) tickCalmPatrol();
+            return;
+        }
+
+        defenceTicks++;
+        if (defenceState() == DefenceState.FLEEING) tickFleeing(serverLevel);
+        else tickIgnition(serverLevel);
+    }
+
+    @Override
+    public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
+        boolean hurt = super.hurtServer(level, source, amount);
+        if (hurt && isAlive() && defenceState() == DefenceState.CALM && defenceCooldown == 0) {
+            Entity attacker = source.getEntity();
+            beginDefence(attacker == null ? null : attacker.position());
+        }
+        return hurt;
+    }
+
+    @Override
+    public boolean causeFallDamage(double fallDistance, float damageMultiplier, DamageSource source) {
+        resetFallDistance();
+        return false;
+    }
+
+    private void beginDefence(Vec3 threat) {
+        smokeTrail.clear();
+        burningGas.clear();
+        ignitedVictims.clear();
+        defenceTicks = 0;
+        nextPanicTurn = 0;
+        threatPosition = threat;
+        lastPanicWaypoint = null;
+        zigzagSide = random.nextBoolean() ? 1 : -1;
+        setDefenceState(DefenceState.FLEEING);
+    }
+
+    private void tickFleeing(ServerLevel level) {
+        boolean wallRunning = tickSurfaceLocomotion(true);
+        if (!wallRunning && (nextPanicTurn-- <= 0 || navigation.isDone() || navigation.isStuck()))
+            chooseMazeAwarePanicPath();
+
+        if ((defenceTicks & 1) == 0) {
+            Vec3 smoke = rearPosition().add(
+                    (random.nextDouble() - 0.5D) * 0.18D, random.nextDouble() * 0.08D,
+                    (random.nextDouble() - 0.5D) * 0.18D);
+            smokeTrail.add(smoke);
+            level.sendParticles(Asterion.BOMBARDIER_STENCH, smoke.x, smoke.y, smoke.z,
+                    2, 0.10D, 0.04D, 0.10D, 0.006D);
+        }
+
+        if (defenceTicks >= FLEE_TICKS) {
+            navigation.stop();
+            holdToAttachedSurface();
+            defenceTicks = 0;
+            setDefenceState(DefenceState.IGNITING);
+            Vec3 rear = rearPosition();
+            level.sendParticles(Asterion.BOMBARDIER_GAS_FIRE, rear.x, rear.y, rear.z,
+                    6, 0.22D, 0.15D, 0.22D, 0.035D);
+            level.sendParticles(ParticleTypes.LAVA, rear.x, rear.y, rear.z,
+                    5, 0.16D, 0.08D, 0.16D, 0.02D);
+            playSound(SoundEvents.FIRECHARGE_USE, 0.9F, 1.45F + random.nextFloat() * 0.2F);
+        }
+    }
+
+    private void tickIgnition(ServerLevel level) {
+        navigation.stop();
+        holdToAttachedSurface();
+        Vec3 rear = rearPosition();
+        level.sendParticles(Asterion.BOMBARDIER_GAS_FIRE, rear.x, rear.y, rear.z,
+                1, 0.16D, 0.10D, 0.16D, 0.015D);
+        if ((defenceTicks & 1) == 0)
+            level.sendParticles(ParticleTypes.LAVA, rear.x, rear.y, rear.z,
+                    2, 0.18D, 0.12D, 0.18D, 0.20D);
+
+        if (defenceTicks <= IGNITION_SPREAD_TICKS) {
+            int previous = smokeTrail.size() * (defenceTicks - 1) / IGNITION_SPREAD_TICKS;
+            int current = smokeTrail.size() * defenceTicks / IGNITION_SPREAD_TICKS;
+            for (int offset = previous; offset < current; offset++) {
+                int index = smokeTrail.size() - 1 - offset;
+                if (index >= 0) igniteSmokeAt(level, smokeTrail.get(index));
+            }
+            if (current > previous && defenceTicks % 4 == 0)
+                playSound(SoundEvents.FIRECHARGE_USE, 0.34F, 1.65F + random.nextFloat() * 0.25F);
+        }
+        tickBurningGas(level);
+
+        if (defenceTicks >= IGNITION_SPREAD_TICKS + GAS_BURN_TICKS) {
+            smokeTrail.clear();
+            burningGas.clear();
+            ignitedVictims.clear();
+            defenceTicks = 0;
+            defenceCooldown = DEFENCE_COOLDOWN_TICKS;
+            threatPosition = null;
+            lastPanicWaypoint = null;
+            setDefenceState(DefenceState.CALM);
+        }
+    }
+
+    private void tickCalmPatrol() {
+        if (navigation.isStuck()) {
+            navigation.stop();
+            calmPatrolCooldown = 0;
+        }
+        if (!navigation.isDone()) return;
+        if (calmPatrolCooldown-- > 0) return;
+
+        PatrolRoute route = chooseCalmPatrolRoute();
+        if (route != null) {
+            navigation.moveTo(route.path(), 0.82D);
+            Vec3 direction = route.target().subtract(position()).multiply(1.0D, 0.0D, 1.0D);
+            if (direction.lengthSqr() > 0.01D) {
+                lastCalmPatrolDirection = direction.normalize();
+            }
+            lastCalmPatrol = route.target();
+        }
+        calmPatrolCooldown = 24 + random.nextInt(36);
+    }
+
+    private PatrolRoute chooseCalmPatrolRoute() {
+        Path bestPath = null;
+        Vec3 bestTarget = null;
+        double bestScore = -Double.MAX_VALUE;
+        Vec3 origin = position();
+
+        for (int attempt = 0; attempt < 10; attempt++) {
+            Vec3 target = DefaultRandomPos.getPos(this, 14, 5);
+            if (target == null) continue;
+            Path path = navigation.createPath(BlockPos.containing(target), 0);
+            if (path == null || !path.canReach()) continue;
+            Vec3 direction = target.subtract(origin).multiply(1.0D, 0.0D, 1.0D);
+            double score = target.distanceToSqr(origin) - path.getNodeCount() * 0.24D;
+            if (lastCalmPatrol != null && target.distanceToSqr(lastCalmPatrol) < 16.0D) score -= 30.0D;
+            if (lastCalmPatrolDirection != null && direction.lengthSqr() > 0.01D)
+                score += direction.normalize().dot(lastCalmPatrolDirection) * 18.0D;
+            if (score > bestScore) {
+                bestScore = score;
+                bestPath = path;
+                bestTarget = target;
+            }
+        }
+
+        return bestPath == null ? null : new PatrolRoute(bestPath, bestTarget);
+    }
+
+    private void tickBurningGas(ServerLevel level) {
+        for (int index = burningGas.size() - 1; index >= 0; index--) {
+            BurningGas gas = burningGas.get(index);
+            gas.age++;
+            if ((gas.age & 1) == 0)
+                level.sendParticles(Asterion.BOMBARDIER_GAS_FIRE, gas.position.x, gas.position.y, gas.position.z,
+                        2, 0.20D, 0.16D, 0.20D, 0.018D);
+            if (gas.age == 1 || gas.age % 6 == 0)
+                level.sendParticles(ParticleTypes.LAVA, gas.position.x, gas.position.y, gas.position.z,
+                        1, 0.14D, 0.10D, 0.14D, 0.18D);
+            if (gas.age >= GAS_BURN_TICKS) burningGas.remove(index);
+        }
+    }
+
+    private void chooseMazeAwarePanicPath() {
+        Vec3 origin = position();
+        Vec3 away = threatPosition == null ? getLookAngle().multiply(1.0D, 0.0D, 1.0D)
+                : origin.subtract(threatPosition).multiply(1.0D, 0.0D, 1.0D);
+        if (away.lengthSqr() < 0.01D)
+            away = new Vec3(random.nextDouble() - 0.5D, 0.0D, random.nextDouble() - 0.5D);
+        away = away.normalize();
+        Vec3 lateral = new Vec3(-away.z, 0.0D, away.x).scale(zigzagSide);
+
+        Path bestPath = null;
+        Vec3 bestPosition = null;
+        double bestScore = -Double.MAX_VALUE;
+        for (int attempt = 0; attempt < 10; attempt++) {
+            double forward = 6.0D + random.nextDouble() * 7.0D;
+            double sideways = 2.0D + random.nextDouble() * 4.5D;
+            Vec3 desired = origin.add(away.scale(forward)).add(lateral.scale(sideways));
+            Vec3 candidate = DefaultRandomPos.getPosTowards(this, 13, 5, desired, Math.PI * 0.72D);
+            if (candidate == null) continue;
+            Path path = navigation.createPath(BlockPos.containing(candidate), 0);
+            if (path == null || path.getNodeCount() < 2) continue;
+
+            double score = path.canReach() ? 80.0D : 0.0D;
+            if (threatPosition != null) score += candidate.distanceToSqr(threatPosition) * 0.12D;
+            score -= path.getNodeCount() * 0.35D;
+            if (lastPanicWaypoint != null) {
+                double repeatDistance = candidate.distanceToSqr(lastPanicWaypoint);
+                if (repeatDistance < 20.0D) score -= 55.0D - repeatDistance * 2.0D;
+            }
+            score += random.nextDouble() * 8.0D;
+            if (score > bestScore) {
+                bestScore = score;
+                bestPath = path;
+                bestPosition = candidate;
+            }
+        }
+
+        if (bestPath != null) {
+            navigation.moveTo(bestPath, 2.15D);
+            lastPanicWaypoint = bestPosition;
+        } else {
+            Vec3 fallback = threatPosition == null
+                    ? DefaultRandomPos.getPos(this, 10, 4)
+                    : DefaultRandomPos.getPosAway(this, 10, 4, threatPosition);
+            if (fallback != null) navigation.moveTo(fallback.x, fallback.y, fallback.z, 2.15D);
+        }
+        zigzagSide = -zigzagSide;
+        nextPanicTurn = 10 + random.nextInt(8);
+    }
+
+    private boolean tickSurfaceLocomotion(boolean frantic) {
+        Direction surface = attachedSurface();
+        if (surface == Direction.DOWN && horizontalCollision) {
+            Direction wall = findContactWall();
+            if (wall != null) attachToWall(wall);
+            surface = attachedSurface();
+        }
+        if (surface == Direction.DOWN) {
+            setNoGravity(false);
+            if (frantic && tickWallApproach()) return true;
+            return false;
+        }
+
+        if (horizontalCollision) {
+            Direction corner = findContactWall();
+            if (corner != null && corner != surface) {
+                attachToWall(corner);
+                surface = corner;
+            } else {
+                targetWallLateralMotion = Math.copySign(0.16D,
+                        Math.abs(wallLateralMotion) < 0.01D ? wallRunSide : wallLateralMotion);
+                targetWallVerticalMotion = 0.98D;
+                wallHeadingTicks = 18;
+            }
+        }
+
+        if (!touchingSurface(surface)) {
+            Direction replacement = findContactWall();
+            if (replacement != null) {
+                attachToWall(replacement);
+                surface = replacement;
+            } else {
+                setDeltaMovement(getDeltaMovement().scale(0.42D));
+                setAttachedSurface(Direction.DOWN);
+                setNoGravity(false);
+                resetFallDistance();
+                return false;
+            }
+        }
+
+        navigation.stop();
+        setNoGravity(true);
+        resetFallDistance();
+        if (--wallHeadingTicks <= 0) {
+            chooseWallHeading(frantic);
+        }
+
+        double steering = frantic ? 0.085D : 0.055D;
+        wallLateralMotion = Mth.lerp(steering, wallLateralMotion, targetWallLateralMotion);
+        wallVerticalMotion = Mth.lerp(steering, wallVerticalMotion, targetWallVerticalMotion);
+
+        Vec3 normal = surface.getUnitVec3();
+        Vec3 sideways = surface.getAxis() == Direction.Axis.X
+                ? new Vec3(0.0D, 0.0D, 1.0D)
+                : new Vec3(1.0D, 0.0D, 0.0D);
+        Vec3 tangent = new Vec3(0.0D, wallVerticalMotion, 0.0D)
+                .add(sideways.scale(wallLateralMotion));
+        if (tangent.lengthSqr() < 0.04D) tangent = sideways.scale(wallRunSide);
+        tangent = tangent.normalize();
+        double speed = frantic ? 0.32D : 0.15D;
+        setDeltaMovement(tangent.scale(speed).add(normal.scale(0.105D)));
+        float desiredYaw = (float)(Mth.atan2(tangent.z, tangent.x) * Mth.RAD_TO_DEG) - 90.0F;
+        float smoothYaw = Mth.rotLerp(frantic ? 0.20F : 0.12F, getYRot(), desiredYaw);
+        setYRot(smoothYaw);
+        setYBodyRot(Mth.rotLerp(0.28F, yBodyRot, smoothYaw));
+        return true;
+    }
+
+    private void chooseWallHeading(boolean frantic) {
+        int alongWallDirection = Math.abs(wallLateralMotion) < 0.01D
+                ? wallRunSide : wallLateralMotion < 0.0D ? -1 : 1;
+        double currentAngle = Math.atan2(wallVerticalMotion, Math.abs(wallLateralMotion));
+        double maximumTurn = frantic ? 0.78D : 0.52D;
+        double targetAngle = Mth.clamp(currentAngle
+                + (random.nextDouble() * 2.0D - 1.0D) * maximumTurn, -1.34D, 1.34D);
+        targetWallLateralMotion = alongWallDirection * Math.cos(targetAngle);
+        targetWallVerticalMotion = Math.sin(targetAngle);
+        wallRunSide = alongWallDirection;
+        wallHeadingTicks = (frantic ? 30 : 48) + random.nextInt(frantic ? 28 : 42);
+    }
+
+    private boolean tickWallApproach() {
+        if (wallApproachTicks <= 0 && defenceTicks % 22 == 3 && random.nextFloat() < 0.7F) {
+            wallApproachDirection = findNearbyWall();
+            wallApproachTicks = wallApproachDirection == null ? 0 : 9;
+        }
+        if (wallApproachTicks <= 0 || wallApproachDirection == null) return false;
+
+        navigation.stop();
+        wallApproachTicks--;
+        Vec3 toward = wallApproachDirection.getUnitVec3();
+        Vec3 weave = wallApproachDirection.getAxis() == Direction.Axis.X
+                ? new Vec3(0.0D, 0.0D, wallRunSide * 0.12D)
+                : new Vec3(wallRunSide * 0.12D, 0.0D, 0.0D);
+        Vec3 motion = toward.scale(0.29D).add(weave);
+        setDeltaMovement(motion.x, getDeltaMovement().y, motion.z);
+        setYRot((float)(Mth.atan2(motion.z, motion.x) * Mth.RAD_TO_DEG) - 90.0F);
+        setYBodyRot(getYRot());
+        return true;
+    }
+
+    private Direction findNearbyWall() {
+        BlockPos origin = BlockPos.containing(getX(), getY() + 0.2D, getZ());
+        Direction best = null;
+        int bestDistance = Integer.MAX_VALUE;
+        for (Direction direction : WALL_DIRECTIONS) {
+            for (int distance = 1; distance <= 3; distance++) {
+                BlockPos cursor = origin.relative(direction, distance);
+                if (!BugSurfaces.allowed(level(), cursor)) continue;
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    best = direction;
+                }
+                break;
+            }
+        }
+        return best;
+    }
+
+    private void attachToWall(Direction wall) {
+        setAttachedSurface(wall);
+        setNoGravity(true);
+        Vec3 wallSideways = wall.getAxis() == Direction.Axis.X
+                ? new Vec3(0.0D, 0.0D, 1.0D) : new Vec3(1.0D, 0.0D, 0.0D);
+        Vec3 incoming = getDeltaMovement();
+        wallLateralMotion = incoming.dot(wallSideways);
+        wallVerticalMotion = incoming.y;
+        if (wallLateralMotion * wallLateralMotion + wallVerticalMotion * wallVerticalMotion < 0.04D) {
+            wallLateralMotion = random.nextBoolean() ? 0.72D : -0.72D;
+            wallVerticalMotion = 0.42D;
+        }
+        wallRunSide = wallLateralMotion < 0.0D ? -1 : 1;
+        chooseWallHeading(defenceState() == DefenceState.FLEEING);
+        wallApproachDirection = null;
+        wallApproachTicks = 0;
+        navigation.stop();
+    }
+
+    private Direction findContactWall() {
+        Direction best = null;
+        double bestAlignment = -Double.MAX_VALUE;
+        Vec3 facing = Vec3.directionFromRotation(0.0F, getYRot());
+        for (Direction direction : WALL_DIRECTIONS) {
+            if (!touchingSurface(direction)) continue;
+            Vec3 normal = direction.getUnitVec3();
+            double alignment = facing.dot(normal);
+            if (alignment > bestAlignment) {
+                bestAlignment = alignment;
+                best = direction;
+            }
+        }
+        return best;
+    }
+
+    private boolean touchingSurface(Direction direction) {
+        Vec3 normal = direction.getUnitVec3();
+        return BugSurfaces.touches(level(), getBoundingBox().move(normal.scale(0.26D)));
+    }
+
+    private void holdToAttachedSurface() {
+        Direction surface = attachedSurface();
+        if (surface == Direction.DOWN || !touchingSurface(surface)) {
+            setAttachedSurface(Direction.DOWN);
+            setNoGravity(false);
+            return;
+        }
+        setNoGravity(true);
+        resetFallDistance();
+        Vec3 normal = surface.getUnitVec3();
+        setDeltaMovement(normal.scale(0.095D));
+    }
+
+    private void igniteSmokeAt(ServerLevel level, Vec3 point) {
+        burningGas.add(new BurningGas(point));
+        level.sendParticles(Asterion.BOMBARDIER_GAS_FIRE, point.x, point.y, point.z,
+                1, 0.08D, 0.05D, 0.08D, 0.012D);
+        if (random.nextInt(4) == 0)
+            level.sendParticles(ParticleTypes.LAVA, point.x, point.y, point.z,
+                    1, 0.18D, 0.12D, 0.18D, 0.20D);
+        AABB fireCloud = new AABB(point, point).inflate(1.05D);
+        for (LivingEntity victim : level.getEntitiesOfClass(LivingEntity.class, fireCloud,
+                entity -> entity != this && entity.isAlive())) {
+            if (!ignitedVictims.add(victim.getUUID())) continue;
+            victim.igniteForSeconds(4.0F);
+            victim.hurtServer(level, level.damageSources().inFire(), 4.0F);
+        }
+    }
+
+    private Vec3 rearPosition() {
+        float yaw = getYRot() * Mth.DEG_TO_RAD;
+        return position().add(Mth.sin(yaw) * 0.48D, 0.22D, -Mth.cos(yaw) * 0.48D);
+    }
+
+    public DefenceState defenceState() {
+        int ordinal = Mth.clamp(getEntityData().get(DATA_DEFENCE_STATE), 0, DefenceState.values().length - 1);
+        return DefenceState.values()[ordinal];
+    }
+
+    public Direction attachedSurface() {
+        int ordinal = Mth.clamp(getEntityData().get(DATA_ATTACHED_SURFACE), 0, Direction.values().length - 1);
+        return Direction.values()[ordinal];
+    }
+
+    private void setAttachedSurface(Direction direction) {
+        getEntityData().set(DATA_ATTACHED_SURFACE, direction.ordinal());
+    }
+
+    @Override
+    public int getMaxSpawnClusterSize() {
+        return 3;
+    }
+
+    private void setDefenceState(DefenceState state) {
+        getEntityData().set(DATA_DEFENCE_STATE, state.ordinal());
+    }
+
+    @Override
+    public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+        controllers.add(new AnimationController<BombadierBeetleEntity>("movement", 3, state -> {
+            boolean moving = defenceState() == DefenceState.FLEEING
+                    || getDeltaMovement().lengthSqr() > 0.0004D;
+            state.setControllerSpeed(defenceState() == DefenceState.FLEEING ? 2.15F : 1.0F);
+            return state.setAndContinue(moving ? WALK_ANIMATION : IDLE_ANIMATION);
+        }));
+    }
+
+    @Override
+    public AnimatableInstanceCache getAnimatableInstanceCache() {
+        return animationCache;
+    }
+
+    public enum DefenceState { CALM, FLEEING, IGNITING }
+
+    private record PatrolRoute(Path path, Vec3 target) {
+    }
+
+    private static final class BurningGas {
+        private final Vec3 position;
+        private int age;
+
+        private BurningGas(Vec3 position) {
+            this.position = position;
+        }
+    }
+}

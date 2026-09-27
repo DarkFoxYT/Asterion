@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "C": {"item":"asterion:mazesteel_chain"},
+    "M": {"item":"asterion:mazesteel_block"},
+    "R": {"item":"minecraft:redstone"}
+  },
+  "pattern": [
+    "CMC",
+    "MRM",
+    " C "
+  ],
+  "result": {
+    "count": 1,
+    "id": "asterion:winch"
+  }
+}

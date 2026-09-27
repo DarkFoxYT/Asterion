@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "#": {"tag":"c:rods/wooden"},
+    "X": {"item":"minecraft:string"}
+  },
+  "pattern": [
+    " #X",
+    "# X",
+    " #X"
+  ],
+  "result": {
+    "id": "minecraft:bow"
+  }
+}

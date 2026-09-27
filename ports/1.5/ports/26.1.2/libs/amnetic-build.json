@@ -1,0 +1,9 @@
+{
+  "installation": "Built from supplied Amnetic checkout; NeoForge retains the existing loader bootstrap, Iris adapter and nested dependencies.",
+  "neoForgeSha256": "8e3b398310ef116fb97751a42d62b0bda5263d46dd90d599a9fbf5309eb8d020",
+  "upstreamVersion": "1.0-SNAPSHOT+26.1.2",
+  "version": "1.0-SNAPSHOT-0b72718",
+  "sourceCommit": "0b727183ec2d18514cdeb0d4bdc7a2c2692890c5",
+  "minecraft": "26.1.2",
+  "fabricQuiltSha256": "e8e0899e80dd3547a569a89f1d424366845cc8b168471c6f71e5afd4811e30da"
+}

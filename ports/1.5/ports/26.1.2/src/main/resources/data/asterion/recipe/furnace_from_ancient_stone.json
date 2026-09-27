@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "AAA",
+    "A A",
+    "AAA"
+  ],
+  "key": {
+    "A": "asterion:ancient_stone"
+  },
+  "result": {
+    "id": "minecraft:furnace",
+    "count": 1
+  }
+}

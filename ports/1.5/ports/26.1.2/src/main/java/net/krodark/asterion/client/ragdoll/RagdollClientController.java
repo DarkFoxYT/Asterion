@@ -1,0 +1,198 @@
+package net.krodark.asterion.client.ragdoll;
+
+import net.krodark.asterion.Asterion;
+import net.krodark.asterion.AsterionConfig;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.CameraType;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.entity.LivingEntity;
+import net.krodark.asterion.client.hud.DazeOverlay;
+import org.lwjgl.glfw.GLFW;
+
+public final class RagdollClientController {
+    private static boolean rightWasDown;
+    private static boolean recoveryWasDown;
+    private static int recoveryPresses;
+    private static int recoveryLastPressTick;
+    private static int scanTicker;
+    private static CameraType cameraBeforeTumble;
+    private static boolean thirdPersonLocked;
+    private static LivingEntity observedLocalPlayer;
+    private static net.minecraft.client.multiplayer.ClientLevel observedLevel;
+    private static int respawnProtectedUntilTick;
+    private static boolean wasPlayback;
+
+    private RagdollClientController() {
+    }
+
+    public static void initialize() {
+        ClientTickEvents.END_CLIENT_TICK.register(RagdollClientController::tick);
+    }
+
+    private static void tick(Minecraft client) {
+        var engine = DismembermentEngine.INSTANCE;
+        if (client.level == null || client.player == null) {
+            restoreCamera(client);
+            engine.clear();
+            rightWasDown = false;
+            resetRecovery();
+            observedLocalPlayer = null;
+            observedLevel = null;
+            wasPlayback = false;
+            return;
+        }
+
+        if (observedLevel != client.level) {
+            engine.clear();
+            observedLocalPlayer = null;
+            observedLevel = client.level;
+        }
+
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) {
+            wasPlayback = true;
+            restoreCamera(client);
+            DazeOverlay.cancel();
+            resetRecovery();
+            rightWasDown = false;
+            engine.tickPlayback(client);
+            return;
+        }
+
+        if (wasPlayback) {
+            engine.clear();
+            observedLocalPlayer = null;
+            wasPlayback = false;
+        }
+
+        if (observedLocalPlayer != client.player) {
+            if (observedLocalPlayer != null) engine.discardRespawnRagdoll(observedLocalPlayer.getId());
+            engine.discardRespawnRagdoll(client.player.getId());
+            DazeOverlay.cancel();
+            restoreCamera(client);
+            rightWasDown = false;
+            resetRecovery();
+            observedLocalPlayer = client.player;
+            respawnProtectedUntilTick = client.player.tickCount + 60;
+        }
+
+        boolean fallingIntoVoid = client.player.getY() <= client.level.getMinY() + 12.0D;
+        if (fallingIntoVoid) {
+            if (engine.isPlayerTumbling(client.player.getId()))
+                engine.releaseRagdoll(client.player.getId());
+            DazeOverlay.cancel();
+            restoreCamera(client);
+            rightWasDown = false;
+            resetRecovery();
+            engine.tick(client.level, client.player);
+            return;
+        }
+
+        boolean input = client.screen == null;
+        long window = client.getWindow().handle();
+        boolean recovery = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_SPACE) == GLFW.GLFW_PRESS;
+        boolean tumbling = engine.isPlayerTumbling(client.player.getId());
+        if (!tumbling || DazeOverlay.isActive() || net.krodark.asterion.entity.MinotaurEntity.isHeld(client.player)) {
+            resetRecovery();
+            DazeOverlay.hideRagdollRecovery();
+        }
+        else {
+            if (client.player.tickCount - recoveryLastPressTick > 24) recoveryPresses = 0;
+            if (input && recovery && !recoveryWasDown) {
+                recoveryLastPressTick = client.player.tickCount;
+                recoveryPresses++;
+                if (recoveryPresses >= 4 && engine.ragdollElapsedTicks(client.player.getId()) >= 8) {
+                    engine.releaseRagdoll(client.player.getId());
+                    resetRecovery();
+                    DazeOverlay.hideRagdollRecovery();
+                }
+            }
+            recoveryWasDown = recovery;
+            if (engine.isPlayerTumbling(client.player.getId()))
+                DazeOverlay.showRagdollRecovery(recoveryPresses, 4);
+        }
+        syncRagdollCamera(client, engine);
+
+        boolean right = GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS;
+        engine.handleRightClick(client, input && right, input && right && !rightWasDown);
+        rightWasDown = right;
+
+        if (!DazeOverlay.isActive()) engine.applyPlayerTumbleInput(client,
+                axis(window, GLFW.GLFW_KEY_A, GLFW.GLFW_KEY_D),
+                axis(window, GLFW.GLFW_KEY_S, GLFW.GLFW_KEY_W));
+
+        int ragdollQuality = AsterionConfig.INSTANCE.ragdollPhysicsQuality;
+        int scanInterval = ragdollQuality == 0 ? 10 : ragdollQuality == 1 ? 7 : 5;
+        double scanRange = ragdollQuality == 0 ? 40.0D : ragdollQuality == 1 ? 52.0D : 64.0D;
+        if (++scanTicker % scanInterval == 0) {
+            for (LivingEntity entity : client.level.getEntitiesOfClass(LivingEntity.class,
+                    client.player.getBoundingBox().inflate(scanRange),
+                     entity -> !entity.isAlive() && !DismembermentEngine.isRagdollExcluded(entity)
+                             && (entity instanceof net.minecraft.world.entity.player.Player
+                             || client.level.dimension().equals(Asterion.ASTERION_LEVEL)))) {
+                if (!engine.isRagdolled(entity.getId())) {
+                    Vec3 motion = entity.getDeltaMovement();
+                    Vec3 direction = motion.lengthSqr() > 1.0e-6 ? motion.normalize() : entity.getLookAngle();
+                    engine.ragdoll(entity, 1, entity.getBoundingBox().getCenter(), direction,
+                            Math.max(0.35, motion.length()), false);
+                }
+            }
+        }
+
+        engine.tick(client.level, client.player);
+        engine.followPlayerTumble(client);
+        syncRagdollCamera(client, engine);
+    }
+
+    public static boolean isRespawnProtected(Minecraft client) {
+        return client.player != null && (observedLocalPlayer != client.player
+                || client.player.tickCount < respawnProtectedUntilTick);
+    }
+
+    private static float axis(long window, int negative, int positive) {
+        boolean n = GLFW.glfwGetKey(window, negative) == GLFW.GLFW_PRESS;
+        boolean p = GLFW.glfwGetKey(window, positive) == GLFW.GLFW_PRESS;
+        return n == p ? 0 : p ? 1 : -1;
+    }
+
+    private static void syncRagdollCamera(Minecraft client, DismembermentEngine engine) {
+        boolean tumbling = client.player != null && engine.isPlayerTumbling(client.player.getId());
+        if (!tumbling) {
+            restoreCamera(client);
+            return;
+        }
+        if (!thirdPersonLocked) {
+            cameraBeforeTumble = client.options.getCameraType();
+            thirdPersonLocked = true;
+        }
+        if (client.options.getCameraType() != CameraType.THIRD_PERSON_BACK)
+            client.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+    }
+
+     
+    public static void enforceRagdollCamera(Minecraft client) {
+        if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) return;
+        if (client.player != null
+                && DismembermentEngine.INSTANCE.isPlayerTumbling(client.player.getId())) {
+            if (!thirdPersonLocked) {
+                cameraBeforeTumble = client.options.getCameraType();
+                thirdPersonLocked = true;
+            }
+            if (client.options.getCameraType() != CameraType.THIRD_PERSON_BACK)
+                client.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+        }
+    }
+
+    private static void restoreCamera(Minecraft client) {
+        if (!thirdPersonLocked) return;
+        if (cameraBeforeTumble != null) client.options.setCameraType(cameraBeforeTumble);
+        cameraBeforeTumble = null;
+        thirdPersonLocked = false;
+    }
+
+    private static void resetRecovery() {
+        recoveryWasDown = false;
+        recoveryPresses = 0;
+        recoveryLastPressTick = 0;
+    }
+}

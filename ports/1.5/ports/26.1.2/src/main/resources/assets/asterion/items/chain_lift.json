@@ -1,0 +1,7 @@
+{
+  "model": {
+    "type": "minecraft:special",
+    "base": "asterion:item/chain_lift",
+    "model": { "type": "geckolib:geckolib" }
+  }
+}

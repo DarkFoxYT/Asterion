@@ -1,0 +1,39 @@
+{
+  "parent": "asterion:root",
+  "criteria": {
+    "milestone": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "asterion:dead_wood"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "asterion:dead_wood"
+    },
+    "title": {
+      "translate": "advancement.asterion.fallen_timber.title"
+    },
+    "description": {
+      "translate": "advancement.asterion.fallen_timber.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "milestone"
+    ]
+  ],
+  "rewards": {
+    "experience": 10
+  },
+  "sends_telemetry_event": false
+}

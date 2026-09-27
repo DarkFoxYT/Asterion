@@ -1,0 +1,18 @@
+plugins {
+    id 'dev.kikugie.stonecutter'
+}
+
+stonecutter.active '26.1.2-fabric'
+
+
+// Keep the existing IDE run commands pointed at one loader.
+def runLoader = providers.gradleProperty('loader_platform').getOrElse('fabric')
+if (!(runLoader in ['fabric', 'quilt'])) {
+    throw new GradleException('loader_platform must be fabric or quilt; use :26.1.2-neoforge:runClient for NeoForge')
+}
+['runClient', 'runEssentialClient', 'runServer'].each { runTask ->
+    tasks.register(runTask) {
+        group = 'application'
+        dependsOn ":26.1.2-${runLoader}:${runTask}"
+    }
+}

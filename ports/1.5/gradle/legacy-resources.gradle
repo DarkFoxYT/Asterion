@@ -1,0 +1,62 @@
+// Convert the shared 1.21 resource tree at build time, keeping one authoring source.
+if (minecraft_version == '1.20.1') {
+    tasks.named('processResources').configure {
+        eachFile { entry ->
+            def parts = entry.path.split('/') as List
+            def plural = [advancement:'advancements', recipe:'recipes', loot_table:'loot_tables', structure:'structures', function:'functions', predicate:'predicates', item_modifier:'item_modifiers']
+            if (parts.size() > 3 && parts[0] == 'data') {
+                if (plural.containsKey(parts[2])) parts[2] = plural[parts[2]]
+                if (parts[2] == 'tags' && parts.size() > 4) {
+                    def tagNames = [block:'blocks', item:'items', fluid:'fluids', entity_type:'entity_types', game_event:'game_events', function:'functions']
+                    if (tagNames.containsKey(parts[3])) parts[3] = tagNames[parts[3]]
+                }
+                entry.path = parts.join('/')
+            }
+        }
+        doLast {
+            def slurper = new groovy.json.JsonSlurper()
+            def writeJson = { target, json -> target.setText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)), 'UTF-8') }
+            def transform
+            transform = { value ->
+                if (value instanceof Map) {
+                    // Item and block predicates used lists before 1.20.5.
+                    ['items','blocks'].each { key ->
+                        if (value[key] instanceof String) {
+                            if (value[key].startsWith('#')) { value.tag = value.remove(key).substring(1) }
+                            else value[key] = [value[key]]
+                        }
+                    }
+                    if (value.predicates instanceof Map && value.predicates['minecraft:enchantments']) {
+                        value.enchantments = value.predicates.remove('minecraft:enchantments').collect { entry ->
+                            [enchantment:entry.enchantments, levels:entry.levels]
+                        }
+                        if (value.predicates.isEmpty()) value.remove('predicates')
+                    }
+                    value.values().each { transform(it) }
+                } else if (value instanceof List) value.each { transform(it) }
+            }
+            fileTree("${destinationDir}/data").matching { include '**/*.json' }.files.each { resource ->
+                def path = resource.toPath().toString().replace('\\','/')
+                def json = slurper.parse(resource)
+                if (path.contains('/recipes/') && json.result instanceof Map && json.result.id) {
+                    if (json.type in ['minecraft:smelting','minecraft:blasting','minecraft:smoking','minecraft:campfire_cooking','minecraft:stonecutting']) {
+                        def result = json.result
+                        json.result = result.id
+                        if (json.type == 'minecraft:stonecutting') json.count = result.count ?: 1
+                    } else json.result.item = json.result.remove('id')
+                }
+                if (path.contains('/advancements/')) {
+                    if (json.display?.icon?.id) json.display.icon.item = json.display.icon.remove('id')
+                }
+                transform(json)
+                writeJson(resource, json)
+            }
+            def config = file("${destinationDir}/asterion.mixins.json")
+            def mixins = slurper.parse(config)
+            mixins.compatibilityLevel = 'JAVA_17'
+            mixins.client.add('legacy.GeoBufferRefreshMixin')
+            mixins.mixins.addAll(['legacy.ItemDefaultsMixin','legacy.ItemStackDataMixin','legacy.LootTableAccessor','legacy.AfterDamageMixin','legacy.ClipContextMixin'])
+            writeJson(config, mixins)
+        }
+    }
+}

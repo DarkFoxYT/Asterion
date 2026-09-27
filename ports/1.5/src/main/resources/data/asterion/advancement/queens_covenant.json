@@ -1,0 +1,32 @@
+{
+  "parent": "asterion:trusted_supplier",
+  "criteria": {
+    "milestone": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "asterion:celestial_gold_ingot"
+    },
+    "title": {
+      "translate": "advancement.asterion.queens_covenant.title"
+    },
+    "description": {
+      "translate": "advancement.asterion.queens_covenant.description"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "milestone"
+    ]
+  ],
+  "rewards": {
+    "experience": 150
+  },
+  "sends_telemetry_event": false
+}

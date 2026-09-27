@@ -1,0 +1,111 @@
+package net.krodark.asterion.block;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Mirror;
+import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.AttachFace;
+import net.minecraft.world.level.block.state.properties.EnumProperty;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
+
+
+public final class DirectionalGateBlock extends Block implements net.minecraft.world.level.block.SimpleWaterloggedBlock {
+    public static final EnumProperty<AttachFace> FACE = BlockStateProperties.ATTACH_FACE;
+    public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
+    public static final BooleanProperty OPEN = BlockStateProperties.OPEN;
+    public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
+
+    public DirectionalGateBlock(Properties properties) {
+        super(properties);
+        registerDefaultState(stateDefinition.any()
+                .setValue(FACE, AttachFace.WALL)
+                .setValue(FACING, Direction.NORTH)
+                .setValue(OPEN, false).setValue(WATERLOGGED, false));
+    }
+
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        Direction clickedFace = context.getClickedFace();
+        AttachFace face = clickedFace == Direction.UP ? AttachFace.FLOOR
+                : clickedFace == Direction.DOWN ? AttachFace.CEILING : AttachFace.WALL;
+        Direction facing = clickedFace.getAxis().isHorizontal()
+                ? clickedFace : context.getHorizontalDirection().getOpposite();
+        return defaultBlockState().setValue(FACE, face).setValue(FACING, facing)
+                .setValue(WATERLOGGED, context.getLevel().getFluidState(context.getClickedPos())
+                        .getType() == net.minecraft.world.level.material.Fluids.WATER);
+    }
+
+    @Override
+    public BlockState rotate(BlockState state, Rotation rotation) {
+        return state.setValue(FACING, rotation.rotate(state.getValue(FACING)));
+    }
+
+    @Override
+    public BlockState mirror(BlockState state, Mirror mirror) {
+        return state.setValue(FACING, mirror.mirror(state.getValue(FACING)));
+    }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(FACE, FACING, OPEN, WATERLOGGED);
+    }
+
+    @Override
+    public net.minecraft.world.level.material.FluidState getFluidState(BlockState state) {
+        return state.getValue(WATERLOGGED) ? net.minecraft.world.level.material.Fluids.WATER.getSource(false)
+                : super.getFluidState(state);
+    }
+
+    @Override
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+            net.minecraft.world.level.LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
+        if (state.getValue(WATERLOGGED)) level.scheduleTick(pos, net.minecraft.world.level.material.Fluids.WATER,
+                net.minecraft.world.level.material.Fluids.WATER.getTickDelay(level));
+        return super.updateShape(state, direction, neighborState, level, pos, neighborPos);
+    }
+
+    @Override
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        if (state.getValue(OPEN)) return Shapes.empty();
+        if (state.getValue(FACE) != AttachFace.FLOOR)
+            return box(0, 6, 0, 16, 10, 16);
+        return state.getValue(FACING).getAxis() == Direction.Axis.X
+                ? box(6, 0, 0, 10, 16, 16)
+                : box(0, 0, 6, 16, 16, 10);
+    }
+
+    @Override
+    public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos,
+                                             CollisionContext context) {
+        return state.getValue(OPEN) ? Shapes.empty() : getShape(state, level, pos, context);
+    }
+
+    @Override
+    public VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
+        return Shapes.empty();
+    }
+    @Override
+//? if >=1.20.5 {
+protected boolean isPathfindable(BlockState state, net.minecraft.world.level.pathfinder.PathComputationType type)
+//?} else {
+/*public boolean isPathfindable(BlockState state, net.minecraft.world.level.BlockGetter level, net.minecraft.core.BlockPos pos, net.minecraft.world.level.pathfinder.PathComputationType type)*/
+//?}
+ {
+        return state.getValue(OPEN);
+    }
+    @Override public float getDestroyProgress(BlockState state, net.minecraft.world.entity.player.Player player,
+                                                 BlockGetter level, BlockPos pos) {
+        if (!player.isCreative() && player.level().dimension().equals(net.krodark.asterion.Asterion.ASTERION_LEVEL)
+                && net.krodark.asterion.worldgen.MinotaurArenaEntrances.isGate(pos)) return 0;
+        return super.getDestroyProgress(state, player, level, pos);
+    }
+}

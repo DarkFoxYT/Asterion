@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "id": "asterion",
+  "version": "${version}",
+  "name": "Asterion",
+  "description": "Labyrinth beta: descend into the living maze, uncover its depths, and survive the Minotaur. The Underworld chapter is in development.",
+  "authors": [
+    "Kronoz",
+    "DarkFox"
+  ],
+  "license": "LicenseRef-AMALGAM-Proprietary",
+  "icon": "assets/asterion/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "fabric-datagen": [
+      "net.krodark.asterion.client.AsterionDataGenerator"
+    ],
+    "client": [
+      "net.krodark.asterion.client.AsterionClient"
+    ],
+    "main": [
+      "net.krodark.asterion.Asterion"
+    ],
+    "modmenu": [
+      "net.krodark.asterion.client.AsterionModMenu"
+    ],
+    "rei_client": [
+      "net.krodark.asterion.compat.rei.AsterionReiClientPlugin"
+    ],
+    "rei_common": [
+      "net.krodark.asterion.compat.rei.AsterionReiCommonPlugin"
+    ],
+    "jade": [
+      "net.krodark.asterion.compat.jade.AsterionJadePlugin"
+    ]
+  },
+  "mixins": [
+    "asterion.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}",
+    "amnetic": "*",
+    "geckolib": ">=5.5.2"
+  }
+}

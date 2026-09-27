@@ -1,0 +1,10 @@
+{
+  "name": "asterion:maze_pits/start",
+  "fallback": "minecraft:empty",
+  "elements": [{"weight": 1, "element": {
+    "element_type": "minecraft:single_pool_element",
+    "location": "asterion:maze_pits/pit",
+    "processors": "minecraft:empty",
+    "projection": "rigid"
+  }}]
+}

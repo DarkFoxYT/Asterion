@@ -1,0 +1,58 @@
+#version 330
+
+uniform sampler2D SceneSampler;
+uniform sampler2D DepthSampler;
+uniform sampler2D SunSampler;
+uniform sampler2D BloomSampler;
+layout(std140) uniform EclipseData { float Eclipse; };
+layout(std140) uniform WorldDarkness { float Darkness; };
+layout(std140) uniform FinaleProgress { float Finale; };
+
+layout(std140) uniform SamplerInfo {
+    vec2 OutSize;
+    vec2 InSize;
+};
+
+in vec2 texCoord;
+out vec4 fragColor;
+
+void main() {
+    vec4 scene = texture(SceneSampler, texCoord);
+    float sceneDepth = texture(DepthSampler, texCoord).r;
+    vec4 sun = texture(SunSampler, texCoord);
+    vec3 bloom = texture(BloomSampler, texCoord).rgb;
+    float eclipse = clamp(Eclipse, 0.0, 1.0);
+    float darkness = clamp(Darkness, 0.0, 1.0);
+    float finale = clamp(Finale, 0.0, 1.0);
+     
+     
+    vec3 darkScene = scene.rgb * mix(1.0, 0.30, darkness) * mix(1.0, 0.18, finale);
+    float luminance = dot(darkScene, vec3(0.2126, 0.7152, 0.0722));
+    darkScene = mix(darkScene, vec3(luminance), max(darkness * 0.42, finale * 0.68));
+    darkScene += vec3(0.075, 0.0015, 0.002) * finale
+            * (0.72 + 0.28 * sin(texCoord.y * 90.0 + finale * 31.0));
+     
+     
+     
+     
+    float eclipseMask = clamp(sun.a * eclipse, 0.0, 1.0);
+    float outerEdgeLeak = smoothstep(0.10, 0.58, eclipseMask)
+            * (1.0 - smoothstep(0.72, 0.98, eclipseMask));
+    float bloomTransmission = 1.0 - eclipseMask + outerEdgeLeak * 0.16;
+     
+     
+    float skyVisibility = smoothstep(0.9975, 0.9999, sceneDepth);
+    vec3 color = darkScene * (1.0 - sun.a) + sun.rgb
+            + bloom * mix(0.86, 1.08, eclipse) * mix(1.0, 0.58, finale)
+            * bloomTransmission * skyVisibility;
+     
+     
+     
+    float sceneLuma = max(scene.r, max(scene.g, scene.b));
+    float redCurrent = scene.r - max(scene.g * 1.35, scene.b * 1.05);
+    float whiteCore = sceneLuma - 0.72;
+    float renderedCurrent = smoothstep(0.08, 0.62, max(redCurrent, whiteCore));
+    color = mix(color, scene.rgb * 1.85 + vec3(0.32, 0.015, 0.01),
+            renderedCurrent * sun.a * 0.94);
+    fragColor = vec4(color, scene.a);
+}

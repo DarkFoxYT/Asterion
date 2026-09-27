@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "IIB",
+    "DRI",
+    " II"
+  ],
+  "key": {
+    "I": {"item":"minecraft:iron_ingot"},
+    "B": {"item":"minecraft:blaze_rod"},
+    "D": {"item":"asterion:spewer"},
+    "R": {"item":"minecraft:redstone"}
+  },
+  "result": {
+    "id": "asterion:flamethrower",
+    "count": 1
+  }
+}

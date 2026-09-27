@@ -1,0 +1,61 @@
+package net.krodark.asterion.block;
+
+import com.geckolib.animatable.GeoBlockEntity;
+import com.geckolib.animatable.instance.AnimatableInstanceCache;
+import com.geckolib.animatable.manager.AnimatableManager;
+import com.geckolib.util.GeckoLibUtil;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.DustParticleOptions;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+
+public final class SanctuaryBlockEntity extends BlockEntity implements GeoBlockEntity {
+    private AnimatableInstanceCache cache;
+    private int pulse;
+    private float clientGlowAlpha;
+    private boolean clientGlowInitialized;
+    public SanctuaryBlockEntity(BlockPos pos, BlockState state) { super(RespawnObelisks.BLOCK_ENTITY, pos, state); }
+    public void startPulse() { pulse = 24; setChanged(); }
+    public static void tick(Level level, BlockPos pos, BlockState state, SanctuaryBlockEntity self) {
+        if (level.isClientSide()) {
+            float target = state.getValue(SanctuaryBlock.CHARGE) == 1 ? 1F : 0F;
+            if (!self.clientGlowInitialized) {
+                self.clientGlowAlpha = target;
+                self.clientGlowInitialized = true;
+            } else {
+                self.clientGlowAlpha += (target - self.clientGlowAlpha) * .16F;
+                if (Math.abs(target - self.clientGlowAlpha) < .002F) self.clientGlowAlpha = target;
+            }
+            return;
+        }
+        if (!(level instanceof ServerLevel server) || self.pulse <= 0) return;
+        double radius = (25 - self.pulse) * .32;
+        int points = 24;
+        var dust = new DustParticleOptions(0xFFD574, .65F + self.pulse / 36F);
+        for (int i = 0; i < points; i++) {
+            double angle = i * Math.PI * 2 / points;
+            double x = pos.getX() + .5 + Math.cos(angle) * radius;
+            double z = pos.getZ() + .5 + Math.sin(angle) * radius;
+            BlockPos sample = BlockPos.containing(x, pos.getY(), z);
+            if (!level.getBlockState(sample).getCollisionShape(level, sample).isEmpty()) continue;
+            server.sendParticles(dust,
+                    x, pos.getY() + .18 + Math.sin(angle * 4) * .07, z, 1, .04, .04, .04, 0);
+        }
+        self.pulse--; self.setChanged();
+    }
+    public float clientGlowAlpha() {
+        if (!clientGlowInitialized) return getBlockState().getValue(SanctuaryBlock.CHARGE) == 1 ? 1F : 0F;
+        return clientGlowAlpha;
+    }
+    @Override protected void saveAdditional(ValueOutput output) { super.saveAdditional(output); output.putInt("pulse", pulse); }
+    @Override protected void loadAdditional(ValueInput input) { super.loadAdditional(input); pulse = Math.clamp(input.getIntOr("pulse", 0), 0, 24); }
+    @Override public void registerControllers(AnimatableManager.ControllerRegistrar controllers) { }
+    @Override public AnimatableInstanceCache getAnimatableInstanceCache() {
+        if (cache == null) cache = GeckoLibUtil.createInstanceCache(this);
+        return cache;
+    }
+}

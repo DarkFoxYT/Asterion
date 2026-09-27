@@ -1,0 +1,11 @@
+[
+  {"group":"ancient","sound":"asterion:music.ancient.best_piece","title":"the best piece of music ive ever made","artist":"keys"},
+  {"group":"arena","sound":"asterion:music.arena.atonement","title":"ATONEMENT","artist":"MONGOPSY"},
+  {"group":"arena","sound":"asterion:music.arena.dark_souls","title":"i made a dark souls boss theme","artist":"keys"},
+  {"group":"crimsonmarshlands","sound":"asterion:music.crimson.roll_back_credits","title":"if we could roll back the credits, one last time","artist":"keys"},
+  {"group":"crimsonmarshlands","sound":"asterion:music.crimson.edge_of_world","title":"ill see you, at the edge of the world","artist":"keys"},
+  {"group":"forge","sound":"asterion:music.forge.green_hour","title":"the green hour.","artist":"MONGOPSY"},
+  {"group":"forge","sound":"asterion:music.forge.withered_remnant","title":"the withered remnant","artist":"MONGOPSY"},
+  {"group":"overgrown","sound":"asterion:music.overgrown.mojang","title":"mojang, please hire me","artist":"joabi"},
+  {"group":"overgrown","sound":"asterion:music.overgrown.stars","title":"Where the Stars Fall","artist":"CryPika"}
+]

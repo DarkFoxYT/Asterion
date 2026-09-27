@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "asterion:heavy_water",
+    "asterion:flowing_heavy_water",
+    "asterion:heavy_water_layer"
+  ]
+}

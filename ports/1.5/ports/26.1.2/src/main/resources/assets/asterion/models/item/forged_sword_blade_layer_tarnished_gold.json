@@ -1,0 +1,6 @@
+{
+  "parent": "asterion:item/forged_sword_layer",
+  "textures": {
+    "layer0": "asterion:forging/tarnished_gold/tarnished_gold_blade"
+  }
+}

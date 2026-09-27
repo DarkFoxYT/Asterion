@@ -1,0 +1,39 @@
+{
+  "parent": "asterion:root",
+  "criteria": {
+    "milestone": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "asterion:ancient_moss"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "asterion:ancient_moss"
+    },
+    "title": {
+      "translate": "advancement.asterion.living_stone.title"
+    },
+    "description": {
+      "translate": "advancement.asterion.living_stone.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "milestone"
+    ]
+  ],
+  "rewards": {
+    "experience": 10
+  },
+  "sends_telemetry_event": false
+}

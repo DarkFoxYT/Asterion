@@ -1,0 +1,6 @@
+{
+  "textures": {
+    "cross": "asterion:block/shale_spike_2"
+  },
+  "parent": "minecraft:block/pointed_dripstone_up_frustum"
+}

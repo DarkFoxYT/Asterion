@@ -1,0 +1,6 @@
+{
+  "textures": {
+    "all": "asterion:block/dead_stone_2"
+  },
+  "parent": "minecraft:block/cube_all"
+}

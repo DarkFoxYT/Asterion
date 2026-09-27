@@ -1,0 +1,336 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "asterion:block/brasier",
+    "brazier": "asterion:block/brasier"
+  },
+  "elements": [
+    {
+      "from": [
+        -11,
+        4,
+        -11
+      ],
+      "to": [
+        27,
+        13,
+        27
+      ],
+      "faces": {
+        "north": {
+          "texture": "#brazier",
+          "uv": [
+            10.25,
+            0,
+            15,
+            1.125
+          ]
+        },
+        "east": {
+          "texture": "#brazier",
+          "uv": [
+            10.25,
+            1.25,
+            15,
+            2.375
+          ]
+        },
+        "south": {
+          "texture": "#brazier",
+          "uv": [
+            10.25,
+            2.5,
+            15,
+            3.625
+          ]
+        },
+        "west": {
+          "texture": "#brazier",
+          "uv": [
+            10.25,
+            3.75,
+            15,
+            4.875
+          ]
+        },
+        "up": {
+          "texture": "#brazier",
+          "uv": [
+            5.375,
+            0,
+            10.125,
+            4.75
+          ]
+        },
+        "down": {
+          "texture": "#brazier",
+          "uv": [
+            5.375,
+            9.625,
+            10.125,
+            4.875
+          ]
+        }
+      }
+    },
+    {
+      "from": [
+        -13,
+        13,
+        -13
+      ],
+      "to": [
+        29,
+        16,
+        29
+      ],
+      "faces": {
+        "north": {
+          "texture": "#brazier",
+          "uv": [
+            10.25,
+            9.25,
+            15.5,
+            9.625
+          ]
+        },
+        "east": {
+          "texture": "#brazier",
+          "uv": [
+            0,
+            10.75,
+            5.25,
+            11.125
+          ]
+        },
+        "south": {
+          "texture": "#brazier",
+          "uv": [
+            0,
+            11.25,
+            5.25,
+            11.625
+          ]
+        },
+        "west": {
+          "texture": "#brazier",
+          "uv": [
+            0,
+            11.75,
+            5.25,
+            12.125
+          ]
+        },
+        "up": {
+          "texture": "#brazier",
+          "uv": [
+            0,
+            0,
+            5.25,
+            5.25
+          ]
+        },
+        "down": {
+          "texture": "#brazier",
+          "uv": [
+            0,
+            10.625,
+            5.25,
+            5.375
+          ]
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        2,
+        0
+      ],
+      "to": [
+        16,
+        4,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#brazier",
+          "uv": [
+            12.375,
+            6.125,
+            14.375,
+            6.375
+          ]
+        },
+        "east": {
+          "texture": "#brazier",
+          "uv": [
+            12.375,
+            6.5,
+            14.375,
+            6.75
+          ]
+        },
+        "south": {
+          "texture": "#brazier",
+          "uv": [
+            12.375,
+            6.875,
+            14.375,
+            7.125
+          ]
+        },
+        "west": {
+          "texture": "#brazier",
+          "uv": [
+            12.375,
+            7.25,
+            14.375,
+            7.5
+          ]
+        },
+        "up": {
+          "texture": "#brazier",
+          "uv": [
+            10.25,
+            5,
+            12.25,
+            7
+          ]
+        },
+        "down": {
+          "texture": "#brazier",
+          "uv": [
+            10.25,
+            9.125,
+            12.25,
+            7.125
+          ]
+        }
+      }
+    },
+    {
+      "from": [
+        -6,
+        0,
+        -6
+      ],
+      "to": [
+        22,
+        2,
+        22
+      ],
+      "faces": {
+        "north": {
+          "texture": "#brazier",
+          "uv": [
+            0,
+            12.25,
+            3.5,
+            12.5
+          ]
+        },
+        "east": {
+          "texture": "#brazier",
+          "uv": [
+            12.375,
+            5,
+            15.875,
+            5.25
+          ]
+        },
+        "south": {
+          "texture": "#brazier",
+          "uv": [
+            12.375,
+            5.375,
+            15.875,
+            5.625
+          ]
+        },
+        "west": {
+          "texture": "#brazier",
+          "uv": [
+            12.375,
+            5.75,
+            15.875,
+            6
+          ]
+        },
+        "up": {
+          "texture": "#brazier",
+          "uv": [
+            5.375,
+            9.75,
+            8.875,
+            13.25
+          ]
+        },
+        "down": {
+          "texture": "#brazier",
+          "uv": [
+            9,
+            13.25,
+            12.5,
+            9.75
+          ]
+        }
+      }
+    }
+  ],
+  "display": {
+    "gui": {
+      "rotation": [
+        30,
+        225,
+        0
+      ],
+      "translation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.28,
+        0.28,
+        0.28
+      ]
+    },
+    "ground": {
+      "translation": [
+        0,
+        2,
+        0
+      ],
+      "scale": [
+        0.16,
+        0.16,
+        0.16
+      ]
+    },
+    "fixed": {
+      "scale": [
+        0.3,
+        0.3,
+        0.3
+      ]
+    },
+    "thirdperson_righthand": {
+      "rotation": [
+        75,
+        45,
+        0
+      ],
+      "translation": [
+        0,
+        2.5,
+        0
+      ],
+      "scale": [
+        0.18,
+        0.18,
+        0.18
+      ]
+    }
+  }
+}

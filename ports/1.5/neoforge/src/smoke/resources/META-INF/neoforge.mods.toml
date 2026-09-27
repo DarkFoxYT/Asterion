@@ -1,0 +1,7 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="LicenseRef-AMALGAM-Proprietary"
+[[mods]]
+modId="asterion_tests"
+version="1.0.0"
+displayName="Asterion development checks"
