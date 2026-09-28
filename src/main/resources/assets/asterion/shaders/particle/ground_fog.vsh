@@ -13,6 +13,7 @@ uniform mat4 ViewMatrix;
 out vec2 planeUV;
 out vec4 fogColor;
 out float cameraDistance;
+out vec2 textureMotion;
 
 void main() {
     vec4 center = ViewMatrix * vec4(Center, 1.0);
@@ -20,4 +21,5 @@ void main() {
     planeUV = UV;
     fogColor = InstColor;
     cameraDistance = length(Center);
+    textureMotion = UvRect.xy;
 }

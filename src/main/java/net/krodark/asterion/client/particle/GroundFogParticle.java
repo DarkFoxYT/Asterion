@@ -35,9 +35,11 @@ public final class GroundFogParticle extends SingleQuadParticle {
 
     private final float opacity;
     private final float baseSize;
+    private final float texturePhase;
+    private final float textureSpin;
     private long lastTick;
     private double distanceSquared;
-    private float renderX, renderY, renderZ, renderSize, renderAlpha;
+    private float renderX, renderY, renderZ, renderSize, renderAlpha, renderAngle;
 
     private GroundFogParticle(ClientLevel level, double x, double y, double z,
                               double vx, double vy, double vz,
@@ -63,6 +65,8 @@ public final class GroundFogParticle extends SingleQuadParticle {
             setColor(tint.x, tint.y, tint.z);
         }
         setAlpha(0F);
+        texturePhase = random.nextFloat() * Mth.TWO_PI;
+        textureSpin = (random.nextBoolean() ? 1F : -1F) * (.004F + random.nextFloat() * .004F);
         lastTick = level.getGameTime();
         ACTIVE.add(this);
     }
@@ -78,7 +82,8 @@ public final class GroundFogParticle extends SingleQuadParticle {
         InstancedMesh.<GroundFogParticle>builder(InstanceLayout.TEXTURED_BILLBOARD, (p, out) -> out
                 .putVec3(p.renderX, p.renderY, p.renderZ).putFloat(p.renderSize)
                 .putVec4(p.rCol, p.gCol, p.bCol, p.renderAlpha)
-                .putVec4(0F, 0F, 1F, 1F))
+                // The procedural texture uses the unused atlas rectangle for rotation and seed.
+                .putVec4(p.renderAngle, p.texturePhase, 0F, 0F))
                 .geometry(MeshData.texturedQuad())
                 .shaders(Asterion.id("particle/ground_fog"), Asterion.id("particle/ground_fog"))
                 .renderState(RenderState.builder().depthTest(true).depthWrite(false)
@@ -113,6 +118,7 @@ public final class GroundFogParticle extends SingleQuadParticle {
                         p.renderAlpha = p.alpha * distanceFade;
                         if (p.renderAlpha <= .001F) continue;
                         p.renderSize = p.getQuadSize(partialTick) * 2F;
+                        p.renderAngle = p.texturePhase + (p.age + partialTick) * p.textureSpin;
                         if (!batch.visible(camera.x + p.renderX, camera.y + p.renderY,
                                 camera.z + p.renderZ, p.renderSize * .707107F)) continue;
                         VISIBLE.add(p);
