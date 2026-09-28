@@ -25,6 +25,36 @@ def amneticJar = rootProject.file("libs/amnetic-forge-1.0-SNAPSHOT+${minecraftVe
 def forgifiedJar = rootProject.file(legacy ? 'libs/forgified-fabric-api-1.20.1.jar' :
         'libs/forgified-fabric-api-1.21.1-neoforge.jar')
 def extractedForgified = layout.buildDirectory.dir('forgified-api-compile')
+def remappedForgified = layout.buildDirectory.file('dev-remapped/forgified-fabric-api.jar')
+def remappedAmnetic = layout.buildDirectory.file('dev-remapped/amnetic.jar')
+def remappedGeckolib = layout.buildDirectory.file('dev-remapped/geckolib.jar')
+def legacyMappings = project(':1.20.1-neoforge').layout.buildDirectory.file('moddev/artifacts/intermediateToNamed.srg')
+configurations { geckolibDevOriginal { transitive = false } }
+dependencies { geckolibDevOriginal "software.bernie.geckolib:geckolib-forge-${minecraftVersion}:${geckolibVersion}" }
+def remapForgifiedDev = tasks.register('remapForgifiedDev', Exec) {
+    def mappingsProject = project(':1.20.1-neoforge')
+    dependsOn mappingsProject.tasks.named('createMinecraftArtifacts')
+    inputs.files(forgifiedJar, legacyMappings, rootProject.file('tools/remap-nested-dev-jar.py'))
+    outputs.file(remappedForgified)
+    commandLine 'python', rootProject.file('tools/remap-nested-dev-jar.py'),
+            forgifiedJar, legacyMappings.get().asFile, remappedForgified.get().asFile, '--refmaps'
+}
+def remapAmneticDev = tasks.register('remapAmneticDev', Exec) {
+    dependsOn project(':1.20.1-neoforge').tasks.named('createMinecraftArtifacts')
+    inputs.files(amneticJar, legacyMappings, rootProject.file('tools/remap-nested-dev-jar.py'))
+    outputs.file(remappedAmnetic)
+    commandLine 'python', rootProject.file('tools/remap-nested-dev-jar.py'),
+            amneticJar, legacyMappings.get().asFile, remappedAmnetic.get().asFile, '--refmaps'
+}
+def remapGeckolibDev = tasks.register('remapGeckolibDev', Exec) {
+    dependsOn project(':1.20.1-neoforge').tasks.named('createMinecraftArtifacts')
+    inputs.files(configurations.geckolibDevOriginal, legacyMappings, rootProject.file('tools/remap-nested-dev-jar.py'))
+    outputs.file(remappedGeckolib)
+    doFirst {
+        commandLine 'python', rootProject.file('tools/remap-nested-dev-jar.py'),
+                configurations.geckolibDevOriginal.singleFile, legacyMappings.get().asFile, remappedGeckolib.get().asFile, '--refmaps'
+    }
+}
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(legacy ? 17 : 21)
@@ -112,26 +142,46 @@ sourceSets.main {
     }
 }
 
+tasks.register('devLaunchJar', Jar) {
+    dependsOn tasks.named('jar')
+    from(zipTree(tasks.named('jar').flatMap { it.archiveFile })) {
+        exclude 'META-INF/jarjar/**', 'META-INF/MANIFEST.MF'
+    }
+    manifest { attributes 'MixinConfigs': 'asterion.mixins.json' }
+    archiveFileName = "${rootProject.archives_base_name}-${project.version}-forge-dev-mc${minecraftVersion}.jar"
+    destinationDirectory = layout.buildDirectory.dir('dev-launch')
+}
+
 dependencies {
     implementation minecraft.dependency("net.minecraftforge:forge:${minecraftVersion}-${forgeVersion}") {
         accessTransformers.from(rootProject.file('forge/src/main/resources/META-INF/accesstransformer.cfg'))
     }
     if (legacy) {
-        implementation files(forgifiedJar)
+        compileOnly files(forgifiedJar)
+        runtimeOnly files(remapForgifiedDev)
+        runtimeOnly files(remapAmneticDev)
+        runtimeOnly files(remapGeckolibDev)
     } else {
         compileOnly files(forgifiedJar)
+        runtimeOnly files(amneticJar)
+        implementation "software.bernie.geckolib:geckolib-forge-${minecraftVersion}:${geckolibVersion}"
     }
-    implementation "software.bernie.geckolib:geckolib-forge-${minecraftVersion}:${geckolibVersion}"
+    compileOnly "software.bernie.geckolib:geckolib-forge-${minecraftVersion}:${geckolibVersion}"
     compileOnly files(amneticJar)
-    runtimeOnly files(amneticJar)
     compileOnly 'org.jspecify:jspecify:1.0.0'
     compileOnly 'io.github.llamalad7:mixinextras-common:0.4.1'
-    if (!legacy) runtimeOnly files(tasks.named('jar'))
+    if (!legacy) runtimeOnly files(tasks.named('devLaunchJar'))
+}
+
+if (legacy) {
+    tasks.matching { it.name in ['runClient', 'runServer'] }.configureEach {
+        dependsOn remapForgifiedDev, remapAmneticDev, remapGeckolibDev
+    }
 }
 
 if (!legacy) {
     tasks.matching { it.name in ['runClient', 'runServer'] }.configureEach {
-        dependsOn tasks.named('jar')
+        dependsOn tasks.named('devLaunchJar')
         doFirst {
             def mainOutputs = sourceSets.main.output.files.collect { it.canonicalFile } as Set
             classpath = classpath.filter { !mainOutputs.contains(it.canonicalFile) }

@@ -10,6 +10,7 @@ import java.util.List;
 /** Keeps shared content construction separate from Forge's registration event. */
 public final class AsterionRegistry {
     private static final List<Pending<?>> PENDING = new ArrayList<>();
+    private static final List<Runnable> AFTER_REGISTRATION = new ArrayList<>();
     private static boolean deferred;
 
     private AsterionRegistry() {}
@@ -20,6 +21,16 @@ public final class AsterionRegistry {
 
     public static boolean isDeferred() {
         return deferred;
+    }
+
+    public static void whenRegistered(Runnable action) {
+        if (deferred) AFTER_REGISTRATION.add(action);
+        else action.run();
+    }
+
+    public static void runAfterRegistration() {
+        AFTER_REGISTRATION.forEach(Runnable::run);
+        AFTER_REGISTRATION.clear();
     }
 
     public static <V, T extends V> T register(Registry<V> registry, ResourceLocation id, T value) {
@@ -35,7 +46,7 @@ public final class AsterionRegistry {
     }
 
     public static <V, T extends V> T register(Registry<V> registry, String id, T value) {
-        return register(registry, new ResourceLocation(id), value);
+        return register(registry, ResourceLocation.parse(id), value);
     }
 
     public static List<Pending<?>> pending() {

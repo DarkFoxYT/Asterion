@@ -62,7 +62,7 @@ def remap_class(data: bytes, names: dict[str, str]) -> tuple[bytes, int]:
     return bytes(output), changes
 
 
-def remap_zip(data: bytes, names: dict[str, str]) -> tuple[bytes, int]:
+def remap_zip(data: bytes, names: dict[str, str], remap_refmaps: bool = False) -> tuple[bytes, int]:
     source = io.BytesIO(data)
     target = io.BytesIO()
     changes = 0
@@ -72,16 +72,23 @@ def remap_zip(data: bytes, names: dict[str, str]) -> tuple[bytes, int]:
             if entry.filename.endswith(".class"):
                 content, count = remap_class(content, names)
                 changes += count
+            elif remap_refmaps and entry.filename.endswith(("-refmap.json", ".refmap.json")):
+                source_text = content.decode("utf-8")
+                mapped_text = re.sub(r"(?<![A-Za-z0-9_$])(?:f_|m_)\d+_(?![A-Za-z0-9_$])",
+                                     lambda match: names.get(match.group(), match.group()), source_text)
+                changes += source_text != mapped_text
+                content = mapped_text.encode("utf-8")
             elif entry.filename.endswith(".jar") and entry.filename.startswith("META-INF/jarjar/"):
-                content, count = remap_zip(content, names)
+                content, count = remap_zip(content, names, remap_refmaps)
                 changes += count
             output_zip.writestr(entry, content)
     return target.getvalue(), changes
 
 
 def main() -> None:
-    source, mapping, destination = map(Path, sys.argv[1:])
-    result, changes = remap_zip(source.read_bytes(), read_names(mapping))
+    source, mapping, destination = map(Path, sys.argv[1:4])
+    result, changes = remap_zip(source.read_bytes(), read_names(mapping),
+                                "--refmaps" in sys.argv[4:])
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_bytes(result)
     print(f"Remapped {changes} SRG member references in {source.name}")

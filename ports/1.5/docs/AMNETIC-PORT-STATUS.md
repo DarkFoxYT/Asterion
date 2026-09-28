@@ -8,5 +8,5 @@ metadata after the full build command completes.
 
 Install only the matching Asterion jar and the other required dependencies for
 that Minecraft version and loader. Do not add a separate Amnetic jar. Packaging
-does not by itself prove that every loader starts; the 1.20.1 Forge and NeoForge
-ports still have known development-client startup failures.
+does not by itself prove that every loader starts. The 1.20.1 Forge and NeoForge
+development clients now start; packaged Forge still needs an in-game playthrough.

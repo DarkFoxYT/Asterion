@@ -19,7 +19,6 @@ import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.SingleQuadParticle;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.client.renderer.state.level.QuadParticleRenderState;
-import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import org.joml.Vector3f;
@@ -37,7 +36,6 @@ public final class GroundFogParticle extends SingleQuadParticle {
     private final float baseSize;
     private final float texturePhase;
     private final float textureSpin;
-    private long lastTick;
     private double distanceSquared;
     private float renderX, renderY, renderZ, renderSize, renderAlpha, renderAngle;
 
@@ -51,13 +49,13 @@ public final class GroundFogParticle extends SingleQuadParticle {
         this.friction = .985F;
         this.gravity = 0F;
         this.hasPhysics = false;
-        this.lifetime = 170 + random.nextInt(90);
-        this.baseSize = 5F + random.nextFloat() * 2F;
+        this.lifetime = 480 + random.nextInt(240);
+        this.baseSize = 5F + random.nextFloat() * 4F;
         this.quadSize = baseSize;
         boolean limbo = level.dimension().equals(Asterion.LIMBO_LEVEL);
         float strength = limbo ? AsterionConfig.INSTANCE.limboHazeStrength
                 : AsterionConfig.INSTANCE.labyrinthHazeStrength;
-        this.opacity = (.32F + random.nextFloat() * .145F) * Math.min(1.2F, strength);
+        this.opacity = (.10F + random.nextFloat() * .035F) * Math.min(1.2F, strength);
         if (limbo) {
             setColor(.30F, .40F, .35F);
         } else {
@@ -67,7 +65,6 @@ public final class GroundFogParticle extends SingleQuadParticle {
         setAlpha(0F);
         texturePhase = random.nextFloat() * Mth.TWO_PI;
         textureSpin = (random.nextBoolean() ? 1F : -1F) * (.004F + random.nextFloat() * .004F);
-        lastTick = level.getGameTime();
         ACTIVE.add(this);
     }
 
@@ -96,12 +93,13 @@ public final class GroundFogParticle extends SingleQuadParticle {
                     var camera = context.cameraPos();
                     float partialTick = context.deltaTick();
                     Vector3f biomeDust = AsterionPostEffects.ambientDustColor();
-                    double maxDistance = Math.max(32D, (net.minecraft.client.Minecraft.getInstance()
+                    double viewDistance = Math.max(32D, (net.minecraft.client.Minecraft.getInstance()
                             .options.getEffectiveRenderDistance() - 1) * 16D);
+                    double maxDistance = viewDistance + 24D;
                     var iterator = ACTIVE.iterator();
                     while (iterator.hasNext()) {
                         GroundFogParticle p = iterator.next();
-                        if (!p.isAlive() || p.level != world || world.getGameTime() - p.lastTick > 1) {
+                        if (!p.isAlive() || p.level != world) {
                             iterator.remove();
                             continue;
                         }
@@ -114,8 +112,10 @@ public final class GroundFogParticle extends SingleQuadParticle {
                         if (world.dimension().equals(Asterion.ASTERION_LEVEL)) {
                             p.setColor(biomeDust.x, biomeDust.y, biomeDust.z);
                         }
-                        float distanceFade = Mth.clamp((float)((Math.sqrt(p.distanceSquared) - 6D) / 16D), 0F, 1F);
-                        p.renderAlpha = p.alpha * distanceFade;
+                        float distance = (float)Math.sqrt(p.distanceSquared);
+                        float nearFade = .45F + .55F * Mth.clamp((distance - 3F) / 14F, 0F, 1F);
+                        float farFade = Mth.clamp((float)((maxDistance - distance) / 24D), 0F, 1F);
+                        p.renderAlpha = p.alpha * nearFade * farFade;
                         if (p.renderAlpha <= .001F) continue;
                         p.renderSize = p.getQuadSize(partialTick) * 2F;
                         p.renderAngle = p.texturePhase + (p.age + partialTick) * p.textureSpin;
@@ -124,7 +124,7 @@ public final class GroundFogParticle extends SingleQuadParticle {
                         VISIBLE.add(p);
                     }
                     VISIBLE.sort(BACK_TO_FRONT);
-                    for (int i = 0; i < Math.min(240, VISIBLE.size()); i++) {
+                    for (int i = Math.max(0, VISIBLE.size() - 768); i < VISIBLE.size(); i++) {
                         batch.add(VISIBLE.get(i));
                     }
                     VISIBLE.clear();
@@ -139,19 +139,14 @@ public final class GroundFogParticle extends SingleQuadParticle {
 
     @Override
     public void tick() {
-        lastTick = level.getGameTime();
         super.tick();
         if (removed) return;
-        if (age % 8 == 0 && !level.getBlockState(BlockPos.containing(x, y, z)).isAir()) {
-            remove();
-            return;
-        }
         xd += (random.nextFloat() - .5F) * .0007F;
         zd += (random.nextFloat() - .5F) * .0007F;
         yd = Mth.clamp(yd, -.002D, .004D);
         float life = age / (float)lifetime;
-        float appear = Mth.clamp(age / 32F, 0F, 1F);
-        float disappear = Mth.clamp((1F - life) / .35F, 0F, 1F);
+        float appear = Mth.clamp(age / 60F, 0F, 1F);
+        float disappear = Mth.clamp((lifetime - age) / 120F, 0F, 1F);
         quadSize = baseSize * (1F + life * .12F);
         setAlpha(opacity * appear * disappear);
     }

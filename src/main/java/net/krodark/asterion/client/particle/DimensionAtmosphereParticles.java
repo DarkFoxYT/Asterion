@@ -6,9 +6,14 @@ import net.krodark.asterion.AsterionConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
+import net.minecraft.client.multiplayer.ClientLevel;
 
 /** Keeps shader-shaped haze suspended throughout the visible air. */
 public final class DimensionAtmosphereParticles {
+    private static ClientLevel lastLevel;
+    private static double lastHeight;
+    private static int heightRefreshTicks;
+
     private DimensionAtmosphereParticles() { }
 
     public static void initialize() {
@@ -16,8 +21,11 @@ public final class DimensionAtmosphereParticles {
     }
 
     private static void tick(Minecraft client) {
-        if (client.level == null || client.player == null || client.isPaused()
-                || client.player.isUnderWater()) return;
+        if (client.level == null || client.player == null) {
+            lastLevel = null;
+            return;
+        }
+        if (client.isPaused() || client.player.isUnderWater()) return;
         boolean limbo = client.level.dimension().equals(Asterion.LIMBO_LEVEL);
         boolean labyrinth = client.level.dimension().equals(Asterion.ASTERION_LEVEL);
         if (!limbo && !labyrinth) return;
@@ -27,9 +35,23 @@ public final class DimensionAtmosphereParticles {
         float strength = limbo ? config.limboHazeStrength : config.labyrinthHazeStrength;
         if (strength <= 0F) return;
         RandomSource random = client.player.getRandom();
+        if (lastLevel != client.level) {
+            lastLevel = client.level;
+            lastHeight = client.player.getY();
+            heightRefreshTicks = 40;
+        } else if (Math.abs(client.player.getY() - lastHeight) > 4D) {
+            lastHeight = client.player.getY();
+            heightRefreshTicks = 35;
+        }
         double viewRadius = Math.max(32D,
                 (client.options.getEffectiveRenderDistance() - 1) * 16D);
         float quality = config.ambientParticleQuality == 1 ? .55F : 1F;
+        if (heightRefreshTicks > 0) {
+            heightRefreshTicks--;
+            if (random.nextFloat() < strength * quality * .85F) {
+                spawnAroundPlayer(client, random, 12D, Math.min(52D, viewRadius));
+            }
+        }
         if (random.nextFloat() < strength * quality * .4F) {
             spawnAroundPlayer(client, random, 12D, Math.min(52D, viewRadius));
         }

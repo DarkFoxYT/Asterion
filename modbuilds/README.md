@@ -15,5 +15,7 @@ Underworld source at the repository root. The older Minecraft 1.20.1 and 1.21.1
 Quilt jars use the Fabric-compatible code but carry Quilt-labelled filenames.
 
 Compilation alone does not confirm that a loader starts or that every mechanic
-works. In particular, the 1.20.1 Forge and NeoForge ports still have known
-development-client startup failures.
+works. The development clients now start for 1.20.1 Forge and NeoForge and
+1.21.1 Forge. Fabric and Quilt client smoke suites passed on both older
+Minecraft versions, and the 1.21.1 NeoForge client smoke suite passed. The
+packaged Forge jars have not yet had an in-game playthrough.

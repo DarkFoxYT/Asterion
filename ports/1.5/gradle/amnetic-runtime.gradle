@@ -2,6 +2,9 @@
 // Production gets these libraries from the embedded, version-matched Amnetic jar.
 repositories { mavenCentral() }
 dependencies {
+    // Loom does not put Amnetic's nested jgltf jars on the development classpath.
+    runtimeOnly 'de.javagl:jgltf-model:2.0.4'
+    runtimeOnly 'de.javagl:jgltf-impl-v2:2.0.4'
     def lwjgl = project.findProperty('minecraft_version') == '1.20.1' ? '3.3.1' : '3.3.3'
     runtimeOnly "org.lwjgl:lwjgl-assimp:${lwjgl}"
     def os = System.getProperty('os.name').toLowerCase(java.util.Locale.ROOT)
