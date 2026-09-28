@@ -269,6 +269,10 @@ public final class AsterionPostEffects {
         return biomeTarget == 2 || crimsonBlend > 0.55F;
     }
 
+    public static Vector3f ambientDustColor() {
+        return dustColor();
+    }
+
     public static void tickBiomeAtmosphere(Minecraft client) {
         if (!isInsideAsterion() || client.player == null) {
             catacombBlend = 0;

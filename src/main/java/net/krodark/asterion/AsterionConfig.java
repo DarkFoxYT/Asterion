@@ -14,7 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public final class AsterionConfig {
-    private static final int CURRENT_VERSION = 26;
+    private static final int CURRENT_VERSION = 27;
     private static final Logger LOGGER = LoggerFactory.getLogger("asterion.config");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path FILE = Path.of("config", "asterion.json");
@@ -81,6 +81,8 @@ public final class AsterionConfig {
     public boolean dustyAirEnabled = true;
     public float limboFogStrength = .75F;
     public float limboMistStrength = 1.0F;
+    public float limboHazeStrength = 0.8F;
+    public float labyrinthHazeStrength = 0.65F;
     public float deadSunStrength = 0.82f;
     public float dustyAirStrength = 1.0f;
     public float deadSunHeight = 260.0f;
@@ -214,6 +216,10 @@ public final class AsterionConfig {
             objectiveHudEnabled = true;
             objectiveHudSeconds = 0;
         }
+        if (version < 27) {
+            limboHazeStrength = 0.8F;
+            labyrinthHazeStrength = 0.65F;
+        }
     }
 
     private void applySkyDefaults() {
@@ -299,6 +305,8 @@ public final class AsterionConfig {
         shaderAnimationSpeed = clamp(shaderAnimationSpeed, 0.0f, 2.0f);
         dustDensity = clamp(dustDensity, 0.0f, 2.5f);
         fogStrength = clamp(fogStrength, 0.0f, 2.5f);
+        limboHazeStrength = clamp(limboHazeStrength, 0.0f, 2.0f);
+        labyrinthHazeStrength = clamp(labyrinthHazeStrength, 0.0f, 2.0f);
         deadSunX = clamp(deadSunX, -1024.0f, 1024.0f);
         deadSunZ = clamp(deadSunZ, -1024.0f, 1024.0f);
         deadSunCorona = clamp(deadSunCorona, 0.0f, 3.0f);

@@ -55,7 +55,7 @@ public final class SkeletonBlock extends BaseEntityBlock implements WaterloggedD
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING);
+        builder.add(FACING, net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED);
     }
 
     @Override public RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }

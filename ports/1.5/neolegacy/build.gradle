@@ -23,6 +23,38 @@ def amneticJar = rootProject.file("libs/amnetic-forge-1.0-SNAPSHOT+${minecraftVe
 def forgifiedJar = rootProject.file(legacy ? 'libs/forgified-fabric-api-1.20.1.jar' :
         'libs/forgified-fabric-api-1.21.1-neoforge.jar')
 def extractedForgified = layout.buildDirectory.dir('forgified-api-compile')
+def remappedForgified = layout.buildDirectory.file('dev-remapped/forgified-fabric-api.jar')
+def remappedAmnetic = layout.buildDirectory.file('dev-remapped/amnetic.jar')
+def remappedGeckolib = layout.buildDirectory.file('dev-remapped/geckolib.jar')
+configurations { geckolibDevOriginal { transitive = false } }
+def geckolibCoordinate = "software.bernie.geckolib:geckolib-forge-${minecraftVersion}:${geckolibVersion}"
+dependencies { geckolibDevOriginal geckolibCoordinate }
+def remapForgifiedDev = tasks.register('remapForgifiedDev', Exec) {
+    dependsOn tasks.named('createMinecraftArtifacts')
+    def mappings = layout.buildDirectory.file('moddev/artifacts/intermediateToNamed.srg')
+    inputs.files(forgifiedJar, mappings, rootProject.file('tools/remap-nested-dev-jar.py'))
+    outputs.file(remappedForgified)
+    commandLine 'python', rootProject.file('tools/remap-nested-dev-jar.py'),
+            forgifiedJar, mappings.get().asFile, remappedForgified.get().asFile
+}
+def remapAmneticDev = tasks.register('remapAmneticDev', Exec) {
+    dependsOn tasks.named('createMinecraftArtifacts')
+    def mappings = layout.buildDirectory.file('moddev/artifacts/intermediateToNamed.srg')
+    inputs.files(amneticJar, mappings, rootProject.file('tools/remap-nested-dev-jar.py'))
+    outputs.file(remappedAmnetic)
+    commandLine 'python', rootProject.file('tools/remap-nested-dev-jar.py'),
+            amneticJar, mappings.get().asFile, remappedAmnetic.get().asFile
+}
+def remapGeckolibDev = tasks.register('remapGeckolibDev', Exec) {
+    dependsOn tasks.named('createMinecraftArtifacts')
+    def mappings = layout.buildDirectory.file('moddev/artifacts/intermediateToNamed.srg')
+    inputs.files(configurations.geckolibDevOriginal, mappings, rootProject.file('tools/remap-nested-dev-jar.py'))
+    outputs.file(remappedGeckolib)
+    doFirst {
+        commandLine 'python', rootProject.file('tools/remap-nested-dev-jar.py'),
+                configurations.geckolibDevOriginal.singleFile, mappings.get().asFile, remappedGeckolib.get().asFile
+    }
+}
 def amneticNeoEmbedJar = tasks.register('amneticNeoEmbedJar', Jar) {
     from(zipTree(amneticJar)) {
         exclude 'META-INF/MANIFEST.MF', 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA'
@@ -54,15 +86,6 @@ legacyForge {
         server { server() }
     }
     mods { asterion { sourceSet sourceSets.main } }
-}
-
-tasks.matching { it.name in ['runClient', 'runServer'] }.configureEach {
-    doFirst {
-        def runArgs = layout.buildDirectory.file("moddev/${name == 'runClient' ? 'client' : 'server'}RunVmArgs.txt").get().asFile
-        if (runArgs.exists()) {
-            runArgs.text = runArgs.getText('UTF-8').replace('-Dmixin.env.remapRefMap=true', '-Dmixin.env.remapRefMap=false')
-        }
-    }
 }
 
 sourceSets.main {
@@ -123,17 +146,23 @@ sourceSets.main {
 
 dependencies {
     if (legacy) {
-        implementation files(forgifiedJar)
+        compileOnly files(forgifiedJar)
+        runtimeOnly files(remapForgifiedDev)
     } else {
         compileOnly files(forgifiedJar)
     }
-    implementation "software.bernie.geckolib:geckolib-forge-${minecraftVersion}:${geckolibVersion}"
+    compileOnly geckolibCoordinate
+    runtimeOnly files(remapGeckolibDev)
     compileOnly files(amneticJar)
-    runtimeOnly files(amneticJar)
+    runtimeOnly files(remapAmneticDev)
     jarJar files(amneticNeoEmbedJar)
     compileOnly 'org.jspecify:jspecify:1.0.0'
     compileOnly 'io.github.llamalad7:mixinextras-common:0.4.1'
     if (!legacy) runtimeOnly files(tasks.named('jar'))
+}
+
+tasks.matching { it.name in ['runClient', 'runServer'] }.configureEach {
+    dependsOn remapForgifiedDev, remapAmneticDev, remapGeckolibDev
 }
 
 if (!legacy) {

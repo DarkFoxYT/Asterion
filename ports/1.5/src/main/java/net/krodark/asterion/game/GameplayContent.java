@@ -1,5 +1,7 @@
 package net.krodark.asterion.game;
 
+import net.krodark.asterion.port.compat.AsterionRegistry;
+
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.block.*;
 import net.krodark.asterion.entity.CursedBrazierEntity;
@@ -21,15 +23,15 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 public final class GameplayContent {
     public static final Block EXPLOSIVE_SPAWNER = block("explosive_spawner", p -> new ChallengeSpawnerBlock(true, p.noOcclusion()));
     public static final Block REWARD_SPAWNER = block("reward_spawner", p -> new ChallengeSpawnerBlock(false, p.noOcclusion()));
-    public static final BlockEntityType<ChallengeSpawnerBlockEntity> CHALLENGE_SPAWNER_ENTITY = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE,
+    public static final BlockEntityType<ChallengeSpawnerBlockEntity> CHALLENGE_SPAWNER_ENTITY = AsterionRegistry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE,
             Asterion.id("challenge_spawner"), BlockEntityType.Builder.of(ChallengeSpawnerBlockEntity::new, EXPLOSIVE_SPAWNER, REWARD_SPAWNER).build(null));
     public static final Block SPEWER = block("spewer", p -> new TimedTrapBlock(true, p));
     public static final Block FIRE_BURST_TRAP = block("fire_burst_trap", p -> new TimedTrapBlock(false, p));
-    public static final BlockEntityType<TimedTrapBlockEntity> TRAP_ENTITY = Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE,
+    public static final BlockEntityType<TimedTrapBlockEntity> TRAP_ENTITY = AsterionRegistry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE,
             Asterion.id("timed_trap"), BlockEntityType.Builder.of(TimedTrapBlockEntity::new, SPEWER, FIRE_BURST_TRAP).build(null));
     public static final Item FLAMETHROWER = item("flamethrower", p -> new FlamethrowerItem(p.durability(512)));
     private static final ResourceKey<EntityType<?>> CURSED_KEY = ResourceKey.create(Registries.ENTITY_TYPE, Asterion.id("cursed_brazier"));
-    public static final EntityType<CursedBrazierEntity> CURSED_BRAZIER = Registry.register(BuiltInRegistries.ENTITY_TYPE, CURSED_KEY,
+    public static final EntityType<CursedBrazierEntity> CURSED_BRAZIER = AsterionRegistry.register(BuiltInRegistries.ENTITY_TYPE, CURSED_KEY,
             net.minecraft.world.entity.EntityType.Builder.of(CursedBrazierEntity::new, MobCategory.MONSTER)
                     .sized(4.8F, 4.85F)
                     .fireImmune()
@@ -46,20 +48,21 @@ public final class GameplayContent {
     private GameplayContent() { }
     private static Block block(String name, java.util.function.Function<BlockBehaviour.Properties, Block> factory) {
         var key = ResourceKey.create(Registries.BLOCK, Asterion.id(name));
-        Block block = Registry.register(BuiltInRegistries.BLOCK, key,
+        Block block = AsterionRegistry.register(BuiltInRegistries.BLOCK, key,
                 factory.apply(BlockBehaviour.Properties.of().strength(4, 1200).sound(net.minecraft.world.level.block.SoundType.METAL)));
         item(name, p -> new BlockItem(block, p)); return block;
     }
     private static Item item(String name, java.util.function.Function<Item.Properties, Item> factory) {
         var key = ResourceKey.create(Registries.ITEM, Asterion.id(name));
-        return Registry.register(BuiltInRegistries.ITEM, key, factory.apply(new net.krodark.asterion.port.compat.ItemProperties()));
+        return AsterionRegistry.register(BuiltInRegistries.ITEM, key, factory.apply(new net.krodark.asterion.port.compat.ItemProperties()));
     }
     public static void initialize() {
         net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.AFTER_DEATH.register((entity, damage) -> {
             if (entity.getTags().contains(ChallengeDeaths.TAG) && entity.level() instanceof net.minecraft.server.level.ServerLevel level)
                 ChallengeDeaths.get(level).record(entity.getUUID());
         });
-        FabricDefaultAttributeRegistry.register(CURSED_BRAZIER, CursedBrazierEntity.createAttributes());
+        if (!AsterionRegistry.isDeferred())
+            FabricDefaultAttributeRegistry.register(CURSED_BRAZIER, CursedBrazierEntity.createAttributes());
         ItemGroupEvents.modifyEntriesEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Asterion.id("asterion"))).register(output -> {
             output.accept(SPEWER); output.accept(FIRE_BURST_TRAP);
             output.accept(EXPLOSIVE_SPAWNER); output.accept(REWARD_SPAWNER);

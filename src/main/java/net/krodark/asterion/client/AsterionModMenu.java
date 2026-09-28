@@ -128,6 +128,9 @@ public final class AsterionModMenu implements ModMenuApi {
             addRenderableWidget(Button.builder(Component.literal("Limbo atmosphere"), button ->
                     minecraft.setScreen(new LimboSettingsScreen(this)))
                     .bounds(left, y, 150, 20).build());
+            addRenderableWidget(Button.builder(Component.literal("Labyrinth atmosphere"), button ->
+                    minecraft.setScreen(new LabyrinthAtmosphereScreen(this)))
+                    .bounds(right, y, 150, 20).build());
             y += 24;
             addRenderableWidget(Button.builder(Component.literal("Performance presets"), button ->
                     minecraft.setScreen(new PerformancePresetsScreen(this)))

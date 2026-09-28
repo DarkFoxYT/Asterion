@@ -72,7 +72,7 @@ public final class LabyrinthVineBlock extends BaseEntityBlock implements Waterlo
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, END);
+        builder.add(FACING, END, net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED);
     }
 
     @Override public RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }

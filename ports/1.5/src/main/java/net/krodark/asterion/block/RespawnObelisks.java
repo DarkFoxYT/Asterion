@@ -1,5 +1,7 @@
 package net.krodark.asterion.block;
 
+import net.krodark.asterion.port.compat.AsterionRegistry;
+
 import net.krodark.asterion.Asterion;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -20,9 +22,9 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 public final class RespawnObelisks {
     public static final SanctuaryBlock ALTAR = register("respawn_altar", true);
     public static final SanctuaryBlock OBELISK = register("respawn_obelisk", false);
-    public static final Item CHARGED_RUNE = Registry.register(BuiltInRegistries.ITEM,
+    public static final Item CHARGED_RUNE = AsterionRegistry.register(BuiltInRegistries.ITEM,
             Asterion.id("charged_respawn_rune"), new Item(new net.krodark.asterion.port.compat.ItemProperties().stacksTo(1)));
-    public static final BlockEntityType<SanctuaryBlockEntity> BLOCK_ENTITY = Registry.register(
+    public static final BlockEntityType<SanctuaryBlockEntity> BLOCK_ENTITY = AsterionRegistry.register(
             BuiltInRegistries.BLOCK_ENTITY_TYPE, Asterion.id("sanctuary"),
             BlockEntityType.Builder.of(SanctuaryBlockEntity::new, ALTAR, OBELISK).build(null));
 
@@ -31,11 +33,11 @@ public final class RespawnObelisks {
 
     private static SanctuaryBlock register(String name, boolean altar) {
         var id = Asterion.id(name);
-        SanctuaryBlock block = Registry.register(BuiltInRegistries.BLOCK, id,
+        SanctuaryBlock block = AsterionRegistry.register(BuiltInRegistries.BLOCK, id,
                 new SanctuaryBlock(altar, BlockBehaviour.Properties.of().strength(4.0F, 12.0F)
                         .noOcclusion().sound(SoundType.DEEPSLATE)
                         .lightLevel(state -> state.getValue(SanctuaryBlock.CHARGE) == 1 ? (altar ? 5 : 11) : 0)));
-        Registry.register(BuiltInRegistries.ITEM, id, new BlockItem(block, new net.krodark.asterion.port.compat.ItemProperties()));
+        AsterionRegistry.register(BuiltInRegistries.ITEM, id, new BlockItem(block, new net.krodark.asterion.port.compat.ItemProperties()));
         return block;
     }
 

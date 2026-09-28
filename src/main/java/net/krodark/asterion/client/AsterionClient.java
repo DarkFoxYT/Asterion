@@ -38,6 +38,8 @@ import net.krodark.asterion.client.particle.BombardierGasFireParticle;
 import net.krodark.asterion.client.particle.GreekFireParticle;
 import net.krodark.asterion.client.particle.AnimatedEmissiveParticle;
 import net.krodark.asterion.client.particle.AsterionEmissiveParticles;
+import net.krodark.asterion.client.particle.DimensionAtmosphereParticles;
+import net.krodark.asterion.client.particle.GroundFogParticle;
 import net.krodark.asterion.client.particle.FlyingInsectParticle;
 import net.krodark.asterion.client.particle.AncientWallDustParticle;
 import net.krodark.asterion.client.particle.RumbleSmokeParticle;
@@ -70,7 +72,9 @@ public final class AsterionClient implements ClientModInitializer {
         net.krodark.asterion.update.underworld.client.UnderworldClient.initialize();
         AsterionEmissiveConfig.load();
         AsterionEmissiveParticles.initialize();
+        DimensionAtmosphereParticles.initialize();
         AnimatedEmissiveParticle.initialize();
+        GroundFogParticle.initialize();
         AsterionPostEffects.register();
         AsterionPortalRenderer.register();
         DimensionTransitionOverlay.register();
@@ -167,6 +171,10 @@ public final class AsterionClient implements ClientModInitializer {
         ParticleProviderRegistry.getInstance().register(Asterion.RUMBLE_SMOKE, sprites ->
                 (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
                         RumbleSmokeParticle.create(level, x, y, z,
+                                velocityX, velocityY, velocityZ, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.GROUND_FOG, sprites ->
+                (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
+                        GroundFogParticle.create(level, x, y, z,
                                 velocityX, velocityY, velocityZ, sprites, random));
         BlockEntityRenderers.register(Asterion.RUNE_BLOCK_ENTITY, RuneGeoRenderer::new);
         BlockEntityRenderers.register(Asterion.PILLAR_BLOCK_ENTITY, net.krodark.asterion.client.render.block.PillarRenderer::new);

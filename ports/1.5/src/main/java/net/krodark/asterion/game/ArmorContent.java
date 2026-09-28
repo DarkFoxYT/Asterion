@@ -1,5 +1,7 @@
 package net.krodark.asterion.game;
 
+import net.krodark.asterion.port.compat.AsterionRegistry;
+
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.krodark.asterion.Asterion;
 import net.minecraft.core.Registry;
@@ -56,7 +58,7 @@ public final class ArmorContent {
     private static Item piece(String materialName, String slot, Holder<ArmorMaterial> material,
                               ArmorItem.Type type, int durability) {
         var key = ResourceKey.create(Registries.ITEM, Asterion.id(materialName + "_" + slot));
-        return Registry.register(BuiltInRegistries.ITEM, key,
+        return AsterionRegistry.register(BuiltInRegistries.ITEM, key,
 
 //? if >=1.20.5 {
 new ArmorItem(material, type, new net.krodark.asterion.port.compat.ItemProperties().durability(type.getDurability(durability)))
