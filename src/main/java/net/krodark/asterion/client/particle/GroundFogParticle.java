@@ -50,14 +50,14 @@ public final class GroundFogParticle extends SingleQuadParticle {
         this.gravity = 0F;
         this.hasPhysics = false;
         this.lifetime = 170 + random.nextInt(90);
-        this.baseSize = 5F + random.nextFloat() * 4F;
+        this.baseSize = 5F + random.nextFloat() * 2F;
         this.quadSize = baseSize;
         boolean limbo = level.dimension().equals(Asterion.LIMBO_LEVEL);
         float strength = limbo ? AsterionConfig.INSTANCE.limboHazeStrength
                 : AsterionConfig.INSTANCE.labyrinthHazeStrength;
-        this.opacity = (.12F + random.nextFloat() * .045F) * Math.min(1.2F, strength);
+        this.opacity = (.32F + random.nextFloat() * .145F) * Math.min(1.2F, strength);
         if (limbo) {
-            setColor(.54F, .65F, .70F);
+            setColor(.30F, .40F, .35F);
         } else {
             Vector3f tint = AsterionPostEffects.ambientDustColor();
             setColor(tint.x, tint.y, tint.z);

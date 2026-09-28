@@ -592,6 +592,8 @@ public class Asterion implements ModInitializer {
             BuiltInRegistries.PARTICLE_TYPE, id("rumble_smoke"), FabricParticleTypes.simple());
     public static final SimpleParticleType GROUND_FOG = Registry.register(
             BuiltInRegistries.PARTICLE_TYPE, id("ground_fog"), FabricParticleTypes.simple());
+    public static final SimpleParticleType GROUND_HAZE = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, id("ground_haze"), FabricParticleTypes.simple());
 
     private static final ResourceKey<Item> MECHANISM_KEY = ResourceKey.create(
             Registries.ITEM, id("antikythera_mechanism"));

@@ -176,6 +176,9 @@ public final class AsterionClient implements ClientModInitializer {
                 (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
                         GroundFogParticle.create(level, x, y, z,
                                 velocityX, velocityY, velocityZ, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.GROUND_HAZE, sprites ->
+                (type, level, x, y, z, vx, vy, vz, random) ->
+                        net.krodark.asterion.client.particle.GroundHazeParticle.haze(level, x, y, z, vx, vy, vz, sprites, random));
         BlockEntityRenderers.register(Asterion.RUNE_BLOCK_ENTITY, RuneGeoRenderer::new);
         BlockEntityRenderers.register(Asterion.PILLAR_BLOCK_ENTITY, net.krodark.asterion.client.render.block.PillarRenderer::new);
         BlockEntityRenderers.register(Asterion.MINOTAUR_DOOR_BLOCK_ENTITY,

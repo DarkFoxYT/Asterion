@@ -40,7 +40,7 @@ public final class DimensionAtmosphereParticles {
 
     private static void spawnAroundPlayer(Minecraft client, RandomSource random,
                                           double minRadius, double maxRadius) {
-        for (int attempt = 0; attempt < 10; attempt++) {
+        for (int attempt = 0; attempt < 20; attempt++) {
             double angle = random.nextDouble() * Math.PI * 2D;
             double radius = Math.sqrt(minRadius * minRadius
                     + random.nextDouble() * (maxRadius * maxRadius - minRadius * minRadius));
@@ -54,7 +54,7 @@ public final class DimensionAtmosphereParticles {
             double vx = (random.nextDouble() - .5D) * .014D;
             double vy = (random.nextDouble() - .5D) * .003D;
             double vz = (random.nextDouble() - .5D) * .014D;
-            client.level.addParticle(Asterion.GROUND_FOG, x, y, z, vx, vy, vz);
+            client.level.addParticle(Asterion.GROUND_HAZE, x, y, z, vx, vy, vz);
             return;
         }
     }
