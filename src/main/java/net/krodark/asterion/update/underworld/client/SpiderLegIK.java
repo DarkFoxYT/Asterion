@@ -88,8 +88,9 @@ public final class SpiderLegIK {
         // used by this render pass. This also works in third person and alternate cameras.
         Matrix4f model = new Matrix4f(pass.getPreRenderMatrixState()).invert()
                 .mul(pass.getModelRenderMatrixState());
-        Matrix4f world = new Matrix4f().translation((float)frame.origin.x, (float)frame.origin.y,
-                (float)frame.origin.z).mul(model);
+        // Keep matrix math near the entity; absolute world coordinates lose
+        // sub-block precision in floats and make planted feet vibrate.
+        Matrix4f world = model;
         Matrix4f inverse = new Matrix4f(world).invert();
         Memory memory = frame.memory;
         boolean update = frame.age != memory.age;
@@ -118,7 +119,7 @@ public final class SpiderLegIK {
             // The visible texture occupies 75% of the distal plane. Solve for
             // that visible foot, rather than its transparent geometry boundary.
             Vector3f tip = new Vector3f(pivots[2]).add(leg < 4 ? -13F/16 : 13F/16, -6F/16, 0);
-            Vec3 nominal = vec(world.transformPosition(endpoint(pivots,angles,tip)));
+            Vec3 nominal = toWorld(world,endpoint(pivots,angles,tip),frame.origin);
             Vec3 restingFoot=nominal;
             double elapsed=Math.clamp(frame.age-memory.age,.05,2);
             Vec3 velocity=reset?Vec3.ZERO:frame.origin.subtract(memory.origin).scale(1/elapsed);
@@ -141,7 +142,7 @@ public final class SpiderLegIK {
             if(!contact) {
                 // A wide foot may overhang the voxel stair recess. Search slightly
                 // inward, within the leg's reach, instead of letting it dangle.
-                Vec3 hip=vec(world.transformPosition(new Vector3f(pivots[0])));
+                Vec3 hip=toWorld(world,new Vector3f(pivots[0]),frame.origin);
                 Vec3 inset=nominal.lerp(hip,.22);
                 var nearby=frame.spider.level().clip(new ClipContext(inset.add(probeUp.scale(1.2*frame.spider.spiderScale())),
                         inset.subtract(probeUp.scale(1.6*frame.spider.spiderScale())),ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,frame.spider));
@@ -200,7 +201,7 @@ public final class SpiderLegIK {
                     memory.destinations[leg] = null;
                     memory.contactNormals[leg]=contactNormal;
                 } else {
-                    if (contact && memory.destinations[leg] == null && old.distanceToSqr(target) > (moving ? .09 : .06)
+                    if (contact && memory.destinations[leg] == null && old.distanceToSqr(target) > (moving ? .09 : .06)*frame.spider.spiderScale()*frame.spider.spiderScale()
                             && (!moving || turn) && canLift(leg,memory.destinations)) {
                         memory.starts[leg] = old; memory.destinations[leg] = target; memory.stepStart[leg] = frame.age;
                         memory.contactNormals[leg]=contactNormal;
@@ -224,10 +225,12 @@ public final class SpiderLegIK {
                         if (t >= 1) memory.destinations[leg] = null;
                     }
                 }
-                if(supported && memory.destinations[leg]==null)contact=true;
+                if(supported && memory.destinations[leg]==null) {
+                    contact=true;contactNormal=memory.contactNormals[leg]==null?probeUp:memory.contactNormals[leg];
+                }
             }
             if (memory.feet[leg] != null) target = memory.feet[leg];
-            Vector3f localTarget = inverse.transformPosition(vector(target));
+            Vector3f localTarget = inverse.transformPosition(vector(target.subtract(frame.origin)));
             // Warm-start from last frame; coherent movement converges much
             // sooner than solving every limb from its rest angles every frame.
             if(!reset && memory.rotations[leg]!=null)
@@ -244,9 +247,9 @@ public final class SpiderLegIK {
             }
             // Smoothing is cosmetic; it must not drag an otherwise valid foot
             // below its contact plane while the body rises over a tread.
-            if(contact) {
-                Vec3 actual=vec(world.transformPosition(endpoint(pivots,angles,tip)));
-                if(actual.subtract(target).dot(contactNormal)<-.015) {
+            if(contact && memory.destinations[leg]==null) {
+                Vec3 actual=toWorld(world,endpoint(pivots,angles,tip),frame.origin);
+                if(actual.distanceToSqr(target)>.000225) {
                     solve(pivots,rest,angles,tip,localTarget);
                     for(int j=0;j<3;j++)memory.rotations[leg][j].set(angles[j]);
                 }
@@ -256,10 +259,10 @@ public final class SpiderLegIK {
             List<Vec3> joints = new ArrayList<>(4);
             Matrix4f transform = new Matrix4f();
             for (int j=0;j<3;j++) {
-                joints.add(vec(world.transformPosition(transform.transformPosition(new Vector3f(pivots[j])))));
+                joints.add(toWorld(world,transform.transformPosition(new Vector3f(pivots[j])),frame.origin));
                 rotate(transform,pivots[j],angles[j]);
             }
-            Vec3 foot = vec(world.transformPosition(transform.transformPosition(new Vector3f(tip))));
+            Vec3 foot = toWorld(world,transform.transformPosition(new Vector3f(tip)),frame.origin);
             joints.add(foot);
             float error=(float)foot.distanceTo(target);
             debug.add(new Leg(List.copyOf(joints),target,
@@ -328,6 +331,9 @@ public final class SpiderLegIK {
         Matrix4f matrix = new Matrix4f();
         for (int j=0;j<3;j++) rotate(matrix,pivots[j],angles[j]);
         return matrix.transformPosition(new Vector3f(tip));
+    }
+    static Vec3 toWorld(Matrix4f model,Vector3f local,Vec3 origin) {
+        return vec(model.transformPosition(new Vector3f(local))).add(origin);
     }
     private static Vec3 vec(Vector3f v) { return new Vec3(v.x,v.y,v.z); }
     private static Vector3f vector(Vec3 v) { return new Vector3f((float)v.x,(float)v.y,(float)v.z); }

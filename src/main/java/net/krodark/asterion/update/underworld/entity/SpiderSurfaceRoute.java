@@ -39,14 +39,33 @@ public final class SpiderSurfaceRoute {
     }
     public static boolean clear(List<AABB> blocks,AABB body,Vec3 step) {
         AABB swept=body.expandTowards(step).deflate(.001);
-        return blocks.stream().noneMatch(swept::intersects);
+        for(AABB block:blocks) {
+            if(!swept.intersects(block))continue;
+            // The enclosing box is only a broad phase. A diagonal sweep does
+            // not occupy its empty corners (important around cave pillars).
+            double enter=0,exit=1;
+            double[] low={body.minX,body.minY,body.minZ},high={body.maxX,body.maxY,body.maxZ};
+            double[] bLow={block.minX,block.minY,block.minZ},bHigh={block.maxX,block.maxY,block.maxZ};
+            double[] velocity={step.x,step.y,step.z};
+            for(int axis=0;axis<3;axis++) {
+                if(Math.abs(velocity[axis])<1e-10) {
+                    if(high[axis]<=bLow[axis]+.001 || low[axis]>=bHigh[axis]-.001) { exit=-1;break; }
+                } else {
+                    double a=(bLow[axis]+.001-high[axis])/velocity[axis];
+                    double b=(bHigh[axis]-.001-low[axis])/velocity[axis];
+                    enter=Math.max(enter,Math.min(a,b));exit=Math.min(exit,Math.max(a,b));
+                }
+            }
+            if(enter<exit)return false;
+        }
+        return true;
     }
     public static List<Point> find(List<AABB> blocks,AABB body,Direction face,Vec3 target) {
         return find(blocks,body,face,target,.35,13,1800);
     }
     /** Longer surface navigation, including approach to a wall before climbing it. */
     public static List<Point> navigate(List<AABB> blocks,AABB body,Direction face,Vec3 target) {
-        return find(blocks,body,face,target,.5,24,1600);
+        return find(blocks,body,face,target,.5,24,3200);
     }
     private static List<Point> find(List<AABB> blocks,AABB body,Direction face,Vec3 target,
                                     double spacing,int radius,int budget) {
@@ -106,7 +125,7 @@ public final class SpiderSurfaceRoute {
                 open.add(new Node(next,cost,cost+1.3*moved.getCenter().distanceTo(goal)));
             }
         }
-        if(initial-nearest<.5)return List.of();
+        if(initial-nearest<.05)return List.of();
         LinkedList<Point> route=new LinkedList<>();
         for(Cell c=best;!c.equals(start);c=parents.get(c))
             route.addFirst(new Point(origin.add(c.x*spacing,c.y*spacing,c.z*spacing),faces.get(c)));

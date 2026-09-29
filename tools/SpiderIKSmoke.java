@@ -19,6 +19,11 @@ public final class SpiderIKSmoke {
             var bone = value.getAsJsonObject(); bones.put(bone.get("name").getAsString(),bone);
         }
         int cases = 0;
+        var farOrigin=new net.minecraft.world.phys.Vec3(12000000.125,70,-12000000.375);
+        var localFoot=new Vector3f(.12345F,.02F,-.54321F);
+        var farFoot=SpiderLegIK.toWorld(new Matrix4f(),localFoot,farOrigin).subtract(farOrigin);
+        if(farFoot.distanceTo(new net.minecraft.world.phys.Vec3(localFoot.x,localFoot.y,localFoot.z))>1e-7)
+            throw new AssertionError("Foot placement loses precision far from spawn");
         if(!bones.containsKey("webmaker") || !bones.get("webmaker").get("parent").getAsString().equals("abnomen"))
             throw new AssertionError("Missing authored spinneret attachment");
         for(int leg=0;leg<8;leg++) {
@@ -111,7 +116,7 @@ public final class SpiderIKSmoke {
                     var shift=new net.minecraft.world.phys.Vec3(loaded.x,loaded.y,loaded.z);
                     var weight=SpiderLegIK.bodyTilt(new SpiderLegIK.Debug(feet,0,shift),q);
                     if(weight.x<.03 || weight.z<.04)throw new AssertionError("Level-ground weight transfer did not move torso");
-                    if(SpiderLegIK.bodyLift(new SpiderLegIK.Debug(feet,0,shift),q,0)>=0)
+                    if(SpiderLegIK.bodyLift(new SpiderLegIK.Debug(feet,0,shift),q,0,net.krodark.asterion.update.underworld.entity.SpiderDimensions.RENDER_SCALE)>=0)
                         throw new AssertionError("Extended stance did not soften body height");
                 }
                 if(slope>0 && tilt.z<=0)throw new AssertionError("Lean does not follow feet");
@@ -119,12 +124,12 @@ public final class SpiderIKSmoke {
                 if(tripod.distanceTo(tilt)>.0001)throw new AssertionError("Three-foot support does not drive torso");
                 Vector3f liftAxis=q.transform(new Vector3f(0,1,0));
                 var error=new net.minecraft.world.phys.Vec3(liftAxis.x*.2,liftAxis.y*.2,liftAxis.z*.2);
-                double lift=SpiderLegIK.bodyLift(new SpiderLegIK.Debug(feet,0,error),q,0);
+                double lift=SpiderLegIK.bodyLift(new SpiderLegIK.Debug(feet,0,error),q,0,net.krodark.asterion.update.underworld.entity.SpiderDimensions.RENDER_SCALE);
                 if(Math.abs(lift-.1/net.krodark.asterion.update.underworld.entity.SpiderDimensions.RENDER_SCALE)>.001)
                     throw new AssertionError("Torso did not rise toward planted feet on "+face);
-                if(SpiderLegIK.bodyLift(new SpiderLegIK.Debug(feet,0,error.scale(-1)),q,0)>=0)
+                if(SpiderLegIK.bodyLift(new SpiderLegIK.Debug(feet,0,error.scale(-1)),q,0,net.krodark.asterion.update.underworld.entity.SpiderDimensions.RENDER_SCALE)>=0)
                     throw new AssertionError("Torso did not lower toward feet");
-                if(Math.abs(SpiderLegIK.bodyLift(new SpiderLegIK.Debug(feet,0,error.scale(100)),q,.2)-.26)>.0001)
+                if(Math.abs(SpiderLegIK.bodyLift(new SpiderLegIK.Debug(feet,0,error.scale(100)),q,.2,net.krodark.asterion.update.underworld.entity.SpiderDimensions.RENDER_SCALE)-.26)>.0001)
                     throw new AssertionError("Torso height escaped clamp");
                 if(SpiderLegIK.bodyTilt(new SpiderLegIK.Debug(feet.subList(0,2),0),q).lengthSqr()!=0)
                     throw new AssertionError("Unstable two-foot body lean");

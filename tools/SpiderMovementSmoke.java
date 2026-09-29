@@ -14,7 +14,7 @@ import java.util.List;
 public final class SpiderMovementSmoke {
     public static void main(String[] args) {
         int checks = 0;
-        require(net.krodark.asterion.update.underworld.entity.SpiderDimensions.SIZE==1.5F,"Wrong requested size");
+        require(net.krodark.asterion.update.underworld.entity.SpiderDimensions.MAX_SIZE==1.5F && net.krodark.asterion.update.underworld.entity.SpiderDimensions.MIN_SIZE==1.25F,"Wrong requested size");
         require(!net.krodark.asterion.update.underworld.entity.SpiderBehavior.night(11999)
                 && net.krodark.asterion.update.underworld.entity.SpiderBehavior.night(12000),"Day/night boundary");
         require(!net.krodark.asterion.update.underworld.entity.SpiderBehavior.ambush(30,12,12,false,20),"Stationary prey falsely triggered ambush");

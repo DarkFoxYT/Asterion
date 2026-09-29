@@ -14,6 +14,11 @@ import java.util.List;
 public final class SpiderSupportSmoke {
     public static void main(String[] args) {
         int checks=0;
+        var sweepBody=new AABB(0,0,0,1,1,1);
+        require(SpiderSurfaceRoute.clear(List.of(new AABB(0,0,2,1,1,3)),sweepBody,new Vec3(2,0,2)),
+                "Diagonal broad-phase corner incorrectly blocks movement");
+        require(!SpiderSurfaceRoute.clear(List.of(new AABB(1.4,0,1.4,1.6,1,1.6)),sweepBody,new Vec3(2,0,2)),
+                "Diagonal sweep tunnels through an obstacle");
         for(Direction face:Direction.values()) {
             Quaternionf rotation=new Quaternionf().rotationTo(new Vector3f(0,1,0),
                     new Vector3f(-face.getStepX(),-face.getStepY(),-face.getStepZ()));
@@ -161,6 +166,20 @@ public final class SpiderSupportSmoke {
             under=under.move(advance);
         }
         require(under.getCenter().distanceTo(new Vec3(-.8,5,0))<.5,"Ceiling wrap never climbed outside wall");
+        // The only exit is behind the spider: a greedy approach stalls here.
+        List<AABB> deadEnd=List.of(new AABB(-10,-1,-10,10,0,10),
+                new AABB(1,0,-4,2,20,4),new AABB(-4,0,-4,2,20,-3),new AABB(-4,0,3,2,20,4));
+        var detour=SpiderSurfaceRoute.navigate(deadEnd,grounded,Direction.DOWN,new Vec3(4,.675,0));
+        AABB detourBody=grounded;
+        boolean backedOut=false;
+        for(var point:detour) {
+            require(SpiderSurfaceRoute.clear(deadEnd,detourBody,point.center().subtract(detourBody.getCenter())),
+                    "Detour clips dead-end walls");
+            detourBody=detourBody.move(point.center().subtract(detourBody.getCenter()));
+            backedOut|=point.center().x<-4;
+        }
+        require(backedOut && detourBody.getCenter().distanceTo(new Vec3(4,.675,0))<.5,
+                "Planner cannot retreat from a dead end to reach prey: "+detourBody.getCenter());
         partialBlocks();
         var ledgeFrame=SpiderSupportSurface.neighborhoodNormal(
                 List.of(new AABB(0,-5,-5,1,5,5),new AABB(-1,1.5,0,0,2.5,1)),

@@ -197,7 +197,9 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
     private boolean planSurfaceRoute(Vec3 goal) {
         if(!mayPlanRoute())return false;
         var blocks=BugSurfaces.collectCollision(level(),getBoundingBox().inflate(13));
-        surfaceRoute.addAll(SpiderSurfaceRoute.navigate(blocks,getBoundingBox(),attachedSurface(),goal.add(0,getBbHeight()*.5,0)));
+        var planned=SpiderSurfaceRoute.navigate(blocks,getBoundingBox(),attachedSurface(),goal.add(0,getBbHeight()*.5,0));
+        surfaceRoute.clear();
+        surfaceRoute.addAll(planned);
         routeGoal=goal;
         return !surfaceRoute.isEmpty();
     }
@@ -493,12 +495,21 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
             supportMotion = false;
             return;
         }
-        if (surface == Direction.DOWN && goal != null && !onWeb() && !isInWater() && !isInLava()
-                && (onGround() || smoothSupport != null) && stepGroundObstacle(goal)) return;
-        if(goal!=null && routeGoal!=null && goal.distanceToSqr(routeGoal)>16)surfaceRoute.clear();
+        if(goal!=null && routeGoal!=null && goal.distanceToSqr(routeGoal)>4)surfaceRoute.clear();
         if(!surfaceRoute.isEmpty()) {
             if(goal!=null && !isInWater() && !isInLava() && followSurfaceRoute())return;
             surfaceRoute.clear();
+        }
+        // Give connected routes first refusal, including low steps. Instant
+        // vertical stepping used to discard the route and pop the body upward.
+        if(goal!=null && !onWeb() && (onGround() || smoothSupport!=null)
+                && !isInWater() && !isInLava()) {
+            Vec3 approach=goal.subtract(position());
+            if(approach.lengthSqr()>.25) {
+                Vec3 lookAhead=approach.normalize().scale(Math.min(1.5,approach.length()));
+                if(!SpiderSurfaceRoute.clear(localSupport(),getBoundingBox(),lookAhead)
+                        && planSurfaceRoute(goal) && followSurfaceRoute())return;
+            }
         }
         // Prefer the solid face we already grip. Silk can take over only off that
         // face, preventing dense webs from flipping a wall crawler's normal.
@@ -680,36 +691,6 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
         return true;
     }
 
-    private boolean stepGroundObstacle(Vec3 goal) {
-        Vec3 toward = goal.subtract(position()).multiply(1, 0, 1);
-        if (toward.lengthSqr() < .01) return false;
-        Vec3 step = toward.normalize().scale(Math.min(toward.length(), .26 * crawlSpeed * pace));
-        AABB body = getBoundingBox();
-        if (level().noCollision(this, body.expandTowards(step))) return false;
-        double rise = 0;
-        for (AABB obstacle : localSupport()) {
-            if (!obstacle.intersects(body.expandTowards(step).deflate(.001))) continue;
-            rise = Math.max(rise, obstacle.maxY - body.minY);
-        }
-        if (rise <= .001 || rise > 1.05) return false;
-        rise += .005;
-        AABB lifted = body.move(0, rise, 0);
-        if (!level().noCollision(this, body.expandTowards(0, rise, 0))
-                || !level().noCollision(this, lifted.expandTowards(step))
-                || level().noCollision(this, lifted.move(step).move(0, -.06, 0))) return false;
-        // Sweep vertically then horizontally: no jumping, tunnelling, or wall attachment.
-        getNavigation().stop();
-        surfaceRoute.clear();
-        move(MoverType.SELF, new Vec3(0, rise, 0));
-        move(MoverType.SELF, step);
-        setDeltaMovement(step.x, 0, step.z);
-        setNoGravity(false);
-        entityData.set(SURFACE, Direction.DOWN.ordinal());
-        geometryTick = -1;
-        refreshSupport();
-        resetFallDistance();
-        return true;
-    }
     private Vec3 surfaceStep(Vec3 desired,Direction face) {
         if(supportedStep(desired,face))
             return desired;
@@ -735,7 +716,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
         Vec3 delta=point.center().subtract(center);
         Vec3 step=delta.normalize().scale(Math.min(delta.length(),speed));
         var blocks=localSupport();
-        if(!level().noCollision(this,getBoundingBox().expandTowards(step))
+        if(!SpiderSurfaceRoute.clear(blocks,getBoundingBox(),step)
                 || SpiderSurfaceRoute.support(blocks,getBoundingBox().move(step),point.face())==null) {
             surfaceRoute.clear();setDeltaMovement(Vec3.ZERO);routeRetry=tickCount+10;return false;
         }
@@ -954,7 +935,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
                 Vec3 behind = player.position().subtract(player.getLookAngle().multiply(1,0,1).scale(8))
                         .add(player.getLookAngle().cross(new Vec3(0,1,0)).scale(flank * 5));
                 if (distance > 13 || attachedSurface() == Direction.UP) move(behind,.93);
-                else getNavigation().stop();
+                else { surfaceGoal=null;surfaceRoute.clear();getNavigation().stop();setDeltaMovement(Vec3.ZERO); }
             }
             case HUNTING, ATTACKING -> {
                 if (player == null) { homebound = true; state(State.WANDERING); break; }
@@ -963,7 +944,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
                     break;
                 }
                 if (getBoundingBox().inflate(.65).intersects(player.getBoundingBox()) && getSensing().hasLineOfSight(player)) {
-                    state(State.ATTACKING); getNavigation().stop();
+                    state(State.ATTACKING); surfaceGoal=null;surfaceRoute.clear();getNavigation().stop();setDeltaMovement(Vec3.ZERO);
                     if (attackCooldown == 0) {
                         attackCooldown = 30;
                         if (player.hurtServer(level,damageSources().mobAttack(this),7F)) {
@@ -1012,7 +993,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
             }
             case FLEEING_SEEN -> {
                 if (player == null) { homebound = true; state(State.WANDERING); break; }
-                if (escapeGoal == null || getNavigation().isStuck() && stateTicks % 20 == 0) {
+                if (escapeGoal == null || position().distanceToSqr(escapeGoal)<4 || stalledTicks>=20) {
                     Vec3 away = position().subtract(player.position()).multiply(1,0,1).normalize();
                     if (away.lengthSqr() < .001) away = Vec3.directionFromRotation(0,getYRot());
                     escapeGoal = position().add(away.scale(16)).add(random.nextBoolean()?4:-4,0,
@@ -1027,7 +1008,8 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
                 }
             }
         }
-        boolean weaving=!homebound && (state()==State.WANDERING || state()==State.WANDERING_CAMOUFLAGED) || state()==State.HUNTING;
+        // Pursuit takes priority over finishing a patrol web.
+        boolean weaving=!homebound && (state()==State.WANDERING || state()==State.WANDERING_CAMOUFLAGED);
         if(webTrip!=null) {
             if(!weaving || tickCount>tripDeadline || !LimboWebSystem.supports(level,webTrip.patch(),0)) {
                 webTrip=null;surfaceRoute.clear();thread(null);
