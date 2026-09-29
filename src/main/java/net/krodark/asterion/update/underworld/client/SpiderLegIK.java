@@ -71,6 +71,9 @@ public final class SpiderLegIK {
         private final Vec3[] starts = new Vec3[8];
         private final Vec3[] destinations = new Vec3[8];
         private final float[] stepStart = new float[8];
+        private final float[] stepDuration = new float[8];
+        private final Gait gait = new Gait();
+        private Vec3 velocity = Vec3.ZERO;
         private final Vector3f[][] rotations = new Vector3f[8][];
         private final Vec3[] contactNormals = new Vec3[8];
         private final float[] unsupportedSince = new float[8];
@@ -95,7 +98,13 @@ public final class SpiderLegIK {
         Memory memory = frame.memory;
         boolean update = frame.age != memory.age;
         boolean reset = memory.origin == null || memory.origin.distanceToSqr(frame.origin) > 9
-                || frame.age < memory.age;
+                || frame.age < memory.age || frame.age-memory.age > 5;
+        if (update) {
+            double elapsed = Math.max(.0001,frame.age-memory.age);
+            memory.velocity = reset ? Vec3.ZERO : frame.origin.subtract(memory.origin).scale(1/elapsed);
+            if (reset) java.util.Arrays.fill(memory.destinations,null);
+            memory.gait.beginFrame(memory.destinations);
+        }
         Vec3 up = vec(world.transformDirection(new Vector3f(0, 1, 0))).normalize();
         Vec3 probeUp = frame.spider.hasSurfaceSupport() ? frame.spider.attachmentNormal().scale(-1) : up;
         List<Leg> debug = new ArrayList<>(8);
@@ -121,9 +130,8 @@ public final class SpiderLegIK {
             Vector3f tip = new Vector3f(pivots[2]).add(leg < 4 ? -13F/16 : 13F/16, -6F/16, 0);
             Vec3 nominal = toWorld(world,endpoint(pivots,angles,tip),frame.origin);
             Vec3 restingFoot=nominal;
-            double elapsed=Math.clamp(frame.age-memory.age,.05,2);
-            Vec3 velocity=reset?Vec3.ZERO:frame.origin.subtract(memory.origin).scale(1/elapsed);
-            Vec3 lead=velocity.subtract(probeUp.scale(velocity.dot(probeUp))).scale(1.8);
+            Vec3 velocity=memory.velocity;
+            Vec3 lead=velocity.subtract(probeUp.scale(velocity.dot(probeUp))).scale(2.8);
             if(lead.length()>.4)lead=lead.normalize().scale(.4);
             nominal=nominal.add(lead);
             boolean contact;
@@ -178,9 +186,6 @@ public final class SpiderLegIK {
                 target=nominal.add(vec(world.transformDirection(vector(reach))));
             }
             if (update) {
-                boolean moving = memory.origin != null && memory.origin.distanceToSqr(frame.origin) > .00001;
-                float gaitClock = frame.age + Math.floorMod(frame.spider.getUUID().hashCode(),47);
-                boolean turn = ((int)(gaitClock / 2.5) & 1) == ((leg + leg / 4) & 1);
                 Vec3 old = memory.feet[leg];
                 Vec3 plantedNormal=memory.contactNormals[leg]==null?probeUp:memory.contactNormals[leg];
                 boolean supported = old == null || memory.destinations[leg] != null
@@ -201,20 +206,21 @@ public final class SpiderLegIK {
                     memory.destinations[leg] = null;
                     memory.contactNormals[leg]=contactNormal;
                 } else {
-                    if (contact && memory.destinations[leg] == null && old.distanceToSqr(target) > (moving ? .09 : .06)*frame.spider.spiderScale()*frame.spider.spiderScale()
-                            && (!moving || turn) && canLift(leg,memory.destinations)) {
+                    if (contact && memory.destinations[leg] == null && needsStep(old,target,probeUp,frame.spider.spiderScale())
+                            && memory.gait.canStart(leg)) {
                         memory.starts[leg] = old; memory.destinations[leg] = target; memory.stepStart[leg] = frame.age;
+                        memory.stepDuration[leg] = (float)Math.clamp(.65*frame.spider.spiderScale()/Math.max(.01,velocity.length()),2.4,4);
                         memory.contactNormals[leg]=contactNormal;
                     }
                     if (memory.destinations[leg] != null) {
-                        double t = Math.clamp((frame.age-memory.stepStart[leg])/2.3,0,1);
+                        double t = Math.clamp((frame.age-memory.stepStart[leg])/memory.stepDuration[leg],0,1);
                         // Keep reaching ahead during the lift/traverse phase;
                         // freeze the touchdown target for the final descent.
                         // Otherwise fast bodies outrun a target chosen at lift-off.
                         if(contact && t<.7)
                             memory.destinations[leg]=memory.destinations[leg].lerp(target,
                                     1-Math.pow(.3,Math.clamp(frame.age-memory.age,0,2)));
-                        memory.feet[leg] = swingFoot(memory.starts[leg],memory.destinations[leg],probeUp,t);
+                        memory.feet[leg] = swingFoot(memory.starts[leg],memory.destinations[leg],probeUp,t,frame.spider.spiderScale());
                         // Check the actual terrain along the swing, not just its
                         // destination: a tread can lie above both endpoints.
                         Vec3 swing=memory.feet[leg];
@@ -239,7 +245,10 @@ public final class SpiderLegIK {
             if (reset || memory.rotations[leg] == null) {
                 memory.rotations[leg] = new Vector3f[]{new Vector3f(angles[0]),new Vector3f(angles[1]),new Vector3f(angles[2])};
             } else {
-                float blend = 1F-(float)Math.pow(.22,Math.clamp(frame.age-memory.age,0,2));
+                // The swing target is already eased. Filtering joint angles again
+                // erases most of the short lift and drags the rendered foot along
+                // the ground while the gait believes it is airborne.
+                float blend = contact ? 1F : 1F-(float)Math.pow(.22,Math.clamp(frame.age-memory.age,0,2));
                 for (int j=0;j<3;j++) {
                     if (update) memory.rotations[leg][j].lerp(angles[j],blend);
                     angles[j].set(memory.rotations[leg][j]);
@@ -282,23 +291,47 @@ public final class SpiderLegIK {
                 .16+.18*Math.sin(phase*.83+.7),.18*Math.cos(phase));
     }
 
-    /** Do not lift the opposite four legs while a support group is still stepping. */
+    /** Admit one complete support group per swing, then give the other group priority.
+     * A wall-clock phase and per-leg admission can continually restart the first
+     * group before the second group gets a chance to lift. */
+    static final class Gait {
+        private int nextGroup;
+        private int admittedGroup = -1;
+        void beginFrame(Vec3[] destinations) {
+            admittedGroup = -1;
+            for (Vec3 destination : destinations) if (destination != null) return;
+            admittedGroup = nextGroup;
+            nextGroup ^= 1;
+        }
+        boolean canStart(int leg) { return ((leg+leg/4)&1) == admittedGroup; }
+    }
+
+    static boolean needsStep(Vec3 planted,Vec3 target,Vec3 up,double scale) {
+        Vec3 offset=target.subtract(planted);
+        double rise=offset.dot(up);
+        // Small body-height adjustments must not cause shuffling on level ground.
+        return offset.subtract(up.scale(rise)).lengthSqr()>.0484*scale*scale
+                || Math.abs(rise)>.18*scale;
+    }
+
+    /** Ease through a walking arc; lift before crossing a raised tread. */
     static Vec3 swingFoot(Vec3 from,Vec3 to,Vec3 up,double t) {
+        return swingFoot(from,to,up,t,1);
+    }
+
+    static Vec3 swingFoot(Vec3 from,Vec3 to,Vec3 up,double t,double scale) {
         t=Math.clamp(t,0,1);
-        double lift=Math.abs(to.subtract(from).dot(up))>.1?.18:.12;
+        if(Math.abs(to.subtract(from).dot(up))<=.1*scale) {
+            double arc=Math.sin(Math.PI*t);
+            return from.lerp(to,t*t*(3-2*t)).add(up.scale(.20*scale*arc*arc));
+        }
+        double lift=.24*scale;
         double highest=Math.max(from.dot(up),to.dot(up))+lift;
         Vec3 raisedFrom=from.add(up.scale(highest-from.dot(up)));
         Vec3 raisedTo=to.add(up.scale(highest-to.dot(up)));
         double phase=t<.3?t/.3:t<.7?(t-.3)/.4:(t-.7)/.3;
         double ease=phase*phase*(3-2*phase);
         return t<.3?from.lerp(raisedFrom,ease):t<.7?raisedFrom.lerp(raisedTo,ease):raisedTo.lerp(to,ease);
-    }
-
-    static boolean canLift(int leg,Vec3[] destinations) {
-        int group=(leg+leg/4)&1;
-        for(int i=0;i<destinations.length;i++)
-            if(destinations[i]!=null && ((i+i/4)&1)!=group)return false;
-        return true;
     }
 
     /** Bounded CCD preserves the authored knee bends and never stretches a segment. */

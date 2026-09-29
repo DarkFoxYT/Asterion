@@ -11,20 +11,20 @@ import net.minecraft.world.level.gamerules.GameRules;
 
 /** Persistent off-path populations, bounded per tick and restricted to loaded terrain. */
 public final class SpiderPopulation {
-    public static final int LOCAL_CAP=20;
+    public static final int LOCAL_CAP=6;
+    private static final int SPAWN_INTERVAL=200;
     private SpiderPopulation() { }
     public static void initialize() {
         ServerTickEvents.END_SERVER_TICK.register(server->{
             var level=server.getLevel(Asterion.LIMBO_LEVEL);
-            if(level==null || level.getGameTime()%40!=0 || level.getDifficulty()==Difficulty.PEACEFUL
+            if(level==null || level.getGameTime()%SPAWN_INTERVAL!=0 || level.getDifficulty()==Difficulty.PEACEFUL
                     || !level.getGameRules().get(GameRules.SPAWN_MOBS))return;
-            int budget=4;
+            int budget=1;
             for(var player:level.players()) {
                 if(budget<=0)break;
-                if(!player.isAlive() || player.isSpectator()
-                        || level.getEntitiesOfClass(LimboSpiderEntity.class,player.getBoundingBox().inflate(80)).size()>=LOCAL_CAP)continue;
+                if(!player.isAlive() || player.isSpectator())continue;
                 int nearby=level.getEntitiesOfClass(LimboSpiderEntity.class,player.getBoundingBox().inflate(80)).size();
-                for(int attempt=0;attempt<40 && budget>0 && nearby<LOCAL_CAP;attempt++) {
+                for(int attempt=0;attempt<16 && budget>0 && nearby<LOCAL_CAP;attempt++) {
                     double angle=player.getRandom().nextDouble()*Math.PI*2,range=10+player.getRandom().nextInt(39);
                     int x=(int)Math.floor(player.getX()+Math.cos(angle)*range),z=(int)Math.floor(player.getZ()+Math.sin(angle)*range);
                     if(UnderworldTerrain.isMainPath(x+.5,z+.5)

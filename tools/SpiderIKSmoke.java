@@ -54,6 +54,19 @@ public final class SpiderIKSmoke {
             }
             Vector3f tip = new Vector3f(pivots[2]).add(name.startsWith("left") ? -13F/16 : 13F/16,-.375F,0);
             Vector3f nominal = endpoint(pivots,rest,tip);
+            // Follow an entire grounded swing with the real chain. A target
+            // lifting is insufficient if the solved, visible foot stays down.
+            var from=new net.minecraft.world.phys.Vec3(nominal.x,.30,nominal.z);
+            var to=from.add(0,0,.4);
+            Vector3f[] walking={new Vector3f(rest[0]),new Vector3f(rest[1]),new Vector3f(rest[2])};
+            for(int frame=0;frame<=24;frame++) {
+                var target=SpiderLegIK.swingFoot(from,to,new net.minecraft.world.phys.Vec3(0,1,0),frame/24.0,1.5);
+                SpiderLegIK.solve(pivots,rest,walking,tip,new Vector3f((float)target.x,(float)target.y,(float)target.z));
+                var actual=endpoint(pivots,walking,tip);
+                if(actual.distance(new Vector3f((float)target.x,(float)target.y,(float)target.z))>.075)
+                    throw new AssertionError(name+" visible foot cannot follow swing");
+                if(frame==12 && actual.y<.55)throw new AssertionError(name+" visible foot does not lift");
+            }
             for (Vector3f shift : new Vector3f[]{new Vector3f(),new Vector3f(0,.25F,0),
                     new Vector3f(.15F,.4F,-.12F),new Vector3f(0,-.2F,.15F),
                     new Vector3f(0,.08F-nominal.y,0),new Vector3f(0,.30F-nominal.y,0),new Vector3f(100,100,100)}) {
@@ -79,13 +92,7 @@ public final class SpiderIKSmoke {
                 }
             }
         }
-        for(int movingLeg=0;movingLeg<8;movingLeg++) {
-            net.minecraft.world.phys.Vec3[] stepping=new net.minecraft.world.phys.Vec3[8];
-            stepping[movingLeg]=net.minecraft.world.phys.Vec3.ZERO;
-            int allowed=0;
-            for(int leg=0;leg<8;leg++)if(SpiderLegIK.canLift(leg,stepping))allowed++;
-            if(allowed!=4)throw new AssertionError("Gait must keep opposite four legs planted");
-        }
+        checkWalkingGait();
         for(net.minecraft.core.Direction face:net.minecraft.core.Direction.values()) {
             var up=face.getUnitVec3();
             var across=face.getAxis()==net.minecraft.core.Direction.Axis.X
@@ -135,8 +142,57 @@ public final class SpiderIKSmoke {
                     throw new AssertionError("Unstable two-foot body lean");
             }
         }
-        System.out.println("Spider IK: "+cases+" cases, eight support-group checks and body tilt on all six surfaces passed.");
+        System.out.println("Spider IK: "+cases+" cases, visible foot swings and body tilt on all six surfaces passed.");
     }
+    private static void checkWalkingGait() {
+        for (int fps : new int[]{30,60,144}) for (double speed : new double[]{.03,.12,.3})
+                for (double scale : new double[]{1.25,1.5}) for (var face : net.minecraft.core.Direction.values()) {
+            var gait = new SpiderLegIK.Gait();
+            var feet = new net.minecraft.world.phys.Vec3[8];
+            var starts = new net.minecraft.world.phys.Vec3[8];
+            var destinations = new net.minecraft.world.phys.Vec3[8];
+            var started = new double[8];
+            var steps = new int[8];
+            var lifted = new boolean[8];
+            var up = face.getUnitVec3();
+            var forward = face.getAxis()==net.minecraft.core.Direction.Axis.X
+                    ? new net.minecraft.world.phys.Vec3(0,0,1) : new net.minecraft.world.phys.Vec3(1,0,0);
+            java.util.Arrays.fill(feet,net.minecraft.world.phys.Vec3.ZERO);
+            double duration=Math.clamp(.65*scale/speed,2.4,4);
+            // Start walking, then stop and allow the final adjustment to settle.
+            for(int frame=0;frame<fps*12;frame++) {
+                double age=frame*20.0/fps;
+                var target=forward.scale(Math.min(age,160)*speed);
+                gait.beginFrame(destinations);
+                int airborne=0;
+                for(int leg=0;leg<8;leg++) {
+                    var previous=feet[leg];
+                    boolean wasStepping=destinations[leg]!=null;
+                    if(!wasStepping && SpiderLegIK.needsStep(feet[leg],target,up,scale) && gait.canStart(leg)) {
+                        starts[leg]=feet[leg];destinations[leg]=target;started[leg]=age;steps[leg]++;
+                    }
+                    if(destinations[leg]!=null) {
+                        double t=Math.clamp((age-started[leg])/duration,0,1);
+                        feet[leg]=SpiderLegIK.swingFoot(starts[leg],destinations[leg],up,t,scale);
+                        if(feet[leg].dot(up)>.15*scale)lifted[leg]=true;
+                        if(t>=1)destinations[leg]=null;
+                        else airborne++;
+                    } else if(previous.distanceTo(feet[leg])>1e-10) {
+                        throw new AssertionError("Planted foot slides");
+                    }
+                    if(age>200 && destinations[leg]!=null)throw new AssertionError("Idle spider keeps shuffling");
+                }
+                if(airborne>4)throw new AssertionError("Lost support group");
+            }
+            for(int leg=0;leg<8;leg++) {
+                if(steps[leg]<5 || !lifted[leg])throw new AssertionError("Leg starved or never visibly lifted: "+leg+" at "+fps+"fps");
+                if(SpiderLegIK.needsStep(feet[leg],forward.scale(160*speed),up,scale))
+                    throw new AssertionError("Foot did not catch up");
+            }
+        }
+        System.out.println("Walking gait: all eight feet lift, alternate support and settle at 30/60/144 fps, three speeds, two sizes and six surfaces.");
+    }
+
     private static Vector3f vector(JsonObject object,String key) {
         var a=object.getAsJsonArray(key);
         return a==null ? new Vector3f() : new Vector3f(a.get(0).getAsFloat(),a.get(1).getAsFloat(),a.get(2).getAsFloat());
