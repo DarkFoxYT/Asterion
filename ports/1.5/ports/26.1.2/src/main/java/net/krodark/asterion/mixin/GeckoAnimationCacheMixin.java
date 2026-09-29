@@ -42,8 +42,6 @@ public abstract class GeckoAnimationCacheMixin {
         int current = ((GeckoAnimationFrameAccessor)frames.get(currentFrame)).asterion$index();
         int next = ((GeckoAnimationFrameAccessor)frames.get((currentFrame + 1) % frames.size())).asterion$index();
         if (current == next) { original.call(interpolation, source, texture); return; }
-        if (asterion$frames.isEmpty())
-            ((net.krodark.asterion.client.render.TextureCacheOwner)this$0).asterion$setFrameCleanup(this::asterion$clearFrames);
         long key = (long)currentFrame << 32 | Integer.toUnsignedLong(subFrame);
         NativeImage cached = asterion$frames.get(key);
         if (cached != null) {
@@ -64,6 +62,8 @@ public abstract class GeckoAnimationCacheMixin {
             buffer.copyRect(cached, 0, 0, 0, 0, buffer.getWidth(), buffer.getHeight(), false, false);
         asterion$frames.put(key, cached);
         asterion$bytes += bytes;
+        if (asterion$frames.size() == 1)
+            ((net.krodark.asterion.client.render.TextureCacheOwner)this$0).asterion$setFrameCleanup(this::asterion$clearFrames);
         } catch (RuntimeException | Error failure) {
             if (cached != null) cached.close();
             net.krodark.asterion.client.render.TextureFrameBudget.release(bytes);
@@ -79,5 +79,7 @@ public abstract class GeckoAnimationCacheMixin {
         asterion$frames.clear();
         net.krodark.asterion.client.render.TextureFrameBudget.release(asterion$bytes);
         asterion$bytes = 0;
+        net.krodark.asterion.client.render.TextureFrameCaches.forget(
+                (net.krodark.asterion.client.render.TextureCacheOwner)this$0);
     }
 }

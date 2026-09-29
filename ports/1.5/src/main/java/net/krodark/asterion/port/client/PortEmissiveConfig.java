@@ -60,8 +60,9 @@ public final class PortEmissiveConfig {
                 if (values.threshold == .047F) values.threshold = .075F;
                 if (values.knee == .25F) values.knee = .18F;
             }
+            boolean restrictSceneBloom = legacy || values.version < 8;
             sanitize();
-            if (upgradeEyes || upgradeFire || restoreAmnetic || softenVines || sharpenBloom) save();
+            if (upgradeEyes || upgradeFire || restoreAmnetic || softenVines || sharpenBloom || restrictSceneBloom) save();
         } catch (Exception exception) {
             Asterion.LOGGER.warn("Unable to load Asterion emissive config {}", PATH, exception);
             values = new Values();
@@ -102,6 +103,14 @@ public final class PortEmissiveConfig {
         return config.bloomQuality < 0 ? config.cinematicQuality + 1 : config.bloomQuality;
     }
 
+    public static boolean sceneBloomEnabled() {
+        var client = net.minecraft.client.Minecraft.getInstance();
+        var level = client == null ? null : client.level;
+        boolean insideAsterion = level != null && (level.dimension().equals(Asterion.ASTERION_LEVEL));
+        return net.krodark.asterion.util.LightingPolicy.sceneBloom(
+                insideAsterion, values.sceneBloom, effectiveBloomQuality());
+    }
+
     public static float minotaurEyeStrength() {
         return values.minotaurEyeStrength;
     }
@@ -129,7 +138,7 @@ public final class PortEmissiveConfig {
     }
 
     private static void sanitize() {
-        values.version = 7;
+        values.version = 8;
         values.threshold = finiteClamp(values.threshold, 0.0F, 2.0F, .075F);
         values.intensity = finiteClamp(values.intensity, 0.0F, 8.0F, 2.45F);
         values.levels = Mth.clamp(values.levels, 2, 3);
@@ -141,8 +150,9 @@ public final class PortEmissiveConfig {
     }
 
     private static final class Values {
-        private int version = 7;
+        private int version = 8;
         private boolean enabled = true;
+        private boolean sceneBloom = false;
         private float threshold = .075F;
         private float intensity = 2.45F;
         private int levels = 2;

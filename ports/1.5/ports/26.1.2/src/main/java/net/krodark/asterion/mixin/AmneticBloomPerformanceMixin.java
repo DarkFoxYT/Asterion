@@ -24,7 +24,6 @@ public abstract class AmneticBloomPerformanceMixin {
     private float asterion$skipUnrequestedSceneCapture(BloomSettings settings, Operation<Float> original) {
         // Avoid a scene color/depth copy and prefilter for ordinary bright terrain.
         // Explicit emitters and a populated emissive G-buffer retain their own paths.
-        return !AsterionEmissiveConfig.sceneBloomEnabled()
-                || AsterionEmissiveConfig.effectiveBloomQuality() == 1 ? 0.0F : original.call(settings);
+        return AsterionEmissiveConfig.sceneBloomEnabled() ? original.call(settings) : 0.0F;
     }
 }

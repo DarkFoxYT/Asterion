@@ -193,15 +193,38 @@ public final class UnderworldTerrainSmoke {
                     throw new AssertionError("Missing regular path torch at " + x + "," + z);
             }
         }
-        int narrowCap = 0, wideCap = 0;
-        for (int x = -60; x < 60; x++) {
-            if (Math.abs(x - (UnderworldTerrain.riverCenter(UnderworldTerrain.START_Z + 1) - 5)) < 12
-                    && (boolean)OPEN.invoke(sample(42L, x, UnderworldTerrain.START_Z + 1))) narrowCap++;
-            if (Math.abs(x - (UnderworldTerrain.riverCenter(UnderworldTerrain.START_Z + 30) - 5)) < 12
-                    && (boolean)OPEN.invoke(sample(42L, x, UnderworldTerrain.START_Z + 30))) wideCap++;
+        var arrival = UnderworldTerrain.entranceSpawn();
+        if (arrival.getZ() <= UnderworldTerrain.GATE_Z + 17 || arrival.getZ() >= UnderworldTerrain.FERRY_Z)
+            throw new AssertionError("Spawn must be in front of gate, toward the docks");
+        for (long seed : new long[]{0, 42, -17, Long.MAX_VALUE}) {
+            Object spawnColumn = sample(seed, arrival.getX(), arrival.getZ());
+            if ((int)FLOOR.invoke(spawnColumn) + 1 != arrival.getY()
+                    || (int)ROOF.invoke(spawnColumn) <= UnderworldTerrain.MAX_Y)
+                throw new AssertionError("Arrival is not grounded under open sky");
+            // Every gate column needs a dry foundation and space for its full height.
+            for (int z = UnderworldTerrain.GATE_Z - 16; z <= UnderworldTerrain.GATE_Z + 17; z++)
+                for (int x = UnderworldTerrain.GATE_X - 73; x <= UnderworldTerrain.GATE_X + 72; x++) {
+                    Object c = sample(seed, x, z);
+                    if (!(boolean)OPEN.invoke(c) || (int)FLOOR.invoke(c) != UnderworldTerrain.GATE_Y - 1
+                            || (int)ROOF.invoke(c) <= UnderworldTerrain.MAX_Y)
+                        throw new AssertionError("Gate buried or roofed at " + x + "," + z);
+                    Object d = details.invoke(null, seed, x, z, c);
+                    if ((int)rock.invoke(d) != 0 || (int)hanging.invoke(d) != 0)
+                        throw new AssertionError("Terrain formations overlap gate");
+                }
+            for (int z : new int[]{58, 200, 1024, 10000})
+                for (int x : new int[]{-10000, -512, 0, 512, 10000}) {
+                    Object c = sample(seed, x, z);
+                    Object d = details.invoke(null, seed, x, z, c);
+                    if ((int)ROOF.invoke(c) <= UnderworldTerrain.MAX_Y || (int)hanging.invoke(d) != 0)
+                        throw new AssertionError("Open sea still has a ceiling or hanging formations");
+                }
+            int caveZ = UnderworldTerrain.SPAWN_Z + 100;
+            Object cave = sample(seed, (int)Math.round(UnderworldTerrain.riverCenter(caveZ)-15), caveZ);
+            if ((int)ROOF.invoke(cave) >= UnderworldTerrain.MAX_Y)
+                throw new AssertionError("Cave after courtyard lost its roof");
         }
-        if (narrowCap >= wideCap * .75)
-            throw new AssertionError("Entrance does not taper: " + narrowCap + " / " + wideCap);
+        System.out.println("PASS full gate footprint, grounded arrival, open sea and retained cave roof");
         int pillars = 0, heights = 0;
         int muddy=0, spikes=0, curtains=0, drops=0, tallest=0;
         for (int seed=0;seed<8;seed++) for (int z=-158;z<60;z++) for (int x=-60;x<=60;x++) {
@@ -227,7 +250,7 @@ public final class UnderworldTerrainSmoke {
             tallest=Math.max(tallest,(int)ROOF.invoke(c)-(int)FLOOR.invoke(c));
         }
         if (joinedColumns < 100) throw new AssertionError("Missing thick floor-to-roof columns");
-        System.out.println("PASS rounded entrance, paired torches every 20 blocks, and " + joinedColumns + " joined pillar columns");
+        System.out.println("PASS open entrance, paired torches every 20 blocks, and " + joinedColumns + " joined pillar columns");
         if (pillars < 20 || heights != 120) throw new AssertionError("Missing 3-6 block pillar variation: " + pillars + "/" + heights);
         if(muddy<100||spikes<20||curtains<20||drops!=0||tallest<60)
             throw new AssertionError("Missing cave variety: "+muddy+","+spikes+","+curtains+","+drops+","+tallest);

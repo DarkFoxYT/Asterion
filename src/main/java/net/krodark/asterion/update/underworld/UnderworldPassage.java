@@ -74,7 +74,7 @@ public final class UnderworldPassage {
         ServerLevel destination = player.level().getServer().getLevel(Asterion.LIMBO_LEVEL);
         if (destination == null) return;
         boolean firstPassage = AsterionWorldState.get(destination).beginUnderworldPassage(player.getUUID());
-        var spawn = UnderworldTerrain.randomSpawn(player.getUUID());
+        var spawn = UnderworldTerrain.entranceSpawn();
         destination.getChunk(spawn.getX() >> 4, spawn.getZ() >> 4);
         net.krodark.asterion.network.ragdoll.RagdollServerNetworking.resetAfterRespawn(player);
         player.stopRiding();

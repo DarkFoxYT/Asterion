@@ -332,7 +332,7 @@ public final class WorldGenerator {
                 && !player.level().dimension().equals(Asterion.LIMBO_LEVEL)) return;
         ServerLevel destination = player.level().getServer().getLevel(Asterion.LIMBO_LEVEL);
         if (destination == null) return;
-        BlockPos checkpoint = net.krodark.asterion.update.underworld.world.UnderworldTerrain.randomSpawn(player.getUUID());
+        BlockPos checkpoint = net.krodark.asterion.update.underworld.world.UnderworldTerrain.entranceSpawn();
         destination.getChunkAt(checkpoint);
         PRE_MAZE_RESPAWNS.putIfAbsent(player.getUUID(), Optional.ofNullable(player.getRespawnConfig()));
         LevelData.RespawnData data = LevelData.RespawnData.of(

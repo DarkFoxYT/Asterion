@@ -51,6 +51,7 @@ public final class UnderworldChunkGenerator extends net.minecraft.world.level.ch
                                                StructureManager structures) {
         super.applyBiomeDecoration(world, chunk, structures);
         LimboMonoliths.place(world, chunk.getPos());
+        LimboEntranceGate.place(world, chunk.getPos());
     }
     @Override public void applyCarvers(net.minecraft.server.level.WorldGenRegion region, long seed, RandomState random,
                                        net.minecraft.world.level.biome.BiomeManager biomes, StructureManager structures,

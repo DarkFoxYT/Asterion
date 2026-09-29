@@ -1,4 +1,4 @@
-# Asterion 2.0 — The Underworld Update
+# Asterion 2.0 â€” The Underworld Update
 
 The 2.0 content is isolated under `net.krodark.asterion.update.underworld` and matching
 `assets/asterion/underworld` resource paths. Existing Asterion identifiers remain untouched so
@@ -7,8 +7,12 @@ old worlds and resource packs do not lose their references.
 Current narrative slice:
 
 - A player's first death in a world diverts their respawn to the `asterion:limbo` dimension exactly once.
-- The player arrives on the dry bank inside the river's vaulted shale tunnel. That same
-  waterway opens onto a broad shoreline and a subterranean sea that continues beyond the crossing.
+- The player arrives in front of the authored entrance gate at the end of the path opposite
+  the docks, facing toward the ferry. The full-size gate stands in a dry, open-sky courtyard;
+  the cave begins beyond the courtyard. The sea has no stone or bedrock ceiling.
+- `docs/underworld/source/gate.bp` is imported as `structure/limbo_gate.nbt` by
+  `tools/import_limbo_gate.py`. Its 146-block-wide facade is rotated to face the path.
+  Limbo's build height is 320 blocks so the 173-block gate fits without clipping.
 - A gently curved stone landing leads to the moored ferry. Charon stands aboard as a persistent
   passenger; paying one gold nugget and boarding starts the shared crossing.
 - Repeated arrival instructions are removed. Fare responses appear only when interacting with Charon.

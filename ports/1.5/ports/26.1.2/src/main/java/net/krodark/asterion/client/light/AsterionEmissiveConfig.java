@@ -102,7 +102,14 @@ public final class AsterionEmissiveConfig {
         return Math.min(requested, net.krodark.asterion.client.PerformanceGovernor.quality() + 1);
     }
 
-    public static boolean sceneBloomEnabled() { return values.sceneBloom; }
+    public static boolean sceneBloomEnabled() {
+        var client = net.minecraft.client.Minecraft.getInstance();
+        var level = client == null ? null : client.level;
+        boolean insideAsterion = level != null && (level.dimension().equals(Asterion.ASTERION_LEVEL)
+                || level.dimension().equals(Asterion.LIMBO_LEVEL));
+        return net.krodark.asterion.util.LightingPolicy.sceneBloom(
+                insideAsterion, values.sceneBloom, effectiveBloomQuality());
+    }
 
     public static float minotaurEyeStrength() {
         return values.minotaurEyeStrength;

@@ -1,0 +1,25 @@
+// Headless cache ownership checks; no game/world is created.
+allprojects {
+    afterEvaluate { p ->
+        if (p.name == '26.1.2-fabric') {
+            def compile = tasks.register('compileTextureCacheSmoke', JavaCompile) {
+                dependsOn tasks.named('classes')
+                source = rootProject.files('tools/TextureCacheLifecycleSmoke.java', 'tools/TextureFrameBudgetSmoke.java')
+                classpath = p.sourceSets.main.runtimeClasspath
+                destinationDirectory = layout.buildDirectory.dir('texture-cache-smoke')
+                javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+            ['TextureCacheLifecycleSmoke', 'TextureFrameBudgetSmoke'].each { test ->
+                tasks.register('check' + test, JavaExec) {
+                    dependsOn compile
+                    classpath = p.sourceSets.main.runtimeClasspath + files(compile.flatMap { it.destinationDirectory })
+                    mainClass = test
+                    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+                    systemProperty 'joml.nounsafe', 'true'
+                    jvmArgs '--enable-native-access=ALL-UNNAMED'
+                    workingDir = rootProject.projectDir
+                }
+            }
+        }
+    }
+}

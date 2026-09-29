@@ -12,9 +12,9 @@ import org.spongepowered.asm.mixin.injection.At;
 public abstract class AmneticBloomPerformanceMixin {
     @WrapOperation(method = "render", at = @At(value = "INVOKE",
             target = "Lcom/meekdev/amnetic/client/bloom/BloomSettings;threshold()F"))
-    private float asterion$skipSceneCaptureOnLow(BloomSettings settings, Operation<Float> original) {
-        // Low bloom uses explicit glow sources. Avoid a second scene color/depth
-        // copy and fullscreen prefilter just to find bright ordinary terrain.
-        return PortEmissiveConfig.effectiveBloomQuality() == 1 ? 0.0F : original.call(settings);
+    private float asterion$skipUnrequestedSceneCapture(BloomSettings settings, Operation<Float> original) {
+        // A positive threshold enables Amnetic's whole-scene fallback, even with all(false).
+        // Keep ordinary terrain out of bloom; explicit emitters retain their separate path.
+        return PortEmissiveConfig.sceneBloomEnabled() ? original.call(settings) : 0.0F;
     }
 }

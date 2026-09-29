@@ -1,0 +1,23 @@
+// Exercise actual NativeImage copies and cleanup without launching a game.
+allprojects {
+    afterEvaluate { p ->
+        if (p.name in ['1.20.1', '1.21.1']) {
+            def compile = tasks.register('compileTextureCacheSmoke', JavaCompile) {
+                dependsOn tasks.named('classes')
+                source = rootProject.files('tools/PortTextureFrameCacheSmoke.java')
+                classpath = p.sourceSets.main.runtimeClasspath
+                destinationDirectory = layout.buildDirectory.dir('texture-cache-smoke')
+                javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(21) }
+            }
+            tasks.register('checkTextureCache', JavaExec) {
+                dependsOn compile
+                classpath = p.sourceSets.main.runtimeClasspath + files(compile.flatMap { it.destinationDirectory })
+                mainClass = 'PortTextureFrameCacheSmoke'
+                javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
+                systemProperty 'joml.nounsafe', 'true'
+                jvmArgs '--enable-native-access=ALL-UNNAMED'
+                workingDir = rootProject.projectDir
+            }
+        }
+    }
+}

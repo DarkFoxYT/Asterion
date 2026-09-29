@@ -9,10 +9,10 @@ import net.minecraft.world.level.block.state.properties.SlabType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
-/** A shared river tunnel opens onto the shore of an unbounded subterranean sea. */
+/** A shared river tunnel opens onto the shore of an unbounded open sea. */
 public final class UnderworldTerrain {
     public static final int MIN_Y = -64;
-    public static final int MAX_Y = 159;
+    public static final int MAX_Y = 255;
     public static final int WATER_Y = 47;
     public static final int START_Z = -840;
     public static final int END_Z = 1024;
@@ -20,6 +20,25 @@ public final class UnderworldTerrain {
     public static final int SPAWN_X = (int)Math.floor(riverCenter(SPAWN_Z) - 15);
     public static final int SPAWN_Y = WATER_Y + 3;
     public static final int FERRY_Z = 58;
+    public static final int GATE_X = SPAWN_X;
+    public static final int GATE_Z = START_Z + 20;
+    public static final int GATE_Y = WATER_Y + 2;
+    public static final int GATE_WIDTH = 146;
+    public static final int GATE_DEPTH = 34;
+
+    /** The authored gate faces down the path toward the ferry. */
+    public static BlockPos entranceSpawn() {
+        return new BlockPos(SPAWN_X, WATER_Y + 2, SPAWN_Z);
+    }
+
+    private static double entranceRadius(int x, int z) {
+        return Math.hypot((x - GATE_X) / 96.0, (z - GATE_Z) / 88.0);
+    }
+
+    public static boolean gateFootprint(int x, int z) {
+        return x >= GATE_X - 73 && x <= GATE_X + 72
+                && z >= GATE_Z - 16 && z <= GATE_Z + 17;
+    }
     private static final int BRANCH_SPACING = 80;
 
     /** Branches use a fixed topology salt so teleport and web placement match chunk generation. */
@@ -37,10 +56,6 @@ public final class UnderworldTerrain {
         int z = b.centerZ + 21;
         int x = (int)Math.round(riverCenter(z) - 15 + b.side * b.reach);
         return new BlockPos(x, pathFloor(z) + 1, z);
-    }
-    public static BlockPos randomSpawn(java.util.UUID player) {
-        int slot = Math.floorMod(player.hashCode(), 4);
-        return chamberCenter(slot);
     }
     public static boolean inChamber(BlockPos pos) {
         if (pos.getZ() >= -42) return false;
@@ -97,7 +112,7 @@ public final class UnderworldTerrain {
                 Details d = details(seed, x, z, c);
                 double pool = puddleShape(seed, x, z);
                 int poolY = puddleWaterY(seed, z);
-                int torch = pillarHeight(seed, x, z, c);
+                int torch = gateFootprint(x, z) ? 0 : pillarHeight(seed, x, z, c);
                 double offset = x - riverCenter(z);
                 double pathDistance = Math.abs(x - (z >= 12 ? landingX(z) : riverCenter(z) - 15));
                 int pathPalette = pathMaterial(seed, x, z);
@@ -128,11 +143,11 @@ public final class UnderworldTerrain {
                         ? spireFacing(seed ^ 0xB16, x, z) : net.minecraft.core.Direction.NORTH;
                 for (int y = MIN_Y; y <= MAX_Y; y++) {
                     BlockState state;
-                    if (y == MIN_Y || y == MAX_Y) state = Blocks.BEDROCK.defaultBlockState();
+                    if (y == MIN_Y || y == MAX_Y && c.roof <= MAX_Y) state = Blocks.BEDROCK.defaultBlockState();
                     else if (!c.open || y <= c.floor || y >= c.roof) state = stone;
                     else if (z >= 18 && y <= WATER_Y) state = Blocks.WATER.defaultBlockState();
                     else state = Blocks.AIR.defaultBlockState();
-                    if (c.open && y > MIN_Y && y < MAX_Y) {
+                    if (c.open && y > MIN_Y) {
                         if (c.spider && y == c.roof && c.roof - c.floor > 5 && (texture & 3) == 0)
                             state = (shaded ? Asterion.SHADED_SHALE_SLAB : Asterion.SHALE_SLAB)
                                     .defaultBlockState().setValue(BlockStateProperties.SLAB_TYPE, SlabType.TOP);
@@ -327,8 +342,18 @@ public final class UnderworldTerrain {
         // Side chambers may cross the central tunnel, but their wet floor must not
         // cut a submerged trench through the dry route before the river mouth.
         if (z < 18 && tunnel && Math.abs(offset) <= 4) floor = Math.max(floor, WATER_Y + 1);
+        // Remove the entire sea cap, including top bedrock and hanging formations.
+        if (sea) roof = MAX_Y + 1;
+        double entrance = entranceRadius(x, z);
+        if (entrance < 1) {
+            open = true;
+            floor = WATER_Y + 1;
+            roof += (MAX_Y + 1 - roof) * smooth((1 - entrance) / .12);
+            path = true;
+        }
         int floorBlock = (int)Math.floor(floor);
-        return new Column(open, floorBlock, (int)Math.ceil(Math.min(MAX_Y - 1, roof)), path, side.open || spider.open);
+        return new Column(open, floorBlock, (int)Math.ceil(Math.min(MAX_Y + 1, roof)), path,
+                entrance >= 1 && (side.open || spider.open));
     }
 
     private record SideShape(boolean open, int floor, int roof) { }
@@ -492,7 +517,7 @@ public final class UnderworldTerrain {
     }
 
     private static boolean joinedPillar(long seed, int x, int z, Column c) {
-        if (!c.open || c.path || c.spider || z < START_Z + 32 || z > -24 || puddleShape(seed, x, z) <= 1.5) return false;
+        if (!c.open || c.roof > MAX_Y || c.path || c.spider || z < START_Z + 32 || z > -24 || puddleShape(seed, x, z) <= 1.5) return false;
         long cell = hash(seed ^ 0xC011, Math.floorDiv(z, 32), 0);
         int rootZ = Math.floorDiv(z, 32) * 32 + 12 + (int)(cell & 7);
         double rootX = riverCenter(rootZ) + ((cell & 8) == 0 ? -23 : 9);
@@ -529,7 +554,7 @@ public final class UnderworldTerrain {
 
     /** All placement decisions use world coordinates, never chunk-local randomness. */
     private static Details details(long seed, int x, int z, Column column) {
-        if (!column.open) return new Details(false, 0, 0, 0, false);
+        if (!column.open || entranceRadius(x, z) < 1) return new Details(false, 0, 0, 0, false);
         double offset = x - riverCenter(z);
         boolean mud = puddleShape(seed, x, z) <= 1.3;
         // Protect the entire approach, spawn and boat lane, including overhead clearance.
@@ -591,7 +616,7 @@ public final class UnderworldTerrain {
         rock = Math.min(rock, Math.max(0, clearance * 2 / 3));
         spike = rock == 0 ? 0 : Math.min(spike, Math.max(0, clearance - rock));
         hanging = Math.min(hanging, Math.max(0, clearance - rock - spike));
-        return new Details(mud, rock, spike, hanging, false);
+        return new Details(mud, rock, spike, column.roof > MAX_Y ? 0 : hanging, false);
     }
 
     /** Irregular shallow basins along the dry corridor, clear of the spawn and walking bank. */

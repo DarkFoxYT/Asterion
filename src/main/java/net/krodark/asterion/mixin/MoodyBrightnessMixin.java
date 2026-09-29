@@ -12,7 +12,11 @@ public abstract class MoodyBrightnessMixin {
     @ModifyExpressionValue(method = "extract", at = @At(value = "INVOKE",
             target = "Ljava/lang/Double;floatValue()F", ordinal = 0))
     private float asterion$brightness(float vanillaBrightness) {
-        int brightness = AsterionConfig.INSTANCE.brightnessPercent;
-        return brightness < 0 ? vanillaBrightness : Math.clamp(brightness, 0, 100) / 100F;
+        var client = net.minecraft.client.Minecraft.getInstance();
+        var level = client == null ? null : client.level;
+        boolean insideAsterion = level != null && (level.dimension().equals(net.krodark.asterion.Asterion.ASTERION_LEVEL)
+                || level.dimension().equals(net.krodark.asterion.Asterion.LIMBO_LEVEL));
+        return net.krodark.asterion.util.LightingPolicy.brightness(
+                insideAsterion, AsterionConfig.INSTANCE.brightnessPercent, vanillaBrightness);
     }
 }

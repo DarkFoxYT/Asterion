@@ -68,6 +68,8 @@ public final class PortClientFeatures {
         // alone does not make a custom item use the vanilla angle property.
         initializeNetworking();
         PortEmissiveConfig.load();
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STOPPING
+                .register(client -> PortTextureFrameCache.clearAll());
         net.krodark.asterion.port.client.particle.AnimatedEmissiveParticle.initialize();
         net.krodark.asterion.port.client.particle.AsterionEmissiveParticles.initialize();
         net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents.START.register(context -> {
@@ -151,6 +153,7 @@ public final class PortClientFeatures {
     }
 
     public static void tick(Minecraft client) {
+        PortTextureFrameCache.tick(client.level);
         PortEmissiveQueue.tick(client);
         PortLight.tickCleanup(client);
         PortHeldItemLights.tick(client);
