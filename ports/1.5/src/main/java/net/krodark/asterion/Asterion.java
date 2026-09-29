@@ -1042,18 +1042,20 @@ public static final com.mojang.serialization.MapCodec<MazeChunkGenerator>
                 GenerationStep.Decoration.VEGETAL_DECORATION, ANCIENT_HANGING_VINE_PLACED);
         BiomeModifications.addFeature(BiomeSelectors.includeByKey(Biomes.THE_VOID),
                 GenerationStep.Decoration.VEGETAL_DECORATION, TAINTED_PETALS_PLACED);
-        BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID),
-                MobCategory.CREATURE, BOMBARDIER_BEETLE, 12, 1, 3);
-        BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID),
-                MobCategory.CREATURE, SCARLET_CENTIPEDE, 5, 1, 1);
-        BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID,
-                ResourceKey.create(Registries.BIOME, id("catacombs"))),
-                MobCategory.MONSTER, CONSTRUCT, 1, 1, 1);
-        BiomeModifications.addSpawn(BiomeSelectors.includeByKey(CATACOMBS_BIOME),
-                MobCategory.MONSTER, net.krodark.asterion.game.AncientContent.SKELETON, 36, 1, 3);
-        BiomeModifications.addSpawn(BiomeSelectors.includeByKey(FORGE_BIOME,
-                        ResourceKey.create(Registries.BIOME, id("shale_caves"))),
-                MobCategory.MONSTER, net.krodark.asterion.game.AncientContent.SKELETON, 12, 1, 1);
+        AsterionRegistry.whenRegistered(() -> {
+            BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID),
+                    MobCategory.CREATURE, BOMBARDIER_BEETLE, 12, 1, 3);
+            BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID),
+                    MobCategory.CREATURE, SCARLET_CENTIPEDE, 5, 1, 1);
+            BiomeModifications.addSpawn(BiomeSelectors.includeByKey(Biomes.THE_VOID,
+                    ResourceKey.create(Registries.BIOME, id("catacombs"))),
+                    MobCategory.MONSTER, CONSTRUCT, 1, 1, 1);
+            BiomeModifications.addSpawn(BiomeSelectors.includeByKey(CATACOMBS_BIOME),
+                    MobCategory.MONSTER, net.krodark.asterion.game.AncientContent.SKELETON, 36, 1, 3);
+            BiomeModifications.addSpawn(BiomeSelectors.includeByKey(FORGE_BIOME,
+                            ResourceKey.create(Registries.BIOME, id("shale_caves"))),
+                    MobCategory.MONSTER, net.krodark.asterion.game.AncientContent.SKELETON, 12, 1, 1);
+        });
 
 
         ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {

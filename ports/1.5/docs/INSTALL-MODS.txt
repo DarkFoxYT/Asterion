@@ -10,8 +10,8 @@ Fabric/Quilt: Amnetic is embedded in Asterion. Do not install it separately.
 Forge 1.20.1 and 1.21.1: use the matching stageForgeBuild mods folder. It includes
 Asterion, Forge GeckoLib and Forgified Fabric API. Amnetic is embedded. Do not add
 Connector or a second Fabric API to this native Forge profile.
-The Forge 1.20.1 development client still has a dependency mapping failure;
-its staged production profile has not yet passed an in-game smoke run.
+Forge development-client startup is verified on both versions. Their staged
+production profiles still need a full gameplay playthrough.
 
 NeoForge 1.21.1: NeoForge 21.1.248. Use the two supplied JARs: Asterion and GeckoLib.
 This NeoForge beta still uses the older native Amnetic adapter and embedded Forgified Fabric API. Connector is not needed.

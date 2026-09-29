@@ -259,7 +259,7 @@ processResources {
                 forge_version: forgeVersion, geckolib_version: geckolibVersion
     }
     filesMatching('asterion.mixins.json') {
-            filter { line -> line.contains('net.krodark.asterion.mixin.') ? line : line }
+            filter { line -> legacy ? line.replace('JAVA_21', 'JAVA_17') : line }
             filter { line ->
                 def name = line.trim().replaceAll('[",]', '')
                 def absent = [
@@ -285,6 +285,7 @@ processResources {
                         'PortRagdollRenderMixin', 'PortSpriteInterpolationMixin',
                         'RagdollClientUseGuardMixin'
                 ]
+                if (legacy) absent.add('PortModelCubeAccessor')
                 absent.any { name == it || name.endsWith('.' + it) } ? '' : line
             }
     }

@@ -10,6 +10,11 @@ From the repository root, run
 every configured target. `-Offline` uses cached dependencies only. Each individual
 Gradle build also copies its finished Asterion jar here automatically.
 
+Use `-Release 1.5` to build only the compatibility release: Minecraft 1.20.1,
+1.21.1, and 26.1.2 on Fabric, Quilt, Forge, and NeoForge (12 jars). This also
+runs `tools/verify-v15-release.py` with Python 3.11+ to check archive integrity,
+loader entrypoints, mixin classes and Java levels, and embedded dependencies.
+
 The `1.5` jars are built from `ports/1.5`; the `2.0.0` jars are built from the
 Underworld source at the repository root. The older Minecraft 1.20.1 and 1.21.1
 Quilt jars use the Fabric-compatible code but carry Quilt-labelled filenames.
@@ -19,3 +24,6 @@ works. The development clients now start for 1.20.1 Forge and NeoForge and
 1.21.1 Forge. Fabric and Quilt client smoke suites passed on both older
 Minecraft versions, and the 1.21.1 NeoForge client smoke suite passed. The
 packaged Forge jars have not yet had an in-game playthrough.
+
+See [the 1.5 validation report](../ports/1.5/docs/RELEASE-VALIDATION-2026-09-29.md)
+for the current build matrix, runtime coverage, fixes, and reproduction commands.

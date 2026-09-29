@@ -1,4 +1,7 @@
-param([switch] $Offline)
+param(
+    [switch] $Offline,
+    [ValidateSet('all', '1.5', '2.0.0')][string] $Release = 'all'
+)
 
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -27,10 +30,13 @@ function Invoke-Build([string] $directory, [string[]] $targets, [int] $javaVersi
     }
 }
 
+if ($Release -in @('all', '2.0.0')) {
 Invoke-Build $repo @(
     ':26.1.2-fabric:build', ':26.1.2-quilt:build',
     ':26.1.2-forge:build', ':26.1.2-neoforge:build'
  ) 25
+}
+if ($Release -in @('all', '1.5')) {
 $v15 = Join-Path $repo 'ports/1.5'
 Invoke-Build $v15 @(
     ':1.20.1:build', ':1.21.1:build',
@@ -41,5 +47,8 @@ Invoke-Build (Join-Path $v15 'ports/26.1.2') @(
     ':26.1.2-fabric:build', ':26.1.2-quilt:build',
     ':26.1.2-forge:build', ':26.1.2-neoforge:build'
  ) 25
-& (Join-Path $PSScriptRoot 'verify-modbuilds.ps1')
+& python (Join-Path $PSScriptRoot 'verify-v15-release.py')
+if ($LASTEXITCODE -ne 0) { throw 'Asterion 1.5 package validation failed.' }
+}
+& (Join-Path $PSScriptRoot 'verify-modbuilds.ps1') -Release $Release
 Write-Output "Asterion jars: $(Join-Path $repo 'modbuilds')"

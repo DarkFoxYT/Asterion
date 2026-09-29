@@ -152,6 +152,9 @@ tasks.named('jar', Jar) {
     }
 }
 sourceSets { polishSmoke {
+    java.srcDir rootProject.file('neoforge/src/polishSmoke/java')
+    java.exclude '**/FabricPolishEntrypoint.java'
+    resources.setSrcDirs([rootProject.file('neoforge/src/polishSmoke/resources')])
     compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
     runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
 } }
@@ -169,7 +172,9 @@ neoForge {
 
 
 def polishHarness = tasks.register('polishHarnessJar', Jar) {
-    from sourceSets.polishSmoke.output
+    from(sourceSets.polishSmoke.output) {
+        include 'net/krodark/asterion/test/**', 'META-INF/neoforge.mods.toml'
+    }
     archiveClassifier = 'polish-tests'
     destinationDirectory = layout.buildDirectory.dir('test-harness')
 }

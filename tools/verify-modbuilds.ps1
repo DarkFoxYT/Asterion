@@ -1,7 +1,10 @@
+param([ValidateSet('all', '1.5', '2.0.0')][string] $Release = 'all')
+
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $shelf = Join-Path (Resolve-Path (Join-Path $PSScriptRoot '..')).Path 'modbuilds'
-$jars = @(Get-ChildItem -LiteralPath $shelf -File -Filter 'Asterion-*.jar')
+$pattern = if ($Release -eq 'all') { 'Asterion-*.jar' } else { "Asterion-$Release-*.jar" }
+$jars = @(Get-ChildItem -LiteralPath $shelf -File -Filter $pattern)
 if ($jars.Count -eq 0) { throw "No Asterion jars found in $shelf" }
 
 foreach ($file in $jars) {

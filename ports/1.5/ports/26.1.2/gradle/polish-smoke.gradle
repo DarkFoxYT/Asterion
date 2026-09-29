@@ -8,10 +8,21 @@ loom {
     runs { polishSmokeClient {
         client()
         source sourceSets.polishSmoke
-        mainClass = "net.fabricmc.loader.impl.launch.knot.KnotClient"
-        runDir "build/run/polish-smoke"
+        mainClass = project.name.endsWith('-quilt')
+                ? "org.quiltmc.loader.impl.launch.knot.KnotClient"
+                : "net.fabricmc.loader.impl.launch.knot.KnotClient"
+        runDir(project.name.endsWith('-quilt') ? "build/run/quilt" : "build/run/polish-smoke")
         vmArg '-Dasterion.polishSmoke=true'
         ideConfigGenerated = false
     } }
+}
+
+if (project.name.endsWith('-quilt')) {
+    def harness = tasks.register('quiltPolishHarnessJar', Jar) {
+        from sourceSets.polishSmoke.output
+        archiveClassifier = 'polish-tests'
+        destinationDirectory = layout.buildDirectory.dir('test-harness')
+    }
+    tasks.named('prepareQuiltRunMods', Sync).configure { from harness }
 }
 

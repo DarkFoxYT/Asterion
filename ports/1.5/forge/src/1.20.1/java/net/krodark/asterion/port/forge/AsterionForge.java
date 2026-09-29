@@ -29,6 +29,8 @@ public final class AsterionForge {
         modBus.addListener(AsterionForge::initializeSharedContent);
         modBus.addListener(AsterionForge::registerSpawnPlacements);
         modBus.addListener(AsterionForge::registerPending);
+        modBus.addListener((net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent event) ->
+                event.enqueueWork(AsterionRegistry::runAfterRegistration));
         AsterionRegistry.defer();
         bootstrapSharedContent();
     }

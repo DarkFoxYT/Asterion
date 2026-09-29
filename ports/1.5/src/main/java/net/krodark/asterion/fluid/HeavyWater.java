@@ -21,7 +21,7 @@ public final class HeavyWater {
     public static final HeavyWaterFluid FLOWING = AsterionRegistry.register(BuiltInRegistries.FLUID,
             Asterion.id("flowing_heavy_water"), new HeavyWaterFluid.Flowing());
     public static final net.minecraft.world.level.block.LiquidBlock WATER_BLOCK = AsterionRegistry.register(BuiltInRegistries.BLOCK,
-            Asterion.id("heavy_water"), new net.minecraft.world.level.block.LiquidBlock(STILL, BlockBehaviour.Properties.of()
+            Asterion.id("heavy_water"), waterBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.WATER).replaceable().noCollission().noLootTable().liquid().strength(100)));
     public static final TidalWaterFluid FLUID = AsterionRegistry.register(BuiltInRegistries.FLUID,
             Asterion.id("heavy_water_layer"), new TidalWaterFluid());
@@ -30,8 +30,24 @@ public final class HeavyWater {
                     .mapColor(MapColor.WATER).replaceable().noCollission().noOcclusion()
                     .strength(100).noLootTable().liquid()));
     public static final Item BUCKET = AsterionRegistry.register(BuiltInRegistries.ITEM,
-            Asterion.id("heavy_water_bucket"), new BucketItem(STILL, new net.krodark.asterion.port.compat.ItemProperties()
+            Asterion.id("heavy_water_bucket"), waterBucket(new net.krodark.asterion.port.compat.ItemProperties()
                     .craftRemainder(Items.BUCKET).stacksTo(1)));
+    // Forge queues registry writes until RegisterEvent. Its direct constructors
+    // look up delegates immediately, before those queued fluids are registered.
+    private static net.minecraft.world.level.block.LiquidBlock waterBlock(BlockBehaviour.Properties properties) {
+        //? if forge {
+        /*return new net.minecraft.world.level.block.LiquidBlock(() -> STILL, properties);
+        *///?} else {
+        return new net.minecraft.world.level.block.LiquidBlock(STILL, properties);
+        //?}
+    }
+    private static BucketItem waterBucket(Item.Properties properties) {
+        //? if forge {
+        /*return new BucketItem(() -> STILL, properties);
+        *///?} else {
+        return new BucketItem(STILL, properties);
+        //?}
+    }
     private HeavyWater() { }
     public static void initialize() { HeavyWaterlogging.ready = true; }
 }
