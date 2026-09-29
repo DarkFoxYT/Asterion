@@ -140,6 +140,9 @@ public final class SpiderSurfaceRoute {
             List<AABB> nearby=blocks.stream().filter(bounds::intersects).toList();
             int last=index;
             for(int candidate=index+1;candidate<Math.min(raw.size(),index+7);candidate++) {
+                // Retain the approach/exit grips at a corner. Pulling a string
+                // across several faces gives the body no time to orient to them.
+                if(raw.get(candidate).face()!=raw.get(index).face())break;
                 Vec3 step=raw.get(candidate).center().subtract(body.getCenter());
                 if(step.length()>2 || !clear(nearby,body,step))break;
                 boolean supported=true;

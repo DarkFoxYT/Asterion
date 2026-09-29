@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "asterion:ancient_moss"
+    "asterion:ancient_moss",
+    "asterion:overgrown_deadstone"
   ]
 }

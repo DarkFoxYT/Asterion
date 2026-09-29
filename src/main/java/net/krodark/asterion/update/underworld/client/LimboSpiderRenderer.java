@@ -99,11 +99,14 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
         if (pose.heading.lengthSqr() < .001) pose.heading = SpiderSurfaceMotion.heading(face,Vec3.ZERO,Vec3.ZERO,false);
         pose.heading = pose.heading.normalize();
         float turn=pose.headingOld==null?0:(float)Math.atan2(normal.dot(pose.headingOld.cross(pose.heading)),pose.headingOld.dot(pose.heading));
-        float abdomenY=(float)Math.clamp(-turn*.65,-.22,.22);
+        float turnRate=delta>.001F?turn/delta:0;
+        float abdomenY=(float)Math.clamp(-turnRate*.65,-.22,.22);
         float abdomenX=(float)Math.clamp(-spider.getDeltaMovement().length()*.045,-.12,.12);
         Player prey=spider.level().getNearestPlayer(spider,32);
         float headY=0,headX=0;
-        if(prey!=null && (spider.camouflaged() || spider.state()==LimboSpiderEntity.State.HUNTING)) {
+        if(prey!=null && (spider.camouflaged() || spider.state()==LimboSpiderEntity.State.HUNTING
+                || spider.state()==LimboSpiderEntity.State.ATTACKING || spider.state()==LimboSpiderEntity.State.STALKING
+                || spider.state()==LimboSpiderEntity.State.LUNGING)) {
             Vec3 toward=prey.getEyePosition().subtract(spider.position()).normalize();
             Vec3 right=pose.heading.cross(normal).normalize();
             headY=(float)Math.clamp(Math.atan2(toward.dot(right),toward.dot(pose.heading)),-.48,.48);

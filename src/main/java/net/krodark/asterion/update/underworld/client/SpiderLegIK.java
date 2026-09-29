@@ -101,7 +101,10 @@ public final class SpiderLegIK {
                 || frame.age < memory.age || frame.age-memory.age > 5;
         if (update) {
             double elapsed = Math.max(.0001,frame.age-memory.age);
-            memory.velocity = reset ? Vec3.ZERO : frame.origin.subtract(memory.origin).scale(1/elapsed);
+            Vec3 measured=reset?Vec3.ZERO:frame.origin.subtract(memory.origin).scale(1/elapsed);
+            // Network catch-up and support settling must not kick the feet ahead.
+            if(measured.length()>.6)measured=measured.normalize().scale(.6);
+            memory.velocity=reset?Vec3.ZERO:memory.velocity.lerp(measured,1-Math.pow(.35,elapsed));
             if (reset) java.util.Arrays.fill(memory.destinations,null);
             memory.gait.beginFrame(memory.destinations);
         }
@@ -151,12 +154,25 @@ public final class SpiderLegIK {
                 // A wide foot may overhang the voxel stair recess. Search slightly
                 // inward, within the leg's reach, instead of letting it dangle.
                 Vec3 hip=toWorld(world,new Vector3f(pivots[0]),frame.origin);
-                Vec3 inset=nominal.lerp(hip,.22);
-                var nearby=frame.spider.level().clip(new ClipContext(inset.add(probeUp.scale(1.2*frame.spider.spiderScale())),
-                        inset.subtract(probeUp.scale(1.6*frame.spider.spiderScale())),ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,frame.spider));
-                if(nearby.getType()!=HitResult.Type.MISS) {
-                    contact=true; contactNormal=nearby.getDirection().getUnitVec3();
-                    target=nearby.getLocation().add(contactNormal.scale(.035));
+                for(double insetAmount:new double[]{.22,.45}) {
+                    Vec3 inset=nominal.lerp(hip,insetAmount);
+                    var nearby=frame.spider.level().clip(new ClipContext(inset.add(probeUp.scale(1.2*frame.spider.spiderScale())),
+                            inset.subtract(probeUp.scale(1.6*frame.spider.spiderScale())),ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,frame.spider));
+                    if(nearby.getType()!=HitResult.Type.MISS) {
+                        contact=true; contactNormal=nearby.getDirection().getUnitVec3();
+                        target=nearby.getLocation().add(contactNormal.scale(.035));break;
+                    }
+                }
+                if(!contact) {
+                    // On convex corners a neighboring face is outside the current
+                    // normal ray. Reach from the hip toward the searching foot.
+                    Vec3 reach=nominal.subtract(hip).normalize();
+                    var edge=frame.spider.level().clip(new ClipContext(hip,nominal.add(reach.scale(.25)),
+                            ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,frame.spider));
+                    if(edge.getType()!=HitResult.Type.MISS) {
+                        contact=true;contactNormal=edge.getDirection().getUnitVec3();
+                        target=edge.getLocation().add(contactNormal.scale(.035));
+                    }
                 }
             }
             // At a wall/floor junction the lower legs must also see the floor;
@@ -188,10 +204,10 @@ public final class SpiderLegIK {
             if (update) {
                 Vec3 old = memory.feet[leg];
                 Vec3 plantedNormal=memory.contactNormals[leg]==null?probeUp:memory.contactNormals[leg];
-                boolean supported = old == null || memory.destinations[leg] != null
+                boolean supported = old != null && (memory.destinations[leg] != null
                         || frame.spider.level().clip(new ClipContext(old.add(plantedNormal.scale(.12)),old.subtract(plantedNormal.scale(.12)),
                         ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,frame.spider)).getType() != HitResult.Type.MISS
-                        || frame.spider.onWeb() && LimboWebWorldRenderer.spiderContact(old,.2) != null;
+                        || frame.spider.onWeb() && LimboWebWorldRenderer.spiderContact(old,.2) != null);
                 if(supported)memory.unsupportedSince[leg]=-1;
                 else if(memory.unsupportedSince[leg]<0)memory.unsupportedSince[leg]=frame.age;
                 boolean released=!supported && frame.age-memory.unsupportedSince[leg]>=(frame.spider.onWeb()?0:2);
@@ -200,17 +216,17 @@ public final class SpiderLegIK {
                     Vec3 movingSilk=LimboWebWorldRenderer.spiderContact(old,.3);
                     if(movingSilk!=null){old=movingSilk.add(probeUp.scale(.025));memory.feet[leg]=old;}
                 }
-                if (reset || old == null || released || !contact && !frame.spider.hasSurfaceSupport() && !frame.spider.onGround() && !frame.spider.onWeb() || old.distanceToSqr(target) > 3.24*frame.spider.spiderScale()*frame.spider.spiderScale()) {
+                if (reset || old == null || !contact && (released || !frame.spider.hasSurfaceSupport() && !frame.spider.onGround() && !frame.spider.onWeb())
+                        || old.distanceToSqr(target) > 3.24*frame.spider.spiderScale()*frame.spider.spiderScale()) {
                     memory.feet[leg] = !contact && old!=null && !reset
                             ? old.lerp(target,1-Math.pow(.35,Math.clamp(frame.age-memory.age,0,2))) : target;
                     memory.destinations[leg] = null;
                     memory.contactNormals[leg]=contactNormal;
                 } else {
-                    if (contact && memory.destinations[leg] == null && needsStep(old,target,probeUp,frame.spider.spiderScale())
+                    if (contact && memory.destinations[leg] == null && (released || needsStep(old,target,probeUp,frame.spider.spiderScale()))
                             && memory.gait.canStart(leg)) {
                         memory.starts[leg] = old; memory.destinations[leg] = target; memory.stepStart[leg] = frame.age;
                         memory.stepDuration[leg] = (float)Math.clamp(.65*frame.spider.spiderScale()/Math.max(.01,velocity.length()),2.4,4);
-                        memory.contactNormals[leg]=contactNormal;
                     }
                     if (memory.destinations[leg] != null) {
                         double t = Math.clamp((frame.age-memory.stepStart[leg])/memory.stepDuration[leg],0,1);
@@ -220,7 +236,9 @@ public final class SpiderLegIK {
                         if(contact && t<.7)
                             memory.destinations[leg]=memory.destinations[leg].lerp(target,
                                     1-Math.pow(.3,Math.clamp(frame.age-memory.age,0,2)));
-                        memory.feet[leg] = swingFoot(memory.starts[leg],memory.destinations[leg],probeUp,t,frame.spider.spiderScale());
+                        Vec3 liftUp=plantedNormal.lerp(contactNormal,t*t*(3-2*t));
+                        if(liftUp.lengthSqr()<.01)liftUp=probeUp;
+                        memory.feet[leg] = swingFoot(memory.starts[leg],memory.destinations[leg],liftUp.normalize(),t,frame.spider.spiderScale());
                         // Check the actual terrain along the swing, not just its
                         // destination: a tread can lie above both endpoints.
                         Vec3 swing=memory.feet[leg];
@@ -228,9 +246,13 @@ public final class SpiderLegIK {
                                 swing,ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,frame.spider));
                         if(obstacle.getType()!=HitResult.Type.MISS)
                             memory.feet[leg]=obstacle.getLocation().add(probeUp.scale(.06));
-                        if (t >= 1) memory.destinations[leg] = null;
+                        if (t >= 1) {
+                            memory.destinations[leg] = null;
+                            memory.contactNormals[leg]=contactNormal;
+                        }
                     }
                 }
+                if(!supported && memory.destinations[leg]==null && old!=null && !reset)contact=false;
                 if(supported && memory.destinations[leg]==null) {
                     contact=true;contactNormal=memory.contactNormals[leg]==null?probeUp:memory.contactNormals[leg];
                 }
@@ -336,7 +358,9 @@ public final class SpiderLegIK {
 
     /** Bounded CCD preserves the authored knee bends and never stretches a segment. */
     static void solve(Vector3f[] pivots, Vector3f[] rest, Vector3f[] angles, Vector3f tip, Vector3f target) {
-        for (int iteration=0;iteration<18;iteration++) {
+        Vector3f[] best={new Vector3f(angles[0]),new Vector3f(angles[1]),new Vector3f(angles[2])};
+        float bestError=endpoint(pivots,angles,tip).distanceSquared(target);
+        for (int iteration=0;iteration<24;iteration++) {
             if (endpoint(pivots,angles,tip).distanceSquared(target) < .0004F) break;
             for (int j=2;j>=0;j--) {
                 Matrix4f parent = new Matrix4f();
@@ -355,7 +379,13 @@ public final class SpiderLegIK {
                     angles[j].setComponent(axis,rest[j].get(axis)+Math.clamp(difference,-.85F,.85F));
                 }
             }
+            float error=endpoint(pivots,angles,tip).distanceSquared(target);
+            if(error<bestError) {
+                bestError=error;
+                for(int j=0;j<3;j++)best[j].set(angles[j]);
+            }
         }
+        for(int j=0;j<3;j++)angles[j].set(best[j]);
     }
     private static void rotate(Matrix4f matrix, Vector3f pivot, Vector3f angles) {
         matrix.translate(pivot).rotateZYX(angles.z,angles.y,angles.x).translate(-pivot.x,-pivot.y,-pivot.z);

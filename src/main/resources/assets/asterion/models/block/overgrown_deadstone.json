@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "side": "asterion:block/overgrown_deadstone_side",
+    "top": "asterion:block/overgrown_deadstone_top",
+    "bottom": "asterion:block/overgrown_deadstone_top"
+  }
+}

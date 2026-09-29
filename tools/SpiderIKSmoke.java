@@ -93,6 +93,18 @@ public final class SpiderIKSmoke {
             }
         }
         checkWalkingGait();
+        // A foot crossing from floor to wall lifts outside both contact planes.
+        var floorUp=new net.minecraft.world.phys.Vec3(0,1,0);
+        var wallUp=new net.minecraft.world.phys.Vec3(1,0,0);
+        var cornerFrom=new net.minecraft.world.phys.Vec3(.4,0,0);
+        var cornerTo=new net.minecraft.world.phys.Vec3(0,.4,0);
+        for(int frame=0;frame<=100;frame++) {
+            double t=frame/100.0;
+            var up=floorUp.lerp(wallUp,t*t*(3-2*t)).normalize();
+            var foot=SpiderLegIK.swingFoot(cornerFrom,cornerTo,up,t,1.5);
+            if(foot.x<-.000001 || foot.y<-.000001 || !Double.isFinite(foot.length()))
+                throw new AssertionError("Corner swing enters floor/wall or loses its normal");
+        }
         for(net.minecraft.core.Direction face:net.minecraft.core.Direction.values()) {
             var up=face.getUnitVec3();
             var across=face.getAxis()==net.minecraft.core.Direction.Axis.X

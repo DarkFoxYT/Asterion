@@ -6,6 +6,15 @@ import net.minecraft.world.phys.Vec3;
 /** Pure steering rules shared by the crawler and its movement regression checks. */
 public final class SpiderSurfaceMotion {
     private SpiderSurfaceMotion() { }
+    /** Short, bounded pursuit lead; close-range attacks aim at the current body. */
+    public static Vec3 intercept(Vec3 hunter,Vec3 prey,Vec3 velocity,double speed) {
+        double distance=hunter.distanceTo(prey);
+        if(distance<2 || velocity.lengthSqr()<.0001)return prey;
+        double ticks=Math.clamp((distance-2)/Math.max(.12,speed),0,6);
+        Vec3 lead=velocity.multiply(1,.35,1).scale(ticks);
+        if(lead.length()>1.5)lead=lead.normalize().scale(1.5);
+        return prey.add(lead);
+    }
     public static Vec3 tangent(Direction surface, Vec3 vector) {
         Vec3 normal = surface.getUnitVec3();
         return vector.subtract(normal.scale(vector.dot(normal)));

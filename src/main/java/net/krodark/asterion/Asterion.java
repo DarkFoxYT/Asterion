@@ -285,6 +285,11 @@ public class Asterion implements ModInitializer {
             "tainted_heart", MapColor.COLOR_RED,
             properties -> new PassionBloomBlock(properties.noCollision().instabreak()
                     .sound(SoundType.SWEET_BERRY_BUSH).noOcclusion()));
+    public static final Block OVERGROWN_DEADSTONE = registerBlock("overgrown_deadstone", MapColor.TERRACOTTA_BROWN,
+            properties -> new Block(properties.requiresCorrectToolForDrops()));
+    public static final Block ANCIENT_GRASS = registerBlock("ancient_grass", MapColor.TERRACOTTA_YELLOW,
+            properties -> new ShortGrassBlock(properties.noCollision().replaceable().instabreak()
+                    .sound(SoundType.GRASS).offsetType(BlockBehaviour.OffsetType.XZ)));
     public static final Block SHORT_GRASS = registerBlock("short_grass", MapColor.PLANT,
             properties -> new ShortGrassBlock(properties.noCollision().replaceable().instabreak()
                     .sound(SoundType.GRASS).offsetType(BlockBehaviour.OffsetType.XZ)));
@@ -737,6 +742,8 @@ public class Asterion implements ModInitializer {
                         output.accept(TAINTED_LEAVES);
                         output.accept(TAINTED_PETALS);
                         output.accept(SHORT_GRASS);
+                        output.accept(ANCIENT_GRASS);
+                        output.accept(OVERGROWN_DEADSTONE);
                         output.accept(ANCIENT_STONE_SLAB);
                         output.accept(ANCIENT_STONE_STAIRS);
                         output.accept(ANCIENT_STONE_WALL);

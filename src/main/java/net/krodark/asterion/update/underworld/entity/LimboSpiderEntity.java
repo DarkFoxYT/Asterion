@@ -191,13 +191,15 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
         // Bound aggregate work; existing routes keep moving while others wait.
         if(budget[1]>=2) { routeRetry=tickCount+1+Math.floorMod(getId()+tickCount,5);return false; }
         budget[1]++;
-        routeRetry=tickCount+25+Math.floorMod(getId(),15);
+        routeRetry=tickCount+(state()==State.HUNTING || state()==State.ATTACKING?10:25)+Math.floorMod(getId(),5);
         return true;
     }
     private boolean planSurfaceRoute(Vec3 goal) {
         if(!mayPlanRoute())return false;
         var blocks=BugSurfaces.collectCollision(level(),getBoundingBox().inflate(13));
         var planned=SpiderSurfaceRoute.navigate(blocks,getBoundingBox(),attachedSurface(),goal.add(0,getBbHeight()*.5,0));
+        // A failed/budget-limited refresh must not destroy a usable pursuit route.
+        if(planned.isEmpty())return false;
         surfaceRoute.clear();
         surfaceRoute.addAll(planned);
         routeGoal=goal;
@@ -344,8 +346,16 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
         return !onWeb() && touching(attachedSurface());
     }
     private Vec3 huntDestination(Player player) {
-        if (!level().dimension().equals(net.krodark.asterion.Asterion.LIMBO_LEVEL)
-                || !UnderworldTerrain.isMainPath(player.getX(),player.getZ())) return player.position();
+        Vec3 intercept=SpiderSurfaceMotion.intercept(position(),player.position(),player.getDeltaMovement(),.32*crawlSpeed);
+        // Prediction cannot carry the target through a wall or onto the protected path.
+        var sight=level().clip(new net.minecraft.world.level.ClipContext(player.position().add(0,.3,0),
+                intercept.add(0,.3,0),net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                net.minecraft.world.level.ClipContext.Fluid.NONE,this));
+        if(sight.getType()!=net.minecraft.world.phys.HitResult.Type.MISS)intercept=player.position();
+        boolean limbo=level().dimension().equals(net.krodark.asterion.Asterion.LIMBO_LEVEL);
+        if(!limbo)return intercept;
+        if(!UnderworldTerrain.isMainPath(player.getX(),player.getZ()))
+            return UnderworldTerrain.isMainPath(intercept.x,intercept.z)?player.position():intercept;
         Vec3 home = Vec3.atBottomCenterOf(nest);
         // Keep the provoker targeted while respecting the protected main path.
         for (int step = 1; step <= 32; step++) {
@@ -360,10 +370,14 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
         if (marked != null && marked.level() == level && marked.isAlive() && !marked.isSpectator()
                 && !marked.getAbilities().instabuild && tickCount < huntUntil
                 && distanceToSqr(marked) < 64*64) return marked;
-        Player nearest = level.getNearestPlayer(this,42);
-        return nearest != null && !nearest.isSpectator() && !nearest.getAbilities().instabuild
-                && !UnderworldTerrain.isMainPath(nearest.getX(),nearest.getZ())
-                && nearest.distanceToSqr(nest.getX()+.5,nest.getY(),nest.getZ()+.5)<42*42 ? nearest : null;
+        // Filter before choosing the closest player: a nearby spectator/creative
+        // player must not mask a valid survival target standing just behind them.
+        return level.players().stream().filter(candidate -> candidate.isAlive() && !candidate.isSpectator()
+                && !candidate.getAbilities().instabuild && distanceToSqr(candidate)<42*42
+                && (!level.dimension().equals(net.krodark.asterion.Asterion.LIMBO_LEVEL)
+                    || !UnderworldTerrain.isMainPath(candidate.getX(),candidate.getZ()))
+                && candidate.distanceToSqr(nest.getX()+.5,nest.getY(),nest.getZ()+.5)<42*42)
+                .min(java.util.Comparator.comparingDouble(this::distanceToSqr)).orElse(null);
     }
     private boolean seenBy(Player player) {
         Vec3 toward = getEyePosition().subtract(player.getEyePosition());
@@ -394,11 +408,17 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
             }
         }
     }
+    private double movementPace() {
+        return state()==State.HUNTING || state()==State.ATTACKING || state()==State.LUNGING?1:pace;
+    }
     private boolean touching(Direction face) {
         return face==attachedSurface() && smoothSupport!=null
                 || !BugSurfaces.collectCollision(level(),getBoundingBox().move(face.getUnitVec3().scale(.36))).isEmpty();
     }
     @Override public void travel(Vec3 input) {
+        if(!level().isClientSide() && state()==State.LUNGING) {
+            setNoGravity(false);super.travel(input);return;
+        }
         if (!level().isClientSide() && onWeb() && !webStillSupports()) {
             webReleaseUntil=tickCount+16;
             detach();
@@ -486,6 +506,10 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
             }
             setNoGravity(smoothSupport!=null); setDeltaMovement(Vec3.ZERO); return;
         }
+        // The attack state owns its ballistic impulse; crawling must not erase it.
+        if(mode==State.LUNGING) {
+            getNavigation().stop();setNoGravity(false);return;
+        }
         Direction surface = attachedSurface();
         Vec3 goal = surfaceGoal;
         if (tickCount < attackDropUntil && !onGround()) {
@@ -495,7 +519,9 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
             supportMotion = false;
             return;
         }
-        if(goal!=null && routeGoal!=null && goal.distanceToSqr(routeGoal)>4)surfaceRoute.clear();
+        // Keep the committed corridor while a moving target waits for its replan.
+        if(goal!=null && routeGoal!=null && goal.distanceToSqr(routeGoal)>2.25 && !surfaceRoute.isEmpty())
+            planSurfaceRoute(goal);
         if(!surfaceRoute.isEmpty()) {
             if(goal!=null && !isInWater() && !isInLava() && followSurfaceRoute())return;
             surfaceRoute.clear();
@@ -548,7 +574,9 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
             getNavigation().stop(); setNoGravity(true); resetFallDistance();
             if (tangent.lengthSqr() > .16 && goal != null) {
                 crawlHeading = SpiderSurfaceMotion.turn(smoothSupport.outward(),crawlHeading,tangent,.42);
-                Vec3 step=crawlHeading.scale(.32*crawlSpeed*pace);
+                double alignment=Math.clamp((crawlHeading.dot(tangent.normalize())-.15)/.85,0,1);
+                double arrival=Math.min(1,tangent.length()/.8);
+                Vec3 step=crawlHeading.scale(.32*crawlSpeed*movementPace()*alignment*arrival);
                 if(surface!=Direction.DOWN || horizontalCollision) {
                     step=surfaceStep(step,surface);
                     if(!surfaceRoute.isEmpty() && followSurfaceRoute())return;
@@ -628,7 +656,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
         }
         tangent = tangent.normalize();
         crawlHeading = tangent;
-        double speed = .32 * crawlSpeed * pace;
+        double speed = .32 * crawlSpeed * movementPace();
         setDeltaMovement(tangent.scale(speed).add(normal.scale(.06)));
         if (tangent.horizontalDistanceSqr() > .015) {
             float yaw = (float)(Mth.atan2(tangent.z,tangent.x)*Mth.RAD_TO_DEG)-90;
@@ -692,9 +720,20 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
     }
 
     private Vec3 surfaceStep(Vec3 desired,Direction face) {
-        if(supportedStep(desired,face))
-            return desired;
-        if(surfaceGoal!=null)planSurfaceRoute(surfaceGoal);
+        if(supportedStep(desired,face))return desired;
+        if(surfaceGoal!=null && planSurfaceRoute(surfaceGoal))return Vec3.ZERO;
+        // While a route waits for its budget, slide around small obstructions
+        // on the current face instead of freezing against their collision box.
+        Vec3 normal=face.getUnitVec3();
+        Vec3 side=normal.cross(desired).normalize();
+        Vec3 best=Vec3.ZERO;
+        double bestProgress=0;
+        for(double amount:new double[]{.45,-.45,.8,-.8}) {
+            Vec3 candidate=desired.add(side.scale(desired.length()*amount)).normalize().scale(desired.length());
+            double progress=surfaceGoal==null?candidate.dot(desired):candidate.dot(surfaceGoal.subtract(position()).normalize());
+            if(progress>bestProgress && supportedStep(candidate,face)) {best=candidate;bestProgress=progress;}
+        }
+        if(best.lengthSqr()>.001)return best;
         return Vec3.ZERO;
     }
     private boolean followSurfaceRoute() {
@@ -704,7 +743,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
         if(surfaceRoute.isEmpty()) { refreshSupport();return false; }
         // Carry speed across collinear nodes instead of slowing to the small
         // remainder at every grid cell (the old stop/go "rollback" appearance).
-        double speed=.26*crawlSpeed*pace;
+        double speed=.26*crawlSpeed*movementPace();
         while(surfaceRoute.size()>1) {
             var iterator=surfaceRoute.iterator();
             var first=iterator.next();var second=iterator.next();
@@ -772,7 +811,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
                 if (axis.dot(wanted) < 0) axis = axis.scale(-1);
                 if(!current && !resting && axis.dot(wanted.normalize())<.45)continue;
                 // Keep the body above horizontal silk, with a stable side on vertical threads.
-                double advance=resting?0:.25*crawlSpeed*pace/ab.length();
+                double advance=resting?0:.25*crawlSpeed*movementPace()/ab.length();
                 double nextAlong=Math.clamp(along+(axis.dot(ab)>0?advance:-advance),0,1);
                 boolean landing=current && (axis.dot(ab)>0?along>.85:along<.15);
                 if(landing) {

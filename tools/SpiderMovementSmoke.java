@@ -14,6 +14,16 @@ import java.util.List;
 public final class SpiderMovementSmoke {
     public static void main(String[] args) {
         int checks = 0;
+        require(SpiderSurfaceMotion.intercept(Vec3.ZERO,new Vec3(1,0,0),new Vec3(.3,0,0),.4)
+                .equals(new Vec3(1,0,0)),"Close pursuit overshoots attack reach");
+        require(SpiderSurfaceMotion.intercept(Vec3.ZERO,new Vec3(10,0,0),Vec3.ZERO,.4)
+                .equals(new Vec3(10,0,0)),"Stationary target receives artificial lead");
+        for(Vec3 velocity:List.of(new Vec3(.2,0,0),new Vec3(-.2,0,.15),new Vec3(10,5,-10))) {
+            Vec3 prey=new Vec3(10,3,0);
+            Vec3 lead=SpiderSurfaceMotion.intercept(Vec3.ZERO,prey,velocity,.4).subtract(prey);
+            require(lead.length()<=1.500001 && lead.dot(velocity)>0,"Pursuit lead is unbounded or backwards");
+            require(Math.abs(lead.y)<=Math.abs(velocity.y)*6*.35+.000001,"Jump prediction amplified vertical motion");
+        }
         require(net.krodark.asterion.update.underworld.entity.SpiderDimensions.MAX_SIZE==1.5F && net.krodark.asterion.update.underworld.entity.SpiderDimensions.MIN_SIZE==1.25F,"Wrong requested size");
         require(!net.krodark.asterion.update.underworld.entity.SpiderBehavior.night(11999)
                 && net.krodark.asterion.update.underworld.entity.SpiderBehavior.night(12000),"Day/night boundary");
