@@ -8,7 +8,6 @@ import com.geckolib.renderer.base.GeoRenderState;
 import com.geckolib.renderer.base.RenderPassInfo;
 import com.geckolib.renderer.base.BoneSnapshots;
 import net.krodark.asterion.Asterion;
-import net.krodark.asterion.client.render.entity.SurfaceOrientation;
 import net.krodark.asterion.update.underworld.entity.LimboSpiderEntity;
 import net.krodark.asterion.update.underworld.entity.SpiderSurfaceMotion;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
@@ -77,7 +76,6 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
         state.addGeckolibData(SIZE_RATIO, spider.spiderScale() / net.krodark.asterion.update.underworld.entity.SpiderDimensions.MAX_SIZE);
         state.addGeckolibData(CAMOUFLAGE_SURFACE,spider.attachedSurface());
         Direction face = spider.attachedSurface();
-        float yaw = calculateYRot(spider,0,partialTick);
         SurfacePose pose = poses.computeIfAbsent(spider,ignored -> new SurfacePose());
         float age = spider.tickCount + partialTick;
         float delta = Math.clamp(age - pose.age, 0F, 2F);
@@ -93,8 +91,11 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
         if (pose.face != face) pose.heading = SpiderSurfaceMotion.cornerHeading(pose.face,face,pose.heading);
         // Ignore settling motion and average voxel-route turns before facing
         // them. A short sideways route segment should not swivel the whole body.
-        if (tangent.lengthSqr() > .0025)
-            pose.heading = tangent.normalize();
+        Vec3 displacement=pose.position==null?Vec3.ZERO:position.subtract(pose.position);
+        Vec3 motion=displacement.subtract(normal.scale(displacement.dot(normal)));
+        boolean moving=delta>.0001F && motion.lengthSqr()/(delta*delta)>.0004;
+        if(pose.position==null && tangent.lengthSqr()>.0025)pose.heading=tangent.normalize();
+        else pose.heading=SpiderRenderFrame.heading(normal,pose.heading,tangent,moving || pose.face!=face,delta);
         pose.heading = pose.heading.subtract(normal.scale(pose.heading.dot(normal)));
         if (pose.heading.lengthSqr() < .001) pose.heading = SpiderSurfaceMotion.heading(face,Vec3.ZERO,Vec3.ZERO,false);
         pose.heading = pose.heading.normalize();
@@ -106,7 +107,7 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
         float headY=0,headX=0;
         if(prey!=null && (spider.camouflaged() || spider.state()==LimboSpiderEntity.State.HUNTING
                 || spider.state()==LimboSpiderEntity.State.ATTACKING || spider.state()==LimboSpiderEntity.State.STALKING
-                || spider.state()==LimboSpiderEntity.State.LUNGING)) {
+                || spider.state()==LimboSpiderEntity.State.LUNGING || spider.state()==LimboSpiderEntity.State.FLEEING_SEEN)) {
             Vec3 toward=prey.getEyePosition().subtract(spider.position()).normalize();
             Vec3 right=pose.heading.cross(normal).normalize();
             headY=(float)Math.clamp(Math.atan2(toward.dot(right),toward.dot(pose.heading)),-.48,.48);
@@ -118,9 +119,7 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
         pose.headingOld=pose.heading;
         state.addGeckolibData(ABDOMEN_X,pose.abdomenX);state.addGeckolibData(ABDOMEN_Y,pose.abdomenY);
         state.addGeckolibData(HEAD_X,pose.headX);state.addGeckolibData(HEAD_Y,pose.headY);
-        Quaternionf base = new Quaternionf().rotationY((float)Math.toRadians(180-yaw));
-        Quaternionf target = new Quaternionf(base).mul(SurfaceOrientation.beetleSurfaceRotation(
-                normal,pose.heading,yaw));
+        Quaternionf target=SpiderRenderFrame.orientation(normal,pose.heading);
         // Smooth in world space. Smoothing a yaw-relative quaternion while vanilla
         // changes body yaw makes a motionless wall spider spin and snap back.
         if (pose.position == null) pose.orientation.set(target);
@@ -147,14 +146,14 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
         pose.position = position;
         pose.face = face;
         pose.age = age;
-        Quaternionf relative = new Quaternionf(base).conjugate().mul(pose.orientation);
+        Quaternionf bodyOrientation = new Quaternionf(pose.orientation);
         // Foot-driven torso pose, capped at sixteen degrees; never feed it into heading,
         // attachment normals, collision, navigation, or the behavior state machine.
-        relative.rotateX((float)pose.lean.x).rotateZ((float)pose.lean.z);
-        state.addGeckolibData(ROT_X,relative.x);
-        state.addGeckolibData(ROT_Y,relative.y);
-        state.addGeckolibData(ROT_Z,relative.z);
-        state.addGeckolibData(ROT_W,relative.w);
+        bodyOrientation.rotateX((float)pose.lean.x).rotateZ((float)pose.lean.z);
+        state.addGeckolibData(ROT_X,bodyOrientation.x);
+        state.addGeckolibData(ROT_Y,bodyOrientation.y);
+        state.addGeckolibData(ROT_Z,bodyOrientation.z);
+        state.addGeckolibData(ROT_W,bodyOrientation.w);
         state.addGeckolibData(IK, new SpiderLegIK.Frame(spider, spider.getPosition(partialTick), age, pose.legs));
     }
     @Override public void preRenderPass(RenderPassInfo<EntityRenderState> pass,net.minecraft.client.renderer.SubmitNodeCollector output) {
@@ -168,6 +167,13 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
         Vec3 anchor=spider.threadAnchor();
         return anchor==null?box:box.minmax(new net.minecraft.world.phys.AABB(anchor,anchor)).inflate(.3);
     }
+    /** Spiders own their entire orientation. Vanilla body/head yaw solving must
+     * not be applied before the crawler's world frame. Mimics retain vanilla posing. */
+    @Override protected void applyRotations(RenderPassInfo<EntityRenderState> pass,
+                                            com.mojang.blaze3d.vertex.PoseStack stack,float scale) {
+        if(pass.getOrDefaultGeckolibData(MIMIC,false))super.applyRotations(pass,stack,scale);
+    }
+
     @Override public void adjustRenderPose(RenderPassInfo<EntityRenderState> pass) {
         super.adjustRenderPose(pass);
         if (pass.getOrDefaultGeckolibData(MIMIC,false)) return;

@@ -60,7 +60,7 @@ public final class SpiderIKSmoke {
             var to=from.add(0,0,.4);
             Vector3f[] walking={new Vector3f(rest[0]),new Vector3f(rest[1]),new Vector3f(rest[2])};
             for(int frame=0;frame<=24;frame++) {
-                var target=SpiderLegIK.swingFoot(from,to,new net.minecraft.world.phys.Vec3(0,1,0),frame/24.0,1.5);
+                var target=SpiderLegIK.swingFoot(from,to,new net.minecraft.world.phys.Vec3(0,1,0),frame/24.0,1.5,new net.minecraft.world.phys.Vec3(name.startsWith("left")?-1:1,0,0));
                 SpiderLegIK.solve(pivots,rest,walking,tip,new Vector3f((float)target.x,(float)target.y,(float)target.z));
                 var actual=endpoint(pivots,walking,tip);
                 if(actual.distance(new Vector3f((float)target.x,(float)target.y,(float)target.z))>.075)
@@ -93,6 +93,15 @@ public final class SpiderIKSmoke {
             }
         }
         checkWalkingGait();
+        checkStaggeredFootfalls();
+        for(var face:net.minecraft.core.Direction.values()) {
+            var normal=face.getUnitVec3();
+            var contact=new net.minecraft.world.phys.Vec3(2,3,4);
+            var hovering=contact.add(normal.scale(.3)).add(.1,.2,.15);
+            var settled=SpiderLegIK.onContactPlane(hovering,contact,normal);
+            if(Math.abs(settled.subtract(contact).dot(normal))>1e-8)
+                throw new AssertionError("Blended touchdown floats above the contact plane on "+face);
+        }
         // A foot crossing from floor to wall lifts outside both contact planes.
         var floorUp=new net.minecraft.world.phys.Vec3(0,1,0);
         var wallUp=new net.minecraft.world.phys.Vec3(1,0,0);
@@ -156,6 +165,34 @@ public final class SpiderIKSmoke {
         }
         System.out.println("Spider IK: "+cases+" cases, visible foot swings and body tilt on all six surfaces passed.");
     }
+    private static void checkStaggeredFootfalls() {
+        for(int fps:new int[]{30,60,144}) {
+            var gait=new SpiderLegIK.Gait();
+            var destinations=new net.minecraft.world.phys.Vec3[8];
+            float[] first=new float[8];java.util.Arrays.fill(first,-1);
+            for(int frame=0;frame<fps;frame++) {
+                float age=frame*20F/fps;
+                for(int leg=0;leg<8;leg++)if(first[leg]>=0 && age-first[leg]>3)destinations[leg]=null;
+                gait.beginFrame(destinations,age);
+                for(int leg=0;leg<8;leg++)if(first[leg]<0 && gait.canStart(leg)) {
+                    first[leg]=age;destinations[leg]=net.minecraft.world.phys.Vec3.ZERO;
+                }
+            }
+            for(int leg=0;leg<8;leg++)if(first[leg]<0)throw new AssertionError("Ripple gait starved leg "+leg);
+            if(first[3]-first[1]<.79 || first[2]-first[0]<.79)
+                throw new AssertionError("Front and rear footfalls are still synchronized at "+fps+"fps");
+        }
+        var from=net.minecraft.world.phys.Vec3.ZERO;
+        var to=new net.minecraft.world.phys.Vec3(0,0,.4);
+        var up=new net.minecraft.world.phys.Vec3(0,1,0);
+        var side=new net.minecraft.world.phys.Vec3(1,0,0);
+        var middle=SpiderLegIK.swingFoot(from,to,up,.5,1.5,side);
+        if(middle.x<.09 || middle.y<.29)throw new AssertionError("Recovery stroke has no outward lift");
+        if(SpiderLegIK.swingFoot(from,to,up,0,1.5,side).distanceTo(from)>1e-8
+                || SpiderLegIK.swingFoot(from,to,up,1,1.5,side).distanceTo(to)>1e-8)
+            throw new AssertionError("Recovery arc moves a planted endpoint");
+    }
+
     private static void checkWalkingGait() {
         for (int fps : new int[]{30,60,144}) for (double speed : new double[]{.03,.12,.3})
                 for (double scale : new double[]{1.25,1.5}) for (var face : net.minecraft.core.Direction.values()) {
@@ -170,12 +207,12 @@ public final class SpiderIKSmoke {
             var forward = face.getAxis()==net.minecraft.core.Direction.Axis.X
                     ? new net.minecraft.world.phys.Vec3(0,0,1) : new net.minecraft.world.phys.Vec3(1,0,0);
             java.util.Arrays.fill(feet,net.minecraft.world.phys.Vec3.ZERO);
-            double duration=Math.clamp(.65*scale/speed,2.4,4);
+
             // Start walking, then stop and allow the final adjustment to settle.
             for(int frame=0;frame<fps*12;frame++) {
                 double age=frame*20.0/fps;
                 var target=forward.scale(Math.min(age,160)*speed);
-                gait.beginFrame(destinations);
+                gait.beginFrame(destinations,(float)age);
                 int airborne=0;
                 for(int leg=0;leg<8;leg++) {
                     var previous=feet[leg];
@@ -184,7 +221,7 @@ public final class SpiderIKSmoke {
                         starts[leg]=feet[leg];destinations[leg]=target;started[leg]=age;steps[leg]++;
                     }
                     if(destinations[leg]!=null) {
-                        double t=Math.clamp((age-started[leg])/duration,0,1);
+                        double t=Math.clamp((age-started[leg])/SpiderLegIK.stepDuration(speed,scale,leg),0,1);
                         feet[leg]=SpiderLegIK.swingFoot(starts[leg],destinations[leg],up,t,scale);
                         if(feet[leg].dot(up)>.15*scale)lifted[leg]=true;
                         if(t>=1)destinations[leg]=null;

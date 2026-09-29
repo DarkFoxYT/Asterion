@@ -143,8 +143,8 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
     public Vec3 supportPoint() { return getBoundingBox().getCenter().add(attachmentNormal().scale(entityData.get(SUPPORT_DISTANCE))); }
     private void syncSupport() {
         Vec3 normal = smoothSupport == null ? attachedSurface().getUnitVec3() : smoothSupport.outward().scale(-1);
-        if(!onWeb() && smoothSupport!=null && normal.dot(attachedSurface().getUnitVec3())>.995)
-            normal=SpiderSupportSurface.neighborhoodNormal(localSupport(),getBoundingBox(),attachedSurface());
+        // The physical contact plane owns orientation. A neighborhood of unrelated
+        // block faces can tilt a stationary spider differently every voxel/tick.
         entityData.set(NORMAL_X,(float)normal.x); entityData.set(NORMAL_Y,(float)normal.y); entityData.set(NORMAL_Z,(float)normal.z);
         entityData.set(SUPPORT_DISTANCE,smoothSupport == null ? 0F : (float)Math.max(.01,smoothSupport.distance(getBoundingBox().getCenter())));
     }
@@ -655,7 +655,8 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
             tangent = desired.subtract(normal.scale(desired.dot(normal)));
         }
         tangent = tangent.normalize();
-        crawlHeading = tangent;
+        crawlHeading=SpiderSurfaceMotion.turn(normal,crawlHeading,tangent,.30);
+        tangent=crawlHeading;
         double speed = .32 * crawlSpeed * movementPace();
         setDeltaMovement(tangent.scale(speed).add(normal.scale(.06)));
         if (tangent.horizontalDistanceSqr() > .015) {
@@ -738,7 +739,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
     }
     private boolean followSurfaceRoute() {
         Vec3 center=getBoundingBox().getCenter();
-        while(!surfaceRoute.isEmpty() && surfaceRoute.peekFirst().center().distanceToSqr(center)<.0001)
+        while(!surfaceRoute.isEmpty() && surfaceRoute.peekFirst().center().distanceToSqr(center)<.0144)
             surfaceRoute.removeFirst();
         if(surfaceRoute.isEmpty()) { refreshSupport();return false; }
         // Carry speed across collinear nodes instead of slowing to the small
@@ -1087,11 +1088,8 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
             }
             stalledTicks=0;
         }
+        // The head watches prey; the body always follows locomotion, including escape.
         Vec3 visibleHeading=crawlHeading;
-        if(state()==State.FLEEING_SEEN && player!=null) {
-            Vec3 watch=SpiderSurfaceMotion.tangent(attachedSurface(),player.position().subtract(position()));
-            if(watch.lengthSqr()>.01)visibleHeading=watch.normalize();
-        }
         entityData.set(HEADING_X,(float)(Math.rint(visibleHeading.x*1000)/1000));
         entityData.set(HEADING_Y,(float)(Math.rint(visibleHeading.y*1000)/1000));
         entityData.set(HEADING_Z,(float)(Math.rint(visibleHeading.z*1000)/1000));

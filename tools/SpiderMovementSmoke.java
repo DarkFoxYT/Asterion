@@ -88,6 +88,17 @@ public final class SpiderMovementSmoke {
                 turned=next;checks++;
             }
             require(turned.dot(forward)<-.999,"Bounded turn never completed reversal");
+            Quaternionf crawler=SpiderRenderFrame.orientation(face.getUnitVec3(),forward);
+            require(crawler.transform(new Vector3f(0,0,-1)).distance(new Vector3f((float)forward.x,(float)forward.y,(float)forward.z))<.001,
+                    "Authoritative crawler frame faces away from movement");
+            require(crawler.transform(new Vector3f(0,1,0)).distance(new Vector3f(-face.getStepX(),-face.getStepY(),-face.getStepZ()))<.001,
+                    "Authoritative crawler frame loses its physical support normal");
+            // Zero-speed facing must remain fixed even while target steering jitters.
+            Vec3 idle=forward;
+            for(int frame=0;frame<500;frame++) {
+                idle=SpiderRenderFrame.heading(face.getUnitVec3(),idle,forward.scale(frame%2==0?-1:1),false,.33);
+                require(idle.dot(forward)>.999999,"Stationary spider rotates from steering noise");
+            }
             Quaternionf expected = null;
             for (int yaw=-180;yaw<=180;yaw+=5) {
                 Quaternionf base = new Quaternionf().rotationY((float)Math.toRadians(180-yaw));
