@@ -34,7 +34,8 @@ abstract class AsterionFogRendererMixin {
             color.set(0.0F, 0.0F, 0.0F, 1.0F);
         } else if (level.dimension().equals(Asterion.LIMBO_LEVEL)
                 && camera.getFluidInCamera() == FogType.WATER) {
-            color.set(.008F, .020F, .026F, 1F);
+            var sea=net.krodark.asterion.update.underworld.world.LimboSeaRegions.fog(camera.position().x,camera.position().z);
+            color.set((float)sea.x*.25F,(float)sea.y*.25F,(float)sea.z*.25F,1F);
         }
     }
 
@@ -48,9 +49,10 @@ abstract class AsterionFogRendererMixin {
             float sea = (float)Math.clamp((camera.position().z - 50) / 110, 0, 1);
             // Let the depth-tested volume shape the near and middle distances.
             // Keep native fog as a far safety net so large structures retain a silhouette.
-            fog.environmentalStart = 34F - sea * 12F;
-            fog.environmentalEnd = Math.min(fog.environmentalEnd, 108F - sea * 30F);
-            fog.color.set(.034F, .038F, .044F, 1F);
+            fog.environmentalStart = 34F + sea * 30F;
+            fog.environmentalEnd = 108F + sea * Math.max(80F,renderDistance*16F-108F);
+            var tint=net.krodark.asterion.update.underworld.world.LimboSeaRegions.fog(camera.position().x,camera.position().z);
+            fog.color.set((float)tint.x,(float)tint.y,(float)tint.z,1F);
             return;
         }
         if (camera.getFluidInCamera() != FogType.WATER) return;
@@ -64,7 +66,8 @@ abstract class AsterionFogRendererMixin {
         float visibility = 4F + light * 38F;
         fog.environmentalStart = .4F + light * 3F;
         fog.environmentalEnd = visibility;
-        fog.color.set(.0001F + light * .004F, .0002F + light * .007F,
-                .0003F + light * .011F, 1F);
+        var tint=net.krodark.asterion.update.underworld.world.LimboSeaRegions.fog(camera.position().x,camera.position().z);
+        float brightness=.003F+light*.08F;
+        fog.color.set((float)tint.x*brightness,(float)tint.y*brightness,(float)tint.z*brightness,1F);
     }
 }

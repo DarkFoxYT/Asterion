@@ -1,3 +1,5 @@
+#ifndef ASTERION_LIMBO_WAVES
+#define ASTERION_LIMBO_WAVES
 // Integer-hashed, continuously interpolated noise, mirrored by UnderworldWaves on the server.
 float seaTempestStrength = -1.0;
 float seaWhirlpoolStrength = -1.0;
@@ -100,3 +102,5 @@ vec4 sampleWave(vec2 p,float ticks) {
     result.x += funnel;
     return result;
 }
+
+#endif

@@ -13,6 +13,7 @@ public final class UnderworldClient {
         FerryControls.initialize();
         FerryLanternLight.initialize();
         LimboWaterRenderer.initialize();
+        LimboFireAtmosphere.initialize();
         LimboMusic.initialize();
         UnderworldPostEffects.register();
         LimboWebWorldRenderer.initialize();

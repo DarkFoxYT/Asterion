@@ -588,5 +588,10 @@
   "block.asterion.dead_stone_wall": "Dead Stone Wall",
   "block.asterion.dead_stone_2_stairs": "Dead Stone II Stairs",
   "block.asterion.dead_stone_2_slab": "Dead Stone II Slab",
-  "block.asterion.dead_stone_2_wall": "Dead Stone II Wall"
+  "block.asterion.dead_stone_2_wall": "Dead Stone II Wall",
+  "biome.asterion.limbo": "Styx",
+  "biome.asterion.acheron": "Acheron",
+  "biome.asterion.cocytus": "Cocytus",
+  "biome.asterion.lethe": "Lethe",
+  "biome.asterion.phlegethon": "Phlegethon"
 }

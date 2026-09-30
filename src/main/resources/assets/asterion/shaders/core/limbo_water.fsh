@@ -1,4 +1,6 @@
 #version 330
+#moj_import <asterion:limbo_seas.glsl>
+#moj_import <asterion:limbo_fire.glsl>
 #moj_import <minecraft:fog.glsl>
 #moj_import <asterion:limbo_wake.glsl>
 #moj_import <asterion:limbo_waves.glsl>
@@ -7,6 +9,7 @@
 uniform sampler2D Sampler0;
 in vec3 surfacePosition;
 in vec3 surfaceNormal;
+in float surfaceSwellHeight;
 in vec2 ripplePosition;
 in float foam;
 in float detailQuality;
@@ -63,11 +66,24 @@ float ghostCurrent(vec2 uv, float time) {
     return clamp(pow(abs(1.17 - pow(max(c, 0.0), 1.4)), 8.0), 0.0, 1.0);
 }
 void main() {
+    LimboSeaStyle sea=limboSeaStyle(worldSurface);
     seaTempestStrength = eventTempest;
     seaWhirlpoolStrength = eventWhirlpool;
     seaWhirlpoolCenter = eventWhirlpoolCenter;
     float hullEdge = hullDistance(hullPosition);
     if (hullActive > .5 && hullEdge < -.035 && hullPosition.z > 3.0 / 16.0) discard;
+    vec3 fireSurface=vec3(0);
+    if(sea.fire>.001) {
+        fireSurface=limboFireSurfaceLit(worldSurface,waterTime,surfaceSwellHeight,
+                surfaceNormal,normalize(-surfacePosition));
+        // Pure fire bypasses water reflection, texture, caustic and foam work.
+        if(sea.fire>.999) {
+            fragColor=apply_fog(vec4(fireSurface,1),fog_spherical_distance(surfacePosition),
+                fog_cylindrical_distance(surfacePosition),FogEnvironmentalStart,FogEnvironmentalEnd,
+                FogRenderDistanceStart,FogRenderDistanceEnd,vec4(sea.fog+vec3(.18,.035,.001),1));
+            return;
+        }
+    }
     float distance = length(surfacePosition);
     float nearDetail = 1.0 - smoothstep(20.0, 48.0, distance);
     vec2 p = ripplePosition;
@@ -94,11 +110,14 @@ void main() {
     float fresnel = .025 + .975 * pow(1.0 - facing, 5.0);
     vec3 reflection = reflect(-view, n);
     float ceiling = smoothstep(-.3, .85, reflection.y);
-    vec3 reflected = mix(vec3(.006, .007, .008), vec3(.075, .082, .09), ceiling);
+    vec3 reflected = mix(sea.water*.85, sea.reflection*.32, ceiling);
     float sheen = pow(max(dot(reflection, normalize(vec3(-.4, .8, .3))), 0.0), 34.0);
     float slopeLight = clamp(dot(n, normalize(vec3(-.5, 1, .35))), 0.0, 1.0);
-    vec3 body = vec3(.0045, .0052, .0058) * (.68 + .52 * slopeLight + textureDetail * .58);
+    vec3 body = sea.water * (.68 + .52 * slopeLight + textureDetail * .58);
+    float crestShade=smoothstep(-1.4,1.8,surfaceSwellHeight);
+    body*=mix(.42,1.35,crestShade);
     vec3 water = mix(body, reflected, fresnel);
+    water+=sea.reflection*crestShade*(1.0-facing)*.065;
     water += vec3(.19, .205, .215) * sheen * (.34 + fresnel) * (1.15 + textureDetail);
     const float causticTexel = .25;
     vec2 causticWorld = (floor(worldSurface / causticTexel) + .5) * causticTexel;
@@ -119,9 +138,9 @@ void main() {
     // Tight silver-grey caustics over an otherwise pitch-black body.
     float spectral = pow(smoothstep(.22, .64, spectralBase), 2.8)
             * (.48 + .52 * fresnel) * nearDetail * pulse * opacityNoise * shoreFade;
-    water = mix(water, vec3(.0012, .00135, .0015), .20 + fresnel * .10);
+    water = mix(water, sea.water*.26, .20 + fresnel * .10);
     float silverCaustic = clamp(spectral * (.82 + .30 * detailQuality), 0.0, .88);
-    water = mix(water, vec3(.24, .26, .275), silverCaustic);
+    water = mix(water, sea.reflection, silverCaustic);
     water += vec3(.035, .039, .043) * pow(max(0.0, 1.0 - facing), 2.8) * .32;
     // A small lantern glint, separate from the deck light. Keep the sea dark.
     // hullPosition uses local x/z/y ordering; use radial attenuation without mixing coordinate frames.
@@ -183,11 +202,17 @@ void main() {
     whitecap = max(whitecap, max(contact * (.24 + .76 * wakeStrength) * (.72 + .28 * breakup), smoothWake * .94));
     float fleck = smoothstep(.53, .72, grain) * nearDetail;
     whitecap = max(whitecap * mix(.80, 1.0, fleck), smoothWake * .94);
-    water = mix(water, vec3(.28, .30, .31), whitecap);
+    water = mix(water, sea.reflection*1.12, whitecap);
     if (whirlStrength > .001)
         water = mix(water, vec3(.00008, .00012, .00022),
                 (1.0 - smoothstep(5.0, 20.0, whirlRadius)) * whirlStrength);
+    // Each sea keeps the same physical water: fire is a flowing surface emission,
+    // not lava blocks, so the ferry and wave physics remain continuous.
+    water=mix(water,fireSurface,sea.fire);
+    water=mix(water,sea.water*(.8+.3*fresnel),sea.oblivion*.28);
+    water+=sea.reflection*sea.tears*pow(sheen,.5)*.07;
+    vec4 regionalFog=vec4(sea.fog,FogColor.a);
     fragColor = apply_fog(vec4(water, 1.0), fog_spherical_distance(surfacePosition),
         fog_cylindrical_distance(surfacePosition), FogEnvironmentalStart, FogEnvironmentalEnd,
-        FogRenderDistanceStart, FogRenderDistanceEnd, FogColor);
+        FogRenderDistanceStart, FogRenderDistanceEnd, regionalFog);
 }

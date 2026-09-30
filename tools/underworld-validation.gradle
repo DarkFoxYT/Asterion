@@ -11,7 +11,7 @@ allprojects {
             }
             def smokeCompile = tasks.register('compileUnderworldSmoke', JavaCompile) {
                 dependsOn tasks.named('classes')
-                source = rootProject.files('tools/UnderworldTerrainSmoke.java', 'tools/LimboShaderSmoke.java',
+                source = rootProject.files('tools/UnderworldTerrainSmoke.java', 'tools/LimboShaderSmoke.java', 'tools/LimboSeaSmoke.java',
                         'tools/EmissiveUploadSmoke.java', 'tools/DepthBlitSmoke.java', 'tools/LimboWaterSmoke.java',
                         'tools/AmneticShaderProfile.java', 'tools/WaterVisualSmoke.java', 'tools/ShaderIncludes.java', 'tools/WakeFieldSmoke.java', 'tools/FerryHullSmoke.java', 'tools/AmneticCompatibilitySmoke.java', 'tools/StartupCompatibilitySmoke.java')
                 classpath = p.sourceSets.main.runtimeClasspath
@@ -46,6 +46,12 @@ allprojects {
                 workingDir = rootProject.projectDir
                 javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
             }
+            tasks.register('checkLimboSeas', JavaExec) {
+                dependsOn smokeCompile
+                classpath = p.sourceSets.main.runtimeClasspath + files(smokeCompile.flatMap { it.destinationDirectory })
+                mainClass = 'LimboSeaSmoke'
+                javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
             tasks.register('checkUnderworldTerrain', JavaExec) {
                 dependsOn smokeCompile
                 classpath = p.sourceSets.main.runtimeClasspath + files(smokeCompile.flatMap { it.destinationDirectory })
@@ -58,7 +64,8 @@ allprojects {
                 mainClass = 'LimboShaderSmoke'
                 args rootProject.file('src/main/resources/assets/asterion/shaders/post/underworld/river_atmosphere.fsh').absolutePath,
                      rootProject.file('src/main/resources/assets/asterion/shaders/post/underworld/river_composite.fsh').absolutePath,
-                     rootProject.file('src/main/resources/assets/asterion/shaders/post/underworld/river_atmosphere_fast.fsh').absolutePath
+                     rootProject.file('src/main/resources/assets/asterion/shaders/post/underworld/river_atmosphere_fast.fsh').absolutePath,
+                     rootProject.file('src/main/resources/assets/asterion/shaders/post/underworld/river_atmosphere_lite.fsh').absolutePath
                 javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
             }
             tasks.register('checkEmissiveUploads', JavaExec) {

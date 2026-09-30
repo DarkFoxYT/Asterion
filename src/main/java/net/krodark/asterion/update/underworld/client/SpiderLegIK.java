@@ -35,8 +35,10 @@ public final class SpiderLegIK {
         // Error is measured after the current body transform: accumulate a
         // bounded correction rather than cancelling the previous frame's lift.
         double vertical=debug.stanceError().dot(up);
-        double extension=debug.stanceError().subtract(up.scale(vertical)).lengthSqr();
-        return Math.clamp(previous+(vertical-Math.min(.06,extension*.12))*.5/modelScale,-.26,.26);
+        // Horizontal stride error is not body-height error. Feeding it into lift
+        // drove walking bodies down and repeatedly invalidated planted contacts.
+        double correction=Math.abs(vertical)<.008*modelScale?0:Math.clamp(vertical*.5/modelScale,-.025,.025);
+        return Math.clamp(previous+correction,-.26,.26);
     }
 
     /** Fit the support triangle/plane, expressed in the un-tilted body frame. */
@@ -77,14 +79,28 @@ public final class SpiderLegIK {
         private final Vector3f[][] rotations = new Vector3f[8][];
         private final Vec3[] contactNormals = new Vec3[8];
         private final float[] unsupportedSince = new float[8];
+        private final float[] strainedSince = new float[8];
+        private final float[] landedAt = new float[8];
         private final Vec3[] probeTargets=new Vec3[8], probeNormals=new Vec3[8], probePositions=new Vec3[8];
         private final int[] probeTicks=new int[8];
         private final boolean[] probeContacts=new boolean[8];
         private float age = -1;
+        private boolean turningBlocked;
+        private float blockedUntil=-100;
         private Vec3 origin;
-        public Memory() { java.util.Arrays.fill(unsupportedSince,-1); }
+        public Memory() { java.util.Arrays.fill(unsupportedSince,-1);java.util.Arrays.fill(strainedSince,-1);java.util.Arrays.fill(landedAt,-100); }
     }
     private SpiderLegIK() { }
+    static boolean turningBlocked(Memory memory) { return memory.turningBlocked || memory.age<memory.blockedUntil; }
+    static boolean ownsFoot(int leg,Vector3f foot,Vector3f hip) {
+        float side=leg<4?-1:1;
+        if(side*(foot.x-hip.x)<.08F)return false;
+        return switch(leg%4) {
+            case 0 -> foot.z<.35F;
+            case 1,2 -> Math.abs(foot.z)<1.1F;
+            default -> foot.z>-.35F;
+        };
+    }
 
     public static void apply(RenderPassInfo<EntityRenderState> pass, BoneSnapshots bones, Frame frame) {
         // Remove the view/entity transform, retaining the exact scale, yaw and surface tilt
@@ -105,11 +121,15 @@ public final class SpiderLegIK {
             // Network catch-up and support settling must not kick the feet ahead.
             if(measured.length()>.6)measured=measured.normalize().scale(.6);
             memory.velocity=reset?Vec3.ZERO:memory.velocity.lerp(measured,1-Math.pow(.35,elapsed));
-            if (reset) java.util.Arrays.fill(memory.destinations,null);
+            if (reset) { java.util.Arrays.fill(memory.destinations,null);java.util.Arrays.fill(memory.strainedSince,-1); }
             memory.gait.beginFrame(memory.destinations,frame.age);
+            memory.turningBlocked=false;
         }
         Vec3 up = vec(world.transformDirection(new Vector3f(0, 1, 0))).normalize();
-        Vec3 probeUp = frame.spider.hasSurfaceSupport() ? frame.spider.attachmentNormal().scale(-1) : up;
+        // During a corner turn the rendered torso trails the physical grip.
+        // Search between both frames so feet can find either connected face.
+        Vec3 probeUp = frame.spider.hasSurfaceSupport()
+                ? up.lerp(frame.spider.attachmentNormal().scale(-1),.35).normalize() : up;
         List<Leg> debug = new ArrayList<>(8);
         Vec3 stanceError=Vec3.ZERO;
         int planted=0;
@@ -134,15 +154,31 @@ public final class SpiderLegIK {
             Vec3 nominal = toWorld(world,endpoint(pivots,angles,tip),frame.origin);
             Vec3 restingFoot=nominal;
             Vec3 velocity=memory.velocity;
-            Vec3 lead=velocity.subtract(probeUp.scale(velocity.dot(probeUp))).scale(2.8);
-            if(lead.length()>.4)lead=lead.normalize().scale(.4);
+            Vec3 lead=strideLead(velocity,probeUp,frame.spider.spiderScale(),leg);
             nominal=nominal.add(lead);
+            Vector3f placement=inverse.transformPosition(vector(nominal.subtract(frame.origin)));
+            Vector3f restPlacement=inverse.transformPosition(vector(restingFoot.subtract(frame.origin)));
+            float side=leg<4?-1:1;
+            placement.x=side<0?Math.min(placement.x,pivots[0].x-.12F):Math.max(placement.x,pivots[0].x+.12F);
+            // Keep the authored fan, but let its whole stance travel forward.
+            // Fixed narrow Z lanes forced the inner feet to replant every time
+            // the chasing body moved through their lane's boundary.
+            placement.z=Math.clamp(placement.z,restPlacement.z-.5F,restPlacement.z+.5F);
+            // Apply stride prediction inside the leg's fan before looking for a
+            // real hit; clamping a finished contact would invent a grip in air.
+            nominal=toWorld(world,placement,frame.origin);
             boolean contact;
             Vec3 contactNormal,target;
             boolean probe=reset || frame.spider.onWeb() || memory.probePositions[leg]==null
                     || memory.probeTicks[leg]!=(int)frame.age
                     || memory.probePositions[leg].distanceToSqr(nominal)>.04;
-            if(probe) {
+            if(frame.spider.silkHanging()) {
+                // The suspended cradle is supported by the spinneret's ceiling
+                // tether. Feet curl into its own silk fan, never into terrain.
+                Vec3 hip=toWorld(world,new Vector3f(pivots[0]),frame.origin);
+                target=restingFoot.lerp(hip,.12).add(up.scale(.12*frame.spider.modelScale()));
+                contact=true;contactNormal=up;
+            } else if(probe) {
             Vec3 start = nominal.add(probeUp.scale(1.2*frame.spider.spiderScale()));
             Vec3 end = nominal.subtract(probeUp.scale(1.6*frame.spider.spiderScale()));
             var hit = frame.spider.level().clip(new ClipContext(start,end,ClipContext.Block.COLLIDER,
@@ -182,6 +218,7 @@ public final class SpiderLegIK {
                 var floor = frame.spider.level().clip(new ClipContext(above,nominal.add(0,-.2,0),
                         ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,frame.spider));
                 if (floor.getType() != HitResult.Type.MISS && floor.getDirection() == net.minecraft.core.Direction.UP
+                        && probeUp.y>.35 && floor.getLocation().distanceToSqr(nominal)<.36*frame.spider.spiderScale()*frame.spider.spiderScale()
                         && floor.getLocation().y > target.y) {
                     target = floor.getLocation().add(0,.035,0); contact = true; contactNormal=new Vec3(0,1,0);
                 }
@@ -191,8 +228,14 @@ public final class SpiderLegIK {
             } else {
                 contact=memory.probeContacts[leg];target=memory.probeTargets[leg];contactNormal=memory.probeNormals[leg];
             }
-            Vec3 silk = frame.spider.onWeb()?LimboWebWorldRenderer.spiderContact(nominal, 1.25*frame.spider.spiderScale()):null;
-            if (silk != null && (!contact || silk.distanceToSqr(nominal) < target.distanceToSqr(nominal))) {
+            int ownerLeg=leg;
+            java.util.function.Predicate<Vec3> ownGrip=point->ownsFoot(ownerLeg,
+                    inverse.transformPosition(vector(point.subtract(frame.origin))),pivots[0]);
+            if(contact && !frame.spider.silkHanging() && !ownGrip.test(target))contact=false;
+            Vec3 silk = frame.spider.onWeb()?LimboWebWorldRenderer.spiderContact(frame.spider,nominal,
+                    1.25*frame.spider.spiderScale(),ownGrip):null;
+            if(frame.spider.onWeb() && silk==null)contact=false;
+            if (silk != null) {
                 target = silk.add(probeUp.scale(.025)); contact = true; contactNormal=probeUp;
             }
             if(!contact) {
@@ -201,27 +244,32 @@ public final class SpiderLegIK {
                 Vec3 reach=airborneOffset(leg,frame.age,frame.spider.getUUID().hashCode());
                 target=nominal.add(vec(world.transformDirection(vector(reach))));
             }
-            if (update) {
+            Vec3 wantedGrip=target;
+            if(update && frame.spider.silkHanging()) {
+                memory.feet[leg]=target;memory.destinations[leg]=null;memory.contactNormals[leg]=up;
+            } else if (update) {
                 Vec3 old = memory.feet[leg];
+                boolean crossed=old!=null && !ownsFoot(leg,inverse.transformPosition(vector(old.subtract(frame.origin))),pivots[0]);
+                if(crossed && memory.destinations[leg]==null)memory.turningBlocked=true;
                 Vec3 plantedNormal=memory.contactNormals[leg]==null?probeUp:memory.contactNormals[leg];
                 boolean supported=memory.destinations[leg]!=null;
                 if(old!=null && memory.destinations[leg]==null) {
                     var grip=frame.spider.level().clip(new ClipContext(old.add(plantedNormal.scale(.09)),old.subtract(plantedNormal.scale(.14)),
                             ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,frame.spider));
-                    supported=grip.getType()!=HitResult.Type.MISS && grip.getDirection().getUnitVec3().dot(plantedNormal)>.5;
+                    supported=!frame.spider.onWeb() && grip.getType()!=HitResult.Type.MISS && grip.getDirection().getUnitVec3().dot(plantedNormal)>.5;
                     if(supported) {
                         // Validate the actual planted point and close any hovering
                         // gap; a nearby surface is not itself a planted foot.
                         old=grip.getLocation().add(grip.getDirection().getUnitVec3().scale(.018));
                         memory.feet[leg]=old;
-                    } else supported=frame.spider.onWeb() && LimboWebWorldRenderer.spiderContact(old,.2)!=null;
+                    } else supported=frame.spider.onWeb() && LimboWebWorldRenderer.spiderContact(frame.spider,old,.2,ownGrip)!=null;
                 }
                 if(supported)memory.unsupportedSince[leg]=-1;
                 else if(memory.unsupportedSince[leg]<0)memory.unsupportedSince[leg]=frame.age;
                 boolean released=!supported && frame.age-memory.unsupportedSince[leg]>=(frame.spider.onWeb()?0:2);
                 // Follow a moving strand while planted, without repeatedly lifting the foot.
                 if(frame.spider.onWeb() && old!=null && memory.destinations[leg]==null) {
-                    Vec3 movingSilk=LimboWebWorldRenderer.spiderContact(old,.3);
+                    Vec3 movingSilk=LimboWebWorldRenderer.spiderContact(frame.spider,old,.3,ownGrip);
                     if(movingSilk!=null){old=movingSilk.add(probeUp.scale(.025));memory.feet[leg]=old;}
                 }
                 if (reset || old == null || !contact && (released || !frame.spider.hasSurfaceSupport() && !frame.spider.onGround() && !frame.spider.onWeb())
@@ -231,17 +279,19 @@ public final class SpiderLegIK {
                     memory.destinations[leg] = null;
                     memory.contactNormals[leg]=contactNormal;
                 } else {
-                    if (contact && memory.destinations[leg] == null && (released || needsStep(old,target,probeUp,frame.spider.spiderScale()))
-                            && memory.gait.canStart(leg)) {
+                    if (contact && memory.destinations[leg] == null && (crossed || frame.age-memory.landedAt[leg]>=.65F)
+                            && (released || crossed || needsWalkingStep(old,target,restingFoot,velocity,probeUp,frame.spider.spiderScale()))
+                            && (crossed || trailingStance(old,restingFoot,velocity,probeUp,frame.spider.spiderScale())
+                            ?memory.gait.canStartEmergency(leg):memory.gait.canStart(leg))) {
                         memory.starts[leg] = old; memory.destinations[leg] = target; memory.stepStart[leg] = frame.age;
-                        memory.stepDuration[leg] = stepDuration(velocity.length(),frame.spider.spiderScale(),leg);
+                        memory.stepDuration[leg] = stepDuration(velocity.subtract(probeUp.scale(velocity.dot(probeUp))).length(),frame.spider.spiderScale(),leg);
                     }
                     if (memory.destinations[leg] != null) {
                         double t = Math.clamp((frame.age-memory.stepStart[leg])/memory.stepDuration[leg],0,1);
                         // Keep reaching ahead during the lift/traverse phase;
                         // freeze the touchdown target for the final descent.
                         // Otherwise fast bodies outrun a target chosen at lift-off.
-                        if(contact && t<.7) {
+                        if(contact && t<.35) {
                             Vec3 landing=memory.destinations[leg].lerp(target,
                                     1-Math.pow(.3,Math.clamp(frame.age-memory.age,0,2)));
                             // Interpolating two hits can create a fake contact in
@@ -263,13 +313,14 @@ public final class SpiderLegIK {
                             Vec3 foot=memory.feet[leg];
                             var landing=frame.spider.level().clip(new ClipContext(foot.add(contactNormal.scale(.10)),foot.subtract(contactNormal.scale(.15)),
                                     ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,frame.spider));
-                            supported=landing.getType()!=HitResult.Type.MISS && landing.getDirection().getUnitVec3().dot(contactNormal)>.5;
+                            supported=!frame.spider.onWeb() && landing.getType()!=HitResult.Type.MISS && landing.getDirection().getUnitVec3().dot(contactNormal)>.5;
                             if(supported) {
                                 contactNormal=landing.getDirection().getUnitVec3();
                                 memory.feet[leg]=landing.getLocation().add(contactNormal.scale(.018));
-                            } else if(frame.spider.onWeb())supported=LimboWebWorldRenderer.spiderContact(foot,.2)!=null;
+                            } else if(frame.spider.onWeb())supported=LimboWebWorldRenderer.spiderContact(frame.spider,foot,.2,ownGrip)!=null;
                             contact=supported;
                             memory.destinations[leg] = null;
+                            memory.landedAt[leg]=frame.age;
                             memory.contactNormals[leg]=contactNormal;
                         }
                     }
@@ -285,37 +336,45 @@ public final class SpiderLegIK {
             // sooner than solving every limb from its rest angles every frame.
             if(!reset && memory.rotations[leg]!=null)
                 for(int j=0;j<3;j++)angles[j].set(memory.rotations[leg][j]);
-            solve(pivots,rest,angles,tip,localTarget);
-            if(update && contact && memory.destinations[leg]==null) {
+            List<Vector3f[]> neighbours=new ArrayList<>(3);
+            for(int other=leg/4*4;other<leg;other++) {
+                if(other>=debug.size())continue;
+                Vector3f[] joints=new Vector3f[4];
+                for(int j=0;j<4;j++)joints[j]=inverse.transformPosition(vector(debug.get(other).joints().get(j).subtract(frame.origin)));
+                neighbours.add(joints);
+            }
+            solve(pivots,rest,angles,tip,localTarget,neighbours);
+            if(update && contact && memory.destinations[leg]==null && !frame.spider.silkHanging()) {
                 Vec3 actual=toWorld(world,endpoint(pivots,angles,tip),frame.origin);
                 if(actual.distanceToSqr(target)>.0064) {
-                    // A planted world anchor can leave joint reach as the body
-                    // turns. Re-seat beneath the visible toe rather than locking
-                    // the leg to an unreachable anchor and drawing it in the air.
-                    var reachable=frame.spider.level().clip(new ClipContext(actual.add(contactNormal.scale(.35)),
-                            actual.subtract(contactNormal.scale(.65)),ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,frame.spider));
-                    if(reachable.getType()!=HitResult.Type.MISS && reachable.getDirection().getUnitVec3().dot(contactNormal)>.5) {
-                        Vec3 candidate=reachable.getLocation().add(contactNormal.scale(.018));
-                        Vector3f[] retry={new Vector3f(angles[0]),new Vector3f(angles[1]),new Vector3f(angles[2])};
-                        Vector3f retryTarget=inverse.transformPosition(vector(candidate.subtract(frame.origin)));
-                        solve(pivots,rest,retry,tip,retryTarget);
-                        Vec3 retryFoot=toWorld(world,endpoint(pivots,retry,tip),frame.origin);
-                        if(retryFoot.distanceToSqr(candidate)<actual.distanceToSqr(target)) {
-                            target=candidate;localTarget=retryTarget;memory.feet[leg]=candidate;
-                            for(int j=0;j<3;j++)angles[j].set(retry[j]);
-                        }
+                    // An overextended stance must recover with a visible step.
+                    // Moving the world anchor underneath the solved toe made feet
+                    // slide and re-seat continuously while the body was turning.
+                    memory.turningBlocked=true;
+                    if(memory.strainedSince[leg]<0)memory.strainedSince[leg]=frame.age;
+                    if(frame.age-memory.strainedSince[leg]>=.75F
+                            && frame.age-memory.landedAt[leg]>=.65F
+                            && ownsFoot(leg,inverse.transformPosition(vector(wantedGrip.subtract(frame.origin))),pivots[0])
+                            && memory.gait.canStartEmergency(leg)) {
+                        memory.starts[leg]=actual;memory.feet[leg]=actual;
+                        memory.destinations[leg]=wantedGrip;memory.stepStart[leg]=frame.age;
+                        memory.stepDuration[leg]=stepDuration(memory.velocity.length(),frame.spider.spiderScale(),leg);
+                        contact=false;
                     }
-                }
-            }
+                } else memory.strainedSince[leg]=-1;
+            } else if(update)memory.strainedSince[leg]=-1;
             if (reset || memory.rotations[leg] == null) {
                 memory.rotations[leg] = new Vector3f[]{new Vector3f(angles[0]),new Vector3f(angles[1]),new Vector3f(angles[2])};
             } else {
                 // The swing target is already eased. Filtering joint angles again
                 // erases most of the short lift and drags the rendered foot along
                 // the ground while the gait believes it is airborne.
-                float blend = contact ? 1F : 1F-(float)Math.pow(.22,Math.clamp(frame.age-memory.age,0,2));
+                float blend = contact || memory.destinations[leg]!=null ? 1F : 1F-(float)Math.pow(.22,Math.clamp(frame.age-memory.age,0,2));
                 for (int j=0;j<3;j++) {
-                    if (update) memory.rotations[leg][j].lerp(angles[j],blend);
+                    if (update) {
+                        Vector3f desired=new Vector3f(memory.rotations[leg][j]).lerp(angles[j],blend);
+                        settleJoint(memory.rotations[leg][j],desired,Math.clamp(frame.age-memory.age,0,2),j);
+                    }
                     angles[j].set(memory.rotations[leg][j]);
                 }
             }
@@ -323,8 +382,8 @@ public final class SpiderLegIK {
             // below its contact plane while the body rises over a tread.
             if(contact && memory.destinations[leg]==null) {
                 Vec3 actual=toWorld(world,endpoint(pivots,angles,tip),frame.origin);
-                if(actual.distanceToSqr(target)>.000225) {
-                    solve(pivots,rest,angles,tip,localTarget);
+                if(actual.subtract(target).dot(contactNormal)<-.02 || actual.distanceToSqr(target)>.0225) {
+                    solve(pivots,rest,angles,tip,localTarget,neighbours);
                     for(int j=0;j<3;j++)memory.rotations[leg][j].set(angles[j]);
                 }
             }
@@ -345,6 +404,7 @@ public final class SpiderLegIK {
                 stanceError=stanceError.add(target.subtract(restingFoot));planted++;
             }
         }
+        if(update && memory.turningBlocked)memory.blockedUntil=frame.age+2;
         memory.age = frame.age; memory.origin = frame.origin;
         DEBUG.put(frame.spider,new Debug(List.copyOf(debug),frame.age,planted>=3?stanceError.scale(1.0/planted):Vec3.ZERO));
     }
@@ -363,41 +423,95 @@ public final class SpiderLegIK {
     /** Alternating support groups, with a front-to-rear ripple inside each group.
      * A foot is admitted once per cycle; grounded feet stay planted until its turn. */
     static final class Gait {
-        private int group;
-        private float age, firstStart;
+        private int group, active;
+        private float age, firstStart, lastIdleSwitch=-100;
         private int firstRank;
         private boolean started;
         private final boolean[] used=new boolean[8];
         void beginFrame(Vec3[] destinations,float age) {
             this.age=age;
-            for(Vec3 destination:destinations)if(destination!=null)return;
+            active=0;
+            for(Vec3 destination:destinations)if(destination!=null)active++;
+            if(active>0) {
+                boolean complete=true;
+                for(int leg=0;leg<8;leg++)if(((leg+leg/4)&1)==group && !used[leg])complete=false;
+                // Begin the next support group's recovery as slots free up;
+                // waiting for the last rear foot made chase strides stall.
+                if(complete && active<4) {
+                    group^=1;
+                    for(int leg=0;leg<8;leg++)if(((leg+leg/4)&1)==group)used[leg]=false;
+                    started=false;lastIdleSwitch=age;
+                }
+                return;
+            }
             if(started) {
                 group^=1;
                 java.util.Arrays.fill(used,false);
                 started=false;
-            } else group^=1;
+                lastIdleSwitch=age;
+            } else if(age-lastIdleSwitch>=1.5F) {
+                group^=1; lastIdleSwitch=age;
+            }
         }
         boolean canStart(int leg) {
-            if(((leg+leg/4)&1)!=group || used[leg])return false;
+            if(active>=4 || ((leg+leg/4)&1)!=group || used[leg])return false;
             int rank=(leg%4)/2;
-            if(started && age-firstStart<Math.max(0,rank-firstRank)*.8F)return false;
+            if(started && age-firstStart<Math.max(0,rank-firstRank)*.35F)return false;
             if(!started) { firstStart=age;firstRank=rank;started=true; }
-            used[leg]=true;
+            used[leg]=true;active++;
             return true;
+        }
+        boolean canStartEmergency(int leg) {
+            // An urgent front foot cannot take several turns while the rear
+            // feet are still waiting for their first recovery in this cycle.
+            if(active>=4 || used[leg])return false;
+            active++;used[leg]=true;started=true;return true;
         }
     }
 
     static float stepDuration(double speed,double scale,int leg) {
         // A brisk scuttle has quick recovery strokes; slow walking takes its time.
-        double duration=Math.clamp(.44*scale/Math.max(.01,speed),1.9,4.8);
+        double duration=Math.clamp(.26*scale/Math.max(.01,speed),1.45,3.8);
         return (float)(duration*(1+(leg%4-1.5)*.025));
+    }
+
+    static void settleJoint(Vector3f current,Vector3f desired,double ticks,int joint) {
+        double limit=(joint==0?.45:.65)*ticks;
+        for(int axis=0;axis<3;axis++) {
+            double delta=desired.get(axis)-current.get(axis);
+            delta=Math.atan2(Math.sin(delta),Math.cos(delta));
+            if(Math.abs(delta)<.0004)continue;
+            current.setComponent(axis,current.get(axis)+(float)Math.clamp(delta,-limit,limit));
+        }
+    }
+
+    static Vec3 strideLead(Vec3 velocity,Vec3 up,double scale,int leg) {
+        Vec3 tangent=velocity.subtract(up.scale(velocity.dot(up)));
+        // Include the first part of the following stance, not just airtime;
+        // otherwise even a quick touchdown immediately lands behind the torso.
+        Vec3 lead=tangent.scale(stepDuration(tangent.length(),scale,leg)*.85+.75);
+        double limit=.60*scale;
+        return lead.length()>limit?lead.normalize().scale(limit):lead;
+    }
+
+    static boolean needsWalkingStep(Vec3 planted,Vec3 target,Vec3 rest,Vec3 velocity,Vec3 up,double scale) {
+        if(needsStep(planted,target,up,scale))return true;
+        Vec3 tangent=velocity.subtract(up.scale(velocity.dot(up)));
+        // Release a trailing stance before the torso stretches the knee chain.
+        // Measure in the support plane so ceilings and walls share the floor gait.
+        return tangent.lengthSqr()>.0004 && rest.subtract(planted).dot(tangent.normalize())>.16*scale;
+    }
+
+    static boolean trailingStance(Vec3 planted,Vec3 rest,Vec3 velocity,Vec3 up,double scale) {
+        Vec3 tangent=velocity.subtract(up.scale(velocity.dot(up)));
+        return tangent.lengthSqr()>.0004 && rest.subtract(planted).dot(tangent.normalize())>.40*scale;
     }
 
     static boolean needsStep(Vec3 planted,Vec3 target,Vec3 up,double scale) {
         Vec3 offset=target.subtract(planted);
         double rise=offset.dot(up);
         // Small body-height adjustments must not cause shuffling on level ground.
-        return offset.subtract(up.scale(rise)).lengthSqr()>.0484*scale*scale
+        return offset.subtract(up.scale(rise)).lengthSqr()>.1024*scale*scale
                 || Math.abs(rise)>.18*scale;
     }
 
@@ -434,10 +548,16 @@ public final class SpiderLegIK {
 
     /** Bounded CCD preserves the authored knee bends and never stretches a segment. */
     static void solve(Vector3f[] pivots, Vector3f[] rest, Vector3f[] angles, Vector3f tip, Vector3f target) {
+        solve(pivots,rest,angles,tip,target,List.of());
+    }
+
+    static void solve(Vector3f[] pivots, Vector3f[] rest, Vector3f[] angles, Vector3f tip, Vector3f target,List<Vector3f[]> neighbours) {
+        Vector3f[] previous={new Vector3f(angles[0]),new Vector3f(angles[1]),new Vector3f(angles[2])};
         Vector3f[] best={new Vector3f(angles[0]),new Vector3f(angles[1]),new Vector3f(angles[2])};
-        float bestError=endpoint(pivots,angles,tip).distanceSquared(target);
+        float bestError=poseScore(pivots,angles,tip,target,previous,neighbours);
         for (int iteration=0;iteration<24;iteration++) {
-            if (endpoint(pivots,angles,tip).distanceSquared(target) < .000025F) break;
+            if (endpoint(pivots,angles,tip).distanceSquared(target) < .000025F
+                    && separationPenalty(pivots,angles,tip,neighbours)<.000001F) break;
             for (int j=2;j>=0;j--) {
                 Matrix4f parent = new Matrix4f();
                 for (int k=0;k<j;k++) rotate(parent,pivots[k],angles[k]);
@@ -452,16 +572,69 @@ public final class SpiderLegIK {
                 for (int axis=0;axis<3;axis++) {
                     float difference = angles[j].get(axis)-rest[j].get(axis);
                     difference = (float)Math.atan2(Math.sin(difference),Math.cos(difference));
-                    angles[j].setComponent(axis,rest[j].get(axis)+Math.clamp(difference,-.85F,.85F));
+                    angles[j].setComponent(axis,rest[j].get(axis)+Math.clamp(difference,
+                            -(axis==1?(j==0?.5F:.22F):j==2?.65F:.85F),axis==1?(j==0?.5F:.22F):j==2?.65F:.85F));
                 }
             }
-            float error=endpoint(pivots,angles,tip).distanceSquared(target);
+            if(!neighbours.isEmpty() && iteration%3==0 && separationPenalty(pivots,angles,tip,neighbours)>.000001F) {
+                // Endpoint-only CCD cannot move an elbow out of a neighbour's
+                // way once the toe already reaches its target. Search small,
+                // bounded bend changes, then let the next CCD pass restore grip.
+                for(int j=0;j<3;j++)for(int axis=1;axis<3;axis++) {
+                    float initial=angles[j].get(axis),chosen=initial;
+                    float score=poseScore(pivots,angles,tip,target,previous,neighbours);
+                    float limit=axis==1?(j==0?.5F:.22F):j==2?.65F:.85F;
+                    for(float offset:new float[]{-.04F,.04F}) {
+                        angles[j].setComponent(axis,Math.clamp(initial+offset,rest[j].get(axis)-limit,rest[j].get(axis)+limit));
+                        float candidate=poseScore(pivots,angles,tip,target,previous,neighbours);
+                        if(candidate<score) { score=candidate;chosen=angles[j].get(axis); }
+                    }
+                    angles[j].setComponent(axis,chosen);
+                }
+            }
+            float error=poseScore(pivots,angles,tip,target,previous,neighbours);
             if(error<bestError) {
                 bestError=error;
                 for(int j=0;j<3;j++)best[j].set(angles[j]);
             }
         }
         for(int j=0;j<3;j++)angles[j].set(best[j]);
+    }
+
+    private static float poseScore(Vector3f[] pivots,Vector3f[] angles,Vector3f tip,Vector3f target,Vector3f[] previous,List<Vector3f[]> neighbours) {
+        float score=endpoint(pivots,angles,tip).distanceSquared(target)+separationPenalty(pivots,angles,tip,neighbours)*4;
+        // Prefer the coherent knee bend among similarly accurate CCD solutions.
+        for(int j=0;j<3;j++)for(int axis=0;axis<3;axis++) {
+            double delta=angles[j].get(axis)-previous[j].get(axis);
+            delta=Math.atan2(Math.sin(delta),Math.cos(delta));
+            score+=(float)(delta*delta*.00008);
+        }
+        return score;
+    }
+
+    private static float separationPenalty(Vector3f[] pivots,Vector3f[] angles,Vector3f tip,List<Vector3f[]> neighbours) {
+        if(neighbours.isEmpty())return 0;
+        Matrix4f transform=new Matrix4f();Vector3f[] joints=new Vector3f[4];
+        for(int j=0;j<3;j++) { joints[j]=transform.transformPosition(new Vector3f(pivots[j]));rotate(transform,pivots[j],angles[j]); }
+        joints[3]=transform.transformPosition(new Vector3f(tip));
+        float penalty=0;
+        for(Vector3f[] other:neighbours)for(int a=1;a<3;a++)for(int b=1;b<3;b++) {
+            float gap=Math.max(0,.075F-segmentDistance(joints[a],joints[a+1],other[b],other[b+1]));
+            penalty+=gap*gap;
+        }
+        return penalty;
+    }
+
+    static float segmentDistance(Vector3f a,Vector3f b,Vector3f c,Vector3f d) {
+        Vector3f u=new Vector3f(b).sub(a),v=new Vector3f(d).sub(c),w=new Vector3f(a).sub(c);
+        float aa=u.dot(u),bb=u.dot(v),cc=v.dot(v),dd=u.dot(w),ee=v.dot(w);
+        if(aa<1e-8F || cc<1e-8F)return Math.min(a.distance(c),b.distance(d));
+        float determinant=aa*cc-bb*bb;
+        float s=determinant>1e-8F?Math.clamp((bb*ee-cc*dd)/determinant,0,1):0;
+        float t=(bb*s+ee)/cc;
+        if(t<0) { t=0;s=Math.clamp(-dd/aa,0,1); }
+        else if(t>1) { t=1;s=Math.clamp((bb-dd)/aa,0,1); }
+        return new Vector3f(a).fma(s,u).distance(new Vector3f(c).fma(t,v));
     }
     private static void rotate(Matrix4f matrix, Vector3f pivot, Vector3f angles) {
         matrix.translate(pivot).rotateZYX(angles.z,angles.y,angles.x).translate(-pivot.x,-pivot.y,-pivot.z);

@@ -1,8 +1,12 @@
 #version 330
+#moj_import <asterion:limbo_seas.glsl>
+#moj_import <asterion:limbo_fire.glsl>
 
 // Limbo variant of dimension/volume_integrate: the same world-space 3D dust
 // field and front-to-back extinction, with a restrained neutral-grey palette.
 uniform sampler2D DepthSampler;
+layout(std140) uniform FireView { vec4 FireRange; };
+layout(std140) uniform WaveWeather { vec4 WaveEvents; };
 layout(std140) uniform SamplerInfo { vec2 OutSize; vec2 InSize; };
 layout(std140) uniform WorldData { mat4 InvViewProj; vec4 CameraData; vec4 CameraForward; };
 layout(std140) uniform Intensity { float Value; };
@@ -88,8 +92,9 @@ float lightRelief(vec3 world) {
 }
 
 void main() {
+    seaTempestStrength=WaveEvents.x; seaWhirlpoolStrength=WaveEvents.y; seaWhirlpoolCenter=WaveEvents.zw;
     float strength = clamp(Value, 0.0, 1.0);
-    if (strength < .001 || River.z <= 0.0 || River.w <= 0.0) {
+    if (strength < .001) {
         fragColor = vec4(0, 0, 0, 1);
         return;
     }
@@ -104,11 +109,12 @@ void main() {
     vec3 wind = vec3(Time * .006, Time * .0015, -Time * .004);
 
     for (int i = 0; i < 8; ++i) {
-        if (i >= samples) break;
+        if (i >= samples || River.z <= 0.0 || River.w <= 0.0) break;
         float along = (float(i) + .5) * stepLength;
         vec3 world = CameraData.xyz + direction * along;
         float localLight;
-        float density = densityAt(world, wind, localLight);
+        LimboSeaStyle sea=limboSeaStyle(world.xz);
+        float density = densityAt(world, wind, localLight)*sea.density*(1.0-sea.fire*.85);
         float relief = lightRelief(world);
         float nearRamp = smoothstep(2.0, 13.0, along);
         float extinction = min(density * mix(.45, 1.0, nearRamp)
@@ -116,7 +122,10 @@ void main() {
                 max(0.0, 2.65 - opticalDepth));
         float visibility = exp(-opticalDepth);
         opticalDepth += extinction;
-        vec3 grey = mix(vec3(.030, .034, .040), vec3(.20, .22, .24), localLight);
+        vec3 grey = mix(sea.fog*.9, sea.reflection*.85, localLight);
+        // Ember glow, cold silver tears, and Lethe's pale veils are world-local.
+        grey+=sea.reflection*sea.fire*.12;
+        grey=mix(grey,sea.fog*1.2,sea.oblivion*.25);
         scattering += visibility * (1.0 - exp(-extinction)) * grey;
     }
 
@@ -131,5 +140,15 @@ void main() {
     scattering = mix(scattering,
             mix(vec3(.00008,.00012,.0002),vec3(.007,.012,.017),litWater)
                     * (1.0-waterTransmission), submerged);
+    if(depth>=.9999) {
+        float horizon=(1.0-smoothstep(.05,.45,abs(direction.y)))*.28;
+        scattering=mix(scattering,limboSeaHorizon(CameraData.xyz,direction)*(1.0-transmission),horizon);
+    }
+    float fireTravel=depth>=.9999?FireRange.x:min(FireRange.x,max(0.0,length(reconstructWorld(depth)-CameraData.xyz)-.12));
+    vec4 fire=limboFireVolume(CameraData.xyz,direction,fireTravel,River.x,Time,
+            int(clamp(MarchSteps.x*4.0-4.0,12.0,28.0)));
+    fire.rgb*=1.0-submerged;fire.a=mix(fire.a,1.0,submerged);
+    scattering=fire.rgb+scattering*fire.a;
+    transmission*=fire.a;
     fragColor = vec4(scattering * strength, mix(1.0, transmission, strength));
 }

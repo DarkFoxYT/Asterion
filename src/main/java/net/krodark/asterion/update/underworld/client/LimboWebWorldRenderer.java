@@ -59,10 +59,15 @@ public final class LimboWebWorldRenderer {
     }
     /** Foot targets use the same deformed links that are drawn, excluding cuts. */
     public static Vec3 spiderContact(Vec3 foot, double reach) {
+        return spiderContact(null,foot,reach,point->true);
+    }
+    public static Vec3 spiderContact(net.krodark.asterion.update.underworld.entity.LimboSpiderEntity owner,
+                                    Vec3 foot,double reach,java.util.function.Predicate<Vec3> allowed) {
         Vec3 result = null;
         double best = reach * reach;
         double partial = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
         for (WebPhysicsGraph graph : GRAPHS.values()) {
+            if(owner!=null && graph.patch.key()!=owner.silkKey())continue;
             if (!graph.bounds.inflate(reach).contains(foot)) continue;
             var cuts = CUT.get(graph.patch.key());
             for (WebPhysicsGraph.Link link : graph.links) {
@@ -72,7 +77,7 @@ public final class LimboWebWorldRenderer {
                 Vec3 point = net.krodark.asterion.update.underworld.LimboWebSystem.nearest(
                         graph.rendered(link.a(),partial),graph.rendered(link.b(),partial),foot);
                 double distance = point.distanceToSqr(foot);
-                if (distance < best) { best = distance; result = point; }
+                if (distance < best && allowed.test(point)) { best = distance; result = point; }
             }
         }
         return result;
@@ -90,7 +95,7 @@ public final class LimboWebWorldRenderer {
         if(client.level!=null)LIVE_THREADS.entrySet().removeIf(e->client.level.getGameTime()-e.getValue().tick()>2);
         if(client.level==null||client.player==null||!client.level.dimension().equals(Asterion.LIMBO_LEVEL)){GRAPHS.clear();CUT.clear();return;}
         Vec3 body=client.player.position().add(0,client.player.getBbHeight()*.48,0);
-        var patches=WebPatchGenerator.around(client.level,body,16); java.util.HashSet<Long> live=new java.util.HashSet<>();
+        var patches=WebPatchGenerator.around(client.level,body,40); java.util.HashSet<Long> live=new java.util.HashSet<>();
         var influences=new ArrayList<WebPhysicsGraph.Influence>();
         for(var part:WebPlayerShape.parts(client.player))
             influences.add(new WebPhysicsGraph.Influence(part.middle(),client.player.getDeltaMovement(),part.radius()+.22));
@@ -124,19 +129,17 @@ public final class LimboWebWorldRenderer {
         double partial = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         poses.pushPose();poses.translate(-camera.x,-camera.y,-camera.z);
         var frustum=state.cameraRenderState.cullFrustum;
-        output.submitCustomGeometry(poses,RenderTypes.entityTranslucent(SILK,false),(pose,out)->{for(WebPhysicsGraph graph:GRAPHS.values()){if(frustum!=null&&!frustum.isVisible(graph.bounds))continue;java.util.BitSet cut=CUT.computeIfAbsent(graph.patch.key(),ignored->new java.util.BitSet());int alpha=0x48+(int)((mix(graph.patch.key())>>>56)&0x5f);for(WebPhysicsGraph.Link link:graph.links)if(!cut.get(link.index())){double weight=.012+((mix(graph.patch.key()+link.index())>>>58)&7)*.003;Vec3 a=graph.rendered(link.a(),partial),b=graph.rendered(link.b(),partial);strand(pose,out,a,b,weight,alpha,LevelRenderer.getLightCoords(client.level,BlockPos.containing(a)));}}});
+        output.submitCustomGeometry(poses,RenderTypes.entityTranslucent(SILK,false),(pose,out)->{for(WebPhysicsGraph graph:GRAPHS.values()){if(frustum!=null&&!frustum.isVisible(graph.bounds))continue;java.util.BitSet cut=CUT.computeIfAbsent(graph.patch.key(),ignored->new java.util.BitSet());int alpha=0x48+(int)((mix(graph.patch.key())>>>56)&0x5f);alpha=(int)(alpha*WebStrandGeometry.visibility(graph.bounds,camera));if(alpha<1)continue;for(WebPhysicsGraph.Link link:graph.links)if(!cut.get(link.index())){double weight=.012+((mix(graph.patch.key()+link.index())>>>58)&7)*.003;Vec3 a=graph.rendered(link.a(),partial),b=graph.rendered(link.b(),partial);strand(pose,out,a,b,weight,alpha,camera,LevelRenderer.getLightCoords(client.level,BlockPos.containing(a)));}}});
         poses.popPose();
     }
-    static void strand(PoseStack.Pose pose,VertexConsumer out,Vec3 a,Vec3 b,double width,int alpha,int light){
-        Vec3 delta=b.subtract(a);
-        if(delta.lengthSqr()<1e-8)return;
-        Vec3 axis=delta.normalize();
-        // A single vertical-facing ribbon, not the two perpendicular quads that
-        // made every silk link look like an X or a plus from different angles.
-        Vec3 up=new Vec3(0,1,0);
-        Vec3 side=up.subtract(axis.scale(axis.dot(up)));
-        if(side.lengthSqr()<1e-6)side=new Vec3(1,0,0);
-        quad(pose,out,a,b,side.normalize().scale(width),alpha,light);
+    static void strand(PoseStack.Pose pose,VertexConsumer out,Vec3 a,Vec3 b,double width,int alpha,int light) {
+        // Live spinneret threads are submitted in camera-relative coordinates.
+        strand(pose,out,a,b,width,alpha,Vec3.ZERO,light);
+    }
+    static void strand(PoseStack.Pose pose,VertexConsumer out,Vec3 a,Vec3 b,double width,int alpha,Vec3 camera,int light) {
+        if(a.distanceToSqr(b)<1e-8)return;
+        Vec3 side=WebStrandGeometry.ribbon(a,b,camera,width);
+        quad(pose,out,a,b,side,alpha,light);
     }
     private static void quad(PoseStack.Pose pose,VertexConsumer out,Vec3 a,Vec3 b,Vec3 w,int alpha,int light){vertex(pose,out,a.subtract(w),0,0,alpha,light);vertex(pose,out,a.add(w),1,0,alpha,light);vertex(pose,out,b.add(w),1,1,alpha,light);vertex(pose,out,b.subtract(w),0,1,alpha,light);}
     private static void vertex(PoseStack.Pose pose,VertexConsumer out,Vec3 p,float u,float v,int alpha,int light){org.joml.Vector3f q=pose.pose().transformPosition((float)p.x,(float)p.y,(float)p.z,new org.joml.Vector3f());out.addVertex(q.x,q.y,q.z,(alpha<<24)|0x00D4D8D4,u,v,OverlayTexture.NO_OVERLAY,light,0,1,0);}

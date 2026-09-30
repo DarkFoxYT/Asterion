@@ -35,6 +35,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Owns the one-time death transition and the persistent ferry at the river's threshold. */
 public final class UnderworldPassage {
     private static int ferryCheck;
+    private static final Set<UUID> FIRE_RETURNS = new HashSet<>();
     private static final Map<UUID, Set<Integer>> CHAMBER_EVENTS = new HashMap<>();
     private static final Map<UUID, Long> WHIRLPOOL_RESCUES = new ConcurrentHashMap<>();
 
@@ -51,9 +52,14 @@ public final class UnderworldPassage {
         });
         // Registered after Asterion's recovery so death always leads into Limbo.
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
-            if (!alive) enterAfterDeath(newPlayer);
+            if (!alive && FIRE_RETURNS.remove(newPlayer.getUUID())) returnToFerry(newPlayer);
+            else if (!alive) enterAfterDeath(newPlayer);
+        });
+        ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
+            if (entity instanceof ServerPlayer player && fireSeaDeath(player, source)) FIRE_RETURNS.add(player.getUUID());
         });
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
+            if (entity instanceof ServerPlayer burned && fireSeaDeath(burned, source)) return true;
             if (!(entity instanceof ServerPlayer player) || player.getHealth() > 0
                     || !(player.level() instanceof ServerLevel level)
                     || !level.dimension().equals(Asterion.LIMBO_LEVEL)
@@ -66,7 +72,41 @@ public final class UnderworldPassage {
             return false;
         });
         ServerTickEvents.END_SERVER_TICK.register(UnderworldPassage::tick);
-        ServerLifecycleEvents.SERVER_STOPPED.register(server -> CHAMBER_EVENTS.clear());
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+            CHAMBER_EVENTS.clear(); FIRE_RETURNS.clear(); WHIRLPOOL_RESCUES.clear();
+            net.krodark.asterion.update.underworld.world.PhlegethonHazard.clear();
+        });
+    }
+
+    private static boolean fireSeaDeath(ServerPlayer player, net.minecraft.world.damagesource.DamageSource source) {
+        return player.level().dimension().equals(Asterion.LIMBO_LEVEL)
+                && (net.krodark.asterion.update.underworld.world.PhlegethonHazard.touches(player)
+                || net.krodark.asterion.update.underworld.world.PhlegethonHazard.recentlyBurned(player)
+                && source.is(net.minecraft.tags.DamageTypeTags.IS_FIRE));
+    }
+
+    private static void returnToFerry(ServerPlayer player) {
+        net.krodark.asterion.worldgen.WorldGenerator.finishRapidRespawn(player);
+        ServerLevel level = player.level().getServer().getLevel(Asterion.LIMBO_LEVEL);
+        if (level == null) { enterAfterDeath(player); return; }
+        var journey = FerryJourneyState.get(level);
+        level.getChunk((int)Math.floor(journey.boatX) >> 4, (int)Math.floor(journey.boatZ) >> 4);
+        CharonsFerryEntity ferry = level.getEntity(CharonsFerryEntity.SHARED_ID) instanceof CharonsFerryEntity found ? found : null;
+        if (ferry == null) {
+            level.getChunk((int)UnderworldTerrain.riverCenter(UnderworldTerrain.FERRY_Z) >> 4, UnderworldTerrain.FERRY_Z >> 4);
+            ferry = UnderworldContent.CHARONS_FERRY.create(level, EntitySpawnReason.EVENT);
+            if (ferry == null) { enterAfterDeath(player); return; }
+            ferry.setUUID(CharonsFerryEntity.SHARED_ID);
+            ferry.berth(); level.addFreshEntity(ferry);
+        }
+        net.krodark.asterion.network.ragdoll.RagdollServerNetworking.resetAfterRespawn(player);
+        player.stopRiding(); player.setPose(net.minecraft.world.entity.Pose.STANDING);
+        Vec3 seat = ferry.deckPoint(0, -.15);
+        player.teleportTo(level, seat.x, seat.y, seat.z, Set.of(), ferry.getYRot(), 0, true);
+        ferry.acceptFare(player);
+        player.clearFire(); player.setDeltaMovement(Vec3.ZERO);
+        player.resetFallDistance(); player.setOnGround(true); player.invulnerableTime = 80;
+        net.krodark.asterion.update.underworld.world.PhlegethonHazard.forget(player.getUUID());
     }
 
     private static void enterAfterDeath(ServerPlayer player) {
@@ -106,19 +146,6 @@ public final class UnderworldPassage {
             net.krodark.asterion.update.underworld.world.UnderworldWaterPhysics.alignSurface(
                     player, level.getGameTime());
             chamberEvent(level, player);
-            // The Styx is crossed aboard the paid ferry, not by swimming or walking around it.
-            if (player.isAlive() && !player.isSpectator() && !player.getAbilities().instabuild
-                    && player.getZ() > 105
-                    && CharonsFerryEntity.supporting(player) == null
-                    && !(level.getEntity(CharonsFerryEntity.SHARED_ID) instanceof CharonsFerryEntity escort
-                    && escort.hasPaid(player) && escort.distanceToSqr(player) < 144)) {
-                level.getChunk(UnderworldTerrain.SPAWN_X >> 4, UnderworldTerrain.SPAWN_Z >> 4);
-                player.teleportTo(level, UnderworldTerrain.SPAWN_X + .5,
-                        UnderworldTerrain.SPAWN_Y, UnderworldTerrain.SPAWN_Z + .5,
-                        Set.of(), 0, 0, true);
-                player.setDeltaMovement(Vec3.ZERO);
-                player.resetFallDistance();
-            }
             if (player.isAlive() && !player.isSpectator() && player.getX() > -42
                     && player.getZ() > 20 && player.getZ() < 105
                     && level.getEntity(CharonsFerryEntity.SHARED_ID) instanceof CharonsFerryEntity ferry)

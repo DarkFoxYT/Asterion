@@ -14,6 +14,64 @@ import java.util.List;
 public final class SpiderMovementSmoke {
     public static void main(String[] args) {
         int checks = 0;
+        Vec3 steady=new Vec3(10,0,0);
+        for(int update=0;update<100;update++) {
+            steady=SpiderSurfaceMotion.stablePursuit(steady,new Vec3(10+(update%2==0?.1:-.1),0,.05));
+            require(steady.equals(new Vec3(10,0,0)),"Tiny prey corrections keep shifting pursuit heading");
+        }
+        Vec3 pursuit=SpiderSurfaceMotion.stablePursuit(steady,new Vec3(12,0,0));
+        require(pursuit.x>10 && pursuit.x<12,"Pursuit smoothing stalls or overshoots a moving player");
+        require(SpiderSurfaceMotion.stablePursuit(steady,new Vec3(30,0,0)).x==30,"A large target move keeps a stale chase destination");
+        {
+            var body=new AABB(-1,0,-1,1,2,1);
+            Vec3 up=new Vec3(0,1,0),forward=new Vec3(0,0,1);
+            java.util.function.Predicate<Vec3> platform=p->p.x>.20;
+            require(net.krodark.asterion.update.underworld.entity.SpiderStanceSupport.contacts(body,up,forward,1,platform)==4,"Wide stance foot count incorrect");
+            java.util.function.Predicate<Vec3> ledge=p->p.x>.85 && p.z<.3;
+            require(net.krodark.asterion.update.underworld.entity.SpiderStanceSupport.contacts(body,up,forward,1,ledge)<4,"Ledge should leave feet unsupported");
+            Vec3 shift=net.krodark.asterion.update.underworld.entity.SpiderStanceSupport.reposition(body,up,forward,1,ledge,p->true);
+            require(shift.length()>0 && net.krodark.asterion.update.underworld.entity.SpiderStanceSupport.contacts(body.move(shift),up,forward,1,ledge)>=4,"Body did not find a four-foot stance");
+            require(net.krodark.asterion.update.underworld.entity.SpiderStanceSupport.reposition(body,up,forward,1,ledge,p->false).lengthSqr()==0,"Stance correction crosses a blocked sweep");
+            require(net.krodark.asterion.update.underworld.entity.SpiderStanceSupport.reposition(body,up,forward,1,p->true,p->true).lengthSqr()==0,"Supported body keeps shifting");
+        }
+        for(double distance:new double[]{3,6,9}) {
+            Vec3 position=Vec3.ZERO;
+            Vec3 velocity=net.krodark.asterion.update.underworld.entity.SpiderLungeMotion.launch(position,new Vec3(distance,0,0),Vec3.ZERO);
+            require(velocity.y>=.48 && velocity.x>.45,"Lunge lacks a fast upward launch");
+            boolean reached=false;double highest=0;
+            for(int tick=0;tick<24;tick++) {
+                position=position.add(velocity);highest=Math.max(highest,position.y);
+                if(Math.abs(position.x-distance)<1.3 && position.y>=0 && position.y<1.8)reached=true;
+                velocity=net.krodark.asterion.update.underworld.entity.SpiderLungeMotion.afterTick(velocity);
+            }
+            require(highest>.8 && reached,"Ground leap fails to reach attack overlap at "+distance+" blocks");
+        }
+        {
+            Vec3 target=new Vec3(6,-5,0),position=Vec3.ZERO;
+            Vec3 velocity=net.krodark.asterion.update.underworld.entity.SpiderLungeMotion.launch(position,target,Vec3.ZERO);
+            require(velocity.y<0,"Ceiling ambush does not dive toward prey");
+            for(int tick=0;tick<8;tick++) {
+                position=position.add(velocity);
+                velocity=net.krodark.asterion.update.underworld.entity.SpiderLungeMotion.afterTick(velocity);
+            }
+            require(position.distanceTo(target)<.01,"Ceiling leap misses ballistic intercept");
+        }
+        // Repeated floor/wall/ceiling transitions must preserve a tangent heading
+        // without the zero-vector projection that previously snapped orientation.
+        {
+        Vec3 normal=new Vec3(0,-1,0),heading=new Vec3(0,0,1);
+        Vec3 initialHeading=heading;
+        for(Vec3 next:List.of(new Vec3(0,0,1),new Vec3(0,1,0),new Vec3(0,0,-1),new Vec3(0,-1,0))) {
+            for(int frame=1;frame<=90;frame++) {
+                Vec3 blended=normal.lerp(next,frame/90.0).normalize();
+                heading=SpiderSurfaceMotion.transport(normal,blended,heading);
+                require(Math.abs(heading.dot(blended))<.00001 && Math.abs(heading.length()-1)<.00001,"Corner transport lost its tangent heading");
+                normal=blended;
+            }
+        }
+        require(heading.distanceTo(initialHeading)<.0001,"A full surface circuit accumulated a spin");
+        }
+
         require(SpiderSurfaceMotion.intercept(Vec3.ZERO,new Vec3(1,0,0),new Vec3(.3,0,0),.4)
                 .equals(new Vec3(1,0,0)),"Close pursuit overshoots attack reach");
         require(SpiderSurfaceMotion.intercept(Vec3.ZERO,new Vec3(10,0,0),Vec3.ZERO,.4)

@@ -1,5 +1,9 @@
 #version 330
+#moj_import <asterion:limbo_seas.glsl>
+#moj_import <asterion:limbo_fire.glsl>
 uniform sampler2D DepthSampler;
+layout(std140) uniform FireView { vec4 FireRange; };
+layout(std140) uniform WaveWeather { vec4 WaveEvents; };
 uniform sampler2D NoiseSampler;
 layout(std140) uniform SamplerInfo { vec2 OutSize; vec2 InSize; };
 layout(std140) uniform WorldData { mat4 InvViewProj; vec4 CameraData; vec4 CameraForward; };
@@ -16,6 +20,7 @@ vec3 unproject(float d) {
     return p.xyz / max(abs(p.w), .00001);
 }
 void main() {
+    seaTempestStrength=WaveEvents.x; seaWhirlpoolStrength=WaveEvents.y; seaWhirlpoolCenter=WaveEvents.zw;
     float strength = clamp(Value, 0.0, 1.0);
     if (CameraData.y < River.x + CameraForward.w - .25) { fragColor = vec4(0,0,0,1); return; }
     float depth = texture(DepthSampler, texCoord).r;
@@ -35,7 +40,11 @@ void main() {
     vec3 middle = CameraData.xyz + ray * (nearD + farD) * .5;
     float noise = texture(NoiseSampler, fract(middle.xz * .018 + vec2(Time * .0003, -Time * .0002))).r;
     float mist = 1.0 - exp(-max(0.0, farD - nearD) * (.022 + .025 * noise) * River.w);
-    float haze = 1.0 - exp(-max(0.0, travel - 23.0) * .088 * River.z);
-    vec3 color = mix(vec3(.012,.013,.015) * haze, vec3(.055,.058,.062), mist);
-    fragColor = vec4(color * strength, mix(1.0, (1.0-haze)*(1.0-mist), strength));
+    float haze = 1.0 - exp(-max(0.0, travel - 23.0) * mix(.088,.006,smoothstep(50.0,200.0,CameraData.z)) * River.z);
+    LimboSeaStyle sea = limboSeaStyle(middle.xz);
+    vec3 tint = depth >= .9999 ? limboSeaHorizon(CameraData.xyz, ray) : sea.fog;
+    vec3 color = mix(tint * haze, tint * (1.0 + sea.fire * .25), mist);
+    vec4 fire=limboFireVolume(CameraData.xyz,ray,depth>=.9999?FireRange.x:length(endpoint),River.x,Time,8);
+    color=fire.rgb+color*fire.a;
+    fragColor = vec4(color * strength, mix(1.0, (1.0-haze)*(1.0-mist)*fire.a, strength));
 }

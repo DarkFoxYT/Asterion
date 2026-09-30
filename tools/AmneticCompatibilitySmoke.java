@@ -48,7 +48,8 @@ public final class AmneticCompatibilitySmoke {
         mixins.addAll(config.getAsJsonArray("client"));mixins.addAll(config.getAsJsonArray("mixins"));
         for(var item:mixins) {
             String name=item.getAsString();if(!name.startsWith("Amnetic") && !name.equals("LimboCameraWaterMixin")
-                    && !name.equals("LimboFluidInteractionMixin"))continue;
+                    && !name.equals("LimboFluidInteractionMixin") && !name.startsWith("LimboBoat")
+                    && !name.equals("PhlegethonContactMixin"))continue;
             var mixin=read("net/krodark/asterion/mixin/"+name);ClassNode target=null;
             for(var a:annotations(mixin.visibleAnnotations,mixin.invisibleAnnotations))if(a.desc.endsWith("/Mixin;")) {
                 var values=(List<?>)value(a,"value");var targets=(List<?>)value(a,"targets");

@@ -3,8 +3,14 @@
   "generator": {
     "type": "asterion:underworld_river",
     "biome_source": {
-      "type": "minecraft:fixed",
-      "biome": "asterion:limbo"
+      "type": "asterion:limbo_seas",
+      "biomes": [
+        "asterion:limbo",
+        "asterion:phlegethon",
+        "asterion:lethe",
+        "asterion:acheron",
+        "asterion:cocytus"
+      ]
     },
     "settings": {
       "biome": "asterion:limbo",

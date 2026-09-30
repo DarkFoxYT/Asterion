@@ -12,7 +12,7 @@ public final class SpiderRenderFrame {
         Vec3 wanted=desired.subtract(normal.scale(desired.dot(normal))).normalize();
         if(retained.lengthSqr()<.001)return wanted;
         if(!moving || wanted.lengthSqr()<.001)return retained;
-        return SpiderSurfaceMotion.turn(normal,retained,wanted,.20*Math.clamp(elapsed,0,2));
+        return SpiderSurfaceMotion.turn(normal,retained,wanted,.12*Math.clamp(elapsed,0,2));
     }
     public static Quaternionf orientation(Vec3 normal,Vec3 forward) {
         Vec3 up=normal.scale(-1).normalize();

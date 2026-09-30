@@ -13,6 +13,16 @@ import java.util.List;
 /** The illustrated stair profile, rotated onto floors, ceilings and diagonal walls. */
 public final class SpiderSupportSmoke {
     public static void main(String[] args) {
+        for(double size:new double[]{1.25,1.5}) {
+            var body=new net.minecraft.world.phys.AABB(-.7*size,0,-.7*size,.7*size,1.3*size,.7*size);
+            var low=java.util.List.of(new net.minecraft.world.phys.AABB(body.maxX+.02,0,-2,body.maxX+2,1,2));
+            var tall=java.util.List.of(new net.minecraft.world.phys.AABB(body.maxX+.02,0,-2,body.maxX+2,5,2));
+            var shallow=net.krodark.asterion.update.underworld.entity.SpiderSupportSurface.ledgeNormal(low,body,net.minecraft.core.Direction.EAST);
+            if(shallow.y>-.8 || shallow.x>.51)throw new AssertionError("One-block ledge rotated a body-sized spider vertically");
+            var wall=net.krodark.asterion.update.underworld.entity.SpiderSupportSurface.ledgeNormal(tall,body,net.minecraft.core.Direction.EAST);
+            if(wall.distanceTo(new net.minecraft.world.phys.Vec3(1,0,0))>.0001)throw new AssertionError("Tall wall lost its climbing frame");
+        }
+
         int checks=0;
         var sweepBody=new AABB(0,0,0,1,1,1);
         require(SpiderSurfaceRoute.clear(List.of(new AABB(0,0,2,1,1,3)),sweepBody,new Vec3(2,0,2)),

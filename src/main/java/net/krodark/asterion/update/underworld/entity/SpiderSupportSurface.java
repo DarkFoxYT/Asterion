@@ -23,6 +23,24 @@ public final class SpiderSupportSurface {
         }
     }
     private SpiderSupportSurface() { }
+    /** A large spider straddles a small riser instead of standing vertically on it. */
+    public static Vec3 ledgeNormal(List<AABB> blocks,AABB body,Direction face) {
+        Vec3 normal=face.getUnitVec3();
+        if(!face.getAxis().isHorizontal())return normal;
+        double top=-Double.MAX_VALUE;
+        for(AABB block:blocks) {
+            double gap=face.getAxis()==Direction.Axis.X
+                    ? (face==Direction.EAST?block.minX-body.maxX:body.minX-block.maxX)
+                    : (face==Direction.SOUTH?block.minZ-body.maxZ:body.minZ-block.maxZ);
+            boolean overlaps=face.getAxis()==Direction.Axis.X
+                    ?block.maxZ>body.minZ && block.minZ<body.maxZ:block.maxX>body.minX && block.minX<body.maxX;
+            if(overlaps && gap>=-.05 && gap<.7 && block.maxY>body.minY+.02)top=Math.max(top,block.maxY);
+        }
+        double rise=top-body.minY;
+        if(rise<=0 || rise>body.getYsize()*.72)return normal;
+        double tilt=Math.sin(Math.clamp(rise/(body.getYsize()*.72),0,1)*Math.PI*.5)*.5;
+        return new Vec3(0,-1,0).scale(Math.sqrt(1-tilt*tilt)).add(normal.scale(tilt)).normalize();
+    }
     /** Visual support frame from a 3x3 neighborhood; physical grip stays exact. */
     public static Vec3 neighborhoodNormal(List<AABB> blocks,AABB body,Direction face) {
         Vec3 normal=face.getUnitVec3();

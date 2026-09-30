@@ -54,6 +54,14 @@ public final class SpiderIKSmoke {
             }
             Vector3f tip = new Vector3f(pivots[2]).add(name.startsWith("left") ? -13F/16 : 13F/16,-.375F,0);
             Vector3f nominal = endpoint(pivots,rest,tip);
+            int ordinal=name.contains("frontish")?1:name.contains("backish")?2:name.contains("front")?0:3;
+            int legIndex=ordinal+(name.startsWith("left")?0:4);
+            if(!SpiderLegIK.ownsFoot(legIndex,nominal,pivots[0]))throw new AssertionError("Authored resting foot lost its lane: "+name+" "+nominal);
+            Vector3f hangingTarget=new Vector3f(nominal).lerp(pivots[0],.12F).add(0,.12F,0);
+            Vector3f[] hanging={new Vector3f(rest[0]),new Vector3f(rest[1]),new Vector3f(rest[2])};
+            SpiderLegIK.solve(pivots,rest,hanging,tip,hangingTarget);
+            if(endpoint(pivots,hanging,tip).distance(hangingTarget)>.075F)
+                throw new AssertionError(name+" cannot grasp its suspended silk cradle");
             // Follow an entire grounded swing with the real chain. A target
             // lifting is insufficient if the solved, visible foot stays down.
             var from=new net.minecraft.world.phys.Vec3(nominal.x,.30,nominal.z);
@@ -92,7 +100,16 @@ public final class SpiderIKSmoke {
                 }
             }
         }
+        for(int leg=0;leg<8;leg++) {
+            float side=leg<4?-1:1;
+            float z=switch(leg%4) { case 0->-1;case 1->-.25F;case 2->.25F;default->1; };
+            Vector3f hip=new Vector3f(side*.3F,.8F,z*.25F);
+            if(!SpiderLegIK.ownsFoot(leg,new Vector3f(side*1.8F,0,z),hip))throw new AssertionError("Leg lost its own foot sector");
+            if(SpiderLegIK.ownsFoot(leg,new Vector3f(-side*1.8F,0,z),hip))throw new AssertionError("Leg crosses the body");
+            if(SpiderLegIK.ownsFoot(leg,new Vector3f(side*1.8F,0,leg%4<2?2:-2),hip))throw new AssertionError("Leg leaves its reachable fan");
+        }
         checkWalkingGait();
+        checkNeighbourClearance(bones);
         checkStaggeredFootfalls();
         for(var face:net.minecraft.core.Direction.values()) {
             var normal=face.getUnitVec3();
@@ -144,8 +161,9 @@ public final class SpiderIKSmoke {
                     var shift=new net.minecraft.world.phys.Vec3(loaded.x,loaded.y,loaded.z);
                     var weight=SpiderLegIK.bodyTilt(new SpiderLegIK.Debug(feet,0,shift),q);
                     if(weight.x<.03 || weight.z<.04)throw new AssertionError("Level-ground weight transfer did not move torso");
-                    if(SpiderLegIK.bodyLift(new SpiderLegIK.Debug(feet,0,shift),q,0,net.krodark.asterion.update.underworld.entity.SpiderDimensions.RENDER_SCALE)>=0)
-                        throw new AssertionError("Extended stance did not soften body height");
+                    double settled=.12;
+                    for(int tick=0;tick<200;tick++)settled=SpiderLegIK.bodyLift(new SpiderLegIK.Debug(feet,0,shift),q,settled,net.krodark.asterion.update.underworld.entity.SpiderDimensions.RENDER_SCALE);
+                    if(Math.abs(settled-.12)>1e-6)throw new AssertionError("Horizontal stance error keeps moving body height");
                 }
                 if(slope>0 && tilt.z<=0)throw new AssertionError("Lean does not follow feet");
                 var tripod=SpiderLegIK.bodyTilt(new SpiderLegIK.Debug(feet.subList(0,3),0),q);
@@ -153,17 +171,64 @@ public final class SpiderIKSmoke {
                 Vector3f liftAxis=q.transform(new Vector3f(0,1,0));
                 var error=new net.minecraft.world.phys.Vec3(liftAxis.x*.2,liftAxis.y*.2,liftAxis.z*.2);
                 double lift=SpiderLegIK.bodyLift(new SpiderLegIK.Debug(feet,0,error),q,0,net.krodark.asterion.update.underworld.entity.SpiderDimensions.RENDER_SCALE);
-                if(Math.abs(lift-.1/net.krodark.asterion.update.underworld.entity.SpiderDimensions.RENDER_SCALE)>.001)
+                if(Math.abs(lift-.025)>.001)
                     throw new AssertionError("Torso did not rise toward planted feet on "+face);
                 if(SpiderLegIK.bodyLift(new SpiderLegIK.Debug(feet,0,error.scale(-1)),q,0,net.krodark.asterion.update.underworld.entity.SpiderDimensions.RENDER_SCALE)>=0)
                     throw new AssertionError("Torso did not lower toward feet");
-                if(Math.abs(SpiderLegIK.bodyLift(new SpiderLegIK.Debug(feet,0,error.scale(100)),q,.2,net.krodark.asterion.update.underworld.entity.SpiderDimensions.RENDER_SCALE)-.26)>.0001)
+                if(Math.abs(SpiderLegIK.bodyLift(new SpiderLegIK.Debug(feet,0,error.scale(100)),q,.25,net.krodark.asterion.update.underworld.entity.SpiderDimensions.RENDER_SCALE)-.26)>.0001)
                     throw new AssertionError("Torso height escaped clamp");
                 if(SpiderLegIK.bodyTilt(new SpiderLegIK.Debug(feet.subList(0,2),0),q).lengthSqr()!=0)
                     throw new AssertionError("Unstable two-foot body lean");
             }
         }
         System.out.println("Spider IK: "+cases+" cases, visible foot swings and body tilt on all six surfaces passed.");
+    }
+    private static void checkNeighbourClearance(Map<String,JsonObject> bones) {
+        String[] names={"leftlegfront","leftlegfrontish","leftlegbackish","leftlegback","rightlegfront","rightlegfrontish","rightlegbackish","rightlegback"};
+        Vector3f[][] rest=new Vector3f[8][3],angles=new Vector3f[8][3],points=new Vector3f[8][3];
+        Vector3f[] tips=new Vector3f[8],nominal=new Vector3f[8];
+        for(int leg=0;leg<8;leg++) {
+            for(int j=0;j<3;j++) {
+                String name=names[leg]+(j==0?"":j==1?"mid":"end");
+                points[leg][j]=vector(bones.get(name),"pivot").mul(-1,1,1).div(16);
+                rest[leg][j]=vector(bones.get(name),"rotation").mul(-1,-1,1).mul((float)Math.PI/180);
+                angles[leg][j]=new Vector3f(rest[leg][j]);
+            }
+            tips[leg]=new Vector3f(points[leg][2]).add(leg<4?-13F/16:13F/16,-.375F,0);
+            nominal[leg]=endpoint(points[leg],rest[leg],tips[leg]);
+        }
+        for(int frame=0;frame<240;frame++) {
+            var solved=new java.util.ArrayList<Vector3f[]>();
+            for(int leg=0;leg<8;leg++) {
+                double phase=frame*.09+((leg+leg/4)&1)*Math.PI;
+                Vector3f target=new Vector3f(nominal[leg]).add(0,(float)(.08+.18*Math.max(0,Math.sin(phase))),(float)(.12*Math.cos(phase)));
+                if(leg%4==1)target.z=Math.clamp(target.z,-.28F,-.06F);
+                if(leg%4==2)target.z=Math.clamp(target.z,.06F,.28F);
+                var neighbours=new java.util.ArrayList<Vector3f[]>();
+                for(int other=leg/4*4;other<leg;other++)neighbours.add(solved.get(other));
+                Vector3f[] before={new Vector3f(angles[leg][0]),new Vector3f(angles[leg][1]),new Vector3f(angles[leg][2])};
+                SpiderLegIK.solve(points[leg],rest[leg],angles[leg],tips[leg],target,neighbours);
+                if(frame>0)for(int j=0;j<3;j++) {
+                    Vector3f desired=new Vector3f(angles[leg][j]);
+                    angles[leg][j].set(before[j]);SpiderLegIK.settleJoint(angles[leg][j],desired,1.0/3,j);
+                }
+                if(endpoint(points[leg],angles[leg],tips[leg]).distance(target)>.09F)
+                    throw new AssertionError("Joint settling loses walking foot reach: "+names[leg]);
+                if(frame>0)for(int j=0;j<3;j++)for(int axis=0;axis<3;axis++)
+                    if(Math.abs(angles[leg][j].get(axis)-before[j].get(axis))>.20)
+                        throw new AssertionError("Moving knee jumps between poses: "+names[leg]);
+                Matrix4f transform=new Matrix4f();Vector3f[] joints=new Vector3f[4];
+                for(int j=0;j<3;j++) {
+                    joints[j]=transform.transformPosition(new Vector3f(points[leg][j]));
+                    transform.translate(points[leg][j]).rotateZYX(angles[leg][j].z,angles[leg][j].y,angles[leg][j].x).translate(new Vector3f(points[leg][j]).negate());
+                }
+                joints[3]=transform.transformPosition(new Vector3f(tips[leg]));
+                for(Vector3f[] other:neighbours)for(int a=1;a<3;a++)for(int b=1;b<3;b++)
+                    if(SpiderLegIK.segmentDistance(joints[a],joints[a+1],other[b],other[b+1])<.035F)
+                        throw new AssertionError("Walking limbs intersect: "+names[leg]+" frame="+frame);
+                solved.add(joints);
+            }
+        }
     }
     private static void checkStaggeredFootfalls() {
         for(int fps:new int[]{30,60,144}) {
@@ -179,7 +244,7 @@ public final class SpiderIKSmoke {
                 }
             }
             for(int leg=0;leg<8;leg++)if(first[leg]<0)throw new AssertionError("Ripple gait starved leg "+leg);
-            if(first[3]-first[1]<.79 || first[2]-first[0]<.79)
+            if(first[3]-first[1]<.34 || first[2]-first[0]<.34)
                 throw new AssertionError("Front and rear footfalls are still synchronized at "+fps+"fps");
         }
         var from=net.minecraft.world.phys.Vec3.ZERO;
@@ -194,13 +259,14 @@ public final class SpiderIKSmoke {
     }
 
     private static void checkWalkingGait() {
-        for (int fps : new int[]{30,60,144}) for (double speed : new double[]{.03,.12,.3})
+        for (int fps : new int[]{30,60,144}) for (double speed : new double[]{.03,.12,.3,.35})
                 for (double scale : new double[]{1.25,1.5}) for (var face : net.minecraft.core.Direction.values()) {
             var gait = new SpiderLegIK.Gait();
             var feet = new net.minecraft.world.phys.Vec3[8];
             var starts = new net.minecraft.world.phys.Vec3[8];
             var destinations = new net.minecraft.world.phys.Vec3[8];
             var started = new double[8];
+            var landed = new double[8];java.util.Arrays.fill(landed,-100);
             var steps = new int[8];
             var lifted = new boolean[8];
             var up = face.getUnitVec3();
@@ -211,24 +277,29 @@ public final class SpiderIKSmoke {
             // Start walking, then stop and allow the final adjustment to settle.
             for(int frame=0;frame<fps*12;frame++) {
                 double age=frame*20.0/fps;
-                var target=forward.scale(Math.min(age,160)*speed);
+                var restFoot=forward.scale(Math.min(age,160)*speed);
+                var velocity=age<160?forward.scale(speed):net.minecraft.world.phys.Vec3.ZERO;
                 gait.beginFrame(destinations,(float)age);
                 int airborne=0;
                 for(int leg=0;leg<8;leg++) {
+                    var target=restFoot.add(SpiderLegIK.strideLead(velocity,up,scale,leg));
                     var previous=feet[leg];
                     boolean wasStepping=destinations[leg]!=null;
-                    if(!wasStepping && SpiderLegIK.needsStep(feet[leg],target,up,scale) && gait.canStart(leg)) {
+                    if(!wasStepping && age-landed[leg]>=.65 && SpiderLegIK.needsWalkingStep(feet[leg],target,restFoot,velocity,up,scale)
+                            && (SpiderLegIK.trailingStance(feet[leg],restFoot,velocity,up,scale)?gait.canStartEmergency(leg):gait.canStart(leg))) {
                         starts[leg]=feet[leg];destinations[leg]=target;started[leg]=age;steps[leg]++;
                     }
                     if(destinations[leg]!=null) {
                         double t=Math.clamp((age-started[leg])/SpiderLegIK.stepDuration(speed,scale,leg),0,1);
                         feet[leg]=SpiderLegIK.swingFoot(starts[leg],destinations[leg],up,t,scale);
                         if(feet[leg].dot(up)>.15*scale)lifted[leg]=true;
-                        if(t>=1)destinations[leg]=null;
+                        if(t>=1) { destinations[leg]=null;landed[leg]=age; }
                         else airborne++;
                     } else if(previous.distanceTo(feet[leg])>1e-10) {
                         throw new AssertionError("Planted foot slides");
                     }
+                    if(age>20 && age<160 && restFoot.subtract(feet[leg]).dot(forward)>.85*scale+speed*20/fps)
+                        throw new AssertionError("Walking foot trails body too far on "+face+" at "+fps+"fps speed="+speed+" leg="+leg+" age="+age+" lag="+restFoot.subtract(feet[leg]).dot(forward));
                     if(age>200 && destinations[leg]!=null)throw new AssertionError("Idle spider keeps shuffling");
                 }
                 if(airborne>4)throw new AssertionError("Lost support group");

@@ -43,8 +43,8 @@ public final class LimboWebSystem {
         ServerLevel level = server.getLevel(Asterion.LIMBO_LEVEL); if (level == null) return;
         HashSet<Integer> visited = new HashSet<>();
         for (ServerPlayer player : level.players()) {
-            if (level.getGameTime() % 40 == 0) {
-                for (WebPatch patch : WebPatchGenerator.around(level,player.position(),16)) {
+            if (level.getGameTime() % 10 == 0) {
+                for (WebPatch patch : WebPatchGenerator.around(level,player.position(),40)) {
                     if (WebPatchGenerator.isSpun(level,patch.key()))
                         net.krodark.asterion.network.WebSpinPayload.send(player,patch);
                     BitSet cuts=WebSavedState.get(level).cuts.get(patch.key());

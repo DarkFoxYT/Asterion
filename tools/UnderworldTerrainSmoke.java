@@ -47,6 +47,18 @@ public final class UnderworldTerrainSmoke {
     public static void main(String[] args) throws Exception {
         net.minecraft.SharedConstants.tryDetectVersion();
         net.minecraft.server.Bootstrap.bootStrap();
+        Method coastalTop=UnderworldTerrain.class.getDeclaredMethod("coastalTop",long.class,int.class,int.class);
+        coastalTop.setAccessible(true);
+        for(int seed=0;seed<16;seed++)for(int x:new int[]{-80,-30,0,30,80}) {
+            int previous=(int)coastalTop.invoke(null,(long)seed,x,-480);
+            for(int z=-479;z<=80;z++) {
+                int top=(int)coastalTop.invoke(null,(long)seed,x,z);
+                if(Math.abs(top-previous)>1)throw new AssertionError("Abrupt coastal rock wall before the docks at "+z);
+                if(z>=18 && top>UnderworldTerrain.WATER_Y+12)throw new AssertionError("High coastal cap remains above the sea");
+                previous=top;
+            }
+        }
+        System.out.println("PASS gently tapered coastal massif and low/open mouth");
         for (int i = 0; i < 64; i++) {
             long seed = i * 0x9E3779B97F4A7C15L;
             check(seed, UnderworldTerrain.SPAWN_X, UnderworldTerrain.SPAWN_Z, true);

@@ -27,11 +27,10 @@ public final class WebPatchGenerator {
     public static WebPatch planSpin(net.minecraft.server.level.ServerLevel level,Vec3 origin,Vec3 heading) {
         Map<Long,WebPatch> spun=spun(level);
         if(spun.size()>=512 || spun.values().stream().filter(p->p.anchors().getFirst().distanceToSqr(origin)<16*16 && LimboWebSystem.supports(level,p,0)).count()>=8)return null;
-        Direction[] directions=Direction.values();
-        int first=(int)Math.floorMod(mix(level.getGameTime()^BlockPos.containing(origin).asLong()),directions.length);
-        for(int attempt=0;attempt<directions.length;attempt++) {
-            Direction direction=directions[(first+attempt)%directions.length];
-            Vec3 axis=direction.getUnitVec3();
+        List<Vec3> directions=spinDirections();
+        int first=(int)Math.floorMod(mix(level.getGameTime()^BlockPos.containing(origin).asLong()),directions.size());
+        for(int attempt=0;attempt<directions.size();attempt++) {
+            Vec3 axis=directions.get((first+attempt)%directions.size());
             Vec3 aim=axis.add(heading.normalize().scale(.35)).normalize();
             var a=level.clip(new net.minecraft.world.level.ClipContext(origin,origin.subtract(aim.scale(5)),net.minecraft.world.level.ClipContext.Block.COLLIDER,net.minecraft.world.level.ClipContext.Fluid.NONE,net.minecraft.world.phys.shapes.CollisionContext.empty()));
             var b=level.clip(new net.minecraft.world.level.ClipContext(origin,origin.add(aim.scale(18)),net.minecraft.world.level.ClipContext.Block.COLLIDER,net.minecraft.world.level.ClipContext.Fluid.NONE,net.minecraft.world.phys.shapes.CollisionContext.empty()));
@@ -99,6 +98,13 @@ public final class WebPatchGenerator {
                 || player.distanceToSqr(patch.anchors().getLast())<72*72)net.krodark.asterion.network.WebSpinPayload.send(player,patch);
         return true;
     }
+    public static List<Vec3> spinDirections() {
+        List<Vec3> directions=new ArrayList<>();
+        for(int x=-1;x<=1;x++)for(int y=-1;y<=1;y++)for(int z=-1;z<=1;z++)
+            if(x!=0 || y!=0 || z!=0)directions.add(new Vec3(x,y,z).normalize());
+        return List.copyOf(directions);
+    }
+
     private record Cached(WebPatch patch, long expires) { }
     private WebPatchGenerator() { }
     public static List<WebPatch> around(Level level, Vec3 center, int cells) {
@@ -106,19 +112,19 @@ public final class WebPatchGenerator {
         for (int cell = middle - cells; cell <= middle + cells; cell++) {
             Map<Integer, Cached> cache = CACHE.computeIfAbsent(level, ignored -> new java.util.HashMap<>());
             Cached known = cache.get(cell); long now = level.getGameTime();
-            if (known == null || known.expires < now) {
-                known = new Cached(patch(level, 0x4C494D424F5F5745L, cell), now + 100);
+            if (known == null || known.patch==null && known.expires < now) {
+                known = new Cached(patch(level, 0x4C494D424F5F5745L, cell), now + 20);
                 cache.put(cell, known);
-                if (cache.size() > 160) cache.entrySet().removeIf(e -> e.getValue().expires < now);
+                if (cache.size() > 320) cache.entrySet().removeIf(e -> Math.abs(e.getKey()-middle)>80);
             }
             WebPatch patch = known.patch;
-            if (patch != null && patch.anchors().getFirst().distanceToSqr(center) < 52 * 52) result.add(patch);
+            if (patch != null && patch.near(center,52)) result.add(patch);
         }
         double route = UnderworldTerrain.riverCenter(center.z) - 15;
         if (center.z < -42 && Math.abs(center.x - route) > 18) {
             int gx = Math.floorDiv((int)Math.floor(center.x), 8);
             int gz = Math.floorDiv((int)Math.floor(center.z), 8);
-            int radius = cells >= 16 ? 3 : 2;
+            int radius = cells >= 40 ? 7 : cells >= 16 ? 3 : 2;
             Map<Long, Cached> caveCache = CAVE_CACHE.computeIfAbsent(level, ignored -> new java.util.HashMap<>());
             long now = level.getGameTime();
             for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
@@ -128,18 +134,19 @@ public final class WebPatchGenerator {
                 for (int variant = 0; variant < (nest ? 7 : webbed ? 4 : 2); variant++) {
                 long key = mix(net.minecraft.world.level.ChunkPos.pack(cellX, cellZ) ^ variant * 0x9E3779B97F4A7C15L);
                 Cached known = caveCache.get(key);
-                if (known == null || known.expires < now) {
+                if (known == null || known.patch==null && known.expires < now) {
                     long seed = mix(0x5B1DE3L ^ key);
                     int x = cellX * 8 + 1 + (int)((seed >>> 9) & 7);
                     int z = cellZ * 8 + 1 + (int)((seed >>> 17) & 7);
-                    known = new Cached(patchAt(level, seed, x, z), now + 100);
+                    known = new Cached(patchAt(level, seed, x, z), now + 20);
                     caveCache.put(key, known);
                 }
-                if (known.patch != null && known.patch.anchors().getFirst().distanceToSqr(center) < 52 * 52)
+                if (known.patch != null && known.patch.near(center,52))
                     result.add(known.patch);
                 }
             }
-            if (caveCache.size() > 960) caveCache.entrySet().removeIf(e -> e.getValue().expires < now);
+            if (caveCache.size() > 4096) caveCache.entrySet().removeIf(e -> e.getValue().expires < now
+                    && (e.getValue().patch==null || !e.getValue().patch.near(center,128)));
         }
         for(WebPatch patch:spun(level).values())
             if(new net.minecraft.world.phys.AABB(patch.anchors().getFirst(),patch.anchors().getLast()).inflate(52).contains(center))result.add(patch);
@@ -162,6 +169,10 @@ public final class WebPatchGenerator {
         BlockPos center = new BlockPos(x,
                 UnderworldTerrain.WATER_Y - 18 + (int)Math.floorMod(seed >>> 17, 78), z);
         if (!level.getChunkSource().hasChunk(center.getX() >> 4, center.getZ() >> 4)) return null;
+        // Wait for the whole anchor search to be available. A partially loaded
+        // cave otherwise produces a different span when its next chunk arrives.
+        for(int cx=(x-27)>>4;cx<=(x+27)>>4;cx++)for(int cz=(z-27)>>4;cz<=(z+27)>>4;cz++)
+            if(!level.getChunkSource().hasChunk(cx,cz))return null;
         if (!level.getBlockState(center).isAir()) {
             BlockPos found = null;
             for (int step = 1; step <= 24 && found == null; step++) {
@@ -172,6 +183,8 @@ public final class WebPatchGenerator {
             if (found == null) return null;
             center = found;
         }
+        WebPatch diagonal=diagonalGap(level,center,seed);
+        if(diagonal!=null)return diagonal;
         Direction preferred = (seed & 8) == 0 ? Direction.EAST : Direction.SOUTH;
         boolean deepCave = Math.abs(x - (UnderworldTerrain.riverCenter(z) - 15)) > 18;
         int reach = deepCave ? (seed & 3L) == 0 ? 27 : 13 : 8;
@@ -187,6 +200,36 @@ public final class WebPatchGenerator {
         return new WebPatch(mix(seed ^ pair.a.asLong() ^ Long.rotateLeft(pair.b.asLong(), 23)),
                 List.copyOf(anchors), List.copyOf(normals), List.of(new WebPatch.Edge(0, 1)));
     }
+    private static WebPatch diagonalGap(Level level,BlockPos center,long seed) {
+        List<Vec3> axes=spinDirections();
+        Vec3 origin=Vec3.atCenterOf(center);
+        for(int attempt=0;attempt<6;attempt++) {
+            Vec3 axis=axes.get(Math.floorMod((int)(seed>>>19)+attempt*7,axes.size()));
+            if(Math.abs(axis.x)+Math.abs(axis.y)+Math.abs(axis.z)<1.1)continue;
+            Vec3 from=origin.subtract(axis.scale(20)),to=origin.add(axis.scale(20));
+            if(!level.getChunkSource().hasChunk(BlockPos.containing(from).getX()>>4,BlockPos.containing(from).getZ()>>4)
+                    || !level.getChunkSource().hasChunk(BlockPos.containing(to).getX()>>4,BlockPos.containing(to).getZ()>>4))continue;
+            var a=level.clip(new net.minecraft.world.level.ClipContext(origin,from,net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                    net.minecraft.world.level.ClipContext.Fluid.NONE,net.minecraft.world.phys.shapes.CollisionContext.empty()));
+            var b=level.clip(new net.minecraft.world.level.ClipContext(origin,to,net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                    net.minecraft.world.level.ClipContext.Fluid.NONE,net.minecraft.world.phys.shapes.CollisionContext.empty()));
+            if(a.getType()!=net.minecraft.world.phys.HitResult.Type.BLOCK || b.getType()!=net.minecraft.world.phys.HitResult.Type.BLOCK
+                    || a.getLocation().distanceToSqr(b.getLocation())<9 || a.getLocation().z>=-42 || b.getLocation().z>=-42)continue;
+            WebPatch patch=new WebPatch(mix(seed ^ a.getBlockPos().asLong() ^ Long.rotateLeft(b.getBlockPos().asLong(),23)),
+                    List.of(a.getLocation().add(a.getDirection().getUnitVec3().scale(.012)),
+                            b.getLocation().add(b.getDirection().getUnitVec3().scale(.012))),
+                    List.of(a.getDirection().getUnitVec3(),b.getDirection().getUnitVec3()),List.of(new WebPatch.Edge(0,1)));
+            boolean clear=true;
+            for(int i=0;i<patch.pieces(0);i++) {
+                var hit=level.clip(new net.minecraft.world.level.ClipContext(patch.point(0,i/(double)patch.pieces(0)),patch.point(0,(i+1.0)/patch.pieces(0)),
+                        net.minecraft.world.level.ClipContext.Block.COLLIDER,net.minecraft.world.level.ClipContext.Fluid.NONE,net.minecraft.world.phys.shapes.CollisionContext.empty()));
+                if(hit.getType()!=net.minecraft.world.phys.HitResult.Type.MISS){clear=false;break;}
+            }
+            if(clear)return patch;
+        }
+        return null;
+    }
+
     private static WebPatch singleAnchor(Level level, BlockPos center, long seed, int reach) {
         Direction[] directions = {Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST, Direction.UP, Direction.DOWN};
         for (int i = 0; i < directions.length; i++) {

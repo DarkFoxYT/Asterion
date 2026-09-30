@@ -45,8 +45,8 @@ public final class LimboWaterRenderer {
                     .withTexture("Sampler1", FerryWakeTexture.ID)
                     .createRenderSetup());
     // Compute the near-first scan order once, not a sort/allocation on every frame.
-    private static final List<BlockPos> SCAN_ORDER = java.util.stream.IntStream.rangeClosed(-9, 9).boxed()
-            .flatMap(x -> java.util.stream.IntStream.rangeClosed(-9, 9).mapToObj(z -> new BlockPos(x, 0, z)))
+    private static final List<BlockPos> SCAN_ORDER = java.util.stream.IntStream.rangeClosed(-32, 32).boxed()
+            .flatMap(x -> java.util.stream.IntStream.rangeClosed(-32, 32).mapToObj(z -> new BlockPos(x, 0, z)))
             .sorted(java.util.Comparator.comparingInt(p -> p.getX()*p.getX()+p.getZ()*p.getZ())).toList();
     private static final Map<Long, Tile> TILES = new HashMap<>();
     private static ClientLevel trackedLevel;
@@ -60,7 +60,7 @@ public final class LimboWaterRenderer {
     private static int boatPitch = 32, boatRoll = 32;
     private static volatile boolean enabled;
     private record Layer(int y, int[] vertices, int[] fineVertices, int[] farVertices, int[] shore, boolean[] edge) { }
-    private record Tile(int x, int z, List<Layer> layers, int minY, int maxY, long refreshed) { }
+    private record Tile(int x, int z, List<Layer> layers, int minY, int maxY, long refreshed, boolean coarse) { }
     private LimboWaterRenderer() { }
 
     public static boolean replacesSurface(BlockAndTintGetter level, BlockPos pos) {
@@ -111,7 +111,7 @@ public final class LimboWaterRenderer {
             FerryWakeTexture.prepare(level, frameFerry);
             // The newer depth fog leaves large silhouettes visible much farther away.
             // Keep replacement water present through that horizon, with a bounded scan.
-            int radius = Math.min(client.options.getEffectiveRenderDistance(), 9);
+            int radius = Math.min(client.options.getEffectiveRenderDistance(), 32);
             int cx = ((int)Math.floor(camera.x)) >> 4, cz = ((int)Math.floor(camera.z)) >> 4;
             List<Tile> next = new ArrayList<>();
             // Share a single scan budget instead of performing up to five scans per frame.
@@ -121,19 +121,26 @@ public final class LimboWaterRenderer {
                 if (Math.abs(offset.getX()) > radius || Math.abs(offset.getZ()) > radius) continue;
                 int x = cx + offset.getX(), z = cz + offset.getZ();
                 double dx = x * 16 + 8 - camera.x, dz = z * 16 + 8 - camera.z;
-                if (dx * dx + dz * dz > 150 * 150) continue;
+                if (dx * dx + dz * dz > (radius * 16.0 + 16) * (radius * 16.0 + 16)) continue;
                 if (!level.getChunkSource().hasChunk(x, z)) continue;
                 long key = BlockPos.asLong(x, 0, z);
                 Tile tile = TILES.get(key);
-                if (frustum != null && !frustum.isVisible(new AABB(x * 16, tile == null ? camera.y - 32 : tile.minY - 4,
-                        z * 16, x * 16 + 16, tile == null ? camera.y + 20 : tile.maxY + 5, z * 16 + 16))) continue;
+                if (frustum != null && !frustum.isVisible(new AABB(x * 16, tile == null ? Math.min(camera.y - 32, UnderworldTerrain.WATER_Y - 4) : tile.minY - 4,
+                        z * 16, x * 16 + 16, tile == null ? Math.max(camera.y + 20, UnderworldTerrain.WATER_Y + 5) : tile.maxY + 5, z * 16 + 16))) continue;
+                boolean distantOcean = z * 16 >= 200 && dx * dx + dz * dz > 128 * 128;
+                if (distantOcean && tile == null) {
+                    tile = distantTopology(level, x * 16, z * 16);
+                    TILES.put(key, tile);
+                }
                 // Refresh edits gradually, rather than rescanning all visible seabed in one frame.
-                if (tile == null || level.getGameTime() - tile.refreshed > (frameQuality == 0 ? 400 : 240)) {
+                if (tile == null || (tile.coarse && !distantOcean)
+                        || level.getGameTime() - tile.refreshed > (frameQuality == 0 ? 400 : 240)) {
                     if (topologyBudget <= 0) {
                         if (tile == null) continue;
                     } else {
                         topologyBudget--;
-                        tile = topology(level, x * 16, z * 16, (int)Math.floor(camera.y));
+                        tile = distantOcean ? distantTopology(level, x * 16, z * 16)
+                                : topology(level, x * 16, z * 16, (int)Math.floor(camera.y));
                         TILES.put(key, tile);
                     }
                 }
@@ -163,8 +170,10 @@ public final class LimboWaterRenderer {
             for (Tile tile : frame) {
                 double tileDx = tile.x + 8 - camera.x, tileDz = tile.z + 8 - camera.z;
                 double distanceSq = tileDx * tileDx + tileDz * tileDz;
-                boolean fine = frameQuality > 1 && distanceSq < 40 * 40;
-                boolean far = distanceSq > 36 * 36;
+                double fineRange=frameQuality>1?64:32;
+                boolean fine = frameQuality > 0 && distanceSq < fineRange*fineRange;
+                double farRange=frameQuality>0?80:48;
+                boolean far = distanceSq > farRange*farRange;
                 for (Layer layer : tile.layers) {
                     int lightY = layer.y - 2;
                     boolean nearLight = distanceSq < 64 * 64;
@@ -208,6 +217,20 @@ public final class LimboWaterRenderer {
     private static float softLight(double distance,double radius) {
         double t=Math.clamp((distance-1.0)/(radius-1.0),0.0,1.0);
         return (float)(1.0-t*t*(3.0-2.0*t));
+    }
+
+    /** Far ocean uses actual exposed water cells without scanning the seabed. */
+    private static Tile distantTopology(ClientLevel level, int x, int z) {
+        boolean[] wet = new boolean[256];
+        var pos = new BlockPos.MutableBlockPos();
+        for (int i = 0; i < wet.length; i++)
+            wet[i] = surface(level, pos.set(x + i % 16, UnderworldTerrain.WATER_Y, z + i / 16));
+        int[] shore = new int[289];
+        java.util.Arrays.fill(shore, 255);
+        int[] vertices = WaterSurfaceMesh.vertices(wet, shore, 4);
+        Layer layer = new Layer(UnderworldTerrain.WATER_Y, vertices, vertices, vertices, shore, new boolean[289]);
+        return new Tile(x, z, vertices.length == 0 ? List.of() : List.of(layer),
+                UnderworldTerrain.WATER_Y, UnderworldTerrain.WATER_Y, level.getGameTime(), true);
     }
 
     private static Tile topology(ClientLevel level, int x, int z, int cameraY) {
@@ -260,6 +283,6 @@ public final class LimboWaterRenderer {
             minY=Math.min(minY,elevation);maxY=Math.max(maxY,elevation);
         }
         if(layers.isEmpty()){minY=UnderworldTerrain.WATER_Y;maxY=minY;}
-        return new Tile(x,z,List.copyOf(layers),minY,maxY,level.getGameTime());
+        return new Tile(x,z,List.copyOf(layers),minY,maxY,level.getGameTime(),false);
     }
 }

@@ -9,6 +9,7 @@ in ivec2 UV1;
 in vec3 Normal;
 out vec3 surfacePosition;
 out vec3 surfaceNormal;
+out float surfaceSwellHeight;
 out vec2 ripplePosition;
 out float foam;
 out float detailQuality;
@@ -75,6 +76,7 @@ void main() {
     vec3 position = Position + vec3(w.y * .9, w.x, w.z * .9);
     gl_Position = ProjMat * ModelViewMat * vec4(position, 1.0);
     surfacePosition = position;
+    surfaceSwellHeight=w.x;
     vec2 funnelSlope = whirlFunnelSlope(waterWorld, ticks);
     surfaceNormal = normalize(vec3(-w.y - funnelSlope.x, 1, -w.z - funnelSlope.y));
     foam = smoothstep(.00127, .0093, w.w) * smoothstep(-.1, .55, w.x);

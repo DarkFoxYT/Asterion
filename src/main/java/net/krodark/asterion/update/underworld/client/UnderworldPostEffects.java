@@ -39,7 +39,7 @@ public final class UnderworldPostEffects {
         // All quality levels retain the same atmosphere; only resolution and ray samples change.
         var atmosphere = PostEffects.register(Asterion.id("underworld/river_atmosphere"), config -> net.krodark.asterion.client.render.post.AmneticPostBuffers.attach(withIntensity(config), "underworld_mist",
                         () -> switch (net.krodark.asterion.client.PerformanceGovernor.quality()) {
-                            case 0 -> .40; case 1 -> .62; default -> 1.0;
+                            case 0 -> .33; case 1 -> .42; default -> .55;
                         })
                 .when(UnderworldPostEffects::active)
                 .uniformVec4("MistQuality", () -> switch (net.krodark.asterion.client.PerformanceGovernor.quality()) {
@@ -48,6 +48,11 @@ public final class UnderworldPostEffects {
                     default -> new Vector4f(8, 0, 0, 0);
                 })
                 .phase(RenderPhase.POST_WORLD).priority(18).fade(0, 0)
+                .uniformVec4("FireView", () -> new Vector4f(Minecraft.getInstance().options.getEffectiveRenderDistance() * 16F, 0, 0, 0))
+                .uniformVec4("WaveWeather", () -> new Vector4f(
+                        (float)net.krodark.asterion.event.LimboTempest.strength(renderTime()),
+                        (float)net.krodark.asterion.event.LimboWhirlpool.strength(renderTime()),
+                        net.krodark.asterion.event.LimboWhirlpool.x(), net.krodark.asterion.event.LimboWhirlpool.z()))
                 .uniform("UnderworldTime", UnderworldPostEffects::renderTime)
                 .uniformVec4("Submersion", UnderworldPostEffects::submersion)
                 .uniformRaw("WorldData", UnderworldPostEffects::worldData)

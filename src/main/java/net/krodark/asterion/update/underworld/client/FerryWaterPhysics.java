@@ -213,11 +213,13 @@ public final class FerryWaterPhysics {
                 if (!world.getBlockState(above).getCollisionShape(world,above).isEmpty()) { sheltered = true; break; }
             }
             if (sheltered) continue;
+            if(random.nextDouble()<net.krodark.asterion.update.underworld.world.LimboSeaRegions.fire(x,z))continue;
             world.addParticle(ParticleTypes.RAIN, x, y, z, -.30 * storm*gust, -.85, .13 * storm*gust);
         }
         if (time % (storm > .55 ? 5 : 11) == 0) ceilingDrips(client, quality, random, time);
         if(time%40==0) world.playLocalSound(client.player.getX(),client.player.getY()+3,client.player.getZ(),
-                SoundEvents.WEATHER_RAIN,SoundSource.WEATHER,(float)(storm*.75),.78F,false);
+                SoundEvents.WEATHER_RAIN,SoundSource.WEATHER,(float)(storm*.75
+                        *(1-net.krodark.asterion.update.underworld.world.LimboSeaRegions.fire(client.player.getX(),client.player.getZ()))),.78F,false);
     }
 
     private static void ceilingDrips(Minecraft client, int quality, net.minecraft.util.RandomSource random, long time) {

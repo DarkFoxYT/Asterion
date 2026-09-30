@@ -82,20 +82,21 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
         Vec3 position = spider.getPosition(partialTick);
         state.addGeckolibData(SILK_OFFSET,LimboWebWorldRenderer.spiderOffset(spider,position));
         Vec3 normal = spider.attachmentNormal();
-        float lower=.30F+(float)Math.clamp(1-normal.dot(face.getUnitVec3()),0,.35)*.7F;
+        float lower=.18F+(float)Math.clamp(1-normal.dot(face.getUnitVec3()),0,.35)*.7F;
         pose.lower=pose.position==null?lower:pose.lower+(lower-pose.lower)*(1F-(float)Math.pow(.7,delta));
         // Server locomotion is authoritative. Interpolated positions include
         // collision corrections, settling and network catch-up, not just gait.
         Vec3 forward=spider.locomotionHeading();
         Vec3 tangent = forward.subtract(normal.scale(forward.dot(normal)));
-        if (pose.face != face) pose.heading = SpiderSurfaceMotion.cornerHeading(pose.face,face,pose.heading);
+        if (pose.normal != null) pose.heading = SpiderSurfaceMotion.transport(pose.normal,normal,pose.heading);
+        pose.normal=normal;
         // Ignore settling motion and average voxel-route turns before facing
         // them. A short sideways route segment should not swivel the whole body.
         Vec3 displacement=pose.position==null?Vec3.ZERO:position.subtract(pose.position);
         Vec3 motion=displacement.subtract(normal.scale(displacement.dot(normal)));
         boolean moving=delta>.0001F && motion.lengthSqr()/(delta*delta)>.0004;
         if(pose.position==null && tangent.lengthSqr()>.0025)pose.heading=tangent.normalize();
-        else pose.heading=SpiderRenderFrame.heading(normal,pose.heading,tangent,moving || pose.face!=face,delta);
+        else pose.heading=SpiderRenderFrame.heading(normal,pose.heading,tangent,moving || pose.face!=face || tangent.lengthSqr()>.001 && pose.heading.dot(tangent.normalize())<.995,delta);
         pose.heading = pose.heading.subtract(normal.scale(pose.heading.dot(normal)));
         if (pose.heading.lengthSqr() < .001) pose.heading = SpiderSurfaceMotion.heading(face,Vec3.ZERO,Vec3.ZERO,false);
         pose.heading = pose.heading.normalize();
@@ -126,11 +127,11 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
         else {
             float angle=2F*(float)Math.acos(Math.clamp(Math.abs(pose.orientation.dot(target)),0F,1F));
             float blend=1F-(float)Math.pow(.30,delta);
-            if(angle>.001F)blend=Math.min(blend,(float)Math.toRadians(24)*delta/angle);
+            if(angle>.001F)blend=Math.min(blend,(float)Math.toRadians(SpiderLegIK.turningBlocked(pose.legs)?2:12)*delta/angle);
             pose.orientation.slerp(target,blend).normalize();
         }
         SpiderLegIK.Debug contacts=SpiderLegIK.debug(spider);
-        boolean planted=spider.state()!=LimboSpiderEntity.State.MIMICKING && contacts!=null
+        boolean planted=!spider.silkHanging() && spider.state()!=LimboSpiderEntity.State.MIMICKING && contacts!=null
                 && age-contacts.age()<3 && age>=contacts.age()
                 && contacts.legs().stream().filter(SpiderLegIK.Leg::contact).count()>=3;
         if(planted)pose.lastSupportAge=age;
@@ -140,6 +141,9 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
                 :age-pose.lastSupportAge<3?pose.lean:Vec3.ZERO;
         double lift=planted?SpiderLegIK.bodyLift(contacts,pose.orientation,pose.lift,spider.modelScale())
                 :age-pose.lastSupportAge<3?pose.lift:0;
+        // Let feet recover against one torso pose rather than chasing a fresh
+        // foot-driven tilt and height correction on every recovery frame.
+        if(planted && SpiderLegIK.turningBlocked(pose.legs)) { lean=pose.lean;lift=pose.lift; }
         pose.lean=pose.lean.lerp(lean,1-Math.pow(.65,delta));
         pose.lift+=(lift-pose.lift)*(1-Math.pow(.6,delta));
         state.addGeckolibData(LOWER,pose.lower-(float)pose.lift);
@@ -190,7 +194,7 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
         pass.poseStack().translate(0,-.84,0);
         // Bring the abdomen closer to the support without shrinking the legs or
         // moving the physical collision box into the stair envelope.
-        pass.poseStack().translate(0,-pass.getOrDefaultGeckolibData(LOWER,.30F),0);
+        pass.poseStack().translate(0,-pass.getOrDefaultGeckolibData(LOWER,.18F),0);
     }
     @Override public void adjustModelBonesForRender(RenderPassInfo<EntityRenderState> pass,
                                                      BoneSnapshots bones) {
@@ -213,6 +217,7 @@ public final class LimboSpiderRenderer extends GeoEntityRenderer<LimboSpiderEnti
         private Vec3 position;
         private Vec3 heading = new Vec3(0,0,1);
         private Vec3 headingOld;
+        private Vec3 normal;
         private float abdomenX,abdomenY,headX,headY;
         private Direction face = Direction.DOWN;
         private final SpiderLegIK.Memory legs = new SpiderLegIK.Memory();

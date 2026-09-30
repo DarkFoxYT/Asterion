@@ -110,6 +110,7 @@ public final class UnderworldTerrain {
                 BlockState stone = (shaded ? Asterion.DEAD_STONE_2 : Asterion.DEAD_STONE).defaultBlockState();
                 BlockState shale = (shaded ? Asterion.SHADED_SHALE : Asterion.SHALE).defaultBlockState();
                 Details d = details(seed, x, z, c);
+                int coastalTop=coastalTop(seed,x,z);
                 double pool = puddleShape(seed, x, z);
                 int poolY = puddleWaterY(seed, z);
                 int torch = gateFootprint(x, z) ? 0 : pillarHeight(seed, x, z, c);
@@ -217,6 +218,9 @@ public final class UnderworldTerrain {
                                         .setValue(BlockStateProperties.NORTH, true).setValue(BlockStateProperties.SOUTH, true);
                         }
                     }
+                    // Taper the coastal massif down toward the landing. This also
+                    // removes high caps and floating roof decorations at the mouth.
+                    if(y>coastalTop)state=Blocks.AIR.defaultBlockState();
                     if (!state.isAir()) {
                         chunk.setBlockState(pos.set(x, y, z), state, 0);
                         // These torches render entirely through their block entity, including each shaft.
@@ -226,6 +230,13 @@ public final class UnderworldTerrain {
                 }
             }
         }
+    }
+
+    private static int coastalTop(long seed,int x,int z) {
+        if(z< -480)return MAX_Y;
+        double inland=Math.max(0,18-z);
+        double relief=octaves(seed ^ 0xC0457L,x*.009,z*.009)*3;
+        return (int)Math.floor(WATER_Y+8+inland*.4+relief);
     }
 
     /** Deadstone core, broken mixed shoulders, then shale; stable across chunk boundaries. */
@@ -324,11 +335,11 @@ public final class UnderworldTerrain {
         // A broad, sloping mainland apron reaches the dock entrance, rather than a raised causeway.
         if (z >= 12 && z < 112 && offset < -3) {
             double bankDistance = Math.abs(x - landingX(z));
-            if (bankDistance < 20) {
+            if (bankDistance < 28) {
                 // Continue the bank below the dock; no rectangular end at its front edge.
-                double shelf = pathFloor(z) - Math.max(0, bankDistance - 2) * .8
-                        - Math.max(0, z - 46) * .7;
-                double blend = 1 - smooth((bankDistance - 6) / 14);
+                double shelf = pathFloor(z) - Math.max(0, bankDistance - 2) * .4
+                        - Math.max(0, z - 38) * .4;
+                double blend = 1 - smooth((bankDistance - 8) / 20);
                 floor += Math.max(0, shelf - floor) * blend;
                 open = true;
                 roof = Math.max(roof, floor + 10);
@@ -338,7 +349,7 @@ public final class UnderworldTerrain {
         if (path) { floor = pathFloor(z); roof = Math.max(roof, floor + 10); }
         if (tunnel && Math.abs(offset) > 4 && !path && !side.open && !spider.open
                 && puddleShape(seed, x, z) <= 1.03) floor = puddleWaterY(seed, z) - 1;
-        if (dockColumn(x, z)) { open = true; path = true; floor = seabed; roof = Math.max(roof, WATER_Y + 12); }
+        if (dockColumn(x, z)) { open = true; path = true; floor = Math.min(seabed,WATER_Y-2); roof = Math.max(roof, WATER_Y + 12); }
         // Side chambers may cross the central tunnel, but their wet floor must not
         // cut a submerged trench through the dry route before the river mouth.
         if (z < 18 && tunnel && Math.abs(offset) <= 4) floor = Math.max(floor, WATER_Y + 1);

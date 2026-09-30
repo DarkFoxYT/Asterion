@@ -577,6 +577,8 @@ public class Asterion implements ModInitializer {
             BuiltInRegistries.PARTICLE_TYPE, id("minotaur_belch_fire"), FabricParticleTypes.simple());
     public static final SimpleParticleType GREEK_FIRE_SOOT = Registry.register(
             BuiltInRegistries.PARTICLE_TYPE, id("greek_fire_soot"), FabricParticleTypes.simple());
+    public static final SimpleParticleType LIMBO_EMBER = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, id("limbo_ember"), FabricParticleTypes.simple());
     public static final SimpleParticleType BRAZIER_FIRE = Registry.register(
             BuiltInRegistries.PARTICLE_TYPE, id("brazier_fire"), FabricParticleTypes.simple());
     public static final SimpleParticleType LAMENTER_TEAR = Registry.register(
@@ -935,6 +937,9 @@ public class Asterion implements ModInitializer {
     public static final com.mojang.serialization.MapCodec<net.krodark.asterion.worldgen.LayeredMazeBiomeSource>
             LAYERED_MAZE_BIOME_SOURCE = Registry.register(BuiltInRegistries.BIOME_SOURCE,
             id("layered_maze"), net.krodark.asterion.worldgen.LayeredMazeBiomeSource.CODEC);
+    public static final com.mojang.serialization.MapCodec<net.krodark.asterion.update.underworld.world.LimboSeaBiomeSource>
+            LIMBO_SEA_BIOME_SOURCE = Registry.register(BuiltInRegistries.BIOME_SOURCE,
+            id("limbo_seas"), net.krodark.asterion.update.underworld.world.LimboSeaBiomeSource.CODEC);
     public static final com.mojang.serialization.MapCodec<MazeChunkGenerator> MAZE_CHUNK_GENERATOR =
             Registry.register(BuiltInRegistries.CHUNK_GENERATOR, id("maze"), MazeChunkGenerator.CODEC);
     public static final com.mojang.serialization.MapCodec<net.krodark.asterion.update.underworld.world.UnderworldChunkGenerator>
