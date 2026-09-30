@@ -50,15 +50,21 @@ public final class UnderworldTerrainSmoke {
         Method coastalTop=UnderworldTerrain.class.getDeclaredMethod("coastalTop",long.class,int.class,int.class);
         coastalTop.setAccessible(true);
         for(int seed=0;seed<16;seed++)for(int x:new int[]{-80,-30,0,30,80}) {
-            int previous=(int)coastalTop.invoke(null,(long)seed,x,-480);
-            for(int z=-479;z<=80;z++) {
+            if((int)coastalTop.invoke(null,(long)seed,x,17)<UnderworldTerrain.MAX_Y-2)
+                throw new AssertionError("Mouth cliff must remain tall and steep");
+            for(int z=18;z<=80;z++) {
                 int top=(int)coastalTop.invoke(null,(long)seed,x,z);
-                if(Math.abs(top-previous)>1)throw new AssertionError("Abrupt coastal rock wall before the docks at "+z);
-                if(z>=18 && top>UnderworldTerrain.WATER_Y+12)throw new AssertionError("High coastal cap remains above the sea");
-                previous=top;
+                if(top>UnderworldTerrain.WATER_Y+12)throw new AssertionError("High coastal cap remains above the sea");
+                Object c=sample(seed,x,z);
+                if((boolean)OPEN.invoke(c)&&(int)ROOF.invoke(c)<=UnderworldTerrain.MAX_Y)
+                    throw new AssertionError("Roof over open sea");
             }
+            int route=(int)Math.round(UnderworldTerrain.riverCenter(17)-15);
+            Object mouth=sample(seed,route,17);
+            if((int)ROOF.invoke(mouth)<UnderworldTerrain.WATER_Y+140)
+                throw new AssertionError("Exit vault did not rise high enough");
         }
-        System.out.println("PASS gently tapered coastal massif and low/open mouth");
+        System.out.println("PASS tall planar coastal cliff, high exit vault and roofless sea");
         for (int i = 0; i < 64; i++) {
             long seed = i * 0x9E3779B97F4A7C15L;
             check(seed, UnderworldTerrain.SPAWN_X, UnderworldTerrain.SPAWN_Z, true);
@@ -136,12 +142,12 @@ public final class UnderworldTerrainSmoke {
             narrowest = Math.min(narrowest, w); widest = Math.max(widest, w);
             Object c = sample(seed, (int)Math.round(UnderworldTerrain.riverCenter(z)), z);
             int height = (int)ROOF.invoke(c) - (int)FLOOR.invoke(c);
-            if (height < 8 || height > 45) throw new AssertionError("Tunnel vault outside compact bounds: " + height);
+            if (height < 8 || height > (z < -150 ? 45 : 180)) throw new AssertionError("Tunnel vault outside approach bounds: " + height);
             lowest = Math.min(lowest, height); highest = Math.max(highest, height);
         }
         if (widest - narrowest < 2 || highest - lowest < 5)
             throw new AssertionError("Tunnel lacks tapered sections");
-        System.out.println("PASS compact, tapered tunnel: half-width " + narrowest + ".." + widest
+        System.out.println("PASS tapered tunnel with rising exit vault: half-width " + narrowest + ".." + widest
                 + ", center clearance " + lowest + ".." + highest);
         Method puddle = UnderworldTerrain.class.getDeclaredMethod("puddleShape", long.class, int.class, int.class);
         puddle.setAccessible(true);

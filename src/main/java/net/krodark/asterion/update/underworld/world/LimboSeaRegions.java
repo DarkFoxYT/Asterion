@@ -8,9 +8,9 @@ public final class LimboSeaRegions {
     public static final int BLEND_HALF_WIDTH=320;
     public enum Sea { STYX, PHLEGETHON, LETHE, ACHERON, COCYTUS }
     private static final Vec3[] WATER={new Vec3(.0045,.0052,.0058),new Vec3(.14,.014,.004),
-            new Vec3(.24,.205,.15),new Vec3(.022,.075,.038),new Vec3(.105,.16,.22)};
+            new Vec3(.24,.205,.15),new Vec3(.018,.095,.031),new Vec3(.075,.095,.115)};
     private static final Vec3[] FOG={new Vec3(.034,.038,.044),new Vec3(.14,.035,.018),
-            new Vec3(.29,.265,.215),new Vec3(.065,.10,.068),new Vec3(.14,.19,.255)};
+            new Vec3(.29,.265,.215),new Vec3(.09,.16,.075),new Vec3(.23,.265,.29)};
     private LimboSeaRegions() { }
     public static double distance(double x,double z) {
         if(z<18)return 0;

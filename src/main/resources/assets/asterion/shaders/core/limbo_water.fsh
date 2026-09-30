@@ -1,6 +1,6 @@
 #version 330
 #moj_import <asterion:limbo_seas.glsl>
-#moj_import <asterion:limbo_fire.glsl>
+#moj_import <asterion:limbo_depths.glsl>
 #moj_import <minecraft:fog.glsl>
 #moj_import <asterion:limbo_wake.glsl>
 #moj_import <asterion:limbo_waves.glsl>
@@ -81,6 +81,17 @@ void main() {
             fragColor=apply_fog(vec4(fireSurface,1),fog_spherical_distance(surfacePosition),
                 fog_cylindrical_distance(surfacePosition),FogEnvironmentalStart,FogEnvironmentalEnd,
                 FogRenderDistanceStart,FogRenderDistanceEnd,vec4(sea.fog+vec3(.18,.035,.001),1));
+            return;
+        }
+    }
+    vec3 letheSurface=vec3(0);
+    if(sea.oblivion>.001) {
+        letheSurface=limboLetheSurface(worldSurface,waterTime,surfaceNormal,
+                normalize(-surfacePosition),waterLight);
+        if(sea.oblivion>.999) {
+            fragColor=apply_fog(vec4(letheSurface,1),fog_spherical_distance(surfacePosition),
+                fog_cylindrical_distance(surfacePosition),FogEnvironmentalStart,FogEnvironmentalEnd,
+                FogRenderDistanceStart,FogRenderDistanceEnd,vec4(sea.fog,1));
             return;
         }
     }
@@ -206,11 +217,27 @@ void main() {
     if (whirlStrength > .001)
         water = mix(water, vec3(.00008, .00012, .00022),
                 (1.0 - smoothstep(5.0, 20.0, whirlRadius)) * whirlStrength);
-    // Each sea keeps the same physical water: fire is a flowing surface emission,
-    // not lava blocks, so the ferry and wave physics remain continuous.
+    // Styx is black and heavy, with long muted silver currents rather than
+    // bright ocean foam. Region weights leave the fire surface untouched.
+    float styx=1.0-limboSeaTransition(limboSeaDistance(worldSurface),3200.0);
+    float darkCurrent=limboFireNoise(vec3(worldSurface*vec2(.018,.09)
+            -vec2(waterTime*.0005,waterTime*.001),waterTime*.0004));
+    water=mix(water,water*mix(.65,1.02,darkCurrent),styx*.65);
+    if(sea.grief>.001) {
+        vec3 acheron=limboAcheronSurface(worldSurface,waterTime,surfaceSwellHeight,
+                surfaceNormal,view,waterLight);
+        acheron=mix(acheron,vec3(.29,.37,.13),clamp(whitecap*.55,0.0,.7));
+        water=mix(water,acheron,sea.grief);
+    }
+    if(sea.tears>.001) {
+        vec3 cocytus=limboCocytusSurface(worldSurface,waterTime,surfaceSwellHeight,
+                surfaceNormal,view,waterLight);
+        cocytus=mix(cocytus,vec3(.59,.64,.67),clamp(whitecap*.7,0.0,.85));
+        water=mix(water,cocytus,sea.tears);
+    }
+    // The rendered materials share the ferry's physical surface and wave heights.
     water=mix(water,fireSurface,sea.fire);
-    water=mix(water,sea.water*(.8+.3*fresnel),sea.oblivion*.28);
-    water+=sea.reflection*sea.tears*pow(sheen,.5)*.07;
+    water=mix(water,letheSurface,sea.oblivion);
     vec4 regionalFog=vec4(sea.fog,FogColor.a);
     fragColor = apply_fog(vec4(water, 1.0), fog_spherical_distance(surfacePosition),
         fog_cylindrical_distance(surfacePosition), FogEnvironmentalStart, FogEnvironmentalEnd,

@@ -1,6 +1,6 @@
 #version 330
 #moj_import <asterion:limbo_seas.glsl>
-#moj_import <asterion:limbo_fire.glsl>
+#moj_import <asterion:limbo_depths.glsl>
 
 // Limbo variant of dimension/volume_integrate: the same world-space 3D dust
 // field and front-to-back extinction, with a restrained neutral-grey palette.
@@ -52,7 +52,7 @@ float hash31(vec3 p) {
     return fract((p.x + p.y) * p.z);
 }
 
-float noise3(vec3 p) {
+float limboAtmosphereNoise(vec3 p) {
     vec3 cell = floor(p), f = fract(p);
     f = f * f * (3.0 - 2.0 * f);
     float x00 = mix(hash31(cell), hash31(cell + vec3(1, 0, 0)), f.x);
@@ -63,14 +63,14 @@ float noise3(vec3 p) {
 }
 
 float densityAt(vec3 world, vec3 wind, out float light) {
-    float banks = noise3((world + wind) * vec3(.032, .052, .032));
-    float wisps = noise3((world - wind * 1.4) * vec3(.080, .024, .080)
+    float banks = limboAtmosphereNoise((world + wind) * vec3(.032, .052, .032));
+    float wisps = limboAtmosphereNoise((world - wind * 1.4) * vec3(.080, .024, .080)
             + vec3(17.0, 3.0, -9.0));
     float circulation = sin(atan(world.z, world.x) * 4.0
             + length(world.xz) * .034 - Time * .012) * .045;
     // Continuous 3D density at every altitude, including high vaults and deep caves.
     vec3 filamentPos = (world - wind * .65) * vec3(.048, .072, .048);
-    float filamentNoise = noise3(filamentPos + vec3(7.3, 2.1, -3.7));
+    float filamentNoise = limboAtmosphereNoise(filamentPos + vec3(7.3, 2.1, -3.7));
     float filament = (1.0 - smoothstep(.035, .13, abs(filamentNoise - .5)))
             * smoothstep(.42, .69, wisps);
     light = clamp(.12 + (banks - wisps) * .16 + filament * .32, 0.0, .55);
@@ -145,7 +145,7 @@ void main() {
         scattering=mix(scattering,limboSeaHorizon(CameraData.xyz,direction)*(1.0-transmission),horizon);
     }
     float fireTravel=depth>=.9999?FireRange.x:min(FireRange.x,max(0.0,length(reconstructWorld(depth)-CameraData.xyz)-.12));
-    vec4 fire=limboFireVolume(CameraData.xyz,direction,fireTravel,River.x,Time,
+    vec4 fire=limboSeaVolume(CameraData.xyz,direction,fireTravel,River.x,Time,
             int(clamp(MarchSteps.x*4.0-4.0,12.0,28.0)));
     fire.rgb*=1.0-submerged;fire.a=mix(fire.a,1.0,submerged);
     scattering=fire.rgb+scattering*fire.a;

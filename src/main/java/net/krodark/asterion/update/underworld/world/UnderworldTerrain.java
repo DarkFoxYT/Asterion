@@ -218,8 +218,8 @@ public final class UnderworldTerrain {
                                         .setValue(BlockStateProperties.NORTH, true).setValue(BlockStateProperties.SOUTH, true);
                         }
                     }
-                    // Taper the coastal massif down toward the landing. This also
-                    // removes high caps and floating roof decorations at the mouth.
+                    // A tall, nearly planar cliff terminates at the mouth. Beyond
+                    // it the sea has no roof, caps or floating decorations.
                     if(y>coastalTop)state=Blocks.AIR.defaultBlockState();
                     if (!state.isAir()) {
                         chunk.setBlockState(pos.set(x, y, z), state, 0);
@@ -233,10 +233,9 @@ public final class UnderworldTerrain {
     }
 
     private static int coastalTop(long seed,int x,int z) {
-        if(z< -480)return MAX_Y;
-        double inland=Math.max(0,18-z);
-        double relief=octaves(seed ^ 0xC0457L,x*.009,z*.009)*3;
-        return (int)Math.floor(WATER_Y+8+inland*.4+relief);
+        if(z<18)return MAX_Y;
+        double relief=octaves(seed ^ 0xC0457L,x*.009,z*.009)*2;
+        return (int)Math.floor(WATER_Y+8+relief);
     }
 
     /** Deadstone core, broken mixed shoulders, then shale; stable across chunk boundaries. */
@@ -299,6 +298,13 @@ public final class UnderworldTerrain {
         double arch = Math.sqrt(Math.max(0, 1 - Math.pow(lateral / Math.max(1, width), 2)));
         double roof = floor + 5 + arch * (15 + 8 * (1 - tunnelConstriction(seed, z))
                 + 3 * octaves(seed ^ 0xC3A11L, x * .035, z * .035)) * cap;
+        // Lift the last hall into an immense high vault. A broad flattened arch
+        // leaves steep shoulders on the cliff without spanning the open sea.
+        if(tunnel && z>=-150 && z<18) {
+            double rise=smooth((z+150.0)/168.0);
+            double broadArch=Math.pow(arch,.35);
+            roof=Math.max(roof,floor+8+broadArch*(22+145*rise));
+        }
         if (side.open && z < -36) {
             open = true;
             floor = tunnel ? Math.min(floor, side.floor) : side.floor;

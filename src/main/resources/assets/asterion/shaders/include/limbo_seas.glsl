@@ -1,7 +1,7 @@
 #ifndef ASTERION_LIMBO_SEAS
 #define ASTERION_LIMBO_SEAS
 // Keep layout and quintic transitions in sync with LimboSeaRegions.java.
-struct LimboSeaStyle { vec3 water; vec3 reflection; vec3 fog; float density; float fire; float oblivion; float tears; };
+struct LimboSeaStyle { vec3 water; vec3 reflection; vec3 fog; float density; float fire; float oblivion; float tears; float grief; };
 float limboSeaDistance(vec2 p) {
     if(p.y<18.0)return 0.0;
     return max(0.0,length(p-vec2(0,58))+80.0*sin(p.x*.0007)+80.0*sin(p.y*.0009));
@@ -12,12 +12,12 @@ float limboSeaTransition(float d,float edge) {
 }
 LimboSeaStyle limboSeaStyle(vec2 p) {
     float d=limboSeaDistance(p);
-    LimboSeaStyle s=LimboSeaStyle(vec3(.0045,.0052,.0058),vec3(.24,.26,.275),vec3(.034,.038,.044),1.0,0.0,0.0,0.0);
+    LimboSeaStyle s=LimboSeaStyle(vec3(.0045,.0052,.0058),vec3(.24,.26,.275),vec3(.034,.038,.044),1.0,0.0,0.0,0.0,0.0);
     float f=limboSeaTransition(d,3200.0),l=limboSeaTransition(d,6400.0),a=limboSeaTransition(d,9600.0),c=limboSeaTransition(d,12800.0);
     s.water=mix(s.water,vec3(.14,.014,.004),f);s.reflection=mix(s.reflection,vec3(.9,.24,.035),f);s.fog=mix(s.fog,vec3(.14,.035,.018),f);s.density=mix(s.density,.8,f);s.fire=f;
     s.water=mix(s.water,vec3(.24,.205,.15),l);s.reflection=mix(s.reflection,vec3(.64,.58,.44),l);s.fog=mix(s.fog,vec3(.29,.265,.215),l);s.density=mix(s.density,1.35,l);s.oblivion=l;s.fire*=1.0-l;
-    s.water=mix(s.water,vec3(.022,.075,.038),a);s.reflection=mix(s.reflection,vec3(.32,.36,.16),a);s.fog=mix(s.fog,vec3(.065,.10,.068),a);s.density=mix(s.density,1.12,a);s.oblivion*=1.0-a;
-    s.water=mix(s.water,vec3(.105,.16,.22),c);s.reflection=mix(s.reflection,vec3(.55,.73,.88),c);s.fog=mix(s.fog,vec3(.14,.19,.255),c);s.density=mix(s.density,.85,c);s.tears=c;
+    s.water=mix(s.water,vec3(.018,.095,.031),a);s.reflection=mix(s.reflection,vec3(.32,.43,.13),a);s.fog=mix(s.fog,vec3(.09,.16,.075),a);s.density=mix(s.density,1.12,a);s.oblivion*=1.0-a;s.grief=a;
+    s.water=mix(s.water,vec3(.075,.095,.115),c);s.reflection=mix(s.reflection,vec3(.58,.64,.69),c);s.fog=mix(s.fog,vec3(.23,.265,.29),c);s.density=mix(s.density,.85,c);s.tears=c;s.grief*=1.0-c;
     return s;
 }
 // Sample along the view ray, including distant ocean sky. This is not a

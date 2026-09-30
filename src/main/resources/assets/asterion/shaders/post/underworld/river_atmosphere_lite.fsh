@@ -1,6 +1,6 @@
 #version 330
 #moj_import <asterion:limbo_seas.glsl>
-#moj_import <asterion:limbo_fire.glsl>
+#moj_import <asterion:limbo_depths.glsl>
 uniform sampler2D DepthSampler;
 layout(std140) uniform FireView { vec4 FireRange; };
 layout(std140) uniform WaveWeather { vec4 WaveEvents; };
@@ -44,7 +44,7 @@ void main() {
     LimboSeaStyle sea = limboSeaStyle(middle.xz);
     vec3 tint = depth >= .9999 ? limboSeaHorizon(CameraData.xyz, ray) : sea.fog;
     vec3 color = mix(tint * haze, tint * (1.0 + sea.fire * .25), mist);
-    vec4 fire=limboFireVolume(CameraData.xyz,ray,depth>=.9999?FireRange.x:length(endpoint),River.x,Time,8);
+    vec4 fire=limboSeaVolume(CameraData.xyz,ray,depth>=.9999?FireRange.x:length(endpoint),River.x,Time,8);
     color=fire.rgb+color*fire.a;
     fragColor = vec4(color * strength, mix(1.0, (1.0-haze)*(1.0-mist)*fire.a, strength));
 }

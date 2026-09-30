@@ -8,15 +8,15 @@
         "tick_delay": 1800
       }
     },
-    "minecraft:visual/ambient_light_color": "#111a11",
-    "minecraft:visual/fog_color": "#111a11",
+    "minecraft:visual/ambient_light_color": "#172913",
+    "minecraft:visual/fog_color": "#172913",
     "minecraft:visual/sky_color": "#000000"
   },
   "carvers": [],
   "downfall": 0.0,
   "effects": {
-    "water_color": "#245431",
-    "water_fog_color": "#111a11"
+    "water_color": "#286b32",
+    "water_fog_color": "#172913"
   },
   "features": [
     [],
