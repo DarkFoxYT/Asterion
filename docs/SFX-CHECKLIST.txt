@@ -1,0 +1,116 @@
+Minotaur — movement and vocals
+- ✓ Walking footsteps; add running, turning, and dragging steps.
+- Idle breathing, snorting, and low growls.
+- ✓ Aggro / player detection.
+- ✓ Normal roar and entrance roar.
+- Rage roar and phase-transition roar.
+- ✓ Light hurt, exposed hurt, and stagger.
+- ✓ Light landing and heavy landing / slam.
+- Death vocal, body collapse, and revival cue.
+Minotaur — attacks
+- ✓ Charge warning and charge roar.
+- ✓ Charge impact against player and wall.
+- Hoof scraping / pawing before charging.
+- Stampede footsteps.
+- Horn-ram windup and impact.
+- ✓ Single fist swing and fist-combo swing.
+- Punch impacts and back-kick impact.
+- ✓ Sword swing and sheathe; add sword draw.
+- Sword cleave, combo, spinning attack, and ground scrape.
+- ✓ Axe draw.
+- ✓ Axe swing / chop — two swing variants.
+- ✓ Axe throw.
+- ✓ Axe flight loop.
+- Axe impact and retrieval.
+- Leap takeoff.
+- Grab, squeeze, throw, and player landing.
+- Ragdoll stomp.
+- Chain grapple launch, chain flight, attachment, yank, and recoil.
+- Rubble pickup, throw, flight, and impact.
+- Wall shove and stone destruction.
+- Arrow catch and return.
+- Red lightning charge-up and discharge.
+- Greek-fire laser charge, firing loop, and shutdown.
+- Fire-ring ignition and burning.
+- Smoke belch, gas release, and gas ignition.
+Arena and boss entrance
+- ✓ Door banging and door breaking.
+- Door unlocking, hinges moving, and gate sealing.
+- ✓ Pillar destruction.
+- ✓ Ceiling collapse.
+- ✓ Debris impacts — three existing variants.
+- Structural cracking and rumbling before collapse.
+- Falling rubble, stone impacts, and settling dust.
+- Boss phase-change cue.
+- Boss defeat / encounter completion cue.
+Cursed Brazier encounter
+- Dormant flame / idle loop.
+- Awakening and encounter start.
+- Attack warning and fire buildup.
+- Projectile launch and impact.
+- Fire burst and sustained burning.
+- Charge-up and explosion.
+- Shielded / armored hit.
+- Hurt and extinguishing.
+- Defeat and reward cue.
+- Door unlocking, mechanism movement, and final heavy impact.
+Doors, puzzles, and machinery
+- ✓ Barrel door opening and closing.
+- Barrel door unlocking and locked interaction.
+- Rune pickup, placement, activation, and removal.
+- Rune gate unlocking, opening, and closing.
+- Omega lock activation, sequential mechanism movement, and completion.
+- Pressure button press and release.
+- Winch interaction, ratchet loop, and stop.
+- Mazesteel gate movement and closing impact.
+- Chain lift start, moving chain loop, platform creaks, stop, and arrival.
+- Lift call-rune activation.
+- Antikythera mechanism activation and gear movement.
+Checkpoints and progression
+- ✓ Respawn obelisk binding.
+- ✓ Respawn obelisk activation.
+- ✓ Respawn / revival.
+- Sanctuary idle resonance.
+- Charged respawn-rune use.
+- Objective progress and completion.
+- Important key / rune acquisition.
+- Treasure / reward reveal.
+Forge and equipment
+- Crucible idle fire and molten-metal bubbling.
+- Crucible opening and closing.
+- Material insertion and removal.
+- Melting start, processing loop, and completion.
+- Pouring molten metal.
+- Forging / assembly impacts.
+- Quenching hiss.
+- Finished weapon reveal.
+- Forge interface selection, accepted action, and invalid action.
+- ✓ Afterblow pulled from pedestal.
+- ✓ Afterblow parry.
+- Afterblow swing and hit.
+- Sickened Twinblades swings, combo hits, and poison effect.
+- Forged sword swings and impacts by material family.
+- Celestial armor equip / movement.
+- Beetle-Gas Flamethrower ignition, spray loop, shutdown, and empty-fuel click.
+Traps and hazards
+- Gas spewer warning, vent opening, gas hiss, and shutdown.
+- Timed fire-trap warning, ignition, flame burst, and cooldown.
+- Gas-cloud ignition and spreading fire.
+- Explosive spawner activation, spawning, warning, and explosion.
+- Reward spawner activation, spawning, completion, and reward release.
+- Greek-fire ignition, burning loop, and extinguishing.
+- Heavy-water splashes, wading, swimming, and submerged ambience.
+- Shale-spike impact.
+- Lamenter crying and tear drips.
+Labyrinth ambience
+- ✓ General maze ambience.
+- ✓ Cave ambience.
+- Ancient region: hollow wind, distant stone movement, ruin creaks.
+- Overgrowth: foliage rustle, insects, vine creaks, water drips.
+- Crimson Marshlands: wet bubbling, insects, unsettling organic calls.
+- Catacombs: enclosed air, dripping water, distant bone rattles.
+- Forge: furnace roar, metal creaks, occasional molten bubbles.
+- Arena: subdued air and distant structural strain.
+World events
+- ✓ Eclipse event cue.
+- Rumble onset, sustained tremor, and sett

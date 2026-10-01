@@ -340,6 +340,7 @@ public final class AsterionClient implements ClientModInitializer {
     }
 
     private void tick(Minecraft client) {
+        net.krodark.asterion.client.audio.AxeFlightAudio.tick(client);
         if (isPlayback(client)) ReplayCompatibility.cancelCinematics(client);
         CrucibleCamera.tick(client);
         DimensionTransitionOverlay.tick(client);
