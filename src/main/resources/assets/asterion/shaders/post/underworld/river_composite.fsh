@@ -22,26 +22,25 @@ vec4 filteredVolume() {
     vec2 base = (floor(p) + .5) / size;
     float reference = viewDistance(texCoord), total = 0.0;
     vec4 result = vec4(0);
-    vec4 nearest = vec4(0,0,0,1);
-    bool hasNearest = false;
+    float closestDepth = 100000.0;
+    // Perspective spreads distant terrain over many blocks per volume texel.
+    // A fixed four-block limit creates holes along otherwise continuous surfaces.
+    float tolerance = max(.4, reference * .04);
     for (int y = 0; y < 2; y++) for (int x = 0; x < 2; x++) {
         vec2 uv = base + vec2(x, y) / size;
         float weight = (x == 0 ? 1.0 - f.x : f.x) * (y == 0 ? 1.0 - f.y : f.y);
         float difference = abs(viewDistance(uv) - reference);
-        float tolerance = min(4.0, max(.4, reference * .012));
-        if (difference > tolerance) continue;
-        weight *= exp(-4.0 * difference * difference / (tolerance * tolerance));
+        float relativeDepth = difference / tolerance;
+        closestDepth = min(closestDepth, relativeDepth);
+        weight *= exp(-min(4.0 * relativeDepth * relativeDepth, 80.0));
         vec4 sampleVolume = texture(VolumeSampler, uv);
-        if (x == (f.x < .5 ? 0 : 1) && y == (f.y < .5 ? 0 : 1)) {
-            nearest = sampleVolume; hasNearest = true;
-        }
         result += sampleVolume * weight;
         total += weight;
     }
-    if (total < .000001) return vec4(0,0,0,1);
-    // Keep a subtle low-resolution pixel finish without exposing the volume's
-    // integration cells. Nearest detail still obeys the same depth rejection.
-    return hasNearest ? mix(result / total, nearest, .55) : result / total;
+    // Fade unmatched silhouettes continuously instead of switching whole texels
+    // to clear fog. Smooth reconstruction also avoids exposing the volume grid.
+    float confidence = 1.0 - smoothstep(1.0, 3.0, closestDepth);
+    return mix(vec4(0,0,0,1), result / max(total, 1e-30), confidence);
 }
 void main() {
     vec4 scene = texture(SceneSampler, texCoord);
