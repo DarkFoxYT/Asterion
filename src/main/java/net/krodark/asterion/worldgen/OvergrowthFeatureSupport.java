@@ -5,6 +5,7 @@ import net.krodark.asterion.worldgen.WorldGenerator;
 import net.krodark.asterion.mixin.WorldGenRegionAccessor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.WorldGenRegion;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.state.BlockState;
@@ -14,6 +15,7 @@ final class OvergrowthFeatureSupport {
 
     static boolean canWrite(WorldGenLevel level, BlockPos pos) {
         if (level.isOutsideBuildHeight(pos)) return false;
+        if(level instanceof ServerLevel server && server.getChunkSource().getChunkNow(pos.getX()>>4,pos.getZ()>>4)==null)return false;
         if (level instanceof WorldGenRegion region) {
             int radius = ((WorldGenRegionAccessor) region).asterion$generatingStep().blockStateWriteRadius();
             if (!withinWriteRadius(region.getCenter(), pos, radius)) return false;
@@ -28,8 +30,13 @@ final class OvergrowthFeatureSupport {
     }
 
     static boolean enabled(WorldGenLevel level, BlockPos pos, String feature) {
-        return level.getLevel().dimension().equals(Asterion.ASTERION_LEVEL)
-                && WorldGenerator.mazeBiomeHasFeature(terrainSeed(level), pos.getX(), pos.getZ(), feature);
+        long seed=terrainSeed(level);
+        if(!level.getLevel().dimension().equals(Asterion.ASTERION_LEVEL)
+                || !WorldGenerator.mazeBiomeHasFeature(seed,pos.getX(),pos.getZ(),feature))return false;
+        if(WorldGenerator.mazeBiomeAt(seed,pos.getX(),pos.getZ(),net.krodark.asterion.AsterionConfig.INSTANCE.cellSize).kind()==MazeBiomes.Kind.ANCIENT)return true;
+        double blend=WorldGenerator.overgrowthBlendAt(seed,pos.getX(),pos.getZ(),net.krodark.asterion.AsterionConfig.INSTANCE.cellSize);
+        double roll=(SunScorchedMaze.mix(seed^pos.getX()*341873128712L^pos.getZ()*132897987541L)>>>11)*0x1.0p-53;
+        return roll<blend;
     }
 
     static long terrainSeed(WorldGenLevel level) {
@@ -37,6 +44,7 @@ final class OvergrowthFeatureSupport {
     }
 
     static BlockPos findFloor(WorldGenLevel level, int x, int z) {
+        if(level instanceof ServerLevel server && server.getChunkSource().getChunkNow(x>>4,z>>4)==null)return null;
         int expectedY = WorldGenerator.mazeFloorHeight(terrainSeed(level), x, z);
         for (int dy = 3; dy >= -3; dy--) {
             BlockPos floor = new BlockPos(x, expectedY + dy, z);
@@ -60,6 +68,7 @@ final class OvergrowthFeatureSupport {
     }
 
     static boolean isOpen(WorldGenLevel level, BlockPos pos) {
+        if(level instanceof ServerLevel server && server.getChunkSource().getChunkNow(pos.getX()>>4,pos.getZ()>>4)==null)return false;
         var state = level.getBlockState(pos);
         return state.isAir() || state.is(Asterion.ANCIENT_MOSS_CARPET) || state.is(Asterion.SHORT_GRASS)
                 || state.is(Asterion.TAINTED_PETALS);

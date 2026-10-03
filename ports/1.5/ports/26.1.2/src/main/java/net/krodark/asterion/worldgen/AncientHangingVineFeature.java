@@ -24,8 +24,8 @@ public final class AncientHangingVineFeature extends Feature<NoneFeatureConfigur
         RandomSource random = context.random();
         BlockPos origin = context.origin();
         if (!OvergrowthFeatureSupport.enabled(level, origin, "hanging_vines")) return false;
-        int placed = 0;
-        int attempts = (22 + random.nextInt(14)) / 2;
+        int placed = OvergrowthLeafVines.place(level,random,origin);
+        int attempts = 6 + random.nextInt(4);
         for (int attempt = 0; attempt < attempts; attempt++) {
             int x = origin.getX() + random.nextIntBetweenInclusive(-7, 7);
             int z = origin.getZ() + random.nextIntBetweenInclusive(-7, 7);

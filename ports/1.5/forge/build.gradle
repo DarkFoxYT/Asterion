@@ -91,22 +91,13 @@ sourceSets.main {
         if (legacy) srcDir rootProject.file('forge/src/main/java')
         srcDir rootProject.file("forge/src/${minecraftVersion}/java")
         if (legacy) srcDir rootProject.file('src/legacy/java')
-        if (legacy) exclude 'net/krodark/asterion/port/legacy/gecko/**'
-        if (legacy) {
-            exclude 'net/krodark/asterion/port/client/**'
-            [
-                    'SimpleGeoBlockRenderer', 'SimpleGeoEntityRenderer',
-                    'LabyrinthVinePortRenderer', 'PortDoorRenderers',
-                    'PortGreekFireTorchRenderer', 'PortPedestalRenderer',
-                    'PortRuneRenderer', 'PortSanctuaryRenderer'
-            ].each { exclude "net/krodark/asterion/port/client/${it}.java" }
-            exclude 'net/krodark/asterion/port/client/ragdoll/DismembermentEngine.java'
-            exclude 'net/krodark/asterion/mixin/PortModelCubeAccessor.java'
-        }
-        exclude 'net/krodark/asterion/port/fabric/**'
+        if (legacy) { exclude 'net/krodark/asterion/port/legacy/gecko/GeoItem.java'; exclude 'net/krodark/asterion/port/legacy/gecko/GeoRenderProvider.java' }
+
+        if (!legacy) exclude 'net/krodark/asterion/port/fabric/**'
         exclude 'net/krodark/asterion/port/neoforge/**'
+        exclude 'net/krodark/asterion/port/fabric/PortAsterionModMenu.java'
         exclude 'net/krodark/asterion/client/**'
-        if (legacy) exclude 'net/krodark/asterion/port/client/**'
+
         exclude 'net/krodark/asterion/compat/jei/**'
         exclude 'net/krodark/asterion/compat/rei/**'
         exclude 'net/krodark/asterion/compat/jade/**'
@@ -127,11 +118,11 @@ sourceSets.main {
                 'RagdollItemInHandRendererMixin', 'ForgedTooltipOutlineMixin',
                 'AmneticBloomPerformanceMixin', 'AmneticEmissiveInstanceMixin',
                 'AmneticEmissivePassMixin', 'AmneticParticleCullingMixin',
-                'PortBiomeMusicMixin', 'PortCameraMixin',
-                'PortCentipedeInteractionMixin', 'PortGeckoInterpolationMixin',
-                'PortLevelLoadingScreenMixin', 'PortMinotaurBodyPickingMixin',
-                'PortMinotaurBossBarMixin', 'PortRagdollLocalPlayerMixin',
-                'PortRagdollRenderMixin', 'PortSpriteInterpolationMixin',
+
+
+
+
+
                 'RagdollClientUseGuardMixin'
         ].each { exclude "net/krodark/asterion/mixin/${it}.java" }
     }
@@ -278,11 +269,11 @@ processResources {
                         'RagdollItemInHandRendererMixin', 'ForgedTooltipOutlineMixin',
                         'AmneticBloomPerformanceMixin', 'AmneticEmissiveInstanceMixin',
                         'AmneticEmissivePassMixin', 'AmneticParticleCullingMixin',
-                        'PortBiomeMusicMixin', 'PortCameraMixin',
-                        'PortCentipedeInteractionMixin', 'PortGeckoInterpolationMixin',
-                        'PortLevelLoadingScreenMixin', 'PortMinotaurBodyPickingMixin',
-                        'PortMinotaurBossBarMixin', 'PortRagdollLocalPlayerMixin',
-                        'PortRagdollRenderMixin', 'PortSpriteInterpolationMixin',
+
+
+
+
+
                         'RagdollClientUseGuardMixin'
                 ]
                 if (legacy) absent.add('PortModelCubeAccessor')
@@ -336,3 +327,6 @@ tasks.register('stageForgeBuild', Sync) {
 tasks.matching { it.name == 'createMinecraftArtifacts' }.configureEach {
     dependsOn tasks.named('stonecutterGenerate')
 }
+
+// Match the Fabric/Quilt data layout and item formats on 1.20.1.
+apply from: rootProject.file('gradle/legacy-resources.gradle')

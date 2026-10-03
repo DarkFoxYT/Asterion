@@ -59,7 +59,7 @@ public final class MinotaurAnimationTiming {
             new double[]{0, 2.5862, 3.0172, 5.364, 6.1303, 7.4713});
     public static final Track BELCH = track(65, 3.25);
     public static final Track LEAP = track(20, .9703);
-    public static final Track LAND = track(12, .9703);
+    public static final Track LAND = track(23, 1.4);
     public static final Track DIES = track(85, 2.9583);
     public static final Track REVIVE = track(30, .6667);
     private MinotaurAnimationTiming() { }

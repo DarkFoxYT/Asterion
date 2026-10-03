@@ -19,6 +19,11 @@ public final class ShatteredDeadWoodGeoRenderer
     public ShatteredDeadWoodGeoRenderer(BlockEntityRendererProvider.Context context) {
         super(context, new ShatteredDeadWoodGeoModel());
     }
+    @Override protected void tryRotateByBlockstate(RenderPassInfo<BlockEntityRenderState> pass,
+            com.mojang.blaze3d.vertex.PoseStack poses) {
+        // The full bone already rotates around the block centre. Gecko's base-facing rotation
+        // rotates about the bottom edge and would apply a second, displaced orientation.
+    }
 
     @Override
     public void addRenderData(ShatteredDeadWoodBlockEntity wood, Void related,

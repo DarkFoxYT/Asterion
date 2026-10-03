@@ -21,6 +21,25 @@ public final class DeadSunEntryCinematic {
 
     private DeadSunEntryCinematic() { }
 
+    public static void register() {
+        net.krodark.asterion.client.ReplayCompatibility.addHud(Asterion.id("dead_sun_entry"), (graphics, tracker) -> {
+            if (!active) return;
+            float time = ticks + tracker.getGameTimeDeltaPartialTick(false);
+            float envelope = smoother(time / 18F) * (1 - smoother((time - 224) / 36F));
+            int bar = Math.round(graphics.guiHeight() * .095F * envelope);
+            graphics.fill(0, 0, graphics.guiWidth(), bar, 0xFF000000);
+            graphics.fill(0, graphics.guiHeight() - bar, graphics.guiWidth(), graphics.guiHeight(), 0xFF000000);
+        });
+    }
+
+    public static float fov(float original, float partial) {
+        if (!active) return original;
+        float time = ticks + partial;
+        float weight = smoother(time / 18F) * (1 - smoother((time - 202) / 58F));
+        float shot = Mth.lerp(smoother((time - 105) / 75F), 64F, 76F);
+        return Mth.lerp(weight, original, shot);
+    }
+
     public static int requiredChunkRadius() {
         // Never wait for terrain outside the player or server's view distance.
         return AsterionConfig.INSTANCE.cinematicsEnabled
@@ -34,6 +53,8 @@ public final class DeadSunEntryCinematic {
         if (client.player == null || client.level == null
                 || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)
                 || !AsterionConfig.INSTANCE.cinematicsEnabled) return;
+        if (active) return;
+        externalShot = false;
         returnYaw = client.player.getYRot();
         returnPitch = client.player.getXRot();
         previousCamera = client.options.getCameraType();
@@ -53,7 +74,7 @@ public final class DeadSunEntryCinematic {
             return;
         }
         if (!active) return;
-        if (client.player == null || client.level == null
+        if (client.player == null || client.level == null || !client.player.isAlive()
                 || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) {
             finish(client);
             return;
@@ -82,6 +103,8 @@ public final class DeadSunEntryCinematic {
     public static void finish(Minecraft client) {
         active = false;
         ticks = 0;
+        externalShot = false;
+        openingPosition = null;
         if (previousCamera != null) client.options.setCameraType(previousCamera);
         previousCamera = null;
         if (previousSmartCull != null) client.smartCull = previousSmartCull;
@@ -112,16 +135,17 @@ public final class DeadSunEntryCinematic {
                 height, anchor.z + Math.sin(angle) * radius);
          
          
-        float dive = smoother((linear - .43F) / .57F);
-        double lateral = 1 - Math.pow(1 - dive, 4);
-        double downward = Math.pow(dive, 3);
+        // One eased crane descent avoids the late vertical plunge of the old shot.
+        float dive = smoother((time - 114F) / (END_TICKS - 114F));
+        double lateral = smoother((time - 100F) / 128F);
+        double downward = dive;
         Vec3 position = railPosition.lerp(new Vec3(basePosition.x, height, basePosition.z), lateral);
         position = new Vec3(position.x, Mth.lerp(downward, height, basePosition.y), position.z);
          
-        float sunReveal = smoother((linear - .10F) / .18F);
-        float playerFocus = smoother((linear - .43F) / .21F);
-        Vec3 focus = basePosition.add(0, -.7, 0).lerp(
-                sun.add(0, -config.deadSunSize * .16, 0), (.65F + .35F * sunReveal) * (1 - playerFocus));
+        float playerFocus = smoother((time - 108F) / 62F);
+        Vec3 forward = Vec3.directionFromRotation(returnPitch, returnYaw);
+        Vec3 groundFocus = basePosition.add(forward.scale(6));
+        Vec3 focus = sun.add(0, -config.deadSunSize * .08, 0).lerp(groundFocus, playerFocus);
         Vec3 delta = focus.subtract(position);
         double horizontal = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
          
@@ -129,7 +153,7 @@ public final class DeadSunEntryCinematic {
         float lookYaw = (float)(Mth.atan2(delta.z, delta.x) * Mth.RAD_TO_DEG) - 90.0F;
         float shotYaw = Mth.rotLerp(smoother((float)horizontal / 8.0F), approachYaw, lookYaw);
         float shotPitch = (float)-(Mth.atan2(delta.y, horizontal) * Mth.RAD_TO_DEG);
-        float viewReturn = smoother(Mth.clamp((linear - 0.68F) / 0.32F, 0.0F, 1.0F));
+        float viewReturn = smoother((time - 194F) / 66F);
         shotYaw = Mth.rotLerp(viewReturn, shotYaw, returnYaw);
         shotPitch = Mth.lerp(viewReturn, shotPitch, returnPitch);
          

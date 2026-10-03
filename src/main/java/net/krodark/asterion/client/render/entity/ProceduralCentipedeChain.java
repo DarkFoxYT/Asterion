@@ -16,11 +16,10 @@ public final class ProceduralCentipedeChain {
         Vector3f[] positions = new Vector3f[entity.chainSegmentCount()];
         Vector3f[] rotations = new Vector3f[positions.length];
         float[] gait = new float[positions.length], speed = new float[positions.length];
-        Vec3 renderDelta = entity.getPosition(partialTick).subtract(entity.position());
+        // Chain poses already interpolate in world space; applying entity interpolation again causes twitching.
         for (int i = 0; i < positions.length; i++) {
             CentipedeChain.Pose raw = entity.chainPose(i, partialTick);
-            CentipedeChain.Pose pose = new CentipedeChain.Pose(raw.position().add(renderDelta),
-                    raw.normal(), raw.forward());
+            CentipedeChain.Pose pose = raw;
             positions[i] = CentipedeFrame.boneTranslation(pose.position().subtract(renderOrigin));
             rotations[i] = CentipedeFrame.boneAngles(CentipedeFrame.rotation(pose.normal(), pose.forward()));
             gait[i] = entity.segmentGait(i, partialTick);

@@ -29,6 +29,12 @@ import org.joml.Vector3f;
 
 @Mixin(Camera.class)
 public abstract class CameraMixin {
+    @Inject(method = "alignWithEntity", at = @At("HEAD"))
+    private void asterion$heldFirstPerson(float partial, CallbackInfo ci) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player != null && net.krodark.asterion.entity.MinotaurEntity.isHeld(client.player))
+            client.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+    }
     @Inject(method = "getFluidInCamera", at = @At("HEAD"), cancellable = true)
     private void asterion$ferryKeepsCameraAboveWater(CallbackInfoReturnable<FogType> result) {
         Minecraft client = Minecraft.getInstance();
@@ -133,7 +139,10 @@ public abstract class CameraMixin {
         if (net.krodark.asterion.client.AsterionClient.isPlayback(minecraft)) return;
         var studio = net.krodark.asterion.client.cinematic.studio.CutsceneStudio.camera(minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(true));
         if (studio != null) { result.setReturnValue((float)studio.fov()); return; }
-        float cinematicFov = BossEntranceCinematic.fov(result.getReturnValueF(), minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(true));
+        float partial = minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(true);
+        float cinematicFov = BossEntranceCinematic.fov(result.getReturnValueF(), partial);
+        cinematicFov = DeadSunEntryCinematic.fov(cinematicFov, partial);
+        cinematicFov = BossFinaleOverlay.fov(cinematicFov, partial);
         if (cinematicFov != result.getReturnValueF()) { result.setReturnValue(cinematicFov); return; }
         if (minecraft.player != null && minecraft.player.getVehicle()
                 instanceof net.krodark.asterion.update.underworld.entity.CharonsFerryEntity ferry) {

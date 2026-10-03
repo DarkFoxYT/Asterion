@@ -49,12 +49,12 @@ public final class SkeletonBlock extends BaseEntityBlock implements WaterloggedD
 
     @Override
     protected BlockState mirror(BlockState state, Mirror mirror) {
-        return state.rotate(mirror.getRotation(state.getValue(FACING)));
+        return rotate(state, mirror.getRotation(state.getValue(FACING)));
     }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, BlockStateProperties.WATERLOGGED);
+        builder.add(FACING);
     }
 
     @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }

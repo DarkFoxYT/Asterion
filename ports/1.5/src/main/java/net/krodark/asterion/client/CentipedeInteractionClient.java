@@ -57,7 +57,8 @@ public final class CentipedeInteractionClient {
         double limit = eye.distanceToSqr(end);
         if (block.getType() != HitResult.Type.MISS) limit = eye.distanceToSqr(block.getLocation());
         if (client.hitResult instanceof EntityHitResult entityHit
-                && !(entityHit.getEntity() instanceof ScarletCentipedeEntity))
+                && !(entityHit.getEntity() instanceof ScarletCentipedeEntity)
+                && !(entityHit.getEntity() instanceof net.krodark.asterion.entity.CentipedeSegmentEntity))
             limit = Math.min(limit, eye.distanceToSqr(entityHit.getLocation()));
         ScarletCentipedeEntity target = null;
         CentipedeInteraction.Hit nearest = null;

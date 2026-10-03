@@ -49,7 +49,7 @@ public final class BarrelDoorBlock extends BaseEntityBlock implements Waterlogge
         return root.relative(facing.getClockWise(), column - 1).above(row);
     }
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, OPEN, CURSED_LOCKED, COLUMN, ROW, WING, BlockStateProperties.WATERLOGGED);
+        builder.add(FACING, OPEN, CURSED_LOCKED, COLUMN, ROW, WING);
     }
     @Override public @Nullable BlockState getStateForPlacement(BlockPlaceContext context) {
         var level = context.getLevel();

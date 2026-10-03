@@ -20,7 +20,7 @@ public class AsterionEmissiveBoneLayer<T extends GeoAnimatable, O, R extends Geo
 
      
     protected float emissiveStrength(R state) { return 1f; }
-    protected float surfaceBrightness(R state) { return 0.8f; }
+    protected float surfaceBrightness(R state) { return 1f; }
     protected boolean enhancedSurface(R state) { return false; }
     protected Identifier amneticEmissionMesh(R state) { return null; }
      
@@ -57,7 +57,7 @@ public class AsterionEmissiveBoneLayer<T extends GeoAnimatable, O, R extends Geo
                         mesh.render(pose, buffer, color, uScale, vScale);
                         if (emissionMesh != null)
                             AmneticBoneEmission.submit(emissionMesh, mesh, texture, pose.pose(), color,
-                                    uScale, vScale, emissiveStrength(state), backfaceCulling(state));
+                                    uScale, vScale, emissiveStrength(state), backfaceCulling(state), bone.name());
                     });
         } finally {
             stack.popPose();

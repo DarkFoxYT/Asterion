@@ -30,6 +30,20 @@ final class RigidBodyPiece {
     float[][] overlayFaceUvs;
     final Quaternionf orientation = new Quaternionf();
     final Quaternionf previousOrientation = new Quaternionf();
+    private final Quaternionf collisionOrientation = new Quaternionf();
+    private Vec3 cachedHalfExtents;
+    Vec3 collisionBoundsHalf;
+    Vec3[] collisionAxes;
+    Vec3 collisionHalf;
+    Vec3 collisionSourceHalf;
+    void updateCollisionGeometry(Vec3 half) {
+        if(collisionAxes!=null && half.equals(cachedHalfExtents) && collisionOrientation.equals(orientation))return;
+        cachedHalfExtents=half;collisionOrientation.set(orientation);
+        Vector3f x=orientation.transform(new Vector3f(1,0,0)),y=orientation.transform(new Vector3f(0,1,0)),z=orientation.transform(new Vector3f(0,0,1));
+        collisionAxes=new Vec3[]{new Vec3(x.x,x.y,x.z),new Vec3(y.x,y.y,y.z),new Vec3(z.x,z.y,z.z)};
+        orientation.transform(x.set((float)half.x,0,0));orientation.transform(y.set(0,(float)half.y,0));orientation.transform(z.set(0,0,(float)half.z));
+        collisionBoundsHalf=new Vec3(Math.abs(x.x)+Math.abs(y.x)+Math.abs(z.x),Math.abs(x.y)+Math.abs(y.y)+Math.abs(z.y),Math.abs(x.z)+Math.abs(y.z)+Math.abs(z.z));
+    }
     Vec3 previous;
     Vec3 position;
     Vec3 velocity;

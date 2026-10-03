@@ -37,6 +37,13 @@ public final class MinotaurHandAttachment {
         Anchor anchor = ANCHORS.get(player.getId());
         if (anchor == null || anchor.level != player.level() || player.level().getGameTime() - anchor.tick > 2
                 || !MinotaurEntity.isHeld(player)) return null;
-        return anchor.hand.add(0, -player.getBbHeight() * .52, 0);
+        Anchor up = UP_ANCHORS.get(player.getId());
+        Vec3 axis = up != null && up.level == anchor.level && up.tick == anchor.tick
+                ? up.hand.subtract(anchor.hand) : new Vec3(0, 1, 0);
+        if (axis.lengthSqr() < .000001) axis = new Vec3(0, 1, 0);
+        return anchor.hand.subtract(axis.normalize().scale(player.getBbHeight() * .52));
+    }
+    public static Vec3 grip(Entity player) {
+        return feet(player) == null ? null : ANCHORS.get(player.getId()).hand;
     }
 }

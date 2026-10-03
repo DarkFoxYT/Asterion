@@ -57,6 +57,8 @@ public final class EmissiveBoneMesh {
         });
     }
 
+    public static void clearCache() { CACHE.clear(); TRANSFORMED.remove(); POSITION.remove(); }
+
     public static EmissiveBoneMesh of(CuboidGeoBone bone) {
         return CACHE.computeIfAbsent(bone, EmissiveBoneMesh::new);
     }

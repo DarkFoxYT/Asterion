@@ -11,9 +11,16 @@ import java.util.Map;
 
 /** Reusable, depth-free intermediates supplied through Amnetic's external framebuffer API. */
 public final class AmneticPostBuffers {
-    private record Buffer(RenderTarget target, long used) { }
+    private static final class Buffer {
+        final RenderTarget target; long used;
+        Buffer(RenderTarget target,long used){this.target=target;this.used=used;}
+    }
     private static final Map<String, Buffer> BUFFERS = new HashMap<>();
     private static boolean initialized;
+    private static int sweepTicks;
+    public static void clearCaches() {
+        BUFFERS.values().forEach(buffer->buffer.target.destroyBuffers());BUFFERS.clear();
+    }
     private static net.minecraft.client.multiplayer.ClientLevel trackedLevel;
     private AmneticPostBuffers() { }
 
@@ -30,9 +37,11 @@ public final class AmneticPostBuffers {
                     BUFFERS.clear();
                     trackedLevel = client.level;
                 }
+                if(++sweepTicks<20)return;
+                sweepTicks=0;
                 long now = System.nanoTime();
                 BUFFERS.entrySet().removeIf(entry -> {
-                    if (client.level != null && now - entry.getValue().used < 2_000_000_000L) return false;
+                    if (client.level != null && now - entry.getValue().used < 5_000_000_000L) return false;
                     entry.getValue().target.destroyBuffers();
                     return true;
                 });
@@ -49,7 +58,8 @@ public final class AmneticPostBuffers {
         Buffer cached = BUFFERS.get(name);
         RenderTarget target = cached == null ? new TextureTarget("asterion/" + name, width, height, false) : cached.target;
         if (target.width != width || target.height != height) target.resize(width, height);
-        BUFFERS.put(name, new Buffer(target, System.nanoTime()));
+        if(cached==null)BUFFERS.put(name,new Buffer(target,System.nanoTime()));
+        else cached.used=System.nanoTime();
         return target;
     }
 }

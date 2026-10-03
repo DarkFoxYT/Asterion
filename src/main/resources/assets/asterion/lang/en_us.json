@@ -593,5 +593,18 @@
   "biome.asterion.acheron": "Acheron",
   "biome.asterion.cocytus": "Cocytus",
   "biome.asterion.lethe": "Lethe",
-  "biome.asterion.phlegethon": "Phlegethon"
+  "biome.asterion.phlegethon": "Phlegethon",
+  "cinematic.asterion.minotaur_title": "THE LABYRINTH'S WARDEN",
+  "cinematic.asterion.minotaur_name": "MINOTAUR",
+  "item.asterion.physics_chain": "Climbable Physics Chain",
+  "tooltip.asterion.physics_chain": "Place on a ceiling or wall. Use another chain on it to extend by one block.",
+  "tooltip.asterion.physics_chain.climb": "Hold right-click to latch. Forward/back: climb/descend.",
+  "tooltip.asterion.physics_chain.retrieve": "Sneak-hit to retrieve the chain.",
+  "tooltip.asterion.physics_chain.hold": "Turn to orbit the chain. Release right-click to let go.",
+  "tip.asterion.death.chain": "Hold right-click to latch onto a chain. Move forward/back to climb or descend, turn to orbit, and release right-click to let go.",
+  "tip.asterion.death.pillars": "When the pillars fall, the Minotaur changes his attacks. Watch his wind-ups.",
+  "tip.asterion.death.leap": "Keep moving when the Minotaur leaps. His landing sends a shockwave outward.",
+  "tip.asterion.death.axe": "An axe throw leaves the Minotaur unarmed until he retrieves it.",
+  "tip.asterion.death.light": "Carry a light into the maze. Darkness can conceal dangers.",
+  "tip.asterion.death.centipede": "Every centipede segment can take damage. Keep clear of its head."
 }

@@ -72,7 +72,7 @@ public final class ChallengeSpawnerBlockEntity extends BlockEntity {
                 BlockPos spawn = pos.offset(level.getRandom().nextInt(9) - 4, level.getRandom().nextInt(5) - 2, level.getRandom().nextInt(9) - 4);
                 mob.setPos(spawn.getX() + .5, spawn.getY(), spawn.getZ() + .5);
                 if (!level.noCollision(mob) || !level.getBlockState(spawn.below()).isFaceSturdy(level, spawn.below(), net.minecraft.core.Direction.UP)) continue;
-                mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawn), EntitySpawnReason.SPAWNER, null);
+                initializeSpawn(mob, level, spawn);
                 mob.setPersistenceRequired(); mob.setTarget(player);
                 mob.addTag(net.krodark.asterion.game.ChallengeDeaths.TAG);
                 if (level.addFreshEntity(mob) && !mob.isRemoved()) spawner.mobs.add(mob.getUUID());
@@ -111,6 +111,12 @@ public final class ChallengeSpawnerBlockEntity extends BlockEntity {
         if (label != null && level.getEntity(label) != null) level.getEntity(label).discard();
         label = null;
     }
+    // The shared source set uses vanilla spawn initialization on all loaders.
+    @SuppressWarnings("deprecation")
+    private static void initializeSpawn(Mob mob, ServerLevel level, BlockPos pos) {
+        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(pos), EntitySpawnReason.SPAWNER, null);
+    }
+
     private static void dropRewards(ServerLevel level, BlockPos pos) {
         var random = level.getRandom();
         Block.popResource(level, pos.above(), new ItemStack(Asterion.SHALE_TARNISHED_GOLD_ORE, 3 + random.nextInt(4)));

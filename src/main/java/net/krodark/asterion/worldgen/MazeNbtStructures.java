@@ -78,6 +78,12 @@ public final class MazeNbtStructures {
         return layout == null ? null : layout.nearestSafeCheckpoint(level, position);
     }
 
+    public static boolean protectedHunterArea(ServerLevel level, BlockPos position) {
+        Layout layout;
+        synchronized (LAYOUTS) { layout = LAYOUTS.get(level); }
+        return layout != null && layout.protectedHunterArea(position.getX(), position.getZ());
+    }
+
     public static BlockPos nearestSafeHouse(ServerLevel level, BlockPos position) {
         Layout layout;
         synchronized (LAYOUTS) { layout = LAYOUTS.get(level); }
@@ -331,6 +337,15 @@ public final class MazeNbtStructures {
                     })).orElse(null);
         }
 
+        public boolean protectedHunterArea(int x, int z) {
+            List<Placement> local = reservationsByChunk.get(ChunkPos.pack(x >> 4, z >> 4));
+            if (local == null) return false;
+            for (Placement placement : local)
+                if ((isSafeRoom(placement.id) || placement.id.getPath().contains("ruin"))
+                        && insideXZ(placement.reserved, x, z)) return true;
+            return false;
+        }
+
         public boolean reserved(int x, int z) {
             List<Placement> local = reservationsByChunk.get(ChunkPos.pack(x >> 4, z >> 4));
             if (local == null) return false;
@@ -404,6 +419,10 @@ public final class MazeNbtStructures {
                 return;
             }
             if (!placement.id.equals(QUEEN_TREE)) sanitize(level, placement.box);
+            placement.box.intersectingChunks().forEach(pos->{
+                var chainChunk=level.getChunkSource().getChunkNow(pos.x(),pos.z());
+                if(chainChunk!=null)GeneratedPhysicsChains.enqueue(level,chainChunk);
+            });
             spawnTreeQueen(level, placement);
             carveAccessibilityBridges(level, placement);
             configureSafeRoom(level, placement, true);

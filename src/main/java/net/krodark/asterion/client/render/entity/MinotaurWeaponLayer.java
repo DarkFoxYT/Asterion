@@ -32,6 +32,8 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
     private static final DataTicket<Integer> OWNER = DataTickets.create("asterion_weapon_owner", Integer.class);
     private static final DataTicket<Boolean> SWORDS_DRAWN = DataTickets.create("asterion_swords_drawn", Boolean.class);
     private static final DataTicket<Float> SWORD_TRAIL = DataTickets.create("asterion_sword_trail", Float.class);
+    private static final DataTicket<Integer> SWORD_R = DataTickets.create("asterion_sword_out_r", Integer.class);
+    private static final DataTicket<Integer> SWORD_L = DataTickets.create("asterion_sword_out_l", Integer.class);
     private static final RenderType TRAIL_MATERIAL = RenderTypes.lightning();
     private static final String[] SIDES = {"right", "left"};
     private static final double BACK_MOUNT_CENTER_Y = (129 - 6 * Math.sqrt(2)) / 32.0;
@@ -41,6 +43,8 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
 
     @Override public void addRenderData(MinotaurEntity boss, Void ignored, EntityRenderState state, float partial) {
         int mode = boss.renderedWeaponMode();
+        state.addGeckolibData(SWORD_R, boss.thrownSwordId(1));
+        state.addGeckolibData(SWORD_L, boss.thrownSwordId(-1));
         state.addGeckolibData(DEFEATED, boss.isDefeatedBoss());
         state.addGeckolibData(SWORDS_DRAWN, mode == 2);
         state.addGeckolibData(AXE_BONE, boss.axeInWorld() ? "" : mode == 1 ? "axe_grip" : "axe_back");
@@ -53,7 +57,8 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
         if (!pass.willRender() || pass.renderState().isInvisible) return;
         if (pass.renderState().getOrDefaultGeckolibData(DEFEATED, false)) return;
         boolean drawn = pass.renderState().getOrDefaultGeckolibData(SWORDS_DRAWN, false);
-        for (String side : SIDES)
+        for (String side : SIDES) {
+            if (pass.renderState().getOrDefaultGeckolibData(side.equals("right") ? SWORD_R : SWORD_L, -1) >= 0) continue;
             pass.model().getBone(drawn ? (side.equals("right") ? "hand_itemR" : "hand_itemL") : "lowerbody").ifPresent(bone ->
                     consumer.accept(bone, (posed, ignored, tasks) -> {
                         var poses = posed.poseStack();
@@ -71,17 +76,27 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
                             poses.mulPose(com.mojang.math.Axis.XP.rotationDegrees(168 + breathe * 1.25F));
                             poses.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(-sign * (6 + settle * 1.1F)));
                         }
-                        if (drawn) renderSwordTrail(pass, posed, tasks, side, poses);
+                        if (drawn) {
+                            WeaponFollowThrough.apply(poses, pass.renderState().getOrDefaultGeckolibData(OWNER, -1),
+                                    side.equals("right") ? 1 : 2, pass.renderState().getAnimatableAge(), true);
+                            renderSwordTrail(pass, posed, tasks, side, poses);
+                            MinotaurSwordVisual.captureHand(pass.renderState().getOrDefaultGeckolibData(OWNER, -1),
+                                    side.equals("right") ? 1 : -1, poses, posed.cameraState());
+                        }
                         MinotaurSwordVisual.submit(
                                 poses, tasks, posed.cameraState(), posed.packedLight());
                         poses.popPose();
                     }));
+        }
         String name = pass.renderState().getOrDefaultGeckolibData(AXE_BONE, "");
         if (name.isEmpty()) return;
         pass.model().getBone(name).or(() -> pass.model().getBone(name.equals("axe_grip") ? "hand_itemR" : "body"))
                 .ifPresent(bone -> consumer.accept(bone, (posed, ignored, tasks) -> {
             var poses = posed.poseStack();
             poses.pushPose();
+            if (name.equals("axe_grip")) WeaponFollowThrough.apply(poses,
+                    pass.renderState().getOrDefaultGeckolibData(OWNER, -1), 0,
+                    pass.renderState().getAnimatableAge(), true);
             if (bone.name().equals("body")) {
                  
                  

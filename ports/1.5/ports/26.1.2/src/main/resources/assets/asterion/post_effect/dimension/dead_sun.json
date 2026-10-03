@@ -1,10 +1,5 @@
 {
-  "targets": {
-    "dead_sun_raw": {
-      "clear_color": 0
-    },
-    "dead_sun_scene": {}
-  },
+  "targets": {},
   "passes": [
     {
       "vertex_shader": "asterion:post/dimension/volumetric",
@@ -16,55 +11,19 @@
           "use_depth_buffer": true
         }
       ],
-      "output": "dead_sun_raw"
+      "output": "asterion:dead_sun_raw"
     },
     {
       "vertex_shader": "minecraft:core/screenquad",
-      "fragment_shader": "asterion:post/dimension/dead_sun_bloom",
+      "fragment_shader": "asterion:post/dimension/dead_sun_bloom_combined",
       "inputs": [
         {
           "sampler_name": "In",
-          "target": "dead_sun_raw",
+          "target": "asterion:dead_sun_raw",
           "bilinear": true
         }
       ],
-      "output": "asterion:dead_sun_bloom_h",
-      "uniforms": {
-        "BlurDirection": [
-          {
-            "name": "Direction",
-            "type": "vec2",
-            "value": [
-              1.0,
-              0.0
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "vertex_shader": "minecraft:core/screenquad",
-      "fragment_shader": "asterion:post/dimension/dead_sun_bloom",
-      "inputs": [
-        {
-          "sampler_name": "In",
-          "target": "asterion:dead_sun_bloom_h",
-          "bilinear": true
-        }
-      ],
-      "output": "asterion:dead_sun_bloom_v",
-      "uniforms": {
-        "BlurDirection": [
-          {
-            "name": "Direction",
-            "type": "vec2",
-            "value": [
-              0.0,
-              1.0
-            ]
-          }
-        ]
-      }
+      "output": "asterion:dead_sun_bloom"
     },
     {
       "vertex_shader": "minecraft:core/screenquad",
@@ -82,16 +41,16 @@
         },
         {
           "sampler_name": "Sun",
-          "target": "dead_sun_raw",
+          "target": "asterion:dead_sun_raw",
           "bilinear": true
         },
         {
           "sampler_name": "Bloom",
-          "target": "asterion:dead_sun_bloom_v",
+          "target": "asterion:dead_sun_bloom",
           "bilinear": true
         }
       ],
-      "output": "dead_sun_scene"
+      "output": "asterion:atmosphere_scene"
     },
     {
       "vertex_shader": "minecraft:core/screenquad",
@@ -99,7 +58,7 @@
       "inputs": [
         {
           "sampler_name": "In",
-          "target": "dead_sun_scene",
+          "target": "asterion:atmosphere_scene",
           "bilinear": true
         }
       ],
@@ -110,10 +69,10 @@
             "name": "ColorModulate",
             "type": "vec4",
             "value": [
-              1.0,
-              1.0,
-              1.0,
-              1.0
+              1,
+              1,
+              1,
+              1
             ]
           }
         ]

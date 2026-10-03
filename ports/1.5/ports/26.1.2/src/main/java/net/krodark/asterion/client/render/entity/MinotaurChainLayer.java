@@ -42,7 +42,7 @@ public final class MinotaurChainLayer extends GeoRenderLayer<MinotaurEntity, Voi
             BiConsumer<GeoBone, PerBoneRender<EntityRenderState>> consumer) {
         Chain chain = pass.renderState().getOrDefaultGeckolibData(CHAIN, (Chain)null);
         if (chain == null || !pass.willRender() || pass.renderState().isInvisible) return;
-        String forearmAnchor = chain.arm >= 0 ? "right_player_grip" : "left_player_grip";
+        String forearmAnchor = chain.arm >= 0 ? "hand_chainR" : "hand_chainL";
         String handFallback = chain.arm >= 0 ? "hand_itemR" : "hand_itemL";
         pass.model().getBone(forearmAnchor).or(() -> pass.model().getBone(handFallback))
                 .ifPresent(bone -> consumer.accept(bone, (posed, ignored, tasks) -> {
@@ -62,31 +62,13 @@ public final class MinotaurChainLayer extends GeoRenderLayer<MinotaurEntity, Voi
     }
 
     static void draw(VertexConsumer out, Vec3 start, Vec3 end, double slack, int light) {
-        Vec3 axis = end.subtract(start).normalize();
-        Vec3 across = axis.cross(Math.abs(axis.y) > .95 ? new Vec3(1, 0, 0) : new Vec3(0, 1, 0)).normalize();
-        across = across.add(axis.cross(across)).normalize();
-        Vec3 other = axis.cross(across).normalize();
-        int links = Math.min(288, Math.max(1, Mth.ceil(start.distanceTo(end) / .45)));
-        Vec3 a = start;
-        for (int i = 1; i <= links; i++) {
+        int links = Math.min(288, Math.max(2, Mth.ceil(start.distanceTo(end) / .25)));
+        Vec3[] points = new Vec3[links + 1];
+        for (int i = 0; i <= links; i++) {
             double t = i / (double)links;
-            Vec3 b = start.lerp(end, t).add(0, -4 * slack * t * (1 - t), 0);
-             
-            quad(out, a, b, across.scale(.20), other, 0, .25F, light);
-            quad(out, a, b, other.scale(.20), across, 4.25F / 16, 8.25F / 16, light);
-            a = b;
+            points[i] = start.lerp(end, t).add(0, -4 * slack * t * (1 - t), 0);
         }
+        ChainGeometry.drawWeapon(new PoseStack().last(), out, points, Vec3.ZERO, light);
     }
 
-    private static void quad(VertexConsumer out, Vec3 a, Vec3 b, Vec3 width, Vec3 normal, float u0, float u1, int light) {
-        vertex(out, a.subtract(width), u0, 0, normal, light);
-        vertex(out, a.add(width), u1, 0, normal, light);
-        vertex(out, b.add(width), u1, .25F, normal, light);
-        vertex(out, b.subtract(width), u0, .25F, normal, light);
-    }
-
-    private static void vertex(VertexConsumer out, Vec3 point, float u, float v, Vec3 normal, int light) {
-        out.addVertex((float)point.x, (float)point.y, (float)point.z, -1, u, v,
-                OverlayTexture.NO_OVERLAY, light, (float)normal.x, (float)normal.y, (float)normal.z);
-    }
 }

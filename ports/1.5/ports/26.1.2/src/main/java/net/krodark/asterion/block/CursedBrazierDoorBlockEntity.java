@@ -29,7 +29,13 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
     private boolean passageEntered;
     private boolean unlocked;
     private boolean victoryOpen;
+    private boolean fightSealed;
     private long motionStart;
+    private long entryReadyAt;
+
+    public boolean readyForEncounter() {
+        return level != null && unlocked && entryReadyAt > 0 && level.getGameTime() >= entryReadyAt;
+    }
 
     public CursedBrazierDoorBlockEntity(BlockPos pos, BlockState state) {
         super(Asterion.CURSED_BRAZIER_DOOR_BLOCK_ENTITY, pos, state);
@@ -41,9 +47,9 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
         return startProgress + ((raising ? 1F : 0F) - startProgress) * t;
     }
     public void toggle(Player player, ItemStack held) {
-        if (level == null || moving || victoryOpen) return;
+        if (level == null || level.isClientSide() || moving || victoryOpen || fightSealed) return;
         if (!unlocked) {
-            if (!held.is(net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER_KEY) && !player.isCreative()) {
+            if (!held.is(net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER_KEY)) {
                 player.sendOverlayMessage(net.minecraft.network.chat.Component.translatable(
                         "message.asterion.cursed_brazier_door_locked"));
                 level.playSound(null, worldPosition, net.minecraft.sounds.SoundEvents.CHAIN_HIT,
@@ -65,6 +71,7 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
 
     public void sealForFight() {
         if (level == null) return;
+        fightSealed = true;
         unlocked = true;
         victoryOpen = false;
         passageEntered = false;
@@ -79,6 +86,7 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
 
     public void openAfterVictory() {
         if (level == null) return;
+        fightSealed = false;
         unlocked = true;
         victoryOpen = true;
         passageEntered = false;
@@ -96,6 +104,7 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
         raising = open;
         moving = true;
         motionStart = level.getGameTime();
+        if (open) entryReadyAt = motionStart + MOVE_TICKS + 40;
         passageEntered = false;
         if (open) CursedBrazierDoorBlock.setOpen(level, worldPosition,
                 getBlockState().getValue(CursedBrazierDoorBlock.FACING), true);
@@ -134,7 +143,7 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
         if (door.victoryOpen || !state.getValue(CursedBrazierDoorBlock.OPEN)) return;
         boolean occupied = !level.getEntitiesOfClass(Player.class, door.passage(), Player::isAlive).isEmpty();
         if (occupied) door.passageEntered = true;
-        else if (door.passageEntered) door.begin(false);
+        else if (door.passageEntered && level.getGameTime() >= door.entryReadyAt) door.begin(false);
     }
     private void sync() {
         setChanged();
@@ -146,7 +155,9 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
         out.putBoolean("raising", raising); out.putBoolean("moving", moving);
         out.putBoolean("passageEntered", passageEntered); out.putBoolean("unlocked", unlocked);
         out.putBoolean("victoryOpen", victoryOpen);
+        out.putBoolean("fightSealed", fightSealed);
         out.putLong("motionStart", motionStart);
+        out.putLong("entryReadyAt", entryReadyAt);
     }
     @Override protected void loadAdditional(ValueInput in) {
         super.loadAdditional(in);
@@ -155,7 +166,9 @@ public final class CursedBrazierDoorBlockEntity extends BlockEntity implements G
         passageEntered = in.getBooleanOr("passageEntered", false);
         unlocked = in.getBooleanOr("unlocked", false);
         victoryOpen = in.getBooleanOr("victoryOpen", false);
+        fightSealed = in.getBooleanOr("fightSealed", false);
         motionStart = in.getLongOr("motionStart", 0);
+        entryReadyAt = in.getLongOr("entryReadyAt", unlocked ? motionStart + MOVE_TICKS + 40 : 0);
     }
     @Override public CompoundTag getUpdateTag(HolderLookup.Provider registries) { return saveCustomOnly(registries); }
     @Override public ClientboundBlockEntityDataPacket getUpdatePacket() { return ClientboundBlockEntityDataPacket.create(this); }

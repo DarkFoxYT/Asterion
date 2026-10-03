@@ -155,7 +155,7 @@ public final class DismembermentEngine {
     }
 
     public void applyExplosion(Minecraft client, Vec3 center, float radius) {
-        if (client.level == null || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) {
+        if (client.level == null || !ragdollDimension(client.level.dimension())) {
             return;
         }
         if (center == null || !Float.isFinite(radius) || radius <= 0.0f) {
@@ -256,6 +256,20 @@ public final class DismembermentEngine {
                     point, direction, Math.max(0.7, force * 0.42), false, texture);
         spawnCape(entity);
         spawnElytraWings(entity);
+        if (entity instanceof net.minecraft.world.entity.monster.skeleton.AbstractSkeleton) {
+            Vec3 fall = new Vec3(direction.x, 0, direction.z);
+            if (fall.lengthSqr() < .0001) fall = new Vec3(entity.getLookAngle().x, 0, entity.getLookAngle().z);
+            fall = RagdollMath.safeNormalize(fall, new Vec3(0, 0, 1));
+            Vec3 tippingAxis = new Vec3(fall.z, 0, -fall.x);
+            for (RigidBodyPiece part : pieces) if (part.entityId == entity.getId()) {
+                part.skeletonBody = true;
+                // Break the perfectly upright equilibrium, even for stationary deaths.
+                // This is initial angular momentum; joints and collisions still solve the fall.
+                double spin = part.region == 1 ? .13 : part.region == 0 ? .09 : .055;
+                part.angularVelocity = part.angularVelocity.add(tippingAxis.scale(spin));
+                part.sleeping = false;
+            }
+        }
         applyPlayerGlobalFlightPose(entity);
         Minecraft minecraft = Minecraft.getInstance();
         if (!(entity instanceof Player player && minecraft.player == player)) {
@@ -1885,8 +1899,8 @@ public final class DismembermentEngine {
         if (player == null || !net.krodark.asterion.entity.MinotaurEntity.isHeld(player)) return Vec3.ZERO;
         RigidBodyPiece torso = find(entityId, 1);
         if (torso == null) return Vec3.ZERO;
-        Vec3 feet = net.krodark.asterion.client.render.entity.MinotaurHandAttachment.feet(player);
-        Vec3 hand = (feet == null ? player.getPosition(partial) : feet).add(0, player.getBbHeight() * .52, 0);
+        Vec3 hand = net.krodark.asterion.client.render.entity.MinotaurHandAttachment.grip(player);
+        if (hand == null) hand = player.getPosition(partial).add(0, player.getBbHeight() * .52, 0);
         return hand.subtract(torso.previous.lerp(torso.position, partial));
     }
 
@@ -2004,7 +2018,8 @@ public final class DismembermentEngine {
             part.previous = part.position;
             part.previousOrientation.set(part.orientation);
             incomingVelocities.put(part, part.velocity);
-            if (isAnatomicalRegion(part.region) && part.region != 0 && part.supportTicks > 0)
+            if (isAnatomicalRegion(part.region) && part.region != 0 && part.supportTicks > 0
+                    && (!part.sleeping || hasGroundSupport(level, part)))
                 supportedAnatomicalIslands.add(part.entityId);
             if (!remoteDriven.contains(part.entityId)
                     && (part == grabbed || part.position.distanceToSqr(collisionContext.position()) <= 128.0 * 128.0))
@@ -2033,7 +2048,7 @@ public final class DismembermentEngine {
             default -> 4;
         };
         final int globalSubsteps = hasPlayerRagdoll ? configuredSubsteps : Math.max(1, configuredSubsteps - 1);
-        final double angularDamping = Math.sqrt(0.996);
+        final double angularDamping = Math.pow(0.992, 1.0 / globalSubsteps);
         for (RigidBodyPiece part : active)
             part.jointImpulse = part.jointImpulse.scale(part.playerBody ? 0.08 : 0.16);
         for (int globalStep = 0; globalStep < globalSubsteps; globalStep++) {
@@ -2060,7 +2075,8 @@ public final class DismembermentEngine {
                         * RagdollRuntime.INSTANCE.config.playerBuoyancy - armorLoad * 0.015 : 0.011)
                         : inLava ? 0.018 : -0.055;
                 verticalAcceleration *= part.physicsBlend;
-                part.velocity = part.velocity.scale(linearDamping)
+                // Retention is per tick; quality should alter precision rather than body weight.
+                part.velocity = part.velocity.scale(Math.pow(linearDamping, 2.0 / globalSubsteps))
                         .add(0, verticalAcceleration / globalSubsteps, 0);
                 if (inWater) {
                     Vec3 flow = fluid.getFlow(level, BlockPos.containing(part.position));
@@ -2111,7 +2127,7 @@ public final class DismembermentEngine {
                     }
                     collided = true;
                 } else part.angularVelocity = part.angularVelocity.scale(
-                        inWater && part.playerBody ? 0.89 : angularDamping);
+                        inWater && part.playerBody ? Math.pow(.89, 1.0 / globalSubsteps) : angularDamping);
                 if (collided) collidedParts.add(part);
             }
 
@@ -2372,6 +2388,20 @@ public final class DismembermentEngine {
     private void applyJointGravityTorque(RigidBodyPiece part, double verticalAcceleration,
                                          int substeps) {
         if (!part.anchoredJoint || part.parentRegion < 0 || part == grabbed) return;
+        if (part.skeletonBody && (part.region == 4 || part.region == 5)
+                && part.supportTicks > 0 && !part.sleeping) {
+            RigidBodyPiece torso = find(part.entityId, 1);
+            if (torso != null && torso.supportTicks == 0) {
+                // A planted foot supports the torso's weight; otherwise both legs
+                // can lock upright while the old grounded fast-path suppresses torque.
+                Vec3 foot = part.position.add(0, -part.halfExtents.y, 0);
+                Vec3 load = new Vec3(0, torso.mass() * verticalAcceleration * .5, 0);
+                Vec3 torque = torso.position.subtract(foot).cross(load);
+                Vec3 spin = torso.inverseInertia(torque).scale(1.0 / substeps);
+                if (spin.lengthSqr() > .0064) spin = spin.normalize().scale(.08);
+                torso.angularVelocity = torso.angularVelocity.add(spin);
+            }
+        }
         if (part.region == 0 && hasNonHeadSupport(part.entityId)) return;
         if (part.region != 0 && part.supportTicks > 0 && part.velocity.lengthSqr() < 0.035) return;
         RigidBodyPiece parent = find(part.entityId, part.parentRegion);
@@ -3094,12 +3124,8 @@ public final class DismembermentEngine {
 
     private static AABB boundsAt(RigidBodyPiece part, Vec3 center) {
         Vec3 collisionHalf = collisionHalfExtents(part);
-        Vector3f x = part.orientation.transform(new Vector3f((float) collisionHalf.x, 0, 0));
-        Vector3f y = part.orientation.transform(new Vector3f(0, (float) collisionHalf.y, 0));
-        Vector3f z = part.orientation.transform(new Vector3f(0, 0, (float) collisionHalf.z));
-        double hx = Math.abs(x.x) + Math.abs(y.x) + Math.abs(z.x);
-        double hy = Math.abs(x.y) + Math.abs(y.y) + Math.abs(z.y);
-        double hz = Math.abs(x.z) + Math.abs(y.z) + Math.abs(z.z);
+        part.updateCollisionGeometry(collisionHalf);
+        double hx=part.collisionBoundsHalf.x,hy=part.collisionBoundsHalf.y,hz=part.collisionBoundsHalf.z;
         return new AABB(center.x - hx, center.y - hy, center.z - hz,
                 center.x + hx, center.y + hy, center.z + hz);
     }
@@ -3114,17 +3140,15 @@ public final class DismembermentEngine {
     }
 
     private static Vec3[] axes(RigidBodyPiece part) {
-        Vector3f x = part.orientation.transform(new Vector3f(1, 0, 0));
-        Vector3f y = part.orientation.transform(new Vector3f(0, 1, 0));
-        Vector3f z = part.orientation.transform(new Vector3f(0, 0, 1));
-        return new Vec3[] {new Vec3(x.x, x.y, x.z), new Vec3(y.x, y.y, y.z), new Vec3(z.x, z.y, z.z)};
+        part.updateCollisionGeometry(collisionHalfExtents(part));return part.collisionAxes;
     }
+    private static final Vec3[] COLLISION_WORLD_AXES={new Vec3(1,0,0),new Vec3(0,1,0),new Vec3(0,0,1)};
 
     private static ObbContact obbContact(RigidBodyPiece part, Vec3 center, AABB box) {
         Vec3 boxCenter = box.getCenter();
         Vec3 boxHalf = new Vec3(box.getXsize() * 0.5, box.getYsize() * 0.5, box.getZsize() * 0.5);
         return satContact(center, collisionHalfExtents(part), axes(part), boxCenter, boxHalf,
-                new Vec3[] {new Vec3(1, 0, 0), new Vec3(0, 1, 0), new Vec3(0, 0, 1)});
+                COLLISION_WORLD_AXES);
     }
 
     private static ObbContact obbContact(RigidBodyPiece a, RigidBodyPiece b) {
@@ -3133,9 +3157,13 @@ public final class DismembermentEngine {
     }
 
     private static Vec3 collisionHalfExtents(RigidBodyPiece part) {
-        if (part.playerBody && part.region == 0)
-            return new Vec3(part.halfExtents.x * 0.82, part.halfExtents.y * 0.80,
-                    part.halfExtents.z * 0.82);
+        if (part.playerBody && part.region == 0) {
+            if(!part.halfExtents.equals(part.collisionSourceHalf)) {
+                part.collisionSourceHalf=part.halfExtents;
+                part.collisionHalf=new Vec3(part.halfExtents.x*.82,part.halfExtents.y*.80,part.halfExtents.z*.82);
+            }
+            return part.collisionHalf;
+        }
         return part.halfExtents;
     }
 
@@ -3144,12 +3172,8 @@ public final class DismembermentEngine {
         Vec3 delta = centerB.subtract(centerA);
         Vec3 bestAxis = null;
         double bestDepth = Double.POSITIVE_INFINITY;
-        Vec3[] candidates = new Vec3[15];
-        System.arraycopy(axesA, 0, candidates, 0, 3);
-        System.arraycopy(axesB, 0, candidates, 3, 3);
-        int index = 6;
-        for (Vec3 axisA : axesA) for (Vec3 axisB : axesB) candidates[index++] = axisA.cross(axisB);
-        for (Vec3 rawAxis : candidates) {
+        for(int index=0;index<15;index++) {
+            Vec3 rawAxis=index<3?axesA[index]:index<6?axesB[index-3]:axesA[(index-6)/3].cross(axesB[(index-6)%3]);
             double lengthSqr = rawAxis.lengthSqr();
             if (lengthSqr < 1.0e-10) continue;
             Vec3 axis = rawAxis.scale(1.0 / Math.sqrt(lengthSqr));
@@ -3360,7 +3384,31 @@ public final class DismembermentEngine {
     }
 
     Vec3 renderCenter(RigidBodyPiece part, float partial) {
-        return renderSocketCenter(part, partial, 0).add(heldRenderOffset(part.entityId, partial));
+        Vec3 center = renderSocketCenter(part, partial, 0);
+        Quaternionf grip = heldRotation(part.entityId, partial);
+        RigidBodyPiece torso = find(part.entityId, 1);
+        if (grip != null && torso != null) {
+            Vec3 pivot = torso.previous.lerp(torso.position, partial);
+            Vector3f offset = grip.transform(center.subtract(pivot).toVector3f());
+            center = pivot.add(offset.x, offset.y, offset.z);
+        }
+        return center.add(heldRenderOffset(part.entityId, partial));
+    }
+
+    private Quaternionf heldRotation(int entityId, float partial) {
+        var level = Minecraft.getInstance().level;
+        Entity player = level == null ? null : level.getEntity(entityId);
+        RigidBodyPiece torso = find(entityId, 1);
+        if (player == null || torso == null) return null;
+        Quaternionf hand = net.krodark.asterion.client.render.entity.MinotaurHandAttachment.rotation(player);
+        return hand == null ? null : hand.mul(new Quaternionf(torso.previousOrientation)
+                .slerp(torso.orientation, partial).conjugate());
+    }
+
+    Quaternionf renderOrientation(RigidBodyPiece part, float partial) {
+        Quaternionf rotation = new Quaternionf(part.previousOrientation).slerp(part.orientation, partial);
+        Quaternionf grip = heldRotation(part.entityId, partial);
+        return grip == null ? rotation : grip.mul(rotation);
     }
 
     private Vec3 renderSocketCenter(RigidBodyPiece part, float partial, int depth) {
@@ -3665,7 +3713,7 @@ public final class DismembermentEngine {
             boolean playerIsland = island.stream().anyMatch(part -> part.playerBody);
             boolean supportedIsland = island.stream()
                     .anyMatch(part -> part.region != 0 && isAnatomicalRegion(part.region)
-                            && part.supportTicks >= 2);
+                            && part.supportTicks >= 2 && part.supportMissTicks == 0);
             boolean groundedPlayer = playerIsland && supportedIsland;
             boolean stableManifolds = !groundedPlayer || island.stream()
                     .filter(part -> part.region != 0 && isAnatomicalRegion(part.region)
@@ -3690,11 +3738,16 @@ public final class DismembermentEngine {
             for (RigidBodyPiece part : island) {
                 if (isAttachmentRegion(part.region)) continue;
                 quiet &= part.velocity.lengthSqr() < linearSleep
-                        && part.angularVelocity.lengthSqr() < angularSleep;
+                        && part.angularVelocity.lengthSqr() < angularSleep
+                        // Constraint corrections move bodies without adding velocity.
+                        // Include that movement before deciding an island has settled.
+                        && part.age >= 40
+                        && part.position.distanceToSqr(part.previous) < 0.000025
+                        && Math.abs(part.orientation.dot(part.previousOrientation)) > 0.99995F;
             }
             int quietTicks = quiet ? islandSleepTicks.getOrDefault(entry.getKey(), 0) + 1 : 0;
             islandSleepTicks.put(entry.getKey(), quietTicks);
-            int sleepDelay = groundedPlayer ? stableManifolds ? 8 : 14 : playerIsland ? 36 : 14;
+            int sleepDelay = groundedPlayer && stableManifolds ? 30 : 40;
             if (quietTicks >= sleepDelay) {
                 for (RigidBodyPiece part : island) {
                     part.velocity = Vec3.ZERO;
@@ -3787,7 +3840,10 @@ public final class DismembermentEngine {
     }
 
     private static boolean inAsterion(Entity entity) {
-        return entity != null && entity.level().dimension().equals(Asterion.ASTERION_LEVEL);
+        return entity != null && ragdollDimension(entity.level().dimension());
+    }
+    public static boolean ragdollDimension(net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension) {
+        return dimension.equals(Asterion.ASTERION_LEVEL) || dimension.equals(Asterion.LIMBO_LEVEL);
     }
 
     private void tickWailing() {

@@ -19,6 +19,8 @@ public abstract class PortRagdollRenderMixin {
             if (feet != null) {
                 var offset = feet.subtract(entity.getPosition(partial));
                 poses.translate(offset.x, offset.y, offset.z);
+                var rotation=net.krodark.asterion.port.client.ragdoll.MinotaurHandAttachment.rotation(entity);
+                if(rotation!=null)poses.mulPose(rotation);
             } else {
                 var lift = net.krodark.asterion.entity.ChainLiftEntity.renderSupport(entity);
                 if (lift != null) poses.translate(0, lift.renderedDeckY(partial) - entity.getPosition(partial).y, 0);

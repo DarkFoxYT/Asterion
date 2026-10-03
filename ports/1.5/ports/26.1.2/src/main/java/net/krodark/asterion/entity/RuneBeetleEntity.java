@@ -22,6 +22,8 @@ public final class RuneBeetleEntity extends PathfinderMob implements GeoEntity {
 
     public RuneBeetleEntity(EntityType<? extends RuneBeetleEntity> type, Level level) { super(type, level); }
 
+    // Vanilla callback retained for the shared Fabric/Quilt/NeoForge entity.
+    @SuppressWarnings("deprecation")
     @Override public boolean canBreatheUnderwater() { return true; }
 
     public static AttributeSupplier.Builder createAttributes() {

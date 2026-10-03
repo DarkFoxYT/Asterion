@@ -49,12 +49,8 @@ public final class AncientContent {
     private AncientContent() {}
     public static void initialize() {
         FabricDefaultAttributeRegistry.register(SKELETON, AncientSkeletonEntity.attributes());
-        if (net.krodark.asterion.ForgeRuntime.isForge())
-            net.krodark.asterion.ForgeRuntime.registerSpawnPlacement(SKELETON, SpawnPlacementTypes.ON_GROUND,
-                    Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, AncientSkeletonEntity::canSpawn);
-        else
-            SpawnPlacementsAccessor.asterion$register(SKELETON, SpawnPlacementTypes.ON_GROUND,
-                    Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, AncientSkeletonEntity::canSpawn);
+        SpawnPlacementsAccessor.asterion$register(SKELETON, SpawnPlacementTypes.ON_GROUND,
+                Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, AncientSkeletonEntity::canSpawn);
         CreativeModeTabEvents.modifyOutputEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Asterion.id("asterion")))
                 .register(output -> { output.accept(EGG); output.accept(ANCIENT_BONE); output.accept(MINOTAUR_HIDE); output.accept(MINOTAUR_TROPHY_ITEM); });
     }

@@ -15,6 +15,9 @@ public record BossTelegraphPayload(Vec3 center, Vec3 direction, float radius,
     public static final int FRONT_CONE = 3;
     public static final int BOX = 4;
     public static final int BOX_CONE = 5;
+    public static final int RING = 6;
+    public static final int SCAR = 7;
+    public static final int WALL_SCAR = 8;
     public static final Type<BossTelegraphPayload> TYPE = new Type<>(Asterion.id("boss_telegraph"));
     public static final StreamCodec<RegistryFriendlyByteBuf, BossTelegraphPayload> CODEC =
             CustomPacketPayload.codec(BossTelegraphPayload::write, BossTelegraphPayload::read);

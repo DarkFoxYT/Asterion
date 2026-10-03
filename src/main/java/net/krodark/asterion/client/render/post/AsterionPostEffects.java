@@ -32,12 +32,18 @@ public final class AsterionPostEffects {
     private static Vec3 lastCameraPosition = Vec3.ZERO;
     private static Vec3 lastCameraForward = new Vec3(0.0D, 0.0D, 1.0D);
     private static boolean hasCameraSnapshot;
+    private static List<UniformValue> cachedWorldData;
+    private static float cachedDepthConvention;
 
     private AsterionPostEffects() {
     }
+    public static void clearCameraCache() {
+        cachedWorldData=null;hasCameraSnapshot=false;lastInverseViewProjection.identity();
+        lastCameraPosition=Vec3.ZERO;lastCameraForward=new Vec3(0,0,1);
+    }
 
     public static void register() {
-        PostEffects.register(Asterion.id("dimension/dead_sun"), config -> AmneticPostBuffers.attach(AmneticPostBuffers.attach(config, "dead_sun_bloom_h", .25F), "dead_sun_bloom_v", .25F)
+        PostEffects.register(Asterion.id("dimension/dead_sun"), config -> AmneticPostBuffers.attach(AmneticPostBuffers.attach(AmneticPostBuffers.attach(config, "dead_sun_raw", () -> effectQuality() >= 2 ? .75 : .5), "dead_sun_bloom", .25F), "atmosphere_scene", 1F)
                 .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.deadSunEnabled
                         && effectQuality() > 0)
                 .phase(RenderPhase.POST_WORLD)
@@ -59,7 +65,7 @@ public final class AsterionPostEffects {
                 .uniformVec3("DeadSunCoronaColor", () -> new Vector3f(AsterionConfig.INSTANCE.deadSunCoronaR,
                         AsterionConfig.INSTANCE.deadSunCoronaG, AsterionConfig.INSTANCE.deadSunCoronaB)));
 
-        PostEffects.register(Asterion.id("dimension/dusty_air"), config -> config
+        PostEffects.register(Asterion.id("dimension/dusty_air"), config -> AmneticPostBuffers.attach(config,"atmosphere_scene",1F)
                 .when(() -> isDustReady() && AsterionConfig.INSTANCE.dustyAirEnabled
                         && dustQuality() == 1)
                 .phase(RenderPhase.POST_WORLD)
@@ -76,7 +82,7 @@ public final class AsterionPostEffects {
 
          
          
-        PostEffects.register(Asterion.id("dimension/dusty_air_high"), config -> config
+        PostEffects.register(Asterion.id("dimension/dusty_air_high"), config -> AmneticPostBuffers.attach(AmneticPostBuffers.attach(config,"volume_high_raw",1F),"atmosphere_scene",1F)
                 .when(() -> isDustReady() && AsterionConfig.INSTANCE.dustyAirEnabled
                         && dustQuality() >= 2)
                 .phase(RenderPhase.POST_WORLD)
@@ -151,10 +157,13 @@ public final class AsterionPostEffects {
             hasCameraSnapshot = false;
             return false;
         }
+        if (BossFinaleOverlay.coversWorld()) return false;
         return AmneticCamera.isReady() || hasCameraSnapshot;
     }
 
     private static double dustQuality() {
+        // Different dust chains have different grading and sampling. Switching them in response
+        // to frame time resets their fade and makes the atmosphere visibly pulse/change colour.
         return Mth.clamp(AsterionConfig.INSTANCE.cinematicQuality, 0, 2);
     }
 
@@ -180,7 +189,7 @@ public final class AsterionPostEffects {
                 config.deadSunHeight + (float) shake.y,
                 config.deadSunZ + (float) shake.z,
                 config.deadSunSize * distanceScale * mix(1.0F, 1.08F, eclipse())
-                        * mix(1.0F, 3.8F, BossFinaleOverlay.sunDetonationStrength())
+                        * BossFinaleOverlay.sunScale()
                         * mix(1.0F, 1.16F, DeadSunEntryCinematic.radianceStrength()));
     }
 
@@ -334,14 +343,18 @@ public final class AsterionPostEffects {
     }
 
     private static List<UniformValue> worldData() {
+        float zeroToOne = RenderSystem.getDevice().isZZeroToOne() ? 1.0f : 0.0f;
+        if(cachedWorldData!=null && cachedDepthConvention==zeroToOne
+                && (!AmneticCamera.isReady() || lastInverseViewProjection.equals(AmneticCamera.inverseViewProjection())
+                && lastCameraPosition.equals(AmneticCamera.position()) && lastCameraForward.equals(AmneticCamera.forward())))return cachedWorldData;
         if (AmneticCamera.isReady()) {
             lastInverseViewProjection.set(AmneticCamera.inverseViewProjection());
             lastCameraPosition = AmneticCamera.position();
             lastCameraForward = AmneticCamera.forward();
             hasCameraSnapshot = true;
         }
-        float zeroToOne = RenderSystem.getDevice().isZZeroToOne() ? 1.0f : 0.0f;
-        return List.of(
+        cachedDepthConvention=zeroToOne;
+        return cachedWorldData=List.of(
                 new UniformValue.Matrix4x4Uniform(new Matrix4f(lastInverseViewProjection)),
                 new UniformValue.Vec4Uniform(new Vector4f(
                         (float) lastCameraPosition.x, (float) lastCameraPosition.y,

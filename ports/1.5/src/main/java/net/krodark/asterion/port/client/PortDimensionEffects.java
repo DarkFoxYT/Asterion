@@ -6,9 +6,6 @@ import com.meekdev.amnetic.client.camera.AmneticCamera;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
-
-
-
 import net.minecraft.client.Minecraft;
 import com.meekdev.amnetic.client.post.UniformValue;
 import net.minecraft.util.Mth;
@@ -32,20 +29,25 @@ public final class PortDimensionEffects {
     private static Vec3 lastCameraPosition = Vec3.ZERO;
     private static Vec3 lastCameraForward = new Vec3(0.0D, 0.0D, 1.0D);
     private static boolean hasCameraSnapshot;
+    private static List<UniformValue> cachedWorldData;
+    private static float cachedDepthConvention;
 
     private PortDimensionEffects() {
+    }
+    public static void clearCameraCache() {
+        cachedWorldData=null;hasCameraSnapshot=false;lastInverseViewProjection.identity();
+        lastCameraPosition=Vec3.ZERO;lastCameraForward=new Vec3(0,0,1);
     }
 
     private static boolean registered;
     public static void initialize() {
-        if (registered) return;
-        registered = true;
-        PostEffects.register(Asterion.id("dimension/dead_sun"), config -> config
+        if(registered)return;registered=true;
+        PostEffects.register(Asterion.id("dimension/dead_sun"), config -> PortPostBuffers.attach(PortPostBuffers.attach(PortPostBuffers.attach(config, "dead_sun_raw", () -> effectQuality() >= 2 ? .75 : .5), "dead_sun_bloom", .25F), "atmosphere_scene", 1F)
                 .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.deadSunEnabled
                         && effectQuality() > 0)
                 .phase(RenderPhase.POST_WORLD)
                 .priority(10)
-                .fade(32, 16)
+                .fade(8, 0)
                 .uniform("DustTime", PortDimensionEffects::renderTime)
                 .uniform("AsterionStrength", () -> AsterionConfig.INSTANCE.deadSunStrength)
                 .uniform("AsterionQuality", PortDimensionEffects::effectQuality)
@@ -62,15 +64,15 @@ public final class PortDimensionEffects {
                 .uniformVec3("DeadSunCoronaColor", () -> new Vector3f(AsterionConfig.INSTANCE.deadSunCoronaR,
                         AsterionConfig.INSTANCE.deadSunCoronaG, AsterionConfig.INSTANCE.deadSunCoronaB)));
 
-        PostEffects.register(Asterion.id("dimension/dusty_air"), config -> config
-                .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.dustyAirEnabled
-                        && effectQuality() == 1)
+        PostEffects.register(Asterion.id("dimension/dusty_air"), config -> PortPostBuffers.attach(config,"atmosphere_scene",1F)
+                .when(() -> isDustReady() && AsterionConfig.INSTANCE.dustyAirEnabled
+                        && dustQuality() == 1)
                 .phase(RenderPhase.POST_WORLD)
                 .priority(20)
-                .fade(24, 16)
+                .fade(8, 0)
                 .uniform("DustTime", PortDimensionEffects::renderTime)
                 .uniform("AsterionStrength", () -> AsterionConfig.INSTANCE.dustyAirStrength)
-                .uniform("AsterionQuality", PortDimensionEffects::effectQuality)
+                .uniform("AsterionQuality", PortDimensionEffects::dustQuality)
                 .uniformVec3("AtmosphereSettings", PortDimensionEffects::atmosphereSettings)
                 .uniformVec3("DustColor", PortDimensionEffects::dustColor)
                 .uniformVec3("FogColor", PortDimensionEffects::fogColor)
@@ -79,15 +81,15 @@ public final class PortDimensionEffects {
 
 
 
-        PostEffects.register(Asterion.id("dimension/dusty_air_high"), config -> config
-                .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.dustyAirEnabled
-                        && effectQuality() >= 2)
+        PostEffects.register(Asterion.id("dimension/dusty_air_high"), config -> PortPostBuffers.attach(PortPostBuffers.attach(config,"volume_high_raw",1F),"atmosphere_scene",1F)
+                .when(() -> isDustReady() && AsterionConfig.INSTANCE.dustyAirEnabled
+                        && dustQuality() >= 2)
                 .phase(RenderPhase.POST_WORLD)
                 .priority(20)
-                .fade(24, 16)
+                .fade(8, 0)
                 .uniform("DustTime", PortDimensionEffects::renderTime)
                 .uniform("AsterionStrength", () -> AsterionConfig.INSTANCE.dustyAirStrength)
-                .uniform("AsterionQuality", PortDimensionEffects::effectQuality)
+                .uniform("AsterionQuality", PortDimensionEffects::dustQuality)
                 .uniformVec3("AtmosphereSettings", PortDimensionEffects::atmosphereSettings)
                 .uniformVec3("DustColor", PortDimensionEffects::dustColor)
                 .uniformVec3("FogColor", PortDimensionEffects::fogColor)
@@ -95,11 +97,11 @@ public final class PortDimensionEffects {
                 .uniformRaw("WorldData", PortDimensionEffects::worldData));
 
         PostEffects.register(Asterion.id("dimension/dusty_air_fast"), config -> config
-                .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.dustyAirEnabled
-                        && effectQuality() <= 0)
+                .when(() -> isDustReady() && AsterionConfig.INSTANCE.dustyAirEnabled
+                        && dustQuality() <= 0)
                 .phase(RenderPhase.POST_WORLD)
                 .priority(20)
-                .fade(3, 8)
+                .fade(3, 0)
                 .uniform("DustTime", PortDimensionEffects::renderTime)
                 .uniform("AsterionStrength", () -> AsterionConfig.INSTANCE.dustyAirStrength)
                 .uniform("AsterionQuality", 0)
@@ -114,7 +116,7 @@ public final class PortDimensionEffects {
         PostEffects.register(Asterion.id("dimension/dead_sun_fast"), config -> config
                 .when(() -> isPostProcessingReady() && AsterionConfig.INSTANCE.deadSunEnabled
                         && effectQuality() <= 0)
-                .phase(RenderPhase.POST_WORLD).priority(10).fade(3, 8)
+                .phase(RenderPhase.POST_WORLD).priority(10).fade(3, 0)
                 .uniform("DustTime", PortDimensionEffects::renderTime)
                 .uniform("AsterionStrength", () -> AsterionConfig.INSTANCE.deadSunStrength)
                 .uniform("AsterionQuality", 0)
@@ -132,6 +134,16 @@ public final class PortDimensionEffects {
                         AsterionConfig.INSTANCE.deadSunCoronaG, AsterionConfig.INSTANCE.deadSunCoronaB)));
     }
 
+    private static boolean isLimbo() {
+        var level = Minecraft.getInstance().level;
+        return false;
+    }
+
+    private static boolean isDustReady() {
+        // Limbo has its own low mist and distance haze; do not stack a second dust volume.
+        return !isLimbo() && isPostProcessingReady();
+    }
+
     private static boolean isInsideAsterion() {
         Minecraft client = Minecraft.getInstance();
         return client.level != null && client.level.dimension().equals(Asterion.ASTERION_LEVEL);
@@ -144,13 +156,20 @@ public final class PortDimensionEffects {
             hasCameraSnapshot = false;
             return false;
         }
+        if (PortBossFinaleOverlay.coversWorld()) return false;
         return AmneticCamera.isReady() || hasCameraSnapshot;
+    }
+
+    private static double dustQuality() {
+        // Different dust chains have different grading and sampling. Switching them in response
+        // to frame time resets their fade and makes the atmosphere visibly pulse/change colour.
+        return Mth.clamp(AsterionConfig.INSTANCE.cinematicQuality, 0, 2);
     }
 
     private static double effectQuality() {
 
 
-        return Mth.clamp(AsterionConfig.INSTANCE.cinematicQuality, 0, 2);
+        return Math.min(Mth.clamp(AsterionConfig.INSTANCE.cinematicQuality, 0, 2), PortPerformanceGovernor.quality());
     }
 
     private static double renderTime() {
@@ -169,7 +188,7 @@ public final class PortDimensionEffects {
                 config.deadSunHeight + (float) shake.y,
                 config.deadSunZ + (float) shake.z,
                 config.deadSunSize * distanceScale * mix(1.0F, 1.08F, eclipse())
-                        * mix(1.0F, 3.8F, PortBossFinaleOverlay.sunDetonationStrength())
+                        * PortBossFinaleOverlay.sunScale()
                         * mix(1.0F, 1.16F, PortDeadSunEntryCinematic.radianceStrength()));
     }
 
@@ -190,6 +209,7 @@ public final class PortDimensionEffects {
     }
 
     private static Vector3f atmosphereSettings() {
+        if (isLimbo()) return new Vector3f(.45F, AsterionConfig.INSTANCE.limboFogStrength, .35F);
         AsterionConfig config = AsterionConfig.INSTANCE;
         float eclipse = darkness();
         return new Vector3f(
@@ -209,6 +229,7 @@ public final class PortDimensionEffects {
     }
 
     private static Vector3f dustColor() {
+        if (isLimbo()) return new Vector3f(.64F, .71F, .74F);
         AsterionConfig config = AsterionConfig.INSTANCE;
         float eclipse = darkness();
 
@@ -230,6 +251,7 @@ public final class PortDimensionEffects {
     }
 
     private static Vector3f fogColor() {
+        if (isLimbo()) return new Vector3f(.40F, .48F, .52F);
         AsterionConfig config = AsterionConfig.INSTANCE;
         float eclipse = darkness();
         float red = mix(config.fogR, 0.20F, overgrowthBlend);
@@ -255,9 +277,11 @@ public final class PortDimensionEffects {
         return biomeTarget == 2 || crimsonBlend > 0.55F;
     }
 
-    public static void tick(Minecraft client) { tickBiomeAtmosphere(client); }
+    public static Vector3f ambientDustColor() {
+        return dustColor();
+    }
 
-    public static void tickBiomeAtmosphere(Minecraft client) {
+    public static void tick(Minecraft client) {
         if (!isInsideAsterion() || client.player == null) {
             catacombBlend = 0;
             arenaBlend = 0;
@@ -318,14 +342,18 @@ public final class PortDimensionEffects {
     }
 
     private static List<UniformValue> worldData() {
+        float zeroToOne = 0.0f;
+        if(cachedWorldData!=null && cachedDepthConvention==zeroToOne
+                && (!AmneticCamera.isReady() || lastInverseViewProjection.equals(AmneticCamera.inverseViewProjection())
+                && lastCameraPosition.equals(AmneticCamera.position()) && lastCameraForward.equals(AmneticCamera.forward())))return cachedWorldData;
         if (AmneticCamera.isReady()) {
             lastInverseViewProjection.set(AmneticCamera.inverseViewProjection());
             lastCameraPosition = AmneticCamera.position();
             lastCameraForward = AmneticCamera.forward();
             hasCameraSnapshot = true;
         }
-        float zeroToOne = 0.0f;
-        return List.of(
+        cachedDepthConvention=zeroToOne;
+        return cachedWorldData=List.of(
                 new UniformValue.Matrix4x4Uniform(new Matrix4f(lastInverseViewProjection)),
                 new UniformValue.Vec4Uniform(new Vector4f(
                         (float) lastCameraPosition.x, (float) lastCameraPosition.y,

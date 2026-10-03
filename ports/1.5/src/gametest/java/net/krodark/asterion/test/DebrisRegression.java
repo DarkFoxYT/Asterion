@@ -11,13 +11,14 @@ final class DebrisRegression {
             var constructor=cls.getDeclaredConstructors()[0];constructor.setAccessible(true);
             var piecesField=PortPhysicsDebris.class.getDeclaredField("PIECES");piecesField.setAccessible(true);
             @SuppressWarnings("unchecked") var pieces=(java.util.List<Object>)piecesField.get(null);
-            var airborne=constructor.newInstance(new Vec3(0,183,-3),6,1F,new java.util.Random(1),200);
+            var airborne=constructor.newInstance(new Vec3(0,183,-3),6,1F,new java.util.Random(1));
             set(airborne,"sleeping",true);pieces.add(airborne);
-            for(int i=0;i<8;i++)PortPhysicsDebris.tick(client);
+            // Sleeping pieces probe support every ten ticks to avoid repeated collision queries.
+            for(int i=0;i<16;i++)PortPhysicsDebris.tick(client);
             if((boolean)get(airborne,"sleeping") || ((Vec3)get(airborne,"position")).y>=182.9)
                 throw new AssertionError("Unsupported resting rubble floats");
             pieces.remove(airborne);
-            var embedded=constructor.newInstance(new Vec3(0.5,177.5,-3.5),6,.4F,new java.util.Random(2),200);
+            var embedded=constructor.newInstance(new Vec3(0.5,177.5,-3.5),6,.4F,new java.util.Random(2));
             pieces.add(embedded);PortPhysicsDebris.tick(client);
             if(((Vec3)get(embedded,"position")).distanceToSqr(new Vec3(.5,177.5,-3.5))<.01)
                 throw new AssertionError("Embedded rubble did not recover");
@@ -29,8 +30,8 @@ final class DebrisRegression {
             for(int i=0;i<8;i++)PortPhysicsDebris.tick(client);
             for(int i=0;i<2;i++)if(((Vec3)get(doors.get(i),"position")).distanceToSqr(starts.get(i))<.1)
                 throw new AssertionError("Door slab did not move");
-            for(int i=0;i<220;i++)pieces.add(constructor.newInstance(new Vec3(0,184,0),6,.1F,new java.util.Random(i),200));
-            var trim=PortPhysicsDebris.class.getDeclaredMethod("trim");trim.setAccessible(true);trim.invoke(null);
+            for(int i=0;i<220;i++)pieces.add(constructor.newInstance(new Vec3(0,184,0),6,.1F,new java.util.Random(i)));
+            var trim=PortPhysicsDebris.class.getDeclaredMethod("trimDebris");trim.setAccessible(true);trim.invoke(null);
             if(!pieces.containsAll(doors))throw new AssertionError("Rubble burst evicted physical doors");
             pieces.clear();
             Asterion.LOGGER.info("ASTERION_DEBRIS PASSED: unsupported bodies wake, embedded rubble recovers, two physical door leaves move and survive rubble budget");

@@ -84,6 +84,8 @@ public final class AsterionForgeClientModEvents {
         event.registerEntityRenderer(GameplayContent.CURSED_BRAZIER, PortCursedBrazierRenderer::new);
         event.registerEntityRenderer(ChainLiftContent.LIFT, PortChainLiftRenderer::new);
         event.registerEntityRenderer(Asterion.MINOTAUR_AXE, MinotaurAxePortRenderer::new);
+        event.registerEntityRenderer(net.krodark.asterion.game.ChainLiftContent.PHYSICS_CHAIN, net.krodark.asterion.port.client.PortPhysicsChainRenderer::new);
+        event.registerEntityRenderer(Asterion.CENTIPEDE_SEGMENT, net.krodark.asterion.port.client.NoopEntityRenderer::new);
         event.registerEntityRenderer(ChainLiftContent.CALL_RUNE, LiftCallRunePortRenderer::new);
 
         event.registerBlockEntityRenderer(Asterion.RUNE_BLOCK_ENTITY, context -> new PortRuneRenderer());
@@ -128,6 +130,8 @@ public final class AsterionForgeClientModEvents {
         register(event, Asterion.FLY, PortParticles.Style.FLY);
         register(event, Asterion.ANCIENT_WALL_DUST, PortParticles.Style.WALL_DUST);
         register(event, Asterion.RUMBLE_SMOKE, PortParticles.Style.RUMBLE);
+        register(event, Asterion.GROUND_FOG, PortParticles.Style.GROUND_FOG);
+        register(event, Asterion.GROUND_HAZE, PortParticles.Style.GROUND_HAZE);
     }
 
     private static void register(RegisterParticleProvidersEvent event,

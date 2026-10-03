@@ -8,6 +8,22 @@ import java.util.zip.ZipFile;
 
 public final class StartupCompatibilitySmoke {
     public static void main(String[] args) throws Exception {
+        for(String token:new String[]{"FabricMC","0",""}) {
+            String[] launch={"--username","DevPlayer","--accessToken",token};
+            var prepared=net.krodark.asterion.dev.OfflineLaunchArguments.prepare(launch);
+            if(!prepared[prepared.length-1].equals("--offlineDeveloperMode"))throw new AssertionError("Dummy login still contacts account services");
+            if(net.krodark.asterion.dev.OfflineLaunchArguments.prepare(prepared)!=prepared)throw new AssertionError("Duplicate offline argument");
+        }
+        String[] authenticated={"--accessToken","signed-session-placeholder"};
+        if(net.krodark.asterion.dev.OfflineLaunchArguments.prepare(authenticated)!=authenticated)throw new AssertionError("Authenticated launch forced offline");
+        String[] inline={"--accessToken=signed-session-placeholder"};
+        if(net.krodark.asterion.dev.OfflineLaunchArguments.prepare(inline)!=inline)throw new AssertionError("Inline authenticated token forced offline");
+        try(var input=StartupCompatibilitySmoke.class.getClassLoader().getResourceAsStream("net/minecraft/client/main/Main.class")) {
+            var node=new ClassNode();new ClassReader(input).accept(node,0);boolean flag=false;
+            for(var method:node.methods)for(var instruction:method.instructions)
+                if(instruction instanceof org.objectweb.asm.tree.LdcInsnNode literal && "offlineDeveloperMode".equals(literal.cst))flag=true;
+            if(!flag)throw new AssertionError("Minecraft lacks the native offline developer flag");
+        }
         net.minecraft.SharedConstants.tryDetectVersion();
         net.minecraft.server.Bootstrap.bootStrap();
         try(var input=StartupCompatibilitySmoke.class.getClassLoader().getResourceAsStream(

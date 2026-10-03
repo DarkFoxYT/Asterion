@@ -5,6 +5,6 @@ in vec4 tint;
 out vec4 FragColor;
 void main() {
     vec4 color = texture(TextureSampler, texCoord) * tint;
-    if (color.a < 0.1) discard;
+    if (color.a < 0.1 || max(color.r,max(color.g,color.b)) < 0.003) discard;
     FragColor = color;
 }

@@ -1899,8 +1899,8 @@ public final class DismembermentEngine {
         if (player == null || !net.krodark.asterion.entity.MinotaurEntity.isHeld(player)) return Vec3.ZERO;
         RigidBodyPiece torso = find(entityId, 1);
         if (torso == null) return Vec3.ZERO;
-        Vec3 feet = net.krodark.asterion.client.render.entity.MinotaurHandAttachment.feet(player);
-        Vec3 hand = (feet == null ? player.getPosition(partial) : feet).add(0, player.getBbHeight() * .52, 0);
+        Vec3 hand = net.krodark.asterion.client.render.entity.MinotaurHandAttachment.grip(player);
+        if (hand == null) hand = player.getPosition(partial).add(0, player.getBbHeight() * .52, 0);
         return hand.subtract(torso.previous.lerp(torso.position, partial));
     }
 
@@ -2048,7 +2048,7 @@ public final class DismembermentEngine {
             default -> 4;
         };
         final int globalSubsteps = hasPlayerRagdoll ? configuredSubsteps : Math.max(1, configuredSubsteps - 1);
-        final double angularDamping = Math.sqrt(0.996);
+        final double angularDamping = Math.pow(0.992, 1.0 / globalSubsteps);
         for (RigidBodyPiece part : active)
             part.jointImpulse = part.jointImpulse.scale(part.playerBody ? 0.08 : 0.16);
         for (int globalStep = 0; globalStep < globalSubsteps; globalStep++) {
@@ -2075,7 +2075,8 @@ public final class DismembermentEngine {
                         * RagdollRuntime.INSTANCE.config.playerBuoyancy - armorLoad * 0.015 : 0.011)
                         : inLava ? 0.018 : -0.055;
                 verticalAcceleration *= part.physicsBlend;
-                part.velocity = part.velocity.scale(linearDamping)
+                // Retention is per tick; quality should alter precision rather than body weight.
+                part.velocity = part.velocity.scale(Math.pow(linearDamping, 2.0 / globalSubsteps))
                         .add(0, verticalAcceleration / globalSubsteps, 0);
                 if (inWater) {
                     Vec3 flow = fluid.getFlow(level, BlockPos.containing(part.position));
@@ -2126,7 +2127,7 @@ public final class DismembermentEngine {
                     }
                     collided = true;
                 } else part.angularVelocity = part.angularVelocity.scale(
-                        inWater && part.playerBody ? 0.89 : angularDamping);
+                        inWater && part.playerBody ? Math.pow(.89, 1.0 / globalSubsteps) : angularDamping);
                 if (collided) collidedParts.add(part);
             }
 
@@ -3123,12 +3124,8 @@ public final class DismembermentEngine {
 
     private static AABB boundsAt(RigidBodyPiece part, Vec3 center) {
         Vec3 collisionHalf = collisionHalfExtents(part);
-        Vector3f x = part.orientation.transform(new Vector3f((float) collisionHalf.x, 0, 0));
-        Vector3f y = part.orientation.transform(new Vector3f(0, (float) collisionHalf.y, 0));
-        Vector3f z = part.orientation.transform(new Vector3f(0, 0, (float) collisionHalf.z));
-        double hx = Math.abs(x.x) + Math.abs(y.x) + Math.abs(z.x);
-        double hy = Math.abs(x.y) + Math.abs(y.y) + Math.abs(z.y);
-        double hz = Math.abs(x.z) + Math.abs(y.z) + Math.abs(z.z);
+        part.updateCollisionGeometry(collisionHalf);
+        double hx=part.collisionBoundsHalf.x,hy=part.collisionBoundsHalf.y,hz=part.collisionBoundsHalf.z;
         return new AABB(center.x - hx, center.y - hy, center.z - hz,
                 center.x + hx, center.y + hy, center.z + hz);
     }
@@ -3143,17 +3140,15 @@ public final class DismembermentEngine {
     }
 
     private static Vec3[] axes(RigidBodyPiece part) {
-        Vector3f x = part.orientation.transform(new Vector3f(1, 0, 0));
-        Vector3f y = part.orientation.transform(new Vector3f(0, 1, 0));
-        Vector3f z = part.orientation.transform(new Vector3f(0, 0, 1));
-        return new Vec3[] {new Vec3(x.x, x.y, x.z), new Vec3(y.x, y.y, y.z), new Vec3(z.x, z.y, z.z)};
+        part.updateCollisionGeometry(collisionHalfExtents(part));return part.collisionAxes;
     }
+    private static final Vec3[] COLLISION_WORLD_AXES={new Vec3(1,0,0),new Vec3(0,1,0),new Vec3(0,0,1)};
 
     private static ObbContact obbContact(RigidBodyPiece part, Vec3 center, AABB box) {
         Vec3 boxCenter = box.getCenter();
         Vec3 boxHalf = new Vec3(box.getXsize() * 0.5, box.getYsize() * 0.5, box.getZsize() * 0.5);
         return satContact(center, collisionHalfExtents(part), axes(part), boxCenter, boxHalf,
-                new Vec3[] {new Vec3(1, 0, 0), new Vec3(0, 1, 0), new Vec3(0, 0, 1)});
+                COLLISION_WORLD_AXES);
     }
 
     private static ObbContact obbContact(RigidBodyPiece a, RigidBodyPiece b) {
@@ -3162,9 +3157,13 @@ public final class DismembermentEngine {
     }
 
     private static Vec3 collisionHalfExtents(RigidBodyPiece part) {
-        if (part.playerBody && part.region == 0)
-            return new Vec3(part.halfExtents.x * 0.82, part.halfExtents.y * 0.80,
-                    part.halfExtents.z * 0.82);
+        if (part.playerBody && part.region == 0) {
+            if(!part.halfExtents.equals(part.collisionSourceHalf)) {
+                part.collisionSourceHalf=part.halfExtents;
+                part.collisionHalf=new Vec3(part.halfExtents.x*.82,part.halfExtents.y*.80,part.halfExtents.z*.82);
+            }
+            return part.collisionHalf;
+        }
         return part.halfExtents;
     }
 
@@ -3173,12 +3172,8 @@ public final class DismembermentEngine {
         Vec3 delta = centerB.subtract(centerA);
         Vec3 bestAxis = null;
         double bestDepth = Double.POSITIVE_INFINITY;
-        Vec3[] candidates = new Vec3[15];
-        System.arraycopy(axesA, 0, candidates, 0, 3);
-        System.arraycopy(axesB, 0, candidates, 3, 3);
-        int index = 6;
-        for (Vec3 axisA : axesA) for (Vec3 axisB : axesB) candidates[index++] = axisA.cross(axisB);
-        for (Vec3 rawAxis : candidates) {
+        for(int index=0;index<15;index++) {
+            Vec3 rawAxis=index<3?axesA[index]:index<6?axesB[index-3]:axesA[(index-6)/3].cross(axesB[(index-6)%3]);
             double lengthSqr = rawAxis.lengthSqr();
             if (lengthSqr < 1.0e-10) continue;
             Vec3 axis = rawAxis.scale(1.0 / Math.sqrt(lengthSqr));

@@ -10,6 +10,8 @@ import net.minecraft.resources.Identifier;
 public final class HeavyWaterRendering {
     private HeavyWaterRendering() { }
     public static void initialize() {
+        // Fabric takes BlockTintSource; NeoForge adapts this same shared model to FluidTintSource.
+        @SuppressWarnings("deprecation")
         FluidModel.Unbaked model = new FluidModel.Unbaked(
                 new Material(Identifier.withDefaultNamespace("block/water_still")),
                 new Material(Identifier.withDefaultNamespace("block/water_flow")),

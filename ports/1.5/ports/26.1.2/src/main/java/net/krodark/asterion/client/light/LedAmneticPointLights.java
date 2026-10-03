@@ -121,6 +121,16 @@ final class LedAmneticPointLights {
         return best;
     }
 
+    static java.util.List<LedAmneticLight.LedPointLightSample> fogSamples(Vec3 camera, int limit) {
+        return BUFFERED.values().stream()
+                .filter(sample -> sample.strength() > .05F && sample.radius() > .5F
+                        && sample.position().distanceToSqr(camera) < 64 * 64)
+                .sorted(java.util.Comparator.comparingDouble(sample ->
+                        sample.position().distanceToSqr(camera)
+                                / Math.max(.1, sample.strength() * sample.radius())))
+                .limit(limit).toList();
+    }
+
     private static Light createLight(LedAmneticLight.LedPointLightSample sample) {
         int quality = effectiveQuality(AsterionConfig.INSTANCE);
         boolean shadows = quality >= 2 && sample.castsShadow();

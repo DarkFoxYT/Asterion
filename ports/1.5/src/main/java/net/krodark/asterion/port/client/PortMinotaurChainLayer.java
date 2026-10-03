@@ -15,7 +15,10 @@ final class PortMinotaurChainLayer extends GeoRenderLayer<MinotaurEntity> {
     PortMinotaurChainLayer(PortMinotaurRenderer renderer){super(renderer);}
     @Override public void renderForBone(PoseStack poses,MinotaurEntity boss,GeoBone bone,RenderType type,MultiBufferSource buffers,VertexConsumer buffer,float partial,int light,int overlay) {
         int arm=boss.reachArmSide();
-        if(!bone.getName().equals(arm>=0?"right_player_grip":"left_player_grip"))return;
+        boolean grip=bone.getName().equals(arm>=0?"right_player_grip":"left_player_grip");
+        boolean upGrip=bone.getName().equals(arm>=0?"right_player_up":"left_player_up");
+        int side=bone.getName().equals("hand_chainR")?1:bone.getName().equals("hand_chainL")?-1:0;
+        if(!grip && !upGrip && side==0)return;
         var camera=Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
         poses.pushPose();
         //? if >=1.20.5 {
@@ -24,9 +27,15 @@ final class PortMinotaurChainLayer extends GeoRenderLayer<MinotaurEntity> {
             /*software.bernie.geckolib.util.RenderUtils.translateToPivotPoint(poses, bone);
             *///?}
         Vector3f hand=poses.last().pose().transformPosition(new Vector3f());
+        Vector3f upPoint=poses.last().pose().transformPosition(new Vector3f(0,1,0));
         poses.popPose();
         Vec3 start=new Vec3(hand.x,hand.y,hand.z);
-        if(boss.heldPlayerId()>=0) net.krodark.asterion.port.client.ragdoll.MinotaurHandAttachment.capture(boss.heldPlayerId(),start.add(camera));
+        if(side!=0){PortWeaponChainAttachments.capture(boss.getId(),side,start.add(camera));return;}
+        if(upGrip){if(boss.heldPlayerId()>=0)net.krodark.asterion.port.client.ragdoll.MinotaurHandAttachment.captureUp(boss.heldPlayerId(),start.add(camera));return;}
+        if(boss.heldPlayerId()>=0){
+            net.krodark.asterion.port.client.ragdoll.MinotaurHandAttachment.capture(boss.heldPlayerId(),start.add(camera));
+            net.krodark.asterion.port.client.ragdoll.MinotaurHandAttachment.captureUp(boss.heldPlayerId(),new Vec3(upPoint.x,upPoint.y,upPoint.z).add(camera));
+        }
         if(!boss.isChainGrappleActive()&&!boss.isPerformingGrab())return;
         var target=boss.level().getEntity(boss.grabTargetEntityId());
         float ticks=boss.bossAttackAnimationTicks()+partial;boolean held=boss.heldPlayerId()>=0;
@@ -39,36 +48,10 @@ final class PortMinotaurChainLayer extends GeoRenderLayer<MinotaurEntity> {
         draw(buffers.getBuffer(MATERIAL),start,end,slack,light);
         buffers.getBuffer(type);
     }
-    static void draw(VertexConsumer out, Vec3 start, Vec3 end, double slack, int light) {
-        Vec3 axis = end.subtract(start).normalize();
-        Vec3 across = axis.cross(Math.abs(axis.y) > .95 ? new Vec3(1, 0, 0) : new Vec3(0, 1, 0)).normalize();
-        across = across.add(axis.cross(across)).normalize();
-        Vec3 other = axis.cross(across).normalize();
-        int links = Math.min(288, Math.max(1, Mth.ceil(start.distanceTo(end) / .45)));
-        Vec3 widthA = across.scale(.20), widthB = other.scale(.20);
-        Vec3 a = start;
-        for (int i = 1; i <= links; i++) {
-            double t = i / (double)links;
-            Vec3 b = start.lerp(end, t).add(0, -4 * slack * t * (1 - t), 0);
-
-            quad(out, a, b, widthA, other, 0, .25F, light);
-            quad(out, a, b, widthB, across, 4.25F / 16, 8.25F / 16, light);
-            a = b;
-        }
-    }
-
-    private static void quad(VertexConsumer out, Vec3 a, Vec3 b, Vec3 width, Vec3 normal, float u0, float u1, int light) {
-        vertex(out, a.subtract(width), u0, 0, normal, light);
-        vertex(out, a.add(width), u1, 0, normal, light);
-        vertex(out, b.add(width), u1, .25F, normal, light);
-        vertex(out, b.subtract(width), u0, .25F, normal, light);
-    }
-
-    private static void vertex(VertexConsumer out, Vec3 point, float u, float v, Vec3 normal, int light) {
-        //? if >=1.20.5 {
-        out.addVertex((float)point.x,(float)point.y,(float)point.z).setColor(-1).setUv(u,v).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal((float)normal.x,(float)normal.y,(float)normal.z);
-        //?} else {
-        /*out.vertex(point.x,point.y,point.z).color(-1).uv(u,v).overlayCoords(OverlayTexture.NO_OVERLAY).uv2(light).normal((float)normal.x,(float)normal.y,(float)normal.z).endVertex();
-        *///?}
+    static void draw(VertexConsumer out,Vec3 start,Vec3 end,double slack,int light){
+        int links=Math.min(288,Math.max(2,Mth.ceil(start.distanceTo(end)/.25)));
+        Vec3[] points=new Vec3[links+1];
+        for(int i=0;i<=links;i++){double t=i/(double)links;points[i]=start.lerp(end,t).add(0,-4*slack*t*(1-t),0);}
+        PortChainGeometry.drawWeapon(new PoseStack().last(),out,points,Vec3.ZERO,light);
     }
 }

@@ -35,7 +35,7 @@ public final class PortMinotaurRenderer extends SimpleGeoEntityRenderer<Minotaur
     public PortMinotaurRenderer(EntityRendererProvider.Context context) {
         super(context, Asterion.id("entity/minotaur"), Asterion.id("textures/entity/minotaur.png"),
                 Asterion.id("entity/minotaur"), 1.9F, 1.0F);
-        withEmissiveBones(PortMinotaurPose::eyeTint, boss -> !boss.isHarvested(), "glow");
+        withEmissiveBones(PortMinotaurPose::eyeTint, boss -> !boss.isHarvested() && !boss.isDefeatedBoss() && boss.isAlive(), "glow");
         addRenderLayer(new Weapons(this));
         addRenderLayer(new PortMinotaurBodyLayer(this));
         addRenderLayer(new PortMinotaurChainLayer(this));
@@ -159,8 +159,11 @@ super.renderRecursively(poses, boss, bone, type, buffers, buffer, rerender,
             try {
             String name = bone.getName();
             int mode = boss.renderedWeaponMode();
-            if (mode == 2 && (name.equals("hand_itemR") || name.equals("hand_itemL"))) {
+            if (mode == 2 && (name.equals("hand_itemR") || name.equals("hand_itemL")) && !(name.equals("hand_itemR")?boss.thrownSwordId(1)>=0:boss.thrownSwordId(-1)>=0)) {
                 poses.pushPose();
+                WeaponFollowThrough.apply(poses,boss.getId(),name.equals("hand_itemR")?1:2,boss.tickCount+partialTick,true);
+                PortWeaponTrails.held(poses,buffers,boss,name.equals("hand_itemR")?1:-1,partialTick);
+                PortWeaponRelease.capture(boss.getId(),name.equals("hand_itemR")?1:-1,poses);
                 poses.translate(0, 6.0 / 16.0, 0);
 
 //? if >=1.20.5 {
@@ -197,7 +200,9 @@ SWORD_RENDERER.render(poses, SWORD, buffers, null, null, packedLight, partialTic
                 // hand_itemR is an authored locator.  Its rotation already puts the
                 // weapon axis through the palm; another correction here compounds
                 // the arm animation and makes the axe point into the floor.
+                WeaponFollowThrough.apply(poses,boss.getId(),0,boss.tickCount+partialTick,true);
                 poses.translate(0, -MinotaurAxeEntity.GRIP_Y, 0);
+                PortWeaponRelease.capture(boss.getId(),0,poses);
 
 //? if >=1.20.5 {
 AXE_RENDERER.render(poses, AXE, buffers, null, null, packedLight, partialTick);

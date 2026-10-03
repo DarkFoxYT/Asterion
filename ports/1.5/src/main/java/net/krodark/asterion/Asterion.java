@@ -562,6 +562,14 @@ public final class Asterion {
             BuiltInRegistries.PARTICLE_TYPE, id("minotaur_belch_fire"), FabricParticleTypes.simple());
     public static final SimpleParticleType GREEK_FIRE_SOOT = AsterionRegistry.register(
             BuiltInRegistries.PARTICLE_TYPE, id("greek_fire_soot"), FabricParticleTypes.simple());
+    private static final ResourceKey<EntityType<?>> CENTIPEDE_SEGMENT_KEY=ResourceKey.create(Registries.ENTITY_TYPE,id("centipede_segment"));
+    public static final EntityType<net.krodark.asterion.entity.CentipedeSegmentEntity> CENTIPEDE_SEGMENT=AsterionRegistry.register(
+            BuiltInRegistries.ENTITY_TYPE,CENTIPEDE_SEGMENT_KEY,EntityType.Builder.of(net.krodark.asterion.entity.CentipedeSegmentEntity::new,MobCategory.MISC)
+                    .sized(1.4F,1F).noSave().clientTrackingRange(16).updateInterval(5).build("asterion:centipede_segment"));
+    public static final SimpleParticleType GROUND_FOG = AsterionRegistry.register(
+            BuiltInRegistries.PARTICLE_TYPE, id("ground_fog"), FabricParticleTypes.simple());
+    public static final SimpleParticleType GROUND_HAZE = AsterionRegistry.register(
+            BuiltInRegistries.PARTICLE_TYPE, id("ground_haze"), FabricParticleTypes.simple());
     public static final SimpleParticleType BRAZIER_FIRE = AsterionRegistry.register(
             BuiltInRegistries.PARTICLE_TYPE, id("brazier_fire"), FabricParticleTypes.simple());
     public static final SimpleParticleType LAMENTER_TEAR = AsterionRegistry.register(

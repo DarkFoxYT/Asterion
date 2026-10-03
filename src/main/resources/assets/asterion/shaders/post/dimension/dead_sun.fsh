@@ -137,6 +137,19 @@ void main() {
             float radius = length(local);
             vec3 hot = mix(activeCoreTint * 1.55, activeCoronaTint * 0.92,
                     smoothstep(0.42, 0.96, radius));
+            // Light the existing shell in world space, giving its filaments depth without
+            // replacing the silhouette, colours, or equatorial structure.
+            vec3 normal = local / max(radius,0.001);
+            vec3 keyLight = normalize(vec3(-0.55,0.72,0.42));
+            float relief = 0.68 + 0.38 * max(dot(normal,keyLight),0.0);
+            float selfShadow = exp(-remnantDensity(local + keyLight * 0.14) * 0.38);
+            hot *= relief * mix(0.76,1.0,selfShadow);
+            if(finale>0.001) {
+                // Fissures gather into hot filaments before the final opaque white flash.
+                float fracture=1.0-smoothstep(0.025,0.11,abs(asterionSunNoise3(local*9.0+vec3(0.0,Time*0.018,0.0))-0.5));
+                float rupture=fracture*pow(finale,3.0)*(0.55+0.45*sin(radius*22.0-Time*0.2));
+                hot+=mix(vec3(1.0,0.12,0.025),vec3(1.0,0.82,0.57),pow(finale,7.0))*rupture*2.0;
+            }
             float contribution = (1.0 - alpha) * density;
             accumulated += hot * contribution;
             alpha += contribution;

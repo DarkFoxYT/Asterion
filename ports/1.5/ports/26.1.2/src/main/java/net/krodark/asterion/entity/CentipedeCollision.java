@@ -11,6 +11,9 @@ public final class CentipedeCollision {
     private static final double SKIN = 0.025D;
     private static final double REACH = 0.45D;
     private final Geometry geometry;
+    private net.krodark.asterion.physics.VoxelCollisionCache frameCache;
+    private boolean cacheFrame;
+    public void beginFrame() { if (frameCache == null) frameCache = new net.krodark.asterion.physics.VoxelCollisionCache(geometry::boxes); frameCache.clear(); cacheFrame = true; }
 
     @FunctionalInterface
     public interface Geometry { Iterable<AABB> boxes(AABB region); }
@@ -20,8 +23,11 @@ public final class CentipedeCollision {
 
     public List<AABB> collect(AABB region) {
         List<AABB> blocks = new ArrayList<>();
-        for (AABB box : geometry.boxes(region)) if (box.intersects(region)) blocks.add(box);
-        return blocks;
+        if (!cacheFrame) {
+            for (AABB box : geometry.boxes(region)) if (box.intersects(region)) blocks.add(box);
+            return blocks;
+        }
+        return frameCache.collect(region);
     }
 
      
@@ -30,7 +36,7 @@ public final class CentipedeCollision {
         List<AABB> blocks = collect(area);
         return new CentipedeCollision(query -> query.minX >= area.minX && query.maxX <= area.maxX
                 && query.minY >= area.minY && query.maxY <= area.maxY
-                && query.minZ >= area.minZ && query.maxZ <= area.maxZ ? blocks : geometry.boxes(query));
+                && query.minZ >= area.minZ && query.maxZ <= area.maxZ ? blocks : collect(query));
     }
 
      

@@ -25,6 +25,20 @@ public final class AmneticBoneEmission {
     private static boolean initialized;
     private static final SourceContext SOURCE_CONTEXT = new SourceContext();
     private static long submissions;
+    private static long cacheClock=System.nanoTime();
+    public static void clearCaches() {
+        ACTIVE.clear();
+        for(Entry entry:ENTRIES.values())InstanceMeshRegistry.INSTANCE.unregister(entry.id);
+        ENTRIES.clear(); SOURCE_CONTEXT.frame=null;
+    }
+    public static void trimIdle(long now) {
+        cacheClock=now;
+        ENTRIES.entrySet().removeIf(item->{
+            Entry entry=item.getValue();
+            if(entry.count>0 || now-entry.lastUsed<15_000_000_000L)return false;
+            InstanceMeshRegistry.INSTANCE.unregister(entry.id);ACTIVE.remove(entry);return true;
+        });
+    }
     public static long submissions() { return submissions; }
     public static boolean hasPending() { return !ACTIVE.isEmpty(); }
     private AmneticBoneEmission() { }
@@ -71,6 +85,7 @@ public final class AmneticBoneEmission {
             entry = new Entry(id, geometry, texture, backfaceCulling);
             ENTRIES.put(key, entry);
         }
+        entry.lastUsed=cacheClock;
         if (entry.count == 0) ACTIVE.add(entry);
         if (entry.count == entry.poses.size()) entry.poses.add(new Instance());
         Instance instance = entry.poses.get(entry.count++);
@@ -95,6 +110,7 @@ public final class AmneticBoneEmission {
         final Identifier texture;
         final ArrayList<Instance> poses = new ArrayList<>();
         int count;
+        long lastUsed;
         Entry(Identifier id, EmissiveBoneMesh geometry, Identifier texture, boolean backfaceCulling) {
             this.id = id;
             this.geometry = geometry;

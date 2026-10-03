@@ -19,7 +19,12 @@ import java.util.function.Consumer;
 public final class ChainLiftBlockItem extends BlockItem implements GeoItem {
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
-    public ChainLiftBlockItem(Block block, Properties properties) { super(block, properties); }
+    public ChainLiftBlockItem(Block block, Properties properties) {
+        super(block, properties.component(net.minecraft.core.component.DataComponents.LORE,
+                new net.minecraft.world.item.component.ItemLore(java.util.List.of(
+                        net.minecraft.network.chat.Component.translatable("tooltip.asterion.chain_lift")
+                                .withStyle(net.minecraft.ChatFormatting.GRAY).withStyle(style -> style.withItalic(false))))));
+    }
 
     @Override public net.minecraft.world.InteractionResult place(net.minecraft.world.item.context.BlockPlaceContext context) {
         var level = context.getLevel();
@@ -37,13 +42,6 @@ public final class ChainLiftBlockItem extends BlockItem implements GeoItem {
             return net.minecraft.world.InteractionResult.FAIL;
         }
         return super.place(context);
-    }
-
-    @Override public void appendHoverText(net.minecraft.world.item.ItemStack stack, TooltipContext context,
-            net.minecraft.world.item.component.TooltipDisplay display,
-            Consumer<net.minecraft.network.chat.Component> tooltip, net.minecraft.world.item.TooltipFlag flag) {
-        tooltip.accept(net.minecraft.network.chat.Component.translatable("tooltip.asterion.chain_lift")
-                .withStyle(net.minecraft.ChatFormatting.GRAY));
     }
 
     @Override public void createGeoRenderer(Consumer<GeoRenderProvider> consumer) {

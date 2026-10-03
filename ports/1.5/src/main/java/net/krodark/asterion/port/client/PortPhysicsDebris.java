@@ -1,25 +1,17 @@
 package net.krodark.asterion.port.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.krodark.asterion.Asterion;
+import net.krodark.asterion.AsterionConfig;
+
 import net.krodark.asterion.block.MinotaurDoorMotion;
-import net.krodark.asterion.event.RumbleSources;
-import net.krodark.asterion.network.ArenaDebrisPayload;
 import net.krodark.asterion.network.DoorBreakPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.Mth;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
-import org.joml.Quaternionf;
-import org.joml.Vector3f;
 import software.bernie.geckolib.animatable.GeoAnimatable;
 import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.animation.AnimatableManager;
@@ -27,22 +19,247 @@ import software.bernie.geckolib.model.GeoModel;
 import software.bernie.geckolib.renderer.GeoObjectRenderer;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.entity.MoverType;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 
-/** Rigid, depth-tested Minotaur door slabs and arena rubble for the 1.21.1 port. */
-@SuppressWarnings("deprecation")
+
+
+
+
 public final class PortPhysicsDebris {
-    private static final List<Piece> PIECES = new ArrayList<>();
     private static final GeoObjectRenderer<DebrisObject> RENDERER = new GeoObjectRenderer<>(new DebrisModel());
+    private static final List<Piece> PIECES = new ArrayList<>();
+    private static final net.krodark.asterion.physics.VoxelCollisionCache WORLD_COLLISIONS =
+            new net.krodark.asterion.physics.VoxelCollisionCache(area -> {
+                List<AABB> boxes = new ArrayList<>();
+                if (PortPhysicsDebris.trackedLevel != null) for (var shape : PortPhysicsDebris.trackedLevel.getBlockCollisions(null, area)) boxes.addAll(shape.toAabbs());
+                return boxes;
+            });
+    private static final VariantProfile[] PROFILES = {
+            null,
+            new VariantProfile(new Vec3(1.50, 2.375, 0.75), new Vec3(5.0 / 16.0, 2.0, -6.0 / 16.0),
+                    1.00F, 1.00, 0.995, 0.12, 0.42, 0.46, 3, 0.82F, false, false, 110, 230),
+            new VariantProfile(new Vec3(0.50, 1.00, 0.25), new Vec3(0.0, 1.0, 0.0),
+                    0.62F, 0.96, 0.992, 0.16, 0.34, 0.40, 3, 1.08F, false, false, 120, 250),
+            new VariantProfile(new Vec3(0.50, 0.50, 0.25), new Vec3(0.0, 0.50, 0.0),
+                    0.46F, 0.91, 0.988, 0.20, 0.28, 0.34, 4, 1.25F, false, false, 125, 270),
+            new VariantProfile(new Vec3(0.50, 0.50, 0.25), new Vec3(0.0, 0.50, 0.0),
+                    0.34F, 0.86, 0.984, 0.24, 0.22, 0.30, 4, 1.42F, false, false, 135, 285),
+            new VariantProfile(new Vec3(0.25, 0.25, 0.25), new Vec3(0.25, 0.75, 0.0),
+                    0.20F, 0.76, 0.978, 0.29, 0.16, 0.25, 5, 1.72F, false, true, 150, 310),
+            new VariantProfile(new Vec3(0.25, 0.25, 0.25), new Vec3(0.0, 0.25, 0.0),
+                    0.09F, 0.62, 0.970, 0.36, 0.055, Double.POSITIVE_INFINITY,
+                    Integer.MAX_VALUE, 2.15F, true, true, 220, 420),
+
+            new VariantProfile(new Vec3(1.75, 2.5, .25), new Vec3(.6 / 16.0, 2.5, 0),
+                    8F, 1.35, .996, .14, .62, Double.POSITIVE_INFINITY,
+                    Integer.MAX_VALUE, .3F, true, false, 900, 1100)
+    };
+    private static final List<DoorCloud> DOOR_CLOUDS = new ArrayList<>();
+    private static final int MAX_PIECES = 192;
     private static ClientLevel trackedLevel;
     private static long lastAmbientTick = Long.MIN_VALUE;
-    private static long soundBudgetTick = Long.MIN_VALUE;
-    private static final List<Vec3> SOUND_POSITIONS = new ArrayList<>();
+    private static long lastImpactSoundTick = Long.MIN_VALUE;
 
-    private PortPhysicsDebris() {}
+    private PortPhysicsDebris() { }
+
+    private static VariantProfile profile(int variant) {
+        return PROFILES[Mth.clamp(variant, 1, 7)];
+    }
+
+    public static void clear() {
+        WORLD_COLLISIONS.clear();
+        PIECES.clear();
+        DOOR_CLOUDS.clear();
+        trackedLevel = null;
+        lastAmbientTick = Long.MIN_VALUE;
+        lastImpactSoundTick = Long.MIN_VALUE;
+    }
+
+    public static void spawnDoors(DoorBreakPayload payload) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null || client.player == null || !payload.facing().getAxis().isHorizontal()
+                || client.player.distanceToSqr(Vec3.atCenterOf(payload.root())) > 96 * 96) return;
+        if (trackedLevel != client.level) { clear(); trackedLevel = client.level; }
+        while (PIECES.stream().filter(p -> p.variant == 7).count() > 10) {
+            var oldest = PIECES.stream().filter(p -> p.variant == 7).findFirst().orElseThrow();
+            PIECES.remove(oldest);
+        }
+        Random random = new Random(payload.seed());
+        float angle = Float.isFinite(payload.angle()) ? Mth.clamp(payload.angle(), 0, MinotaurDoorMotion.OPEN_ANGLE) : 0;
+        Vec3 inward = Vec3.atLowerCornerOf(payload.facing().getOpposite().getNormal());
+        if (DOOR_CLOUDS.size() >= 4) DOOR_CLOUDS.remove(0);
+        DoorCloud cloud = new DoorCloud(Vec3.atBottomCenterOf(payload.root()), inward, random);
+        DOOR_CLOUDS.add(cloud);
+        cloud.emit(client.level, 160);
+        for (int side : new int[] {-1, 1}) {
+            Piece door = new Piece(MinotaurDoorMotion.leafCenter(payload.root(), payload.facing(), side, angle), 7, 1, random);
+            float yaw = MinotaurDoorMotion.yaw(payload.facing()) + side * angle;
+            door.orientation.rotationY(yaw);
+            door.previousOrientation.set(door.orientation);
+
+            Vec3 across = Vec3.atLowerCornerOf(payload.facing().getClockWise().getNormal());
+            door.velocity = inward.scale(1.55 + random.nextDouble() * .18)
+                    .add(across.scale(side * .22)).add(0, .48 + random.nextDouble() * .10, 0);
+            Vec3 spin = across.scale(.12 + random.nextDouble() * .035).add(inward.scale(side * .055));
+            door.angularVelocity.set((float)spin.x, side * .10F, (float)spin.z);
+            PIECES.add(door);
+            for (double hingeY : new double[]{1.0, 4.0}) for (int chip = 0; chip < 3; chip++) {
+                Vec3 hinge = MinotaurDoorMotion.toWorld(payload.root(), payload.facing(), new Vec3(side * 3, hingeY, 0));
+                Piece fragment = new Piece(hinge, 3, .18F + random.nextFloat() * .12F, random);
+                fragment.arenaRubble = true;
+                fragment.velocity = inward.scale(.25 + random.nextDouble() * .3)
+                        .add(across.scale(side * (.08 + random.nextDouble() * .12))).add(0, .12, 0);
+                PIECES.add(fragment);
+            }
+            doorDust(client.level, door, 52, .18);
+        }
+    }
+
+    public static void spawnArenaDebris(net.krodark.asterion.network.ArenaDebrisPayload payload) {
+        if (payload.fragments().isEmpty()) {
+            PIECES.removeIf(piece -> piece.variant == 7 || piece.arenaRubble);
+            DOOR_CLOUDS.clear();
+            return;
+        }
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null || client.player == null) return;
+        if (trackedLevel != client.level) { clear(); trackedLevel = client.level; }
+        Random random = new Random(payload.seed());
+        for (var fragment : payload.fragments()) {
+            Vec3 pos = fragment.position(), velocity = fragment.velocity();
+            if (!Double.isFinite(pos.lengthSqr()) || !Double.isFinite(velocity.lengthSqr())
+                    || pos.distanceToSqr(client.player.position()) > 96 * 96) continue;
+
+
+            int variant = random.nextInt(12) == 0 ? 1 : 2 + random.nextInt(5);
+            Piece piece = new Piece(pos, variant, fragment.scale(), random);
+            piece.velocity = velocity.lengthSqr() > 9 ? velocity.normalize().scale(3) : velocity;
+            piece.angularVelocity.mul(.55F);
+            piece.arenaRubble = true;
+            if ((variant & 1) == 0)
+                piece.angularVelocity.mul(2.8F);
+            if (!isWorldClear(client.level, piece, pos)) continue;
+            PIECES.add(piece);
+            spawnDebrisSmoke(client.level, pos, random, 3);
+        }
+        trimDebris();
+    }
+
+    private static void trimDebris() {
+        for (Iterator<Piece> it = PIECES.iterator(); PIECES.size() > MAX_PIECES && it.hasNext();) {
+            Piece piece = it.next();
+            if (piece.arenaRubble && piece.sleeping) it.remove();
+        }
+        for (Iterator<Piece> it = PIECES.iterator(); PIECES.size() > MAX_PIECES && it.hasNext();)
+            if (it.next().variant != 7) it.remove();
+    }
+
+    private static final class DoorCloud {
+        final Vec3 root, inward;
+        final Random random;
+        int age;
+        DoorCloud(Vec3 root, Vec3 inward, Random random) { this.root = root; this.inward = inward; this.random = random; }
+        void emit(ClientLevel level, int count) {
+            Vec3 across = new Vec3(inward.z, 0, -inward.x);
+            for (int i = 0; i < count; i++) {
+                double side = (random.nextBoolean() ? 3 : -3) + (random.nextDouble() - .5) * .3;
+
+                double height = (random.nextBoolean() ? 1.0 : 4.0) + random.nextDouble() * .3;
+                Vec3 pos = root.add(across.scale(side)).add(inward.scale(random.nextDouble() * .25)).add(0, height, 0);
+                Vec3 drift = inward.scale(.12 + random.nextDouble() * .20).add(across.scale(side * .014));
+                level.addParticle(Asterion.DOOR_SMOKE, true, pos.x, pos.y, pos.z, drift.x, .025 + random.nextDouble() * .07, drift.z);
+            }
+        }
+    }
+
+    public static void spawnRumble(Vec3 center, float radius, float intensity, long seed) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null || client.player == null
+                || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
+        double distance = client.player.position().distanceTo(center);
+        if (distance > Math.max(24.0, radius + 28.0)) return;
+        Random random = new Random(seed ^ client.level.getGameTime() * 0x9E3779B97F4A7C15L);
+        int count = Mth.clamp(2 + Math.round(intensity * 4.0F), 2, 6);
+        for (int i = 0; i < count; i++) spawnSurfaceRubble(client.level, client.player.position(), intensity, random);
+    }
+
+    public static void spawnAmbientRumble(Minecraft client, float intensity, long seed) {
+        if (client.level == null || client.player == null) return;
+        long tick = client.level.getGameTime();
+        int interval = Math.max(4, 11 - Math.round(intensity * 6.0F));
+        if (tick == lastAmbientTick || Math.floorMod(tick + seed, interval) != 0) return;
+        lastAmbientTick = tick;
+        spawnRumble(client.player.position().add(0, 4, 0), 13.0F, intensity * 0.78F,
+                seed ^ tick * 31L);
+    }
+
+    public static void tick(Minecraft client) {
+        if (client.level == null) {
+            clear();
+            return;
+        }
+        if (trackedLevel != client.level) {
+            clear();
+            trackedLevel = client.level;
+        }
+        DOOR_CLOUDS.removeIf(cloud -> ++cloud.age > 42);
+        for (DoorCloud cloud : DOOR_CLOUDS) cloud.emit(client.level, cloud.age < 16 ? 8 : 4);
+        WORLD_COLLISIONS.clear();
+        if(PIECES.isEmpty())return;
+        int substeps = Mth.clamp(2 + Math.min(AsterionConfig.INSTANCE.ragdollPhysicsQuality,
+                PortPerformanceGovernor.quality()), 2, 4);
+        List<Piece> fracturedChildren = new ArrayList<>();
+        Iterator<Piece> iterator = PIECES.iterator();
+        int trailBudget = 16;
+        while (iterator.hasNext()) {
+            Piece piece = iterator.next();
+            piece.previousPosition = piece.position;
+            piece.previousOrientation.set(piece.orientation);
+            piece.age++;
+            boolean shattered = false;
+
+            if (!piece.sleeping || piece.age % 10 == 0) {
+                recoverEmbedded(client.level, piece);
+                for (int step = 0; step < substeps && !shattered && (step == 0 || !piece.sleeping); step++)
+                    shattered = simulateStep(client.level, piece, 1.0 / substeps, fracturedChildren);
+            }
+            if (!shattered && !piece.sleeping && piece.age < 120 && piece.velocity.lengthSqr() > .012
+                    && Math.floorMod(piece.age + piece.seed, 5) == 0 && trailBudget > 0) {
+                trailBudget--;
+                Vec3 trail = piece.previousPosition.lerp(piece.position, .35);
+                Vec3 drift = piece.velocity.scale(.16);
+                client.level.addParticle(Asterion.DOOR_DUST, trail.x, trail.y, trail.z, drift.x, drift.y + .018, drift.z);
+                if (piece.velocity.lengthSqr() > .16 && (piece.age / 5 & 1) == 0)
+                    client.level.addParticle(Asterion.RUMBLE_SMOKE, trail.x, trail.y, trail.z,
+                            drift.x * .35, .018 + drift.y * .2, drift.z * .35);
+            }
+            if (shattered || piece.age > piece.lifetime
+                    || (client.player != null && piece.position.distanceToSqr(client.player.position()) > 128 * 128)) {
+                if (!shattered && !piece.unbreakable() && piece.age <= piece.lifetime)
+                    burst(client.level, piece, new Vec3(0, 1, 0), 0.25);
+                iterator.remove();
+            }
+        }
+        PIECES.addAll(fracturedChildren);
+        trimDebris();
+    }
 
     public static void initialize() {
         WorldRenderEvents.AFTER_ENTITIES.register(context -> {
@@ -55,25 +272,25 @@ public final class PortPhysicsDebris {
             for (Piece piece : PIECES) {
                 double distanceSqr = piece.position.distanceToSqr(camera);
                 if (distanceSqr > 96 * 96) continue;
-                Vec3 position = piece.previous.lerp(piece.position, partial).subtract(camera);
-                Quaternionf rotation = piece.interpolatedRotation.set(piece.previousRotation)
-                        .slerp(piece.rotation, partial);
+                Vec3 position = piece.previousPosition.lerp(piece.position, partial).subtract(camera);
+                Quaternionf rotation = piece.renderOrientation.set(piece.previousOrientation)
+                        .slerp(piece.orientation, partial);
                 poses.pushPose();
                 poses.translate(position.x, position.y, position.z);
                 poses.mulPose(rotation);
                 poses.scale(piece.scale, piece.scale, piece.scale);
-                Vec3 center = modelCenter(piece.variant);
+                Vec3 center = piece.modelCenter();
                 poses.translate(-center.x, -center.y, -center.z);
-                long tick = client.level.getGameTime();
-                if (!piece.sleeping || piece.cachedLight < 0 || tick - piece.lightSampleTick >= 20) {
-                    piece.cachedLight = LevelRenderer.getLightColor(client.level, BlockPos.containing(piece.position));
-                    piece.lightSampleTick = tick;
+                int light=LevelRenderer.getLightColor(client.level,BlockPos.containing(piece.position));
+                if(piece.blockVisual!=null){
+                    poses.translate(-.5,-.5,-.5);client.getBlockRenderer().renderSingleBlock(piece.blockVisual,poses,context.consumers(),light,net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY);
+                    poses.popPose();continue;
                 }
 
 //? if >=1.20.5 {
-RENDERER.render(poses, piece.visual, context.consumers(), null, null, piece.cachedLight, partial);
+RENDERER.render(poses, piece.visual, context.consumers(), null, null, light, partial);
 //?} else {
-/*RENDERER.render(poses, piece.visual, context.consumers(), null, null, piece.cachedLight);*/
+/*RENDERER.render(poses, piece.visual, context.consumers(), null, null, light);*/
 //?}
 
                 poses.popPose();
@@ -81,429 +298,747 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, piece.cach
         });
     }
 
-    public static void spawnDoors(DoorBreakPayload payload) {
-        Minecraft client = Minecraft.getInstance();
-        if (client.level == null || client.player == null || !payload.facing().getAxis().isHorizontal()
-                || client.player.distanceToSqr(Vec3.atCenterOf(payload.root())) > 96 * 96) return;
-        ensureLevel(client.level);
-        Random random = new Random(payload.seed());
-        float angle = Float.isFinite(payload.angle())
-                ? Mth.clamp(payload.angle(), 0, MinotaurDoorMotion.OPEN_ANGLE) : 0;
-        Vec3 inward = Vec3.atLowerCornerOf(payload.facing().getOpposite().getNormal());
-        Vec3 across = Vec3.atLowerCornerOf(payload.facing().getClockWise().getNormal());
-        for (int side : new int[]{-1, 1}) {
-            Piece door = new Piece(MinotaurDoorMotion.leafCenter(payload.root(), payload.facing(), side, angle),
-                    7, 1.0F, random, 1000);
-            door.rotation.rotationY(MinotaurDoorMotion.yaw(payload.facing()) + side * angle);
-            door.previousRotation.set(door.rotation);
-            door.spawnDelay = 2; // Allow the following door-block removal packet to arrive.
-            door.velocity = inward.scale(1.55D + random.nextDouble() * .18D)
-                    .add(across.scale(side * .22D)).add(0, .48D + random.nextDouble() * .10D, 0);
-            door.spin.set((float)(across.x * .13D), side * .10F, (float)(across.z * .13D));
-            PIECES.add(door);
-            for (double hingeY : new double[]{1.0D, 4.0D}) for (int chip = 0; chip < 3; chip++) {
-                Vec3 hinge = MinotaurDoorMotion.toWorld(payload.root(), payload.facing(),
-                        new Vec3(side * 3.0D, hingeY, 0));
-                Piece fragment = new Piece(hinge, 3 + random.nextInt(4),
-                        .15F + random.nextFloat() * .18F, random, 240);
-                fragment.velocity = inward.scale(.25D + random.nextDouble() * .3D)
-                        .add(across.scale(side * (.08D + random.nextDouble() * .12D)))
-                        .add((random.nextDouble() - .5D) * .08D,
-                                .08D + random.nextDouble() * .18D,
-                                (random.nextDouble() - .5D) * .08D);
-                PIECES.add(fragment);
-            }
-        }
-        for (int i = 0; i < 80; i++) {
-            double side = random.nextBoolean() ? 3.0D : -3.0D;
-            Vec3 p = Vec3.atBottomCenterOf(payload.root()).add(across.scale(side + (random.nextDouble() - .5D) * .5D))
-                    .add(inward.scale(random.nextDouble() * .4D)).add(0, 1 + random.nextDouble() * 3.4D, 0);
-            client.level.addParticle(Asterion.DOOR_SMOKE, p.x, p.y, p.z,
-                    inward.x * (.05D + random.nextDouble() * .12D), .02D + random.nextDouble() * .05D,
-                    inward.z * (.05D + random.nextDouble() * .12D));
-        }
-        trim();
-    }
-
-    public static void spawnArenaDebris(ArenaDebrisPayload payload) {
-        Minecraft client = Minecraft.getInstance();
-        if (client.level == null || client.player == null) return;
-        ensureLevel(client.level);
-        if (payload.fragments().isEmpty()) {
-            PIECES.removeIf(piece -> piece.variant == 7 || piece.arena);
-            return;
-        }
-        Random random = new Random(payload.seed());
-        for (ArenaDebrisPayload.Fragment fragment : payload.fragments()) {
-            if (!finite(fragment.position()) || !finite(fragment.velocity())
-                    || fragment.position().distanceToSqr(client.player.position()) > 96 * 96) continue;
-            int variant = random.nextInt(12) == 0 ? 1 : 2 + random.nextInt(5);
-            Piece piece = new Piece(fragment.position(), variant, fragment.scale(), random, 180 + random.nextInt(150));
-            piece.arena = true;
-            piece.velocity = fragment.velocity().lengthSqr() > 9
-                    ? fragment.velocity().normalize().scale(3) : fragment.velocity();
-            Vec3 spawn = findClearSpawn(client.level, piece, piece.position);
-            if (spawn != null) {
-                piece.position = piece.previous = spawn;
-                PIECES.add(piece);
-                emitDust(client.level, spawn, new Vec3(0, 1, 0), random, 3);
-            }
-        }
-        trim();
-    }
-
-    public static void spawnRumble(Vec3 center, float radius, float intensity, long seed) {
-        Minecraft client = Minecraft.getInstance();
-        if (client.level == null || client.player == null || client.player.position().distanceTo(center) > radius + 28)
-            return;
-        ensureLevel(client.level);
-        Random random = new Random(seed ^ client.level.getGameTime() * 0x9E3779B97F4A7C15L);
-        int count = Mth.clamp(2 + Math.round(intensity * 4), 2, 7);
-        for (int i = 0; i < count; i++) {
-            RumbleSources.Source source = RumbleSources.find(client.level, client.player.position(), random);
-            if (source == null) continue;
-            Vec3 position = source.position();
-            Piece piece = new Piece(position, 3 + random.nextInt(4), .12F + random.nextFloat() * .20F,
-                    random, 150 + random.nextInt(120));
-            piece.arena = true;
-            piece.velocity = source.normal().scale(.05D + random.nextDouble() * .10D)
-                    .add((random.nextDouble() - .5D) * .08D,
-                            .04D + random.nextDouble() * .22D * intensity,
-                            (random.nextDouble() - .5D) * .08D);
-            if (clear(client.level, piece, position)) {
-                PIECES.add(piece);
-                emitDust(client.level, position, source.normal(), random, 5 + Math.round(intensity * 3));
-            }
-        }
-        trim();
-    }
-
-    public static void spawnAmbientRumble(Minecraft client, float intensity, long seed) {
-        if (client.level == null || client.player == null) return;
-        long tick = client.level.getGameTime();
-        int interval = Math.max(4, 11 - Math.round(intensity * 6.0F));
-        if (tick == lastAmbientTick || Math.floorMod(tick + seed, interval) != 0) return;
-        lastAmbientTick = tick;
-        spawnRumble(client.player.position(), 13.0F, intensity * .78F, seed ^ tick * 31L);
-    }
-
-    public static void tick(Minecraft client) {
-        if (client.level == null) { PIECES.clear(); trackedLevel = null; return; }
-        ensureLevel(client.level);
-        Iterator<Piece> iterator = PIECES.iterator();
-        while (iterator.hasNext()) {
-            Piece piece = iterator.next();
-            piece.previous = piece.position;
-            piece.previousRotation.set(piece.rotation);
-            if (piece.soundCooldown > 0) piece.soundCooldown--;
-            if (piece.spawnDelay > 0) { piece.spawnDelay--; continue; }
-            if (piece.sleeping && piece.age % 4 == 0 && !hasFloorSupport(client.level, piece)) {
-                piece.sleeping = false;
-                piece.restTicks = 0;
-            }
-            if (!piece.sleeping) {
-                int substeps = Mth.clamp(1 + net.krodark.asterion.AsterionConfig.INSTANCE.ragdollPhysicsQuality, 1, 3);
-                for (int step = 0; step < substeps && !piece.sleeping; step++)
-                    simulate(client.level, piece, 1.0D / substeps);
-            }
-            if (++piece.age > piece.life || client.player != null
-                    && piece.position.distanceToSqr(client.player.position()) > 128 * 128) iterator.remove();
+    private static void spawnSurfaceRubble(ClientLevel level, Vec3 observer, float intensity, Random random) {
+        int cap = 32 + Math.min(AsterionConfig.INSTANCE.ragdollPhysicsQuality,
+                PortPerformanceGovernor.quality()) * 16;
+        if (PIECES.size() >= cap) return;
+        var source = net.krodark.asterion.event.RumbleSources.find(level, observer, random);
+        if (source == null) return;
+        int variant = 2 + random.nextInt(5);
+        Piece piece = new Piece(source.position(), variant, .14F + random.nextFloat() * .13F, random);
+        piece.velocity = source.normal().scale(.045 + random.nextDouble() * .075)
+                .add((random.nextDouble() - .5) * .04, -.025, (random.nextDouble() - .5) * .04);
+        piece.angularVelocity.mul(.65F);
+        if (!isWorldClear(level, piece, piece.position)) return;
+        PIECES.add(piece);
+        spawnDebrisSmoke(level, piece.position, random, 4 + Math.round(intensity * 3));
+        Vec3 tangent = Math.abs(source.normal().y) > .5 ? new Vec3(1, 0, 0)
+                : new Vec3(-source.normal().z, 0, source.normal().x);
+        for (int i = 0; i < 8; i++) {
+            Vec3 dust = piece.position.add(tangent.scale((random.nextDouble() - .5) * .6));
+            level.addParticle(Asterion.ANCIENT_WALL_DUST, dust.x, dust.y, dust.z,
+                    source.normal().x * .008, -.012, source.normal().z * .008);
         }
     }
 
-    private static boolean hasFloorSupport(ClientLevel level, Piece piece) {
-        Collision support = collisionAt(level, piece, piece.position.add(0, -.015D, 0));
-        return support != null && support.normal.y < -.55D;
-    }
-
-    private static void simulate(ClientLevel level, Piece piece, double dt) {
-        // Block updates can arrive after debris packets or replace its resting
-        // surface. Recover an embedded body before doing a swept movement.
+    /** Block packets can arrive after debris or replace a resting surface. */
+    private static void recoverEmbedded(ClientLevel level, Piece piece) {
         for (int pass = 0; pass < 8; pass++) {
             Collision overlap = collisionAt(level, piece, piece.position);
-            if (overlap == null) break;
-            piece.position = piece.position.subtract(overlap.normal.scale(overlap.depth + .001D));
+            if (overlap == null) return;
+            piece.position = piece.position.subtract(overlap.normal.scale(overlap.depth + .001));
+            piece.sleeping = false;
+            piece.restingTime = 0;
         }
-        piece.velocity = piece.velocity.add(0, -.075D * gravity(piece.variant) * dt, 0)
-                .scale(Math.pow(.992D, dt));
-        if (piece.velocity.y < -2.8D)
-            piece.velocity = new Vec3(piece.velocity.x, -2.8D, piece.velocity.z);
+    }
 
-        piece.scratchRotation.set(piece.rotation);
-        piece.rotation.rotateXYZ(piece.spin.x * (float)dt, piece.spin.y * (float)dt,
-                piece.spin.z * (float)dt).normalize();
-        if (collisionAt(level, piece, piece.position) != null) {
-            piece.rotation.set(piece.scratchRotation);
-            piece.spin.mul(-.24F);
-        } else piece.spin.mul((float)Math.pow(.992F, dt));
+    private static boolean simulateStep(ClientLevel level, Piece piece, double dt,
+                                        List<Piece> fracturedChildren) {
+        boolean playerContact = resolvePlayerContact(level, piece, dt);
+        if (playerContact) {
+            piece.sleeping = false;
+            piece.restingTime = 0;
+        }
+        if (piece.sleeping) {
+            if (!isWorldClear(level, piece, piece.position.add(0, -.08, 0))) return false;
+            piece.sleeping = false;
+        }
+        if (piece.variant == 7 || piece.arenaRubble) {
+            simulateDoorStep(level, piece, dt);
+            return piece.shattered;
+        }
+        piece.velocity = piece.velocity.add(0, -0.055 * piece.gravityFactor() * dt, 0)
+                .scale(Math.pow(piece.airRetention(), dt));
+        if (piece.velocity.y < -2.8) piece.velocity = new Vec3(piece.velocity.x, -2.8, piece.velocity.z);
+        piece.angularVelocity.mul((float) Math.pow(0.992, dt));
+        Quaternionf oldRotation = new Quaternionf(piece.orientation);
+        piece.orientation.premul(new Quaternionf().rotationXYZ(piece.angularVelocity.x * (float) dt,
+                piece.angularVelocity.y * (float) dt, piece.angularVelocity.z * (float) dt)).normalize();
+        if (!isWorldClear(level, piece, piece.position)) {
+            piece.orientation.set(oldRotation);
+            piece.angularVelocity.mul(-0.28F);
+        }
 
         Vec3 motion = piece.velocity.scale(dt);
-        int sweeps = Mth.clamp((int)Math.ceil(motion.length()
-                / Math.max(.045D, piece.smallestExtent() * .65D)), 1, 10);
-        Vec3 increment = motion.scale(1.0D / sweeps);
-        boolean collided = false;
+        int sweeps = Mth.clamp((int) Math.ceil(motion.length() / Math.max(0.035, piece.scale * 0.22)), 1, 8);
+        Vec3 increment = motion.scale(1.0 / sweeps);
+        boolean supported = false;
+        for (int sweep = 0; sweep < sweeps; sweep++) {
+            Vec3 normal = move(level, piece, increment);
+            resolvePlayerContact(level, piece, dt / sweeps);
+            if (normal == null) continue;
+            double impactSpeed = Math.max(0.0, -piece.velocity.dot(normal));
+            triggerImpactShake(level, piece, normal, impactSpeed);
+            if (impactSpeed > .12) piece.impacts++;
+            boolean shouldBreak = !piece.unbreakable() && (impactSpeed > piece.breakSpeed()
+                    || piece.impacts >= piece.maxImpacts() && impactSpeed > .18);
+            boolean floorContact = normal.y > 0.55D;
+            supported |= floorContact;
+            if (floorContact && impactSpeed > .25D && (piece.impacts & 3) == 1) {
+                var sound = switch (piece.variant % 3) { case 0 -> Asterion.DEBRIS_1; case 1 -> Asterion.DEBRIS_2; default -> Asterion.DEBRIS_3; };
+                level.playLocalSound(piece.position.x, piece.position.y, piece.position.z, sound, SoundSource.BLOCKS,
+                        (float)Math.min(0.7, 0.18 + impactSpeed * .08), .88F + level.getRandom().nextFloat() * .18F, false);
+            }
+            if (shouldBreak && piece.consumeSurfaceSurvival(floorContact)) {
+                piece.impacts = Math.max(0, piece.impacts - 2);
+                shouldBreak = false;
+            }
+            if (shouldBreak) {
+                if (piece.variant == 1)
+                    splitPrimaryDebris(level, piece, normal, impactSpeed, fracturedChildren);
+                else
+                    burst(level, piece, normal, impactSpeed);
+                return true;
+            }
+            piece.velocity = PortDebrisMath.reflect(piece.velocity, normal,
+                    piece.restitution(), piece.friction());
+            if (piece.rolling() && normal.y > 0.55D) applyRollingContact(piece, normal);
+            Vec3 torque = normal.cross(piece.velocity).scale(0.28 * piece.spinMultiplier());
+            piece.angularVelocity.add((float) torque.x, (float) torque.y, (float) torque.z);
+        }
+        if (supported && piece.velocity.horizontalDistanceSqr() < .0016 && Math.abs(piece.velocity.y) < .07
+                && piece.angularVelocity.lengthSquared() < .004) piece.restingTime += dt;
+        else piece.restingTime = 0;
+        if (piece.restingTime > .65) {
+            piece.sleeping = true; piece.velocity = Vec3.ZERO; piece.angularVelocity.zero();
+        }
+        return false;
+    }
+
+    private static void simulateDoorStep(ClientLevel level, Piece door, double dt) {
+
+
+        if (door.velocity.lengthSqr() > 3.2 * 3.2) door.velocity = door.velocity.normalize().scale(3.2);
+        if (door.angularVelocity.lengthSquared() > 1) door.angularVelocity.normalize();
+        int sweeps = Mth.clamp((int)Math.ceil((door.velocity.length()
+                + door.angularVelocity.length() * door.halfExtents().length()) * dt / .16), 1, 16);
+        double h = dt / sweeps;
         boolean supported = false;
         double strongestImpact = 0;
         for (int sweep = 0; sweep < sweeps; sweep++) {
-            Vec3 normal = move(level, piece, increment);
-            if (normal == null) continue;
-            collided = true;
-            supported |= normal.y > .55D;
-            double into = piece.velocity.dot(normal);
-            double impact = Math.max(0, -into);
-            strongestImpact = Math.max(strongestImpact, impact);
-            if (into < 0) {
-                Vec3 tangent = piece.velocity.subtract(normal.scale(into));
-                piece.velocity = tangent.scale(1.0D - friction(piece.variant))
-                        .add(normal.scale(impact * restitution(piece.variant)));
-                Vec3 torque = normal.cross(tangent).scale(.18D + piece.scale * .12D);
-                piece.spin.add((float)torque.x, (float)torque.y, (float)torque.z);
-                if (normal.y > .55D) applyRollingContact(piece, normal);
+            door.velocity = door.velocity.add(0, -.055 * door.gravityFactor() * h, 0)
+                    .scale(Math.pow(door.airRetention(), h));
+            door.angularVelocity.mul((float)Math.pow(.996, h));
+            door.position = door.position.add(door.velocity.scale(h));
+            door.orientation.premul(new Quaternionf().rotationXYZ(door.angularVelocity.x * (float)h,
+                    door.angularVelocity.y * (float)h, door.angularVelocity.z * (float)h)).normalize();
+            for (int iteration = 0; iteration < 6; iteration++) {
+                Collision contact = collisionAt(level, door, door.position);
+                if (contact == null) break;
+                Vec3 normal = contact.normal.scale(-1);
+                Vec3 point = contact.point;
+                door.position = door.position.add(normal.scale(contact.depth + .0006));
+                Vec3 lever = point.subtract(door.position);
+                double speed = door.velocityAt(point).dot(normal);
+                strongestImpact = Math.max(strongestImpact, -speed);
+                triggerImpactShake(level, door, normal, -speed);
+                if (door.blockVisual != null && door.age > 3 && speed < -.32) {
+                    burst(level, door, normal, -speed);
+                    door.shattered = true;
+                    return;
+                }
+                supported |= normal.y > .55;
+                if (speed >= 0) continue;
+                double bounce = speed < -.18 ? door.restitution() : 0;
+                double impulse = -(1 + bounce) * speed / door.effectiveInverseMass(lever, normal);
+                door.applyImpulse(lever, normal.scale(impulse));
+                Vec3 atContact = door.velocityAt(point);
+                Vec3 tangent = atContact.subtract(normal.scale(atContact.dot(normal)));
+                double sliding = tangent.length();
+                if (sliding > 1.0e-6) {
+                    tangent = tangent.scale(1 / sliding);
+                    double friction = Math.min(door.friction() * impulse,
+                            sliding / door.effectiveInverseMass(lever, tangent));
+                    door.applyImpulse(lever, tangent.scale(-friction));
+                }
+            }
+            if (resolvePlayerContact(level, door, h)) {
+                supported = false;
+                door.sleeping = false;
+                door.restingTime = 0;
             }
         }
-        if (collided) {
-            if (strongestImpact > .24D && piece.soundCooldown <= 0
-                    && claimLocalSound(level, piece.position)) {
-                var sound = switch (piece.soundVariant) {
-                    case 0 -> Asterion.DEBRIS_1;
-                    case 1 -> Asterion.DEBRIS_2;
-                    default -> Asterion.DEBRIS_3;
-                };
-                level.playLocalSound(piece.position.x, piece.position.y, piece.position.z, sound,
-                        SoundSource.BLOCKS, Mth.clamp((.08F + piece.scale * .32F)
-                                * (float)Mth.clamp(strongestImpact * 1.7D, .45D, 1.0D), .06F, .38F),
-                        Mth.clamp((1.13F - piece.scale * .25F) * piece.impactPitch, .48F, 1.32F), false);
-                piece.soundCooldown = 13 + piece.soundVariant * 3;
-                level.addParticle(ParticleTypes.POOF, piece.position.x, piece.position.y, piece.position.z, 0, .02D, 0);
+                if (supported) {
+            door.angularVelocity.mul((float)Math.pow(.78, dt));
+            door.velocity = new Vec3(door.velocity.x * Math.pow(.85, dt), door.velocity.y,
+                    door.velocity.z * Math.pow(.85, dt));
+        }
+        // Contact resolution can retain about two gravity steps of vertical speed on a flat leaf.
+        // Require sustained support and low rotation, but do not keep resting doors awake for that jitter.
+        boolean slow = door.velocity.horizontalDistanceSqr() < .0025 && Math.abs(door.velocity.y) < .16
+                && door.angularVelocity.lengthSquared() < .004;
+
+        if (slow && !supported) supported = !isWorldClear(level, door, door.position.add(0, -.06, 0));
+        boolean quiet = slow && supported;
+        door.restingTime = quiet ? door.restingTime + dt : 0;
+        if (door.restingTime > 6) {
+            door.sleeping = true;
+            door.velocity = Vec3.ZERO;
+            door.angularVelocity.zero();
+        }
+        if ((strongestImpact > .18 || supported && door.velocity.horizontalDistanceSqr() > .015)
+                && door.age - door.lastDustTick >= (strongestImpact > .18 ? 5 : 9)) {
+            doorDust(level, door, strongestImpact > .18 ? (door.variant == 7 ? 48 : 8) : 4, Math.min(.24, strongestImpact * .16));
+            door.lastDustTick = door.age;
+            if (strongestImpact > .18 && (lastImpactSoundTick == Long.MIN_VALUE || level.getGameTime() - lastImpactSoundTick >= 2)) {
+                lastImpactSoundTick = level.getGameTime();
+                level.playLocalSound(door.position.x, door.position.y, door.position.z,
+                        door.variant == 7 ? SoundEvents.ANVIL_LAND : SoundEvents.STONE_HIT,
+                        SoundSource.BLOCKS, door.variant == 7 ? 1.6F : .8F, .5F, false);
             }
         }
-        if (!supported && piece.velocity.lengthSqr() < .012D)
-            supported = hasFloorSupport(level, piece);
-        if (supported) {
-            piece.velocity = new Vec3(piece.velocity.x * .88D, piece.velocity.y, piece.velocity.z * .88D);
-            piece.spin.mul(.86F);
+    }
+
+
+
+
+
+
+    private static boolean resolvePlayerContact(ClientLevel level, Piece piece, double dt) {
+        Minecraft client = Minecraft.getInstance();
+        var player = client.player;
+        if (player == null || !player.isAlive() || player.isSpectator() || player.noPhysics) return false;
+
+        AABB playerBox = player.getBoundingBox().deflate(0.015D);
+        AABB debrisBox = boundsAt(piece, piece.position).inflate(0.025D);
+        if (!debrisBox.intersects(playerBox)) return false;
+        Vec3 playerHalf = new Vec3(playerBox.getXsize() * 0.5D, playerBox.getYsize() * 0.5D,
+                playerBox.getZsize() * 0.5D);
+        Collision contact = modelContact(piece,piece.position,playerBox);
+        if (contact == null) return false;
+
+        Vec3 towardPlayer = contact.normal;
+        double mass = piece.mass();
+
+
+        double debrisShare = 1.0D / (1.0D + mass);
+        double playerShare = 1.0D - debrisShare;
+        double depth = Math.min(contact.depth + 0.0015D, 0.32D);
+        Vec3 debrisCorrection = towardPlayer.scale(-depth * debrisShare);
+        Vec3 before = piece.position;
+        move(level, piece, debrisCorrection);
+        double moved = piece.position.distanceTo(before);
+        double unresolved = Math.max(0.0D, depth - moved);
+        if (unresolved > 1.0E-5D)
+            player.move(MoverType.SELF, towardPlayer.scale(Math.min(0.24D, unresolved * Math.max(.35D, playerShare))));
+
+        Vec3 playerVelocity = player.getDeltaMovement();
+        Vec3 contactVelocity = piece.velocityAt(playerBox.getCenter());
+        double playerClosingSpeed = Math.max(0.0D,
+                playerVelocity.subtract(contactVelocity).dot(towardPlayer.scale(-1.0D)));
+        if (playerClosingSpeed > 0.002D && mass < 24.0D) {
+            Vec3 impulse = towardPlayer.scale(-Math.min(0.55D, playerClosingSpeed * (0.72D + dt * 0.28D)));
+            piece.applyImpulse(playerBox.getCenter().subtract(piece.position), impulse);
+            piece.angularVelocity.mul(0.96F);
         }
-        if (supported && piece.velocity.lengthSqr() < .0018D && piece.spin.lengthSquared() < .0018F) {
-            if (++piece.restTicks > 16) {
-                piece.sleeping = true;
-                piece.velocity = Vec3.ZERO;
-                piece.spin.zero();
+
+        double debrisClosingSpeed = Math.max(0.0D, contactVelocity.dot(towardPlayer));
+        if (debrisClosingSpeed > 0.015D) {
+            Vec3 shove = towardPlayer.scale(Math.min(0.42D, debrisClosingSpeed * Math.min(1.0D, mass * 0.12D)));
+            player.setDeltaMovement(playerVelocity.add(shove));
+        }
+
+        boolean overhead = towardPlayer.y < -0.42D;
+        boolean massive = mass >= 18.0D;
+        if (massive && overhead) {
+
+
+            Vec3 velocity = player.getDeltaMovement();
+            player.setDeltaMovement(velocity.x * 0.08D, Math.min(velocity.y, -0.035D), velocity.z * 0.08D);
+            player.setJumping(false);
+        } else if (massive && Math.abs(towardPlayer.y) < 0.42D) {
+            Vec3 velocity = player.getDeltaMovement();
+            double intoDebris = velocity.dot(towardPlayer.scale(-1.0D));
+            if (intoDebris > 0.0D) velocity = velocity.add(towardPlayer.scale(intoDebris * 0.92D));
+            player.setDeltaMovement(velocity);
+        }
+        return true;
+    }
+
+    private static void triggerImpactShake(ClientLevel level, Piece piece, Vec3 normal, double impactSpeed) {
+        if (impactSpeed < .42D || normal.y < .45D) return;
+        boolean fullSizeDebris = piece.variant == 1 || piece.variant == 7;
+        boolean largeArenaRubble = piece.arenaRubble && piece.scale >= .70F;
+        if (!fullSizeDebris && !largeArenaRubble) return;
+        if (piece.lastShakeTick != Long.MIN_VALUE && level.getGameTime() - piece.lastShakeTick < 12L) return;
+
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) return;
+        float radius = piece.variant == 7 ? 30.0F : largeArenaRubble ? 18.0F : 22.0F;
+        if (client.player.position().distanceToSqr(piece.position) >= radius * radius) return;
+
+        double massWeight = Mth.clamp(Math.sqrt(piece.mass()) * .42D, .55D, 1.45D);
+        float strength = (float) Mth.clamp((impactSpeed - .24D) * massWeight,
+                .16D, piece.variant == 7 ? 1.35D : largeArenaRubble ? .62D : .95D);
+        int duration = Mth.clamp(7 + (int)Math.round(impactSpeed * 7.0D), 9, 18);
+        piece.lastShakeTick = level.getGameTime();
+        PortDeadSunEvents.impact(
+                piece.position, radius, strength, duration);
+    }
+
+
+    public static void throwDoors(Vec3 center, float radius) {
+        if (!Float.isFinite(radius) || radius <= 0) return;
+        double reach = Math.min(32, radius * 2.0 + 3);
+        for (Piece door : PIECES) {
+            if (door.variant != 7 && !door.arenaRubble) continue;
+            Vec3 offset = door.position.subtract(center);
+            double distance = offset.length();
+            if (distance >= reach) continue;
+            Vec3 away = distance > .01 ? offset.scale(1 / distance) : new Vec3(0, 1, 0);
+            double strength = (1 - distance / reach) * Math.min(1.5, radius * .22);
+            door.velocity = door.velocity.add(away.scale(strength)).add(0, strength * .55, 0);
+            door.angularVelocity.add((float)(away.z * .14), .08F, (float)(-away.x * .14));
+            door.sleeping = false;
+            door.restingTime = 0;
+        }
+    }
+
+    private static void doorDust(ClientLevel level, Piece door, int count, double speed) {
+        AABB bounds = boundsAt(door, door.position);
+        for (int i = 0; i < count; i++) {
+            double x = bounds.minX + level.getRandom().nextDouble() * bounds.getXsize();
+            double z = bounds.minZ + level.getRandom().nextDouble() * bounds.getZsize();
+            level.addParticle(Asterion.DOOR_DUST, x, bounds.minY + .09, z,
+                    (level.getRandom().nextDouble() - .5) * speed, .012 + level.getRandom().nextDouble() * speed * .3,
+                    (level.getRandom().nextDouble() - .5) * speed);
+        }
+    }
+
+    private static void applyRollingContact(Piece piece, Vec3 normal) {
+        Vec3 tangentVelocity = piece.velocity.subtract(normal.scale(piece.velocity.dot(normal)));
+        if (tangentVelocity.lengthSqr() < 1.0e-6D) {
+            piece.angularVelocity.mul(0.94F);
+            return;
+        }
+        double radius = Math.max(0.035D, Math.min(piece.halfExtents().x, piece.halfExtents().z));
+        Vec3 rollingAxis = normal.cross(tangentVelocity).scale(1.0D / radius);
+        float blend = piece.variant == 6 ? 0.52F : 0.30F;
+        Vector3f target = new Vector3f((float) rollingAxis.x, (float) rollingAxis.y,
+                (float) rollingAxis.z).mul(piece.spinMultiplier());
+        piece.angularVelocity.lerp(target, blend);
+        double outwardSpeed = Math.max(0.0D, piece.velocity.dot(normal));
+        double rollingRetention = piece.variant == 6 ? 0.975D : 0.925D;
+        piece.velocity = tangentVelocity.scale(rollingRetention)
+                .add(normal.scale(outwardSpeed * (piece.variant == 6 ? 0.18D : 0.34D)));
+    }
+
+
+    private static void splitPrimaryDebris(ClientLevel level, Piece parent, Vec3 normal,
+                                           double impactSpeed, List<Piece> output) {
+        burst(level, parent, normal, impactSpeed);
+        Random random = new Random(parent.seed ^ parent.age * 0x9E3779B97F4A7C15L);
+        PortDebrisMath.Basis basis = PortDebrisMath.directionBasis(normal);
+        List<Piece> children = new ArrayList<>(5);
+        double[] scales = {0.0D, 0.0D, 1.16D, 1.34D, 1.30D, 1.54D, 1.48D};
+        int wanted = 2 + random.nextInt(4);
+        int accepted = 0;
+        for (int variant = 2; variant <= 6; variant++) {
+            int remaining = 7 - variant;
+            if (accepted >= wanted || (random.nextFloat() > 0.66F && accepted + remaining > wanted)) continue;
+            double angle = (variant - 2) * Mth.TWO_PI / 5.0D + 0.24D;
+            Vec3 radial = basis.tangent().scale(Math.cos(angle))
+                    .add(basis.bitangent().scale(Math.sin(angle)));
+            float childScale = (float) (parent.scale * scales[variant]);
+            Vec3 childPosition = parent.position.add(normal.scale(0.055D + (variant - 2) * 0.012D))
+                    .add(radial.scale(parent.scale * (0.34D + (variant - 2) * 0.055D)));
+            Piece child = new Piece(childPosition, variant, childScale, random);
+            child.orientation.set(parent.orientation).rotateXYZ(
+                    (random.nextFloat() - 0.5F) * 0.24F,
+                    (random.nextFloat() - 0.5F) * 0.24F,
+                    (random.nextFloat() - 0.5F) * 0.24F).normalize();
+            child.previousOrientation.set(child.orientation);
+            child.velocity = parent.velocity.add(normal.scale(0.055D + impactSpeed * 0.10D))
+                    .add(radial.scale(0.07D + impactSpeed * (0.055D + variant * 0.006D)));
+            if (!isWorldClear(level, child, child.position)) {
+                child.position = parent.position.add(normal.scale(0.04D));
+                child.orientation.set(parent.orientation);
+                child.previousOrientation.set(child.orientation);
             }
-        } else piece.restTicks = 0;
+            child.previousPosition = child.position;
+            children.add(child);
+            accepted++;
+        }
+
+        double totalMass = 0.0D;
+        Vec3 relativeMomentum = Vec3.ZERO;
+        for (Piece child : children) {
+            totalMass += child.mass();
+            relativeMomentum = relativeMomentum.add(child.velocity.subtract(parent.velocity).scale(child.mass()));
+        }
+        Vec3 correction = totalMass <= 1.0e-8D ? Vec3.ZERO : relativeMomentum.scale(1.0D / totalMass);
+        for (Piece child : children) child.velocity = child.velocity.subtract(correction);
+        output.addAll(children);
     }
 
     private static Vec3 move(ClientLevel level, Piece piece, Vec3 delta) {
+        Vec3 normal = null;
+        if (Math.abs(delta.x) > 1.0e-8) normal = moveAxis(level, piece, new Vec3(delta.x, 0, 0),
+                delta.x > 0 ? new Vec3(-1, 0, 0) : new Vec3(1, 0, 0), normal);
+        if (Math.abs(delta.y) > 1.0e-8) normal = moveAxis(level, piece, new Vec3(0, delta.y, 0),
+                delta.y > 0 ? new Vec3(0, -1, 0) : new Vec3(0, 1, 0), normal);
+        if (Math.abs(delta.z) > 1.0e-8) normal = moveAxis(level, piece, new Vec3(0, 0, delta.z),
+                delta.z > 0 ? new Vec3(0, 0, -1) : new Vec3(0, 0, 1), normal);
+        return normal;
+    }
+
+    private static Vec3 moveAxis(ClientLevel level, Piece piece, Vec3 delta, Vec3 fallback, Vec3 previous) {
         Vec3 start = piece.position;
         Vec3 candidate = start.add(delta);
         Collision collision = collisionAt(level, piece, candidate);
         if (collision == null) {
             piece.position = candidate;
-            return null;
+            return previous;
         }
-        Vec3 low = start, high = candidate;
-        for (int i = 0; i < 7; i++) {
-            Vec3 middle = low.lerp(high, .5D);
-            if (collisionAt(level, piece, middle) == null) low = middle;
+        piece.position = furthestClear(level, piece, start, candidate);
+        Vec3 outward = collision.normal.scale(-1.0);
+        return outward.dot(fallback) < 0.20 ? fallback : outward;
+    }
+
+    private static Vec3 furthestClear(ClientLevel level, Piece piece, Vec3 clear, Vec3 blocked) {
+        Vec3 low = clear, high = blocked;
+        for (int i = 0; i < 8; i++) {
+            Vec3 middle = low.lerp(high, 0.5);
+            if (isWorldClear(level, piece, middle)) low = middle;
             else high = middle;
         }
-        piece.position = low;
-        return collision.normal.scale(-1.0D);
+        return low;
     }
 
-    private static void applyRollingContact(Piece piece, Vec3 normal) {
-        Vec3 tangent = piece.velocity.subtract(normal.scale(piece.velocity.dot(normal)));
-        if (tangent.lengthSqr() < 1.0E-6D) return;
-        double radius = Math.max(.04D, Math.min(piece.half.x, piece.half.z));
-        Vec3 axis = normal.cross(tangent).scale(1.0D / radius);
-        Vector3f target = new Vector3f((float)axis.x, (float)axis.y, (float)axis.z);
-        piece.spin.lerp(target, piece.variant >= 5 ? .42F : .24F);
+    private static void spawnDebrisSmoke(ClientLevel level, Vec3 position, Random random, int count) {
+        for (int i = 0; i < count; i++) level.addParticle(Asterion.RUMBLE_SMOKE,
+                position.x + (random.nextDouble() - 0.5D) * 0.75D,
+                position.y + (random.nextDouble() - 0.5D) * 0.45D,
+                position.z + (random.nextDouble() - 0.5D) * 0.75D,
+                (random.nextDouble() - 0.5D) * 0.025D,
+                0.004D + random.nextDouble() * 0.018D,
+                (random.nextDouble() - 0.5D) * 0.025D);
     }
 
-    private static void ensureLevel(ClientLevel level) {
-        if (trackedLevel == level) return;
-        PIECES.clear();
-        trackedLevel = level;
-        lastAmbientTick = Long.MIN_VALUE;
-        soundBudgetTick = Long.MIN_VALUE;
-        SOUND_POSITIONS.clear();
+    private static void burst(ClientLevel level, Piece piece, Vec3 normal, double impactSpeed) {
+        BlockPos hitPos = BlockPos.containing(piece.position.subtract(normal.scale(0.12)));
+        BlockState hitState = level.getBlockState(hitPos);
+        if (hitState.isAir()) hitState = level.getBlockState(hitPos.below());
+        if (piece.blockVisual != null) hitState = piece.blockVisual;
+        if (hitState.isAir()) return;
+        Random random = new Random(piece.seed ^ piece.age * 131L);
+        BlockParticleOption fragments = new BlockParticleOption(ParticleTypes.BLOCK, hitState);
+        int count = Mth.clamp(8 + Math.round((piece.scale * 54.0F
+                + (float) impactSpeed * 12.0F) * piece.massFactor()), 9, 38);
+        PortDebrisMath.Basis basis = PortDebrisMath.directionBasis(normal);
+        for (int i = 0; i < count; i++) {
+            double outward = 0.05 + random.nextDouble() * (0.09 + impactSpeed * 0.16);
+            double tangentA = (random.nextDouble() - 0.5) * (0.16 + impactSpeed * 0.12);
+            double tangentB = (random.nextDouble() - 0.5) * (0.16 + impactSpeed * 0.12);
+            Vec3 velocity = normal.scale(outward).add(basis.tangent().scale(tangentA))
+                    .add(basis.bitangent().scale(tangentB));
+            level.addParticle(fragments,
+                    piece.position.x + normal.x * piece.scale * 0.25,
+                    piece.position.y + normal.y * piece.scale * 0.25,
+                    piece.position.z + normal.z * piece.scale * 0.25,
+                    velocity.x, velocity.y, velocity.z);
+        }
+        level.addParticle(ParticleTypes.POOF, piece.position.x, piece.position.y, piece.position.z,
+                normal.x * 0.04, Math.max(0.025, normal.y * 0.04), normal.z * 0.04);
+        level.playLocalSound(piece.position.x, piece.position.y, piece.position.z,
+                SoundEvents.DEEPSLATE_BREAK, SoundSource.BLOCKS,
+                Mth.clamp((0.18F + piece.scale * 0.85F) * piece.massFactor(), 0.14F, 0.65F),
+                debrisImpactPitch(piece), false);
     }
 
-    private static boolean clear(ClientLevel level, Piece piece, Vec3 center) {
-        return collisionAt(level, piece, center) == null;
+    private static float debrisImpactPitch(Piece piece) {
+        Vec3 half = piece.halfExtents();
+        double size = Math.cbrt(8.0D * half.x * half.y * half.z);
+        // Use actual fragment dimensions; larger pieces approach the engine's .5 pitch floor.
+        // No random upward pitch offset, so size consistently determines the depth.
+        return (float)(.5D + .20D * Math.exp(-size));
+    }
+
+    private static AABB boundsAt(Piece piece, Vec3 center) {
+        if(piece.blockVisual==null){modelBoxes(piece,center);return piece.cachedModelBounds;}
+        piece.updateGeometry();
+        double hx = piece.boundsHalf.x, hy = piece.boundsHalf.y, hz = piece.boundsHalf.z;
+        return new AABB(center.x - hx, center.y - hy, center.z - hz,
+                center.x + hx, center.y + hy, center.z + hz);
+    }
+
+    private static boolean isWorldClear(ClientLevel level, Piece piece, Vec3 center) {
+        return collisionAt(level, piece, center, true) == null;
     }
 
     private static Collision collisionAt(ClientLevel level, Piece piece, Vec3 center) {
-        piece.updateGeometry();
-        Vec3 broadHalf = piece.boundsHalf;
-        AABB broad = new AABB(center.x - broadHalf.x, center.y - broadHalf.y, center.z - broadHalf.z,
-                center.x + broadHalf.x, center.y + broadHalf.y, center.z + broadHalf.z).deflate(.00035D);
+        return collisionAt(level, piece, center, false);
+    }
+
+    private static Collision collisionAt(ClientLevel level, Piece piece, Vec3 center, boolean anyContact) {
+        var cubes=piece.blockVisual==null?modelBoxes(piece,center):null;
+        AABB broad = boundsAt(piece,center).deflate(0.00035);
         Collision deepest = null;
-        for (var shape : level.getBlockCollisions(null, broad)) for (AABB box : shape.toAabbs()) {
-            Collision contact = satContact(piece, center, box);
-            if (contact != null && (deepest == null || contact.depth > deepest.depth)) deepest = contact;
+        for (AABB box : WORLD_COLLISIONS.collect(broad)) {
+            Collision collision = modelContact(piece,center,box,cubes);
+            if (anyContact && collision != null) return collision;
+            if (collision != null && (deepest == null || collision.depth > deepest.depth)) {
+                if (piece.blockVisual==null || piece.variant != 7 && !piece.arenaRubble) { deepest = collision; continue; }
+                Vec3 point = supportPoint(piece, center, collision.normal);
+                point = new Vec3(Mth.clamp(point.x, box.minX, box.maxX), Mth.clamp(point.y, box.minY, box.maxY),
+                        Mth.clamp(point.z, box.minZ, box.maxZ));
+                deepest = new Collision(collision.normal, collision.depth, point);
+            }
         }
         return deepest;
     }
 
-    private static Collision satContact(Piece piece, Vec3 center, AABB box) {
-        Vec3 delta = box.getCenter().subtract(center);
-        Vec3 boxHalf = new Vec3(box.getXsize() * .5D, box.getYsize() * .5D, box.getZsize() * .5D);
-        Vec3 best = null;
-        double depth = Double.POSITIVE_INFINITY;
-        for (Vec3 axis : piece.satAxes) {
-            if (axis == null) continue;
-            double overlap = projection(piece.half, piece.axes, axis)
-                    + projection(boxHalf, WORLD_AXES, axis) - Math.abs(delta.dot(axis));
-            if (overlap <= .00045D) return null;
-            if (overlap < depth) {
-                depth = overlap;
-                best = delta.dot(axis) < 0 ? axis.scale(-1) : axis;
-            }
+    private static java.util.List<net.krodark.asterion.physics.ModelCollider.Box> modelBoxes(Piece piece,Vec3 center) {
+        if(piece.cachedModelBoxes!=null && center.equals(piece.cachedModelPosition)
+                && piece.cachedModelOrientation.equals(piece.orientation))return piece.cachedModelBoxes;
+        if(piece.localModelBoxes==null || !piece.cachedModelOrientation.equals(piece.orientation)) {
+            String model=piece.variant==7?"minotaur_door_debirs":"debris"+piece.variant;
+            piece.localModelBoxes=net.krodark.asterion.physics.ModelCollider.load(model).world(Vec3.ZERO,piece.orientation,piece.scale,piece.modelCenter(),0);
+            piece.localModelBounds=net.krodark.asterion.physics.ModelCollider.bounds(piece.localModelBoxes);
         }
-        return best == null ? null : new Collision(best, depth);
+        var translated=new java.util.ArrayList<net.krodark.asterion.physics.ModelCollider.Box>(piece.localModelBoxes.size());
+        for(var box:piece.localModelBoxes)translated.add(new net.krodark.asterion.physics.ModelCollider.Box(box.center().add(center),box.half(),box.axes(),box.blade()));
+        piece.cachedModelBoxes=translated;
+        piece.cachedModelPosition=center;piece.cachedModelOrientation.set(piece.orientation);
+        piece.cachedModelBounds=piece.localModelBounds.move(center);
+        return piece.cachedModelBoxes;
     }
-
-    private static double projection(Vec3 half, Vec3[] axes, Vec3 direction) {
-        return half.x * Math.abs(axes[0].dot(direction))
-                + half.y * Math.abs(axes[1].dot(direction))
-                + half.z * Math.abs(axes[2].dot(direction));
+    private static Collision modelContact(Piece piece,Vec3 center,AABB box) {
+        return modelContact(piece,center,box,piece.blockVisual==null?modelBoxes(piece,center):null);
+    }
+    private static Collision modelContact(Piece piece,Vec3 center,AABB box,java.util.List<net.krodark.asterion.physics.ModelCollider.Box> cubes) {
+        if(piece.blockVisual!=null)return satContact(center,piece.halfExtents(),axes(piece),box.getCenter(),
+                new Vec3(box.getXsize()/2,box.getYsize()/2,box.getZsize()/2),WORLD_AXES);
+        Collision deepest=null;
+        for(var cube:cubes) {
+            var hit=net.krodark.asterion.physics.ModelCollider.contact(cube,box);
+            if(hit!=null && (deepest==null || hit.depth()>deepest.depth))
+                deepest=new Collision(hit.normal().scale(-1),hit.depth(),hit.point());
+        }
+        return deepest;
     }
 
     private static final Vec3[] WORLD_AXES = {
             new Vec3(1, 0, 0), new Vec3(0, 1, 0), new Vec3(0, 0, 1)
     };
-    private record Collision(Vec3 normal, double depth) {}
 
-    private static Vec3 findClearSpawn(ClientLevel level, Piece piece, Vec3 origin) {
-        for (double lift : new double[]{0, .18D, .36D, .65D, 1.0D}) {
-            Vec3 candidate = origin.add(0, lift, 0);
-            if (clear(level, piece, candidate)) return candidate;
+    private static Vec3 supportPoint(Piece piece, Vec3 center, Vec3 direction) {
+        Vec3 half = piece.halfExtents();
+        Vec3[] axes = axes(piece);
+        double[] extents = {half.x, half.y, half.z};
+        Vec3 point = center;
+        for (int i = 0; i < 3; i++) {
+            double dot = axes[i].dot(direction);
+            if (Math.abs(dot) > .001) point = point.add(axes[i].scale(Math.signum(dot) * extents[i]));
         }
-        return null;
+        return point;
     }
 
-    private static void emitDust(ClientLevel level, Vec3 position, Vec3 normal, Random random, int count) {
-        for (int i = 0; i < count; i++) {
-            Vec3 spread = position.add((random.nextDouble() - .5D) * .55D,
-                    (random.nextDouble() - .5D) * .25D, (random.nextDouble() - .5D) * .55D);
-            level.addParticle(Asterion.ANCIENT_WALL_DUST, spread.x, spread.y, spread.z,
-                    normal.x * .012D, normal.y * .012D, normal.z * .012D);
+    private static Vec3[] axes(Piece piece) {
+        piece.updateGeometry();
+        return piece.collisionAxes;
+    }
+
+    private static Collision satContact(Vec3 centerA, Vec3 halfA, Vec3[] axesA,
+                                        Vec3 centerB, Vec3 halfB, Vec3[] axesB) {
+        Vec3 delta = centerB.subtract(centerA);
+        Vec3 bestAxis = null;
+        double bestDepth = Double.POSITIVE_INFINITY;
+        for (int index=0;index<15;index++) {
+            Vec3 raw=index<3?axesA[index]:index<6?axesB[index-3]:axesA[(index-6)/3].cross(axesB[(index-6)%3]);
+            double lengthSqr = raw.lengthSqr();
+            if (lengthSqr < 1.0e-10) continue;
+            Vec3 axis = raw.scale(1.0 / Math.sqrt(lengthSqr));
+            double overlap = projectionRadius(halfA, axesA, axis)
+                    + projectionRadius(halfB, axesB, axis) - Math.abs(delta.dot(axis));
+            if (overlap <= 0.00045) return null;
+            if (overlap < bestDepth) {
+                bestDepth = overlap;
+                bestAxis = delta.dot(axis) < 0 ? axis.scale(-1) : axis;
+            }
         }
+        return bestAxis == null ? null : new Collision(bestAxis, bestDepth, null);
     }
 
-    private static boolean claimLocalSound(ClientLevel level, Vec3 position) {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.player.distanceToSqr(position) > 16.0D * 16.0D) return false;
-        long tick = Math.floorDiv(level.getGameTime(), 4);
-        if (tick != soundBudgetTick) {
-            soundBudgetTick = tick;
-            SOUND_POSITIONS.clear();
-        }
-        int limit = 3; // Audio density is independent of visual physics quality.
-        if (SOUND_POSITIONS.size() >= limit
-                || SOUND_POSITIONS.stream().anyMatch(other -> other.distanceToSqr(position) < 6.25D)) return false;
-        SOUND_POSITIONS.add(position);
-        return true;
-    }
-
-    private static Vec3 halfExtents(int variant) {
-        return switch (variant) {
-            case 1 -> new Vec3(1.32D, 2.1D, .66D);
-            case 2 -> new Vec3(.45D, .90D, .23D);
-            case 7 -> new Vec3(1.75D, 2.5D, .25D);
-            default -> variant >= 5 ? new Vec3(.23D, .23D, .23D) : new Vec3(.44D, .44D, .23D);
-        };
-    }
-
-    private static Vec3 modelCenter(int variant) {
-        return switch (variant) {
-            case 1 -> new Vec3(5.0D / 16.0D, 2.0D, -6.0D / 16.0D);
-            case 2 -> new Vec3(0, 1, 0);
-            case 5 -> new Vec3(.25D, .75D, 0);
-            case 7 -> new Vec3(.6D / 16.0D, 2.5D, 0);
-            default -> new Vec3(0, variant == 6 ? .25D : .5D, 0);
-        };
-    }
-
-    private static double gravity(int variant) { return variant == 7 ? 1.35D : variant >= 5 ? .72D : 1.0D; }
-    private static double restitution(int variant) { return variant == 7 ? .06D : variant >= 5 ? .24D : .14D; }
-    private static double friction(int variant) { return variant == 7 ? .42D : variant >= 5 ? .20D : .31D; }
-    private static boolean finite(Vec3 value) {
-        return Double.isFinite(value.x) && Double.isFinite(value.y) && Double.isFinite(value.z);
-    }
-    private static void trim() {
-        int quality = net.krodark.asterion.AsterionConfig.INSTANCE.ragdollPhysicsQuality;
-        int limit = quality <= 0 ? 72 : quality == 1 ? 128 : 192;
-        while (PIECES.size() > limit) {
-            int expendable = -1;
-            for (int i = 0; i < PIECES.size(); i++) if (PIECES.get(i).variant != 7) { expendable = i; break; }
-            PIECES.remove(expendable < 0 ? 0 : expendable);
-        }
+    private static double projectionRadius(Vec3 half, Vec3[] axes, Vec3 direction) {
+        return half.x * Math.abs(axes[0].dot(direction))
+                + half.y * Math.abs(axes[1].dot(direction))
+                + half.z * Math.abs(axes[2].dot(direction));
     }
 
     private static final class Piece {
-        final DebrisObject visual;
-        final int variant, life;
-        final float scale;
-        final int soundVariant;
-        final float impactPitch;
-        final Vec3 half;
-        final Quaternionf rotation = new Quaternionf();
-        final Quaternionf previousRotation = new Quaternionf();
-        final Quaternionf interpolatedRotation = new Quaternionf();
-        final Quaternionf scratchRotation = new Quaternionf();
-        final Quaternionf geometryRotation = new Quaternionf(Float.NaN, Float.NaN, Float.NaN, Float.NaN);
-        final Vec3[] axes = new Vec3[3];
-        final Vec3[] satAxes = new Vec3[15];
-        final Vector3f spin;
-        Vec3 boundsHalf;
-        Vec3 position, previous, velocity = Vec3.ZERO;
-        int age, restTicks, soundCooldown, spawnDelay;
-        int cachedLight = -1;
-        long lightSampleTick = Long.MIN_VALUE;
-        boolean sleeping, arena;
-        Piece(Vec3 position, int variant, float scale, Random random, int life) {
-            this.position = this.previous = position;
+        private final DebrisObject visual;
+        private final Quaternionf orientation;
+        private final Quaternionf previousOrientation;
+        private final Vector3f angularVelocity;
+        private final float scale;
+        private final Vec3 modelHalf, blockHalf;
+        private final Quaternionf geometryOrientation = new Quaternionf();
+        private final Quaternionf cachedModelOrientation = new Quaternionf();
+        private final Quaternionf renderOrientation = new Quaternionf();
+        private java.util.List<net.krodark.asterion.physics.ModelCollider.Box> cachedModelBoxes;
+        private java.util.List<net.krodark.asterion.physics.ModelCollider.Box> localModelBoxes;
+        private AABB localModelBounds;
+        private Vec3 cachedModelPosition;
+        private AABB cachedModelBounds;
+        private boolean geometryReady, geometryBlockVisual;
+        private Vec3[] collisionAxes;
+        private Vec3 boundsHalf;
+        private final int variant;
+        private final int lifetime;
+        private final long seed;
+        private Vec3 position;
+        private Vec3 previousPosition;
+        private Vec3 velocity = Vec3.ZERO;
+        private int age;
+        private int impacts;
+        private int floorSurvivals;
+        private int wallSurvivals;
+        private int lastDustTick = -20;
+        private long lastShakeTick = Long.MIN_VALUE;
+        private boolean sleeping;
+        private boolean arenaRubble, shattered;
+        private BlockState blockVisual;
+        private double restingTime;
+
+        private Piece(Vec3 position, int variant, float scale, Random random) {
+            this.position = position;
+            this.previousPosition = position;
             this.variant = Mth.clamp(variant, 1, 7);
             this.visual = new DebrisObject(this.variant);
             this.scale = scale;
-            this.half = halfExtents(this.variant).scale(scale);
-            this.life = life;
-            soundVariant = random.nextInt(3);
-            impactPitch = .82F + random.nextFloat() * .36F;
-            soundCooldown = random.nextInt(6);
-            rotation.rotationXYZ(random.nextFloat() * Mth.TWO_PI, random.nextFloat() * Mth.TWO_PI,
-                    random.nextFloat() * Mth.TWO_PI);
-            previousRotation.set(rotation);
-            spin = new Vector3f((random.nextFloat() - .5F) * .34F,
-                    (random.nextFloat() - .5F) * .34F, (random.nextFloat() - .5F) * .34F);
+            this.modelHalf = profile(this.variant).halfExtents.scale(scale * (this.variant == 7 ? 1.0 : .88));
+            this.blockHalf = new Vec3(.5 * scale, .5 * scale, .5 * scale);
+            this.seed = random.nextLong();
+            VariantProfile profile = profile(this.variant);
+            this.lifetime = profile.minimumLifetime
+                    + random.nextInt(profile.maximumLifetime - profile.minimumLifetime + 1);
+            this.orientation = new Quaternionf().rotationXYZ(random.nextFloat() * Mth.TWO_PI,
+                    random.nextFloat() * Mth.TWO_PI, random.nextFloat() * Mth.TWO_PI);
+            this.previousOrientation = new Quaternionf(orientation);
+            this.angularVelocity = new Vector3f((random.nextFloat() - 0.5F) * 0.42F,
+                    (random.nextFloat() - 0.5F) * 0.42F,
+                    (random.nextFloat() - 0.5F) * 0.42F).mul(profile.spinMultiplier);
+            this.floorSurvivals = random.nextFloat() < (this.variant == 1 ? 0.72F : 0.42F)
+                    ? 1 + random.nextInt(this.variant == 1 ? 3 : 2) : 0;
+            this.wallSurvivals = random.nextFloat() < 0.58F ? 1 + random.nextInt(2) : 0;
         }
 
-        double smallestExtent() { return Math.min(half.x, Math.min(half.y, half.z)); }
+        private boolean consumeSurfaceSurvival(boolean floor) {
+            if (floor && floorSurvivals > 0) { floorSurvivals--; return true; }
+            if (!floor && wallSurvivals > 0) { wallSurvivals--; return true; }
+            return false;
+        }
 
-        void updateGeometry() {
-            if (geometryRotation.equals(rotation)) return;
-            geometryRotation.set(rotation);
-            Vector3f x = rotation.transform(new Vector3f(1, 0, 0));
-            Vector3f y = rotation.transform(new Vector3f(0, 1, 0));
-            Vector3f z = rotation.transform(new Vector3f(0, 0, 1));
-            axes[0] = new Vec3(x.x, x.y, x.z);
-            axes[1] = new Vec3(y.x, y.y, y.z);
-            axes[2] = new Vec3(z.x, z.y, z.z);
-            System.arraycopy(axes, 0, satAxes, 0, 3);
-            System.arraycopy(WORLD_AXES, 0, satAxes, 3, 3);
-            int index = 6;
-            for (Vec3 axis : axes) for (Vec3 world : WORLD_AXES) {
-                Vec3 cross = axis.cross(world);
-                double lengthSqr = cross.lengthSqr();
-                satAxes[index++] = lengthSqr < 1.0E-10D ? null
-                        : cross.scale(1.0D / Math.sqrt(lengthSqr));
-            }
-            boundsHalf = new Vec3(projection(half, axes, WORLD_AXES[0]),
-                    projection(half, axes, WORLD_AXES[1]), projection(half, axes, WORLD_AXES[2]));
+        private Vec3 halfExtents() {
+            return blockVisual != null ? blockHalf : modelHalf;
+        }
+
+        private void updateGeometry() {
+            boolean block = blockVisual != null;
+            if (geometryReady && geometryBlockVisual == block && geometryOrientation.equals(orientation)) return;
+            geometryReady = true;
+            geometryBlockVisual = block;
+            geometryOrientation.set(orientation);
+            Vector3f x = orientation.transform(new Vector3f(1, 0, 0));
+            Vector3f y = orientation.transform(new Vector3f(0, 1, 0));
+            Vector3f z = orientation.transform(new Vector3f(0, 0, 1));
+            collisionAxes = new Vec3[] {new Vec3(x.x, x.y, x.z), new Vec3(y.x, y.y, y.z), new Vec3(z.x, z.y, z.z)};
+            Vec3 half = halfExtents();
+            orientation.transform(x.set((float) half.x, 0, 0));
+            orientation.transform(y.set(0, (float) half.y, 0));
+            orientation.transform(z.set(0, 0, (float) half.z));
+            boundsHalf = new Vec3(Math.abs(x.x) + Math.abs(y.x) + Math.abs(z.x),
+                    Math.abs(x.y) + Math.abs(y.y) + Math.abs(z.y),
+                    Math.abs(x.z) + Math.abs(y.z) + Math.abs(z.z));
+        }
+
+        private Vec3 modelCenter() {
+            return profile(variant).modelCenter;
+        }
+
+        private double gravityFactor() {
+            return arenaRubble ? 1.0 : profile(variant).gravityFactor;
+        }
+
+        private double airRetention() {
+            return arenaRubble ? .998 : profile(variant).airRetention;
+        }
+
+        private float massFactor() {
+            return profile(variant).massFactor;
+        }
+
+        private double mass() {
+            Vec3 half = profile(variant).halfExtents;
+            double modelVolume = half.x * half.y * half.z * 8.0D;
+            return Math.max(1.0e-5D, massFactor() * modelVolume * scale * scale * scale);
+        }
+
+        private Vec3 inverseInertia(Vec3 torque) {
+            Vector3f local = new Vector3f((float)torque.x, (float)torque.y, (float)torque.z);
+            new Quaternionf(orientation).conjugate().transform(local);
+            Vec3 half = halfExtents();
+            double m = mass() / 3;
+            local.set((float)(local.x / (m * (half.y * half.y + half.z * half.z))),
+                    (float)(local.y / (m * (half.x * half.x + half.z * half.z))),
+                    (float)(local.z / (m * (half.x * half.x + half.y * half.y))));
+            orientation.transform(local);
+            return new Vec3(local.x, local.y, local.z);
+        }
+
+        private Vec3 velocityAt(Vec3 point) {
+            Vec3 spin = new Vec3(angularVelocity.x, angularVelocity.y, angularVelocity.z);
+            return velocity.add(spin.cross(point.subtract(position)));
+        }
+
+        private double effectiveInverseMass(Vec3 lever, Vec3 direction) {
+            return 1 / mass() + direction.dot(inverseInertia(lever.cross(direction)).cross(lever));
+        }
+
+        private void applyImpulse(Vec3 lever, Vec3 impulse) {
+            velocity = velocity.add(impulse.scale(1 / mass()));
+            Vec3 spin = inverseInertia(lever.cross(impulse));
+            angularVelocity.add((float)spin.x, (float)spin.y, (float)spin.z);
+        }
+
+        private double restitution() {
+            return profile(variant).restitution;
+        }
+
+        private double friction() {
+            return profile(variant).friction;
+        }
+
+        private double breakSpeed() {
+            VariantProfile profile = profile(variant);
+            return profile.breakSpeed + scale * 0.52D * Math.sqrt(profile.massFactor);
+        }
+
+        private int maxImpacts() {
+            return profile(variant).maximumImpacts;
+        }
+
+        private float spinMultiplier() {
+            return profile(variant).spinMultiplier;
+        }
+
+        private boolean unbreakable() {
+            return profile(variant).unbreakable;
+        }
+
+        private boolean rolling() {
+            return profile(variant).rolling;
         }
     }
 
+    private record VariantProfile(Vec3 halfExtents, Vec3 modelCenter, float massFactor,
+                                  double gravityFactor, double airRetention,
+                                  double restitution, double friction, double breakSpeed,
+                                  int maximumImpacts, float spinMultiplier,
+                                  boolean unbreakable, boolean rolling,
+                                  int minimumLifetime, int maximumLifetime) { }
+    private record Collision(Vec3 normal, double depth, Vec3 point) { }
     private static final class DebrisObject implements GeoAnimatable {
         private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
         private final int variant;
@@ -527,4 +1062,5 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, piece.cach
         }
         @Override public ResourceLocation getAnimationResource(DebrisObject object) { return null; }
     }
+
 }

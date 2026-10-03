@@ -128,7 +128,10 @@ public final class DeadSunEventSystem {
         register(new Definition() {
             @Override public Identifier id() { return ECLIPSE; }
             @Override public boolean eligible(ServerLevel level) {
-                return level.players().stream().anyMatch(player -> player.isAlive() && !player.isSpectator());
+                return level.players().stream().anyMatch(player -> player.isAlive() && !player.isSpectator())
+                        && level.players().stream().noneMatch(player -> player.isAlive() && !player.isSpectator()
+                        && (level.getBiome(player.blockPosition()).is(Asterion.FORGE_BIOME)
+                        || net.krodark.asterion.worldgen.AuthoredForge.contains(level, player.blockPosition())));
             }
             @Override public int weight() { return 1; }
             @Override public int minDurationTicks() { return 20 * 60; }
@@ -147,13 +150,13 @@ public final class DeadSunEventSystem {
                                 && (hunter.isChasing() || hunter.isRoaming())).forEach(MinotaurEntity::endEclipse);
                         continue;
                     }
-                    if (player.isCreative()) continue;
                     if (!hunterRevealReady(level, player.getUUID(), elapsedTicks)) continue;
                     MinotaurEntity assignedHunter = hunters.stream()
                             .filter(minotaur -> minotaur.isAssignedTo(player)).findFirst().orElse(null);
                     if (assignedHunter != null && assignedHunter.isRoaming())
                         assignedHunter.beginHunting(player);
                     boolean assigned = assignedHunter != null;
+                    if (!assigned) releaseHunterClaim(level, player.getUUID());
                     if (!assigned && claimHunter(level, player.getUUID())) {
                         MinotaurEntity hunter = MinotaurEntity.spawnHunter(level, player);
                         if (hunter == null) releaseHunterClaim(level, player.getUUID());
@@ -269,9 +272,14 @@ public final class DeadSunEventSystem {
     }
 
     private static java.util.List<MinotaurEntity> eclipseMinotaurs(ServerLevel level) {
-        return level.getEntitiesOfClass(MinotaurEntity.class,
-                new net.minecraft.world.phys.AABB(-4096, level.getMinY(), -4096,
-                        4096, level.getMaxY(), 4096));
+        java.util.List<MinotaurEntity> hunters = new java.util.ArrayList<>();
+        for (var entity : level.getAllEntities()) {
+            if (entity instanceof MinotaurEntity minotaur && minotaur.isAlive()
+                    && !minotaur.isRemoved() && !minotaur.isDefeatedBoss()
+                    && minotaur.behaviorPhase() != MinotaurEntity.BehaviorPhase.BOSS)
+                hunters.add(minotaur);
+        }
+        return hunters;
     }
 
     private static boolean claimHunter(ServerLevel level, UUID playerId) {

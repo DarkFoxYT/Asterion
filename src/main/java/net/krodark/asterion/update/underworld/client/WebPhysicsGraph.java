@@ -63,10 +63,26 @@ final class WebPhysicsGraph {
                 Vec3 current=p.get(i),velocity=current.subtract(old.get(i)).scale(loose.get(i)?.995:.94);
                 // Half-tick acceleration: a released strand falls at normal world gravity.
                 Vec3 force=loose.get(i)?new Vec3(0,-.02,0):restPose.get(i).subtract(current).scale(.18);
-                Vec3 next=current.add(velocity).add(force);old.set(i,current);p.set(i,collision.apply(current,next));
+                if (velocity.lengthSqr() > .64) velocity = velocity.normalize().scale(.8);
+                Vec3 next=current.add(velocity).add(force);
+                Vec3 resolved=collision.apply(current,next);
+                // A collision consumes normal motion instead of reinjecting it on the next Verlet step.
+                old.set(i, resolved.distanceToSqr(next) > 1e-8 ? current.add(resolved.subtract(next)) : current);
+                p.set(i,resolved);
             }
-            for(Influence influence:influences)for(int i=0;i<p.size();i++)if(!pinned.get(i)){Vec3 delta=p.get(i).subtract(influence.position());double d=delta.length();if(d<influence.radius()&&d>1e-5){Vec3 push=delta.scale((influence.radius()-d)/d*.7).add(influence.velocity().scale(.5));p.set(i,collision.apply(p.get(i),p.get(i).add(push)));}}
-            for(int pass=0;pass<(stiff?10:6);pass++)for(Link link:links)if(!cuts.get(link.index))project(link);
+            for (Influence influence : influences) for (int i=0;i<p.size();i++) if (!pinned.get(i)) {
+                Vec3 delta = p.get(i).subtract(influence.position());
+                double d = delta.length();
+                if (d < influence.radius() && d > 1e-5) {
+                    Vec3 push = delta.scale((influence.radius()-d)/d*.45).add(influence.velocity().scale(.22));
+                    if (push.lengthSqr() > .09) push = push.normalize().scale(.3);
+                    p.set(i,collision.apply(p.get(i),p.get(i).add(push)));
+                }
+            }
+            for (int pass=0;pass<(stiff?10:6);pass++) for (int j=0;j<links.size();j++) {
+                Link link = links.get((pass & 1)==0 ? j : links.size()-1-j);
+                if (!cuts.get(link.index)) project(link);
+            }
             for(int i=0;i<p.size();i++)if(!pinned.get(i)) {
                 // Keep tensioned silk within the server's interaction envelope.
                 Vec3 delta=p.get(i).subtract(restPose.get(i));

@@ -1156,7 +1156,9 @@
 				{"name": "hand_itemL", "parent": "lefthand", "pivot": [59.5, 81.75, 0.5], "rotation": [85, 0, -90]},
 				{"name": "right_player_grip", "parent": "righthand", "pivot": [-59.5, 82.75, 0.5]},
 				{"name": "right_player_grip_up", "parent": "righthand", "pivot": [-59.5, 90.75, 0.5]},
-				{"name": "hand_itemR", "parent": "righthand", "pivot": [-59.5, 82.75, 0.5], "rotation": [90, 0, 90]}
+				{"name": "hand_itemR", "parent": "righthand", "pivot": [-59.5, 82.75, 0.5], "rotation": [90, 0, 90]},
+				{"name": "hand_chainL", "parent": "lefthand", "pivot": [59.5, 81.75, 0.5]},
+				{"name": "hand_chainR", "parent": "righthand", "pivot": [-59.5, 82.75, 0.5]}
 			]
 		}
 	]

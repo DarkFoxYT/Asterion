@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "C",
+    "C",
+    "C"
+  ],
+  "key": {
+    "C": {
+      "item": "asterion:mazesteel_chain"
+    }
+  },
+  "result": {
+    "id": "asterion:physics_chain",
+    "count": 1
+  }
+}

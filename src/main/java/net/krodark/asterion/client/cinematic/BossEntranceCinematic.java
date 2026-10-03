@@ -30,11 +30,54 @@ public final class BossEntranceCinematic {
     public static void register() {
         net.krodark.asterion.client.ReplayCompatibility.addHud(Asterion.id("boss_entrance"), (graphics, tracker) -> {
             if (!active || !showShot) return;
-            float fade = Math.min(MinotaurDoorMotion.ease(ticks / 7F), MinotaurDoorMotion.ease((duration - ticks) / 14F));
+            float time = ticks + tracker.getGameTimeDeltaPartialTick(false);
+            float fade = Math.min(MinotaurDoorMotion.ease(time / 12F), MinotaurDoorMotion.ease((duration - time) / 24F));
             int height = Math.round(graphics.guiHeight() * .09F * fade);
             graphics.fill(0, 0, graphics.guiWidth(), height, 0xFF000000);
             graphics.fill(0, graphics.guiHeight() - height, graphics.guiWidth(), graphics.guiHeight(), 0xFF000000);
+            renderBossTitle(graphics, time);
         });
+    }
+
+    private static void renderBossTitle(net.minecraft.client.gui.GuiGraphicsExtractor graphics, float time) {
+        if (cinematicBoss == null) return;
+        float start = MinotaurAnimationTiming.ENTRY_WALK_END_TICK + 22;
+        float enter = smootherStep((time - start) / 12F);
+        float exit = smootherStep((time - (duration - 42)) / 12F);
+        float opacity = enter * (1 - exit);
+        if (opacity <= .01F) return;
+        int w = graphics.guiWidth(), h = graphics.guiHeight();
+        float x = w * .045F - (1 - enter) * w * .56F - exit * w * .12F;
+        float y = h * .60F;
+        int alpha = Math.round(opacity * 255);
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(x, y);
+        // Ragged diagonal ink strokes, kept clear of the boss on the right.
+        int panelWidth = Math.round(w * .51F), panelHeight = Math.round(h * .24F);
+        for (int row = 0; row < panelHeight; row += 3) {
+            int edge = panelWidth - row / 3 + (row * 17 % 11);
+            graphics.fill(-Math.round(w * .07F), row - 8, edge, row - 5,
+                    Math.round(alpha * .94F) << 24 | 0x090809);
+        }
+        graphics.fill(0, -12, Math.round(w * .20F), -9, alpha << 24 | 0xE3AF48);
+        var font = Minecraft.getInstance().font;
+        var name = net.minecraft.network.chat.Component.translatable("cinematic.asterion.minotaur_name")
+                .withStyle(net.minecraft.ChatFormatting.BOLD);
+        float scale = Math.min(4.2F, w * .45F / Math.max(1, font.width(name)));
+        graphics.pose().pushMatrix();
+        graphics.pose().scale(scale, scale);
+        // A heavy outline carries the name over debris, flame and bright shaders.
+        for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++)
+            if (dx != 0 || dy != 0) graphics.text(font, name, dx, dy, alpha << 24 | 0x050405, false);
+        graphics.text(font, name, 0, 0, alpha << 24 | 0xF3EEE3, false);
+        graphics.pose().popMatrix();
+        var subtitle = net.minecraft.network.chat.Component.translatable("cinematic.asterion.minotaur_title")
+                .withStyle(net.minecraft.ChatFormatting.BOLD);
+        float subtitleScale = Math.min(1.6F, w * .43F / Math.max(1, font.width(subtitle)));
+        graphics.pose().translate(2, font.lineHeight * scale + h * .022F);
+        graphics.pose().scale(subtitleScale, subtitleScale);
+        graphics.text(font, subtitle, 0, 0, alpha << 24 | 0xEDBB50, true);
+        graphics.pose().popMatrix();
     }
 
     public static void receive(BossEntrancePayload payload) {
@@ -81,6 +124,10 @@ public final class BossEntranceCinematic {
                     cinematicBoss = boss; break;
                 }
         playCinematicSounds(client);
+        // The camera sees the whole room: shake dust loose around it between the main impacts too.
+        if (ticks >= APPROACH_TICKS && ticks <= BREAK_TICK + 24)
+            net.krodark.asterion.client.ragdoll.PhysicsDebrisSystem.spawnAmbientRumble(client,
+                    ticks < BREAK_TICK ? .65F : 1.0F, MinotaurArenaEntrances.door(door).asLong());
         if (showShot) {
             CinematicHud.maintain(client);
             client.options.setCameraType(CameraType.FIRST_PERSON);
@@ -137,6 +184,13 @@ public final class BossEntranceCinematic {
         Vec3 doorFocus = doorway.add(inward.scale(doorFlight * 4)).add(across.scale(doorFlight * 1.5)).add(0, 3.2, 0);
         float handoff = smootherStep((time - BREAK_TICK - 5) / 23F);
         Vec3 focus = doorFocus.lerp(subject.add(0, 3.5, 0), handoff);
+        float portrait = smootherStep((time - MinotaurAnimationTiming.ENTRY_WALK_END_TICK) / 24F);
+        float portraitDrift = smootherStep((time - MinotaurAnimationTiming.ENTRY_WALK_END_TICK - 24) / 65F);
+        Vec3 heroCamera = subject.add(across.scale(width * (1.5 - portraitDrift * .12)))
+                .add(inward.scale(width * (2.25 - portraitDrift * .15))).add(0, 1.45, 0);
+        camera = camera.lerp(heroCamera, portrait);
+        // Aim left of the subject so the silhouette sits beside the title.
+        focus = focus.lerp(subject.add(0, 3.5, 0).subtract(across.scale(width * .55)), portrait);
         float roarAge = time - MinotaurAnimationTiming.ENTRY_ROAR.roarSoundTick();
         float roar = smootherStep(roarAge / 5F)
                 * (1 - smootherStep((time - (MinotaurAnimationTiming.ENTRY_END_TICK - 16)) / 16F));
@@ -155,13 +209,21 @@ public final class BossEntranceCinematic {
             impact += .16F * (float)Math.pow(1 - plantAge / 24, 2);
         float breachAge = time - BREAK_TICK;
         float breach = smootherStep(breachAge / 1.5F) * (1 - smootherStep((breachAge - 3) / 18F));
-        impact += breach * .32F + roar * .12F;
+        impact += breach * .20F + roar * .045F;
         // Fixed-frequency, timeline-based vibration remains identical at every frame rate.
         camera = camera.add(across.scale((Math.sin(time * 1.9) + Math.sin(time * 3.1) * .28) * impact))
                 .add(inward.scale(breach * .65 + Math.sin(roarAge * 1.4) * roar * .08))
                 .add(0, Math.cos(time * 2.3) * impact * .65, 0);
         float returning = smootherStep((time - (duration - 30)) / 30F);
         camera = camera.lerp(playerEye, returning);
+        var level = Minecraft.getInstance().level;
+        if (level != null && cinematicBoss != null) {
+            var hit = level.clip(new net.minecraft.world.level.ClipContext(focus, camera,
+                    net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                    net.minecraft.world.level.ClipContext.Fluid.NONE, cinematicBoss));
+            if (hit.getType() != net.minecraft.world.phys.HitResult.Type.MISS)
+                camera = hit.getLocation().add(focus.subtract(camera).normalize().scale(.3));
+        }
         Vec3 delta = focus.subtract(camera);
         float yaw = (float)Math.toDegrees(Math.atan2(-delta.x, delta.z)) + (float)Math.sin(time * 1.7) * impact * 1.2F;
         float pitch = (float)-Math.toDegrees(Math.atan2(delta.y, delta.horizontalDistance())) + (float)Math.cos(time * 2.1) * impact;
@@ -180,7 +242,8 @@ public final class BossEntranceCinematic {
         float time = ticks + partial;
         float burst = smootherStep((time - BREAK_TICK) / 6F)
                 * (1 - smootherStep((time - MinotaurAnimationTiming.ENTRY_WALK_END_TICK) / 16F));
-        float shotFov = 90 + burst * 4;
+        float portrait = smootherStep((time - MinotaurAnimationTiming.ENTRY_WALK_END_TICK) / 24F);
+        float shotFov = Mth.lerp(portrait, 78 + burst * 6, 62);
         float weight = smootherStep(time / 8F) * (1 - smootherStep((time - (duration - 30)) / 30F));
         return Mth.lerp(weight, original, shotFov);
     }

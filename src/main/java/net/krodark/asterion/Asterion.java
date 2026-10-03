@@ -557,6 +557,10 @@ public class Asterion implements ModInitializer {
                     .sized(1.785F, 0.697F).eyeHeight(0.527F).clientTrackingRange(48)
                     .build(SCARLET_CENTIPEDE_KEY)
     );
+    private static final ResourceKey<EntityType<?>> CENTIPEDE_SEGMENT_KEY=ResourceKey.create(Registries.ENTITY_TYPE,id("centipede_segment"));
+    public static final EntityType<net.krodark.asterion.entity.CentipedeSegmentEntity> CENTIPEDE_SEGMENT=Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,CENTIPEDE_SEGMENT_KEY,EntityType.Builder.of(net.krodark.asterion.entity.CentipedeSegmentEntity::new,MobCategory.MISC)
+                    .sized(1.4F,1F).noSave().clientTrackingRange(16).updateInterval(5).build(CENTIPEDE_SEGMENT_KEY));
     private static final ResourceKey<Item> SCARLET_CENTIPEDE_SPAWN_EGG_KEY = ResourceKey.create(
             Registries.ITEM, id("scarlet_centipede_spawn_egg"));
     public static final Item SCARLET_CENTIPEDE_SPAWN_EGG = Registry.register(
@@ -1061,6 +1065,7 @@ public class Asterion implements ModInitializer {
         net.krodark.asterion.network.CentipedeNetworking.initialize();
         net.krodark.asterion.network.MinotaurBodyPayload.initialize();
         PressureButtonNetworking.initialize();
+        net.krodark.asterion.network.ChainHoldPayload.initialize();
         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(
                 CrucibleControlPayload.TYPE, (payload, context) -> context.server().execute(() -> {
                     net.minecraft.server.level.ServerPlayer player = context.player();

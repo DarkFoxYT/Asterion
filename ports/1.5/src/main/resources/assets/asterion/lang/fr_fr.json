@@ -13,5 +13,18 @@
   "objective.asterion.defeat_dead_sun": "Vainquez le Soleil mort",
   "objective.asterion.defeat_dead_sun_hint": "Survivez à l’arène et terrassez son champion",
   "objective.asterion.open_omega_lock": "Ouvrez le verrou Oméga",
-  "objective.asterion.open_omega_lock_hint": "Utilisez la clé Oméga pour ouvrir la voie"
+  "objective.asterion.open_omega_lock_hint": "Utilisez la clé Oméga pour ouvrir la voie",
+  "cinematic.asterion.minotaur_title": "LE GARDIEN DU LABYRINTHE",
+  "cinematic.asterion.minotaur_name": "MINOTAURE",
+  "item.asterion.physics_chain": "Chaîne physique grimpable",
+  "tooltip.asterion.physics_chain": "Placez au plafond ou au mur. Ajoutez une chaîne pour allonger d’un bloc.",
+  "tooltip.asterion.physics_chain.climb": "Maintenez le clic droit pour saisir. Avancez/reculez : monter/descendre.",
+  "tooltip.asterion.physics_chain.retrieve": "Frappez en position accroupie pour récupérer.",
+  "tooltip.asterion.physics_chain.hold": "Tournez pour pivoter autour de la chaîne. Relâchez le clic droit pour lâcher.",
+  "tip.asterion.death.chain": "Maintenez le clic droit pour saisir une chaîne. Avancez/reculez pour monter/descendre, tournez pour pivoter et relâchez le clic droit pour lâcher.",
+  "tip.asterion.death.pillars": "Quand les piliers tombent, le Minotaure change ses attaques. Observez ses préparations.",
+  "tip.asterion.death.leap": "Restez en mouvement quand le Minotaure bondit. Son atterrissage libère une onde de choc.",
+  "tip.asterion.death.axe": "Après avoir lancé sa hache, le Minotaure doit aller la récupérer.",
+  "tip.asterion.death.light": "Emportez une lumière dans le labyrinthe. Les ténèbres peuvent cacher des dangers.",
+  "tip.asterion.death.centipede": "Chaque segment du mille-pattes peut subir des dégâts. Évitez sa tête."
 }

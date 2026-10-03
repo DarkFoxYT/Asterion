@@ -33,7 +33,7 @@
       {
         "name": "asterion:sfx/mino/minotaur.door_break",
         "preload": true,
-        "attenuation_distance": 48
+        "attenuation_distance": 64
       }
     ]
   },
@@ -43,7 +43,7 @@
       {
         "name": "asterion:sfx/mino/minotaur.door_break",
         "preload": true,
-        "attenuation_distance": 48
+        "attenuation_distance": 64
       }
     ]
   },
@@ -78,7 +78,7 @@
       {
         "name": "asterion:sfx/mino/minotaur.door_bang",
         "preload": true,
-        "attenuation_distance": 48
+        "attenuation_distance": 64
       }
     ]
   },
@@ -88,12 +88,12 @@
       {
         "name": "asterion:sfx/mino/minotaur.step_walk_1",
         "preload": true,
-        "attenuation_distance": 48
+        "attenuation_distance": 64
       },
       {
         "name": "asterion:sfx/mino/minotaur.step_walk_2",
         "preload": true,
-        "attenuation_distance": 48
+        "attenuation_distance": 64
       }
     ]
   },
@@ -118,11 +118,13 @@
     "sounds": [
       {
         "name": "asterion:sfx/mino/minotaur.roar",
-        "preload": true
+        "preload": true,
+        "attenuation_distance": 64
       },
       {
         "name": "asterion:sfx/mino/roar_minator",
-        "preload": true
+        "preload": true,
+        "attenuation_distance": 64
       }
     ]
   },
@@ -131,7 +133,8 @@
     "sounds": [
       {
         "name": "asterion:sfx/mino/minotaur.aggro",
-        "preload": true
+        "preload": true,
+        "attenuation_distance": 64
       }
     ]
   },
@@ -141,12 +144,12 @@
       {
         "name": "asterion:sfx/mino/minotaur.stagger_1",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       },
       {
         "name": "asterion:sfx/mino/minotaur.stagger_2",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -156,12 +159,12 @@
       {
         "name": "asterion:sfx/mino/minotaur.hurt_light_1",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       },
       {
         "name": "asterion:sfx/mino/minotaur.hurt_light_2",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -171,12 +174,12 @@
       {
         "name": "asterion:sfx/mino/minotaur.hurt_exposed_1",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       },
       {
         "name": "asterion:sfx/mino/minotaur.hurt_exposed_2",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -186,7 +189,7 @@
       {
         "name": "asterion:sfx/mino/minotaur.charge_warning",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -195,7 +198,8 @@
     "sounds": [
       {
         "name": "asterion:sfx/mino/minotaur.charge_roar",
-        "preload": true
+        "preload": true,
+        "attenuation_distance": 64
       }
     ]
   },
@@ -205,7 +209,7 @@
       {
         "name": "asterion:sfx/mino/minotaur.charge_hit_player",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -227,7 +231,7 @@
       {
         "name": "asterion:sfx/mino/minotaur.charge_hit_wall",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -249,7 +253,7 @@
       {
         "name": "asterion:sfx/mino/minotaur.land_slam",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -259,7 +263,7 @@
       {
         "name": "asterion:sfx/mino/minotaur.land_light",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -285,7 +289,7 @@
       {
         "name": "asterion:sfx/mino/minotaur.sword_sheathe",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -295,7 +299,7 @@
       {
         "name": "asterion:sfx/mino/minotaur.sword_swing",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -304,7 +308,8 @@
     "sounds": [
       {
         "name": "asterion:sfx/mino/minotaur.roar",
-        "preload": true
+        "preload": true,
+        "attenuation_distance": 64
       }
     ]
   },
@@ -314,7 +319,7 @@
       {
         "name": "asterion:sfx/mino/minotaur.fist_swing",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -324,7 +329,7 @@
       {
         "name": "asterion:sfx/mino/minotaur.fist_swing_combo",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -385,7 +390,9 @@
     "sounds": [
       {
         "name": "asterion:sfx/minotaur/axe_draw",
-        "attenuation_distance": 32
+        "attenuation_distance": 64,
+        "preload": true,
+        "volume": 1.35
       }
     ]
   },
@@ -393,7 +400,9 @@
     "sounds": [
       {
         "name": "asterion:sfx/minotaur/axe_throw",
-        "attenuation_distance": 32
+        "attenuation_distance": 64,
+        "preload": true,
+        "volume": 1.35
       }
     ]
   },
@@ -401,7 +410,9 @@
     "sounds": [
       {
         "name": "asterion:sfx/minotaur/axe_flight_loop",
-        "attenuation_distance": 32
+        "attenuation_distance": 64,
+        "preload": true,
+        "volume": 1.35
       }
     ]
   },
@@ -409,11 +420,15 @@
     "sounds": [
       {
         "name": "asterion:sfx/minotaur/axe_swing1",
-        "attenuation_distance": 24
+        "attenuation_distance": 64,
+        "preload": true,
+        "volume": 1.35
       },
       {
         "name": "asterion:sfx/minotaur/axe_swing2",
-        "attenuation_distance": 24
+        "attenuation_distance": 64,
+        "preload": true,
+        "volume": 1.35
       }
     ]
   }

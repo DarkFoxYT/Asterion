@@ -11,6 +11,12 @@ public final class CentipedeInteraction {
     public record Hit(int seat, Vec3 point, double distanceSquared) {}
 
     private CentipedeInteraction() {}
+    public static AABB bounds(int segment,CentipedeChain.Pose pose) {
+        AABB box=segment==0?BODY.minmax(HEAD):BODY;
+        Vec3 first=toWorld(new Vec3(box.minX,box.minY,box.minZ),pose);AABB bounds=new AABB(first,first);
+        for(int i=0;i<8;i++){Vec3 p=toWorld(new Vec3((i&1)==0?box.minX:box.maxX,(i&2)==0?box.minY:box.maxY,(i&4)==0?box.minZ:box.maxZ),pose);bounds=bounds.minmax(new AABB(p,p));}
+        return bounds;
+    }
 
     public static Hit pick(Vec3 eye, Vec3 end, int count, IntFunction<CentipedeChain.Pose> poses) {
         Hit nearest = null;

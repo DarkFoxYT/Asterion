@@ -1,29 +1,83 @@
 package net.krodark.asterion.port.client;
 
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.krodark.asterion.Asterion;
+import net.krodark.asterion.AsterionConfig;
 import net.minecraft.client.Minecraft;
-import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
+import net.minecraft.client.multiplayer.ClientLevel;
 
-/** Sparse world particles complement the depth-aware volumetric atmosphere. */
+/** Keeps shader-shaped haze suspended throughout the visible air. */
 public final class PortAtmosphere {
-    private PortAtmosphere() {}
+    private static ClientLevel lastLevel;
+    private static double lastHeight;
+    private static int heightRefreshTicks;
+
+    private PortAtmosphere() { }
+
+    public static void initialize() {
+        ClientTickEvents.END_CLIENT_TICK.register(PortAtmosphere::tick);
+    }
 
     public static void tick(Minecraft client) {
-        if (client.level == null || client.player == null
-                || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)
-                || !net.krodark.asterion.AsterionConfig.INSTANCE.dustyAirEnabled
-                || client.level.getGameTime() % 3L != 0L) return;
-        RandomSource random = client.level.random;
-        for (int i = 0; i < 2; i++) {
-            double angle = random.nextDouble() * Math.PI * 2.0D;
-            double distance = 8.0D + random.nextDouble() * 24.0D;
-            double x = client.player.getX() + Math.cos(angle) * distance;
-            double y = client.player.getEyeY() - 3.0D + random.nextDouble() * 7.0D;
-            double z = client.player.getZ() + Math.sin(angle) * distance;
-            client.level.addParticle(i == 0 ? ParticleTypes.ASH : ParticleTypes.WHITE_ASH,
-                    x, y, z, (random.nextDouble() - .5D) * .006D,
-                    .002D + random.nextDouble() * .006D, (random.nextDouble() - .5D) * .006D);
+        if (client.level == null || client.player == null) {
+            lastLevel = null;
+            return;
+        }
+        if (client.isPaused() || client.player.isUnderWater()) return;
+        boolean limbo = false;
+        boolean labyrinth = client.level.dimension().equals(Asterion.ASTERION_LEVEL);
+        if (!limbo && !labyrinth) return;
+
+        AsterionConfig config = AsterionConfig.INSTANCE;
+        if (config.ambientParticleQuality <= 0) return;
+        float strength = limbo ? config.limboHazeStrength : config.labyrinthHazeStrength;
+        if (strength <= 0F) return;
+        RandomSource random = client.player.getRandom();
+        if (lastLevel != client.level) {
+            lastLevel = client.level;
+            lastHeight = client.player.getY();
+            heightRefreshTicks = 40;
+        } else if (Math.abs(client.player.getY() - lastHeight) > 4D) {
+            lastHeight = client.player.getY();
+            heightRefreshTicks = 35;
+        }
+        double viewRadius = Math.max(32D,
+                (client.options.getEffectiveRenderDistance() - 1) * 16D);
+        float quality = config.ambientParticleQuality == 1 ? .55F : 1F;
+        if (heightRefreshTicks > 0) {
+            heightRefreshTicks--;
+            if (random.nextFloat() < strength * quality * .85F) {
+                spawnAroundPlayer(client, random, 12D, Math.min(52D, viewRadius));
+            }
+        }
+        if (random.nextFloat() < strength * quality * .4F) {
+            spawnAroundPlayer(client, random, 12D, Math.min(52D, viewRadius));
+        }
+        if (viewRadius > 52D && random.nextFloat() < strength * quality * .8F) {
+            spawnAroundPlayer(client, random, 52D, viewRadius);
+        }
+    }
+
+    private static void spawnAroundPlayer(Minecraft client, RandomSource random,
+                                          double minRadius, double maxRadius) {
+        for (int attempt = 0; attempt < 20; attempt++) {
+            double angle = random.nextDouble() * Math.PI * 2D;
+            double radius = Math.sqrt(minRadius * minRadius
+                    + random.nextDouble() * (maxRadius * maxRadius - minRadius * minRadius));
+            double x = client.player.getX() + Math.cos(angle) * radius;
+            double z = client.player.getZ() + Math.sin(angle) * radius;
+            double y = client.player.getY() - 5D + random.nextDouble() * 11D;
+            BlockPos position = BlockPos.containing(x, y, z);
+            if (!client.level.hasChunk(position.getX() >> 4, position.getZ() >> 4)
+                    || !client.level.getBlockState(position).isAir()
+                    || !client.level.getFluidState(position).isEmpty()) continue;
+            double vx = (random.nextDouble() - .5D) * .014D;
+            double vy = (random.nextDouble() - .5D) * .003D;
+            double vz = (random.nextDouble() - .5D) * .014D;
+            client.level.addParticle(Asterion.GROUND_FOG, x, y, z, vx, vy, vz);
+            return;
         }
     }
 }

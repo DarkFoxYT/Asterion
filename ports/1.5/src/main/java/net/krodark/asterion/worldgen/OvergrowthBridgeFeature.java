@@ -84,11 +84,14 @@ public final class OvergrowthBridgeFeature extends Feature<NoneFeatureConfigurat
 
     private static int buildBridge(WorldGenLevel level, Span span, long seed) {
         int placed = 0;
+        int style=(int)Math.floorMod(seed >>> 12,3); // timber, shallow stone arch, suspended timber
         Direction side = span.direction.getClockWise();
         BlockState leaves = Asterion.ANCIENT_LEAVES.defaultBlockState()
                 .setValue(LeavesBlock.PERSISTENT, true);
         for (int step = 0; step <= span.distance; step++) {
-            BlockPos centerDeck = span.first.relative(span.direction, step);
+            int archHalfSteps=style==1?Math.min(4,Math.min(step,span.distance-step)/2):0;
+            int rise=(archHalfSteps+1)/2;
+            BlockPos centerDeck = span.first.relative(span.direction, step).above(rise);
             double foliage = smoothNoise1D(seed ^ 0xA24BAED4963EE407L, step / 3.4D);
             for (int width = -1; width <= 1; width++) {
                 BlockPos deck = centerDeck.relative(side, width);
@@ -99,6 +102,10 @@ public final class OvergrowthBridgeFeature extends Feature<NoneFeatureConfigurat
                         ? Asterion.ANCIENT_PLANKS.defaultBlockState()
                         : Asterion.ANCIENT_PLANK_SLAB.defaultBlockState()
                                 .setValue(SlabBlock.TYPE, SlabType.TOP);
+                if(style==1) state=(archHalfSteps&1)==1
+                        ?Asterion.ANCIENT_STONE_SLAB.defaultBlockState().setValue(SlabBlock.TYPE,SlabType.BOTTOM)
+                        :width==0?Asterion.ANCIENT_STONE.defaultBlockState()
+                        :Asterion.ANCIENT_STONE_SLAB.defaultBlockState().setValue(SlabBlock.TYPE,SlabType.TOP);
                 level.setBlock(deck, state, 2);
                 placed++;
 
@@ -107,16 +114,31 @@ public final class OvergrowthBridgeFeature extends Feature<NoneFeatureConfigurat
                     level.setBlock(deck.above(), Asterion.ANCIENT_MOSS_CARPET.defaultBlockState(), 2);
 
                  
-                if (!anchor && width != 0 && foliage > 0.43D
+                if (!anchor && style!=2 && width != 0 && foliage > 0.58D
                         && OvergrowthFeatureSupport.isOpen(level, deck.below())) {
                     level.setBlock(deck.below(), leaves, 2);
                     if (foliage > 0.68D && OvergrowthFeatureSupport.isOpen(level, deck.below(2)))
                         level.setBlock(deck.below(2), leaves, 2);
                 }
+                if(!anchor && width!=0 && step%4==2) {
+                    // Rails stay outside the clear central walking lane; tails hang below the deck.
+                    if(style==2 && OvergrowthFeatureSupport.isOpen(level,deck.above()))
+                        level.setBlock(deck.above(),Asterion.ANCIENT_PLANK_FENCE.defaultBlockState(),2);
+                    int tail=2+(int)Math.floorMod(detail>>>18,4);
+                    boolean metal=style==2 || (detail&8)==0;
+                    for(int drop=1;drop<=tail;drop++) {
+                        BlockPos hanging=deck.below(drop);
+                        if(!OvergrowthFeatureSupport.isOpen(level,hanging))break;
+                        BlockState hangingState=metal?Asterion.MAZESTEEL_CHAIN.defaultBlockState()
+                                :Asterion.LABYRINTH_VINE.defaultBlockState()
+                                .setValue(net.krodark.asterion.block.LabyrinthVineBlock.FACING,Direction.DOWN)
+                                .setValue(net.krodark.asterion.block.LabyrinthVineBlock.END,drop==tail);
+                        level.setBlock(hanging,hangingState,2);
+                    }
+                }
             }
         }
 
-         
         placeAnchor(level, span.first, span.direction);
         placeAnchor(level, span.second, span.direction.getOpposite());
         return placed;

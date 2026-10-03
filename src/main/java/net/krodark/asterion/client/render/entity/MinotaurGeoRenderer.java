@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.UUID;
 
 public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity, EntityRenderState> {
+    private static final DataTicket<Integer> CHAIN_OWNER = DataTickets.create("asterion_chain_owner", Integer.class);
     @Override public boolean shouldRender(MinotaurEntity boss, net.minecraft.client.renderer.culling.Frustum frustum,
                                           double x, double y, double z) {
         if (boss.doorEntryTicks() > 0 && boss.doorEntryTicks() - 1 < net.krodark.asterion.entity.MinotaurAnimationTiming.ENTRY_BREAK_TICK)
@@ -72,10 +73,10 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
                 return !state.isInvisible && !state.getOrDefaultGeckolibData(HARVESTED, false);
             }
 
-            @Override protected boolean enhancedSurface(EntityRenderState state) { return true; }
+            @Override protected boolean enhancedSurface(EntityRenderState state) { return state.getOrDefaultGeckolibData(EYE_TINT, -1) != 0xFF000000; }
 
             @Override protected net.minecraft.resources.Identifier amneticEmissionMesh(EntityRenderState state) {
-                return getGeoModel().getModelResource(state);
+                return state.getOrDefaultGeckolibData(EYE_TINT, -1) == 0xFF000000 ? null : getGeoModel().getModelResource(state);
             }
 
             @Override protected float emissiveStrength(EntityRenderState state) { return 1.35F; }
@@ -107,7 +108,9 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         if (Double.isFinite(replayTick))
             state.addGeckolibData(com.geckolib.constant.DataTickets.TICK, replayTick);
         double entryTime = Double.NaN;
-        if (minotaur.doorEntryTicks() > 0) {
+        if (minotaur.isDefeatedBoss() || !minotaur.isAlive()) {
+            state.addGeckolibData(EYE_TINT, 0xFF000000);
+        } else if (minotaur.doorEntryTicks() > 0) {
             entryTime = minotaur.doorEntryTicks() - 1 + (Double.isFinite(replayTick) ? replayTick - Math.floor(replayTick) : partialTick);
             double cinematicTime = net.krodark.asterion.client.cinematic.BossEntranceCinematic.visualTime(minotaur, partialTick);
             if (!Double.isFinite(replayTick) && Double.isFinite(cinematicTime)) entryTime = cinematicTime;
@@ -187,6 +190,7 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         state.addGeckolibData(GRAB_EXTENSION, grab.extension);
         state.addGeckolibData(GRAB_ARM, grab.arm);
         state.addGeckolibData(HELD_PLAYER, minotaur.heldPlayerId());
+        state.addGeckolibData(CHAIN_OWNER, minotaur.getId());
         state.addGeckolibData(AXE_ACTION, minotaur.isAxeAttackActive());
         float rage = minotaur.rage() / 12.0F;
         if (minotaur.doorEntryTicks() > 0) {
@@ -220,6 +224,11 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
             bones.get(bone).skipRender(removed || (skeleton ? !harvested : harvested && !retained));
         }
         int held = pass.getOrDefaultGeckolibData(HELD_PLAYER, -1);
+        int chainOwner = pass.getOrDefaultGeckolibData(CHAIN_OWNER, -1);
+        if (chainOwner >= 0) {
+            pass.addBonePositionListener("hand_chainR", (world, model, local) -> WeaponChainAttachments.capture(chainOwner, 1, world));
+            pass.addBonePositionListener("hand_chainL", (world, model, local) -> WeaponChainAttachments.capture(chainOwner, -1, world));
+        }
         if (held >= 0) pass.addBonePositionListener(
                 pass.getOrDefaultGeckolibData(GRAB_ARM, 1) >= 0 ? "right_player_grip" : "left_player_grip",
                 (world, model, local) -> MinotaurHandAttachment.capture(held, world));

@@ -64,6 +64,9 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     private Direction localDriverSurface;
 
     private final AnimatableInstanceCache animationCache = GeckoLibUtil.createInstanceCache(this);
+    private int supportTick = -1;
+    private AABB supportBounds;
+    private java.util.List<AABB> supportBoxes = java.util.List.of();
     private Vec3 surfaceForward = new Vec3(0.0D, 0.0D, -1.0D);
     private Vec3 smoothedAttachmentNormal = Direction.DOWN.getUnitVec3();
     private Vec3 smoothedSurfaceMotion = Vec3.ZERO;
@@ -75,6 +78,7 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     private int driverFrameTick = -100;
     private int surfaceContactGrace = CONTACT_GRACE_TICKS;
     private final CentipedeChain bodyChain = new CentipedeChain();
+    private final List<CentipedeSegmentEntity> hitSegments=new ArrayList<>();
     private final CentipedeCollision bodyCollision = new CentipedeCollision(region -> {
         List<AABB> blocks = new ArrayList<>();
         for (var shape : level().getBlockCollisions(this, region)) blocks.addAll(shape.toAabbs());
@@ -87,6 +91,8 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         if (!level.isClientSide()) setChainSegmentCount(CentipedeSegments.randomCount(random));
     }
 
+    // Vanilla callback retained for the shared Fabric/Quilt/NeoForge entity.
+    @SuppressWarnings("deprecation")
     @Override public boolean canBreatheUnderwater() { return true; }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -104,6 +110,12 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
                 && net.krodark.asterion.worldgen.ShaleCaves.contains(blockPosition()))
             return !net.krodark.asterion.worldgen.WorldGenerator.isNearSafeRune(server, blockPosition())
                     && BugSurfaces.allowed(level, blockPosition().below());
+        if (reason == EntitySpawnReason.NATURAL
+                && level instanceof ServerLevel surface && surface.dimension().equals(Asterion.ASTERION_LEVEL)
+                && getY()>=net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y
+                && net.krodark.asterion.worldgen.WorldGenerator.mazeBiomeAt(net.krodark.asterion.worldgen.MazeChunkGenerator.terrainSeed(surface.getChunkSource().randomState()),getBlockX(),getBlockZ(),net.krodark.asterion.AsterionConfig.INSTANCE.cellSize).kind()
+                ==net.krodark.asterion.worldgen.MazeBiomes.Kind.ANCIENT)
+            return !net.krodark.asterion.worldgen.WorldGenerator.isNearSafeRune(surface,blockPosition()) && BugSurfaces.allowed(level,blockPosition().below());
         if (reason == EntitySpawnReason.NATURAL
                 && (!(level instanceof ServerLevel serverLevel)
                 || !serverLevel.dimension().equals(Asterion.ASTERION_LEVEL)
@@ -172,7 +184,17 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
             smoothedSurfaceMotion = Vec3.ZERO;
         }
         keepHeadOutsideWalls();
-        bodyChain.tick(chainHeadCenter(), attachmentNormal(), surfaceForward(), chainSegmentCount(), bodyCollision);
+        bodyCollision.beginFrame();
+        bodyChain.tick(chainHeadCenter(), attachedSurface().getUnitVec3(), surfaceForward(), chainSegmentCount(), bodyCollision);
+        if(level() instanceof ServerLevel server) {
+            while(hitSegments.size()>chainSegmentCount())hitSegments.removeLast().discard();
+            for(int i=0;i<chainSegmentCount();i++) {
+                if(i>=hitSegments.size() || hitSegments.get(i).isRemoved()) {
+                    var part=new CentipedeSegmentEntity(Asterion.CENTIPEDE_SEGMENT,server);part.configure(this,i);
+                    if(server.addFreshEntity(part)){if(i>=hitSegments.size())hitSegments.add(part);else hitSegments.set(i,part);}
+                }else hitSegments.get(i).follow(this);
+            }
+        }
         for (Entity passenger : getPassengers()) positionRider(passenger);
         if (!usesSurfaceTravel()) setNoGravity(false);
         else {
@@ -491,7 +513,13 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     }
 
     private boolean touchingSurface(Direction direction) {
-        return BugSurfaces.touches(level(), getBoundingBox().move(direction.getUnitVec3().scale(CONTACT_PROBE)));
+        AABB box = getBoundingBox();
+        if (supportTick != tickCount || !box.equals(supportBounds)) {
+            supportTick = tickCount; supportBounds = box;
+            supportBoxes = BugSurfaces.collectCollision(level(), box.inflate(.85));
+        }
+        var plane = net.krodark.asterion.update.underworld.entity.SpiderSupportSurface.contact(supportBoxes, box, direction);
+        return plane != null && plane.distance(box.getCenter()) - plane.clearance(box) <= CONTACT_PROBE;
     }
 
     private void updateNearbySurface(Vec3 input) {
@@ -516,7 +544,8 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
     private void attachTo(Direction next, Direction previous) {
         if (!touchingSurface(next)) return;
         Vec3 nextNormal = next.getUnitVec3();
-        Vec3 projected = projectOntoSurface(surfaceForward, nextNormal);
+        Vec3 projected = net.krodark.asterion.update.underworld.entity.SpiderSurfaceMotion.transport(
+                previous.getUnitVec3(), nextNormal, surfaceForward);
         if (projected.lengthSqr() < 1.0E-5D) {
              
             projected = projectOntoSurface(previous.getUnitVec3().scale(-1.0D), nextNormal);

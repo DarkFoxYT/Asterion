@@ -62,6 +62,7 @@ import net.fabricmc.fabric.api.client.particle.v1.ParticleProviderRegistry;
 public final class AsterionClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
+        net.krodark.asterion.client.render.ClientRenderCaches.initialize();
         net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((stack, context, flag, lines) -> {
             if (stack.getItem() instanceof net.krodark.asterion.item.AfterblowItem afterblow
                     && !stack.getOrDefault(net.minecraft.core.component.DataComponents.TOOLTIP_DISPLAY,
@@ -79,9 +80,11 @@ public final class AsterionClient implements ClientModInitializer {
         AsterionPortalRenderer.register();
         DimensionTransitionOverlay.register();
         BossFinaleOverlay.register();
+        DeadSunEntryCinematic.register();
         BossEntranceCinematic.register();
         CursedBrazierCinematic.register();
         PressureButtonClient.initialize();
+        ChainClimbingClient.initialize();
         MazeObjectiveOverlay.register();
         QueenBeetleQuestOverlay.register();
         MazeZapRenderer.register();
@@ -103,6 +106,8 @@ public final class AsterionClient implements ClientModInitializer {
                 graphics.text(client.font, net.minecraft.network.chat.Component.translatable("interaction.asterion.call_lift"),
                         graphics.guiWidth() / 2 + 12, graphics.guiHeight() / 2 - 4, 0xFFB4ECFF, true);
         });
+        EntityRenderers.register(net.krodark.asterion.game.ChainLiftContent.PHYSICS_CHAIN,
+                net.krodark.asterion.client.render.entity.PhysicsChainRenderer::new);
         EntityRenderers.register(net.krodark.asterion.game.ChainLiftContent.LIFT, net.krodark.asterion.client.render.entity.ChainLiftRenderer::new);
         EntityRenderers.register(Asterion.MINOTAUR_AXE, net.krodark.asterion.client.render.entity.MinotaurAxeRenderer::new);
         EntityRenderers.register(Asterion.BOMBARDIER_BEETLE, BombadierBeetleGeoRenderer::new);
@@ -110,6 +115,7 @@ public final class AsterionClient implements ClientModInitializer {
         EntityRenderers.register(net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER, net.krodark.asterion.client.render.entity.CursedBrazierRenderer::new);
         EntityRenderers.register(Asterion.RUNE_BEETLE, net.krodark.asterion.client.render.entity.RuneBeetleRenderer::new);
         EntityRenderers.register(Asterion.SCARLET_CENTIPEDE, ScarletCentipedeGeoRenderer::new);
+        EntityRenderers.register(Asterion.CENTIPEDE_SEGMENT,net.minecraft.client.renderer.entity.NoopRenderer::new);
         EntityRenderers.register(Asterion.CONSTRUCT,
                 net.krodark.asterion.client.render.entity.ConstructGeoRenderer::new);
         EntityRenderers.register(Asterion.QUEEN_BEETLE,
@@ -340,6 +346,10 @@ public final class AsterionClient implements ClientModInitializer {
     }
 
     private void tick(Minecraft client) {
+        if (client.player != null && net.krodark.asterion.entity.MinotaurEntity.isHeld(client.player)) {
+            client.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+            while (client.options.keyTogglePerspective.consumeClick()) { }
+        }
         net.krodark.asterion.client.audio.AxeFlightAudio.tick(client);
         if (isPlayback(client)) ReplayCompatibility.cancelCinematics(client);
         CrucibleCamera.tick(client);

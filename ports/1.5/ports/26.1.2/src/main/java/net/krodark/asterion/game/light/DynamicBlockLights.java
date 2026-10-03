@@ -125,6 +125,8 @@ public final class DynamicBlockLights {
         }
     }
 
+    // Item light deliberately reads the default emission, independent of a block position.
+    @SuppressWarnings("deprecation")
     private static int lightLevel(ItemStack stack) {
         if (stack.isEmpty()) return 0;
         if (stack.is(Items.SOUL_TORCH) || stack.is(Items.SOUL_LANTERN)

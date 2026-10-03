@@ -37,6 +37,13 @@ public final class PortDeadSunEvents {
     private static final List<Warning> warnings = new ArrayList<>();
 
     private PortDeadSunEvents() {}
+    private static long lastImpactTick=Long.MIN_VALUE;
+    public static void impact(Vec3 center,float radius,float strength,int duration){
+        var client=Minecraft.getInstance();if(client.level==null)return;
+        long tick=client.level.getGameTime();if(lastImpactTick!=Long.MIN_VALUE && tick>=lastImpactTick && tick-lastImpactTick<3)return;
+        lastImpactTick=tick;if(rumbles.size()>=16)rumbles.remove(0);
+        rumbles.add(new Rumble(center,tick,duration,radius,strength,Double.doubleToLongBits(center.x+center.z)));
+    }
 
     public static void receive(DeadSunEventPayload payload) {
         Minecraft client = Minecraft.getInstance();

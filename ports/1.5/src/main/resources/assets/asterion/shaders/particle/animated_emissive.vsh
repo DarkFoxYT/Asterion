@@ -16,7 +16,9 @@ out vec4 vColor;
 
 void main() {
     vec4 center = ViewMatrix * vec4(Center, 1.0);
-    gl_Position = ProjectionMatrix * vec4(center.xy + mat2(cos(Roll), sin(Roll), -sin(Roll), cos(Roll)) * Position.xy * Size, center.zw);
+    float c = cos(Roll), s = sin(Roll);
+    vec2 rotated = mat2(c, s, -s, c) * Position.xy;
+    gl_Position = ProjectionMatrix * vec4(center.xy + rotated * Size, center.zw);
     quadUV = UvRect.xy + UV * UvRect.zw;
     vColor = InstColor;
 }

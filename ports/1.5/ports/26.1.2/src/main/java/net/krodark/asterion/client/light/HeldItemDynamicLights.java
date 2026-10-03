@@ -246,6 +246,8 @@ public final class HeldItemDynamicLights {
         }
         if (stack.getItem() instanceof BlockItem blockItem) {
             LightStyle cached = BLOCK_LIGHT_STYLES.computeIfAbsent(stack.getItem(), ignored -> {
+                // Item light uses the state default, without a placed-block world context.
+                @SuppressWarnings("deprecation")
                 int emission = blockItem.getBlock().defaultBlockState().getLightEmission();
                 if (emission <= 0) return NO_LIGHT;
                 float power = emission / 15.0F;

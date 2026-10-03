@@ -15,6 +15,18 @@ gradle.projectsEvaluated {
                 modProject.tasks.findByName('jar') != null ? 'jar' : null
         if (taskName == null || modProject == gradle.rootProject) return
 
+        if (modProject.version.toString() == '1.5') {
+            modProject.tasks.withType(org.gradle.language.jvm.tasks.ProcessResources).configureEach {
+                exclude 'data/asterion/dimension/limbo.json', 'data/asterion/dimension/underworld.json'
+                exclude 'data/asterion/dimension_type/limbo.json', 'data/asterion/dimension_type/underworld.json'
+                exclude 'data/asterion/worldgen/biome/limbo.json'
+            }
+            modProject.tasks.withType(org.gradle.api.tasks.bundling.Jar).configureEach {
+                exclude 'data/asterion/dimension/limbo.json', 'data/asterion/dimension/underworld.json'
+                exclude 'data/asterion/dimension_type/limbo.json', 'data/asterion/dimension_type/underworld.json'
+                exclude 'data/asterion/worldgen/biome/limbo.json'
+            }
+        }
         def artifact = modProject.tasks.named(taskName)
         def collect = modProject.tasks.register('collectModJar', Copy) {
             group = 'distribution'

@@ -33,6 +33,9 @@ public final class AsterionForge {
                 event.enqueueWork(AsterionRegistry::runAfterRegistration));
         AsterionRegistry.defer();
         bootstrapSharedContent();
+        net.minecraftforge.fml.DistExecutor.safeRunWhenOn(net.minecraftforge.api.distmarker.Dist.CLIENT,
+                () -> AsterionLegacyForgeClient::initialize);
+
     }
 
     private static void registerPending(RegisterEvent event) {

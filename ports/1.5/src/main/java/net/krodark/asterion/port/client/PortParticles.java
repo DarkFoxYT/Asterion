@@ -15,7 +15,7 @@ public final class PortParticles {
     public enum Style {
         GREEK_FIRE, BELCH_FIRE, BRAZIER_FIRE, GAS_FIRE, FLAMETHROWER_FIRE, STENCH,
         BELCH_SMOKE, FLAMETHROWER_GAS, FIREFLY, HOSTILE_FIREFLY, SOOT, TEAR,
-        DOOR_SMOKE, DOOR_DUST, FLY, WALL_DUST, RUMBLE
+        DOOR_SMOKE, DOOR_DUST, FLY, WALL_DUST, RUMBLE, GROUND_FOG, GROUND_HAZE
     }
     private PortParticles() {}
     public static ParticleProvider<SimpleParticleType> provider(SpriteSet sprites, Style style) {
@@ -38,6 +38,8 @@ public final class PortParticles {
                 case DOOR_SMOKE -> new DoorSmokeParticle(level,x,y,z,vx,vy,vz,sprites,random);
                 case DOOR_DUST -> new DoorDustParticle(level,x,y,z,vx,vy,vz,sprites,random);
                 case WALL_DUST -> AncientWallDustParticle.create(level,x,y,z,vx,vy,vz,sprites,random);
+                case GROUND_FOG -> GroundFogParticle.create(level,x,y,z,vx,vy,vz,sprites,random);
+                case GROUND_HAZE -> GroundHazeParticle.haze(level,x,y,z,vx,vy,vz,sprites,random);
                 case RUMBLE -> RumbleSmokeParticle.create(level,x,y,z,vx,vy,vz,sprites,random);
             };
         };

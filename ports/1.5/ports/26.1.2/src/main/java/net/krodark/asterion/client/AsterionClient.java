@@ -38,6 +38,8 @@ import net.krodark.asterion.client.particle.BombardierGasFireParticle;
 import net.krodark.asterion.client.particle.GreekFireParticle;
 import net.krodark.asterion.client.particle.AnimatedEmissiveParticle;
 import net.krodark.asterion.client.particle.AsterionEmissiveParticles;
+import net.krodark.asterion.client.particle.DimensionAtmosphereParticles;
+import net.krodark.asterion.client.particle.GroundFogParticle;
 import net.krodark.asterion.client.particle.FlyingInsectParticle;
 import net.krodark.asterion.client.particle.AncientWallDustParticle;
 import net.krodark.asterion.client.particle.RumbleSmokeParticle;
@@ -55,22 +57,34 @@ import net.minecraft.client.renderer.entity.EntityRenderers;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderers;
 import net.fabricmc.fabric.api.client.particle.v1.ParticleProviderRegistry;
 
+// Keep the Fabric-compatible entrypoint used by all three loader adapters.
+@SuppressWarnings("deprecation")
 public final class AsterionClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
+        net.krodark.asterion.client.render.ClientRenderCaches.initialize();
+        net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((stack, context, flag, lines) -> {
+            if (stack.getItem() instanceof net.krodark.asterion.item.AfterblowItem afterblow
+                    && !stack.getOrDefault(net.minecraft.core.component.DataComponents.TOOLTIP_DISPLAY,
+                    net.minecraft.world.item.component.TooltipDisplay.DEFAULT).hideTooltip())
+                afterblow.appendTooltip(stack, lines::add);
+        });
         net.krodark.asterion.client.render.HeavyWaterRendering.initialize();
-        if (!net.krodark.asterion.ForgeRuntime.isForge())
-            net.krodark.asterion.update.underworld.client.UnderworldClient.initialize();
+
         AsterionEmissiveConfig.load();
         AsterionEmissiveParticles.initialize();
+        DimensionAtmosphereParticles.initialize();
         AnimatedEmissiveParticle.initialize();
+        GroundFogParticle.initialize();
         AsterionPostEffects.register();
         AsterionPortalRenderer.register();
         DimensionTransitionOverlay.register();
         BossFinaleOverlay.register();
+        DeadSunEntryCinematic.register();
         BossEntranceCinematic.register();
         CursedBrazierCinematic.register();
         PressureButtonClient.initialize();
+        ChainClimbingClient.initialize();
         MazeObjectiveOverlay.register();
         QueenBeetleQuestOverlay.register();
         MazeZapRenderer.register();
@@ -79,6 +93,7 @@ public final class AsterionClient implements ClientModInitializer {
         RagdollClientController.initialize();
         CentipedeInteractionClient.initialize();
         EntityRenderers.register(Asterion.MINOTAUR, MinotaurGeoRenderer::new);
+
         EntityRenderers.register(net.krodark.asterion.game.AncientContent.SKELETON, net.krodark.asterion.client.render.entity.AncientSkeletonRenderer::new);
         EntityRenderers.register(net.krodark.asterion.game.ChainLiftContent.CALL_RUNE, net.krodark.asterion.client.render.entity.LiftCallRuneRenderer::new);
         net.krodark.asterion.client.ReplayCompatibility.addHud(Asterion.id("lift_call_prompt"), (graphics, tracker) -> {
@@ -90,6 +105,8 @@ public final class AsterionClient implements ClientModInitializer {
                 graphics.text(client.font, net.minecraft.network.chat.Component.translatable("interaction.asterion.call_lift"),
                         graphics.guiWidth() / 2 + 12, graphics.guiHeight() / 2 - 4, 0xFFB4ECFF, true);
         });
+        EntityRenderers.register(net.krodark.asterion.game.ChainLiftContent.PHYSICS_CHAIN,
+                net.krodark.asterion.client.render.entity.PhysicsChainRenderer::new);
         EntityRenderers.register(net.krodark.asterion.game.ChainLiftContent.LIFT, net.krodark.asterion.client.render.entity.ChainLiftRenderer::new);
         EntityRenderers.register(Asterion.MINOTAUR_AXE, net.krodark.asterion.client.render.entity.MinotaurAxeRenderer::new);
         EntityRenderers.register(Asterion.BOMBARDIER_BEETLE, BombadierBeetleGeoRenderer::new);
@@ -97,6 +114,7 @@ public final class AsterionClient implements ClientModInitializer {
         EntityRenderers.register(net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER, net.krodark.asterion.client.render.entity.CursedBrazierRenderer::new);
         EntityRenderers.register(Asterion.RUNE_BEETLE, net.krodark.asterion.client.render.entity.RuneBeetleRenderer::new);
         EntityRenderers.register(Asterion.SCARLET_CENTIPEDE, ScarletCentipedeGeoRenderer::new);
+        EntityRenderers.register(Asterion.CENTIPEDE_SEGMENT,net.minecraft.client.renderer.entity.NoopRenderer::new);
         EntityRenderers.register(Asterion.CONSTRUCT,
                 net.krodark.asterion.client.render.entity.ConstructGeoRenderer::new);
         EntityRenderers.register(Asterion.QUEEN_BEETLE,
@@ -159,6 +177,13 @@ public final class AsterionClient implements ClientModInitializer {
                 (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
                         RumbleSmokeParticle.create(level, x, y, z,
                                 velocityX, velocityY, velocityZ, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.GROUND_FOG, sprites ->
+                (type, level, x, y, z, velocityX, velocityY, velocityZ, random) ->
+                        GroundFogParticle.create(level, x, y, z,
+                                velocityX, velocityY, velocityZ, sprites, random));
+        ParticleProviderRegistry.getInstance().register(Asterion.GROUND_HAZE, sprites ->
+                (type, level, x, y, z, vx, vy, vz, random) ->
+                        net.krodark.asterion.client.particle.GroundHazeParticle.haze(level, x, y, z, vx, vy, vz, sprites, random));
         BlockEntityRenderers.register(Asterion.RUNE_BLOCK_ENTITY, RuneGeoRenderer::new);
         BlockEntityRenderers.register(Asterion.PILLAR_BLOCK_ENTITY, net.krodark.asterion.client.render.block.PillarRenderer::new);
         BlockEntityRenderers.register(Asterion.MINOTAUR_DOOR_BLOCK_ENTITY,
@@ -214,6 +239,7 @@ public final class AsterionClient implements ClientModInitializer {
                 }));
         ClientPlayNetworking.registerGlobalReceiver(DeadSunEventPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> DeadSunClientEvents.receive(payload)));
+
         ClientPlayNetworking.registerGlobalReceiver(MazeShiftPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> DeadSunClientEvents.receiveShift(payload)));
         ClientPlayNetworking.registerGlobalReceiver(net.krodark.asterion.network.ArenaDebrisPayload.TYPE, (payload, context) ->
@@ -278,6 +304,7 @@ public final class AsterionClient implements ClientModInitializer {
         net.krodark.asterion.client.render.TextureFrameCaches.initialize();
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
         ClientTickEvents.END_CLIENT_TICK.register(ForgeItemFlights::tick);
+        net.krodark.asterion.client.cinematic.studio.CutsceneStudio.initialize();
         BiomeMusic.initialize();
         MazeAmbience.initialize();
     }
@@ -316,6 +343,11 @@ public final class AsterionClient implements ClientModInitializer {
     }
 
     private void tick(Minecraft client) {
+        if (client.player != null && net.krodark.asterion.entity.MinotaurEntity.isHeld(client.player)) {
+            client.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+            while (client.options.keyTogglePerspective.consumeClick()) { }
+        }
+        net.krodark.asterion.client.audio.AxeFlightAudio.tick(client);
         if (isPlayback(client)) ReplayCompatibility.cancelCinematics(client);
         CrucibleCamera.tick(client);
         DimensionTransitionOverlay.tick(client);
@@ -330,7 +362,6 @@ public final class AsterionClient implements ClientModInitializer {
         QueenBeetleQuestOverlay.tick(client);
         DeadSunClientEvents.tick(client);
         PhysicsDebrisSystem.tick(client);
-        net.krodark.asterion.client.audio.AxeFlightAudio.tick(client);
         DazeOverlay.tick(client);
         HeldItemDynamicLights.tick(client);
         net.krodark.asterion.client.light.BrazierAmneticLights.tick(client);

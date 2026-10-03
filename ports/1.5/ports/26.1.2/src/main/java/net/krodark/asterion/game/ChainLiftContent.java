@@ -31,8 +31,16 @@ public final class ChainLiftContent {
             EntityType.Builder.of(net.krodark.asterion.entity.LiftCallRuneEntity::new, MobCategory.MISC).sized(.7F, .7F)
                     .clientTrackingRange(10).updateInterval(20).fireImmune().build(RUNE_KEY));
     private ChainLiftContent() {}
+    private static final ResourceKey<EntityType<?>> PHYSICS_KEY = ResourceKey.create(Registries.ENTITY_TYPE, Asterion.id("physics_chain"));
+    public static final EntityType<net.krodark.asterion.entity.PhysicsChainEntity> PHYSICS_CHAIN = Registry.register(BuiltInRegistries.ENTITY_TYPE, PHYSICS_KEY,
+            EntityType.Builder.of(net.krodark.asterion.entity.PhysicsChainEntity::new, MobCategory.MISC).sized(1, 1)
+                    .clientTrackingRange(12).updateInterval(2).fireImmune().build(PHYSICS_KEY));
+    private static final ResourceKey<Item> PHYSICS_ITEM_KEY = ResourceKey.create(Registries.ITEM, Asterion.id("physics_chain"));
+    public static final Item PHYSICS_CHAIN_ITEM = Registry.register(BuiltInRegistries.ITEM, PHYSICS_ITEM_KEY,
+            new net.krodark.asterion.item.PhysicsChainItem(new Item.Properties().setId(PHYSICS_ITEM_KEY)));
     public static void initialize() {
+        net.krodark.asterion.worldgen.GeneratedPhysicsChains.initialize();
         CreativeModeTabEvents.modifyOutputEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Asterion.id("asterion")))
-                .register(output -> output.accept(ITEM));
+                .register(output -> { output.accept(ITEM); output.accept(PHYSICS_CHAIN_ITEM); });
     }
 }

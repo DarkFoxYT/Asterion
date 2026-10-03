@@ -20,7 +20,9 @@ abstract class RagdollLevelRendererMixin {
         net.krodark.asterion.client.PerformanceGovernor.frame(Minecraft.getInstance());
         RagdollRenderer.submit(poses, state, output);
         PhysicsDebrisSystem.submit(poses, state, output);
+
         net.krodark.asterion.client.forge.ForgeItemFlights.submit(poses, state, output);
+        net.krodark.asterion.client.cinematic.studio.CutsceneStudio.submit(poses, state, output);
         Minecraft client = Minecraft.getInstance();
         if (client.gameRenderer != null)
             HeldItemDynamicLights.renderFrame(client,

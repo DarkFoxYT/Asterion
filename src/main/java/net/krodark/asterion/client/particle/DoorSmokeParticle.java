@@ -7,11 +7,14 @@ import net.minecraft.util.RandomSource;
  
 public final class DoorSmokeParticle extends SingleQuadParticle {
     private final SpriteSet sprites;
+    private final float angularSpeed;
     private final float opacity, growth;
     public DoorSmokeParticle(ClientLevel level, double x, double y, double z, double vx, double vy, double vz,
                              SpriteSet sprites, RandomSource random) {
         super(level, x, y, z, vx, vy, vz, sprites.first());
         this.sprites = sprites;
+        roll = oRoll = random.nextFloat() * (float)Math.PI * 2;
+        angularSpeed = (random.nextFloat() - .5F) * .018F;
         xd = vx; yd = vy; zd = vz;
         hasPhysics = true; friction = .96F; gravity = -.006F;
         lifetime = 55 + random.nextInt(35);
@@ -33,6 +36,7 @@ public final class DoorSmokeParticle extends SingleQuadParticle {
         return smoke;
     }
     @Override public void tick() {
+        oRoll = roll; roll += angularSpeed;
         super.tick();
         if (!isAlive()) return;
         quadSize += growth;

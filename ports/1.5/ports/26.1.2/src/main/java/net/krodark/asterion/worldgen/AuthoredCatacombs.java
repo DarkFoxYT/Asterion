@@ -300,6 +300,8 @@ public final class AuthoredCatacombs {
     }
      
     private static final StructureProcessor CROSSING_SURFACE = new StructureProcessor() {
+        // NeoForge's context-rich process overload delegates to this vanilla callback.
+        @SuppressWarnings("deprecation")
         @Override public StructureTemplate.StructureBlockInfo processBlock(
                 net.minecraft.world.level.LevelReader world, BlockPos origin, BlockPos reference,
                 StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed,
@@ -310,6 +312,8 @@ public final class AuthoredCatacombs {
         @Override protected StructureProcessorType<?> getType() { return StructureProcessorType.BLOCK_IGNORE; }
     };
     private static final StructureProcessor CLOSED_BARREL_DOORS = new StructureProcessor() {
+        // NeoForge's context-rich process overload delegates to this vanilla callback.
+        @SuppressWarnings("deprecation")
         @Override public StructureTemplate.StructureBlockInfo processBlock(
                 net.minecraft.world.level.LevelReader world, BlockPos origin, BlockPos reference,
                 StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed,
@@ -336,6 +340,8 @@ public final class AuthoredCatacombs {
         @Override protected StructureProcessorType<?> getType() { return StructureProcessorType.BLOCK_IGNORE; }
     };
     private static final StructureProcessor REMOVE_ARENA_MARKERS = new StructureProcessor() {
+        // NeoForge's context-rich process overload delegates to this vanilla callback.
+        @SuppressWarnings("deprecation")
         @Override public StructureTemplate.StructureBlockInfo processBlock(
                 net.minecraft.world.level.LevelReader world, BlockPos origin, BlockPos reference,
                 StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed,
@@ -347,6 +353,8 @@ public final class AuthoredCatacombs {
         @Override protected StructureProcessorType<?> getType() { return StructureProcessorType.BLOCK_IGNORE; }
     };
     private static final StructureProcessor ARENA_NBT_ONLY = new StructureProcessor() {
+        // NeoForge's context-rich process overload delegates to this vanilla callback.
+        @SuppressWarnings("deprecation")
         @Override public StructureTemplate.StructureBlockInfo processBlock(
                 net.minecraft.world.level.LevelReader world, BlockPos origin, BlockPos reference,
                 StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed,

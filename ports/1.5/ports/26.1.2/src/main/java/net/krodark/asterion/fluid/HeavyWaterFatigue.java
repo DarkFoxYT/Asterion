@@ -39,6 +39,8 @@ public final class HeavyWaterFatigue {
             }
         }
     }
+    // This threshold intentionally measures the vanilla WATER tag across loaders.
+    @SuppressWarnings("deprecation")
     public static boolean swimmingInHeavyWater(net.minecraft.world.entity.player.Player player) {
         if (!player.isInWater() || player.isPassenger()
                 || player.onGround() && player.getFluidHeight(FluidTags.WATER) < .8 && !player.isSwimming()) return false;

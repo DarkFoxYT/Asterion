@@ -45,11 +45,13 @@ public abstract class AnimatedEmissiveParticle extends TextureSheetParticle {
         super(level, x, y, z, vx, vy, vz);
         setSprite(sprites.get(0, 1));
         this.sprites = sprites;
+        roll=oRoll=(random.nextFloat()-.5F)*.35F;
         lastTick = level.getGameTime();
         ACTIVE.add(this);
     }
 
     private float renderRoll;
+    private final float spin=(random.nextFloat()-.5F)*.035F;
     public static void initialize() {
         if (initialized) return;
         InstanceLayout layout = InstanceLayout.builder().vec3(2).float1(3).vec4(4).vec4(5).float1(6).build();
@@ -126,6 +128,7 @@ public abstract class AnimatedEmissiveParticle extends TextureSheetParticle {
 
     @Override
     public void tick() {
+        oRoll=roll;roll+=spin;
         markTicked();
         super.tick();
         setSpriteFromAge(sprites);

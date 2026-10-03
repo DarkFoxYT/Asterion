@@ -35,7 +35,8 @@ public final class OvergrowthBridgeChainFeature extends Feature<NoneFeatureConfi
                     BlockPos wood = new BlockPos(x, y, z);
                     var support = level.getBlockState(wood);
                     if (!support.is(Asterion.ANCIENT_PLANKS)
-                            && !support.is(Asterion.ANCIENT_PLANK_SLAB)) continue;
+                            && !support.is(Asterion.ANCIENT_PLANK_SLAB)
+                            && !support.is(Asterion.ANCIENT_STONE) && !support.is(Asterion.ANCIENT_STONE_SLAB)) continue;
                     if (!OvergrowthFeatureSupport.isOpen(level, wood.below()) || random.nextInt(9) != 0) break;
                     int length = 3 + random.nextInt(7);
                     for (int drop = 1; drop <= length; drop++) {

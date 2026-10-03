@@ -12,9 +12,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemUseAnimation;
-import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.CustomData;
-import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.level.Level;
 
  
@@ -133,9 +131,7 @@ public final class AfterblowItem extends Item {
         if (!model.equals(stack.get(DataComponents.CUSTOM_MODEL_DATA))) stack.set(DataComponents.CUSTOM_MODEL_DATA, model);
     }
 
-    @Override
-    public void appendHoverText(ItemStack stack, TooltipContext context, TooltipDisplay display,
-                                Consumer<Component> tooltip, TooltipFlag flag) {
+    public void appendTooltip(ItemStack stack, Consumer<Component> tooltip) {
         float stored = rawStored(stack);
         if (stored > .01F)
             tooltip.accept(Component.translatable("tooltip.asterion.afterblow.stored", stored)

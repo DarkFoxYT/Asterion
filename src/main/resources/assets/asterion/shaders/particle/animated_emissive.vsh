@@ -6,6 +6,7 @@ layout(location = 2) in vec3 Center;
 layout(location = 3) in float Size;
 layout(location = 4) in vec4 InstColor;
 layout(location = 5) in vec4 UvRect;
+layout(location = 6) in float Roll;
 
 uniform mat4 ProjectionMatrix;
 uniform mat4 ViewMatrix;
@@ -15,7 +16,9 @@ out vec4 vColor;
 
 void main() {
     vec4 center = ViewMatrix * vec4(Center, 1.0);
-    gl_Position = ProjectionMatrix * vec4(center.xy + Position.xy * Size, center.zw);
+    float c = cos(Roll), s = sin(Roll);
+    vec2 rotated = mat2(c, s, -s, c) * Position.xy;
+    gl_Position = ProjectionMatrix * vec4(center.xy + rotated * Size, center.zw);
     quadUV = UvRect.xy + UV * UvRect.zw;
     vColor = InstColor;
 }

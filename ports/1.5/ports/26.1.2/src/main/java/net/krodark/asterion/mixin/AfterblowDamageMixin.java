@@ -15,6 +15,8 @@ public abstract class AfterblowDamageMixin {
     @ModifyVariable(method = "hurtServer", at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private float asterion$addAfterblowCharge(float damage, ServerLevel level, DamageSource source) {
         float chargedDamage = WeaponCombatSystem.afterblowDamage(source, damage, level.getGameTime());
+        if (source.getEntity() instanceof net.krodark.asterion.entity.MinotaurEntity boss)
+            chargedDamage *= boss.brazierDamageMultiplier();
         if (chargedDamage > damage) ((LivingEntity)(Object)this).invulnerableTime = 0;
         return chargedDamage;
     }

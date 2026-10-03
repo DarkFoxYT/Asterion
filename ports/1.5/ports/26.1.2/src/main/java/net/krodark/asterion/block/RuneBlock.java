@@ -44,7 +44,7 @@ public final class RuneBlock extends BaseEntityBlock implements WaterloggedDecor
         return root.relative(facing.getClockWise(), column - 1).above(row);
     }
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, POWERED, COLUMN, ROW, BlockStateProperties.WATERLOGGED);
+        builder.add(FACING, POWERED, COLUMN, ROW);
     }
     @Override public @Nullable BlockState getStateForPlacement(BlockPlaceContext context) {
         var level = context.getLevel();
@@ -123,8 +123,10 @@ public final class RuneBlock extends BaseEntityBlock implements WaterloggedDecor
     @Override protected BlockState updateShape(BlockState state, LevelReader level, ScheduledTickAccess ticks,
             BlockPos pos, Direction direction, BlockPos neighbor, BlockState neighborState, RandomSource random) {
         BlockPos anchorPos = root(pos, state);
-        BlockState anchor = level.hasChunkAt(anchorPos) ? level.getBlockState(anchorPos) : state;
-        ticks.scheduleTick(level.hasChunkAt(anchorPos) && anchor.is(this) && isRoot(anchor) ? anchorPos : pos, this, 1);
+        var chunk = level.getChunk(anchorPos.getX() >> 4, anchorPos.getZ() >> 4,
+                net.minecraft.world.level.chunk.status.ChunkStatus.EMPTY, false);
+        BlockState anchor = chunk != null ? chunk.getBlockState(anchorPos) : state;
+        ticks.scheduleTick(chunk != null && anchor.is(this) && isRoot(anchor) ? anchorPos : pos, this, 1);
         return state;
     }
     @Override protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {

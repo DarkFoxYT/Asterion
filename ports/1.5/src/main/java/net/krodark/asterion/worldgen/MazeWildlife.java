@@ -22,6 +22,8 @@ public final class MazeWildlife {
             }
             boolean sewer = CatacombLayout.contains(player.blockPosition());
             if (sewer) continue;
+            if(level.getGameTime()%600==0 && WorldGenerator.mazeBiomeAt(MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState()),player.getBlockX(),player.getBlockZ(),net.krodark.asterion.AsterionConfig.INSTANCE.cellSize).kind()==MazeBiomes.Kind.ANCIENT)
+                spawnAncientCentipede(level,player);
             AABB area = player.getBoundingBox().inflate(56);
             int count = level.getEntitiesOfClass(BombadierBeetleEntity.class, area).size();
             if (count >= 6) continue;
@@ -69,6 +71,20 @@ public final class MazeWildlife {
                 level.addFreshEntity(mob);
                 return;
             }
+        }
+    }
+    private static void spawnAncientCentipede(ServerLevel level,net.minecraft.server.level.ServerPlayer player) {
+        if(level.getEntitiesOfClass(ScarletCentipedeEntity.class,player.getBoundingBox().inflate(96)).size()>=2)return;
+        for(int attempt=0;attempt<12;attempt++) {
+            double angle=level.getRandom().nextDouble()*Math.PI*2,distance=28+level.getRandom().nextInt(20);
+            int x=(int)Math.floor(player.getX()+Math.cos(angle)*distance),z=(int)Math.floor(player.getZ()+Math.sin(angle)*distance);
+            if(!level.getChunkSource().hasChunk(x>>4,z>>4) || WorldGenerator.mazeBiomeAt(MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState()),x,z,net.krodark.asterion.AsterionConfig.INSTANCE.cellSize).kind()!=MazeBiomes.Kind.ANCIENT)continue;
+            BlockPos floor=OvergrowthFeatureSupport.findFloor(level,x,z);if(floor==null || WorldGenerator.isNearSafeRune(level,floor))continue;
+            var mob=Asterion.SCARLET_CENTIPEDE.create(level);if(mob==null)return;
+            mob.setPos(x+.5,floor.getY()+1,z+.5);
+            if(!mob.checkSpawnRules(level,MobSpawnType.NATURAL) || !level.noCollision(mob) || !level.isUnobstructed(mob)
+                    || level.players().stream().anyMatch(other->other.distanceToSqr(mob)<24*24))continue;
+            if(level.addFreshEntity(mob))return;
         }
     }
 }

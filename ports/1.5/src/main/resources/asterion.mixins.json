@@ -7,6 +7,7 @@
     "MinotaurCinematicTrackingMixin",
     "ChunkMapTrackingAccessor",
     "ChainLiftMovementMixin",
+    "PhysicsChainClimbingMixin",
     "ChainLiftServerMovementMixin",
     "AfterblowDamageMixin",
     "MazesteelMiningMixin",
@@ -34,6 +35,7 @@
   "client": [
     "ItemPropertiesInvoker",
     "PortCameraMixin",
+    "PortDeathScreenMixin",
     "PortCentipedeInteractionMixin",
     "PortBiomeMusicMixin",
     "PortFogRendererMixin",

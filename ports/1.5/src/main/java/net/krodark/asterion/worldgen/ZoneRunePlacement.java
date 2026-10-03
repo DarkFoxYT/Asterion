@@ -213,6 +213,10 @@ public final class ZoneRunePlacement {
             progress.put(cp, new int[2]);
             return null;
         }
+        // Deferred placed features run on the server thread. Their placement offsets can
+        // reach adjacent chunks; wait for those chunks instead of generating them synchronously.
+        for(int dx=-1;dx<=1;dx++)for(int dz=-1;dz<=1;dz++)
+            if(level.getChunkSource().getChunkNow(cp.x+dx,cp.z+dz)==null)return null;
         var registry = level.registryAccess().lookupOrThrow(Registries.PLACED_FEATURE);
         int end = Math.min(MAZE_FEATURES.size(), stage[0] + 1);
         while (stage[0] < end) {

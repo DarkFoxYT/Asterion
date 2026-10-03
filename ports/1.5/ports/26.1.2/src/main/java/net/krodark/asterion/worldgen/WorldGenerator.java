@@ -124,6 +124,7 @@ public final class WorldGenerator {
     private static final PriorityQueue<RestoringBlock> RESTORING_BLOCKS = new PriorityQueue<>(
             Comparator.comparingLong(RestoringBlock::dueTick));
     private static final Map<BlockKey, Block> PLAYER_PLACED_BLOCKS = new HashMap<>();
+    private static final Map<BlockKey, Long> CATACOMB_PLACEMENT_EXPIRY = new HashMap<>();
     private static long prewarmSeed = Long.MIN_VALUE;
     private static int prewarmIndex;
     private static BlockPos sharedPortalArrival;
@@ -175,6 +176,16 @@ public final class WorldGenerator {
         tickRestoringBlocks(server);
         ServerLevel maze = server.getLevel(Asterion.ASTERION_LEVEL);
         if (maze != null) {
+            var expired = CATACOMB_PLACEMENT_EXPIRY.entrySet().iterator();
+            while (expired.hasNext()) {
+                var entry = expired.next();
+                if (maze.getGameTime() < entry.getValue() || !maze.isLoaded(entry.getKey().pos)) continue;
+                BlockKey key = entry.getKey();
+                expired.remove();
+                Block expected = PLAYER_PLACED_BLOCKS.remove(key);
+                if (expected != null && maze.getBlockState(key.pos).is(expected))
+                    maze.destroyBlock(key.pos, true);
+            }
             tickMaze(maze);
         }
         server.getPlayerList().getPlayers().forEach(WorldGenerator::tickPlayer);
@@ -456,6 +467,8 @@ public final class WorldGenerator {
     public static void trackPlayerPlacement(ServerLevel level, BlockPos pos, BlockState state) {
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
         PLAYER_PLACED_BLOCKS.put(new BlockKey(level.dimension(), pos.immutable()), state.getBlock());
+        if (CatacombLayout.contains(pos))
+            CATACOMB_PLACEMENT_EXPIRY.put(new BlockKey(level.dimension(), pos.immutable()), level.getGameTime() + 20);
         RESTORING_BLOCKS.removeIf(entry -> entry.dimension.equals(level.dimension()) && entry.pos.equals(pos));
     }
 
@@ -465,6 +478,7 @@ public final class WorldGenerator {
         Block placed = PLAYER_PLACED_BLOCKS.get(key);
         if (placed == state.getBlock()) {
             PLAYER_PLACED_BLOCKS.remove(key);
+            CATACOMB_PLACEMENT_EXPIRY.remove(key);
             return;
         }
         RESTORING_BLOCKS.removeIf(entry -> entry.dimension.equals(level.dimension()) && entry.pos.equals(pos));
@@ -524,10 +538,11 @@ public final class WorldGenerator {
                  
                 boolean newShell = expandLegacyShell && !isWall(topology, structures, seed, biome,
                         x, z, cell, 2, radius);
-                int wallHeight = biome.kind() == MazeBiomes.Kind.CRIMSON_MARSHLANDS
-                        ? Math.min(DIMENSION_CEILING_Y - floorY - 2,
-                                Math.max(config.wallHeight + 28, 56))
-                        : config.wallHeight;
+                int wallHeight=config.wallHeight;
+                if(biome.kind()==MazeBiomes.Kind.CRIMSON_MARSHLANDS) {
+                    int tall=Math.min(DIMENSION_CEILING_Y-floorY-2,Math.max(config.wallHeight+28,56));
+                    wallHeight+=(int)Math.round((tall-config.wallHeight)*overgrowthBlendAt(seed,x,z,cell));
+                }
                 for (int rise = 1; rise <= wallHeight; rise++) {
                     cursor.set(x, floorY + rise, z);
                     BlockState current = chunk.getBlockState(cursor);
@@ -738,6 +753,8 @@ public final class WorldGenerator {
                             level.getGameTime() + 10L));
                     continue;
                 }
+                // Restoration uses the saved state defaults on every supported loader.
+                @SuppressWarnings("deprecation")
                 var sound = entry.state.getSoundType();
                 level.playSound(null, entry.pos, sound.getPlaceSound(), SoundSource.BLOCKS,
                         (sound.getVolume() + 1.0F) * 0.5F, sound.getPitch() * 0.8F);
@@ -1218,14 +1235,26 @@ public final class WorldGenerator {
         };
         if (finale.ticks >= 34 && finale.ticks <= 220 && finale.ticks % lightningInterval == 0)
             strikeFinaleAroundPlayers(maze, finale.ticks, false);
-        if (finale.ticks == 220) strikeFinaleAroundPlayers(maze, finale.ticks, true);
+        if (finale.ticks >= net.krodark.asterion.game.FinaleTimeline.BEAM_START
+                && finale.ticks < net.krodark.asterion.game.FinaleTimeline.BEAM_END
+                && (finale.ticks - net.krodark.asterion.game.FinaleTimeline.BEAM_START) % 26 == 0) {
+            // The sustained solar discharge has a visible, physical destination.
+            BlockPos impact = BlockPos.containing(bossArenaCenter());
+            DeadSunStrikePayload pulse = new DeadSunStrikePayload(impact, 0, 6F, maze.getGameTime());
+            for (ServerPlayer viewer : maze.players())
+                if (ServerPlayNetworking.canSend(viewer, DeadSunStrikePayload.TYPE))
+                    ServerPlayNetworking.send(viewer, pulse);
+            finaleLightningImpact(maze, impact, 6);
+        }
+        if (finale.ticks == net.krodark.asterion.game.FinaleTimeline.DETONATION)
+            strikeFinaleAroundPlayers(maze, finale.ticks, true);
         if (finale.ticks == 260) for (ServerPlayer player : maze.players()) {
             player.setInvulnerable(true);
             player.setDeltaMovement(Vec3.ZERO);
         }
         if (finale.ticks >= 260 && finale.ticks < 310) for (ServerPlayer player : maze.players())
             player.setDeltaMovement(Vec3.ZERO);
-        if (finale.ticks == 310) {
+        if (finale.ticks == net.krodark.asterion.game.FinaleTimeline.RETURN) {
             for (ServerPlayer player : new ArrayList<>(maze.players())) {
                 finale.previousInvulnerability.putIfAbsent(player.getUUID(), player.isInvulnerable());
                 player.addItem(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.ECHO_SHARD, 8));
@@ -1239,14 +1268,16 @@ public final class WorldGenerator {
                 player.setInvulnerable(true);
             }
         }
-        if (finale.ticks == 362) {
+        if (finale.ticks == net.krodark.asterion.game.FinaleTimeline.RETURN+net.krodark.asterion.game.FinaleTimeline.CREDITS_TICKS
+                +net.krodark.asterion.game.FinaleTimeline.RETURN_FADE_TICKS+40) {
             ServerLevel overworld = maze.getServer().overworld();
             for (var entry : finale.previousInvulnerability.entrySet()) {
                 var found = overworld.getPlayerByUUID(entry.getKey());
                 if (found instanceof ServerPlayer player) player.setInvulnerable(entry.getValue());
             }
         }
-        if (finale.ticks >= 390) {
+        if (finale.ticks >= net.krodark.asterion.game.FinaleTimeline.RETURN+net.krodark.asterion.game.FinaleTimeline.CREDITS_TICKS
+                +net.krodark.asterion.game.FinaleTimeline.RETURN_FADE_TICKS+60) {
             bossFinale = null;
             BossArenaEncounter.finishDefeated(maze);
             clearBossArenaTransientState(maze);
@@ -2005,6 +2036,7 @@ public final class WorldGenerator {
         LAST_BIOME_ATMOSPHERE.clear();
         GATEWAY_SURFACE_Y.clear();
         PLAYER_PLACED_BLOCKS.clear();
+        CATACOMB_PLACEMENT_EXPIRY.clear();
         RESTORING_BLOCKS.clear();
         MAZE_TOPOLOGIES.clear();
         prewarmSeed = Long.MIN_VALUE;
@@ -2527,10 +2559,12 @@ public final class WorldGenerator {
                 }
 
                 MazeBiomes.Biome biome = mazeBiomeAt(seed, x, z, cell);
-                int biomeWallHeight = biome.kind() == MazeBiomes.Kind.CRIMSON_MARSHLANDS
-                        ? Math.min(DIMENSION_CEILING_Y - floorY - 2,
-                                Math.max(config.wallHeight + 28, 56))
-                        : config.wallHeight;
+                int biomeWallHeight=config.wallHeight;
+                if(biome.kind()==MazeBiomes.Kind.CRIMSON_MARSHLANDS) {
+                    int tall=Math.min(DIMENSION_CEILING_Y-floorY-2,Math.max(config.wallHeight+28,56));
+                    biomeWallHeight+=(int)Math.round((tall-config.wallHeight)*overgrowthBlendAt(seed,x,z,cell));
+                }
+                biomeWallHeight=SunScorchedMaze.height(seed,x,z,biomeWallHeight);
                 boolean wall = isWall(topology, structures, seed, biome,
                         x, z, cell, thickness, radius);
                 if (wall) {
@@ -2555,11 +2589,6 @@ public final class WorldGenerator {
                             bufferedSet(chunk, x, floorY + y, z,
                                     patternedWall(seed, x, y, z, biome, cell, radius));
                     }
-                     
-                     
-                    if (biome.kind() != MazeBiomes.Kind.CRIMSON_MARSHLANDS
-                            && placeMazeMotifColumn(chunk, seed, x, z, cell, thickness,
-                            biomeWallHeight, biome, radius, floorY)) continue;
                     placeDecorationColumn(chunk, p, topology, structures, seed, x, z, cell,
                             thickness, radius, biomeWallHeight, biome, floorY);
                 }
@@ -2574,7 +2603,7 @@ public final class WorldGenerator {
         chunk.markUnsaved();
         if (ENABLE_MAZE_NBT_STRUCTURES) structures.markTerrainGenerated(chunkPos);
         if (ENABLE_MAZE_NBT_STRUCTURES && chunk instanceof LevelChunk levelChunk)
-            structures.onChunkBuilt(levelChunk);
+            { structures.onChunkBuilt(levelChunk); if(levelChunk.getLevel() instanceof ServerLevel serverLevel) GeneratedPhysicsChains.enqueue(serverLevel, levelChunk); }
     }
 
     private static void placeFloorColumn(ChunkAccess chunk, BlockPos.MutableBlockPos p, long seed,
@@ -2587,7 +2616,7 @@ public final class WorldGenerator {
     }
 
     private static int mazeFloorY(long seed, int x, int z, int cell) {
-        double centerDistance = Math.max(Math.abs(x), Math.abs(z));
+        double centerDistance = Math.hypot(x, z);
         double flatRadius = cell * 7.0D;
         if (centerDistance <= flatRadius) return FLOOR_Y;
         double blend = Mth.clamp((centerDistance - flatRadius) / (cell * 5.0D), 0.0D, 1.0D);
@@ -2664,6 +2693,7 @@ public final class WorldGenerator {
         int limit = radius * size;
         if (isCenterArena(x, z, size)) return false;
         if (structures.reserved(x, z)) return false;
+        if(SunScorchedMaze.region(x,z,size))return SunScorchedMaze.wall(seed,x,z,size,thickness);
         if (biome.kind() == MazeBiomes.Kind.CRIMSON_MARSHLANDS)
             return isCircularMazeWall(seed, x, z, size, thickness);
         int gx = Math.floorDiv(x + limit, size);
@@ -2693,6 +2723,7 @@ public final class WorldGenerator {
                                           long seed, MazeBiomes.Biome biome, int x, int z,
                                           int size, int thickness, int radius) {
         if (!isWall(topology, structures, seed, biome, x, z, size, thickness, radius)) return false;
+        if(SunScorchedMaze.region(x,z,size))return false; // Exposed, fractured masonry rather than hidden indestructible columns.
         if (biome.kind() == MazeBiomes.Kind.CRIMSON_MARSHLANDS)
             return isCircularMazeWallCore(seed, x, z, size, thickness);
 
@@ -2941,14 +2972,13 @@ public final class WorldGenerator {
         double secondary = wallNoise(seed ^ 0xD1B54A32D192ED03L, x, y, z, 9.0D);
         double erosion = broad * 0.78D + secondary * 0.22D;
         double biomeBlend = biome.kind() == MazeBiomes.Kind.OVERGROWTH
-                ? overgrowthBlendAt(x, z, cell) : 0.0D;
+                ? overgrowthBlendAt(seed,x,z,cell) : 0.0D;
 
         if (biomeBlend > 0.0D && biome.hasFeature("mossy_walls")) {
             double moss = wallNoise(seed ^ 0xA24BAED4963EE407L, x, y, z, 15.0D) * 0.82D
                     + secondary * 0.18D;
             double threshold = 0.62D + (1.0D - biomeBlend) * 0.28D;
-            if (moss > threshold + 0.12D) return Asterion.MOSSY_ANCIENT_STONE.defaultBlockState();
-            if (moss > threshold) return Asterion.ANCIENT_MOSSY_BRICKS.defaultBlockState();
+            if (moss > threshold) return Asterion.MOSSY_ANCIENT_STONE.defaultBlockState();
         }
         if (erosion > 0.70D) return Asterion.ANCIENT_STONE.defaultBlockState();
         return Asterion.ANCIENT_BRICKS.defaultBlockState();
@@ -2974,11 +3004,14 @@ public final class WorldGenerator {
     public static MazeBiomes.Biome mazeBiomeAt(long seed, int x, int z, int cell) {
         MazeBiomes.Catalog catalog = MazeBiomes.current();
         int regionSize = cell * catalog.regionSizeCells();
+        int originalX=x,originalZ=z;
+        x+=(int)Math.round(SunScorchedMaze.warp(seed,originalX,originalZ,true,cell));
+        z+=(int)Math.round(SunScorchedMaze.warp(seed,originalX,originalZ,false,cell));
         int regionX = Math.floorDiv(x, regionSize);
         int regionZ = Math.floorDiv(z, regionSize);
         long region = mix(seed ^ (long)regionX * 0x9E3779B97F4A7C15L
                 ^ (long)regionZ * 0xD1B54A32D192ED03L);
-        if (Math.max(Math.abs(x), Math.abs(z)) < cell * catalog.ancientCenterRadiusCells())
+        if (Math.hypot(originalX,originalZ) < cell * catalog.ancientCenterRadiusCells())
             return catalog.ancient();
         int localX = Math.floorMod(x, regionSize);
         int localZ = Math.floorMod(z, regionSize);
@@ -2989,8 +3022,11 @@ public final class WorldGenerator {
         return catalog.select(region);
     }
 
-    private static double overgrowthBlendAt(int x, int z, int cell) {
+    public static double overgrowthBlendAt(long seed,int x, int z, int cell) {
         MazeBiomes.Catalog catalog = MazeBiomes.current();
+        int originalX=x,originalZ=z;
+        x+=(int)Math.round(SunScorchedMaze.warp(seed,originalX,originalZ,true,cell));
+        z+=(int)Math.round(SunScorchedMaze.warp(seed,originalX,originalZ,false,cell));
         int regionSize = cell * catalog.regionSizeCells();
         int localX = Math.floorMod(x, regionSize);
         int localZ = Math.floorMod(z, regionSize);
@@ -3002,43 +3038,6 @@ public final class WorldGenerator {
         if (blendWidth == 0 || edge >= neutralBand + blendWidth) return 1.0D;
         double amount = (edge - neutralBand) / (double)blendWidth;
         return amount * amount * (3.0D - 2.0D * amount);
-    }
-
-    private static boolean placeMazeMotifColumn(ChunkAccess chunk, long seed, int x, int z,
-                                                int cell, int thickness, int wallHeight,
-                                                MazeBiomes.Biome biome, int radius, int floorY) {
-        int limit = AsterionConfig.INSTANCE.mazeRadiusCells * cell;
-        int gx = Math.floorDiv(x + limit, cell);
-        int gz = Math.floorDiv(z + limit, cell);
-        int lx = Math.floorMod(x + limit, cell);
-        int lz = Math.floorMod(z + limit, cell);
-        int center = thickness + (cell - thickness) / 2;
-        int dx = lx - center, dz = lz - center;
-        int clearHalfWidth = 2;
-        if (Math.abs(dx) <= clearHalfWidth || Math.abs(dz) <= clearHalfWidth) return false;
-        long cellRoll = mix(seed ^ (long)gx * 0xD6E8FEB86659FD93L
-                ^ (long)gz * 0xA5A3564E27F8862BL);
-        int chance = biome.motifChance();
-        if (Math.floorMod(cellRoll, chance) != 0) return false;
-
-        int motif = biome.kind() == MazeBiomes.Kind.ANCIENT
-                ? (int)Math.floorMod(cellRoll >>> 9, 4L) : 0;
-        boolean shaped = switch (motif) {
-            case 0 -> {
-                double ring = Math.sqrt(dx * dx + dz * dz);
-                yield ring >= 3.2D && ring <= 4.35D;
-            }
-            case 1 -> Math.abs(Math.abs(dx) - Math.abs(dz)) <= 1;
-            case 2 -> Math.max(Math.abs(dx), Math.abs(dz)) == 4;
-            default -> (Math.abs(dz) == 3 && Integer.signum(dx) == Integer.signum(dz))
-                    || (Math.abs(dx) == 4 && Integer.signum(dx) != Integer.signum(dz));
-        };
-        if (!shaped) return false;
-        int motifHeight = Math.min(wallHeight, 11 + (int)Math.floorMod(cellRoll >>> 17, 7L));
-        for (int y = 1; y <= motifHeight; y++)
-            bufferedSet(chunk, x, floorY + y, z,
-                    patternedWall(seed ^ cellRoll, x, y, z, biome, cell, radius));
-        return true;
     }
 
     private static void placeBiomeWallDetail(ChunkAccess chunk, long seed, int x, int z,

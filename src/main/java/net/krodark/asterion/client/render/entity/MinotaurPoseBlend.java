@@ -39,8 +39,10 @@ final class MinotaurPoseBlend {
             history.pose = frame.pose;
             history.start = age;
         }
-        float t = (float)Math.clamp((age - history.start) / 6, 0, 1);
-        float blend = t * t * (3 - 2 * t);
+        // A stale pose after unloading should never drag a newly visible boss backwards.
+        if (age - history.lastAge > 10) history.from.clear();
+        float t = (float)Math.clamp((age - history.start) / 5, 0, 1);
+        float blend = t * t * t * (t * (t * 6 - 15) + 10);
         for (var bone : pass.model().boneLookup().get().values()) {
             var pose = bones.get(bone);
             float[] target = history.last.computeIfAbsent(bone.name(), name -> new float[9]);

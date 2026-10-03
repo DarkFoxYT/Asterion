@@ -20,7 +20,7 @@ public class AsterionEmissiveBoneLayer<T extends GeoAnimatable, O, R extends Geo
 
      
     protected float emissiveStrength(R state) { return 1f; }
-    protected float surfaceBrightness(R state) { return 0.8f; }
+    protected float surfaceBrightness(R state) { return 1f; }
     protected boolean enhancedSurface(R state) { return false; }
     protected Identifier amneticEmissionMesh(R state) { return null; }
      

@@ -61,4 +61,37 @@ public class CompatibilityGameTests implements FabricGameTest {
   test.assertTrue(chunks.stream().distinct().count()==chunks.size(),"Chunk reservations must be unique");
   test.succeed();
  }
+ @GameTest(template=FabricGameTest.EMPTY_STRUCTURE)
+ public void eclipseHunterIgnoresArenaBoss(GameTestHelper test) {
+  var hunter = new net.krodark.asterion.entity.MinotaurEntity(Asterion.MINOTAUR, test.getLevel());
+  var boss = new net.krodark.asterion.entity.MinotaurEntity(Asterion.MINOTAUR, test.getLevel());
+  var corpse = new net.krodark.asterion.entity.MinotaurEntity(Asterion.MINOTAUR, test.getLevel());
+  try {
+   var phaseField = net.krodark.asterion.entity.MinotaurEntity.class.getDeclaredField("DATA_PHASE");
+   var stageField = net.krodark.asterion.entity.MinotaurEntity.class.getDeclaredField("DATA_BOSS_STAGE");
+   phaseField.setAccessible(true); stageField.setAccessible(true);
+   @SuppressWarnings("unchecked") var phase = (net.minecraft.network.syncher.EntityDataAccessor<Integer>) phaseField.get(null);
+   @SuppressWarnings("unchecked") var stage = (net.minecraft.network.syncher.EntityDataAccessor<Integer>) stageField.get(null);
+   boss.getEntityData().set(phase, net.krodark.asterion.entity.MinotaurEntity.BehaviorPhase.BOSS.ordinal());
+   corpse.getEntityData().set(phase, net.krodark.asterion.entity.MinotaurEntity.BehaviorPhase.BOSS.ordinal());
+   var stages = stageField.getDeclaringClass().getDeclaredClasses();
+   for (var type : stages) if (type.getSimpleName().equals("BossStage"))
+    for (var value : type.getEnumConstants()) if (((Enum<?>) value).name().equals("DEFEATED"))
+     corpse.getEntityData().set(stage, ((Enum<?>) value).ordinal());
+  } catch (ReflectiveOperationException error) { throw new RuntimeException(error); }
+  var position = net.minecraft.world.phys.Vec3.atBottomCenterOf(test.absolutePos(new net.minecraft.core.BlockPos(1,1,1)));
+  for (var entity : java.util.List.of(hunter, boss, corpse)) {
+   entity.setPos(position.x, position.y, position.z);
+   test.getLevel().addFreshEntity(entity);
+  }
+  try {
+   var query = net.krodark.asterion.event.DeadSunEventSystem.class.getDeclaredMethod("eclipseMinotaurs", net.minecraft.server.level.ServerLevel.class);
+   query.setAccessible(true);
+   var result = (java.util.List<?>) query.invoke(null, test.getLevel());
+   test.assertTrue(result.contains(hunter) && !result.contains(boss) && !result.contains(corpse),
+     "Arena bosses and defeated remains must not claim an eclipse hunter slot, including at distant maze coordinates");
+  } catch (ReflectiveOperationException error) { throw new RuntimeException(error); }
+  finally { hunter.discard(); boss.discard(); corpse.discard(); }
+  test.succeed();
+ }
 }

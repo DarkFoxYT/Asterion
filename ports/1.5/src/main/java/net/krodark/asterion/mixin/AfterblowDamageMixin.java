@@ -17,6 +17,8 @@ public abstract class AfterblowDamageMixin {
         LivingEntity self = (LivingEntity)(Object)this;
         if (!(self.level() instanceof ServerLevel level)) return damage;
         float chargedDamage = WeaponCombatSystem.afterblowDamage(source, damage, level.getGameTime());
+        if (source.getEntity() instanceof net.krodark.asterion.entity.MinotaurEntity boss)
+            chargedDamage *= boss.brazierDamageMultiplier();
         if (chargedDamage > damage) ((LivingEntity)(Object)this).invulnerableTime = 0;
         return chargedDamage;
     }

@@ -20,9 +20,8 @@ import java.util.Set;
 
 /** Owns the one-time death transition and the persistent ferry at the river's threshold. */
 public final class UnderworldPassage {
-    // The Labyrinth beta retains Underworld content but keeps its story entry closed.
-    // Developers can opt in explicitly when testing that chapter.
-    private static final boolean ENABLED = Boolean.getBoolean("asterion.enableUnderworld");
+    // Release 1.5 only contains the Labyrinth chapter; no development flag opens this passage.
+    private static final boolean ENABLED = false;
     private static int ferryCheck;
 
     private UnderworldPassage() { }

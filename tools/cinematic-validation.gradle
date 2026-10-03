@@ -1,0 +1,20 @@
+// Opt-in cinematic checks: gradlew --init-script tools/cinematic-validation.gradle :26.1.2-fabric:checkCinematicTimeline
+allprojects {
+    afterEvaluate { p ->
+        if (p.name == '26.1.2-fabric') {
+            def smokeCompile = tasks.register('compileCinematicSmoke', JavaCompile) {
+                dependsOn tasks.named('classes')
+                source = rootProject.files('tools/CinematicTimelineSmoke.java')
+                classpath = p.sourceSets.main.runtimeClasspath
+                destinationDirectory = layout.buildDirectory.dir('cinematic-smoke')
+                javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+            tasks.register('checkCinematicTimeline', JavaExec) {
+                dependsOn smokeCompile
+                classpath = p.sourceSets.main.runtimeClasspath + files(smokeCompile.flatMap { it.destinationDirectory })
+                mainClass = 'CinematicTimelineSmoke'
+                javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+        }
+    }
+}

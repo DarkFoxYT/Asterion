@@ -1,0 +1,71 @@
+// gradlew --init-script tools/physics-validation.gradle :26.1.2-fabric:checkChainPhysics
+allprojects {
+    afterEvaluate { p ->
+        if (p.name == '26.1.2-fabric') {
+            def compile = tasks.register('compileChainPhysicsSmoke', JavaCompile) {
+                dependsOn tasks.named('classes')
+                source = rootProject.files('tools/ChainPhysicsSmoke.java', 'tools/ParticleRotationSmoke.java', 'tools/PhysicsResourceSmoke.java', 'tools/ShaderIncludes.java', 'tools/EmissiveFogSmoke.java', 'tools/DustShaderSmoke.java', 'tools/TickAndIconSmoke.java','tools/AudioAssetSmoke.java','tools/CreatureMotionSmoke.java')
+                classpath = p.sourceSets.main.runtimeClasspath
+                destinationDirectory = layout.buildDirectory.dir('physics-smoke')
+                javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+            tasks.register('checkCreatureMotion', JavaExec) {
+                dependsOn compile
+                classpath = p.sourceSets.main.runtimeClasspath + files(compile.flatMap { it.destinationDirectory })
+                mainClass = 'CreatureMotionSmoke'
+                systemProperty 'joml.nounsafe', 'true'
+                javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+            tasks.register('checkChainPhysics', JavaExec) {
+                dependsOn compile
+                classpath = p.sourceSets.main.runtimeClasspath + files(compile.flatMap { it.destinationDirectory })
+                mainClass = 'ChainPhysicsSmoke'
+                javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+            tasks.register('checkAudioAssets',JavaExec) {
+                dependsOn compile
+                classpath=p.sourceSets.main.runtimeClasspath+files(compile.flatMap{it.destinationDirectory})
+                mainClass='AudioAssetSmoke'
+                workingDir=rootProject.projectDir
+                jvmArgs '--enable-native-access=ALL-UNNAMED'
+                javaLauncher=javaToolchains.launcherFor { languageVersion=JavaLanguageVersion.of(25) }
+            }
+            tasks.register('checkEmissiveFog', JavaExec) {
+                dependsOn compile
+                classpath = p.sourceSets.main.runtimeClasspath + files(compile.flatMap { it.destinationDirectory })
+                mainClass = 'EmissiveFogSmoke'
+                workingDir = rootProject.projectDir
+                javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+            tasks.register('checkDustShader', JavaExec) {
+                dependsOn compile
+                classpath = p.sourceSets.main.runtimeClasspath + files(compile.flatMap { it.destinationDirectory })
+                mainClass = 'DustShaderSmoke'
+                workingDir = rootProject.projectDir
+                javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+            tasks.register('checkTickAndIcons', JavaExec) {
+                dependsOn compile
+                classpath = p.sourceSets.main.runtimeClasspath + files(compile.flatMap { it.destinationDirectory })
+                mainClass = 'TickAndIconSmoke'
+                workingDir = rootProject.projectDir
+                jvmArgs '--enable-native-access=ALL-UNNAMED'
+                javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+            tasks.register('checkParticleRotation', JavaExec) {
+                dependsOn compile
+                classpath = p.sourceSets.main.runtimeClasspath + files(compile.flatMap { it.destinationDirectory })
+                mainClass = 'ParticleRotationSmoke'
+                workingDir = rootProject.projectDir
+                javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+            tasks.register('checkPhysicsResources', JavaExec) {
+                dependsOn compile
+                classpath = p.sourceSets.main.runtimeClasspath + files(compile.flatMap { it.destinationDirectory })
+                mainClass = 'PhysicsResourceSmoke'
+                workingDir = rootProject.projectDir
+                javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+        }
+    }
+}

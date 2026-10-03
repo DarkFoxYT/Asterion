@@ -218,49 +218,76 @@ public final class PortCinematics {
     public static CameraPose cameraPose(Vec3 playerEye, float partial) {
         if (scene != Scene.BOSS_ENTRANCE || !showShot || door == null) return null;
         float time = elapsed + partial;
-        int approachTicks = MinotaurAnimationTiming.ENTRY_CAMERA_TICKS;
-        int breakTick = MinotaurAnimationTiming.ENTRY_BREAK_TICK;
+        int APPROACH_TICKS = MinotaurAnimationTiming.ENTRY_CAMERA_TICKS;
+        int BREAK_TICK = MinotaurAnimationTiming.ENTRY_BREAK_TICK;
+        int[] SOUND_BEATS = {APPROACH_TICKS + 14, APPROACH_TICKS + 44, APPROACH_TICKS + 78};
+        int[] IMPACT_BEATS = {SOUND_BEATS[0], SOUND_BEATS[1], SOUND_BEATS[2], BREAK_TICK, MinotaurAnimationTiming.ENTRY_WALK_END_TICK};
         Vec3 inward = Vec3.atLowerCornerOf(door.getOpposite().getNormal());
         Vec3 doorway = Vec3.atBottomCenterOf(MinotaurArenaEntrances.door(door));
         Vec3 across = Vec3.atLowerCornerOf(door.getClockWise().getNormal());
-        double width = cinematicBoss == null ? 4.0D : cinematicBoss.getBbWidth();
-        Vec3 subject = MinotaurEntranceMotion.point(time, width);
-        Vec3 doorShot = doorway.add(inward.scale(13.0D)).add(0, 2.1D, 0);
-        float approach = smootherStep(time / Math.max(1.0F, approachTicks));
-        Vec3 camera = (openingEye == null ? playerEye : openingEye).lerp(doorShot, approach);
-        float reveal = smootherStep((time - breakTick) / 28.0F);
-        float settle = smootherStep((time - MinotaurAnimationTiming.ENTRY_WALK_END_TICK) / 22.0F);
-        Vec3 tracking = subject.add(across.scale(3.0D - settle * 1.2D))
-                .add(inward.scale(11.0D - settle * 2.5D)).add(0, 2.8D - settle * .5D, 0);
-        camera = camera.lerp(tracking, reveal);
-        float doorFlight = smootherStep((time - breakTick) / 12.0F);
-        Vec3 doorFocus = doorway.add(inward.scale(doorFlight * 4.0D))
-                .add(across.scale(doorFlight * 1.5D)).add(0, 3.2D, 0);
-        Vec3 focus = doorFocus.lerp(subject.add(0, 3.5D, 0), smootherStep((time - breakTick - 5) / 23.0F));
-        float closeMove = smootherStep((time - MinotaurAnimationTiming.ENTRY_WALK_END_TICK) / 65.0F);
-        camera = camera.add(across.scale(Math.sin(closeMove * Math.PI) * .75D))
-                .add(inward.scale(-closeMove * .65D)).add(0, Math.sin(closeMove * Math.PI) * .18D, 0);
+        double width = cinematicBoss == null ? 4 : cinematicBoss.getBbWidth();
+        Vec3 subject = net.krodark.asterion.entity.MinotaurEntranceMotion.point(time, width);
+        Vec3 doorShot = doorway.add(inward.scale(13)).add(0, 2.1, 0);
+        float approach = smootherStep(time / APPROACH_TICKS);
+        Vec3 opening = (openingEye == null ? playerEye : openingEye).lerp(doorShot, approach);
+        // Briefly follow the outgoing door fragments, then hand focus to the charging boss.
+        float reveal = smootherStep((time - BREAK_TICK) / 28F);
+        float settle = smootherStep((time - MinotaurAnimationTiming.ENTRY_WALK_END_TICK) / 22F);
+        Vec3 tracking = subject.add(across.scale(3 - settle * 1.2))
+                .add(inward.scale(11 - settle * 2.5)).add(0, 2.8 - settle * .5, 0);
+        Vec3 camera = opening.lerp(tracking, reveal);
+        float doorFlight = smootherStep((time - BREAK_TICK) / 12F);
+        Vec3 doorFocus = doorway.add(inward.scale(doorFlight * 4)).add(across.scale(doorFlight * 1.5)).add(0, 3.2, 0);
+        float handoff = smootherStep((time - BREAK_TICK - 5) / 23F);
+        Vec3 focus = doorFocus.lerp(subject.add(0, 3.5, 0), handoff);
+        float portrait = smootherStep((time - MinotaurAnimationTiming.ENTRY_WALK_END_TICK) / 24F);
+        float portraitDrift = smootherStep((time - MinotaurAnimationTiming.ENTRY_WALK_END_TICK - 24) / 65F);
+        Vec3 heroCamera = subject.add(across.scale(width * (1.5 - portraitDrift * .12)))
+                .add(inward.scale(width * (2.25 - portraitDrift * .15))).add(0, 1.45, 0);
+        camera = camera.lerp(heroCamera, portrait);
+        // Aim left of the subject so the silhouette sits beside the title.
+        focus = focus.lerp(subject.add(0, 3.5, 0).subtract(across.scale(width * .55)), portrait);
+        float roarAge = time - MinotaurAnimationTiming.ENTRY_ROAR.roarSoundTick();
+        float roar = smootherStep(roarAge / 5F)
+                * (1 - smootherStep((time - (MinotaurAnimationTiming.ENTRY_END_TICK - 16)) / 16F));
+        float closeMove = smootherStep((time - MinotaurAnimationTiming.ENTRY_WALK_END_TICK) / 65F);
+        // A shallow dolly and lateral drift keep the close-up alive without circling the boss.
+        camera = camera.add(across.scale(Math.sin(closeMove * Math.PI) * .75))
+                .add(inward.scale(-closeMove * .65)).add(0, Math.sin(closeMove * Math.PI) * .18, 0);
         float impact = 0;
-        int[] beats = {approachTicks + 14, approachTicks + 44, approachTicks + 78,
-                breakTick, MinotaurAnimationTiming.ENTRY_WALK_END_TICK};
-        for (int beat : beats) {
+        for (int beat : IMPACT_BEATS) {
             float age = time - beat;
-            if (age >= 0 && age < 16) impact += (beat == breakTick
-                    || beat == MinotaurAnimationTiming.ENTRY_WALK_END_TICK ? .13F : .045F)
-                    * (float)Math.pow(Math.sin(Math.PI * age / 16.0F), 2);
+            if (age >= 0 && age < 16) impact += (beat == BREAK_TICK || beat == MinotaurAnimationTiming.ENTRY_WALK_END_TICK ? .13F
+                    : beat == SOUND_BEATS[2] ? .065F : .03F) * (float)Math.pow(Math.sin(Math.PI * age / 16F), 2);
         }
-        camera = camera.add(across.scale((Math.sin(time * 1.9D) + Math.sin(time * 3.1D) * .28D) * impact))
-                .add(0, Math.cos(time * 2.3D) * impact * .65D, 0);
-        float returning = smootherStep((time - (duration - 30)) / 30.0F);
+        float plantAge = time - MinotaurAnimationTiming.ENTRY_WALK_END_TICK;
+        if (plantAge >= 0 && plantAge < 24)
+            impact += .16F * (float)Math.pow(1 - plantAge / 24, 2);
+        float breachAge = time - BREAK_TICK;
+        float breach = smootherStep(breachAge / 1.5F) * (1 - smootherStep((breachAge - 3) / 18F));
+        impact += breach * .20F + roar * .045F;
+        // Fixed-frequency, timeline-based vibration remains identical at every frame rate.
+        camera = camera.add(across.scale((Math.sin(time * 1.9) + Math.sin(time * 3.1) * .28) * impact))
+                .add(inward.scale(breach * .65 + Math.sin(roarAge * 1.4) * roar * .08))
+                .add(0, Math.cos(time * 2.3) * impact * .65, 0);
+        float returning = smootherStep((time - (duration - 30)) / 30F);
         camera = camera.lerp(playerEye, returning);
+        var level = Minecraft.getInstance().level;
+        if (level != null && cinematicBoss != null) {
+            var hit = level.clip(new net.minecraft.world.level.ClipContext(focus, camera,
+                    net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                    net.minecraft.world.level.ClipContext.Fluid.NONE, cinematicBoss));
+            if (hit.getType() != net.minecraft.world.phys.HitResult.Type.MISS)
+                camera = hit.getLocation().add(focus.subtract(camera).normalize().scale(.3));
+        }
         Vec3 delta = focus.subtract(camera);
-        float yaw = (float)Math.toDegrees(Math.atan2(-delta.x, delta.z));
-        float pitch = (float)-Math.toDegrees(Math.atan2(delta.y, delta.horizontalDistance()));
-        return new CameraPose(camera,
-                Mth.rotLerp(returning, Mth.rotLerp(approach, returnYaw, yaw), returnYaw),
+        float yaw = (float)Math.toDegrees(Math.atan2(-delta.x, delta.z)) + (float)Math.sin(time * 1.7) * impact * 1.2F;
+        float pitch = (float)-Math.toDegrees(Math.atan2(delta.y, delta.horizontalDistance())) + (float)Math.cos(time * 2.1) * impact;
+        return new CameraPose(camera, Mth.rotLerp(returning, Mth.rotLerp(approach, returnYaw, yaw), returnYaw),
                 Mth.lerp(returning, Mth.lerp(approach, returnPitch, pitch), returnPitch),
-                (float)(Math.sin(reveal * Math.PI) * -3.0D + settle * 1.2D) * (1.0F - returning));
+                (float)(Math.sin(reveal * Math.PI) * -3 + settle * 1.2 + Math.sin(time * 1.6) * impact * 2) * (1 - returning));
     }
+
 
     public static double bossVisualTime(MinotaurEntity boss, float partial) {
         if (scene == Scene.BOSS_ENTRANCE && boss.doorEntryTicks() > 0

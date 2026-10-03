@@ -52,6 +52,8 @@ public final class AsterionNeoForgeClientModEvents {
         event.registerEntityRenderer(ChainLiftContent.LIFT,
                 net.krodark.asterion.port.client.PortChainLiftRenderer::new);
         event.registerEntityRenderer(Asterion.MINOTAUR_AXE, MinotaurAxePortRenderer::new);
+        event.registerEntityRenderer(net.krodark.asterion.game.ChainLiftContent.PHYSICS_CHAIN, net.krodark.asterion.port.client.PortPhysicsChainRenderer::new);
+        event.registerEntityRenderer(Asterion.CENTIPEDE_SEGMENT, net.krodark.asterion.port.client.NoopEntityRenderer::new);
         event.registerEntityRenderer(ChainLiftContent.CALL_RUNE, LiftCallRunePortRenderer::new);
 
         event.registerBlockEntityRenderer(Asterion.RUNE_BLOCK_ENTITY,
@@ -116,6 +118,8 @@ public final class AsterionNeoForgeClientModEvents {
         register(event, Asterion.FLY, net.krodark.asterion.port.client.PortParticles.Style.FLY);
         register(event, Asterion.ANCIENT_WALL_DUST, net.krodark.asterion.port.client.PortParticles.Style.WALL_DUST);
         register(event, Asterion.RUMBLE_SMOKE, net.krodark.asterion.port.client.PortParticles.Style.RUMBLE);
+        register(event, Asterion.GROUND_FOG, net.krodark.asterion.port.client.PortParticles.Style.GROUND_FOG);
+        register(event, Asterion.GROUND_HAZE, net.krodark.asterion.port.client.PortParticles.Style.GROUND_HAZE);
     }
 
     private static void register(RegisterParticleProvidersEvent event, net.minecraft.core.particles.SimpleParticleType type,

@@ -44,6 +44,7 @@ import net.krodark.asterion.entity.BombadierBeetleEntity;
 import net.krodark.asterion.entity.ScarletCentipedeEntity;
 import net.krodark.asterion.entity.ConstructEntity;
 import net.krodark.asterion.entity.QueenBeetleEntity;
+
 import net.krodark.asterion.block.ShortGrassBlock;
 import net.krodark.asterion.event.DeadSunEventSystem;
 import net.krodark.asterion.game.light.DynamicBlockLights;
@@ -130,6 +131,8 @@ import net.krodark.asterion.worldgen.MazeChunkGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// Quilt deprecates its Fabric shim; this shared entrypoint is also loaded by Fabric and NeoForge.
+@SuppressWarnings("deprecation")
 public class Asterion implements ModInitializer {
     public static final String MOD_ID = "asterion";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
@@ -180,6 +183,12 @@ public class Asterion implements ModInitializer {
     public static final SoundEvent RESPAWN_OBELISK_REVIVE = registerSound("respawn_obelisk_revive");
 
     public static final Block ANCIENT_BRICKS = registerBlock("ancient_bricks", MapColor.COLOR_BROWN, Block::new);
+    public static final Block VERDANT_TILES = registerBlock("verdant_tiles", MapColor.TERRACOTTA_GREEN,
+            properties -> new Block(properties.strength(2.2F, 6.0F).requiresCorrectToolForDrops()));
+    public static final Block BONIFIED_PILLAR = registerBlock("bonified_pillar", MapColor.COLOR_BROWN,
+            properties -> new RotatedPillarBlock(properties.strength(2.0F, 3.0F).sound(SoundType.WOOD).ignitedByLava()));
+    public static final Block BONIFIED_BLOCK = registerBlock("bonifiedblock", MapColor.COLOR_BROWN,
+            properties -> new Block(properties.strength(2.0F, 3.0F).sound(SoundType.WOOD).ignitedByLava()));
     public static final Block ANCIENT_MOSSY_BRICKS = registerBlock(
             "ancient_mossy_bricks", MapColor.TERRACOTTA_GREEN, Block::new);
     public static final Block ANCIENT_BRICK_SLAB = registerBlock("ancient_brick_slab", MapColor.COLOR_BROWN, SlabBlock::new);
@@ -280,6 +289,11 @@ public class Asterion implements ModInitializer {
             "tainted_heart", MapColor.COLOR_RED,
             properties -> new PassionBloomBlock(properties.noCollision().instabreak()
                     .sound(SoundType.SWEET_BERRY_BUSH).noOcclusion()));
+    public static final Block OVERGROWN_DEADSTONE = registerBlock("overgrown_deadstone", MapColor.TERRACOTTA_BROWN,
+            properties -> new Block(properties.requiresCorrectToolForDrops()));
+    public static final Block ANCIENT_GRASS = registerBlock("ancient_grass", MapColor.TERRACOTTA_YELLOW,
+            properties -> new ShortGrassBlock(properties.noCollision().replaceable().instabreak()
+                    .sound(SoundType.GRASS).offsetType(BlockBehaviour.OffsetType.XZ)));
     public static final Block SHORT_GRASS = registerBlock("short_grass", MapColor.PLANT,
             properties -> new ShortGrassBlock(properties.noCollision().replaceable().instabreak()
                     .sound(SoundType.GRASS).offsetType(BlockBehaviour.OffsetType.XZ)));
@@ -477,6 +491,7 @@ public class Asterion implements ModInitializer {
                     .eyeHeight(2.35F * AsterionConfig.INSTANCE.minotaurScale)
                     .clientTrackingRange(16).build(MINOTAUR_ENTITY_KEY)
     );
+
     private static final ResourceKey<EntityType<?>> MINOTAUR_AXE_KEY = ResourceKey.create(Registries.ENTITY_TYPE, id("minotaur_axe"));
     public static final EntityType<net.krodark.asterion.entity.MinotaurAxeEntity> MINOTAUR_AXE = Registry.register(
             BuiltInRegistries.ENTITY_TYPE, MINOTAUR_AXE_KEY,
@@ -522,6 +537,7 @@ public class Asterion implements ModInitializer {
     public static final Item QUEEN_BEETLE_SPAWN_EGG = Registry.register(BuiltInRegistries.ITEM,
             QUEEN_BEETLE_EGG_KEY, new SpawnEggItem(new Item.Properties().setId(QUEEN_BEETLE_EGG_KEY)
                     .spawnEgg(QUEEN_BEETLE)));
+
     private static final ResourceKey<EntityType<?>> SCARLET_CENTIPEDE_KEY = ResourceKey.create(
             Registries.ENTITY_TYPE, id("scarlet_centipede"));
     public static final EntityType<ScarletCentipedeEntity> SCARLET_CENTIPEDE = Registry.register(
@@ -531,6 +547,10 @@ public class Asterion implements ModInitializer {
                     .sized(1.785F, 0.697F).eyeHeight(0.527F).clientTrackingRange(48)
                     .build(SCARLET_CENTIPEDE_KEY)
     );
+    private static final ResourceKey<EntityType<?>> CENTIPEDE_SEGMENT_KEY=ResourceKey.create(Registries.ENTITY_TYPE,id("centipede_segment"));
+    public static final EntityType<net.krodark.asterion.entity.CentipedeSegmentEntity> CENTIPEDE_SEGMENT=Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,CENTIPEDE_SEGMENT_KEY,EntityType.Builder.of(net.krodark.asterion.entity.CentipedeSegmentEntity::new,MobCategory.MISC)
+                    .sized(1.4F,1F).noSave().clientTrackingRange(16).updateInterval(5).build(CENTIPEDE_SEGMENT_KEY));
     private static final ResourceKey<Item> SCARLET_CENTIPEDE_SPAWN_EGG_KEY = ResourceKey.create(
             Registries.ITEM, id("scarlet_centipede_spawn_egg"));
     public static final Item SCARLET_CENTIPEDE_SPAWN_EGG = Registry.register(
@@ -555,6 +575,8 @@ public class Asterion implements ModInitializer {
             BuiltInRegistries.PARTICLE_TYPE, id("minotaur_belch_fire"), FabricParticleTypes.simple());
     public static final SimpleParticleType GREEK_FIRE_SOOT = Registry.register(
             BuiltInRegistries.PARTICLE_TYPE, id("greek_fire_soot"), FabricParticleTypes.simple());
+    public static final SimpleParticleType LIMBO_EMBER = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, id("limbo_ember"), FabricParticleTypes.simple());
     public static final SimpleParticleType BRAZIER_FIRE = Registry.register(
             BuiltInRegistries.PARTICLE_TYPE, id("brazier_fire"), FabricParticleTypes.simple());
     public static final SimpleParticleType LAMENTER_TEAR = Registry.register(
@@ -573,6 +595,10 @@ public class Asterion implements ModInitializer {
             BuiltInRegistries.PARTICLE_TYPE, id("ancient_wall_dust"), FabricParticleTypes.simple());
     public static final SimpleParticleType RUMBLE_SMOKE = Registry.register(
             BuiltInRegistries.PARTICLE_TYPE, id("rumble_smoke"), FabricParticleTypes.simple());
+    public static final SimpleParticleType GROUND_FOG = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, id("ground_fog"), FabricParticleTypes.simple());
+    public static final SimpleParticleType GROUND_HAZE = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, id("ground_haze"), FabricParticleTypes.simple());
 
     private static final ResourceKey<Item> MECHANISM_KEY = ResourceKey.create(
             Registries.ITEM, id("antikythera_mechanism"));
@@ -660,9 +686,13 @@ public class Asterion implements ModInitializer {
                         output.accept(SCARLET_CENTIPEDE_SPAWN_EGG);
                         output.accept(CONSTRUCT_SPAWN_EGG);
                         output.accept(QUEEN_BEETLE_SPAWN_EGG);
+
                         output.accept(TAINTED_HEART);
                         output.accept(TAINTED_HEART_EATABLE);
                         output.accept(ANCIENT_BRICKS);
+                        output.accept(VERDANT_TILES);
+                        output.accept(BONIFIED_PILLAR);
+                        output.accept(BONIFIED_BLOCK);
                         output.accept(ANCIENT_MOSSY_BRICKS);
                         output.accept(ANCIENT_BRICK_SLAB);
                         output.accept(ANCIENT_BRICK_STAIRS);
@@ -712,6 +742,8 @@ public class Asterion implements ModInitializer {
                         output.accept(TAINTED_LEAVES);
                         output.accept(TAINTED_PETALS);
                         output.accept(SHORT_GRASS);
+                        output.accept(ANCIENT_GRASS);
+                        output.accept(OVERGROWN_DEADSTONE);
                         output.accept(ANCIENT_STONE_SLAB);
                         output.accept(ANCIENT_STONE_STAIRS);
                         output.accept(ANCIENT_STONE_WALL);
@@ -749,60 +781,7 @@ public class Asterion implements ModInitializer {
                     })
                     .build()
     );
-    public static final CreativeModeTab UNDERWORLD_ITEM_GROUP = Registry.register(
-            BuiltInRegistries.CREATIVE_MODE_TAB,
-            ResourceKey.create(Registries.CREATIVE_MODE_TAB, id("underworld")),
-            FabricCreativeModeTab.builder().title(Component.translatable("itemGroup.asterion.underworld"))
-                    .icon(() -> new ItemStack(DEAD_STONE)).displayItems((parameters, output) -> {
-                        output.accept(DEAD_WOOD);
-                        output.accept(DEAD_WOOD_PLANKS);
-                        output.accept(DEADWOOD_STICK);
-                        output.accept(DEAD_WOOD_SLAB);
-                        output.accept(DEAD_WOOD_STAIRS);
-                        output.accept(DEAD_WOOD_FENCE);
-                        output.accept(DEAD_WOOD_FENCE_GATE);
-                        output.accept(SHATTERED_DEAD_WOOD);
-                        output.accept(SHALE);
-                        output.accept(DEAD_STONE);
-                        output.accept(DEAD_STONE_2);
-                        output.accept(SHALE_SPIKE);
-                        output.accept(SHALE_SLAB);
-                        output.accept(SHALE_STAIRS);
-                        output.accept(SHALE_WALL);
-                        output.accept(SHALE_FORMATION);
-                        output.accept(SHALE_BRICKS);
-                        output.accept(SHALE_BRICK_SLAB);
-                        output.accept(SHALE_BRICK_STAIRS);
-                        output.accept(SHALE_BRICK_WALL);
-                        output.accept(SHADED_SHALE);
-                        output.accept(SHADED_SHALE_SLAB);
-                        output.accept(SHADED_SHALE_STAIRS);
-                        output.accept(SHADED_SHALE_WALL);
-                        output.accept(SHADED_SHALE_FORMATION);
-                        output.accept(SHADED_SHALE_BRICKS);
-                        output.accept(SHADED_SHALE_BRICK_SLAB);
-                        output.accept(SHADED_SHALE_BRICK_STAIRS);
-                        output.accept(SHADED_SHALE_BRICK_WALL);
-                        output.accept(SHALE_CELESTIAL_GOLD_ORE);
-                        output.accept(SHALE_TARNISHED_GOLD_ORE);
-                        output.accept(SHADED_SHALE_CELESTIAL_GOLD_ORE);
-                        output.accept(SHADED_SHALE_TARNISHED_GOLD_ORE);
-                        output.accept(DEAD_STONE_SLAB);
-                        output.accept(DEAD_STONE_STAIRS);
-                        output.accept(DEAD_STONE_WALL);
-                        output.accept(DEAD_STONE_2_SLAB);
-                        output.accept(DEAD_STONE_2_STAIRS);
-                        output.accept(DEAD_STONE_2_WALL);
-                        output.accept(GREEK_FIRE_FLOOR_TORCH);
-                        output.accept(GREEK_FIRE_WALL_TORCH);
-                        output.accept(GREEK_BRAZIER);
-                        output.accept(LAMENTER);
-                        output.accept(SKELETON);
-                        output.accept(RED_FIRE_FLOOR_TORCH);
-                        output.accept(RED_FIRE_WALL_TORCH);
-                        output.accept(ORANGE_FIRE_FLOOR_TORCH);
-                        output.accept(ORANGE_FIRE_WALL_TORCH);
-                    }).build());
+
     public static final CreativeModeTab FORGING_ITEM_GROUP = Registry.register(
             BuiltInRegistries.CREATIVE_MODE_TAB,
             ResourceKey.create(Registries.CREATIVE_MODE_TAB, id("forging")),
@@ -902,11 +881,10 @@ public class Asterion implements ModInitializer {
     public static final com.mojang.serialization.MapCodec<net.krodark.asterion.worldgen.LayeredMazeBiomeSource>
             LAYERED_MAZE_BIOME_SOURCE = Registry.register(BuiltInRegistries.BIOME_SOURCE,
             id("layered_maze"), net.krodark.asterion.worldgen.LayeredMazeBiomeSource.CODEC);
+
     public static final com.mojang.serialization.MapCodec<MazeChunkGenerator> MAZE_CHUNK_GENERATOR =
             Registry.register(BuiltInRegistries.CHUNK_GENERATOR, id("maze"), MazeChunkGenerator.CODEC);
-    public static final com.mojang.serialization.MapCodec<net.krodark.asterion.update.underworld.world.UnderworldChunkGenerator>
-            UNDERWORLD_CHUNK_GENERATOR = Registry.register(BuiltInRegistries.CHUNK_GENERATOR,
-            id("underworld_river"), net.krodark.asterion.update.underworld.world.UnderworldChunkGenerator.CODEC);
+
     private static final ResourceKey<PlacedFeature> UNDERWATER_RUIN_PLACED = ResourceKey.create(
             Registries.PLACED_FEATURE, id("underwater_ruin"));
     private static final ResourceKey<PlacedFeature> ANCIENT_MOSS_PATCH_PLACED = ResourceKey.create(
@@ -953,7 +931,8 @@ public class Asterion implements ModInitializer {
         net.krodark.asterion.game.ArmorContent.initialize();
         net.krodark.asterion.game.ChainLiftContent.initialize();
         net.krodark.asterion.game.PedestalContent.initialize();
-        if (!ForgeRuntime.isForge()) net.krodark.asterion.update.underworld.UnderworldContent.initialize();
+
+
         net.krodark.asterion.game.EncounterKeyRecovery.initialize();
         net.krodark.asterion.game.ArenaDeathRecovery.initialize();
         ServerTickEvents.END_SERVER_TICK.register(net.krodark.asterion.forging.LegacyPurityCleanup::tick);
@@ -976,6 +955,7 @@ public class Asterion implements ModInitializer {
         PayloadTypeRegistry.serverboundPlay().register(PressureButtonHoldPayload.TYPE,PressureButtonHoldPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(MazeZapPayload.TYPE, MazeZapPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(DeadSunEventPayload.TYPE, DeadSunEventPayload.CODEC);
+
         PayloadTypeRegistry.clientboundPlay().register(MazeShiftPayload.TYPE, MazeShiftPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.ArenaDebrisPayload.TYPE, net.krodark.asterion.network.ArenaDebrisPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(net.krodark.asterion.network.MinotaurImpactPayload.TYPE,
@@ -1016,6 +996,7 @@ public class Asterion implements ModInitializer {
         net.krodark.asterion.network.CentipedeNetworking.initialize();
         net.krodark.asterion.network.MinotaurBodyPayload.initialize();
         PressureButtonNetworking.initialize();
+        net.krodark.asterion.network.ChainHoldPayload.initialize();
         net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(
                 CrucibleControlPayload.TYPE, (payload, context) -> context.server().execute(() -> {
                     net.minecraft.server.level.ServerPlayer player = context.player();
@@ -1029,6 +1010,11 @@ public class Asterion implements ModInitializer {
                 TransitionReadyPayload.TYPE, (payload, context) -> context.server().execute(() ->
                         WorldGenerator.markTransitionReady(context.player())));
         DeadSunEventSystem.registerCommands();
+
+
+
+
+
         net.krodark.asterion.command.CentipedeCommands.register();
         net.krodark.asterion.event.CatacombFloodState.registerCommands();
         DynamicBlockLights.initialize();
@@ -1039,6 +1025,7 @@ public class Asterion implements ModInitializer {
         FabricDefaultAttributeRegistry.register(SCARLET_CENTIPEDE, ScarletCentipedeEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(CONSTRUCT, ConstructEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(QUEEN_BEETLE, QueenBeetleEntity.createAttributes());
+
         ServerChunkEvents.CHUNK_LOAD.register(WorldGenerator::onChunkLoad);
         ServerChunkEvents.CHUNK_LOAD.register(CatacombFloodState::onChunkLoad);
         ServerChunkEvents.CHUNK_LOAD.register(net.krodark.asterion.worldgen.AuthoredForge::onChunkLoad);
@@ -1092,6 +1079,7 @@ public class Asterion implements ModInitializer {
                 MobCategory.MONSTER, CONSTRUCT, 1, 1, 1);
         BiomeModifications.addSpawn(BiomeSelectors.includeByKey(CATACOMBS_BIOME),
                 MobCategory.MONSTER, net.krodark.asterion.game.AncientContent.SKELETON, 36, 1, 3);
+
         BiomeModifications.addSpawn(BiomeSelectors.includeByKey(FORGE_BIOME,
                         ResourceKey.create(Registries.BIOME, id("shale_caves"))),
                 MobCategory.MONSTER, net.krodark.asterion.game.AncientContent.SKELETON, 12, 1, 1);
@@ -1149,7 +1137,7 @@ public class Asterion implements ModInitializer {
                             newPlayer, BossEncounterResetPayload.INSTANCE);
             }
         });
-        if (!ForgeRuntime.isForge()) net.krodark.asterion.update.underworld.UnderworldPassage.initialize();
+
         ServerLifecycleEvents.SERVER_STOPPING.register(WorldGenerator::clearRuntimeState);
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             var maze = server.getLevel(ASTERION_LEVEL);

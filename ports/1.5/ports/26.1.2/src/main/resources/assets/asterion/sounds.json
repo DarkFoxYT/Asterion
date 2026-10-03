@@ -33,7 +33,7 @@
       {
         "name": "asterion:sfx/mino/minotaur.door_break",
         "preload": true,
-        "attenuation_distance": 48
+        "attenuation_distance": 64
       }
     ]
   },
@@ -43,32 +43,23 @@
       {
         "name": "asterion:sfx/mino/minotaur.door_break",
         "preload": true,
-        "attenuation_distance": 48
+        "attenuation_distance": 64
       }
     ]
   },
   "debris_1": {
     "sounds": [
-      {
-        "name": "asterion:sfx/misc/debris_1",
-        "attenuation_distance": 16
-      }
+      "asterion:sfx/misc/debris_1"
     ]
   },
   "debris_2": {
     "sounds": [
-      {
-        "name": "asterion:sfx/misc/debris_2",
-        "attenuation_distance": 16
-      }
+      "asterion:sfx/misc/debris_2"
     ]
   },
   "debris_3": {
     "sounds": [
-      {
-        "name": "asterion:sfx/misc/debris_3",
-        "attenuation_distance": 16
-      }
+      "asterion:sfx/misc/debris_3"
     ]
   },
   "arena_ceiling_fall": {
@@ -87,7 +78,7 @@
       {
         "name": "asterion:sfx/mino/minotaur.door_bang",
         "preload": true,
-        "attenuation_distance": 48
+        "attenuation_distance": 64
       }
     ]
   },
@@ -97,12 +88,12 @@
       {
         "name": "asterion:sfx/mino/minotaur.step_walk_1",
         "preload": true,
-        "attenuation_distance": 48
+        "attenuation_distance": 64
       },
       {
         "name": "asterion:sfx/mino/minotaur.step_walk_2",
         "preload": true,
-        "attenuation_distance": 48
+        "attenuation_distance": 64
       }
     ]
   },
@@ -127,11 +118,13 @@
     "sounds": [
       {
         "name": "asterion:sfx/mino/minotaur.roar",
-        "preload": true
+        "preload": true,
+        "attenuation_distance": 64
       },
       {
         "name": "asterion:sfx/mino/roar_minator",
-        "preload": true
+        "preload": true,
+        "attenuation_distance": 64
       }
     ]
   },
@@ -140,7 +133,8 @@
     "sounds": [
       {
         "name": "asterion:sfx/mino/minotaur.aggro",
-        "preload": true
+        "preload": true,
+        "attenuation_distance": 64
       }
     ]
   },
@@ -150,12 +144,12 @@
       {
         "name": "asterion:sfx/mino/minotaur.stagger_1",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       },
       {
         "name": "asterion:sfx/mino/minotaur.stagger_2",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -165,12 +159,12 @@
       {
         "name": "asterion:sfx/mino/minotaur.hurt_light_1",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       },
       {
         "name": "asterion:sfx/mino/minotaur.hurt_light_2",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -180,12 +174,12 @@
       {
         "name": "asterion:sfx/mino/minotaur.hurt_exposed_1",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       },
       {
         "name": "asterion:sfx/mino/minotaur.hurt_exposed_2",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -195,7 +189,7 @@
       {
         "name": "asterion:sfx/mino/minotaur.charge_warning",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -204,7 +198,8 @@
     "sounds": [
       {
         "name": "asterion:sfx/mino/minotaur.charge_roar",
-        "preload": true
+        "preload": true,
+        "attenuation_distance": 64
       }
     ]
   },
@@ -214,7 +209,7 @@
       {
         "name": "asterion:sfx/mino/minotaur.charge_hit_player",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -236,7 +231,7 @@
       {
         "name": "asterion:sfx/mino/minotaur.charge_hit_wall",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -258,7 +253,7 @@
       {
         "name": "asterion:sfx/mino/minotaur.land_slam",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -268,7 +263,7 @@
       {
         "name": "asterion:sfx/mino/minotaur.land_light",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -294,7 +289,7 @@
       {
         "name": "asterion:sfx/mino/minotaur.sword_sheathe",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -304,7 +299,7 @@
       {
         "name": "asterion:sfx/mino/minotaur.sword_swing",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -313,7 +308,8 @@
     "sounds": [
       {
         "name": "asterion:sfx/mino/minotaur.roar",
-        "preload": true
+        "preload": true,
+        "attenuation_distance": 64
       }
     ]
   },
@@ -323,7 +319,7 @@
       {
         "name": "asterion:sfx/mino/minotaur.fist_swing",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -333,7 +329,7 @@
       {
         "name": "asterion:sfx/mino/minotaur.fist_swing_combo",
         "preload": true,
-        "attenuation_distance": 32
+        "attenuation_distance": 64
       }
     ]
   },
@@ -342,42 +338,6 @@
       {
         "name": "asterion:ambiance/limbo/mystery_hell_themed_ambience",
         "stream": true
-      }
-    ]
-  },
-  "minotaur_axe_draw": {
-    "sounds": [
-      {
-        "name": "asterion:sfx/minotaur/axe_draw",
-        "attenuation_distance": 32
-      }
-    ]
-  },
-  "minotaur_axe_throw": {
-    "sounds": [
-      {
-        "name": "asterion:sfx/minotaur/axe_throw",
-        "attenuation_distance": 32
-      }
-    ]
-  },
-  "minotaur_axe_flight_loop": {
-    "sounds": [
-      {
-        "name": "asterion:sfx/minotaur/axe_flight_loop",
-        "attenuation_distance": 32
-      }
-    ]
-  },
-  "minotaur_axe_swing": {
-    "sounds": [
-      {
-        "name": "asterion:sfx/minotaur/axe_swing1",
-        "attenuation_distance": 24
-      },
-      {
-        "name": "asterion:sfx/minotaur/axe_swing2",
-        "attenuation_distance": 24
       }
     ]
   },
@@ -424,6 +384,52 @@
   "music_overgrown_where_the_stars_fall_crypika": {
     "sounds": [
       "asterion:music/overgrown/where_the_stars_fall_crypika"
+    ]
+  },
+  "minotaur_axe_draw": {
+    "sounds": [
+      {
+        "name": "asterion:sfx/minotaur/axe_draw",
+        "attenuation_distance": 64,
+        "preload": true,
+        "volume": 1.35
+      }
+    ]
+  },
+  "minotaur_axe_throw": {
+    "sounds": [
+      {
+        "name": "asterion:sfx/minotaur/axe_throw",
+        "attenuation_distance": 64,
+        "preload": true,
+        "volume": 1.35
+      }
+    ]
+  },
+  "minotaur_axe_flight_loop": {
+    "sounds": [
+      {
+        "name": "asterion:sfx/minotaur/axe_flight_loop",
+        "attenuation_distance": 64,
+        "preload": true,
+        "volume": 1.35
+      }
+    ]
+  },
+  "minotaur_axe_swing": {
+    "sounds": [
+      {
+        "name": "asterion:sfx/minotaur/axe_swing1",
+        "attenuation_distance": 64,
+        "preload": true,
+        "volume": 1.35
+      },
+      {
+        "name": "asterion:sfx/minotaur/axe_swing2",
+        "attenuation_distance": 64,
+        "preload": true,
+        "volume": 1.35
+      }
     ]
   }
 }

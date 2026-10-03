@@ -62,6 +62,7 @@ public final class MazeZapRenderer {
             }
             var lightning = context.bufferSource().getBuffer(RenderTypes.lightning());
             drawDeadSunFractures(client, lightning, context.poseStack().last(), camera, now);
+            drawFinaleDischarge(client, lightning, context.poseStack().last(), camera, now);
             for (GroundStrike strike : GROUND_STRIKES) {
                 if (now < strike.startsAt || now > strike.expiresAt) continue;
                 float life = 1.0F - (now - strike.startsAt) / (float)Math.max(1L, strike.expiresAt - strike.startsAt);
@@ -169,7 +170,7 @@ public final class MazeZapRenderer {
                 ? new Vec3(1.0D, 0.0D, 0.0D) : new Vec3(0.0D, 1.0D, 0.0D)).normalize();
         Vec3 up = right.cross(towardCamera).normalize();
         double radius = config.deadSunSize
-                * (1.0D + BossFinaleOverlay.sunDetonationStrength() * 2.6D);
+                * BossFinaleOverlay.sunScale();
         for (int index = 0; index < fractures; index++) {
             long seed = 0x5DEECE66DL + index * 0x9E3779B97F4A7C15L;
             double angle = index * 2.399963229728653D + (seed & 255L) * 0.0017D;
@@ -214,6 +215,41 @@ public final class MazeZapRenderer {
                             seed ^ 0x632BE59BD9B4E019L ^ now / 3L);
                 }
             }
+        }
+    }
+
+    private static void drawFinaleDischarge(Minecraft client,
+                                            com.mojang.blaze3d.vertex.VertexConsumer out,
+                                            com.mojang.blaze3d.vertex.PoseStack.Pose pose,
+                                            Vec3 camera, long now) {
+        if (!BossFinaleOverlay.isActive() || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) return;
+        float partial = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        float time = BossFinaleOverlay.visualTime(partial);
+        var config = AsterionConfig.INSTANCE;
+        Vec3 sun = new Vec3(config.deadSunX, config.deadSunHeight, config.deadSunZ);
+        Vec3 arena = net.krodark.asterion.worldgen.WorldGenerator.bossArenaCenter();
+        float beam = BossFinaleOverlay.beamStrength(partial);
+        if (beam > .001F) {
+            int strands = 2 + config.cinematicQuality;
+            for (int i = 0; i < strands; i++) {
+                double angle = time * .045 + i * Math.PI * 2 / strands;
+                Vec3 offset = new Vec3(Math.cos(angle) * 3.5 * beam, 0, Math.sin(angle) * 3.5 * beam);
+                BetterLightningRenderer.draw(out, pose, Vec3.ZERO,
+                        sun.add(offset).subtract(camera), arena.add(offset.scale(.35)).subtract(camera),
+                        beam, 0xA57E010L + i * 7919L + now / 3);
+            }
+        }
+        if (time < net.krodark.asterion.game.FinaleTimeline.DETONATION || time > 258) return;
+        float wave = net.krodark.asterion.game.FinaleTimeline.shockwave(time);
+        float strength = (1 - wave) * .85F;
+        double radius = 12 + wave * 310;
+        int segments = 32 + config.cinematicQuality * 16;
+        for (int i = 0; i < segments; i++) {
+            double a = i * Math.PI * 2 / segments, b = (i + 1) * Math.PI * 2 / segments;
+            Vec3 from = sun.add(Math.cos(a) * radius, -6, Math.sin(a) * radius);
+            Vec3 to = sun.add(Math.cos(b) * radius, -6, Math.sin(b) * radius);
+            BetterLightningRenderer.draw(out, pose, Vec3.ZERO, from.subtract(camera), to.subtract(camera),
+                    strength, 0xD34D50L + i * 31 + now / 3);
         }
     }
 

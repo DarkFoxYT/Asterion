@@ -269,12 +269,25 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         setPos(restingPosition);
         setInvulnerable(true);
         setShielded(false);
+        int room = net.krodark.asterion.worldgen.AuthoredCatacombs.cursedBrazierRoomIndex(blockPosition());
+        if (room >= 0) {
+            BlockPos entrance = net.krodark.asterion.worldgen.AuthoredCatacombs.cursedBrazierEntrance(room);
+            if (level.getBlockEntity(entrance) instanceof net.krodark.asterion.block.CursedBrazierDoorBlockEntity door
+                    && !door.readyForEncounter()) return;
+        }
         ServerPlayer player = level.players().stream()
                 .filter(this::canFight)
                 .filter(candidate -> candidate.distanceToSqr(this) <= AWAKEN_RANGE * AWAKEN_RANGE)
                 .min(Comparator.comparingDouble(this::distanceToSqr))
                 .orElse(null);
-        if (player != null) beginAwakening(level);
+        if (player != null && tickCount % 10 == 0) {
+            boolean[] waitingForEntry = {false};
+            visitEncounterDoors(level, door -> {
+                if (net.krodark.asterion.block.CursedBrazierDoorBlock.isRoot(door.getBlockState())
+                        && !door.readyForEncounter()) waitingForEntry[0] = true;
+            });
+            if (!waitingForEntry[0]) beginAwakening(level);
+        }
     }
 
     private void beginAwakening(ServerLevel level) {
@@ -326,6 +339,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         }
         if (age < AWAKENING_DURATION) return;
 
+        clearPlayersFromEntrance(level);
         setInvulnerable(false);
         setPhase(Phase.ACTIVE);
         cooldown = 36;
@@ -337,6 +351,38 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         entityData.set(PHASE_ID, phase.ordinal());
         entityData.set(PHASE_STARTED_AT, tickCount);
         phaseTicks = 0;
+    }
+
+    private void clearPlayersFromEntrance(ServerLevel level) {
+        visitEncounterDoors(level, door -> {
+            Vec3 entrance = Vec3.atBottomCenterOf(door.getBlockPos());
+            var facing = door.getBlockState().getValue(
+                    net.krodark.asterion.block.CursedBrazierDoorBlock.FACING);
+            Vec3 inward = new Vec3(facing.getStepX(), 0, facing.getStepZ());
+            if (restingPosition.subtract(entrance).dot(inward) < 0) inward = inward.scale(-1);
+            Vec3 side = new Vec3(-inward.z, 0, inward.x);
+            for (ServerPlayer player : level.players()) {
+                if (!player.isAlive() || player.isSpectator()
+                        || !encounterParticipants.contains(player.getUUID())) continue;
+                Vec3 offset = player.position().subtract(entrance);
+                if (offset.dot(inward) > 2 && insideEncounterRoom(player)) continue;
+                boolean moved = false;
+                for (int distance = 3; distance <= 8 && !moved; distance++) {
+                    for (int lane = -2; lane <= 2 && !moved; lane++) {
+                        Vec3 target = entrance.add(inward.scale(distance)).add(side.scale(lane));
+                        var box = player.getBoundingBox().move(target.subtract(player.position()));
+                        if (!level.noCollision(player, box)
+                                || level.noCollision(player, box.move(0, -.15, 0))) continue;
+                        player.stopRiding();
+                        player.teleportTo(level, target.x, target.y, target.z, java.util.Set.of(),
+                                player.getYRot(), player.getXRot(), true);
+                        player.setDeltaMovement(Vec3.ZERO);
+                        player.resetFallDistance();
+                        moved = true;
+                    }
+                }
+            }
+        });
     }
 
     private void updateBossBar() {
@@ -401,6 +447,11 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
         int room = net.krodark.asterion.worldgen.AuthoredCatacombs.cursedBrazierRoomIndex(BlockPos.containing(home));
         return Math.abs(player.getY() - home.y) <= 12
                 && (room < 0 || net.krodark.asterion.worldgen.AuthoredCatacombs.cursedBrazierRoomIndex(player.blockPosition()) == room);
+    }
+
+    public boolean isInEncounterRoom(ServerPlayer player) {
+        return player.level() == level() && insideEncounterRoom(player)
+                && distanceToSqr(player) <= TARGET_RANGE * TARGET_RANGE;
     }
 
     private boolean canFight(ServerPlayer player) {

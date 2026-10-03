@@ -39,23 +39,26 @@ public abstract class AnimatedEmissiveParticle extends SingleQuadParticle {
     private long lastTick;
     private double distanceSquared;
     private float renderX, renderY, renderZ, renderSize;
+    private float renderRoll;
+    private final float spin = (random.nextFloat() - .5F) * .035F;
 
     protected AnimatedEmissiveParticle(ClientLevel level, double x, double y, double z,
                                       double vx, double vy, double vz, SpriteSet sprites) {
         super(level, x, y, z, vx, vy, vz, sprites.first());
         this.sprites = sprites;
+        roll = oRoll = (random.nextFloat() - .5F) * .35F;
         lastTick = level.getGameTime();
         ACTIVE.add(this);
     }
 
-    private float renderRoll;
     public static void initialize() {
         if (initialized) return;
         InstanceLayout layout = InstanceLayout.builder().vec3(2).float1(3).vec4(4).vec4(5).float1(6).build();
         InstancedMesh.<AnimatedEmissiveParticle>builder(layout, (p, out) -> out
                 .putVec3(p.renderX, p.renderY, p.renderZ).putFloat(p.renderSize)
                 .putVec4(p.rCol, p.gCol, p.bCol, p.alpha)
-                .putVec4(p.getU0(), p.getV0(), p.getU1() - p.getU0(), p.getV1() - p.getV0()).putFloat(p.renderRoll))
+                .putVec4(p.getU0(), p.getV0(), p.getU1() - p.getU0(), p.getV1() - p.getV0())
+                .putFloat(p.renderRoll))
                 .geometry(MeshData.texturedQuad())
                 .shaders(Asterion.id("particle/animated_emissive"),
                         Identifier.fromNamespaceAndPath("amnetic", "particle/default_textured"))
@@ -126,6 +129,8 @@ public abstract class AnimatedEmissiveParticle extends SingleQuadParticle {
     @Override
     public void tick() {
         markTicked();
+        oRoll = roll;
+        roll += spin;
         super.tick();
         setSpriteFromAge(sprites);
     }

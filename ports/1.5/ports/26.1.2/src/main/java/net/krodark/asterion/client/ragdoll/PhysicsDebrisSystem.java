@@ -37,6 +37,12 @@ import java.util.Random;
 public final class PhysicsDebrisSystem {
     private static final DebrisGeoRenderer RENDERER = new DebrisGeoRenderer();
     private static final List<Piece> PIECES = new ArrayList<>();
+    private static final net.krodark.asterion.physics.VoxelCollisionCache WORLD_COLLISIONS =
+            new net.krodark.asterion.physics.VoxelCollisionCache(area -> {
+                List<AABB> boxes = new ArrayList<>();
+                if (PhysicsDebrisSystem.trackedLevel != null) for (var shape : PhysicsDebrisSystem.trackedLevel.getBlockCollisions(null, area)) boxes.addAll(shape.toAabbs());
+                return boxes;
+            });
     private static final VariantProfile[] PROFILES = {
             null,
             new VariantProfile(new Vec3(1.50, 2.375, 0.75), new Vec3(5.0 / 16.0, 2.0, -6.0 / 16.0),
@@ -62,8 +68,6 @@ public final class PhysicsDebrisSystem {
     private static ClientLevel trackedLevel;
     private static long lastAmbientTick = Long.MIN_VALUE;
     private static long lastImpactSoundTick = Long.MIN_VALUE;
-    private static long debrisSoundWindow = Long.MIN_VALUE;
-    private static int debrisSoundCount;
 
     private PhysicsDebrisSystem() { }
 
@@ -72,12 +76,12 @@ public final class PhysicsDebrisSystem {
     }
 
     public static void clear() {
+        WORLD_COLLISIONS.clear();
         PIECES.clear();
         DOOR_CLOUDS.clear();
         trackedLevel = null;
         lastAmbientTick = Long.MIN_VALUE;
         lastImpactSoundTick = Long.MIN_VALUE;
-        debrisSoundWindow = Long.MIN_VALUE; debrisSoundCount = 0;
     }
 
     public static void spawnDoors(DoorBreakPayload payload) {
@@ -209,11 +213,13 @@ public final class PhysicsDebrisSystem {
         }
         DOOR_CLOUDS.removeIf(cloud -> ++cloud.age > 42);
         for (DoorCloud cloud : DOOR_CLOUDS) cloud.emit(client.level, cloud.age < 16 ? 8 : 4);
+        WORLD_COLLISIONS.clear();
         if(PIECES.isEmpty())return;
         int substeps = Mth.clamp(2 + Math.min(AsterionConfig.INSTANCE.ragdollPhysicsQuality,
                 net.krodark.asterion.client.PerformanceGovernor.quality()), 2, 4);
         List<Piece> fracturedChildren = new ArrayList<>();
         Iterator<Piece> iterator = PIECES.iterator();
+        int trailBudget = 16;
         while (iterator.hasNext()) {
             Piece piece = iterator.next();
             piece.previousPosition = piece.position;
@@ -221,9 +227,21 @@ public final class PhysicsDebrisSystem {
             piece.age++;
             boolean shattered = false;
              
-            if (!piece.sleeping || piece.age % 10 == 0)
+            if (!piece.sleeping || piece.age % 10 == 0) {
+                recoverEmbedded(client.level, piece);
                 for (int step = 0; step < substeps && !shattered && (step == 0 || !piece.sleeping); step++)
                     shattered = simulateStep(client.level, piece, 1.0 / substeps, fracturedChildren);
+            }
+            if (!shattered && !piece.sleeping && piece.age < 120 && piece.velocity.lengthSqr() > .012
+                    && Math.floorMod(piece.age + piece.seed, 5) == 0 && trailBudget > 0) {
+                trailBudget--;
+                Vec3 trail = piece.previousPosition.lerp(piece.position, .35);
+                Vec3 drift = piece.velocity.scale(.16);
+                client.level.addParticle(Asterion.DOOR_DUST, trail.x, trail.y, trail.z, drift.x, drift.y + .018, drift.z);
+                if (piece.velocity.lengthSqr() > .16 && (piece.age / 5 & 1) == 0)
+                    client.level.addParticle(Asterion.RUMBLE_SMOKE, trail.x, trail.y, trail.z,
+                            drift.x * .35, .018 + drift.y * .2, drift.z * .35);
+            }
             if (shattered || piece.age > piece.lifetime
                     || (client.player != null && piece.position.distanceToSqr(client.player.position()) > 128 * 128)) {
                 if (!shattered && !piece.unbreakable() && piece.age <= piece.lifetime)
@@ -245,7 +263,7 @@ public final class PhysicsDebrisSystem {
             if (position.distanceToSqr(camera) > 96 * 96) continue;
             double cullRadius = piece.halfExtents().length() + .5;
             if (!state.cameraRenderState.cullFrustum.isVisible(new AABB(position, position).inflate(cullRadius))) continue;
-            Quaternionf rotation = new Quaternionf(piece.previousOrientation).slerp(piece.orientation, partialTick);
+            Quaternionf rotation = piece.renderOrientation.set(piece.previousOrientation).slerp(piece.orientation, partialTick);
             poses.pushPose();
             poses.translate(position.x - camera.x, position.y - camera.y, position.z - camera.z);
             poses.mulPose(rotation);
@@ -295,6 +313,17 @@ public final class PhysicsDebrisSystem {
         }
     }
 
+    /** Block packets can arrive after debris or replace a resting surface. */
+    private static void recoverEmbedded(ClientLevel level, Piece piece) {
+        for (int pass = 0; pass < 8; pass++) {
+            Collision overlap = collisionAt(level, piece, piece.position);
+            if (overlap == null) return;
+            piece.position = piece.position.subtract(overlap.normal.scale(overlap.depth + .001));
+            piece.sleeping = false;
+            piece.restingTime = 0;
+        }
+    }
+
     private static boolean simulateStep(ClientLevel level, Piece piece, double dt,
                                         List<Piece> fracturedChildren) {
         boolean playerContact = resolvePlayerContact(level, piece, dt);
@@ -315,8 +344,8 @@ public final class PhysicsDebrisSystem {
         if (piece.velocity.y < -2.8) piece.velocity = new Vec3(piece.velocity.x, -2.8, piece.velocity.z);
         piece.angularVelocity.mul((float) Math.pow(0.992, dt));
         Quaternionf oldRotation = new Quaternionf(piece.orientation);
-        piece.orientation.rotateXYZ(piece.angularVelocity.x * (float) dt,
-                piece.angularVelocity.y * (float) dt, piece.angularVelocity.z * (float) dt).normalize();
+        piece.orientation.premul(new Quaternionf().rotationXYZ(piece.angularVelocity.x * (float) dt,
+                piece.angularVelocity.y * (float) dt, piece.angularVelocity.z * (float) dt)).normalize();
         if (!isWorldClear(level, piece, piece.position)) {
             piece.orientation.set(oldRotation);
             piece.angularVelocity.mul(-0.28F);
@@ -325,20 +354,22 @@ public final class PhysicsDebrisSystem {
         Vec3 motion = piece.velocity.scale(dt);
         int sweeps = Mth.clamp((int) Math.ceil(motion.length() / Math.max(0.035, piece.scale * 0.22)), 1, 8);
         Vec3 increment = motion.scale(1.0 / sweeps);
+        boolean supported = false;
         for (int sweep = 0; sweep < sweeps; sweep++) {
             Vec3 normal = move(level, piece, increment);
             resolvePlayerContact(level, piece, dt / sweeps);
             if (normal == null) continue;
             double impactSpeed = Math.max(0.0, -piece.velocity.dot(normal));
             triggerImpactShake(level, piece, normal, impactSpeed);
-            piece.impacts++;
+            if (impactSpeed > .12) piece.impacts++;
             boolean shouldBreak = !piece.unbreakable() && (impactSpeed > piece.breakSpeed()
-                    || piece.impacts >= piece.maxImpacts());
+                    || piece.impacts >= piece.maxImpacts() && impactSpeed > .18);
             boolean floorContact = normal.y > 0.55D;
-            if (floorContact && impactSpeed > .25D && (piece.impacts & 3) == 1 && claimDebrisSound(level, piece.position)) {
+            supported |= floorContact;
+            if (floorContact && impactSpeed > .25D && (piece.impacts & 3) == 1) {
                 var sound = switch (piece.variant % 3) { case 0 -> Asterion.DEBRIS_1; case 1 -> Asterion.DEBRIS_2; default -> Asterion.DEBRIS_3; };
                 level.playLocalSound(piece.position.x, piece.position.y, piece.position.z, sound, SoundSource.BLOCKS,
-                        (float)Math.min(0.38, 0.10 + impactSpeed * .06), .88F + level.getRandom().nextFloat() * .18F, false);
+                        (float)Math.min(0.7, 0.18 + impactSpeed * .08), .88F + level.getRandom().nextFloat() * .18F, false);
             }
             if (shouldBreak && piece.consumeSurfaceSurvival(floorContact)) {
                 piece.impacts = Math.max(0, piece.impacts - 2);
@@ -356,6 +387,12 @@ public final class PhysicsDebrisSystem {
             if (piece.rolling() && normal.y > 0.55D) applyRollingContact(piece, normal);
             Vec3 torque = normal.cross(piece.velocity).scale(0.28 * piece.spinMultiplier());
             piece.angularVelocity.add((float) torque.x, (float) torque.y, (float) torque.z);
+        }
+        if (supported && piece.velocity.horizontalDistanceSqr() < .0016 && Math.abs(piece.velocity.y) < .07
+                && piece.angularVelocity.lengthSquared() < .004) piece.restingTime += dt;
+        else piece.restingTime = 0;
+        if (piece.restingTime > .65) {
+            piece.sleeping = true; piece.velocity = Vec3.ZERO; piece.angularVelocity.zero();
         }
         return false;
     }
@@ -459,8 +496,7 @@ public final class PhysicsDebrisSystem {
         if (!debrisBox.intersects(playerBox)) return false;
         Vec3 playerHalf = new Vec3(playerBox.getXsize() * 0.5D, playerBox.getYsize() * 0.5D,
                 playerBox.getZsize() * 0.5D);
-        Collision contact = satContact(piece.position, piece.halfExtents(), axes(piece),
-                playerBox.getCenter(), playerHalf, WORLD_AXES);
+        Collision contact = modelContact(piece,piece.position,playerBox);
         if (contact == null) return false;
 
         Vec3 towardPlayer = contact.normal;
@@ -696,20 +732,10 @@ public final class PhysicsDebrisSystem {
         }
         level.addParticle(ParticleTypes.POOF, piece.position.x, piece.position.y, piece.position.z,
                 normal.x * 0.04, Math.max(0.025, normal.y * 0.04), normal.z * 0.04);
-        if (claimDebrisSound(level, piece.position)) level.playLocalSound(piece.position.x, piece.position.y, piece.position.z,
+        level.playLocalSound(piece.position.x, piece.position.y, piece.position.z,
                 SoundEvents.DEEPSLATE_BREAK, SoundSource.BLOCKS,
                 Mth.clamp((0.18F + piece.scale * 0.85F) * piece.massFactor(), 0.14F, 0.65F),
                 debrisImpactPitch(piece), false);
-    }
-
-    private static boolean claimDebrisSound(ClientLevel level, Vec3 position) {
-        var player = Minecraft.getInstance().player;
-        if (player == null || player.distanceToSqr(position) > 16 * 16) return false;
-        long window = Math.floorDiv(level.getGameTime(), 4);
-        if (window != debrisSoundWindow) { debrisSoundWindow = window; debrisSoundCount = 0; }
-        if (debrisSoundCount >= 3) return false;
-        debrisSoundCount++;
-        return true;
     }
 
     private static float debrisImpactPitch(Piece piece) {
@@ -721,6 +747,7 @@ public final class PhysicsDebrisSystem {
     }
 
     private static AABB boundsAt(Piece piece, Vec3 center) {
+        if(piece.blockVisual==null){modelBoxes(piece,center);return piece.cachedModelBounds;}
         piece.updateGeometry();
         double hx = piece.boundsHalf.x, hy = piece.boundsHalf.y, hz = piece.boundsHalf.z;
         return new AABB(center.x - hx, center.y - hy, center.z - hz,
@@ -736,23 +763,49 @@ public final class PhysicsDebrisSystem {
     }
 
     private static Collision collisionAt(ClientLevel level, Piece piece, Vec3 center, boolean anyContact) {
-        AABB broad = boundsAt(piece, center).deflate(0.00035);
+        var cubes=piece.blockVisual==null?modelBoxes(piece,center):null;
+        AABB broad = boundsAt(piece,center).deflate(0.00035);
         Collision deepest = null;
-        for (var shape : level.getBlockCollisions(null, broad)) {
-            for (AABB box : shape.toAabbs()) {
-                Collision collision = satContact(center, piece.halfExtents(),
-                        axes(piece), box.getCenter(),
-                        new Vec3(box.getXsize() * 0.5, box.getYsize() * 0.5, box.getZsize() * 0.5),
-                        WORLD_AXES);
-                if (anyContact && collision != null) return collision;
-                if (collision != null && (deepest == null || collision.depth > deepest.depth)) {
-                    if (piece.variant != 7 && !piece.arenaRubble) { deepest = collision; continue; }
-                    Vec3 point = supportPoint(piece, center, collision.normal);
-                    point = new Vec3(Mth.clamp(point.x, box.minX, box.maxX), Mth.clamp(point.y, box.minY, box.maxY),
-                            Mth.clamp(point.z, box.minZ, box.maxZ));
-                    deepest = new Collision(collision.normal, collision.depth, point);
-                }
+        for (AABB box : WORLD_COLLISIONS.collect(broad)) {
+            Collision collision = modelContact(piece,center,box,cubes);
+            if (anyContact && collision != null) return collision;
+            if (collision != null && (deepest == null || collision.depth > deepest.depth)) {
+                if (piece.blockVisual==null || piece.variant != 7 && !piece.arenaRubble) { deepest = collision; continue; }
+                Vec3 point = supportPoint(piece, center, collision.normal);
+                point = new Vec3(Mth.clamp(point.x, box.minX, box.maxX), Mth.clamp(point.y, box.minY, box.maxY),
+                        Mth.clamp(point.z, box.minZ, box.maxZ));
+                deepest = new Collision(collision.normal, collision.depth, point);
             }
+        }
+        return deepest;
+    }
+
+    private static java.util.List<net.krodark.asterion.physics.ModelCollider.Box> modelBoxes(Piece piece,Vec3 center) {
+        if(piece.cachedModelBoxes!=null && center.equals(piece.cachedModelPosition)
+                && piece.cachedModelOrientation.equals(piece.orientation))return piece.cachedModelBoxes;
+        if(piece.localModelBoxes==null || !piece.cachedModelOrientation.equals(piece.orientation)) {
+            String model=piece.variant==7?"minotaur_door_debirs":"debris"+piece.variant;
+            piece.localModelBoxes=net.krodark.asterion.physics.ModelCollider.load(model).world(Vec3.ZERO,piece.orientation,piece.scale,piece.modelCenter(),0);
+            piece.localModelBounds=net.krodark.asterion.physics.ModelCollider.bounds(piece.localModelBoxes);
+        }
+        var translated=new java.util.ArrayList<net.krodark.asterion.physics.ModelCollider.Box>(piece.localModelBoxes.size());
+        for(var box:piece.localModelBoxes)translated.add(new net.krodark.asterion.physics.ModelCollider.Box(box.center().add(center),box.half(),box.axes(),box.blade()));
+        piece.cachedModelBoxes=translated;
+        piece.cachedModelPosition=center;piece.cachedModelOrientation.set(piece.orientation);
+        piece.cachedModelBounds=piece.localModelBounds.move(center);
+        return piece.cachedModelBoxes;
+    }
+    private static Collision modelContact(Piece piece,Vec3 center,AABB box) {
+        return modelContact(piece,center,box,piece.blockVisual==null?modelBoxes(piece,center):null);
+    }
+    private static Collision modelContact(Piece piece,Vec3 center,AABB box,java.util.List<net.krodark.asterion.physics.ModelCollider.Box> cubes) {
+        if(piece.blockVisual!=null)return satContact(center,piece.halfExtents(),axes(piece),box.getCenter(),
+                new Vec3(box.getXsize()/2,box.getYsize()/2,box.getZsize()/2),WORLD_AXES);
+        Collision deepest=null;
+        for(var cube:cubes) {
+            var hit=net.krodark.asterion.physics.ModelCollider.contact(cube,box);
+            if(hit!=null && (deepest==null || hit.depth()>deepest.depth))
+                deepest=new Collision(hit.normal().scale(-1),hit.depth(),hit.point());
         }
         return deepest;
     }
@@ -783,12 +836,8 @@ public final class PhysicsDebrisSystem {
         Vec3 delta = centerB.subtract(centerA);
         Vec3 bestAxis = null;
         double bestDepth = Double.POSITIVE_INFINITY;
-        Vec3[] candidates = new Vec3[15];
-        System.arraycopy(axesA, 0, candidates, 0, 3);
-        System.arraycopy(axesB, 0, candidates, 3, 3);
-        int index = 6;
-        for (Vec3 a : axesA) for (Vec3 b : axesB) candidates[index++] = a.cross(b);
-        for (Vec3 raw : candidates) {
+        for (int index=0;index<15;index++) {
+            Vec3 raw=index<3?axesA[index]:index<6?axesB[index-3]:axesA[(index-6)/3].cross(axesB[(index-6)%3]);
             double lengthSqr = raw.lengthSqr();
             if (lengthSqr < 1.0e-10) continue;
             Vec3 axis = raw.scale(1.0 / Math.sqrt(lengthSqr));
@@ -817,6 +866,13 @@ public final class PhysicsDebrisSystem {
         private final float scale;
         private final Vec3 modelHalf, blockHalf;
         private final Quaternionf geometryOrientation = new Quaternionf();
+        private final Quaternionf cachedModelOrientation = new Quaternionf();
+        private final Quaternionf renderOrientation = new Quaternionf();
+        private java.util.List<net.krodark.asterion.physics.ModelCollider.Box> cachedModelBoxes;
+        private java.util.List<net.krodark.asterion.physics.ModelCollider.Box> localModelBoxes;
+        private AABB localModelBounds;
+        private Vec3 cachedModelPosition;
+        private AABB cachedModelBounds;
         private boolean geometryReady, geometryBlockVisual;
         private Vec3[] collisionAxes;
         private Vec3 boundsHalf;

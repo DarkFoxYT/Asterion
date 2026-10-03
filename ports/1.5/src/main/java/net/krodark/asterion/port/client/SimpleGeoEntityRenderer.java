@@ -28,7 +28,7 @@ public class SimpleGeoEntityRenderer<T extends Entity & GeoAnimatable> extends G
 
     public SimpleGeoEntityRenderer<T> withEmissiveBones(ToIntFunction<T> color,
                                                          Predicate<T> visible, String... bones) {
-        addRenderLayer(new PortEmissiveGeoLayer<>(this, this::getTextureLocation, color, visible, bones));
+        addRenderLayer(new PortEmissiveGeoLayer<>(this, entity -> getGeoModel().getTextureResource(entity), color, visible, bones));
         return this;
     }
 

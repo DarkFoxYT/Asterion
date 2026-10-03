@@ -85,6 +85,8 @@ public final class PortClientFeatures {
         PortLightning.initialize();
         PortBossTelegraphs.initialize();
         PortDimensionEffects.initialize();
+        PortChainClimbingClient.initialize();
+        net.krodark.asterion.port.client.particle.GroundFogParticle.initialize();
         PortPhysicsDebris.initialize();
         // Register last so all other entity-stage geometry is queued before
         // the shared depth-aware Geo emissive replay.
@@ -153,6 +155,10 @@ public final class PortClientFeatures {
     }
 
     public static void tick(Minecraft client) {
+        if(client.player!=null && net.krodark.asterion.entity.MinotaurEntity.isHeld(client.player)){
+            client.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+            while(client.options.keyTogglePerspective.consumeClick()){}
+        }
         PortTextureFrameCache.tick(client.level);
         PortEmissiveQueue.tick(client);
         PortLight.tickCleanup(client);

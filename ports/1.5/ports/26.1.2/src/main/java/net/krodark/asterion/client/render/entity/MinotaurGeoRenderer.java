@@ -23,15 +23,7 @@ import java.util.Map;
 import java.util.UUID;
 
 public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity, EntityRenderState> {
-    public static boolean attackCue(MinotaurEntity boss) {
-        return !boss.isDefeatedBoss() && !boss.isHarvested() && boss.doorEntryTicks() <= 0
-                && (boss.bossAttackAnimationTicks() > 0 || boss.animationState() == MinotaurEntity.AnimationState.WARNING
-                || boss.animationState() == MinotaurEntity.AnimationState.CHARGE_RUN);
-    }
-    @Override public int getRenderColor(MinotaurEntity boss, Void unused, float partial) {
-        int base = super.getRenderColor(boss, unused, partial);
-        return attackCue(boss) ? (base & 0xFF000000) | 0x4DFF59 : base;
-    }
+    private static final DataTicket<Integer> CHAIN_OWNER = DataTickets.create("asterion_chain_owner", Integer.class);
     @Override public boolean shouldRender(MinotaurEntity boss, net.minecraft.client.renderer.culling.Frustum frustum,
                                           double x, double y, double z) {
         if (boss.doorEntryTicks() > 0 && boss.doorEntryTicks() - 1 < net.krodark.asterion.entity.MinotaurAnimationTiming.ENTRY_BREAK_TICK)
@@ -81,10 +73,10 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
                 return !state.isInvisible && !state.getOrDefaultGeckolibData(HARVESTED, false);
             }
 
-            @Override protected boolean enhancedSurface(EntityRenderState state) { return true; }
+            @Override protected boolean enhancedSurface(EntityRenderState state) { return state.getOrDefaultGeckolibData(EYE_TINT, -1) != 0xFF000000; }
 
             @Override protected net.minecraft.resources.Identifier amneticEmissionMesh(EntityRenderState state) {
-                return getGeoModel().getModelResource(state);
+                return state.getOrDefaultGeckolibData(EYE_TINT, -1) == 0xFF000000 ? null : getGeoModel().getModelResource(state);
             }
 
             @Override protected float emissiveStrength(EntityRenderState state) { return 1.35F; }
@@ -116,7 +108,9 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         if (Double.isFinite(replayTick))
             state.addGeckolibData(com.geckolib.constant.DataTickets.TICK, replayTick);
         double entryTime = Double.NaN;
-        if (minotaur.doorEntryTicks() > 0) {
+        if (minotaur.isDefeatedBoss() || !minotaur.isAlive()) {
+            state.addGeckolibData(EYE_TINT, 0xFF000000);
+        } else if (minotaur.doorEntryTicks() > 0) {
             entryTime = minotaur.doorEntryTicks() - 1 + (Double.isFinite(replayTick) ? replayTick - Math.floor(replayTick) : partialTick);
             double cinematicTime = net.krodark.asterion.client.cinematic.BossEntranceCinematic.visualTime(minotaur, partialTick);
             if (!Double.isFinite(replayTick) && Double.isFinite(cinematicTime)) entryTime = cinematicTime;
@@ -134,9 +128,7 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         float targetPitch = Mth.clamp(Mth.lerp(partialTick, minotaur.xRotO, minotaur.getXRot()), -34F, 42F);
 
         LookPose pose = lookPoses.computeIfAbsent(minotaur.getUUID(), ignored -> new LookPose());
-        double age = Double.isFinite(replayTick) ? replayTick : minotaur.tickCount + partialTick;
-        float frameTicks = Double.isNaN(pose.age) ? 1F : (float)Math.clamp(age - pose.age, 0, 2);
-        pose.age = age;
+        float frameTicks = Math.max(0.05F, Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaTicks());
         float blend = 1.0F - (float)Math.pow(0.72D, frameTicks);
         pose.yaw += Mth.wrapDegrees(targetYaw - pose.yaw) * blend;
         pose.pitch += (targetPitch - pose.pitch) * blend;
@@ -150,9 +142,7 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         state.addGeckolibData(IDLE_WEIGHT, pose.idleWeight);
          
          
-        state.addGeckolibData(AUTHORED_POSE, minotaur.isChainGrappleActive() || minotaur.doorEntryTicks() > 0 || minotaur.collapseAnimationTicks() > 0
-                || !(minotaur.isPerformingGrab() || minotaur.animationState() == MinotaurEntity.AnimationState.IDLE
-                || minotaur.animationState() == MinotaurEntity.AnimationState.WALK || minotaur.animationState() == MinotaurEntity.AnimationState.CHASE));
+        state.addGeckolibData(AUTHORED_POSE, !minotaur.isPerformingGrab());
         state.addGeckolibData(HORN_WEIGHT, minotaur.isSpineCharging() ? 1.0F : 0.0F);
         state.addGeckolibData(RAGE_WEIGHT, minotaur.rage() / 12.0F);
         state.addGeckolibData(ATTACK_TICKS, minotaur.bossAttackAnimationTicks());
@@ -162,7 +152,7 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
             state.addGeckolibData(DataTickets.RENDER_COLOR, 0x8856FF74);
 
         GrabPose grab = grabPoses.computeIfAbsent(minotaur.getUUID(), ignored -> new GrabPose());
-        float grabTicks = minotaur.grabAttackTicks() + partialTick;
+        int grabTicks = minotaur.grabAttackTicks();
         float desiredGrab = 0.0F;
         float grabYaw = 0.0F;
         float grabPitch = 0.0F;
@@ -176,14 +166,9 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
                     : grabTicks < 12 ? smoother(grabTicks / 12.0F)
                     : grabTicks < 43 ? 1.0F : 1.0F - smoother((grabTicks - 43) / 6.0F);
             Entity targetEntity = minotaur.level().getEntity(minotaur.grabTargetEntityId());
-            if (targetEntity != null && minotaur.heldPlayerId() == targetEntity.getId()) {
-                // Do not aim at the player whose position follows this same arm.
-                grabYaw = grab.yaw;
-                grabPitch = grab.pitch;
-                grabExtension = grab.extension;
-            } else if (targetEntity != null) {
-                Vec3 shoulderCenter = minotaur.getPosition(partialTick).add(0.0D, minotaur.getBbHeight() * 0.68D, 0.0D);
-                Vec3 targetCenter = targetEntity.getPosition(partialTick).add(0.0D, targetEntity.getBbHeight() * 0.52D, 0.0D);
+            if (targetEntity != null) {
+                Vec3 shoulderCenter = minotaur.position().add(0.0D, minotaur.getBbHeight() * 0.68D, 0.0D);
+                Vec3 targetCenter = targetEntity.position().add(0.0D, targetEntity.getBbHeight() * 0.52D, 0.0D);
                 Vec3 delta = targetCenter.subtract(shoulderCenter);
                 double horizontal = Math.max(0.001D, Math.sqrt(delta.x * delta.x + delta.z * delta.z));
                 float worldYaw = (float)(Mth.atan2(delta.z, delta.x) * Mth.RAD_TO_DEG) - 90.0F;
@@ -205,6 +190,7 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         state.addGeckolibData(GRAB_EXTENSION, grab.extension);
         state.addGeckolibData(GRAB_ARM, grab.arm);
         state.addGeckolibData(HELD_PLAYER, minotaur.heldPlayerId());
+        state.addGeckolibData(CHAIN_OWNER, minotaur.getId());
         state.addGeckolibData(AXE_ACTION, minotaur.isAxeAttackActive());
         float rage = minotaur.rage() / 12.0F;
         if (minotaur.doorEntryTicks() > 0) {
@@ -223,7 +209,6 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
             int red = Mth.floor(Mth.lerp(damage, 205.0F, 255.0F));
             state.addGeckolibData(EYE_TINT, 0xFF000000 | red << 16 | 0xFFFF);
         } else state.addGeckolibData(EYE_TINT, 0xFFD8FFFF);
-        if (attackCue(minotaur)) state.addGeckolibData(EYE_TINT, 0xFF55FF66);
     }
 
     @Override
@@ -239,9 +224,17 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
             bones.get(bone).skipRender(removed || (skeleton ? !harvested : harvested && !retained));
         }
         int held = pass.getOrDefaultGeckolibData(HELD_PLAYER, -1);
-        if (held >= 0) pass.addLocatorPositionListener(
+        int chainOwner = pass.getOrDefaultGeckolibData(CHAIN_OWNER, -1);
+        if (chainOwner >= 0) {
+            pass.addBonePositionListener("hand_chainR", (world, model, local) -> WeaponChainAttachments.capture(chainOwner, 1, world));
+            pass.addBonePositionListener("hand_chainL", (world, model, local) -> WeaponChainAttachments.capture(chainOwner, -1, world));
+        }
+        if (held >= 0) pass.addBonePositionListener(
                 pass.getOrDefaultGeckolibData(GRAB_ARM, 1) >= 0 ? "right_player_grip" : "left_player_grip",
                 (world, model, local) -> MinotaurHandAttachment.capture(held, world));
+        if (held >= 0) pass.addBonePositionListener(
+                pass.getOrDefaultGeckolibData(GRAB_ARM, 1) >= 0 ? "right_player_grip_up" : "left_player_grip_up",
+                (world, model, local) -> MinotaurHandAttachment.captureUp(held, world));
          
         if (pass.getOrDefaultGeckolibData(AUTHORED_POSE, false)) {
             MinotaurPoseBlend.apply(pass, bones);
@@ -349,7 +342,6 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
     }
 
     private static final class LookPose {
-        private double age = Double.NaN;
         private float yaw;
         private float pitch;
         private float idleWeight;
@@ -364,4 +356,3 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
     }
 
 }
-

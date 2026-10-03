@@ -24,9 +24,12 @@ public final class MinotaurSounds {
         // Positional call sites used volume to extend range. Global playback needs bounded gain instead.
         var payload = new MinotaurGlobalSoundPayload(index, Math.clamp(volume, .75F, 1F),
                 Math.clamp(pitch, .5F, 2F), level.getRandom().nextLong());
+        boolean sent=false;
         for (var player : level.players())
-            if (ServerPlayNetworking.canSend(player, MinotaurGlobalSoundPayload.TYPE))
+            if (ServerPlayNetworking.canSend(player, MinotaurGlobalSoundPayload.TYPE)) {
                 ServerPlayNetworking.send(player, payload);
-        return true;
+                sent=true;
+            }
+        return sent;
     }
 }

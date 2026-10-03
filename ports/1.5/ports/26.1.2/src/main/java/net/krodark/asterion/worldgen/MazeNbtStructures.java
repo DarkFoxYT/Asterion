@@ -78,6 +78,12 @@ public final class MazeNbtStructures {
         return layout == null ? null : layout.nearestSafeCheckpoint(level, position);
     }
 
+    public static boolean protectedHunterArea(ServerLevel level, BlockPos position) {
+        Layout layout;
+        synchronized (LAYOUTS) { layout = LAYOUTS.get(level); }
+        return layout != null && layout.protectedHunterArea(position.getX(), position.getZ());
+    }
+
     public static BlockPos nearestSafeHouse(ServerLevel level, BlockPos position) {
         Layout layout;
         synchronized (LAYOUTS) { layout = LAYOUTS.get(level); }
@@ -193,23 +199,22 @@ public final class MazeNbtStructures {
     private static void addQueenTrees(ServerLevel level, List<Placement> placements, long seed,
                                       int limit, int cell, ReservationFilter filter) {
         var template = level.getStructureManager().get(QUEEN_TREE).orElseThrow();
+        int queenTrees = 0;
         var candidates = new ArrayList<BlockPos>();
-        // Keep the preferred 350-450 block ring, but search farther when that
-        // ring contains too little overgrowth for both large Queen templates.
-        int edge = Math.min(900, limit - 80);
-        int inner = Math.min(350, Math.max(0, edge / 3));
-        for (int x = -edge; x <= edge; x += 32) for (int z = -edge; z <= edge; z += 32) {
+        int edge = limit - 80;
+        for (int x = -edge; x <= edge; x += 16) for (int z = -edge; z <= edge; z += 16) {
             long distance = (long)x * x + (long)z * z;
-            if (distance < (long)inner * inner || distance > (long)edge * edge) continue;
+            if (distance < 350L * 350) continue;
             boolean overgrown = true;
             for (int dx : new int[]{-32, 0, 32}) for (int dz : new int[]{-38, 0, 38})
                 if (WorldGenerator.mazeBiomeAt(seed, x + dx, z + dz, cell).kind() != MazeBiomes.Kind.OVERGROWTH)
                     overgrown = false;
             if (overgrown) candidates.add(new BlockPos(x, 0, z));
         }
-        candidates.sort(java.util.Comparator
-                .comparingInt((BlockPos p) -> Math.abs((int)Math.sqrt((long)p.getX() * p.getX()
-                        + (long)p.getZ() * p.getZ()) - 400))
+        // Prefer the original quest ring, then expand to actual overgrowth interiors.
+        // A narrow 350–450 ring can miss every region's usable interior for some seeds.
+        candidates.sort(java.util.Comparator.<BlockPos>comparingInt(p ->
+                (long)p.getX()*p.getX()+(long)p.getZ()*p.getZ()<=450L*450?0:1)
                 .thenComparingLong(p -> mix(seed ^ p.asLong())));
         for (BlockPos center : candidates) {
             var origin = new BlockPos(center.getX() - 28,
@@ -219,11 +224,11 @@ public final class MazeNbtStructures {
             var reserved = box.inflatedBy(5, 0, 5);
             if (!filter.allow(Math.floorDiv(reserved.minX() + limit, cell), Math.floorDiv(reserved.minZ() + limit, cell),
                     Math.floorDiv(reserved.maxX() + limit, cell), Math.floorDiv(reserved.maxZ() + limit, cell))) continue;
-            if (placements.stream().anyMatch(p -> p.reserved.inflatedBy(128, 0, 128).intersects(reserved))) continue;
+            if (placements.stream().anyMatch(p -> p.reserved.inflatedBy(64, 0, 64).intersects(reserved))) continue;
             placements.add(new Placement(QUEEN_TREE, template, origin, settings, box, reserved, mix(seed ^ center.asLong())));
-            if (placements.size() == 2) return;
+            if (++queenTrees == 12) return;
         }
-        Asterion.LOGGER.error("Only {} of two Queen trees fit the configured maze/overgrowth area", placements.size());
+        Asterion.LOGGER.warn("Only {} of twelve Queen trees fit the configured maze/overgrowth area", queenTrees);
     }
 
     private static void spawnTreeQueen(ServerLevel level, Placement placement) {
@@ -306,8 +311,8 @@ public final class MazeNbtStructures {
 
     public static final class Layout {
         private final List<Placement> placements;
-        private final it.unimi.dsi.fastutil.longs.Long2ObjectMap<List<Placement>> reservationsByChunk = new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<>();
-        private final it.unimi.dsi.fastutil.longs.Long2ObjectMap<List<Placement>> anchorsByChunk = new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<>();
+        private final Map<Long, List<Placement>> reservationsByChunk = new HashMap<>();
+        private final Map<Long, List<Placement>> anchorsByChunk = new HashMap<>();
         private final ArrayDeque<Placement> pending = new ArrayDeque<>();
         private final Set<BlockPos> queued = new HashSet<>();
         private final Set<Long> generatedChunks = ConcurrentHashMap.newKeySet();
@@ -330,6 +335,15 @@ public final class MazeNbtStructures {
                         double dx = p.getX() - position.x, dz = p.getZ() - position.z;
                         return dx * dx + dz * dz;
                     })).orElse(null);
+        }
+
+        public boolean protectedHunterArea(int x, int z) {
+            List<Placement> local = reservationsByChunk.get(ChunkPos.pack(x >> 4, z >> 4));
+            if (local == null) return false;
+            for (Placement placement : local)
+                if ((isSafeRoom(placement.id) || placement.id.getPath().contains("ruin"))
+                        && insideXZ(placement.reserved, x, z)) return true;
+            return false;
         }
 
         public boolean reserved(int x, int z) {
@@ -405,6 +419,10 @@ public final class MazeNbtStructures {
                 return;
             }
             if (!placement.id.equals(QUEEN_TREE)) sanitize(level, placement.box);
+            placement.box.intersectingChunks().forEach(pos->{
+                var chainChunk=level.getChunkSource().getChunkNow(pos.x(),pos.z());
+                if(chainChunk!=null)GeneratedPhysicsChains.enqueue(level,chainChunk);
+            });
             spawnTreeQueen(level, placement);
             carveAccessibilityBridges(level, placement);
             configureSafeRoom(level, placement, true);
