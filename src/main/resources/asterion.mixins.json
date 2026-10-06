@@ -41,6 +41,7 @@
     "SpawnPlacementsAccessor"
   ],
   "client": [
+    "EssentialSharedWorldSkinMixin",
     "EssentialRagdollEmoteMixin",
     "RagdollPlayerSkinMixin",
     "WorldIconDecoderMixin",

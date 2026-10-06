@@ -20,6 +20,16 @@ public final class RagdollCompatibilitySmoke {
         PlayerSkin fallback = skin("minecraft:entity/player/wide/steve", PlayerModelType.WIDE);
         PlayerSkin loaded = skin("minecraft:skins/alice", PlayerModelType.SLIM);
         PlayerSkin changed = skin("essential:skins/alice-new", PlayerModelType.WIDE);
+        var unsigned = new PlayerSkin(loaded.body(), loaded.cape(), loaded.elytra(), loaded.model(), false);
+        require(EssentialSharedWorldSkins.select(fallback, () -> unsigned, true) == unsigned,
+                "SPS remote player remains default when textures are loaded but unverifiable");
+        require(EssentialSharedWorldSkins.select(fallback, () -> unsigned, false) == fallback,
+                "Ordinary servers must retain signed-skin policy");
+        require(EssentialSharedWorldSkins.select(loaded, () -> { throw new AssertionError("Unnecessary fallback"); }, true) == loaded,
+                "Existing skin must keep priority over shared-world fallback");
+        require(EssentialSharedWorldSkins.select(fallback, () -> fallback, true) == fallback,
+                "Pending skin downloads must retain the correct default");
+        require(!unsigned.secure(), "Compatibility must not relabel unsigned skins as verified");
         require(RagdollPlayerSkins.remember(alice, fallback).equals(fallback), "Never-loaded player loses fallback");
         require(RagdollPlayerSkins.remember(alice, loaded).equals(loaded), "Async skin never replaces fallback");
         var retained = RagdollPlayerSkins.remember(alice, fallback);
@@ -49,6 +59,11 @@ public final class RagdollCompatibilitySmoke {
         require(EssentialRagdollCompatibility.emissiveCape(null) == null, "Absent Essential should be a no-op");
         if (args.length > 0) {
             try (var jar = new ZipFile(args[0]); var universal = new ZipFile(args[1])) {
+                method(jar, "gg/essential/Essential", "getInstance", "()Lgg/essential/Essential;");
+                method(jar, "gg/essential/Essential", "getConnectionManager", "()Lgg/essential/network/connectionmanager/ConnectionManager;");
+                method(jar, "gg/essential/network/connectionmanager/ConnectionManager", "getSpsManager", "()Lgg/essential/network/connectionmanager/sps/SPSManager;");
+                method(jar, "gg/essential/network/connectionmanager/sps/SPSManager", "getLocalSession", "()Lgg/essential/upnp/model/UPnPSession;");
+                method(jar, "gg/essential/sps/SpsAddress", "parse", "(Ljava/lang/String;)Lgg/essential/sps/SpsAddress;");
                 method(jar, "gg/essential/mixins/impl/client/entity/AbstractClientPlayerExt", "getCosmeticsState", "()Lgg/essential/cosmetics/CosmeticsState;");
                 method(jar, "gg/essential/mixins/impl/client/entity/AbstractClientPlayerExt", "getEmissiveCapeTexture", "()Lgg/essential/util/UIdentifier;");
                 method(jar, "gg/essential/mixins/impl/client/entity/AbstractClientPlayerExt", "applyEssentialCosmeticsMask", "(Lnet/minecraft/resources/Identifier;)Lnet/minecraft/resources/Identifier;");
@@ -71,7 +86,7 @@ public final class RagdollCompatibilitySmoke {
                 require(read(jar, "gg/essential/mod/cosmetics/CosmeticSlot").fields.stream().anyMatch(f -> f.name.equals("EMOTE")), "Missing EMOTE slot");
             }
         }
-        System.out.println("Ragdoll compatibility: skin reload/isolation/reconnect, 120 attachment frames, optional absence and installed Essential API passed.");
+        System.out.println("Essential compatibility: shared-world skin fallback/scope/priority/pending downloads, skin reload/isolation/reconnect, 120 attachment frames, optional absence and installed API passed.");
     }
 
     private static PlayerSkin skin(String path, PlayerModelType model) {

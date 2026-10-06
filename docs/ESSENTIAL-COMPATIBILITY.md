@@ -27,3 +27,15 @@ skins and cosmetic outfits; knock down each player, enter tracking range while t
 are down, recover from an emote, and repeat after respawn and reconnect. Check the
 body, cape and cosmetics from both clients. Automated checks do not replace that
 two-client visual and network test or remove the connection's latency.
+# Shared-world player skins
+
+When an Essential shared-world profile has downloaded textures but Minecraft cannot
+verify its texture signature, remote players previously remained on default skins.
+The PlayerInfo lookup now falls back to those loaded textures only while hosting an
+active Essential SPS session or connected to an address parsed by Essential's SPS API.
+It retains the actual skin's unverified status, leaves ordinary server policy intact,
+and uses Minecraft's existing asynchronous download/cache and texture-domain checks.
+This covers ordinary player rendering, slim/wide models, capes and ragdolls. Restart
+the client and rejoin the shared world after updating. Live two-player verification
+is still required; headless checks cover scope, fallback, pending downloads, priority
+and the installed Essential API.
