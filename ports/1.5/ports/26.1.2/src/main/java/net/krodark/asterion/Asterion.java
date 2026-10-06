@@ -137,7 +137,7 @@ public class Asterion implements ModInitializer {
     public static final String MOD_ID = "asterion";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     public static final ResourceKey<Level> ASTERION_LEVEL = ResourceKey.create(
-            Registries.DIMENSION, id("asterion_dimension"));
+            Registries.DIMENSION, id("labyrinth"));
     public static final ResourceKey<Level> LIMBO_LEVEL = ResourceKey.create(
             Registries.DIMENSION, id("limbo"));
     public static final ResourceKey<Biome> CATACOMBS_BIOME = ResourceKey.create(

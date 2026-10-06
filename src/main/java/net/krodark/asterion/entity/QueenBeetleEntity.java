@@ -128,7 +128,7 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
             net.krodark.asterion.game.AsterionAdvancements.queenProgress(serverPlayer, index + 1);
             if (index + 1 == QueenBeetleQuests.ALL.size()) player.addTag(COMPLETE_TAG);
             ItemStack reward = new ItemStack(quest.reward(), quest.rewardCount());
-            if (!player.getInventory().add(reward)) player.drop(reward, false);
+            if (!player.getInventory().add(reward)) net.krodark.asterion.entity.EntityVersionCompatibility.drop(player, reward, false);
             sendQuest(serverPlayer, QueenBeetleQuestPayload.REWARDED, index, target, target, anger);
         }
         return InteractionResult.SUCCESS_SERVER;

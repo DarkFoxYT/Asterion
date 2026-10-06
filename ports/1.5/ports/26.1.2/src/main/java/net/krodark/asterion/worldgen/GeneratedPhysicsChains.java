@@ -48,7 +48,41 @@ public final class GeneratedPhysicsChains {
         BlockPos pos=BlockPos.containing(point);
         return level.getChunkSource().getChunkNow(pos.getX()>>4,pos.getZ()>>4)!=null && level.getBlockState(pos).getCollisionShape(level,pos).isEmpty();
     }
+    /** Trim masonry and its foliage together, using the same biome heights as generation. */
+    private static void repairCenterDecorations(ServerLevel level, LevelChunk chunk) {
+        ArenaSurfaceSeam.repair(level, chunk, false);
+        var cp = chunk.getPos();
+        if (Math.hypot(cp.getMiddleBlockX(), cp.getMiddleBlockZ()) > 126) return;
+        long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int x = cp.getMinBlockX(); x <= cp.getMaxBlockX(); x++)
+            for (int z = cp.getMinBlockZ(); z <= cp.getMaxBlockZ(); z++) {
+                if (Math.hypot(x, z) > 110) continue;
+                int floor = WorldGenerator.mazeFloorHeight(seed, x, z);
+                cursor.set(x, floor, z);
+                var ground = chunk.getBlockState(cursor);
+                if (!ground.isAir() && !ground.hasBlockEntity()
+                        && ground.getFluidState().isEmpty())
+                    level.setBlock(cursor, net.krodark.asterion.Asterion.ANCIENT_STONE.defaultBlockState(), 18);
+                var biome = WorldGenerator.mazeBiomeAt(seed, x, z, net.krodark.asterion.AsterionConfig.INSTANCE.cellSize);
+                int ceiling = floor + WorldGenerator.mazeWallHeight(seed, x, z, floor, biome);
+                int highest = chunk.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, x, z);
+                for (int y = ceiling + 1; y <= highest; y++) {
+                    cursor.set(x, y, z);
+                    var state = chunk.getBlockState(cursor);
+                    if (state.isAir() || state.hasBlockEntity()) continue;
+                    var id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock());
+                    String path = id.getPath();
+                    if (id.getNamespace().equals("asterion") && (state.is(Asterion.ANCIENT_LEAVES)
+                            || state.is(Asterion.TAINTED_LEAVES) || path.equals("maze_wall_core")
+                            || path.startsWith("ancient_") && (path.contains("brick") || path.contains("plank") || path.contains("stone"))))
+                        level.setBlock(cursor, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 18);
+                }
+            }
+    }
+
     private static void generate(ServerLevel level,LevelChunk chunk) {
+        repairCenterDecorations(level, chunk);
         var random=new Random(level.getSeed()^chunk.getPos().pack()*0x9E3779B97F4A7C15L);
         if(random.nextInt(5)!=0 || Math.hypot(chunk.getPos().getMiddleBlockX(),chunk.getPos().getMiddleBlockZ())<110)return;
         int height=Math.max(8,net.krodark.asterion.AsterionConfig.INSTANCE.wallHeight);

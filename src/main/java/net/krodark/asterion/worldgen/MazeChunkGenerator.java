@@ -51,11 +51,15 @@ public final class MazeChunkGenerator extends net.minecraft.world.level.chunk.Ch
     @Override public net.minecraft.world.level.chunk.ChunkGeneratorStructureState createState(
             net.minecraft.core.HolderLookup<net.minecraft.world.level.levelgen.structure.StructureSet> structures,
             RandomState random, long seed) { return flat.createState(structures, random, seed); }
+    //? if <26.3 {
     @Override public void buildSurface(net.minecraft.server.level.WorldGenRegion region, StructureManager structures,
                                        RandomState random, ChunkAccess chunk) { flat.buildSurface(region, structures, random, chunk); }
+    //?}
+    //? if <26.3 {
     @Override public void applyCarvers(net.minecraft.server.level.WorldGenRegion region, long seed, RandomState random,
                                        net.minecraft.world.level.biome.BiomeManager biomes, StructureManager structures,
                                        ChunkAccess chunk) { flat.applyCarvers(region, seed, random, biomes, structures, chunk); }
+    //?}
     @Override
     public void applyBiomeDecoration(net.minecraft.world.level.WorldGenLevel world, ChunkAccess chunk,
                                      StructureManager structures) {
@@ -80,9 +84,12 @@ public final class MazeChunkGenerator extends net.minecraft.world.level.chunk.Ch
             net.minecraft.world.level.LevelHeightAccessor level, RandomState random) {
         return flat.getBaseColumn(x, z, level, random);
     }
+    //? if <26.3 {
     @Override public void addDebugScreenInfo(java.util.List<String> lines, RandomState random,
                                              net.minecraft.core.BlockPos pos) { flat.addDebugScreenInfo(lines, random, pos); }
+    //?}
 
+    //? if <26.3 {
     @Override
     public CompletableFuture<ChunkAccess> fillFromNoise(Blender blender, RandomState randomState,
                                                          StructureManager structureManager,
@@ -93,4 +100,20 @@ public final class MazeChunkGenerator extends net.minecraft.world.level.chunk.Ch
             return generated;
         });
     }
+    //?}
+
+    //? if >=26.3 {
+    /*@Override public CompletableFuture<ChunkAccess> buildTerrain(ChunkAccess chunk, Blender blender,
+            RandomState random, StructureManager structures, net.minecraft.world.level.biome.BiomeManager biomes,
+            net.minecraft.server.level.WorldGenRegion region, java.util.Set<net.minecraft.core.Holder<net.minecraft.world.level.biome.Biome>> relevantBiomes) {
+        return flat.buildTerrain(chunk, blender, random, structures, biomes, region, relevantBiomes).thenApply(generated -> {
+            WorldGenerator.generateMazeChunk(generated, terrainSeed(random));
+            return generated;
+        });
+    }
+    @Override public void addDebugScreenInfo(java.util.List<String> lines, RandomState random, net.minecraft.core.BlockPos pos,
+            net.minecraft.world.level.levelgen.densityfunction.SamplerContext context) {
+        lines.add("Asterion custom terrain");
+    }
+    *///?}
 }

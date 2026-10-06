@@ -21,7 +21,9 @@ public final class MinotaurTrophyBlock extends HorizontalDirectionalBlock implem
         return new MinotaurTrophyBlockEntity(pos, state);
     }
     @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
+    //? if <26.3 {
     @Override protected MapCodec<? extends HorizontalDirectionalBlock> codec() { return simpleCodec(MinotaurTrophyBlock::new); }
+    //?}
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) { builder.add(FACING); }
     @Override public BlockState getStateForPlacement(BlockPlaceContext context) {
         return defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());

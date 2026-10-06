@@ -4470,10 +4470,8 @@ super.defineSynchedData(builder);
         if (net.krodark.asterion.physics.ArenaRingPath.allowed(bossStage==BossStage.EXTREME,WorldGenerator.bossPillarsRemaining())
 
                 && WorldGenerator.isInsideBossArena(position())
-
-                && position().subtract(WorldGenerator.bossArenaCenter()).horizontalDistance() > arenaRingRadius() - 8
-
-                && player.position().subtract(WorldGenerator.bossArenaCenter()).horizontalDistance() > arenaRingRadius() - 8)
+                && net.krodark.asterion.physics.ArenaRingPath.engagementRadius(
+                    player.position().subtract(WorldGenerator.bossArenaCenter()).horizontalDistance()))
 
             addReady(choices,BossAttack.RING_CHARGE);
 
@@ -11156,8 +11154,11 @@ if (stepHeight != null && Math.abs(stepHeight.getBaseValue() - (activeBoss ? 4 :
 
 
     private void settleDefeatedPose(ServerLevel level) {
-
-        Vec3 origin = combatPoint(position());
+        Vec3 center = WorldGenerator.bossArenaCenter();
+        Vec3 offset = position().subtract(center).multiply(1, 0, 1);
+        double safeRadius = net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS - 16;
+        Vec3 origin = combatPoint(offset.horizontalDistance() > safeRadius
+                ? center.add(offset.normalize().scale(safeRadius)) : position());
 
         AABB body = getBoundingBox();
 
@@ -11175,9 +11176,11 @@ if (stepHeight != null && Math.abs(stepHeight.getBaseValue() - (activeBoss ? 4 :
 
                         Math.sin(angle) * ring * 0.75D));
 
+                Vec3 inward = center.subtract(candidate).multiply(1, 0, 1);
+                if (inward.lengthSqr() < 1) inward = new Vec3(0, 0, -1);
+                inward = inward.normalize();
                 AABB destination = body.move(candidate.subtract(position()))
-
-                        .inflate(1.35D, 0.0D, 1.35D);
+                        .expandTowards(inward.scale(10)).inflate(1.35D, 0.0D, 1.35D);
 
                 BlockPos feet = BlockPos.containing(candidate).below();
 
@@ -11186,6 +11189,9 @@ if (stepHeight != null && Math.abs(stepHeight.getBaseValue() - (activeBoss ? 4 :
                         || !level.noCollision(this, destination)) continue;
 
                 setPos(candidate.x, candidate.y, candidate.z);
+                faceDirection(inward, 360);
+                yBodyRot = yBodyRotO = getYRot();
+                yHeadRot = yHeadRotO = getYRot();
 
                 resetFallDistance();
 

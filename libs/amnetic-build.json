@@ -1,9 +1,16 @@
 {
-  "installation": "Built from supplied Amnetic checkout, with the composable window hook in tools/amnetic-compat; rebuild using tools/amnetic-window-compat.gradle. NeoForge retains its loader bootstrap, Iris adapter and nested dependencies.",
-  "neoForgeSha256": "b8aa820767a7bd1f43629e52ea9edd926b68f069787f58638da66a76f1355671",
+  "installation": "Built from the supplied Amnetic checkout. Rebuild using tools/update-amnetic.ps1. Preserves loader bootstrap and nested dependencies; applies composable window hook and local-preset safety fixes.",
+  "version": "1.0.0-asterion.4",
   "upstreamVersion": "1.0-SNAPSHOT+26.1.2",
-  "version": "1.0.0-asterion.3",
-  "sourceCommit": "0b727183ec2d18514cdeb0d4bdc7a2c2692890c5",
+  "sourceCommit": "45312084fc8f7245758783024a08f87764950b0a",
+  "sourceHasLocalChanges": true,
   "minecraft": "26.1.2",
-  "fabricQuiltSha256": "c0c676c3c061342077f6b763ccf7847526c77850392ae271af069d56375f9d76"
+  "fabricQuiltSha256": "9a6d568356c2567267bf1e82d197dedd0f32eef3d6455defd0f35269fc86cc16",
+  "neoForgeSha256": "d5d94d12a394ca352f0fa022aa4efa99c11e6faeb7799ef207b016d6cc9b6ee7",
+  "forgeSha256": "4df519a684a8e50c0b6841b41febcb612e5d272afb2c5362d42504e1c202ffa2",
+  "upstreamSha256": {
+    "amnetic": "533ddb366f73a7cf74a8ebdfa324090d1c05e11b7fb1dbe1ab60fcd5224e1b1f",
+    "amnetic-neoforge": "b7d826e157cdf6cbbefb3b7048b081476f8571b695b3585401d30e26fb2b70ef",
+    "amnetic-forge": "616bcfcd3edb30da8457b744fa119f0c5f4a151e1b9dbd16bd404f3039f9cf36"
+  }
 }

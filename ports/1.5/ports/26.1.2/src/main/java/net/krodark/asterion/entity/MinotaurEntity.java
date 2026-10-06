@@ -2199,8 +2199,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if (distance > 14 && distance < 28 && hasLineOfSight(player)) addReady(choices, BossAttack.SWORD_THROW);
         if (net.krodark.asterion.physics.ArenaRingPath.allowed(bossStage==BossStage.EXTREME,WorldGenerator.bossPillarsRemaining())
                 && WorldGenerator.isInsideBossArena(position())
-                && position().subtract(WorldGenerator.bossArenaCenter()).horizontalDistance() > arenaRingRadius() - 8
-                && player.position().subtract(WorldGenerator.bossArenaCenter()).horizontalDistance() > arenaRingRadius() - 8)
+                && net.krodark.asterion.physics.ArenaRingPath.engagementRadius(
+                    player.position().subtract(WorldGenerator.bossArenaCenter()).horizontalDistance()))
             addReady(choices,BossAttack.RING_CHARGE);
         if (distance > 9) addReady(choices, BossAttack.PAWING, BossAttack.STAMPEDE, BossAttack.RUBBLE_THROW);
         if (distance > 5 && distance < 30) addReady(choices, BossAttack.FIRE_RINGS, BossAttack.GREEK_FIRE_LASER, BossAttack.SMOKE_BELCH);
@@ -5494,7 +5494,11 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
      
     private void settleDefeatedPose(ServerLevel level) {
-        Vec3 origin = combatPoint(position());
+        Vec3 center = WorldGenerator.bossArenaCenter();
+        Vec3 offset = position().subtract(center).multiply(1, 0, 1);
+        double safeRadius = net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS - 16;
+        Vec3 origin = combatPoint(offset.horizontalDistance() > safeRadius
+                ? center.add(offset.normalize().scale(safeRadius)) : position());
         AABB body = getBoundingBox();
         for (int ring = 0; ring <= 10; ring++) {
             int samples = ring == 0 ? 1 : 16;
@@ -5503,12 +5507,18 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 Vec3 candidate = ring == 0 ? origin : combatPoint(origin.add(
                         Math.cos(angle) * ring * 0.75D, 0.0D,
                         Math.sin(angle) * ring * 0.75D));
+                Vec3 inward = center.subtract(candidate).multiply(1, 0, 1);
+                if (inward.lengthSqr() < 1) inward = new Vec3(0, 0, -1);
+                inward = inward.normalize();
                 AABB destination = body.move(candidate.subtract(position()))
-                        .inflate(1.35D, 0.0D, 1.35D);
+                        .expandTowards(inward.scale(10)).inflate(1.35D, 0.0D, 1.35D);
                 BlockPos feet = BlockPos.containing(candidate).below();
                 if (!level.getBlockState(feet).isFaceSturdy(level, feet, Direction.UP)
                         || !level.noCollision(this, destination)) continue;
                 setPos(candidate.x, candidate.y, candidate.z);
+                faceDirection(inward, 360);
+                yBodyRot = yBodyRotO = getYRot();
+                yHeadRot = yHeadRotO = getYRot();
                 resetFallDistance();
                 return;
             }

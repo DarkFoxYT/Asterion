@@ -287,7 +287,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
     }
 
     private static void give(ServerPlayer player, ItemStack stack) {
-        if (!player.getInventory().add(stack)) player.drop(stack, false);
+        if (!player.getInventory().add(stack)) net.krodark.asterion.entity.EntityVersionCompatibility.drop(player, stack, false);
     }
 
     public void open(ServerPlayer player) {
@@ -303,7 +303,7 @@ public final class CrucibleBlockEntity extends BlockEntity implements GeoBlockEn
             if (!stack.isEmpty() && insert(player, stack)) {
                 var visual = new net.krodark.asterion.network.ForgeInsertPayload(worldPosition, player.getEyePosition(), thrown);
                 for (var viewer : ((net.minecraft.server.level.ServerLevel)level).players())
-                    if (viewer.distanceToSqr(worldPosition.getCenter()) < 48 * 48)
+                    if (viewer.distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(worldPosition)) < 48 * 48)
                         ServerPlayNetworking.send(viewer, visual);
                 open(player);
             }

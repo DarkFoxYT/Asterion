@@ -33,7 +33,9 @@ public final class CursedBrazierDoorBlock extends BaseEntityBlock {
         registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH)
                 .setValue(OPEN, false).setValue(COLUMN, 1).setValue(ROW, 0));
     }
+    //? if <26.3 {
     @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
+    //?}
     public static boolean isRoot(BlockState state) { return state.getValue(COLUMN) == 1 && state.getValue(ROW) == 0; }
     public static BlockPos root(BlockPos pos, BlockState state) {
         return pos.relative(state.getValue(FACING).getClockWise(), 1 - state.getValue(COLUMN)).below(state.getValue(ROW));

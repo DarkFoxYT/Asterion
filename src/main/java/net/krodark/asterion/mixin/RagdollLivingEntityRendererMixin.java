@@ -62,17 +62,17 @@ abstract class RagdollLivingEntityRendererMixin {
         Quaternionf held = ((FabricRenderState)state).getData(RagdollRenderData.HELD_ROTATION);
         if (held != null && !Boolean.TRUE.equals(((FabricRenderState)state).getData(RagdollRenderData.GUI_PREVIEW))) {
             float angle = (180F - bodyRot) * Mth.DEG_TO_RAD;
-            poses.mulPose(new Quaternionf().rotationY(-angle).mul(held).rotateY(angle));
+            net.krodark.asterion.client.render.PoseTransforms.apply(poses, new Quaternionf().rotationY(-angle).mul(held).rotateY(angle));
             return;
         }
         Quaternionf deck = ((FabricRenderState)state).getData(net.krodark.asterion.update.underworld.client.FerryDeckRender.TILT);
         if (deck != null && !Boolean.TRUE.equals(((FabricRenderState)state).getData(RagdollRenderData.GUI_PREVIEW))) {
             float angle = (180F - bodyRot) * Mth.DEG_TO_RAD;
-            poses.mulPose(new Quaternionf().rotationY(-angle).mul(deck).rotateY(angle));
+            net.krodark.asterion.client.render.PoseTransforms.apply(poses, new Quaternionf().rotationY(-angle).mul(deck).rotateY(angle));
         }
         Quaternionf frame = ((FabricRenderState)state).getData(CentipedeRiderRenderData.FRAME);
         if (frame == null) return;
-        poses.mulPose(new Quaternionf().rotationY((180F - bodyRot) * Mth.DEG_TO_RAD)
+        net.krodark.asterion.client.render.PoseTransforms.apply(poses, new Quaternionf().rotationY((180F - bodyRot) * Mth.DEG_TO_RAD)
                 .conjugate().mul(frame));
     }
 

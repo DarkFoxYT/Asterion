@@ -25,7 +25,7 @@ public abstract class LimboBoatRendererMixin {
             at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;scale(FFF)V"))
     private void asterion$tiltHull(BoatRenderState state, PoseStack stack, SubmitNodeCollector collector, CameraRenderState camera, CallbackInfo ci) {
         var pose = (LimboBoatRenderPose)state;
-        stack.mulPose(Axis.XP.rotationDegrees(pose.limboPitch()));
-        stack.mulPose(Axis.ZP.rotationDegrees(pose.limboRoll()));
+        net.krodark.asterion.client.render.PoseTransforms.apply(stack, Axis.XP.rotationDegrees(pose.limboPitch()));
+        net.krodark.asterion.client.render.PoseTransforms.apply(stack, Axis.ZP.rotationDegrees(pose.limboRoll()));
     }
 }

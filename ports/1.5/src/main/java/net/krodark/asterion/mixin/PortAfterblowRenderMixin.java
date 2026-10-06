@@ -30,13 +30,6 @@ public abstract class PortAfterblowRenderMixin {
         }
         poses.pushPose();
         try {
-            if ((context==ItemDisplayContext.FIRST_PERSON_RIGHT_HAND || context==ItemDisplayContext.FIRST_PERSON_LEFT_HAND)
-                    && client.player!=null && client.player.isUsingItem() && client.player.getUseItem()==stack) {
-                int sign=context==ItemDisplayContext.FIRST_PERSON_LEFT_HAND?-1:1;
-                poses.translate(-sign*.18,.12,-.15);
-                poses.mulPose(Axis.YP.rotationDegrees(-sign*45));
-                poses.mulPose(Axis.ZP.rotationDegrees(sign*65));
-            }
             original.call(stack,context,left,poses,buffers,light,overlay,model);
         } finally { poses.popPose(); }
     }

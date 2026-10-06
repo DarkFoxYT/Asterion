@@ -73,9 +73,9 @@ final class GameplaySmoke {
  }
  static void spawnEncounter(ServerPlayer player) {
   var level=player.serverLevel();var commands=level.getServer().getCommands();var source=level.getServer().createCommandSourceStack();
-  for(String command:List.of("execute in asterion:asterion_dimension run fill -15 178 -15 15 190 15 minecraft:air",
-     "execute in asterion:asterion_dimension run fill -15 177 -15 15 177 15 minecraft:stone",
-     "execute in asterion:asterion_dimension run tp @a 0 178 -5 0 0")) commands.performPrefixedCommand(source,command);
+  for(String command:List.of("execute in asterion:labyrinth run fill -15 178 -15 15 190 15 minecraft:air",
+     "execute in asterion:labyrinth run fill -15 177 -15 15 177 15 minecraft:stone",
+     "execute in asterion:labyrinth run tp @a 0 178 -5 0 0")) commands.performPrefixedCommand(source,command);
   // Remove the visual fixture without triggering the Minotaur's world-ending finale.
   for(var minotaur:level.getEntitiesOfClass(net.krodark.asterion.entity.MinotaurEntity.class,player.getBoundingBox().inflate(40))) minotaur.discard();
   player.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);

@@ -45,17 +45,21 @@ public final class UnderworldChunkGenerator extends net.minecraft.world.level.ch
     @Override public net.minecraft.world.level.chunk.ChunkGeneratorStructureState createState(
             net.minecraft.core.HolderLookup<net.minecraft.world.level.levelgen.structure.StructureSet> structures,
             RandomState random, long seed) { return flat.createState(structures, random, seed); }
+    //? if <26.3 {
     @Override public void buildSurface(net.minecraft.server.level.WorldGenRegion region, StructureManager structures,
                                        RandomState random, ChunkAccess chunk) { }
+    //?}
     @Override public void applyBiomeDecoration(net.minecraft.world.level.WorldGenLevel world, ChunkAccess chunk,
                                                StructureManager structures) {
         super.applyBiomeDecoration(world, chunk, structures);
         LimboMonoliths.place(world, chunk.getPos());
         LimboEntranceGate.place(world, chunk.getPos());
     }
+    //? if <26.3 {
     @Override public void applyCarvers(net.minecraft.server.level.WorldGenRegion region, long seed, RandomState random,
                                        net.minecraft.world.level.biome.BiomeManager biomes, StructureManager structures,
                                        ChunkAccess chunk) { }
+    //?}
     @Override public void spawnOriginalMobs(net.minecraft.server.level.WorldGenRegion region) { }
     @Override public int getSpawnHeight(net.minecraft.world.level.LevelHeightAccessor level) { return UnderworldTerrain.SPAWN_Y; }
     @Override public int getMinY() { return UnderworldTerrain.MIN_Y; }
@@ -69,10 +73,13 @@ public final class UnderworldChunkGenerator extends net.minecraft.world.level.ch
             net.minecraft.world.level.LevelHeightAccessor level, RandomState random) {
         return flat.getBaseColumn(x, z, level, random);
     }
+    //? if <26.3 {
     @Override public void addDebugScreenInfo(java.util.List<String> lines, RandomState random,
                                              net.minecraft.core.BlockPos pos) {
         lines.add("Asterion 2.0 Sea of Limbo: " + LimboSeaRegions.sea(pos.getX(), pos.getZ()));
     }
+    //?}
+    //? if <26.3 {
     @Override public CompletableFuture<ChunkAccess> fillFromNoise(Blender blender, RandomState random,
             StructureManager structures, ChunkAccess chunk) {
         return flat.fillFromNoise(blender, random, structures, chunk).thenApply(generated -> {
@@ -80,4 +87,20 @@ public final class UnderworldChunkGenerator extends net.minecraft.world.level.ch
             return generated;
         });
     }
+    //?}
+
+    //? if >=26.3 {
+    /*@Override public CompletableFuture<ChunkAccess> buildTerrain(ChunkAccess chunk, Blender blender,
+            RandomState random, StructureManager structures, net.minecraft.world.level.biome.BiomeManager biomes,
+            net.minecraft.server.level.WorldGenRegion region, java.util.Set<net.minecraft.core.Holder<net.minecraft.world.level.biome.Biome>> relevantBiomes) {
+        return flat.buildTerrain(chunk, blender, random, structures, biomes, region, relevantBiomes).thenApply(generated -> {
+            UnderworldTerrain.generate(generated, terrainSeed(random));
+            return generated;
+        });
+    }
+    @Override public void addDebugScreenInfo(java.util.List<String> lines, RandomState random, net.minecraft.core.BlockPos pos,
+            net.minecraft.world.level.levelgen.densityfunction.SamplerContext context) {
+        lines.add("Asterion custom terrain");
+    }
+    *///?}
 }

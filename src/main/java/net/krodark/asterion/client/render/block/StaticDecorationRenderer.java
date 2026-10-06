@@ -67,7 +67,7 @@ abstract class StaticDecorationRenderer<T extends BlockEntity & GeoBlockEntity>
         }
         int light = state.lightCoords;
         poses.pushPose();
-        poses.mulPose(draw.transform);
+        net.krodark.asterion.client.render.PoseTransforms.apply(poses, draw.transform);
         tasks.submitCustomGeometry(poses, draw.type,
                 (pose, out) -> draw.mesh.render(pose, out, draw.color, light, draw.overlay));
         poses.popPose();

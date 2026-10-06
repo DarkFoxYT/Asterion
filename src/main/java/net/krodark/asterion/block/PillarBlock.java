@@ -32,7 +32,9 @@ public final class PillarBlock extends BaseEntityBlock {
         super(properties.pushReaction(PushReaction.BLOCK));
         registerDefaultState(stateDefinition.any().setValue(COLUMN,1).setValue(DEPTH,1).setValue(ROW,0).setValue(HEIGHT,MODEL_HEIGHT));
     }
+    //? if <26.3 {
     @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
+    //?}
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block,BlockState> builder) { builder.add(COLUMN,ROW,DEPTH,HEIGHT); }
     public static boolean isRoot(BlockState state) { return state.getValue(COLUMN)==1 && state.getValue(DEPTH)==1 && state.getValue(ROW)==0; }
     public static BlockPos root(BlockPos pos,BlockState state) { return pos.offset(1-state.getValue(COLUMN),-state.getValue(ROW),1-state.getValue(DEPTH)); }

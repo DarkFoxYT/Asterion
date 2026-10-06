@@ -58,7 +58,7 @@ public final class CrucibleCamera {
         if (amount <= .001F) return null;
         var state = client.level.getBlockState(crucible);
         Direction facing = state.is(Asterion.CRUCIBLE) ? state.getValue(CrucibleBlock.FACING) : Direction.NORTH;
-        Vec3 focus = crucible.getCenter().add(0D, 1.35D, 0D);
+        Vec3 focus = net.minecraft.world.phys.Vec3.atCenterOf(crucible).add(0D, 1.35D, 0D);
         Vec3 desired = focus.add(facing.getStepX() * 6.35D, 5.45D, facing.getStepZ() * 6.35D);
         Vec3 camera = vanilla.lerp(desired, amount);
         Vec3 look = focus.subtract(camera);

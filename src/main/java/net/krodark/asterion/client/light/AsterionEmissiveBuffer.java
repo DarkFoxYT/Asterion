@@ -17,10 +17,18 @@ public final class AsterionEmissiveBuffer {
         var source=RenderPipelines.ENTITY_TRANSLUCENT_EMISSIVE;
         var builder=RenderPipeline.builder().withLocation(net.krodark.asterion.Asterion.id("pipeline/emissive_surface"))
                 .withVertexShader(source.getVertexShader()).withFragmentShader(net.krodark.asterion.Asterion.id("core/enhanced_emissive"))
+                //? if >=26.2 {
+                /*.withVertexBinding(0, source.getVertexFormatBinding(0)).withPrimitiveTopology(source.getPrimitiveTopology()).withCull(source.isCull())
+                *///?} else {
                 .withVertexFormat(source.getVertexFormat(),source.getVertexFormatMode()).withCull(source.isCull())
+                //?}
                 .withColorTargetState(source.getColorTargetState()).withDepthStencilState(source.getDepthStencilState());
+        //? if >=26.2 {
+        /*for (var layout : source.getBindGroupLayouts()) builder.withBindGroupLayout(layout);
+        *///?} else {
         for(var sampler:source.getSamplers())builder.withSampler(sampler);
         for(var uniform:source.getUniforms())builder.withUniform(uniform.name(),uniform.type());
+        //?}
         for(var flag:source.getShaderDefines().flags())builder.withShaderDefine(flag);
         return builder.build();
     }

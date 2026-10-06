@@ -65,7 +65,11 @@ allprojects {
                 args rootProject.file('src/main/resources/assets/asterion/shaders/post/underworld/river_atmosphere.fsh').absolutePath,
                      rootProject.file('src/main/resources/assets/asterion/shaders/post/underworld/river_composite.fsh').absolutePath,
                      rootProject.file('src/main/resources/assets/asterion/shaders/post/underworld/river_atmosphere_fast.fsh').absolutePath,
-                     rootProject.file('src/main/resources/assets/asterion/shaders/post/underworld/river_atmosphere_lite.fsh').absolutePath
+                     rootProject.file('src/main/resources/assets/asterion/shaders/post/underworld/river_atmosphere_lite.fsh').absolutePath,
+                     rootProject.file('src/main/resources/assets/asterion/shaders/post/dimension/dead_sun.fsh').absolutePath,
+                     rootProject.file('src/main/resources/assets/asterion/shaders/post/dimension/volume_integrate.fsh').absolutePath,
+                     rootProject.file('src/main/resources/assets/asterion/shaders/particle/firefly_core.fsh').absolutePath,
+                     rootProject.file('src/main/resources/assets/amnetic/shaders/bloom/composite.fsh').absolutePath
                 javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
             }
             tasks.register('checkEmissiveUploads', JavaExec) {

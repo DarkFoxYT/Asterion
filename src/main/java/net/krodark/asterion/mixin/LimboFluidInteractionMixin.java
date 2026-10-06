@@ -22,7 +22,11 @@ public abstract class LimboFluidInteractionMixin {
     @Unique private boolean asterion$eyes;
 
     @Inject(method = "update", at = @At("HEAD"))
+    //? if >=26.3 {
+    /*private void asterion$sampleSea(Entity entity, boolean ignoreCurrent, CallbackInfoReturnable<Boolean> ci) {
+    *///?} else {
     private void asterion$sampleSea(Entity entity, boolean ignoreCurrent, CallbackInfo ci) {
+    //?}
         asterion$depth = Double.NaN;
         if (!(entity instanceof Player) || !entity.level().dimension().equals(Asterion.LIMBO_LEVEL)) return;
         if (UnderworldWaterPhysics.sheltered(entity)) {

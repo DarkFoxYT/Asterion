@@ -31,7 +31,9 @@ public final class CharonEntity extends Entity implements GeoEntity {
     public static final UUID SHARED_ID = UUID.nameUUIDFromBytes(
             "asterion:limbo:charon".getBytes(StandardCharsets.UTF_8));
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
+    //? if <26.3 {
     private final InterpolationHandler interpolation = new InterpolationHandler(this, 2);
+    //?}
 
     public CharonEntity(EntityType<? extends CharonEntity> type, Level level) {
         super(type, level);
@@ -39,7 +41,11 @@ public final class CharonEntity extends Entity implements GeoEntity {
     }
 
     @Override protected void defineSynchedData(SynchedEntityData.Builder data) { }
+    //? if >=26.3 {
+    /*@Override protected InterpolationHandler createInterpolationHandler() { return net.minecraft.world.entity.LinearInterpolationHandler.create(this, 2); }
+    *///?} else {
     @Override public InterpolationHandler getInterpolation() { return interpolation; }
+    //?}
     @Override public boolean isPickable() { return true; }
     @Override public boolean canBeCollidedWith(Entity other) { return false; }
     @Override public boolean canCollideWith(Entity other) { return false; }
@@ -68,7 +74,7 @@ public final class CharonEntity extends Entity implements GeoEntity {
     @Override public void tick() {
         super.tick();
         if (isPassenger()) {
-            interpolation.cancel();
+            getInterpolation().cancel();
             return;
         }
         // Repair old saves through the real passenger relationship; vanilla then synchronizes
@@ -83,7 +89,7 @@ public final class CharonEntity extends Entity implements GeoEntity {
                 startRiding(ferry);
             }
         } else if (level().isClientSide()) {
-            interpolation.interpolate();
+            getInterpolation().interpolate();
         }
     }
 

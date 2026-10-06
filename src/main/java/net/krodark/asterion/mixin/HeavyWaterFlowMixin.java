@@ -20,6 +20,12 @@ public abstract class HeavyWaterFlowMixin {
     private void asterion$ordinaryFluid(net.minecraft.world.level.LevelAccessor level, BlockPos pos, BlockState state,
             net.minecraft.core.Direction direction, net.minecraft.world.level.material.FluidState fluid,
             org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        if (net.krodark.asterion.worldgen.CatacombProtection.waterproofLever(level, state)
+                && (fluid.getType() == net.minecraft.world.level.material.Fluids.WATER
+                || fluid.getType() == net.minecraft.world.level.material.Fluids.FLOWING_WATER)) {
+            ci.cancel();
+            return;
+        }
         if (state.getBlock() instanceof net.krodark.asterion.block.HeavyWaterRedstone
                 && !HeavyWaterlogging.isHeavy(fluid.getType())) {
             beforeDestroyingBlock(level, pos, state);

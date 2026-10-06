@@ -10,7 +10,9 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public final class ChainLiftBlock extends BaseEntityBlock {
     public ChainLiftBlock(Properties properties) { super(properties); }
+    //? if <26.3 {
     @Override protected MapCodec<? extends BaseEntityBlock> codec() { return simpleCodec(ChainLiftBlock::new); }
+    //?}
     @Override public BlockEntity newBlockEntity(BlockPos pos, BlockState state) { return new ChainLiftBlockEntity(pos, state); }
     @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.MODEL; }
     @Override protected net.minecraft.world.phys.shapes.VoxelShape getShape(BlockState state,

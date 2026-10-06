@@ -36,7 +36,9 @@ public final class GreekFireTorchBlock extends BaseEntityBlock implements Simple
         registerDefaultState(stateDefinition.any().setValue(FACING,Direction.NORTH).setValue(TOP,true)
                 .setValue(LIT,true).setValue(WATERLOGGED,false).setValue(RELIGHT,0));
     }
+    //? if <26.3 {
     @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
+    //?}
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block,BlockState> builder) {
         builder.add(FACING,TOP,LIT,WATERLOGGED,RELIGHT);
     }

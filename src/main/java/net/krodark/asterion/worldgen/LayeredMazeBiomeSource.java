@@ -41,7 +41,9 @@ public final class LayeredMazeBiomeSource extends BiomeSource {
         return Stream.of(surface, catacombs, forge, caves).distinct();
     }
 
+    //? if <26.3 {
     @Override
+    //?}
     public Holder<Biome> getNoiseBiome(int quartX, int quartY, int quartZ, Climate.Sampler sampler) {
         int blockY = quartY << 2;
         if (blockY <= LabyrinthLevels.CAVE_ROOF_Y) return caves;
@@ -49,4 +51,10 @@ public final class LayeredMazeBiomeSource extends BiomeSource {
         if (blockY < LabyrinthLevels.MAZE_FLOOR_Y) return catacombs;
         return surface;
     }
+
+    //? if >=26.3 {
+    /*@Override public net.minecraft.world.level.biome.BiomeResolver createResolver(Climate.Sampler sampler) {
+        return (x, y, z) -> getNoiseBiome(x, y, z, sampler);
+    }
+    *///?}
 }

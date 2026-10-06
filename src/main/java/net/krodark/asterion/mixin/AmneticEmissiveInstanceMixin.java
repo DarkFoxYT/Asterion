@@ -34,6 +34,8 @@ public abstract class AmneticEmissiveInstanceMixin implements net.krodark.asteri
 
     @Inject(method = "renderCpu", at = @At("HEAD"), cancellable = true)
     private void asterion$reuse(InstanceRenderContext context, CallbackInfo ci) {
+        // drawNow is the legacy OpenGL path. Native Amnetic submits its own GPU commands.
+        //? if <26.2 {
         if (!EmissivePassFrame.replay || asterion$preparedFrame != EmissivePassFrame.frame
                 || context.world() != asterion$world || !context.cameraPos().equals(asterion$camera)
                 || !asterion$projection.equals(context.projectionMatrix())
@@ -41,6 +43,7 @@ public abstract class AmneticEmissiveInstanceMixin implements net.krodark.asteri
         if (lastInstanceCount > 0) asterion$drawPrepared(projViewScratch, context.projectionMatrix(),
                 context.viewMatrix(), context.gameTime(), context.cameraPos(), lastInstanceCount);
         ci.cancel();
+        //?}
     }
 
     @Inject(method = "renderCpu", at = @At("RETURN"))

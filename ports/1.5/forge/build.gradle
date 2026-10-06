@@ -107,7 +107,7 @@ sourceSets.main {
                 'GeckoAnimationCacheMixin', 'GeckoAnimationFrameAccessor',
                 'GeckoTextureCacheLifecycleMixin', 'GeckoInterpolationBufferAccessor',
                 'MinotaurBossBarMixin', 'MinotaurBodyPickingMixin',
-                'FlamethrowerInputMixin', 'BiomeMusicMixin', 'MoodyBrightnessMixin',
+                'BiomeMusicMixin', 'MoodyBrightnessMixin',
                 'TidalWaterSurfaceMixin', 'AmneticDepthAttachmentMixin',
                 'AmneticDepthBlitMixin', 'AsterionFogRendererMixin', 'CameraMixin',
                 'CentipedeInteractionMixin', 'FallingBlockRendererMixin',
@@ -116,7 +116,7 @@ sourceSets.main {
                 'InventoryEntityPreviewMixin', 'RagdollLevelRendererMixin',
                 'SodiumRenderRegionMixin', 'RagdollLocalPlayerMixin',
                 'RagdollItemInHandRendererMixin', 'ForgedTooltipOutlineMixin',
-                'AmneticBloomPerformanceMixin', 'AmneticEmissiveInstanceMixin',
+                'AmneticEmissiveInstanceMixin',
                 'AmneticEmissivePassMixin', 'AmneticParticleCullingMixin',
 
 
@@ -258,7 +258,7 @@ processResources {
                         'GeckoAnimationCacheMixin', 'GeckoAnimationFrameAccessor',
                         'GeckoTextureCacheLifecycleMixin', 'GeckoInterpolationBufferAccessor',
                         'MinotaurBossBarMixin', 'MinotaurBodyPickingMixin',
-                        'FlamethrowerInputMixin', 'BiomeMusicMixin', 'MoodyBrightnessMixin',
+                        'BiomeMusicMixin', 'MoodyBrightnessMixin',
                         'TidalWaterSurfaceMixin', 'AmneticDepthAttachmentMixin',
                         'AmneticDepthBlitMixin', 'AsterionFogRendererMixin', 'CameraMixin',
                         'CentipedeInteractionMixin', 'FallingBlockRendererMixin',
@@ -267,7 +267,7 @@ processResources {
                         'InventoryEntityPreviewMixin', 'RagdollLevelRendererMixin',
                         'SodiumRenderRegionMixin', 'RagdollLocalPlayerMixin',
                         'RagdollItemInHandRendererMixin', 'ForgedTooltipOutlineMixin',
-                        'AmneticBloomPerformanceMixin', 'AmneticEmissiveInstanceMixin',
+                        'AmneticEmissiveInstanceMixin',
                         'AmneticEmissivePassMixin', 'AmneticParticleCullingMixin',
 
 

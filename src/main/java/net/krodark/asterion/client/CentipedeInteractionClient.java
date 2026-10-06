@@ -75,7 +75,7 @@ public final class CentipedeInteractionClient {
         }
         if (target == null) return false;
         ClientPlayNetworking.send(new CentipedeMountPayload(target.getId(), nearest.seat(), nearest.point()));
-        player.swing(InteractionHand.MAIN_HAND);
+        net.krodark.asterion.entity.EntityVersionCompatibility.swing(player, InteractionHand.MAIN_HAND, false);
         return true;
     }
 }

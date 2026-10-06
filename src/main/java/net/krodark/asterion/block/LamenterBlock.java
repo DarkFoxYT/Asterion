@@ -26,7 +26,9 @@ public final class LamenterBlock extends BaseEntityBlock {
                 .setValue(CRYING, false).setValue(ACTIVE, false));
     }
 
+    //? if <26.3 {
     @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
+    //?}
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(FACING, CRYING, ACTIVE);
     }

@@ -5,6 +5,13 @@ import java.util.Set;
 
 public final class PhysicsResourceSmoke {
     public static void main(String[] args) throws Exception {
+        for (double distance : new double[]{25, 32, 40})
+            if (!net.krodark.asterion.physics.ArenaRingPath.engagementRadius(distance)) throw new AssertionError("Ring refuses player in requested range");
+        for (double distance : new double[]{0, 24.99, 40.01, Double.NaN})
+            if (net.krodark.asterion.physics.ArenaRingPath.engagementRadius(distance)) throw new AssertionError("Ring triggers outside requested range");
+        for (int edge : new int[]{61, -61})
+            if (net.krodark.asterion.worldgen.SunScorchedMaze.height(42, edge, 0, 48) != 0)
+                throw new AssertionError("Arena roof transition does not level out");
         JsonObject animations=read("assets/asterion/geckolib/animations/entity/minotaur.animation.json").getAsJsonObject("animations");
         JsonObject right=animations.getAsJsonObject("axe_throw"), left=animations.getAsJsonObject("sword_throw_left");
         if(right.get("animation_length").getAsDouble()!=left.get("animation_length").getAsDouble())throw new AssertionError("Throw clip lengths differ");

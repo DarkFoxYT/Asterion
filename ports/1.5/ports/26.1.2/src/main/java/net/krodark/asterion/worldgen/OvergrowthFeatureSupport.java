@@ -30,6 +30,8 @@ final class OvergrowthFeatureSupport {
     }
 
     static boolean enabled(WorldGenLevel level, BlockPos pos, String feature) {
+        if ((feature.equals("bridges") || feature.equals("bridge_chains"))
+                && Math.hypot(pos.getX(), pos.getZ()) < 110) return false;
         long seed=terrainSeed(level);
         if(!level.getLevel().dimension().equals(Asterion.ASTERION_LEVEL)
                 || !WorldGenerator.mazeBiomeHasFeature(seed,pos.getX(),pos.getZ(),feature))return false;

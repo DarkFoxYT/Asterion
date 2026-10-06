@@ -39,6 +39,17 @@ public class SimpleGeoBlockRenderer<T extends BlockEntity & GeoAnimatable>
         return this;
     }
 
+    private static net.minecraft.client.renderer.culling.Frustum cameraFrustum;
+    static void cameraFrustum(net.minecraft.client.renderer.culling.Frustum frustum) { cameraFrustum = frustum; }
+
+    @Override
+    public boolean shouldRender(T animatable, net.minecraft.world.phys.Vec3 camera) {
+        // Keep section-edge models eligible, then cull their complete animated
+        // footprint before evaluating GeckoLib bones and render layers.
+        return super.shouldRender(animatable, camera) && (cameraFrustum == null
+                || cameraFrustum.isVisible(new net.minecraft.world.phys.AABB(animatable.getBlockPos()).inflate(8)));
+    }
+
     @Override
     public boolean shouldRenderOffScreen(T animatable) {
         // Multi-block and animated GeoModels frequently extend outside their

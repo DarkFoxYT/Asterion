@@ -250,6 +250,14 @@ public final class ScarletCentipedeEntity extends PathfinderMob implements GeoEn
         smoothedSurfaceMotion = smoothedSurfaceMotion.lerp(desiredTangent, response);
         smoothedSurfaceMotion = projectOntoSurface(smoothedSurfaceMotion, normal);
         smoothedSurfaceMotion = bodyChain.limitHeadMotion(smoothedSurfaceMotion);
+        if (surface.getAxis() != Direction.Axis.Y && smoothedSurfaceMotion.y > 0) {
+            Vec3 permittedMotion = CentipedeSurfaceProbe.limitWallAscent(getBoundingBox(), smoothedSurfaceMotion,
+                    surface, BugSurfaces.collect(level(), getBoundingBox().inflate(.85)));
+            if (permittedMotion.y < smoothedSurfaceMotion.y) {
+                if (getControllingPassenger() == null) wildHeading = surfaceForward = new Vec3(0, -1, 0);
+                smoothedSurfaceMotion = permittedMotion;
+            }
+        }
         if (smoothedSurfaceMotion.lengthSqr() < 1.0E-6D) smoothedSurfaceMotion = Vec3.ZERO;
         Vec3 motion = smoothedSurfaceMotion.add(surface.getUnitVec3().scale(ADHESION));
         setDeltaMovement(motion);

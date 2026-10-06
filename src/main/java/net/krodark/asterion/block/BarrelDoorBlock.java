@@ -37,7 +37,9 @@ public final class BarrelDoorBlock extends BaseEntityBlock implements Waterlogge
                 .setValue(OPEN, false).setValue(CURSED_LOCKED,false)
                 .setValue(WING, false).setValue(COLUMN, 1).setValue(ROW, 0));
     }
+    //? if <26.3 {
     @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
+    //?}
     public static boolean isRoot(BlockState state) { return !state.getValue(WING) && state.getValue(COLUMN) == 1 && state.getValue(ROW) == 0; }
     public static BlockPos root(BlockPos pos, BlockState state) {
         Direction facing = state.getValue(FACING);

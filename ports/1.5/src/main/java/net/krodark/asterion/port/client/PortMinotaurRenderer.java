@@ -35,7 +35,7 @@ public final class PortMinotaurRenderer extends SimpleGeoEntityRenderer<Minotaur
     public PortMinotaurRenderer(EntityRendererProvider.Context context) {
         super(context, Asterion.id("entity/minotaur"), Asterion.id("textures/entity/minotaur.png"),
                 Asterion.id("entity/minotaur"), 1.9F, 1.0F);
-        withEmissiveBones(PortMinotaurPose::eyeTint, boss -> !boss.isHarvested() && !boss.isDefeatedBoss() && boss.isAlive(), "glow");
+        withEmissiveBones(PortMinotaurPose::eyeTint, boss -> !boss.isHarvested(), "glow");
         addRenderLayer(new Weapons(this));
         addRenderLayer(new PortMinotaurBodyLayer(this));
         addRenderLayer(new PortMinotaurChainLayer(this));

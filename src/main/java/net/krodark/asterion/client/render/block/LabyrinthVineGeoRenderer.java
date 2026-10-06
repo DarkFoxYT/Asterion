@@ -70,7 +70,7 @@ public final class LabyrinthVineGeoRenderer
         }
         int light = state.lightCoords;
         poses.pushPose();
-        poses.mulPose(cached.bodyPose);
+        net.krodark.asterion.client.render.PoseTransforms.apply(poses, cached.bodyPose);
         tasks.submitCustomGeometry(poses, cached.type,
                 (pose, out) -> cached.body.render(pose, out, cached.color, light, cached.overlay));
         poses.popPose();
@@ -78,7 +78,7 @@ public final class LabyrinthVineGeoRenderer
             int color = net.krodark.asterion.client.light.EmissiveBoneMesh.dimColor(-1,
                     AsterionEmissiveConfig.vineGlowStrength());
             poses.pushPose();
-            poses.mulPose(cached.glowPose);
+            net.krodark.asterion.client.render.PoseTransforms.apply(poses, cached.glowPose);
             var texture = Asterion.id("textures/block/labyrinth_vine.png");
             tasks.submitCustomGeometry(poses, net.krodark.asterion.client.light.AsterionEmissiveBuffer.renderType(texture),
                     (pose, out) -> {

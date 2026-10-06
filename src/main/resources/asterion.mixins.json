@@ -4,6 +4,7 @@
   "package": "net.krodark.asterion.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "LabyrinthDimensionMigrationMixin",
     "ServerEntityManagerAccessor",
     "MinotaurCinematicTrackingMixin",
     "ChunkMapTrackingAccessor",

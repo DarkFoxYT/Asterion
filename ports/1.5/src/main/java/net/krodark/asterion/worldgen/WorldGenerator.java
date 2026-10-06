@@ -1058,7 +1058,7 @@ public final class WorldGenerator {
 
                 if (isPitOpening(x, z) || isPitShaftWall(x, z)) continue;
 
-                int floorY = structures.floorY(x, z, mazeFloorY(seed, x, z, cell));
+                int floorY = ArenaSurfaceSeam.approach(x, z) ? FLOOR_Y : structures.floorY(x, z, mazeFloorY(seed, x, z, cell));
 
                 MazeBiomes.Biome biome = mazeBiomeAt(seed, x, z, cell);
 
@@ -5088,7 +5088,7 @@ public final class WorldGenerator {
 
 
 
-                int floorY = structures.floorY(x, z, mazeFloorY(seed, x, z, cell));
+                int floorY = ArenaSurfaceSeam.approach(x, z) ? FLOOR_Y : structures.floorY(x, z, mazeFloorY(seed, x, z, cell));
 
                 placeFloorColumn(chunk, p, seed, x, z, floorY, config.floorThickness,
 
@@ -5110,18 +5110,7 @@ public final class WorldGenerator {
 
                 MazeBiomes.Biome biome = mazeBiomeAt(seed, x, z, cell);
 
-                int biomeWallHeight=config.wallHeight;
-
-                if(biome.kind()==MazeBiomes.Kind.CRIMSON_MARSHLANDS) {
-
-                    int tall=Math.min(DIMENSION_CEILING_Y-floorY-2,Math.max(config.wallHeight+28,56));
-
-                    biomeWallHeight+=(int)Math.round((tall-config.wallHeight)*overgrowthBlendAt(seed,x,z,cell));
-
-                }
-
-                biomeWallHeight=SunScorchedMaze.height(seed,x,z,biomeWallHeight);
-
+                int biomeWallHeight=mazeWallHeight(seed,x,z,floorY,biome);
                 boolean wall = isWall(topology, structures, seed, biome,
 
                         x, z, cell, thickness, radius);
@@ -5158,7 +5147,7 @@ public final class WorldGenerator {
 
                     if (biome.kind() != MazeBiomes.Kind.CRIMSON_MARSHLANDS
 
-                            && isArchOpening(topology, x, z, cell, thickness, radius)) {
+                            && Math.hypot(x, z) >= 110 && biomeWallHeight >= 12 && isArchOpening(topology, x, z, cell, thickness, radius)) {
 
                         int archY = Math.max(9, biomeWallHeight / 3);
 
@@ -5216,7 +5205,7 @@ public final class WorldGenerator {
 
             bufferedSet(chunk, x, topY - layer, z,
 
-                    patternedFloor(seed, x, z, layer, topology, cell, radius).defaultBlockState());
+                    (ArenaSurfaceSeam.approach(x, z) || Math.hypot(x, z) <= 110 ? Asterion.ANCIENT_STONE : patternedFloor(seed, x, z, layer, topology, cell, radius)).defaultBlockState());
 
         }
 
@@ -5228,7 +5217,7 @@ public final class WorldGenerator {
 
         double centerDistance = Math.hypot(x, z);
 
-        double flatRadius = cell * 7.0D;
+        double flatRadius = Math.max(cell * 7.0D, Math.sqrt(2.0D) * ArenaSurfaceSeam.APPROACH_RADIUS);
 
         if (centerDistance <= flatRadius) return FLOOR_Y;
 
@@ -5788,6 +5777,7 @@ public final class WorldGenerator {
 
                                               MazeBiomes.Biome biome, int floorY) {
 
+        if (Math.hypot(x, z) < 110) return;
         if (isCenterArena(x, z, cell)) {
 
             net.krodark.asterion.worldgen.MazeRuins.column(chunk, seed, x, z, floorY,
@@ -6073,6 +6063,18 @@ public final class WorldGenerator {
     }
 
 
+
+    /** The same column height is used for generation and repairs of existing scenery. */
+    public static int mazeWallHeight(long seed, int x, int z, int floorY, MazeBiomes.Biome biome) {
+        int normal = AsterionConfig.INSTANCE.wallHeight;
+        int height = normal;
+        if (biome.kind() == MazeBiomes.Kind.CRIMSON_MARSHLANDS) {
+            int tall = Math.min(DIMENSION_CEILING_Y - floorY - 2, Math.max(normal + 28, 56));
+            height += (int)Math.round((tall - normal)
+                    * overgrowthBlendAt(seed, x, z, AsterionConfig.INSTANCE.cellSize));
+        }
+        return SunScorchedMaze.height(seed, x, z, height);
+    }
 
     private static void placeBiomeWallDetail(ChunkAccess chunk, long seed, int x, int z,
 

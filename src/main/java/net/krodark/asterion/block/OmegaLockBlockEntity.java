@@ -41,7 +41,7 @@ public final class OmegaLockBlockEntity extends BlockEntity implements GeoBlockE
             net.krodark.asterion.AsterionWorldState.get(server).markOmegaGateUnlocked();
         server.setBlock(worldPosition, getBlockState().setValue(OmegaLockBlock.UNLOCKED, true), Block.UPDATE_ALL);
         server.playSound(null, worldPosition, SoundEvents.VAULT_ACTIVATE, SoundSource.BLOCKS, 1.5F, .55F);
-        for (var viewer : server.players()) if (viewer.distanceToSqr(worldPosition.getCenter()) < 64 * 64
+        for (var viewer : server.players()) if (viewer.distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(worldPosition)) < 64 * 64
                 && ServerPlayNetworking.canSend(viewer, MazeShiftPayload.TYPE))
             ServerPlayNetworking.send(viewer, new MazeShiftPayload(worldPosition, 64, .42F, 18));
         setChanged();
@@ -75,7 +75,7 @@ public final class OmegaLockBlockEntity extends BlockEntity implements GeoBlockE
         }
         if (changed > 0) {
             server.playSound(null, pos, SoundEvents.CHAIN_HIT, SoundSource.BLOCKS, 1.2F, .55F + lowest % 4 * .04F);
-            for (var viewer : server.players()) if (viewer.distanceToSqr(pos.getCenter()) < 56 * 56
+            for (var viewer : server.players()) if (viewer.distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(pos)) < 56 * 56
                     && ServerPlayNetworking.canSend(viewer, MazeShiftPayload.TYPE))
                 ServerPlayNetworking.send(viewer, new MazeShiftPayload(pos, 56, .16F, 9));
         }

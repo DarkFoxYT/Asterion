@@ -52,9 +52,9 @@ public final class ForgeDepths {
                 || chunk.getMaxBlockZ() < cz - 11 || chunk.getMinBlockZ() > cz + 11) return;
         var template = level.getStructureManager().get(Asterion.id("forge/staircase")).orElseThrow();
         var bottomPort = template.getJigsaws(BlockPos.ZERO, net.minecraft.world.level.block.Rotation.NONE).stream()
-                .filter(port -> port.info().pos().getY() == 1).findFirst().orElseThrow();
+                .filter(port -> JigsawCompatibility.pos(port).getY() == 1).findFirst().orElseThrow();
         BlockPos socket = AuthoredForge.westSocket(level, chunk);
-        BlockPos origin = socket.west().subtract(bottomPort.info().pos());
+        BlockPos origin = socket.west().subtract(JigsawCompatibility.pos(bottomPort));
         var bounds = template.getBoundingBox(new net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings(), origin);
          
          
@@ -73,20 +73,20 @@ public final class ForgeDepths {
         int tx = Math.floorDiv(origin.getX(), 19), tz = Math.floorDiv(origin.getZ(), 19);
         int exits = AuthoredCatacombs.exits(seed, tx, tz);
         for (var port : template.getJigsaws(origin, net.minecraft.world.level.block.Rotation.NONE)) {
-            if (port.info().pos().getY() != AuthoredCatacombs.CONNECTOR_Y) continue;
-            Direction face = net.minecraft.world.level.block.JigsawBlock.getFrontFacing(port.info().state());
+            if (JigsawCompatibility.pos(port).getY() != AuthoredCatacombs.CONNECTOR_Y) continue;
+            Direction face = net.minecraft.world.level.block.JigsawBlock.getFrontFacing(JigsawCompatibility.state(port));
             int bit = switch (face) { case NORTH -> 1; case EAST -> 2; case SOUTH -> 4; case WEST -> 8; default -> 0; };
             if ((exits & bit) != 0) {
                  
                 for (int depth = 0; depth <= 1; depth++) for (int side = -2; side <= 2; side++)
                     for (int y = 0; y <= 5; y++) {
-                        BlockPos pos = port.info().pos().relative(face, depth).relative(face.getClockWise(), side).above(y);
+                        BlockPos pos = JigsawCompatibility.pos(port).relative(face, depth).relative(face.getClockWise(), side).above(y);
                         if (clip.isInside(pos)) world.setBlock(pos, Blocks.AIR.defaultBlockState(), 18);
                     }
                 continue;
             }
             for (int side = -3; side <= 3; side++) for (int y = -1; y <= 6; y++) {
-                BlockPos pos = port.info().pos().relative(face.getClockWise(), side).above(y);
+                BlockPos pos = JigsawCompatibility.pos(port).relative(face.getClockWise(), side).above(y);
                 if (clip.isInside(pos)) world.setBlock(pos, Asterion.ANCIENT_BRICKS.defaultBlockState(), 18);
             }
         }

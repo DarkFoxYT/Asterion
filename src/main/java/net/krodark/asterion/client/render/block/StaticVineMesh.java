@@ -67,5 +67,7 @@ final class StaticVineMesh implements VertexConsumer {
     @Override public VertexConsumer setColor(int color) { return this; }
     @Override public VertexConsumer setUv1(int u, int v) { return this; }
     @Override public VertexConsumer setUv2(int u, int v) { return this; }
+    // Vine meshes supply positions, UV0 and normals; secondary material UVs are unused.
+    public VertexConsumer setUv3(float u, float v) { return this; }
     @Override public VertexConsumer setLineWidth(float width) { return this; }
 }

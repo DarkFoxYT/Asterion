@@ -841,7 +841,7 @@ public final class DeadSunEventSystem {
                 PENDING_STRIKES.add(new PendingStrike(target, warning, radius, seed));
                 DeadSunStrikePayload payload = new DeadSunStrikePayload(target, warning, radius, seed);
                 level.players().forEach(viewer -> {
-                    if (viewer.distanceToSqr(target.getCenter()) <= 72.0D * 72.0D
+                    if (viewer.distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(target)) <= 72.0D * 72.0D
                             && ServerPlayNetworking.canSend(viewer, DeadSunStrikePayload.TYPE))
                         ServerPlayNetworking.send(viewer, payload);
                 });

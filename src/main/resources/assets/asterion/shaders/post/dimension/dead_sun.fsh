@@ -1,4 +1,5 @@
 #version 330
+#moj_import <asterion:scene_depth.glsl>
 
  
  
@@ -94,7 +95,7 @@ void main() {
     vec3 toSun = Sun.xyz - CameraPos;
     float centerDistance = length(toSun);
     float depth = texture(DepthSampler, texCoord).r;
-    float geometryDistance = depth >= 0.9999 ? 100000.0 : length(reconstructWorld(depth) - CameraPos);
+    float geometryDistance = asterionSkyDepth(depth) ? 100000.0 : length(reconstructWorld(depth) - CameraPos);
     if (Radiance <= 0.001 && geometryDistance < centerDistance - Sun.w * 1.20) {
         fragColor = vec4(0.0);
         return;

@@ -25,7 +25,9 @@ public final class ShatteredDeadWoodBlock extends BaseEntityBlock {
         registerDefaultState(stateDefinition.any().setValue(FACING, Direction.UP));
     }
 
+    //? if <26.3 {
     @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
+    //?}
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {

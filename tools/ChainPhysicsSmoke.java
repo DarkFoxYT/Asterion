@@ -4,6 +4,17 @@ import java.util.List;
 
 public final class ChainPhysicsSmoke {
     public static void main(String[] args) {
+        var contact = net.krodark.asterion.physics.ChainContact.resolve(new Vec3(.1, 1, 0),
+                new Vec3(0, 1, 0), new Vec3(0, 1, 0), new Vec3(-.2, -.08, .1), .42);
+        if (contact == null || contact.correction().x <= 0 || contact.velocity().x < 0 || contact.velocity().y != -.08)
+            throw new AssertionError("Chain allows movement through it or interferes with gravity");
+        var clear = net.krodark.asterion.physics.ChainContact.resolve(new Vec3(1, 1, 0),
+                new Vec3(0, 1, 0), new Vec3(0, 1, 0), Vec3.ZERO, .42);
+        if (clear != null) throw new AssertionError("Chain blocks a player outside its links");
+        var centered = net.krodark.asterion.physics.ChainContact.resolve(Vec3.ZERO, Vec3.ZERO,
+                new Vec3(0, 1, 0), Vec3.ZERO, .42);
+        if (centered == null || !Double.isFinite(centered.correction().lengthSqr()))
+            throw new AssertionError("Centered chain contact is unstable");
         checkFlatLinks();
         checkLatchOrbit();
         checkHangingLeafSpans();

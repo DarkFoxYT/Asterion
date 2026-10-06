@@ -17,12 +17,12 @@
     {
       "file": "amnetic-1.0.0-asterion.9+1.20.1.jar",
       "minecraft": "1.20.1",
-      "sha256": "6fb6c0f8616b620fddce904546b0381a05e7aab64bdc2e4eec47d1c5d5dc37b7"
+      "sha256": "0a78718215e871989122276ee443a717cf49811d9706eb1e4f8b45d5930a4679"
     },
     {
       "file": "amnetic-1.0.0-asterion.9+1.21.1.jar",
       "minecraft": "1.21.1",
-      "sha256": "a129e4672e7772a0637adbe4411652dfc603b43552189819ad79b184a0d10b42"
+      "sha256": "ebe38210f5542b1efeb3fe5e6ab7ed7f6596a3d7f36a3065f6c2e4b4242f20d6"
     }
   ],
   "portCommit": "cd28f76f57d5be75c048dfc0588a6277673bf8f0",
@@ -32,5 +32,18 @@
     "sharedArtifact": "libs/amnetic-1.0.0-asterion.9+1.21.1-dev.jar",
     "connectorRequired": false,
     "packaging": "Embedded in Asterion alongside Forgified Fabric API and Assimp"
+  },
+  "presetSafety": {
+    "patch": "tools/patch-amnetic-preset-safety.py",
+    "sourceFix": "docs/curseforge/amnetic-preset-safety.patch",
+    "artifacts": {
+      "amnetic-1.0-SNAPSHOT+1.20.1.jar": "b64d4a5e48c3f00df491f12fa141d646684ac5eb20c0f049bc5aff49bcd63fba",
+      "amnetic-1.0-SNAPSHOT+1.21.1.jar": "4b0af704ed1cd0c49850c5942de3e432ae9a19c8db94a5aa0d89537e71a136fb",
+      "amnetic-1.0.0-asterion.9+1.20.1.jar": "0a78718215e871989122276ee443a717cf49811d9706eb1e4f8b45d5930a4679",
+      "amnetic-1.0.0-asterion.9+1.21.1-dev.jar": "637ac860eae9feb2928e614443bcfbc73cd6539d5075db7d6c428e99cc6ce035",
+      "amnetic-1.0.0-asterion.9+1.21.1.jar": "ebe38210f5542b1efeb3fe5e6ab7ed7f6596a3d7f36a3065f6c2e4b4242f20d6",
+      "amnetic-forge-1.0-SNAPSHOT+1.20.1-forge.jar": "3dfefd8e84bf72b2789f2e5d3d0516bc94000eeb3cd656a1036088130795babf",
+      "amnetic-forge-1.0-SNAPSHOT+1.21.1-forge.jar": "b0f369db22838091d93a4850b78601f477c81d2f32a98e5a418bb5cc5fb6ab95"
+    }
   }
 }

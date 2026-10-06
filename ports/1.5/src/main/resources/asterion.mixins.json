@@ -4,6 +4,7 @@
   "package": "net.krodark.asterion.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "LabyrinthDimensionMigrationMixin",
     "MinotaurCinematicTrackingMixin",
     "ChunkMapTrackingAccessor",
     "ChainLiftMovementMixin",
@@ -56,7 +57,10 @@
     "PortSpriteInterpolationMixin",
     "PortGeckoInterpolationMixin",
     "RagdollClientUseGuardMixin",
-    "PortAfterblowRenderMixin"
+    "PortAfterblowRenderMixin",
+    "PortAfterblowFirstPersonMixin",
+    "PortHandRenderStateMixin",
+    "FlamethrowerInputMixin"
   ],
   "injectors": {
     "defaultRequire": 1

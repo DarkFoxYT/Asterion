@@ -1,4 +1,5 @@
 #version 330
+#moj_import <asterion:scene_depth.glsl>
 
 uniform sampler2D SceneSampler;
 uniform sampler2D DepthSampler;
@@ -34,7 +35,7 @@ void main() {
     float w=abs(world.w)<.00001 ? (world.w<0.0 ? -.00001 : .00001) : world.w;
     world.xyz/=w;
     // InvViewProj reconstructs camera-relative positions; add the camera only for noise.
-    float travel=depth>=.9999 ? 112.0 : min(length(world.xyz),112.0);
+    float travel=asterionSkyDepth(depth) ? 112.0 : min(length(world.xyz),112.0);
      
     vec2 cell=(world.xz+CameraData.xz)*.035+Time*.002;
     float variation=.82+noise(cell)*.28;

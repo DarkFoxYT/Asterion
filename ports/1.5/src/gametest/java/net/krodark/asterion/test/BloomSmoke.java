@@ -17,7 +17,7 @@ final class BloomSmoke {
         if(!Boolean.getBoolean("asterion.bloomSmoke")) return;
         Pipeline.add(RenderStage.POST, 11, "Asterion bloom regression", context -> {
             int tick=ticks.getAsInt();
-            if(tick==lastCapture || tick!=240 && tick!=280 && tick!=310 && tick!=317 && tick!=360) return;
+            if(tick==lastCapture || tick!=240 && tick!=280 && tick!=310 && tick!=317 && tick!=360 && tick!=420 && tick!=455) return;
             lastCapture=tick;
             inspect(tick);
         });
@@ -30,11 +30,28 @@ final class BloomSmoke {
         client.player.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
         float yaw=tick>=315 && tick<320?180:tick<260?0:12;
         client.player.setYRot(yaw);client.player.yRotO=yaw;
-        client.player.setXRot(-25);client.player.xRotO=-25;
-        if(tick==320) GameplaySmoke.server(client,p -> p.serverLevel().getServer().getCommands().performPrefixedCommand(p.serverLevel().getServer().createCommandSourceStack(),"execute in asterion:asterion_dimension run fill -25 160 -1 25 215 -1 minecraft:stone"));
-        if(tick==375) {
-            if(lastCapture!=360) throw new AssertionError("Bloom checks never rendered");
-            Asterion.LOGGER.info("ASTERION_BLOOM PASSED: bright eyes, camera rotation and translation, solid-wall occlusion, TAA off");
+        client.player.setXRot(tick>=370?-8:-25);client.player.xRotO=client.player.getXRot();
+        if(tick>=370) {client.player.setYRot(0);client.player.yRotO=0;}
+        if(tick==320) GameplaySmoke.server(client,p -> p.serverLevel().getServer().getCommands().performPrefixedCommand(p.serverLevel().getServer().createCommandSourceStack(),"execute in asterion:labyrinth run fill -25 160 -1 25 215 -1 minecraft:stone"));
+        if(tick==370) GameplaySmoke.server(client,p -> {
+            p.serverLevel().getServer().getCommands().performPrefixedCommand(p.serverLevel().getServer().createCommandSourceStack(),"execute in asterion:labyrinth run fill -25 160 -1 25 215 -1 minecraft:air");
+            for(var boss:p.serverLevel().getEntitiesOfClass(net.krodark.asterion.entity.MinotaurEntity.class,p.getBoundingBox().inflate(100))) {
+                boss.setNoGravity(true);boss.moveTo(.5,178,70,180,0);
+                boss.yBodyRot=boss.yHeadRot=180;
+            }
+        });
+        if(tick==425) GameplaySmoke.server(client,p -> {
+            for(var boss:p.serverLevel().getEntitiesOfClass(net.krodark.asterion.entity.MinotaurEntity.class,p.getBoundingBox().inflate(100))) {
+                boss.setYRot(0);boss.yBodyRot=boss.yHeadRot=0;
+            }
+        });
+        if(tick>=425) for(var entity:client.level.entitiesForRendering())
+            if(entity instanceof net.krodark.asterion.entity.MinotaurEntity boss) {
+                boss.setYRot(0);boss.yRotO=0;boss.yBodyRot=boss.yBodyRotO=boss.yHeadRot=boss.yHeadRotO=0;
+            }
+        if(tick==470) {
+            if(lastCapture!=455) throw new AssertionError("Distant bloom checks never rendered");
+            Asterion.LOGGER.info("ASTERION_BLOOM PASSED: bright eyes, camera transforms, wall occlusion, distant model self-occlusion, TAA off");
             EmissionCullingRegression.run(client);
             ClientSmokeTest.verifyGraphicsAndTaa();
             client.stop();
@@ -75,6 +92,8 @@ final class BloomSmoke {
             if(tick==280) { if(pixels<2 || centerX-x/weight < width*.04) throw new AssertionError("Bloom did not follow the world geometry when the camera turned"); rotatedCenterX=x/weight; }
             if(tick==310 && (pixels<2 || Math.abs(x/weight-rotatedCenterX)<width*.025)) throw new AssertionError("Bloom did not follow camera translation");
             if(tick==317 && pixels>0) throw new AssertionError("Off-camera geometry still contributes emission: "+pixels);
+            if(tick==420 && pixels<1) throw new AssertionError("Distant forward-facing eyes lost their emission");
+            if(tick==455 && pixels>0) throw new AssertionError("Distant emission leaked through the Minotaur's own head: "+pixels);
             if(tick==360 && pixels>0) throw new AssertionError("Emission leaked through a fully occluding stone wall: "+pixels+" pixels");
             var client=Minecraft.getInstance();
             net.minecraft.client.Screenshot.grab(client.gameDirectory,"asterion-bloom-regression-"+tick+".png",client.getMainRenderTarget(),message -> {});

@@ -10,6 +10,15 @@ import net.minecraft.core.registries.BuiltInRegistries;
 public final class CatacombProtection {
     private CatacombProtection() { }
 
+    /** Keep authored controls usable even when a crossing floods. No scans or ticking. */
+    public static boolean waterproofLever(net.minecraft.world.level.BlockGetter level, BlockState state) {
+        return level instanceof Level world && waterproofLever(world.dimension(), state);
+    }
+    public static boolean waterproofLever(net.minecraft.resources.ResourceKey<Level> dimension, BlockState state) {
+        return dimension.equals(Asterion.ASTERION_LEVEL)
+                && state.getBlock() instanceof net.minecraft.world.level.block.LeverBlock;
+    }
+
     public static boolean contains(Level level, BlockPos pos) {
         return level.dimension().equals(Asterion.ASTERION_LEVEL)
                 && CatacombLayout.contains(pos);

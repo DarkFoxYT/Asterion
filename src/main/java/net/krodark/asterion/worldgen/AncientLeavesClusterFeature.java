@@ -50,7 +50,8 @@ public final class AncientLeavesClusterFeature extends Feature<NoneFeatureConfig
             for (Direction towardWall : directions) {
                 BlockPos wall = center.relative(towardWall, distance);
                 Direction outward = towardWall.getOpposite();
-                if (OvergrowthFeatureSupport.canWrite(level, wall.relative(outward))
+                if (OvergrowthFeatureSupport.canWrite(level, wall)
+                        && OvergrowthFeatureSupport.canWrite(level, wall.relative(outward))
                         && OvergrowthFeatureSupport.isMazeWall(level.getBlockState(wall)))
                     return new WallAttachment(wall, outward);
             }
@@ -76,6 +77,7 @@ public final class AncientLeavesClusterFeature extends Feature<NoneFeatureConfig
                             .relative(wall.outward, outward);
                     if (!OvergrowthFeatureSupport.canWrite(level, pos)) continue;
                     BlockPos backing = pos.relative(wall.outward.getOpposite());
+                    if (!OvergrowthFeatureSupport.canWrite(level, backing)) continue;
                     if (!OvergrowthFeatureSupport.enabled(level, pos, "leaf_clusters")
                             || !OvergrowthFeatureSupport.isOpen(level, pos)
                             || (outward == 1 && !OvergrowthFeatureSupport.isMazeWall(
@@ -118,6 +120,7 @@ public final class AncientLeavesClusterFeature extends Feature<NoneFeatureConfig
     private static int placeRootedLeaf(WorldGenLevel level, BlockPos pos, Direction outward,
                                        BlockState leaves) {
         if (!OvergrowthFeatureSupport.canWrite(level, pos)
+                || !OvergrowthFeatureSupport.canWrite(level, pos.relative(outward.getOpposite()))
                 || !OvergrowthFeatureSupport.enabled(level, pos, "leaf_clusters")
                 || !OvergrowthFeatureSupport.isOpen(level, pos)
                 || !OvergrowthFeatureSupport.isMazeWall(

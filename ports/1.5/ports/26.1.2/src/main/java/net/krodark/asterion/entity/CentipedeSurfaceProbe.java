@@ -40,6 +40,14 @@ public final class CentipedeSurfaceProbe {
         return result;
     }
 
+    /** Keep the head below a wall's exposed crest, without disabling surface travel. */
+    public static Vec3 limitWallAscent(AABB body, Vec3 motion, Direction support, List<AABB> blocks) {
+        if (support.getAxis() == Direction.Axis.Y || motion.y <= 0) return motion;
+        AABB higherSupport = body.move(0, .65, 0).move(support.getUnitVec3().scale(.34));
+        for (AABB block : blocks) if (higherSupport.intersects(block)) return motion;
+        return new Vec3(motion.x, 0, motion.z);
+    }
+
     public static Approach aroundEdge(AABB body, Vec3 motion, Direction support, List<AABB> blocks) {
         if (motion.lengthSqr() < .000225) return null;
         Vec3 heading = CentipedeFrame.tangent(motion, support.getUnitVec3(), motion);
@@ -61,6 +69,7 @@ public final class CentipedeSurfaceProbe {
                 };
                 if (edge < -.02 || edge > .18) continue;
                 Direction face = travel.getOpposite();
+                if (travel == Direction.UP && support.getAxis() != Direction.Axis.Y) continue;
                 if (!body.move(face.getUnitVec3().scale(.12)).intersects(block)) continue;
                 return new Approach(face, edge, CentipedeFrame.unit(
                         support.getUnitVec3().lerp(face.getUnitVec3(), .4), support.getUnitVec3()));

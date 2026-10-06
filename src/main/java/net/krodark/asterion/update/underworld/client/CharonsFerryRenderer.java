@@ -41,8 +41,8 @@ public final class CharonsFerryRenderer extends GeoEntityRenderer<CharonsFerryEn
     @Override protected void applyRotations(RenderPassInfo<EntityRenderState> pass, PoseStack poses, float rotation) {
         super.applyRotations(pass, poses, rotation);
         poses.translate(0, 17.5 / 16.0, 0);
-        poses.mulPose(Axis.XP.rotationDegrees(pass.getOrDefaultGeckolibData(PITCH, 0F)));
-        poses.mulPose(Axis.ZP.rotationDegrees(pass.getOrDefaultGeckolibData(ROLL, 0F)));
+        net.krodark.asterion.client.render.PoseTransforms.apply(poses, Axis.XP.rotationDegrees(pass.getOrDefaultGeckolibData(PITCH, 0F)));
+        net.krodark.asterion.client.render.PoseTransforms.apply(poses, Axis.ZP.rotationDegrees(pass.getOrDefaultGeckolibData(ROLL, 0F)));
         poses.translate(0, -17.5 / 16.0, 0);
     }
 }

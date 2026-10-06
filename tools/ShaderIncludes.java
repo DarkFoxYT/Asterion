@@ -5,7 +5,7 @@ import java.util.regex.*;
 /** Resolve the same namespaced shader includes used by Minecraft's resource loader. */
 public final class ShaderIncludes {
     public static String resolve(String source) throws Exception {
-        var matcher = Pattern.compile("#moj_import <([^:>]+):([^>]+)>").matcher(source);
+        var matcher = Pattern.compile("#(?:moj_import|include)\\s+<([^:>]+):([^>]+)>").matcher(source);
         StringBuilder result = new StringBuilder();
         while (matcher.find()) {
             String resource = "assets/" + matcher.group(1) + "/shaders/include/" + matcher.group(2);

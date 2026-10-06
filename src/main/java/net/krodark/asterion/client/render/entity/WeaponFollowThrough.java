@@ -38,6 +38,6 @@ final class WeaponFollowThrough {
             if (spring.angle.length() > .24F) spring.angle.normalize().mul(.24F);
             spring.hand.set(hand); spring.age = age;
         }
-        poses.mulPose(new Quaternionf().rotationXYZ(spring.angle.x, spring.angle.y, spring.angle.z));
+        net.krodark.asterion.client.render.PoseTransforms.apply(poses, new Quaternionf().rotationXYZ(spring.angle.x, spring.angle.y, spring.angle.z));
     }
 }

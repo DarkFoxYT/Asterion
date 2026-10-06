@@ -22,17 +22,21 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 
  
 public final class PassionBloomBlock extends Block {
+    //? if <26.3 {
     public static final MapCodec<PassionBloomBlock> CODEC = simpleCodec(PassionBloomBlock::new);
+    //?}
     private static final VoxelShape SHAPE = Block.box(4.0D, 3.0D, 4.0D, 12.0D, 16.0D, 12.0D);
 
     public PassionBloomBlock(BlockBehaviour.Properties properties) {
         super(properties);
     }
 
+    //? if <26.3 {
     @Override
     protected MapCodec<? extends Block> codec() {
         return CODEC;
     }
+    //?}
 
     @Override
     protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
@@ -60,7 +64,7 @@ public final class PassionBloomBlock extends Block {
                                                Player player, BlockHitResult hit) {
         if (level.isClientSide()) return InteractionResult.SUCCESS;
         ItemStack bloom = new ItemStack(Asterion.TAINTED_HEART_EATABLE);
-        if (!player.getInventory().add(bloom)) player.drop(bloom, false);
+        if (!player.getInventory().add(bloom)) net.krodark.asterion.entity.EntityVersionCompatibility.drop(player, bloom, false);
         level.removeBlock(pos, false);
         return InteractionResult.SUCCESS_SERVER;
     }

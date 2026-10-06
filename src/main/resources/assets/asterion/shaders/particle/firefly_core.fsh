@@ -7,10 +7,11 @@ out vec4 FragColor;
 void main() {
     vec2 centered = quadUV * 2.0 - 1.0;
     float radius = dot(centered, centered);
-    float halo = smoothstep(1.0, 0.08, radius);
-    float core = smoothstep(0.24, 0.0, radius);
+    float halo = 1.0 - smoothstep(0.08, 1.0, radius);
+    float core = 1.0 - smoothstep(0.0, 0.24, radius);
     vec3 color = vColor.rgb + vec3(1.4, 0.62, 0.06) * core;
     float alpha = vColor.a * halo;
     if (alpha < 0.004) discard;
-    FragColor = vec4(color * alpha, alpha);
+    // The additive material applies source alpha when blending.
+    FragColor = vec4(color, alpha);
 }

@@ -35,7 +35,7 @@ public final class TextureFrameCaches {
             if (level != client.level) { releaseAll(); level = client.level; }
             if (++sweepTicks >= 20) { sweepTicks = 0; trimIdle(System.nanoTime()); }
         });
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> { releaseAll(); level = null; });
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> { releaseAll(); level = null; }));
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> { releaseAll(); level = null; });
     }
 }

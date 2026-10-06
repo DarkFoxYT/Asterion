@@ -28,7 +28,7 @@ public final class PortEmissiveBuffer extends RenderType {
                         .setShaderState(new ShaderStateShard(() -> surfaceShader))
                         .setTextureState(new TextureStateShard(key, false, false))
                         .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
-                        .setCullState(NO_CULL).setDepthTestState(LEQUAL_DEPTH_TEST)
+                        .setCullState(key.getPath().contains("vine") || key.getPath().contains("fire") ? NO_CULL : CULL).setDepthTestState(LEQUAL_DEPTH_TEST)
                         .setWriteMaskState(COLOR_WRITE)
                         .createCompositeState(false)));
     }

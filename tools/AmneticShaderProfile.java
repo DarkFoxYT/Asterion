@@ -63,7 +63,8 @@ public final class AmneticShaderProfile {
                                 timer.begin(); GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, 3); timer.end();
                                 // A blocking wait is confined to this offline benchmark, never gameplay.
                                 GL11.glFinish();
-                                if (i >= 12 && timer.lastMs() >= 0) { total += timer.lastMs(); samples++; }
+                                float elapsed = timer.poll();
+                                if (i >= 12 && elapsed >= 0) { total += elapsed; samples++; }
                             }
                             if (samples == 0) throw new AssertionError("No GPU timer samples");
                             float ms = total / samples;

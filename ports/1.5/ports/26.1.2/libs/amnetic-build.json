@@ -5,5 +5,20 @@
   "version": "1.0-SNAPSHOT-0b72718",
   "sourceCommit": "0b727183ec2d18514cdeb0d4bdc7a2c2692890c5",
   "minecraft": "26.1.2",
-  "fabricQuiltSha256": "e8e0899e80dd3547a569a89f1d424366845cc8b168471c6f71e5afd4811e30da"
+  "fabricQuiltSha256": "e8e0899e80dd3547a569a89f1d424366845cc8b168471c6f71e5afd4811e30da",
+  "presetSafety": {
+    "patch": "tools/patch-amnetic-preset-safety.py",
+    "sourceFix": "docs/curseforge/amnetic-preset-safety.patch",
+    "artifacts": {
+      "amnetic-1.0-SNAPSHOT+26.1.2.jar": "a918b5d77cb21b5317a28a3286b3b4d96cb5750e8a08fb58f3064e2c60c5c6a4",
+      "amnetic-1.0-SNAPSHOT-0b72718.jar": "b99e368fb4a779541cac1f2202f622359455ae7fed369c4c8b7d5ca228621178",
+      "amnetic-1.0-SNAPSHOT-asterion.1.jar": "4a529f44f38260a0a17b78abfff11a9c078532a5d8638bdeaf7472fdb34e158b",
+      "amnetic-1.0-SNAPSHOT-asterion.2.jar": "388e8f6531bc64e9783c35c18850b15621da09cf742fbcfc2e9783341c5e3904",
+      "amnetic-1.0-SNAPSHOT.jar": "8b8d64650c0e31cce7361edc5fbf31555d9f0dc04aa4d4f4c6961b308a7441e2",
+      "amnetic-forge-1.0-SNAPSHOT+26.1.2-forge.jar": "727257004b3ed28ebad2ffdb97d0519f1e93428008730a009e5c4f2c55df0cb2",
+      "amnetic-forge-26.1.2.jar": "4ddd0e82784e36aecea9d28209b6921f26d2760c9a12671517be65d574d0d97f",
+      "amnetic-neoforge-1.0-SNAPSHOT-0b72718.jar": "83b1521db7fb726cdd7ec33c94f40d43fec4a3e57bf3af4d9e0bcc872bd25806",
+      "amnetic-neoforge-1.0-SNAPSHOT.jar": "4e414560ec3481d38bc9e27321c3ca1a2b05138ace37eb8ad6118e813dc4e0a7"
+    }
+  }
 }

@@ -38,7 +38,9 @@ public final class SanctuaryBlock extends BaseEntityBlock {
         registerDefaultState(stateDefinition.any().setValue(CHARGE, 0)
                 .setValue(PART_X, 1).setValue(PART_Z, 1).setValue(ROW, 0));
     }
+    //? if <26.3 {
     @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
+    //?}
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(CHARGE, PART_X, PART_Z, ROW);
     }

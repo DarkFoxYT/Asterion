@@ -168,6 +168,22 @@ public final class PhysicsChainEntity extends Entity {
             var hit = level().clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
             return hit.getType() == HitResult.Type.MISS ? to : hit.getLocation().add(net.minecraft.world.phys.Vec3.atLowerCornerOf(hit.getDirection().getNormal()).scale(.035));
         }, bodies);
+        for (Player player : level().players()) {
+            if (player.isSpectator() || !player.getBoundingBox().intersects(interactionBox)
+                    || net.krodark.asterion.physics.ChainGrip.holds(player, this)
+                    || level().isClientSide && !player.isLocalPlayer()) continue;
+            for (int sample = 0; sample < 2; sample++) {
+                double height = sample == 0 ? .45 : 1.25;
+                Vec3 center = player.position().add(0, Math.min(height, player.getBbHeight() * .8), 0);
+                Vec3 contact = chain.closestPoint(center);
+                var response = net.krodark.asterion.physics.ChainContact.resolve(center, contact,
+                        chain.tangentAt(center), player.getDeltaMovement(), player.getBbWidth() * .5 + .12);
+                if (response == null) continue;
+                player.move(MoverType.SELF, response.correction());
+                player.setDeltaMovement(response.velocity());
+                break;
+            }
+        }
     }
     public Vec3[] points(float partial) {
         Vec3[] points=chain==null?new Vec3[]{position(),endpoint()}:chain.rendered(partial);

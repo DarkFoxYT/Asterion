@@ -395,25 +395,30 @@ public final class AuthoredCatacombs {
                 int clearanceStart=LabyrinthLevels.MAZE_FLOOR_Y+2;
                 for(int y=clearanceStart;y<=Math.max(clearanceStart,surface+2);y++) {
                     pos.set(wx,y,wz);
-                    if(!world.getBlockState(pos).isAir())world.setBlock(pos,air,18);
+                    if(!world.getBlockState(pos).isAir() && !world.getBlockState(pos).hasBlockEntity()
+                        && !(world.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.LeverBlock))world.setBlock(pos,air,18);
                 }
                 continue;
             }
 
 
             pos.set(wx,surface+1,wz);
-            if(!world.getBlockState(pos).getCollisionShape(world,pos).isEmpty())continue;
+            if(radius>4 && Math.abs(x-9)>1 && Math.abs(z-9)>1
+                    && !world.getBlockState(pos).getCollisionShape(world,pos).isEmpty())continue;
             pos.set(wx,surface+2,wz);
-            if(!world.getBlockState(pos).getCollisionShape(world,pos).isEmpty())continue;
-            int deck=Math.min(surface,LabyrinthLevels.MAZE_FLOOR_Y+radius-2);
+            if(radius>4 && Math.abs(x-9)>1 && Math.abs(z-9)>1
+                    && !world.getBlockState(pos).getCollisionShape(world,pos).isEmpty())continue;
+            int deck=Math.min(surface,LabyrinthLevels.MAZE_FLOOR_Y+Math.max(0,radius-3));
             for(int y=LabyrinthLevels.MAZE_FLOOR_Y;y<=deck;y++) {
                 pos.set(wx,y,wz);
-                if(world.getBlockState(pos)!=brick)world.setBlock(pos,brick,18);
+                var deckState=radius==3 ? brick : Asterion.ANCIENT_STONE.defaultBlockState();
+                if(!world.getBlockState(pos).equals(deckState) && !world.getBlockState(pos).hasBlockEntity())world.setBlock(pos,deckState,18);
             }
 
-            for(int y=deck+1;y<=surface;y++) {
+            for(int y=deck+1;y<=Math.max(surface,deck+3);y++) {
                 pos.set(wx,y,wz);
-                if(!world.getBlockState(pos).isAir())world.setBlock(pos,air,18);
+                if(!world.getBlockState(pos).isAir() && !world.getBlockState(pos).hasBlockEntity()
+                        && !(world.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.LeverBlock))world.setBlock(pos,air,18);
             }
         }
     }
@@ -447,6 +452,7 @@ public final class AuthoredCatacombs {
         for (ChunkPos pos : ZoneRunePlacement.arenaChunks()) {
             LevelChunk chunk = level.getChunkSource().getChunkNow(pos.x, pos.z);
             if (chunk == null) continue;
+            drainArenaWater(level, chunk, false);
             if (chunk.getBlockState(arenaMarker(pos)).equals(arenaRevisionMarker()) && hasArenaFoundation(chunk)) completed.add(pos);
             else completed.remove(pos);
         }
@@ -505,6 +511,7 @@ public final class AuthoredCatacombs {
         Set<ChunkPos> resetting = RESET_ARENA_CHUNKS.get(level);
         boolean reset = resetting != null && resetting.contains(cp);
         if(!reset && chunk.getBlockState(marker).equals(revisionMarker) && hasArenaFoundation(chunk)) {
+            if (arena) drainArenaWater(level, chunk, false);
             repairArenaApproach(level, chunk);
             MinotaurArenaEntrances.repairOmegaLock(level, cp);
             return;
@@ -532,6 +539,7 @@ public final class AuthoredCatacombs {
         net.krodark.asterion.worldgen.WorldGenerator.registerAuthoredArenaPillars(level,chunk);
         configureArenaLoot(level,chunk);
         MinotaurArenaEntrances.buildForChunk(level,cp);
+        if (arena) drainArenaWater(level, chunk, true);
 
 
         chunk.setBlockState(marker,revisionMarker, false);
@@ -558,9 +566,10 @@ public final class AuthoredCatacombs {
 
         var air=Blocks.AIR.defaultBlockState();
         BlockPos.MutableBlockPos cursor=new BlockPos.MutableBlockPos();
-        for(int x=bounds.minX();x<=bounds.maxX();x++)for(int z=bounds.minZ();z<=bounds.maxZ();z++)
-            for(int y=bounds.minY();y<=bounds.maxY();y++)
-                level.setBlock(cursor.set(x,y,z),air,18);
+        for(int x=Math.max(-ARENA_RADIUS,bounds.minX());x<=Math.min(ARENA_RADIUS,bounds.maxX());x++)
+            for(int z=Math.max(-ARENA_RADIUS,bounds.minZ());z<=Math.min(ARENA_RADIUS,bounds.maxZ());z++)
+                for(int y=bounds.minY();y<=bounds.maxY();y++)
+                    level.setBlock(cursor.set(x,y,z),air,18);
     }
     private static void placeArenaPart(ServerLevel level, StructureTemplate template, BlockPos origin,
                                        BoundingBox bounds, int part) {
@@ -605,6 +614,33 @@ public final class AuthoredCatacombs {
                     (pos,state)->level.setBlock(pos,state,18),root,
                     net.krodark.asterion.block.PillarBlock.MODEL_HEIGHT);
     }
+    public static net.minecraft.world.level.block.state.BlockState drainedArenaState(
+            net.minecraft.world.level.block.state.BlockState state, int y) {
+        if (y <= 54) return state;
+        if (state.is(Blocks.WATER) || state.is(Blocks.BUBBLE_COLUMN)) return Blocks.AIR.defaultBlockState();
+        var waterlogged = net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED;
+        return state.hasProperty(waterlogged) && state.getValue(waterlogged) ? state.setValue(waterlogged, false) : state;
+    }
+
+    private static void drainArenaWater(ServerLevel level, LevelChunk chunk, boolean force) {
+        ChunkPos cp = chunk.getPos();
+        BlockPos marker = new BlockPos(cp.getMinBlockX(), ARENA_BASE_Y - 3, cp.getMinBlockZ());
+        var done = Blocks.LIGHT.defaultBlockState().setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 10);
+        if (!force && chunk.getBlockState(marker).equals(done)) return;
+        ArenaSurfaceSeam.repair(level, chunk, true);
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int x = Math.max(-ARENA_RADIUS, cp.getMinBlockX()); x <= Math.min(ARENA_RADIUS, cp.getMaxBlockX()); x++)
+            for (int z = Math.max(-ARENA_RADIUS, cp.getMinBlockZ()); z <= Math.min(ARENA_RADIUS, cp.getMaxBlockZ()); z++)
+                for (int y = Math.max(55, ARENA_BASE_Y); y <= ARENA_BASE_Y + 47; y++) {
+                    cursor.set(x, y, z);
+                    var state = chunk.getBlockState(cursor);
+                    var drained = drainedArenaState(state, y);
+                    if (drained != state) level.setBlock(cursor, drained, 18);
+                }
+        chunk.setBlockState(marker, done, false);
+        chunk.setUnsaved(true);
+    }
+
     private static void configureArenaLoot(ServerLevel level,LevelChunk chunk) {
         var common=net.minecraft.resources.ResourceKey.create(net.krodark.asterion.port.compat.LootCompat.REGISTRY,
                 Asterion.id("chests/arena_vault_common"));

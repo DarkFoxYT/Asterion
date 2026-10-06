@@ -8,10 +8,18 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.world.phys.Vec3;
 final class PolishSmoke {
     private static float diamond;
+    private static String pendingSnapshot;
     private static Vec3 hand;
     private static net.minecraft.client.gui.components.LerpingBossEvent bar;
     static void register(java.util.function.IntSupplier ticks) {
         if (!Boolean.getBoolean("asterion.polishSmoke")) return;
+        com.meekdev.amnetic.client.pipeline.Pipeline.add(com.meekdev.amnetic.client.pipeline.RenderStage.AFTER_GUI,99999,"Polish frame capture",context -> {
+            if (pendingSnapshot != null) {
+                var client=Minecraft.getInstance();
+                net.minecraft.client.Screenshot.grab(client.gameDirectory,"asterion-polish-"+pendingSnapshot+".png",client.getMainRenderTarget(),message -> {});
+                pendingSnapshot=null;
+            }
+        });
         net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback.EVENT.register((g,t) -> {
             if (ticks.getAsInt()<180) return;
             if (bar==null) bar=new net.minecraft.client.gui.components.LerpingBossEvent(java.util.UUID.randomUUID(),
@@ -79,6 +87,63 @@ final class PolishSmoke {
         if(tick==250) {data(boss,"DATA_HELD_PLAYER",-1);data(boss,"DATA_BOSS_ATTACK",0);data(boss,"DATA_BOSS_ATTACK_TICKS",0);}
         if(tick==255 && net.krodark.asterion.port.client.ragdoll.MinotaurHandAttachment.feet(client.player)!=null)throw new AssertionError("Stale hand after release");
         if(tick>=265) {data(boss,"DATA_BOSS_STAGE",ordinal("BossStage","DEFEATED"));data(boss,"DATA_BOSS_ATTACK_TICKS",200);}
+        if (tick >= 275 && tick <= 320) {
+            client.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+            client.options.hideGui=false;
+            client.player.setInvisible(false);
+        }
+        if (tick == 275) GameplaySmoke.server(client,p -> p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,
+                new ItemStack(net.krodark.asterion.game.GameplayContent.FLAMETHROWER)));
+        if (tick == 280) GameplaySmoke.server(client,p -> {
+            net.krodark.asterion.game.GameplayContent.FLAMETHROWER.onUseTick(p.serverLevel(),p,p.getMainHandItem(),71980);
+        });
+        if (tick == 285) {
+            try {
+                Class<?> networking;
+                try { networking=Class.forName("net.krodark.asterion.port.legacy.network.ClientPlayNetworking"); }
+                catch(ClassNotFoundException oldApi) { networking=Class.forName("net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking"); }
+                var type=net.krodark.asterion.network.IgniteGasPayload.TYPE;
+                boolean registered=false, sent=false;
+                for(var method:networking.getMethods()) if(method.getName().equals("canSend") && method.getParameterCount()==1
+                        && method.getParameterTypes()[0].isInstance(type)) registered=(boolean)method.invoke(null,type);
+                if (!registered) throw new AssertionError("Flamethrower ignition packet is not registered");
+                for(var method:networking.getMethods()) if(method.getName().equals("send") && method.getParameterCount()==1
+                        && method.getParameterTypes()[0].isInstance(net.krodark.asterion.network.IgniteGasPayload.INSTANCE)) {
+                    method.invoke(null,net.krodark.asterion.network.IgniteGasPayload.INSTANCE);sent=true;break;
+                }
+                if (!sent) throw new AssertionError("Flamethrower ignition packet cannot be sent");
+            } catch(ReflectiveOperationException error) {throw new AssertionError(error);}
+        }
+        if (tick == 290) GameplaySmoke.server(client,p -> {
+            if (!p.getCooldowns().isOnCooldown(net.krodark.asterion.game.GameplayContent.FLAMETHROWER))
+                throw new AssertionError("Flamethrower ignition packet did not activate the weapon");
+            if (net.krodark.asterion.game.GasClouds.ignite(p.serverLevel(),p.getEyePosition(),p.getUUID()))
+                throw new AssertionError("Flamethrower gas was not ignited by its weapon packet");
+            Asterion.LOGGER.info("ASTERION_FLAMETHROWER PASSED: gas emission, registered ignition packet, burning cloud and cooldown");
+        });
+        if (tick == 295) {
+            if (!client.player.getMainHandItem().is(net.krodark.asterion.game.GameplayContent.FLAMETHROWER))
+                throw new AssertionError("Flamethrower item did not synchronize");
+            snapshot(client,"flamethrower-model");
+            var model=client.getItemRenderer().getItemModelShaper().getItemModel(net.krodark.asterion.game.GameplayContent.FLAMETHROWER);
+            if (!model.isCustomRenderer()) throw new AssertionError("Flamethrower is missing its GeckoLib model renderer");
+            GameplaySmoke.server(client,p -> p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,new ItemStack(Asterion.AFTERBLOW)));
+        }
+        if (tick == 305) {
+            client.player.startUsingItem(net.minecraft.world.InteractionHand.MAIN_HAND);
+            GameplaySmoke.server(client,p -> p.startUsingItem(net.minecraft.world.InteractionHand.MAIN_HAND));
+        }
+        if (tick >= 305 && tick <= 320) {
+            client.options.keyUse.setDown(true);
+            client.player.startUsingItem(net.minecraft.world.InteractionHand.MAIN_HAND);
+        }
+        if (tick == 315) snapshot(client,"afterblow-guard");
+        if (tick == 318 || tick == 320) {
+            client.player.setXRot(tick == 318 ? 60 : -60);
+            client.player.xRotO=client.player.getXRot();
+            snapshot(client,tick == 318 ? "guard-look-down" : "guard-look-up");
+        }
+        if (tick == 321) { client.player.stopUsingItem(); GameplaySmoke.server(client,p -> p.stopUsingItem()); }
         if(tick==310)snapshot(client,"corpse");
         if(tick==325)data(boss,"DATA_HARVESTED",true);
         if(tick==345) {
@@ -106,7 +171,7 @@ final class PolishSmoke {
             client.stop();
         }
     }
-    private static void snapshot(Minecraft c,String name){net.minecraft.client.Screenshot.grab(c.gameDirectory,"asterion-polish-"+name+".png",c.getMainRenderTarget(),m->{});}
+    private static void snapshot(Minecraft c,String name){pendingSnapshot=name;}
     private static void checkMask(Minecraft client) {
         try {
             var cls=Class.forName("net.krodark.asterion.port.client.PortGuiMask");var get=cls.getDeclaredMethod("get",net.minecraft.resources.ResourceLocation.class);get.setAccessible(true);

@@ -11,5 +11,6 @@ public final class ArenaRingPath {
     public static double advance(double progress,double speed,double radius) {
         return Math.min(Math.PI*2,progress+speed/radius);
     }
+    public static boolean engagementRadius(double radius) { return radius >= 25 && radius <= 40; }
     public static boolean allowed(boolean phaseTwo,int pillars) { return phaseTwo && pillars==0; }
 }

@@ -23,6 +23,15 @@ stonecutter {
         version('26.1.2-quilt', '26.1.2').buildscript = 'build.gradle'
         version('26.1.2-neoforge', '26.1.2').buildscript = 'neoforge/build.gradle'
         version('26.1.2-forge', '26.1.2').buildscript = 'forge/build.gradle'
+        // Migration targets remain opt-in until their renderer and gameplay
+        // checks pass. Do not publish an unverified compatibility declaration.
+        if (providers.gradleProperty('asterionCompatibilityPorts').getOrElse('false').toBoolean()) {
+            for (minecraft in ['26.2', '26.3']) {
+                for (loader in ['fabric', 'quilt']) {
+                    version("${minecraft}-${loader}", minecraft).buildscript = 'build.gradle'
+                }
+            }
+        }
         vcsVersion = '26.1.2-fabric'
     }
 }

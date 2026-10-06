@@ -266,7 +266,7 @@ public final class PhysicsDebrisSystem {
             Quaternionf rotation = piece.renderOrientation.set(piece.previousOrientation).slerp(piece.orientation, partialTick);
             poses.pushPose();
             poses.translate(position.x - camera.x, position.y - camera.y, position.z - camera.z);
-            poses.mulPose(rotation);
+            net.krodark.asterion.client.render.PoseTransforms.apply(poses, rotation);
             poses.scale(piece.scale, piece.scale, piece.scale);
             if (piece.blockVisual != null) {
                 poses.translate(-.5, -.5, -.5);

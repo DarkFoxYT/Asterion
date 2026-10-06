@@ -31,7 +31,7 @@ public final class ForgeItemFlights {
         var state = new ItemStackRenderState();
         client.getItemModelResolver().updateForTopItem(state, payload.item(), ItemDisplayContext.FIXED, level, null, 0);
         if (flights.size() >= 32) flights.removeFirst();
-        flights.add(new Flight(payload.from(), payload.pos().getCenter().add(0, 3.05, 0), level.getGameTime(), state));
+        flights.add(new Flight(payload.from(), net.minecraft.world.phys.Vec3.atCenterOf(payload.pos()).add(0, 3.05, 0), level.getGameTime(), state));
     }
     public static void submit(PoseStack poses, LevelRenderState state, SubmitNodeCollector out) {
         var client = Minecraft.getInstance();
@@ -48,8 +48,8 @@ public final class ForgeItemFlights {
             poses.translate(point.x, point.y, point.z);
             float size = .9F * (1 - melt);
             poses.scale(size * (1 + melt * .5F), size * (1 - melt * .85F), size * (1 + melt * .5F));
-            poses.mulPose(Axis.YP.rotationDegrees((float)(t * 300)));
-            poses.mulPose(Axis.XP.rotationDegrees((float)(t * 220)));
+            net.krodark.asterion.client.render.PoseTransforms.apply(poses, Axis.YP.rotationDegrees((float)(t * 300)));
+            net.krodark.asterion.client.render.PoseTransforms.apply(poses, Axis.XP.rotationDegrees((float)(t * 220)));
             flight.item.submit(poses, out, 0x00F000F0, OverlayTexture.NO_OVERLAY, 0);
             poses.popPose();
         }

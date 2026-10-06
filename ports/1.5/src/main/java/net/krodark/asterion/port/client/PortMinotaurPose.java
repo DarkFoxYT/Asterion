@@ -23,6 +23,7 @@ final class PortMinotaurPose {
                 || boss.animationState() == MinotaurEntity.AnimationState.CHARGE_RUN);
     }
     static int eyeTint(MinotaurEntity boss) {
+        if (boss.isDefeatedBoss() || !boss.isAlive()) return 0xFF000000;
         State state=STATES.get(boss);
         int tint=state==null?0xFFD8FFFF:state.getOrDefaultGeckolibData(EYE_TINT,0xFFD8FFFF);
         if (attackCue(boss)) tint = 0xFF55FF66;

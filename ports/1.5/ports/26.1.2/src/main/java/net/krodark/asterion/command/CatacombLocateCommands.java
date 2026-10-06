@@ -56,7 +56,7 @@ public final class CatacombLocateCommands {
         net.krodark.asterion.game.PlayerNotices.success(source, () -> Component.literal("Nearest Queen Beetle tree: ")
                 .append(Component.literal("[" + target.getX() + " " + target.getY() + " " + target.getZ() + "]")
                         .withStyle(ChatFormatting.GREEN))
-                .append(Component.literal(" in asterion:asterion_dimension")), false);
+                .append(Component.literal(" in asterion:labyrinth")), false);
         return Command.SINGLE_SUCCESS;
     }
 
@@ -79,7 +79,7 @@ public final class CatacombLocateCommands {
         String coordinates = target.getX() + " " + target.getY() + " " + target.getZ();
         net.krodark.asterion.game.PlayerNotices.success(source, () -> Component.literal("Nearest catacomb brazier room: ")
                 .append(Component.literal("[" + coordinates + "]").withStyle(ChatFormatting.GREEN))
-                .append(Component.literal(" in asterion:asterion_dimension")), false);
+                .append(Component.literal(" in asterion:labyrinth")), false);
         return Command.SINGLE_SUCCESS;
     }
 }

@@ -87,7 +87,9 @@ dependencies {
     // Amnetic keeps its editor optional for production, but an IDE client should
     // have the ImGui host available so the Right Shift editor shortcut works.
     // runtimeOnly deliberately keeps ImGuiMC out of Asterion's distributable jar.
-    runtimeOnly "foundry.imguimc:imguimc-fabric-26.1:${project.imguimc_version}"
+    if (!(project.minecraft_version in ['26.2', '26.3'])) {
+        runtimeOnly "foundry.imguimc:imguimc-fabric-26.1:${project.imguimc_version}"
+    }
 
     implementation "asterion.bundled:bb4j:0.0.0-c2242d5"
     include "asterion.bundled:bb4j:0.0.0-c2242d5"
@@ -104,6 +106,88 @@ def resourceProperties = [
 ]
 
 processResources {
+    if (project.minecraft_version in ['26.2', '26.3']) {
+        doLast {
+            if (project.minecraft_version == '26.2') {
+                fileTree("${destinationDir}/data/asterion/advancement").matching { include '**/*.json' }.each { resource ->
+                    def advancement = new groovy.json.JsonSlurper().parse(resource)
+                    advancement.criteria?.values()?.each { criterion ->
+                        def entity = criterion.conditions?.entity
+                        if (criterion.trigger == 'minecraft:player_killed_entity' && entity) {
+                            def predicates = entity instanceof List ? entity.collect { it.predicate } : [entity]
+                            predicates.each { predicate ->
+                                if (predicate?.containsKey('type')) predicate['minecraft:entity_type'] = predicate.remove('type')
+                            }
+                        }
+                    }
+                    resource.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(advancement))
+                }
+            }
+            fileTree("${destinationDir}/assets/asterion/shaders/post").matching { include '**/*.fsh' }.each { shader ->
+                def source = shader.getText('UTF-8')
+                def newline = source.indexOf('\n') + 1
+                shader.setText(source.substring(0, newline) + '#define ASTERION_REVERSED_DEPTH\n' + source.substring(newline), 'UTF-8')
+            }
+        }
+    }
+    if (project.minecraft_version == '26.3') {
+        eachFile {
+            if (path.startsWith('data/asterion/worldgen/configured_feature/')) {
+                path = path.replace('/configured_feature/', '/feature/')
+            }
+        }
+        doLast {
+            fileTree("${destinationDir}/data/asterion/advancement").matching { include '**/*.json' }.each { resource ->
+                def advancement = new groovy.json.JsonSlurper().parse(resource)
+                advancement.criteria?.values()?.each { criterion ->
+                    def conditions = criterion.conditions
+                    if (criterion.trigger == 'minecraft:recipe_unlocked' && conditions?.containsKey('recipe')) {
+                        conditions.recipes = conditions.remove('recipe')
+                    }
+                    if (criterion.trigger == 'minecraft:player_killed_entity' && conditions?.entity) {
+                        def entity = conditions.entity
+                        if (entity instanceof List) {
+                            if (entity.size() != 1) throw new GradleException("Unsupported compound entity predicate: ${resource.name}")
+                            entity = entity[0]
+                            entity.type = entity.remove('condition')
+                            if (entity.predicate?.containsKey('type')) entity.predicate['minecraft:entity_type'] = entity.predicate.remove('type')
+                        } else {
+                            entity = [type: 'minecraft:entity_properties', entity: 'this', predicate: ['minecraft:entity_type': entity.type]]
+                        }
+                        conditions.entity = entity
+                    }
+                }
+                resource.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(advancement))
+            }
+            fileTree("${destinationDir}/data/asterion/worldgen/feature").matching { include '**/*.json' }.each { resource ->
+                def feature = new groovy.json.JsonSlurper().parse(resource)
+                if (feature.config != [:]) throw new GradleException("Feature migration requires a configured codec: ${resource.name}")
+                feature.remove('config')
+                resource.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(feature))
+            }
+            def shaders = file("${destinationDir}/assets/asterion/shaders")
+            fileTree(shaders).matching { include 'core/*', 'include/*' }.each { shader ->
+                shader.text = shader.getText('UTF-8').replace('#moj_import', '#include')
+            }
+            def locations = [Position: 0, Color: 1, UV0: 2, UV1: 3, UV2: 4, Normal: 5]
+            def waterVertex = new File(shaders, 'core/limbo_water.vsh')
+            def varyings = [:]
+            (waterVertex.text =~ /(?m)^out\s+\w+\s+(\w+)\s*;/).each { match -> varyings[match[1]] = varyings.size() }
+            ['limbo_water.vsh', 'limbo_water.fsh', 'enhanced_emissive.fsh'].each { name ->
+                def shader = new File(shaders, "core/${name}")
+                def text = shader.getText('UTF-8').replace('#version 330', '#version 330\n#extension GL_ARB_separate_shader_objects : require')
+                def entityVaryings = [sphericalVertexDistance: 0, cylindricalVertexDistance: 1, vertexColor: 2, texCoord0: 6]
+                text = text.replaceAll(/(?m)^(in|out)\s+(\w+)\s+(\w+)\s*;/) { declaration, direction, type, variable ->
+                    def location = name == 'enhanced_emissive.fsh' ? entityVaryings[variable]
+                            : (name.endsWith('.vsh') && direction == 'in' ? locations[variable] : varyings[variable])
+                    if (direction == 'out' && name.endsWith('.fsh')) location = 0
+                    if (location == null) throw new GradleException("Missing shader location: ${name} ${variable}")
+                    "layout(location = ${location}) ${direction} ${type} ${variable};"
+                }
+                shader.setText(text, 'UTF-8')
+            }
+        }
+    }
     from(rootProject.file('src/main/resources/assets/asterion/textures/armor')) {
         include '*_top.png'
         into 'assets/asterion/textures/entity/equipment/humanoid'
@@ -126,20 +210,20 @@ processResources {
     }
     doLast {
         def sounds = new groovy.json.JsonSlurper().parse(rootProject.file('src/main/resources/assets/asterion/sounds.json'))
-        def tracks = []
+        def tracks = new groovy.json.JsonSlurper().parse(rootProject.file('src/main/resources/assets/asterion/music_tracks.json'))
         def seen = new HashSet<String>()
-        rootProject.fileTree('src/main/resources/assets/asterion/sounds/music').matching { include '**/*.ogg' }.files.sort().each { track ->
-            def group = track.parentFile.name
-            if (!(group in ['ancient', 'overgrown', 'crimsonmarshlands', 'arena', 'forge'])) return
-            def stem = track.name.substring(0, track.name.length() - 4)
-            def split = stem.lastIndexOf(' - ')
-            def title = split < 0 ? stem : stem.substring(0, split).trim()
-            def artist = split < 0 ? 'Unknown artist' : stem.substring(split + 3).trim()
-            def resource = "music/${group}/${stem}".toLowerCase(java.util.Locale.ROOT).replaceAll('[^a-z0-9/._-]', '_')
-            if (!seen.add(resource)) throw new GradleException("Duplicate music resource: ${resource}")
-            def event = resource.replace('/', '.')
-            sounds[event] = [sounds: [[name: "asterion:${resource}", stream: true]]]
-            tracks.add([group: group, sound: "asterion:${event}", title: title, artist: artist])
+        tracks.each { track ->
+            if (!(track.sound instanceof String) || !track.sound.startsWith('asterion:'))
+                throw new GradleException("Invalid authored music sound: ${track.sound}")
+            def event = track.sound.substring('asterion:'.length())
+            if (!seen.add(event) || !sounds.containsKey(event) || !track.title || !track.artist)
+                throw new GradleException("Missing or duplicate music credits for ${event}")
+            // Filenames are resource identifiers; authored credits are the display names.
+            def declaration = sounds[event]
+            declaration.sounds = declaration.sounds.collect { sample ->
+                sample instanceof String ? [name: sample, stream: true] : sample + [stream: true]
+            }
+            if (!declaration.subtitle) throw new GradleException("Music subtitle missing: ${event}")
         }
         file("${destinationDir}/assets/asterion/sounds.json").text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(sounds))
         file("${destinationDir}/assets/asterion/music_tracks.json").text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(tracks))
@@ -150,6 +234,7 @@ def targetJavaVersion = 25
 tasks.withType(JavaCompile).configureEach {
     options.encoding = "UTF-8"
     options.compilerArgs.addAll(["-Xlint:deprecation", "-Xlint:unchecked"])
+    if (project.minecraft_version in ['26.2', '26.3']) options.compilerArgs.addAll(['-Xmaxerrs', '10000'])
     options.release.set(targetJavaVersion)
 }
 
@@ -195,9 +280,20 @@ if (loaderPlatform == "quilt") {
     tasks.matching { it.name.startsWith("run") }.configureEach {
         dependsOn prepareQuiltRunMods
     }
+    tasks.withType(JavaExec).matching { it.name.startsWith('run') }.configureEach {
+        // Store transformed classes directly; referenced caches fail to reopen.
+        if (project.minecraft_version in ['26.2', '26.3']) {
+            jvmArgs '-Dloader.transform_cache.disable_external_references=true'
+        }
+        jvmArgs '-Dloader.disable_forked_guis=true'
+    }
 }
 
 apply from: rootProject.file('gradle/forge-assets.gradle')
+
+def compatibilityRunDir = project.minecraft_version in ['26.2', '26.3']
+        ? file("build/run/${loaderPlatform}")
+        : (loaderPlatform == 'fabric' ? rootProject.file('run') : file('build/run/quilt'))
 
 def essentialRuntimePointer = layout.buildDirectory.file("essential-runtime-jar.path")
 tasks.register("stageEssentialRuntimeJar") {
@@ -241,10 +337,15 @@ loom {
     }
     runs {
         client {
-            runDir((loaderPlatform == "fabric" ? rootProject.file("run") : file("build/run/quilt")).absolutePath)
+            runDir(compatibilityRunDir.absolutePath)
             mainClass = "net.krodark.asterion.dev.EssentialClientLaunch"
             vmArg "-Dasterion.essential.modJarPathFile=${essentialRuntimePointer.get().asFile.absolutePath}"
             if (project.hasProperty('startupProfile')) vmArg "-XX:StartFlightRecording=settings=profile,filename=${layout.buildDirectory.file('startup-profile.jfr').get().asFile.absolutePath},dumponexit=true"
+            if (project.minecraft_version in ['26.2', '26.3']) {
+                programArg '--graphicsBackend'
+                programArg providers.gradleProperty('graphics_backend').getOrElse('opengl').toUpperCase()
+                vmArg "-Dmax.bg.threads=${providers.gradleProperty('client_worker_count').getOrElse('4')}"
+            }
             ideConfigGenerated = false
         }
         essentialClient {
@@ -253,7 +354,12 @@ loom {
             vmArg "-Dasterion.essential.modJarPathFile=${essentialRuntimePointer.get().asFile.absolutePath}"
 
             mainClass = "net.krodark.asterion.dev.EssentialClientLaunch"
-            runDir((loaderPlatform == "fabric" ? rootProject.file("run") : file("build/run/quilt")).absolutePath)
+            runDir(compatibilityRunDir.absolutePath)
+            if (project.minecraft_version in ['26.2', '26.3']) {
+                programArg '--graphicsBackend'
+                programArg providers.gradleProperty('graphics_backend').getOrElse('opengl').toUpperCase()
+                vmArg "-Dmax.bg.threads=${providers.gradleProperty('client_worker_count').getOrElse('4')}"
+            }
             ideConfigGenerated = false
         }
     }
@@ -303,4 +409,9 @@ tasks.register("modDistribution", Sync) {
     into layout.buildDirectory.dir("distribution")
     from(tasks.named("jar"))
     from(rootProject.file("docs/INSTALL-MODS.txt"))
+}
+
+// Remove the retired dimension resource from incremental resource outputs.
+tasks.named('processResources').configure {
+    doLast { delete file("${destinationDir}/data/asterion/dimension/asterion_dimension.json") }
 }

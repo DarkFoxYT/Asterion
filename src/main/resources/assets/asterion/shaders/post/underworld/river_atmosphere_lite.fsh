@@ -1,4 +1,5 @@
 #version 330
+#moj_import <asterion:scene_depth.glsl>
 #moj_import <asterion:limbo_seas.glsl>
 #moj_import <asterion:limbo_depths.glsl>
 uniform sampler2D DepthSampler;
@@ -25,7 +26,7 @@ void main() {
     if (CameraData.y < River.x + CameraForward.w - .25) { fragColor = vec4(0,0,0,1); return; }
     float depth = texture(DepthSampler, texCoord).r;
     vec3 endpoint = unproject(depth);
-    float travel = depth >= .9999 ? 96.0 : min(length(endpoint), 96.0);
+    float travel = asterionSkyDepth(depth) ? 96.0 : min(length(endpoint), 96.0);
     vec3 ray = normalize(unproject(.9999) - unproject(.0001));
     if (dot(ray, CameraForward.xyz) < 0.0) ray = -ray;
     // Analytic intersection with a thin mist layer: no volumetric marching on low-end GPUs.
@@ -42,9 +43,9 @@ void main() {
     float mist = 1.0 - exp(-max(0.0, farD - nearD) * (.022 + .025 * noise) * River.w);
     float haze = 1.0 - exp(-max(0.0, travel - 23.0) * mix(.088,.006,smoothstep(50.0,200.0,CameraData.z)) * River.z);
     LimboSeaStyle sea = limboSeaStyle(middle.xz);
-    vec3 tint = depth >= .9999 ? limboSeaHorizon(CameraData.xyz, ray) : sea.fog;
+    vec3 tint = asterionSkyDepth(depth) ? limboSeaHorizon(CameraData.xyz, ray) : sea.fog;
     vec3 color = mix(tint * haze, tint * (1.0 + sea.fire * .25), mist);
-    vec4 fire=limboSeaVolume(CameraData.xyz,ray,depth>=.9999?FireRange.x:length(endpoint),River.x,Time,8);
+    vec4 fire=limboSeaVolume(CameraData.xyz,ray,asterionSkyDepth(depth)?FireRange.x:length(endpoint),River.x,Time,8);
     color=fire.rgb+color*fire.a;
     fragColor = vec4(color * strength, mix(1.0, (1.0-haze)*(1.0-mist)*fire.a, strength));
 }

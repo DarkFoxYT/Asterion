@@ -3,7 +3,6 @@ package net.krodark.asterion.port.client;
 import com.meekdev.amnetic.client.post.PostEffectConfig;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.krodark.asterion.Asterion;
 import net.minecraft.client.Minecraft;
 import java.util.HashMap;
@@ -29,26 +28,23 @@ public final class PortPostBuffers {
     }
 
     public static PostEffectConfig attach(PostEffectConfig config, String name, java.util.function.DoubleSupplier scale) {
-        if (!initialized) {
-            initialized = true;
-            ClientTickEvents.END_CLIENT_TICK.register(client -> {
-                if (trackedLevel != client.level) {
-                    BUFFERS.values().forEach(buffer -> buffer.target.destroyBuffers());
-                    BUFFERS.clear();
-                    trackedLevel = client.level;
-                }
-                if(++sweepTicks<20)return;
-                sweepTicks=0;
-                long now = System.nanoTime();
-                BUFFERS.entrySet().removeIf(entry -> {
-                    if (client.level != null && now - entry.getValue().used < 5_000_000_000L) return false;
-                    entry.getValue().target.destroyBuffers();
-                    return true;
-                });
-            });
-        }
         // Amnetic PostEffects consumes RenderTarget suppliers (its standalone Framebuffer is a separate API).
         return config.externalTarget(Asterion.id(name), () -> get(name, (float)scale.getAsDouble()));
+    }
+
+    public static void tick(Minecraft client) {
+        if (trackedLevel != client.level) {
+            clearCaches();
+            trackedLevel = client.level;
+        }
+        if (++sweepTicks < 20) return;
+        sweepTicks = 0;
+        long now = System.nanoTime();
+        BUFFERS.entrySet().removeIf(entry -> {
+            if (client.level != null && now - entry.getValue().used < 5_000_000_000L) return false;
+            entry.getValue().target.destroyBuffers();
+            return true;
+        });
     }
 
     private static RenderTarget get(String name, float scale) {

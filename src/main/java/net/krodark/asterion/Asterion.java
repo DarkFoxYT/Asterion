@@ -137,7 +137,7 @@ public class Asterion implements ModInitializer {
     public static final String MOD_ID = "asterion";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     public static final ResourceKey<Level> ASTERION_LEVEL = ResourceKey.create(
-            Registries.DIMENSION, id("asterion_dimension"));
+            Registries.DIMENSION, id("labyrinth"));
     public static final ResourceKey<Level> LIMBO_LEVEL = ResourceKey.create(
             Registries.DIMENSION, id("limbo"));
     public static final ResourceKey<Biome> CATACOMBS_BIOME = ResourceKey.create(
@@ -451,13 +451,13 @@ public class Asterion implements ModInitializer {
     public static final net.minecraft.world.item.crafting.RecipeSerializer<net.krodark.asterion.recipe.ForgedSwordRecipe>
             FORGED_SWORD_RECIPE = Registry.register(BuiltInRegistries.RECIPE_SERIALIZER, id("forged_sword"),
             new net.minecraft.world.item.crafting.RecipeSerializer<>(
-                    com.mojang.serialization.MapCodec.unit(new net.krodark.asterion.recipe.ForgedSwordRecipe()),
-                    net.minecraft.network.codec.StreamCodec.unit(new net.krodark.asterion.recipe.ForgedSwordRecipe())));
+                    com.mojang.serialization.MapCodec.unit(net.krodark.asterion.recipe.ForgedSwordRecipe::new),
+                    net.minecraft.network.codec.StreamCodec.of((buffer, recipe) -> {}, buffer -> new net.krodark.asterion.recipe.ForgedSwordRecipe())));
     public static final net.minecraft.world.item.crafting.RecipeSerializer<net.krodark.asterion.recipe.RemovedRecipe>
             REMOVED_RECIPE = Registry.register(BuiltInRegistries.RECIPE_SERIALIZER, id("removed"),
             new net.minecraft.world.item.crafting.RecipeSerializer<>(
-                    com.mojang.serialization.MapCodec.unit(new net.krodark.asterion.recipe.RemovedRecipe()),
-                    net.minecraft.network.codec.StreamCodec.unit(new net.krodark.asterion.recipe.RemovedRecipe())));
+                    com.mojang.serialization.MapCodec.unit(net.krodark.asterion.recipe.RemovedRecipe::new),
+                    net.minecraft.network.codec.StreamCodec.of((buffer, recipe) -> {}, buffer -> new net.krodark.asterion.recipe.RemovedRecipe())));
     public static final SkeletonBlock SKELETON = (SkeletonBlock)registerBlock(
             "skeleton", MapColor.COLOR_LIGHT_GRAY,
             properties -> new SkeletonBlock(properties.noOcclusion().strength(0.45F)
@@ -906,41 +906,41 @@ public class Asterion implements ModInitializer {
                         output.accept(net.krodark.asterion.block.RespawnObelisks.OBELISK);
                     }).build());
 
-    public static final Feature<NoneFeatureConfiguration> UNDERWATER_RUIN_FEATURE = Registry.register(
-            BuiltInRegistries.FEATURE, id("underwater_ruin"),
+    public static final Feature<NoneFeatureConfiguration> UNDERWATER_RUIN_FEATURE = net.krodark.asterion.worldgen.FeatureRegistration.register(
+            id("underwater_ruin"),
             new UnderwaterRuinFeature(NoneFeatureConfiguration.CODEC));
-    public static final Feature<NoneFeatureConfiguration> CATACOMBS_FEATURE = Registry.register(
-            BuiltInRegistries.FEATURE, id("catacombs"),
+    public static final Feature<NoneFeatureConfiguration> CATACOMBS_FEATURE = net.krodark.asterion.worldgen.FeatureRegistration.register(
+            id("catacombs"),
             new net.krodark.asterion.worldgen.CatacombFeature(NoneFeatureConfiguration.CODEC));
-    public static final Feature<NoneFeatureConfiguration> ANCIENT_MOSS_PATCH_FEATURE = Registry.register(
-            BuiltInRegistries.FEATURE, id("ancient_moss_patch"),
+    public static final Feature<NoneFeatureConfiguration> ANCIENT_MOSS_PATCH_FEATURE = net.krodark.asterion.worldgen.FeatureRegistration.register(
+            id("ancient_moss_patch"),
             new AncientMossPatchFeature(NoneFeatureConfiguration.CODEC));
-    public static final Feature<NoneFeatureConfiguration> ANCIENT_LEAVES_CLUSTER_FEATURE = Registry.register(
-            BuiltInRegistries.FEATURE, id("ancient_leaves_cluster"),
+    public static final Feature<NoneFeatureConfiguration> ANCIENT_LEAVES_CLUSTER_FEATURE = net.krodark.asterion.worldgen.FeatureRegistration.register(
+            id("ancient_leaves_cluster"),
             new AncientLeavesClusterFeature(NoneFeatureConfiguration.CODEC));
-    public static final Feature<NoneFeatureConfiguration> OVERGROWTH_BRIDGE_FEATURE = Registry.register(
-            BuiltInRegistries.FEATURE, id("overgrowth_bridge"),
+    public static final Feature<NoneFeatureConfiguration> OVERGROWTH_BRIDGE_FEATURE = net.krodark.asterion.worldgen.FeatureRegistration.register(
+            id("overgrowth_bridge"),
             new OvergrowthBridgeFeature(NoneFeatureConfiguration.CODEC));
-    public static final Feature<NoneFeatureConfiguration> OVERGROWTH_BRIDGE_CHAIN_FEATURE = Registry.register(
-            BuiltInRegistries.FEATURE, id("overgrowth_bridge_chains"),
+    public static final Feature<NoneFeatureConfiguration> OVERGROWTH_BRIDGE_CHAIN_FEATURE = net.krodark.asterion.worldgen.FeatureRegistration.register(
+            id("overgrowth_bridge_chains"),
             new OvergrowthBridgeChainFeature(NoneFeatureConfiguration.CODEC));
-    public static final Feature<NoneFeatureConfiguration> OVERGROWTH_REST_SITE_FEATURE = Registry.register(
-            BuiltInRegistries.FEATURE, id("overgrowth_rest_site"),
+    public static final Feature<NoneFeatureConfiguration> OVERGROWTH_REST_SITE_FEATURE = net.krodark.asterion.worldgen.FeatureRegistration.register(
+            id("overgrowth_rest_site"),
             new OvergrowthRestSiteFeature(NoneFeatureConfiguration.CODEC));
-    public static final Feature<NoneFeatureConfiguration> OVERGROWTH_PUDDLE_FEATURE = Registry.register(
-            BuiltInRegistries.FEATURE, id("overgrowth_puddle"),
+    public static final Feature<NoneFeatureConfiguration> OVERGROWTH_PUDDLE_FEATURE = net.krodark.asterion.worldgen.FeatureRegistration.register(
+            id("overgrowth_puddle"),
             new OvergrowthPuddleFeature(NoneFeatureConfiguration.CODEC));
-    public static final Feature<NoneFeatureConfiguration> GIANT_DEAD_TREE_FEATURE = Registry.register(
-            BuiltInRegistries.FEATURE, id("giant_dead_tree"),
+    public static final Feature<NoneFeatureConfiguration> GIANT_DEAD_TREE_FEATURE = net.krodark.asterion.worldgen.FeatureRegistration.register(
+            id("giant_dead_tree"),
             new GiantDeadTreeFeature(NoneFeatureConfiguration.CODEC));
-    public static final Feature<NoneFeatureConfiguration> ANCIENT_GROUND_VINE_FEATURE = Registry.register(
-            BuiltInRegistries.FEATURE, id("ancient_ground_vines"),
+    public static final Feature<NoneFeatureConfiguration> ANCIENT_GROUND_VINE_FEATURE = net.krodark.asterion.worldgen.FeatureRegistration.register(
+            id("ancient_ground_vines"),
             new AncientGroundVineFeature(NoneFeatureConfiguration.CODEC));
-    public static final Feature<NoneFeatureConfiguration> ANCIENT_HANGING_VINE_FEATURE = Registry.register(
-            BuiltInRegistries.FEATURE, id("ancient_hanging_vines"),
+    public static final Feature<NoneFeatureConfiguration> ANCIENT_HANGING_VINE_FEATURE = net.krodark.asterion.worldgen.FeatureRegistration.register(
+            id("ancient_hanging_vines"),
             new AncientHangingVineFeature(NoneFeatureConfiguration.CODEC));
-    public static final Feature<NoneFeatureConfiguration> TAINTED_PETALS_FEATURE = Registry.register(
-            BuiltInRegistries.FEATURE, id("tainted_petals"),
+    public static final Feature<NoneFeatureConfiguration> TAINTED_PETALS_FEATURE = net.krodark.asterion.worldgen.FeatureRegistration.register(
+            id("tainted_petals"),
             new TaintedPetalsFeature(NoneFeatureConfiguration.CODEC));
     public static final com.mojang.serialization.MapCodec<net.krodark.asterion.worldgen.LayeredMazeBiomeSource>
             LAYERED_MAZE_BIOME_SOURCE = Registry.register(BuiltInRegistries.BIOME_SOURCE,
@@ -990,8 +990,10 @@ public class Asterion implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        //? if <26.3 {
         net.fabricmc.fabric.api.registry.FuelValueEvents.BUILD.register((builder, context) ->
                 builder.add(DEADWOOD_STICK, context.baseSmeltTime() / 2));
+        //?}
         registerDeadWoodProperties();
         net.krodark.asterion.game.WeaponCombatSystem.initialize();
         net.krodark.asterion.game.GameplayContent.initialize();
@@ -1070,7 +1072,7 @@ public class Asterion implements ModInitializer {
                 CrucibleControlPayload.TYPE, (payload, context) -> context.server().execute(() -> {
                     net.minecraft.server.level.ServerPlayer player = context.player();
                     if (!player.level().getChunkSource().hasChunk(payload.pos().getX() >> 4, payload.pos().getZ() >> 4)
-                            || player.distanceToSqr(payload.pos().getCenter()) > 64.0D) return;
+                            || player.distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(payload.pos())) > 64.0D) return;
                     if (player.level().getBlockEntity(payload.pos())
                             instanceof net.krodark.asterion.block.CrucibleBlockEntity crucible)
                         crucible.control(player, payload.action());
@@ -1267,7 +1269,12 @@ public class Asterion implements ModInitializer {
 
     private static Item registerSimpleItem(String name) {
         ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id(name));
-        return Registry.register(BuiltInRegistries.ITEM, key, new Item(new Item.Properties().setId(key)));
+        var properties = new Item.Properties().setId(key);
+        //? if >=26.3 {
+        /*if (name.equals("deadwood_stick")) properties.component(net.minecraft.core.component.DataComponents.COOKING_FUEL,
+            new net.minecraft.world.item.component.CookingFuel(new net.minecraft.world.level.storage.loot.providers.number.ints.ResolvableInt.Constant(100), new net.minecraft.world.level.storage.loot.providers.number.floats.ResolvableFloat.Constant(1.0F)));
+        *///?}
+        return Registry.register(BuiltInRegistries.ITEM, key, new Item(properties));
     }
 
     private static Item registerForgedComponentItem(String name) {

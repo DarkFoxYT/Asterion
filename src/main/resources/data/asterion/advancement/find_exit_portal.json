@@ -2,7 +2,7 @@
   "parent": "asterion:defeat_minotaur",
   "criteria": {
     "leave_labyrinth": {
-      "conditions": { "from": "asterion:asterion_dimension" },
+      "conditions": { "from": "asterion:labyrinth" },
       "trigger": "minecraft:changed_dimension"
     }
   },

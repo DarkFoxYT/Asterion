@@ -600,11 +600,21 @@
   "tooltip.asterion.physics_chain": "Place on a ceiling or wall. Use another chain on it to extend by one block.",
   "tooltip.asterion.physics_chain.climb": "Hold right-click to latch. Forward/back: climb/descend.",
   "tooltip.asterion.physics_chain.retrieve": "Sneak-hit to retrieve the chain.",
-  "tooltip.asterion.physics_chain.hold": "Turn to orbit the chain. Release right-click to let go.",
+  "tooltip.asterion.physics_chain.hold": "Turn to orbit the chain. Release right-click to let go.",
   "tip.asterion.death.chain": "Hold right-click to latch onto a chain. Move forward/back to climb or descend, turn to orbit, and release right-click to let go.",
   "tip.asterion.death.pillars": "When the pillars fall, the Minotaur changes his attacks. Watch his wind-ups.",
   "tip.asterion.death.leap": "Keep moving when the Minotaur leaps. His landing sends a shockwave outward.",
   "tip.asterion.death.axe": "An axe throw leaves the Minotaur unarmed until he retrieves it.",
   "tip.asterion.death.light": "Carry a light into the maze. Darkness can conceal dangers.",
-  "tip.asterion.death.centipede": "Every centipede segment can take damage. Keep clear of its head."
+  "tip.asterion.death.centipede": "Every centipede segment can take damage. Keep clear of its head.",
+  "subtitles.asterion.music_ancient_the_best_piece_of_music_ive_ever_made_keys": "the best piece of music ive ever made — keys",
+  "subtitles.asterion.music_arena_atonement_mongopsy": "ATONEMENT — MONGOPSY",
+  "subtitles.asterion.music_arena_i_made_a_dark_souls_boss_theme_keys": "i made a dark souls boss theme — keys",
+  "subtitles.asterion.music_crimsonmarshlands_if_we_could_roll_back_the_credits_one_last_time_keys": "if we could roll back the credits, one last time — keys",
+  "subtitles.asterion.music_crimsonmarshlands_ill_see_you_at_the_edge_of_the_world_keys": "ill see you, at the edge of the world — keys",
+  "subtitles.asterion.music_forge_the_green_hour_mongopsy": "the green hour. — MONGOPSY",
+  "subtitles.asterion.music_forge_the_withered_remnant_mongopsy": "the withered remnant — MONGOPSY",
+  "subtitles.asterion.music_overgrown_mojang_please_hire_me_joabi": "mojang, please hire me — joabi",
+  "subtitles.asterion.music_overgrown_where_the_stars_fall_crypika": "Where the Stars Fall — CryPika",
+  "dimension.asterion.labyrinth": "Labyrinth"
 }

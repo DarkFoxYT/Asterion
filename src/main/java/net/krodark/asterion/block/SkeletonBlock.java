@@ -35,7 +35,9 @@ public final class SkeletonBlock extends BaseEntityBlock implements WaterloggedD
                 .setValue(FACING, Direction.NORTH));
     }
 
+    //? if <26.3 {
     @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
+    //?}
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {

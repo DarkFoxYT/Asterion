@@ -32,7 +32,9 @@ public final class MinotaurDoorBlock extends BaseEntityBlock {
         registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH)
                 .setValue(OPEN, false).setValue(COLUMN, 3).setValue(ROW, 0));
     }
+    //? if <26.3 {
     @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
+    //?}
     public static boolean isRoot(BlockState state) { return state.getValue(COLUMN) == 3 && state.getValue(ROW) == 0; }
     public static BlockPos root(BlockPos pos, BlockState state) {
         return pos.relative(state.getValue(FACING).getClockWise(), 3 - state.getValue(COLUMN)).below(state.getValue(ROW));

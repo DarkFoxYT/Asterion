@@ -1,5 +1,6 @@
 param(
     [switch] $Offline,
+    [switch] $Native,
     [ValidateSet('all', '1.5', '2.0.0')][string] $Release = 'all'
 )
 
@@ -31,12 +32,26 @@ function Invoke-Build([string] $directory, [string[]] $targets, [int] $javaVersi
 }
 
 if ($Release -in @('all', '2.0.0')) {
-Invoke-Build $repo @(
+$v20Targets = @(
     ':26.1.2-fabric:build', ':26.1.2-quilt:build',
     ':26.1.2-forge:build', ':26.1.2-neoforge:build'
- ) 25
+ )
+if ($Native) {
+    $v20Targets += @('-PasterionCompatibilityPorts=true',
+        ':26.2-fabric:build', ':26.2-quilt:build',
+        ':26.3-fabric:build', ':26.3-quilt:build')
+}
+Invoke-Build $repo $v20Targets 25
+& python (Join-Path $PSScriptRoot 'verify-amnetic-update.py')
+if ($LASTEXITCODE -ne 0) { throw 'Asterion 2.0 embedded renderer validation failed.' }
+if ($Native) {
+    & python (Join-Path $PSScriptRoot 'verify-amnetic-update.py') --native
+    if ($LASTEXITCODE -ne 0) { throw 'Asterion 2.0 native renderer validation failed.' }
+}
 }
 if ($Release -in @('all', '1.5')) {
+& python (Join-Path $PSScriptRoot 'patch-amnetic-preset-safety.py')
+if ($LASTEXITCODE -ne 0) { throw 'Amnetic local-preset safety patch failed.' }
 $v15 = Join-Path $repo 'ports/1.5'
 Invoke-Build $v15 @(
     ':1.20.1:build', ':1.21.1:build',

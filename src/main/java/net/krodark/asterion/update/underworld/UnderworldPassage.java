@@ -48,7 +48,7 @@ public final class UnderworldPassage {
         PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
             if (!(world instanceof ServerLevel level) || !level.dimension().equals(Asterion.LIMBO_LEVEL)
                     || !state.is(Blocks.COBWEB)) return;
-            LimboWebSystem.alertSpiders(level, player, pos.getCenter());
+            LimboWebSystem.alertSpiders(level, player, net.minecraft.world.phys.Vec3.atCenterOf(pos));
         });
         // Registered after Asterion's recovery so death always leads into Limbo.
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
@@ -105,7 +105,7 @@ public final class UnderworldPassage {
         player.teleportTo(level, seat.x, seat.y, seat.z, Set.of(), ferry.getYRot(), 0, true);
         ferry.acceptFare(player);
         player.clearFire(); player.setDeltaMovement(Vec3.ZERO);
-        player.resetFallDistance(); player.setOnGround(true); player.invulnerableTime = 80;
+        player.resetFallDistance(); player.setOnGround(true); net.krodark.asterion.entity.EntityVersionCompatibility.invulnerability(player, 80);
         net.krodark.asterion.update.underworld.world.PhlegethonHazard.forget(player.getUUID());
     }
 
@@ -219,7 +219,7 @@ public final class UnderworldPassage {
         player.setDeltaMovement(Vec3.ZERO);
         player.resetFallDistance();
         player.clearFire();
-        player.invulnerableTime=80;
+        net.krodark.asterion.entity.EntityVersionCompatibility.invulnerability(player, 80);
         player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
                 "The whirlpool spits you back onto the ferry dock."));
     }

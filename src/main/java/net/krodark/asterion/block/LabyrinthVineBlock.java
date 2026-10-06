@@ -37,7 +37,9 @@ public final class LabyrinthVineBlock extends BaseEntityBlock implements Waterlo
                 .setValue(END, true));
     }
 
+    //? if <26.3 {
     @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
+    //?}
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {

@@ -68,7 +68,7 @@ sourceSets {
                     'GeckoAnimationCacheMixin', 'GeckoAnimationFrameAccessor',
                     'GeckoTextureCacheLifecycleMixin', 'GeckoInterpolationBufferAccessor',
                     'MinotaurBossBarMixin', 'MinotaurBodyPickingMixin',
-                    'FlamethrowerInputMixin', 'BiomeMusicMixin', 'MoodyBrightnessMixin',
+                    'BiomeMusicMixin', 'MoodyBrightnessMixin',
                     'TidalWaterSurfaceMixin',
 
                     'AmneticDepthAttachmentMixin', 'AmneticDepthBlitMixin',
@@ -179,20 +179,14 @@ tasks.named('processResources').configure {
     }
     doLast {
         def sounds = new groovy.json.JsonSlurper().parse(file('../src/main/resources/assets/asterion/sounds.json'))
-        def tracks = []
-        def seen = new HashSet<String>()
-        fileTree('../src/main/resources/assets/asterion/sounds/music').matching { include '**/*.ogg' }.files.sort().each { track ->
-            def trackGroup = track.parentFile.name
-            if (!(trackGroup in ['ancient', 'overgrown', 'crimsonmarshlands', 'arena', 'forge'])) return
-            def stem = track.name.substring(0, track.name.length() - 4)
-            def split = stem.lastIndexOf(' - ')
-            def title = split < 0 ? stem : stem.substring(0, split).trim()
-            def artist = split < 0 ? 'Unknown artist' : stem.substring(split + 3).trim()
-            def resource = "music/${trackGroup}/${stem}".toLowerCase(java.util.Locale.ROOT).replaceAll('[^a-z0-9/._-]', '_')
-            if (!seen.add(resource)) throw new GradleException("Duplicate music resource: ${resource}")
-            def event = resource.replace('/', '.')
-            sounds[event] = [sounds: [[name: "asterion:${resource}", stream: true]]]
-            tracks.add([group: trackGroup, sound: "asterion:${event}", title: title, artist: artist])
+        def tracks = new groovy.json.JsonSlurper().parse(file('../src/main/resources/assets/asterion/music_tracks.json'))
+        tracks.each { track ->
+            def event = track.sound.substring('asterion:'.length())
+            if (!sounds[event]?.subtitle || !track.title || !track.artist)
+                throw new GradleException("Missing authored music credits: ${event}")
+            sounds[event].sounds = sounds[event].sounds.collect { sound ->
+                sound instanceof String ? [name: sound, stream: true] : sound + [stream: true]
+            }
         }
         file("${destinationDir}/assets/asterion/sounds.json").text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(sounds))
         file("${destinationDir}/assets/asterion/music_tracks.json").text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(tracks))
@@ -288,3 +282,8 @@ apply from: rootProject.file('gradle/distribution.gradle')
 apply from: rootProject.file("gradle/neoforge-packaged-smoke.gradle")
 
 apply from: rootProject.file("gradle/amnetic-neoforge.gradle")
+
+// Remove the retired dimension resource from incremental resource outputs.
+tasks.named('processResources').configure {
+    doLast { delete file("${destinationDir}/data/asterion/dimension/asterion_dimension.json") }
+}

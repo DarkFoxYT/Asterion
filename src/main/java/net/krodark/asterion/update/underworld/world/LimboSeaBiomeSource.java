@@ -20,7 +20,16 @@ public final class LimboSeaBiomeSource extends BiomeSource {
     }
     @Override protected MapCodec<? extends BiomeSource> codec() { return CODEC; }
     @Override protected Stream<Holder<Biome>> collectPossibleBiomes() { return biomes.stream(); }
-    @Override public Holder<Biome> getNoiseBiome(int x,int y,int z,Climate.Sampler climate) {
+    //? if <26.3 {
+    @Override
+    //?}
+    public Holder<Biome> getNoiseBiome(int x,int y,int z,Climate.Sampler climate) {
         return biomes.get(LimboSeaRegions.sea(x*4.0,z*4.0).ordinal());
     }
+
+    //? if >=26.3 {
+    /*@Override public net.minecraft.world.level.biome.BiomeResolver createResolver(Climate.Sampler sampler) {
+        return (x, y, z) -> getNoiseBiome(x, y, z, sampler);
+    }
+    *///?}
 }

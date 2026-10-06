@@ -2066,7 +2066,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             if (wall && !hornKnockback && !grapplePull) {
                 throwWallImpact = player.position();
                  
-                player.invulnerableTime = 0;
+                net.krodark.asterion.entity.EntityVersionCompatibility.invulnerability(player, 0);
                 player.hurtServer(level, damageSources().mobAttack(this), 10.0F);
                 scheduleWallCombo(player, 150);
                 level.sendParticles(ParticleTypes.EXPLOSION, player.getX(), player.getY() + .8, player.getZ(), 3, .4, .5, .4, .02);
@@ -2190,8 +2190,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         if (distance > 14 && distance < 28 && hasLineOfSight(player)) addReady(choices, BossAttack.SWORD_THROW);
         if (net.krodark.asterion.physics.ArenaRingPath.allowed(bossStage==BossStage.EXTREME,WorldGenerator.bossPillarsRemaining())
                 && WorldGenerator.isInsideBossArena(position())
-                && position().subtract(WorldGenerator.bossArenaCenter()).horizontalDistance() > arenaRingRadius() - 8
-                && player.position().subtract(WorldGenerator.bossArenaCenter()).horizontalDistance() > arenaRingRadius() - 8)
+                && net.krodark.asterion.physics.ArenaRingPath.engagementRadius(
+                    player.position().subtract(WorldGenerator.bossArenaCenter()).horizontalDistance()))
             addReady(choices,BossAttack.RING_CHARGE);
         if (distance > 9) addReady(choices, BossAttack.PAWING, BossAttack.STAMPEDE, BossAttack.RUBBLE_THROW);
         if (distance > 5 && distance < 30) addReady(choices, BossAttack.FIRE_RINGS, BossAttack.GREEK_FIRE_LASER, BossAttack.SMOKE_BELCH);
@@ -4110,7 +4110,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     }
 
     private void performCleave(ServerLevel level) {
-        swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+        net.krodark.asterion.entity.EntityVersionCompatibility.swing(this, net.minecraft.world.InteractionHand.MAIN_HAND, false);
         Vec3 facing = getLookAngle();
         for (ServerPlayer victim : level.getEntitiesOfClass(ServerPlayer.class, getBoundingBox().inflate(6.0D))) {
             Vec3 delta = victim.position().subtract(position());
@@ -4139,7 +4139,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
         broadcastMinotaurImpact(level, new Vec3(impact.x, getY() + .12D, impact.z),
                 26.0F, 1.08F, 14);
         playSound(SoundEvents.ANVIL_LAND, 2.2F, .55F);
-        swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+        net.krodark.asterion.entity.EntityVersionCompatibility.swing(this, net.minecraft.world.InteractionHand.MAIN_HAND, false);
     }
 
     private void performGroundSlam(ServerLevel level) {
@@ -4411,7 +4411,7 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
     private void performSwordArc(ServerLevel level, float damage, double force) {
         net.krodark.asterion.game.WeaponScars.arc(level, position(), getYHeadRot(), 5.5);
         net.krodark.asterion.game.WeaponScars.wallSlash(level, this, getYHeadRot(), force > 1.8 ? -.55F : .55F);
-        swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+        net.krodark.asterion.entity.EntityVersionCompatibility.swing(this, net.minecraft.world.InteractionHand.MAIN_HAND, false);
         playSound(Asterion.MINOTAUR_SWORD_SWING, 2.2F, 0.95F + random.nextFloat() * .1F);
         Vec3 facing = Vec3.directionFromRotation(getXRot(), getYHeadRot());
         for (ServerPlayer victim : level.getEntitiesOfClass(ServerPlayer.class, getBoundingBox().inflate(7.0D))) {
@@ -5481,7 +5481,11 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
 
      
     private void settleDefeatedPose(ServerLevel level) {
-        Vec3 origin = combatPoint(position());
+        Vec3 center = WorldGenerator.bossArenaCenter();
+        Vec3 offset = position().subtract(center).multiply(1, 0, 1);
+        double safeRadius = net.krodark.asterion.worldgen.AuthoredCatacombs.ARENA_RADIUS - 16;
+        Vec3 origin = combatPoint(offset.horizontalDistance() > safeRadius
+                ? center.add(offset.normalize().scale(safeRadius)) : position());
         AABB body = getBoundingBox();
         for (int ring = 0; ring <= 10; ring++) {
             int samples = ring == 0 ? 1 : 16;
@@ -5490,12 +5494,18 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
                 Vec3 candidate = ring == 0 ? origin : combatPoint(origin.add(
                         Math.cos(angle) * ring * 0.75D, 0.0D,
                         Math.sin(angle) * ring * 0.75D));
+                Vec3 inward = center.subtract(candidate).multiply(1, 0, 1);
+                if (inward.lengthSqr() < 1) inward = new Vec3(0, 0, -1);
+                inward = inward.normalize();
                 AABB destination = body.move(candidate.subtract(position()))
-                        .inflate(1.35D, 0.0D, 1.35D);
+                        .expandTowards(inward.scale(10)).inflate(1.35D, 0.0D, 1.35D);
                 BlockPos feet = BlockPos.containing(candidate).below();
                 if (!level.getBlockState(feet).isFaceSturdy(level, feet, Direction.UP)
                         || !level.noCollision(this, destination)) continue;
                 setPos(candidate.x, candidate.y, candidate.z);
+                faceDirection(inward, 360);
+                yBodyRot = yBodyRotO = getYRot();
+                yHeadRot = yHeadRotO = getYRot();
                 resetFallDistance();
                 return;
             }

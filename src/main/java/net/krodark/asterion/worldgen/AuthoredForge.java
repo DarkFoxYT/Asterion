@@ -153,8 +153,8 @@ public final class AuthoredForge {
     public static BlockPos westSocket(ServerLevel level, ChunkPos chunk) {
         var root = layoutFor(level, chunk).placements().getFirst();
         return root.template().getJigsaws(root.origin(), root.rotation()).stream()
-                .filter(port -> JigsawBlock.getFrontFacing(port.info().state()) == Direction.WEST
-                        && port.name().equals(DOOR)).findFirst().orElseThrow().info().pos();
+                .filter(port -> JigsawBlock.getFrontFacing(JigsawCompatibility.state(port)) == Direction.WEST
+                        && port.name().equals(DOOR)).findFirst().map(JigsawCompatibility::pos).orElseThrow();
     }
 
     private static Layout layoutFor(ServerLevel level, ChunkPos chunk) {
@@ -401,13 +401,13 @@ public final class AuthoredForge {
     private static List<Port> localPorts(StructureTemplate template, Rotation rotation) {
         List<Port> ports = new ArrayList<>();
         for (StructureTemplate.JigsawBlockInfo jigsaw : template.getJigsaws(BlockPos.ZERO, rotation)) {
-            Direction front = JigsawBlock.getFrontFacing(jigsaw.info().state());
+            Direction front = JigsawBlock.getFrontFacing(JigsawCompatibility.state(jigsaw));
             if (!front.getAxis().isHorizontal()) continue;
              
              
              
             if (!jigsaw.name().equals(DOOR) || !jigsaw.target().equals(DOOR)) continue;
-            ports.add(new Port(jigsaw.info().pos(), front, jigsaw.name(), jigsaw.target()));
+            ports.add(new Port(JigsawCompatibility.pos(jigsaw), front, jigsaw.name(), jigsaw.target()));
         }
         return List.copyOf(ports);
     }

@@ -1346,6 +1346,8 @@ public final class DismembermentEngine {
 
     public static boolean isRagdollExcluded(Entity entity) {
         if (entity == null) return true;
+        if (entity instanceof net.krodark.asterion.entity.ScarletCentipedeEntity
+                || entity instanceof net.krodark.asterion.entity.CentipedeSegmentEntity) return true;
         if (entity instanceof MinotaurEntity
                 || entity instanceof net.krodark.asterion.entity.CursedBrazierEntity) {
             return true;

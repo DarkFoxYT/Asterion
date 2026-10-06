@@ -11,7 +11,13 @@ import net.minecraft.world.level.material.Fluids;
 
 /** Vanilla placement, joining, waterlogging, dripping, collision and falling damage. */
 public final class ShaleSpikeBlock extends PointedDripstoneBlock {
-    public ShaleSpikeBlock(Properties properties) { super(properties); }
+    public ShaleSpikeBlock(Properties properties) {
+        //? if >=26.2 {
+        /*super(net.minecraft.world.level.block.Blocks.DRIPSTONE_BLOCK.defaultBlockState(), properties);
+        *///?} else {
+        super(properties);
+        //?}
+    }
 
     @Override protected void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         maybeTransferFluid(state, level, pos, random.nextFloat());

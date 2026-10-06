@@ -78,7 +78,8 @@ public final class SegmentedChain {
                 for (Vec3 body : bodies) {
                     Vec3 delta = next.subtract(body);
                     double distance = delta.length();
-                    if (distance < .45 && distance > .0001) next = next.add(delta.scale((.45 - distance) / distance * .12));
+                    if (distance < .45 && distance > .0001) next = next.add(delta.scale((.45 - distance) / distance * .8));
+                    else if (distance <= .0001) next = next.add(.36, 0, 0);
                 }
                 old[i] = current; points[i] = collision.apply(current, next);
             }

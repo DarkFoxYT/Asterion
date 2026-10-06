@@ -50,7 +50,9 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
     private static final EntityDataAccessor<Float> SPEED = SynchedEntityData.defineId(
             CharonsFerryEntity.class, EntityDataSerializers.FLOAT);
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
+    //? if <26.3 {
     private final InterpolationHandler interpolation = new InterpolationHandler(this, 3);
+    //?}
     private int departureWait = 40;
     private int returnWait;
     private float previousVisualRoll;
@@ -181,7 +183,11 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
         data.define(PLUNGE, 0F);
         data.define(SPEED, 0F);
     }
+    //? if >=26.3 {
+    /*@Override protected InterpolationHandler createInterpolationHandler() { return net.minecraft.world.entity.LinearInterpolationHandler.create(this, 3); }
+    *///?} else {
     @Override public InterpolationHandler getInterpolation() { return interpolation; }
+    //?}
     @Override public boolean isPickable() { return true; }
     @Override public boolean canBeCollidedWith(Entity other) { return false; }
     @Override public boolean canCollideWith(Entity other) { return false; }
@@ -294,7 +300,7 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
         visualPitch = net.minecraft.util.Mth.lerp(.55F, visualPitch, entityData.get(PITCH));
         if (level().isClientSide()) {
             float beforeYaw = getYRot();
-            interpolation.interpolate();
+            getInterpolation().interpolate();
             for (int i = 0; i < clientWalkers.size(); i++) {
                 Entity walker = clientWalkers.get(i);
                 if (walker instanceof Player player && player.isLocalPlayer()) {

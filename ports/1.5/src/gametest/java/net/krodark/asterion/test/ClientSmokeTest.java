@@ -90,7 +90,7 @@ public final class ClientSmokeTest implements ClientModInitializer {
                 var source = server.createCommandSourceStack();
                 server.getCommands().performPrefixedCommand(source,"gamerule doMobSpawning false");
                 server.getCommands().performPrefixedCommand(source,"give @a minecraft:torch");
-                server.getCommands().performPrefixedCommand(source,"execute in asterion:asterion_dimension run tp @a 0 180 0");
+                server.getCommands().performPrefixedCommand(source,"execute in asterion:labyrinth run tp @a 0 180 0");
             });
         }
         if (worldTicks == 120) {
@@ -98,10 +98,10 @@ public final class ClientSmokeTest implements ClientModInitializer {
                 var server = client.getSingleplayerServer();
                 var source = server.createCommandSourceStack();
                 for(String command:java.util.List.of(
-                    "execute in asterion:asterion_dimension run fill -7 178 -7 7 189 7 minecraft:air",
-                    "execute in asterion:asterion_dimension run fill -7 177 -7 7 177 7 minecraft:stone",
-                    "execute in asterion:asterion_dimension run tp @a 0 178 -5 0 0",
-                    "execute in asterion:asterion_dimension run summon asterion:minotaur 0 178 3 {NoAI:1b,Silent:1b,PersistenceRequired:1b,Rotation:[180.0f,0.0f]}"))
+                    "execute in asterion:labyrinth run fill -7 178 -7 7 189 7 minecraft:air",
+                    "execute in asterion:labyrinth run fill -7 177 -7 7 177 7 minecraft:stone",
+                    "execute in asterion:labyrinth run tp @a 0 178 -5 0 0",
+                    "execute in asterion:labyrinth run summon asterion:minotaur 0 178 3 {NoAI:1b,Silent:1b,PersistenceRequired:1b,Rotation:[180.0f,0.0f]}"))
                     server.getCommands().performPrefixedCommand(source,command);
             });
         }
@@ -130,7 +130,7 @@ public final class ClientSmokeTest implements ClientModInitializer {
         if(worldTicks==310) screenshot(client,"minotaur-swords");
         if(worldTicks==320) client.getSingleplayerServer().execute(() -> {
             var server=client.getSingleplayerServer();
-            server.getCommands().performPrefixedCommand(server.createCommandSourceStack(),"execute in asterion:asterion_dimension run fill -6 178 0 6 185 0 minecraft:stone");
+            server.getCommands().performPrefixedCommand(server.createCommandSourceStack(),"execute in asterion:labyrinth run fill -6 178 0 6 185 0 minecraft:stone");
         });
         if (worldTicks == 340) {
             screenshot(client,"occluded");

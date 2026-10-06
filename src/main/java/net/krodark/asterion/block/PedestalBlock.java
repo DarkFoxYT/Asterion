@@ -19,7 +19,9 @@ public final class PedestalBlock extends BaseEntityBlock {
     public static final BooleanProperty CLAIMED = BooleanProperty.create("claimed");
     private static final VoxelShape SHAPE = Shapes.or(Block.box(3, 0, 3, 13, 4, 13), Block.box(0, 4, 0, 16, 11, 16));
     public PedestalBlock(Properties properties) { super(properties); registerDefaultState(stateDefinition.any().setValue(CLAIMED, false)); }
+    //? if <26.3 {
     @Override protected MapCodec<? extends BaseEntityBlock> codec() { return simpleCodec(PedestalBlock::new); }
+    //?}
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) { builder.add(CLAIMED); }
     @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
     @Override protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) { return SHAPE; }
@@ -29,7 +31,7 @@ public final class PedestalBlock extends BaseEntityBlock {
         if (!level.isClientSide()) {
             if (!level.setBlock(pos, state.setValue(CLAIMED, true), Block.UPDATE_ALL)) return InteractionResult.FAIL;
             var weapon = new ItemStack(Asterion.AFTERBLOW);
-            if (!player.getInventory().add(weapon)) player.drop(weapon, false);
+            if (!player.getInventory().add(weapon)) net.krodark.asterion.entity.EntityVersionCompatibility.drop(player, weapon, false);
             level.playSound(null, pos, Asterion.AFTERBLOW_PEDESTAL_PULL, net.minecraft.sounds.SoundSource.BLOCKS, 1.3F, 1.0F);
         }
         return InteractionResult.SUCCESS;

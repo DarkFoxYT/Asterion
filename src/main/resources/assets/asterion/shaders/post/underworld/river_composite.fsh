@@ -1,4 +1,5 @@
 #version 330
+#moj_import <asterion:scene_depth.glsl>
 uniform sampler2D SceneSampler;
 uniform sampler2D VolumeSampler;
 uniform sampler2D DepthSampler;
@@ -7,7 +8,7 @@ in vec2 texCoord;
 out vec4 fragColor;
 float viewDistance(vec2 uv) {
     float d = texture(DepthSampler, uv).r;
-    if (d >= .9999) return 100000.0;
+    if (asterionSkyDepth(d)) return 100000.0;
     vec4 p = InvViewProj * vec4(uv * 2.0 - 1.0, CameraData.w > .5 ? d : d * 2.0 - 1.0, 1);
     // InvViewProj reconstructs camera-relative positions, not absolute world positions.
     return length(p.xyz / (abs(p.w) < .00001 ? .00001 : p.w));

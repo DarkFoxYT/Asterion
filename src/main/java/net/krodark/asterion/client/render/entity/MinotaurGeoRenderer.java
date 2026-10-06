@@ -25,7 +25,11 @@ import java.util.UUID;
 public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity, EntityRenderState> {
     private static final DataTicket<Integer> CHAIN_OWNER = DataTickets.create("asterion_chain_owner", Integer.class);
     @Override public boolean shouldRender(MinotaurEntity boss, net.minecraft.client.renderer.culling.Frustum frustum,
-                                          double x, double y, double z) {
+                                          double x, double y, double z
+        //? if >=26.3 {
+        /*, float partialTick
+        *///?}
+    ) {
         if (boss.doorEntryTicks() > 0 && boss.doorEntryTicks() - 1 < net.krodark.asterion.entity.MinotaurAnimationTiming.ENTRY_BREAK_TICK)
             return false;
         return super.shouldRender(boss, frustum, x, y, z);
@@ -193,7 +197,9 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         state.addGeckolibData(CHAIN_OWNER, minotaur.getId());
         state.addGeckolibData(AXE_ACTION, minotaur.isAxeAttackActive());
         float rage = minotaur.rage() / 12.0F;
-        if (minotaur.doorEntryTicks() > 0) {
+        if (minotaur.isDefeatedBoss() || !minotaur.isAlive()) {
+            state.addGeckolibData(EYE_TINT, 0xFF000000);
+        } else if (minotaur.doorEntryTicks() > 0) {
             state.addGeckolibData(EYE_TINT, 0xFFD8FFFF);
         } else if (rage > 0.001F) {
              

@@ -37,7 +37,9 @@ public final class MinotaurAxeEntity extends Entity {
     private static final EntityDataAccessor<Float> SCALE = SynchedEntityData.defineId(MinotaurAxeEntity.class, EntityDataSerializers.FLOAT);
     private static final EntityDataAccessor<Integer> THROWER = SynchedEntityData.defineId(MinotaurAxeEntity.class, EntityDataSerializers.INT);
     private static final Vec3[] WORLD_AXES = {new Vec3(1, 0, 0), new Vec3(0, 1, 0), new Vec3(0, 0, 1)};
+    //? if <26.3 {
     private final InterpolationHandler interpolation = new InterpolationHandler(this, 2);
+    //?}
     private final Quaternionf rotation = new Quaternionf(), previousRotation = new Quaternionf();
     private final Quaternionf colliderRotation = new Quaternionf();
     private Vec3 colliderPosition;
@@ -176,7 +178,11 @@ public final class MinotaurAxeEntity extends Entity {
     public boolean sleeping() { return sleeping; }
     public int throwerId() { return entityData.get(THROWER); }
     public void setThrower(MinotaurEntity boss) { entityData.set(THROWER, boss.getId()); }
+    //? if >=26.3 {
+    /*@Override protected InterpolationHandler createInterpolationHandler() { return net.minecraft.world.entity.LinearInterpolationHandler.create(this, 2); }
+    *///?} else {
     @Override public InterpolationHandler getInterpolation() { return interpolation; }
+    //?}
     @Override public boolean hurtServer(ServerLevel level, DamageSource source, float damage) { return false; }
      
     @Override public boolean ignoreExplosion(net.minecraft.world.level.Explosion explosion) { return true; }
@@ -224,7 +230,7 @@ public final class MinotaurAxeEntity extends Entity {
         super.tick();
         previousRotation.set(rotation);
         if (level().isClientSide()) {
-            interpolation.interpolate();
+            getInterpolation().interpolate();
             rotation.set(entityData.get(ROTATION));
             tickChain();
             tickWeaponEffects();

@@ -49,7 +49,9 @@ public final class CrucibleBlock extends BaseEntityBlock {
                 .setValue(PART_X, 2).setValue(PART_Y, 0).setValue(PART_Z, 2));
     }
 
+    //? if <26.3 {
     @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
+    //?}
     @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
     @Override public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return isRoot(state) ? new CrucibleBlockEntity(pos, state) : null;

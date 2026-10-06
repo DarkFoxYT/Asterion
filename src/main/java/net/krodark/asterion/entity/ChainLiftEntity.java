@@ -26,7 +26,9 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
     private static final EntityDataAccessor<Long> START = SynchedEntityData.defineId(ChainLiftEntity.class, EntityDataSerializers.LONG);
     private static final EntityDataAccessor<String> RIDERS = SynchedEntityData.defineId(ChainLiftEntity.class, EntityDataSerializers.STRING);
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
+    //? if <26.3 {
     private final InterpolationHandler interpolation = new InterpolationHandler(this, 1);
+    //?}
     private int waiting;
     private boolean descending, armed;
     private int requestedStop = -1;
@@ -76,7 +78,11 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
     public double bottomY() { return anchor().getY() + .5; }
     public double topY() { return ceiling() - 3; }
     public boolean moving() { return entityData.get(FROM).floatValue() != entityData.get(TO).floatValue(); }
+    //? if >=26.3 {
+    /*@Override protected InterpolationHandler createInterpolationHandler() { return net.minecraft.world.entity.LinearInterpolationHandler.create(this, 1); }
+    *///?} else {
     @Override public InterpolationHandler getInterpolation() { return interpolation; }
+    //?}
     @Override public boolean canBeCollidedWith(Entity other) {
          
         return isAlive() && !supports(other);
@@ -154,7 +160,7 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
     }
     @Override public void tick() {
         super.tick();
-        interpolation.cancel();
+        getInterpolation().cancel();
         if (ceiling() == Integer.MIN_VALUE) return;
         if (!level().isClientSide() && !level().getBlockState(anchor()).is(ChainLiftContent.ANCHOR)) { discard(); return; }
         if (level() instanceof ServerLevel server && --runeCheckTicks <= 0) { ensureCallRunes(server); runeCheckTicks = 100; }

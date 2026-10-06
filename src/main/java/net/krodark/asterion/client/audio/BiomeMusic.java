@@ -35,7 +35,7 @@ public final class BiomeMusic {
         ClientTickEvents.END_CLIENT_TICK.register(BiomeMusic::tick);
         net.krodark.asterion.client.ReplayCompatibility.addHud(Asterion.id("now_playing"), (graphics, delta) -> {
             var client = Minecraft.getInstance();
-            if (notice <= 0 || playing == null || client.options.hideGui || !ownsMusic()) return;
+            if (notice <= 0 || playing == null || net.krodark.asterion.client.render.HudVisibility.hidden(client) || !ownsMusic()) return;
             float fade = Math.min(1F, Math.min((120 - notice) / 12F, notice / 20F));
             int alpha = Math.max(4, (int)(fade * 255));
             int center = graphics.guiWidth() / 2;

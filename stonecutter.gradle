@@ -4,6 +4,96 @@ plugins {
 
 stonecutter.active '26.1.2-fabric'
 
+stonecutter.parameters {
+    replacements {
+        string(current.parsed >= '26.2') {
+            replace('.getMainCamera()', '.mainCamera()')
+            replace('.getMainRenderTarget()', '.gameRenderer.mainRenderTarget()')
+            replace('.getGameRenderState()', '.gameRenderState()')
+            replace('.getSectionOcclusionGraph()', '.sectionOcclusionGraph()')
+            replace('.isZZeroToOne()', '.getDeviceInfo().isZZeroToOne()')
+            replace('DripstoneThickness', 'SpeleothemThickness')
+            replace('com.mojang.blaze3d.textures.TextureFormat', current.parsed >= '26.3' ? 'com.mojang.renderpearl.api.GpuFormat' : 'com.mojang.blaze3d.GpuFormat')
+            replace('TextureFormat.DEPTH32', 'GpuFormat.D32_FLOAT')
+            replace('Blocks.CUT_COPPER.defaultBlockState()', 'Blocks.CUT_COPPER.weathering().unaffected().defaultBlockState()')
+            replace('Blocks.RED_WOOL', 'Blocks.WOOL.red()')
+            replace('Blocks.CYAN_WOOL', 'Blocks.WOOL.cyan()')
+            replace('EntityType.SKELETON', 'net.minecraft.world.entity.EntityTypes.SKELETON')
+            replace('EntityType.CAVE_SPIDER', 'net.minecraft.world.entity.EntityTypes.CAVE_SPIDER')
+            replace('StructureTemplate.StructureBlockInfo original, StructureTemplate.StructureBlockInfo transformed', 'BlockPos original, StructureTemplate.StructureBlockInfo transformed')
+            replace('BlockPos p=original.pos();', 'BlockPos p=original;')
+            replace('@Override protected StructureProcessorType<?> getType() { return StructureProcessorType.BLOCK_IGNORE; }', '@Override public com.mojang.serialization.MapCodec<? extends StructureProcessor> codec() { return com.mojang.serialization.MapCodec.unit(this); }')
+            replace('.gui.getBossOverlay()', '.gui.hud.getBossOverlay()')
+            replace('LevelRenderer.getLightCoords(', 'net.minecraft.util.LightCoordsUtil.getLightCoords(')
+            replace('client.levelRenderer.allChanged()', 'client.levelRenderer.invalidateCompiledGeometry(client.level, client.options, client.gameRenderer.mainCamera(), client.getBlockColors())')
+            replace('collector.submitMovingBlock(poses, block)', 'collector.submitMovingBlock(poses, block, 0)')
+            replace('RenderPipelines.DEBUG_FILLED_SNIPPET, RenderPipelines.FOG_SNIPPET', 'RenderPipelines.DEBUG_FILLED_SNIPPET')
+            replace('context.bufferSource()', 'net.krodark.asterion.client.render.NativeGeometrySubmission.buffers(context)')
+            replace('MultiBufferSource buffers', 'net.minecraft.client.renderer.SubmitNodeCollector buffers')
+            replace('import net.minecraft.client.renderer.MultiBufferSource;', '// Native overlays submit geometry through SubmitNodeCollector.')
+            replace('@Inject(method = "renderWater",', '@Inject(method = "submitWater",')
+            replace('new TextureTarget("asterion/" + name, width, height, false)', current.parsed >= '26.3' ? 'new TextureTarget("asterion/" + name, width, height, com.mojang.renderpearl.api.GpuFormat.RGBA16_FLOAT, null)' : 'new TextureTarget("asterion/" + name, width, height, false, com.mojang.blaze3d.GpuFormat.RGBA16_FLOAT)')
+            replace('RenderSystem.getDevice().createCommandEncoder().writeToTexture(texture, cached,\n                    0, 0, 0, 0, cached.getWidth(), cached.getHeight(), 0, 0)', 'RenderSystem.getDevice().createCommandEncoder().writeToTexture(texture, cached)')
+        }
+        regex(current.parsed >= '26.2') {
+            replace('\\b(client|minecraft|mc)\\.screen\\b', '$1.gui.screen()', '\\b(client|minecraft|mc)\\.gui\\.screen\\(\\)', '$1.screen')
+        }
+        string(current.parsed >= '26.2') {
+            replace('context.client().screen', 'context.client().gui.screen()')
+            replace('Minecraft.getInstance().screen', 'Minecraft.getInstance().gui.screen()')
+            replace('.setScreen(', '.gui.setScreen(')
+        }
+        regex(current.parsed >= '26.3') {
+            replace('\\bItemInHandRenderer\\b', 'FirstPersonHandsAndItemsRenderer', '\\bFirstPersonHandsAndItemsRenderer\\b', 'ItemInHandRenderer')
+        }
+        string(current.parsed >= '26.3') {
+            for (entry in ['ChainLiftEntity lift', 'ScarletCentipedeEntity entity', 'MinotaurEntity boss', 'PhysicsChainEntity chain', 'LimboSpiderEntity spider']) {
+                replace("getBoundingBoxForCulling(${entry})", "getBoundingBoxForCulling(${entry}, float partialTick)")
+            }
+            replace('super.getBoundingBoxForCulling(spider)', 'super.getBoundingBoxForCulling(spider, partialTick)')
+            replace('double x, double y, double z) {\n        if (boss.doorEntryTicks()', 'double x, double y, double z, float partialTick) {\n        if (boss.doorEntryTicks()')
+            replace('super.shouldRender(boss, frustum, x, y, z)', 'super.shouldRender(boss, frustum, x, y, z, partialTick)')
+            replace('import org.lwjgl.glfw.GLFW;', 'import net.krodark.asterion.client.render.NativeInput;')
+            replace('GLFW.', 'NativeInput.')
+            replace('hurtMarked', 'syncVelocity')
+            replace('setInvulnerable(', 'setPermanentlyInvulnerable(')
+            replace('RedStoneWireBlock', 'RedstoneWireBlock')
+            replace('PushReaction.BLOCK', 'PushReaction.IMMOVEABLE')
+            replace('stack.getItem() instanceof ShovelItem', 'stack.is(net.minecraft.tags.ItemTags.SHOVELS)')
+            replace('context.chunkGenerator().getBiomeSource(), level.getChunkSource().randomState()', 'context.chunkGenerator().getBiomeSource(), level.getChunkSource().randomState().createClimateSampler(net.minecraft.world.level.levelgen.densityfunction.SamplerContext.EMPTY_UNCACHED), level.getChunkSource().randomState()')
+            replace('target.onEquippedItemBroken(item, slot)', 'target.onEquippedItemBroken(new ItemStack(item), slot)')
+            replace('player.getInventory().placeItemBackInInventory(stack)', 'player.getInventory().placeItemBackInInventory(stack, net.minecraft.util.Prediction.SERVER_ONLY)')
+            replace('pass.poseStack().mulPose(', 'pass.poseStack().rotate(')
+            replace('.withSampler("Sampler0")', '.withUniform("Sampler0", com.mojang.renderpearl.api.pipeline.UniformType.COMBINED_IMAGE_SAMPLER)')
+            replace('com.mojang.blaze3d.shaders.UniformType', 'com.mojang.renderpearl.api.pipeline.UniformType')
+            replace('.withSampler("Sampler1")', '.withUniform("Sampler1", com.mojang.renderpearl.api.pipeline.UniformType.COMBINED_IMAGE_SAMPLER)')
+            replace('if (swinging &&', 'if (isSwinging() &&')
+            replace('source.getVertexShader()', 'source.getShaders().get(com.mojang.renderpearl.api.pipeline.ShaderType.VERTEX)')
+            replace('source.getColorTargetState()', 'source.getColorTargetStates().getFirst()')
+            replace('ParticleTypes.PALE_OAK_LEAVES,', 'ParticleTypes.PALE_OAK_LEAVES, net.minecraft.world.level.block.sounds.AmbientLeavesBlockSoundPlayer.noAmbientSound(),')
+            replace('ParticleTypes.CRIMSON_SPORE,', 'ParticleTypes.CRIMSON_SPORE, net.minecraft.world.level.block.sounds.AmbientLeavesBlockSoundPlayer.noAmbientSound(),')
+            replace('new InterpolationHandler(this, 1)', 'net.minecraft.world.entity.LinearInterpolationHandler.create(this, 1)')
+            replace('new InterpolationHandler(this, 2)', 'net.minecraft.world.entity.LinearInterpolationHandler.create(this, 2)')
+            replace('new InterpolationHandler(this, 3)', 'net.minecraft.world.entity.LinearInterpolationHandler.create(this, 3)')
+            replace('net.minecraft.world.level.levelgen.feature.Feature;', 'net.krodark.asterion.worldgen.compat.Feature;')
+            replace('net.minecraft.world.level.levelgen.feature.FeaturePlaceContext', 'net.krodark.asterion.worldgen.compat.FeaturePlaceContext')
+            replace('net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration', 'net.krodark.asterion.worldgen.compat.NoneFeatureConfiguration')
+            replace('.getStructureManager()', '.getStructureTemplateManager()')
+            replace('.setInvulnerable(', '.setPermanentlyInvulnerable(')
+            replace('blaze3d.pipeline.RenderPipeline', 'renderpearl.api.pipeline.RenderPipeline')
+            replace('blaze3d.pipeline.DepthStencilState', 'renderpearl.api.pipeline.DepthStencilState')
+            replace('blaze3d.pipeline.BindGroupLayout', 'renderpearl.api.pipeline.BindGroupLayout')
+            replace('blaze3d.PrimitiveTopology', 'renderpearl.api.pipeline.PrimitiveTopology')
+            replace('blaze3d.opengl.', 'renderpearl.backend.opengl.')
+            replace('blaze3d.GpuFormat', 'renderpearl.api.GpuFormat')
+            replace('blaze3d/textures/', 'renderpearl/api/textures/')
+            replace('blaze3d.textures.', 'renderpearl.api.textures.')
+            replace('blaze3d.buffers.', 'renderpearl.api.buffers.')
+            replace('blaze3d.vertex.VertexFormat', 'renderpearl.api.vertex.VertexFormat')
+        }
+    }
+}
+
 
 // Keep the existing IDE run commands pointed at one loader.
 def runLoader = providers.gradleProperty('loader_platform').getOrElse('fabric')

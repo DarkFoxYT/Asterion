@@ -115,7 +115,7 @@ public final class MinotaurBodyPicking {
         Vec3 direction = hit.getLocation().subtract(eye).normalize();
         var part = body == null ? null : body.pick(eye, hit.getLocation().add(direction.scale(.1)));
         ClientPlayNetworking.send(new MinotaurBodyPayload(boss.getId(), hit.getLocation(), attack, part == null ? -1 : part.part()));
-        client.player.swing(InteractionHand.MAIN_HAND);
+        net.krodark.asterion.entity.EntityVersionCompatibility.swing(client.player, InteractionHand.MAIN_HAND, false);
         if (attack) client.player.resetAttackStrengthTicker();
         return true;
     }

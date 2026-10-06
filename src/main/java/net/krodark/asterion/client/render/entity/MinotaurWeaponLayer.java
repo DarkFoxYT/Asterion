@@ -73,8 +73,8 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
                             poses.translate(sign * 17.0 / 16,
                                     17.0 / 16 + breathe * 0.025F,
                                     3.0 / 16 + settle * 0.018F);
-                            poses.mulPose(com.mojang.math.Axis.XP.rotationDegrees(168 + breathe * 1.25F));
-                            poses.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(-sign * (6 + settle * 1.1F)));
+                            net.krodark.asterion.client.render.PoseTransforms.apply(poses, com.mojang.math.Axis.XP.rotationDegrees(168 + breathe * 1.25F));
+                            net.krodark.asterion.client.render.PoseTransforms.apply(poses, com.mojang.math.Axis.ZP.rotationDegrees(-sign * (6 + settle * 1.1F)));
                         }
                         if (drawn) {
                             WeaponFollowThrough.apply(poses, pass.renderState().getOrDefaultGeckolibData(OWNER, -1),
@@ -101,13 +101,13 @@ public final class MinotaurWeaponLayer extends GeoRenderLayer<MinotaurEntity, Vo
                  
                  
                 poses.translate(0, .82, 1.42);
-                poses.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(45));
-                poses.mulPose(com.mojang.math.Axis.YP.rotationDegrees(90));
+                net.krodark.asterion.client.render.PoseTransforms.apply(poses, com.mojang.math.Axis.ZP.rotationDegrees(45));
+                net.krodark.asterion.client.render.PoseTransforms.apply(poses, com.mojang.math.Axis.YP.rotationDegrees(90));
                 poses.translate(0, -BACK_MOUNT_CENTER_Y, 0);
             } else {
                 if (name.equals("axe_back")) {
-                    poses.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(45));
-                    poses.mulPose(com.mojang.math.Axis.YP.rotationDegrees(90));
+                    net.krodark.asterion.client.render.PoseTransforms.apply(poses, com.mojang.math.Axis.ZP.rotationDegrees(45));
+                    net.krodark.asterion.client.render.PoseTransforms.apply(poses, com.mojang.math.Axis.YP.rotationDegrees(90));
                 }
                 poses.translate(0, -MinotaurAxeEntity.GRIP_Y, 0);
             }

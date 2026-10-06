@@ -14,7 +14,9 @@ public final class ChallengeSpawnerBlock extends BaseEntityBlock {
     private final boolean explosive;
     public ChallengeSpawnerBlock(boolean explosive, Properties properties) { super(properties); this.explosive = explosive; }
     public boolean explosive() { return explosive; }
+    //? if <26.3 {
     @Override protected MapCodec<? extends BaseEntityBlock> codec() { return MapCodec.unit(this); }
+    //?}
     @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.MODEL; }
     @Override public BlockEntity newBlockEntity(BlockPos pos, BlockState state) { return new ChallengeSpawnerBlockEntity(pos, state); }
     @Override public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {

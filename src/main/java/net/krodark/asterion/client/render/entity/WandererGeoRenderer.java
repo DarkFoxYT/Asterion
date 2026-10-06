@@ -72,7 +72,7 @@ public final class WandererGeoRenderer extends GeoEntityRenderer<WandererEntity,
         super.applyRotations(pass, poses, rotation);
         if (pass.getOrDefaultGeckolibData(TRIPPED, false)) {
             poses.translate(0, .48, 0);
-            poses.mulPose(Axis.ZP.rotationDegrees(67));
+            net.krodark.asterion.client.render.PoseTransforms.apply(poses, Axis.ZP.rotationDegrees(67));
             poses.translate(0, -.48, 0);
         }
     }

@@ -12,9 +12,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ItemInHandRenderer.class)
 abstract class RagdollItemInHandRendererMixin {
-    @Inject(method = "renderHandsWithItems", at = @At("HEAD"), cancellable = true)
-    private void asterion$hideHands(float partial, PoseStack poses, SubmitNodeCollector output,
-                                     LocalPlayer player, int light, CallbackInfo ci) {
+    @Inject(method =
+            //? if >=26.2 {
+            /*"submitHandsWithItems",
+            *///?} else {
+            "renderHandsWithItems",
+            //?}
+ at = @At("HEAD"), cancellable = true)
+    private void asterion$hideHands(CallbackInfo ci) {
+        LocalPlayer player = net.minecraft.client.Minecraft.getInstance().player;
+        if (player == null) return;
         if (net.krodark.asterion.client.cinematic.CrucibleCamera.active()
                 || net.krodark.asterion.client.cinematic.studio.CutsceneStudio.active()
                 || DismembermentEngine.INSTANCE.isPlayerTumbling(player.getId())) ci.cancel();

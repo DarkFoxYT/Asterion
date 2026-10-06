@@ -1,6 +1,5 @@
 package net.krodark.asterion.port.client;
 
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.krodark.asterion.network.ChainHoldPayload;
 import net.krodark.asterion.physics.ChainGrip;
@@ -9,8 +8,8 @@ public final class PortChainClimbingClient {
     private static boolean holding;
     private static int ticks;
     private PortChainClimbingClient() { }
-    public static void initialize() {
-        ClientTickEvents.END_CLIENT_TICK.register(client->{
+    public static void initialize() { }
+    public static void tick(net.minecraft.client.Minecraft client) {
             if(client.player==null) {holding=false;ticks=0;return;}
             boolean selected=ChainGrip.target(client.player)!=null;
             boolean active=client.screen==null && !client.isPaused() && client.options.keyUse.isDown() && selected;
@@ -20,6 +19,5 @@ public final class PortChainClimbingClient {
                 ClientPlayNetworking.send(new ChainHoldPayload(active));ticks=0;
             }
             holding=active;
-        });
     }
 }

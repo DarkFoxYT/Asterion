@@ -44,7 +44,7 @@ public final class CharonRenderer extends GeoEntityRenderer<CharonEntity, Entity
 
     @Override protected void applyRotations(RenderPassInfo<EntityRenderState> pass, PoseStack poses, float rotation) {
         super.applyRotations(pass, poses, rotation);
-        poses.mulPose(Axis.XP.rotationDegrees(pass.getOrDefaultGeckolibData(PITCH, 0F)));
-        poses.mulPose(Axis.ZP.rotationDegrees(pass.getOrDefaultGeckolibData(ROLL, 0F)));
+        net.krodark.asterion.client.render.PoseTransforms.apply(poses, Axis.XP.rotationDegrees(pass.getOrDefaultGeckolibData(PITCH, 0F)));
+        net.krodark.asterion.client.render.PoseTransforms.apply(poses, Axis.ZP.rotationDegrees(pass.getOrDefaultGeckolibData(ROLL, 0F)));
     }
 }

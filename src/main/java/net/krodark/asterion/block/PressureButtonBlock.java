@@ -31,7 +31,9 @@ public final class PressureButtonBlock extends Block {
         super(properties);
         registerDefaultState(stateDefinition.any().setValue(FACING,Direction.UP).setValue(POWERED,false));
     }
+    //? if <26.3 {
     @Override protected MapCodec<? extends Block> codec() { return MapCodec.unit(this); }
+    //?}
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block,BlockState> builder) {
         builder.add(FACING,POWERED);
     }

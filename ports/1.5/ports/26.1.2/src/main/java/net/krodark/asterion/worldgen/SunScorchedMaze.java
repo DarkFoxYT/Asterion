@@ -14,10 +14,13 @@ public final class SunScorchedMaze {
         return Math.abs(r-ring*spacing)<thickness*.52;
     }
     public static int height(long seed,int x,int z,int normal) {
-        double r=Math.hypot(x+.5,z+.5);if(r>=100)return normal;
+        double r=Math.hypot(x+.5,z+.5);
         double damage=Math.pow(Math.max(0,1-r/100),.7);
         double chips=Math.sin(x*.24+Math.sin(z*.13))*Math.cos(z*.21+Math.sin(x*.1));
-        return Math.max(3,Math.min(normal,(int)Math.round(normal*(1-damage*.85)+chips*damage*5)));
+        double approach = Math.max(0, Math.min(1, (Math.max(Math.abs(x+.5), Math.abs(z+.5))
+                - AuthoredCatacombs.ARENA_RADIUS) / 24.0));
+        approach = approach * approach * (3 - 2 * approach);
+        return (int)Math.round(Math.max(3,Math.min(normal,(int)Math.round(normal*(1-damage*.85)+chips*damage*5))) * approach);
     }
     public static double warp(long seed,int x,int z,boolean horizontal,int cell) {
         double phase=(mix(seed+(horizontal?19:43))>>>11)*0x1.0p-53*Math.PI*2;

@@ -38,12 +38,28 @@ public class SimpleGeoEntityRenderer<T extends Entity & GeoAnimatable> extends G
         super.render(entity,yaw,partial,poses,buffers,light);
     }
 
+    private record CullBounds(int tick, net.minecraft.world.phys.AABB bounds) {}
+    private final java.util.Map<Entity, CullBounds> articulatedBounds = new java.util.WeakHashMap<>();
+
     @Override
     public boolean shouldRender(T animatable, Frustum frustum, double x, double y, double z) {
-        // Animated GeoModel bones often extend well beyond the vanilla hitbox.
-        // Keep the model submitted when that small box leaves the view so large
-        // limbs, doors, chains and wall-crawling bodies do not pop out.
-        return true;
+        if (!animatable.shouldRender(x, y, z)) return false;
+        // Animated limbs need a generous margin, but off-screen models must not
+        // run their full GeckoLib animation and emissive replay every frame.
+        var bounds = animatable.getBoundingBox().inflate(Math.max(3.0, Math.max(scaleWidth, scaleHeight) * 3.0));
+        if (animatable instanceof net.krodark.asterion.entity.ScarletCentipedeEntity centipede) {
+            var cached = articulatedBounds.get(centipede);
+            if (cached == null || cached.tick() != centipede.tickCount) {
+                for (int i = 0; i < centipede.chainSegmentCount(); i++) {
+                    var point = centipede.chainPose(i, 1).position();
+                    bounds = bounds.minmax(new net.minecraft.world.phys.AABB(point, point).inflate(3.0));
+                }
+                cached = new CullBounds(centipede.tickCount, bounds);
+                articulatedBounds.put(centipede, cached);
+            }
+            bounds = cached.bounds();
+        }
+        return frustum.isVisible(bounds);
     }
 
     @SuppressWarnings("deprecation")

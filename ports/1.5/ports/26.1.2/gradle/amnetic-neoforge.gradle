@@ -24,7 +24,7 @@ def nativeAmnetic = tasks.register('prepareNativeAmnetic') {
     def source = rootProject.file("libs/amnetic-neoforge-${rootProject.amnetic_version}.jar")
     def target = layout.buildDirectory.file("renderer/amnetic-neoforge-${rootProject.amnetic_version}.jar")
     inputs.file(source)
-    inputs.property("adapterRevision", 3)
+    inputs.property("adapterRevision", 4)
     inputs.file(rootProject.file("libs/amnetic-neoforge-1.0-SNAPSHOT.jar"))
     outputs.file(target)
     doLast {
@@ -42,6 +42,11 @@ def nativeAmnetic = tasks.register('prepareNativeAmnetic') {
                             manifest.mainAttributes.putValue('Automatic-Module-Name','com.meekdev.amnetic')
                             manifest.mainAttributes.putValue('Implementation-Version',rootProject.amnetic_version)
                             def encoded = new ByteArrayOutputStream(); manifest.write(encoded); content=encoded.toByteArray()
+                        }
+                        if (name == 'META-INF/neoforge.mods.toml') {
+                            def text = new String(content, java.nio.charset.StandardCharsets.UTF_8)
+                            text = text.replaceFirst(/(?m)^version="[^"]*"/, 'version="' + rootProject.amnetic_version + '"')
+                            content = text.getBytes(java.nio.charset.StandardCharsets.UTF_8)
                         }
                         out.write(name.endsWith('.class') ? relocateBridge(content) : content)
                         out.closeEntry()

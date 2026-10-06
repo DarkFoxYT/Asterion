@@ -1,4 +1,5 @@
 #version 330
+#moj_import <asterion:scene_depth.glsl>
 #moj_import <asterion:limbo_seas.glsl>
 #moj_import <asterion:limbo_depths.glsl>
 
@@ -23,10 +24,10 @@ float sceneDepth() {
     if (textureSize(DepthSampler, 0).x <= OutSize.x * 1.15) return depth;
     // The closest solid pixel in a reduced-resolution footprint occludes fog.
     vec2 footprint = .45 / max(OutSize, vec2(1));
-    depth = min(depth, texture(DepthSampler, texCoord + vec2(-footprint.x, -footprint.y)).r);
-    depth = min(depth, texture(DepthSampler, texCoord + vec2( footprint.x, -footprint.y)).r);
-    depth = min(depth, texture(DepthSampler, texCoord + vec2(-footprint.x,  footprint.y)).r);
-    return min(depth, texture(DepthSampler, texCoord + footprint).r);
+    depth = asterionClosestDepth(depth, texture(DepthSampler, texCoord + vec2(-footprint.x, -footprint.y)).r);
+    depth = asterionClosestDepth(depth, texture(DepthSampler, texCoord + vec2( footprint.x, -footprint.y)).r);
+    depth = asterionClosestDepth(depth, texture(DepthSampler, texCoord + vec2(-footprint.x,  footprint.y)).r);
+    return asterionClosestDepth(depth, texture(DepthSampler, texCoord + footprint).r);
 }
 
 vec3 worldRay(vec2 uv) {
@@ -100,7 +101,7 @@ void main() {
     }
     float depth = sceneDepth();
     vec3 direction = worldRay(texCoord);
-    float travel = depth >= .9999 ? 136.0
+    float travel = asterionSkyDepth(depth) ? 136.0
             : max(0.0, min(length(reconstructWorld(depth) - CameraData.xyz) - .12, 136.0));
     int samples = int(clamp(MarchSteps.x, 4.0, 8.0));
     float stepLength = travel / float(samples);
@@ -140,11 +141,11 @@ void main() {
     scattering = mix(scattering,
             mix(vec3(.00008,.00012,.0002),vec3(.007,.012,.017),litWater)
                     * (1.0-waterTransmission), submerged);
-    if(depth>=.9999) {
+    if(asterionSkyDepth(depth)) {
         float horizon=(1.0-smoothstep(.05,.45,abs(direction.y)))*.28;
         scattering=mix(scattering,limboSeaHorizon(CameraData.xyz,direction)*(1.0-transmission),horizon);
     }
-    float fireTravel=depth>=.9999?FireRange.x:min(FireRange.x,max(0.0,length(reconstructWorld(depth)-CameraData.xyz)-.12));
+    float fireTravel=asterionSkyDepth(depth)?FireRange.x:min(FireRange.x,max(0.0,length(reconstructWorld(depth)-CameraData.xyz)-.12));
     vec4 fire=limboSeaVolume(CameraData.xyz,direction,fireTravel,River.x,Time,
             int(clamp(MarchSteps.x*4.0-4.0,12.0,28.0)));
     fire.rgb*=1.0-submerged;fire.a=mix(fire.a,1.0,submerged);

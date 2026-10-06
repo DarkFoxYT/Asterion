@@ -70,7 +70,7 @@ public final class MinotaurAxeRenderer extends EntityRenderer<MinotaurAxeEntity,
         }
         poses.pushPose();
         poses.translate(state.releaseOffset.x, state.releaseOffset.y, state.releaseOffset.z);
-        poses.mulPose(state.rotation);
+        net.krodark.asterion.client.render.PoseTransforms.apply(poses, state.rotation);
         poses.scale(state.scale, state.scale, state.scale);
         poses.translate(0, -state.centerY, 0);
         if (state.sword) net.krodark.asterion.client.ragdoll.MinotaurSwordVisual.submit(poses, tasks, camera, state.lightCoords);

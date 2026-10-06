@@ -6,6 +6,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public final class CreatureMotionSmoke {
     public static void main(String[] args) {
+        var wall = new AABB(1, 0, -3, 2, 5, 3);
+        var ascent = new Vec3(0, .2, .1);
+        var lowHead = new AABB(.2, 2, -.3, .9, 2.5, .3);
+        var highHead = lowHead.move(0, 2.8, 0);
+        if (!CentipedeSurfaceProbe.limitWallAscent(lowHead, ascent, net.minecraft.core.Direction.EAST, List.of(wall)).equals(ascent))
+            throw new AssertionError("Wall guard disables supported climbing");
+        var limited = CentipedeSurfaceProbe.limitWallAscent(highHead, ascent, net.minecraft.core.Direction.EAST, List.of(wall));
+        if (limited.y != 0 || limited.z != ascent.z)
+            throw new AssertionError("Centipede can climb over a wall crest or loses sideways movement");
+        if (!CentipedeSurfaceProbe.limitWallAscent(highHead, new Vec3(0,-.2,0), net.minecraft.core.Direction.EAST, List.of(wall)).equals(new Vec3(0,-.2,0)))
+            throw new AssertionError("Wall guard prevents returning down the wall");
         var calls = new AtomicInteger();
         var floor = new AABB(-128,-1,-128,128,0,128);
         var collision = new CentipedeCollision(area -> { calls.incrementAndGet(); return List.of(floor); });

@@ -193,7 +193,9 @@ public final class MinotaurGeoRenderer extends GeoEntityRenderer<MinotaurEntity,
         state.addGeckolibData(CHAIN_OWNER, minotaur.getId());
         state.addGeckolibData(AXE_ACTION, minotaur.isAxeAttackActive());
         float rage = minotaur.rage() / 12.0F;
-        if (minotaur.doorEntryTicks() > 0) {
+        if (minotaur.isDefeatedBoss() || !minotaur.isAlive()) {
+            state.addGeckolibData(EYE_TINT, 0xFF000000);
+        } else if (minotaur.doorEntryTicks() > 0) {
             state.addGeckolibData(EYE_TINT, 0xFFD8FFFF);
         } else if (rage > 0.001F) {
              

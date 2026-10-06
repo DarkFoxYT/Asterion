@@ -22,7 +22,7 @@ public final class LiftCallRuneRenderer extends EntityRenderer<LiftCallRuneEntit
     @Override public void submit(EntityRenderState state, PoseStack poses, SubmitNodeCollector tasks, CameraRenderState camera) {
         poses.pushPose();
         poses.translate(0, .35 + Math.sin(state.ageInTicks * .045) * .035, 0);
-        poses.mulPose(camera.orientation);
+        net.krodark.asterion.client.render.PoseTransforms.apply(poses, camera.orientation);
         tasks.submitCustomGeometry(poses, RenderTypes.entityTranslucentEmissive(TEXTURE),
                 (pose, out) -> MESH.render(pose, out, 0xFFD9D9D9, 1, 1));
         AmneticBoneEmission.submit(MESH_ID, MESH, TEXTURE, poses.last().pose(), 0xFFFFFFFF, 1, 1, .18F, false);

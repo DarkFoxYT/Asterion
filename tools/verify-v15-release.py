@@ -16,6 +16,16 @@ def verify(path, loader, major):
     with zipfile.ZipFile(path) as jar:
         assert jar.testzip() is None, f"{path.name}: corrupt ZIP entry"
         names = set(jar.namelist())
+        assert "data/asterion/dimension/labyrinth.json" in names, "Renamed Labyrinth dimension is missing"
+        assert "data/asterion/dimension/asterion_dimension.json" not in names, "Retired dimension ID still ships"
+        assert "net/krodark/asterion/worldgen/LabyrinthDimensionMigration.class" in names, "World migration is missing"
+        assert any(name in names for name in ("assets/asterion/geo/item/flamethrower.geo.json", "assets/asterion/geckolib/models/item/flamethrower.geo.json")), "Flamethrower model is missing"
+        if major < 69:
+            model = json.loads(jar.read("assets/asterion/models/item/flamethrower.json"))
+            assert model.get("parent") == "builtin/entity", "Flamethrower custom model is not enabled"
+            for mixin in ("PortHandRenderStateMixin", "PortAfterblowFirstPersonMixin", "FlamethrowerInputMixin"):
+                assert f"net/krodark/asterion/mixin/{mixin}.class" in names, f"Missing first-person feature: {mixin}"
+
         if loader in ("fabric", "quilt"):
             metadata = json.loads(jar.read("fabric.mod.json"))
             assert metadata["id"] == "asterion" and metadata["version"] == "1.5"
@@ -45,6 +55,28 @@ def verify(path, loader, major):
         for entry in nested:
             with zipfile.ZipFile(io.BytesIO(jar.read(entry))) as dependency:
                 assert dependency.testzip() is None, f"Corrupt nested dependency {entry}"
+                if "/amnetic" in entry.lower():
+                    prefix = "com/meekdev/amnetic/client/particle/editor/"
+                    assert prefix + "EffectPresetFiles.class" in dependency.namelist(), "Missing Amnetic preset safety helper"
+                    effect_io = dependency.read(prefix + "EffectIO.class")
+                    assert b"SafePresetIO" in effect_io and b"validateName" in effect_io, "Unpatched Amnetic preset file operations"
+                    assert b"java/nio/file/Files" not in effect_io, "Amnetic still bypasses safe preset storage"
+                    for config in (name for name in dependency.namelist() if name.endswith(".mixins.json")):
+                        renderer_mixin = json.loads(dependency.read(config))
+                        level = renderer_mixin.get("compatibilityLevel", "JAVA_8")
+                        assert int(level.removeprefix("JAVA_")) <= major - 44, f"{entry}/{config}: unsupported {level}"
+                        for side in ("mixins", "client", "server"):
+                            for name in renderer_mixin.get(side, []):
+                                target = (renderer_mixin["package"] + "." + name).replace(".", "/") + ".class"
+                                assert target in dependency.namelist(), f"{entry}/{config}: missing {target}"
+                if loader in ("fabric", "quilt") and major in (61, 65) and "/amnetic" in entry.lower():
+                    renderer_metadata = json.loads(dependency.read("fabric.mod.json"))
+                    assert "asterion.9" in renderer_metadata["version"], "Unpatched legacy renderer embedded"
+                if loader == "neoforge" and major == 69 and "/amnetic" in entry.lower():
+                    renderer_metadata = tomllib.loads(dependency.read("META-INF/neoforge.mods.toml").decode())
+                    renderer_version = next(mod["version"] for mod in renderer_metadata["mods"] if mod["modId"] == "amnetic")
+                    required = next(mod["versionRange"] for mod in metadata["dependencies"]["asterion"] if mod["modId"] == "amnetic")
+                    assert required == f"[{renderer_version},)", "Embedded Amnetic does not satisfy the declared renderer version"
                 if loader == "forge" and major == 69 and "/amnetic" in entry.lower():
                     pack = json.loads(dependency.read("pack.mcmeta"))["pack"]
                     assert pack.get("min_format") == [101, 1] and pack.get("max_format") == [101, 1], "Stale Amnetic pack metadata"
@@ -58,17 +90,36 @@ def verify(path, loader, major):
                     assert class_path in names, f"{config}: missing {class_path}"
         classes = [name for name in names if name.startswith("net/krodark/") and name.endswith(".class")]
         assert classes, "No Asterion classes"
+        assert "net/krodark/asterion/worldgen/ArenaSurfaceSeam.class" in names, "Missing arena/maze boundary repair"
+        assert b"waterproofLever" in jar.read("net/krodark/asterion/worldgen/CatacombProtection.class"), "Missing Labyrinth lever protection"
+        assert b"waterproofLever" in jar.read("net/krodark/asterion/mixin/HeavyWaterFlowMixin.class"), "Missing water-flow lever protection hook"
+        if loader == "forge" and major == 69:
+            assert "net/fabricmc/fabric/api/client/item/v1/ItemTooltipCallback.class" in names, "Missing Forge tooltip event adapter"
         for name in classes:
             bytecode = jar.read(name)
             assert struct.unpack(">H", bytecode[6:8])[0] <= major, f"Unsupported Java bytecode: {name}"
         assert not any(name.startswith("net/krodark/asterion/test/") for name in names), "Test harness shipped"
+        if major in (61, 65):
+            bloom_patch = jar.read("net/krodark/asterion/mixin/AmneticBloomPerformanceMixin.class")
+            assert b"asterion$worldDepthResolution" in bloom_patch, "Missing full-resolution emission depth fix"
         for excluded in ("data/asterion/dimension/limbo.json", "data/asterion/dimension/underworld.json", "data/asterion/dimension_type/limbo.json", "data/asterion/dimension_type/underworld.json", "data/asterion/worldgen/biome/limbo.json"):
             assert excluded not in names, f"Excluded 1.5 dimension shipped: {excluded}"
-        for shared in ("entity/PhysicsChainEntity", "entity/CentipedeSegmentEntity", "physics/SegmentedChain", "physics/VoxelCollisionCache", "physics/SwordAttackMotion", "game/FinaleTimeline"):
+        for shared in ("entity/PhysicsChainEntity", "entity/CentipedeSegmentEntity", "physics/SegmentedChain", "physics/ChainContact", "physics/VoxelCollisionCache", "physics/SwordAttackMotion", "game/FinaleTimeline"):
             assert f"net/krodark/asterion/{shared}.class" in names, f"Missing shared improvement: {shared}"
         client_root = "client" if major == 69 else "port/client"
         for feature in (("particle/GroundFogParticle", "render/entity/PhysicsChainRenderer", "cinematic/BossCreditsScreen") if major == 69 else ("particle/GroundFogParticle", "PortPhysicsChainRenderer", "PortBossCreditsScreen", "PortPostBuffers")):
             assert f"net/krodark/asterion/{client_root}/{feature}.class" in names, f"Missing client feature: {feature}"
+        settings = "client/AsterionSettingsScreen" if major == 69 else "port/client/PortAsterionSettingsScreen"
+        settings_code = jar.read(f"net/krodark/asterion/{settings}.class")
+        assert b"performanceTargetFps" not in settings_code, "FPS target returned to the essential settings UI"
+        sounds = json.loads(jar.read("assets/asterion/sounds.json"))
+        english = json.loads(jar.read("assets/asterion/lang/en_us.json"))
+        tracks = json.loads(jar.read("assets/asterion/music_tracks.json"))
+        for track in tracks:
+            namespace, event = track["sound"].split(":", 1)
+            assert namespace == "asterion" and event in sounds, "Music track references an unregistered sound"
+            label = english[sounds[event]["subtitle"]]
+            assert track["title"] in label and track["artist"] in label, "Music label is missing its title or artist"
         recipe_path = "data/asterion/recipes/physics_chain.json" if major == 61 else "data/asterion/recipe/physics_chain.json"
         recipe = json.loads(jar.read(recipe_path))
         if major < 69:

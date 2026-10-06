@@ -164,7 +164,7 @@ public final class CrucibleGaugeRenderer extends GeoBlockRenderer<CrucibleBlockE
         float yaw = switch (side) {
             case NORTH -> 180F; case EAST -> 90F; case WEST -> -90F; default -> 0F;
         };
-        poses.mulPose(Axis.YP.rotationDegrees(yaw));
+        net.krodark.asterion.client.render.PoseTransforms.apply(poses, Axis.YP.rotationDegrees(yaw));
         float height = .72F, width = height * (64F / 208F);
         collector.submitCustomGeometry(poses, RenderTypes.entityTranslucent(GAUGE, false),
                 (pose, vertices) -> quad(pose, vertices, width, height));

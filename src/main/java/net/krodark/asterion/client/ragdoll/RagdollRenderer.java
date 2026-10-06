@@ -124,7 +124,7 @@ public final class RagdollRenderer {
         Quaternionf rotation = DismembermentEngine.INSTANCE.renderOrientation(grip, partial);
         poses.pushPose();
         poses.translate(center.x, center.y, center.z);
-        poses.mulPose(rotation);
+        net.krodark.asterion.client.render.PoseTransforms.apply(poses, rotation);
         poses.scale(0.86F, 0.86F, 0.86F);
         ItemStackRenderState itemState = new ItemStackRenderState();
         ItemDisplayContext context = physicalRight ? ItemDisplayContext.THIRD_PERSON_RIGHT_HAND
@@ -133,8 +133,8 @@ public final class RagdollRenderer {
         else client.getItemModelResolver().updateForTopItem(itemState, stack, context, client.level, null, grip.entityId);
         if (itemState.isEmpty()) { poses.popPose(); return; }
         if (living != null) HeldItemDynamicLights.updateRagdollHand(living, physicalArm, stack, center);
-        poses.mulPose(Axis.XP.rotationDegrees(-90.0F));
-        poses.mulPose(Axis.YP.rotationDegrees(180.0F));
+        net.krodark.asterion.client.render.PoseTransforms.apply(poses, Axis.XP.rotationDegrees(-90.0F));
+        net.krodark.asterion.client.render.PoseTransforms.apply(poses, Axis.YP.rotationDegrees(180.0F));
         itemState.submit(poses, collector, sampleLight(center), OverlayTexture.NO_OVERLAY, 0);
         poses.popPose();
     }
@@ -149,14 +149,14 @@ public final class RagdollRenderer {
         Quaternionf rotation = DismembermentEngine.INSTANCE.renderOrientation(body, partial);
         if (!body.modelBoxes.isEmpty()) {
             PoseStack modelPose = new PoseStack();
-            modelPose.mulPose(pose.pose());
+            net.krodark.asterion.client.render.PoseTransforms.apply(modelPose, pose.pose());
             modelPose.translate(center.x, center.y, center.z);
-            modelPose.mulPose(rotation);
+            net.krodark.asterion.client.render.PoseTransforms.apply(modelPose, rotation);
             int light = emissive ? 0x00f000f0 : sampleLight(center);
             for (var box : body.modelBoxes) {
                 if (box.overlay() && !outerLayerVisible(body)) continue;
                 modelPose.pushPose();
-                modelPose.mulPose(box.transform());
+                net.krodark.asterion.client.render.PoseTransforms.apply(modelPose, box.transform());
                 box.cube().compile(modelPose.last(), out, light, OverlayTexture.NO_OVERLAY, -1);
                 modelPose.popPose();
             }

@@ -159,6 +159,8 @@ public final class PortClientFeatures {
             client.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
             while(client.options.keyTogglePerspective.consumeClick()){}
         }
+        PortChainClimbingClient.tick(client);
+        PortPostBuffers.tick(client);
         PortTextureFrameCache.tick(client.level);
         PortEmissiveQueue.tick(client);
         PortLight.tickCleanup(client);

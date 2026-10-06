@@ -24,13 +24,17 @@ import org.jspecify.annotations.Nullable;
 
  
 public final class TidalWaterBlock extends Block implements BucketPickup {
+    //? if <26.3 {
     public static final MapCodec<TidalWaterBlock> CODEC = simpleCodec(TidalWaterBlock::new);
+    //?}
     public static final IntegerProperty LEVEL = IntegerProperty.create("level", 1, 8);
     public TidalWaterBlock(Properties properties) {
         super(properties);
         registerDefaultState(stateDefinition.any().setValue(LEVEL, 8));
     }
+    //? if <26.3 {
     @Override public MapCodec<TidalWaterBlock> codec() { return CODEC; }
+    //?}
     @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) { builder.add(LEVEL); }
     @Override protected FluidState getFluidState(BlockState state) {
         return HeavyWater.FLUID.getFlowing(state.getValue(LEVEL), false);

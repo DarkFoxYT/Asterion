@@ -214,7 +214,7 @@ public final class MazeObjectiveOverlay {
 
     private static Vec3 keyWaypoint(Minecraft client) {
         if (stage == Stage.REACH_ARENA_DOORS)
-            return MinotaurArenaEntrances.door(MinotaurArenaEntrances.PLAYER_ENTRANCE).getCenter();
+            return net.minecraft.world.phys.Vec3.atCenterOf(MinotaurArenaEntrances.door(MinotaurArenaEntrances.PLAYER_ENTRANCE));
         if (stage == Stage.REACH_FORGE)
             return Vec3.atCenterOf(new BlockPos(CatacombLayout.ROOT_CENTER,
                     net.krodark.asterion.worldgen.AuthoredCatacombs.CONNECTOR_Y,

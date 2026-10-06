@@ -37,9 +37,14 @@ public final class LimboWaterRenderer {
                     .withLocation(Asterion.id("pipeline/limbo_water"))
                     .withVertexShader(Asterion.id("core/limbo_water"))
                     .withFragmentShader(Asterion.id("core/limbo_water"))
+                    //? if >=26.2 {
+                    /*.withVertexBinding(0, DefaultVertexFormat.ENTITY).withPrimitiveTopology(com.mojang.blaze3d.PrimitiveTopology.QUADS)
+                    .withBindGroupLayout(com.mojang.blaze3d.pipeline.BindGroupLayout.builder().withUniform("Fog", com.mojang.blaze3d.shaders.UniformType.UNIFORM_BUFFER).withSampler("Sampler0").withSampler("Sampler1").build())
+                    *///?} else {
                     .withVertexFormat(DefaultVertexFormat.ENTITY, VertexFormat.Mode.QUADS)
                     .withSampler("Sampler0")
                     .withSampler("Sampler1")
+                    //?}
                     .withCull(false).withDepthStencilState(DepthStencilState.DEFAULT).build())
                     .withTexture("Sampler0", net.minecraft.resources.Identifier.withDefaultNamespace("textures/block/water_still.png"))
                     .withTexture("Sampler1", FerryWakeTexture.ID)
@@ -74,10 +79,10 @@ public final class LimboWaterRenderer {
     }
 
     public static void initialize() {
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
             TILES.clear(); frame = List.of(); trackedLevel = null; enabled = false;
             FerryWakeTexture.release();
-        });
+        }));
         LevelRenderEvents.END_EXTRACTION.register(context -> {
             var client = Minecraft.getInstance();
             var level = context.level();

@@ -76,10 +76,10 @@ dependencies {
     compileOnly "net.fabricmc:fabric-loader:${rootProject.loader_version}"
     compileOnly "com.geckolib:geckolib-forge-26.1.2:${rootProject.geckolib_version}"
     runtimeOnly "com.geckolib:geckolib-forge-26.1.2:${rootProject.geckolib_version}"
-    compileOnly files(rootProject.file('libs/amnetic-forge-26.1.2.jar'))
-    runtimeOnly files(rootProject.file('libs/amnetic-forge-26.1.2.jar'))
+    compileOnly files(rootProject.file("libs/amnetic-forge-${rootProject.amnetic_version}.jar"))
+    runtimeOnly files(rootProject.file("libs/amnetic-forge-${rootProject.amnetic_version}.jar"))
 }
-def amneticEmbed = dependencies.create(files(rootProject.file('libs/amnetic-forge-26.1.2.jar')))
+def amneticEmbed = dependencies.create(files(rootProject.file("libs/amnetic-forge-${rootProject.amnetic_version}.jar")))
 jarJar.configure(amneticEmbed) {
     module { group = 'com.meekdev'; name = 'amnetic-forge' }
     version = '1.0.0'

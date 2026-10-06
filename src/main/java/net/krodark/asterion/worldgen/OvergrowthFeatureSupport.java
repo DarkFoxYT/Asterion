@@ -30,6 +30,8 @@ final class OvergrowthFeatureSupport {
     }
 
     static boolean enabled(WorldGenLevel level, BlockPos pos, String feature) {
+        if ((feature.equals("bridges") || feature.equals("bridge_chains"))
+                && Math.hypot(pos.getX(), pos.getZ()) < 110) return false;
         long seed=terrainSeed(level);
         if(!level.getLevel().dimension().equals(Asterion.ASTERION_LEVEL)
                 || !WorldGenerator.mazeBiomeHasFeature(seed,pos.getX(),pos.getZ(),feature))return false;
@@ -54,6 +56,7 @@ final class OvergrowthFeatureSupport {
     }
 
     static boolean isMazeFloor(WorldGenLevel level, BlockPos pos) {
+        if (!canWrite(level, pos)) return false;
         var state = level.getBlockState(pos);
         return state.is(Asterion.ANCIENT_STONE) || state.is(Asterion.ANCIENT_BRICKS)
                 || state.is(Asterion.ANCIENT_MOSS) || state.is(Asterion.MOSSY_ANCIENT_STONE)
@@ -68,6 +71,7 @@ final class OvergrowthFeatureSupport {
     }
 
     static boolean isOpen(WorldGenLevel level, BlockPos pos) {
+        if (!canWrite(level, pos)) return false;
         if(level instanceof ServerLevel server && server.getChunkSource().getChunkNow(pos.getX()>>4,pos.getZ()>>4)==null)return false;
         var state = level.getBlockState(pos);
         return state.isAir() || state.is(Asterion.ANCIENT_MOSS_CARPET) || state.is(Asterion.SHORT_GRASS)

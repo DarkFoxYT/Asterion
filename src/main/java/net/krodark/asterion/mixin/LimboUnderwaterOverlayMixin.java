@@ -14,8 +14,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ScreenEffectRenderer.class)
 abstract class LimboUnderwaterOverlayMixin {
     @Inject(method = "renderWater", at = @At("HEAD"), cancellable = true)
-    private static void asterion$noCameraLockedOverlay(Minecraft client, PoseStack pose,
-                                                         MultiBufferSource buffers, CallbackInfo ci) {
+    private static void asterion$noCameraLockedOverlay(CallbackInfo ci) {
+        Minecraft client = Minecraft.getInstance();
         if (client.level != null && client.level.dimension().equals(Asterion.LIMBO_LEVEL)) ci.cancel();
     }
 }

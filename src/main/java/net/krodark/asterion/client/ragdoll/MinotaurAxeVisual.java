@@ -28,7 +28,7 @@ public final class MinotaurAxeVisual {
      
     public static void submitAligned(PoseStack poses, SubmitNodeCollector tasks, CameraRenderState camera, int light, float partial) {
         poses.pushPose();
-        poses.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-90));
+        net.krodark.asterion.client.render.PoseTransforms.apply(poses, com.mojang.math.Axis.YP.rotationDegrees(-90));
         submit(poses, tasks, camera, light, partial);
         poses.popPose();
     }

@@ -1,4 +1,5 @@
 #version 330
+#moj_import <asterion:scene_depth.glsl>
 
 uniform sampler2D DepthSampler;
 
@@ -95,7 +96,7 @@ void main() {
     }
     float depth = texture(DepthSampler, texCoord).r;
     vec3 direction = worldRay(texCoord);
-    float travel = depth >= 0.9999 ? 112.0 : min(length(reconstructWorld(depth) - CameraPos), 112.0);
+    float travel = asterionSkyDepth(depth) ? 112.0 : min(length(reconstructWorld(depth) - CameraPos), 112.0);
     int sampleCount = Quality < 0.5 ? 3 : (Quality < 1.5 ? 5 : 7);
     float stepLength = travel / float(sampleCount);
 

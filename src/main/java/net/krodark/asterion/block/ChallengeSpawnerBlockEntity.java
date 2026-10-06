@@ -89,7 +89,7 @@ public final class ChallengeSpawnerBlockEntity extends BlockEntity {
             spawner.removeLabel(level);
             dropRewards(level, pos);
 
-            ExperienceOrb.award(level, pos.getCenter().add(0, 1, 0), 20);
+            ExperienceOrb.award(level, net.minecraft.world.phys.Vec3.atCenterOf(pos).add(0, 1, 0), 20);
         } else if (explosive) {
             if (--spawner.remaining <= 0) {
                 spawner.complete = true; spawner.removeLabel(level);

@@ -20,6 +20,8 @@ public abstract class AmneticInstanceBufferMixin {
 
     @Inject(method = "upload", at = @At("HEAD"), cancellable = true)
     private void asterion$streamRetainedBuffer(ByteBuffer data, int count, CallbackInfo ci) {
+        // Native Amnetic owns a GpuBuffer; its legacy OpenGL id is not usable.
+        //? if <26.2 {
         if (!data.isDirect() || count < 0 || (long)count * stride < data.remaining()) return;
         ensureCapacity(count);
         GlStateManager._glBindBuffer(GL15.GL_ARRAY_BUFFER, id);
@@ -29,5 +31,6 @@ public abstract class AmneticInstanceBufferMixin {
             GlStateManager._glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
         }
         ci.cancel();
+        //?}
     }
 }

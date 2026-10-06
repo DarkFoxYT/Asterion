@@ -34,9 +34,9 @@ abstract class FallingBlockRendererMixin {
         float dampedAngle = speed * (float)(18.0D * Math.log1p(age / 18.0D));
          
         poseStack.translate(0.0D, 0.5D, 0.0D);
-        poseStack.mulPose(Axis.XP.rotationDegrees(dampedAngle * direction));
-        poseStack.mulPose(Axis.ZP.rotationDegrees(dampedAngle * 0.54F));
-        poseStack.mulPose(Axis.YP.rotationDegrees(dampedAngle * 0.24F * direction));
+        net.krodark.asterion.client.render.PoseTransforms.apply(poseStack, Axis.XP.rotationDegrees(dampedAngle * direction));
+        net.krodark.asterion.client.render.PoseTransforms.apply(poseStack, Axis.ZP.rotationDegrees(dampedAngle * 0.54F));
+        net.krodark.asterion.client.render.PoseTransforms.apply(poseStack, Axis.YP.rotationDegrees(dampedAngle * 0.24F * direction));
         poseStack.translate(0.0D, -0.5D, 0.0D);
     }
 }

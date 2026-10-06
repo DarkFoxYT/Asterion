@@ -88,7 +88,7 @@ public final class SharedObjectiveProgress extends SavedData {
                     Asterion.CELESTIAL_BRONZE_INGOT, Asterion.CELESTIAL_STEEL_INGOT, Asterion.BONESTEEL_INGOT)) milestones |= INGOTS;
             if (carries(player, Asterion.MINOTAUR_KEY)) milestones |= MINOTAUR_KEY;
             if (BossArenaEncounter.isParticipant(player) || has(MINOTAUR_KEY)
-                    && player.position().distanceToSqr(MinotaurArenaEntrances.door(MinotaurArenaEntrances.PLAYER_ENTRANCE).getCenter()) <= 24 * 24)
+                    && player.position().distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(MinotaurArenaEntrances.door(MinotaurArenaEntrances.PLAYER_ENTRANCE))) <= 24 * 24)
                 milestones |= ARENA;
             if (carries(player, Asterion.OMEGA_KEY)) milestones |= OMEGA_KEY;
         }

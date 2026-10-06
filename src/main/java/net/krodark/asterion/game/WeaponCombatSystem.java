@@ -90,7 +90,7 @@ public final class WeaponCombatSystem {
 
          
          
-        player.swing((hits & 1) == 0 ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND, true);
+        net.krodark.asterion.entity.EntityVersionCompatibility.swing(player, (hits & 1) == 0 ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND, true);
         updateSpeed(player, hits);
     }
 

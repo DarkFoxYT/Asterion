@@ -42,8 +42,8 @@ public final class PedestalRenderer extends GeoBlockRenderer<PedestalBlockEntity
         if (sword == null || sword.isEmpty()) return;
         poses.pushPose();
         poses.translate(.5, 1.28, .5);
-        poses.mulPose(Axis.YP.rotationDegrees(45));
-        poses.mulPose(Axis.ZP.rotationDegrees(-135));
+        net.krodark.asterion.client.render.PoseTransforms.apply(poses, Axis.YP.rotationDegrees(45));
+        net.krodark.asterion.client.render.PoseTransforms.apply(poses, Axis.ZP.rotationDegrees(-135));
         poses.scale(1.25F, 1.25F, 1.25F);
         sword.submit(poses, tasks, state.lightCoords, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY, 0);
         poses.popPose();

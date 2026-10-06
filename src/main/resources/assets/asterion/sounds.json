@@ -344,47 +344,56 @@
   "music_ancient_the_best_piece_of_music_ive_ever_made_keys": {
     "sounds": [
       "asterion:music/ancient/the_best_piece_of_music_ive_ever_made_keys"
-    ]
+    ],
+    "subtitle": "subtitles.asterion.music_ancient_the_best_piece_of_music_ive_ever_made_keys"
   },
   "music_arena_atonement_mongopsy": {
     "sounds": [
       "asterion:music/arena/atonement_mongopsy"
-    ]
+    ],
+    "subtitle": "subtitles.asterion.music_arena_atonement_mongopsy"
   },
   "music_arena_i_made_a_dark_souls_boss_theme_keys": {
     "sounds": [
       "asterion:music/arena/i_made_a_dark_souls_boss_theme_keys"
-    ]
+    ],
+    "subtitle": "subtitles.asterion.music_arena_i_made_a_dark_souls_boss_theme_keys"
   },
   "music_crimsonmarshlands_if_we_could_roll_back_the_credits_one_last_time_keys": {
     "sounds": [
       "asterion:music/crimsonmarshlands/if_we_could_roll_back_the_credits_one_last_time_keys"
-    ]
+    ],
+    "subtitle": "subtitles.asterion.music_crimsonmarshlands_if_we_could_roll_back_the_credits_one_last_time_keys"
   },
   "music_crimsonmarshlands_ill_see_you_at_the_edge_of_the_world_keys": {
     "sounds": [
       "asterion:music/crimsonmarshlands/ill_see_you_at_the_edge_of_the_world_keys"
-    ]
+    ],
+    "subtitle": "subtitles.asterion.music_crimsonmarshlands_ill_see_you_at_the_edge_of_the_world_keys"
   },
   "music_forge_the_green_hour_mongopsy": {
     "sounds": [
       "asterion:music/forge/the_green_hour_mongopsy"
-    ]
+    ],
+    "subtitle": "subtitles.asterion.music_forge_the_green_hour_mongopsy"
   },
   "music_forge_the_withered_remnant_mongopsy": {
     "sounds": [
       "asterion:music/forge/the_withered_remnant_mongopsy"
-    ]
+    ],
+    "subtitle": "subtitles.asterion.music_forge_the_withered_remnant_mongopsy"
   },
   "music_overgrown_mojang_please_hire_me_joabi": {
     "sounds": [
       "asterion:music/overgrown/mojang_please_hire_me_joabi"
-    ]
+    ],
+    "subtitle": "subtitles.asterion.music_overgrown_mojang_please_hire_me_joabi"
   },
   "music_overgrown_where_the_stars_fall_crypika": {
     "sounds": [
       "asterion:music/overgrown/where_the_stars_fall_crypika"
-    ]
+    ],
+    "subtitle": "subtitles.asterion.music_overgrown_where_the_stars_fall_crypika"
   },
   "minotaur_axe_draw": {
     "sounds": [

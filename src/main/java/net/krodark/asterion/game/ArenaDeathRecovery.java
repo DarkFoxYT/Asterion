@@ -70,7 +70,7 @@ public final class ArenaDeathRecovery {
                 player.setDeltaMovement(Vec3.ZERO);
                 player.resetFallDistance();
                 player.clearFire();
-                player.invulnerableTime = 80;
+                net.krodark.asterion.entity.EntityVersionCompatibility.invulnerability(player, 80);
             }
         });
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {

@@ -9,21 +9,25 @@ allprojects {
                 javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(25) }
                 options.compilerArgs.add('-proc:none')
             }
-            ['amnetic', 'amnetic-neoforge'].each { artifact ->
+            def artifacts = ['amnetic', 'amnetic-neoforge']
+            if (providers.gradleProperty('amnetic-forge_input').isPresent()) artifacts.add('amnetic-forge')
+            artifacts.each { artifact ->
                 tasks.register("patch${artifact.replace('-', '')}Window", Jar) {
                     dependsOn compile
-                    archiveFileName = "${artifact}-1.0.0-asterion.3.jar"
+                    def patchVersion = providers.gradleProperty('amnetic_patch_version').getOrElse('1.0.0-asterion.3')
+                    archiveFileName = "${artifact}-${patchVersion}.jar"
                     destinationDirectory = rootProject.layout.projectDirectory.dir('libs')
                     preserveFileTimestamps = false
                     reproducibleFileOrder = true
-                    from(rootProject.zipTree("libs/${artifact}-1.0-SNAPSHOT-0b72718.jar")) {
+                    def input = providers.gradleProperty("${artifact}_input").getOrElse("libs/${artifact}-1.0-SNAPSHOT-0b72718.jar")
+                    from(rootProject.zipTree(rootProject.file(input))) {
                         exclude 'com/meekdev/amnetic/mixin/WindowGlContextMixin.class'
                     }
                     from compile.flatMap { it.destinationDirectory }
                 }
             }
             tasks.register('rebuildAmneticWindowCompatibility') {
-                dependsOn 'patchamneticWindow', 'patchamneticneoforgeWindow'
+                dependsOn artifacts.collect { "patch${it.replace('-', '')}Window" }
             }
         }
     }

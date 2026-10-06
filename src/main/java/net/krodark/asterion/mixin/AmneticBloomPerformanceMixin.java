@@ -19,7 +19,13 @@ public abstract class AmneticBloomPerformanceMixin {
         if (!GBufferTargets.INSTANCE.isPopulated()) original.call(target);
     }
 
-    @WrapOperation(method = "render", at = @At(value = "INVOKE",
+    @WrapOperation(method =
+            //? if >=26.2 {
+            /*{"render", "renderNative"},
+            *///?} else {
+            "render",
+            //?}
+ at = @At(value = "INVOKE",
             target = "Lcom/meekdev/amnetic/client/bloom/BloomSettings;threshold()F"))
     private float asterion$skipUnrequestedSceneCapture(BloomSettings settings, Operation<Float> original) {
         // Avoid a scene color/depth copy and prefilter for ordinary bright terrain.

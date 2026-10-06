@@ -17,4 +17,13 @@ public abstract class AmneticBloomPerformanceMixin {
         // Keep ordinary terrain out of bloom; explicit emitters retain their separate path.
         return PortEmissiveConfig.sceneBloomEnabled() ? original.call(settings) : 0.0F;
     }
+
+    @WrapOperation(method = "ensureChain", at = @At(value = "INVOKE", ordinal = 0,
+            target = "Lcom/meekdev/amnetic/client/framebuffer/Framebuffers;screen(Ljava/lang/String;FLcom/meekdev/amnetic/client/framebuffer/FramebufferSpec;)Lcom/meekdev/amnetic/client/framebuffer/Framebuffer;"))
+    private com.meekdev.amnetic.client.framebuffer.Framebuffer asterion$worldDepthResolution(
+            String name, float scale, com.meekdev.amnetic.client.framebuffer.FramebufferSpec spec,
+            Operation<com.meekdev.amnetic.client.framebuffer.Framebuffer> original) {
+        // Only geometry/depth is full size. The blur chain keeps its configured scale.
+        return original.call(name, 1.0F, spec);
+    }
 }

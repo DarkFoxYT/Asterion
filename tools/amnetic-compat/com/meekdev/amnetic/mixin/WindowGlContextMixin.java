@@ -4,6 +4,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.platform.Window;
 import org.lwjgl.glfw.GLFW;
+import org.lwjgl.system.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Mixin;
@@ -19,7 +20,7 @@ public final class WindowGlContextMixin {
     private static long amnetic$createWindowWithGlVersion(int width,int height,CharSequence title,
                                                          long monitor,long share,Operation<Long> original) {
         int major=Integer.getInteger("amnetic.opengl.major",4);
-        int minor=Integer.getInteger("amnetic.opengl.minor",6);
+        int minor=Integer.getInteger("amnetic.opengl.minor",Platform.get()==Platform.MACOSX?1:6);
         applyHints(major,minor,Boolean.getBoolean("amnetic.opengl.debug"));
         long handle=original.call(width,height,title,monitor,share);
         if(handle!=0L){LOGGER.info("Created OpenGL {}.{} core context",major,minor);return handle;}

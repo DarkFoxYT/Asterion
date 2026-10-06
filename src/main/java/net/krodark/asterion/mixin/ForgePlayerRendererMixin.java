@@ -13,6 +13,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 abstract class ForgePlayerRendererMixin {
     @Inject(method = "shouldRender", at = @At("HEAD"), cancellable = true)
     private void asterion$hideLocalPlayer(Entity entity, Frustum frustum, double x, double y, double z,
+                                         //? if >=26.3 {
+                                         /*float partialTick,
+                                         *///?}
                                          CallbackInfoReturnable<Boolean> ci) {
         if (entity == Minecraft.getInstance().player && net.krodark.asterion.client.cinematic.CrucibleCamera.active())
             ci.setReturnValue(false);

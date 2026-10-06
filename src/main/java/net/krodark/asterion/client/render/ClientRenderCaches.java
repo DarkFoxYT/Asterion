@@ -29,7 +29,7 @@ public final class ClientRenderCaches {
             if(level!=client.level) {clear();level=client.level;}
             if(++ticks>=20) {ticks=0;AmneticBoneEmission.trimIdle(System.nanoTime());}
         });
-        ClientPlayConnectionEvents.DISCONNECT.register((handler,client)->{clear();level=null;});
+        ClientPlayConnectionEvents.DISCONNECT.register((handler,client)->client.execute(()->{clear();level=null;}));
         ClientLifecycleEvents.CLIENT_STOPPING.register(client->{clear();level=null;});
     }
 }

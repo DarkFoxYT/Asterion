@@ -32,7 +32,7 @@ final class AtmosphereSmoke {
         client.player.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
         client.player.setYRot(0);client.player.yRotO=0;
         client.player.setXRot(-20);client.player.xRotO=-20;
-        if(tick==180) GameplaySmoke.server(client,p -> p.serverLevel().getServer().getCommands().performPrefixedCommand(p.serverLevel().getServer().createCommandSourceStack(),"execute in asterion:asterion_dimension run fill -5 178 12 -1 190 12 minecraft:stone"));
+        if(tick==180) GameplaySmoke.server(client,p -> p.serverLevel().getServer().getCommands().performPrefixedCommand(p.serverLevel().getServer().createCommandSourceStack(),"execute in asterion:labyrinth run fill -5 178 12 -1 190 12 minecraft:stone"));
         if(tick==575) {
             if(completed!=3) throw new AssertionError("Not all atmosphere qualities rendered");
             ClientSmokeTest.verifyGraphicsAndTaa();

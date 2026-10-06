@@ -65,7 +65,7 @@ final class PortEmissiveQueue {
                     }
                     try {
                         for (int i = 0; i < count; i++) POOL.get(i).render(source);
-                        source.endBatch();
+                        finishEmission(source);
                     } finally {
                         com.mojang.blaze3d.platform.GlStateManager._glBindVertexArray(previousVao);
                         //? if >=1.20.5 {
@@ -81,8 +81,12 @@ final class PortEmissiveQueue {
             tick(net.minecraft.client.Minecraft.getInstance());
             resetFrame();
             collecting = true;
+            SimpleGeoBlockRenderer.cameraFrustum(null);
         });
-        WorldRenderEvents.AFTER_SETUP.register(context -> PortPointLights.cull(context.frustum()));
+        WorldRenderEvents.AFTER_SETUP.register(context -> {
+            PortPointLights.cull(context.frustum());
+            SimpleGeoBlockRenderer.cameraFrustum(context.frustum());
+        });
         // This fires after both entities and block entities. It also runs when
         // there is no outline, unlike BLOCK_OUTLINE itself.
         WorldRenderEvents.BEFORE_BLOCK_OUTLINE.register((context, hit) -> {
@@ -99,7 +103,15 @@ final class PortEmissiveQueue {
         // inside a Geo render recursively disturbs the active upload state.
         source.endBatch();
         for (int i = 0; i < count; i++) POOL.get(i).render(source);
-        source.endBatch();
+        finishEmission(source);
+    }
+
+    private static final java.util.Set<RenderType> MATERIALS = new java.util.HashSet<>();
+    private static void finishEmission(MultiBufferSource.BufferSource source) {
+        MATERIALS.clear();
+        for (int i = 0; i < count; i++) MATERIALS.add(PortEmissiveBuffer.renderType(POOL.get(i).texture));
+        for (RenderType material : MATERIALS) source.endBatch(material);
+        MATERIALS.clear();
     }
 
     static void submit(GeoRenderer<?> renderer, GeoBone bone, PoseStack.Pose transform,

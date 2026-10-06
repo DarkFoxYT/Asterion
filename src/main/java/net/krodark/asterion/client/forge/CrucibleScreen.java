@@ -118,9 +118,9 @@ public final class CrucibleScreen extends Screen {
 
         pos = state.pos();
 
-        previousHideGui = net.minecraft.client.Minecraft.getInstance().options.hideGui;
+        previousHideGui = net.krodark.asterion.client.render.HudVisibility.hidden(net.minecraft.client.Minecraft.getInstance());
 
-        net.minecraft.client.Minecraft.getInstance().options.hideGui = true;
+        net.krodark.asterion.client.render.HudVisibility.hidden(net.minecraft.client.Minecraft.getInstance(), true);
 
         update(state);
 
@@ -164,7 +164,7 @@ public final class CrucibleScreen extends Screen {
 
     @Override public void tick() {
 
-        minecraft.options.hideGui = true;
+        net.krodark.asterion.client.render.HudVisibility.hidden(minecraft, true);
 
         if (noticeTicks > 0) noticeTicks--;
 
@@ -1071,7 +1071,7 @@ public final class CrucibleScreen extends Screen {
 
     @Override public void removed() {
 
-        net.minecraft.client.Minecraft.getInstance().options.hideGui = previousHideGui;
+        net.krodark.asterion.client.render.HudVisibility.hidden(net.minecraft.client.Minecraft.getInstance(), previousHideGui);
 
         net.minecraft.client.Minecraft.getInstance().getTextureManager().release(CENTER_FILL);
 

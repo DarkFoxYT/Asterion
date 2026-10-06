@@ -182,7 +182,7 @@ public final class CutsceneStudio {
             Matrix4f matrix = new Matrix4f().set(data.matrixAt(actor, time));
             int light = data.fullbright() ? 0x00F000F0 : LevelRenderer.getLightCoords(level,
                     BlockPos.containing(origin.add(matrix.m30(), matrix.m31(), matrix.m32())));
-            poses.pushPose(); poses.translate(offset.x, offset.y, offset.z); poses.mulPose(matrix);
+            poses.pushPose(); poses.translate(offset.x, offset.y, offset.z); net.krodark.asterion.client.render.PoseTransforms.apply(poses, matrix);
             for (CutsceneData.Part part : actor.parts()) {
                 Identifier texture = part.texture() < 0 ? white : textures.get(part.texture());
                 output.submitCustomGeometry(poses, RenderTypes.entityTranslucent(texture, false), (pose, out) -> {
