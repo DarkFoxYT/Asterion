@@ -1,0 +1,20 @@
+allprojects { p ->
+    if (p.name in ['26.2-fabric', '26.3-fabric', '26.2-quilt', '26.3-quilt']) {
+        p.afterEvaluate {
+            def compile = p.tasks.register('compileNativeMixinSmoke', JavaCompile) {
+                dependsOn p.tasks.named('classes')
+                source p.rootProject.file('tools/NativeMixinSmoke.java')
+                classpath = p.sourceSets.main.runtimeClasspath
+                destinationDirectory = p.layout.buildDirectory.dir('native-mixin-smoke')
+                javaCompiler = p.javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+            p.tasks.register('nativeMixinSmoke', JavaExec) {
+                dependsOn compile
+                classpath = p.files(compile.flatMap { it.destinationDirectory }) + p.sourceSets.main.runtimeClasspath
+                mainClass = 'NativeMixinSmoke'
+                args p.layout.buildDirectory.file('resources/main/asterion.mixins.json').get().asFile.absolutePath
+                javaLauncher = p.javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+        }
+    }
+}

@@ -1,0 +1,28 @@
+{
+  "sourceCheckout": "C:\\Users\\darkf\\IdeaProjects\\Amnetic",
+  "sourceCommit": "45312084fc8f7245758783024a08f87764950b0a",
+  "sourceHasLocalChanges": true,
+  "version": "1.0.0-asterion.4",
+  "artifacts": [
+    {
+      "minecraft": "26.2",
+      "loaders": [
+        "fabric",
+        "quilt"
+      ],
+      "file": "libs/amnetic-1.0.0-asterion.4+26.2.jar",
+      "upstreamSha256": "c3fac551e528e1b2401194595f8e0ad8c8dcd4c4bff440ab0de2f6fc8614fe50",
+      "sha256": "cb88478877a3034a1179d951d51da05d191b5498a33c1fd15c78927717e2b650"
+    },
+    {
+      "minecraft": "26.3",
+      "loaders": [
+        "fabric",
+        "quilt"
+      ],
+      "file": "libs/amnetic-1.0.0-asterion.4+26.3.jar",
+      "upstreamSha256": "2951c09b9e84fbe7fc05a58d7714b5ee67e03d8ef59e17760800bbf111b2a87a",
+      "sha256": "9f938491649647e64986e1c458b406d83d156390fdf611b22d4de97f4761bfbe"
+    }
+  ]
+}
