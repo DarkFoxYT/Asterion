@@ -10,6 +10,15 @@ float limboSeaTransition(float d,float edge) {
     float t=clamp((d-(edge-320.0))/640.0,0.0,1.0);
     return t*t*t*(t*(t*6.0-15.0)+10.0);
 }
+float limboCascadeFoam(vec2 p,float ticks) {
+    float d=limboSeaDistance(p);
+    float boundary=clamp(floor(d/3200.0+.5),1.0,4.0)*3200.0;
+    float edge=d-boundary;
+    if(abs(edge)>12.0)return 0.0;
+    float band=edge<0.0 ? 1.0-smoothstep(0.0,4.0,-edge) : 1.0-smoothstep(1.0,12.0,edge);
+    float rings=.5+.5*sin(edge*2.4-ticks*.19+sin(dot(p,vec2(.73,.41)))*1.1);
+    return band*(.32+.35*rings);
+}
 LimboSeaStyle limboSeaStyle(vec2 p) {
     float d=limboSeaDistance(p);
     LimboSeaStyle s=LimboSeaStyle(vec3(.0045,.0052,.0058),vec3(.24,.26,.275),vec3(.034,.038,.044),1.0,0.0,0.0,0.0,0.0);

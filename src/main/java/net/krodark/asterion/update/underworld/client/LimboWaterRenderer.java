@@ -65,7 +65,7 @@ public final class LimboWaterRenderer {
     private static int boatPitch = 32, boatRoll = 32;
     private static volatile boolean enabled;
     private record Layer(int y, int[] vertices, int[] fineVertices, int[] farVertices, int[] shore, boolean[] edge) { }
-    private record Tile(int x, int z, List<Layer> layers, int minY, int maxY, long refreshed, boolean coarse) { }
+    private record Tile(int x, int z, List<Layer> layers, List<LimboCascadeMesh.Face> falls, int minY, int maxY, long refreshed, boolean coarse) { }
     private LimboWaterRenderer() { }
 
     public static boolean replacesSurface(BlockAndTintGetter level, BlockPos pos) {
@@ -79,6 +79,7 @@ public final class LimboWaterRenderer {
     }
 
     public static void initialize() {
+        LimboCascadeEffects.initialize();
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
             TILES.clear(); frame = List.of(); trackedLevel = null; enabled = false;
             FerryWakeTexture.release();
@@ -130,9 +131,11 @@ public final class LimboWaterRenderer {
                 if (!level.getChunkSource().hasChunk(x, z)) continue;
                 long key = BlockPos.asLong(x, 0, z);
                 Tile tile = TILES.get(key);
-                if (frustum != null && !frustum.isVisible(new AABB(x * 16, tile == null ? Math.min(camera.y - 32, UnderworldTerrain.WATER_Y - 4) : tile.minY - 4,
-                        z * 16, x * 16 + 16, tile == null ? Math.max(camera.y + 20, UnderworldTerrain.WATER_Y + 5) : tile.maxY + 5, z * 16 + 16))) continue;
-                boolean distantOcean = z * 16 >= 200 && dx * dx + dz * dz > 128 * 128;
+                int localY = net.krodark.asterion.update.underworld.world.LimboCascades.waterY(x * 16 + 8, z * 16 + 8);
+                if (frustum != null && !frustum.isVisible(new AABB(x * 16, tile == null ? localY - 22 : tile.minY - 4,
+                        z * 16, x * 16 + 16, tile == null ? Math.max(localY + 24,UnderworldTerrain.WATER_Y+5) : tile.maxY + 5, z * 16 + 16))) continue;
+                boolean distantOcean = z * 16 >= 200 && dx * dx + dz * dz > 128 * 128
+                        && !net.krodark.asterion.update.underworld.world.LimboCascades.crossesTile(x * 16, z * 16);
                 if (distantOcean && tile == null) {
                     tile = distantTopology(level, x * 16, z * 16);
                     TILES.put(key, tile);
@@ -158,9 +161,12 @@ public final class LimboWaterRenderer {
         });
         LevelRenderEvents.BEFORE_TRANSLUCENT_TERRAIN.register(context -> {
             if (!enabled || frame.isEmpty()) return;
+            Vec3 camera = context.levelState().cameraRenderState.pos;
+            // Finish the single curtain batch before acquiring the ocean vertex consumer.
+            for (Tile tile : frame)
+                LimboCascadeRenderer.draw(tile.falls, context.bufferSource(), context.poseStack(), camera, frameTicks);
             var out = context.bufferSource().getBuffer(SURFACE);
             var pose = context.poseStack().last();
-            Vec3 camera = context.levelState().cameraRenderState.pos;
             long wholeTick = (long)frameTicks;
             int fraction = (int)((frameTicks - wholeTick) * 15);
             // UV2 is a pair of raw shorts, used as the integer world clock, not a lightmap lookup.
@@ -216,6 +222,12 @@ public final class LimboWaterRenderer {
                 }
             }
             context.bufferSource().endBatch(SURFACE);
+            int mistBudget=LimboCascadeMistRenderer.FACE_BUDGET;
+            for(Tile tile : frame) {
+                mistBudget=LimboCascadeMistRenderer.draw(tile.falls,context.bufferSource(),context.poseStack(),camera,frameTicks,mistBudget);
+                if(mistBudget==0)break;
+            }
+            LimboCascadeMistRenderer.finish(context.bufferSource());
         });
     }
 
@@ -226,16 +238,19 @@ public final class LimboWaterRenderer {
 
     /** Far ocean uses actual exposed water cells without scanning the seabed. */
     private static Tile distantTopology(ClientLevel level, int x, int z) {
+        int waterY = net.krodark.asterion.update.underworld.world.LimboCascades.waterY(x + 8, z + 8);
+        int actual = net.krodark.asterion.update.underworld.world.UnderworldWaterPhysics.surfaceBlockY(level,x+8,z+8);
+        if (actual != Integer.MIN_VALUE) waterY = actual;
         boolean[] wet = new boolean[256];
         var pos = new BlockPos.MutableBlockPos();
         for (int i = 0; i < wet.length; i++)
-            wet[i] = surface(level, pos.set(x + i % 16, UnderworldTerrain.WATER_Y, z + i / 16));
+            wet[i] = surface(level, pos.set(x + i % 16, waterY, z + i / 16));
         int[] shore = new int[289];
         java.util.Arrays.fill(shore, 255);
         int[] vertices = WaterSurfaceMesh.vertices(wet, shore, 4);
-        Layer layer = new Layer(UnderworldTerrain.WATER_Y, vertices, vertices, vertices, shore, new boolean[289]);
-        return new Tile(x, z, vertices.length == 0 ? List.of() : List.of(layer),
-                UnderworldTerrain.WATER_Y, UnderworldTerrain.WATER_Y, level.getGameTime(), true);
+        Layer layer = new Layer(waterY, vertices, vertices, vertices, shore, new boolean[289]);
+        return new Tile(x, z, vertices.length == 0 ? List.of() : List.of(layer), List.of(),
+                waterY, waterY, level.getGameTime(), true);
     }
 
     private static Tile topology(ClientLevel level, int x, int z, int cameraY) {
@@ -244,15 +259,16 @@ public final class LimboWaterRenderer {
         int[] surfaceY = new int[34 * 34];
         java.util.Arrays.fill(surfaceY, Integer.MIN_VALUE);
         var pos = new BlockPos.MutableBlockPos();
-        int minScan = Math.max(level.getMinY(), Math.min(UnderworldTerrain.WATER_Y - 8, cameraY - 32));
+        int minScan = Math.max(level.getMinY(), Math.min(UnderworldTerrain.WATER_Y - 80, cameraY - 32));
         int maxScan = Math.min(level.getMaxY() - 1, Math.max(UnderworldTerrain.WATER_Y + 8, cameraY + 20));
         for (int dz = 0; dz < 34; dz++) for (int dx = 0; dx < 34; dx++) {
             int wx=x+dx-9,wz=z+dz-9;
             if (!level.getChunkSource().hasChunk(wx >> 4, wz >> 4)) continue;
             // Most Limbo sea columns have the authored surface at WATER_Y. A
             // direct probe avoids a tall vertical scan for every such column.
-            if (surface(level, pos.set(wx, UnderworldTerrain.WATER_Y, wz))) {
-                surfaceY[dz * 34 + dx] = UnderworldTerrain.WATER_Y;
+            int waterY = net.krodark.asterion.update.underworld.world.LimboCascades.waterY(wx,wz);
+            if (surface(level, pos.set(wx, waterY, wz))) {
+                surfaceY[dz * 34 + dx] = waterY;
                 continue;
             }
             for (int y=maxScan;y>=minScan;y--) if (surface(level,pos.set(wx,y,wz))) {surfaceY[dz*34+dx]=y;break;}
@@ -288,6 +304,8 @@ public final class LimboWaterRenderer {
             minY=Math.min(minY,elevation);maxY=Math.max(maxY,elevation);
         }
         if(layers.isEmpty()){minY=UnderworldTerrain.WATER_Y;maxY=minY;}
-        return new Tile(x,z,List.copyOf(layers),minY,maxY,level.getGameTime(),false);
+        var falls = LimboCascadeMesh.build(x,z,surfaceY,34,9);
+        for (var fall : falls) minY = Math.min(minY,fall.lower());
+        return new Tile(x,z,List.copyOf(layers),falls,minY,maxY,level.getGameTime(),false);
     }
 }

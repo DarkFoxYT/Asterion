@@ -22,7 +22,8 @@ public final class WaterShoreline {
         return (float)(shore * shore * (3 - 2 * shore) * shallow * shallow * (3 - 2 * shallow));
     }
     public static float sample(BlockGetter level, int x, int z) {
-        return sample(level, x, UnderworldTerrain.WATER_Y, z);
+        int surface = UnderworldWaterPhysics.surfaceBlockY(level,x,z);
+        return surface == Integer.MIN_VALUE ? 0 : sample(level,x,surface,z);
     }
     public static float sample(BlockGetter level, int x, int surfaceY, int z) {
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();

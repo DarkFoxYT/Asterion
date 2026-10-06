@@ -13,7 +13,7 @@ allprojects {
                 dependsOn tasks.named('classes')
                 source = rootProject.files('tools/UnderworldTerrainSmoke.java', 'tools/LimboShaderSmoke.java', 'tools/LimboSeaSmoke.java',
                         'tools/EmissiveUploadSmoke.java', 'tools/DepthBlitSmoke.java', 'tools/LimboWaterSmoke.java',
-                        'tools/AmneticShaderProfile.java', 'tools/WaterVisualSmoke.java', 'tools/ShaderIncludes.java', 'tools/WakeFieldSmoke.java', 'tools/FerryHullSmoke.java', 'tools/AmneticCompatibilitySmoke.java', 'tools/StartupCompatibilitySmoke.java')
+                        'tools/AmneticShaderProfile.java', 'tools/WaterVisualSmoke.java', 'tools/ShaderIncludes.java', 'tools/WakeFieldSmoke.java', 'tools/FerryHullSmoke.java', 'tools/AmneticCompatibilitySmoke.java', 'tools/StartupCompatibilitySmoke.java', 'tools/LimboCascadeSmoke.java', 'tools/CascadeVisualSmoke.java')
                 classpath = p.sourceSets.main.runtimeClasspath
                 destinationDirectory = layout.buildDirectory.dir('underworld-smoke')
                 javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(25) }
@@ -52,6 +52,18 @@ allprojects {
                 mainClass = 'LimboSeaSmoke'
                 javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
             }
+            tasks.register('checkLimboCascades', JavaExec) {
+                dependsOn smokeCompile
+                classpath = p.sourceSets.main.runtimeClasspath + files(smokeCompile.flatMap { it.destinationDirectory })
+                mainClass = 'LimboCascadeSmoke'
+                javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+            tasks.register('checkCascadeVisuals', JavaExec) {
+                dependsOn smokeCompile
+                classpath = p.sourceSets.main.runtimeClasspath + files(smokeCompile.flatMap { it.destinationDirectory })
+                mainClass = 'CascadeVisualSmoke'
+                javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
             tasks.register('checkUnderworldTerrain', JavaExec) {
                 dependsOn smokeCompile
                 classpath = p.sourceSets.main.runtimeClasspath + files(smokeCompile.flatMap { it.destinationDirectory })
@@ -62,7 +74,11 @@ allprojects {
                 dependsOn smokeCompile
                 classpath = p.sourceSets.main.runtimeClasspath + files(smokeCompile.flatMap { it.destinationDirectory })
                 mainClass = 'LimboShaderSmoke'
-                args rootProject.file('src/main/resources/assets/asterion/shaders/post/underworld/river_atmosphere.fsh').absolutePath,
+                args rootProject.file('src/main/resources/assets/asterion/shaders/core/limbo_cascade.vsh').absolutePath,
+                     rootProject.file('src/main/resources/assets/asterion/shaders/core/limbo_cascade.fsh').absolutePath,
+                     rootProject.file('src/main/resources/assets/asterion/shaders/core/limbo_cascade_mist.vsh').absolutePath,
+                     rootProject.file('src/main/resources/assets/asterion/shaders/core/limbo_cascade_mist.fsh').absolutePath,
+                     rootProject.file('src/main/resources/assets/asterion/shaders/post/underworld/river_atmosphere.fsh').absolutePath,
                      rootProject.file('src/main/resources/assets/asterion/shaders/post/underworld/river_composite.fsh').absolutePath,
                      rootProject.file('src/main/resources/assets/asterion/shaders/post/underworld/river_atmosphere_fast.fsh').absolutePath,
                      rootProject.file('src/main/resources/assets/asterion/shaders/post/underworld/river_atmosphere_lite.fsh').absolutePath,

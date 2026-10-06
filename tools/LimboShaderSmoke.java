@@ -25,14 +25,16 @@ public class LimboShaderSmoke {
                 System.out.println("PASS " + file);
             }
             // The supplied crash occurred during linking the actual water pipeline.
-            String root="src/main/resources/assets/asterion/shaders/core/limbo_water";
+            for (String material : new String[]{"limbo_water","limbo_cascade","limbo_cascade_mist"}) {
+            String root="src/main/resources/assets/asterion/shaders/core/"+material;
             int vertex=compile(root+".vsh",GL20.GL_VERTEX_SHADER),fragment=compile(root+".fsh",GL20.GL_FRAGMENT_SHADER);
             int program=GL20.glCreateProgram();
             try {
                 GL20.glAttachShader(program,vertex);GL20.glAttachShader(program,fragment);GL20.glLinkProgram(program);
                 if(GL20.glGetProgrami(program,GL20.GL_LINK_STATUS)==0)throw new AssertionError(GL20.glGetProgramInfoLog(program));
-                System.out.println("PASS actual Limbo water vertex/fragment pipeline link");
+                System.out.println("PASS actual "+material+" vertex/fragment pipeline link");
             } finally { GL20.glDeleteProgram(program);GL20.glDeleteShader(vertex);GL20.glDeleteShader(fragment); }
+            }
         } finally {
             GLFW.glfwDestroyWindow(window);
             GLFW.glfwTerminate();

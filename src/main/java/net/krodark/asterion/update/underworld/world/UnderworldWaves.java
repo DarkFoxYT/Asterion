@@ -26,7 +26,9 @@ public final class UnderworldWaves {
     }
 
     public static Sample sample(double x, double z, double ticks) {
-        double storm = LimboTempest.strength(ticks);
+        // The mesh transports weather in seven bits. Sample exactly that same strength
+        // so quiet drizzle cannot leave physics a centimetre ahead of the visible swell.
+        double storm = Math.round(LimboTempest.strength(ticks) * 127) / 127.0;
         double seaZ = z;
         // Stretch the horizontal footprint by 1/.65 without increasing wave amplitude.
         x *= .65; z *= .65;

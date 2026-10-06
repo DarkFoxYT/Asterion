@@ -56,7 +56,9 @@ abstract class AsterionFogRendererMixin {
             return;
         }
         if (camera.getFluidInCamera() != FogType.WATER) return;
-        float depth = (float)Math.max(0, UnderworldTerrain.WATER_Y + 8.0 / 9.0 - camera.position().y);
+        float depth = (float)Math.max(0,
+                net.krodark.asterion.update.underworld.world.LimboCascades.waterY(camera.position().x,camera.position().z)
+                        + 8.0 / 9.0 - camera.position().y);
         float blockLight = level.getBrightness(LightLayer.BLOCK, BlockPos.containing(camera.position())) / 15F;
         var dynamic = net.krodark.asterion.client.light.LedAmneticLight.nearestAttractor(camera.position(), 18);
         float dynamicLight = dynamic == null ? 0F : (float)(1D - Math.clamp(camera.position().distanceTo(dynamic) / 18D, 0D, 1D));

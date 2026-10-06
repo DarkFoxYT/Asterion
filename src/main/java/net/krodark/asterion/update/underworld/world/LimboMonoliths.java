@@ -28,7 +28,7 @@ public final class LimboMonoliths {
             if (state.isAir()) return null;
             if (state.hasProperty(BlockStateProperties.WATERLOGGED))
                 state = state.setValue(BlockStateProperties.WATERLOGGED,
-                        transformed.pos().getY() <= UnderworldTerrain.WATER_Y);
+                        transformed.pos().getY() <= LimboCascades.waterY(transformed.pos().getX(),transformed.pos().getZ()));
             return new StructureTemplate.StructureBlockInfo(transformed.pos(), state, transformed.nbt());
         }
         @Override protected StructureProcessorType<?> getType() { return StructureProcessorType.BLOCK_IGNORE; }
@@ -58,7 +58,7 @@ public final class LimboMonoliths {
             var template = level.getStructureManager().get(Asterion.id(variant)).orElse(null);
             if (template == null) continue;
             int y = UnderworldTerrain.seaFloor(terrainSeed, x, z) - 2;
-            if (y >= UnderworldTerrain.WATER_Y - 8 || y + template.getSize().getY() >= 145) continue;
+            if (y < UnderworldTerrain.MIN_Y + 2 || y >= LimboCascades.waterY(x,z) - 8 || y + template.getSize().getY() >= 145) continue;
             var origin = new BlockPos(x, y, z);
             var settings = new StructurePlaceSettings().setIgnoreEntities(true)
                     .setRotation(Rotation.values()[random.nextInt(4)]).setBoundingBox(clip).addProcessor(WATERLOG);

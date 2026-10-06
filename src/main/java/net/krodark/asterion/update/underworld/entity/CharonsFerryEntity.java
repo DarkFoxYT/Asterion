@@ -415,6 +415,10 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
         if (pilot != null && !hasWaterUnderHull(nextX,nextZ,heading)) {
             nextX = oldX; nextZ = oldZ; surgeSpeed = 0;
         }
+        Vec3 cascadeFlow = net.krodark.asterion.update.underworld.world.LimboCascades.current(nextX, nextZ);
+        if (cascadeFlow.lengthSqr() > 0 && hasWaterUnderHull(nextX + cascadeFlow.x, nextZ + cascadeFlow.z, heading)) {
+            nextX += cascadeFlow.x; nextZ += cascadeFlow.z;
+        }
         int sx = (int)Math.floor(nextX), sz = (int)Math.floor(nextZ);
         if (sx != shoreX || sz != shoreZ || tickCount % 20 == 0) {
             shoreX = sx; shoreZ = sz;
@@ -430,26 +434,16 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
         double starboard = UnderworldTerrain.waveHeight(nextX + Math.cos(Math.toRadians(getYRot())) * .7,
                 nextZ + Math.sin(Math.toRadians(getYRot())) * .7, level().getGameTime());
         // Buoyancy follows the hull's footprint, smoothing little chop instead of snapping to one point.
-        double targetY = UnderworldTerrain.WATER_Y + .65 + (wave * 2 + bow + stern + port + starboard) * shoreFactor / 6;
+        int waterBlockY = net.krodark.asterion.update.underworld.world.UnderworldWaterPhysics.surfaceBlockY(level(),sx,sz);
+        if (waterBlockY == Integer.MIN_VALUE) waterBlockY = net.krodark.asterion.update.underworld.world.LimboCascades.waterY(nextX,nextZ);
+        double targetY = waterBlockY
+                + .65 + (wave * 2 + bow + stern + port + starboard) * shoreFactor / 6;
         // The hull can leave a retreating crest; gravity takes over until it meets water again.
-        double heightError = targetY - oldY;
-        if (!airborne && heightError < -.65 && heaveSpeed > -.18) airborne = true;
-        double nextY;
-        if (airborne) {
-            heaveSpeed = Math.max(-.72, heaveSpeed - .042);
-            nextY = oldY + heaveSpeed;
-            if (nextY <= targetY) {
-                impactPulse = Math.max(impactPulse, Math.min(1, Math.abs(heaveSpeed) / .55));
-                nextY = targetY;
-                heaveSpeed = .08;
-                airborne = false;
-            }
-        } else {
-            double restoring = heightError * (heightError < 0 ? .17 : .11);
-            double damping = heaveSpeed * (heaveSpeed < 0 ? .22 : .36);
-            heaveSpeed = Math.clamp(heaveSpeed + restoring - damping, -.38, .27);
-            nextY = oldY + heaveSpeed;
-        }
+        var heave = net.krodark.asterion.update.underworld.world.FerryHeave.advance(oldY,heaveSpeed,airborne,targetY);
+        double nextY = heave.height();
+        heaveSpeed = heave.speed();
+        airborne = heave.airborne();
+        impactPulse = Math.max(impactPulse,heave.impact());
         entityData.set(PLUNGE, (float)heaveSpeed);
         entityData.set(SPEED, (float)surgeSpeed);
         float wavePitch = (float)Math.toDegrees(Math.atan2((bow - stern) * shoreFactor, 5.6));
@@ -501,7 +495,8 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
                 && waterAt(x-sideX*.85,z-sideZ*.85);
     }
     private boolean waterAt(double x,double z) {
-        return level().getFluidState(BlockPos.containing(x,UnderworldTerrain.WATER_Y,z)).is(FluidTags.WATER);
+        return level().getFluidState(BlockPos.containing(x,
+                net.krodark.asterion.update.underworld.world.LimboCascades.waterY(x,z),z)).is(FluidTags.WATER);
     }
 
     @Override protected void addAdditionalSaveData(ValueOutput out) {

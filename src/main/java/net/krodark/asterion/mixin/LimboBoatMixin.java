@@ -56,6 +56,8 @@ public abstract class LimboBoatMixin implements LimboBoatPose {
     @Inject(method = "floatBoat", at = @At("RETURN"))
     private void asterion$buoyancy(CallbackInfo ci) {
         var boat = (AbstractBoat)(Object)this;
+        if (boat.level().dimension().equals(Asterion.LIMBO_LEVEL))
+            boat.setDeltaMovement(boat.getDeltaMovement().add(LimboCascades.current(boat.getX(),boat.getZ())));
         if (!Double.isFinite(asterion$surface)) {
             asterion$heave = boat.getDeltaMovement().y;
             asterion$pitch *= .8F; asterion$roll *= .8F; return;

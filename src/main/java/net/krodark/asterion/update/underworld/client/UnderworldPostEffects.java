@@ -58,7 +58,7 @@ public final class UnderworldPostEffects {
                 .uniformRaw("WorldData", UnderworldPostEffects::worldData)
                 .uniformRaw("LocalLights", UnderworldPostEffects::localLights)
                 .uniformVec4("RiverData", () -> new Vector4f(
-                        UnderworldTerrain.WATER_Y + 8F / 9F, 2.65F,
+                        net.krodark.asterion.update.underworld.world.LimboCascades.waterY(cameraPosition.x,cameraPosition.z) + 8F / 9F, 2.65F,
                         active() ? AsterionConfig.INSTANCE.limboFogStrength : 0F,
                         active() ? AsterionConfig.INSTANCE.limboMistStrength : 0F)));
         // POST priority 5 is TAA; 10 captures emissive sources and composites bloom.

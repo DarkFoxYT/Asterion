@@ -106,6 +106,7 @@ public final class UnderworldTerrain {
         for (int x = chunk.getPos().getMinBlockX(); x <= chunk.getPos().getMaxBlockX(); x++) {
             for (int z = chunk.getPos().getMinBlockZ(); z <= chunk.getPos().getMaxBlockZ(); z++) {
                 Column c = column(seed, x, z, caveNodes);
+                int waterY = LimboCascades.waterY(x, z);
                 boolean shaded = octaves(seed ^ 0x5ADE, x * .019, z * .019) > .08;
                 BlockState stone = (shaded ? Asterion.DEAD_STONE_2 : Asterion.DEAD_STONE).defaultBlockState();
                 BlockState shale = (shaded ? Asterion.SHADED_SHALE : Asterion.SHALE).defaultBlockState();
@@ -146,7 +147,7 @@ public final class UnderworldTerrain {
                     BlockState state;
                     if (y == MIN_Y || y == MAX_Y && c.roof <= MAX_Y) state = Blocks.BEDROCK.defaultBlockState();
                     else if (!c.open || y <= c.floor || y >= c.roof) state = stone;
-                    else if (z >= 18 && y <= WATER_Y) state = Blocks.WATER.defaultBlockState();
+                    else if (z >= 18 && y <= waterY) state = Blocks.WATER.defaultBlockState();
                     else state = Blocks.AIR.defaultBlockState();
                     if (c.open && y > MIN_Y) {
                         if (c.spider && y == c.roof && c.roof - c.floor > 5 && (texture & 3) == 0)
@@ -157,7 +158,7 @@ public final class UnderworldTerrain {
                             if (joined || y <= c.floor + d.rock || y >= c.roof - d.hanging)
                                 state = y % 5 == 0 ? stone : shale;
                             else if (y <= c.floor + d.rock + d.spike)
-                                state = formation(false, c.floor + d.rock + d.spike - y, d.spike, y <= WATER_Y && z >= 18);
+                                state = formation(false, c.floor + d.rock + d.spike - y, d.spike, y <= waterY && z >= 18);
                             else if (ceilingSpike > 0 && y >= c.roof - d.hanging - ceilingSpike
                                     && y < c.roof - d.hanging)
                                 state = formation(true, y - (c.roof - d.hanging - ceilingSpike), ceilingSpike, false);
@@ -351,6 +352,7 @@ public final class UnderworldTerrain {
                 roof = Math.max(roof, floor + 10);
             }
         }
+        if (sea) floor -= WATER_Y - LimboCascades.waterY(x, z);
         double seabed = floor;
         if (path) { floor = pathFloor(z); roof = Math.max(roof, floor + 10); }
         if (tunnel && Math.abs(offset) > 4 && !path && !side.open && !spider.open

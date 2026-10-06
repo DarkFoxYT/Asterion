@@ -16,9 +16,12 @@ public final class LimboWaterSmoke {
         checkMesh();
         WakeFieldSmoke.check();
         checkShoreAndDeck();
-        if (net.krodark.asterion.event.LimboTempest.strength(12000) != 0
+        // Natural weather now includes persistent drizzle outside the storm envelope.
+        if (net.krodark.asterion.event.LimboTempest.strength(12000) < .09
+                || net.krodark.asterion.event.LimboTempest.strength(12000) > .17
                 || net.krodark.asterion.event.LimboTempest.strength(13200) < .99
-                || net.krodark.asterion.event.LimboTempest.strength(15600) != 0)
+                || net.krodark.asterion.event.LimboTempest.strength(15600) < .09
+                || net.krodark.asterion.event.LimboTempest.strength(15600) > .17)
             throw new AssertionError("Limbo tempest did not ramp in and out on schedule");
         if (net.krodark.asterion.event.LimboWhirlpool.strength(20000) != 0
                 || net.krodark.asterion.event.LimboWhirlpool.strength(22000) < .99
@@ -135,7 +138,7 @@ public final class LimboWaterSmoke {
                 GL15.glGetBufferSubData(GL30.GL_TRANSFORM_FEEDBACK_BUFFER, 0, position);
                 double error = Math.abs(position[1] - net.krodark.asterion.update.underworld.world.UnderworldWaves.sample(x, z, whole + partial).height());
                 maxError = Math.max(maxError, error);
-                if (!Float.isFinite(position[1]) || error > .008) throw new AssertionError("GPU/boat mismatch: " + error);
+                if (!Float.isFinite(position[1]) || error > .008) throw new AssertionError("GPU/boat mismatch: " + error+" at "+x+","+z+" ticks="+ticks);
                 double worldHeight = UnderworldTerrain.waveHeight(x + position[0], z + position[2], whole + partial);
                 if (Math.abs(worldHeight - position[1]) > .012) throw new AssertionError("Deformed surface buoyancy mismatch");
             }
@@ -143,7 +146,8 @@ public final class LimboWaterSmoke {
         net.krodark.asterion.event.LimboWhirlpool.setCenter(32, 200);
         GL20.glVertexAttrib4f(GL20.glGetAttribLocation(program, "Color"), 1, 0, 1, 0);
         GL30.glVertexAttribI2i(GL20.glGetAttribLocation(program, "UV2"), 22000, 0);
-        GL30.glVertexAttribI2i(GL20.glGetAttribLocation(program, "UV1"), 0,
+        GL30.glVertexAttribI2i(GL20.glGetAttribLocation(program, "UV1"),
+                (int)Math.round(net.krodark.asterion.event.LimboTempest.strength(22000)*127) << 8,
                 (int)Math.round(net.krodark.asterion.event.LimboWhirlpool.strength(22000) * 255) << 8);
         GL20.glVertexAttrib2f(GL20.glGetAttribLocation(program, "UV0"),
                 32 + (32 / 4 + 128.5F) / 512F, 200 + (200 / 4 + .5F) / 512F);

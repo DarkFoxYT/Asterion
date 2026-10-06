@@ -38,7 +38,8 @@ public final class LimboFireAtmosphere {
         if(time%2!=0)return;
         if(client.gameRenderer.getMainCamera().getFluidInCamera()!=net.minecraft.world.level.material.FogType.NONE)return;
         var camera=client.gameRenderer.getMainCamera().position();
-        if(camera.y<UnderworldTerrain.WATER_Y||camera.y>UnderworldTerrain.WATER_Y+36)return;
+        int cameraWaterY=net.krodark.asterion.update.underworld.world.LimboCascades.waterY(camera.x,camera.z);
+        if(camera.y<cameraWaterY||camera.y>cameraWaterY+36)return;
         int quality=PerformanceGovernor.quality();
         int cap=quality==0?40:quality==1?96:160;
         int budget=quality==0?1:quality==1?3:5;
@@ -47,12 +48,13 @@ public final class LimboFireAtmosphere {
             double angle=random.nextDouble()*Math.PI*2,radius=Math.sqrt(random.nextDouble())*(quality==0?12:24);
             double x=camera.x+Math.cos(angle)*radius,z=camera.z+Math.sin(angle)*radius;
             if(random.nextDouble()>LimboSeaRegions.fire(x,z))continue;
-            var pos=BlockPos.containing(x,UnderworldTerrain.WATER_Y,z);
+            int waterY=net.krodark.asterion.update.underworld.world.LimboCascades.waterY(x,z);
+            var pos=BlockPos.containing(x,waterY,z);
             if(!level.getChunkSource().hasChunk(pos.getX()>>4,pos.getZ()>>4)
                     ||!level.getBlockState(pos).is(Blocks.WATER)
                     ||level.getFluidState(pos.above()).is(FluidTags.WATER)
                     ||!level.getBlockState(pos.above()).getCollisionShape(level,pos.above()).isEmpty())continue;
-            double surface=UnderworldTerrain.WATER_Y+8.0/9.0+UnderworldTerrain.waveHeight(x,z,time);
+            double surface=waterY+8.0/9.0+UnderworldTerrain.waveHeight(x,z,time);
             boolean ash=random.nextInt(3)==0;
             double y=surface+.3+random.nextDouble()*(ash?6:2.2);
             if(!level.getBlockState(BlockPos.containing(x,y,z)).isAir())continue;

@@ -67,6 +67,11 @@ float ghostCurrent(vec2 uv, float time) {
 }
 void main() {
     LimboSeaStyle sea=limboSeaStyle(worldSurface);
+    float cascadeFoam=limboCascadeFoam(worldSurface,waterTime);
+    float specialFoam=max(cascadeFoam,foam*smoothstep(.15,1.0,surfaceSwellHeight));
+    if(specialFoam>.001 && (sea.fire>.001 || sea.oblivion>.001))
+        specialFoam*=.62+.38*surfaceNoise(worldSurface*.9-vec2(waterTime*.018)).x;
+    vec3 foamTint=mix(vec3(.84,.93,.98),vec3(1.0,.87,.61),sea.fire);
     seaTempestStrength = eventTempest;
     seaWhirlpoolStrength = eventWhirlpool;
     seaWhirlpoolCenter = eventWhirlpoolCenter;
@@ -76,6 +81,7 @@ void main() {
     if(sea.fire>.001) {
         fireSurface=limboFireSurfaceLit(worldSurface,waterTime,surfaceSwellHeight,
                 surfaceNormal,normalize(-surfacePosition));
+        fireSurface=mix(fireSurface,foamTint,specialFoam*.46);
         // Pure fire bypasses water reflection, texture, caustic and foam work.
         if(sea.fire>.999) {
             fragColor=apply_fog(vec4(fireSurface,1),fog_spherical_distance(surfacePosition),
@@ -88,6 +94,7 @@ void main() {
     if(sea.oblivion>.001) {
         letheSurface=limboLetheSurface(worldSurface,waterTime,surfaceNormal,
                 normalize(-surfacePosition),waterLight);
+        letheSurface=mix(letheSurface,foamTint,specialFoam*.88);
         if(sea.oblivion>.999) {
             fragColor=apply_fog(vec4(letheSurface,1),fog_spherical_distance(surfacePosition),
                 fog_cylindrical_distance(surfacePosition),FogEnvironmentalStart,FogEnvironmentalEnd,
@@ -206,6 +213,7 @@ void main() {
         whitecap = max(whitecap, shoreBreak * smoothstep(.32, .69, breakerNoise)
                 * (.34 + tempest * .56) * nearDetail);
     }
+    whitecap=max(whitecap,cascadeFoam*(.65+.35*breakup));
     float contact = hullActive * (1.0 - smoothstep(.025, .22, abs(hullEdge)))
             * (1.0 - smoothstep(.8, 1.6, abs(hullPosition.z - .2)));
     float wake = distance < 56.0 ? persistentWake(causticWorld).x * shoreExposure : 0.0;
@@ -217,8 +225,7 @@ void main() {
     if (whirlStrength > .001)
         water = mix(water, vec3(.00008, .00012, .00022),
                 (1.0 - smoothstep(5.0, 20.0, whirlRadius)) * whirlStrength);
-    // Styx is black and heavy, with long muted silver currents rather than
-    // bright ocean foam. Region weights leave the fire surface untouched.
+    // Keep Styx's heavy dark body beneath the white crest and impact foam.
     float styx=1.0-limboSeaTransition(limboSeaDistance(worldSurface),3200.0);
     float darkCurrent=limboFireNoise(vec3(worldSurface*vec2(.018,.09)
             -vec2(waterTime*.0005,waterTime*.001),waterTime*.0004));
@@ -238,6 +245,7 @@ void main() {
     // The rendered materials share the ferry's physical surface and wave heights.
     water=mix(water,fireSurface,sea.fire);
     water=mix(water,letheSurface,sea.oblivion);
+    water=mix(water,foamTint,clamp(whitecap*(.88-sea.fire*.4),0.0,.92));
     vec4 regionalFog=vec4(sea.fog,FogColor.a);
     fragColor = apply_fog(vec4(water, 1.0), fog_spherical_distance(surfacePosition),
         fog_cylindrical_distance(surfacePosition), FogEnvironmentalStart, FogEnvironmentalEnd,

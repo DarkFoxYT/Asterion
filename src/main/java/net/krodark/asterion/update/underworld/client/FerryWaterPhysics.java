@@ -51,7 +51,9 @@ public final class FerryWaterPhysics {
             double[] depths=new double[4];Contact old=CONTACTS.get(boat.getId());
             Vec3 velocity=old==null?Vec3.ZERO:boat.position().subtract(old.position);
             if(velocity.lengthSqr()>4)old=null;
-            boolean refresh=old==null || time%20==0;
+            boolean refresh=old==null || time%20==0
+                    || net.krodark.asterion.update.underworld.world.LimboCascades.waterY(boat.getX(),boat.getZ())
+                    != net.krodark.asterion.update.underworld.world.LimboCascades.waterY(old.position.x,old.position.z);
             double[] shore=refresh?new double[4]:old.shore;
             for(int i=0;i<4;i++) {
                 double side=(i&1)==0?-1:1;
@@ -59,7 +61,7 @@ public final class FerryWaterPhysics {
                         boat.getYRot(),boat.rockingPitch(1),boat.rockingRoll(1)));
                 if(refresh)shore[i]=net.krodark.asterion.update.underworld.world.WaterShoreline.sample(world,
                         (int)Math.floor(hull.x),(int)Math.floor(hull.z));
-                double water=UnderworldTerrain.WATER_Y+8.0/9.0
+                double water=net.krodark.asterion.update.underworld.world.LimboCascades.waterY(hull.x,hull.z)+8.0/9.0
                         +UnderworldTerrain.waveHeight(hull.x,hull.z,time)*shore[i];
                 depths[i]=water-hull.y;
                 double entering=old==null?0:Math.max(0,depths[i]-old.depth[i]);
@@ -130,7 +132,7 @@ public final class FerryWaterPhysics {
             int x = client.player.getBlockX() + random.nextInt(49) - 24;
             int z = client.player.getBlockZ() + random.nextInt(49) - 24;
             if (!world.getChunkSource().hasChunk(x >> 4, z >> 4)) continue;
-            BlockPos water = new BlockPos(x, UnderworldTerrain.WATER_Y, z);
+            BlockPos water = new BlockPos(x, net.krodark.asterion.update.underworld.world.LimboCascades.waterY(x,z), z);
             if (!world.getFluidState(water).is(FluidTags.WATER)
                     || world.getFluidState(water.above()).is(FluidTags.WATER)) continue;
             Direction rock = null;
@@ -143,7 +145,7 @@ public final class FerryWaterPhysics {
             var wave = UnderworldWaves.sample(x + .5, z + .5, time);
             double energy = Math.abs(wave.height()) * .24 + Math.abs(wave.curvature()) * 4 + storm * .6;
             if (energy < .18 || random.nextDouble() > Math.min(.9, energy)) continue;
-            double surface = UnderworldTerrain.WATER_Y + 8.0 / 9.0;
+            double surface = water.getY() + 8.0 / 9.0;
             double vx = -rock.getStepX() * (.035 + energy * .09);
             double vz = -rock.getStepZ() * (.035 + energy * .09);
             double edgeX=x+.5+rock.getStepX()*.46, edgeZ=z+.5+rock.getStepZ()*.46;

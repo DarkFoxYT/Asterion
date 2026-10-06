@@ -17,8 +17,9 @@ public final class UnderworldWaterPhysics {
         if (!player.level().dimension().equals(Asterion.LIMBO_LEVEL) || !player.isAlive()
                 || player.isSpectator() || player.getAbilities().flying || player.isPassenger()
                 || player.isSwimming() || player.isShiftKeyDown()) return;
-        if (!player.isInWater() && (player.getY() < UnderworldTerrain.WATER_Y - 2
-                || player.getY() > UnderworldTerrain.WATER_Y + 4
+        int waterY = LimboCascades.waterY(player.getX(), player.getZ());
+        if (!player.isInWater() && (player.getY() < waterY - 2
+                || player.getY() > waterY + 4
                 || player.level().getBlockState(player.blockPosition().below()).isSolidRender()
                 || CharonsFerryEntity.supporting(player) != null)) return;
         Vec3 motion = player.getDeltaMovement();
@@ -62,10 +63,26 @@ public final class UnderworldWaterPhysics {
                 + UnderworldTerrain.waveHeight(position.x, position.z, ticks) * shore;
     }
 
+    /** Fast authored-level probes also keep already-generated flat seas physically usable. */
+    public static int surfaceBlockY(net.minecraft.world.level.BlockGetter level, int x, int z) {
+        int expected = LimboCascades.waterY(x,z);
+        var pos = new BlockPos.MutableBlockPos();
+        for (int probe = -1; probe <= LimboCascades.COUNT; probe++) {
+            int y = probe < 0 ? expected : UnderworldTerrain.WATER_Y - probe * LimboCascades.DROP;
+            if (probe >= 0 && y == expected) continue;
+            pos.set(x,y,z);
+            var fluid = level.getFluidState(pos);
+            if (fluid.is(FluidTags.WATER) && fluid.isSource()
+                    && !level.getFluidState(pos.above()).is(FluidTags.WATER)) return y;
+        }
+        return Integer.MIN_VALUE;
+    }
+
     public static void alignItem(ItemEntity item, double ticks) {
         if (!item.isAlive()) return;
-        if (!item.isInWater() && (item.getY() < UnderworldTerrain.WATER_Y - 1
-                || item.getY() > UnderworldTerrain.WATER_Y + 4
+        int waterY = LimboCascades.waterY(item.getX(), item.getZ());
+        if (!item.isInWater() && (item.getY() < waterY - 1
+                || item.getY() > waterY + 4
                 || item.level().getBlockState(item.blockPosition().below()).isSolidRender()
                 || CharonsFerryEntity.supporting(item) != null)) return;
         double surface = surfaceAt(item, ticks);
@@ -86,11 +103,13 @@ public final class UnderworldWaterPhysics {
             if (fluid.is(FluidTags.WATER) && fluid.isSource()
                     && !level.getFluidState(pos.above()).is(FluidTags.WATER)) return y;
         }
-        if (center < UnderworldTerrain.WATER_Y - 2) {
-            pos.set(x, UnderworldTerrain.WATER_Y, z);
+        int waterY = surfaceBlockY(level,x,z);
+        if (waterY == Integer.MIN_VALUE) return Integer.MIN_VALUE;
+        if (Math.abs(center - waterY) <= 32) {
+            pos.set(x, waterY, z);
             var fluid = level.getFluidState(pos);
             if (fluid.is(FluidTags.WATER) && fluid.isSource()
-                    && !level.getFluidState(pos.above()).is(FluidTags.WATER)) return UnderworldTerrain.WATER_Y;
+                    && !level.getFluidState(pos.above()).is(FluidTags.WATER)) return waterY;
         }
         return Integer.MIN_VALUE;
     }

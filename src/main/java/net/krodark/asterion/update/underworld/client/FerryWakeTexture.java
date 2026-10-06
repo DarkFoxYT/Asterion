@@ -48,14 +48,17 @@ public final class FerryWakeTexture {
             centerX=boat.getX();centerZ=boat.getZ();
             double yaw=Math.toRadians(boat.getYRot());
             // Stern positions are deposited in the world, not attached to the moving entity.
-            FIELD.record(centerX+Math.sin(yaw)*3.2,centerZ-Math.cos(yaw)*3.2,time,1);
+            double water = net.krodark.asterion.update.underworld.world.LimboCascades.waterY(centerX,centerZ)+.65;
+            if (Math.abs(boat.getY()-water)<4)
+                FIELD.record(centerX+Math.sin(yaw)*3.2,centerZ-Math.cos(yaw)*3.2,time,1);
         }
         var player = Minecraft.getInstance().player;
         if (player != null && (boat == null || boat.distanceToSqr(player) > 24*24)) {
             centerX=player.getX(); centerZ=player.getZ();
         }
-        AABB nearby = new AABB(centerX-30, UnderworldTerrain.WATER_Y-5, centerZ-30,
-                centerX+30, UnderworldTerrain.WATER_Y+7, centerZ+30);
+        int waterY = net.krodark.asterion.update.underworld.world.LimboCascades.waterY(centerX,centerZ);
+        AABB nearby = new AABB(centerX-30, waterY-25, centerZ-30,
+                centerX+30, waterY+25, centerZ+30);
         var contacts = level.getEntities((Entity)null, nearby, entity -> entity instanceof Player || entity instanceof ItemEntity);
         boolean presence = !contacts.isEmpty();
         // Upload an empty field once, including the frame that removes the final contact ring.
