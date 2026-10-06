@@ -20,5 +20,6 @@ public abstract class SodiumWaterSurfaceMixin {
     private void asterion$replaceOceanTop(BlockAndTintGetter level, BlockPos pos, Direction direction,
                                          BlockState block, FluidState fluid, CallbackInfoReturnable<Boolean> result) {
         if (direction == Direction.UP && LimboWaterRenderer.replacesSurface(level, pos)) result.setReturnValue(false);
+        else if(LimboWaterRenderer.replacesCascadeSide(level,pos,direction))result.setReturnValue(false);
     }
 }

@@ -11,20 +11,27 @@ import java.util.stream.Stream;
 
 public final class LimboSeaBiomeSource extends BiomeSource {
     public static final MapCodec<LimboSeaBiomeSource> CODEC=RecordCodecBuilder.mapCodec(instance ->
-            instance.group(Biome.CODEC.listOf().fieldOf("biomes").forGetter(source->source.biomes))
+            instance.group(Biome.CODEC.listOf().fieldOf("biomes").forGetter(source->source.biomes),
+                    Biome.CODEC.optionalFieldOf("caves").forGetter(source->source.caves))
                     .apply(instance,LimboSeaBiomeSource::new));
     private final List<Holder<Biome>> biomes;
+    private final java.util.Optional<Holder<Biome>> caves;
     public LimboSeaBiomeSource(List<Holder<Biome>> biomes) {
+        this(biomes,java.util.Optional.empty());
+    }
+    public LimboSeaBiomeSource(List<Holder<Biome>> biomes,java.util.Optional<Holder<Biome>> caves) {
         if(biomes.size()!=5)throw new IllegalArgumentException("Limbo requires exactly five seas, Styx first");
         this.biomes=List.copyOf(biomes);
+        this.caves=caves;
     }
     @Override protected MapCodec<? extends BiomeSource> codec() { return CODEC; }
-    @Override protected Stream<Holder<Biome>> collectPossibleBiomes() { return biomes.stream(); }
+    @Override protected Stream<Holder<Biome>> collectPossibleBiomes() { return Stream.concat(biomes.stream(),caves.stream()); }
     //? if <26.3 {
     @Override
     //?}
     public Holder<Biome> getNoiseBiome(int x,int y,int z,Climate.Sampler climate) {
-        return biomes.get(LimboSeaRegions.sea(x*4.0,z*4.0).ordinal());
+        return LimboSeaRegions.caves(x*4.0,z*4.0) ? caves.orElse(biomes.getFirst())
+                : biomes.get(LimboSeaRegions.sea(x*4.0,z*4.0).ordinal());
     }
 
     //? if >=26.3 {

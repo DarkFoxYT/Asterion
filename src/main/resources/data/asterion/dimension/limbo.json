@@ -4,6 +4,7 @@
     "type": "asterion:underworld_river",
     "biome_source": {
       "type": "asterion:limbo_seas",
+      "caves": "asterion:limbo_spider_caves",
       "biomes": [
         "asterion:limbo",
         "asterion:phlegethon",

@@ -39,15 +39,22 @@ public final class LimboCascadeRenderer {
         long time = (long)ticks;
         int fraction = (int)((ticks - time) * 255);
         for (var face : faces) {
-            // Fixed subdivisions preserve silhouette; no wave/terrain lookup on the render thread.
-            for (int band = 0; band < 6; band++) for (int corner = 0; corner < 4; corner++) {
+            double range=camera.distanceToSqr((face.x0()+face.x1())*.5,(face.upper()+face.lower())*.5,(face.z0()+face.z1())*.5);
+            if(range>544*544)continue;
+            int bands=range<96*96?12:range<256*256?6:3,shells=range<64*64?2:1;
+            // Denser at the rolled lip; lower water stretches into a curved, thick sheet.
+            for(int shell=0;shell<shells;shell++)
+            for (int band = 0; band < bands; band++) for (int corner = 0; corner < 4; corner++) {
                 boolean right = corner == 1 || corner == 2;
-                double t = (band + (corner >= 2 ? 1 : 0)) / 6.0;
-                double x = (right ? face.x1() : face.x0()) + face.nx() * .025;
-                double z = (right ? face.z1() : face.z0()) + face.nz() * .025;
+                double u=(band+(corner>=2?1:0))/(double)bands;
+                double t=u*u;
+                // Join the actual block surface at the top, then ease into the smooth ring.
+                double lip=Math.clamp(t/.15,0,1);lip=1-lip*lip*(3-2*lip);
+                double x = (right ? face.x1()+face.lipX1()*lip : face.x0()+face.lipX0()*lip) + face.nx() * .025;
+                double z = (right ? face.z1()+face.lipZ1()*lip : face.z0()+face.lipZ0()*lip) + face.nz() * .025;
                 double y = face.upper() + 8.0 / 9.0 - (face.upper() - face.lower()) * t;
                 out.addVertex(pose, (float)(x - camera.x), (float)(y - camera.y), (float)(z - camera.z))
-                        .setColor((int)Math.round(t * 255), fraction, 255, 255)
+                        .setColor((int)Math.round(t * 255), fraction, shell*255, 255)
                         .setUv((float)x, (float)z).setUv1(face.upper(), face.lower())
                         .setUv2((int)(time & 65535), (int)((time >>> 16) & 65535))
                         .setNormal(pose, face.nx(), 0, face.nz());

@@ -49,7 +49,9 @@ public final class LimboMonoliths {
             if (random.nextFloat() > .7F) continue;
             int x = cx * SPACING + 48 + random.nextInt(96);
             int z = cz * SPACING + 48 + random.nextInt(96);
-            if (z < 180 || Math.abs(x - UnderworldTerrain.riverCenter(z)) < 28) continue;
+            if (Math.hypot(x-LimboSeaRegions.CENTER_X,z-LimboSeaRegions.CENTER_Z)<180
+                    || LimboSeaRegions.inwardDistance(x,z)<180
+                    || z<1200 && Math.abs(x-UnderworldTerrain.riverCenter(z))<28) continue;
             // Cheap footprint rejection before querying terrain or allocating placement settings.
             if (x < chunk.getMinBlockX() - MAX_FOOTPRINT || x > chunk.getMaxBlockX() + MAX_FOOTPRINT
                     || z < chunk.getMinBlockZ() - MAX_FOOTPRINT || z > chunk.getMaxBlockZ() + MAX_FOOTPRINT) continue;

@@ -71,11 +71,22 @@ public final class LimboWaterRenderer {
     public static boolean replacesSurface(BlockAndTintGetter level, BlockPos pos) {
         return enabled && surface(level, pos);
     }
+    public static boolean replacesCascadeSide(BlockAndTintGetter level,BlockPos pos,net.minecraft.core.Direction side) {
+        if(!enabled || side.getAxis()==net.minecraft.core.Direction.Axis.Y)return false;
+        int high=net.krodark.asterion.update.underworld.world.LimboCascades.waterY(pos.getX(),pos.getZ());
+        BlockPos neighbor=pos.relative(side);
+        int low=net.krodark.asterion.update.underworld.world.LimboCascades.waterY(neighbor.getX(),neighbor.getZ());
+        if(high-low<18 || pos.getY()<=low || pos.getY()>high)return false;
+        // Keep edited/legacy water and shader-pack fallback. Only the generated rim is replaced.
+        return surface(level,new BlockPos(pos.getX(),high,pos.getZ()))
+                && surface(level,new BlockPos(neighbor.getX(),low,neighbor.getZ()));
+    }
 
     private static boolean surface(BlockAndTintGetter level, BlockPos pos) {
         return level.getBlockState(pos).is(Blocks.WATER) && level.getFluidState(pos).isSource()
                 && !level.getFluidState(pos.above()).is(FluidTags.WATER)
-                && !level.getBlockState(pos.above()).isSolidRender();
+                && !level.getBlockState(pos.above()).isSolidRender()
+                && !net.krodark.asterion.update.underworld.world.LimboSeaRegions.caves(pos.getX(),pos.getZ());
     }
 
     public static void initialize() {
@@ -126,15 +137,17 @@ public final class LimboWaterRenderer {
             for (BlockPos offset : SCAN_ORDER) {
                 if (Math.abs(offset.getX()) > radius || Math.abs(offset.getZ()) > radius) continue;
                 int x = cx + offset.getX(), z = cz + offset.getZ();
+                // A whole dry cave tile needs no ocean topology or deep fluid scan.
+                if(net.krodark.asterion.update.underworld.world.LimboSeaRegions.inwardDistance(x*16+8,z*16+8)<-24)continue;
                 double dx = x * 16 + 8 - camera.x, dz = z * 16 + 8 - camera.z;
                 if (dx * dx + dz * dz > (radius * 16.0 + 16) * (radius * 16.0 + 16)) continue;
                 if (!level.getChunkSource().hasChunk(x, z)) continue;
                 long key = BlockPos.asLong(x, 0, z);
                 Tile tile = TILES.get(key);
                 int localY = net.krodark.asterion.update.underworld.world.LimboCascades.waterY(x * 16 + 8, z * 16 + 8);
-                if (frustum != null && !frustum.isVisible(new AABB(x * 16, tile == null ? localY - 22 : tile.minY - 4,
-                        z * 16, x * 16 + 16, tile == null ? Math.max(localY + 24,UnderworldTerrain.WATER_Y+5) : tile.maxY + 5, z * 16 + 16))) continue;
-                boolean distantOcean = z * 16 >= 200 && dx * dx + dz * dz > 128 * 128
+                if (frustum != null && !frustum.isVisible(new AABB(x * 16-8, tile == null ? localY - 22 : tile.minY - 4,
+                        z * 16-8, x * 16 + 24, tile == null ? Math.max(localY + 24,UnderworldTerrain.WATER_Y+5) : tile.maxY + 8, z * 16 + 24))) continue;
+                boolean distantOcean = net.krodark.asterion.update.underworld.world.LimboSeaRegions.inwardDistance(x*16+8,z*16+8)>180 && dx * dx + dz * dz > 128 * 128
                         && !net.krodark.asterion.update.underworld.world.LimboCascades.crossesTile(x * 16, z * 16);
                 if (distantOcean && tile == null) {
                     tile = distantTopology(level, x * 16, z * 16);

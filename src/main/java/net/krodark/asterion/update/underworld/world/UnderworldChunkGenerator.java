@@ -76,7 +76,8 @@ public final class UnderworldChunkGenerator extends net.minecraft.world.level.ch
     //? if <26.3 {
     @Override public void addDebugScreenInfo(java.util.List<String> lines, RandomState random,
                                              net.minecraft.core.BlockPos pos) {
-        lines.add("Asterion 2.0 Sea of Limbo: " + LimboSeaRegions.sea(pos.getX(), pos.getZ()));
+        lines.add("Asterion 2.0 Limbo ring: " + (LimboSeaRegions.caves(pos.getX(),pos.getZ())
+                ? "SPIDER CAVES" : LimboSeaRegions.sea(pos.getX(),pos.getZ())));
     }
     //?}
     //? if <26.3 {

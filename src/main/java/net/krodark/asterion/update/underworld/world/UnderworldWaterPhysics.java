@@ -55,6 +55,7 @@ public final class UnderworldWaterPhysics {
     }
 
     public static double surfaceAt(net.minecraft.world.level.Level level, Vec3 position, double ticks) {
+        if(level.dimension().equals(Asterion.LIMBO_LEVEL) && LimboSeaRegions.caves(position.x,position.z))return Double.NaN;
         int x = (int)Math.floor(position.x), z = (int)Math.floor(position.z);
         int surfaceY = exposedSurface(level, position.y, x, z);
         if (surfaceY == Integer.MIN_VALUE) return Double.NaN;

@@ -53,6 +53,7 @@ public final class UnderworldTerrainSmoke {
             if((int)coastalTop.invoke(null,(long)seed,x,17)<UnderworldTerrain.MAX_Y-2)
                 throw new AssertionError("Mouth cliff must remain tall and steep");
             for(int z=18;z<=80;z++) {
+                if(net.krodark.asterion.update.underworld.world.LimboSeaRegions.caves(x,z))continue;
                 int top=(int)coastalTop.invoke(null,(long)seed,x,z);
                 if(top>UnderworldTerrain.WATER_Y+12)throw new AssertionError("High coastal cap remains above the sea");
                 Object c=sample(seed,x,z);
@@ -65,6 +66,22 @@ public final class UnderworldTerrainSmoke {
                 throw new AssertionError("Exit vault did not rise high enough");
         }
         System.out.println("PASS tall planar coastal cliff, high exit vault and roofless sea");
+        for(int angle=0;angle<12;angle++) {
+            double theta=(angle+.25)*Math.PI/6;
+            int cx=(int)Math.round(16400*Math.sin(theta)),cz=(int)Math.round(16018-16400*Math.cos(theta));
+            int carved=0;
+            for(int dx=-48;dx<=48;dx+=4)for(int dz=-48;dz<=48;dz+=4) {
+                Object c=sample(42,cx+dx,cz+dz);
+                if((boolean)OPEN.invoke(c)) {
+                    carved++;
+                    if(!(boolean)SPIDER.invoke(c) || (int)ROOF.invoke(c)>UnderworldTerrain.MAX_Y
+                            || (int)FLOOR.invoke(c)<UnderworldTerrain.MIN_Y+2)
+                        throw new AssertionError("Outer ring must be bounded spider caves at angle "+angle);
+                }
+            }
+            if(carved<80)throw new AssertionError("Disconnected/empty cave ring at angle "+angle+": "+carved);
+        }
+        System.out.println("PASS outer spider caverns across twelve directions");
         for (int i = 0; i < 64; i++) {
             long seed = i * 0x9E3779B97F4A7C15L;
             check(seed, UnderworldTerrain.SPAWN_X, UnderworldTerrain.SPAWN_Z, true);
@@ -75,7 +92,7 @@ public final class UnderworldTerrainSmoke {
                 landing.setAccessible(true);
                 check(seed, (int)Math.round((double)landing.invoke(null, z)), z, true);
             }
-            for (int z = UnderworldTerrain.SPAWN_Z; z <= UnderworldTerrain.END_Z; z++)
+            for (int z = UnderworldTerrain.SPAWN_Z; z <= Math.min(1024,UnderworldTerrain.END_Z); z++)
                 for (double side : new double[]{-1.0625, 0, 1.0625})
                     if (z < 18 || z >= 48)
                         check(seed, (int)Math.floor(UnderworldTerrain.riverCenter(z) + side), z, z < 18);
@@ -88,7 +105,9 @@ public final class UnderworldTerrainSmoke {
                 previous = floor;
             }
             for (int x : new int[]{-10000, -512, 0, 512, 10000})
-                for (int z : new int[]{200, 1024, 4096, 10000}) check(seed, x, z, false);
+                for (int z : new int[]{200, 1024, 4096, 10000})
+                    if(net.krodark.asterion.update.underworld.world.LimboSeaRegions.inwardDistance(x,z)>100)
+                        check(seed, x, z, false);
         }
         Method palette = UnderworldTerrain.class.getDeclaredMethod("pathMaterial", long.class, int.class, int.class);
         palette.setAccessible(true);
@@ -232,6 +251,7 @@ public final class UnderworldTerrainSmoke {
                 }
             for (int z : new int[]{58, 200, 1024, 10000})
                 for (int x : new int[]{-10000, -512, 0, 512, 10000}) {
+                    if(net.krodark.asterion.update.underworld.world.LimboSeaRegions.caves(x,z))continue;
                     Object c = sample(seed, x, z);
                     Object d = details.invoke(null, seed, x, z, c);
                     if ((int)ROOF.invoke(c) <= UnderworldTerrain.MAX_Y || (int)hanging.invoke(d) != 0)
@@ -291,6 +311,6 @@ public final class UnderworldTerrainSmoke {
         }
         if (highSpiderColumns < 500) throw new AssertionError("Spider cave vaults are too sparse: " + highSpiderColumns);
         System.out.println("PASS linked spider chambers and " + highSpiderColumns + " tall side-cave samples");
-        System.out.println("PASS: 64 seeds; safe spawn, continuous bank/landing, clear ferry route, unbounded sea.");
+        System.out.println("PASS: 64 seeds; safe spawn, continuous bank/landing, clear ferry approach, concentric seas and outer caves.");
     }
 }

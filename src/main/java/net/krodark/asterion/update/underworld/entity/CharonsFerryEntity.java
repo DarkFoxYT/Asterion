@@ -328,7 +328,7 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
             // Migrate old submerged arrivals to a quietly moored ferry.
             if (emergenceTicks() < EMERGENCE_TICKS) {
                 entityData.set(EMERGENCE, EMERGENCE_TICKS);
-                setPos(getX(), UnderworldTerrain.WATER_Y + .65, getZ());
+                setPos(getX(), net.krodark.asterion.update.underworld.world.LimboCascades.waterY(getX(),getZ()) + .65, getZ());
             }
             // Moored ferries keep following the swell through the same buoyancy step below.
             if (!sailing()) {
@@ -412,7 +412,12 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
             nextX += whirlPull * (surge * rx - spin * rz) / radius;
             nextZ += whirlPull * (surge * rz + spin * rx) / radius;
         }
-        if (pilot != null && !hasWaterUnderHull(nextX,nextZ,heading)) {
+        int nextTierY=net.krodark.asterion.update.underworld.world.LimboCascades.waterY(nextX,nextZ);
+        boolean uphill=nextTierY>net.krodark.asterion.update.underworld.world.LimboCascades.waterY(oldX,oldZ)
+                && getY()<nextTierY-4
+                && net.krodark.asterion.update.underworld.world.UnderworldWaterPhysics.surfaceBlockY(level(),
+                        (int)Math.floor(nextX),(int)Math.floor(nextZ))==nextTierY;
+        if (uphill || pilot != null && !hasWaterUnderHull(nextX,nextZ,heading)) {
             nextX = oldX; nextZ = oldZ; surgeSpeed = 0;
         }
         Vec3 cascadeFlow = net.krodark.asterion.update.underworld.world.LimboCascades.current(nextX, nextZ);

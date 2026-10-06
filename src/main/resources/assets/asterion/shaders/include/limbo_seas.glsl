@@ -3,8 +3,7 @@
 // Keep layout and quintic transitions in sync with LimboSeaRegions.java.
 struct LimboSeaStyle { vec3 water; vec3 reflection; vec3 fog; float density; float fire; float oblivion; float tears; float grief; };
 float limboSeaDistance(vec2 p) {
-    if(p.y<18.0)return 0.0;
-    return max(0.0,length(p-vec2(0,58))+80.0*sin(p.x*.0007)+80.0*sin(p.y*.0009));
+    return max(0.0,16000.0-length(p-vec2(0,16018)));
 }
 float limboSeaTransition(float d,float edge) {
     float t=clamp((d-(edge-320.0))/640.0,0.0,1.0);

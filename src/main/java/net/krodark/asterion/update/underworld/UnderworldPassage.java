@@ -154,7 +154,7 @@ public final class UnderworldPassage {
                     && player.getZ() >= UnderworldTerrain.END_Z - 72
                     && level.getEntity(CharonsFerryEntity.SHARED_ID) instanceof CharonsFerryEntity arrival
                     && arrival.hasPaid(player) && arrival.supports(player)
-                    && player.getY() >= UnderworldTerrain.WATER_Y - 3)
+                    && player.getY() >= net.krodark.asterion.update.underworld.world.LimboCascades.waterY(player.getX(),player.getZ()) - 3)
                 net.krodark.asterion.worldgen.WorldGenerator.beginLimboExit(player);
         }
 
@@ -187,7 +187,7 @@ public final class UnderworldPassage {
         level.getChunk(boatChunkX,boatChunkZ);
         if(!level.areEntitiesLoaded(net.minecraft.world.level.ChunkPos.pack(boatChunkX,boatChunkZ)))return;
         if (((net.krodark.asterion.mixin.ServerEntityManagerAccessor)level).asterion$entityManager().isLoaded(CharonsFerryEntity.SHARED_ID)) return;
-        AABB route = new AABB(-96, UnderworldTerrain.WATER_Y - 8, UnderworldTerrain.START_Z,
+        AABB route = new AABB(-96, UnderworldTerrain.WATER_Y - 80, UnderworldTerrain.START_Z,
                 96, UnderworldTerrain.WATER_Y + 16, UnderworldTerrain.END_Z);
         if (!level.getEntitiesOfClass(CharonsFerryEntity.class, route).isEmpty()) return;
         level.getChunk(0, UnderworldTerrain.FERRY_Z >> 4);

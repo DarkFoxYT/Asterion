@@ -15,15 +15,25 @@ out float cascadeAlong;
 out vec3 cascadeNormal;
 void main() {
     float ticks=float(UV2.x & 65535)+float(UV2.y & 65535)*65536.0+Color.g;
-    float along=Color.r;
-    // Pin both ends to the cached sea surfaces. Interior motion has no CPU cost.
-    float bulge=sin(along*3.14159265)*(.13+.065*sin(dot(UV0,vec2(1.73,.91))-ticks*.19));
-    vec3 position=Position+Normal*bulge;
+    float t=Color.r;
+    float drop=float(UV1.x-UV1.y);
+    vec2 tangent=vec2(-Normal.z,Normal.x);
+    float across=dot(UV0,tangent);
+    // Water rolls over the rim with forward momentum, then accelerates downward.
+    // A second shell gives the waterfall actual thickness instead of a flat decal.
+    float shell=Color.b;
+    float arc=4.6*(sqrt(t+.0025)-.05);
+    float envelope=sin(t*3.14159265);
+    float folds=sin(across*1.8-ticks*.115+t*12.0)*.19
+               +sin(across*4.6+ticks*.081-t*21.0)*.085;
+    float swell=envelope*(.30+folds)+shell*(.08+envelope*.24);
+    vec3 position=Position+Normal*(arc+swell);
+    position.y+=envelope*sin(across*2.3-ticks*.13+t*7.0)*.10;
     gl_Position=ProjMat*ModelViewMat*vec4(position,1.0);
     cascadePosition=position;
     cascadeWorld=UV0;
     cascadeTime=ticks;
-    cascadeDrop=float(UV1.x-UV1.y);
-    cascadeAlong=along;
+    cascadeDrop=drop;
+    cascadeAlong=t;
     cascadeNormal=Normal;
 }

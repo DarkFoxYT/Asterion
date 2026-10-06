@@ -22,8 +22,7 @@ public abstract class TidalWaterSurfaceMixin {
         if (fluid == HeavyWater.FLUID) result.setReturnValue(height);
     }
 
-    // The first neighbor test is the upper face. Suppress only that face; keep native sides,
-    // waterfalls and underwater geometry. The replacement is drawn every frame, not baked.
+    // The first neighbor test is the upper face; the animated replacement is not baked.
     @Redirect(method = "tesselate", at = @At(value = "INVOKE", target =
             "Lnet/minecraft/client/renderer/block/FluidRenderer;isNeighborSameFluid(Lnet/minecraft/world/level/material/FluidState;Lnet/minecraft/world/level/material/FluidState;)Z",
             ordinal = 0))
@@ -31,5 +30,12 @@ public abstract class TidalWaterSurfaceMixin {
             BlockAndTintGetter level, BlockPos pos, FluidRenderer.Output output,
             BlockState state, FluidState original) {
         return above.getType().isSame(fluid.getType()) || LimboWaterRenderer.replacesSurface(level, pos);
+    }
+    @Redirect(method="tesselate",at=@At(value="INVOKE",target=
+            "Lnet/minecraft/client/renderer/block/FluidRenderer;shouldRenderFace(Lnet/minecraft/world/level/material/FluidState;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/core/Direction;Lnet/minecraft/world/level/material/FluidState;)Z"))
+    private boolean asterion$curvedFall(FluidState fluid,BlockState self,net.minecraft.core.Direction side,FluidState neighbor,
+            BlockAndTintGetter level,BlockPos pos,FluidRenderer.Output output,BlockState state,FluidState original) {
+        return FluidRenderer.shouldRenderFace(fluid,self,side,neighbor)
+                && !LimboWaterRenderer.replacesCascadeSide(level,pos,side);
     }
 }

@@ -122,7 +122,8 @@ public final class WebPatchGenerator {
             if (patch != null && patch.near(center,52)) result.add(patch);
         }
         double route = UnderworldTerrain.riverCenter(center.z) - 15;
-        if (center.z < -42 && Math.abs(center.x - route) > 18) {
+        if (net.krodark.asterion.update.underworld.world.LimboSeaRegions.caves(center.x,center.z)
+                && !UnderworldTerrain.isMainPath(center.x,center.z)) {
             int gx = Math.floorDiv((int)Math.floor(center.x), 8);
             int gz = Math.floorDiv((int)Math.floor(center.z), 8);
             int radius = cells >= 40 ? 7 : cells >= 16 ? 3 : 2;

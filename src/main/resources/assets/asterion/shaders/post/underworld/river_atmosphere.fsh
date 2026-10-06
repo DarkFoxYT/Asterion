@@ -63,6 +63,8 @@ float limboAtmosphereNoise(vec3 p) {
     return mix(mix(x00, x10, f.y), mix(x01, x11, f.y), f.z);
 }
 
+#moj_import <asterion:limbo_cascade_volume.glsl>
+
 float densityAt(vec3 world, vec3 wind, out float light) {
     float banks = limboAtmosphereNoise((world + wind) * vec3(.032, .052, .032));
     float wisps = limboAtmosphereNoise((world - wind * 1.4) * vec3(.080, .024, .080)
@@ -151,5 +153,10 @@ void main() {
     fire.rgb*=1.0-submerged;fire.a=mix(fire.a,1.0,submerged);
     scattering=fire.rgb+scattering*fire.a;
     transmission*=fire.a;
+    vec4 spray=limboCascadeVolume(CameraData.xyz,direction,travel,Time,samples);
+    spray.rgb*=clamp(River.w,0.0,1.0)*(1.0-submerged);
+    spray.a=mix(1.0,spray.a,clamp(River.w,0.0,1.0)*(1.0-submerged));
+    scattering=spray.rgb+scattering*spray.a;
+    transmission*=spray.a;
     fragColor = vec4(scattering * strength, mix(1.0, transmission, strength));
 }

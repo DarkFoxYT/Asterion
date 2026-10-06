@@ -14,18 +14,23 @@ public final class LimboEntranceGate {
     private LimboEntranceGate() { }
 
     public static void place(WorldGenLevel world, ChunkPos chunk) {
-        if (chunk.getMaxBlockX() < UnderworldTerrain.GATE_X - 73
-                || chunk.getMinBlockX() > UnderworldTerrain.GATE_X + 72
-                || chunk.getMaxBlockZ() < UnderworldTerrain.GATE_Z - 16
-                || chunk.getMinBlockZ() > UnderworldTerrain.GATE_Z + 17) return;
+        placeAt(world,chunk,UnderworldTerrain.GATE_X,UnderworldTerrain.GATE_Y,UnderworldTerrain.GATE_Z);
+        placeAt(world,chunk,(int)LimboSeaRegions.CENTER_X,LimboCascades.waterYForTier(4)+2,(int)LimboSeaRegions.CENTER_Z);
+    }
+
+    private static void placeAt(WorldGenLevel world,ChunkPos chunk,int x,int y,int z) {
+        if (chunk.getMaxBlockX() < x - 73
+                || chunk.getMinBlockX() > x + 72
+                || chunk.getMaxBlockZ() < z - 16
+                || chunk.getMinBlockZ() > z + 17) return;
         var template = world.getLevel().getStructureManager().get(Asterion.id("limbo_gate"))
                 .orElseThrow(() -> new IllegalStateException("Missing Limbo entrance gate template"));
         var size = template.getSize();
         if (size.getX() != UnderworldTerrain.GATE_DEPTH || size.getZ() != UnderworldTerrain.GATE_WIDTH
-                || UnderworldTerrain.GATE_Y + size.getY() - 1 > UnderworldTerrain.MAX_Y)
+                || y + size.getY() - 1 > UnderworldTerrain.MAX_Y)
             throw new IllegalStateException("Limbo gate template does not fit its reserved courtyard");
-        var origin = new BlockPos(UnderworldTerrain.GATE_X + 72, UnderworldTerrain.GATE_Y,
-                UnderworldTerrain.GATE_Z - 16);
+        var origin = new BlockPos(x + 72, y,
+                z - 16);
         var clip = new BoundingBox(chunk.getMinBlockX(), UnderworldTerrain.MIN_Y, chunk.getMinBlockZ(),
                 chunk.getMaxBlockX(), UnderworldTerrain.MAX_Y, chunk.getMaxBlockZ());
         var settings = new StructurePlaceSettings().setRotation(Rotation.CLOCKWISE_90)

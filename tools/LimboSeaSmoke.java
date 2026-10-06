@@ -25,6 +25,10 @@ public final class LimboSeaSmoke {
         var dimension=JsonParser.parseString(Files.readString(Path.of("src/main/resources/data/asterion/dimension/limbo.json"))).getAsJsonObject();
         var source=dimension.getAsJsonObject("generator").getAsJsonObject("biome_source");
         check(source.get("type").getAsString().equals("asterion:limbo_seas"),"wrong biome source");
+        check(source.get("caves").getAsString().equals("asterion:limbo_spider_caves"),"outer cave biome missing");
+        var caves=JsonParser.parseString(Files.readString(Path.of("src/main/resources/data/asterion/worldgen/biome/limbo_spider_caves.json"))).getAsJsonObject();
+        var monsters=caves.getAsJsonObject("spawners").getAsJsonArray("monster");
+        check(monsters.size()==1 && monsters.get(0).getAsJsonObject().get("type").getAsString().equals("asterion:limbo_spider"),"Outer ring must only spawn territorial spiders");
         var biomes=source.getAsJsonArray("biomes");
         String[] names={"limbo","phlegethon","lethe","acheron","cocytus"};
         check(biomes.size()==5,"must have exactly five biomes");
@@ -100,6 +104,16 @@ public final class LimboSeaSmoke {
                 float[] pixel=new float[4];GL11.glReadPixels(16,16,1,1,GL11.GL_RGBA,GL11.GL_FLOAT,pixel);
                 Vec3 expected=fog==1?LimboSeaRegions.fog(0,z):LimboSeaRegions.water(0,z);
                 check(new Vec3(pixel[0],pixel[1],pixel[2]).distanceTo(expected)<.006,"GPU palette mismatch at "+z);
+            }
+            for(int angle=0;angle<12;angle++)for(int boundary=1;boundary<=4;boundary++)for(int fog=0;fog<2;fog++) {
+                double theta=angle*Math.PI/6,r=16000-boundary*3200+123;
+                float x=(float)(r*Math.sin(theta)),z=(float)(16018-r*Math.cos(theta));
+                GL20.glUniform2f(GL20.glGetUniformLocation(program,"Position"),x,z);
+                GL20.glUniform1i(GL20.glGetUniformLocation(program,"Fog"),fog);
+                GL11.glDrawArrays(GL11.GL_TRIANGLES,0,3);
+                float[] pixel=new float[4];GL11.glReadPixels(16,16,1,1,GL11.GL_RGBA,GL11.GL_FLOAT,pixel);
+                Vec3 expected=fog==1?LimboSeaRegions.fog(x,z):LimboSeaRegions.water(x,z);
+                check(new Vec3(pixel[0],pixel[1],pixel[2]).distanceTo(expected)<.006,"GPU ring palette mismatch at "+x+","+z);
             }
             checkFire(program);
             checkLethe(program);

@@ -32,22 +32,23 @@ public final class LimboCascadeEffects {
         lastTick = time;
         while (!expires.isEmpty() && expires.peekFirst() <= time) expires.removeFirst();
         Vec3 camera = client.gameRenderer.getMainCamera().position();
-        if (Math.abs(LimboCascades.boundaryDistance(camera.x,camera.z)) > 48 || camera.z < 18) return;
+        if (Math.abs(LimboCascades.boundaryDistance(camera.x,camera.z)) > 48
+                || net.krodark.asterion.update.underworld.world.LimboSeaRegions.caves(camera.x,camera.z)) return;
         var random = world.getRandom();
         Vec3 roar = null;
         for (int attempt = 0; attempt < SPAWN_BUDGET && expires.size() < PARTICLE_CAP; attempt++) {
             double x = camera.x + (random.nextDouble() - .5) * 56;
             double z = camera.z + (random.nextDouble() - .5) * 56;
-            // Project to the wavy biome contour, then verify actual loaded water at both heights.
+            // Project to the ring rim, then verify actual loaded water at both heights.
             for (int step = 0; step < 4; step++) {
-                Vec3 normal = LimboCascades.outward(x,z);
+                Vec3 normal = LimboCascades.downstream(x,z);
                 double distance = LimboCascades.boundaryDistance(x,z);
                 x -= normal.x * distance; z -= normal.z * distance;
             }
-            Vec3 normal = LimboCascades.outward(x,z);
+            Vec3 normal = LimboCascades.downstream(x,z);
             int lower = LimboCascades.waterY(x+normal.x*2,z+normal.z*2);
             int upper = LimboCascades.waterY(x-normal.x*2,z-normal.z*2);
-            if (upper - lower != LimboCascades.DROP) continue;
+            if (upper - lower < LimboCascades.DROP) continue;
             BlockPos high = BlockPos.containing(x-normal.x*2,upper,z-normal.z*2);
             BlockPos low = BlockPos.containing(x+normal.x*2,lower,z+normal.z*2);
             if (!world.getChunkSource().hasChunk(high.getX()>>4,high.getZ()>>4)
@@ -58,21 +59,28 @@ public final class LimboCascadeEffects {
             boolean mist = attempt % 3 == 0;
             double along = mist ? 1 : random.nextDouble();
             double y = upper + 8.0/9.0 - (upper-lower)*along + (mist ? .3 : 0);
-            x += normal.x * (mist ? 2 + random.nextDouble()*4 : .4);
-            z += normal.z * (mist ? 2 + random.nextDouble()*4 : .4);
+            double sprayArc=mist?3+random.nextDouble()*4
+                    :4.6*(Math.sqrt(along+.0025)-.05)+.25+random.nextDouble()*.5;
+            x+=normal.x*sprayArc;z+=normal.z*sprayArc;
             if (camera.distanceToSqr(x,y,z) > 48*48 || !world.getBlockState(BlockPos.containing(x,y,z)).isAir()) continue;
             boolean fire = LimboSeaRegions.fire(x,z) > .45;
-            var type = fire ? Asterion.LIMBO_EMBER : mist ? ParticleTypes.CLOUD : ParticleTypes.FALLING_WATER;
+            var type = fire ? Asterion.LIMBO_EMBER : mist ? ParticleTypes.CLOUD : ParticleTypes.SPLASH;
             var particle = client.particleEngine.createParticle(type,x,y,z,
                     normal.x*.045,mist || fire ? .035 : -.14-along*.2,normal.z*.045);
             if (particle == null) continue;
+            double forward=mist?.035:.13+random.nextDouble()*.10;
+            particle.setParticleSpeed(normal.x*forward,mist || fire?.035:-.06-.42*Math.sqrt(along),normal.z*forward);
             particle.setLifetime(mist ? 20 : 16);
             if (mist) {
                 var tint = LimboSeaRegions.fog(x,z);
                 if (particle instanceof net.minecraft.client.particle.SingleQuadParticle quad)
                     quad.setColor((float)Math.min(1,tint.x*2+.2),(float)Math.min(1,tint.y*2+.2),(float)Math.min(1,tint.z*2+.2));
                 particle.scale(.55F);
-            } else particle.scale(fire ? .45F : .7F);
+            } else {
+                if(!fire && particle instanceof net.minecraft.client.particle.SingleQuadParticle quad)
+                    quad.setColor(.84F,.93F,.98F);
+                particle.scale(fire?.45F:.55F+random.nextFloat()*.35F);
+            }
             expires.addLast(time+20);
             roar = new Vec3(x,lower+1,z);
         }

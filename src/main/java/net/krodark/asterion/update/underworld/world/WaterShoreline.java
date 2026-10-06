@@ -27,9 +27,14 @@ public final class WaterShoreline {
     }
     public static float sample(BlockGetter level, int x, int surfaceY, int z) {
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        BlockPos.MutableBlockPos above=new BlockPos.MutableBlockPos();
+        // A higher neighboring sea contains water at the lower Y, but is not part of
+        // that exposed surface. Match the renderer's separate depth grids per tier.
+        boolean tierEdge=Math.abs(LimboCascades.boundaryDistance(x,z))<14;
         int centerDepth = 6;
         for (int dz = -1; dz <= 0; dz++) for (int dx = -1; dx <= 0; dx++) {
             int depth = 0;
+            if(tierEdge && level.getFluidState(above.set(x+dx,surfaceY+1,z+dz)).is(FluidTags.WATER))return 0;
             while (depth < 6 && level.getFluidState(pos.set(x + dx, surfaceY - depth, z + dz))
                     .is(FluidTags.WATER)) depth++;
             centerDepth = Math.min(centerDepth, depth);
@@ -37,7 +42,8 @@ public final class WaterShoreline {
         if (centerDepth <= 1) return 0;
         boolean openWater = true;
         for (int dz = -8; dz < 8 && openWater; dz++) for (int dx = -8; dx < 8; dx++) {
-            if (!level.getFluidState(pos.set(x + dx, surfaceY, z + dz)).is(FluidTags.WATER)) {
+            if (!level.getFluidState(pos.set(x + dx, surfaceY, z + dz)).is(FluidTags.WATER)
+                    || tierEdge && level.getFluidState(above.set(x+dx,surfaceY+1,z+dz)).is(FluidTags.WATER)) {
                 openWater = false;
                 break;
             }
@@ -49,6 +55,7 @@ public final class WaterShoreline {
         int[] depths = new int[18 * 18];
         for (int dz = 0; dz < 18; dz++) for (int dx = 0; dx < 18; dx++) {
             int depth = 0;
+            if(tierEdge && level.getFluidState(above.set(x+dx-9,surfaceY+1,z+dz-9)).is(FluidTags.WATER))continue;
             while (depth < 6 && level.getFluidState(pos.set(x + dx - 9,
                     surfaceY - depth, z + dz - 9)).is(FluidTags.WATER)) depth++;
             depths[dz * 18 + dx] = depth;

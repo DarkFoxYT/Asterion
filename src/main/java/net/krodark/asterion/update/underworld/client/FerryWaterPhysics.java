@@ -197,7 +197,7 @@ public final class FerryWaterPhysics {
 
     private static void tempestRain(Minecraft client, int quality, long time) {
         double storm = LimboTempest.strength(time);
-        if (storm < .05 || client.player.getZ() < 18) return;
+        if (storm < .05 || net.krodark.asterion.update.underworld.world.LimboSeaRegions.caves(client.player.getX(),client.player.getZ())) return;
         var random = world.getRandom();
         int count = (int)Math.ceil(storm * (quality == 0 ? 8 : quality == 1 ? 20 : 34));
         double gust=.75+.25*Math.sin(time*.037)+.12*Math.sin(time*.091);

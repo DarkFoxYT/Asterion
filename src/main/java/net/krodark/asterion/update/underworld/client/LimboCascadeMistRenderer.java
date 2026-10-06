@@ -34,20 +34,24 @@ public final class LimboCascadeMistRenderer {
         var out=buffers.getBuffer(MIST);
         long time=(long)ticks;
         int fraction=(int)((ticks-time)*255);
+        int index=0;
         for (var face : faces) {
+            if(index++%3!=0)continue;
             double range=camera.distanceToSqr((face.x0()+face.x1())*.5,face.lower()+2,(face.z0()+face.z1())*.5);
             if (range>96*96) continue;
-            if (remaining--<=0) break;
+            if (remaining<=0) break;
             int opacity=(int)Math.round(255*Math.clamp((96-Math.sqrt(range))/32,0,1));
+            for(int shell=0;shell<2 && remaining>0;shell++,remaining--)
             for(int corner=0;corner<4;corner++) {
                 boolean right=corner==1||corner==2,top=corner>=2;
-                double x=(right?face.x1():face.x0())+face.nx()*.85;
-                double z=(right?face.z1():face.z0())+face.nz()*.85;
-                double y=face.lower()+.65+(top?4.5:0);
+                double tangentX=-face.nz(),tangentZ=face.nx();
+                double x=(face.x0()+face.x1())*.5+tangentX*(right?2.25:-2.25)+face.nx()*(2.6+shell*3);
+                double z=(face.z0()+face.z1())*.5+tangentZ*(right?2.25:-2.25)+face.nz()*(2.6+shell*3);
+                double y=face.lower()+.65+(top?8-shell*2:0);
                 out.addVertex(poses.last(),(float)(x-camera.x),(float)(y-camera.y),(float)(z-camera.z))
-                        .setUv((float)x,(float)z).setUv1(0,0)
+                        .setUv((float)x,(float)z).setUv1(right?255:0,0)
                         .setUv2((int)(time&65535),(int)((time>>>16)&65535))
-                        .setColor(top?255:0,fraction,opacity,255)
+                        .setColor(top?255:0,fraction,(int)(opacity*(shell==0?1:.75)),255)
                         .setNormal(poses.last(),face.nx(),0,face.nz());
             }
         }

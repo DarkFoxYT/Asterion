@@ -250,7 +250,10 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
     @Override public boolean checkSpawnRules(LevelAccessor level, EntitySpawnReason reason) {
         return reason != EntitySpawnReason.NATURAL || level instanceof Level world
                 && world.dimension().equals(net.krodark.asterion.Asterion.LIMBO_LEVEL)
-                && world.getDifficulty()!=net.minecraft.world.Difficulty.PEACEFUL;
+                && world.getDifficulty()!=net.minecraft.world.Difficulty.PEACEFUL
+                && net.krodark.asterion.update.underworld.world.LimboSeaRegions.caves(getX(),getZ())
+                // Territorial spiders persist; prevent natural spawning from filling loaded caves.
+                && world.getEntitiesOfClass(LimboSpiderEntity.class,getBoundingBox().inflate(96)).isEmpty();
     }
     @Override public boolean removeWhenFarAway(double distance) { return false; }
     public boolean camouflaged() { return state()==State.WANDERING_CAMOUFLAGED || state()==State.STALKING_CAMOUFLAGED

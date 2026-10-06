@@ -9,7 +9,7 @@ import net.minecraft.world.level.block.state.properties.SlabType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
-/** A shared river tunnel opens onto the shore of an unbounded open sea. */
+/** Outer spider caverns surround five concentric, descending seas. */
 public final class UnderworldTerrain {
     public static final int MIN_Y = -64;
     public static final int MAX_Y = 255;
@@ -107,6 +107,8 @@ public final class UnderworldTerrain {
             for (int z = chunk.getPos().getMinBlockZ(); z <= chunk.getPos().getMaxBlockZ(); z++) {
                 Column c = column(seed, x, z, caveNodes);
                 int waterY = LimboCascades.waterY(x, z);
+                boolean seaWater=!LimboSeaRegions.caves(x,z);
+                boolean centreCourtyard=Math.hypot(x-LimboSeaRegions.CENTER_X,z-LimboSeaRegions.CENTER_Z)<=82;
                 boolean shaded = octaves(seed ^ 0x5ADE, x * .019, z * .019) > .08;
                 BlockState stone = (shaded ? Asterion.DEAD_STONE_2 : Asterion.DEAD_STONE).defaultBlockState();
                 BlockState shale = (shaded ? Asterion.SHADED_SHALE : Asterion.SHALE).defaultBlockState();
@@ -147,18 +149,18 @@ public final class UnderworldTerrain {
                     BlockState state;
                     if (y == MIN_Y || y == MAX_Y && c.roof <= MAX_Y) state = Blocks.BEDROCK.defaultBlockState();
                     else if (!c.open || y <= c.floor || y >= c.roof) state = stone;
-                    else if (z >= 18 && y <= waterY) state = Blocks.WATER.defaultBlockState();
+                    else if (seaWater && y <= waterY) state = Blocks.WATER.defaultBlockState();
                     else state = Blocks.AIR.defaultBlockState();
                     if (c.open && y > MIN_Y) {
                         if (c.spider && y == c.roof && c.roof - c.floor > 5 && (texture & 3) == 0)
                             state = (shaded ? Asterion.SHADED_SHALE_SLAB : Asterion.SHALE_SLAB)
                                     .defaultBlockState().setValue(BlockStateProperties.SLAB_TYPE, SlabType.TOP);
                         if (y == c.floor && !c.path) state = d.mud ? Blocks.MUD.defaultBlockState() : shale;
-                        if (y > c.floor && y < c.roof && !c.path && pool > 1.3 && torch == 0) {
+                        if (y > c.floor && y < c.roof && !c.path && !centreCourtyard && pool > 1.3 && torch == 0) {
                             if (joined || y <= c.floor + d.rock || y >= c.roof - d.hanging)
                                 state = y % 5 == 0 ? stone : shale;
                             else if (y <= c.floor + d.rock + d.spike)
-                                state = formation(false, c.floor + d.rock + d.spike - y, d.spike, y <= waterY && z >= 18);
+                                state = formation(false, c.floor + d.rock + d.spike - y, d.spike, y <= waterY && seaWater);
                             else if (ceilingSpike > 0 && y >= c.roof - d.hanging - ceilingSpike
                                     && y < c.roof - d.hanging)
                                 state = formation(true, y - (c.roof - d.hanging - ceilingSpike), ceilingSpike, false);
@@ -234,9 +236,9 @@ public final class UnderworldTerrain {
     }
 
     private static int coastalTop(long seed,int x,int z) {
-        if(z<18)return MAX_Y;
+        if(LimboSeaRegions.caves(x,z))return MAX_Y;
         double relief=octaves(seed ^ 0xC0457L,x*.009,z*.009)*2;
-        return (int)Math.floor(WATER_Y+8+relief);
+        return (int)Math.floor(LimboCascades.waterY(x,z)+8+relief);
     }
 
     /** Deadstone core, broken mixed shoulders, then shale; stable across chunk boundaries. */
@@ -272,6 +274,7 @@ public final class UnderworldTerrain {
     }
 
     private static Column column(long seed, int x, int z, java.util.Map<Long, CaveNode> caveNodes) {
+        if (!authoredApproach(x,z)) return ringColumn(seed,x,z,caveNodes);
         double center = riverCenter(z), offset = x - center;
         double mouth = smooth((z + 12.0) / 56);
         // Shift the dry cave toward the player bank instead of wasting width beyond the path.
@@ -281,7 +284,7 @@ public final class UnderworldTerrain {
         boolean tunnel = z > START_Z && lateral < width;
         double coast = 30 + 9 * octaves(seed ^ 0xC0457, x * .009, 0);
         double seaDistance = z - coast;
-        boolean sea = z >= 18 && seaDistance > -24;
+        boolean sea = !LimboSeaRegions.caves(x,z) && seaDistance > -24;
         boolean open = tunnel || sea;
         double routeX = z >= 12 ? landingX(z) : center - 15;
         boolean path = tunnel && Math.abs(x - routeX) <= 4 && z < FERRY_Z - 6
@@ -376,6 +379,26 @@ public final class UnderworldTerrain {
     }
 
     private record SideShape(boolean open, int floor, int roof) { }
+    private static boolean authoredApproach(int x,int z) {
+        return z>=START_Z-120 && z<160 && Math.abs(x-riverCenter(z))<120;
+    }
+    private static Column ringColumn(long seed,int x,int z,java.util.Map<Long,CaveNode> nodes) {
+        double inward=LimboSeaRegions.inwardDistance(x,z);
+        if (inward>=0) {
+            double centre=Math.hypot(x-LimboSeaRegions.CENTER_X,z-LimboSeaRegions.CENTER_Z);
+            if(centre<112) {
+                double island=1-smooth((centre-82)/30);
+                int floor=(int)Math.floor(LimboCascades.waterYForTier(4)-30+31*island);
+                return new Column(true,Math.max(MIN_Y+2,floor),MAX_Y+1,false,false);
+            }
+            double depth=smooth(inward/90);
+            double floor=LimboCascades.waterY(x,z)+4-depth*34
+                    +octaves(seed ^ 0x5EA,x*.012,z*.012)*2*depth;
+            return new Column(true,Math.max(MIN_Y+2,(int)Math.floor(floor)),MAX_Y+1,false,false);
+        }
+        SideShape cave=spiderCave(seed,x,z,nodes);
+        return new Column(cave.open,cave.floor,cave.roof,false,cave.open);
+    }
     private record CaveNode(double x, double z, double radius, double stretch) { }
     private static CaveNode caveNode(long seed, int cx, int cz, java.util.Map<Long, CaveNode> cache) {
         long key = net.minecraft.world.level.ChunkPos.pack(cx, cz);
@@ -397,9 +420,9 @@ public final class UnderworldTerrain {
     private static SideShape spiderCave(long seed, int x, int z, java.util.Map<Long, CaveNode> nodes) {
         // ShaleCaves-style rounded nodes and linked corridors, repeated without an X/Z cap.
         // The dry side of Limbo continues indefinitely; keep the ferry and river untouched.
-        if (z >= -42) return new SideShape(false, 0, 0);
+        if (!LimboSeaRegions.caves(x,z) || authoredApproach(x,z) && z>=-42) return new SideShape(false, 0, 0);
         double u = x - (riverCenter(z) - 15);
-        if (Math.abs(u) < 21) return new SideShape(false, 0, 0);
+        if (authoredApproach(x,z) && Math.abs(u) < 21) return new SideShape(false, 0, 0);
         int cx = (int)Math.floor(u / 48), cz = Math.floorDiv(z, 48);
         double clearance = -100;
         for (int ix = cx - 1; ix <= cx + 1; ix++) for (int iz = cz - 1; iz <= cz + 1; iz++) {
@@ -422,7 +445,7 @@ public final class UnderworldTerrain {
         }
         // Every authored spider chamber has a short, guaranteed join to the grid.
         int nearbySlot = branch(z).slot;
-        for (int slot = nearbySlot - 1; slot <= nearbySlot + 1; slot++) {
+        for (int slot = nearbySlot - 1; authoredApproach(x,z) && slot <= nearbySlot + 1; slot++) {
             BlockPos entrance = chamberCenter(slot);
             if (Math.abs(z - entrance.getZ()) >= 46) continue;
             Branch branch = branch(entrance.getZ());
