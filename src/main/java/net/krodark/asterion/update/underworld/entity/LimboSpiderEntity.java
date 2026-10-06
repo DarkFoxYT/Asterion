@@ -22,6 +22,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -40,6 +41,18 @@ import net.krodark.asterion.update.underworld.LimboWebSystem;
 
 /** One territorial spider per nest. All eleven encounter modes share one server state machine. */
 public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity {
+    // Movement is sent every tick. Vanilla's three-tick interpolation keeps a
+    // remote spider chasing stale positions, especially in Essential SPS worlds.
+    // Keep packet handling vanilla so shared worlds and dedicated servers use
+    // the same authoritative movement, with partial-tick rendering for smoothness.
+    //? if <26.3 {
+    private final InterpolationHandler networkInterpolation = new InterpolationHandler(this, 1);
+    //?}
+    //? if >=26.3 {
+    /*@Override protected InterpolationHandler createInterpolationHandler() { return net.minecraft.world.entity.LinearInterpolationHandler.create(this, 1); }
+    *///?} else {
+    @Override public InterpolationHandler getInterpolation() { return networkInterpolation; }
+    //?}
     public enum State { HANGING, WAITING, MIMICKING, WANDERING_CAMOUFLAGED, WANDERING,
         STALKING_CAMOUFLAGED, STALKING, HUNTING, ATTACKING, FLEEING_HURT, FLEEING_SEEN,
         HIDING_CAMOUFLAGED, LUNGING }

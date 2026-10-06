@@ -1,0 +1,25 @@
+allprojects { p ->
+    afterEvaluate {
+        if (p.name == '26.1.2-fabric') {
+            def compile = tasks.register('compileRagdollCompatibilitySmoke', JavaCompile) {
+                dependsOn tasks.named('classes')
+                source rootProject.file('tools/RagdollCompatibilitySmoke.java')
+                classpath = p.sourceSets.main.runtimeClasspath
+                destinationDirectory = layout.buildDirectory.dir('ragdoll-compat-smoke')
+                javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(25) }
+            }
+            tasks.register('checkRagdollCompatibility', JavaExec) {
+                dependsOn compile
+                classpath = p.sourceSets.main.runtimeClasspath + files(compile.flatMap { it.destinationDirectory })
+                mainClass = 'net.krodark.asterion.client.ragdoll.RagdollCompatibilitySmoke'
+                systemProperty 'joml.nounsafe', 'true'
+                javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+                def essential = rootProject.file('run/essential/Essential (fabric_26.1.2).jar')
+                def libraries = rootProject.file('run/essential/libraries/fabric_26.1.2')
+                def universalJars = libraries.isDirectory() ? libraries.listFiles().findAll { it.name.startsWith('universalcraft-') }.sort { it.name } : []
+                def universal = universalJars ? universalJars.last() : null
+                if (essential.isFile() && universal != null) args essential.absolutePath, universal.absolutePath
+            }
+        }
+    }
+}

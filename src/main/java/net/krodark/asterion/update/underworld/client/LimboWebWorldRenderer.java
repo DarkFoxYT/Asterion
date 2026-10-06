@@ -84,14 +84,21 @@ public final class LimboWebWorldRenderer {
     }
     public static void initialize(){
         ClientTickEvents.END_CLIENT_TICK.register(LimboWebWorldRenderer::tick);
-        ClientPlayNetworking.registerGlobalReceiver(WebCutPayload.TYPE,(payload,context)->context.client().execute(()->CUT.computeIfAbsent(payload.key(),ignored->new java.util.BitSet()).set(payload.link())));
+        ClientPlayNetworking.registerGlobalReceiver(WebCutPayload.TYPE,(payload,context)->context.client().execute(()->{
+            trackLevel(context.client());
+            if(context.client().level!=null && context.client().level.dimension().equals(Asterion.LIMBO_LEVEL))
+                CUT.computeIfAbsent(payload.key(),ignored->new java.util.BitSet()).set(payload.link());
+        }));
         ClientPlayNetworking.registerGlobalReceiver(net.krodark.asterion.network.WebSpinPayload.TYPE,(payload,context)->context.client().execute(()->{
             if(context.client().level!=null && context.client().level.dimension().equals(Asterion.LIMBO_LEVEL))
                 WebPatchGenerator.receive(context.client().level,payload.patch());
         }));
     }
-    private static void tick(Minecraft client){
+    private static void trackLevel(Minecraft client) {
         if(trackedLevel!=client.level){GRAPHS.clear();CUT.clear();LIVE_THREADS.clear();attack=false;trackedLevel=client.level;}
+    }
+    private static void tick(Minecraft client){
+        trackLevel(client);
         if(client.level!=null)LIVE_THREADS.entrySet().removeIf(e->client.level.getGameTime()-e.getValue().tick()>2);
         if(client.level==null||client.player==null||!client.level.dimension().equals(Asterion.LIMBO_LEVEL)){GRAPHS.clear();CUT.clear();return;}
         Vec3 body=client.player.position().add(0,client.player.getBbHeight()*.48,0);

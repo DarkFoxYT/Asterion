@@ -33,6 +33,8 @@ public final class RagdollClientController {
     private static void tick(Minecraft client) {
         var engine = DismembermentEngine.INSTANCE;
         if (client.level == null || client.player == null) {
+            RagdollPlayerSkins.clear();
+            EssentialRagdollCompatibility.resetEmoteInterrupt();
             restoreCamera(client);
             engine.clear();
             rightWasDown = false;
@@ -44,10 +46,12 @@ public final class RagdollClientController {
         }
 
         if (observedLevel != client.level) {
+            EssentialRagdollCompatibility.resetEmoteInterrupt();
             engine.clear();
             observedLocalPlayer = null;
             observedLevel = client.level;
         }
+        for (var player : client.level.players()) RagdollPlayerSkins.resolve(player);
 
         if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) {
             wasPlayback = true;
@@ -92,6 +96,14 @@ public final class RagdollClientController {
         long window = client.getWindow().handle();
         boolean recovery = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_SPACE) == GLFW.GLFW_PRESS;
         boolean tumbling = engine.isPlayerTumbling(client.player.getId());
+        if (tumbling) {
+            CameraType beforeEmote = EssentialRagdollCompatibility.interruptEmote(client);
+            if (beforeEmote != null) {
+                cameraBeforeTumble = beforeEmote;
+                thirdPersonLocked = true;
+            }
+        }
+        else EssentialRagdollCompatibility.resetEmoteInterrupt();
         if (!tumbling || DazeOverlay.isActive() || net.krodark.asterion.entity.MinotaurEntity.isHeld(client.player)) {
             resetRecovery();
             DazeOverlay.hideRagdollRecovery();

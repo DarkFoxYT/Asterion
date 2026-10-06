@@ -61,7 +61,7 @@ import net.minecraft.util.Mth;
 
 public final class DismembermentEngine {
     public static final DismembermentEngine INSTANCE = new DismembermentEngine();
-    private static final boolean RAGDOLL_CAPE_ENABLED = false;
+    private static final boolean RAGDOLL_CAPE_ENABLED = true;
     private static final int MOB_RAGDOLL_LIFETIME_TICKS = 30 * 20;
     private final List<RigidBodyPiece> pieces = new ArrayList<>();
     private final Map<Integer, Set<Integer>> detached = new HashMap<>();
@@ -108,6 +108,10 @@ public final class DismembermentEngine {
     private final Set<Integer> tickIgnitedEntities = new HashSet<>();
     private final Set<Integer> tickSubmergedEntities = new HashSet<>();
     private final Set<Integer> tickCrematedEntities = new HashSet<>();
+    private ClientLevel collisionQueryLevel;
+    private final net.krodark.asterion.physics.ExactCollisionQueryCache collisionQueries =
+            new net.krodark.asterion.physics.ExactCollisionQueryCache(512,
+                    bounds -> collectCollisionBoxes(collisionQueryLevel, bounds));
 
     private DismembermentEngine() { }
 
@@ -238,7 +242,7 @@ public final class DismembermentEngine {
         // First-person players may not have rendered recently, and their skin/model can load asynchronously.
         if (entity instanceof net.minecraft.client.player.AbstractClientPlayer player) {
             renderedPoseCache.remove(entity.getId());
-            playerSkins.put(entity.getId(), player.getSkin());
+            playerSkins.put(entity.getId(), RagdollPlayerSkins.resolve(player));
             captureFreshPlayerPose(player);
         }
         pieces.removeIf(piece -> piece.entityId == entity.getId());
@@ -423,7 +427,8 @@ public final class DismembermentEngine {
     private void spawnCape(Entity entity) {
         if (!RAGDOLL_CAPE_ENABLED) return;
         if (!(entity instanceof net.minecraft.client.player.AbstractClientPlayer player)
-                || player.getSkin().cape() == null
+                || RagdollPlayerSkins.resolve(player).cape() == null
+                || isElytra(player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST))
                 || !player.isModelPartShown(net.minecraft.world.entity.player.PlayerModelPart.CAPE)) return;
         RigidBodyPiece torso = find(entity.getId(), 1);
         if (torso == null || find(entity.getId(), 6) != null) return;
@@ -435,7 +440,7 @@ public final class DismembermentEngine {
         Vec3 center = worldAnchor(torso, localCenter);
         RigidBodyPiece cape = new RigidBodyPiece(entity.getId(), 6, 1, true,
                 center, torso.velocity, torso.angularVelocity.scale(.35), half, .032,
-                (float) center.distanceTo(torso.position), player.getSkin().cape().texturePath(),
+                (float) center.distanceTo(torso.position), RagdollPlayerSkins.resolve(player).cape().texturePath(),
                 torso.bloodRgb, capeFaceUvs(), null, new Quaternionf(torso.orientation));
         cape.parentJointAnchor = parentAnchor;
         cape.childJointAnchor = new Vec3(0, -half.y, 0);
@@ -586,8 +591,9 @@ public final class DismembermentEngine {
             Entity entity = level.getEntity(entityId);
             if (!(entity instanceof Player player)) continue;
             boolean capeVisible = RAGDOLL_CAPE_ENABLED
+                    && !isElytra(player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST))
                     && player instanceof net.minecraft.client.player.AbstractClientPlayer clientPlayer
-                    && clientPlayer.getSkin().cape() != null
+                    && RagdollPlayerSkins.resolve(clientPlayer).cape() != null
                     && clientPlayer.isModelPartShown(
                     net.minecraft.world.entity.player.PlayerModelPart.CAPE);
             if (!capeVisible) {
@@ -599,6 +605,11 @@ public final class DismembermentEngine {
                 });
             } else if (find(entityId, 6) == null) {
                 spawnCape(player);
+            }
+            if (capeVisible && player instanceof net.minecraft.client.player.AbstractClientPlayer clientPlayer) {
+                var texture = RagdollPlayerSkins.resolve(clientPlayer).cape().texturePath();
+                for (RigidBodyPiece piece : pieces)
+                    if (piece.entityId == entityId && (piece.region == 6 || piece.region == 13)) piece.texture = texture;
             }
             boolean equipped = isElytra(player.getItemBySlot(
                     net.minecraft.world.entity.EquipmentSlot.CHEST));
@@ -1300,7 +1311,7 @@ public final class DismembermentEngine {
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static Identifier resolveTexture(Entity entity) {
         if (entity instanceof net.minecraft.client.player.AbstractClientPlayer player)
-            return player.getSkin().body().texturePath();
+            return RagdollPlayerSkins.resolve(player).body().texturePath();
         if (entity instanceof ConstructEntity)
             return Asterion.id("textures/entity/construct.png");
         try {
@@ -1910,7 +1921,7 @@ public final class DismembermentEngine {
         playerSkins.keySet().removeIf(id -> !ragdolled.contains(id));
         for (var entry : playerSkins.entrySet()) {
             if (!(level.getEntity(entry.getKey()) instanceof net.minecraft.client.player.AbstractClientPlayer player)) continue;
-            var skin = player.getSkin();
+            var skin = RagdollPlayerSkins.resolve(player);
             if (skin.equals(entry.getValue())) {
                 RigidBodyPiece head = find(player.getId(), 0);
                 if (head != null && !head.modelBoxes.isEmpty()) {
@@ -1975,6 +1986,19 @@ public final class DismembermentEngine {
             tickPlayback(Minecraft.getInstance());
             return;
         }
+        collisionQueryLevel = level;
+        collisionQueries.clear();
+        try {
+            tickSimulation(level, collisionContext);
+        } finally {
+            // Packet handling and block updates run between ticks. Never reuse their old terrain.
+            collisionQueries.clear();
+            collisionQueryLevel = null;
+            solverIndex = null;
+        }
+    }
+
+    private void tickSimulation(ClientLevel level, Entity collisionContext) {
         synchronizePlayerSkins(level);
         electrifiedUntil.entrySet().removeIf(entry -> {
             if (entry.getValue() > traumaDecayTicker) return false;
@@ -2593,8 +2617,7 @@ public final class DismembermentEngine {
                                            Vec3 center, Vec3 fallback) {
         AABB broad = boundsAt(part, center).inflate(0.001);
         ObbContact shallowest = null;
-        for (var shape : level.getBlockCollisions(null, broad))
-            for (AABB box : shape.toAabbs()) {
+        for (AABB box : collisionBoxes(level, broad)) {
                 ObbContact contact = obbContact(part, center, box);
                 if (contact != null && (shallowest == null || contact.depth < shallowest.depth))
                     shallowest = contact;
@@ -2763,8 +2786,7 @@ public final class DismembermentEngine {
         for (int iteration = 0; iteration < maximumIterations; iteration++) {
             AABB broad = boundsAt(part, part.position).inflate(0.002);
             ObbContact deepest = null;
-            for (var shape : level.getBlockCollisions(null, broad))
-                for (AABB box : shape.toAabbs()) {
+            for (AABB box : collisionBoxes(level, broad)) {
                     ObbContact contact = obbContact(part, part.position, box);
                     if (contact != null && (deepest == null || contact.depth > deepest.depth))
                         deepest = contact;
@@ -2880,8 +2902,7 @@ public final class DismembermentEngine {
                 for (RigidBodyPiece part : active) {
                     if (part.entityId != entityId || !isAnatomicalRegion(part.region)) continue;
                     AABB broad = boundsAt(part, part.position).inflate(0.0015);
-                    for (var shape : level.getBlockCollisions(null, broad))
-                        for (AABB block : shape.toAabbs()) {
+                    for (AABB block : collisionBoxes(level, broad)) {
                             ObbContact contact = obbContact(part, part.position, block);
                             if (contact != null && contact.depth > 0.0025
                                     && (deepest == null || contact.depth > deepest.depth))
@@ -3033,8 +3054,7 @@ public final class DismembermentEngine {
     private static ObbContact deepestWorldContact(ClientLevel level, RigidBodyPiece part) {
         AABB broad = boundsAt(part, part.position).inflate(0.0015);
         ObbContact deepest = null;
-        for (var shape : level.getBlockCollisions(null, broad))
-            for (AABB block : shape.toAabbs()) {
+        for (AABB block : collisionBoxes(level, broad)) {
                 ObbContact contact = obbContact(part, part.position, block);
                 if (contact != null && (deepest == null || contact.depth > deepest.depth))
                     deepest = contact;
@@ -3135,10 +3155,25 @@ public final class DismembermentEngine {
     private static boolean isWorldClear(ClientLevel level, RigidBodyPiece part, Vec3 center) {
         if (isGripRegion(part.region)) return true;
         AABB broad = boundsAt(part, center).deflate(0.00035);
-        for (var shape : level.getBlockCollisions(null, broad))
-            for (AABB box : shape.toAabbs())
+        for (AABB box : collisionBoxes(level, broad))
                 if (obbContact(part, center, box) != null) return false;
         return true;
+    }
+
+    private static List<AABB> collisionBoxes(ClientLevel level, AABB bounds) {
+        return INSTANCE.collisionQueryLevel == level ? INSTANCE.collisionQueries.collect(bounds)
+                : collectCollisionBoxes(level, bounds);
+    }
+
+    private static List<AABB> collectCollisionBoxes(ClientLevel level, AABB bounds) {
+        List<AABB> boxes = null;
+        for (var shape : level.getBlockCollisions(null, bounds)) {
+            var parts = shape.toAabbs();
+            if (parts.isEmpty()) continue;
+            if (boxes == null) boxes = new ArrayList<>(parts.size());
+            boxes.addAll(parts);
+        }
+        return boxes == null ? List.of() : boxes;
     }
 
     private static Vec3[] axes(RigidBodyPiece part) {
@@ -3839,6 +3874,13 @@ public final class DismembermentEngine {
         smoothedGrabTarget = null;
         solverIndex = null;
         lastAuthorityTick = Long.MIN_VALUE;
+    }
+
+    public static net.minecraft.world.entity.player.PlayerSkin preserveRagdollSkin(
+            net.minecraft.client.player.AbstractClientPlayer player,
+            net.minecraft.world.entity.player.PlayerSkin current) {
+        // Renderer selection also reads getSkin(): preserve the slim/wide model as well as its texture.
+        return INSTANCE.isRagdolled(player.getId()) ? RagdollPlayerSkins.remember(player.getUUID(), current) : current;
     }
 
     private static boolean inAsterion(Entity entity) {

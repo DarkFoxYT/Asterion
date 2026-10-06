@@ -23,8 +23,10 @@ public final class AxeFlightAudio {
             return false;
         });
         if (client.level == null || client.player == null) return;
-        for (var entity : client.level.entitiesForRendering()) {
-            if (!(entity instanceof MinotaurAxeEntity axe) || axe.isSword() || axe.throwerId() < 0
+        // Query nearby entity sections instead of walking every loaded entity each tick.
+        for (var axe : client.level.getEntitiesOfClass(MinotaurAxeEntity.class,
+                client.player.getBoundingBox().inflate(40))) {
+            if (axe.isSword() || axe.throwerId() < 0
                     || axe.distanceToSqr(client.player) > 40 * 40) continue;
             Flight old = playing.get(axe);
             if (old != null && !old.isStopped()) continue;

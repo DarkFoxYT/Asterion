@@ -109,9 +109,10 @@ public final class WebPatchGenerator {
     private WebPatchGenerator() { }
     public static List<WebPatch> around(Level level, Vec3 center, int cells) {
         List<WebPatch> result = new ArrayList<>(); int middle = Math.floorDiv((int)Math.floor(center.z), CELL_SIZE);
+        Map<Integer, Cached> cache = CACHE.computeIfAbsent(level, ignored -> new java.util.HashMap<>());
+        long now = level.getGameTime();
         for (int cell = middle - cells; cell <= middle + cells; cell++) {
-            Map<Integer, Cached> cache = CACHE.computeIfAbsent(level, ignored -> new java.util.HashMap<>());
-            Cached known = cache.get(cell); long now = level.getGameTime();
+            Cached known = cache.get(cell);
             if (known == null || known.patch==null && known.expires < now) {
                 known = new Cached(patch(level, 0x4C494D424F5F5745L, cell), now + 20);
                 cache.put(cell, known);
@@ -126,7 +127,6 @@ public final class WebPatchGenerator {
             int gz = Math.floorDiv((int)Math.floor(center.z), 8);
             int radius = cells >= 40 ? 7 : cells >= 16 ? 3 : 2;
             Map<Long, Cached> caveCache = CAVE_CACHE.computeIfAbsent(level, ignored -> new java.util.HashMap<>());
-            long now = level.getGameTime();
             for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
                 int cellX = gx + dx, cellZ = gz + dz;
                 boolean nest = UnderworldTerrain.isNest(cellX * 8 + 4, cellZ * 8 + 4);

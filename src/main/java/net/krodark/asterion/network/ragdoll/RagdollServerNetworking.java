@@ -16,6 +16,7 @@ import java.util.UUID;
 public final class RagdollServerNetworking {
     private static final Map<UUID, Integer> RESPAWN_GRACE = new HashMap<>();
     private static final Map<String, Long> LAST_POSE = new HashMap<>();
+    private static final Map<UUID, RagdollPosePayload> PLAYER_POSES = new HashMap<>();
     private static final Map<UUID, Long> ACTIVE_RAGDOLLS = new HashMap<>();
     private static final Map<UUID, net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level>> RAGDOLL_LEVELS = new HashMap<>();
     private static final Map<UUID, Integer> SCRIPTED_THROW_DAMAGE = new HashMap<>();
@@ -31,18 +32,23 @@ public final class RagdollServerNetworking {
 
     public static void initialize() {
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
-            RESPAWN_GRACE.clear(); SCRIPTED_THROW_DAMAGE.clear(); ACTIVE_RAGDOLLS.clear(); RAGDOLL_LEVELS.clear(); LAST_POSE.clear();
+            RESPAWN_GRACE.clear(); SCRIPTED_THROW_DAMAGE.clear(); ACTIVE_RAGDOLLS.clear(); RAGDOLL_LEVELS.clear(); LAST_POSE.clear(); PLAYER_POSES.clear();
         });
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
             for (UUID id : java.util.List.copyOf(ACTIVE_RAGDOLLS.keySet())) {
                 ServerPlayer player = server.getPlayerList().getPlayer(id);
-                if (player == null) { ACTIVE_RAGDOLLS.remove(id); RAGDOLL_LEVELS.remove(id); }
+                if (player == null) { ACTIVE_RAGDOLLS.remove(id); RAGDOLL_LEVELS.remove(id); PLAYER_POSES.remove(id); }
                 else if (!player.isAlive() || !player.level().dimension().equals(RAGDOLL_LEVELS.get(id))
                         || ACTIVE_RAGDOLLS.get(id) < server.getTickCount()) finishRagdoll(player);
             }
         });
         net.fabricmc.fabric.api.networking.v1.EntityTrackingEvents.START_TRACKING.register((entity, viewer) -> {
-            if (entity instanceof ServerPlayer player && isRagdolled(player)) sendState(viewer, player, true);
+            if (entity instanceof ServerPlayer player && isRagdolled(player)) {
+                sendState(viewer, player, true);
+                var pose = PLAYER_POSES.get(player.getUUID());
+                if (pose != null && ServerPlayNetworking.canSend(viewer, RagdollPosePayload.TYPE))
+                    ServerPlayNetworking.send(viewer, pose);
+            }
         });
         net.fabricmc.fabric.api.networking.v1.EntityTrackingEvents.STOP_TRACKING.register((entity, viewer) -> {
             if (entity instanceof ServerPlayer player) sendState(viewer, player, false);
@@ -180,6 +186,7 @@ public final class RagdollServerNetworking {
         if (tracked == sender) {
             if (!sender.isAlive() || sender.isSpectator()) return;
             markRagdolled(sender, 60);
+            PLAYER_POSES.put(sender.getUUID(), payload);
         } else if (tracked.isAlive() || sender.distanceToSqr(tracked) > 48 * 48) return;
 
         for (ServerPlayer viewer : sender.level().players()) {
@@ -231,6 +238,7 @@ public final class RagdollServerNetworking {
          
          
         ACTIVE_RAGDOLLS.remove(player.getUUID());
+        PLAYER_POSES.remove(player.getUUID());
         RAGDOLL_LEVELS.remove(player.getUUID());
         LAST_POSE.keySet().removeIf(key -> key.startsWith(player.getUUID() + ":"));
         for (ServerPlayer viewer : player.level().getServer().getPlayerList().getPlayers()) sendState(viewer, player, false);

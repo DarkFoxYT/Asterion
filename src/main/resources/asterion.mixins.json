@@ -41,6 +41,8 @@
     "SpawnPlacementsAccessor"
   ],
   "client": [
+    "EssentialRagdollEmoteMixin",
+    "RagdollPlayerSkinMixin",
     "WorldIconDecoderMixin",
     "ForgeHudMixin",
     "ForgeToastMixin",

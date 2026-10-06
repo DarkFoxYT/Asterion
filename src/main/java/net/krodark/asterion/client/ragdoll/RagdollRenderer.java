@@ -42,6 +42,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public final class RagdollRenderer {
     private static final float[][][] HUMANOID_ARMOR_UVS = createHumanoidArmorUvs();
@@ -79,9 +80,16 @@ public final class RagdollRenderer {
             boolean playerSkin = body.playerBody && DismembermentEngine.isAnatomicalRegion(body.region);
             var textures = resolvedTextures.computeIfAbsent(body.entityId + ":" + body.texture + ":" + playerSkin,
                     ignored -> RagdollTextureCompatibility.resolve(client.level.getEntity(body.entityId), body.texture, playerSkin));
-            byTexture.computeIfAbsent(textures.base(), ignored -> new ArrayList<>()).add(body);
+            Identifier base = playerSkin && client.level.getEntity(body.entityId) instanceof net.minecraft.client.player.AbstractClientPlayer player
+                    ? EssentialRagdollCompatibility.skinTexture(player, textures.base()) : textures.base();
+            byTexture.computeIfAbsent(base, ignored -> new ArrayList<>()).add(body);
             if (textures.emissive() != null)
                 emissives.computeIfAbsent(textures.emissive(), ignored -> new ArrayList<>()).add(body);
+            if ((body.region == 6 || body.region == 13)
+                    && client.level.getEntity(body.entityId) instanceof net.minecraft.client.player.AbstractClientPlayer player) {
+                var glow = EssentialRagdollCompatibility.emissiveCape(player);
+                if (glow != null) emissives.computeIfAbsent(glow, ignored -> new ArrayList<>()).add(body);
+            }
         }
         byTexture.forEach((texture, parts) -> collector.submitCustomGeometry(poses,
                 RenderTypes.entityTranslucent(texture, false),
@@ -91,14 +99,18 @@ public final class RagdollRenderer {
                 (pose, vertices) -> parts.forEach(part -> renderBody(pose, vertices, part, true))));
         if (AsterionConfig.INSTANCE.ragdollEquipment) {
             Map<Identifier, List<ArmorDraw>> armorByTexture = new HashMap<>();
+            Map<Integer, Set<Integer>> hiddenArmor = new HashMap<>();
             for (RigidBodyPiece body : bodies)
-                for (ArmorDraw draw : armorDraws(body))
+                for (ArmorDraw draw : armorDraws(body, hiddenArmor.computeIfAbsent(body.entityId, id ->
+                        client.level.getEntity(id) instanceof net.minecraft.client.player.AbstractClientPlayer player
+                                ? EssentialRagdollCompatibility.hiddenArmor(player) : Set.of())))
                     armorByTexture.computeIfAbsent(draw.texture, ignored -> new ArrayList<>()).add(draw);
             armorByTexture.forEach((texture, draws) -> collector.submitCustomGeometry(poses,
                     RenderTypes.armorCutoutNoCull(texture),
                     (pose, vertices) -> draws.forEach(draw -> renderEquipmentBox(pose, vertices, draw))));
             for (RigidBodyPiece grip : grips) submitHeldItem(poses, collector, grip);
         }
+        EssentialRagdollCompatibility.submitCosmetics(client, poses, collector, bodies, partial);
         poses.popPose();
     }
 
@@ -107,6 +119,8 @@ public final class RagdollRenderer {
         Minecraft client = Minecraft.getInstance();
         if (client.level == null) return;
         LivingEntity living = client.level.getEntity(grip.entityId) instanceof LivingEntity found ? found : null;
+        if (living instanceof net.minecraft.client.player.AbstractClientPlayer player
+                && EssentialRagdollCompatibility.hidesHeldItems(player)) return;
         boolean physicalRight = grip.region == 30;
         HumanoidArm physicalArm = physicalRight ? HumanoidArm.RIGHT : HumanoidArm.LEFT;
         ItemStack stack = grip.heldItem;
@@ -171,7 +185,7 @@ public final class RagdollRenderer {
         }
     }
 
-    private static List<ArmorDraw> armorDraws(RigidBodyPiece body) {
+    private static List<ArmorDraw> armorDraws(RigidBodyPiece body, Set<Integer> hidden) {
         Minecraft minecraft = Minecraft.getInstance();
         if (!DismembermentEngine.isAnatomicalRegion(body.region) || minecraft.level == null) return List.of();
         LivingEntity living = minecraft.level.getEntity(body.entityId) instanceof LivingEntity found ? found : null;
@@ -179,6 +193,10 @@ public final class RagdollRenderer {
         ItemStack chest = living == null ? body.chestEquipment : living.getItemBySlot(EquipmentSlot.CHEST);
         ItemStack legs = living == null ? body.legEquipment : living.getItemBySlot(EquipmentSlot.LEGS);
         ItemStack feet = living == null ? body.footEquipment : living.getItemBySlot(EquipmentSlot.FEET);
+        if (hidden.contains(EquipmentSlot.HEAD.getIndex())) head = ItemStack.EMPTY;
+        if (hidden.contains(EquipmentSlot.CHEST.getIndex())) chest = ItemStack.EMPTY;
+        if (hidden.contains(EquipmentSlot.LEGS.getIndex())) legs = ItemStack.EMPTY;
+        if (hidden.contains(EquipmentSlot.FEET.getIndex())) feet = ItemStack.EMPTY;
         List<ArmorDraw> draws = new ArrayList<>(4);
         switch (DismembermentEngine.semanticRegion(body.region)) {
             case 0 -> addArmorSlot(draws, body, head, false);

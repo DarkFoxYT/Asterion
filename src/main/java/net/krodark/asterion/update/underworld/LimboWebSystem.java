@@ -13,6 +13,8 @@ import java.util.BitSet;
 import java.util.HashSet;
 /** Server authority for virtual strands: player impulses, drag, and force/tension tearing. */
 public final class LimboWebSystem {
+    private static final BitSet EMPTY_CUTS = new BitSet();
+    private static final java.util.Map<ServerPlayer, java.util.Map<Long, WebSyncSnapshot>> SYNC = new java.util.HashMap<>();
     private LimboWebSystem() { }
     public static void alertSpiders(ServerLevel level, net.minecraft.world.entity.player.Player player, Vec3 point) {
         if (!player.isAlive() || player.isSpectator()) return;
@@ -23,11 +25,15 @@ public final class LimboWebSystem {
     public static void initialize() {
         WebCutPayload.initialize(); net.krodark.asterion.network.WebSpinPayload.initialize();
         ServerTickEvents.END_SERVER_TICK.register(LimboWebSystem::tick);
+        net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> SYNC.remove(handler.getPlayer()));
+        net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> SYNC.remove(oldPlayer));
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPED.register(server -> SYNC.clear());
     }
     public static boolean supports(net.minecraft.world.level.Level level, WebPatch patch, int edge) {
-        if (!(level instanceof ServerLevel server) || !patch.intact(edge,WebSavedState.get(server).cuts.getOrDefault(patch.key(), new BitSet()))) return false;
+        if (!(level instanceof ServerLevel server) || !patch.intact(edge,WebSavedState.get(server).cuts.getOrDefault(patch.key(), EMPTY_CUTS))) return false;
         var e = patch.edges().get(edge);
-        for (int index : new int[]{e.a(),e.b()}) {
+        for (int endpoint = 0; endpoint < 2; endpoint++) {
+            int index = endpoint == 0 ? e.a() : e.b();
             var block = net.minecraft.core.BlockPos.containing(patch.anchors().get(index).subtract(patch.normals().get(index).scale(.04)));
             if (!level.getChunkSource().hasChunk(block.getX()>>4,block.getZ()>>4) || level.getBlockState(block).getCollisionShape(level,block).isEmpty()) return false;
         }
@@ -40,18 +46,30 @@ public final class LimboWebSystem {
         saved.cuts.computeIfAbsent(key,ignored->new BitSet()).set(link);saved.setDirty();
     }
     private static void tick(MinecraftServer server) {
-        ServerLevel level = server.getLevel(Asterion.LIMBO_LEVEL); if (level == null) return;
+        ServerLevel level = server.getLevel(Asterion.LIMBO_LEVEL);
+        SYNC.keySet().removeIf(player -> player.level() != level || player.isRemoved());
+        if (level == null) return;
         HashSet<Integer> visited = new HashSet<>();
         for (ServerPlayer player : level.players()) {
             if (level.getGameTime() % 10 == 0) {
+                var snapshots = SYNC.computeIfAbsent(player, ignored -> new java.util.HashMap<>());
+                var nearbyKeys = new HashSet<Long>();
                 for (WebPatch patch : WebPatchGenerator.around(level,player.position(),40)) {
-                    if (WebPatchGenerator.isSpun(level,patch.key()))
+                    nearbyKeys.add(patch.key());
+                    var snapshot = snapshots.computeIfAbsent(patch.key(), ignored -> new WebSyncSnapshot());
+                    if (WebPatchGenerator.isSpun(level,patch.key()) && snapshot.needsGeometry()
+                            && net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(player,net.krodark.asterion.network.WebSpinPayload.TYPE)) {
                         net.krodark.asterion.network.WebSpinPayload.send(player,patch);
+                        snapshot.geometrySent();
+                    }
                     BitSet cuts=WebSavedState.get(level).cuts.get(patch.key());
                     if (cuts!=null && net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(player,WebCutPayload.TYPE))
-                        for(int link=cuts.nextSetBit(0);link>=0;link=cuts.nextSetBit(link+1))
+                        for(int link=snapshot.nextPendingCut(cuts,0);link>=0;link=snapshot.nextPendingCut(cuts,link+1)) {
                             net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player,new WebCutPayload(patch.key(),link));
+                            snapshot.cutSent(link);
+                        }
                 }
+                snapshots.keySet().retainAll(nearbyKeys);
             }
             if (!player.isAlive() || player.isSpectator()) continue;
             if (visited.add(player.getId())) affect(level, player, false);
