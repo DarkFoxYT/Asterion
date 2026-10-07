@@ -76,6 +76,7 @@ public final class SpiderLegIK {
         private final float[] stepDuration = new float[8];
         private final Gait gait = new Gait();
         private Vec3 velocity = Vec3.ZERO;
+        private final Vector3f[][] lastJoints = new Vector3f[8][];
         private final Vector3f[][] rotations = new Vector3f[8][];
         private final Vec3[] contactNormals = new Vec3[8];
         private final float[] unsupportedSince = new float[8];
@@ -97,7 +98,8 @@ public final class SpiderLegIK {
         if(side*(foot.x-hip.x)<.08F)return false;
         return switch(leg%4) {
             case 0 -> foot.z<.35F;
-            case 1,2 -> Math.abs(foot.z)<1.1F;
+            case 1 -> foot.z<.10F && foot.z> -1.1F;
+            case 2 -> foot.z>-.10F && foot.z<1.1F;
             default -> foot.z>-.35F;
         };
     }
@@ -160,10 +162,11 @@ public final class SpiderLegIK {
             Vector3f restPlacement=inverse.transformPosition(vector(restingFoot.subtract(frame.origin)));
             float side=leg<4?-1:1;
             placement.x=side<0?Math.min(placement.x,pivots[0].x-.12F):Math.max(placement.x,pivots[0].x+.12F);
-            // Keep the authored fan, but let its whole stance travel forward.
-            // Fixed narrow Z lanes forced the inner feet to replant every time
-            // the chasing body moved through their lane's boundary.
-            placement.z=Math.clamp(placement.z,restPlacement.z-.5F,restPlacement.z+.5F);
+            // Expand stride reach while retaining the authored front/rear fan.
+            placement.z=Math.clamp(placement.z,restPlacement.z-.72F,restPlacement.z+.72F);
+            // Separate the middle pair's fore/aft recovery lanes.
+            if(leg%4==1)placement.z=Math.min(placement.z,-.10F);
+            if(leg%4==2)placement.z=Math.max(placement.z,.10F);
             // Apply stride prediction inside the leg's fan before looking for a
             // real hit; clamping a finished contact would invent a grip in air.
             nominal=toWorld(world,placement,frame.origin);
@@ -337,8 +340,12 @@ public final class SpiderLegIK {
             if(!reset && memory.rotations[leg]!=null)
                 for(int j=0;j<3;j++)angles[j].set(memory.rotations[leg][j]);
             List<Vector3f[]> neighbours=new ArrayList<>(3);
-            for(int other=leg/4*4;other<leg;other++) {
-                if(other>=debug.size())continue;
+            for(int other=leg/4*4;other<leg/4*4+4;other++) {
+                if(other==leg)continue;
+                if(other>=debug.size()) {
+                    if(!reset && memory.lastJoints[other]!=null)neighbours.add(memory.lastJoints[other]);
+                    continue;
+                }
                 Vector3f[] joints=new Vector3f[4];
                 for(int j=0;j<4;j++)joints[j]=inverse.transformPosition(vector(debug.get(other).joints().get(j).subtract(frame.origin)));
                 neighbours.add(joints);
@@ -397,6 +404,12 @@ public final class SpiderLegIK {
             }
             Vec3 foot = toWorld(world,transform.transformPosition(new Vector3f(tip)),frame.origin);
             joints.add(foot);
+            if(memory.lastJoints[leg]==null)memory.lastJoints[leg]=new Vector3f[]{new Vector3f(),new Vector3f(),new Vector3f(),new Vector3f()};
+            for(int j=0;j<4;j++) {
+                Vec3 point=joints.get(j);
+                inverse.transformPosition(memory.lastJoints[leg][j].set((float)(point.x-frame.origin.x),
+                        (float)(point.y-frame.origin.y),(float)(point.z-frame.origin.z)));
+            }
             float error=(float)foot.distanceTo(target);
             debug.add(new Leg(List.copyOf(joints),target,
                     contact && memory.destinations[leg]==null && error<.10F,error));
@@ -451,6 +464,7 @@ public final class SpiderLegIK {
                 lastIdleSwitch=age;
             } else if(age-lastIdleSwitch>=1.5F) {
                 group^=1; lastIdleSwitch=age;
+                for(int leg=0;leg<8;leg++)if(((leg+leg/4)&1)==group)used[leg]=false;
             }
         }
         boolean canStart(int leg) {
@@ -471,7 +485,7 @@ public final class SpiderLegIK {
 
     static float stepDuration(double speed,double scale,int leg) {
         // A brisk scuttle has quick recovery strokes; slow walking takes its time.
-        double duration=Math.clamp(.26*scale/Math.max(.01,speed),1.45,3.8);
+        double duration=Math.clamp(.34*scale/Math.max(.01,speed),1.65,4.5);
         return (float)(duration*(1+(leg%4-1.5)*.025));
     }
 
@@ -490,7 +504,7 @@ public final class SpiderLegIK {
         // Include the first part of the following stance, not just airtime;
         // otherwise even a quick touchdown immediately lands behind the torso.
         Vec3 lead=tangent.scale(stepDuration(tangent.length(),scale,leg)*.85+.75);
-        double limit=.60*scale;
+        double limit=.72*scale;
         return lead.length()>limit?lead.normalize().scale(limit):lead;
     }
 
@@ -499,19 +513,19 @@ public final class SpiderLegIK {
         Vec3 tangent=velocity.subtract(up.scale(velocity.dot(up)));
         // Release a trailing stance before the torso stretches the knee chain.
         // Measure in the support plane so ceilings and walls share the floor gait.
-        return tangent.lengthSqr()>.0004 && rest.subtract(planted).dot(tangent.normalize())>.16*scale;
+        return tangent.lengthSqr()>.0004 && rest.subtract(planted).dot(tangent.normalize())>.28*scale;
     }
 
     static boolean trailingStance(Vec3 planted,Vec3 rest,Vec3 velocity,Vec3 up,double scale) {
         Vec3 tangent=velocity.subtract(up.scale(velocity.dot(up)));
-        return tangent.lengthSqr()>.0004 && rest.subtract(planted).dot(tangent.normalize())>.40*scale;
+        return tangent.lengthSqr()>.0004 && rest.subtract(planted).dot(tangent.normalize())>.45*scale;
     }
 
     static boolean needsStep(Vec3 planted,Vec3 target,Vec3 up,double scale) {
         Vec3 offset=target.subtract(planted);
         double rise=offset.dot(up);
         // Small body-height adjustments must not cause shuffling on level ground.
-        return offset.subtract(up.scale(rise)).lengthSqr()>.1024*scale*scale
+        return offset.subtract(up.scale(rise)).lengthSqr()>.1764*scale*scale
                 || Math.abs(rise)>.18*scale;
     }
 
@@ -525,10 +539,10 @@ public final class SpiderLegIK {
         if(Math.abs(to.subtract(from).dot(up))<=.1*scale) {
             double arc=Math.sin(Math.PI*t);
             // Lift decisively, then settle the toe more gently into contact.
-            double lift=.20*scale*arc*arc*(1+.25*Math.cos(Math.PI*t));
+            double lift=(.32*scale+Math.min(.10*scale,from.distanceTo(to)*.08))*arc*arc*(1+.25*Math.cos(Math.PI*t));
             return from.lerp(to,t*t*(3-2*t)).add(up.scale(lift));
         }
-        double lift=.24*scale;
+        double lift=.34*scale;
         double highest=Math.max(from.dot(up),to.dot(up))+lift;
         Vec3 raisedFrom=from.add(up.scale(highest-from.dot(up)));
         Vec3 raisedTo=to.add(up.scale(highest-to.dot(up)));
@@ -543,7 +557,7 @@ public final class SpiderLegIK {
         double arc=Math.sin(Math.PI*Math.clamp(t,0,1));
         // A small outward recovery arc opens the knees instead of moving every
         // leg like a piston along an identical straight track.
-        return foot.add(side.scale(.065*scale*arc*arc));
+        return foot.add(side.scale(.11*scale*arc*arc));
     }
 
     /** Bounded CCD preserves the authored knee bends and never stretches a segment. */
@@ -602,7 +616,7 @@ public final class SpiderLegIK {
     }
 
     private static float poseScore(Vector3f[] pivots,Vector3f[] angles,Vector3f tip,Vector3f target,Vector3f[] previous,List<Vector3f[]> neighbours) {
-        float score=endpoint(pivots,angles,tip).distanceSquared(target)+separationPenalty(pivots,angles,tip,neighbours)*4;
+        float score=endpoint(pivots,angles,tip).distanceSquared(target)+separationPenalty(pivots,angles,tip,neighbours)*8;
         // Prefer the coherent knee bend among similarly accurate CCD solutions.
         for(int j=0;j<3;j++)for(int axis=0;axis<3;axis++) {
             double delta=angles[j].get(axis)-previous[j].get(axis);
@@ -619,7 +633,7 @@ public final class SpiderLegIK {
         joints[3]=transform.transformPosition(new Vector3f(tip));
         float penalty=0;
         for(Vector3f[] other:neighbours)for(int a=1;a<3;a++)for(int b=1;b<3;b++) {
-            float gap=Math.max(0,.075F-segmentDistance(joints[a],joints[a+1],other[b],other[b+1]));
+            float gap=Math.max(0,.105F-segmentDistance(joints[a],joints[a+1],other[b],other[b+1]));
             penalty+=gap*gap;
         }
         return penalty;

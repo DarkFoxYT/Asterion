@@ -11,9 +11,10 @@ vec4 limboCascadeVolume(vec3 camera,vec3 ray,float travel,float ticks,int qualit
     float rim=tier*3200.0;
     if(abs(progress-rim)>min(travel,136.0)+24.0)return vec4(0,0,0,1);
     float lower=47.0-tier*18.0-tier*(tier-1.0)+8.0/9.0;
+    float upper=lower+18.0+2.0*(tier-1.0);
     vec2 inward=normalize(vec2(0,16018)-camera.xz);
     vec2 interval=vec2(0,min(travel,136.0));
-    if(!cascadeSlab(camera.y,ray.y,lower-.4,lower+13.0,interval)
+    if(!cascadeSlab(camera.y,ray.y,lower-.4,upper+7.0,interval)
         || !cascadeSlab(progress-rim,dot(ray.xz,inward),-4.0,24.0,interval))return vec4(0,0,0,1);
     int count=clamp(quality*2,8,16);
     float stepLength=(interval.y-interval.x)/float(count);
@@ -25,6 +26,8 @@ vec4 limboCascadeVolume(vec3 camera,vec3 ray,float travel,float ticks,int qualit
         float down=16000.0-length(p.xz-vec2(0,16018))-rim;
         float height=p.y-lower;
         float billow=limboAtmosphereNoise(p*vec3(.24,.32,.24)-vec3(ticks*.009,ticks*.015,-ticks*.006));
+        float lipHeight=p.y-upper;
+        float lip=exp(-pow((down-1.5)/4.5,2.0))*exp(-pow((lipHeight-1.0)/2.4,2.0));
         float plume=exp(-pow((down-6.0-height*.22)/8.0,2.0))
                 *(1.0-smoothstep(3.0+billow*5.0,12.0,height))*smoothstep(-.4,.8,height);
         // A shallow 3D layer of turbulent foam above the impact pool, independent
@@ -32,7 +35,8 @@ vec4 limboCascadeVolume(vec3 camera,vec3 ray,float travel,float ticks,int qualit
         float bubbles=limboAtmosphereNoise(p*vec3(2.8,3.6,2.8)+vec3(ticks*.035,-ticks*.06,0));
         float foam=(1.0-smoothstep(.15+bubbles*.6,1.1,height))*smoothstep(-.25,.12,height)
                 *exp(-pow((down-5.0)/5.0,2.0))*smoothstep(.35,.65,bubbles);
-        float density=plume*smoothstep(.24,.78,billow)*.16+foam*.85;
+        float density=plume*(.35+smoothstep(.18,.72,billow))*.28
+                +lip*(.4+billow)*.36+foam*1.25;
         float attenuation=exp(-density*stepLength);
         LimboSeaStyle sea=limboSeaStyle(p.xz);
         vec3 tint=mix(vec3(.76,.86,.93),vec3(.9,.54,.27),sea.fire*.55);

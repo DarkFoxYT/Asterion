@@ -5,6 +5,19 @@ struct LimboSeaStyle { vec3 water; vec3 reflection; vec3 fog; float density; flo
 float limboSeaDistance(vec2 p) {
     return max(0.0,16000.0-length(p-vec2(0,16018)));
 }
+float limboSeaWaterY(vec2 p) {
+    float tier=clamp(floor(limboSeaDistance(p)/3200.0),0.0,4.0);
+    return 47.0-tier*18.0-tier*(tier-1.0)+8.0/9.0;
+}
+// Preserve the measured camera surface offset while following each local terrace.
+float limboLocalSurface(vec2 world,vec2 camera,float base) {
+    return base+limboSeaWaterY(world)-limboSeaWaterY(camera);
+}
+vec2 limboVolumeHeightRange(vec3 camera,vec3 ray,float travel,float base) {
+    float end=limboLocalSurface((camera+ray*travel).xz,camera.xz,base);
+    float middle=limboLocalSurface((camera+ray*travel*.5).xz,camera.xz,base);
+    return vec2(min(base,min(end,middle)),max(base,max(end,middle)));
+}
 float limboSeaTransition(float d,float edge) {
     float t=clamp((d-(edge-320.0))/640.0,0.0,1.0);
     return t*t*t*(t*(t*6.0-15.0)+10.0);
@@ -13,10 +26,10 @@ float limboCascadeFoam(vec2 p,float ticks) {
     float d=limboSeaDistance(p);
     float boundary=clamp(floor(d/3200.0+.5),1.0,4.0)*3200.0;
     float edge=d-boundary;
-    if(abs(edge)>12.0)return 0.0;
-    float band=edge<0.0 ? 1.0-smoothstep(0.0,4.0,-edge) : 1.0-smoothstep(1.0,12.0,edge);
+    if(abs(edge)>18.0)return 0.0;
+    float band=edge<0.0 ? 1.0-smoothstep(0.0,4.0,-edge) : 1.0-smoothstep(2.0,18.0,edge);
     float rings=.5+.5*sin(edge*2.4-ticks*.19+sin(dot(p,vec2(.73,.41)))*1.1);
-    return band*(.32+.35*rings);
+    return band*(.68+.30*rings);
 }
 LimboSeaStyle limboSeaStyle(vec2 p) {
     float d=limboSeaDistance(p);

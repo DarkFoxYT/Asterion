@@ -213,7 +213,7 @@ void main() {
         whitecap = max(whitecap, shoreBreak * smoothstep(.32, .69, breakerNoise)
                 * (.34 + tempest * .56) * nearDetail);
     }
-    whitecap=max(whitecap,cascadeFoam*(.65+.35*breakup));
+    whitecap=max(whitecap,cascadeFoam*(.82+.18*breakup));
     float contact = hullActive * (1.0 - smoothstep(.025, .22, abs(hullEdge)))
             * (1.0 - smoothstep(.8, 1.6, abs(hullPosition.z - .2)));
     float wake = distance < 56.0 ? persistentWake(causticWorld).x * shoreExposure : 0.0;

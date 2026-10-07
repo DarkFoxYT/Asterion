@@ -56,10 +56,11 @@ public final class LimboCascadeEffects {
                     || !world.getFluidState(high).is(FluidTags.WATER)
                     || !world.getFluidState(low).is(FluidTags.WATER)
                     || world.getFluidState(low.above()).is(FluidTags.WATER)) continue;
-            boolean mist = attempt % 3 == 0;
-            double along = mist ? 1 : random.nextDouble();
-            double y = upper + 8.0/9.0 - (upper-lower)*along + (mist ? .3 : 0);
-            double sprayArc=mist?3+random.nextDouble()*4
+            boolean mist = attempt % 2 == 0;
+            boolean lipMist=mist && attempt%4==0;
+            double along = mist ? (lipMist?0:1) : random.nextDouble();
+            double y = upper + 8.0/9.0 - (upper-lower)*along + (mist ? .6 : 0);
+            double sprayArc=mist?(lipMist?.5+random.nextDouble()*2:3+random.nextDouble()*5)
                     :4.6*(Math.sqrt(along+.0025)-.05)+.25+random.nextDouble()*.5;
             x+=normal.x*sprayArc;z+=normal.z*sprayArc;
             if (camera.distanceToSqr(x,y,z) > 48*48 || !world.getBlockState(BlockPos.containing(x,y,z)).isAir()) continue;
@@ -74,8 +75,8 @@ public final class LimboCascadeEffects {
             if (mist) {
                 var tint = LimboSeaRegions.fog(x,z);
                 if (particle instanceof net.minecraft.client.particle.SingleQuadParticle quad)
-                    quad.setColor((float)Math.min(1,tint.x*2+.2),(float)Math.min(1,tint.y*2+.2),(float)Math.min(1,tint.z*2+.2));
-                particle.scale(.55F);
+                    quad.setColor((float)Math.min(1,tint.x*.4+.78),(float)Math.min(1,tint.y*.4+.82),(float)Math.min(1,tint.z*.4+.86));
+                particle.scale(lipMist?1.1F:1.5F);
             } else {
                 if(!fire && particle instanceof net.minecraft.client.particle.SingleQuadParticle quad)
                     quad.setColor(.84F,.93F,.98F);

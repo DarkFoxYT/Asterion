@@ -201,9 +201,9 @@ public final class SpiderIKSmoke {
             var solved=new java.util.ArrayList<Vector3f[]>();
             for(int leg=0;leg<8;leg++) {
                 double phase=frame*.09+((leg+leg/4)&1)*Math.PI;
-                Vector3f target=new Vector3f(nominal[leg]).add(0,(float)(.08+.18*Math.max(0,Math.sin(phase))),(float)(.12*Math.cos(phase)));
-                if(leg%4==1)target.z=Math.clamp(target.z,-.28F,-.06F);
-                if(leg%4==2)target.z=Math.clamp(target.z,.06F,.28F);
+                Vector3f target=new Vector3f(nominal[leg]).add(0,(float)(.08+.28*Math.max(0,Math.sin(phase))),(float)(.22*Math.cos(phase)));
+                if(leg%4==1)target.z=Math.clamp(target.z,-.40F,-.10F);
+                if(leg%4==2)target.z=Math.clamp(target.z,.10F,.40F);
                 var neighbours=new java.util.ArrayList<Vector3f[]>();
                 for(int other=leg/4*4;other<leg;other++)neighbours.add(solved.get(other));
                 Vector3f[] before={new Vector3f(angles[leg][0]),new Vector3f(angles[leg][1]),new Vector3f(angles[leg][2])};
@@ -224,7 +224,7 @@ public final class SpiderIKSmoke {
                 }
                 joints[3]=transform.transformPosition(new Vector3f(tips[leg]));
                 for(Vector3f[] other:neighbours)for(int a=1;a<3;a++)for(int b=1;b<3;b++)
-                    if(SpiderLegIK.segmentDistance(joints[a],joints[a+1],other[b],other[b+1])<.035F)
+                    if(SpiderLegIK.segmentDistance(joints[a],joints[a+1],other[b],other[b+1])<.05F)
                         throw new AssertionError("Walking limbs intersect: "+names[leg]+" frame="+frame);
                 solved.add(joints);
             }
@@ -252,7 +252,7 @@ public final class SpiderIKSmoke {
         var up=new net.minecraft.world.phys.Vec3(0,1,0);
         var side=new net.minecraft.world.phys.Vec3(1,0,0);
         var middle=SpiderLegIK.swingFoot(from,to,up,.5,1.5,side);
-        if(middle.x<.09 || middle.y<.29)throw new AssertionError("Recovery stroke has no outward lift");
+        if(middle.x<.15 || middle.y<.47)throw new AssertionError("Recovery stroke has no outward lift");
         if(SpiderLegIK.swingFoot(from,to,up,0,1.5,side).distanceTo(from)>1e-8
                 || SpiderLegIK.swingFoot(from,to,up,1,1.5,side).distanceTo(to)>1e-8)
             throw new AssertionError("Recovery arc moves a planted endpoint");
@@ -307,7 +307,7 @@ public final class SpiderIKSmoke {
             for(int leg=0;leg<8;leg++) {
                 if(steps[leg]<5 || !lifted[leg])throw new AssertionError("Leg starved or never visibly lifted: "+leg+" at "+fps+"fps");
                 if(SpiderLegIK.needsStep(feet[leg],forward.scale(160*speed),up,scale))
-                    throw new AssertionError("Foot did not catch up");
+                    throw new AssertionError("Foot did not catch up: fps="+fps+" speed="+speed+" scale="+scale+" leg="+leg+" offset="+feet[leg].subtract(forward.scale(160*speed))+" steps="+steps[leg]);
             }
         }
         System.out.println("Walking gait: all eight feet lift, alternate support and settle at 30/60/144 fps, three speeds, two sizes and six surfaces.");

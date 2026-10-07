@@ -38,7 +38,7 @@ strength to keep their displacement aligned.
 
 World-space volumetric impact mist and raised turbulent foam reuse the existing
 reduced-resolution atmosphere pass. A targeted radial/height interval bounds
-8–16 front-to-back samples, with 3D animated density, depth occlusion,
+8–16 front-to-back samples, with 3D animated density, dense upper-rim and impact plumes, depth occlusion,
 underwater suppression and early rejection away from the rims. The camera can
 move inside the plume. Lightweight translucent veils retain fine aerosol glints
 at a 96-block range and a 192-face frame budget; their opacity is reduced to
@@ -83,3 +83,26 @@ water texture for all five palettes,
 including an angled silhouette preview and a real depth-tested mist blend.
 Fabric and Quilt builds and Forge compilation also pass. These checks do not
 measure in-world FPS or replace a multiplayer playtest.
+
+## Water/gait refinement
+
+Regional flame and mist samples follow each terrace's local elevation, rather
+than shifting the whole view when the camera crosses a rim. Wave refinement
+blends between 24 and 56 blocks; geometry changes outside that range retain the
+same two-block surface, avoiding the former abrupt four-block wave silhouette.
+Whirlpool centres are encoded relative to each vertex cell so inner-sea
+coordinates cannot overflow the fractional world-coordinate payload. Whirlpool placement also supports the full sea rings instead of clamping to
+the original ferry corridor. Legacy
+surface probes and the deepest terrace remain supported.
+
+The current reaches 96 blocks upstream and 40 downstream, peaking at .085
+blocks/tick; ordinary boats receive it only while touching the wave surface.
+White foam covers wider lip/impact bands. Larger nearby aerosol clouds share
+the existing 160-particle and eight-spawn budgets.
+
+Spider feet have longer planted strokes, raised outward recovery arcs, separate
+middle-leg landing lanes and wider knee clearance. Each solve considers both
+already-solved legs and the remaining legs' previous poses. Idle group scheduling
+clears stale recovery reservations so a waiting foot can finish its adjustment.
+The strengthened authored-model clearance tests and gait checks cover walking,
+running, stopping, two sizes, all six surfaces and 30/60/144 FPS.

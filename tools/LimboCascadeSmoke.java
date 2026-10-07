@@ -23,7 +23,9 @@ public final class LimboCascadeSmoke {
             check(upper-lower==LimboCascades.drop(boundary),"Waterfall drop must increase toward centre");
             check(upper==LimboCascades.waterYForTier(boundary-1) && lower==LimboCascades.waterYForTier(boundary),"Sea ordering changed");
             Vec3 flow=LimboCascades.current(x-normal.x*2,z-normal.z*2);
-            check(flow.dot(LimboCascades.downstream(x,z))>0 && flow.length()<=.065001,"Current must go over the lip and remain bounded");
+            check(flow.dot(LimboCascades.downstream(x,z))>0 && flow.length()<=.085001,"Current must go over the lip and remain bounded");
+            check(LimboCascades.current(x-normal.x*64,z-normal.z*64).dot(normal)>0,"No upstream boat attraction");
+            check(LimboCascades.current(x-normal.x*112,z-normal.z*112).equals(Vec3.ZERO),"Current leaks beyond catchment");
             for (int seed=0;seed<8;seed++) {
                 int floor=UnderworldTerrain.seaFloor(seed,(int)Math.floor(x+normal.x*8),(int)Math.floor(z+normal.z*8));
                 check(floor>=UnderworldTerrain.MIN_Y+2 && floor<lower-10,"Lower sea loses depth or exceeds dimension floor");

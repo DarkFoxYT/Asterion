@@ -49,13 +49,14 @@ void main() {
     vec2 waterWorld = floor(UV0 + vec2(.0001));
     vec2 encodedCenter = fract(UV0);
     if (encodedCenter.x > .0001 && encodedCenter.y > .0001)
-        seaWhirlpoolCenter = vec2((floor(encodedCenter.x * 512.0) - 128.0) * 4.0,
-                floor(encodedCenter.y * 512.0) * 4.0);
+        seaWhirlpoolCenter = floor(waterWorld/4.0)*4.0+(floor(encodedCenter*256.0)-128.0)*4.0;
     eventWhirlpoolCenter = seaWhirlpoolCenter;
     int flags = int(Color.b * 255.0 + .5), hullFlags = int(Color.a * 255.0 + .5);
     vec2 chunkEdge = mod(waterWorld, 16.0);
     bool fine = (flags & 128) != 0 && chunkEdge.x > .01 && chunkEdge.y > .01;
-    vec4 w = (fine ? sampleWave(waterWorld, ticks) : meshWave(waterWorld, ticks)) * Color.r;
+    vec4 coarseWave=meshWave(waterWorld,ticks);
+    float refinement=fine ? 1.0-smoothstep(24.0,56.0,length(Position.xz)) : 0.0;
+    vec4 w=mix(coarseWave,refinement>0.0?sampleWave(waterWorld,ticks):coarseWave,refinement)*Color.r;
     vec2 relative = vec2((UV1 << 24) >> 24) / 8.0 + w.yz * .9;
     vec2 heading = Normal.xz;
     vec2 local = vec2(-relative.x * heading.x - relative.y * heading.y,

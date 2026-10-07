@@ -150,7 +150,7 @@ public final class LimboWaterSmoke {
                 (int)Math.round(net.krodark.asterion.event.LimboTempest.strength(22000)*127) << 8,
                 (int)Math.round(net.krodark.asterion.event.LimboWhirlpool.strength(22000) * 255) << 8);
         GL20.glVertexAttrib2f(GL20.glGetAttribLocation(program, "UV0"),
-                32 + (32 / 4 + 128.5F) / 512F, 200 + (200 / 4 + .5F) / 512F);
+                32 + 128.5F / 256F, 200 + 128.5F / 256F);
         GL30.glBeginTransformFeedback(org.lwjgl.opengl.GL11.GL_POINTS);
         org.lwjgl.opengl.GL11.glDrawArrays(org.lwjgl.opengl.GL11.GL_POINTS, 0, 1);
         GL30.glEndTransformFeedback();
@@ -158,6 +158,18 @@ public final class LimboWaterSmoke {
         GL15.glGetBufferSubData(GL30.GL_TRANSFORM_FEEDBACK_BUFFER, 0, moved);
         if (Math.abs(moved[1] - net.krodark.asterion.update.underworld.world.UnderworldWaves.sample(32, 200, 22000).height()) > .008)
             throw new AssertionError("Relocated whirlpool mesh and buoyancy differ");
+        for(int centreZ:new int[]{6432,12820,16016,28800,32016})for(int offset:new int[]{-4,0,4}) {
+            int x=32,z=centreZ+offset;
+            net.krodark.asterion.event.LimboWhirlpool.setCenter(32,centreZ);
+            float codeX=128.5F/256F,codeZ=(128.5F-offset/4)/256F;
+            GL20.glVertexAttrib2f(GL20.glGetAttribLocation(program,"UV0"),x+codeX,z+codeZ);
+            GL30.glBeginTransformFeedback(org.lwjgl.opengl.GL11.GL_POINTS);
+            org.lwjgl.opengl.GL11.glDrawArrays(org.lwjgl.opengl.GL11.GL_POINTS,0,1);
+            GL30.glEndTransformFeedback();GL15.glGetBufferSubData(GL30.GL_TRANSFORM_FEEDBACK_BUFFER,0,moved);
+            if(Math.abs(moved[1]-net.krodark.asterion.update.underworld.world.UnderworldWaves.sample(x,z,22000).height())>.008)
+                throw new AssertionError("Inner-sea UV payload shifts waves at "+z);
+        }
+        System.out.println("PASS relocated whirlpool/wave coordinates across inner seas to 32,016 blocks");
         net.krodark.asterion.event.LimboWhirlpool.setCenter(16, 352);
         org.lwjgl.opengl.GL11.glDisable(GL30.GL_RASTERIZER_DISCARD);
         GL15.glDeleteBuffers(buffer); GL30.glDeleteVertexArrays(vao); org.lwjgl.opengl.GL11.glDeleteTextures(wakeTexture); GL20.glUseProgram(0);

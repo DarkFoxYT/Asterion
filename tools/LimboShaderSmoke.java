@@ -63,6 +63,10 @@ public class LimboShaderSmoke {
             org.lwjgl.opengl.GL11.glDrawArrays(org.lwjgl.opengl.GL11.GL_POINTS,0,1);
             float[] pixel=new float[4];org.lwjgl.opengl.GL11.glReadPixels(0,0,1,1,org.lwjgl.opengl.GL11.GL_RGBA,org.lwjgl.opengl.GL11.GL_FLOAT,pixel);
             if(pixel[3]>=.99 || pixel[0]<=.01)throw new AssertionError("No volumetric spray inside tier "+tier);
+            GL20.glUniform3f(GL20.glGetUniformLocation(program,"Eye"),0,low+18+2*(tier-1)+1,18+tier*3200);
+            org.lwjgl.opengl.GL11.glDrawArrays(org.lwjgl.opengl.GL11.GL_POINTS,0,1);
+            org.lwjgl.opengl.GL11.glReadPixels(0,0,1,1,org.lwjgl.opengl.GL11.GL_RGBA,org.lwjgl.opengl.GL11.GL_FLOAT,pixel);
+            if(pixel[3]>=.95 || pixel[0]<=.02)throw new AssertionError("Missing dense top plume at tier "+tier);
             GL20.glUniform1f(GL20.glGetUniformLocation(program,"Travel"),0);
             org.lwjgl.opengl.GL11.glDrawArrays(org.lwjgl.opengl.GL11.GL_POINTS,0,1);
             org.lwjgl.opengl.GL11.glReadPixels(0,0,1,1,org.lwjgl.opengl.GL11.GL_RGBA,org.lwjgl.opengl.GL11.GL_FLOAT,pixel);

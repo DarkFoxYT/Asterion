@@ -72,10 +72,11 @@ vec4 limboFireField(vec3 world,float base,float time) {
 vec4 limboFireVolume(vec3 camera,vec3 ray,float travel,float base,float time,int count) {
     // Detailed tongues end at 96 blocks; the emissive surface carries distant fire.
     float enter=0.0,leave=min(travel,96.0);
+    vec2 heights=limboVolumeHeightRange(camera,ray,leave,base);
     if(abs(ray.y)<.0001) {
-        if(camera.y<base-6.0||camera.y>base+12.0)return vec4(0,0,0,1);
+        if(camera.y<heights.x-6.0||camera.y>heights.y+12.0)return vec4(0,0,0,1);
     } else {
-        float a=(base-6.0-camera.y)/ray.y,b=(base+12.0-camera.y)/ray.y;
+        float a=(heights.x-6.0-camera.y)/ray.y,b=(heights.y+12.0-camera.y)/ray.y;
         enter=max(0.0,min(a,b));leave=min(leave,max(a,b));
     }
     if(leave<=enter)return vec4(0,0,0,1);
@@ -94,7 +95,7 @@ vec4 limboFireVolume(vec3 camera,vec3 ray,float travel,float base,float time,int
         vec3 world=camera+ray*along;
         float region=limboSeaStyle(world.xz).fire;
         if(region<.001)continue;
-        float surface=base+sampleWave(world.xz,time).x;
+        float surface=limboLocalSurface(world.xz,camera.xz,base)+sampleWave(world.xz,time).x;
         vec4 field=limboFireField(world,surface,time);
         field.a*=1.0-smoothstep(40.0,96.0,along);
         float opacity=1.0-exp(-field.a*region*min(stepLength,3.0)*1.4);

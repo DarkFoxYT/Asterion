@@ -15,8 +15,8 @@ public final class LimboWhirlpool {
     public static int x() { return centerX; }
     public static int z() { return centerZ; }
     public static void setCenter(int x, int z) {
-        centerX = Math.clamp(Math.round(x / 4F) * 4, -400, 400);
-        centerZ = Math.clamp(Math.round(z / 4F) * 4, 100, 900);
+        centerX = Math.clamp(Math.round(x / 4F) * 4, -29_999_984, 29_999_984);
+        centerZ = Math.clamp(Math.round(z / 4F) * 4, -29_999_984, 29_999_984);
     }
     public static void placeAhead(net.minecraft.server.level.ServerLevel level) {
         var ferry = level.getEntity(CharonsFerryEntity.SHARED_ID);

@@ -68,8 +68,9 @@ public final class UnderworldWaterPhysics {
     public static int surfaceBlockY(net.minecraft.world.level.BlockGetter level, int x, int z) {
         int expected = LimboCascades.waterY(x,z);
         var pos = new BlockPos.MutableBlockPos();
-        for (int probe = -1; probe <= LimboCascades.COUNT; probe++) {
-            int y = probe < 0 ? expected : UnderworldTerrain.WATER_Y - probe * LimboCascades.DROP;
+        for (int probe = -1; probe <= LimboCascades.COUNT * 2 + 1; probe++) {
+            int y = probe < 0 ? expected : probe <= LimboCascades.COUNT ? LimboCascades.waterYForTier(probe)
+                    : UnderworldTerrain.WATER_Y - (probe-LimboCascades.COUNT-1) * LimboCascades.DROP;
             if (probe >= 0 && y == expected) continue;
             pos.set(x,y,z);
             var fluid = level.getFluidState(pos);

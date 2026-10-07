@@ -21,10 +21,11 @@ vec3 limboLetheSurface(vec2 p,float time,vec3 normal,vec3 view,float light) {
 // slab and sample budget keep all three atmosphere quality modes affordable.
 vec4 limboLetheVolume(vec3 camera,vec3 ray,float travel,float base,float time,int count) {
     float enter=0.0,leave=min(travel,160.0);
+    vec2 heights=limboVolumeHeightRange(camera,ray,leave,base);
     if(abs(ray.y)<.0001) {
-        if(camera.y<base-5.0||camera.y>base+9.0)return vec4(0,0,0,1);
+        if(camera.y<heights.x-5.0||camera.y>heights.y+9.0)return vec4(0,0,0,1);
     } else {
-        float a=(base-5.0-camera.y)/ray.y,b=(base+9.0-camera.y)/ray.y;
+        float a=(heights.x-5.0-camera.y)/ray.y,b=(heights.y+9.0-camera.y)/ray.y;
         enter=max(0.0,min(a,b));leave=min(leave,max(a,b));
     }
     if(leave<=enter)return vec4(0,0,0,1);
@@ -41,7 +42,7 @@ vec4 limboLetheVolume(vec3 camera,vec3 ray,float travel,float base,float time,in
         vec3 world=camera+ray*(enter+(float(i)+.5)*stride);
         float weight=limboSeaStyle(world.xz).oblivion;
         if(weight<.001)continue;
-        float height=world.y-base-sampleWave(world.xz,time).x;
+        float height=world.y-limboLocalSurface(world.xz,camera.xz,base)-sampleWave(world.xz,time).x;
         float veil=limboFireFbm(vec3(world.xz*.055-vec2(time*.0012,time*.0006),height*.18));
         float density=exp(-max(height,0.0)*.48)*smoothstep(-1.2,.3,height)
             *(1.0-smoothstep(5.0,9.0,height))*(.018+.075*smoothstep(.25,.75,veil));

@@ -84,6 +84,7 @@ public final class LimboSeaSmoke {
                             vec4 volume=limboSeaVolume(camera,ray,min(hit,512),0,Clock,Count);
                             color=vec4(surface*volume.a+volume.rgb,1);return;
                         }
+                        if(Fog==11){color=vec4(vec3((limboLocalSurface(vec2(0,6430),Position,limboSeaWaterY(Position))+64.0)/128.0),1);return;}
                         if(Fog==10){color=limboSeaVolume(vec3(Position.x,Height,Position.y),vec3(0,0,1),Travel,0,Clock,Count);return;}
                         if(Fog==8){color=limboDepthMist(vec3(Position.x,Height,Position.y),vec3(0,0,1),Travel,0,Clock,Count);return;}
                         if(Fog==9){color=vec4(limboAcheronSurface(Position,Clock,Height,vec3(.4,1,.2),normalize(vec3(.3,.3,-1)),0),1);return;}
@@ -115,6 +116,15 @@ public final class LimboSeaSmoke {
                 Vec3 expected=fog==1?LimboSeaRegions.fog(x,z):LimboSeaRegions.water(x,z);
                 check(new Vec3(pixel[0],pixel[1],pixel[2]).distanceTo(expected)<.006,"GPU ring palette mismatch at "+x+","+z);
             }
+            for(int cameraZ:new int[]{6390,6417,6418,6430,6460}) {
+                GL20.glUniform2f(GL20.glGetUniformLocation(program,"Position"),0,cameraZ);
+                GL20.glUniform1i(GL20.glGetUniformLocation(program,"Fog"),11);
+                GL11.glDrawArrays(GL11.GL_TRIANGLES,0,3);
+                float[] pixel=new float[4];GL11.glReadPixels(16,16,1,1,GL11.GL_RGBA,GL11.GL_FLOAT,pixel);
+                double expected=(net.krodark.asterion.update.underworld.world.LimboCascades.waterY(0,6430)+8.0/9+64)/128;
+                check(Math.abs(pixel[0]-expected)<.006,"Sea effect changes height as camera crosses a rim");
+            }
+            System.out.println("PASS GPU regional sea-height anchoring across a camera terrace crossing");
             checkFire(program);
             checkLethe(program);
             checkDepths(program);

@@ -33,9 +33,9 @@ public final class LimboCascades {
 
     public static Vec3 current(double x, double z) {
         double distance = boundaryDistance(x, z);
-        if (LimboSeaRegions.caves(x,z) || distance < -24 || distance > 28) return Vec3.ZERO;
-        double envelope = 1 - Math.min(1, Math.abs(distance) / (distance < 0 ? 24 : 28));
-        return downstream(x, z).scale(.065 * envelope * envelope);
+        if (LimboSeaRegions.caves(x,z) || distance < -96 || distance > 40) return Vec3.ZERO;
+        double envelope = 1 - Math.min(1, Math.abs(distance) / (distance < 0 ? 96 : 40));
+        return downstream(x, z).scale(.085 * envelope * envelope);
     }
 
     public static boolean crossesTile(int x, int z) {

@@ -39,10 +39,11 @@ vec3 limboCocytusSurface(vec2 p,float time,float height,vec3 normal,vec3 view,fl
 // Pure Phlegethon rejects this pass before evaluating noise or wave samples.
 vec4 limboDepthMist(vec3 camera,vec3 ray,float travel,float base,float time,int count) {
     float enter=0.0,leave=min(travel,144.0);
+    vec2 heights=limboVolumeHeightRange(camera,ray,leave,base);
     if(abs(ray.y)<.0001) {
-        if(camera.y<base-5.0||camera.y>base+16.0)return vec4(0,0,0,1);
+        if(camera.y<heights.x-5.0||camera.y>heights.y+16.0)return vec4(0,0,0,1);
     } else {
-        float a=(base-5.0-camera.y)/ray.y,b=(base+16.0-camera.y)/ray.y;
+        float a=(heights.x-5.0-camera.y)/ray.y,b=(heights.y+16.0-camera.y)/ray.y;
         enter=max(0.0,min(a,b));leave=min(leave,max(a,b));
     }
     if(leave<=enter)return vec4(0,0,0,1);
@@ -61,7 +62,7 @@ vec4 limboDepthMist(vec3 camera,vec3 ray,float travel,float base,float time,int 
         LimboSeaStyle sea=limboSeaStyle(world.xz);
         float weight=sea.grief+sea.tears;
         if(weight<.001)continue;
-        float height=world.y-base-sampleWave(world.xz,time).x;
+        float height=world.y-limboLocalSurface(world.xz,camera.xz,base)-sampleWave(world.xz,time).x;
         float bank=limboFireFbm(vec3(world.xz*.035-vec2(time*.001,time*.0004),height*.12));
         float profile=smoothstep(-1.2,.4,height)*exp(-max(height,0.0)*mix(.21,.42,sea.tears))
             *(1.0-smoothstep(11.0,16.0,height));
