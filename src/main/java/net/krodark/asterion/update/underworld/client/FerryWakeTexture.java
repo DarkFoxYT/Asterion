@@ -56,6 +56,9 @@ public final class FerryWakeTexture {
         if (player != null && (boat == null || boat.distanceToSqr(player) > 24*24)) {
             centerX=player.getX(); centerZ=player.getZ();
         }
+        int interval = net.krodark.asterion.client.PerformanceGovernor.quality() == 0 ? 4 : 2;
+        // Keep recording the stern every tick, but only search contacts on upload frames.
+        if(uploaded==time || time%interval!=0 && uploaded!=Long.MIN_VALUE)return;
         int waterY = net.krodark.asterion.update.underworld.world.LimboCascades.waterY(centerX,centerZ);
         AABB nearby = new AABB(centerX-30, waterY-25, centerZ-30,
                 centerX+30, waterY+25, centerZ+30);
@@ -63,8 +66,6 @@ public final class FerryWakeTexture {
         boolean presence = !contacts.isEmpty();
         // Upload an empty field once, including the frame that removes the final contact ring.
         if (uploaded != Long.MIN_VALUE && FIELD.size() == 0 && !presence && !hadPresence) return;
-        int interval = net.krodark.asterion.client.PerformanceGovernor.quality() == 0 ? 4 : 2;
-        if(uploaded==time || time%interval!=0 && uploaded!=Long.MIN_VALUE)return;
         uploaded=time;
         FIELD.rasterize(centerX,centerZ,time);
         hadPresence=presence;

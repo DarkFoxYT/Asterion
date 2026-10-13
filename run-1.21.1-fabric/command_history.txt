@@ -1,3 +1,0 @@
-/asterionevent start eclipse
-/asterionevent stop
-/summon asterion:bombadier_beetle

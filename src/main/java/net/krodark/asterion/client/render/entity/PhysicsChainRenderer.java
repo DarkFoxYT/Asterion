@@ -11,6 +11,7 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.phys.Vec3;
 
 public final class PhysicsChainRenderer extends EntityRenderer<PhysicsChainEntity, PhysicsChainRenderer.State> {
+    private static final net.minecraft.resources.Identifier TEXTURE=Asterion.id("textures/block/mazesteel_chain.png");
     public static final class State extends EntityRenderState { Vec3[] points; }
     public PhysicsChainRenderer(EntityRendererProvider.Context context) { super(context); }
     @Override public State createRenderState() { return new State(); }
@@ -21,7 +22,7 @@ public final class PhysicsChainRenderer extends EntityRenderer<PhysicsChainEntit
     @Override public void submit(State state, PoseStack poses, SubmitNodeCollector tasks, CameraRenderState camera) {
         Vec3 offset = new Vec3(-state.x, -state.y, -state.z);
         Vec3[] points = state.points;
-        tasks.submitCustomGeometry(poses, RenderTypes.entityCutout(Asterion.id("textures/block/mazesteel_chain.png")),
+        tasks.submitCustomGeometry(poses, RenderTypes.entityCutout(TEXTURE),
                 (pose, out) -> ChainGeometry.drawHanging(pose, out, points, offset, camera.pos.add(offset), state.lightCoords));
     }
 }

@@ -15,6 +15,7 @@ import org.joml.Vector3f;
 import java.util.function.BiConsumer;
 
 public final class ChainLiftChainLayer extends GeoRenderLayer<ChainLiftEntity, Void, EntityRenderState> {
+    private static final net.minecraft.resources.Identifier TEXTURE=Asterion.id("textures/block/mazesteel_chain.png");
     private static final DataTicket<Vec3> CEILING = DataTickets.create("asterion_lift_ceiling", Vec3.class);
     public ChainLiftChainLayer(ChainLiftRenderer renderer) { super(renderer); }
     @Override public void addRenderData(ChainLiftEntity lift, Void unused, EntityRenderState state, float partial) {
@@ -26,7 +27,7 @@ public final class ChainLiftChainLayer extends GeoRenderLayer<ChainLiftEntity, V
             Vec3 start = new Vec3(point.x, point.y, point.z);
             Vec3 end = pass.renderState().getGeckolibData(CEILING).subtract(posed.cameraState().pos);
             if (end.y <= start.y) return;
-            tasks.submitCustomGeometry(new PoseStack(), RenderTypes.entityCutout(Asterion.id("textures/block/mazesteel_chain.png")),
+            tasks.submitCustomGeometry(new PoseStack(), RenderTypes.entityCutout(TEXTURE),
                     (pose, out) -> MinotaurChainLayer.draw(out, start, end, 0, posed.packedLight()));
         }));
     }

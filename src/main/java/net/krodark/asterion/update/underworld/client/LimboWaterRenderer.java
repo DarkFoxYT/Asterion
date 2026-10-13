@@ -63,6 +63,10 @@ public final class LimboWaterRenderer {
     private static float boatCos, boatSin;
     private static int boatActivity;
     private static int boatPitch = 32, boatRoll = 32;
+    // Render-thread scratch: shared quad corners keep the same payload without recomputing it.
+    private static final float[] surfaceX = new float[17], surfaceZ = new float[17];
+    private static final float[] textureX = new float[17], textureZ = new float[17];
+    private static final int[] hullX = new int[17], hullZ = new int[17], vertexLight = new int[289];
     private static volatile boolean enabled;
     private record Layer(int y, int[] vertices, int[] fineVertices, int[] shore, boolean[] edge) { }
     private record Tile(int x, int z, List<Layer> layers, List<LimboCascadeMesh.Face> falls, int minY, int maxY, long refreshed, boolean coarse) { }
@@ -189,11 +193,25 @@ public final class LimboWaterRenderer {
                     net.krodark.asterion.event.LimboTempest.strength(frameTicks) * 127), 0, 127);
             int whirlpoolByte = (int)Math.clamp(Math.round(
                     net.krodark.asterion.event.LimboWhirlpool.strength(frameTicks) * 255), 0, 255);
+            int whirlpoolX = net.krodark.asterion.event.LimboWhirlpool.x();
+            int whirlpoolZ = net.krodark.asterion.event.LimboWhirlpool.z();
+            int qualityAndPitch = (frameQuality > 0 ? 192 : 0) | boatPitch;
+            int activityAndRoll = frameBoat == null ? 0 : boatActivity | boatRoll;
             for (Tile tile : frame) {
                 double tileDx = tile.x + 8 - camera.x, tileDz = tile.z + 8 - camera.z;
                 double distanceSq = tileDx * tileDx + tileDz * tileDz;
                 double fineRange=64;
                 boolean fine = frameQuality > 0 && distanceSq < fineRange*fineRange;
+                for (int i=0;i<=16;i++) {
+                    int x=tile.x+i,z=tile.z+i;
+                    surfaceX[i]=(float)(x-camera.x); surfaceZ[i]=(float)(z-camera.z);
+                    // Centre relative to the four-block cell, preserving the shader's packed UVs.
+                    float codeX=(Math.clamp(Math.round((whirlpoolX-Math.floor(x/4.0)*4)/4),-127,127)+128.5F)/256F;
+                    float codeZ=(Math.clamp(Math.round((whirlpoolZ-Math.floor(z/4.0)*4)/4),-127,127)+128.5F)/256F;
+                    textureX[i]=x+codeX; textureZ[i]=z+codeZ;
+                    hullX[i]=frameBoat==null?0:(int)Math.clamp(Math.round((x-frameBoat.x)*8),-127,127);
+                    hullZ[i]=frameBoat==null?0:(int)Math.clamp(Math.round((z-frameBoat.z)*8),-127,127);
+                }
                 for (Layer layer : tile.layers) {
                     int lightY = layer.y - 2;
                     boolean nearLight = distanceSq < 64 * 64;
@@ -203,33 +221,33 @@ public final class LimboWaterRenderer {
                     float light11 = nearLight ? trackedLevel.getBrightness(LightLayer.BLOCK,new BlockPos(tile.x+16,lightY,tile.z+16)) / 15F : 0F;
                     Vec3 dynamic = nearLight ? net.krodark.asterion.client.light.LedAmneticLight.nearestAttractor(
                             new Vec3(tile.x+8,layer.y,tile.z+8), 24) : null;
-                    for (int vertex : fine ? layer.fineVertices : layer.vertices) {
-                    int x = tile.x + vertex % 17, z = tile.z + vertex / 17;
-                    double u=(x-tile.x)/16.0,v=(z-tile.z)/16.0;
-                    float blockLight=(float)((light00*(1-u)+light10*u)*(1-v)
-                            +(light01*(1-u)+light11*u)*v);
                     double waterY=layer.y+8.0/9.0;
-                    float dynamicLight=dynamic==null?0F:softLight(Math.sqrt(dynamic.distanceToSqr(x,waterY,z)),9.0);
-                    float lanternLight=frameLantern==null?0F:softLight(Math.sqrt(frameLantern.distanceToSqr(x,waterY,z)),8.0);
-                    int packedTimeAndLight=fraction | (Math.round(Math.max(blockLight,Math.max(dynamicLight,lanternLight))*15) << 4);
-                    // Standard overlay/normal attributes carry hull-relative coordinates and heading.
-                    // No extra render pass, per-vertex wave evaluation, or per-frame GPU allocation.
-                    int bx = frameBoat == null ? 0 : (int)Math.clamp(Math.round((x - frameBoat.x) * 8), -127, 127);
-                    int bz = frameBoat == null ? 0 : (int)Math.clamp(Math.round((z - frameBoat.z) * 8), -127, 127);
-                    float boatHeight = frameBoat == null ? 0 : (float)Math.clamp(
-                            (frameBoat.y - layer.y - 8.0 / 9.0) / 8, -1, 1);
-                    // Centre relative to the four-block cell: absolute payloads overflowed into world coordinates.
-                    float centerCodeX=(Math.clamp(Math.round((net.krodark.asterion.event.LimboWhirlpool.x()-Math.floor(x/4.0)*4)/4),-127,127)+128.5F)/256F;
-                    float centerCodeZ=(Math.clamp(Math.round((net.krodark.asterion.event.LimboWhirlpool.z()-Math.floor(z/4.0)*4)/4),-127,127)+128.5F)/256F;
-                    out.addVertex(pose, (float)(x - camera.x),
-                                    (float)(layer.y + 8.0 / 9.0 - camera.y), (float)(z - camera.z))
-                            .setUv(x + centerCodeX, z + centerCodeZ).setUv2(timeLow, timeHigh)
-                            .setUv1((tempestByte << 8) | (layer.edge[vertex] ? 32768 : 0) | (bx & 255),
-                                    (whirlpoolByte << 8) | (bz & 255))
-                            .setNormal(boatCos, boatHeight, boatSin)
-                            .setColor(layer.shore[vertex], packedTimeAndLight,
-                                    (frameQuality>0 ? 128 : 0) | (frameQuality > 0 ? 64 : 0) | boatPitch,
-                                    frameBoat == null ? 0 : boatActivity | boatRoll);
+                    float surfaceY=(float)(waterY-camera.y);
+                    float boatHeight=frameBoat==null?0:(float)Math.clamp(
+                            (frameBoat.y-layer.y-8.0/9.0)/8,-1,1);
+                    java.util.Arrays.fill(vertexLight,-1);
+                    for (int vertex : fine ? layer.fineVertices : layer.vertices) {
+                        int localX=vertex%17,localZ=vertex/17;
+                        int packedTimeAndLight=vertexLight[vertex];
+                        if (packedTimeAndLight<0) {
+                            int x=tile.x+localX,z=tile.z+localZ;
+                            double u=localX/16.0,v=localZ/16.0;
+                            float blockLight=(float)((light00*(1-u)+light10*u)*(1-v)
+                                    +(light01*(1-u)+light11*u)*v);
+                            float dynamicLight=dynamic==null?0F:softLight(Math.sqrt(dynamic.distanceToSqr(x,waterY,z)),9.0);
+                            float lanternLight=frameLantern==null?0F:softLight(Math.sqrt(frameLantern.distanceToSqr(x,waterY,z)),8.0);
+                            packedTimeAndLight=fraction | (Math.round(Math.max(blockLight,Math.max(dynamicLight,lanternLight))*15) << 4);
+                            vertexLight[vertex]=packedTimeAndLight;
+                        }
+                        // Standard overlay/normal attributes carry hull-relative coordinates and heading.
+                        // No extra render pass, per-vertex wave evaluation, or per-frame GPU allocation.
+                        out.addVertex(pose,surfaceX[localX],surfaceY,surfaceZ[localZ])
+                                .setUv(textureX[localX],textureZ[localZ]).setUv2(timeLow, timeHigh)
+                                .setUv1((tempestByte << 8) | (layer.edge[vertex] ? 32768 : 0) | (hullX[localX] & 255),
+                                        (whirlpoolByte << 8) | (hullZ[localZ] & 255))
+                                .setNormal(boatCos, boatHeight, boatSin)
+                                .setColor(layer.shore[vertex], packedTimeAndLight,
+                                        qualityAndPitch,activityAndRoll);
                     }
                 }
             }
@@ -276,6 +294,8 @@ public final class LimboWaterRenderer {
         for (int dz = 0; dz < 34; dz++) for (int dx = 0; dx < 34; dx++) {
             int wx=x+dx-9,wz=z+dz-9;
             if (!level.getChunkSource().hasChunk(wx >> 4, wz >> 4)) continue;
+            // No Y in a cave column can pass surface(); avoid probing the whole column.
+            if (net.krodark.asterion.update.underworld.world.LimboSeaRegions.caves(wx,wz)) continue;
             // Most Limbo sea columns have the authored surface at WATER_Y. A
             // direct probe avoids a tall vertical scan for every such column.
             int waterY = net.krodark.asterion.update.underworld.world.LimboCascades.waterY(wx,wz);
@@ -310,7 +330,9 @@ public final class LimboWaterRenderer {
                         edge[dz*17+dx]=true;
                 }
             }
-            for(int dz=0;dz<=16;dz++)for(int dx=0;dx<=16;dx++)shore[dz*17+dx]=Math.round(255*net.krodark.asterion.update.underworld.world.WaterShoreline.attenuation(depths,34,dx+9,dz+9));
+            float[] attenuation = net.krodark.asterion.update.underworld.world.WaterShoreline
+                    .attenuationGrid(depths,34,9,9,17,17);
+            for (int i=0;i<shore.length;i++) shore[i]=Math.round(255*attenuation[i]);
             layers.add(new Layer(elevation, WaterSurfaceMesh.vertices(wet, shore),
                     WaterSurfaceMesh.vertices(wet, new int[289]), shore, edge));
             minY=Math.min(minY,elevation);maxY=Math.max(maxY,elevation);

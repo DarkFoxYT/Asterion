@@ -10,6 +10,7 @@ public final class LimboSeaRegions {
     // The north shore remains at z=18, preserving the entrance, route and dock.
     public static final int CENTER_X=0, CENTER_Z=SHORE_RADIUS+18;
     public enum Sea { STYX, PHLEGETHON, LETHE, ACHERON, COCYTUS }
+    private static final Sea[] SEAS = Sea.values();
     private static final Vec3[] WATER={new Vec3(.0045,.0052,.0058),new Vec3(.14,.014,.004),
             new Vec3(.24,.205,.15),new Vec3(.018,.095,.031),new Vec3(.075,.095,.115)};
     private static final Vec3[] FOG={new Vec3(.034,.038,.044),new Vec3(.14,.035,.018),
@@ -23,7 +24,7 @@ public final class LimboSeaRegions {
     }
     public static boolean caves(double x,double z) { return inwardDistance(x,z)<0; }
     public static Sea sea(double x,double z) {
-        return Sea.values()[Math.clamp((int)(distance(x,z)/REGION_SIZE),0,4)];
+        return SEAS[Math.clamp((int)(distance(x,z)/REGION_SIZE),0,4)];
     }
     public static double transition(double x,double z,int boundary) {
         double t=Math.clamp((distance(x,z)-(boundary*REGION_SIZE-BLEND_HALF_WIDTH))/(2*BLEND_HALF_WIDTH),0,1);

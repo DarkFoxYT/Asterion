@@ -27,3 +27,15 @@ logs/
 
 # Locally assembled release shelf. Keep the manifest, not binary builds.
 /modbuilds/*.jar
+
+# Local development helpers, launch profiles, and generated runtime data.
+tools/
+.run/
+run-*/
+modbuilds/
+/config/
+/ports/1.5/config/
+/ports/1.5/ports/26.1.2/config/
+/com/
+__pycache__/
+*.py[cod]

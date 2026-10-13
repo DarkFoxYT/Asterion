@@ -35,10 +35,11 @@ public final class LamenterBlockEntity extends BlockEntity {
 
     public static void tick(Level level, BlockPos pos, BlockState state, LamenterBlockEntity lamenter) {
         if (level.isClientSide()) {
-            if (level.getNearestPlayer(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5, 32, false) == null) return;
             if (state.getValue(LamenterBlock.CRYING)) {
                 int phase = Math.floorMod(level.getGameTime() + pos.asLong(), 8);
                 if (phase != 0 && phase != 4) return;
+                // Player proximity only matters on ticks that can actually emit a tear.
+                if (level.getNearestPlayer(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5, 32, false) == null) return;
                  
                 for (int track = phase == 0 ? 0 : 1; track < TEAR_U.length; track += 2) {
                     Direction facing = state.getValue(LamenterBlock.FACING);
