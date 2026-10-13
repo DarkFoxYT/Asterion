@@ -183,6 +183,9 @@ public final class BossEntranceCinematic {
         float doorFlight = smootherStep((time - BREAK_TICK) / 12F);
         Vec3 doorFocus = doorway.add(inward.scale(doorFlight * 4)).add(across.scale(doorFlight * 1.5)).add(0, 3.2, 0);
         float handoff = smootherStep((time - BREAK_TICK - 5) / 23F);
+        Vec3 flyingDoor=net.krodark.asterion.client.ragdoll.PhysicsDebrisSystem.doorFlightFocus(doorway,partial);
+        if (flyingDoor!=null)
+            doorFocus=doorFocus.lerp(flyingDoor,smootherStep((time-BREAK_TICK)/4F)*(1-handoff));
         Vec3 focus = doorFocus.lerp(subject.add(0, 3.5, 0), handoff);
         float portrait = smootherStep((time - MinotaurAnimationTiming.ENTRY_WALK_END_TICK) / 24F);
         float portraitDrift = smootherStep((time - MinotaurAnimationTiming.ENTRY_WALK_END_TICK - 24) / 65F);
@@ -210,20 +213,19 @@ public final class BossEntranceCinematic {
         float breachAge = time - BREAK_TICK;
         float breach = smootherStep(breachAge / 1.5F) * (1 - smootherStep((breachAge - 3) / 18F));
         impact += breach * .20F + roar * .045F;
+        double recoil=0,settling=0;
+        for (int beat:IMPACT_BEATS) {
+            double force=beat==BREAK_TICK?.19:beat==MinotaurAnimationTiming.ENTRY_WALK_END_TICK?.12:.035;
+            recoil+=net.krodark.asterion.physics.CinematicMotion.impulse(time-beat,force,1.05,.18);
+            settling+=net.krodark.asterion.physics.CinematicMotion.impulse(time-beat,force*.45,.72,.14);
+        }
         // Fixed-frequency, timeline-based vibration remains identical at every frame rate.
         camera = camera.add(across.scale((Math.sin(time * 1.9) + Math.sin(time * 3.1) * .28) * impact))
                 .add(inward.scale(breach * .65 + Math.sin(roarAge * 1.4) * roar * .08))
-                .add(0, Math.cos(time * 2.3) * impact * .65, 0);
+                .add(inward.scale(-recoil)).add(0, Math.cos(time * 2.3) * impact * .65+settling, 0);
         float returning = smootherStep((time - (duration - 30)) / 30F);
         camera = camera.lerp(playerEye, returning);
-        var level = Minecraft.getInstance().level;
-        if (level != null && cinematicBoss != null) {
-            var hit = level.clip(new net.minecraft.world.level.ClipContext(focus, camera,
-                    net.minecraft.world.level.ClipContext.Block.COLLIDER,
-                    net.minecraft.world.level.ClipContext.Fluid.NONE, cinematicBoss));
-            if (hit.getType() != net.minecraft.world.phys.HitResult.Type.MISS)
-                camera = hit.getLocation().add(focus.subtract(camera).normalize().scale(.3));
-        }
+        if (cinematicBoss!=null) camera=CinematicCameraCollision.clear(focus,camera);
         Vec3 delta = focus.subtract(camera);
         float yaw = (float)Math.toDegrees(Math.atan2(-delta.x, delta.z)) + (float)Math.sin(time * 1.7) * impact * 1.2F;
         float pitch = (float)-Math.toDegrees(Math.atan2(delta.y, delta.horizontalDistance())) + (float)Math.cos(time * 2.1) * impact;

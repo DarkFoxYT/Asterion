@@ -26,6 +26,9 @@ def extractedForgified = layout.buildDirectory.dir('forgified-api-compile')
 def remappedForgified = layout.buildDirectory.file('dev-remapped/forgified-fabric-api.jar')
 def remappedAmnetic = layout.buildDirectory.file('dev-remapped/amnetic.jar')
 def remappedGeckolib = layout.buildDirectory.file('dev-remapped/geckolib.jar')
+def pythonCommand = providers.gradleProperty('asterionPython')
+        .orElse(providers.environmentVariable('ASTERION_PYTHON')).getOrElse('python')
+
 configurations { geckolibDevOriginal { transitive = false } }
 def geckolibCoordinate = "software.bernie.geckolib:geckolib-forge-${minecraftVersion}:${geckolibVersion}"
 dependencies { geckolibDevOriginal geckolibCoordinate }
@@ -34,7 +37,7 @@ def remapForgifiedDev = tasks.register('remapForgifiedDev', Exec) {
     def mappings = layout.buildDirectory.file('moddev/artifacts/intermediateToNamed.srg')
     inputs.files(forgifiedJar, mappings, rootProject.file('gradle/remap-nested-dev-jar.py'))
     outputs.file(remappedForgified)
-    commandLine 'python', rootProject.file('gradle/remap-nested-dev-jar.py'),
+    commandLine pythonCommand, rootProject.file('gradle/remap-nested-dev-jar.py'),
             forgifiedJar, mappings.get().asFile, remappedForgified.get().asFile
 }
 def remapAmneticDev = tasks.register('remapAmneticDev', Exec) {
@@ -42,7 +45,7 @@ def remapAmneticDev = tasks.register('remapAmneticDev', Exec) {
     def mappings = layout.buildDirectory.file('moddev/artifacts/intermediateToNamed.srg')
     inputs.files(amneticJar, mappings, rootProject.file('gradle/remap-nested-dev-jar.py'))
     outputs.file(remappedAmnetic)
-    commandLine 'python', rootProject.file('gradle/remap-nested-dev-jar.py'),
+    commandLine pythonCommand, rootProject.file('gradle/remap-nested-dev-jar.py'),
             amneticJar, mappings.get().asFile, remappedAmnetic.get().asFile
 }
 def remapGeckolibDev = tasks.register('remapGeckolibDev', Exec) {
@@ -51,7 +54,7 @@ def remapGeckolibDev = tasks.register('remapGeckolibDev', Exec) {
     inputs.files(configurations.geckolibDevOriginal, mappings, rootProject.file('gradle/remap-nested-dev-jar.py'))
     outputs.file(remappedGeckolib)
     doFirst {
-        commandLine 'python', rootProject.file('gradle/remap-nested-dev-jar.py'),
+        commandLine pythonCommand, rootProject.file('gradle/remap-nested-dev-jar.py'),
                 configurations.geckolibDevOriginal.singleFile, mappings.get().asFile, remappedGeckolib.get().asFile
     }
 }

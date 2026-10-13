@@ -103,6 +103,11 @@ public final class DismembermentEngine {
     private final Set<Integer> tickSubmergedEntities = new HashSet<>();
     private final Set<Integer> tickCrematedEntities = new HashSet<>();
 
+    private ClientLevel collisionQueryLevel;
+    private final net.krodark.asterion.physics.ExactCollisionQueryCache collisionQueries =
+            new net.krodark.asterion.physics.ExactCollisionQueryCache(512,
+                    bounds -> collectCollisionBoxes(collisionQueryLevel, bounds));
+
     private DismembermentEngine() { }
 
     public boolean impact(Entity entity, int region, Vec3 point, Vec3 direction, double force) {
@@ -1949,6 +1954,18 @@ public final class DismembermentEngine {
             tickPlayback(Minecraft.getInstance());
             return;
         }
+        collisionQueryLevel = level;
+        collisionQueries.clear();
+        try {
+            tickSimulation(level, collisionContext);
+        } finally {
+            collisionQueries.clear();
+            collisionQueryLevel = null;
+            solverIndex = null;
+        }
+    }
+
+    private void tickSimulation(ClientLevel level, Entity collisionContext) {
         synchronizePlayerSkins(level);
         electrifiedUntil.entrySet().removeIf(entry -> {
             if (entry.getValue() > traumaDecayTicker) return false;
@@ -2086,18 +2103,16 @@ public final class DismembermentEngine {
                 collided |= resolveEntityCollisions(level, part);
 
                 Quaternionf oldOrientation = new Quaternionf(part.orientation);
-                Quaternionf delta = new Quaternionf().rotationXYZ(
-                        (float) (part.angularVelocity.x / globalSubsteps),
-                        (float) (part.angularVelocity.y / globalSubsteps),
-                        (float) (part.angularVelocity.z / globalSubsteps));
-                part.orientation.set(delta.mul(part.orientation)).normalize();
+                net.krodark.asterion.physics.RigidBodyDynamics.rotate(part.orientation,
+                        part.angularVelocity.x,part.angularVelocity.y,part.angularVelocity.z,1.0/globalSubsteps);
                 if (!isWorldClear(level, part, part.position)) {
                     boolean rolledClear = part.playerBody && isAnatomicalRegion(part.region)
                             && resolveWorldPenetration(level, part)
                             && isWorldClear(level, part, part.position);
                     if (!rolledClear) {
-                        part.orientation.set(oldOrientation);
-                        part.angularVelocity = part.angularVelocity.scale(-0.18);
+                        double allowed=net.krodark.asterion.physics.RigidBodyDynamics.clampRotation(
+                                part.orientation,oldOrientation,() -> isWorldClear(level,part,part.position));
+                        part.angularVelocity = part.angularVelocity.scale(Math.max(.08,allowed*.6));
                     }
                     collided = true;
                 } else part.angularVelocity = part.angularVelocity.scale(
@@ -2551,8 +2566,7 @@ public final class DismembermentEngine {
                                            Vec3 center, Vec3 fallback) {
         AABB broad = boundsAt(part, center).inflate(0.001);
         ObbContact shallowest = null;
-        for (var shape : level.getBlockCollisions(null, broad))
-            for (AABB box : shape.toAabbs()) {
+        for (AABB box : collisionBoxes(level, broad)) {
                 ObbContact contact = obbContact(part, center, box);
                 if (contact != null && (shallowest == null || contact.depth < shallowest.depth))
                     shallowest = contact;
@@ -2721,8 +2735,7 @@ public final class DismembermentEngine {
         for (int iteration = 0; iteration < maximumIterations; iteration++) {
             AABB broad = boundsAt(part, part.position).inflate(0.002);
             ObbContact deepest = null;
-            for (var shape : level.getBlockCollisions(null, broad))
-                for (AABB box : shape.toAabbs()) {
+            for (AABB box : collisionBoxes(level, broad)) {
                     ObbContact contact = obbContact(part, part.position, box);
                     if (contact != null && (deepest == null || contact.depth > deepest.depth))
                         deepest = contact;
@@ -2838,8 +2851,7 @@ public final class DismembermentEngine {
                 for (RigidBodyPiece part : active) {
                     if (part.entityId != entityId || !isAnatomicalRegion(part.region)) continue;
                     AABB broad = boundsAt(part, part.position).inflate(0.0015);
-                    for (var shape : level.getBlockCollisions(null, broad))
-                        for (AABB block : shape.toAabbs()) {
+                    for (AABB block : collisionBoxes(level, broad)) {
                             ObbContact contact = obbContact(part, part.position, block);
                             if (contact != null && contact.depth > 0.0025
                                     && (deepest == null || contact.depth > deepest.depth))
@@ -2991,8 +3003,7 @@ public final class DismembermentEngine {
     private static ObbContact deepestWorldContact(ClientLevel level, RigidBodyPiece part) {
         AABB broad = boundsAt(part, part.position).inflate(0.0015);
         ObbContact deepest = null;
-        for (var shape : level.getBlockCollisions(null, broad))
-            for (AABB block : shape.toAabbs()) {
+        for (AABB block : collisionBoxes(level, broad)) {
                 ObbContact contact = obbContact(part, part.position, block);
                 if (contact != null && (deepest == null || contact.depth > deepest.depth))
                     deepest = contact;
@@ -3097,10 +3108,25 @@ public final class DismembermentEngine {
     private static boolean isWorldClear(ClientLevel level, RigidBodyPiece part, Vec3 center) {
         if (isGripRegion(part.region)) return true;
         AABB broad = boundsAt(part, center).deflate(0.00035);
-        for (var shape : level.getBlockCollisions(null, broad))
-            for (AABB box : shape.toAabbs())
+        for (AABB box : collisionBoxes(level, broad))
                 if (obbContact(part, center, box) != null) return false;
         return true;
+    }
+
+    private static List<AABB> collisionBoxes(ClientLevel level, AABB bounds) {
+        return INSTANCE.collisionQueryLevel == level ? INSTANCE.collisionQueries.collect(bounds)
+                : collectCollisionBoxes(level, bounds);
+    }
+
+    private static List<AABB> collectCollisionBoxes(ClientLevel level, AABB bounds) {
+        List<AABB> boxes = null;
+        for (var shape : level.getBlockCollisions(null, bounds)) {
+            var parts = shape.toAabbs();
+            if (parts.isEmpty()) continue;
+            if (boxes == null) boxes = new ArrayList<>(parts.size());
+            boxes.addAll(parts);
+        }
+        return boxes == null ? List.of() : boxes;
     }
 
     private static Vec3[] axes(RigidBodyPiece part) {
@@ -3257,6 +3283,8 @@ public final class DismembermentEngine {
         }
     }
 
+    private static final Vec3[] SOCKET_AXES={new Vec3(1,0,0),new Vec3(0,1,0),new Vec3(0,0,1)};
+
     private void solveSocketImpulse(RigidBodyPiece child, RigidBodyPiece parent,
                                     double distanceError, double biasFactor) {
         Vec3 childAnchor = worldAnchor(child, child.childJointAnchor);
@@ -3264,8 +3292,7 @@ public final class DismembermentEngine {
         Vec3 error = childAnchor.subtract(parentAnchor);
         Vec3 relativeVelocity = child.velocityAt(childAnchor).subtract(parent.velocityAt(parentAnchor));
         Vec3 impulseTotal = Vec3.ZERO;
-        Vec3[] basis = {new Vec3(1, 0, 0), new Vec3(0, 1, 0), new Vec3(0, 0, 1)};
-        for (Vec3 axis : basis) {
+        for (Vec3 axis : SOCKET_AXES) {
             boolean attachment = isAttachmentRegion(child.region);
             double effectiveMass = socketEffectiveMass(child, childAnchor, axis, child == grabbed)
                     + socketEffectiveMass(parent, parentAnchor, axis, parent == grabbed || attachment);

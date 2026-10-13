@@ -18,9 +18,16 @@ public final class GreekFireTorchRenderer extends GeoBlockRenderer<GreekFireTorc
     private static final DataTicket<Boolean> TOP=DataTickets.create("asterion_torch_top",Boolean.class);
     private static final DataTicket<Boolean> LIT=DataTickets.create("asterion_torch_lit",Boolean.class);
     private static final DataTicket<GreekFireTorchBlock.FireColor> COLOR=DataTickets.create("asterion_torch_color",GreekFireTorchBlock.FireColor.class);
+    private static final Identifier FLOOR_MODEL=resource("block/floor_torch");
+    private static final Identifier WALL_MODEL=resource("block/wall_torch");
+    private static final Identifier ANIMATION=resource("block/greek_fire_torch");
+    private static final Identifier UNLIT_TEXTURE=resource("textures/block/torch_no_fire.png");
+    private static final Identifier[] FIRE_TEXTURES=java.util.Arrays.stream(GreekFireTorchBlock.FireColor.values())
+            .map(color -> resource("textures/block/"+color.texture+".png")).toArray(Identifier[]::new);
+    private static Identifier resource(String path) { return Identifier.fromNamespaceAndPath(Asterion.MOD_ID,path); }
     public GreekFireTorchRenderer(BlockEntityRendererProvider.Context context) {
         super(context,new Model());
-        withRenderLayer(new AsterionEmissiveBoneLayer<>(this,"flame",Asterion.id("textures/block/torch_greek_fire.png")) {
+        withRenderLayer(new AsterionEmissiveBoneLayer<>(this,"flame",FIRE_TEXTURES[GreekFireTorchBlock.FireColor.GREEK.ordinal()]) {
             @Override public boolean shouldRenderBone(BlockEntityRenderState state) {
                 return state.getOrDefaultGeckolibData(LIT,true)
                         &&(state.getOrDefaultGeckolibData(WALL,false)||state.getOrDefaultGeckolibData(TOP,true));
@@ -32,8 +39,8 @@ public final class GreekFireTorchRenderer extends GeoBlockRenderer<GreekFireTorc
             @Override protected boolean enhancedSurface(BlockEntityRenderState state) { return true; }
             @Override protected boolean backfaceCulling(BlockEntityRenderState state) { return false; }
             @Override protected Identifier amneticEmissionMesh(BlockEntityRenderState state) {
-                 
-                 
+
+
                 return net.krodark.asterion.AsterionConfig.INSTANCE.cinematicQuality == 0
                         ? null : getGeoModel().getModelResource(state);
             }
@@ -64,18 +71,18 @@ public final class GreekFireTorchRenderer extends GeoBlockRenderer<GreekFireTorc
         bones.ifPresent("shaft",bone->bone.skipRender(!wall&&top));
         bones.ifPresent("top",bone->{bone.skipRender(!wall&&!top);bone.skipChildrenRender(!wall&&!top);});
         bones.ifPresent("flame",bone->bone.skipRender(true));
-         
-         
+
+
     }
     private static final class Model extends GeoModel<GreekFireTorchBlockEntity> {
         @Override public Identifier getModelResource(GeoRenderState state) {
-            return Asterion.id(state.getOrDefaultGeckolibData(WALL,false)?"block/wall_torch":"block/floor_torch");
+            return state.getOrDefaultGeckolibData(WALL,false)?WALL_MODEL:FLOOR_MODEL;
         }
         @Override public Identifier getTextureResource(GeoRenderState state) { return texture(state); }
-        @Override public Identifier getAnimationResource(GreekFireTorchBlockEntity entity) { return Asterion.id("block/greek_fire_torch"); }
+        @Override public Identifier getAnimationResource(GreekFireTorchBlockEntity entity) { return ANIMATION; }
     }
     private static Identifier texture(GeoRenderState state) {
-        if(!state.getOrDefaultGeckolibData(LIT,true)) return Asterion.id("textures/block/torch_no_fire.png");
-        return Asterion.id("textures/block/"+state.getOrDefaultGeckolibData(COLOR,GreekFireTorchBlock.FireColor.GREEK).texture+".png");
+        if(!state.getOrDefaultGeckolibData(LIT,true)) return UNLIT_TEXTURE;
+        return FIRE_TEXTURES[state.getOrDefaultGeckolibData(COLOR,GreekFireTorchBlock.FireColor.GREEK).ordinal()];
     }
 }

@@ -22,9 +22,8 @@ public final class MinotaurDoorMotion {
         float angle = 0;
         for (int impact : IMPACTS) {
             float t = tick - impact;
-            if (t >= 0 && t < 16)
-                angle += (float)(Math.sin(Math.min(1, t / 3) * Math.PI / 2)
-                        * Math.exp(-Math.max(0, t - 3) / 4) * Math.toRadians(9 + impact / 9));
+            angle += (float)net.krodark.asterion.physics.CinematicMotion.impulse(t,
+                    Math.toRadians(11+impact/8),.65,.20);
         }
         return angle;
     }

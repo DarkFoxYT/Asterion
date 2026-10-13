@@ -107,16 +107,17 @@ public final class PortDeadSunEntryCinematic {
                 height, anchor.z + Math.sin(angle) * radius);
 
 
-        float dive = smoother((linear - .43F) / .57F);
-        double lateral = 1 - Math.pow(1 - dive, 4);
-        double downward = Math.pow(dive, 3);
+        // One eased crane descent avoids the late vertical plunge of the old shot.
+        float dive = smoother((time - 114F) / (END_TICKS - 114F));
+        double lateral = smoother((time - 100F) / 128F);
+        double downward = dive;
         Vec3 position = railPosition.lerp(new Vec3(basePosition.x, height, basePosition.z), lateral);
         position = new Vec3(position.x, Mth.lerp(downward, height, basePosition.y), position.z);
 
-        float sunReveal = smoother((linear - .10F) / .18F);
-        float playerFocus = smoother((linear - .43F) / .21F);
-        Vec3 focus = basePosition.add(0, -.7, 0).lerp(
-                sun.add(0, -config.deadSunSize * .16, 0), (.65F + .35F * sunReveal) * (1 - playerFocus));
+        float playerFocus = smoother((time - 108F) / 62F);
+        Vec3 forward = Vec3.directionFromRotation(returnPitch, returnYaw);
+        Vec3 groundFocus = basePosition.add(forward.scale(6));
+        Vec3 focus = sun.add(0, -config.deadSunSize * .08, 0).lerp(groundFocus, playerFocus);
         Vec3 delta = focus.subtract(position);
         double horizontal = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
 
@@ -124,7 +125,7 @@ public final class PortDeadSunEntryCinematic {
         float lookYaw = (float)(Mth.atan2(delta.z, delta.x) * Mth.RAD_TO_DEG) - 90.0F;
         float shotYaw = Mth.rotLerp(smoother((float)horizontal / 8.0F), approachYaw, lookYaw);
         float shotPitch = (float)-(Mth.atan2(delta.y, horizontal) * Mth.RAD_TO_DEG);
-        float viewReturn = smoother(Mth.clamp((linear - 0.68F) / 0.32F, 0.0F, 1.0F));
+        float viewReturn = smoother((time - 194F) / 66F);
         shotYaw = Mth.rotLerp(viewReturn, shotYaw, returnYaw);
         shotPitch = Mth.lerp(viewReturn, shotPitch, returnPitch);
 
@@ -132,6 +133,11 @@ public final class PortDeadSunEntryCinematic {
         double gust = wind * (.010 * Math.sin(time * .09) + .005 * Math.sin(time * .17));
         if (position.y > net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y + config.wallHeight + 3)
             position = position.add(gust, gust * .3, -gust * .6);
+        double recoil=net.krodark.asterion.physics.CinematicMotion.impulse(time-90,.045,.75,.055);
+        position=position.add(forward.scale(-recoil)).add(0,recoil*.3,0);
+        // Protect the final crane descent's near plane without pulling the establishing shot indoors.
+        if (position.distanceToSqr(basePosition)<16*16)
+            position=PortCinematicCameraCollision.clear(basePosition,position);
         externalShot = position.distanceToSqr(basePosition) > 4;
         return new CameraPose(position, shotYaw, shotPitch);
     }

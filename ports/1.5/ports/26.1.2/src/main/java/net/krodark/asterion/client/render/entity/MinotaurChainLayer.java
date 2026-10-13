@@ -20,22 +20,29 @@ import org.joml.Vector3f;
 
 import java.util.function.BiConsumer;
 
- 
+
 public final class MinotaurChainLayer extends GeoRenderLayer<MinotaurEntity, Void, EntityRenderState> {
     private static final DataTicket<Chain> CHAIN = DataTickets.create("asterion_minotaur_chain", Chain.class);
     private static final RenderType MATERIAL = RenderTypes.entityCutout(Asterion.id("textures/block/mazesteel_chain.png"));
-    private record Chain(Vec3 target, float ticks, int arm, boolean held) {}
+    private record Chain(Vec3 target, float ticks, int arm, boolean held, int owner, long time) {}
+    private final java.util.Map<Integer,net.krodark.asterion.physics.TetherSimulation> tethers=new java.util.HashMap<>();
+    private net.minecraft.client.multiplayer.ClientLevel tetherLevel;
 
     public MinotaurChainLayer(MinotaurGeoRenderer renderer) { super(renderer); }
 
     @Override public void addRenderData(MinotaurEntity boss, Void ignored, EntityRenderState state, float partial) {
         if (!boss.isChainGrappleActive() && !boss.isPerformingGrab()) return;
+        var level=net.minecraft.client.Minecraft.getInstance().level;
+        if (level!=tetherLevel) { tethers.clear(); tetherLevel=level; }
+        if (tethers.size()>64) tethers.clear();
         var target = boss.level().getEntity(boss.grabTargetEntityId());
         float ticks = boss.bossAttackAnimationTicks() + partial;
         boolean held = boss.heldPlayerId() >= 0;
         if (target != null && target.isAlive() && (held || ticks >= 8 && ticks < 36))
             state.addGeckolibData(CHAIN, new Chain(target.getPosition(partial)
-                    .add(0, target.getBbHeight() * .55, 0), ticks, boss.reachArmSide(), held));
+                    .add(0, target.getBbHeight() * .55, 0), ticks, boss.reachArmSide(), held,
+                    boss.getId(),boss.level().getGameTime()));
+        else tethers.remove(boss.getId());
     }
 
     @Override public void addPerBoneRender(RenderPassInfo<EntityRenderState> pass,
@@ -54,10 +61,23 @@ public final class MinotaurChainLayer extends GeoRenderLayer<MinotaurEntity, Voi
             Vec3 end = chain.held ? start.add(0, -.35, 0) : start.lerp(target, extension);
             double length = start.distanceTo(end);
             if (length < .05 || length > 40) return;
-             
+
             double slack = Math.min(1.3, length * .09) * Mth.clamp(Math.abs(chain.ticks - 25) / 7, .06F, 1);
             int light = posed.packedLight();
-            tasks.submitCustomGeometry(new PoseStack(), MATERIAL, (pose, out) -> draw(out, start, end, slack, light));
+            Vec3 camera=posed.cameraState().pos;
+            var tether=tethers.computeIfAbsent(chain.owner,ownerKey -> new net.krodark.asterion.physics.TetherSimulation());
+            float partial=net.minecraft.client.Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
+            Vec3[] points=tether.sample(start.add(camera),end.add(camera),slack,chain.time,partial,(from,to) -> {
+                if (tetherLevel==null) return to;
+                var hit=tetherLevel.clip(new net.minecraft.world.level.ClipContext(from,to,
+                        net.minecraft.world.level.ClipContext.Block.COLLIDER,net.minecraft.world.level.ClipContext.Fluid.NONE,
+                        net.minecraft.world.phys.shapes.CollisionContext.empty()));
+                return hit.getType()==net.minecraft.world.phys.HitResult.Type.MISS ? to
+                        : hit.getLocation().add(hit.getDirection().getUnitVec3().scale(.04));
+            });
+            for (int i=0;i<points.length;i++) points[i]=points[i].subtract(camera);
+            tasks.submitCustomGeometry(new PoseStack(), MATERIAL,
+                    (pose,out) -> ChainGeometry.drawWeapon(pose,out,points,Vec3.ZERO,light));
         }));
     }
 

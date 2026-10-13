@@ -10,16 +10,21 @@ import software.bernie.geckolib.cache.object.BakedGeoModel;
 
 /** Correct floor/wall torch geometry with a depth-aware emissive flame. */
 public final class PortGreekFireTorchRenderer extends SimpleGeoBlockRenderer<GreekFireTorchBlockEntity> {
+    private static final net.minecraft.resources.ResourceLocation FLOOR_MODEL=Asterion.id("block/floor_torch");
+    private static final net.minecraft.resources.ResourceLocation WALL_MODEL=Asterion.id("block/wall_torch");
+    private static final net.minecraft.resources.ResourceLocation ANIMATION=Asterion.id("block/greek_fire_torch");
+    private static final net.minecraft.resources.ResourceLocation UNLIT_TEXTURE=Asterion.id("textures/block/torch_no_fire.png");
+    private static final net.minecraft.resources.ResourceLocation[] FIRE_TEXTURES=java.util.Arrays.stream(GreekFireTorchBlock.FireColor.values())
+            .map(color -> Asterion.id("textures/block/"+color.texture+".png")).toArray(net.minecraft.resources.ResourceLocation[]::new);
     public PortGreekFireTorchRenderer() {
         super(entity -> {
             GreekFireTorchBlock block = (GreekFireTorchBlock)entity.getBlockState().getBlock();
-            return Asterion.id(block.wall ? "block/wall_torch" : "block/floor_torch");
+            return block.wall ? WALL_MODEL : FLOOR_MODEL;
         }, entity -> {
             var state = entity.getBlockState();
             GreekFireTorchBlock block = (GreekFireTorchBlock)state.getBlock();
-            return Asterion.id("textures/block/" + (state.getValue(GreekFireTorchBlock.LIT)
-                    ? block.fireColor.texture : "torch_no_fire") + ".png");
-        }, ignored -> Asterion.id("block/greek_fire_torch"));
+            return state.getValue(GreekFireTorchBlock.LIT) ? FIRE_TEXTURES[block.fireColor.ordinal()] : UNLIT_TEXTURE;
+        }, ignored -> ANIMATION);
         withEmissiveBones(ignored -> 0xFFFFFFFF, PortGreekFireTorchRenderer::hasFlame, "flame");
     }
 

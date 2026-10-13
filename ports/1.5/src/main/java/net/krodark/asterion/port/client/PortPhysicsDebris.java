@@ -80,8 +80,14 @@ public final class PortPhysicsDebris {
     private PortPhysicsDebris() { }
 
     private static VariantProfile profile(int variant) {
+        if (variant>=10) return DOOR_FRAGMENT_PROFILE;
         return PROFILES[Mth.clamp(variant, 1, 7)];
     }
+    private static final VariantProfile DOOR_FRAGMENT_PROFILE=new VariantProfile(
+            net.krodark.asterion.physics.DoorFracture.HALF,Vec3.ZERO,8F,1.35,.996,.08,.65,
+            .85,4,.65F,false,false,440,680);
+
+
 
     public static void clear() {
         WORLD_COLLISIONS.clear();
@@ -113,6 +119,7 @@ public final class PortPhysicsDebris {
             float yaw = MinotaurDoorMotion.yaw(payload.facing()) + side * angle;
             door.orientation.rotationY(yaw);
             door.previousOrientation.set(door.orientation);
+            door.breachOrigin=Vec3.atBottomCenterOf(payload.root());
 
             Vec3 across = Vec3.atLowerCornerOf(payload.facing().getClockWise().getNormal());
             door.velocity = inward.scale(1.55 + random.nextDouble() * .18)
@@ -332,6 +339,17 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, light, par
         }
     }
 
+    public static Vec3 doorFlightFocus(Vec3 root,float partial) {
+        Vec3 center=Vec3.ZERO; double mass=0;
+        for (Piece piece:PIECES) {
+            if (piece.breachOrigin==null || piece.breachOrigin.distanceToSqr(root)>1 || piece.age>50) continue;
+            double weight=piece.mass();
+            center=center.add(piece.previousPosition.lerp(piece.position,net.krodark.asterion.port.compat.MathCompat.clamp(partial,0,1)).scale(weight));
+            mass+=weight;
+        }
+        return mass>0?center.scale(1/mass):null;
+    }
+
     private static boolean simulateStep(ClientLevel level, Piece piece, double dt,
                                         List<Piece> fracturedChildren) {
         boolean playerContact = resolvePlayerContact(level, piece, dt);
@@ -343,8 +361,8 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, light, par
             if (!isWorldClear(level, piece, piece.position.add(0, -.08, 0))) return false;
             piece.sleeping = false;
         }
-        if (piece.variant == 7 || piece.arenaRubble) {
-            simulateDoorStep(level, piece, dt);
+        if (piece.variant == 7 || piece.variant>=10 || piece.arenaRubble) {
+            simulateDoorStep(level, piece, dt,fracturedChildren);
             return piece.shattered;
         }
         piece.velocity = piece.velocity.add(0, -0.055 * piece.gravityFactor() * dt, 0)
@@ -352,11 +370,12 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, light, par
         if (piece.velocity.y < -2.8) piece.velocity = new Vec3(piece.velocity.x, -2.8, piece.velocity.z);
         piece.angularVelocity.mul((float) Math.pow(0.992, dt));
         Quaternionf oldRotation = new Quaternionf(piece.orientation);
-        piece.orientation.premul(new Quaternionf().rotationXYZ(piece.angularVelocity.x * (float) dt,
-                piece.angularVelocity.y * (float) dt, piece.angularVelocity.z * (float) dt)).normalize();
+        net.krodark.asterion.physics.RigidBodyDynamics.rotate(piece.orientation,
+                piece.angularVelocity.x,piece.angularVelocity.y,piece.angularVelocity.z,dt);
         if (!isWorldClear(level, piece, piece.position)) {
-            piece.orientation.set(oldRotation);
-            piece.angularVelocity.mul(-0.28F);
+            double allowed=net.krodark.asterion.physics.RigidBodyDynamics.clampRotation(
+                    piece.orientation,oldRotation,() -> isWorldClear(level,piece,piece.position));
+            piece.angularVelocity.mul((float)Math.max(.08,allowed*.6));
         }
 
         Vec3 motion = piece.velocity.scale(dt);
@@ -384,10 +403,7 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, light, par
                 shouldBreak = false;
             }
             if (shouldBreak) {
-                if (piece.variant == 1)
-                    splitPrimaryDebris(level, piece, normal, impactSpeed, fracturedChildren);
-                else
-                    burst(level, piece, normal, impactSpeed);
+                fracture(level,piece,normal,impactSpeed,fracturedChildren);
                 return true;
             }
             piece.velocity = PortDebrisMath.reflect(piece.velocity, normal,
@@ -405,7 +421,7 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, light, par
         return false;
     }
 
-    private static void simulateDoorStep(ClientLevel level, Piece door, double dt) {
+    private static void simulateDoorStep(ClientLevel level, Piece door, double dt,List<Piece> fracturedChildren) {
 
 
         if (door.velocity.lengthSqr() > 3.2 * 3.2) door.velocity = door.velocity.normalize().scale(3.2);
@@ -420,8 +436,8 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, light, par
                     .scale(Math.pow(door.airRetention(), h));
             door.angularVelocity.mul((float)Math.pow(.996, h));
             door.position = door.position.add(door.velocity.scale(h));
-            door.orientation.premul(new Quaternionf().rotationXYZ(door.angularVelocity.x * (float)h,
-                    door.angularVelocity.y * (float)h, door.angularVelocity.z * (float)h)).normalize();
+            net.krodark.asterion.physics.RigidBodyDynamics.rotate(door.orientation,
+                    door.angularVelocity.x,door.angularVelocity.y,door.angularVelocity.z,h);
             for (int iteration = 0; iteration < 6; iteration++) {
                 Collision contact = collisionAt(level, door, door.position);
                 if (contact == null) break;
@@ -451,6 +467,19 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, light, par
                             sliding / door.effectiveInverseMass(lever, tangent));
                     door.applyImpulse(lever, tangent.scale(-friction));
                 }
+                if (door.age>3 && -speed>.16 && door.lastDamageTick!=door.age) {
+                    door.lastDamageTick=door.age;
+                    door.fractureDamage+=net.krodark.asterion.physics.RigidBodyDynamics.impactDamage(
+                            -speed,door.variant==7?1.0:door.breakSpeed());
+                    boolean breakLeaf=door.variant==7 && door.age>=10 && (door.fractureDamage>=1 || -speed>1.35);
+                    boolean breakRubble=door.variant!=7 && !door.unbreakable() && door.fractureDamage>=1;
+                    if (breakLeaf || breakRubble) {
+                        if (breakLeaf) splitDoor(level,door,normal,-speed,fracturedChildren);
+                        else fracture(level,door,normal,-speed,fracturedChildren);
+                        door.shattered=true;
+                        return;
+                    }
+                }
             }
             if (resolvePlayerContact(level, door, h)) {
                 supported = false;
@@ -458,7 +487,7 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, light, par
                 door.restingTime = 0;
             }
         }
-                if (supported) {
+        if (supported) {
             door.angularVelocity.mul((float)Math.pow(.78, dt));
             door.velocity = new Vec3(door.velocity.x * Math.pow(.85, dt), door.velocity.y,
                     door.velocity.z * Math.pow(.85, dt));
@@ -668,8 +697,76 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, light, par
         }
         Vec3 correction = totalMass <= 1.0e-8D ? Vec3.ZERO : relativeMomentum.scale(1.0D / totalMass);
         for (Piece child : children) child.velocity = child.velocity.subtract(correction);
+        for (Piece child : children) {
+            child.inheritedMass=parent.mass()*child.mass()/Math.max(1.0e-8,totalMass);
+            child.generation=parent.generation+1;
+            child.arenaRubble=parent.arenaRubble;
+        }
         output.addAll(children);
     }
+
+    private static void fracture(ClientLevel level,Piece parent,Vec3 normal,double speed,List<Piece> output) {
+        if (parent.variant==1 && parent.generation<2) {
+            splitPrimaryDebris(level,parent,normal,speed,output);
+            return;
+        }
+        burst(level,parent,normal,speed);
+        if (parent.variant>=6 || parent.generation>=2 || parent.scale<.2F) return;
+        Random random=new Random(parent.seed^parent.age*7919L);
+        var basis=PortDebrisMath.directionBasis(normal);
+        List<Piece> children=new ArrayList<>(3);
+        for (int i=0;i<3;i++) {
+            double angle=i*Math.PI*2/3;
+            Vec3 radial=basis.tangent().scale(Math.cos(angle)).add(basis.bitangent().scale(Math.sin(angle)));
+            int variant=parent.variant<3?3+random.nextInt(3):5+random.nextInt(2);
+            double volume=parent.halfExtents().x*parent.halfExtents().y*parent.halfExtents().z*8;
+            Vec3 half=profile(variant).halfExtents;
+            float scale=(float)Math.cbrt(volume/(3*half.x*half.y*half.z*8));
+            Piece child=new Piece(parent.position.add(radial.scale(parent.scale*.14)).add(normal.scale(.04)),variant,scale,random);
+            child.inheritedMass=parent.mass()/3;
+            child.generation=parent.generation+1;
+            child.arenaRubble=parent.arenaRubble;
+            child.velocity=parent.velocityAt(child.position).add(radial.scale(Math.min(.18,speed*.10)));
+            child.angularVelocity.set(parent.angularVelocity).add((float)(radial.x*.15),.05F,(float)(radial.z*.15));
+            children.add(child);
+        }
+        conserveFragmentMomentum(parent,children);
+        output.addAll(children);
+    }
+
+    private static void splitDoor(ClientLevel level,Piece parent,Vec3 normal,double speed,List<Piece> output) {
+        Random random=new Random(parent.seed^parent.age*104729L);
+        List<Piece> children=new ArrayList<>(6);
+        for (int i=0;i<net.krodark.asterion.physics.DoorFracture.COUNT;i++) {
+            Vec3 local=net.krodark.asterion.physics.DoorFracture.center(i);
+            Vector3f offset=parent.orientation.transform(new Vector3f((float)local.x,(float)local.y,(float)local.z));
+            Piece child=new Piece(parent.position.add(offset.x,offset.y,offset.z),10+i,1,random);
+            child.orientation.set(parent.orientation); child.previousOrientation.set(child.orientation);
+            child.inheritedMass=parent.mass()/6;
+            child.generation=1;
+            child.arenaRubble=true;
+            child.breachOrigin=parent.breachOrigin;
+            child.velocity=parent.velocityAt(child.position).add(normal.scale(.04))
+                    .add(new Vec3(offset.x,offset.y,offset.z).scale(Math.min(.07,speed*.035)));
+            child.angularVelocity.set(parent.angularVelocity).add(
+                    (random.nextFloat()-.5F)*.12F,(random.nextFloat()-.5F)*.12F,(random.nextFloat()-.5F)*.12F);
+            children.add(child);
+        }
+        conserveFragmentMomentum(parent,children);
+        output.addAll(children);
+        doorDust(level,parent,48,.18);
+        level.playLocalSound(parent.position.x,parent.position.y,parent.position.z,SoundEvents.ANVIL_LAND,
+                SoundSource.BLOCKS,1.5F,.55F,false);
+    }
+
+    private static void conserveFragmentMomentum(Piece parent,List<Piece> children) {
+        Vec3[] velocities=new Vec3[children.size()]; double[] masses=new double[children.size()];
+        for (int i=0;i<children.size();i++) { velocities[i]=children.get(i).velocity; masses[i]=children.get(i).mass(); }
+        Vec3 correction=net.krodark.asterion.physics.RigidBodyDynamics.momentumCorrection(velocities,masses,parent.velocity);
+        for (Piece child:children) child.velocity=child.velocity.subtract(correction);
+    }
+
+
 
     private static Vec3 move(ClientLevel level, Piece piece, Vec3 delta) {
         Vec3 normal = null;
@@ -720,6 +817,7 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, light, par
         BlockState hitState = level.getBlockState(hitPos);
         if (hitState.isAir()) hitState = level.getBlockState(hitPos.below());
         if (piece.blockVisual != null) hitState = piece.blockVisual;
+        if (piece.variant==7 || piece.variant>=10) hitState=net.minecraft.world.level.block.Blocks.IRON_BLOCK.defaultBlockState();
         if (hitState.isAir()) return;
         Random random = new Random(piece.seed ^ piece.age * 131L);
         BlockParticleOption fragments = new BlockParticleOption(ParticleTypes.BLOCK, hitState);
@@ -792,7 +890,8 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, light, par
         if(piece.cachedModelBoxes!=null && center.equals(piece.cachedModelPosition)
                 && piece.cachedModelOrientation.equals(piece.orientation))return piece.cachedModelBoxes;
         if(piece.localModelBoxes==null || !piece.cachedModelOrientation.equals(piece.orientation)) {
-            String model=piece.variant==7?"minotaur_door_debirs":"debris"+piece.variant;
+            String model=piece.variant>=10?net.krodark.asterion.physics.DoorFracture.model(piece.variant)
+                    :piece.variant==7?"minotaur_door_debirs":"debris"+piece.variant;
             piece.localModelBoxes=net.krodark.asterion.physics.ModelCollider.load(model).world(Vec3.ZERO,piece.orientation,piece.scale,piece.modelCenter(),0);
             piece.localModelBounds=net.krodark.asterion.physics.ModelCollider.bounds(piece.localModelBoxes);
         }
@@ -898,16 +997,19 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, light, par
         private long lastShakeTick = Long.MIN_VALUE;
         private boolean sleeping;
         private boolean arenaRubble, shattered;
+        private int generation,lastDamageTick=-1;
+        private double inheritedMass=Double.NaN,fractureDamage;
+        private Vec3 breachOrigin;
         private BlockState blockVisual;
         private double restingTime;
 
         private Piece(Vec3 position, int variant, float scale, Random random) {
             this.position = position;
             this.previousPosition = position;
-            this.variant = Mth.clamp(variant, 1, 7);
+            this.variant = variant>=10?Mth.clamp(variant,10,15):Mth.clamp(variant,1,7);
             this.visual = new DebrisObject(this.variant);
             this.scale = scale;
-            this.modelHalf = profile(this.variant).halfExtents.scale(scale * (this.variant == 7 ? 1.0 : .88));
+            this.modelHalf = profile(this.variant).halfExtents.scale(scale * (this.variant == 7 || this.variant>=10 ? 1.0 : .88));
             this.blockHalf = new Vec3(.5 * scale, .5 * scale, .5 * scale);
             this.seed = random.nextLong();
             VariantProfile profile = profile(this.variant);
@@ -970,6 +1072,7 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, light, par
         }
 
         private double mass() {
+            if (Double.isFinite(inheritedMass)) return inheritedMass;
             Vec3 half = profile(variant).halfExtents;
             double modelVolume = half.x * half.y * half.z * 8.0D;
             return Math.max(1.0e-5D, massFactor() * modelVolume * scale * scale * scale);
@@ -1053,11 +1156,11 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, light, par
 
     private static final class DebrisModel extends GeoModel<DebrisObject> {
         @Override public ResourceLocation getModelResource(DebrisObject object) {
-            return Asterion.id("geo/physics/" + (object.variant == 7
+            return Asterion.id("geo/physics/" + (object.variant>=10 ? net.krodark.asterion.physics.DoorFracture.model(object.variant) : object.variant == 7
                     ? "minotaur_door_debirs" : "debris" + object.variant) + ".geo.json");
         }
         @Override public ResourceLocation getTextureResource(DebrisObject object) {
-            return Asterion.id("textures/physics/" + (object.variant == 7
+            return Asterion.id("textures/physics/" + (object.variant == 7 || object.variant>=10
                     ? "minotaur_door_debris" : "debris" + object.variant) + ".png");
         }
         @Override public ResourceLocation getAnimationResource(DebrisObject object) { return null; }

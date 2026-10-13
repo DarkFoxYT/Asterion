@@ -12,6 +12,8 @@ import software.bernie.geckolib.cache.object.GeoBone;
 import software.bernie.geckolib.renderer.layer.GeoRenderLayer;
 final class PortMinotaurChainLayer extends GeoRenderLayer<MinotaurEntity> {
     private static final RenderType MATERIAL=RenderType.entityCutout(Asterion.id("textures/block/mazesteel_chain.png"));
+    private final java.util.Map<Integer,net.krodark.asterion.physics.TetherSimulation> tethers=new java.util.HashMap<>();
+    private net.minecraft.client.multiplayer.ClientLevel tetherLevel;
     PortMinotaurChainLayer(PortMinotaurRenderer renderer){super(renderer);}
     @Override public void renderForBone(PoseStack poses,MinotaurEntity boss,GeoBone bone,RenderType type,MultiBufferSource buffers,VertexConsumer buffer,float partial,int light,int overlay) {
         int arm=boss.reachArmSide();
@@ -36,7 +38,9 @@ final class PortMinotaurChainLayer extends GeoRenderLayer<MinotaurEntity> {
             net.krodark.asterion.port.client.ragdoll.MinotaurHandAttachment.capture(boss.heldPlayerId(),start.add(camera));
             net.krodark.asterion.port.client.ragdoll.MinotaurHandAttachment.captureUp(boss.heldPlayerId(),new Vec3(upPoint.x,upPoint.y,upPoint.z).add(camera));
         }
-        if(!boss.isChainGrappleActive()&&!boss.isPerformingGrab())return;
+        if (tetherLevel!=Minecraft.getInstance().level) { tethers.clear(); tetherLevel=Minecraft.getInstance().level; }
+        if (tethers.size()>64) tethers.clear();
+        if(!boss.isChainGrappleActive()&&!boss.isPerformingGrab()){tethers.remove(boss.getId());return;}
         var target=boss.level().getEntity(boss.grabTargetEntityId());
         float ticks=boss.bossAttackAnimationTicks()+partial;boolean held=boss.heldPlayerId()>=0;
         if(target==null||!target.isAlive()||!held&&(ticks<8||ticks>=36))return;
@@ -45,7 +49,16 @@ final class PortMinotaurChainLayer extends GeoRenderLayer<MinotaurEntity> {
         Vec3 end=held?start.add(0,-.35,0):start.lerp(targetPos,extension);
         double length=start.distanceTo(end);if(length<.05||length>40)return;
         double slack=Math.min(1.3,length*.09)*Mth.clamp(Math.abs(ticks-25)/7,.06F,1);
-        draw(buffers.getBuffer(MATERIAL),start,end,slack,light);
+        var tether=tethers.computeIfAbsent(boss.getId(),owner -> new net.krodark.asterion.physics.TetherSimulation());
+        Vec3[] points=tether.sample(start.add(camera),end.add(camera),slack,boss.level().getGameTime(),partial,(from,to) -> {
+            if (tetherLevel==null) return to;
+            var hit=tetherLevel.clip(new net.minecraft.world.level.ClipContext(from,to,
+                    net.minecraft.world.level.ClipContext.Block.COLLIDER,net.minecraft.world.level.ClipContext.Fluid.NONE,boss));
+            return hit.getType()==net.minecraft.world.phys.HitResult.Type.MISS ? to
+                    : hit.getLocation().add(Vec3.atLowerCornerOf(hit.getDirection().getNormal()).scale(.04));
+        });
+        for (int i=0;i<points.length;i++) points[i]=points[i].subtract(camera);
+        PortChainGeometry.drawWeapon(new PoseStack().last(),buffers.getBuffer(MATERIAL),points,Vec3.ZERO,light);
         buffers.getBuffer(type);
     }
     static void draw(VertexConsumer out,Vec3 start,Vec3 end,double slack,int light){

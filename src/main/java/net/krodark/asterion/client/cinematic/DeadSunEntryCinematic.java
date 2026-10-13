@@ -133,22 +133,22 @@ public final class DeadSunEntryCinematic {
                 + Math.sin(progress * Math.PI) * 8.0D;
         Vec3 railPosition = new Vec3(anchor.x + Math.cos(angle) * radius,
                 height, anchor.z + Math.sin(angle) * radius);
-         
-         
+
+
         // One eased crane descent avoids the late vertical plunge of the old shot.
         float dive = smoother((time - 114F) / (END_TICKS - 114F));
         double lateral = smoother((time - 100F) / 128F);
         double downward = dive;
         Vec3 position = railPosition.lerp(new Vec3(basePosition.x, height, basePosition.z), lateral);
         position = new Vec3(position.x, Mth.lerp(downward, height, basePosition.y), position.z);
-         
+
         float playerFocus = smoother((time - 108F) / 62F);
         Vec3 forward = Vec3.directionFromRotation(returnPitch, returnYaw);
         Vec3 groundFocus = basePosition.add(forward.scale(6));
         Vec3 focus = sun.add(0, -config.deadSunSize * .08, 0).lerp(groundFocus, playerFocus);
         Vec3 delta = focus.subtract(position);
         double horizontal = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
-         
+
         float approachYaw = (float)(heading * Mth.RAD_TO_DEG) - 90.0F;
         float lookYaw = (float)(Mth.atan2(delta.z, delta.x) * Mth.RAD_TO_DEG) - 90.0F;
         float shotYaw = Mth.rotLerp(smoother((float)horizontal / 8.0F), approachYaw, lookYaw);
@@ -156,11 +156,16 @@ public final class DeadSunEntryCinematic {
         float viewReturn = smoother((time - 194F) / 66F);
         shotYaw = Mth.rotLerp(viewReturn, shotYaw, returnYaw);
         shotPitch = Mth.lerp(viewReturn, shotPitch, returnPitch);
-         
+
         double wind = Math.sin(Math.PI * smoother((linear - .60F) / .40F));
         double gust = wind * (.010 * Math.sin(time * .09) + .005 * Math.sin(time * .17));
         if (position.y > net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y + config.wallHeight + 3)
             position = position.add(gust, gust * .3, -gust * .6);
+        double recoil=net.krodark.asterion.physics.CinematicMotion.impulse(time-90,.045,.75,.055);
+        position=position.add(forward.scale(-recoil)).add(0,recoil*.3,0);
+        // Protect the final crane descent's near plane without pulling the establishing shot indoors.
+        if (position.distanceToSqr(basePosition)<16*16)
+            position=CinematicCameraCollision.clear(basePosition,position);
         externalShot = position.distanceToSqr(basePosition) > 4;
         return new CameraPose(position, shotYaw, shotPitch);
     }

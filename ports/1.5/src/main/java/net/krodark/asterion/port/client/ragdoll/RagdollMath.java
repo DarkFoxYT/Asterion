@@ -14,10 +14,7 @@ final class RagdollMath {
     }
 
     static Vec3 reflect(Vec3 velocity, Vec3 normal, double restitution, double friction) {
-        double normalSpeed = velocity.dot(normal);
-        Vec3 normalPart = normal.scale(normalSpeed);
-        Vec3 tangentPart = velocity.subtract(normalPart);
-        return tangentPart.scale(Math.max(0.0, 1.0 - friction)).subtract(normalPart.scale(restitution));
+        return net.krodark.asterion.physics.RigidBodyDynamics.reflect(velocity,normal,restitution,friction);
     }
 
     static Basis faceBasis(Direction face, float rotation) {

@@ -82,6 +82,11 @@ public final class SegmentedChain {
                     else if (distance <= .0001) next = next.add(.36, 0, 0);
                 }
                 old[i] = current; points[i] = collision.apply(current, next);
+                if (points[i].distanceToSqr(next)>1.0e-8) {
+                    Vec3 normal=points[i].subtract(next).normalize();
+                    Vec3 contactMotion=RigidBodyDynamics.reflect(points[i].subtract(current),normal,.02,.35);
+                    old[i]=points[i].subtract(contactMotion);
+                }
             }
             for (int pass = 0; pass < 12; pass++) {
                 for (int sweep = 0; sweep < points.length - 1; sweep++) {
@@ -104,7 +109,11 @@ public final class SegmentedChain {
                         points[i] = points[i - 1].add(span.normalize().scale(spacing));
                 }
                 Vec3 corrected = collision.apply(old[i], points[i]);
-                if (corrected.distanceToSqr(points[i]) > .000001) old[i] = corrected.lerp(old[i], .15);
+                if (corrected.distanceToSqr(points[i]) > .000001) {
+                    Vec3 normal=corrected.subtract(points[i]).normalize();
+                    Vec3 contactMotion=RigidBodyDynamics.reflect(corrected.subtract(old[i]),normal,0,.45);
+                    old[i]=corrected.subtract(contactMotion.scale(.82));
+                }
                 points[i] = corrected;
             }
         }

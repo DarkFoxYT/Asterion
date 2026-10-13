@@ -22,10 +22,14 @@ final class DebrisGeoModel extends GeoModel<DebrisPhysicsObject> {
     private static final Identifier TEXTURE_5 = Asterion.id("textures/physics/debris5.png");
     private static final Identifier TEXTURE_6 = Asterion.id("textures/physics/debris6.png");
     private static final Identifier ANIMATION = Asterion.id("physics/debris1");
+    private static final Identifier[] DOOR_FRAGMENTS=java.util.stream.IntStream.range(0,6)
+            .mapToObj(i -> Asterion.id("physics/minotaur_door_fragment_"+i)).toArray(Identifier[]::new);
 
     @Override
     public Identifier getModelResource(GeoRenderState renderState) {
-        return switch (renderState.getOrDefaultGeckolibData(VARIANT, 1)) {
+        int variant=renderState.getOrDefaultGeckolibData(VARIANT,1);
+        if (variant>=10 && variant<16) return DOOR_FRAGMENTS[variant-10];
+        return switch (variant) {
             case 9 -> Asterion.id("physics/sword");
             case 8 -> Asterion.id("physics/axe");
             case 7 -> Asterion.id("physics/minotaur_door_debirs");
@@ -40,6 +44,8 @@ final class DebrisGeoModel extends GeoModel<DebrisPhysicsObject> {
 
     @Override
     public Identifier getTextureResource(GeoRenderState renderState) {
+        if (renderState.getOrDefaultGeckolibData(VARIANT,1)>=10)
+            return Asterion.id("textures/physics/minotaur_door_debris.png");
         return switch (renderState.getOrDefaultGeckolibData(VARIANT, 1)) {
             case 9 -> Asterion.id("textures/physics/sword.png");
             case 8 -> Asterion.id("textures/physics/axe.png");

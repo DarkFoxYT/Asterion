@@ -7,6 +7,40 @@ while (!new File(shelf.parentFile, 'ports/1.5').isDirectory()) {
 }
 def outputShelf = shelf
 
+// Standard ZIP DEFLATE at its strongest level; mod loaders cannot read LZMA/Zstd JARs.
+def compressModJar = { File archive ->
+    def packed = new File(archive.parentFile, archive.name + '.deflate.tmp')
+    def expected = [:]
+    try {
+        new java.util.zip.ZipFile(archive).withCloseable { input ->
+            new java.util.zip.ZipOutputStream(new BufferedOutputStream(new FileOutputStream(packed))).withCloseable { output ->
+                output.setLevel(java.util.zip.Deflater.BEST_COMPRESSION)
+                input.entries().each { original ->
+                    def entry = new java.util.zip.ZipEntry(original)
+                    entry.setMethod(java.util.zip.ZipEntry.DEFLATED)
+                    entry.setCompressedSize(-1)
+                    expected[entry.name] = [original.size, original.crc]
+                    output.putNextEntry(entry)
+                    input.getInputStream(original).withCloseable { stream -> stream.transferTo(output) }
+                    output.closeEntry()
+                }
+            }
+        }
+        new java.util.zip.ZipFile(packed).withCloseable { verified ->
+            if (verified.size() != expected.size()) throw new GradleException('Compressed mod lost archive entries')
+            verified.entries().each { entry ->
+                if (expected[entry.name] != [entry.size, entry.crc])
+                    throw new GradleException("Compressed mod changed ${entry.name}")
+            }
+        }
+        if (packed.length() < archive.length()) {
+            long saved = archive.length() - packed.length()
+            java.nio.file.Files.move(packed.toPath(), archive.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            logger.lifecycle("Maximum compatible compression saved ${saved} bytes in ${archive.name}")
+        }
+    } finally { java.nio.file.Files.deleteIfExists(packed.toPath()) }
+}
+
 gradle.projectsEvaluated {
     gradle.rootProject.allprojects.each { modProject ->
         def taskName = modProject.tasks.findByName('jarJar') instanceof org.gradle.api.tasks.bundling.AbstractArchiveTask ? 'jarJar' :
@@ -35,11 +69,17 @@ gradle.projectsEvaluated {
             from artifact.flatMap { it.archiveFile }
             into outputShelf
         }
-        artifact.configure { finalizedBy collect }
+        artifact.configure {
+            doLast { compressModJar(archiveFile.get().asFile) }
+            finalizedBy collect
+        }
 
         // The older Fabric builds also produce a Quilt-labelled compatible jar.
         def quilt = modProject.tasks.findByName('quiltCompatibleJar')
         if (quilt != null) {
+            quilt.doLast {
+                compressModJar(modProject.layout.buildDirectory.file("quilt/Asterion-${modProject.version}-quilt-mc${modProject.minecraft_version}.jar").get().asFile)
+            }
             def collectQuilt = modProject.tasks.register('collectQuiltJar', Copy) {
                 group = 'distribution'
                 description = 'Copy the Quilt-compatible jar to the repository modbuilds folder.'
