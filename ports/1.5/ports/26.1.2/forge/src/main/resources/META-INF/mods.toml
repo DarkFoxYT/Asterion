@@ -32,3 +32,10 @@ side="CLIENT"
 
 [[mixins]]
 config="asterion.mixins.json"
+
+[[dependencies.asterion]]
+modId="geckolib"
+mandatory=true
+versionRange="[5.5.2,)"
+ordering="AFTER"
+side="BOTH"

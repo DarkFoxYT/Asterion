@@ -72,6 +72,8 @@ dependencies {
 
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
     implementation "com.geckolib:geckolib-fabric-${project.minecraft_version}:${project.geckolib_version}"
+    include("net.fabricmc.fabric-api:fabric-api:${project.fabric_version}") { transitive = false }
+    include("com.geckolib:geckolib-fabric-${project.minecraft_version}:${project.geckolib_version}") { transitive = false }
 
     implementation "com.terraformersmc:modmenu:${project.modmenu_version}"
 
@@ -267,8 +269,6 @@ if (loaderPlatform == "quilt") {
         dependsOn tasks.named("jar")
         from tasks.named("jar", Jar).flatMap { it.archiveFile }
         from(configurations.runtimeClasspath) {
-            include "fabric-api-*.jar"
-            include "geckolib-fabric-*.jar"
             include "modmenu-*.jar"
         }
         into layout.buildDirectory.dir("run/quilt/mods")

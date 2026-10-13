@@ -78,6 +78,10 @@ dependencies {
     implementation "org.sinytra.forgified-fabric-api:forgified-fabric-api:${rootProject.forgified_fabric_api_version}"
     jarJar("org.sinytra.forgified-fabric-api:forgified-fabric-api:${rootProject.forgified_fabric_api_version}") { version { strictly "[${rootProject.forgified_fabric_api_version}]" } }
     implementation "com.geckolib:geckolib-neoforge-${rootProject.minecraft_version}:${rootProject.geckolib_version}"
+    jarJar("com.geckolib:geckolib-neoforge-${rootProject.minecraft_version}:${rootProject.geckolib_version}") {
+        transitive = false
+        version { strictly "[${rootProject.geckolib_version}]" }
+    }
     compileOnly "asterion.local:amnetic-neoforge:${rootProject.amnetic_version}"
 
 
@@ -182,7 +186,6 @@ sourceSets { packagedPolish }
 neoForge.addModdingDependenciesTo(sourceSets.packagedPolish)
 dependencies {
     packagedPolishRuntimeOnly files(tasks.named('jar'), polishHarness)
-    packagedPolishRuntimeOnly "com.geckolib:geckolib-neoforge-${rootProject.minecraft_version}:${rootProject.geckolib_version}"
 }
 neoForge.runs {
     packagedPolishClient {

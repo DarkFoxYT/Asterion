@@ -1,24 +1,17 @@
-ASTERION 1.5 LABYRINTH BETA — MINECRAFT 1.20.1 AND 1.21.1
+ASTERION - SINGLE-JAR INSTALLATION
 
-Use a separate Minecraft profile and a new test world for each version.
-Copy every JAR from ONE matching mods folder into that profile.
+Install the mod loader matching your Minecraft version (Fabric, Quilt, Forge,
+or NeoForge), then copy ONE matching Asterion release JAR into your mods folder.
 
-Fabric (default): Fabric Loader 0.19.5; bundled folder includes Fabric API and GeckoLib.
-Quilt: Quilt Loader 0.30.1; use the same Fabric/Quilt mods folder, including Fabric API.
-Fabric/Quilt: Amnetic is embedded in Asterion. Do not install it separately.
+GeckoLib and Amnetic are embedded in the Asterion JAR. Fabric API or Forgified
+Fabric API is embedded on the targets that require it. Their runtime libraries
+and native binaries are included as well. No separate library download or
+Connector is required.
 
-Forge 1.20.1 and 1.21.1: use the matching stageForgeBuild mods folder. It includes
-Asterion, Forge GeckoLib and Forgified Fabric API. Amnetic is embedded. Do not add
-Connector or a second Fabric API to this native Forge profile.
-Forge development-client startup is verified on both versions. Their staged
-production profiles still need a full gameplay playthrough.
+Use Java 17 for Minecraft 1.20.1, Java 21 for 1.21.1, and Java 25 for 26.1.2.
+Optional mods such as Mod Menu, JEI, REI, Jade, Sodium and Iris can still be
+installed separately using versions compatible with your Minecraft and loader.
 
-NeoForge 1.21.1: NeoForge 21.1.248. Use the two supplied JARs: Asterion and GeckoLib.
-This NeoForge beta still uses the older native Amnetic adapter and embedded Forgified Fabric API. Connector is not needed.
-Use Java 17 for Minecraft 1.20.1 and Java 21 for Minecraft 1.21.1.
-
-Veil is no longer required. Asterion forces its Amnetic TAA off.
-External shader packs can have their own TAA settings; disable those in the pack.
-The source worktree and validation report document remaining compatibility limits.
-Underworld art is packaged but the dimension, entities, and first-death passage
-are disabled on these older Minecraft versions pending a runtime API port.
+The loader resolves bundled libraries alongside other mods in the profile.
+A clean installation needs only the Asterion JAR; keep existing compatible
+libraries when they are required by other mods in your modpack.

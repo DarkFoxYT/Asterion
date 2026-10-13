@@ -1,10 +1,17 @@
-ASTERION 2.0.0 — MINECRAFT 26.1.2 POLISH BUILDS
+ASTERION - SINGLE-JAR INSTALLATION
 
-Fabric is the default. Use Fabric Loader 0.19.5 with the supplied Fabric API and GeckoLib 5.5.2 JARs.
-Amnetic is embedded; do not install another copy.
+Install the mod loader matching your Minecraft version (Fabric, Quilt, Forge,
+or NeoForge), then copy ONE matching Asterion release JAR into your mods folder.
 
-NeoForge: use NeoForge 26.1.2.109 and the supplied NeoForge GeckoLib 5.5.2 JAR.
-Native Amnetic, its platform libraries, and Forgified Fabric API are embedded. Connector is not needed.
+GeckoLib and Amnetic are embedded in the Asterion JAR. Fabric API or Forgified
+Fabric API is embedded on the targets that require it. Their runtime libraries
+and native binaries are included as well. No separate library download or
+Connector is required.
 
-Java 25 is required. Use a separate test profile and world.
-The Fabric artifact may also be used with a compatible Quilt loader; this revision was runtime-tested on Fabric and NeoForge.
+Use Java 17 for Minecraft 1.20.1, Java 21 for 1.21.1, and Java 25 for 26.1.2.
+Optional mods such as Mod Menu, JEI, REI, Jade, Sodium and Iris can still be
+installed separately using versions compatible with your Minecraft and loader.
+
+The loader resolves bundled libraries alongside other mods in the profile.
+A clean installation needs only the Asterion JAR; keep existing compatible
+libraries when they are required by other mods in your modpack.

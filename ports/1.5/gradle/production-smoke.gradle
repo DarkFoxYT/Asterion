@@ -38,7 +38,7 @@ tasks.register('runProductionSmokeClient', productionType) {
     dependsOn ':1.20.1:downloadAssets', ':1.21.1:downloadAssets'
     group = 'verification'
     description = 'Run the opt-in client scenario using the release JAR and real production dependencies.'
-    mods.setFrom(tasks.named('remapJar'), smokeRemap, configurations.distributionMods)
+    mods.setFrom(tasks.named('remapJar'), smokeRemap)
     runDir = layout.buildDirectory.dir('run/production-smoke')
     javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(minecraft_version == '1.20.1' ? 17 : 21) }
     jvmArgs.addAll('-Dasterion.clientSmoke=true', '-Damnetic.opengl.debug=true', '-Dfabric.noGui=true')

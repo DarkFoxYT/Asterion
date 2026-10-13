@@ -95,6 +95,10 @@ dependencies {
     }
     implementation "org.sinytra.forgified-fabric-api:forgified-fabric-api:${rootProject.forgified_fabric_api_version}"
     implementation "software.bernie.geckolib:geckolib-neoforge-${rootProject.minecraft_version}:${rootProject.geckolib_version}"
+    jarJar("software.bernie.geckolib:geckolib-neoforge-${rootProject.minecraft_version}:${rootProject.geckolib_version}") {
+        transitive = false
+        version { strictly "[${rootProject.geckolib_version}]" }
+    }
     compileOnly files(rootProject.file("libs/amnetic-1.0.0-asterion.9+1.21.1-dev.jar"))
     compileOnly 'org.jspecify:jspecify:1.0.0'
 

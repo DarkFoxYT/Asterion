@@ -312,18 +312,32 @@ jarJar.configure(amneticEmbed) {
 }
 dependencies.add('jarJar', amneticEmbed)
 
-configurations { forgeDistributionMods { transitive = false } }
-dependencies {
-    forgeDistributionMods "software.bernie.geckolib:geckolib-forge-${minecraftVersion}:${geckolibVersion}"
+// Loader-managed nested mods retain their own metadata, mixins and licences.
+def geckolibEmbed = dependencies.create("software.bernie.geckolib:geckolib-forge-${minecraftVersion}:${geckolibVersion}") { transitive = false }
+jarJar.configure(geckolibEmbed) {
+    version = geckolibVersion
+    range = "[${geckolibVersion}]"
 }
+dependencies.add('jarJar', geckolibEmbed)
+
+// Forge 1.21.1 uses native API adapters; 1.20.1 needs Forgified API.
+if (legacy) {
+    def fabricApiEmbed = dependencies.create(files(forgifiedJar))
+    jarJar.configure(fabricApiEmbed) {
+        module { group = 'org.sinytra.forgified-fabric-api'; name = 'forgified-fabric-api' }
+        version = '0.92.6+1.11.15+1.20.1'
+        range = '[0.92.6+1.11.15+1.20.1]'
+    }
+    dependencies.add('jarJar', fabricApiEmbed)
+}
+
+
 tasks.register('stageForgeBuild', Sync) {
     group = 'distribution'
-    description = 'Stage Asterion and its matching Forge runtime dependencies.'
+    description = 'Stage the self-contained Asterion Forge jar.'
     dependsOn tasks.named('jarJar')
     into rootProject.layout.buildDirectory.dir("ported-builds/${minecraftVersion}/forge")
     from(tasks.named('jarJar')) { into 'mods' }
-    from(configurations.forgeDistributionMods) { into 'mods' }
-    from(forgifiedJar) { into 'mods' }
     from(rootProject.file('docs/INSTALL-MODS.txt'))
 }
 

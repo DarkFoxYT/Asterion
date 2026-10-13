@@ -1,0 +1,17 @@
+ASTERION - SINGLE-JAR INSTALLATION
+
+Install the mod loader matching your Minecraft version (Fabric, Quilt, Forge,
+or NeoForge), then copy ONE matching Asterion release JAR into your mods folder.
+
+GeckoLib and Amnetic are embedded in the Asterion JAR. Fabric API or Forgified
+Fabric API is embedded on the targets that require it. Their runtime libraries
+and native binaries are included as well. No separate library download or
+Connector is required.
+
+Use Java 17 for Minecraft 1.20.1, Java 21 for 1.21.1, and Java 25 for 26.1.2.
+Optional mods such as Mod Menu, JEI, REI, Jade, Sodium and Iris can still be
+installed separately using versions compatible with your Minecraft and loader.
+
+The loader resolves bundled libraries alongside other mods in the profile.
+A clean installation needs only the Asterion JAR; keep existing compatible
+libraries when they are required by other mods in your modpack.

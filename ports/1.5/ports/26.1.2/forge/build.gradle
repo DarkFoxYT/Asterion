@@ -104,6 +104,15 @@ jarJar.configure(amneticEmbed) {
 }
 dependencies.add('jarJar', amneticEmbed)
 
+// Loader-managed nested mods retain their own metadata, mixins and licences.
+def geckolibEmbed = dependencies.create("com.geckolib:geckolib-forge-26.1.2:${rootProject.geckolib_version}") { transitive = false }
+jarJar.configure(geckolibEmbed) {
+    version = rootProject.geckolib_version
+    range = "[${rootProject.geckolib_version}]"
+}
+dependencies.add('jarJar', geckolibEmbed)
+
+
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.release = 25

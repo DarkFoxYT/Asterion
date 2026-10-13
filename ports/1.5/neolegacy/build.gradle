@@ -32,6 +32,19 @@ def pythonCommand = providers.gradleProperty('asterionPython')
 configurations { geckolibDevOriginal { transitive = false } }
 def geckolibCoordinate = "software.bernie.geckolib:geckolib-forge-${minecraftVersion}:${geckolibVersion}"
 dependencies { geckolibDevOriginal geckolibCoordinate }
+
+// ModDev requires an explicit module identity for a local Jar-in-Jar file.
+def forgifiedApiEmbedJar = tasks.register('forgifiedApiEmbedJar', Jar) {
+    from(zipTree(forgifiedJar)) { exclude 'META-INF/MANIFEST.MF' }
+    archiveFileName = forgifiedJar.name
+    destinationDirectory = layout.buildDirectory.dir('forgified-embed')
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    manifest {
+        attributes('Automatic-Module-Name': 'org.sinytra.forgifiedfabricapi',
+                'Implementation-Version': '0.92.6+1.11.15+1.20.1')
+    }
+}
 def remapForgifiedDev = tasks.register('remapForgifiedDev', Exec) {
     dependsOn tasks.named('createMinecraftArtifacts')
     def mappings = layout.buildDirectory.file('moddev/artifacts/intermediateToNamed.srg')
@@ -150,6 +163,11 @@ dependencies {
     compileOnly files(amneticJar)
     runtimeOnly files(remapAmneticDev)
     jarJar files(amneticNeoEmbedJar)
+    jarJar(geckolibCoordinate) {
+        transitive = false
+        version { strictly "[${geckolibVersion}]" }
+    }
+    if (legacy) jarJar files(forgifiedApiEmbedJar)
     compileOnly 'org.jspecify:jspecify:1.0.0'
     compileOnly 'io.github.llamalad7:mixinextras-common:0.4.1'
     if (!legacy) runtimeOnly files(tasks.named('jar'))

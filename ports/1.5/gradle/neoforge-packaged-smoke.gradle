@@ -8,7 +8,6 @@ sourceSets { packagedSmoke }
 neoForge.addModdingDependenciesTo(sourceSets.packagedSmoke)
 dependencies {
     packagedSmokeRuntimeOnly files(tasks.named('jar'), packagedHarness)
-    packagedSmokeRuntimeOnly "software.bernie.geckolib:geckolib-neoforge-${rootProject.minecraft_version}:${rootProject.geckolib_version}"
 }
 neoForge.runs {
     packagedSmokeClient {

@@ -2,7 +2,7 @@
 
 The `multiversion` branch succeeds `1.21.1` and preserves its history.
 Stonecutter 0.9.8 maintains 1.20.1 and 1.21.1 from the active 1.21.1 sources.
-Fabric is the default target. Quilt uses the same release JAR. NeoForge 1.21.1 uses native Asterion and Amnetic adapters without Connector. Amnetic is embedded in every release. Forgified Fabric API remains necessary for shared API calls and is embedded in the NeoForge release, together with the Assimp runtime.
+Fabric is the default target. Quilt uses the same release JAR. NeoForge 1.21.1 uses native Asterion and Amnetic adapters without Connector. Required libraries are embedded in every release: Amnetic, GeckoLib, Fabric API on Fabric/Quilt, and Forgified Fabric API on the native targets that need it. Their nested runtime dependencies, including Assimp, remain intact. Install one matching Asterion JAR alongside the mod loader.
 
 ## Building
 
