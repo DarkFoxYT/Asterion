@@ -34,6 +34,7 @@
     "RagdollUseGuardMixin"
   ],
   "client": [
+    "PortAfterblowFirstPersonMixin",
     "RenderRemnantClientTickMixin",
     "RenderRemnantCommandMixin",
     "RenderRemnantCaptureFrameMixin",
@@ -66,7 +67,6 @@
     "PortGeckoInterpolationMixin",
     "RagdollClientUseGuardMixin",
     "PortAfterblowRenderMixin",
-    "PortAfterblowFirstPersonMixin",
     "PortHandRenderStateMixin",
     "FlamethrowerInputMixin"
   ],

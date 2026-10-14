@@ -38,6 +38,7 @@
     "SpawnPlacementsAccessor"
   ],
   "client": [
+    "AfterblowFirstPersonMixin",
     "RenderRemnantClientTickMixin",
     "RenderRemnantCommandMixin",
     "RenderRemnantCaptureFrameMixin",
