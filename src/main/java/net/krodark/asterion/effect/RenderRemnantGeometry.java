@@ -44,10 +44,10 @@ public final class RenderRemnantGeometry {
     }
 
     private static void eye(List<Vertex> out, float x0, float x1) {
-        out.add(new Vertex(x0, 2.33F, -.25F, 0, 0, -1, 0xFFFF0808));
-        out.add(new Vertex(x1, 2.33F, -.25F, 0, 0, -1, 0xFFFF0808));
-        out.add(new Vertex(x1, 2.43F, -.25F, 0, 0, -1, 0xFFFF0808));
-        out.add(new Vertex(x0, 2.43F, -.25F, 0, 0, -1, 0xFFFF0808));
+        out.add(new Vertex(x0, 2.33F, -.32F, 0, 0, -1, 0xFFFF0808));
+        out.add(new Vertex(x1, 2.33F, -.32F, 0, 0, -1, 0xFFFF0808));
+        out.add(new Vertex(x1, 2.43F, -.32F, 0, 0, -1, 0xFFFF0808));
+        out.add(new Vertex(x0, 2.43F, -.32F, 0, 0, -1, 0xFFFF0808));
     }
 
     private static void box(List<Vertex> out, float x0, float y0, float z0, float x1, float y1, float z1, int color) {

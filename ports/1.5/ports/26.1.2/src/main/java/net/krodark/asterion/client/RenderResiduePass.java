@@ -19,7 +19,7 @@ import org.joml.Vector4fc;
 
 /** A depth-tested silhouette after atmosphere compositing, with a separate eye bloom batch. */
 public final class RenderResiduePass {
-    private record Instance(Matrix4fc transform, Vector4fc effect) {}
+    private record Instance(Matrix4fc transform, Vector4fc effect, Vector4fc viewport) {}
     private static boolean initialized;
     private static InstanceRenderContext worldFrame;
     private static boolean surfacePending;
@@ -51,9 +51,10 @@ public final class RenderResiduePass {
     private static void register(boolean surface) {
         var transform = new Matrix4f();
         var effect = new Vector4f();
-        var submission = new Instance(transform, effect);
-        var builder = InstancedMesh.<Instance>builder(InstanceLayout.builder().mat4(2).vec4(6).build(),
-                (instance, packer) -> packer.putMat4(instance.transform()).putVec4(instance.effect()))
+        var viewport = new Vector4f();
+        var submission = new Instance(transform, effect, viewport);
+        var builder = InstancedMesh.<Instance>builder(InstanceLayout.builder().mat4(2).vec4(6).vec4(7).build(),
+                (instance, packer) -> packer.putMat4(instance.transform()).putVec4(instance.effect()).putVec4(instance.viewport()))
                 .geometry(geometry(surface))
                 .shaders(Asterion.id("core/render_residue"), Asterion.id("core/render_residue"))
                 .phase(InstancePhase.WORLD_LAST)
@@ -64,6 +65,7 @@ public final class RenderResiduePass {
                     if (context.world() == null || WitnessCaptureFence.hidden() || PeripheralWitnessController.visibleWitnesses().isEmpty()
                             || FlashbackAppearanceCompatibility.isPlayingReplay()) return;
                     var camera = context.cameraPos();
+                    viewport.set(Math.max(1, context.client().getWindow().getWidth()), Math.max(1, context.client().getWindow().getHeight()), 0, 0);
                     for (var witness : PeripheralWitnessController.visibleWitnesses()) {
                         if (witness.isRemoved() || witness.level() != context.world() || witness.appearance <= .001F
                                 || !batch.visible(witness.getX(), witness.getY() + 1.5, witness.getZ(), 2)) continue;
