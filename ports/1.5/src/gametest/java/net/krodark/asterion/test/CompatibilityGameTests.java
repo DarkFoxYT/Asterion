@@ -9,6 +9,74 @@ import net.krodark.asterion.Asterion;
 import net.krodark.asterion.port.compat.GeometryCompat;
 public class CompatibilityGameTests implements FabricGameTest {
  @GameTest(template=FabricGameTest.EMPTY_STRUCTURE)
+ public void omegaLockOpeningTiming(GameTestHelper test) {
+  var level = test.getLevel();
+  var root = test.absolutePos(new net.minecraft.core.BlockPos(2,1,2));
+  var lockPos = root.above(2);
+  var gate = Asterion.MAZESTEEL_GATE.defaultBlockState().setValue(net.krodark.asterion.block.DirectionalGateBlock.OPEN,false);
+  for(int row=0;row<4;row++)for(int side=-1;side<=1;side++)level.setBlock(root.offset(side,row,0),gate,2);
+  var unrelated = root.offset(4,0,3);
+  level.setBlock(unrelated,gate,2);
+  var locked = Asterion.OMEGA_LOCK.defaultBlockState();
+  level.setBlock(lockPos,locked,2);
+  var lock = (net.krodark.asterion.block.OmegaLockBlockEntity)level.getBlockEntity(lockPos);
+  test.assertTrue(((net.krodark.asterion.block.OmegaLockBlock)Asterion.OMEGA_LOCK).getTicker(level,locked,Asterion.OMEGA_LOCK_BLOCK_ENTITY)==null,"Idle locks must not tick");
+  test.assertTrue(lock!=null&&lock.unlock(null),"Omega lock must accept its connected gate");
+  var invisible = level.getBlockState(lockPos);
+  test.assertTrue(invisible.getValue(net.krodark.asterion.block.OmegaLockBlock.UNLOCKED)
+    && invisible.getRenderShape()==net.minecraft.world.level.block.RenderShape.INVISIBLE,"Lock must be invisible on the unlocking tick");
+  test.assertTrue(invisible.getShape(level,lockPos).isEmpty()&&invisible.getCollisionShape(level,lockPos).isEmpty(),"Invisible lock must not retain an outline or collision");
+  for(int side=-1;side<=1;side++)test.assertTrue(level.getBlockState(root.offset(side,0,0)).getValue(net.krodark.asterion.block.DirectionalGateBlock.OPEN),"Bottom row must rise in the same tick as the lock disappears");
+  test.assertTrue(!level.getBlockState(root.above(3)).getValue(net.krodark.asterion.block.DirectionalGateBlock.OPEN),"Upper rows must keep their lift sequence");
+  for(int tick=0;tick<50;tick++)net.krodark.asterion.block.OmegaLockBlockEntity.tick(level,lockPos,level.getBlockState(lockPos),lock);
+  for(int row=0;row<4;row++)for(int side=-1;side<=1;side++)if(!root.offset(side,row,0).equals(lockPos))
+   test.assertTrue(level.getBlockState(root.offset(side,row,0)).getValue(net.krodark.asterion.block.DirectionalGateBlock.OPEN),"Every connected gate row must finish opening");
+  test.assertTrue(level.getBlockState(lockPos).isAir()&&!lock.isOpening(),"Finished lock controller must be removed");
+  test.assertTrue(!level.getBlockState(unrelated).getValue(net.krodark.asterion.block.DirectionalGateBlock.OPEN),"Nearby unrelated gates must not be animated");
+  test.succeed();
+ }
+ @GameTest(template=FabricGameTest.EMPTY_STRUCTURE)
+ public void centralFloorRoofSheet(GameTestHelper test) {
+  var level = test.getLevel();
+  var chunk = level.getChunk(6,0);
+  int y = net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y;
+  var stone = Asterion.ANCIENT_STONE.defaultBlockState();
+  var brick = Asterion.ANCIENT_BRICKS.defaultBlockState();
+  var air = net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
+  for(int x=98;x<=103;x++) for(int z=2;z<=7;z++) {
+   level.setBlock(new net.minecraft.core.BlockPos(x,y,z),stone,2);
+   level.setBlock(new net.minecraft.core.BlockPos(x,y+1,z),Math.floorMod(x*17L+z*31L+3,9)<3?Asterion.ANCIENT_MOSSY_BRICKS.defaultBlockState():brick,2);
+   level.setBlock(new net.minecraft.core.BlockPos(x,y+2,z),air,2);
+  }
+  for(int x=98;x<=101;x++)for(int z=10;z<=13;z++) {
+   level.setBlock(new net.minecraft.core.BlockPos(x,y,z),stone,2);
+   level.setBlock(new net.minecraft.core.BlockPos(x,y+1,z),brick,2);
+   level.setBlock(new net.minecraft.core.BlockPos(x,y+2,z),air,2);
+  }
+  var wall = new net.minecraft.core.BlockPos(106,y+1,2);
+  var chest = new net.minecraft.core.BlockPos(107,y+1,4);
+  var isolated = new net.minecraft.core.BlockPos(108,y+1,10);
+  for(var pos:java.util.List.of(wall,chest,isolated))level.setBlock(pos.below(),stone,2);
+  level.setBlock(wall,brick,2); level.setBlock(wall.above(),brick,2);
+  level.setBlock(chest,net.minecraft.world.level.block.Blocks.CHEST.defaultBlockState(),2);
+  level.setBlock(isolated,brick,2); level.setBlock(isolated.above(),air,2);
+  try {
+   var repair = net.krodark.asterion.worldgen.GeneratedPhysicsChains.class.getDeclaredMethod("repairCenterDecorations",net.minecraft.server.level.ServerLevel.class,net.minecraft.world.level.chunk.LevelChunk.class);
+   repair.setAccessible(true); repair.invoke(null,level,chunk); repair.invoke(null,level,chunk);
+   for(int x=98;x<=103;x++)for(int z=2;z<=7;z++) {
+    test.assertTrue(level.getBlockState(new net.minecraft.core.BlockPos(x,y,z)).is(Asterion.ANCIENT_STONE),"Ground must remain solid");
+    test.assertTrue(level.getBlockState(new net.minecraft.core.BlockPos(x,y+1,z)).isAir(),"Every raised roof tile must be removed, including the last tile");
+   }
+   for(int x=98;x<=101;x++)for(int z=10;z<=13;z++)
+    test.assertTrue(level.getBlockState(new net.minecraft.core.BlockPos(x,y+1,z)).is(Asterion.ANCIENT_BRICKS),"Plain masonry without the old pattern must survive");
+   test.assertTrue(level.getBlockState(wall).is(Asterion.ANCIENT_BRICKS)&&level.getBlockState(wall.above()).is(Asterion.ANCIENT_BRICKS),"Taller walls must survive");
+   test.assertTrue(level.getBlockEntity(chest)!=null,"Block entities must survive");
+   test.assertTrue(level.getBlockState(isolated).is(Asterion.ANCIENT_BRICKS),"Isolated placed bricks must survive");
+   test.assertTrue(net.krodark.asterion.worldgen.CatacombLayout.roofAt(100,100)<=y,"New roof must stop at the maze floor");
+  } catch(ReflectiveOperationException error) {throw new AssertionError(error);}
+  test.succeed();
+ }
+ @GameTest(template=FabricGameTest.EMPTY_STRUCTURE)
  public void environmentRayWithoutEntity(GameTestHelper test) {
   var block=test.absolutePos(new net.minecraft.core.BlockPos(1,1,1));
   test.getLevel().setBlockAndUpdate(block,net.minecraft.world.level.block.Blocks.STONE.defaultBlockState());

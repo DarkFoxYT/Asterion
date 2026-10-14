@@ -33,6 +33,7 @@ public final class AsterionNeoForgeClientModEvents {
         PortClientFeatures.initialize();
         registerRenderLayers();
         event.registerEntityRenderer(AncientContent.SKELETON, AncientSkeletonRenderer::new);
+        event.registerEntityRenderer(net.krodark.asterion.game.RenderRemnantContent.TYPE, net.krodark.asterion.port.client.RenderRemnantPortRenderer::new);
         event.registerEntityRenderer(Asterion.MINOTAUR,
                 net.krodark.asterion.port.client.PortMinotaurRenderer::new);
         event.registerEntityRenderer(Asterion.BOMBARDIER_BEETLE,

@@ -81,6 +81,7 @@ public final class AsterionFabricClient implements ClientModInitializer {
     }
 
     private static void registerEntityRenderers() {
+        EntityRendererRegistry.register(net.krodark.asterion.game.RenderRemnantContent.TYPE, net.krodark.asterion.port.client.RenderRemnantPortRenderer::new);
         EntityRendererRegistry.register(AncientContent.SKELETON, AncientSkeletonRenderer::new);
         EntityRendererRegistry.register(Asterion.MINOTAUR,
                 net.krodark.asterion.port.client.PortMinotaurRenderer::new);

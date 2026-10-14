@@ -48,12 +48,52 @@ public final class GeneratedPhysicsChains {
         BlockPos pos=BlockPos.containing(point);
         return level.getChunkSource().getChunkNow(pos.getX()>>4,pos.getZ()>>4)!=null && level.getBlockState(pos).getCollisionShape(level,pos).isEmpty();
     }
+    /** Recognise the old repeating roof material before touching existing masonry. */
+    private static List<BlockPos> raisedFloorSheet(ServerLevel level, LevelChunk chunk, long seed) {
+        Map<BlockPos, Boolean> eligible = new HashMap<>();
+        var cp = chunk.getPos();
+        for (int x = cp.getMinBlockX(); x <= cp.getMaxBlockX(); x++)
+            for (int z = cp.getMinBlockZ(); z <= cp.getMaxBlockZ(); z++) {
+                if (Math.hypot(x, z) > 110) continue;
+                BlockPos top = new BlockPos(x, WorldGenerator.mazeFloorHeight(seed, x, z) + 1, z);
+                var state = chunk.getBlockState(top);
+                var below = chunk.getBlockState(top.below());
+                if ((state.is(Asterion.ANCIENT_BRICKS) || state.is(Asterion.ANCIENT_MOSSY_BRICKS))
+                        && (below.is(Asterion.ANCIENT_STONE) || below.is(Asterion.ANCIENT_BRICKS) || below.is(Asterion.ANCIENT_MOSSY_BRICKS))
+                        && chunk.getBlockState(top.above()).isAir())
+                    eligible.put(top, state.is(Asterion.ANCIENT_MOSSY_BRICKS));
+            }
+        List<BlockPos> sheet = new ArrayList<>();
+        while (!eligible.isEmpty()) {
+            var pending = new ArrayDeque<BlockPos>();
+            var component = new ArrayList<BlockPos>();
+            int[] matches = new int[9];
+            int mossCount = 0;
+            pending.add(eligible.keySet().iterator().next());
+            while (!pending.isEmpty()) {
+                BlockPos pos = pending.removeFirst();
+                Boolean moss = eligible.remove(pos);
+                if (moss == null) continue;
+                component.add(pos);
+                if (moss) mossCount++;
+                // The phase also recognises saves made with the older world-seed mapping.
+                for (int phase = 0; phase < 9; phase++)
+                    if ((Math.floorMod(pos.getX()*17L + pos.getZ()*31L + phase, 9) < 3) == moss) matches[phase]++;
+                for (var direction : net.minecraft.core.Direction.Plane.HORIZONTAL) pending.add(pos.relative(direction));
+            }
+            int best = java.util.Arrays.stream(matches).max().orElse(0);
+            if (component.size() >= 16 && mossCount >= 2 && best*10 >= component.size()*9) sheet.addAll(component);
+        }
+        return sheet;
+    }
+
     /** Trim masonry and its foliage together, using the same biome heights as generation. */
     private static void repairCenterDecorations(ServerLevel level, LevelChunk chunk) {
         ArenaSurfaceSeam.repair(level, chunk, false);
         var cp = chunk.getPos();
         if (Math.hypot(cp.getMiddleBlockX(), cp.getMiddleBlockZ()) > 126) return;
         long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
+        var raisedFloor = raisedFloorSheet(level, chunk, seed);
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (int x = cp.getMinBlockX(); x <= cp.getMaxBlockX(); x++)
             for (int z = cp.getMinBlockZ(); z <= cp.getMaxBlockZ(); z++) {
@@ -79,6 +119,7 @@ public final class GeneratedPhysicsChains {
                         level.setBlock(cursor, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 18);
                 }
             }
+        for (BlockPos top : raisedFloor) level.setBlock(top, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 18);
     }
 
     private static void generate(ServerLevel level,LevelChunk chunk) {

@@ -31,6 +31,8 @@ public final class OmegaLockBlockEntity extends net.krodark.asterion.port.compat
 
     public OmegaLockBlockEntity(BlockPos pos, BlockState state) { super(Asterion.OMEGA_LOCK_BLOCK_ENTITY, pos, state); }
 
+    public boolean isOpening() { return openingTicks > 0; }
+
     public boolean unlock(Player player) {
         if (!(level instanceof net.minecraft.server.level.ServerLevel server) || openingTicks > 0
                 || getBlockState().getValue(OmegaLockBlock.UNLOCKED)) return false;
@@ -41,26 +43,32 @@ public final class OmegaLockBlockEntity extends net.krodark.asterion.port.compat
             net.krodark.asterion.AsterionWorldState.get(server).markOmegaGateUnlocked();
         server.setBlock(worldPosition, getBlockState().setValue(OmegaLockBlock.UNLOCKED, true), Block.UPDATE_ALL);
         server.playSound(null, worldPosition, SoundEvents.VAULT_ACTIVATE, SoundSource.BLOCKS, 1.5F, .55F);
-        for (var viewer : server.players()) if (viewer.distanceToSqr(worldPosition.getCenter()) < 64 * 64
+        for (var viewer : server.players()) if (viewer.distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(worldPosition)) < 64 * 64
                 && ServerPlayNetworking.canSend(viewer, MazeShiftPayload.TYPE))
             ServerPlayNetworking.send(viewer, new MazeShiftPayload(worldPosition, 64, .42F, 18));
+        // The first gate row and the invisible lock state share this server tick.
+        openNextRow(server, worldPosition, this);
         setChanged();
         return true;
     }
 
     public static void tick(Level level, BlockPos pos, BlockState state, OmegaLockBlockEntity lock) {
         if (level.isClientSide() || lock.openingTicks <= 0 || !(level instanceof net.minecraft.server.level.ServerLevel server)) return;
-        lock.openingTicks++;
-        if (lock.openingTicks % 10 != 1) return;
+        if (++lock.openingTicks % 10 == 1) openNextRow(server, pos, lock);
+    }
+
+    private static void openNextRow(net.minecraft.server.level.ServerLevel server, BlockPos pos, OmegaLockBlockEntity lock) {
         if (lock.gates.isEmpty()) lock.gates = findNearbyGates(server, pos);
-        int lowest = lock.gates.stream().filter(p -> {
-            BlockState gate = server.getBlockState(p);
-            return gate.is(Asterion.MAZESTEEL_GATE) && !gate.getValue(DirectionalGateBlock.OPEN);
-        }).mapToInt(BlockPos::getY).min().orElse(Integer.MAX_VALUE);
+        int lowest = Integer.MAX_VALUE;
+        for (BlockPos gatePos : lock.gates) {
+            if (server.getChunkSource().getChunkNow(gatePos.getX() >> 4, gatePos.getZ() >> 4) == null) return;
+            BlockState gate = server.getBlockState(gatePos);
+            if (gate.is(Asterion.MAZESTEEL_GATE) && !gate.getValue(DirectionalGateBlock.OPEN))
+                lowest = Math.min(lowest, gatePos.getY());
+        }
         if (lowest == Integer.MAX_VALUE) {
-
-
-            server.removeBlock(pos,false);
+            lock.openingTicks = 0;
+            server.removeBlock(pos, false);
             return;
         }
         int changed = 0;
@@ -75,7 +83,7 @@ public final class OmegaLockBlockEntity extends net.krodark.asterion.port.compat
         }
         if (changed > 0) {
             server.playSound(null, pos, SoundEvents.CHAIN_HIT, SoundSource.BLOCKS, 1.2F, .55F + lowest % 4 * .04F);
-            for (var viewer : server.players()) if (viewer.distanceToSqr(pos.getCenter()) < 56 * 56
+            if (lock.openingTicks > 1) for (var viewer : server.players()) if (viewer.distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(pos)) < 56 * 56
                     && ServerPlayNetworking.canSend(viewer, MazeShiftPayload.TYPE))
                 ServerPlayNetworking.send(viewer, new MazeShiftPayload(pos, 56, .16F, 9));
         }
@@ -83,11 +91,34 @@ public final class OmegaLockBlockEntity extends net.krodark.asterion.port.compat
     }
 
     private static List<BlockPos> findNearbyGates(net.minecraft.server.level.ServerLevel level, BlockPos center) {
-        List<BlockPos> found = new ArrayList<>();
-        for (BlockPos p : BlockPos.betweenClosed(center.offset(-12,-8,-12), center.offset(12,12,12)))
-            if (level.getBlockState(p).is(Asterion.MAZESTEEL_GATE)) found.add(p.immutable());
+        var pending = new java.util.ArrayDeque<BlockPos>();
+        var seen = new java.util.HashSet<BlockPos>();
+        var found = new ArrayList<BlockPos>();
+        for (var direction : net.minecraft.core.Direction.values()) pending.add(center.relative(direction));
+        collectConnectedGates(level, center, pending, seen, found);
+        if (found.isEmpty()) {
+            // Preserve detached placements, but search only sections which already contain gates.
+            var nearby = net.krodark.asterion.util.LoadedBlockSearch.find(level, center.offset(-12,-8,-12),
+                    center.offset(12,12,12), state -> state.is(Asterion.MAZESTEEL_GATE));
+            nearby.stream().min(Comparator.comparingDouble(p -> p.distSqr(center))).ifPresent(pending::add);
+            seen.clear();
+            collectConnectedGates(level, center, pending, seen, found);
+        }
         found.sort(Comparator.comparingInt(BlockPos::getY));
         return List.copyOf(found);
+    }
+
+    private static void collectConnectedGates(net.minecraft.server.level.ServerLevel level, BlockPos center,
+            java.util.ArrayDeque<BlockPos> pending, java.util.Set<BlockPos> seen, List<BlockPos> found) {
+        while (!pending.isEmpty()) {
+            BlockPos pos = pending.removeFirst();
+            if (!seen.add(pos) || Math.abs(pos.getX()-center.getX()) > 12 || Math.abs(pos.getZ()-center.getZ()) > 12
+                    || pos.getY() < center.getY()-8 || pos.getY() > center.getY()+12
+                    || level.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4) == null) continue;
+            if (!level.getBlockState(pos).is(Asterion.MAZESTEEL_GATE)) continue;
+            found.add(pos);
+            for (var direction : net.minecraft.core.Direction.values()) pending.add(pos.relative(direction));
+        }
     }
 
     @Override protected void saveAdditional(CompoundTag out, net.minecraft.core.HolderLookup.Provider registries) { super.saveAdditional(out, registries); out.putInt("openingTicks", openingTicks); }

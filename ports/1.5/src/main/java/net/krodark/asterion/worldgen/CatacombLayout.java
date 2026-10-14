@@ -14,7 +14,7 @@ public final class CatacombLayout {
     public static final int FLOOR_Y = LabyrinthLevels.CATACOMB_BASE_Y + 3;
     public static final int WATER_Y = FLOOR_Y + 1;
     public static final int CLEAR_HEIGHT = 31;
-    public static final int ROOF_Y = AuthoredCatacombs.BASE_Y + 30;
+    public static final int ROOF_Y = Math.min(AuthoredCatacombs.BASE_Y + 30, LabyrinthLevels.MAZE_FLOOR_Y);
     public static final int ROOT_X = 4, ROOT_Z = 4;
     public static final int ROOT_CENTER = ROOT_X * TILE + TILE / 2;
     public static final int BRAZIER_ROOM_MIN_X = 10, BRAZIER_ROOM_MAX_X = 12;
@@ -174,7 +174,7 @@ public final class CatacombLayout {
                     int band = (int)Math.floor(radius - (AuthoredCatacombs.ARENA_RADIUS - 4));
                     BlockState rim = band < 2 ? Asterion.SHADED_SHALE.defaultBlockState()
                             : band < 5 ? Asterion.SHALE.defaultBlockState()
-                            : (Math.floorMod(x*17L+y*3L+z*31L+seed,9)<3 ? moss : brick);
+                            : (Math.floorMod(hash(seed ^ y * 0xD1B54A32D192ED03L, x, z), 9)<3 ? moss : brick);
                     chunk.setBlockState(cursor.set(x,y,z), rim, false);
                 }
     }

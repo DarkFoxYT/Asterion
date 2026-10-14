@@ -38,6 +38,13 @@
     "SpawnPlacementsAccessor"
   ],
   "client": [
+    "RenderRemnantClientTickMixin",
+    "RenderRemnantCommandMixin",
+    "RenderRemnantCaptureFrameMixin",
+    "RenderRemnantScreenshotMixin",
+    "FlashbackPlayerAppearanceMixin",
+    "FlashbackReplayConnectionMixin",
+    "FlashbackReplayTickMixin",
     "WorldIconDecoderMixin",
     "ForgeHudMixin",
     "ForgeToastMixin",

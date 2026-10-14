@@ -34,6 +34,14 @@
     "RagdollUseGuardMixin"
   ],
   "client": [
+    "RenderRemnantClientTickMixin",
+    "RenderRemnantCommandMixin",
+    "RenderRemnantCaptureFrameMixin",
+    "RenderRemnantScreenshotMixin",
+    "PortWitnessCameraAccessor",
+    "FlashbackPlayerAppearanceMixin",
+    "FlashbackReplayConnectionMixin",
+    "FlashbackReplayTickMixin",
     "ItemPropertiesInvoker",
     "PortCameraMixin",
     "PortDeathScreenMixin",

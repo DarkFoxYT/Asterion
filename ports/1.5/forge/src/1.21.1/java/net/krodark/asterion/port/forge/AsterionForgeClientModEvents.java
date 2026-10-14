@@ -71,6 +71,7 @@ public final class AsterionForgeClientModEvents {
     @SubscribeEvent
     public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(AncientContent.SKELETON, AncientSkeletonRenderer::new);
+        event.registerEntityRenderer(net.krodark.asterion.game.RenderRemnantContent.TYPE, net.krodark.asterion.port.client.RenderRemnantPortRenderer::new);
         event.registerEntityRenderer(Asterion.MINOTAUR, PortMinotaurRenderer::new);
         event.registerEntityRenderer(Asterion.BOMBARDIER_BEETLE, PortBombardierBeetleRenderer::new);
         event.registerEntityRenderer(Asterion.RUNE_BEETLE, context -> new SimpleGeoEntityRenderer<>(context,

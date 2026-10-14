@@ -218,7 +218,7 @@ public final class MinotaurArenaEntrances {
 
 
     private static void ensureOmegaLock(ServerLevel level) {
-        if (BossArenaEncounter.isIntroCinematic(level)) return;
+        if (BossArenaEncounter.isIntroCinematic(level) || !omegaGateLocked(level)) return;
         var state = level.getBlockState(OMEGA_LOCK_POSITION);
         if(state.is(Asterion.MAZESTEEL_GATE) || state.isAir() && omegaGateLocked(level))
             level.setBlock(OMEGA_LOCK_POSITION,Asterion.OMEGA_LOCK.defaultBlockState()
@@ -236,7 +236,7 @@ public final class MinotaurArenaEntrances {
             if (!state.isAir()) level.removeBlock(OMEGA_LOCK_POSITION, false);
             return;
         }
-        if (state.isAir() || state.is(Asterion.MAZESTEEL_GATE)) {
+        if (omegaGateLocked(level) && (state.isAir() || state.is(Asterion.MAZESTEEL_GATE))) {
             level.setBlock(OMEGA_LOCK_POSITION, Asterion.OMEGA_LOCK.defaultBlockState()
                     .setValue(net.krodark.asterion.block.OmegaLockBlock.FACING, Direction.NORTH), 3);
         }
@@ -250,7 +250,9 @@ public final class MinotaurArenaEntrances {
         var state=level.getBlockState(pos);
         if(state.isAir())return !omegaGateLocked(level);
         if(!state.is(Asterion.OMEGA_LOCK))return false;
-        if(state.getValue(net.krodark.asterion.block.OmegaLockBlock.UNLOCKED))level.removeBlock(pos,false);
+        if(state.getValue(net.krodark.asterion.block.OmegaLockBlock.UNLOCKED)
+                && !(level.getBlockEntity(pos) instanceof net.krodark.asterion.block.OmegaLockBlockEntity lock && lock.isOpening()))
+            level.removeBlock(pos,false);
         return true;
     }
 

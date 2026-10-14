@@ -54,9 +54,10 @@ public final class OmegaLockBlock extends BaseEntityBlock {
         }
         return net.minecraft.world.ItemInteractionResult.SUCCESS;
     }
-    @Override public RenderShape getRenderShape(BlockState state) { return RenderShape.MODEL; }
+    @Override public RenderShape getRenderShape(BlockState state) { return state.getValue(UNLOCKED) ? RenderShape.INVISIBLE : RenderShape.MODEL; }
     @Override public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        return state.getValue(FACING).getAxis() == Direction.Axis.Z ? NORTH_SOUTH : EAST_WEST;
+        return state.getValue(UNLOCKED) ? net.minecraft.world.phys.shapes.Shapes.empty()
+                : state.getValue(FACING).getAxis() == Direction.Axis.Z ? NORTH_SOUTH : EAST_WEST;
     }
     @Override public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         if (context instanceof net.minecraft.world.phys.shapes.EntityCollisionContext entityContext
@@ -70,7 +71,8 @@ public final class OmegaLockBlock extends BaseEntityBlock {
     @Override public BlockState mirror(BlockState state, Mirror mirror) { return rotate(state, mirror.getRotation(state.getValue(FACING))); }
     @Override public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) { return new OmegaLockBlockEntity(pos, state); }
     @Override public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        return createTickerHelper(type, Asterion.OMEGA_LOCK_BLOCK_ENTITY, OmegaLockBlockEntity::tick);
+        return level.isClientSide() || !state.getValue(UNLOCKED) ? null
+                : createTickerHelper(type, Asterion.OMEGA_LOCK_BLOCK_ENTITY, OmegaLockBlockEntity::tick);
     }
 
 //? if <1.20.5 {
