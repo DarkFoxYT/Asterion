@@ -18,6 +18,9 @@ abstract class RenderRemnantCaptureFrameMixin {
     @Inject(method = "renderLevel", at = @At("RETURN"))
     private void asterion$finishResidueSurface(CallbackInfo ci) { net.krodark.asterion.client.RenderResiduePass.finishWorld(); }
 
+    @Inject(method = "renderLevel", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/systems/CommandEncoder;clearDepthTexture(Lcom/mojang/blaze3d/textures/GpuTexture;D)V"))
+    private void asterion$preserveWorldOcclusion(CallbackInfo ci) { net.krodark.asterion.client.RenderResiduePass.beforeHands(); }
+
     @Inject(method = "render", at = @At("RETURN"))
     private void asterion$finishCleanCaptureFrame(CallbackInfo ci) { WitnessCaptureFence.afterWorldFrame(); }
 }

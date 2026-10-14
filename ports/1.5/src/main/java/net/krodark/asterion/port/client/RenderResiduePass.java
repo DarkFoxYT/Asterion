@@ -23,6 +23,7 @@ public final class RenderResiduePass {
     private static boolean initialized;
     private static InstanceRenderContext worldFrame;
     private static boolean surfacePending;
+    private static boolean surfaceDrawn, worldDepthCleared;
     private RenderResiduePass() {}
 
     public static void initialize() {
@@ -32,9 +33,13 @@ public final class RenderResiduePass {
         register(true);
     }
 
-    public static void beginFrame() { worldFrame = null; surfacePending = false; }
+    public static void beginFrame() {
+        worldFrame = null; surfacePending = false; surfaceDrawn = false; worldDepthCleared = false;
+    }
+    public static void beforeHands() { finishWorld(); worldDepthCleared = true; }
     public static void finishWorld() {
-        if (worldFrame == null || !surfacePending || WitnessCaptureFence.hidden()) return;
+        if (worldFrame == null || !surfacePending || surfaceDrawn || worldDepthCleared || WitnessCaptureFence.hidden()) return;
+        surfaceDrawn = true;
         int previous = MainTargetFramebuffer.bind();
         try {
             InstanceMeshRegistry.INSTANCE.render(Asterion.id("render/residue_surface"), worldFrame);
