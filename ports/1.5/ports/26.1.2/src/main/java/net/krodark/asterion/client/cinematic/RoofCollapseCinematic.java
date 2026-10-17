@@ -85,6 +85,8 @@ public final class RoofCollapseCinematic {
         double sx = (Math.sin(time * 2.31D) + Math.sin(time * .67D + 1.4D) * .55D) * force;
         double sy = (Math.sin(time * 2.77D + .8D) + Math.sin(time * .83D) * .45D) * force * .55D;
         position = position.add(sx, sy, -sx * .48D);
+        // Resolve after all camera movement and shake, from the safe player eye.
+        position = CinematicCameraCollision.clear(playerEye, position);
         Vec3 delta = focus.subtract(position);
         float yaw = (float)Math.toDegrees(Math.atan2(-delta.x, delta.z)) + (float)(sx * 2.6D);
         float pitch = (float)-Math.toDegrees(Math.atan2(delta.y, delta.horizontalDistance()))

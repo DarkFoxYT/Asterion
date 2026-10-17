@@ -303,6 +303,7 @@ tasks.register("modDistribution", Sync) {
     from(tasks.named("jar"))
     from(rootProject.file("docs/INSTALL-MODS.txt"))
 }
+apply from: rootProject.file('../../gradle/camera-clearance-tests.gradle')
 
 apply from: rootProject.file("gradle/polish-smoke.gradle")
 

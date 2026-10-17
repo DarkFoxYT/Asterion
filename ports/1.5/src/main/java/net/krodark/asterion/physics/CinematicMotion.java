@@ -17,7 +17,9 @@ public final class CinematicMotion {
         Vec3 forward=span.scale(1/distance);
         Vec3 right=forward.cross(Math.abs(forward.y)>.95?new Vec3(1,0,0):new Vec3(0,1,0)).normalize();
         Vec3 up=right.cross(forward).normalize();
-        Vec3[] offsets={Vec3.ZERO,right.scale(radius),right.scale(-radius),up.scale(radius),up.scale(-radius)};
+        Vec3[] offsets={Vec3.ZERO,right.scale(radius),right.scale(-radius),up.scale(radius),up.scale(-radius),
+                right.add(up).scale(radius),right.subtract(up).scale(radius),
+                up.subtract(right).scale(radius),right.add(up).scale(-radius)};
         double allowed=distance;
         for (Vec3 offset:offsets) {
             Vec3 hit=raycast.apply(focus.add(offset),desired.add(offset));

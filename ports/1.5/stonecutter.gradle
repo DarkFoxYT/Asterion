@@ -2,6 +2,7 @@ plugins {
     id 'dev.kikugie.stonecutter'
 }
 stonecutter.active '1.21.1'
+apply from: file('gradle/curseforge-release.gradle')
 stonecutter.parameters {
     replacements {
         string(current.project.endsWith('-forge') && current.parsed < '1.20.5') {
@@ -88,15 +89,23 @@ stonecutter.parameters {
 }
 tasks.register('buildAllVersions') {
     group = 'build'
-    description = 'Build Minecraft 1.20.1, 1.21.1, and 26.1.2 targets.'
-    dependsOn ':1.20.1:build', ':1.21.1:build', ':neoforge:build', 'build26_1_2'
+    description = 'Build all 12 Asterion 1.5.2 release jars.'
+    dependsOn ':1.20.1:build', ':1.21.1:build', ':1.20.1-forge:build',
+            ':1.21.1-forge:build', ':1.20.1-neoforge:build', ':neoforge:build', 'build26_1_2'
 }
 
-tasks.register('build26_1_2', GradleBuild) {
+tasks.register('build26_1_2', Exec) {
     group = 'build'
     description = 'Build the self-contained Minecraft 26.1.2 Fabric, Quilt, and NeoForge port.'
-    dir = file('ports/26.1.2')
-    tasks = ['build', ':26.1.2-fabric:modDistribution', ':26.1.2-quilt:modDistribution', ':26.1.2-neoforge:modDistribution']
+    // A separate wrapper honors this port's Java 25 daemon criteria. GradleBuild
+    // would reuse the legacy build's Java 21 daemon for Java 25 plugins.
+    workingDir file('ports/26.1.2')
+    def targets = [':26.1.2-fabric:build', ':26.1.2-quilt:build', ':26.1.2-forge:build', ':26.1.2-neoforge:build']
+    def wrapper = System.getProperty('os.name').toLowerCase().contains('windows') ?
+            ['cmd', '/d', '/c', 'gradlew.bat'] : ['./gradlew']
+    commandLine wrapper + ['--no-daemon'] + targets
+    if (gradle.startParameter.offline) args '--offline'
+    if (project.hasProperty('asterionPython')) args "-PasterionPython=${project.property('asterionPython')}"
 }
 
 tasks.register('stage26_1_2', Sync) {

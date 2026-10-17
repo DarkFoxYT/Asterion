@@ -9,12 +9,37 @@ Fabric is the default target. Quilt uses the same release JAR. NeoForge 1.21.1 u
 Use Java 21 for Gradle and the included wrapper. Client/server runs need Java 17 for Minecraft 1.20.1 and Java 21 for 1.21.1. Install both JDKs or pass `-Porg.gradle.java.installations.paths=<path-to-jdk17>` when running the legacy tests:
 
 ```
-gradlew.bat buildAllVersions :neoforge:build
+gradlew.bat buildAllVersions
 gradlew.bat stageTestBuilds
 ```
 
 The shipped Fabric files come from `remapJar`, never the named development JAR.
 `src/gametest` and `neoforge/src/smoke` are test-only source sets.
+
+For release 1.5.2, `buildAllVersions` includes Fabric, Quilt, Forge and NeoForge
+for 1.20.1, 1.21.1 and 26.1.2 (12 jars). The wrappers select Java 21 for the
+older build and Java 25 for 26.1.2; Java 17 is also required as a toolchain. Finished jars are copied
+to the repository `modbuilds` folder. The PowerShell helper from the repository
+root also selects the JDK separately for each build:
+
+```powershell
+./tools/build-all-mods.ps1 -Release 1.5.2
+```
+
+Forge resource tools require Python 3.11+. Set `ASTERION_PYTHON` or pass
+`-PasterionPython=<python-executable>` if it is not available on PATH.
+For one Minecraft version only, use `:1.20.1:buildAllLoaders` or
+`:1.21.1:buildAllLoaders`.
+
+`checkCameraClearance` runs the closed-door, camera-corner and wall-safe return
+regressions and is included in the Fabric/Quilt `check` tasks. It verifies camera
+geometry; an in-game pass is still needed to judge framing and visual quality.
+
+`gradlew.bat prepareCurseForgeRelease` builds the matrix and writes
+`build/curseforge/release-manifest.json`. Each manifest entry is one upload with
+all its listed loader tags. Identical Fabric/Quilt jars share an entry instead of
+being submitted twice. The bundled renderer's preset-storage safety is checked
+before release jars are collected. CurseForge still controls moderation status.
 
 ## Rendering
 

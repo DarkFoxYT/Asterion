@@ -241,12 +241,12 @@ public final class PortCinematics {
         float handoff = smootherStep((time - BREAK_TICK - 5) / 23F);
         Vec3 flyingDoor=PortPhysicsDebris.doorFlightFocus(doorway,partial);
         if (flyingDoor!=null)
-            doorFocus=doorFocus.lerp(flyingDoor,smootherStep((time-BREAK_TICK)/4F)*(1-handoff));
+            doorFocus=doorFocus.lerp(flyingDoor,.3F*smootherStep((time-BREAK_TICK)/4F)*(1-handoff));
         Vec3 focus = doorFocus.lerp(subject.add(0, 3.5, 0), handoff);
         float portrait = smootherStep((time - MinotaurAnimationTiming.ENTRY_WALK_END_TICK) / 24F);
         float portraitDrift = smootherStep((time - MinotaurAnimationTiming.ENTRY_WALK_END_TICK - 24) / 65F);
-        Vec3 heroCamera = subject.add(across.scale(width * (1.5 - portraitDrift * .12)))
-                .add(inward.scale(width * (2.25 - portraitDrift * .15))).add(0, 1.45, 0);
+        Vec3 heroCamera = subject.add(across.scale(width * (1.15 - portraitDrift * .08)))
+                .add(inward.scale(width * (2.0 - portraitDrift * .12))).add(0, 1.45, 0);
         camera = camera.lerp(heroCamera, portrait);
         // Aim left of the subject so the silhouette sits beside the title.
         focus = focus.lerp(subject.add(0, 3.5, 0).subtract(across.scale(width * .55)), portrait);
@@ -276,18 +276,24 @@ public final class PortCinematics {
             settling+=net.krodark.asterion.physics.CinematicMotion.impulse(time-beat,force*.45,.72,.14);
         }
         // Fixed-frequency, timeline-based vibration remains identical at every frame rate.
-        camera = camera.add(across.scale((Math.sin(time * 1.9) + Math.sin(time * 3.1) * .28) * impact))
+        camera = camera.add(across.scale((Math.sin(time * 1.1) + Math.sin(time * 2.3) * .18) * impact))
                 .add(inward.scale(breach * .65 + Math.sin(roarAge * 1.4) * roar * .08))
                 .add(inward.scale(-recoil)).add(0, Math.cos(time * 2.3) * impact * .65+settling, 0);
         float returning = smootherStep((time - (duration - 30)) / 30F);
+        // Use the room side of the closed door as the safe ray origin.
+        // Clearance must also work before the boss tracking packet arrives.
+        Vec3 clearanceFocus = doorway.add(inward.scale(1.5)).add(0, 3.2, 0)
+                .lerp(subject.add(0, 3.5, 0), handoff);
+        camera = PortCinematicCameraCollision.clear(clearanceFocus, camera);
         camera = camera.lerp(playerEye, returning);
-        if (cinematicBoss!=null) camera=PortCinematicCameraCollision.clear(focus,camera);
+        // Sweep the handoff from the player's safe eye, ending at their eye.
+        if (returning > 0) camera = PortCinematicCameraCollision.clear(playerEye, camera);
         Vec3 delta = focus.subtract(camera);
         float yaw = (float)Math.toDegrees(Math.atan2(-delta.x, delta.z)) + (float)Math.sin(time * 1.7) * impact * 1.2F;
         float pitch = (float)-Math.toDegrees(Math.atan2(delta.y, delta.horizontalDistance())) + (float)Math.cos(time * 2.1) * impact;
         return new CameraPose(camera, Mth.rotLerp(returning, Mth.rotLerp(approach, returnYaw, yaw), returnYaw),
                 Mth.lerp(returning, Mth.lerp(approach, returnPitch, pitch), returnPitch),
-                (float)(Math.sin(reveal * Math.PI) * -3 + settle * 1.2 + Math.sin(time * 1.6) * impact * 2) * (1 - returning));
+                (float)(Math.sin(reveal * Math.PI) * -1.4 + settle * .35 + Math.sin(time * 1.6) * impact * 2) * (1 - returning));
     }
 
 

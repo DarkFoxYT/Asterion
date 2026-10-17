@@ -1,0 +1,19 @@
+def legacyRoot = rootProject.file('tests/CinematicCameraClearanceSmoke.java').exists() ? rootProject.projectDir : rootProject.file('../..')
+def cameraSmoke = tasks.register('compileCameraClearanceSmoke', JavaCompile) {
+    dependsOn tasks.named('classes')
+    source = new File(legacyRoot, 'tests/CinematicCameraClearanceSmoke.java')
+    classpath = sourceSets.main.runtimeClasspath
+    destinationDirectory = layout.buildDirectory.dir('camera-clearance-smoke')
+    javaCompiler = tasks.named('compileJava', JavaCompile).get().javaCompiler
+}
+tasks.register('checkCameraClearance', JavaExec) {
+    group = 'verification'
+    description = 'Checks closed-door, near-plane corner and camera return clearance.'
+    dependsOn cameraSmoke
+    classpath = sourceSets.main.runtimeClasspath + files(cameraSmoke.flatMap { it.destinationDirectory })
+    mainClass = 'CinematicCameraClearanceSmoke'
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = cameraSmoke.get().javaCompiler.get().metadata.languageVersion
+    }
+}
+tasks.named('check').configure { dependsOn 'checkCameraClearance' }

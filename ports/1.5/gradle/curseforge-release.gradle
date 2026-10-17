@@ -1,0 +1,50 @@
+tasks.register('prepareCurseForgeRelease') {
+    group = 'distribution'
+    description = 'Build all 1.5.2 jars and group identical files under their supported loader tags.'
+    dependsOn 'buildAllVersions'
+    // Collection is normally a finalizer. Make it an explicit dependency here
+    // so the manifest cannot hash an older shelf entry before its copy runs.
+    dependsOn ':1.20.1:collectModJar', ':1.21.1:collectModJar',
+            ':1.20.1:collectQuiltJar', ':1.21.1:collectQuiltJar',
+            ':1.20.1-forge:collectModJar', ':1.21.1-forge:collectModJar',
+            ':1.20.1-neoforge:collectModJar', ':neoforge:collectModJar'
+    def manifest = layout.buildDirectory.file('curseforge/release-manifest.json')
+    outputs.file(manifest)
+    // Recheck the release shelf every time; it can be changed outside Gradle.
+    outputs.upToDateWhen { false }
+    doLast {
+        def releaseVersion = project.mod_version.toString()
+        def shelf = file('../../modbuilds')
+        def unique = [:]
+        ['1.20.1', '1.21.1', '26.1.2'].each { mc ->
+            ['Fabric', 'Quilt', 'Forge', 'NeoForge'].each { loader ->
+                def jar = new File(shelf, "Asterion-${releaseVersion}-${loader.toLowerCase()}-mc${mc}.jar")
+                if (!jar.isFile()) throw new GradleException("Missing release jar: ${jar}")
+                def digest = java.security.MessageDigest.getInstance('SHA-256')
+                jar.withInputStream { input ->
+                    byte[] buffer = new byte[65536]
+                    for (int count = input.read(buffer); count >= 0; count = input.read(buffer)) {
+                        if (count > 0) digest.update(buffer, 0, count)
+                    }
+                }
+                def hash = digest.digest().encodeHex().toString()
+                def entry = unique[hash]
+                if (entry == null) {
+                    entry = [file: jar.name, sha256: hash, minecraft: mc, loaders: [], equivalentFiles: []]
+                    unique[hash] = entry
+                }
+                if (entry.minecraft != mc) throw new GradleException('Identical release files declare different Minecraft versions')
+                entry.loaders.add(loader)
+                entry.equivalentFiles.add(jar.name)
+            }
+        }
+        def output = manifest.get().asFile
+        output.parentFile.mkdirs()
+        output.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson([
+                version: releaseVersion,
+                instructions: 'Upload each entry once with every listed loader tag. CurseForge determines moderation status.',
+                files: unique.values().toList()
+        ])) + '\n'
+        logger.lifecycle("Prepared ${unique.size()} unique uploads from 12 jars: ${output}")
+    }
+}

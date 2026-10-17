@@ -11,7 +11,7 @@ final class PortCinematicCameraCollision {
     static Vec3 clear(Vec3 focus,Vec3 camera) {
         var level=Minecraft.getInstance().level;
         if (level==null) return camera;
-        return net.krodark.asterion.physics.CinematicMotion.clearCamera(focus,camera,.22,(from,to) -> {
+        return net.krodark.asterion.physics.CinematicMotion.clearCamera(focus,camera,.35,(from,to) -> {
             var hit=level.clip(new ClipContext(from,to,ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,Minecraft.getInstance().player));
             return hit.getType()==HitResult.Type.MISS?null:hit.getLocation();
         });

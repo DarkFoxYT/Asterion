@@ -116,6 +116,8 @@ public final class CursedBrazierCinematic {
                 Mth.sin(time * 3.1F) * 0.012F * shakeEnvelope,
                 Mth.cos(time * 2.7F) * 0.02F * shakeEnvelope);
 
+        // Resolve after all camera movement and shake, from the safe player eye.
+        camera = CinematicCameraCollision.clear(playerEye, camera);
         Vec3 look = focus.subtract(camera);
         float yaw = (float) Math.toDegrees(Math.atan2(-look.x, look.z));
         float pitch = (float) -Math.toDegrees(Math.atan2(look.y, look.horizontalDistance()));

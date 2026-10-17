@@ -43,13 +43,16 @@ def compressModJar = { File archive ->
 
 gradle.projectsEvaluated {
     gradle.rootProject.allprojects.each { modProject ->
-        def taskName = modProject.tasks.findByName('jarJar') instanceof org.gradle.api.tasks.bundling.AbstractArchiveTask ? 'jarJar' :
+        // Legacy NeoForge's plugin registers an empty jarJar task; its finished
+        // production archive is reobfJar. Collecting jarJar silently drops it.
+        def taskName = modProject.name == '1.20.1-neoforge' ? 'reobfJar' :
+                modProject.tasks.findByName('jarJar') instanceof org.gradle.api.tasks.bundling.AbstractArchiveTask ? 'jarJar' :
                 modProject.tasks.findByName('reobfJar') != null ? 'reobfJar' :
                 modProject.tasks.findByName('remapJar') != null ? 'remapJar' :
                 modProject.tasks.findByName('jar') != null ? 'jar' : null
         if (taskName == null || modProject == gradle.rootProject) return
 
-        if (modProject.version.toString() == '1.5') {
+        if (modProject.version.toString() ==~ /1\.5(?:\.\d+)?/) {
             modProject.tasks.withType(org.gradle.language.jvm.tasks.ProcessResources).configureEach {
                 exclude 'data/asterion/dimension/limbo.json', 'data/asterion/dimension/underworld.json'
                 exclude 'data/asterion/dimension_type/limbo.json', 'data/asterion/dimension_type/underworld.json'
@@ -62,6 +65,34 @@ gradle.projectsEvaluated {
             }
         }
         def artifact = modProject.tasks.named(taskName)
+        if (modProject.version.toString() ==~ /1\.5(?:\.\d+)?/) {
+            artifact.configure {
+                doLast {
+                    // Check the bytes being shipped, including nested renderer code.
+                    // A stale local renderer must not silently undo the preset fix.
+                    new java.util.zip.ZipFile(archiveFile.get().asFile).withCloseable { release ->
+                        def renderers = release.entries().findAll {
+                            it.name ==~ /META-INF\/(jars|jarjar)\/amnetic[^\/]*\.jar/
+                        }
+                        if (renderers.size() != 1) throw new GradleException('Expected one bundled Amnetic renderer')
+                        release.getInputStream(renderers[0]).withCloseable { bytes ->
+                            new java.util.zip.ZipInputStream(bytes).withCloseable { nested ->
+                                boolean helper = false, guarded = false
+                                for (def entry = nested.nextEntry; entry != null; entry = nested.nextEntry) {
+                                    def prefix = 'com/meekdev/amnetic/client/particle/editor/'
+                                    if (entry.name == prefix + 'EffectPresetFiles.class') helper = true
+                                    if (entry.name == prefix + 'EffectIO.class') {
+                                        def code = new String(nested.readAllBytes(), java.nio.charset.StandardCharsets.ISO_8859_1)
+                                        guarded = code.contains('SafePresetIO') && code.contains('validateName') && !code.contains('java/nio/file/Files')
+                                    }
+                                }
+                                if (!helper || !guarded) throw new GradleException('Bundled Amnetic lacks safe preset storage; repair renderer inputs before release')
+                            }
+                        }
+                    }
+                }
+            }
+        }
         def collect = modProject.tasks.register('collectModJar', Copy) {
             group = 'distribution'
             description = 'Copy the finished Asterion jar to the repository modbuilds folder.'
