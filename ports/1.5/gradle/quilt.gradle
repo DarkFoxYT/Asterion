@@ -2,8 +2,8 @@ repositories { maven { url = 'https://maven.quiltmc.org/repository/release/' } }
 tasks.register('quiltCompatibleJar', Copy) {
     group = 'build'
     description = 'Names the Fabric-compatible artifact for Quilt installation.'
-    dependsOn tasks.named('remapJar')
-    from(tasks.named('remapJar'))
+    dependsOn tasks.named(asterionProductionJarTask)
+    from(tasks.named(asterionProductionJarTask))
     into layout.buildDirectory.dir('quilt')
     rename { "${project.archives_base_name}-${project.version}-quilt-mc${project.minecraft_version}.jar" }
 }

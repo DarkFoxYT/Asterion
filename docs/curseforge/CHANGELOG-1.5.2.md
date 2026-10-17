@@ -7,3 +7,5 @@
   roof-collapse scenes.
 - Refined the Minotaur reveal with steadier debris tracking, a tighter hero shot,
   slower impact vibration and less camera roll.
+- On Fabric/Quilt 1.21.1, integrated the Amnetic renderer into Asterion and
+  removed its unused particle authoring editor and disk preset APIs.

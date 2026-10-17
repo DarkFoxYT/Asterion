@@ -18,6 +18,19 @@ public final class ClientSmokeTest implements ClientModInitializer {
 
     @Override public void onInitializeClient() {
         if (!Boolean.getBoolean("asterion.clientSmoke")) return;
+        if (Boolean.getBoolean("asterion.integratedAmneticSmoke")) {
+            if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("amnetic"))
+                throw new AssertionError("Production runtime still loads a separate Amnetic mod");
+            for (String removed : java.util.List.of(
+                    "com.meekdev.amnetic.client.particle.editor.EffectIO",
+                    "com.meekdev.amnetic.client.ui.AmneticEditor")) {
+                try {
+                    Class.forName(removed);
+                    throw new AssertionError("Removed editor is available: " + removed);
+                } catch (ClassNotFoundException expected) { }
+            }
+            Asterion.LOGGER.info("ASTERION_SMOKE integrated renderer: no separate mod or preset editor");
+        }
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
         BloomSmoke.register(() -> worldTicks);
         VineSmoke.register(() -> worldTicks);

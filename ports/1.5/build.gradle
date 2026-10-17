@@ -8,6 +8,9 @@ stonecutter {
     constants['forge'] = false
 }
 
+ext.asterionIntegratedAmnetic = minecraft_version == '1.21.1'
+ext.asterionProductionJarTask = asterionIntegratedAmnetic ? 'integratedJar' : 'remapJar'
+
 version = project.mod_version
 group = project.maven_group
 
@@ -88,7 +91,7 @@ repositories {
 
 dependencies {
     modImplementation files(rootProject.file("libs/amnetic-1.0.0-asterion.9+${minecraft_version}.jar"))
-    include "asterion.local:amnetic:1.0.0-asterion.9+${minecraft_version}"
+    if (!asterionIntegratedAmnetic) include "asterion.local:amnetic:1.0.0-asterion.9+${minecraft_version}"
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings loom.officialMojangMappings()
     modImplementation("net.fabricmc:fabric-loader:${project.loader_version}") {
@@ -353,12 +356,14 @@ tasks.withType(JavaExec).configureEach {
     }
 }
 
+if (asterionIntegratedAmnetic) apply from: rootProject.file('gradle/amnetic-integrated.gradle')
+
 tasks.register("modDistribution", Sync) {
     group = "distribution"
     description = "Stages the combined Asterion mod jar and installation notes."
-    dependsOn tasks.named("remapJar")
+    dependsOn tasks.named(asterionProductionJarTask)
     into layout.buildDirectory.dir("distribution")
-    from(tasks.named("remapJar"))
+    from(tasks.named(asterionProductionJarTask))
     from(rootProject.file("docs/INSTALL-MODS.txt"))
 }
 

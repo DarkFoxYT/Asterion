@@ -4,7 +4,7 @@ def mc = nativeNeo ? rootProject.minecraft_version : project.minecraft_version
 
 tasks.register('stagePlayableBuild', Sync) {
     group = 'distribution'
-    def production = tasks.named(nativeNeo ? 'jar' : 'remapJar')
+    def production = tasks.named(nativeNeo ? 'jar' : (project.findProperty('asterionProductionJarTask') ?: 'remapJar'))
     dependsOn production
     into rootProject.layout.buildDirectory.dir("ported-builds/${mc}/${nativeNeo ? 'neoforge' : 'fabric-quilt'}")
     from(production) { into 'mods' }

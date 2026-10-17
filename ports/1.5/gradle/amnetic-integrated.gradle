@@ -1,0 +1,53 @@
+// The affected Fabric/Quilt target ships the renderer as part of Asterion.
+// Use the matching production mappings after Loom has remapped Asterion.
+configurations { amneticIntegrationTools }
+dependencies {
+    amneticIntegrationTools 'org.ow2.asm:asm:9.9.1'
+    amneticIntegrationTools 'com.google.code.gson:gson:2.11.0'
+    // Quilt's bundled 0.5.4 cannot read annotations emitted by 0.5.5.
+    include 'io.github.llamalad7:mixinextras-fabric:0.5.5'
+}
+
+def renderer = rootProject.file("libs/amnetic-1.0.0-asterion.9+${minecraft_version}.jar")
+def prepared = layout.buildDirectory.dir('integrated-amnetic/runtime')
+def compileTool = tasks.register('compileAmneticIntegrationTool', JavaCompile) {
+    source = rootProject.file('build-tools/PrepareIntegratedAmnetic.java')
+    classpath = configurations.amneticIntegrationTools
+    destinationDirectory = layout.buildDirectory.dir('integrated-amnetic/tool')
+    javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(21) }
+}
+def remapped = tasks.named('remapJar')
+remapped.configure {
+    archiveFileName = "${archives_base_name}-${project.version}-fabric-unintegrated-mc${minecraft_version}.jar"
+}
+def prepare = tasks.register('prepareIntegratedAmnetic', JavaExec) {
+    dependsOn compileTool, remapped
+    inputs.file(renderer)
+    inputs.file(remapped.flatMap { it.archiveFile })
+    outputs.dir(prepared)
+    classpath = configurations.amneticIntegrationTools + files(compileTool.flatMap { it.destinationDirectory })
+    mainClass = 'PrepareIntegratedAmnetic'
+    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
+    doFirst {
+        delete prepared.get().asFile
+        args = [renderer.absolutePath, remapped.get().archiveFile.get().asFile.absolutePath,
+                prepared.get().asFile.absolutePath]
+    }
+}
+def integrated = tasks.register('integratedJar', Jar) {
+    group = 'build'
+    description = 'Build Asterion with its integrated renderer and no particle preset editor.'
+    dependsOn prepare
+    archiveFileName = "${archives_base_name}-${project.version}-fabric-mc${minecraft_version}.jar"
+    destinationDirectory = layout.buildDirectory.dir('libs')
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    duplicatesStrategy = DuplicatesStrategy.FAIL
+    from({ zipTree(remapped.get().archiveFile.get().asFile) }) {
+        exclude 'fabric.mod.json', 'META-INF/MANIFEST.MF'
+    }
+    from(prepared) { exclude 'META-INF/MANIFEST.MF' }
+    manifest.from(prepared.map { it.file('META-INF/MANIFEST.MF').asFile })
+}
+remapped.configure { finalizedBy integrated }
+tasks.named('build').configure { dependsOn integrated }

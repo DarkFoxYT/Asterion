@@ -38,13 +38,29 @@ tasks.register('runProductionSmokeClient', productionType) {
     dependsOn ':1.20.1:downloadAssets', ':1.21.1:downloadAssets'
     group = 'verification'
     description = 'Run the opt-in client scenario using the release JAR and real production dependencies.'
-    mods.setFrom(tasks.named('remapJar'), smokeRemap)
+    mods.setFrom(tasks.named(asterionProductionJarTask), smokeRemap)
     runDir = layout.buildDirectory.dir('run/production-smoke')
     javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(minecraft_version == '1.20.1' ? 17 : 21) }
     jvmArgs.addAll('-Dasterion.clientSmoke=true', '-Damnetic.opengl.debug=true', '-Dfabric.noGui=true')
+    if (project.findProperty('asterionIntegratedAmnetic') == true)
+        jvmArgs.add('-Dasterion.integratedAmneticSmoke=true')
     if (project.hasProperty('vineSmoke')) jvmArgs.add('-Dasterion.vineSmoke=true')
     if (project.hasProperty('polishSmoke')) jvmArgs.add('-Dasterion.polishSmoke=true')
     if (project.hasProperty('bloomSmoke')) jvmArgs.add('-Dasterion.bloomSmoke=true')
     if (project.hasProperty('atmosphereSmoke')) jvmArgs.add('-Dasterion.atmosphereSmoke=true')
     programArgs.addAll('--username', 'AsterionTest', '--accessToken', '0', '--version', minecraft_version)
+    doFirst {
+        def directory = runDir.get().asFile
+        directory.mkdirs()
+        def options = new File(directory, 'options.txt')
+        if (!options.exists()) options.text = 'onboardAccessibility:false\npauseOnLostFocus:false\n'
+    }
+    if (project.hasProperty('quiltProductionSmoke')) {
+        runDir = layout.buildDirectory.dir('run/quilt-production-smoke')
+        def libraries = classpath.files.findAll { !it.name.startsWith('fabric-loader-') }
+        classpath.setFrom(libraries, configurations.quiltLoader)
+        mainClass.set('org.quiltmc.loader.impl.launch.knot.KnotClient')
+        jvmArgs.add(providers.provider { '-Dloader.addMods=' + mods.files.collect { it.absolutePath }.join(File.pathSeparator) })
+        jvmArgs.add('-Dloader.noGui=true')
+    }
 }

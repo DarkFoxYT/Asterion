@@ -1,5 +1,11 @@
 # Asterion 1.5 preset safety repair
 
+For the replacement 1.5.2 Fabric/Quilt 1.21.1 release, see
+[Amnetic integration](AMNETIC-INTEGRATION-1.5.2.md). The supplied moderation
+message identifies the nested Amnetic jar and `EffectIO`; that replacement
+integrates the runtime and removes the editor APIs entirely. The notes below
+describe the earlier storage repair still used by the other targets.
+
 The original 1.5 packages embedded Amnetic copies without the earlier fix in
 `amnetic-preset-safety.patch`. Their `EffectIO` methods used editor-supplied
 names in local read/delete paths and did not enforce the earlier file bounds.
@@ -18,6 +24,5 @@ and valid mixin classes/Java levels. Original renderer input backups and patch
 hashes are kept locally under `build/amnetic-preset-safety`.
 
 This is a repair to actual file handling, not a change designed to hide code
-from moderation. CurseForge has not supplied a reason tying its current manual
-review to this regression, and approval remains under CurseForge's control.
+from moderation. Approval remains under CurseForge's control.
 Rebuilding local files does not replace the bytes of previously submitted files.

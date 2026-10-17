@@ -45,7 +45,8 @@ gradle.projectsEvaluated {
     gradle.rootProject.allprojects.each { modProject ->
         // Legacy NeoForge's plugin registers an empty jarJar task; its finished
         // production archive is reobfJar. Collecting jarJar silently drops it.
-        def taskName = modProject.name == '1.20.1-neoforge' ? 'reobfJar' :
+        def taskName = modProject.tasks.findByName('integratedJar') != null ? 'integratedJar' :
+                modProject.name == '1.20.1-neoforge' ? 'reobfJar' :
                 modProject.tasks.findByName('jarJar') instanceof org.gradle.api.tasks.bundling.AbstractArchiveTask ? 'jarJar' :
                 modProject.tasks.findByName('reobfJar') != null ? 'reobfJar' :
                 modProject.tasks.findByName('remapJar') != null ? 'remapJar' :
@@ -73,6 +74,32 @@ gradle.projectsEvaluated {
                     new java.util.zip.ZipFile(archiveFile.get().asFile).withCloseable { release ->
                         def renderers = release.entries().findAll {
                             it.name ==~ /META-INF\/(jars|jarjar)\/amnetic[^\/]*\.jar/
+                        }
+                        if (modProject.findProperty('asterionIntegratedAmnetic') == true) {
+                            if (!renderers.empty) throw new GradleException('Integrated release contains a nested Amnetic jar')
+                            def metadata = new groovy.json.JsonSlurper().parse(release.getInputStream(release.getEntry('fabric.mod.json')))
+                            if (metadata.depends.containsKey('amnetic') ||
+                                    metadata.entrypoints.client.count { it == 'com.meekdev.amnetic.client.AmneticClient' } != 1 ||
+                                    !metadata.mixins.contains('amnetic.mixins.json'))
+                                throw new GradleException('Integrated renderer bootstrap is incomplete')
+                            metadata.jars.each {
+                                if (release.getEntry(it.file) == null) throw new GradleException("Missing integrated dependency: ${it.file}")
+                            }
+                            ['com/meekdev/amnetic/client/AmneticClient.class', 'amnetic.mixins.json',
+                             'META-INF/asterion/amnetic-integration.txt'].each {
+                                if (release.getEntry(it) == null) throw new GradleException("Missing integrated runtime: ${it}")
+                            }
+                            release.entries().each { entry ->
+                                if (entry.name.endsWith('.class')) {
+                                    def code = new String(release.getInputStream(entry).readAllBytes(), java.nio.charset.StandardCharsets.ISO_8859_1)
+                                    if (entry.name.startsWith('com/meekdev/amnetic/client/ui/') ||
+                                            entry.name.startsWith('com/meekdev/amnetic/client/particle/editor/') ||
+                                            code.contains('com/meekdev/amnetic/client/ui/') ||
+                                            code.contains('com/meekdev/amnetic/client/particle/editor/'))
+                                        throw new GradleException("Removed editor code remains in ${entry.name}")
+                                }
+                            }
+                            return
                         }
                         if (renderers.size() != 1) throw new GradleException('Expected one bundled Amnetic renderer')
                         release.getInputStream(renderers[0]).withCloseable { bytes ->

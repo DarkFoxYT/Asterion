@@ -1,0 +1,41 @@
+Asterion 1.5.2 / Minecraft 1.21.1 / Fabric + Quilt
+Archive evidence checked 2026-10-17
+
+File: Asterion-1.5.2-fabric-mc1.21.1.jar
+Bytes: 126525764
+SHA-256: f02d94bddad2adfafa77b31ca5b6a694a930db3b196dd4c18dfecfa3909dc654
+
+Project: 1671346; deleted submission: 9226713
+This submission entered manual review and was subsequently deleted by the author.
+The review notification supplied no additional technical finding.
+
+archives: 58
+classes: 4770
+forbidden_classes: 0
+forbidden_class_references: 0
+nested_amnetic_jars: 0
+Amnetic external dependency: False
+Renderer initializer: com.meekdev.amnetic.client.AmneticClient
+Renderer mixins registered: True
+
+Registered nested libraries:
+META-INF/jars/fabric-api-0.116.17+1.21.1.jar
+META-INF/jars/geckolib-fabric-1.21.1-4.9.2.jar
+META-INF/jars/mixinextras-fabric-0.5.5.jar
+META-INF/jars/lwjgl-assimp-3.3.3-natives-linux.jar
+META-INF/jars/lwjgl-assimp-3.3.3-natives-macos-arm64.jar
+META-INF/jars/lwjgl-assimp-3.3.3-natives-macos.jar
+META-INF/jars/lwjgl-assimp-3.3.3-natives-windows.jar
+META-INF/jars/lwjgl-assimp-3.3.3.jar
+
+Amnetic renderer integrated into Asterion.
+Renderer input: amnetic-1.0.0-asterion.9+1.21.1.jar
+SHA-256: ebe38210f5542b1efeb3fe5e6ab7ed7f6596a3d7f36a3065f6c2e4b4242f20d6
+Original packages, renderer assets and license notices are retained.
+The authoring editor and its disk preset save/load/delete API are removed.
+Asterion owns renderer initialization and mixin registration.
+Native dependencies remain registered as nested library jars.
+
+Production test results:
+integrated-amnetic-fabric-final-smoke.log: PASSED (rendering, particles, physics, forging, combat, advancements, cutscenes)
+integrated-amnetic-quilt-final-smoke.log: PASSED (rendering, particles, physics, forging, combat, advancements, cutscenes)

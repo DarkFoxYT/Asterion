@@ -1,0 +1,47 @@
+Subject: Technical finding clarification for Asterion 1.5.2 Fabric/Quilt 1.21.1
+
+Hello CurseForge moderation/support,
+
+Project: Asterion, ID 1671346
+Affected submission: 9226713 (now deleted by the author after it entered manual review)
+File: Asterion-1.5.2-fabric-mc1.21.1.jar
+Minecraft: 1.21.1; loaders: Fabric and Quilt; Java 21
+SHA-256: f02d94bddad2adfafa77b31ca5b6a694a930db3b196dd4c18dfecfa3909dc654
+
+An earlier moderation message identified an inner Amnetic jar and its
+com/meekdev/amnetic/client/particle/editor/EffectIO class.
+
+The replacement addressed that finding by integrating the renderer runtime into
+Asterion and removing its unused authoring editor and preset save/load/delete
+APIs, including EffectIO, EffectPresetFiles, SafePresetIO, editor registration
+and the runtime editor profiling hook. The original renderer packages, asset
+namespace and notices were retained. This is a functional removal, with no
+renaming of the flagged API to conceal it.
+
+A recursive inspection of the exact tested archive found:
+- 58 archives including the release and nested dependencies; 4,770 classes.
+- Zero nested Amnetic jars.
+- Zero classes in the removed UI or particle preset editor packages.
+- Zero class references to either removed package (slash or dotted form).
+- No external Amnetic mod dependency.
+- Renderer client initialization and mixin registration owned by Asterion.
+
+The remaining nested libraries are Fabric API, GeckoLib, MixinExtras 0.5.5 and
+LWJGL Assimp with platform natives. Both Fabric 0.19.5 and Quilt 0.30.1 passed
+production client scenarios using the release jar without a separate Amnetic
+mod. The CDN-served submission was independently verified to match the SHA-256
+above before its deletion.
+
+The replacement still entered manual review, but the notification did not name
+a new finding. We understand that manual review is not itself a rejection and
+that repeatedly resubmitting is discouraged.
+
+Could you identify whether any technical or policy change is still required
+for this SHA-256, or whether it only needed normal manual moderation? Since the
+author deleted that submission, please advise the proper way to provide it for
+review again without creating duplicate submissions. The file should remain
+set for manual publication after approval.
+
+Supporting local evidence is available in MODERATION-EVIDENCE-1.5.2.txt, together
+with the build-time removal report in META-INF/asterion/amnetic-integration.txt
+inside the jar. We can provide these and the relevant source changes if needed.
