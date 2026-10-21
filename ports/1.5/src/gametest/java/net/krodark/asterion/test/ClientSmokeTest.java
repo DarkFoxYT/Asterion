@@ -18,6 +18,8 @@ public final class ClientSmokeTest implements ClientModInitializer {
 
     @Override public void onInitializeClient() {
         if (!Boolean.getBoolean("asterion.clientSmoke")) return;
+        if (Boolean.getBoolean("asterion.sodiumSmoke") && !net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("sodium"))
+            throw new AssertionError("Sodium must be loaded for the compatibility scenario");
         if (Boolean.getBoolean("asterion.integratedAmneticSmoke")) {
             if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("amnetic"))
                 throw new AssertionError("Production runtime still loads a separate Amnetic mod");

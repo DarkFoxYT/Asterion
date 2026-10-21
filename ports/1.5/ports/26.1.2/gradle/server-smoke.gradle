@@ -1,0 +1,26 @@
+sourceSets {
+    serverSmoke {
+        java.srcDirs = [rootProject.file('../../neoforge/src/smoke/java'), rootProject.file('../../src/regression/java')]
+        java.include '**/NeoServerSmoke.java', '**/RagdollPoseTrackerChecks.java'
+        resources.setSrcDirs([rootProject.file('neoforge/src/serverSmoke/resources')])
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+    }
+    packagedServerSmoke
+}
+neoForge.addModdingDependenciesTo(sourceSets.serverSmoke)
+neoForge.addModdingDependenciesTo(sourceSets.packagedServerSmoke)
+def serverHarness = tasks.register('serverSmokeHarnessJar', Jar) {
+    from sourceSets.serverSmoke.output
+    archiveClassifier = 'server-tests'
+    destinationDirectory = layout.buildDirectory.dir('test-harness')
+}
+dependencies { packagedServerSmokeRuntimeOnly files(tasks.named('jar'), serverHarness) }
+neoForge.runs {
+    packagedSmokeServer {
+        server()
+        sourceSet = sourceSets.packagedServerSmoke
+        loadedMods = []
+        gameDirectory = layout.buildDirectory.dir('run/server-gameplay').get().asFile
+        programArgument '--nogui'
+    }
+}

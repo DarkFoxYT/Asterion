@@ -2,6 +2,7 @@
   "required": true,
   "minVersion": "0.8",
   "package": "net.krodark.asterion.mixin",
+  "plugin": "net.krodark.asterion.mixin.AsterionMixinPlugin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "LabyrinthDimensionMigrationMixin",

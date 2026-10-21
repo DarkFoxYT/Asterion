@@ -33,6 +33,7 @@
     "ChunkAccessAccessor",
     "CinematicServerMovementMixin",
     "PrimaryLevelDataMixin",
+    "RagdollUseGuardMixin",
     "StructureTemplateAccessor",
     "WorldGenRegionAccessor",
     "SpawnPlacementsAccessor"

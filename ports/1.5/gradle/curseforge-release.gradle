@@ -1,6 +1,6 @@
 tasks.register('prepareCurseForgeRelease') {
     group = 'distribution'
-    description = 'Build all 1.5.2 jars and group identical files under their supported loader tags.'
+    description = 'Build all release jars and group identical files under their supported loader tags.'
     dependsOn 'buildAllVersions'
     // Collection is normally a finalizer. Make it an explicit dependency here
     // so the manifest cannot hash an older shelf entry before its copy runs.

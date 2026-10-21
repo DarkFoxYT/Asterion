@@ -9,6 +9,8 @@ public final class PolishClientSmoke {
     boolean started;
     final long deadline=System.nanoTime()+480_000_000_000L;
     public void onInitializeClient() {
+        if(Boolean.getBoolean("asterion.sodiumSmoke") && !net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("sodium"))
+            throw new AssertionError("Sodium must be loaded for the compatibility scenario");
         if (Boolean.getBoolean("asterion.polishSmoke")) ClientTickEvents.END_CLIENT_TICK.register(this::tick);
     }
     @SuppressWarnings({"rawtypes","unchecked"})
@@ -19,6 +21,10 @@ public final class PolishClientSmoke {
     private static int ordinal(String type,String name) { for(var k:MinotaurEntity.class.getDeclaredClasses()) if(k.getSimpleName().equals(type)) for(var v:k.getEnumConstants()) if(((Enum<?>)v).name().equals(name)) return ((Enum<?>)v).ordinal(); throw new AssertionError(name); }
     private void tick(Minecraft c) {
         if(System.nanoTime()>deadline)throw new AssertionError("26.1.2 smoke timed out");
+        if(c.screen instanceof net.minecraft.client.gui.screens.AccessibilityOnboardingScreen) {
+            c.options.onboardingAccessibilityFinished();
+            c.setScreen(new TitleScreen());
+        }
         if (!started && c.screen instanceof TitleScreen && c.getOverlay()==null && ++title>20) {
             started=true;c.options.pauseOnLostFocus=false;c.options.renderDistance().set(4);
             net.krodark.asterion.AsterionConfig.INSTANCE.cinematicsEnabled=false;
@@ -29,10 +35,10 @@ public final class PolishClientSmoke {
         ticks++;
         if(ticks==40)c.getSingleplayerServer().execute(()->{
             var s=c.getSingleplayerServer();var source=s.createCommandSourceStack();
-            for(int x=-1;x<=0;x++)for(int z=-1;z<=0;z++)s.overworld().getChunk(x,z);
-            s.getCommands().performPrefixedCommand(source,"tp @a 0 180 -5 0 0");
-            s.getCommands().performPrefixedCommand(source,"fill -8 179 -8 8 179 8 minecraft:stone");
-            s.getCommands().performPrefixedCommand(source,"summon asterion:minotaur 0 180 3 {NoAI:1b,Silent:1b,PersistenceRequired:1b,Rotation:[180.0f,0.0f]}");
+            for(int x=-1;x<=0;x++)for(int z=-1;z<=0;z++)s.getLevel(Asterion.ASTERION_LEVEL).getChunk(x,z);
+            s.getCommands().performPrefixedCommand(source,"execute in asterion:labyrinth run tp @a 0 180 -5 0 0");
+            s.getCommands().performPrefixedCommand(source,"execute in asterion:labyrinth run fill -8 179 -8 8 179 8 minecraft:stone");
+            s.getCommands().performPrefixedCommand(source,"execute in asterion:labyrinth run summon asterion:minotaur 0 180 3 {NoAI:1b,Silent:1b,PersistenceRequired:1b,Rotation:[180.0f,0.0f]}");
         });
         if(ticks>60) {
             c.player.setPos(.5,180,-5);c.player.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
@@ -46,10 +52,38 @@ public final class PolishClientSmoke {
                 data(boss,"DATA_HELD_PLAYER",(ticks-100)%62>20 && (ticks-100)%62<46?c.player.getId():-1);data(boss,"DATA_REACH_ARM",1);data(boss,"DATA_GRAB_TARGET_ID",c.player.getId());
             }
         }
-        if(ticks==270) {
-            Asterion.LOGGER.info("ASTERION_26_POLISH PASSED: world load, Minotaur renderer, changing procedural look and attack timelines");
+        if(ticks==200) {
+            net.krodark.asterion.client.ragdoll.DismembermentEngine.INSTANCE.forcePlayerTumble(c,
+                    c.player.position().add(0,0,1),new net.minecraft.world.phys.Vec3(.03,.1,.02),.5F);
+        }
+        if(ticks>=201 && ticks<=250) verifyRagdoll(c.player.getId());
+        if(ticks==250) net.krodark.asterion.client.ragdoll.DismembermentEngine.INSTANCE.releaseRagdoll(c.player.getId());
+        if(ticks==290) {
+            if(net.krodark.asterion.client.ragdoll.DismembermentEngine.INSTANCE.isPlayerTumbling(c.player.getId()))
+                throw new AssertionError("26.1.2 ragdoll did not recover");
+            Asterion.LOGGER.info("ASTERION_26_POLISH PASSED: world load, Minotaur renderer, procedural timelines, finite ragdoll physics and recovery");
             c.stop();
         }
+    }
+    private static void verifyRagdoll(int owner) {
+        try {
+            var engine=net.krodark.asterion.client.ragdoll.DismembermentEngine.INSTANCE;
+            var method=engine.getClass().getDeclaredMethod("pieces");method.setAccessible(true);
+            int count=0;
+            for(Object part:(java.util.List<?>)method.invoke(engine)) {
+                var type=part.getClass();var id=type.getDeclaredField("entityId");id.setAccessible(true);
+                if(id.getInt(part)!=owner)continue;
+                count++;
+                for(String field:java.util.List.of("position","velocity")) {
+                    var value=type.getDeclaredField(field);value.setAccessible(true);
+                    var vector=(net.minecraft.world.phys.Vec3)value.get(part);
+                    if(!Double.isFinite(vector.lengthSqr()))throw new AssertionError("Invalid ragdoll "+field);
+                }
+                var field=type.getDeclaredField("orientation");field.setAccessible(true);
+                if(!((org.joml.Quaternionf)field.get(part)).isFinite())throw new AssertionError("Invalid ragdoll rotation");
+            }
+            if(count<6)throw new AssertionError("Missing ragdoll body pieces");
+        } catch(ReflectiveOperationException error) {throw new AssertionError(error);}
     }
 }
 

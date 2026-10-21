@@ -67,6 +67,7 @@ public final class DismembermentEngine {
     private final Map<Integer, Integer> remotePoseSequences = new HashMap<>();
     private final Map<Integer, Integer> remotePoseTicks = new HashMap<>();
     private int poseSequence;
+    private final Map<Integer, Integer> poseSentTicks = new HashMap<>();
     private final Map<Long, Float> regionalTrauma = new HashMap<>();
     private final Map<Integer, Map<Integer, String>> detachedModelPaths = new HashMap<>();
     private final Map<Integer, Map<Integer, BodyGeometry>> renderedPoseCache = new HashMap<>();
@@ -1744,6 +1745,7 @@ public final class DismembermentEngine {
         rigidSoundAges.remove(entityId);
         remoteDriven.remove(entityId);
         remotePoseSequences.remove(entityId);
+        poseSentTicks.remove(entityId);
         remotePoseTicks.remove(entityId);
     }
 
@@ -1834,24 +1836,41 @@ public final class DismembermentEngine {
     }
 
     private void sendPoseSnapshots() {
-        if (net.krodark.asterion.port.client.ragdoll.RagdollCompat.isPlayback(Minecraft.getInstance())) return;
+        var client = Minecraft.getInstance();
+        if (client.level == null || net.krodark.asterion.port.client.ragdoll.RagdollCompat.isPlayback(client)) return;
         if (!ClientPlayNetworking.canSend(RagdollPosePayload.TYPE)) return;
+        Map<Integer, List<RigidBodyPiece>> groups = new HashMap<>();
         for (int entityId : ragdolled) {
             if (remoteDriven.contains(entityId)) continue;
-            var client = Minecraft.getInstance();
-            if (client.level != null && client.level.getEntity(entityId) instanceof Player owner && owner != client.player) continue;
+            if (client.level.getEntity(entityId) instanceof Player owner && owner != client.player) continue;
+            groups.put(entityId, new ArrayList<>(10));
+        }
+        // Walk the body pieces once, rather than once per ragdoll in a crowd.
+        for (RigidBodyPiece part : pieces) {
+            var body = groups.get(part.entityId);
+            if (body != null && body.size() < 16) body.add(part);
+        }
+        for (var entry : groups.entrySet()) {
+            int entityId = entry.getKey();
+            var body = entry.getValue();
+            boolean moving = false;
+            for (RigidBodyPiece part : body) if (!part.sleeping) { moving = true; break; }
+            Integer lastSent = poseSentTicks.get(entityId);
+            // Resting bodies still refresh before the receiver's 60-tick timeout.
+            if (!moving && lastSent != null && traumaDecayTicker - lastSent < 20) continue;
             List<RagdollPosePayload.Part> snapshot = new ArrayList<>(10);
-            for (RigidBodyPiece part : pieces) {
-                if (part.entityId != entityId || snapshot.size() >= 16) continue;
+            for (RigidBodyPiece part : body) {
                 Quaternionf q = part.orientation;
                 snapshot.add(new RagdollPosePayload.Part(part.region,
                         (float) part.position.x, (float) part.position.y, (float) part.position.z,
                         q.x, q.y, q.z, q.w,
                         (float) part.velocity.x, (float) part.velocity.y, (float) part.velocity.z));
             }
-            if (!snapshot.isEmpty())
+            if (!snapshot.isEmpty()) {
                 ClientPlayNetworking.send(new RagdollPosePayload(entityId, ++poseSequence,
                         List.copyOf(snapshot)));
+                poseSentTicks.put(entityId, traumaDecayTicker);
+            }
         }
     }
 
@@ -3783,6 +3802,7 @@ public final class DismembermentEngine {
         ragdolled.clear();
         remoteDriven.clear();
         remotePoseSequences.clear();
+        poseSentTicks.clear();
         remotePoseTicks.clear();
         playerTumbles.clear();
         playerFracturedLegs.clear();

@@ -6,11 +6,14 @@ while (!new File(shelf.parentFile, 'ports/1.5').isDirectory()) {
     shelf = new File(shelf.parentFile.parentFile, 'modbuilds')
 }
 def outputShelf = shelf
+apply from: new File(outputShelf.parentFile, 'gradle/repair-embedded-startup.gradle')
+def repairEmbedded = extensions.extraProperties.get('repairEmbeddedStartup')
 
 // Standard ZIP DEFLATE at its strongest level; mod loaders cannot read LZMA/Zstd JARs.
-def compressModJar = { File archive ->
+def compressModJar = { File archive, File windowClass = null ->
     def packed = new File(archive.parentFile, archive.name + '.deflate.tmp')
     def expected = [:]
+    boolean repairedArchive = false
     try {
         new java.util.zip.ZipFile(archive).withCloseable { input ->
             new java.util.zip.ZipOutputStream(new BufferedOutputStream(new FileOutputStream(packed))).withCloseable { output ->
@@ -19,9 +22,19 @@ def compressModJar = { File archive ->
                     def entry = new java.util.zip.ZipEntry(original)
                     entry.setMethod(java.util.zip.ZipEntry.DEFLATED)
                     entry.setCompressedSize(-1)
-                    expected[entry.name] = [original.size, original.crc]
+                    byte[] repaired = null
+                    if (original.name.endsWith('.jar') && (original.name.contains('amnetic') || original.name.contains('lwjgl-assimp-'))) {
+                        byte[] embedded = input.getInputStream(original).withCloseable { it.readAllBytes() }
+                        repaired = repairEmbedded(embedded, original.name, windowClass?.bytes)
+                        if (!repaired.is(embedded)) repairedArchive = true
+                    }
+                    if (repaired != null) {
+                        def crc = new java.util.zip.CRC32(); crc.update(repaired)
+                        expected[entry.name] = [repaired.length as long, crc.value]
+                    } else expected[entry.name] = [original.size, original.crc]
                     output.putNextEntry(entry)
-                    input.getInputStream(original).withCloseable { stream -> stream.transferTo(output) }
+                    if (repaired != null) output.write(repaired)
+                    else input.getInputStream(original).withCloseable { stream -> stream.transferTo(output) }
                     output.closeEntry()
                 }
             }
@@ -33,10 +46,10 @@ def compressModJar = { File archive ->
                     throw new GradleException("Compressed mod changed ${entry.name}")
             }
         }
-        if (packed.length() < archive.length()) {
+        if (packed.length() < archive.length() || repairedArchive) {
             long saved = archive.length() - packed.length()
             java.nio.file.Files.move(packed.toPath(), archive.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
-            logger.lifecycle("Maximum compatible compression saved ${saved} bytes in ${archive.name}")
+            logger.lifecycle("Prepared ${archive.name}: embedded startup repairs=${repairedArchive}, compression delta=${saved} bytes")
         }
     } finally { java.nio.file.Files.deleteIfExists(packed.toPath()) }
 }
@@ -46,7 +59,7 @@ gradle.projectsEvaluated {
         // Legacy NeoForge's plugin registers an empty jarJar task; its finished
         // production archive is reobfJar. Collecting jarJar silently drops it.
         def taskName = modProject.tasks.findByName('integratedJar') != null ? 'integratedJar' :
-                modProject.name == '1.20.1-neoforge' ? 'reobfJar' :
+                modProject.name == '1.20.1-neoforge' && modProject.tasks.findByName('reobfJar') != null ? 'reobfJar' :
                 modProject.tasks.findByName('jarJar') instanceof org.gradle.api.tasks.bundling.AbstractArchiveTask ? 'jarJar' :
                 modProject.tasks.findByName('reobfJar') != null ? 'reobfJar' :
                 modProject.tasks.findByName('remapJar') != null ? 'remapJar' :
@@ -120,6 +133,19 @@ gradle.projectsEvaluated {
                 }
             }
         }
+        def windowPatch = null
+        def windowClass = null
+        if (modProject.version.toString().startsWith('1.5.') && modProject.name.startsWith('26.1.2-')) {
+            windowClass = modProject.layout.buildDirectory.file('renderer-patches/com/meekdev/amnetic/mixin/WindowGlContextMixin.class').get().asFile
+            windowPatch = modProject.tasks.register('compileEmbeddedWindowPatch', org.gradle.api.tasks.compile.JavaCompile) {
+                source new File(outputShelf.parentFile, 'gradle/renderer-patches/WindowGlContextMixin.java')
+                classpath = modProject.sourceSets.main.compileClasspath
+                javaCompiler.set(modProject.tasks.named('compileJava', org.gradle.api.tasks.compile.JavaCompile).flatMap { it.javaCompiler })
+                destinationDirectory = modProject.layout.buildDirectory.dir('renderer-patches')
+                options.encoding = 'UTF-8'
+                options.compilerArgs.add('-proc:none')
+            }
+        }
         def collect = modProject.tasks.register('collectModJar', Copy) {
             group = 'distribution'
             description = 'Copy the finished Asterion jar to the repository modbuilds folder.'
@@ -128,7 +154,10 @@ gradle.projectsEvaluated {
             into outputShelf
         }
         artifact.configure {
-            doLast { compressModJar(archiveFile.get().asFile) }
+            inputs.file(new File(outputShelf.parentFile, 'gradle/repair-embedded-startup.gradle'))
+            inputs.property('embeddedStartupRepair', 1)
+            if (windowPatch != null) dependsOn windowPatch
+            doLast { compressModJar(archiveFile.get().asFile, windowClass) }
             finalizedBy collect
         }
 
@@ -136,7 +165,7 @@ gradle.projectsEvaluated {
         def quilt = modProject.tasks.findByName('quiltCompatibleJar')
         if (quilt != null) {
             quilt.doLast {
-                compressModJar(modProject.layout.buildDirectory.file("quilt/Asterion-${modProject.version}-quilt-mc${modProject.minecraft_version}.jar").get().asFile)
+                compressModJar(modProject.layout.buildDirectory.file("quilt/Asterion-${modProject.version}-quilt-mc${modProject.minecraft_version}.jar").get().asFile, windowClass)
             }
             def collectQuilt = modProject.tasks.register('collectQuiltJar', Copy) {
                 group = 'distribution'

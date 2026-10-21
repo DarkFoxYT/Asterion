@@ -1,0 +1,36 @@
+NeoForge 1.21.1 startup regression checks
+
+Run these commands from ports/1.5 with Java 21.
+
+Dedicated server:
+  gradlew.bat :neoforge:runPackagedSmokeServer --configure-on-demand
+  Wait for "Done (...)!", then enter "stop".
+
+Dedicated-server boss and ragdoll checks:
+  gradlew.bat :neoforge:runPackagedSmokeServer -PserverGameplaySmoke --configure-on-demand
+  Expect "ASTERION_SERVER PASS" and automatic clean shutdown.
+
+Minecraft 26.1.2 dedicated-server checks (from ports/1.5/ports/26.1.2):
+  gradlew.bat :26.1.2-neoforge:runPackagedSmokeServer --configure-on-demand
+  Expect the same pass marker. The harness waits for a forced fixture chunk and
+  the following entity-index update before checking boss grab authority.
+
+Client without Sodium:
+  Leave neoforge/build/run/packaged-smoke-client/mods empty.
+  gradlew.bat :neoforge:runPackagedSmokeClient -PstartupSmoke --configure-on-demand
+
+Client with Sodium:
+  Put one NeoForge 1.21.1 Sodium JAR into that same mods directory.
+  gradlew.bat :neoforge:runPackagedSmokeClient -PstartupSmoke -PsodiumSmoke --configure-on-demand
+
+The client checks the embedded Assimp native library, waits for the title screen,
+logs "ASTERION_STARTUP PASS", and exits. These runs use the packaged Asterion JAR,
+not loose development classes or development-only LWJGL dependencies.
+
+Failures covered:
+- Dedicated-server module resolution: org.lwjgl.assimp required the client-only
+  org.lwjgl module. The embedded API now uses an automatic module with the same
+  module name and Jar-in-Jar dependency coordinates.
+- Sodium overwrites SpriteContents$InterpolationData.uploadInterpolatedFrame.
+  The mixin plugin skips Asterion's vanilla interpolation cache when Sodium's
+  replacement is present, without loading Sodium classes during mixin discovery.

@@ -39,6 +39,10 @@ tasks.register('runProductionSmokeClient', productionType) {
     group = 'verification'
     description = 'Run the opt-in client scenario using the release JAR and real production dependencies.'
     mods.setFrom(tasks.named(asterionProductionJarTask), smokeRemap)
+    if (project.hasProperty('sodiumSmokeJar')) {
+        mods.from(project.file(project.property('sodiumSmokeJar')))
+        jvmArgs.add('-Dasterion.sodiumSmoke=true')
+    }
     runDir = layout.buildDirectory.dir('run/production-smoke')
     javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(minecraft_version == '1.20.1' ? 17 : 21) }
     jvmArgs.addAll('-Dasterion.clientSmoke=true', '-Damnetic.opengl.debug=true', '-Dfabric.noGui=true')

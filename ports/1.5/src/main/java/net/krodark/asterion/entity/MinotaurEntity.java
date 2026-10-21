@@ -4263,17 +4263,18 @@ super.defineSynchedData(builder);
 
     private void syncBossBars(ServerLevel level) {
 
-        getEntityData().set(DATA_PILLARS_REMAINING, bossStage == BossStage.PILLARS ? WorldGenerator.bossPillarsRemaining() : 0);
+        int pillarsRemaining = bossStage == BossStage.PILLARS ? WorldGenerator.bossPillarsRemaining() : 0;
+        getEntityData().set(DATA_PILLARS_REMAINING, pillarsRemaining);
 
         for (ServerPlayer old : java.util.List.copyOf(healthBossBar.getPlayers()))
 
-            if (!old.isAlive() || old.isRemoved() || !level.players().contains(old)) healthBossBar.removePlayer(old);
+            if (!old.isAlive() || old.isRemoved() || old.level() != level) healthBossBar.removePlayer(old);
 
         healthBossBar.setVisible(bossStage != BossStage.DEFEATED);
 
         float healthProgress = bossStage == BossStage.PILLARS
 
-                ? WorldGenerator.bossPillarsRemaining()
+                ? pillarsRemaining
 
                         / (float)Math.max(1, net.krodark.asterion.worldgen.AuthoredCatacombs.enabled() ? 12 : AsterionConfig.INSTANCE.minotaurBossPillarCount)
 

@@ -1,0 +1,55 @@
+import java.util.zip.*
+import java.util.jar.Manifest
+
+// Repair only embedded rendering libraries. Keep their dependency coordinates
+// intact so Forge/NeoForge can still deduplicate them with other mods.
+ext.repairEmbeddedStartup = { byte[] original, String name, byte[] windowPatch ->
+    Closure repair
+    repair = { byte[] bytes, String archiveName ->
+        boolean assimp = archiveName.contains('lwjgl-assimp-') && !archiveName.contains('-natives-')
+        boolean changed = false
+        def buffer = new ByteArrayOutputStream()
+        new ZipOutputStream(buffer).withCloseable { output ->
+            output.setLevel(Deflater.BEST_COMPRESSION)
+            new ZipInputStream(new ByteArrayInputStream(bytes)).withCloseable { input ->
+                ZipEntry entry
+                while ((entry = input.nextEntry) != null) {
+                    byte[] content = input.readAllBytes()
+                    if (assimp && (entry.name == 'module-info.class' || entry.name.endsWith('/module-info.class'))) {
+                        changed = true
+                        continue
+                    }
+                    if (assimp && entry.name == 'META-INF/MANIFEST.MF') {
+                        def manifest = new Manifest(new ByteArrayInputStream(content))
+                        if (manifest.mainAttributes.getValue('Automatic-Module-Name') != 'org.lwjgl.assimp') {
+                            manifest.mainAttributes.putValue('Automatic-Module-Name', 'org.lwjgl.assimp')
+                            def encoded = new ByteArrayOutputStream()
+                            manifest.write(encoded)
+                            content = encoded.toByteArray()
+                            changed = true
+                        }
+                    }
+                    if (windowPatch != null && entry.name == 'com/meekdev/amnetic/mixin/WindowGlContextMixin.class') {
+                        // Fixed releases already compose with Sodium. Replace only
+                        // the old Redirect implementation in the 26.1.2 renderer.
+                        if (new String(content, java.nio.charset.StandardCharsets.ISO_8859_1).contains('injection/Redirect')) {
+                            content = windowPatch
+                            changed = true
+                        }
+                    }
+                    if (entry.name.endsWith('.jar') && (entry.name.contains('amnetic') || entry.name.contains('lwjgl-assimp-'))) {
+                        byte[] nested = repair(content, entry.name)
+                        if (!nested.is(content)) { content = nested; changed = true }
+                    }
+                    def copy = new ZipEntry(entry.name)
+                    copy.time = 0L
+                    output.putNextEntry(copy)
+                    output.write(content)
+                    output.closeEntry()
+                }
+            }
+        }
+        changed ? buffer.toByteArray() : bytes
+    }
+    repair(original, name)
+}

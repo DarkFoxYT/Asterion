@@ -198,3 +198,13 @@ neoForge.runs {
 }
 
 apply from: rootProject.file("gradle/amnetic-neoforge.gradle")
+apply from: rootProject.file('gradle/server-smoke.gradle')
+
+tasks.withType(JavaExec).configureEach {
+    if (name.toLowerCase().contains('client') && providers.gradleProperty('asterionUseJetBrainsRuntime').getOrElse('false').toBoolean()) {
+        javaLauncher = javaToolchains.launcherFor {
+            languageVersion = JavaLanguageVersion.of(25)
+            vendor = JvmVendorSpec.JETBRAINS
+        }
+    }
+}

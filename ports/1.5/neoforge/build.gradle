@@ -255,7 +255,7 @@ apply from: rootProject.file("gradle/amnetic-runtime.gradle")
 // The same opt-in client scenario runs against the native NeoForge adapter.
 sourceSets {
     smoke {
-        java.srcDirs = [rootProject.file('src/gametest/java'), rootProject.file('src/gametest/1.21.1'), file('src/smoke/java')]
+        java.srcDirs = [rootProject.file('src/gametest/java'), rootProject.file('src/gametest/1.21.1'), rootProject.file('src/regression/java'), file('src/smoke/java')]
         java.exclude 'net/krodark/asterion/test/CompatibilityGameTests.java'
         resources.srcDirs = ['src/smoke/resources']
         compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath

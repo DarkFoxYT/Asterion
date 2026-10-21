@@ -4,12 +4,25 @@ def packagedHarness = tasks.register('packagedSmokeHarnessJar', Jar) {
     archiveClassifier = 'packaged-smoke-tests'
     destinationDirectory = layout.buildDirectory.dir('test-harness')
 }
-sourceSets { packagedSmoke }
+sourceSets {
+    packagedSmoke
+    packagedServerSmoke
+}
 neoForge.addModdingDependenciesTo(sourceSets.packagedSmoke)
+neoForge.addModdingDependenciesTo(sourceSets.packagedServerSmoke)
 dependencies {
     packagedSmokeRuntimeOnly files(tasks.named('jar'), packagedHarness)
+    packagedServerSmokeRuntimeOnly files(tasks.named('jar'))
+    if (project.hasProperty('serverGameplaySmoke')) packagedServerSmokeRuntimeOnly files(packagedHarness)
 }
 neoForge.runs {
+    packagedSmokeServer {
+        server()
+        sourceSet = sourceSets.packagedServerSmoke
+        loadedMods = []
+        gameDirectory = layout.buildDirectory.dir('run/packaged-smoke-server').get().asFile
+        programArgument '--nogui'
+    }
     packagedSmokeClient {
         client()
         sourceSet = sourceSets.packagedSmoke
@@ -18,8 +31,13 @@ neoForge.runs {
         systemProperty 'asterion.clientSmoke', 'true'
         systemProperty 'asterion.nativeAmneticSmoke', 'true'
         systemProperty 'amnetic.opengl.debug', 'true'
+        if (project.hasProperty('startupSmoke')) systemProperty 'asterion.startupSmoke', 'true'
+        if (project.hasProperty('sodiumSmoke')) systemProperty 'asterion.sodiumSmoke', 'true'
         if (project.hasProperty('polishSmoke')) systemProperty 'asterion.polishSmoke', 'true'
         if (project.hasProperty('bloomSmoke')) systemProperty 'asterion.bloomSmoke', 'true'
         if (project.hasProperty('atmosphereSmoke')) systemProperty 'asterion.atmosphereSmoke', 'true'
     }
+}
+tasks.named('runPackagedSmokeServer', JavaExec).configure {
+    standardInput = System.in
 }

@@ -1,3 +1,16 @@
+import org.gradle.api.artifacts.transform.TransformAction
+import org.gradle.api.artifacts.transform.TransformParameters
+import org.gradle.api.artifacts.transform.TransformOutputs
+import org.gradle.api.artifacts.transform.InputArtifact
+import org.gradle.api.artifacts.type.ArtifactTypeDefinition
+import org.gradle.api.file.FileSystemLocation
+import org.gradle.api.provider.Provider
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
+import java.util.jar.JarFile
+import java.util.jar.JarOutputStream
+import java.util.zip.ZipEntry
+
 // The shared renderer is already compiled against official Minecraft names.
 // A native lifecycle entrypoint lets NeoForge load it without Connector rewriting.
 sourceSets {
@@ -8,6 +21,10 @@ sourceSets {
 neoForge.addModdingDependenciesTo(sourceSets.amneticNative)
 configurations { amneticNativeBinaries { transitive = false } }
 dependencies {
+    registerTransform(ServerSafeAssimp) {
+        from.attribute(ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, 'jar')
+        to.attribute(ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, 'asterion-server-safe-assimp')
+    }
     amneticNativeCompileOnly 'net.fabricmc:fabric-loader:0.19.5'
     ['natives-windows', 'natives-linux', 'natives-macos', 'natives-macos-arm64'].each {
         amneticNativeBinaries "org.lwjgl:lwjgl-assimp:3.3.3:${it}"
@@ -15,6 +32,9 @@ dependencies {
     jarJar('org.lwjgl:lwjgl-assimp:3.3.3') {
         transitive = false
         version { strictly '[3.3.3]' }
+        attributes {
+            attribute(ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, 'asterion-server-safe-assimp')
+        }
     }
 }
 def nativeRenderer = tasks.register('amneticNativeJar', Jar) {
@@ -36,4 +56,37 @@ def nativeRenderer = tasks.register('amneticNativeJar', Jar) {
 dependencies {
     jarJar files(nativeRenderer)
     runtimeOnly files(nativeRenderer)
+}
+// Assimp is only used by the client renderer, but NeoForge resolves every
+// embedded Java module on a dedicated server too. Its explicit module descriptor
+// requires org.lwjgl, which Minecraft only supplies on clients. Keep the API as
+// an automatic module, without adding client LWJGL classes to the server.
+abstract class ServerSafeAssimp implements TransformAction<TransformParameters.None> {
+    @InputArtifact
+    @PathSensitive(PathSensitivity.NAME_ONLY)
+    abstract Provider<FileSystemLocation> getInputArtifact()
+
+    void transform(TransformOutputs outputs) {
+        def source = inputArtifact.get().asFile
+        new JarFile(source).withCloseable { input ->
+            def manifest = input.manifest
+            manifest.mainAttributes.putValue('Automatic-Module-Name', 'org.lwjgl.assimp')
+            new JarOutputStream(new FileOutputStream(outputs.file(source.name))).withCloseable { output ->
+                def manifestEntry = new ZipEntry('META-INF/MANIFEST.MF')
+                manifestEntry.time = 0L
+                output.putNextEntry(manifestEntry)
+                manifest.write(output)
+                output.closeEntry()
+                input.entries().each { entry ->
+                    if (entry.name == 'META-INF/MANIFEST.MF' || entry.name == 'module-info.class' ||
+                            entry.name.endsWith('/module-info.class')) return
+                    def copy = new ZipEntry(entry.name)
+                    copy.time = 0L
+                    output.putNextEntry(copy)
+                    if (!entry.directory) input.getInputStream(entry).withCloseable { it.transferTo(output) }
+                    output.closeEntry()
+                }
+            }
+        }
+    }
 }

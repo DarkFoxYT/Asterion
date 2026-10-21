@@ -89,7 +89,7 @@ stonecutter.parameters {
 }
 tasks.register('buildAllVersions') {
     group = 'build'
-    description = 'Build all 12 Asterion 1.5.2 release jars.'
+    description = "Build all 12 Asterion ${project.mod_version} release jars."
     dependsOn ':1.20.1:build', ':1.21.1:build', ':1.20.1-forge:build',
             ':1.21.1-forge:build', ':1.20.1-neoforge:build', ':neoforge:build', 'build26_1_2'
 }
