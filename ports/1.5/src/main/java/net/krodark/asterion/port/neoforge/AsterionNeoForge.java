@@ -30,7 +30,13 @@ public final class AsterionNeoForge {
     }
 
     private static void initializeAfterNeoForgeRegistries(EntityAttributeCreationEvent event) {
-        initializeFabricStyleRegistries();
+        // NeoForge owns the attribute map at this point; the Fabric map is already immutable.
+        net.krodark.asterion.port.compat.AsterionRegistry.setAttributeRegistrar(event::put);
+        try {
+            initializeFabricStyleRegistries();
+        } finally {
+            net.krodark.asterion.port.compat.AsterionRegistry.setAttributeRegistrar(null);
+        }
     }
 
     /**

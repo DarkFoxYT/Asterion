@@ -3,7 +3,6 @@ package net.krodark.asterion.game;
 import net.krodark.asterion.port.compat.AsterionRegistry;
 
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
-import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.entity.AncientSkeletonEntity;
 import net.minecraft.core.Registry;
@@ -49,7 +48,7 @@ public final class AncientContent {
     private AncientContent() {}
     public static void initialize() {
         if (!AsterionRegistry.isDeferred())
-            FabricDefaultAttributeRegistry.register(SKELETON, AncientSkeletonEntity.attributes());
+            AsterionRegistry.registerAttributes(SKELETON, AncientSkeletonEntity.attributes());
         ItemGroupEvents.modifyEntriesEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Asterion.id("asterion")))
                 .register(output -> { output.accept(EGG); output.accept(ANCIENT_BONE); output.accept(MINOTAUR_HIDE); output.accept(MINOTAUR_TROPHY_ITEM); });
     }

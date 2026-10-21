@@ -3,15 +3,20 @@ package net.krodark.asterion.port.compat;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
 
 /** Keeps shared content construction separate from Forge's registration event. */
 public final class AsterionRegistry {
     private static final List<Pending<?>> PENDING = new ArrayList<>();
     private static final List<Runnable> AFTER_REGISTRATION = new ArrayList<>();
     private static boolean deferred;
+    private static BiConsumer<EntityType<? extends LivingEntity>, AttributeSupplier> attributeRegistrar;
 
     private AsterionRegistry() {}
 
@@ -21,6 +26,15 @@ public final class AsterionRegistry {
 
     public static boolean isDeferred() {
         return deferred;
+    }
+
+    public static void setAttributeRegistrar(BiConsumer<EntityType<? extends LivingEntity>, AttributeSupplier> registrar) {
+        attributeRegistrar = registrar;
+    }
+
+    public static void registerAttributes(EntityType<? extends LivingEntity> type, AttributeSupplier.Builder attributes) {
+        if (attributeRegistrar != null) attributeRegistrar.accept(type, attributes.build());
+        else net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry.register(type, attributes);
     }
 
     public static void whenRegistered(Runnable action) {

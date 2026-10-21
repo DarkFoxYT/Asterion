@@ -19,7 +19,7 @@ base.archivesName = "${rootProject.archives_base_name}-forge"
 
 def minecraftVersion = sc.current.version
 def legacy = sc.current.parsed < '1.20.5'
-def forgeVersion = legacy ? '47.1.3' : '52.1.16'
+def forgeVersion = legacy ? '47.4.28' : '52.1.20'
 def geckolibVersion = legacy ? '4.8.2' : rootProject.geckolib_version
 def amneticJar = rootProject.file("libs/amnetic-forge-1.0-SNAPSHOT+${minecraftVersion}-forge.jar")
 def forgifiedJar = rootProject.file(legacy ? 'libs/forgified-fabric-api-1.20.1.jar' :

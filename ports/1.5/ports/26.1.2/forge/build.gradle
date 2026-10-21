@@ -88,7 +88,7 @@ def compatibleAmneticJar = tasks.register('compatibleAmneticJar', Zip) {
 }
 
 dependencies {
-    implementation minecraft.dependency('net.minecraftforge:forge:26.1.2-64.1.3')
+    implementation minecraft.dependency('net.minecraftforge:forge:26.1.2-64.1.5')
     compileOnly("net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_version}") { transitive = true }
     compileOnly "net.fabricmc:fabric-loader:${rootProject.loader_version}"
     compileOnly "com.geckolib:geckolib-forge-26.1.2:${rootProject.geckolib_version}"
@@ -120,9 +120,9 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 processResources {
-    inputs.properties(version: project.version.toString(), minecraft_version: '26.1.2', forge_version: '64.1.3')
+    inputs.properties(version: project.version.toString(), minecraft_version: '26.1.2', forge_version: '64.1.5')
     filesMatching('META-INF/mods.toml') {
-        expand version: project.version, minecraft_version: '26.1.2', forge_version: '64.1.3'
+        expand version: project.version, minecraft_version: '26.1.2', forge_version: '64.1.5'
     }
 }
 

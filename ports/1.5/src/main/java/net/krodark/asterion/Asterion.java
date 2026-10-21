@@ -70,7 +70,6 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.sounds.SoundEvent;
-import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.fabricmc.fabric.api.particle.v1.FabricParticleTypes;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.core.particles.ParticleTypes;
@@ -998,12 +997,12 @@ public static final com.mojang.serialization.MapCodec<MazeChunkGenerator>
         DynamicBlockLights.initialize();
         net.krodark.asterion.command.CatacombLocateCommands.register();
         if (!AsterionRegistry.isDeferred()) {
-            FabricDefaultAttributeRegistry.register(MINOTAUR, MinotaurEntity.createAttributes());
-            FabricDefaultAttributeRegistry.register(BOMBARDIER_BEETLE, BombadierBeetleEntity.createAttributes());
-            FabricDefaultAttributeRegistry.register(RUNE_BEETLE, net.krodark.asterion.entity.RuneBeetleEntity.createAttributes());
-            FabricDefaultAttributeRegistry.register(SCARLET_CENTIPEDE, ScarletCentipedeEntity.createAttributes());
-            FabricDefaultAttributeRegistry.register(CONSTRUCT, ConstructEntity.createAttributes());
-            FabricDefaultAttributeRegistry.register(QUEEN_BEETLE, QueenBeetleEntity.createAttributes());
+            AsterionRegistry.registerAttributes(MINOTAUR, MinotaurEntity.createAttributes());
+            AsterionRegistry.registerAttributes(BOMBARDIER_BEETLE, BombadierBeetleEntity.createAttributes());
+            AsterionRegistry.registerAttributes(RUNE_BEETLE, net.krodark.asterion.entity.RuneBeetleEntity.createAttributes());
+            AsterionRegistry.registerAttributes(SCARLET_CENTIPEDE, ScarletCentipedeEntity.createAttributes());
+            AsterionRegistry.registerAttributes(CONSTRUCT, ConstructEntity.createAttributes());
+            AsterionRegistry.registerAttributes(QUEEN_BEETLE, QueenBeetleEntity.createAttributes());
         }
         ServerChunkEvents.CHUNK_LOAD.register((level, chunk) -> WorldGenerator.onChunkLoad(level, chunk, false));
         ServerChunkEvents.CHUNK_LOAD.register((level, chunk) -> CatacombFloodState.onChunkLoad(level, chunk, false));

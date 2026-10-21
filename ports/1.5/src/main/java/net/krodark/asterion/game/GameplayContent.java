@@ -6,7 +6,6 @@ import net.krodark.asterion.Asterion;
 import net.krodark.asterion.block.*;
 import net.krodark.asterion.entity.CursedBrazierEntity;
 import net.krodark.asterion.network.IgniteGasPayload;
-import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.fabricmc.fabric.api.event.lifecycle.v1.*;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
@@ -62,7 +61,7 @@ public final class GameplayContent {
                 ChallengeDeaths.get(level).record(entity.getUUID());
         });
         if (!AsterionRegistry.isDeferred())
-            FabricDefaultAttributeRegistry.register(CURSED_BRAZIER, CursedBrazierEntity.createAttributes());
+            AsterionRegistry.registerAttributes(CURSED_BRAZIER, CursedBrazierEntity.createAttributes());
         ItemGroupEvents.modifyEntriesEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Asterion.id("asterion"))).register(output -> {
             output.accept(SPEWER); output.accept(FIRE_BURST_TRAP);
             output.accept(EXPLOSIVE_SPAWNER); output.accept(REWARD_SPAWNER);

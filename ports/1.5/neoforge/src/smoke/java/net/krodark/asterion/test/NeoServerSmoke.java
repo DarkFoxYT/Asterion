@@ -45,6 +45,13 @@ public final class NeoServerSmoke {
     }
 
     private void runChecks(net.minecraft.server.MinecraftServer server) {
+        for (var type : List.of(Asterion.MINOTAUR, Asterion.BOMBARDIER_BEETLE, Asterion.RUNE_BEETLE,
+                Asterion.SCARLET_CENTIPEDE, Asterion.CONSTRUCT, Asterion.QUEEN_BEETLE,
+                net.krodark.asterion.game.AncientContent.SKELETON,
+                net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER)) {
+            require(net.minecraft.world.entity.ai.attributes.DefaultAttributes.hasSupplier(type),
+                    "Missing NeoForge entity attributes: " + net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(type));
+        }
         var level = server.overworld();
         level.getChunk(0, 0);
         var player = FakePlayerFactory.get(level, new GameProfile(new UUID(7, 3), "AsterionServerCheck"));
