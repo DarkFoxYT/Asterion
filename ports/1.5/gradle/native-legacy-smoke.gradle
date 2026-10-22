@@ -1,0 +1,53 @@
+def pythonCommand=providers.gradleProperty('asterionPython').orElse(providers.environmentVariable('ASTERION_PYTHON')).getOrElse('python')
+def smokeSources=tasks.register('generateLegacySmokeSources',Exec){
+    def output=layout.buildDirectory.dir('generated/native-smoke')
+    inputs.files(rootProject.file('gradle/generate-native-legacy-smoke.py'),
+            rootProject.file('neoforge/src/smoke/java/net/krodark/asterion/test/NeoServerSmoke.java'),
+            rootProject.file('src/gametest/1.20.1/net/krodark/asterion/test/VersionGameplay.java'))
+    outputs.dir(output)
+    commandLine pythonCommand,rootProject.file('gradle/generate-native-legacy-smoke.py'),output.get().asFile
+}
+sourceSets {
+    legacySmoke {
+        java.srcDirs=[smokeSources,rootProject.file('src/regression/java'),rootProject.file('src/gametest/java'),rootProject.file('src/gametest/1.20.1')]
+        java.exclude '**/CompatibilityGameTests.java'
+        resources.srcDirs=[rootProject.file('neolegacy/src/smoke/resources')]
+        compileClasspath+=sourceSets.main.output+sourceSets.main.compileClasspath
+        runtimeClasspath+=sourceSets.main.output+sourceSets.main.runtimeClasspath
+    }
+}
+legacyForge {
+    mods { asterion_tests {sourceSet sourceSets.legacySmoke} }
+    runs {
+        clientSmoke {
+            client()
+            sourceSet=sourceSets.legacySmoke
+            gameDirectory=layout.buildDirectory.dir('run/native-client-smoke').get().asFile
+            systemProperty 'asterion.clientSmoke','true'
+        }
+        serverSmoke {
+            server()
+            sourceSet=sourceSets.legacySmoke
+            gameDirectory=layout.buildDirectory.dir('run/native-server-smoke').get().asFile
+            systemProperty 'asterion.serverSmoke','true'
+            programArgument '--nogui'
+        }
+    }
+}
+def smokeJar = tasks.register('legacySmokeJar', Jar) {
+    from(sourceSets.legacySmoke.output) { include 'net/krodark/asterion/test/**', 'META-INF/mods.toml', 'pack.mcmeta' }
+    archiveFileName = 'asterion-production-tests-dev.jar'
+    destinationDirectory = layout.buildDirectory.dir('test-harness')
+}
+def releaseRemap = tasks.named('reobfJar').get()
+def remapType = Class.forName('net.neoforged.moddevgradle.legacyforge.tasks.RemapJar', true, releaseRemap.class.classLoader)
+tasks.register('reobfLegacySmoke', remapType) {
+    input = smokeJar.flatMap { it.archiveFile }
+    archiveFileName = 'asterion-production-tests.jar'
+    destinationDirectory = layout.buildDirectory.dir('test-harness')
+    libraries.from(releaseRemap.libraries)
+    libraries.from(sourceSets.main.output, sourceSets.main.compileClasspath)
+    remapOperation.toolType = releaseRemap.remapOperation.toolType
+    remapOperation.toolClasspath.from(releaseRemap.remapOperation.toolClasspath)
+    remapOperation.mappings.from(releaseRemap.remapOperation.mappings)
+}

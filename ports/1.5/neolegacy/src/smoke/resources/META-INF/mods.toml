@@ -1,0 +1,7 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="All Rights Reserved"
+[[mods]]
+modId="asterion_tests"
+version="1.0.0"
+displayName="Asterion native server checks"

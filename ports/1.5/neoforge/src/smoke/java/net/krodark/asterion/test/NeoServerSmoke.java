@@ -59,7 +59,9 @@ public final class NeoServerSmoke {
         // negotiation follows the normal unnegotiated-connection path.
         var channel = new io.netty.channel.embedded.EmbeddedChannel();
         try {
-            var channelField = net.minecraft.network.Connection.class.getDeclaredField("channel");
+            var channelField = java.util.Arrays.stream(net.minecraft.network.Connection.class.getDeclaredFields())
+                    .filter(field -> io.netty.channel.Channel.class.isAssignableFrom(field.getType()))
+                    .findFirst().orElseThrow();
             channelField.setAccessible(true);
             channelField.set(player.connection.getConnection(), channel);
         } catch (ReflectiveOperationException error) { throw new AssertionError(error); }

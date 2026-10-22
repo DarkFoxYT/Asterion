@@ -7,8 +7,26 @@ final class VersionGameplay {
    public net.minecraft.world.item.ItemStack quickMoveStack(net.minecraft.world.entity.player.Player p,int slot){return net.minecraft.world.item.ItemStack.EMPTY;}
    public boolean stillValid(net.minecraft.world.entity.player.Player p){return true;}
   },width,height);for(int i=0;i<items.size();i++)input.setItem(i,items.get(i));return input; }
+
+ static void vanillaTools(net.minecraft.server.level.ServerLevel level) {
+  String[] materials={"wooden","stone","iron","golden","diamond"};
+  String[] ingredients={"oak_planks","cobblestone","iron_ingot","gold_ingot","diamond"};
+  String[] tools={"pickaxe","axe","shovel","hoe","sword"};
+  String[] patterns={"XXX.S..S.","XX.XS..S.",".X..S..S.","XX..S..S.",".X..X..S."};
+  for(int m=0;m<materials.length;m++) for(int t=0;t<tools.length;t++) {
+   var id=new net.minecraft.resources.ResourceLocation("minecraft",materials[m]+"_"+tools[t]);
+   var ingredient=net.minecraft.core.registries.BuiltInRegistries.ITEM.get(new net.minecraft.resources.ResourceLocation("minecraft",ingredients[m]));
+   var items=new java.util.ArrayList<ItemStack>();
+   for(char c:patterns[t].toCharArray())items.add(c=='X'?new ItemStack(ingredient):c=='S'?new ItemStack(net.minecraft.world.item.Items.STICK):ItemStack.EMPTY);
+   var recipe=(net.minecraft.world.item.crafting.CraftingRecipe)level.getRecipeManager().byKey(id).orElseThrow();
+   var grid=input(3,3,items);
+   GameplaySmoke.require(recipe.matches(grid,level),"Vanilla tool recipe did not match: "+id);
+   var result=recipe.assemble(grid,level.registryAccess());
+   GameplaySmoke.require(result.is(net.minecraft.core.registries.BuiltInRegistries.ITEM.get(id)),"Wrong vanilla tool output: "+id);
+  }
+ }
  static ItemStack craft(ServerPlayer player,java.util.List<ItemStack> parts) {
-  var level=player.serverLevel();var recipe=new net.krodark.asterion.recipe.ForgedSwordRecipe();
+  var level=player.serverLevel();vanillaTools(level);var recipe=new net.krodark.asterion.recipe.ForgedSwordRecipe();
   var items=new java.util.ArrayList<>(parts);items.add(new ItemStack(Asterion.DEADWOOD_STICK));
   var grid=input(2,2,items);GameplaySmoke.require(recipe.matches(grid,level),"Valid forged recipe did not match");
   var result=recipe.assemble(grid,level.registryAccess());

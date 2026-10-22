@@ -12,7 +12,7 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.*;
 
 /** Seeded sea landmarks, clipped per chunk so generation never writes into unloaded neighbours. */
 public final class LimboMonoliths {
-    private static final int SPACING = 192;
+    private static final int SPACING = 150;
     private static final String[] VARIANTS = {"limbo_monolith", "limbo_monolith_2",
             "limbo_monolith_3", "limbo_monolith_4"};
     // Largest footprint is 59 blocks; cover every quarter-turn across chunk edges.

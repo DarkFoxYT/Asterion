@@ -36,6 +36,8 @@ neoForge.runs {
         if (project.hasProperty('polishSmoke')) systemProperty 'asterion.polishSmoke', 'true'
         if (project.hasProperty('bloomSmoke')) systemProperty 'asterion.bloomSmoke', 'true'
         if (project.hasProperty('atmosphereSmoke')) systemProperty 'asterion.atmosphereSmoke', 'true'
+        if (project.hasProperty('shaderPackSmoke')) systemProperty 'asterion.shaderPackSmoke', 'true'
+        if (project.hasProperty('shaderFramebufferSmoke')) systemProperty 'asterion.shaderFramebufferSmoke', 'true'
     }
 }
 tasks.named('runPackagedSmokeServer', JavaExec).configure {

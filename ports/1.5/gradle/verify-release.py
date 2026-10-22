@@ -1,4 +1,4 @@
-"""Audit every 1.5.5 distribution before uploading; uses Python's standard library."""
+"""Audit every 1.5.6 distribution before uploading; uses Python's standard library."""
 import argparse
 import hashlib
 import io
@@ -9,7 +9,7 @@ import struct
 import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
-VERSION = "1.5.5"
+VERSION = "1.5.6"
 rows = []
 parser = argparse.ArgumentParser()
 parser.add_argument('--minecraft', choices=('1.20.1', '1.21.1', '26.1.2'))
@@ -94,7 +94,7 @@ for mc, java_major in [("1.20.1", 61), ("1.21.1", 65), ("26.1.2", 69)]:
                 require(f'net/krodark/asterion/mixin/{shader_mixin}.class' in names,
                         f'{path.name}: missing shader compatibility hook {shader_mixin}')
             legacy_forge = mc == '1.20.1' and loader in ('forge', 'neoforge')
-            if legacy_forge:
+            if legacy_forge and loader == 'forge':
                 require(not any(name.startswith('data/asterion/forge/biome_modifier/') for name in names),
                         f'{path.name}: duplicate native biome modifiers would cause worldgen feature cycles')
             if loader == 'forge' and mc == '1.21.1':
@@ -136,6 +136,8 @@ for mc, java_major in [("1.20.1", 61), ("1.21.1", 65), ("26.1.2", 69)]:
                     entry = config["package"].replace(".", "/") + "/" + mixin.replace(".", "/") + ".class"
                     require(entry in names, f"{path.name}: missing mixin {mixin}")
             require("RagdollUseGuardMixin" in config["mixins"], f"{path.name}: missing server item-use guard")
+            require("LabyrinthCloudMixin" in config.get("client", []),
+                    f"{path.name}: missing dimension cloud suppression")
             if loader in ("fabric", "quilt"):
                 metadata = json.loads(jar.read("fabric.mod.json"))
                 require(metadata["version"] == VERSION, f"Wrong version: {path.name}")
@@ -154,16 +156,22 @@ for mc, java_major in [("1.20.1", 61), ("1.21.1", 65), ("26.1.2", 69)]:
             else:
                 metadata_path = "META-INF/neoforge.mods.toml" if mc != "1.20.1" and loader == "neoforge" else "META-INF/mods.toml"
                 metadata = jar.read(metadata_path).decode()
-                require(re.search(r'^version\s*=\s*"1\.5\.5"', metadata, re.M), f"Wrong version: {path.name}")
-                if loader == 'neoforge' and mc != '1.20.1':
+                require(re.search(r'^version\s*=\s*"1\.5\.6"', metadata, re.M), f"Wrong version: {path.name}")
+                if loader == 'neoforge':
+                    require(not re.search(r'modId\s*=\s*"(?:fabric_api|connector)"', metadata),
+                            f'{path.name}: native port still requires a compatibility runtime')
+                    require(not any(n.startswith('net/fabricmc/') for n in names),
+                            f'{path.name}: private adapters still share Fabric API packages')
                     embedded = json.loads(jar.read('META-INF/jarjar/metadata.json'))['jars']
-                    shared = [entry for entry in embedded if any(token in entry['identifier']['artifact']
-                              for token in ('geckolib', 'forgified-fabric-api'))]
-                    require(len(shared) == 2, f'{path.name}: missing embedded shared libraries')
-                    for entry in shared:
-                        supported = entry['version']['range']
-                        require(',' in supported and supported.endswith(')'),
-                                f'{path.name}: shared dependency still locked to one exact version')
+                    require(not any('forgified' in entry['path'].lower() or 'fabric-api' in entry['path'].lower()
+                                    for entry in embedded), f'{path.name}: Fabric compatibility runtime embedded')
+                    require(any('geckolib' in entry['identifier']['artifact'] for entry in embedded),
+                            f'{path.name}: missing GeckoLib')
+            tag_folder = 'items' if mc == '1.20.1' else 'item'
+            for material in ('wooden', 'iron', 'gold', 'diamond', 'netherite'):
+                tag = json.loads(jar.read(f'data/minecraft/tags/{tag_folder}/{material}_tool_materials.json'))
+                require(tag.get('values') and not tag.get('replace'),
+                        f'{path.name}: missing additive {material} tool-material fallback')
             if mc != "26.1.2":
                 plugin = 'LegacySodiumMixinPlugin' if mc == '1.20.1' else 'AsterionMixinPlugin'
                 require(config.get("plugin") == 'net.krodark.asterion.mixin.' + plugin,
@@ -174,6 +182,6 @@ for mc, java_major in [("1.20.1", 61), ("1.21.1", 65), ("26.1.2", 69)]:
         print(f"PASS {path.name}")
 
 suffix = '-' + '-'.join(filter(None, (args.minecraft, args.loader))) if args.minecraft or args.loader else ''
-output = ROOT / f"ports/1.5/build/release-1.5.5{suffix}-manifest.json"
+output = ROOT / f"ports/1.5/build/release-1.5.6{suffix}-manifest.json"
 output.write_text(json.dumps(dict(version=VERSION, files=rows), indent=2) + "\n")
 print(f"Verified {len(rows)} release JARs; manifest: {output}")
