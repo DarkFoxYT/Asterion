@@ -69,6 +69,9 @@ new ArmorItem(material, type, new net.krodark.asterion.port.compat.ItemPropertie
     }
     public static void initialize() {
         ItemGroupEvents.modifyEntriesEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Asterion.id("forging")))
-                .register(output -> SETS.forEach(set -> set.pieces().forEach(output::accept)));
+                .register(entries -> {
+                    net.minecraft.world.item.CreativeModeTab.Output output = entries;
+                    SETS.forEach(set -> set.pieces().forEach(output::accept));
+                });
     }
 }

@@ -461,13 +461,13 @@ public final class Asterion {
 .eyeHeight(2.35F * AsterionConfig.INSTANCE.minotaurScale)
 //?}
 
-                    .clientTrackingRange(16).build(null)
+                    .clientTrackingRange(16).build("asterion:minotaur")
     );
     private static final ResourceKey<EntityType<?>> MINOTAUR_AXE_KEY = ResourceKey.create(Registries.ENTITY_TYPE, id("minotaur_axe"));
     public static final EntityType<net.krodark.asterion.entity.MinotaurAxeEntity> MINOTAUR_AXE = AsterionRegistry.register(
             BuiltInRegistries.ENTITY_TYPE, MINOTAUR_AXE_KEY,
             net.minecraft.world.entity.EntityType.Builder.<net.krodark.asterion.entity.MinotaurAxeEntity>of(net.krodark.asterion.entity.MinotaurAxeEntity::new, MobCategory.MISC)
-                    .sized(1, 1).clientTrackingRange(16).updateInterval(1).build(null));
+                    .sized(1, 1).clientTrackingRange(16).updateInterval(1).build("asterion:minotaur_axe"));
     private static final ResourceKey<EntityType<?>> BOMBARDIER_BEETLE_KEY = ResourceKey.create(
             Registries.ENTITY_TYPE, id("bombadier_beetle"));
     private static final ResourceKey<EntityType<?>> RUNE_BEETLE_KEY = ResourceKey.create(Registries.ENTITY_TYPE, id("rune_beetle"));
@@ -478,7 +478,7 @@ public final class Asterion {
 //? if >=1.20.5 {
 .eyeHeight(.15F)
 //?}
-.clientTrackingRange(8).build(null));
+.clientTrackingRange(8).build("asterion:rune_beetle"));
     public static final EntityType<BombadierBeetleEntity> BOMBARDIER_BEETLE = AsterionRegistry.register(
             BuiltInRegistries.ENTITY_TYPE,
             BOMBARDIER_BEETLE_KEY,
@@ -488,7 +488,7 @@ public final class Asterion {
 .eyeHeight(0.3F)
 //?}
 .clientTrackingRange(10)
-                    .fireImmune().build(null)
+                    .fireImmune().build("asterion:bombadier_beetle")
     );
     private static final ResourceKey<EntityType<?>> CONSTRUCT_KEY = ResourceKey.create(
             Registries.ENTITY_TYPE, id("construct"));
@@ -501,7 +501,7 @@ public final class Asterion {
 .eyeHeight(1.75F)
 //?}
 .clientTrackingRange(10).fireImmune()
-                    .build(null));
+                    .build("asterion:construct"));
     private static final ResourceKey<EntityType<?>> QUEEN_BEETLE_KEY = ResourceKey.create(
             Registries.ENTITY_TYPE, id("queen_beetle"));
     public static final EntityType<QueenBeetleEntity> QUEEN_BEETLE = AsterionRegistry.register(
@@ -513,7 +513,7 @@ public final class Asterion {
 .eyeHeight(0.9F)
 //?}
 .clientTrackingRange(12)
-                    .build(null));
+                    .build("asterion:queen_beetle"));
     private static final ResourceKey<Item> CONSTRUCT_EGG_KEY = ResourceKey.create(
             Registries.ITEM, id("construct_spawn_egg"));
     @SuppressWarnings("deprecation") // Required by the shared Fabric/NeoForge registration path.
@@ -535,7 +535,7 @@ public final class Asterion {
 .eyeHeight(0.527F)
 //?}
 .clientTrackingRange(48)
-                    .build(null)
+                    .build("asterion:scarlet_centipede")
     );
     private static final ResourceKey<Item> SCARLET_CENTIPEDE_SPAWN_EGG_KEY = ResourceKey.create(
             Registries.ITEM, id("scarlet_centipede_spawn_egg"));

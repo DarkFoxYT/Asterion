@@ -89,14 +89,6 @@ sourceSets {
 }
 
 dependencies {
-    jarJar("org.sinytra.forgified-fabric-api:forgified-fabric-api:${rootProject.forgified_fabric_api_version}") {
-        transitive = false
-        version {
-            strictly "[${rootProject.forgified_fabric_api_version},0.117)"
-            prefer rootProject.forgified_fabric_api_version
-        }
-    }
-    implementation "org.sinytra.forgified-fabric-api:forgified-fabric-api:${rootProject.forgified_fabric_api_version}"
     implementation "software.bernie.geckolib:geckolib-neoforge-${rootProject.minecraft_version}:${rootProject.geckolib_version}"
     jarJar("software.bernie.geckolib:geckolib-neoforge-${rootProject.minecraft_version}:${rootProject.geckolib_version}") {
         transitive = false
@@ -297,3 +289,5 @@ apply from: rootProject.file("gradle/amnetic-neoforge.gradle")
 tasks.named('processResources').configure {
     doLast { delete file("${destinationDir}/data/asterion/dimension/asterion_dimension.json") }
 }
+
+apply from: rootProject.file('gradle/native-neoforge-adapters.gradle')

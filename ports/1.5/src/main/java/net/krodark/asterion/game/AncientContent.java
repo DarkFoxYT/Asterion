@@ -16,7 +16,7 @@ public final class AncientContent {
     private static final ResourceKey<EntityType<?>> KEY = ResourceKey.create(Registries.ENTITY_TYPE, Asterion.id("ancient_skeleton"));
     public static final EntityType<AncientSkeletonEntity> SKELETON = AsterionRegistry.register(BuiltInRegistries.ENTITY_TYPE, KEY,
             net.minecraft.world.entity.EntityType.Builder.of(AncientSkeletonEntity::new, MobCategory.MONSTER).sized(.6F, 1.99F)
-                    .clientTrackingRange(8).build(null));
+                    .clientTrackingRange(8).build("asterion:ancient_skeleton"));
     private static final ResourceKey<Item> EGG_KEY = ResourceKey.create(Registries.ITEM, Asterion.id("ancient_skeleton_spawn_egg"));
     @SuppressWarnings("deprecation") // Required by the shared Fabric/NeoForge registration path.
     public static final Item EGG = AsterionRegistry.register(BuiltInRegistries.ITEM, EGG_KEY,
@@ -50,6 +50,6 @@ public final class AncientContent {
         if (!AsterionRegistry.isDeferred())
             AsterionRegistry.registerAttributes(SKELETON, AncientSkeletonEntity.attributes());
         ItemGroupEvents.modifyEntriesEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Asterion.id("asterion")))
-                .register(output -> { output.accept(EGG); output.accept(ANCIENT_BONE); output.accept(MINOTAUR_HIDE); output.accept(MINOTAUR_TROPHY_ITEM); });
+                .register(entries -> { net.minecraft.world.item.CreativeModeTab.Output output = entries; output.accept(EGG); output.accept(ANCIENT_BONE); output.accept(MINOTAUR_HIDE); output.accept(MINOTAUR_TROPHY_ITEM); });
     }
 }

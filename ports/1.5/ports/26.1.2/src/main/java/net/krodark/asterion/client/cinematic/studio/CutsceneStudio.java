@@ -47,21 +47,37 @@ public final class CutsceneStudio {
     private static CameraType previousCamera;
     private CutsceneStudio() { }
 
+    private static void feedback(Object source, Component message) { reply(source,message,false); }
+    private static void error(Object source, Component message) { reply(source,message,true); }
+    private static void reply(Object source, Component message, boolean error) {
+        if (source instanceof net.minecraft.commands.CommandSourceStack nativeSource) {
+            if (error) nativeSource.sendFailure(message);
+            else nativeSource.sendSuccess(() -> message,false);
+            return;
+        }
+        try {
+            Class.forName("net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource")
+                    .getMethod(error ? "sendError" : "sendFeedback",Component.class).invoke(source,message);
+        } catch (ReflectiveOperationException failure) {
+            throw new IllegalStateException("Client command feedback failed",failure);
+        }
+    }
+
     public static void initialize() {
         ClientTickEvents.END_CLIENT_TICK.register(CutsceneStudio::tick);
         if (net.krodark.asterion.ForgeRuntime.isForge()) return;
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, access) -> dispatcher.register(literal("cutscene")
                 .then(literal("play").then(argument("file", StringArgumentType.word()).executes(context -> {
-                    try { play(StringArgumentType.getString(context, "file")); context.getSource().sendFeedback(Component.literal("Cutscene playing. /cutscene stop exits.")); return 1; }
-                    catch (Exception error) { context.getSource().sendError(Component.literal("Cutscene: " + error.getMessage())); return 0; }
+                    try { play(StringArgumentType.getString(context, "file")); feedback(context.getSource(),Component.literal("Cutscene playing. /cutscene stop exits.")); return 1; }
+                    catch (Exception error) { error(context.getSource(),Component.literal("Cutscene: " + error.getMessage())); return 0; }
                 })))
                 .then(literal("stop").executes(context -> { stop(); return 1; }))
                 .then(literal("reference").then(argument("name", StringArgumentType.word())
                         .then(argument("radius", IntegerArgumentType.integer(1, 24)).executes(context -> {
                             try {
                                 Path path = exportReference(StringArgumentType.getString(context, "name"), IntegerArgumentType.getInteger(context, "radius"));
-                                context.getSource().sendFeedback(Component.literal("World reference saved: " + path + ". Import it in Blockbench → Cutscene → World.")); return 1;
-                            } catch (Exception error) { context.getSource().sendError(Component.literal("Reference: " + error.getMessage())); return 0; }
+                                feedback(context.getSource(),Component.literal("World reference saved: " + path + ". Import it in Blockbench → Cutscene → World.")); return 1;
+                            } catch (Exception error) { error(context.getSource(),Component.literal("Reference: " + error.getMessage())); return 0; }
                         }))))
                 .then(literal("pause").executes(context -> { paused = true; return 1; }))
                 .then(literal("resume").executes(context -> { paused = false; return 1; }))

@@ -20,10 +20,6 @@ def neoLegacy = project.name == '1.20.1-neoforge'
 def forgeVersion = neoLegacy ? '47.1.106' : legacy ? '47.4.28' : '52.1.20'
 def geckolibVersion = legacy ? '4.8.2' : rootProject.geckolib_version
 def amneticJar = rootProject.file("libs/amnetic-forge-1.0-SNAPSHOT+${minecraftVersion}-forge.jar")
-def forgifiedJar = rootProject.file(legacy ? 'libs/forgified-fabric-api-1.20.1.jar' :
-        'libs/forgified-fabric-api-1.21.1-neoforge.jar')
-def extractedForgified = layout.buildDirectory.dir('forgified-api-compile')
-def remappedForgified = layout.buildDirectory.file('dev-remapped/forgified-fabric-api.jar')
 def remappedAmnetic = layout.buildDirectory.file('dev-remapped/amnetic.jar')
 def remappedGeckolib = layout.buildDirectory.file('dev-remapped/geckolib.jar')
 def pythonCommand = providers.gradleProperty('asterionPython')
@@ -33,26 +29,6 @@ configurations { geckolibDevOriginal { transitive = false } }
 def geckolibCoordinate = "software.bernie.geckolib:geckolib-forge-${minecraftVersion}:${geckolibVersion}"
 dependencies { geckolibDevOriginal geckolibCoordinate }
 
-// ModDev requires an explicit module identity for a local Jar-in-Jar file.
-def forgifiedApiEmbedJar = tasks.register('forgifiedApiEmbedJar', Jar) {
-    from(zipTree(forgifiedJar)) { exclude 'META-INF/MANIFEST.MF' }
-    archiveFileName = forgifiedJar.name
-    destinationDirectory = layout.buildDirectory.dir('forgified-embed')
-    preserveFileTimestamps = false
-    reproducibleFileOrder = true
-    manifest {
-        attributes('Automatic-Module-Name': 'org.sinytra.forgifiedfabricapi',
-                'Implementation-Version': '0.92.6+1.11.15+1.20.1')
-    }
-}
-def remapForgifiedDev = tasks.register('remapForgifiedDev', Exec) {
-    dependsOn tasks.named('createMinecraftArtifacts')
-    def mappings = layout.buildDirectory.file('moddev/artifacts/intermediateToNamed.srg')
-    inputs.files(forgifiedJar, mappings, rootProject.file('gradle/remap-nested-dev-jar.py'))
-    outputs.file(remappedForgified)
-    commandLine pythonCommand, rootProject.file('gradle/remap-nested-dev-jar.py'),
-            forgifiedJar, mappings.get().asFile, remappedForgified.get().asFile
-}
 def remapAmneticDev = tasks.register('remapAmneticDev', Exec) {
     dependsOn tasks.named('createMinecraftArtifacts')
     def mappings = layout.buildDirectory.file('moddev/artifacts/intermediateToNamed.srg')
@@ -162,12 +138,6 @@ sourceSets.main {
 }
 
 dependencies {
-    if (legacy) {
-        compileOnly files(forgifiedJar)
-        runtimeOnly files(remapForgifiedDev)
-    } else {
-        compileOnly files(forgifiedJar)
-    }
     compileOnly geckolibCoordinate
     runtimeOnly files(remapGeckolibDev)
     compileOnly files(amneticJar)
@@ -177,14 +147,17 @@ dependencies {
         transitive = false
         version { strictly "[${geckolibVersion}]" }
     }
-    if (legacy) jarJar files(forgifiedApiEmbedJar)
     compileOnly 'org.jspecify:jspecify:1.0.0'
     compileOnly 'io.github.llamalad7:mixinextras-common:0.4.1'
+    implementation 'io.github.llamalad7:mixinextras-forge:0.5.5'
+    jarJar('io.github.llamalad7:mixinextras-forge:0.5.5') {
+        version { strictly '[0.5.5,0.6)' }
+    }
     if (!legacy) runtimeOnly files(tasks.named('jar'))
 }
 
 tasks.matching { it.name in ['runClient', 'runServer'] }.configureEach {
-    dependsOn remapForgifiedDev, remapAmneticDev, remapGeckolibDev
+    dependsOn remapAmneticDev, remapGeckolibDev
 }
 
 if (!legacy) {
@@ -198,8 +171,7 @@ if (!legacy) {
 }
 
 tasks.withType(JavaCompile).configureEach {
-    dependsOn tasks.named('extractForgifiedApi'), tasks.named('patchForgeGeneratedSources')
-    classpath += files(fileTree(extractedForgified) { include '*.jar' })
+    dependsOn tasks.named('patchForgeGeneratedSources')
     options.encoding = 'UTF-8'
     options.release = legacy ? 17 : 21
     options.compilerArgs.addAll(['-Xmaxerrs', '100000'])
@@ -214,6 +186,7 @@ tasks.register('patchForgeGeneratedSources') {
             if (legacy) {
                 def patched = contents.replace('net.krodark.asterion.port.legacy.gecko.GeoItem', 'net.krodark.asterion.port.forge.gecko.GeoItem')
                         .replace('net.krodark.asterion.port.legacy.gecko.GeoRenderProvider', 'net.krodark.asterion.port.forge.gecko.GeoRenderProvider')
+                        .replace('net.krodark.asterion.port.legacy.EntityTypeBuilder.', 'net.minecraft.world.entity.EntityType.Builder.')
                 if (patched != contents) javaFile.setText(patched, 'UTF-8')
             }
             if (!legacy && contents.contains('net.krodark.asterion.port.legacy.gecko'))
@@ -256,18 +229,7 @@ tasks.register('patchForgeGeneratedSources') {
     }
 }
 
-tasks.register('extractForgifiedApi', Sync) {
-    from(zipTree(forgifiedJar)) {
-        include 'META-INF/jars/*.jar', 'META-INF/jarjar/*.jar'
-        eachFile { path = name }
-    }
-    into extractedForgified
-    includeEmptyDirs = false
-}
-
 processResources {
-    // The legacy Fabric biome bridge owns these registrations, including spawns.
-    if (legacy) exclude 'data/asterion/forge/biome_modifier/**'
     from(rootProject.file('src/main/resources/assets/asterion/geckolib/models')) {
         into 'assets/asterion/geo'
     }
@@ -312,7 +274,6 @@ processResources {
             }
     }
     doLast {
-        if (legacy) delete new File(destinationDir, 'data/asterion/forge/biome_modifier')
         def mixinFile = new File(destinationDir, 'asterion.mixins.json')
         def mixinConfig = new groovy.json.JsonSlurper().parse(mixinFile)
         mixinConfig.refmap = 'asterion.refmap.json'
@@ -345,3 +306,5 @@ tasks.matching { it.name == 'createMinecraftArtifacts' }.configureEach {
 
 // Match the Fabric/Quilt data layout and item formats on 1.20.1.
 apply from: rootProject.file('gradle/legacy-resources.gradle')
+
+apply from: rootProject.file("gradle/native-legacy.gradle")

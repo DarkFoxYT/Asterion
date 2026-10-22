@@ -24,6 +24,27 @@ public final class AsterionNeoForgeClientModEvents {
     private AsterionNeoForgeClientModEvents() {}
 
     @SubscribeEvent
+    public static void registerShaders(net.neoforged.neoforge.client.event.RegisterShadersEvent event) throws java.io.IOException {
+        net.fabricmc.fabric.api.client.rendering.v1.CoreShaderRegistrationCallback.fire((id, format, loaded) ->
+                event.registerShader(new net.minecraft.client.renderer.ShaderInstance(event.getResourceProvider(), id, format), loaded));
+    }
+
+    @SubscribeEvent
+    public static void registerHud(net.neoforged.neoforge.client.event.RegisterGuiLayersEvent event) {
+        event.registerAboveAll(Asterion.id("hud"), net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback::fire);
+    }
+
+    @SubscribeEvent
+    public static void registerKeys(net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent event) {
+        net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper.register(event);
+    }
+
+    @SubscribeEvent
+    public static void registerReloads(net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent event) {
+        net.fabricmc.fabric.api.resource.ResourceManagerHelper.registerClient(event);
+    }
+
+    @SubscribeEvent
     public static void dimensionEffects(net.neoforged.neoforge.client.event.RegisterDimensionSpecialEffectsEvent event) {
         event.register(Asterion.id("asterion"), PortClientFeatures.dimensionEffects());
     }

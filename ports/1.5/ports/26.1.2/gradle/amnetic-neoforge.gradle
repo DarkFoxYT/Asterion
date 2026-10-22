@@ -45,6 +45,7 @@ def nativeAmnetic = tasks.register('prepareNativeAmnetic') {
                         }
                         if (name == 'META-INF/neoforge.mods.toml') {
                             def text = new String(content, java.nio.charset.StandardCharsets.UTF_8)
+                            text = text.replaceAll(/(?s)\[\[dependencies\.amnetic\]\]\s*modId="fabric_api".*?(?=\[\[|\z)/, '')
                             text = text.replaceFirst(/(?m)^version="[^"]*"/, 'version="' + rootProject.amnetic_version + '"')
                             content = text.getBytes(java.nio.charset.StandardCharsets.UTF_8)
                         }

@@ -4,7 +4,7 @@ This build focuses on the Labyrinth: enter the Asterion dimension, explore the m
 
 ## Install
 
-Use the jar matching your Minecraft 26.1.2 loader: Fabric, Quilt, or NeoForge. Use Java 25 and a separate game profile. Fabric API and GeckoLib 5.5.2 are required on Fabric and Quilt. NeoForge needs its GeckoLib build; Forgified Fabric API is embedded in the jar. Amnetic is embedded in every mod jar, so do not add another copy. Use a new world for terrain feedback because existing chunks do not regenerate.
+Use the jar matching your Minecraft 26.1.2 loader: Fabric, Quilt, or NeoForge. Use Java 25 and a separate game profile. Fabric API and GeckoLib 5.5.2 are required on Fabric and Quilt. NeoForge includes its matching GeckoLib build and runs without Forgified Fabric API or Connector. Amnetic is embedded in every mod jar, so do not add another copy. Use a new world for terrain feedback because existing chunks do not regenerate.
 
 ## Beta test route
 

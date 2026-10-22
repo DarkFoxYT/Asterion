@@ -1,0 +1,18 @@
+def pythonCommand=providers.gradleProperty('asterionPython').orElse(providers.environmentVariable('ASTERION_PYTHON')).getOrElse('python')
+def nativeExec=services.get(org.gradle.process.ExecOperations)
+def adapters=tasks.register('generateNativeAdapters',Exec){
+    def output=layout.buildDirectory.dir('generated/native-adapters')
+    inputs.files(fileTree(rootProject.file('forge/src/1.21.1/java')),fileTree(rootProject.file('neoforge/src/main/java')),
+            rootProject.file('gradle/generate-native-legacy.py'))
+    outputs.dir(output)
+    commandLine pythonCommand,rootProject.file('gradle/generate-native-legacy.py'),output.get().asFile
+}
+sourceSets.main.java.srcDir(adapters)
+sourceSets.main.java.srcDir(rootProject.file('neolegacy/src/main/java'))
+sourceSets.main.java.exclude 'net/krodark/asterion/port/forge/AsterionForge.java'
+sourceSets.main.java.exclude 'net/krodark/asterion/port/legacy/EntityTypeBuilder.java'
+// Keep optional Forgified installations from sharing our adapter packages.
+tasks.named('reobfJar',Jar).configure {
+    inputs.file(rootProject.file('gradle/isolate-native-api.py'))
+    doLast { nativeExec.exec {commandLine pythonCommand,rootProject.file('gradle/isolate-native-api.py'),archiveFile.get().asFile} }
+}

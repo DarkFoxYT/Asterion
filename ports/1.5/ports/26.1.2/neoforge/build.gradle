@@ -75,13 +75,6 @@ configurations {
 }
 
 dependencies {
-    implementation "org.sinytra.forgified-fabric-api:forgified-fabric-api:${rootProject.forgified_fabric_api_version}"
-    jarJar("org.sinytra.forgified-fabric-api:forgified-fabric-api:${rootProject.forgified_fabric_api_version}") {
-        version {
-            strictly "[${rootProject.forgified_fabric_api_version},0.156)"
-            prefer rootProject.forgified_fabric_api_version
-        }
-    }
     implementation "com.geckolib:geckolib-neoforge-${rootProject.minecraft_version}:${rootProject.geckolib_version}"
     jarJar("com.geckolib:geckolib-neoforge-${rootProject.minecraft_version}:${rootProject.geckolib_version}") {
         transitive = false
@@ -216,3 +209,5 @@ tasks.withType(JavaExec).configureEach {
         }
     }
 }
+
+apply from: rootProject.file("gradle/native-neoforge.gradle")

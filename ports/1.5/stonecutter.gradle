@@ -106,6 +106,8 @@ tasks.register('build26_1_2', Exec) {
     commandLine wrapper + ['--no-daemon'] + targets
     if (gradle.startParameter.offline) args '--offline'
     if (project.hasProperty('asterionPython')) args "-PasterionPython=${project.property('asterionPython')}"
+    if (project.hasProperty('org.gradle.java.installations.paths'))
+        args "-Porg.gradle.java.installations.paths=${project.property('org.gradle.java.installations.paths')}"
 }
 
 tasks.register('stage26_1_2', Sync) {

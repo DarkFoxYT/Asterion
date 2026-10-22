@@ -30,13 +30,6 @@ ordering="NONE"
 side="BOTH"
 
 [[dependencies.asterion]]
-modId="fabric_api"
-type="required"
-versionRange="*"
-ordering="NONE"
-side="BOTH"
-
-[[dependencies.asterion]]
 modId="geckolib"
 type="required"
 versionRange="[5.5.2,)"

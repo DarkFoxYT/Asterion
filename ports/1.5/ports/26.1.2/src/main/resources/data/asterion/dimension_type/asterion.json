@@ -15,6 +15,7 @@
     },
     "minecraft:gameplay/respawn_anchor_works": false,
     "minecraft:visual/ambient_light_color": "#181818",
+    "minecraft:visual/cloud_color": "#00000000",
     "minecraft:visual/fog_color": "#000000",
     "minecraft:visual/sky_color": "#000000",
     "minecraft:visual/sky_light_color": "#202020",

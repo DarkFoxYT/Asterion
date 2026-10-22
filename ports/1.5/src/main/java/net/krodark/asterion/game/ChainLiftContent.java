@@ -54,7 +54,7 @@ public final class ChainLiftContent {
 
             net.minecraft.world.entity.EntityType.Builder.of(ChainLiftEntity::new, MobCategory.MISC).sized(3, .5F)
 
-                    .clientTrackingRange(16).updateInterval(1).fireImmune().build(null));
+                    .clientTrackingRange(16).updateInterval(1).fireImmune().build("asterion:chain_lift"));
 
     private static final ResourceKey<EntityType<?>> RUNE_KEY = ResourceKey.create(Registries.ENTITY_TYPE, Asterion.id("lift_call_rune"));
 
@@ -62,7 +62,7 @@ public final class ChainLiftContent {
 
             net.minecraft.world.entity.EntityType.Builder.of(net.krodark.asterion.entity.LiftCallRuneEntity::new, MobCategory.MISC).sized(.7F, .7F)
 
-                    .clientTrackingRange(10).updateInterval(20).fireImmune().build(null));
+                    .clientTrackingRange(10).updateInterval(20).fireImmune().build("asterion:lift_call_rune"));
 
     private ChainLiftContent() {}
 
@@ -88,7 +88,7 @@ public final class ChainLiftContent {
 
         ItemGroupEvents.modifyEntriesEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Asterion.id("asterion")))
 
-                .register(output -> { output.accept(ITEM); output.accept(PHYSICS_CHAIN_ITEM); });
+                .register(entries -> { net.minecraft.world.item.CreativeModeTab.Output output = entries; output.accept(ITEM); output.accept(PHYSICS_CHAIN_ITEM); });
 
 
     }

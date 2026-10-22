@@ -22,6 +22,9 @@ public final class AsterionNeoForge {
     private static final AtomicBoolean INITIALIZED = new AtomicBoolean();
 
     public AsterionNeoForge(IEventBus modBus) {
+        NativeBus.initialize(modBus);
+        modBus.addListener(NativeNetworking::register);
+        NativeLifecycle.register();
         modBus.addListener(AsterionNeoForge::initializeSharedContent);
         modBus.addListener(AsterionNeoForge::registerSpawnPlacements);
         if (FMLEnvironment.getDist() == Dist.CLIENT) AsterionNeoForgeClient.register(modBus);

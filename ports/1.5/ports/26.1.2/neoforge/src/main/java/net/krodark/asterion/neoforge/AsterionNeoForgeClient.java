@@ -14,6 +14,10 @@ final class AsterionNeoForgeClient {
 
     static void register(IEventBus modBus) {
         modBus.addListener(AsterionNeoForgeClient::registerFluidModels);
+        modBus.addListener(net.fabricmc.fabric.api.resource.ResourceManagerHelper::registerClient);
+        modBus.addListener(net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper::register);
+        modBus.addListener(net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry::register);
+        modBus.addListener(net.fabricmc.fabric.api.client.rendering.v1.ClientTooltipComponentCallback::register);
     }
 
     static void initializeSharedClient() {

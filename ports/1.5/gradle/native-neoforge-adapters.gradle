@@ -1,0 +1,51 @@
+// Reuse the shared API surface implemented by the native Forge port, with
+// NeoForge events. This is Asterion-owned adapter code, not Forgified/Connector.
+def adapters = tasks.register('generateNativeAdapters', Sync) {
+    inputs.file(rootProject.file('gradle/native-neoforge-adapters.gradle'))
+    from(rootProject.file('forge/src/1.21.1/java/net/fabricmc')) {
+        exclude 'fabric/api/event/Event.java', 'fabric/api/client/rendering/v1/WorldRenderEvents.java'
+        into 'net/fabricmc'
+        filter { line -> line
+                .replace('net.minecraftforge.common.MinecraftForge', 'net.neoforged.neoforge.common.NeoForge')
+                .replace('MinecraftForge.EVENT_BUS', 'NeoForge.EVENT_BUS')
+                .replace('net.minecraftforge.event.TickEvent', 'net.neoforged.neoforge.event.tick.ServerTickEvent')
+                .replace('TickEvent.ServerTickEvent.Post', 'ServerTickEvent.Post')
+                .replace('net.minecraftforge.event.', 'net.neoforged.neoforge.event.')
+                .replace('net.krodark.asterion.port.forge.ForgeNetworking', 'net.krodark.asterion.port.neoforge.NativeNetworking')
+                .replace('ForgeNetworking.', 'NativeNetworking.')
+                .replace('NativeNetworking.canSend(player);', 'NativeNetworking.canSend(player, type);')
+                .replace('NativeNetworking.canSendToServer();', 'NativeNetworking.canSendToServer(type);')
+                .replace('throw new UnsupportedOperationException("Use sendPacket(payload) on Forge");',
+                        'return new net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket(payload);')
+                .replace('LivingAttackEvent', 'LivingIncomingDamageEvent')
+                .replace('LivingDamageEvent event', 'LivingDamageEvent.Post event')
+                .replace('float amount = event.getAmount();', 'float amount = event.getNewDamage();')
+                .replaceAll('= ([A-Z_]+)::add;', '= new Event<>($1::add);')
+                .replace('return listener -> LISTENERS.computeIfAbsent(key, ignored -> new ArrayList<>()).add(listener);',
+                        'return new Event<>(listener -> LISTENERS.computeIfAbsent(key, ignored -> new ArrayList<>()).add(listener));')
+        }
+    }
+    into layout.buildDirectory.dir('generated/native-adapters')
+}
+sourceSets.main.java.srcDir(adapters)
+tasks.named('processResources').configure {
+    doLast {
+        def output=new File(destinationDir,'data/asterion/neoforge/biome_modifier')
+        output.mkdirs()
+        rootProject.fileTree('forge/src/main/resources/data/asterion/forge/biome_modifier').matching { include '*.json' }.files.each { source ->
+            new File(output,source.name).text=source.getText('UTF-8').replace('"forge:', '"neoforge:')
+        }
+    }
+}
+
+// The native runtime must coexist with Sodium and other mods that may bundle
+// Fabric API. Isolate both our compiled shared code and the renderer's links.
+def isolateScript = rootProject.file('gradle/isolate-native-api.py')
+def nativeExec = services.get(org.gradle.process.ExecOperations)
+tasks.withType(Jar).matching { it.name in ['jar', 'amneticNativeJar', 'packagedSmokeHarnessJar'] }.configureEach {
+    inputs.file(isolateScript)
+    doLast {
+        nativeExec.exec { commandLine providers.gradleProperty('asterionPython').orElse(providers.environmentVariable('ASTERION_PYTHON')).getOrElse('python'),
+                isolateScript, archiveFile.get().asFile }
+    }
+}

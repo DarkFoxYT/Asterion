@@ -39,6 +39,7 @@
     "SpawnPlacementsAccessor"
   ],
   "client": [
+    "LabyrinthCloudMixin",
     "AfterblowFirstPersonMixin",
     "RenderRemnantClientTickMixin",
     "RenderRemnantCommandMixin",

@@ -1,0 +1,40 @@
+def nativeExec = services.get(org.gradle.process.ExecOperations)
+def legacyRoot = rootProject.file('../..')
+def pythonCommand = providers.gradleProperty('asterionPython').orElse(providers.environmentVariable('ASTERION_PYTHON')).getOrElse('python')
+def adapters = tasks.register('generateNativeAdapters', Exec) {
+    inputs.files(fileTree(new File(legacyRoot, 'neoforge/src/main/java/net/fabricmc')),
+            fileTree(new File(legacyRoot, 'forge/src/1.21.1/java/net/fabricmc')),
+            fileTree(rootProject.file('forge/src/main/java/net/fabricmc')),
+            new File(legacyRoot, 'gradle/generate-native26.py'))
+    def target = layout.buildDirectory.dir('generated/native-adapters')
+    outputs.dir(target)
+    commandLine pythonCommand, new File(legacyRoot, 'gradle/generate-native26.py'), target.get().asFile
+}
+sourceSets.main.java.srcDir(adapters)
+tasks.named('processResources').configure {
+    doLast {
+        def output=new File(destinationDir,'data/asterion/neoforge/biome_modifier')
+        output.mkdirs()
+        rootProject.fileTree('forge/src/main/resources/data/asterion/forge/biome_modifier').matching { include '*.json' }.files.each { source ->
+            new File(output,source.name).text=source.getText('UTF-8').replace('"forge:', '"neoforge:')
+        }
+    }
+}
+tasks.withType(JavaExec).configureEach {
+    ['shaderPackSmoke', 'shaderFramebufferSmoke', 'sodiumSmoke'].each { flag ->
+        if (project.hasProperty(flag)) systemProperty "asterion.${flag}", 'true'
+    }
+}
+def isolateScript = new File(legacyRoot, 'gradle/isolate-native-api.py')
+tasks.withType(Jar).matching { it.name in ['jar', 'packagedSmokeHarnessJar', 'polishHarnessJar', 'serverSmokeHarnessJar'] }.configureEach {
+    inputs.file(isolateScript)
+    doLast { nativeExec.exec { commandLine pythonCommand, isolateScript, archiveFile.get().asFile } }
+}
+tasks.named('prepareNativeAmnetic').configure {
+    inputs.file(isolateScript)
+    inputs.property('nativeStandaloneRevision', 1)
+    doLast {
+        def renderer = layout.buildDirectory.file("renderer/amnetic-neoforge-${rootProject.amnetic_version}.jar").get().asFile
+        nativeExec.exec { commandLine pythonCommand, isolateScript, renderer }
+    }
+}

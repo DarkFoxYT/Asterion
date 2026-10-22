@@ -35,7 +35,7 @@ public final class GameplayContent {
                     .sized(4.8F, 4.85F)
                     .fireImmune()
                     .clientTrackingRange(12)
-                    .build(null));
+                    .build("asterion:cursed_brazier"));
     @SuppressWarnings("deprecation") // Required by the shared Fabric/NeoForge registration path.
     public static final Item CURSED_BRAZIER_EGG = item("cursed_brazier_spawn_egg",
             p -> new SpawnEggItem(CURSED_BRAZIER, 0x27120F, 0xFF5C1A, p));
@@ -62,7 +62,7 @@ public final class GameplayContent {
         });
         if (!AsterionRegistry.isDeferred())
             AsterionRegistry.registerAttributes(CURSED_BRAZIER, CursedBrazierEntity.createAttributes());
-        ItemGroupEvents.modifyEntriesEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Asterion.id("asterion"))).register(output -> {
+        ItemGroupEvents.modifyEntriesEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Asterion.id("asterion"))).register(entries -> { net.minecraft.world.item.CreativeModeTab.Output output = entries;
             output.accept(SPEWER); output.accept(FIRE_BURST_TRAP);
             output.accept(EXPLOSIVE_SPAWNER); output.accept(REWARD_SPAWNER);
             output.accept(FLAMETHROWER); output.accept(CURSED_BRAZIER_EGG);

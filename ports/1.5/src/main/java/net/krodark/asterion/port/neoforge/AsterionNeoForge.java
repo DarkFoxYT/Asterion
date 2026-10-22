@@ -13,6 +13,10 @@ import java.util.List;
 @Mod(Asterion.MOD_ID)
 public final class AsterionNeoForge {
     public AsterionNeoForge(IEventBus modBus, net.neoforged.fml.ModContainer container) {
+        modBus.addListener(NativeNetworking::register);
+        modBus.addListener((net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent event) ->
+                net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents.fire(event));
+        NativeLifecycle.register();
         modBus.addListener(AsterionNeoForge::initializeAfterNeoForgeRegistries);
         modBus.addListener(AsterionNeoForge::registerSpawnPlacements);
         if (net.neoforged.fml.loading.FMLEnvironment.dist == net.neoforged.api.distmarker.Dist.CLIENT) {

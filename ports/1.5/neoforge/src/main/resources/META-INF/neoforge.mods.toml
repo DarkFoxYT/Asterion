@@ -43,11 +43,3 @@ type="required"
 versionRange="[${geckolib_version},)"
 ordering="AFTER"
 side="BOTH"
-
-[[dependencies.asterion]]
-modId="fabric_api"
-type="required"
-versionRange="[0.116.15,)"
-ordering="BEFORE"
-side="BOTH"
-

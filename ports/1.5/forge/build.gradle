@@ -32,6 +32,7 @@ def pythonCommand = providers.gradleProperty('asterionPython')
         .orElse(providers.environmentVariable('ASTERION_PYTHON')).getOrElse('python')
 
 def legacyMappings = project(':1.20.1-neoforge').layout.buildDirectory.file('moddev/artifacts/intermediateToNamed.srg')
+if (legacy) evaluationDependsOn(':1.20.1-neoforge')
 configurations { geckolibDevOriginal { transitive = false } }
 dependencies { geckolibDevOriginal "software.bernie.geckolib:geckolib-forge-${minecraftVersion}:${geckolibVersion}" }
 def remapForgifiedDev = tasks.register('remapForgifiedDev', Exec) {

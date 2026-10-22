@@ -35,6 +35,7 @@
     "RagdollUseGuardMixin"
   ],
   "client": [
+    "LabyrinthCloudMixin",
     "PortAfterblowFirstPersonMixin",
     "RenderRemnantClientTickMixin",
     "RenderRemnantCommandMixin",

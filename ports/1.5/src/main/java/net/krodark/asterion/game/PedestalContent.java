@@ -23,6 +23,9 @@ public final class PedestalContent {
     private PedestalContent() { }
     public static void initialize() {
         net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents.modifyEntriesEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Asterion.id("asterion")))
-                .register(output -> output.accept(ITEM));
+                .register(entries -> {
+                    CreativeModeTab.Output output = entries;
+                    output.accept(ITEM);
+                });
     }
 }
