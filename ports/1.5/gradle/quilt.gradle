@@ -25,7 +25,9 @@ dependencies {
         doFirst {
             workingDir.mkdirs()
             def original = fabricRun.get()
-            classpath = original.classpath.filter { !it.name.startsWith('fabric-loader-') } + configurations.quiltLoader
+            classpath = original.classpath.filter {
+                !it.name.startsWith('fabric-loader-') && !it.name.toLowerCase().startsWith('mixinextras-')
+            } + configurations.quiltLoader
             def config = rootProject.file(".gradle/loom-cache/projects/${project.name}/launch.cfg")
             def section = ''
             def launchArgs = []

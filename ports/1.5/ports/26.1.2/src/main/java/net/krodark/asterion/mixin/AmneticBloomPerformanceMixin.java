@@ -12,6 +12,11 @@ import org.spongepowered.asm.mixin.injection.At;
 
 @Mixin(value = BloomRenderer.class, remap = false)
 public abstract class AmneticBloomPerformanceMixin {
+    @org.spongepowered.asm.mixin.injection.Inject(method = "render", at = @At("HEAD"), cancellable = true)
+    private void asterion$externalBloom(org.spongepowered.asm.mixin.injection.callback.CallbackInfo callback) {
+        if (net.krodark.asterion.port.client.ShaderCompatibility.externalShadersActive()) callback.cancel();
+    }
+
     @WrapOperation(method = "renderSources", at = @At(value = "INVOKE",
             target = "Lcom/meekdev/amnetic/client/framebuffer/Framebuffer;blitColorFromMain()V"))
     private void asterion$skipUnusedSceneColor(Framebuffer target, Operation<Void> original) {

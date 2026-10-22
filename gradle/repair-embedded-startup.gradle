@@ -15,6 +15,14 @@ ext.repairEmbeddedStartup = { byte[] original, String name, byte[] windowPatch -
                 ZipEntry entry
                 while ((entry = input.nextEntry) != null) {
                     byte[] content = input.readAllBytes()
+                    if (archiveName.contains('amnetic-forge-') && archiveName.contains('1.20.1') && entry.name == 'amnetic.mixins.json') {
+                        def config = new groovy.json.JsonSlurper().parse(content)
+                        if (!config.refmap) {
+                            config.refmap = 'main.refmap.json'
+                            content = groovy.json.JsonOutput.toJson(config).getBytes('UTF-8')
+                            changed = true
+                        }
+                    }
                     if (assimp && (entry.name == 'module-info.class' || entry.name.endsWith('/module-info.class'))) {
                         changed = true
                         continue

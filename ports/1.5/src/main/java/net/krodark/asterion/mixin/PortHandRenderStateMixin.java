@@ -11,6 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class PortHandRenderStateMixin {
     @Inject(method = "renderHandsWithItems", at = @At("HEAD"))
     private void asterion$restoreHandState(CallbackInfo callback) {
+        if (net.krodark.asterion.port.client.ShaderCompatibility.externalShadersActive()) return;
         // Raw post-processing programs do not update vanilla's ShaderInstance cache.
         // Invalidate it before a hand material reuses the world's shader.
         // Fullscreen passes also bind their own VAO outside BufferUploader.

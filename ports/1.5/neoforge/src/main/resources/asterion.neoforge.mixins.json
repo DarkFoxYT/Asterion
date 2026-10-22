@@ -4,7 +4,8 @@
   "package": "net.krodark.asterion.port.neoforge.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "AsterionFluidTypeMixin"
+    "AsterionFluidTypeMixin",
+    "NativePayloadCodecMixin"
   ],
   "injectors": {
     "defaultRequire": 1

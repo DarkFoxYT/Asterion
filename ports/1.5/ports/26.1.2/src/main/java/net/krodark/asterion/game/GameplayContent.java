@@ -5,7 +5,7 @@ import net.krodark.asterion.block.*;
 import net.krodark.asterion.entity.CursedBrazierEntity;
 import net.krodark.asterion.network.IgniteGasPayload;
 import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
-import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
+import net.krodark.asterion.EntityAttributeRegistration;
 import net.fabricmc.fabric.api.event.lifecycle.v1.*;
 import net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents;
 import net.fabricmc.fabric.api.networking.v1.*;
@@ -55,7 +55,7 @@ public final class GameplayContent {
             if (entity.entityTags().contains(ChallengeDeaths.TAG) && entity.level() instanceof net.minecraft.server.level.ServerLevel level)
                 ChallengeDeaths.get(level).record(entity.getUUID());
         });
-        FabricDefaultAttributeRegistry.register(CURSED_BRAZIER, CursedBrazierEntity.createAttributes());
+        EntityAttributeRegistration.register(CURSED_BRAZIER, CursedBrazierEntity.createAttributes());
         CreativeModeTabEvents.modifyOutputEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Asterion.id("asterion"))).register(output -> {
             output.accept(SPEWER); output.accept(FIRE_BURST_TRAP);
             output.accept(EXPLOSIVE_SPAWNER); output.accept(REWARD_SPAWNER);

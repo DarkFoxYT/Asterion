@@ -41,6 +41,7 @@ public final class AsterionNeoForge {
                 .map(MappedRegistry.class::cast)
                 .toList();
         registries.forEach(registry -> registry.unfreeze(false));
+        net.krodark.asterion.EntityAttributeRegistration.setRegistrar(event::put);
         try {
             new Asterion().onInitialize();
             if (FMLEnvironment.getDist() == Dist.CLIENT) AsterionNeoForgeClient.initializeSharedClient();
@@ -48,6 +49,8 @@ public final class AsterionNeoForge {
             System.err.println("Asterion NeoForge bootstrap failed:");
             error.printStackTrace(System.err);
             throw error;
+        } finally {
+            net.krodark.asterion.EntityAttributeRegistration.setRegistrar(null);
         }
     }
 

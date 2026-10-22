@@ -10,6 +10,11 @@ import org.spongepowered.asm.mixin.injection.At;
 
 @Mixin(value = BloomRenderer.class, remap = false)
 public abstract class AmneticBloomPerformanceMixin {
+    @org.spongepowered.asm.mixin.injection.Inject(method = "render", at = @At("HEAD"), cancellable = true)
+    private void asterion$externalBloom(org.spongepowered.asm.mixin.injection.callback.CallbackInfo callback) {
+        if (net.krodark.asterion.port.client.ShaderCompatibility.externalShadersActive()) callback.cancel();
+    }
+
     @WrapOperation(method = "render", at = @At(value = "INVOKE",
             target = "Lcom/meekdev/amnetic/client/bloom/BloomSettings;threshold()F"))
     private float asterion$skipUnrequestedSceneCapture(BloomSettings settings, Operation<Float> original) {

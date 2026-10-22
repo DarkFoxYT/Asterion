@@ -21,6 +21,7 @@ final class PolishSmoke {
             }
         });
         net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback.EVENT.register((g,t) -> {
+            if (ticks.getAsInt() > 365 && Boolean.getBoolean("asterion.shaderPackSmoke")) return;
             if (ticks.getAsInt()<180) return;
             if (bar==null) bar=new net.minecraft.client.gui.components.LerpingBossEvent(java.util.UUID.randomUUID(),
                     net.minecraft.network.chat.Component.literal("THE MINOTAUR"),.65F,
@@ -39,6 +40,7 @@ final class PolishSmoke {
         throw new AssertionError(name);
     }
     static void tick(Minecraft client,int tick) {
+        if (tick > 365 && Boolean.getBoolean("asterion.shaderPackSmoke")) return;
         var boss=client.level.getEntitiesOfClass(MinotaurEntity.class,client.player.getBoundingBox().inflate(30)).stream().findFirst().orElse(null);
         if(boss==null)throw new AssertionError("Missing Minotaur fixture");
         data(boss,"DATA_PHASE",ordinal("BehaviorPhase","BOSS"));
@@ -168,7 +170,8 @@ final class PolishSmoke {
         if(tick==365) {
             ClientSmokeTest.verifyGraphicsAndTaa();
             Asterion.LOGGER.info("ASTERION_POLISH PASSED: GUI alpha masks, worn gear scaling, held/released player anchors, animated body picking, ragdoll item-use rejection, corpse rendering");
-            client.stop();
+            if (Boolean.getBoolean("asterion.shaderPackSmoke")) ShaderDimensionRegression.leaveLabyrinth(client);
+            else client.stop();
         }
     }
     private static void snapshot(Minecraft c,String name){pendingSnapshot=name;}

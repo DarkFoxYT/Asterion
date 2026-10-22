@@ -94,6 +94,7 @@ sourceSets.main {
         if (legacy) srcDir rootProject.file('forge/src/main/java')
         srcDir rootProject.file("forge/src/${minecraftVersion}/java")
         if (legacy) srcDir rootProject.file('src/legacy/java')
+        if (legacy) exclude 'net/krodark/asterion/mixin/HeavyWaterPickupMixin.java'
         if (legacy) { exclude 'net/krodark/asterion/port/legacy/gecko/GeoItem.java'; exclude 'net/krodark/asterion/port/legacy/gecko/GeoRenderProvider.java' }
 
         if (!legacy) exclude 'net/krodark/asterion/port/fabric/**'
@@ -185,7 +186,7 @@ if (!legacy) {
 
 tasks.withType(JavaCompile).configureEach {
     dependsOn tasks.named('extractForgifiedApi'), tasks.named('patchForgeGeneratedSources')
-    classpath += files(fileTree(extractedForgified) { include '*.jar' })
+    classpath = (classpath ?: files()) + files(fileTree(extractedForgified) { include '*.jar' })
     options.encoding = 'UTF-8'
     options.release = legacy ? 17 : 21
     options.compilerArgs.addAll(['-Xmaxerrs', '100000'])
@@ -240,6 +241,9 @@ tasks.register('extractForgifiedApi', Sync) {
 }
 
 processResources {
+    // Legacy builds already register these through Forgified Fabric API.
+    // Adding the same placed feature twice creates a worldgen ordering cycle.
+    if (legacy) exclude 'data/asterion/forge/biome_modifier/**'
     from(rootProject.file('src/main/resources/assets/asterion/geckolib/models')) {
         into 'assets/asterion/geo'
     }
@@ -254,6 +258,7 @@ processResources {
     }
     filesMatching('asterion.mixins.json') {
             filter { line -> legacy ? line.replace('JAVA_21', 'JAVA_17') : line }
+            filter { line -> legacy ? line.replace('"HeavyWaterPickupMixin"', '"legacy.HeavyWaterPickupMixin"') : line }
             filter { line ->
                 def name = line.trim().replaceAll('[",]', '')
                 def absent = [
@@ -279,11 +284,19 @@ processResources {
 
                         'RagdollClientUseGuardMixin'
                 ]
-                if (legacy) absent.add('PortModelCubeAccessor')
                 absent.any { name == it || name.endsWith('.' + it) } ? '' : line
             }
     }
     doLast {
+        if (legacy) {
+            delete new File(destinationDir, 'data/asterion/forge/biome_modifier')
+            def mixinFile = new File(destinationDir, 'asterion.mixins.json')
+            def mixinConfig = new groovy.json.JsonSlurper().parse(mixinFile)
+            mixinConfig.refmap = 'asterion.refmap.json'
+            mixinConfig.plugin = 'net.krodark.asterion.mixin.LegacySodiumMixinPlugin'
+            mixinConfig.client = mixinConfig.client.collect { it == 'IrisLabyrinthPipelineMixin' ? 'LegacyIrisLabyrinthPipelineMixin' : it }
+            mixinFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(mixinConfig))
+        }
         def pack = new File(destinationDir, 'pack.mcmeta')
         def resourceFormat = legacy ? 15 : 34
         def dataFormat = legacy ? 15 : 48
@@ -320,6 +333,34 @@ jarJar.configure(geckolibEmbed) {
 }
 dependencies.add('jarJar', geckolibEmbed)
 
+// Forge 1.20.1 uses SRG names in production, including Mixin shadow fields.
+if (legacy) {
+    dependencies {
+        annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
+        annotationProcessor 'io.github.llamalad7:mixinextras-common:0.4.1'
+    }
+    renamer.mappings.from minecraft.dependency.toSrgFile
+    renamer.enableMixinRefmaps {
+        source(sourceSets.main, 'asterion')
+        config('asterion.mixins.json')
+        jar(tasks.named('jarJar', Jar))
+    }
+    def renamedRelease = renamer.classes('renameProductionJar', tasks.named('jarJar', Jar)) {
+        map.setFrom(renamer.mixin.generatedMappings.flatMap { it.output })
+        output = layout.buildDirectory.file('reobf/renamed-release.jar')
+    }
+    tasks.register('reobfJar', Jar) {
+        dependsOn renamedRelease
+        from({ zipTree(renamedRelease.get().output.get().asFile) }) {
+            exclude 'META-INF/MANIFEST.MF'
+        }
+        manifest { attributes 'MixinConfigs': 'asterion.mixins.json' }
+        archiveFileName = "${rootProject.archives_base_name}-${project.version}-forge-mc${minecraftVersion}.jar"
+        destinationDirectory = layout.buildDirectory.dir('reobf')
+    }
+    tasks.named('build') { dependsOn tasks.named('reobfJar') }
+}
+
 // Forge 1.21.1 uses native API adapters; 1.20.1 needs Forgified API.
 if (legacy) {
     def fabricApiEmbed = dependencies.create(files(forgifiedJar))
@@ -335,9 +376,9 @@ if (legacy) {
 tasks.register('stageForgeBuild', Sync) {
     group = 'distribution'
     description = 'Stage the self-contained Asterion Forge jar.'
-    dependsOn tasks.named('jarJar')
+    dependsOn tasks.named(legacy ? 'reobfJar' : 'jarJar')
     into rootProject.layout.buildDirectory.dir("ported-builds/${minecraftVersion}/forge")
-    from(tasks.named('jarJar')) { into 'mods' }
+    from(tasks.named(legacy ? 'reobfJar' : 'jarJar')) { into 'mods' }
     from(rootProject.file('docs/INSTALL-MODS.txt'))
 }
 

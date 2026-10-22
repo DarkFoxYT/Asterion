@@ -61,7 +61,11 @@ tasks.register('runProductionSmokeClient', productionType) {
     }
     if (project.hasProperty('quiltProductionSmoke')) {
         runDir = layout.buildDirectory.dir('run/quilt-production-smoke')
-        def libraries = classpath.files.findAll { !it.name.startsWith('fabric-loader-') }
+        // Quilt supplies its matching MixinExtras. Mixing Fabric's copy into
+        // the parent classpath can load classes from two different versions.
+        def libraries = classpath.files.findAll {
+            !it.name.startsWith('fabric-loader-') && !it.name.toLowerCase().startsWith('mixinextras-')
+        }
         classpath.setFrom(libraries, configurations.quiltLoader)
         mainClass.set('org.quiltmc.loader.impl.launch.knot.KnotClient')
         jvmArgs.add(providers.provider { '-Dloader.addMods=' + mods.files.collect { it.absolutePath }.join(File.pathSeparator) })

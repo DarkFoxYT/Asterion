@@ -9,6 +9,7 @@ public final class PolishClientSmoke {
     boolean started;
     final long deadline=System.nanoTime()+480_000_000_000L;
     public void onInitializeClient() {
+        if (Boolean.getBoolean("asterion.shaderPackSmoke")) ShaderDimensionRegression.register();
         if(Boolean.getBoolean("asterion.sodiumSmoke") && !net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("sodium"))
             throw new AssertionError("Sodium must be loaded for the compatibility scenario");
         if (Boolean.getBoolean("asterion.polishSmoke")) ClientTickEvents.END_CLIENT_TICK.register(this::tick);
@@ -33,6 +34,11 @@ public final class PolishClientSmoke {
         }
         if(c.level==null || c.player==null || c.getSingleplayerServer()==null)return;
         ticks++;
+        if (ticks > 290 && Boolean.getBoolean("asterion.shaderPackSmoke")) return;
+        if (ticks == 20 && Boolean.getBoolean("asterion.shaderPackSmoke")) ShaderDimensionRegression.checkPasses(false);
+        if (ticks == 140 && Boolean.getBoolean("asterion.shaderPackSmoke")) ShaderDimensionRegression.checkPasses(true);
+        if (ticks == 140 && Boolean.getBoolean("asterion.shaderFramebufferSmoke"))
+            ShaderFramebufferRegression.run();
         if(ticks==40)c.getSingleplayerServer().execute(()->{
             var s=c.getSingleplayerServer();var source=s.createCommandSourceStack();
             for(int x=-1;x<=0;x++)for(int z=-1;z<=0;z++)s.getLevel(Asterion.ASTERION_LEVEL).getChunk(x,z);
@@ -62,7 +68,8 @@ public final class PolishClientSmoke {
             if(net.krodark.asterion.client.ragdoll.DismembermentEngine.INSTANCE.isPlayerTumbling(c.player.getId()))
                 throw new AssertionError("26.1.2 ragdoll did not recover");
             Asterion.LOGGER.info("ASTERION_26_POLISH PASSED: world load, Minotaur renderer, procedural timelines, finite ragdoll physics and recovery");
-            c.stop();
+            if (Boolean.getBoolean("asterion.shaderPackSmoke")) ShaderDimensionRegression.leaveLabyrinth(c);
+            else c.stop();
         }
     }
     private static void verifyRagdoll(int owner) {

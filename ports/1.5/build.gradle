@@ -101,6 +101,8 @@ dependencies {
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
     modImplementation "software.bernie.geckolib:geckolib-fabric-${project.minecraft_version}:${project.geckolib_version}"
     include("net.fabricmc.fabric-api:fabric-api:${project.fabric_version}") { transitive = false }
+    // Quilt's bundled 0.5.4 cannot read Redirect annotations from Fabric Mixin 0.17.4.
+    include(implementation(annotationProcessor('io.github.llamalad7:mixinextras-fabric:0.5.5')))
     include("software.bernie.geckolib:geckolib-fabric-${project.minecraft_version}:${project.geckolib_version}") { transitive = false }
 
     modImplementation "com.terraformersmc:modmenu:${project.modmenu_version}"
@@ -501,4 +503,11 @@ apply from: rootProject.file('gradle/production-smoke.gradle')
 // Remove the retired dimension resource from incremental resource outputs.
 tasks.named('processResources').configure {
     doLast { delete file("${destinationDir}/data/asterion/dimension/asterion_dimension.json") }
+    if (minecraft_version == '1.20.1') doLast {
+        def mixinFile = new File(destinationDir, 'asterion.mixins.json')
+        def config = new groovy.json.JsonSlurper().parse(mixinFile)
+        config.plugin = 'net.krodark.asterion.mixin.LegacySodiumMixinPlugin'
+        config.client = config.client.collect { it == 'IrisLabyrinthPipelineMixin' ? 'LegacyIrisLabyrinthPipelineMixin' : it }
+        mixinFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(config))
+    }
 }

@@ -104,11 +104,21 @@ legacyForge {
     mods { asterion { sourceSet sourceSets.main } }
 }
 
+dependencies {
+    annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
+    annotationProcessor 'io.github.llamalad7:mixinextras-common:0.4.1'
+}
+mixin {
+    add sourceSets.main, 'asterion.refmap.json'
+    config 'asterion.mixins.json'
+}
+
 sourceSets.main {
     java {
         if (legacy) srcDir rootProject.file('forge/src/main/java')
         srcDir rootProject.file("forge/src/${minecraftVersion}/java")
         if (legacy) srcDir rootProject.file('src/legacy/java')
+        if (legacy) exclude 'net/krodark/asterion/mixin/HeavyWaterPickupMixin.java'
         if (legacy) { exclude 'net/krodark/asterion/port/legacy/gecko/GeoItem.java'; exclude 'net/krodark/asterion/port/legacy/gecko/GeoRenderProvider.java' }
 
         if (!legacy) exclude 'net/krodark/asterion/port/fabric/**'
@@ -256,6 +266,8 @@ tasks.register('extractForgifiedApi', Sync) {
 }
 
 processResources {
+    // The legacy Fabric biome bridge owns these registrations, including spawns.
+    if (legacy) exclude 'data/asterion/forge/biome_modifier/**'
     from(rootProject.file('src/main/resources/assets/asterion/geckolib/models')) {
         into 'assets/asterion/geo'
     }
@@ -270,6 +282,7 @@ processResources {
     }
     filesMatching('asterion.mixins.json') {
             filter { line -> legacy ? line.replace('JAVA_21', 'JAVA_17') : line }
+            filter { line -> legacy ? line.replace('"HeavyWaterPickupMixin"', '"legacy.HeavyWaterPickupMixin"') : line }
             filter { line ->
                 def name = line.trim().replaceAll('[",]', '')
                 def absent = [
@@ -295,11 +308,17 @@ processResources {
 
                         'RagdollClientUseGuardMixin'
                 ]
-                if (legacy) absent.add('PortModelCubeAccessor')
                 absent.any { name == it || name.endsWith('.' + it) } ? '' : line
             }
     }
     doLast {
+        if (legacy) delete new File(destinationDir, 'data/asterion/forge/biome_modifier')
+        def mixinFile = new File(destinationDir, 'asterion.mixins.json')
+        def mixinConfig = new groovy.json.JsonSlurper().parse(mixinFile)
+        mixinConfig.refmap = 'asterion.refmap.json'
+        mixinConfig.plugin = 'net.krodark.asterion.mixin.LegacySodiumMixinPlugin'
+        mixinConfig.client = mixinConfig.client.collect { it == 'IrisLabyrinthPipelineMixin' ? 'LegacyIrisLabyrinthPipelineMixin' : it }
+        mixinFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(mixinConfig))
         def pack = new File(destinationDir, 'pack.mcmeta')
         def resourceFormat = legacy ? 15 : 34
         def dataFormat = legacy ? 15 : 48

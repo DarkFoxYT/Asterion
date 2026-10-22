@@ -34,6 +34,7 @@ public final class ClientSmokeTest implements ClientModInitializer {
             Asterion.LOGGER.info("ASTERION_SMOKE integrated renderer: no separate mod or preset editor");
         }
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+        if (Boolean.getBoolean("asterion.shaderPackSmoke")) ShaderDimensionRegression.register();
         BloomSmoke.register(() -> worldTicks);
         VineSmoke.register(() -> worldTicks);
         PolishSmoke.register(() -> worldTicks);
@@ -72,6 +73,14 @@ public final class ClientSmokeTest implements ClientModInitializer {
         }
         if (client.level == null || client.player == null || client.getSingleplayerServer() == null) return;
         worldTicks++;
+        if (worldTicks == 60 && Boolean.getBoolean("asterion.shaderPackSmoke"))
+            ShaderDimensionRegression.checkPasses(false);
+        if (worldTicks == 140 && Boolean.getBoolean("asterion.shaderPackSmoke"))
+            ShaderDimensionRegression.checkPasses(true);
+        if (worldTicks == 130 && Boolean.getBoolean("asterion.shaderFramebufferSmoke"))
+            screenshot(client, "shader-terrain");
+        if (worldTicks == 140 && Boolean.getBoolean("asterion.shaderFramebufferSmoke"))
+            ShaderFramebufferRegression.run();
         if((worldTicks>=130 && worldTicks<440 || worldTicks>=501) && !(client.screen instanceof InputShield)) client.setScreen(new InputShield());
         // The integrated server can fall behind the rendering thread during chunk work.
         // Wait for authoritative phase changes instead of assuming equal tick counts.
