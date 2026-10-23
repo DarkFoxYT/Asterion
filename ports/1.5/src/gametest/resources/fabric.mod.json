@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "name": "Asterion compatibility tests",
   "environment": "*",
+  "mixins": ["asterion-zoom-tests.mixins.json"],
   "entrypoints": {
     "fabric-gametest": [
       "net.krodark.asterion.test.CompatibilityGameTests"

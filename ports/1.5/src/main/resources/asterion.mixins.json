@@ -59,6 +59,8 @@
     "BossHealthOverlayAccessor",
     "PortLevelLoadingScreenMixin",
     "AmneticBloomPerformanceMixin",
+    "AmneticZoomFrameMixin",
+    "AmneticVanillaShaderCacheMixin",
     "AmneticMainFramebufferMixin",
     "AmneticGBufferFramebufferMixin",
     "IrisLabyrinthPipelineMixin",

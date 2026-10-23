@@ -1,4 +1,4 @@
-"""Audit every 1.5.7 distribution before uploading; uses Python's standard library."""
+"""Audit every 1.5.8 distribution before uploading; uses Python's standard library."""
 import argparse
 import hashlib
 import io
@@ -9,7 +9,7 @@ import struct
 import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
-VERSION = "1.5.7"
+VERSION = "1.5.8"
 rows = []
 parser = argparse.ArgumentParser()
 parser.add_argument('--minecraft', choices=('1.20.1', '1.21.1', '26.1.2'))
@@ -137,6 +137,10 @@ for mc, java_major in [("1.20.1", 61), ("1.21.1", 65), ("26.1.2", 69)]:
                     major = int.from_bytes(jar.read(name)[6:8], "big")
                     require(major <= java_major, f"{path.name}: {name} requires a newer Java runtime")
             config = json.loads(jar.read("asterion.mixins.json"))
+            require('AmneticZoomFrameMixin' in config.get('client', []),
+                    f'{path.name}: missing zoom frame/layer recovery')
+            require(('AmneticVanillaShaderCacheMixin' in config.get('client', [])) == (mc != '26.1.2'),
+                    f'{path.name}: wrong vanilla shader-cache recovery for this Minecraft version')
             if legacy_forge:
                 require('PortModelCubeAccessor' in config.get('client', []),
                         f'{path.name}: ragdoll model-cube accessor is disabled')

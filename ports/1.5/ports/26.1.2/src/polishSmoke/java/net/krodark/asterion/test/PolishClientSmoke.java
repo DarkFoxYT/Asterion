@@ -9,6 +9,7 @@ public final class PolishClientSmoke {
     boolean started;
     final long deadline=System.nanoTime()+480_000_000_000L;
     public void onInitializeClient() {
+        ZoomRenderingRegression.register();
         if (Boolean.getBoolean("asterion.shaderPackSmoke")) ShaderDimensionRegression.register();
         if(Boolean.getBoolean("asterion.sodiumSmoke") && !net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("sodium"))
             throw new AssertionError("Sodium must be loaded for the compatibility scenario");
@@ -34,6 +35,7 @@ public final class PolishClientSmoke {
         }
         if(c.level==null || c.player==null || c.getSingleplayerServer()==null)return;
         ticks++;
+        if (Boolean.getBoolean("asterion.zoomSmoke")) return;
         if (ticks > 290 && Boolean.getBoolean("asterion.shaderPackSmoke")) return;
         if (ticks == 20 && Boolean.getBoolean("asterion.shaderPackSmoke")) ShaderDimensionRegression.checkPasses(false);
         if (ticks == 140 && Boolean.getBoolean("asterion.shaderPackSmoke")) ShaderDimensionRegression.checkPasses(true);

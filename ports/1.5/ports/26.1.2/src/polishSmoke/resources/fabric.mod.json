@@ -1,1 +1,1 @@
-{"schemaVersion":1,"id":"asterion_polish_tests","version":"1.0.0","environment":"client","entrypoints":{"client":["net.krodark.asterion.test.FabricPolishEntrypoint"]}}
+{"schemaVersion":1,"id":"asterion_polish_tests","version":"1.0.0","environment":"client","mixins":["asterion-zoom-tests.mixins.json"],"entrypoints":{"client":["net.krodark.asterion.test.FabricPolishEntrypoint"]}}

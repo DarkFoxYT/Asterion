@@ -34,6 +34,7 @@ public final class ClientSmokeTest implements ClientModInitializer {
             Asterion.LOGGER.info("ASTERION_SMOKE integrated renderer: no separate mod or preset editor");
         }
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+        ZoomRenderingRegression.register();
         if (Boolean.getBoolean("asterion.shaderPackSmoke")) ShaderDimensionRegression.register();
         BloomSmoke.register(() -> worldTicks);
         VineSmoke.register(() -> worldTicks);

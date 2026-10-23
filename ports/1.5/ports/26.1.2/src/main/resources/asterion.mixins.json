@@ -70,6 +70,7 @@
     "AmneticEmissiveInstanceMixin",
     "AmneticDepthBlitMixin",
     "AmneticBloomPerformanceMixin",
+    "AmneticZoomFrameMixin",
     "AmneticMainFramebufferMixin",
     "AmneticGBufferFramebufferMixin",
     "IrisLabyrinthPipelineMixin",

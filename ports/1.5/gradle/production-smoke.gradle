@@ -51,6 +51,7 @@ tasks.register('runProductionSmokeClient', productionType) {
     if (project.hasProperty('vineSmoke')) jvmArgs.add('-Dasterion.vineSmoke=true')
     if (project.hasProperty('polishSmoke')) jvmArgs.add('-Dasterion.polishSmoke=true')
     if (project.hasProperty('weaponCombatSmoke')) jvmArgs.add('-Dasterion.weaponCombatSmoke=true')
+    if (project.hasProperty('zoomSmoke')) jvmArgs.add('-Dasterion.zoomSmoke=true')
     if (project.hasProperty('bloomSmoke')) jvmArgs.add('-Dasterion.bloomSmoke=true')
     if (project.hasProperty('atmosphereSmoke')) jvmArgs.add('-Dasterion.atmosphereSmoke=true')
     programArgs.addAll('--username', 'AsterionTest', '--accessToken', '0', '--version', minecraft_version)
