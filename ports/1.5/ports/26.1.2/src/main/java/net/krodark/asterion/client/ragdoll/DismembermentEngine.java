@@ -3857,6 +3857,21 @@ public final class DismembermentEngine {
     }
 
     public void clear() {
+        tickIncomingVelocities.clear();
+        tickCollidedParts.clear();
+        tickSupportedIslands.clear();
+        tickAnatomicalIslands.clear();
+        tickGroundedPlayerIslands.clear();
+        tickArmorLoads.clear();
+        tickActivePieces.clear();
+        tickSolverIndex.clear();
+        selfCollisionCandidates.clear();
+        selfCollisionBounds.clear();
+        tickIgnitedEntities.clear();
+        tickSubmergedEntities.clear();
+        tickCrematedEntities.clear();
+        collisionQueries.clear();
+        collisionQueryLevel = null;
         replayTime = Long.MIN_VALUE;
         replayPositions.clear();
         playerSkins.clear();

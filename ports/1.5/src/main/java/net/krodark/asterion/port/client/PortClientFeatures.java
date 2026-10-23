@@ -69,7 +69,7 @@ public final class PortClientFeatures {
         initializeNetworking();
         PortEmissiveConfig.load();
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STOPPING
-                .register(client -> PortTextureFrameCache.clearAll());
+                .register(client -> PortRenderCaches.clear());
         net.krodark.asterion.port.client.particle.AnimatedEmissiveParticle.initialize();
         net.krodark.asterion.port.client.particle.AsterionEmissiveParticles.initialize();
         net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents.START.register(context -> {
@@ -155,6 +155,12 @@ public final class PortClientFeatures {
     }
 
     public static void tick(Minecraft client) {
+        PortRenderCaches.tick(client.level);
+        PortWeaponRelease.tick(client.level);
+        PortWeaponTrails.tick(client.level);
+        PortWeaponChainAttachments.tick(client.level);
+        WeaponFollowThrough.tick(client.level);
+        net.krodark.asterion.port.client.ragdoll.MinotaurHandAttachment.tick(client.level);
         if(client.player!=null && net.krodark.asterion.entity.MinotaurEntity.isHeld(client.player)){
             client.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
             while(client.options.keyTogglePerspective.consumeClick()){}

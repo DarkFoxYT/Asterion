@@ -12,6 +12,11 @@ public abstract class PortRagdollRenderMixin {
     @WrapMethod(method="render")
     private void asterion$physicalBody(LivingEntity entity,float yaw,float partial,PoseStack poses,MultiBufferSource buffers,int light,Operation<Void> original) {
         if(PortRagdolls.isRagdolled(entity)) return;
+        // Only player attachments transform this stack; ordinary mobs use vanilla's own scope.
+        if (!(entity instanceof net.minecraft.world.entity.player.Player)) {
+            original.call(entity,yaw,partial,poses,buffers,light);
+            return;
+        }
         poses.pushPose();
         try {
         if (entity instanceof net.minecraft.world.entity.player.Player) {

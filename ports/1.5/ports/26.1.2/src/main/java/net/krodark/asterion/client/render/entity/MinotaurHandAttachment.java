@@ -12,6 +12,12 @@ public final class MinotaurHandAttachment {
     private record Anchor(Object level, long tick, Vec3 hand) { }
     private static final Map<Integer, Anchor> ANCHORS = new HashMap<>();
     private static final Map<Integer, Anchor> UP_ANCHORS = new HashMap<>();
+    public static void tick(net.minecraft.client.multiplayer.ClientLevel level) {
+        ANCHORS.values().removeIf(anchor -> anchor.level != level || level == null
+                || level.getGameTime() - anchor.tick > 2);
+        UP_ANCHORS.values().removeIf(anchor -> anchor.level != level || level == null
+                || level.getGameTime() - anchor.tick > 2);
+    }
     public static void captureUp(int playerId, Vec3 up) {
         var level = Minecraft.getInstance().level;
         if (level == null) return;

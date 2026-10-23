@@ -29,12 +29,25 @@ public final class PolishClientSmoke {
         }
         if (!started && c.screen instanceof TitleScreen && c.getOverlay()==null && ++title>20) {
             started=true;c.options.pauseOnLostFocus=false;c.options.renderDistance().set(4);
+            c.options.enableVsync().set(false);
+            c.options.framerateLimit().set(260);
+            c.options.inactivityFpsLimit().set(net.minecraft.client.InactivityFpsLimit.MINIMIZED);
+            c.getWindow().updateVsync(false);
             net.krodark.asterion.AsterionConfig.INSTANCE.cinematicsEnabled=false;
             var settings=new net.minecraft.world.level.LevelSettings("Procedural smoke",net.minecraft.world.level.GameType.CREATIVE,net.minecraft.world.level.LevelSettings.DifficultySettings.DEFAULT,true,net.minecraft.world.level.WorldDataConfiguration.DEFAULT);
             c.createWorldOpenFlows().createFreshLevel("procedural-"+System.currentTimeMillis(),settings,new net.minecraft.world.level.levelgen.WorldOptions(321L,false,false),net.minecraft.world.level.levelgen.presets.WorldPresets::createNormalWorldDimensions,new TitleScreen());
         }
         if(c.level==null || c.player==null || c.getSingleplayerServer()==null)return;
         ticks++;
+        if (Boolean.getBoolean("asterion.performanceSmoke")) {
+            if (!(c.screen instanceof PerformanceInputShield)) c.setScreen(new PerformanceInputShield());
+            PerformanceSmoke.tick(c, ticks);
+            return;
+        }
+        if (ticks == 30 && Boolean.getBoolean("asterion.cacheSmoke")) {
+            RenderCacheLifecycleRegression.run(c);
+            GpuCacheLifecycleRegression.run();
+        }
         if (Boolean.getBoolean("asterion.zoomSmoke")) return;
         if (ticks > 290 && Boolean.getBoolean("asterion.shaderPackSmoke")) return;
         if (ticks == 20 && Boolean.getBoolean("asterion.shaderPackSmoke")) ShaderDimensionRegression.checkPasses(false);
@@ -73,6 +86,11 @@ public final class PolishClientSmoke {
             if (Boolean.getBoolean("asterion.shaderPackSmoke")) ShaderDimensionRegression.leaveLabyrinth(c);
             else c.stop();
         }
+    }
+    private static final class PerformanceInputShield extends net.minecraft.client.gui.screens.Screen {
+        PerformanceInputShield() { super(net.minecraft.network.chat.Component.literal("Performance test")); }
+        @Override public boolean isPauseScreen() { return false; }
+        @Override public boolean shouldCloseOnEsc() { return false; }
     }
     private static void verifyRagdoll(int owner) {
         try {

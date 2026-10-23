@@ -1,4 +1,4 @@
-"""Audit every 1.5.8 distribution before uploading; uses Python's standard library."""
+"""Audit every 1.5.9 distribution before uploading; uses Python's standard library."""
 import argparse
 import hashlib
 import io
@@ -9,7 +9,7 @@ import struct
 import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
-VERSION = "1.5.8"
+VERSION = "1.5.9"
 rows = []
 parser = argparse.ArgumentParser()
 parser.add_argument('--minecraft', choices=('1.20.1', '1.21.1', '26.1.2'))
@@ -132,11 +132,20 @@ for mc, java_major in [("1.20.1", 61), ("1.21.1", 65), ("26.1.2", 69)]:
                         f'{path.name}: heavy-water interface handler must be public with a body')
             require(not any(n.startswith("net/krodark/asterion/test/") for n in names),
                     f"Test harness leaked into {path.name}")
+            require(not any(n.startswith('me/lucko/spark/') or '/spark-' in n.lower() for n in names),
+                    f'Spark profiler leaked into {path.name}')
+            require(b'spareCells' in jar.read('net/krodark/asterion/physics/VoxelCollisionCache.class'),
+                    f'{path.name}: missing bounded collision-storage reuse')
+            if mc == '26.1.2':
+                require(b'updateRecipes' in jar.read('net/krodark/asterion/client/render/ClientRenderCaches.class'),
+                        f'{path.name}: missing recipe-search world-retention fix')
             for name in names:
                 if name.startswith("net/krodark/asterion/") and name.endswith(".class"):
                     major = int.from_bytes(jar.read(name)[6:8], "big")
                     require(major <= java_major, f"{path.name}: {name} requires a newer Java runtime")
             config = json.loads(jar.read("asterion.mixins.json"))
+            for cleanup in ('AmneticLayerCleanupMixin', 'AmneticParticleContextAccessor', 'AmneticParticleContextCleanupMixin'):
+                require(cleanup in config.get('client', []), f'{path.name}: missing {cleanup}')
             require('AmneticZoomFrameMixin' in config.get('client', []),
                     f'{path.name}: missing zoom frame/layer recovery')
             require(('AmneticVanillaShaderCacheMixin' in config.get('client', [])) == (mc != '26.1.2'),

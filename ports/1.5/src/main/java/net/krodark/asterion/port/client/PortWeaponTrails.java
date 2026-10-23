@@ -6,13 +6,16 @@ final class PortWeaponTrails {
  private PortWeaponTrails(){}
  private static final java.util.Map<Long,HeldTrail> HELD = new java.util.HashMap<>();
  private static net.minecraft.client.multiplayer.ClientLevel world;
+ static void tick(net.minecraft.client.multiplayer.ClientLevel level){
+  if(world!=level){HELD.clear();world=level;}
+ }
  private static final class HeldTrail {
   final java.util.ArrayDeque<Vec3[]> samples = new java.util.ArrayDeque<>();
   double stamp = Double.NEGATIVE_INFINITY;
  }
  static void held(PoseStack poses,MultiBufferSource buffers,net.krodark.asterion.entity.MinotaurEntity boss,int side,float partial){
   var client=net.minecraft.client.Minecraft.getInstance();
-  if(world!=client.level){HELD.clear();world=client.level;}
+  tick(client.level);
   long key=((long)boss.getId()<<1)^(side>0?1L:0L);
   float strength=boss.swordTrailStrength(partial);
   if(strength<=.005F){HELD.remove(key);return;}

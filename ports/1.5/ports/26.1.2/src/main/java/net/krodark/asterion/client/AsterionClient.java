@@ -344,6 +344,7 @@ public final class AsterionClient implements ClientModInitializer {
     }
 
     private void tick(Minecraft client) {
+        net.krodark.asterion.client.render.entity.WeaponRenderState.tick(client.level);
         if (client.player != null && net.krodark.asterion.entity.MinotaurEntity.isHeld(client.player)) {
             client.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
             while (client.options.keyTogglePerspective.consumeClick()) { }

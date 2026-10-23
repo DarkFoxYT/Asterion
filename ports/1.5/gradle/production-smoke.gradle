@@ -51,6 +51,11 @@ tasks.register('runProductionSmokeClient', productionType) {
     if (project.hasProperty('vineSmoke')) jvmArgs.add('-Dasterion.vineSmoke=true')
     if (project.hasProperty('polishSmoke')) jvmArgs.add('-Dasterion.polishSmoke=true')
     if (project.hasProperty('weaponCombatSmoke')) jvmArgs.add('-Dasterion.weaponCombatSmoke=true')
+    if (project.hasProperty('performanceSmoke')) {
+        mods.from(rootProject.file('../../build/performance-fixtures/spark-' + (minecraft_version == '1.20.1' ? '1.10.53' : '1.10.109') + '-fabric.jar'))
+        jvmArgs.addAll('-Dasterion.performanceSmoke=true', '-Xmx8G',
+                '-XX:StartFlightRecording=filename=asterion-performance.jfr,settings=profile,dumponexit=true')
+    }
     if (project.hasProperty('zoomSmoke')) jvmArgs.add('-Dasterion.zoomSmoke=true')
     if (project.hasProperty('bloomSmoke')) jvmArgs.add('-Dasterion.bloomSmoke=true')
     if (project.hasProperty('atmosphereSmoke')) jvmArgs.add('-Dasterion.atmosphereSmoke=true')

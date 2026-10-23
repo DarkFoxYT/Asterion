@@ -22,8 +22,8 @@ public final class CentipedeCollision {
     public CentipedeCollision(Geometry geometry) { this.geometry = geometry; }
 
     public List<AABB> collect(AABB region) {
-        List<AABB> blocks = new ArrayList<>();
         if (!cacheFrame) {
+            List<AABB> blocks = new ArrayList<>();
             for (AABB box : geometry.boxes(region)) if (box.intersects(region)) blocks.add(box);
             return blocks;
         }

@@ -74,6 +74,11 @@ public final class ClientSmokeTest implements ClientModInitializer {
         }
         if (client.level == null || client.player == null || client.getSingleplayerServer() == null) return;
         worldTicks++;
+        if (Boolean.getBoolean("asterion.performanceSmoke")) {
+            if (!(client.screen instanceof InputShield)) client.setScreen(new InputShield());
+            PerformanceSmoke.tick(client, worldTicks);
+            return;
+        }
         if (worldTicks == 20) LayerVisibilityRegression.run(client);
         if (worldTicks == 22) ObeliskInventoryPreview.show(client);
         if (worldTicks == 28) ObeliskInventoryPreview.capture(client);

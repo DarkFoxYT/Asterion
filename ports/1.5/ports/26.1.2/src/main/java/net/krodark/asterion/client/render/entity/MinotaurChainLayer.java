@@ -26,14 +26,14 @@ public final class MinotaurChainLayer extends GeoRenderLayer<MinotaurEntity, Voi
     private static final RenderType MATERIAL = RenderTypes.entityCutout(Asterion.id("textures/block/mazesteel_chain.png"));
     private record Chain(Vec3 target, float ticks, int arm, boolean held, int owner, long time) {}
     private final java.util.Map<Integer,net.krodark.asterion.physics.TetherSimulation> tethers=new java.util.HashMap<>();
-    private net.minecraft.client.multiplayer.ClientLevel tetherLevel;
+    private java.lang.ref.WeakReference<net.minecraft.client.multiplayer.ClientLevel> tetherLevel = new java.lang.ref.WeakReference<>(null);
 
     public MinotaurChainLayer(MinotaurGeoRenderer renderer) { super(renderer); }
 
     @Override public void addRenderData(MinotaurEntity boss, Void ignored, EntityRenderState state, float partial) {
         if (!boss.isChainGrappleActive() && !boss.isPerformingGrab()) return;
         var level=net.minecraft.client.Minecraft.getInstance().level;
-        if (level!=tetherLevel) { tethers.clear(); tetherLevel=level; }
+        if (level!=tetherLevel.get()) { tethers.clear(); tetherLevel=new java.lang.ref.WeakReference<>(level); }
         if (tethers.size()>64) tethers.clear();
         var target = boss.level().getEntity(boss.grabTargetEntityId());
         float ticks = boss.bossAttackAnimationTicks() + partial;
@@ -68,8 +68,9 @@ public final class MinotaurChainLayer extends GeoRenderLayer<MinotaurEntity, Voi
             var tether=tethers.computeIfAbsent(chain.owner,ownerKey -> new net.krodark.asterion.physics.TetherSimulation());
             float partial=net.minecraft.client.Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
             Vec3[] points=tether.sample(start.add(camera),end.add(camera),slack,chain.time,partial,(from,to) -> {
-                if (tetherLevel==null) return to;
-                var hit=tetherLevel.clip(new net.minecraft.world.level.ClipContext(from,to,
+                var collisionLevel=tetherLevel.get();
+                if (collisionLevel==null) return to;
+                var hit=collisionLevel.clip(new net.minecraft.world.level.ClipContext(from,to,
                         net.minecraft.world.level.ClipContext.Block.COLLIDER,net.minecraft.world.level.ClipContext.Fluid.NONE,
                         net.minecraft.world.phys.shapes.CollisionContext.empty()));
                 return hit.getType()==net.minecraft.world.phys.HitResult.Type.MISS ? to

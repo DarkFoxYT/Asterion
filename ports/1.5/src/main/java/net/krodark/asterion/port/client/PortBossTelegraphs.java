@@ -58,6 +58,9 @@ public final class PortBossTelegraphs {
                 && a.kind() == b.kind() && a.arcRadians() == b.arcRadians() && a.halfWidth() == b.halfWidth();
     }
     public static void initialize() {
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (trackedLevel != client.level) { clear(); trackedLevel = client.level; }
+        });
         WorldRenderEvents.AFTER_ENTITIES.register(context -> {
             var client = Minecraft.getInstance();
             if (client.level != trackedLevel) { clear(); trackedLevel = client.level; }

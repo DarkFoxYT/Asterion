@@ -8,6 +8,10 @@ import java.util.Map;
 final class PortWeaponChainAttachments {
     private record Anchor(Object level, long tick, Vec3 point) { }
     private static final Map<Long, Anchor> HANDS = new HashMap<>();
+    static void tick(net.minecraft.client.multiplayer.ClientLevel level) {
+        HANDS.values().removeIf(anchor -> anchor.level != level || level == null
+                || level.getGameTime() - anchor.tick > 2);
+    }
     static void capture(int owner, int side, Vec3 point) {
         var level = Minecraft.getInstance().level;
         if (level == null) return;

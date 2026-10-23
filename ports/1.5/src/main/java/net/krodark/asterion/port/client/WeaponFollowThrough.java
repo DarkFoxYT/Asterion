@@ -13,11 +13,18 @@ final class WeaponFollowThrough {
         final Quaternionf hand = new Quaternionf();
         final Vector3f angle = new Vector3f(), velocity = new Vector3f();
         double age = Double.NaN;
+        long lastSeen;
+    }
+    private static Object world;
+    static void tick(net.minecraft.client.multiplayer.ClientLevel level) {
+        if (world != level) { SPRINGS.clear(); world = level; }
+        if (level != null) SPRINGS.values().removeIf(spring -> level.getGameTime() - spring.lastSeen > 100);
     }
     static void apply(PoseStack poses, int owner, int side, double age, boolean heavy) {
         if (owner < 0) return;
-        if (SPRINGS.size() > 256) SPRINGS.entrySet().removeIf(e -> age - e.getValue().age > 100);
         Spring spring = SPRINGS.computeIfAbsent(((long)owner << 2) | side, ignored -> new Spring());
+        var level = net.minecraft.client.Minecraft.getInstance().level;
+        if (level != null) spring.lastSeen = level.getGameTime();
         Quaternionf hand = poses.last().pose().getUnnormalizedRotation(new Quaternionf()).normalize();
         double elapsed = age - spring.age;
         if (!Double.isFinite(elapsed) || elapsed < 0 || elapsed > 4) {

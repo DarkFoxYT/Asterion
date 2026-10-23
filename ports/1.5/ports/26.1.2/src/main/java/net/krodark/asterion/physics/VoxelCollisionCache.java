@@ -8,13 +8,21 @@ import java.util.function.Function;
 public final class VoxelCollisionCache {
     private record Cell(int x, int y, int z) { }
     private final Map<Cell, List<AABB>> cells = new HashMap<>();
+    private final ArrayDeque<List<AABB>> spareCells = new ArrayDeque<>();
     private final Function<AABB, Iterable<AABB>> geometry;
     public VoxelCollisionCache(Function<AABB, Iterable<AABB>> geometry) { this.geometry = geometry; }
-    public void clear() { cells.clear(); }
+    public void clear() {
+        for (List<AABB> boxes : cells.values()) {
+            boxes.clear();
+            if (spareCells.size() < 512) spareCells.addLast(boxes);
+        }
+        cells.clear();
+    }
     private List<AABB> cell(Cell key) {
         List<AABB> existing = cells.get(key);
         if (existing != null) return existing;
-        List<AABB> result = new ArrayList<>();
+        List<AABB> result = spareCells.pollFirst();
+        if (result == null) result = new ArrayList<>();
         for (AABB box : geometry.apply(new AABB(key.x * 4, key.y * 4, key.z * 4,
                 key.x * 4 + 4, key.y * 4 + 4, key.z * 4 + 4))) result.add(box);
         if (cells.size() < 512) cells.put(key, result);

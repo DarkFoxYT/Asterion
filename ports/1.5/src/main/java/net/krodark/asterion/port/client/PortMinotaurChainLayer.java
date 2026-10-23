@@ -13,7 +13,7 @@ import software.bernie.geckolib.renderer.layer.GeoRenderLayer;
 final class PortMinotaurChainLayer extends GeoRenderLayer<MinotaurEntity> {
     private static final RenderType MATERIAL=RenderType.entityCutout(Asterion.id("textures/block/mazesteel_chain.png"));
     private final java.util.Map<Integer,net.krodark.asterion.physics.TetherSimulation> tethers=new java.util.HashMap<>();
-    private net.minecraft.client.multiplayer.ClientLevel tetherLevel;
+    private java.lang.ref.WeakReference<net.minecraft.client.multiplayer.ClientLevel> tetherLevel = new java.lang.ref.WeakReference<>(null);
     PortMinotaurChainLayer(PortMinotaurRenderer renderer){super(renderer);}
     @Override public void renderForBone(PoseStack poses,MinotaurEntity boss,GeoBone bone,RenderType type,MultiBufferSource buffers,VertexConsumer buffer,float partial,int light,int overlay) {
         int arm=boss.reachArmSide();
@@ -38,7 +38,7 @@ final class PortMinotaurChainLayer extends GeoRenderLayer<MinotaurEntity> {
             net.krodark.asterion.port.client.ragdoll.MinotaurHandAttachment.capture(boss.heldPlayerId(),start.add(camera));
             net.krodark.asterion.port.client.ragdoll.MinotaurHandAttachment.captureUp(boss.heldPlayerId(),new Vec3(upPoint.x,upPoint.y,upPoint.z).add(camera));
         }
-        if (tetherLevel!=Minecraft.getInstance().level) { tethers.clear(); tetherLevel=Minecraft.getInstance().level; }
+        if (tetherLevel.get()!=Minecraft.getInstance().level) { tethers.clear(); tetherLevel=new java.lang.ref.WeakReference<>(Minecraft.getInstance().level); }
         if (tethers.size()>64) tethers.clear();
         if(!boss.isChainGrappleActive()&&!boss.isPerformingGrab()){tethers.remove(boss.getId());return;}
         var target=boss.level().getEntity(boss.grabTargetEntityId());
@@ -51,8 +51,9 @@ final class PortMinotaurChainLayer extends GeoRenderLayer<MinotaurEntity> {
         double slack=Math.min(1.3,length*.09)*Mth.clamp(Math.abs(ticks-25)/7,.06F,1);
         var tether=tethers.computeIfAbsent(boss.getId(),owner -> new net.krodark.asterion.physics.TetherSimulation());
         Vec3[] points=tether.sample(start.add(camera),end.add(camera),slack,boss.level().getGameTime(),partial,(from,to) -> {
-            if (tetherLevel==null) return to;
-            var hit=tetherLevel.clip(new net.minecraft.world.level.ClipContext(from,to,
+            var collisionLevel=tetherLevel.get();
+            if (collisionLevel==null) return to;
+            var hit=collisionLevel.clip(new net.minecraft.world.level.ClipContext(from,to,
                     net.minecraft.world.level.ClipContext.Block.COLLIDER,net.minecraft.world.level.ClipContext.Fluid.NONE,boss));
             return hit.getType()==net.minecraft.world.phys.HitResult.Type.MISS ? to
                     : hit.getLocation().add(Vec3.atLowerCornerOf(hit.getDirection().getNormal()).scale(.04));

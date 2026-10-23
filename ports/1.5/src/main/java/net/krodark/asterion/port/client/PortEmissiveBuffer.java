@@ -15,6 +15,7 @@ public final class PortEmissiveBuffer extends RenderType {
     }
 
     private static final java.util.Map<ResourceLocation, RenderType> TYPES = new java.util.HashMap<>();
+    static void clearCaches() { TYPES.clear(); }
     private PortEmissiveBuffer() {
         super("asterion_emission", com.mojang.blaze3d.vertex.DefaultVertexFormat.NEW_ENTITY,
                 com.mojang.blaze3d.vertex.VertexFormat.Mode.QUADS, 1536, false, true, () -> {}, () -> {});

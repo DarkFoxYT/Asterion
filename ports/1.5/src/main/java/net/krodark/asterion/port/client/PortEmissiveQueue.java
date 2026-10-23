@@ -141,6 +141,19 @@ final class PortEmissiveQueue {
         world = client.level;
     }
 
+    static void clearCaches() {
+        resetFrame();
+        POOL.clear();
+        BOUNDS.clear();
+        MATERIALS.clear();
+        collecting = false;
+        world = null;
+        if (emissiveBatchVao != 0) {
+            org.lwjgl.opengl.GL30.glDeleteVertexArrays(emissiveBatchVao);
+            emissiveBatchVao = 0;
+        }
+    }
+
     private static void resetFrame() {
         for (int i = 0; i < count; i++) POOL.get(i).release();
         count = 0;

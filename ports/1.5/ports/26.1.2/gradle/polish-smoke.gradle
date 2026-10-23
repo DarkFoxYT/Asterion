@@ -24,6 +24,13 @@ if (project.name.endsWith('-fabric')) {
         runDir = layout.buildDirectory.dir('run/production-polish')
         javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
         jvmArgs.addAll('-Dasterion.polishSmoke=true', '-Damnetic.opengl.debug=true', '-Dfabric.noGui=true')
+        if (project.hasProperty('performanceSmoke')) {
+            mods.from(rootProject.file('../../../../build/performance-fixtures/spark-1.10.187-fabric.jar'))
+            jvmArgs.addAll('-Dasterion.performanceSmoke=true', '-Xmx8G',
+                    '-XX:StartFlightRecording=filename=asterion-performance.jfr,settings=profile,dumponexit=true')
+        }
+        if (project.hasProperty('cacheSmoke')) jvmArgs.add('-Dasterion.cacheSmoke=true')
+        if (project.hasProperty('retentionSmoke')) jvmArgs.add('-Dasterion.retentionSmoke=true')
         if (project.hasProperty('zoomSmoke')) jvmArgs.add('-Dasterion.zoomSmoke=true')
         programArgs.addAll('--username', 'AsterionTest', '--accessToken', '0', '--version', '26.1.2')
         doFirst {
@@ -56,4 +63,3 @@ if (project.name.endsWith('-quilt')) {
     }
     tasks.named('prepareQuiltRunMods', Sync).configure { from harness }
 }
-
