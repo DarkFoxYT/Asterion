@@ -4,7 +4,7 @@ This patch targets the shared rendering paths used by zoom mods, with no optiona
 
 Validated on 23 October 2026. The 16 required game tests also pass on both Minecraft 1.20.1 and 1.21.1.
 
-All twelve Fabric, Quilt, Forge and NeoForge distributions build and pass `ports/1.5/gradle/verify-release.py`. The audit checks version metadata, required Mixins and their classes, native dependencies, supported Java versions, nested renderer repairs and absence of test classes. SHA-256 values are saved in `ports/1.5/build/release-1.5.8-manifest.json`; local JARs are in `modbuilds`. These builds have not been uploaded to CurseForge.
+All twelve Fabric, Quilt, Forge and NeoForge distributions build and pass `ports/1.5/gradle/verify-release.py`. The audit checks version metadata, required Mixins and their classes, native dependencies, supported Java versions, nested renderer repairs and absence of test classes. SHA-256 values are saved in `ports/1.5/build/release-1.5.8-manifest.json`; local JARs are in `modbuilds`. All ten unique release files were uploaded to CurseForge, covering all twelve distributions.
 
 - Reproduced the shader-cache failure using the published 1.5.7 Fabric/Quilt 1.21.1 JAR (CurseForge file 9293111, SHA-256 `667738c9ccbb3da7d0dfdd7cc78f330213733524e673d07b1dae7dc063f025d2`). After an Amnetic fullscreen pass, reapplying vanilla's previously used shader leaves the GL program unbound when hand cleanup is skipped. The regression fails on that original artifact and passes with the patch.
 - Packaged 1.21.1 client with Just Zoom 3.0.1 and Konkrete 1.9.9: the real Just Zoom key mapping activates zoom. Repeated FOV changes and hand cancellation run for 120 world frames; 63 interrupted hand layers recover, subsequent frames retain no layer redirect, vanilla's shader rebinds, and no GL debug errors occur.
@@ -24,3 +24,22 @@ Runtime logs (workspace-relative):
 - `ports/1.5/build/release-1.5.8-audit.log`
 
 The test Mixins and helper classes belong to opt-in test source sets and must not ship in release JARs. The release audit verifies that exclusion and requires the correct zoom and shader-cache Mixins for every supported distribution.
+
+## CurseForge upload receipts
+
+All ten files were received on 23 October 2026. Their saved changelogs, Minecraft versions, loaders, Java versions and client/server tags were verified in the author dashboard. Files are configured to publish automatically after approval. At verification, nine were approved and the final Fabric/Quilt 1.20.1 file was processing.
+
+| Minecraft | Loaders | File | Status at verification |
+| --- | --- | --- | --- |
+| 1.20.1 | Fabric / Quilt | [9296987](https://authors.curseforge.com/#/projects/1671346/files/9296987) | Processing File |
+| 1.20.1 | Forge | [9296840](https://authors.curseforge.com/#/projects/1671346/files/9296840) | Approved |
+| 1.20.1 | NeoForge | [9296715](https://authors.curseforge.com/#/projects/1671346/files/9296715) | Approved |
+| 1.21.1 | Fabric / Quilt | [9296582](https://authors.curseforge.com/#/projects/1671346/files/9296582) | Approved |
+| 1.21.1 | Forge | [9296480](https://authors.curseforge.com/#/projects/1671346/files/9296480) | Approved |
+| 1.21.1 | NeoForge | [9296364](https://authors.curseforge.com/#/projects/1671346/files/9296364) | Approved |
+| 26.1.2 | Fabric | [9296257](https://authors.curseforge.com/#/projects/1671346/files/9296257) | Approved |
+| 26.1.2 | Quilt | [9296128](https://authors.curseforge.com/#/projects/1671346/files/9296128) | Approved |
+| 26.1.2 | Forge | [9295980](https://authors.curseforge.com/#/projects/1671346/files/9295980) | Approved |
+| 26.1.2 | NeoForge | [9295839](https://authors.curseforge.com/#/projects/1671346/files/9295839) | Approved |
+
+Machine-readable file IDs and local release SHA-256 hashes are saved in `ports/1.5/build/curseforge/publication-receipt-1.5.8.json`.
