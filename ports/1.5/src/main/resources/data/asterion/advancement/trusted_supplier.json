@@ -7,7 +7,7 @@
   },
   "display": {
     "icon": {
-      "id": "asterion:charged_respawn_rune"
+      "id": "asterion:respawn_obelisk"
     },
     "title": {
       "translate": "advancement.asterion.trusted_supplier.title"

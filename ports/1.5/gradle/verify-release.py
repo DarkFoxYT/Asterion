@@ -1,4 +1,4 @@
-"""Audit every 1.5.6 distribution before uploading; uses Python's standard library."""
+"""Audit every 1.5.7 distribution before uploading; uses Python's standard library."""
 import argparse
 import hashlib
 import io
@@ -9,7 +9,7 @@ import struct
 import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
-VERSION = "1.5.6"
+VERSION = "1.5.7"
 rows = []
 parser = argparse.ArgumentParser()
 parser.add_argument('--minecraft', choices=('1.20.1', '1.21.1', '26.1.2'))
@@ -60,6 +60,9 @@ def class_members(data):
 
 def inspect_nested(archive, label):
     for name in archive.namelist():
+        if name == 'com/meekdev/amnetic/mixin/LivingEntityRendererMixin.class':
+            require(b'injection/Redirect' not in archive.read(name),
+                    f'{label}: exclusive Amnetic layer redirect still conflicts with other renderer mods')
         if name.endswith("WindowGlContextMixin.class"):
             code = archive.read(name)
             require(b"WrapOperation" in code and b"injection/Redirect" not in code,
@@ -68,6 +71,8 @@ def inspect_nested(archive, label):
             continue
         with zipfile.ZipFile(io.BytesIO(archive.read(name))) as nested:
             if 'amnetic-forge-' in name and '1.20.1' in name:
+                require(b'MixinConfigs: amnetic.mixins.json' in nested.read('META-INF/MANIFEST.MF'),
+                        f'{label}/{name}: legacy renderer mixins are not registered')
                 config = json.loads(nested.read('amnetic.mixins.json'))
                 require(config.get('refmap') in nested.namelist(),
                         f'{label}/{name}: legacy renderer reference map is not enabled')
@@ -88,6 +93,21 @@ for mc, java_major in [("1.20.1", 61), ("1.21.1", 65), ("26.1.2", 69)]:
         with zipfile.ZipFile(path) as jar:
             require(jar.testzip() is None, f"Bad ZIP checksums: {path.name}")
             names = set(jar.namelist())
+            if loader == 'forge' and mc != '1.20.1':
+                require('net/fabricmc/fabric/api/networking/v1/PlayerLookup.class' in names,
+                        f'{path.name}: native player-tracking adapter is missing')
+            require('net/krodark/asterion/item/SickenedTwinbladesItem.class' not in names,
+                    f'{path.name}: retired weapon implementation is still packaged')
+            combat = jar.read('net/krodark/asterion/game/WeaponCombatSystem.class')
+            require(b'updateSpeed' not in combat and b'sickened_twinblades_combo_speed' not in combat,
+                    f'{path.name}: retired combo/modifier loop is still packaged')
+            model = json.loads(jar.read('assets/asterion/models/item/respawn_obelisk.json'))
+            require(len(model.get('elements', [])) == 2
+                    and model.get('textures', {}).get('obelisk') == 'asterion:block/respawn_obelisk',
+                    f'{path.name}: obelisk GUI still uses the approximate block model')
+            catalog = json.loads(jar.read('data/asterion/maze_structures.json'))
+            require(not any(entry['template'] == 'asterion:rune_gate' for entry in catalog['templates']),
+                    f'{path.name}: retired rune gate can still generate')
             for shader_mixin in ('AmneticMainFramebufferMixin', 'AmneticGBufferFramebufferMixin',
                                  'IrisLabyrinthPipelineMixin', 'OptifineLabyrinthShadersMixin',
                                  'AmneticShaderPipelineMixin', 'AmneticShaderPostMixin'):
@@ -156,7 +176,7 @@ for mc, java_major in [("1.20.1", 61), ("1.21.1", 65), ("26.1.2", 69)]:
             else:
                 metadata_path = "META-INF/neoforge.mods.toml" if mc != "1.20.1" and loader == "neoforge" else "META-INF/mods.toml"
                 metadata = jar.read(metadata_path).decode()
-                require(re.search(r'^version\s*=\s*"1\.5\.6"', metadata, re.M), f"Wrong version: {path.name}")
+                require(re.search(r'^version\s*=\s*"' + re.escape(VERSION) + r'"', metadata, re.M), f"Wrong version: {path.name}")
                 if loader == 'neoforge':
                     require(not re.search(r'modId\s*=\s*"(?:fabric_api|connector)"', metadata),
                             f'{path.name}: native port still requires a compatibility runtime')
@@ -182,6 +202,6 @@ for mc, java_major in [("1.20.1", 61), ("1.21.1", 65), ("26.1.2", 69)]:
         print(f"PASS {path.name}")
 
 suffix = '-' + '-'.join(filter(None, (args.minecraft, args.loader))) if args.minecraft or args.loader else ''
-output = ROOT / f"ports/1.5/build/release-1.5.6{suffix}-manifest.json"
+output = ROOT / f"ports/1.5/build/release-{VERSION}{suffix}-manifest.json"
 output.write_text(json.dumps(dict(version=VERSION, files=rows), indent=2) + "\n")
 print(f"Verified {len(rows)} release JARs; manifest: {output}")

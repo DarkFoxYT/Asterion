@@ -1,7 +1,6 @@
 {
   "replace": false,
   "values": [
-    "asterion:respawn_altar",
     "asterion:respawn_obelisk",
     "asterion:slick_catacomb_stone",
     "asterion:greek_brazier",

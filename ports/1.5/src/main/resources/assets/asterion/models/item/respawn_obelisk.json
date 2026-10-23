@@ -1,3 +1,166 @@
 {
-  "parent": "asterion:block/respawn_obelisk"
+  "parent": "minecraft:block/block",
+  "ambientocclusion": false,
+  "render_type": "minecraft:cutout",
+  "textures": {
+    "particle": "asterion:block/respawn_obelisk",
+    "obelisk": "asterion:block/respawn_obelisk"
+  },
+  "elements": [
+    {
+      "from": [
+        2.666667,
+        0.0,
+        2.666667
+      ],
+      "to": [
+        13.333333,
+        16.0,
+        13.333333
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0.0,
+            0.0,
+            2.0,
+            3.0
+          ],
+          "texture": "#obelisk"
+        },
+        "east": {
+          "uv": [
+            2.0625,
+            0.0,
+            4.0625,
+            3.0
+          ],
+          "texture": "#obelisk"
+        },
+        "south": {
+          "uv": [
+            0.0,
+            3.0625,
+            2.0,
+            6.0625
+          ],
+          "texture": "#obelisk"
+        },
+        "west": {
+          "uv": [
+            2.0625,
+            3.0625,
+            4.0625,
+            6.0625
+          ],
+          "texture": "#obelisk"
+        },
+        "up": {
+          "uv": [
+            8.125,
+            0.0,
+            10.125,
+            2.0
+          ],
+          "texture": "#obelisk"
+        },
+        "down": {
+          "uv": [
+            8.125,
+            4.0625,
+            10.125,
+            2.0625
+          ],
+          "texture": "#obelisk"
+        }
+      }
+    },
+    {
+      "from": [
+        2.833333,
+        0.166667,
+        2.833333
+      ],
+      "to": [
+        13.166667,
+        15.5,
+        13.166667
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            4.125,
+            0.0,
+            6.125,
+            2.9375
+          ],
+          "texture": "#obelisk"
+        },
+        "east": {
+          "uv": [
+            4.125,
+            3.0,
+            6.125,
+            5.9375
+          ],
+          "texture": "#obelisk"
+        },
+        "south": {
+          "uv": [
+            4.125,
+            6.0,
+            6.125,
+            8.9375
+          ],
+          "texture": "#obelisk"
+        },
+        "west": {
+          "uv": [
+            0.0,
+            6.125,
+            2.0,
+            9.0625
+          ],
+          "texture": "#obelisk"
+        },
+        "up": {
+          "uv": [
+            8.125,
+            4.125,
+            10.125,
+            6.125
+          ],
+          "texture": "#obelisk"
+        },
+        "down": {
+          "uv": [
+            8.125,
+            8.1875,
+            10.125,
+            6.1875
+          ],
+          "texture": "#obelisk"
+        }
+      }
+    }
+  ],
+  "display": {
+    "gui": {
+      "rotation": [
+        15,
+        225,
+        0
+      ],
+      "translation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.85,
+        0.85,
+        0.85
+      ]
+    }
+  }
 }

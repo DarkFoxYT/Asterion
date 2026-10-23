@@ -9,6 +9,11 @@ import net.krodark.asterion.Asterion;
 import net.krodark.asterion.port.compat.GeometryCompat;
 public class CompatibilityGameTests implements FabricGameTest {
  @GameTest(template=FabricGameTest.EMPTY_STRUCTURE)
+ public void retiredContentIsInert(GameTestHelper test) {
+  RetiredContentChecks.run(test.getLevel());
+  test.succeed();
+ }
+ @GameTest(template=FabricGameTest.EMPTY_STRUCTURE)
  public void vanillaToolsCraft(GameTestHelper test) {
   VersionGameplay.vanillaTools(test.getLevel());
   test.succeed();

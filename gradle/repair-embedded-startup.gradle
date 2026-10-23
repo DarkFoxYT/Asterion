@@ -1,5 +1,49 @@
 import java.util.zip.*
 import java.util.jar.Manifest
+import org.objectweb.asm.*
+import org.objectweb.asm.tree.*
+
+buildscript {
+    repositories { mavenCentral() }
+    dependencies { classpath 'org.ow2.asm:asm-tree:9.9.1' }
+}
+
+// Preserve every existing renderer hook; compose only the legacy layer-visibility
+// result after other mods' redirects instead of competing to replace their call.
+def composeLayers = { byte[] original ->
+    def node = new ClassNode(Opcodes.ASM9)
+    new ClassReader(original).accept(node, ClassReader.EXPAND_FRAMES)
+    def method = node.methods.find { it.name == 'amnetic$hideLayers'
+            && Type.getArgumentTypes(it.desc).length == 1 && Type.getReturnType(it.desc) == Type.BOOLEAN_TYPE }
+    if (method == null) return original
+    def redirect = method.visibleAnnotations?.find { it.desc == 'Lorg/spongepowered/asm/mixin/injection/Redirect;' }
+    if (redirect == null) return original
+    String entity = Type.getArgumentTypes(method.desc)[0].internalName
+    redirect.desc = 'Lcom/llamalad7/mixinextras/injector/ModifyExpressionValue;'
+    method.desc = '(Z' + method.desc.substring(1)
+    int calls = 0
+    method.instructions.toArray().each { instruction ->
+        if (instruction instanceof VarInsnNode && instruction.var >= 1) instruction.var++
+        if (instruction instanceof IincInsnNode && instruction.var >= 1) instruction.var++
+        if (instruction instanceof FrameNode) instruction.local.add(1, Opcodes.INTEGER)
+        if (instruction instanceof MethodInsnNode && instruction.owner == entity && instruction.desc == '()Z') {
+            def replacement = new InsnList()
+            replacement.add(new InsnNode(Opcodes.POP))
+            replacement.add(new VarInsnNode(Opcodes.ILOAD, 1))
+            method.instructions.insertBefore(instruction, replacement)
+            method.instructions.remove(instruction)
+            calls++
+        }
+    }
+    if (calls != 1) throw new GradleException('Unexpected Amnetic layer visibility hook; refusing a partial patch')
+    method.localVariables?.each { if (it.index >= 1) it.index++ }
+    method.maxLocals++
+    method.parameters = null
+    def output = new ClassWriter(0)
+    node.accept(output)
+    output.toByteArray()
+}
+ext.composeRendererLayers = composeLayers
 
 // Repair only embedded rendering libraries. Keep their dependency coordinates
 // intact so Forge/NeoForge can still deduplicate them with other mods.
@@ -15,6 +59,10 @@ ext.repairEmbeddedStartup = { byte[] original, String name, byte[] windowPatch -
                 ZipEntry entry
                 while ((entry = input.nextEntry) != null) {
                     byte[] content = input.readAllBytes()
+                    if (entry.name == 'com/meekdev/amnetic/mixin/LivingEntityRendererMixin.class') {
+                        byte[] composed = composeLayers(content)
+                        if (!composed.is(content)) { content = composed; changed = true }
+                    }
                     if (archiveName.contains('amnetic-forge-') && archiveName.contains('1.20.1') && entry.name == 'amnetic.mixins.json') {
                         def config = new groovy.json.JsonSlurper().parse(content)
                         if (!config.refmap) {

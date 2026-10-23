@@ -2,7 +2,7 @@ package net.krodark.asterion.neoforge;
 
 import net.krodark.asterion.client.AsterionClient;
 import net.krodark.asterion.fluid.HeavyWater;
-import net.minecraft.client.color.block.BlockTintSources;
+import net.neoforged.neoforge.client.fluid.FluidTintSources;
 import net.minecraft.client.renderer.block.FluidModel;
 import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.resources.Identifier;
@@ -29,7 +29,7 @@ final class AsterionNeoForgeClient {
                 new Material(Identifier.withDefaultNamespace("block/water_still")),
                 new Material(Identifier.withDefaultNamespace("block/water_flow")),
                 new Material(Identifier.withDefaultNamespace("block/water_overlay")),
-                BlockTintSources.constant(HeavyWater.COLOR));
+                FluidTintSources.constant(HeavyWater.COLOR));
         event.register(model, HeavyWater.STILL, HeavyWater.FLOWING);
         event.register(model, HeavyWater.FLUID);
     }

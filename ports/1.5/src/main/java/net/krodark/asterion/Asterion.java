@@ -621,14 +621,12 @@ public final class Asterion {
             new net.krodark.asterion.item.AfterblowItem(new net.krodark.asterion.port.compat.ItemProperties().durability(2000)
                     .attributes(SwordItem.createAttributes(CELESTIAL_BRONZE, 5, -2.4F))
                     .rarity(Rarity.EPIC).fireResistant()));
+    // Inert legacy ID retained so existing inventories load safely.
     private static final ResourceKey<Item> SICKENED_TWINBLADES_KEY = ResourceKey.create(
             Registries.ITEM, id("sickened_twinblades"));
     public static final Item SICKENED_TWINBLADES = AsterionRegistry.register(
             BuiltInRegistries.ITEM, SICKENED_TWINBLADES_KEY,
-            new net.krodark.asterion.item.SickenedTwinbladesItem(
-                    new net.krodark.asterion.port.compat.ItemProperties().durability(1600)
-                            .attributes(SwordItem.createAttributes(CELESTIAL_BRONZE, 3, -2.0F))
-                            .rarity(Rarity.RARE)));
+            new Item(new net.krodark.asterion.port.compat.ItemProperties().stacksTo(1)));
     private static final ResourceKey<Item> MINOTAUR_KEY_ID = ResourceKey.create(Registries.ITEM, id("minotaur_key"));
     public static final Item MINOTAUR_KEY = AsterionRegistry.register(BuiltInRegistries.ITEM, MINOTAUR_KEY_ID,
             new Item(new net.krodark.asterion.port.compat.ItemProperties().stacksTo(1).rarity(Rarity.UNCOMMON)
@@ -660,7 +658,6 @@ public final class Asterion {
                         output.accept(ANTIKYTHERA_MECHANISM);
                         output.accept(CELESTIAL_BRONZE_SWORD);
                         output.accept(AFTERBLOW);
-                        output.accept(SICKENED_TWINBLADES);
                         output.accept(net.krodark.asterion.fluid.HeavyWater.BUCKET);
                         output.accept(SLICK_CATACOMB_STONE);
                         output.accept(GREEK_BRAZIER);
@@ -810,9 +807,6 @@ public final class Asterion {
                         for (Item tablet : RUNE_TABLETS) output.accept(tablet);
                         for (RuneBlock rune : RUNE_BLOCKS) output.accept(rune);
                         for (Block rune : RUNE_STONE_BLOCKS) output.accept(rune);
-                        output.accept(RUNE_ZONE_DOOR);
-                        output.accept(net.krodark.asterion.block.RespawnObelisks.CHARGED_RUNE);
-                        output.accept(net.krodark.asterion.block.RespawnObelisks.ALTAR);
                         output.accept(net.krodark.asterion.block.RespawnObelisks.OBELISK);
                     }).build());
 

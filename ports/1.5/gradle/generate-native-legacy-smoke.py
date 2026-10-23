@@ -12,6 +12,7 @@ source=source.replace('@Mod(value = "asterion_tests", dist = Dist.DEDICATED_SERV
 source=source.replace('public NeoServerSmoke() {','public NeoServerSmoke() {\n        if(net.minecraftforge.fml.loading.FMLEnvironment.dist==net.minecraftforge.api.distmarker.Dist.CLIENT)NativeLegacyTestClient.register();\n        if(!Boolean.getBoolean("asterion.serverSmoke"))return;')
 source=source.replace('if (pendingChecks != null) {','if(event.phase!=net.minecraftforge.event.TickEvent.Phase.END)return;\n            if (pendingChecks != null) {')
 source=source.replace('player.connection.getConnection()','player.connection.connection')
+source=source.replace(',\n                net.minecraft.server.level.ClientInformation.createDefault()', '')
 source=source.replace('var level = server.overworld();','var level = server.overworld();\n        NativeLegacyRecipeChecks.run(level);\n        net.minecraft.world.item.CreativeModeTabs.tryRebuildTabContents(level.enabledFeatures(),true,level.registryAccess());')
 (target/'NeoServerSmoke.java').write_text(source,'utf8')
 gameplay=(base/'src/gametest/1.20.1/net/krodark/asterion/test/VersionGameplay.java').read_text('utf8')

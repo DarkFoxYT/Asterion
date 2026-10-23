@@ -1,7 +1,14 @@
+def serverSmokeSources = tasks.register('generateServerSmokeSources', Sync) {
+    from(rootProject.file('../../neoforge/src/smoke/java')) {
+        include '**/NeoServerSmoke.java'
+        filter { line -> line.replace('.getTags()', '.entityTags()') }
+    }
+    into layout.buildDirectory.dir('generated/server-smoke')
+}
 sourceSets {
     serverSmoke {
-        java.srcDirs = [rootProject.file('../../neoforge/src/smoke/java'), rootProject.file('../../src/regression/java')]
-        java.include '**/NeoServerSmoke.java', '**/RagdollPoseTrackerChecks.java'
+        java.srcDirs = [serverSmokeSources, rootProject.file('../../src/regression/java'), rootProject.file('../../src/gametest/java')]
+        java.include '**/NeoServerSmoke.java', '**/RagdollPoseTrackerChecks.java', '**/WeaponCombatRegression.java', '**/RetiredContentChecks.java'
         resources.setSrcDirs([rootProject.file('neoforge/src/serverSmoke/resources')])
         compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
     }

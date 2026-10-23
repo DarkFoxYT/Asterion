@@ -13,6 +13,9 @@ public final class NeoPolishEntrypoint {
                     throw new AssertionError("Custom water lost its water fluid type");
                 for (var state : fluid.getStateDefinition().getPossibleStates()) {
                     if (state.getFluidType()!=fluid.getFluidType()) throw new AssertionError("Fluid state type mismatch");
+                    var model = client.getModelManager().getFluidStateModelSet().get(state);
+                    if (model.fluidTintSource() == null || model.fluidTintSource().color(state) != net.krodark.asterion.fluid.HeavyWater.COLOR)
+                        throw new AssertionError("Heavy-water tint changed during API migration");
                     states++;
                 }
                 fluids++;

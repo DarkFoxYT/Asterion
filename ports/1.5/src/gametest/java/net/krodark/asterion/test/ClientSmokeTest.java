@@ -73,6 +73,14 @@ public final class ClientSmokeTest implements ClientModInitializer {
         }
         if (client.level == null || client.player == null || client.getSingleplayerServer() == null) return;
         worldTicks++;
+        if (worldTicks == 20) LayerVisibilityRegression.run(client);
+        if (worldTicks == 22) ObeliskInventoryPreview.show(client);
+        if (worldTicks == 28) ObeliskInventoryPreview.capture(client);
+        if (worldTicks == 30) GameplaySmoke.server(client, WeaponCombatRegression::run);
+        if (Boolean.getBoolean("asterion.weaponCombatSmoke")) {
+            if (WeaponCombatRegression.passed) client.stop();
+            return;
+        }
         if (worldTicks == 60 && Boolean.getBoolean("asterion.shaderPackSmoke"))
             ShaderDimensionRegression.checkPasses(false);
         if (worldTicks == 140 && Boolean.getBoolean("asterion.shaderPackSmoke"))

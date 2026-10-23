@@ -3,7 +3,8 @@
 def adapters = tasks.register('generateNativeAdapters', Sync) {
     inputs.file(rootProject.file('gradle/native-neoforge-adapters.gradle'))
     from(rootProject.file('forge/src/1.21.1/java/net/fabricmc')) {
-        exclude 'fabric/api/event/Event.java', 'fabric/api/client/rendering/v1/WorldRenderEvents.java'
+        exclude 'fabric/api/event/Event.java', 'fabric/api/client/rendering/v1/WorldRenderEvents.java',
+                'fabric/api/networking/v1/PlayerLookup.java'
         into 'net/fabricmc'
         filter { line -> line
                 .replace('net.minecraftforge.common.MinecraftForge', 'net.neoforged.neoforge.common.NeoForge')

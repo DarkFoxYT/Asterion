@@ -34,6 +34,7 @@ public final class NativeLifecycle {
         bus.addListener(
                 (PlayerEvent.PlayerLoggedOutEvent event) -> {
                     if (event.getEntity() instanceof ServerPlayer player) {
+                        net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.cancelRespawn(player);
                         net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
                                 .fireDisconnect(player.connection, player.level().getServer());
                         TRACKING.values().forEach(viewers -> viewers.remove(player));
@@ -69,14 +70,23 @@ public final class NativeLifecycle {
                         TRACKING.remove(event.getEntity().getUUID());
                 });
         bus.addListener(
-                (net.neoforged.neoforge.event.server.ServerStoppedEvent event) -> TRACKING.clear());
+                (net.neoforged.neoforge.event.server.ServerStoppedEvent event) -> {
+                    TRACKING.clear();
+                    net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.clearRespawns();
+                });
         // Clone fires before the replacement player is positioned and connected.
         // Fire the recovery callback from the completed respawn event instead.
         bus.addListener(
+                (PlayerEvent.Clone event) -> {
+                    if (event.getOriginal() instanceof ServerPlayer oldPlayer
+                            && event.getEntity() instanceof ServerPlayer newPlayer)
+                        net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.rememberRespawn(
+                                oldPlayer, newPlayer, !event.isWasDeath());
+                });
+        bus.addListener(
                 (PlayerEvent.PlayerRespawnEvent event) -> {
                     if (event.getEntity() instanceof ServerPlayer player)
-                        net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.fireAfterRespawn(
-                                player, player, event.isEndConquered());
+                        net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.completeRespawn(player);
                 });
     }
 }

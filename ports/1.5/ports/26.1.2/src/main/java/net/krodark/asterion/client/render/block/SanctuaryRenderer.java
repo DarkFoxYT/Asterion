@@ -56,7 +56,7 @@ public final class SanctuaryRenderer extends GeoBlockRenderer<SanctuaryBlockEnti
     }
     @Override public boolean shouldRender(SanctuaryBlockEntity entity,Vec3 camera) {
         SanctuaryBlock block=(SanctuaryBlock)entity.getBlockState().getBlock();
-        return block.isRoot(entity.getBlockState())&&super.shouldRender(entity,camera);
+        return !block.altar && block.isRoot(entity.getBlockState())&&super.shouldRender(entity,camera);
     }
     @Override public void addRenderData(SanctuaryBlockEntity entity, Void related,
                                        BlockEntityRenderState state, float partialTick) {

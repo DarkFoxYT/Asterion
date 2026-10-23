@@ -7,6 +7,6 @@ public final class FabricCreativeModeTab {
     private FabricCreativeModeTab() {}
 
     public static CreativeModeTab.Builder builder() {
-        return CreativeModeTab.builder(CreativeModeTab.Row.TOP, 0);
+        return CreativeModeTab.builder();
     }
 }

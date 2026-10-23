@@ -130,6 +130,9 @@ public final class NeoServerSmoke {
             require(tracker.accept(player.getUUID(), boss.getId(), 5, server.getTickCount()),
                     "Boss poses must be rejected before recording relay history");
             RagdollPoseTrackerChecks.main(new String[0]);
+            RetiredContentChecks.run(level);
+            checkWeaponSpeed(player);
+            checkRespawn(server, player);
             Asterion.LOGGER.info("ASTERION_SERVER PASS: boss authority, ragdoll recovery, respawn, dimension isolation, invalid poses and relay load");
         } catch (Throwable error) {
             throw new AssertionError("Dedicated-server gameplay checks failed", error);
@@ -148,6 +151,29 @@ public final class NeoServerSmoke {
         return new RagdollPosePayload(entity, sequence, List.of(new RagdollPosePayload.Part(1,
                 (float)player.getX(), (float)player.getY(), (float)player.getZ(), 0, 0, 0, rotationW, 0, 0, 0)));
     }
+
+    private static void checkRespawn(net.minecraft.server.MinecraftServer server, ServerPlayer oldPlayer) {
+        var replacement = new ServerPlayer(server, server.overworld(), oldPlayer.getGameProfile(),
+                net.minecraft.server.level.ClientInformation.createDefault());
+        replacement.connection = oldPlayer.connection;
+        String questTag = "asterion.queen_beetle_quest.regression";
+        oldPlayer.addTag(questTag);
+        int[] callbacks = {0};
+        net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.AFTER_RESPAWN.register((old, current, alive) -> {
+            require(old == oldPlayer && current == replacement && old != current && !alive,
+                    "Respawn must retain the original player and death context");
+            callbacks[0]++;
+        });
+        NeoForge.EVENT_BUS.post(new net.neoforged.neoforge.event.entity.player.PlayerEvent.Clone(replacement, oldPlayer, true));
+        require(callbacks[0] == 0 && !replacement.getTags().contains(questTag),
+                "After-respawn callbacks must not run during Clone");
+        NeoForge.EVENT_BUS.post(new net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerRespawnEvent(replacement, false));
+        require(callbacks[0] == 1 && replacement.getTags().contains(questTag) && oldPlayer.getTags().contains(questTag),
+                "Quest progress must copy from the original player after respawn");
+        Asterion.LOGGER.info("ASTERION_RESPAWN PASS: clone defers recovery, original player retained, quests preserved");
+    }
+
+    private static void checkWeaponSpeed(ServerPlayer player) { WeaponCombatRegression.run(player); }
     private static Method method(String name, Class<?>... args) throws ReflectiveOperationException {
         Method method = RagdollServerNetworking.class.getDeclaredMethod(name, args);
         method.setAccessible(true);

@@ -16,10 +16,6 @@
       "weight": 21
     },
     {
-      "template": "asterion:rune_gate",
-      "weight": 1
-    },
-    {
       "template": "asterion:ruins/gatehouse",
       "weight": 2
     },

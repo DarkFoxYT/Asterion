@@ -99,7 +99,7 @@ super.renderRecursively(poses, entity, bone, type, buffers, buffer, rerender,
 
     @Override public boolean shouldRender(SanctuaryBlockEntity entity, Vec3 camera) {
         SanctuaryBlock block = (SanctuaryBlock)entity.getBlockState().getBlock();
-        return block.isRoot(entity.getBlockState()) && super.shouldRender(entity, camera);
+        return !block.altar && block.isRoot(entity.getBlockState()) && super.shouldRender(entity, camera);
     }
 
     @Override public int getViewDistance() { return 96; }

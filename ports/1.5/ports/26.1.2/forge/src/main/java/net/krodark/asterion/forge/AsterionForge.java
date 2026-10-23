@@ -16,6 +16,7 @@ public final class AsterionForge {
     private static final AtomicBoolean INITIALIZED = new AtomicBoolean();
 
     public AsterionForge() {
+        net.fabricmc.fabric.api.networking.v1.PlayerLookup.initialize();
         EntityAttributeCreationEvent.BUS.addListener(AsterionForge::initializeSharedContent);
     }
 

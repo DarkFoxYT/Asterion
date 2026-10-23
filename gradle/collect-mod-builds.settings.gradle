@@ -8,6 +8,7 @@ while (!new File(shelf.parentFile, 'ports/1.5').isDirectory()) {
 def outputShelf = shelf
 apply from: new File(outputShelf.parentFile, 'gradle/repair-embedded-startup.gradle')
 def repairEmbedded = extensions.extraProperties.get('repairEmbeddedStartup')
+def composeRendererLayers = extensions.extraProperties.get('composeRendererLayers')
 
 // Standard ZIP DEFLATE at its strongest level; mod loaders cannot read LZMA/Zstd JARs.
 def compressModJar = { File archive, File windowClass = null ->
@@ -23,6 +24,11 @@ def compressModJar = { File archive, File windowClass = null ->
                     entry.setMethod(java.util.zip.ZipEntry.DEFLATED)
                     entry.setCompressedSize(-1)
                     byte[] repaired = null
+                    if (original.name == 'com/meekdev/amnetic/mixin/LivingEntityRendererMixin.class') {
+                        byte[] content = input.getInputStream(original).withCloseable { it.readAllBytes() }
+                        repaired = composeRendererLayers(content)
+                        if (!repaired.is(content)) repairedArchive = true
+                    }
                     if (original.name.endsWith('.jar') && (original.name.contains('amnetic') || original.name.contains('lwjgl-assimp-'))) {
                         byte[] embedded = input.getInputStream(original).withCloseable { it.readAllBytes() }
                         repaired = repairEmbedded(embedded, original.name, windowClass?.bytes)

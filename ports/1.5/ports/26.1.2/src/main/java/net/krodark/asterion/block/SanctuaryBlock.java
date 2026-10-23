@@ -34,7 +34,7 @@ public final class SanctuaryBlock extends BaseEntityBlock {
     public static final IntegerProperty ROW = IntegerProperty.create("row", 0, 2);
     public final boolean altar;
     public SanctuaryBlock(boolean altar, Properties properties) {
-        super(properties); this.altar = altar;
+        super(altar ? properties.replaceable().noLootTable() : properties); this.altar = altar;
         registerDefaultState(stateDefinition.any().setValue(CHARGE, 0)
                 .setValue(PART_X, 1).setValue(PART_Z, 1).setValue(ROW, 0));
     }
@@ -87,11 +87,11 @@ public final class SanctuaryBlock extends BaseEntityBlock {
     @Override protected RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
     @Override public BlockEntity newBlockEntity(BlockPos pos, BlockState state) { return new SanctuaryBlockEntity(pos, state); }
     @Override public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        if(!isRoot(state))return null;
+        if(altar || !isRoot(state))return null;
         return createTickerHelper(type, RespawnObelisks.BLOCK_ENTITY, SanctuaryBlockEntity::tick);
     }
     @Override protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        if(altar)return box(1,0,1,15,10.5,15);
+        if(altar)return Shapes.empty();
         int x=state.getValue(PART_X),z=state.getValue(PART_Z);
         double minX=x==0?8:0,maxX=x==2?8:16;
         double minZ=z==0?8:0,maxZ=z==2?8:16;
@@ -111,19 +111,7 @@ public final class SanctuaryBlock extends BaseEntityBlock {
         }
         if (!(level instanceof ServerLevel server)) return InteractionResult.SUCCESS;
         if (!(player instanceof net.minecraft.server.level.ServerPlayer serverPlayer)) return InteractionResult.PASS;
-        if (altar) {
-            if (state.getValue(CHARGE) != 1) {
-                serverPlayer.sendOverlayMessage(Component.translatable(state.getValue(CHARGE) == 0
-                        ? "message.asterion.altar_dormant" : "message.asterion.altar_empty"));
-                return InteractionResult.SUCCESS_SERVER;
-            }
-            ItemStack reward = new ItemStack(RespawnObelisks.CHARGED_RUNE);
-             
-            if (!player.getInventory().add(reward)) return InteractionResult.FAIL;
-            level.setBlock(pos, state.setValue(CHARGE, 2), 3);
-            level.playSound(null, pos, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 1, 1.25F);
-            return InteractionResult.SUCCESS_SERVER;
-        }
+        if (altar) return InteractionResult.PASS;
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) {
             serverPlayer.sendOverlayMessage(Component.translatable("message.asterion.obelisk_maze_only"));
             return InteractionResult.FAIL;

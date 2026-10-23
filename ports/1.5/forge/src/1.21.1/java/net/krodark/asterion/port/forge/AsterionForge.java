@@ -33,6 +33,7 @@ public final class AsterionForge {
     private static net.minecraft.server.MinecraftServer lootReloadedFor;
 
     public AsterionForge() {
+        net.fabricmc.fabric.api.networking.v1.PlayerLookup.initialize();
         IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
         modBus.addListener(AsterionForge::initializeSharedContent);
         modBus.addListener(AsterionForge::registerSpawnPlacements);
@@ -42,6 +43,9 @@ public final class AsterionForge {
         MinecraftForge.EVENT_BUS.addListener(AsterionForge::startTracking);
         MinecraftForge.EVENT_BUS.addListener(AsterionForge::stopTracking);
         MinecraftForge.EVENT_BUS.addListener(AsterionForge::playerClone);
+        MinecraftForge.EVENT_BUS.addListener(AsterionForge::playerRespawn);
+        MinecraftForge.EVENT_BUS.addListener((net.minecraftforge.event.server.ServerStoppedEvent event) ->
+                net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.clearRespawns());
         MinecraftForge.EVENT_BUS.addListener(AsterionForge::registerCommands);
         MinecraftForge.EVENT_BUS.addListener(AsterionForge::onReloadListeners);
     }
@@ -70,8 +74,13 @@ public final class AsterionForge {
     private static void playerClone(PlayerEvent.Clone event) {
         if (event.getOriginal() instanceof net.minecraft.server.level.ServerPlayer oldPlayer
                 && event.getEntity() instanceof net.minecraft.server.level.ServerPlayer newPlayer)
-            net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.fireAfterRespawn(
+            net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.rememberRespawn(
                     oldPlayer, newPlayer, !event.isWasDeath());
+    }
+
+    private static void playerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player)
+            net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.completeRespawn(player);
     }
 
     private static void startTracking(PlayerEvent.StartTracking event) {
@@ -93,9 +102,11 @@ public final class AsterionForge {
     }
 
     private static void playerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
-        if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player)
+        if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
+            net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.cancelRespawn(player);
             net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.fireDisconnect(
                     player.connection, player.getServer());
+        }
     }
 
     private static void buildCreativeTab(BuildCreativeModeTabContentsEvent event) {
