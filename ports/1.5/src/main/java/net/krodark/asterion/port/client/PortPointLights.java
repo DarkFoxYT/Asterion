@@ -19,7 +19,7 @@ final class PortPointLights {
     private PortPointLights() {
     }
 
-    static void update(Object key, PortLight.LedPointLightSample sample) {
+    static synchronized void update(Object key, PortLight.LedPointLightSample sample) {
         AsterionConfig config = AsterionConfig.INSTANCE;
         if (!config.dynamicLightsEnabled || !computeLightingAvailable()) {
             remove(key);
@@ -66,17 +66,19 @@ final class PortPointLights {
         }
     }
 
-    static boolean loaded(Object key, net.minecraft.client.multiplayer.ClientLevel level) {
+    static synchronized boolean loaded(Object key, net.minecraft.client.multiplayer.ClientLevel level) {
         var sample = BUFFERED.get(key);
         if (sample == null) return false;
         var pos = net.minecraft.core.BlockPos.containing(sample.position());
         return level.getChunkSource().hasChunk(pos.getX() >> 4, pos.getZ() >> 4);
     }
 
-    static void cull(net.minecraft.client.renderer.culling.Frustum frustum) {
+    static synchronized void cull(net.minecraft.client.renderer.culling.Frustum frustum) {
         if (frustum == null) return;
         var level = net.minecraft.client.Minecraft.getInstance().level;
-        for (var entry : LIGHTS.entrySet()) {
+        // Visibility hooks may refresh (and reorder the LRU) or clear lights.
+        // Snapshot entries before calling them; never iterate the live map here.
+        for (var entry : java.util.List.copyOf(LIGHTS.entrySet())) {
             var sample = BUFFERED.get(entry.getKey());
             boolean visible = level != null && sample != null && loaded(entry.getKey(),level);
             if (visible) {
@@ -88,7 +90,7 @@ final class PortPointLights {
         }
     }
 
-    static void remove(Object key) {
+    static synchronized void remove(Object key) {
         Light light = LIGHTS.remove(key);
         BUFFERED.remove(key);
         CONFIGURED_QUALITY.remove(key);
@@ -97,14 +99,15 @@ final class PortPointLights {
         }
     }
 
-    static void clear() {
-        LIGHTS.values().forEach(Light::remove);
+    static synchronized void clear() {
+        Light[] removed = LIGHTS.values().toArray(Light[]::new);
         LIGHTS.clear();
         BUFFERED.clear();
         CONFIGURED_QUALITY.clear();
+        for (Light light : removed) light.remove();
     }
 
-    static Vec3 nearestAttractor(Vec3 origin, double maxDistance) {
+    static synchronized Vec3 nearestAttractor(Vec3 origin, double maxDistance) {
         double maxDistanceSquared = maxDistance * maxDistance;
         double bestScore = Double.POSITIVE_INFINITY;
         Vec3 best = null;
@@ -156,10 +159,11 @@ final class PortPointLights {
                 if (Objects.equals(entry.getKey(), protectedKey)) {
                     continue;
                 }
-                entry.getValue().remove();
+                Light removed = entry.getValue();
                 BUFFERED.remove(entry.getKey());
                 CONFIGURED_QUALITY.remove(entry.getKey());
                 iterator.remove();
+                removed.remove();
                 break;
             }
         }

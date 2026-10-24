@@ -134,7 +134,7 @@ public final class CursedBrazierEntity extends PathfinderMob implements GeoEntit
 
     public static AttributeSupplier.Builder createAttributes() {
         return createMobAttributes()
-                .add(Attributes.MAX_HEALTH, 140)
+                .add(Attributes.MAX_HEALTH, 280)
                 .add(Attributes.MOVEMENT_SPEED, 0)
                 .add(Attributes.ARMOR, 5)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 1)
@@ -946,6 +946,7 @@ super.defineSynchedData(builder);
             playSound(SoundEvents.SHIELD_BLOCK, 1.15F, 0.62F);
             return false;
         }
+        amount = net.krodark.asterion.game.BossGunDamage.scale(source, amount);
         float before = getHealth();
         boolean damaged = super.hurt(source, amount);
         if (!damaged || phase() != Phase.ACTIVE) return damaged;
@@ -1162,6 +1163,13 @@ super.dropCustomDeathLoot(level, source, killedByPlayer);
     @Override
     public void readAdditionalSaveData(CompoundTag input) {
         super.readAdditionalSaveData(input);
+        // Upgrade the previous default while preserving injuries and pack-defined base health.
+        var maxHealth = getAttribute(Attributes.MAX_HEALTH);
+        if (maxHealth != null && maxHealth.getBaseValue() == 140.0D) {
+            float healthFraction = getHealth() / Math.max(1.0F, getMaxHealth());
+            maxHealth.setBaseValue(280.0D);
+            setHealth(getMaxHealth() * healthFraction);
+        }
         int phaseIndex = net.krodark.asterion.port.compat.MathCompat.clamp(net.krodark.asterion.port.compat.NbtCompat.getInt(input, "BrazierPhase", Phase.DORMANT.ordinal()),
                 0, Phase.values().length - 1);
         Phase restored = Phase.values()[phaseIndex];

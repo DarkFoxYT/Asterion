@@ -62,6 +62,9 @@ def compressModJar = { File archive, File windowClass = null ->
 
 gradle.projectsEvaluated {
     gradle.rootProject.allprojects.each { modProject ->
+        // These protections belong to the release ports, including new versions such as 1.6.
+        boolean releasePort = modProject.rootProject.projectDir.canonicalFile.toPath().startsWith(
+                new File(outputShelf.parentFile, 'ports/1.5').canonicalFile.toPath())
         // Legacy NeoForge's plugin registers an empty jarJar task; its finished
         // production archive is reobfJar. Collecting jarJar silently drops it.
         def taskName = modProject.name == '1.20.1-forge' && modProject.tasks.findByName('reobfJar') != null ? 'reobfJar' :
@@ -73,7 +76,7 @@ gradle.projectsEvaluated {
                 modProject.tasks.findByName('jar') != null ? 'jar' : null
         if (taskName == null || modProject == gradle.rootProject) return
 
-        if (modProject.version.toString() ==~ /1\.5(?:\.\d+)?/) {
+        if (releasePort) {
             modProject.tasks.withType(org.gradle.language.jvm.tasks.ProcessResources).configureEach {
                 exclude 'data/asterion/dimension/limbo.json', 'data/asterion/dimension/underworld.json'
                 exclude 'data/asterion/dimension_type/limbo.json', 'data/asterion/dimension_type/underworld.json'
@@ -86,7 +89,7 @@ gradle.projectsEvaluated {
             }
         }
         def artifact = modProject.tasks.named(taskName)
-        if (modProject.version.toString() ==~ /1\.5(?:\.\d+)?/) {
+        if (releasePort) {
             artifact.configure {
                 doLast {
                     // Check the bytes being shipped, including nested renderer code.
@@ -142,7 +145,7 @@ gradle.projectsEvaluated {
         }
         def windowPatch = null
         def windowClass = null
-        if (modProject.version.toString().startsWith('1.5.') && modProject.name.startsWith('26.1.2-')) {
+        if (releasePort && modProject.name.startsWith('26.1.2-')) {
             windowClass = modProject.layout.buildDirectory.file('renderer-patches/com/meekdev/amnetic/mixin/WindowGlContextMixin.class').get().asFile
             windowPatch = modProject.tasks.register('compileEmbeddedWindowPatch', org.gradle.api.tasks.compile.JavaCompile) {
                 source new File(outputShelf.parentFile, 'gradle/renderer-patches/WindowGlContextMixin.java')

@@ -61,6 +61,9 @@ public final class ClientSmokeTest implements ClientModInitializer {
             net.krodark.asterion.AsterionConfig.INSTANCE.cinematicsEnabled = false;
             net.krodark.asterion.AsterionConfig.INSTANCE.objectiveHudEnabled = false;
             client.options.pauseOnLostFocus = false;
+            client.options.framerateLimit().set(260);
+            client.options.enableVsync().set(false);
+            client.getWindow().updateVsync(false);
             client.options.renderDistance().set(6);
             client.options.simulationDistance().set(5);
             org.lwjgl.opengl.GL11.glEnable(org.lwjgl.opengl.GL43.GL_DEBUG_OUTPUT_SYNCHRONOUS);
@@ -74,6 +77,16 @@ public final class ClientSmokeTest implements ClientModInitializer {
         }
         if (client.level == null || client.player == null || client.getSingleplayerServer() == null) return;
         worldTicks++;
+        if (Boolean.getBoolean("asterion.pointLightSmoke")) {
+            if (worldTicks == 20) GameplaySmoke.server(client, ExplosionTerrainRegression::prepare);
+            if (worldTicks >= 180 && worldTicks % 20 == 0 && !ExplosionTerrainRegression.passed)
+                GameplaySmoke.server(client, ExplosionTerrainRegression::verify);
+            if (ExplosionTerrainRegression.passed) {
+                PointLightIterationRegression.run(client);
+                client.stop();
+            }
+            return;
+        }
         if (Boolean.getBoolean("asterion.performanceSmoke")) {
             if (!(client.screen instanceof InputShield)) client.setScreen(new InputShield());
             PerformanceSmoke.tick(client, worldTicks);

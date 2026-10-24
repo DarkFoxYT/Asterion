@@ -151,7 +151,7 @@ public final class PortMazeObjectiveOverlay {
         int waypointY = 31 + hintLines.size() * 9;
         int panelHeight = waypointY + (waypoint == null ? 3 : 14);
         int left = Math.round(Mth.lerp(appear, -panelWidth - 4.0F, 12.0F));
-        int panelTop = 12;
+        int panelTop = net.krodark.asterion.compat.MinimapHudLayout.top(panelWidth, panelHeight, graphics.guiHeight());
         graphics.fill(left, panelTop, left + panelWidth, panelTop + panelHeight,
                 Math.round(appear * completionFade * 210.0F) << 24 | 0x090707);
         graphics.fill(left, panelTop, left + 3, panelTop + panelHeight,

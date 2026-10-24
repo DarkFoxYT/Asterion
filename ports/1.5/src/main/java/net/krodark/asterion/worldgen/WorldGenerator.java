@@ -246,7 +246,7 @@ public final class WorldGenerator {
 
     private static final PriorityQueue<RestoringBlock> RESTORING_BLOCKS = new PriorityQueue<>(
 
-            Comparator.comparingLong(RestoringBlock::dueTick));
+            Comparator.comparingLong(RestoringBlock::dueTick).thenComparingInt(entry -> entry.pos.getY()));
 
     private static final Map<BlockKey, Block> PLAYER_PLACED_BLOCKS = new HashMap<>();
 
@@ -948,6 +948,21 @@ public final class WorldGenerator {
 
 
 
+    /** Only terrain is renewed: containers and player-built blocks keep normal explosion behavior. */
+    public static boolean restoresExplosionBlock(ServerLevel level, BlockPos pos, BlockState state) {
+        return level.dimension().equals(Asterion.ASTERION_LEVEL)
+                && !state.isAir() && !state.hasBlockEntity() && state.getFluidState().isEmpty()
+                && !state.is(Blocks.TNT) && !state.is(Asterion.SKELETON)
+                && !state.is(net.krodark.asterion.game.ChainLiftContent.ANCHOR)
+                && !PLAYER_PLACED_BLOCKS.containsKey(new BlockKey(level.dimension(), pos));
+    }
+
+    public static void trackExplosionBreak(ServerLevel level, BlockPos pos, BlockState state) {
+        if (!restoresExplosionBlock(level, pos, state)) return;
+        RESTORING_BLOCKS.add(new RestoringBlock(level.dimension(), pos.immutable(), state,
+                level.getGameTime() + 100L));
+    }
+
     public static void trackMazeBreak(ServerLevel level, BlockPos pos, BlockState state) {
 
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL) || state.isAir()) return;
@@ -1466,7 +1481,7 @@ public final class WorldGenerator {
 
     private static void tickRestoringBlocks(MinecraftServer server) {
 
-        while (!RESTORING_BLOCKS.isEmpty()) {
+        for (int restored = 0; restored < 64 && !RESTORING_BLOCKS.isEmpty(); restored++) {
 
             RestoringBlock entry = RESTORING_BLOCKS.peek();
 
@@ -1492,7 +1507,8 @@ public final class WorldGenerator {
 
                 AABB occupiedSpace = new AABB(entry.pos).deflate(0.02D);
 
-                if (!level.getEntities((Entity)null, occupiedSpace, Entity::isAlive).isEmpty()) {
+                if (!level.getEntities((Entity)null, occupiedSpace,
+                        entity -> entity instanceof net.minecraft.world.entity.LivingEntity && entity.isAlive()).isEmpty()) {
 
                     RESTORING_BLOCKS.add(new RestoringBlock(entry.dimension, entry.pos, entry.state,
 

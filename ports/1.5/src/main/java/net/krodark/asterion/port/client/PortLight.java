@@ -1,7 +1,6 @@
 package net.krodark.asterion.port.client;
 
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderType;
@@ -26,40 +25,45 @@ public final class PortLight {
         if (key == null || client.level == null) {
             return;
         }
-        UPDATED.put(key, client.level.getGameTime());
-        PortPointLights.update(key,
-                new LedPointLightSample(position, red, green, blue, strength, radius, castsShadow));
+        synchronized (PortPointLights.class) {
+            UPDATED.put(key, client.level.getGameTime());
+            PortPointLights.update(key,
+                    new LedPointLightSample(position, red, green, blue, strength, radius, castsShadow));
+        }
     }
 
     public static void tickCleanup(Minecraft client) {
-        if (client.level != lightWorld) {
-            clear();
-            lightWorld = client.level;
-        }
-        if (client.level == null) return;
-
-
-        long stale = client.level.getGameTime() - 40L;
-        Iterator<Map.Entry<Object, Long>> iterator = UPDATED.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<Object, Long> entry = iterator.next();
-            if (entry.getValue() < stale || !PortPointLights.loaded(entry.getKey(), client.level)) {
-                PortPointLights.remove(entry.getKey());
-                iterator.remove();
+        synchronized (PortPointLights.class) {
+            if (client.level != lightWorld) {
+                clear();
+                lightWorld = client.level;
+            }
+            if (client.level == null) return;
+            long stale = client.level.getGameTime() - 40L;
+            for (Object key : UPDATED.keySet().toArray()) {
+                Long updated = UPDATED.get(key);
+                if (updated != null && (updated < stale || !PortPointLights.loaded(key, client.level))) {
+                    UPDATED.remove(key);
+                    PortPointLights.remove(key);
+                }
             }
         }
     }
 
     public static void clear() {
-        UPDATED.clear();
-        PortPointLights.clear();
-        PortHeldItemLights.clear();
+        synchronized (PortPointLights.class) {
+            UPDATED.clear();
+            PortPointLights.clear();
+            PortHeldItemLights.clear();
+        }
     }
 
     public static void removeItemGlowLight(Object key) {
         if(key==null)return;
-        UPDATED.remove(key);
-        PortPointLights.remove(key);
+        synchronized (PortPointLights.class) {
+            UPDATED.remove(key);
+            PortPointLights.remove(key);
+        }
     }
 
     public static RenderType bloomRenderLayer(ResourceLocation texture) {

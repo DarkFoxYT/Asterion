@@ -6,7 +6,9 @@ import net.krodark.asterion.Asterion;
 import net.krodark.asterion.entity.MinotaurEntity;
 public final class PolishClientSmoke {
     int title, ticks;
-    boolean started;
+    boolean started, explosionQueued;
+    volatile boolean explosionChecked;
+    volatile Throwable explosionFailure;
     final long deadline=System.nanoTime()+480_000_000_000L;
     public void onInitializeClient() {
         ZoomRenderingRegression.register();
@@ -15,6 +17,38 @@ public final class PolishClientSmoke {
             throw new AssertionError("Sodium must be loaded for the compatibility scenario");
         if (Boolean.getBoolean("asterion.polishSmoke")) ClientTickEvents.END_CLIENT_TICK.register(this::tick);
     }
+    private static final net.minecraft.core.BlockPos BLAST=new net.minecraft.core.BlockPos(80,180,80);
+    private void prepareExplosion(Minecraft client) {
+        var level=client.getSingleplayerServer().getLevel(Asterion.ASTERION_LEVEL);
+        level.setChunkForced(5,5,true);
+        var stone=net.minecraft.world.level.block.Blocks.STONE.defaultBlockState();
+        for(var pos:java.util.List.of(BLAST,BLAST.east(),BLAST.west()))level.setBlockAndUpdate(pos,stone);
+        net.krodark.asterion.worldgen.WorldGenerator.trackPlayerPlacement(level,BLAST.east(),stone);
+        level.explode(null,80.5,180.5,80.5,12F,net.minecraft.world.level.Level.ExplosionInteraction.TNT);
+        if(!level.getBlockState(BLAST).isAir())throw new AssertionError("Explosion did not destroy terrain");
+        var gold=net.minecraft.world.level.block.Blocks.GOLD_BLOCK.defaultBlockState();
+        level.setBlockAndUpdate(BLAST.west(),gold);
+        net.krodark.asterion.worldgen.WorldGenerator.trackPlayerPlacement(level,BLAST.west(),gold);
+        var looseItem=new net.minecraft.world.entity.item.ItemEntity(level,80.5,180.2,80.5,
+                new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COBBLESTONE));
+        looseItem.setNoGravity(true);
+        looseItem.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+        level.addFreshEntity(looseItem);
+        var brazier=new net.krodark.asterion.entity.CursedBrazierEntity(net.krodark.asterion.game.GameplayContent.CURSED_BRAZIER,level);
+        if(brazier.getMaxHealth()!=280F)throw new AssertionError("Brazier health not doubled");
+        if(net.krodark.asterion.game.BossGunDamage.scale(level.damageSources().magic(),20F)!=20F)
+            throw new AssertionError("Non-gun damage reduced without gun mods");
+    }
+    private void verifyExplosion(Minecraft client) {
+        var level=client.getSingleplayerServer().getLevel(Asterion.ASTERION_LEVEL);
+        if(!level.getBlockState(BLAST).is(net.minecraft.world.level.block.Blocks.STONE)
+                || !level.getBlockState(BLAST.east()).isAir()
+                || !level.getBlockState(BLAST.west()).is(net.minecraft.world.level.block.Blocks.GOLD_BLOCK))
+            throw new AssertionError("Terrain restoration or player-block preservation failed");
+        level.setChunkForced(5,5,false);
+        explosionChecked=true;
+        Asterion.LOGGER.info("ASTERION_26_EXPLOSION PASS: terrain restored, player blocks respected, Brazier health 280, no gun dependency required");
+    }
     @SuppressWarnings({"rawtypes","unchecked"})
     private static void data(MinotaurEntity b,String field,Object value) {
         try {var f=MinotaurEntity.class.getDeclaredField(field);f.setAccessible(true);b.getEntityData().set((net.minecraft.network.syncher.EntityDataAccessor)f.get(null),value);}
@@ -22,6 +56,7 @@ public final class PolishClientSmoke {
     }
     private static int ordinal(String type,String name) { for(var k:MinotaurEntity.class.getDeclaredClasses()) if(k.getSimpleName().equals(type)) for(var v:k.getEnumConstants()) if(((Enum<?>)v).name().equals(name)) return ((Enum<?>)v).ordinal(); throw new AssertionError(name); }
     private void tick(Minecraft c) {
+        if(explosionFailure!=null)throw new AssertionError("Explosion regression failed",explosionFailure);
         if(System.nanoTime()>deadline)throw new AssertionError("26.1.2 smoke timed out");
         if(c.screen instanceof net.minecraft.client.gui.screens.AccessibilityOnboardingScreen) {
             c.options.onboardingAccessibilityFinished();
@@ -61,6 +96,15 @@ public final class PolishClientSmoke {
             s.getCommands().performPrefixedCommand(source,"execute in asterion:labyrinth run fill -8 179 -8 8 179 8 minecraft:stone");
             s.getCommands().performPrefixedCommand(source,"execute in asterion:labyrinth run summon asterion:minotaur 0 180 3 {NoAI:1b,Silent:1b,PersistenceRequired:1b,Rotation:[180.0f,0.0f]}");
         });
+        if(ticks==60 && !explosionQueued) {
+            explosionQueued=true;
+            c.getSingleplayerServer().execute(()->{
+                try { prepareExplosion(c); } catch(Throwable failure) { explosionFailure=failure; }
+            });
+        }
+        if(ticks==260) c.getSingleplayerServer().execute(()->{
+            try { verifyExplosion(c); } catch(Throwable failure) { explosionFailure=failure; }
+        });
         if(ticks>60) {
             c.player.setPos(.5,180,-5);c.player.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
             c.player.setYRot(0);c.player.yRotO=0;c.player.setXRot(-15);c.player.xRotO=-15;
@@ -80,6 +124,7 @@ public final class PolishClientSmoke {
         if(ticks>=201 && ticks<=250) verifyRagdoll(c.player.getId());
         if(ticks==250) net.krodark.asterion.client.ragdoll.DismembermentEngine.INSTANCE.releaseRagdoll(c.player.getId());
         if(ticks==290) {
+            if(!explosionChecked) { ticks--;return; }
             if(net.krodark.asterion.client.ragdoll.DismembermentEngine.INSTANCE.isPlayerTumbling(c.player.getId()))
                 throw new AssertionError("26.1.2 ragdoll did not recover");
             Asterion.LOGGER.info("ASTERION_26_POLISH PASSED: world load, Minotaur renderer, procedural timelines, finite ragdoll physics and recovery");

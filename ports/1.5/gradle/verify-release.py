@@ -1,4 +1,4 @@
-"""Audit every 1.5.9 distribution before uploading; uses Python's standard library."""
+"""Audit release distributions before uploading; uses Python's standard library."""
 import argparse
 import hashlib
 import io
@@ -9,12 +9,14 @@ import struct
 import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
-VERSION = "1.5.9"
+VERSION = "1.6"
 rows = []
 parser = argparse.ArgumentParser()
+parser.add_argument('--version', default=VERSION)
 parser.add_argument('--minecraft', choices=('1.20.1', '1.21.1', '26.1.2'))
 parser.add_argument('--loader', choices=('fabric', 'quilt', 'forge', 'neoforge'))
 args = parser.parse_args()
+VERSION = args.version
 
 
 def require(value, message):
@@ -93,6 +95,11 @@ for mc, java_major in [("1.20.1", 61), ("1.21.1", 65), ("26.1.2", 69)]:
         with zipfile.ZipFile(path) as jar:
             require(jar.testzip() is None, f"Bad ZIP checksums: {path.name}")
             names = set(jar.namelist())
+            require(not names.intersection({
+                'data/asterion/dimension/limbo.json', 'data/asterion/dimension/underworld.json',
+                'data/asterion/dimension_type/limbo.json', 'data/asterion/dimension_type/underworld.json',
+                'data/asterion/worldgen/biome/limbo.json'}),
+                f'{path.name}: unreleased dimension data leaked into a Labyrinth release')
             if loader == 'forge' and mc != '1.20.1':
                 require('net/fabricmc/fabric/api/networking/v1/PlayerLookup.class' in names,
                         f'{path.name}: native player-tracking adapter is missing')
@@ -136,13 +143,43 @@ for mc, java_major in [("1.20.1", 61), ("1.21.1", 65), ("26.1.2", 69)]:
                     f'Spark profiler leaked into {path.name}')
             require(b'spareCells' in jar.read('net/krodark/asterion/physics/VoxelCollisionCache.class'),
                     f'{path.name}: missing bounded collision-storage reuse')
+            if VERSION in ('1.5.9.5', '1.6') and mc != '26.1.2':
+                light_code = jar.read('net/krodark/asterion/port/client/PortPointLights.class')
+                _, light_methods = class_members(light_code)
+                require(all(light_methods[method] & 0x20 for method in
+                            ('update', 'loaded', 'cull', 'remove', 'clear', 'nearestAttractor')),
+                        f'{path.name}: unguarded point-light collection access')
+                require(b'copyOf' in light_code, f'{path.name}: culling still uses a live map iterator')
+                boss_code = jar.read('net/krodark/asterion/mixin/PortMinotaurBossBarMixin.class')
+                require(b'ModifyExpressionValue' in boss_code and b'injection/Redirect' not in boss_code,
+                        f'{path.name}: boss-name hook still conflicts with exclusive redirects')
             if mc == '26.1.2':
                 require(b'updateRecipes' in jar.read('net/krodark/asterion/client/render/ClientRenderCaches.class'),
                         f'{path.name}: missing recipe-search world-retention fix')
+                if VERSION == '1.6':
+                    boss_code = jar.read('net/krodark/asterion/mixin/MinotaurBossBarMixin.class')
+                    require(b'ModifyExpressionValue' in boss_code and b'injection/Redirect' not in boss_code,
+                            f'{path.name}: boss-name hook still uses an exclusive redirect')
             for name in names:
                 if name.startswith("net/krodark/asterion/") and name.endswith(".class"):
                     major = int.from_bytes(jar.read(name)[6:8], "big")
                     require(major <= java_major, f"{path.name}: {name} requires a newer Java runtime")
+            if VERSION == '1.6':
+                _, world_methods = class_members(jar.read('net/krodark/asterion/worldgen/WorldGenerator.class'))
+                require('trackExplosionBreak' in world_methods and 'restoresExplosionBlock' in world_methods,
+                        f'{path.name}: explosion terrain restoration missing')
+                require(any(name.startswith('lambda$tickRestoringBlocks$') for name in world_methods),
+                        f'{path.name}: dropped-item restoration fix missing')
+                gun_tag = json.loads(jar.read('data/asterion/tags/damage_type/gun_damage.json'))
+                require({'id': '#tacz:bullets', 'required': False} in gun_tag['values'],
+                        f'{path.name}: optional gun compatibility tag missing')
+                require('net/krodark/asterion/game/BossGunDamage.class' in names,
+                        f'{path.name}: missing gun resistance')
+                explosion = jar.read('net/krodark/asterion/mixin/LabyrinthExplosionMixin.class')
+                if mc == '1.20.1':
+                    require(b'onBlockExploded' in explosion, f'{path.name}: Forge explosion callback missing')
+                require('net/krodark/asterion/compat/MinimapHudLayout.class' in names,
+                        f'{path.name}: minimap HUD layout missing')
             config = json.loads(jar.read("asterion.mixins.json"))
             for cleanup in ('AmneticLayerCleanupMixin', 'AmneticParticleContextAccessor', 'AmneticParticleContextCleanupMixin'):
                 require(cleanup in config.get('client', []), f'{path.name}: missing {cleanup}')

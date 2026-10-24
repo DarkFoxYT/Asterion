@@ -1,5 +1,6 @@
 package net.krodark.asterion.mixin;
 
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.krodark.asterion.client.hud.MinotaurBossBar;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.BossHealthOverlay;
@@ -21,11 +22,9 @@ public abstract class MinotaurBossBarMixin {
 
     @Inject(method = "reset", at = @At("HEAD"))
     private void asterion$reset(CallbackInfo ci) { MinotaurBossBar.reset(); }
-    @org.spongepowered.asm.mixin.injection.Redirect(method = "extractRenderState", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;text(Lnet/minecraft/client/gui/Font;Lnet/minecraft/network/chat/Component;III)V"))
-    private void asterion$nameBelow(GuiGraphicsExtractor graphics, net.minecraft.client.gui.Font font,
-                                    net.minecraft.network.chat.Component name, int x, int y, int color) {
-        if (name.getString().equals("THE MINOTAUR")) return;
-        graphics.text(font, name, x, y, color);
+    @ModifyExpressionValue(method = "extractRenderState", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/gui/components/LerpingBossEvent;getName()Lnet/minecraft/network/chat/Component;"))
+    private net.minecraft.network.chat.Component asterion$nameBelow(net.minecraft.network.chat.Component name) {
+        return name.getString().equals("THE MINOTAUR") ? net.minecraft.network.chat.Component.empty() : name;
     }
 }

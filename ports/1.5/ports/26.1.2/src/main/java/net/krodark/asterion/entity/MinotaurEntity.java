@@ -5248,7 +5248,8 @@ public final class MinotaurEntity extends Monster implements GeoEntity {
             pressure[0] = tickCount - pressure[1] > 34 ? 1 : Math.min(8, pressure[0] + 1);
             pressure[1] = tickCount;
             float spamResistance = 1.0F / (1.0F + Math.max(0, pressure[0] - 3) * 0.16F);
-            float dealt = Math.max(0.9F, amount * (exposed ? 1.8F : 0.72F) * spamResistance);
+            float dealt = net.krodark.asterion.game.BossGunDamage.scale(source,
+                    Math.max(0.9F, amount * (exposed ? 1.8F : 0.72F) * spamResistance));
             float remaining = getHealth() - dealt;
             if (bossStage != BossStage.EXTREME) remaining = Math.max(80.0F, remaining);
             setHealth(Math.max(1.0F, remaining));

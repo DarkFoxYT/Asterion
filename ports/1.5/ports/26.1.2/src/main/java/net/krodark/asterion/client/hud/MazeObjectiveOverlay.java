@@ -130,7 +130,8 @@ public final class MazeObjectiveOverlay {
                 || seconds > 0 && visibleTicks > seconds * 20) return 12;
         int width = Math.min(guiWidth - 24, 236);
         int lines = Math.min(2, client.font.split(stage.hint, width - 18).size());
-        return 12 + 31 + lines * 9 + (waypoint == null ? 3 : 14) + 8;
+        int height = 31 + lines * 9 + (waypoint == null ? 3 : 14);
+        return net.krodark.asterion.compat.MinimapHudLayout.top(width, height, client.getWindow().getGuiScaledHeight()) + height + 8;
     }
 
     private static void render(GuiGraphicsExtractor graphics, net.minecraft.client.DeltaTracker tracker) {
@@ -165,7 +166,7 @@ public final class MazeObjectiveOverlay {
         int waypointY = 31 + hintLines.size() * 9;
         int panelHeight = waypointY + (waypoint == null ? 3 : 14);
         int left = Math.round(Mth.lerp(appear, -panelWidth - 4.0F, 12.0F));
-        int panelTop = 12;
+        int panelTop = net.krodark.asterion.compat.MinimapHudLayout.top(panelWidth, panelHeight, graphics.guiHeight());
         graphics.fill(left + 2, panelTop + 2, left + panelWidth + 2, panelTop + panelHeight + 2,
                 Math.round(appear * completionFade * 95F) << 24);
         graphics.fill(left, panelTop, left + panelWidth, panelTop + panelHeight,

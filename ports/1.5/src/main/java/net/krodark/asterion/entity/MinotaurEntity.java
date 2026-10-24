@@ -10654,7 +10654,8 @@ if (stepHeight != null && Math.abs(stepHeight.getBaseValue() - (activeBoss ? 4 :
 
             float spamResistance = 1.0F / (1.0F + Math.max(0, pressure[0] - 3) * 0.16F);
 
-            float dealt = Math.max(0.9F, amount * (exposed ? 1.8F : 0.72F) * spamResistance);
+            float dealt = net.krodark.asterion.game.BossGunDamage.scale(source,
+                    Math.max(0.9F, amount * (exposed ? 1.8F : 0.72F) * spamResistance));
 
             float remaining = getHealth() - dealt;
 
