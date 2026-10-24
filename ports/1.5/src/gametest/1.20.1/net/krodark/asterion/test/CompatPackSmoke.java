@@ -379,4 +379,3 @@ final class CompatPackSmoke {
         } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
     }
 }
-

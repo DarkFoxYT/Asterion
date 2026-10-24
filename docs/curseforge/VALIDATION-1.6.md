@@ -57,4 +57,21 @@ The Labyrinth's structure-set whitelist remained Asterion-only with Repurposed S
 
 ## CurseForge publication
 
-Upload receipts will be recorded here after CurseForge accepts each transfer.
+All 10 unique files were accepted by CurseForge, covering 12 Minecraft/loader variants. All saved version/loader/Java/environment tags and issue-linked changelogs were verified. Files publish automatically after approval.
+
+| File | CurseForge ID | Loaders | Status at verification |
+| --- | --- | --- | --- |
+| Asterion-1.6-forge-mc1.20.1.jar | [9308735](https://authors.curseforge.com/#/projects/1671346/files/9308735) | Forge | Approved |
+| Asterion-1.6-neoforge-mc1.21.1.jar | [9308889](https://authors.curseforge.com/#/projects/1671346/files/9308889) | NeoForge | Approved |
+| Asterion-1.6-neoforge-mc26.1.2.jar | [9309076](https://authors.curseforge.com/#/projects/1671346/files/9309076) | NeoForge | Approved |
+| Asterion-1.6-fabric-mc1.20.1.jar | [9309247](https://authors.curseforge.com/#/projects/1671346/files/9309247) | Fabric, Quilt | Approved |
+| Asterion-1.6-fabric-mc1.21.1.jar | [9309393](https://authors.curseforge.com/#/projects/1671346/files/9309393) | Fabric, Quilt | Approved |
+| Asterion-1.6-forge-mc1.21.1.jar | [9309614](https://authors.curseforge.com/#/projects/1671346/files/9309614) | Forge | Approved |
+| Asterion-1.6-neoforge-mc1.20.1.jar | [9309774](https://authors.curseforge.com/#/projects/1671346/files/9309774) | NeoForge | Approved |
+| Asterion-1.6-forge-mc26.1.2.jar | [9309973](https://authors.curseforge.com/#/projects/1671346/files/9309973) | Forge | Approved |
+| Asterion-1.6-fabric-mc26.1.2.jar | [9310213](https://authors.curseforge.com/#/projects/1671346/files/9310213) | Fabric | Approved |
+| Asterion-1.6-quilt-mc26.1.2.jar | [9310401](https://authors.curseforge.com/#/projects/1671346/files/9310401) | Quilt | Processing File |
+
+The first five uploaded files were updated to link the Fantasy Ending report [#2](https://github.com/DarkFoxYT/Asterion/issues/2); later files received that changelog at upload. Changelogs contain only the release title and actual change bullets, with no footer.
+
+Local receipt: `ports/1.5/build/curseforge/publication-receipt-1.6.json`. Upload proof: `build/curseforge-1.6-uploaded.png`.
