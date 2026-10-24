@@ -2,7 +2,7 @@
 
 - Fixed a point-light crash when entering the Labyrinth on Minecraft 1.20.1 and 1.21.1.
 - Fixed light cleanup when lights are updated or removed during rendering.
-- Fixed a startup conflict with Fantasy Ending on Forge 1.20.1.
+- Fixed the startup crash with Fantasy Ending on Forge 1.20.1 ([#2](https://github.com/DarkFoxYT/Asterion/issues/2)). Asterion's custom Minotaur boss bar still works.
 - Fixed release packaging to keep the required startup fixes and exclude unfinished dimensions.
 - Asterion bosses now take 50% less damage from TaCZ bullets. Added a damage-type tag so modpacks can apply this to other guns.
 - Doubled Cursed Brazier health from 140 to 280. Existing braziers keep the same percentage of health when updated.
