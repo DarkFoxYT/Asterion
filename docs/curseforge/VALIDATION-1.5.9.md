@@ -75,4 +75,25 @@ The final 26.1.2 run passed all cache tests, three reloads, recipe search after 
 - No shader, texture, model, effect-quality or gameplay-configuration assets were modified by the patch. Full-resolution FPS figures above are Fabric production-client measurements; the other loaders received build/artifact checks and the specifically listed runtime tests.
 - Local manifest: `ports/1.5/build/release-1.5.9-manifest.json`; audit log: `ports/1.5/build/release-1.5.9-audit.log`. Runtime logs: `build/performance-3440-21.log`, `build/performance-3440-26-final.log`, `build/retention-fixed-26.log`, `build/performance-neoforge-26-smoke.log`, `build/performance-forge-20-shader-smoke.log`.
 
-No claim of zero lag or universal FPS is made: chunk generation, graphics hardware, other mods, server/network load, and profiler overhead remain relevant. These builds are prepared locally; this performance patch has not been uploaded to CurseForge.
+No claim of zero lag or universal FPS is made: chunk generation, graphics hardware, other mods, server/network load, and profiler overhead remain relevant.
+
+## CurseForge upload receipts
+
+All ten files were received on 23–24 October 2026, covering all twelve distributions. The 1.20.1 and 1.21.1 Fabric/Quilt pairs have identical SHA-256 hashes and share one upload per Minecraft version, tagged for both loaders. Saved Minecraft, loader, Java and client/server tags were verified for every upload. Each saved changelog exactly matches `CHANGELOG-1.5.9.md`, including every fix in this patch.
+
+All files are configured to publish automatically after approval. At final verification, nine were approved and the final NeoForge 1.21.1 file was processing.
+
+| Minecraft | Loaders | File | Status at verification |
+| --- | --- | --- | --- |
+| 1.20.1 | Fabric / Quilt | [9302841](https://authors.curseforge.com/#/projects/1671346/files/9302841) | Approved |
+| 1.20.1 | Forge | [9303338](https://authors.curseforge.com/#/projects/1671346/files/9303338) | Approved |
+| 1.20.1 | NeoForge | [9303437](https://authors.curseforge.com/#/projects/1671346/files/9303437) | Approved |
+| 1.21.1 | Fabric / Quilt | [9303084](https://authors.curseforge.com/#/projects/1671346/files/9303084) | Approved |
+| 1.21.1 | Forge | [9303543](https://authors.curseforge.com/#/projects/1671346/files/9303543) | Approved |
+| 1.21.1 | NeoForge | [9303678](https://authors.curseforge.com/#/projects/1671346/files/9303678) | Processing |
+| 26.1.2 | Fabric | [9302109](https://authors.curseforge.com/#/projects/1671346/files/9302109) | Approved |
+| 26.1.2 | Quilt | [9302247](https://authors.curseforge.com/#/projects/1671346/files/9302247) | Approved |
+| 26.1.2 | Forge | [9302388](https://authors.curseforge.com/#/projects/1671346/files/9302388) | Approved |
+| 26.1.2 | NeoForge | [9302596](https://authors.curseforge.com/#/projects/1671346/files/9302596) | Approved |
+
+Machine-readable file IDs, compatibility coverage and local release hashes are saved in `ports/1.5/build/curseforge/publication-receipt-1.5.9.json`. Dashboard proof is saved in `build/curseforge-1.5.9-uploaded.png`.
