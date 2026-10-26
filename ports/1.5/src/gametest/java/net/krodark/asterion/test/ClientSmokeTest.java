@@ -77,6 +77,11 @@ public final class ClientSmokeTest implements ClientModInitializer {
         }
         if (client.level == null || client.player == null || client.getSingleplayerServer() == null) return;
         worldTicks++;
+        if (Boolean.getBoolean("asterion.floorHotfixSmoke")) {
+            if (worldTicks == 20) GameplaySmoke.server(client, FloorHotfixRegression::prepare);
+            FloorHotfixRegression.client(client);
+            return;
+        }
         if (Boolean.getBoolean("asterion.pointLightSmoke")) {
             if (worldTicks == 20) GameplaySmoke.server(client, ExplosionTerrainRegression::prepare);
             if (worldTicks >= 180 && worldTicks % 20 == 0 && !ExplosionTerrainRegression.passed)

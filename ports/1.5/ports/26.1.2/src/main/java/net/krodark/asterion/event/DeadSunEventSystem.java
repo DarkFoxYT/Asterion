@@ -128,10 +128,7 @@ public final class DeadSunEventSystem {
         register(new Definition() {
             @Override public Identifier id() { return ECLIPSE; }
             @Override public boolean eligible(ServerLevel level) {
-                return level.players().stream().anyMatch(player -> player.isAlive() && !player.isSpectator())
-                        && level.players().stream().noneMatch(player -> player.isAlive() && !player.isSpectator()
-                        && (level.getBiome(player.blockPosition()).is(Asterion.FORGE_BIOME)
-                        || net.krodark.asterion.worldgen.AuthoredForge.contains(level, player.blockPosition())));
+                return level.players().stream().anyMatch(DeadSunEventSystem::eclipseHunterExposed);
             }
             @Override public int weight() { return 1; }
             @Override public int minDurationTicks() { return 20 * 60; }
@@ -313,7 +310,7 @@ public final class DeadSunEventSystem {
             throw new IllegalArgumentException("Duplicate Dead Sun event: " + definition.id());
     }
 
-    // Hunter terrain restrictions do not control the dimension-wide eclipse or its recipients.
+    // The eclipse, including its visuals and sounds, belongs to the surface maze.
     private static boolean eclipseHunterExposed(net.minecraft.server.level.ServerPlayer player) {
         return player.isAlive() && !player.isSpectator()
                 && player.getY() >= net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y
@@ -429,21 +426,26 @@ public final class DeadSunEventSystem {
     }
 
     private static void syncNewPlayers(ServerLevel level, ActiveEvent event) {
-        DeadSunEventPayload payload = new DeadSunEventPayload(event.definition.id(), event.seed,
-                event.durationTicks, event.elapsed, event.intensity);
-        level.players().forEach(player -> {
-            if (!event.notifiedPlayers.add(player.getUUID())) return;
-            if (ServerPlayNetworking.canSend(player, DeadSunEventPayload.TYPE))
-                ServerPlayNetworking.send(player, payload);
-        });
+        syncPlayers(level, event, false);
     }
 
     private static void syncAllPlayers(ServerLevel level, ActiveEvent event) {
+        syncPlayers(level, event, true);
+    }
+
+    private static void syncPlayers(ServerLevel level, ActiveEvent event, boolean refresh) {
         DeadSunEventPayload payload = new DeadSunEventPayload(event.definition.id(), event.seed,
                 event.durationTicks, event.elapsed, event.intensity);
+        DeadSunEventPayload stopped = new DeadSunEventPayload(event.definition.id(), event.seed, 1, 1, 0.0F);
         level.players().forEach(player -> {
-            event.notifiedPlayers.add(player.getUUID());
-            if (ServerPlayNetworking.canSend(player, DeadSunEventPayload.TYPE))
+            if (event.definition.id().equals(ECLIPSE) && !eclipseHunterExposed(player)) {
+                if (event.notifiedPlayers.remove(player.getUUID())
+                        && ServerPlayNetworking.canSend(player, DeadSunEventPayload.TYPE))
+                    ServerPlayNetworking.send(player, stopped);
+                return;
+            }
+            boolean newlyExposed = event.notifiedPlayers.add(player.getUUID());
+            if ((refresh || newlyExposed) && ServerPlayNetworking.canSend(player, DeadSunEventPayload.TYPE))
                 ServerPlayNetworking.send(player, payload);
         });
     }

@@ -61,6 +61,7 @@ final class RigidBodyPiece {
     Vec3 angularLimit = new Vec3(Math.PI, Math.PI, Math.PI);
     int lastMotorAge = -1;
     int age;
+    int lifetimeTicks = 30 * 20;
     int bounces;
     boolean sleeping;
     boolean skeletonBody;

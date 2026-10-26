@@ -16,6 +16,9 @@ public final class AncientSkeletonRenderer extends MobRenderer<AncientSkeletonEn
     public AncientSkeletonRenderer(EntityRendererProvider.Context context) {
         super(context, new SkeletonModel<>(context.bakeLayer(ModelLayers.SKELETON)), 0.5F);
         addLayer(new ItemInHandLayer<>(this, context.getItemInHandRenderer()));
+        addLayer(new net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer<>(this,
+                new SkeletonModel<>(context.bakeLayer(ModelLayers.SKELETON_INNER_ARMOR)),
+                new SkeletonModel<>(context.bakeLayer(ModelLayers.SKELETON_OUTER_ARMOR)), context.getModelManager()));
     }
 
     @Override

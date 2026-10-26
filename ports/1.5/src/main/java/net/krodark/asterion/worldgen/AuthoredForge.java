@@ -75,6 +75,7 @@ public final class AuthoredForge {
             return;
         }
         repairEmptyChunk(level, chunk);
+        ForgeDepths.repairAccess(level, chunk);
         ShaleCaves.repairEmptyChunk(chunk, MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState()));
 
 

@@ -105,6 +105,12 @@ public final class ForgeDepths {
         world.setBlock(accessMarker(chunk), accessRevision(), 18);
     }
 
+    public static void repairAccess(net.minecraft.server.level.ServerLevel level,
+                                    net.minecraft.world.level.chunk.LevelChunk chunk) {
+        if (!chunk.getBlockState(accessMarker(chunk.getPos())).equals(accessRevision()))
+            carveAccess(level, chunk.getPos());
+    }
+
     private static BlockPos accessMarker(ChunkPos chunk) { return new BlockPos(chunk.getMinBlockX(), 15, chunk.getMinBlockZ()); }
-    private static BlockState accessRevision() { return Blocks.LIGHT.defaultBlockState().setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 5); }
+    private static BlockState accessRevision() { return Blocks.LIGHT.defaultBlockState().setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 6); }
 }

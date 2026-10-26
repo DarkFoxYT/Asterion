@@ -513,6 +513,7 @@ public final class AuthoredCatacombs {
         if(!reset && chunk.getBlockState(marker).equals(revisionMarker) && hasArenaFoundation(chunk)) {
             if (arena) drainArenaWater(level, chunk, false);
             repairArenaApproach(level, chunk);
+            if (!BossArenaEncounter.isSealed(level)) MinotaurArenaEntrances.buildForChunk(level, cp);
             MinotaurArenaEntrances.repairOmegaLock(level, cp);
             return;
         }

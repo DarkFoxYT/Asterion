@@ -29,6 +29,7 @@ if (project.name.endsWith('-fabric')) {
             jvmArgs.addAll('-Dasterion.performanceSmoke=true', '-Xmx8G',
                     '-XX:StartFlightRecording=filename=asterion-performance.jfr,settings=profile,dumponexit=true')
         }
+        if (project.hasProperty('floorHotfixSmoke')) jvmArgs.addAll('-Dasterion.floorHotfixSmoke=true', '-Xmx8G')
         if (project.hasProperty('cacheSmoke')) jvmArgs.add('-Dasterion.cacheSmoke=true')
         if (project.hasProperty('retentionSmoke')) jvmArgs.add('-Dasterion.retentionSmoke=true')
         if (project.hasProperty('zoomSmoke')) jvmArgs.add('-Dasterion.zoomSmoke=true')

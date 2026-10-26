@@ -74,6 +74,12 @@ public final class PolishClientSmoke {
         }
         if(c.level==null || c.player==null || c.getSingleplayerServer()==null)return;
         ticks++;
+        if (Boolean.getBoolean("asterion.floorHotfixSmoke")) {
+            if (ticks == 20) c.getSingleplayerServer().execute(() ->
+                    FloorHotfixRegression.prepare(c.getSingleplayerServer().getPlayerList().getPlayers().getFirst()));
+            FloorHotfixRegression.client(c);
+            return;
+        }
         if (Boolean.getBoolean("asterion.performanceSmoke")) {
             if (!(c.screen instanceof PerformanceInputShield)) c.setScreen(new PerformanceInputShield());
             PerformanceSmoke.tick(c, ticks);

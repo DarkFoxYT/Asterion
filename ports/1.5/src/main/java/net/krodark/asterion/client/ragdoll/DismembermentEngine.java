@@ -62,7 +62,6 @@ import net.minecraft.util.Mth;
 public final class DismembermentEngine {
     public static final DismembermentEngine INSTANCE = new DismembermentEngine();
     private static final boolean RAGDOLL_CAPE_ENABLED = false;
-    private static final int MOB_RAGDOLL_LIFETIME_TICKS = 30 * 20;
     private final List<RigidBodyPiece> pieces = new ArrayList<>();
     private final Map<Integer, Set<Integer>> detached = new HashMap<>();
     private final Set<Integer> ragdolled = new HashSet<>();
@@ -256,6 +255,14 @@ public final class DismembermentEngine {
                     point, direction, Math.max(0.7, force * 0.42), false, texture);
         spawnCape(entity);
         spawnElytraWings(entity);
+        if (entity instanceof net.krodark.asterion.entity.AncientSkeletonEntity skeleton) {
+            boolean rightHanded = skeleton.getMainArm() == net.minecraft.world.entity.HumanoidArm.RIGHT;
+            synchronizeHeldItemGrip(skeleton, 2, 30,
+                    rightHanded ? skeleton.getMainHandItem() : skeleton.getOffhandItem());
+            synchronizeHeldItemGrip(skeleton, 3, 31,
+                    rightHanded ? skeleton.getOffhandItem() : skeleton.getMainHandItem());
+            for (RigidBodyPiece part : pieces) if (part.entityId == entity.getId()) part.lifetimeTicks = 120 * 20;
+        }
         if (entity instanceof net.minecraft.world.entity.monster.skeleton.AbstractSkeleton) {
             Vec3 fall = new Vec3(direction.x, 0, direction.z);
             if (fall.lengthSqr() < .0001) fall = new Vec3(entity.getLookAngle().x, 0, entity.getLookAngle().z);
@@ -626,7 +633,7 @@ public final class DismembermentEngine {
         }
     }
 
-    private void synchronizeHeldItemGrip(Player player, int armRegion, int gripRegion,
+    private void synchronizeHeldItemGrip(LivingEntity player, int armRegion, int gripRegion,
                                          net.minecraft.world.item.ItemStack stack) {
         RigidBodyPiece existing = find(player.getId(), gripRegion);
         if (stack.isEmpty()) {
@@ -643,7 +650,7 @@ public final class DismembermentEngine {
         if (arm == null) return;
         Vec3 gripPoint = worldAnchor(arm, arm.childJointAnchor.scale(-1.0));
         Vec3 half = heldItemExtents(stack);
-        RigidBodyPiece grip = new RigidBodyPiece(player.getId(), gripRegion, armRegion, true,
+        RigidBodyPiece grip = new RigidBodyPiece(player.getId(), gripRegion, armRegion, player instanceof Player,
                 gripPoint, arm.velocityAt(gripPoint), arm.angularVelocity, half,
                 heldItemWeight(stack), (float) half.y, arm.texture, arm.bloodRgb,
                 fullFaceUvs(), null, new Quaternionf(arm.orientation));
@@ -2251,7 +2258,7 @@ public final class DismembermentEngine {
             part.lastEnergyDelta = part.lastEnergyDelta * 0.82 + rawEnergyDelta * 0.18;
             if (supported && Math.abs(part.lastEnergyDelta) < 0.000015
                     && part.velocity.lengthSqr() < 0.0016) part.lastEnergyDelta = 0.0;
-            if (++part.age >= (part.playerBody ? 6000 : MOB_RAGDOLL_LIFETIME_TICKS)) {
+            if (++part.age >= (part.playerBody ? 6000 : part.lifetimeTicks)) {
                 expiredBodies.add(part.entityId);
                 if (grabbed == part) grabbed = null;
                 pieces.remove(i);

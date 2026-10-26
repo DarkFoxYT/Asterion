@@ -72,7 +72,7 @@ public final class RagdollRenderer {
         boolean physicalRight = grip.region == 30;
         HumanoidArm physicalArm = physicalRight ? HumanoidArm.RIGHT : HumanoidArm.LEFT;
         ItemStack stack = grip.heldItem;
-        if (living != null) {
+        if (living != null && living.isAlive()) {
             boolean mainHand = physicalArm == living.getMainArm();
             ItemStack current = mainHand ? living.getMainHandItem() : living.getOffhandItem();
             if (!current.isEmpty()) {
@@ -134,10 +134,10 @@ public final class RagdollRenderer {
         Minecraft minecraft = Minecraft.getInstance();
         if (!DismembermentEngine.isAnatomicalRegion(body.region) || minecraft.level == null) return List.of();
         LivingEntity living = minecraft.level.getEntity(body.entityId) instanceof LivingEntity found ? found : null;
-        ItemStack head = living == null ? body.headEquipment : living.getItemBySlot(EquipmentSlot.HEAD);
-        ItemStack chest = living == null ? body.chestEquipment : living.getItemBySlot(EquipmentSlot.CHEST);
-        ItemStack legs = living == null ? body.legEquipment : living.getItemBySlot(EquipmentSlot.LEGS);
-        ItemStack feet = living == null ? body.footEquipment : living.getItemBySlot(EquipmentSlot.FEET);
+        ItemStack head = living == null || !living.isAlive() ? body.headEquipment : living.getItemBySlot(EquipmentSlot.HEAD);
+        ItemStack chest = living == null || !living.isAlive() ? body.chestEquipment : living.getItemBySlot(EquipmentSlot.CHEST);
+        ItemStack legs = living == null || !living.isAlive() ? body.legEquipment : living.getItemBySlot(EquipmentSlot.LEGS);
+        ItemStack feet = living == null || !living.isAlive() ? body.footEquipment : living.getItemBySlot(EquipmentSlot.FEET);
         List<ArmorDraw> draws = new ArrayList<>(4);
         switch (DismembermentEngine.semanticRegion(body.region)) {
             case 0 -> addArmorSlot(draws, body, head, false);

@@ -53,6 +53,22 @@ public final class DeadSunClientEvents {
         }
     }
 
+    private static net.minecraft.client.resources.sounds.SoundInstance eclipseSound;
+
+    private static boolean eclipseExposed(Minecraft client) {
+        return client.level != null && client.player != null
+                && client.level.dimension().equals(Asterion.ASTERION_LEVEL)
+                && client.player.getY() >= net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y
+                && !client.level.getBiome(client.player.blockPosition()).is(Asterion.CATACOMBS_BIOME)
+                && !client.level.getBiome(client.player.blockPosition()).is(Asterion.FORGE_BIOME);
+    }
+
+    private static void stopEclipseSound() {
+        if (eclipseSound == null) return;
+        Minecraft.getInstance().getSoundManager().stop(eclipseSound);
+        eclipseSound = null;
+    }
+
     public static void receive(DeadSunEventPayload payload) {
         Minecraft client = Minecraft.getInstance();
         Factory factory = FACTORIES.get(payload.eventId());
@@ -104,8 +120,18 @@ public final class DeadSunClientEvents {
 
     private static void applyPending(Minecraft client, Factory factory) {
         if (pending == null || client.level == null) return;
+        if (pending.eventId().equals(DeadSunEventSystem.ECLIPSE) && !eclipseExposed(client)) {
+            active = null;
+            activeId = null;
+            pending = null;
+            eclipseIntroTicks = 0;
+            clearOutro();
+            stopEclipseSound();
+            return;
+        }
         double now = client.level.getGameTime();
         if (pending.intensity() <= 0.0001F) {
+            stopEclipseSound();
             Sample current = active == null ? Sample.NONE : active.sample(now);
             if (!isEmpty(current)) beginOutro(current, client.level.getGameTime(), 40);
             else clearOutro();
@@ -125,9 +151,11 @@ public final class DeadSunClientEvents {
         activeSeed = pending.seed();
         if (newEvent && activeId.equals(DeadSunEventSystem.ECLIPSE)) {
             eclipseIntroTicks = 0;
-            if (pending.elapsedTicks() <= 40)
-                client.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
-                        net.krodark.asterion.Asterion.ECLIPSE_EVENT_SOUND, 1.0F, 1.0F));
+            if (pending.elapsedTicks() <= 40) {
+                stopEclipseSound();
+                eclipseSound = net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(Asterion.ECLIPSE_EVENT_SOUND, 1.0F, 1.0F);
+                client.getSoundManager().play(eclipseSound);
+            }
         }
         active = factory.create(pending.seed(), client.level.getGameTime() - pending.elapsedTicks(),
                 pending.durationTicks(), pending.intensity());
@@ -138,7 +166,15 @@ public final class DeadSunClientEvents {
     }
 
     public static void tick(Minecraft client) {
+        if (activeId != null && activeId.equals(DeadSunEventSystem.ECLIPSE) && !eclipseExposed(client)) {
+            active = null;
+            activeId = null;
+            eclipseIntroTicks = 0;
+            clearOutro();
+            stopEclipseSound();
+        }
         if (client.level == null) {
+            stopEclipseSound();
             active = null;
             clearOutro();
             LOCAL_RUMBLES.clear();
@@ -198,6 +234,7 @@ public final class DeadSunClientEvents {
     }
 
     public static void clearTransientEffects() {
+        stopEclipseSound();
         active = null;
         activeId = null;
         clearOutro();

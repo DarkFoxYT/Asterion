@@ -12,6 +12,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(value = Pipeline.class, remap = false)
 public abstract class AmneticShaderPipelineMixin {
     @Inject(method = "runStage(Lcom/meekdev/amnetic/client/pipeline/RenderStage;Lcom/meekdev/amnetic/client/pipeline/FrameContext;)V",
+            at = @At("TAIL"))
+    private static void asterion$invalidateVanillaState(RenderStage stage, FrameContext context, CallbackInfo callback) {
+        net.krodark.asterion.client.render.VanillaRenderState.changed();
+    }
+
+    @Inject(method = "runStage(Lcom/meekdev/amnetic/client/pipeline/RenderStage;Lcom/meekdev/amnetic/client/pipeline/FrameContext;)V",
             at = @At("HEAD"), cancellable = true)
     private static void asterion$externalLighting(RenderStage stage, FrameContext context, CallbackInfo callback) {
         // Even an empty geometry pass resets GL programs/samplers at its tail.

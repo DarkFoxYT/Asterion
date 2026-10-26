@@ -45,15 +45,38 @@ public final class PortDeadSunEvents {
         rumbles.add(new Rumble(center,tick,duration,radius,strength,Double.doubleToLongBits(center.x+center.z)));
     }
 
+    private static net.minecraft.client.resources.sounds.SoundInstance eclipseSound;
+
+    private static boolean eclipseExposed(Minecraft client) {
+        return client.level != null && client.player != null
+                && client.level.dimension().equals(Asterion.ASTERION_LEVEL)
+                && client.player.getY() >= net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y
+                && !client.level.getBiome(client.player.blockPosition()).is(Asterion.CATACOMBS_BIOME)
+                && !client.level.getBiome(client.player.blockPosition()).is(Asterion.FORGE_BIOME);
+    }
+
+    private static void stopEclipseSound() {
+        if (eclipseSound == null) return;
+        Minecraft.getInstance().getSoundManager().stop(eclipseSound);
+        eclipseSound = null;
+    }
+
     public static void receive(DeadSunEventPayload payload) {
         Minecraft client = Minecraft.getInstance();
-        if (payload.intensity() <= 0.0001F || client.level == null) { active = null; return; }
+        if (payload.intensity() <= 0.0001F || client.level == null
+                || payload.eventId().equals(DeadSunEventSystem.ECLIPSE) && !eclipseExposed(client)) {
+            active = null;
+            stopEclipseSound();
+            return;
+        }
         active = new Active(payload.eventId(), payload.seed(),
                 client.level.getGameTime() - payload.elapsedTicks(), Math.max(1, payload.durationTicks()),
                 payload.intensity());
-        if (payload.eventId().equals(DeadSunEventSystem.ECLIPSE) && payload.elapsedTicks() <= 40)
-            client.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
-                    Asterion.ECLIPSE_EVENT_SOUND, 1.0F, 1.0F));
+        if (payload.eventId().equals(DeadSunEventSystem.ECLIPSE) && payload.elapsedTicks() <= 40) {
+            stopEclipseSound();
+            eclipseSound = net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(Asterion.ECLIPSE_EVENT_SOUND, 1.0F, 1.0F);
+            client.getSoundManager().play(eclipseSound);
+        }
     }
 
     public static void receive(MazeShiftPayload payload) {
@@ -67,7 +90,7 @@ public final class PortDeadSunEvents {
 
     public static void receive(DeadSunStrikePayload payload) { warnings.add(new Warning(payload)); }
 
-    public static void clearTransientEffects() { active = null; rumbles.clear(); warnings.clear(); wardDarknessTicks = 0; }
+    public static void clearTransientEffects() { stopEclipseSound(); active = null; rumbles.clear(); warnings.clear(); wardDarknessTicks = 0; }
     public static void receiveWardZap(net.krodark.asterion.network.MazeZapPayload payload) {
         var client=Minecraft.getInstance();
         if(client.player == null || payload.targetEntityId()!=client.player.getId()) return;
@@ -84,6 +107,10 @@ public final class PortDeadSunEvents {
         return Math.max(eclipse(),smooth(fadeIn)*smooth(fadeOut));
     }
     public static void tick(Minecraft client) {
+        if (active != null && active.id.equals(DeadSunEventSystem.ECLIPSE) && !eclipseExposed(client)) {
+            active = null;
+            stopEclipseSound();
+        }
         if(wardDarknessTicks>0) wardDarknessTicks--;
 
         if (client.level == null || !client.level.dimension().equals(Asterion.ASTERION_LEVEL)) {

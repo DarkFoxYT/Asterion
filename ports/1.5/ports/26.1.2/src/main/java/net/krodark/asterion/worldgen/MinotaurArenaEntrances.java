@@ -65,18 +65,28 @@ public final class MinotaurArenaEntrances {
     }
 
     public static void setAuthoredBossGate(ServerLevel level,int closedRows) {
+        setAuthoredBossGate(level, closedRows, null);
+    }
+    private static boolean inChunk(BlockPos pos, net.minecraft.world.level.ChunkPos clip) {
+        return clip == null || (pos.getX() >> 4) == clip.x() && (pos.getZ() >> 4) == clip.z();
+    }
+    private static void setAuthoredBossGate(ServerLevel level,int closedRows, net.minecraft.world.level.ChunkPos clip) {
         if (omegaGateLocked(level)) closedRows = 6;
         var base=Asterion.MAZESTEEL_GATE.defaultBlockState().setValue(DirectionalGateBlock.FACE,AttachFace.FLOOR)
                 .setValue(DirectionalGateBlock.FACING,Direction.SOUTH);
         for(int row=0;row<6;row++)for(int side=-3;side<=3;side++) {
             BlockPos pos=AUTHORED_BOSS_GATE.offset(side,row,0);
+            if (!inChunk(pos, clip)) continue;
             if(pos.equals(OMEGA_LOCK_POSITION)&&preserveOmegaOpening(level,pos))continue;
             var next=base.setValue(DirectionalGateBlock.OPEN,row<6-closedRows);
             if(!level.getBlockState(pos).equals(next)) level.setBlock(pos,next,2);
         }
-        ensureOmegaLock(level);
+        if (inChunk(OMEGA_LOCK_POSITION, clip)) ensureOmegaLock(level);
     }
     public static void setGate(ServerLevel level, Direction facing, int closedRows) {
+        setGate(level, facing, closedRows, null);
+    }
+    private static void setGate(ServerLevel level, Direction facing, int closedRows, net.minecraft.world.level.ChunkPos clip) {
         if (AuthoredCatacombs.enabled()) {
             BlockPos center = facing == BOSS_ENTRANCE ? AUTHORED_BOSS_GATE : gate(PLAYER_ENTRANCE);
             int authoredHeight = facing == BOSS_ENTRANCE ? 6 : 5;
@@ -87,6 +97,7 @@ public final class MinotaurArenaEntrances {
                     .setValue(DirectionalGateBlock.FACING, facing.getOpposite());
             for (int row = 0; row < authoredHeight; row++) for (int side = -3; side <= 3; side++) {
                 BlockPos pos = center.relative(facing.getClockWise(), side).above(row);
+                if (!inChunk(pos, clip)) continue;
                 if(facing==BOSS_ENTRANCE&&pos.equals(OMEGA_LOCK_POSITION)
                         &&preserveOmegaOpening(level,pos))continue;
                 var state = level.getBlockState(pos);
@@ -95,19 +106,21 @@ public final class MinotaurArenaEntrances {
                 if (!state.equals(next)) level.setBlock(pos, next, 2);
                 else if (!level.getBlockState(pos).is(Asterion.MAZESTEEL_GATE)) level.setBlock(pos, next, 2);
             }
-            if(facing==BOSS_ENTRANCE)ensureOmegaLock(level);
+            if(facing==BOSS_ENTRANCE && inChunk(OMEGA_LOCK_POSITION, clip))ensureOmegaLock(level);
             return;
         }
         var state = Asterion.MAZESTEEL_GATE.defaultBlockState().setValue(DirectionalGateBlock.FACE, AttachFace.FLOOR)
                 .setValue(DirectionalGateBlock.FACING, facing);
         for (int row = 0; row < gateHeight(); row++) for (int side = -3; side <= 3; side++) {
             BlockPos pos = gate(facing).relative(facing.getClockWise(), side).above(row);
+            if (!inChunk(pos, clip)) continue;
             var next = state.setValue(DirectionalGateBlock.OPEN, row < gateHeight() - closedRows);
             if (!level.getBlockState(pos).equals(next)) level.setBlock(pos, next, 2);
         }
          
         for (int side = -3; side <= 3; side++) {
             BlockPos pos=gate(facing).relative(facing.getClockWise(), side).above(gateHeight());
+            if (!inChunk(pos, clip)) continue;
             var next=state.setValue(DirectionalGateBlock.OPEN, false);
             if(!level.getBlockState(pos).equals(next)) level.setBlock(pos,next,2);
         }
@@ -202,13 +215,13 @@ public final class MinotaurArenaEntrances {
         setGates(level, 0, null);
     }
     public static void buildForChunk(ServerLevel level,net.minecraft.world.level.ChunkPos chunk) {
-        if(chunk.x()!=0)return;
-         
-         
-         
-        if(chunk.equals(net.minecraft.world.level.ChunkPos.containing(gate(PLAYER_ENTRANCE))))
-            setGate(level,PLAYER_ENTRANCE,0);
-        if(chunk.z()==-3)setAuthoredBossGate(level,0);
+        // Each half of the seven-block gate belongs to a different chunk.
+        // Placing the neighbour's half early lets its later arena template overwrite it.
+        BlockPos playerGate = gate(PLAYER_ENTRANCE);
+        if (chunk.z() == (playerGate.getZ() >> 4) && chunk.x() >= -1 && chunk.x() <= 0)
+            setGate(level, PLAYER_ENTRANCE, 0, chunk);
+        if (chunk.z() == (AUTHORED_BOSS_GATE.getZ() >> 4) && chunk.x() >= -1 && chunk.x() <= 0)
+            setAuthoredBossGate(level, 0, chunk);
         if (net.krodark.asterion.AsterionWorldState.get(level).minotaurDefeated()
                 && chunk.equals(net.minecraft.world.level.ChunkPos.containing(door(PLAYER_ENTRANCE)))
                 && level.getBlockEntity(door(PLAYER_ENTRANCE)) instanceof net.krodark.asterion.block.MinotaurDoorBlockEntity door)

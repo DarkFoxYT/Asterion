@@ -40,6 +40,7 @@
     "SpawnPlacementsAccessor"
   ],
   "client": [
+    "GlCommandEncoderStateMixin",
     "LabyrinthCloudMixin",
     "AfterblowFirstPersonMixin",
     "RenderRemnantClientTickMixin",

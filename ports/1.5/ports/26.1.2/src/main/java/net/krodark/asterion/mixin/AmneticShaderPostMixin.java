@@ -9,6 +9,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(value = PostEffectRegistry.class, remap = false)
 public abstract class AmneticShaderPostMixin {
+    @Inject(method = "applyAll", at = @At("TAIL"))
+    private void asterion$invalidateVanillaState(CallbackInfo callback) {
+        net.krodark.asterion.client.render.VanillaRenderState.changed();
+    }
+
     @Inject(method = {"applyAll", "captureWorldDepthSnapshot", "capturePostRenderDepthSnapshot",
             "restorePostRenderDepthSnapshotInto"}, at = @At("HEAD"), cancellable = true)
     private void asterion$externalPostProcessing(CallbackInfo callback) {

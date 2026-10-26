@@ -9,7 +9,7 @@ import struct
 import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
-VERSION = "1.6"
+VERSION = "1.6.1"
 rows = []
 parser = argparse.ArgumentParser()
 parser.add_argument('--version', default=VERSION)
@@ -95,6 +95,29 @@ for mc, java_major in [("1.20.1", 61), ("1.21.1", 65), ("26.1.2", 69)]:
         with zipfile.ZipFile(path) as jar:
             require(jar.testzip() is None, f"Bad ZIP checksums: {path.name}")
             names = set(jar.namelist())
+            if VERSION == '1.6.1':
+                ragdoll = 'net/krodark/asterion/' + ('client/ragdoll/' if mc == '26.1.2' else 'port/client/ragdoll/')
+                engine = jar.read(ragdoll + 'DismembermentEngine.class')
+                require(b'lifetimeTicks' in engine and b'AncientSkeletonEntity' in engine
+                        and b'synchronizeHeldItemGrip' in engine and b'skeletonBody' in engine,
+                        f'{path.name}: ancient skeleton corpse/gear/physics fixes missing')
+                _, event_methods = class_members(jar.read('net/krodark/asterion/event/DeadSunEventSystem.class'))
+                require('syncPlayers' in event_methods, f'{path.name}: eclipse recipient filtering missing')
+                presentation = ('client/event/DeadSunClientEvents' if mc == '26.1.2' else 'port/client/PortDeadSunEvents')
+                _, presentation_methods = class_members(jar.read('net/krodark/asterion/' + presentation + '.class'))
+                require('stopEclipseSound' in presentation_methods and 'eclipseExposed' in presentation_methods,
+                        f'{path.name}: underground eclipse presentation/audio filtering missing')
+                if mc == '26.1.2':
+                    require('net/krodark/asterion/mixin/GlCommandEncoderStateMixin.class' in names
+                            and 'GlCommandEncoderStateMixin' in json.loads(jar.read('asterion.mixins.json'))['client'],
+                            f'{path.name}: vanilla shader state restoration missing')
+                _, forge_methods = class_members(jar.read('net/krodark/asterion/worldgen/ForgeDepths.class'))
+                require('repairAccess' in forge_methods, f'{path.name}: existing Forge entrance repair missing')
+                _, gate_methods = class_members(jar.read('net/krodark/asterion/worldgen/MinotaurArenaEntrances.class'))
+                require('inChunk' in gate_methods, f'{path.name}: chunk-clipped gate placement missing')
+                if mc != '26.1.2' and loader in ('forge', 'neoforge'):
+                    require(b'HumanoidArmorLayer' in jar.read('net/krodark/asterion/port/client/AncientSkeletonRenderer.class'),
+                            f'{path.name}: ancient skeleton armor layer missing')
             require(not names.intersection({
                 'data/asterion/dimension/limbo.json', 'data/asterion/dimension/underworld.json',
                 'data/asterion/dimension_type/limbo.json', 'data/asterion/dimension_type/underworld.json',
@@ -143,7 +166,7 @@ for mc, java_major in [("1.20.1", 61), ("1.21.1", 65), ("26.1.2", 69)]:
                     f'Spark profiler leaked into {path.name}')
             require(b'spareCells' in jar.read('net/krodark/asterion/physics/VoxelCollisionCache.class'),
                     f'{path.name}: missing bounded collision-storage reuse')
-            if VERSION in ('1.5.9.5', '1.6') and mc != '26.1.2':
+            if VERSION in ('1.5.9.5', '1.6', '1.6.1') and mc != '26.1.2':
                 light_code = jar.read('net/krodark/asterion/port/client/PortPointLights.class')
                 _, light_methods = class_members(light_code)
                 require(all(light_methods[method] & 0x20 for method in
@@ -156,7 +179,7 @@ for mc, java_major in [("1.20.1", 61), ("1.21.1", 65), ("26.1.2", 69)]:
             if mc == '26.1.2':
                 require(b'updateRecipes' in jar.read('net/krodark/asterion/client/render/ClientRenderCaches.class'),
                         f'{path.name}: missing recipe-search world-retention fix')
-                if VERSION == '1.6':
+                if VERSION in ('1.6', '1.6.1'):
                     boss_code = jar.read('net/krodark/asterion/mixin/MinotaurBossBarMixin.class')
                     require(b'ModifyExpressionValue' in boss_code and b'injection/Redirect' not in boss_code,
                             f'{path.name}: boss-name hook still uses an exclusive redirect')
@@ -164,7 +187,7 @@ for mc, java_major in [("1.20.1", 61), ("1.21.1", 65), ("26.1.2", 69)]:
                 if name.startswith("net/krodark/asterion/") and name.endswith(".class"):
                     major = int.from_bytes(jar.read(name)[6:8], "big")
                     require(major <= java_major, f"{path.name}: {name} requires a newer Java runtime")
-            if VERSION == '1.6':
+            if VERSION in ('1.6', '1.6.1'):
                 _, world_methods = class_members(jar.read('net/krodark/asterion/worldgen/WorldGenerator.class'))
                 require('trackExplosionBreak' in world_methods and 'restoresExplosionBlock' in world_methods,
                         f'{path.name}: explosion terrain restoration missing')

@@ -47,6 +47,7 @@ final class RigidBodyPiece {
     Vec3 angularLimit = new Vec3(Math.PI, Math.PI, Math.PI);
     int lastMotorAge = -1;
     int age;
+    int lifetimeTicks = 30 * 20;
     int bounces;
     boolean sleeping;
     float physicsBlend;
@@ -62,6 +63,7 @@ final class RigidBodyPiece {
     float charAmount;
     int supportTicks;
     int supportMissTicks;
+    boolean skeletonBody;
     final Map<Long, PersistentContact> contacts = new LinkedHashMap<>();
 
     enum JointType { ROOT, CONE_TWIST, HINGE, CLOTH, GRIP }

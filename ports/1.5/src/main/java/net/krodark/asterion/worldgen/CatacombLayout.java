@@ -136,6 +136,10 @@ public final class CatacombLayout {
         if (tx == BRAZIER_ROOM_MIN_X && brazierApproach(tz) && side == Direction.WEST) return true;
         if (brazierRoom(nx, nz)) return false;
         if (reserved(tx, tz) || reserved(nx, nz)) return false;
+        // Keep the original backbone and add the stair's required east doorway.
+        // Changing its parent instead can form a cycle with the eastern junction.
+        if (side == Direction.EAST && ForgeDepths.isStairModule(tx, tz)
+                || side == Direction.WEST && ForgeDepths.isStairModule(nx, nz)) return true;
         Direction hereParent = parent(seed, tx, tz);
         Direction thereParent = parent(seed, nx, nz);
         if (hereParent == side || thereParent == side.getOpposite()) return true;
