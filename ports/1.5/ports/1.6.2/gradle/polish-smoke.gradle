@@ -1,0 +1,66 @@
+sourceSets { polishSmoke }
+configurations.polishSmokeImplementation.extendsFrom configurations.implementation
+configurations.polishSmokeRuntimeOnly.extendsFrom configurations.runtimeOnly
+sourceSets.polishSmoke.compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+sourceSets.polishSmoke.runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+
+// Exercise the shipped renderer/window hook, including its Sodium compatibility
+// patch, instead of the original renderer on Loom's development classpath.
+if (project.name.endsWith('-fabric')) {
+    def harness = tasks.register('productionPolishHarnessJar', Jar) {
+        from sourceSets.polishSmoke.output
+        archiveClassifier = 'production-polish-tests'
+        destinationDirectory = layout.buildDirectory.dir('test-harness')
+    }
+    def loader = tasks.named('runClient').get().getClass().getClassLoader()
+    def productionType = Class.forName('net.fabricmc.loom.task.prod.ClientProductionRunTask', true, loader)
+    tasks.register('runProductionPolishClient', productionType) {
+        dependsOn tasks.named('downloadAssets')
+        mods.setFrom(tasks.named('jar'), harness)
+        if (project.hasProperty('sodiumSmokeJar')) {
+            mods.from(project.file(project.property('sodiumSmokeJar')))
+            jvmArgs.add('-Dasterion.sodiumSmoke=true')
+        }
+        runDir = layout.buildDirectory.dir('run/production-polish')
+        javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+        jvmArgs.addAll('-Dasterion.polishSmoke=true', '-Damnetic.opengl.debug=true', '-Dfabric.noGui=true')
+        if (project.hasProperty('performanceSmoke')) {
+            mods.from(rootProject.file('../../../../build/performance-fixtures/spark-1.10.187-fabric.jar'))
+            jvmArgs.addAll('-Dasterion.performanceSmoke=true', '-Xmx8G',
+                    '-XX:StartFlightRecording=filename=asterion-performance.jfr,settings=profile,dumponexit=true')
+        }
+        if (project.hasProperty('floorHotfixSmoke')) jvmArgs.addAll('-Dasterion.floorHotfixSmoke=true', '-Xmx8G')
+        if (project.hasProperty('cacheSmoke')) jvmArgs.add('-Dasterion.cacheSmoke=true')
+        if (project.hasProperty('retentionSmoke')) jvmArgs.add('-Dasterion.retentionSmoke=true')
+        if (project.hasProperty('zoomSmoke')) jvmArgs.add('-Dasterion.zoomSmoke=true')
+        programArgs.addAll('--username', 'AsterionTest', '--accessToken', '0', '--version', '26.1.2')
+        doFirst {
+            def directory = runDir.get().asFile
+            directory.mkdirs()
+            def options = new File(directory, 'options.txt')
+            if (!options.exists()) options.text = 'onboardAccessibility:false\npauseOnLostFocus:false\n'
+        }
+    }
+}
+loom {
+    mods { asterion_polish_tests { sourceSet sourceSets.polishSmoke } }
+    runs { polishSmokeClient {
+        client()
+        source sourceSets.polishSmoke
+        mainClass = project.name.endsWith('-quilt')
+                ? "org.quiltmc.loader.impl.launch.knot.KnotClient"
+                : "net.fabricmc.loader.impl.launch.knot.KnotClient"
+        runDir(project.name.endsWith('-quilt') ? "build/run/quilt" : "build/run/polish-smoke")
+        vmArg '-Dasterion.polishSmoke=true'
+        ideConfigGenerated = false
+    } }
+}
+
+if (project.name.endsWith('-quilt')) {
+    def harness = tasks.register('quiltPolishHarnessJar', Jar) {
+        from sourceSets.polishSmoke.output
+        archiveClassifier = 'polish-tests'
+        destinationDirectory = layout.buildDirectory.dir('test-harness')
+    }
+    tasks.named('prepareQuiltRunMods', Sync).configure { from harness }
+}

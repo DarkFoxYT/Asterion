@@ -1,0 +1,16 @@
+{
+  "parent": "asterion:root",
+  "criteria": {
+    "mechanism": {
+      "conditions": { "items": [{ "items": "asterion:antikythera_mechanism" }] },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "description": { "translate": "advancement.asterion.find_mechanism.description" },
+    "icon": { "id": "asterion:antikythera_mechanism" },
+    "title": { "translate": "advancement.asterion.find_mechanism.title" }
+  },
+  "requirements": [["mechanism"]],
+  "sends_telemetry_event": false
+}

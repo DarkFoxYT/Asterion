@@ -1,0 +1,94 @@
+def testExec = services.get(org.gradle.process.ExecOperations)
+def testPython = providers.environmentVariable('ASTERION_PYTHON').getOrElse('python')
+def testPlatform = project.name.tokenize('-').last()
+def testOutput = layout.buildDirectory.dir('generated/port-smoke')
+def testGenerate = tasks.register('generatePortSmoke', Sync) {
+    from(rootProject.file('tools/port-smoke')) { include '*.template'; rename { it.replace('.template', '') } }
+    from(rootProject.file('src/polishSmoke/java/net/krodark/asterion/test/FloorHotfixRegression.java'))
+    into testOutput
+    inputs.properties(minecraft: minecraft_version, platform: testPlatform)
+    inputs.files(rootProject.file('gradle/port-api.py'), rootProject.file('gradle/port-api263.py'))
+    doLast {
+        def source = new File(testOutput.get().asFile, 'PortClientSmoke.java')
+        def settings = minecraft_version == '1.21.11'
+                ? 'new net.minecraft.world.level.LevelSettings("Port smoke", net.minecraft.world.level.GameType.CREATIVE, false, net.minecraft.world.Difficulty.NORMAL, true, new net.minecraft.world.level.gamerules.GameRules(net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS), net.minecraft.world.level.WorldDataConfiguration.DEFAULT)'
+                : 'new net.minecraft.world.level.LevelSettings("Port smoke", net.minecraft.world.level.GameType.CREATIVE, net.minecraft.world.level.LevelSettings.DifficultySettings.DEFAULT, true, net.minecraft.world.level.WorldDataConfiguration.DEFAULT)'
+        def featureCheck = minecraft_version == '26.3' ? '''
+                        var features = client.getSingleplayerServer().registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.FEATURE);
+                        var first = features.getOrThrow(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.FEATURE, Asterion.id("port_test_moss_a"))).value();
+                        var second = features.getOrThrow(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.FEATURE, Asterion.id("port_test_moss_b"))).value();
+                        if (first == second) throw new AssertionError("Configured features shared a registry instance");
+                        ''' : ''
+        source.text = source.getText('UTF-8').replace('__WORLD_SETTINGS__', settings).replace('__FEATURE_CHECK__', featureCheck)
+        def bootstrap = 'package net.krodark.asterion.test;\n'
+        def metadataDir = new File(testOutput.get().asFile, 'resources')
+        metadataDir.mkdirs()
+        if (minecraft_version == '26.3') {
+            ['a', 'b'].each { variant ->
+                def feature = new File(metadataDir, "data/asterion/worldgen/feature/port_test_moss_${variant}.json")
+                feature.parentFile.mkdirs()
+                feature.text = '{"type":"asterion:ancient_moss_patch"}'
+            }
+        }
+        if (testPlatform in ['fabric', 'quilt']) {
+            bootstrap += 'public final class PortSmokeEntrypoint implements net.fabricmc.api.ClientModInitializer { public void onInitializeClient() { net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(PortClientSmoke::tick); } }'
+            new File(metadataDir, 'fabric.mod.json').text = groovy.json.JsonOutput.toJson([schemaVersion: 1, id: 'asterion_port_tests', version: '1.6.2', environment: 'client', entrypoints: [client: ['net.krodark.asterion.test.PortSmokeEntrypoint']]])
+        } else {
+            def neo = testPlatform == 'neoforge'
+            bootstrap += neo
+                    ? '@net.neoforged.fml.common.Mod(value="asterion_port_tests", dist=net.neoforged.api.distmarker.Dist.CLIENT) public final class PortSmokeEntrypoint { public PortSmokeEntrypoint() { net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.ClientTickEvent.Post event) -> PortClientSmoke.tick(net.minecraft.client.Minecraft.getInstance())); } }'
+                    : '@net.minecraftforge.fml.common.Mod("asterion_port_tests") public final class PortSmokeEntrypoint { public PortSmokeEntrypoint() { net.minecraftforge.event.TickEvent.ClientTickEvent.Post.BUS.addListener(event -> PortClientSmoke.tick(net.minecraft.client.Minecraft.getInstance())); } }'
+            def meta = new File(metadataDir, neo ? 'META-INF/neoforge.mods.toml' : 'META-INF/mods.toml')
+            meta.parentFile.mkdirs()
+            meta.text = 'modLoader="javafml"\nloaderVersion="[1,)"\nlicense="All-Rights-Reserved"\n[[mods]]\nmodId="asterion_port_tests"\nversion="1.6.2"\ndisplayName="Asterion port tests"\n'
+        }
+        new File(testOutput.get().asFile, 'PortSmokeEntrypoint.java').text = bootstrap
+        testExec.exec { commandLine testPython, rootProject.file('gradle/port-api.py'), testOutput.get().asFile, minecraft_version, testPlatform }
+    }
+}
+sourceSets {
+    portSmoke {
+        java.setSrcDirs([testOutput])
+        resources.setSrcDirs([testOutput.map { new File(it.asFile, 'resources') }])
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
+}
+if (testPlatform == 'forge') {
+    // Forge discovers the test entrypoint and its metadata as one mod path.
+    sourceSets.portSmoke.output.resourcesDir = sourceSets.portSmoke.java.destinationDirectory.get().asFile
+}
+tasks.named('compilePortSmokeJava').configure { dependsOn testGenerate }
+tasks.named('processPortSmokeResources').configure { dependsOn testGenerate }
+if (testPlatform in ['fabric', 'quilt']) {
+    loom {
+        mods { asterion_port_tests { sourceSet sourceSets.portSmoke } }
+        runs { portSmokeClient {
+            client()
+            source sourceSets.portSmoke
+            mainClass = testPlatform == 'quilt' ? 'org.quiltmc.loader.impl.launch.knot.KnotClient' : 'net.fabricmc.loader.impl.launch.knot.KnotClient'
+            runDir(layout.buildDirectory.dir('run/port-smoke').get().asFile.absolutePath)
+            vmArgs '-Xmx8G', '-Damnetic.opengl.debug=true'
+            ideConfigGenerated = false
+        } }
+    }
+} else if (testPlatform == 'neoforge') {
+    neoForge.addModdingDependenciesTo(sourceSets.portSmoke)
+    neoForge {
+        mods { asterion_port_tests { sourceSet sourceSets.portSmoke } }
+        runs { portSmokeClient {
+            client()
+            loadedMods = [mods.asterion, mods.asterion_port_tests]
+            sourceSet = sourceSets.portSmoke
+            gameDirectory = layout.buildDirectory.dir('run/port-smoke').get().asFile
+            jvmArgument '-Xmx8G'
+            systemProperty 'amnetic.opengl.debug', 'true'
+        } }
+    }
+} else if (project.hasProperty('portSmoke')) {
+    minecraft.runs.named('client') {
+        mods { asterion_port_tests { source sourceSets.portSmoke } }
+        workingDir = layout.projectDirectory.dir('run/automated-port-smoke')
+        jvmArgs '-Xmx8G', '-Damnetic.opengl.debug=true'
+    }
+}

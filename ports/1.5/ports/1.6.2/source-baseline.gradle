@@ -1,0 +1,2 @@
+// This project identifies the frozen source API version for Stonecutter.
+// All actual builds live in the 1.21.11 and 26.3 loader nodes.

@@ -1,0 +1,6 @@
+{
+  "replace": false,
+  "values": [
+    { "id": "#tacz:bullets", "required": false }
+  ]
+}

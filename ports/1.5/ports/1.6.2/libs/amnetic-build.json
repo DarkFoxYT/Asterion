@@ -1,0 +1,40 @@
+{
+  "source": "Supplied custom Amnetic checkout; loader-specific builds",
+  "artifacts": [
+    {
+      "file": "amnetic-1.0.0-asterion.4+26.3.jar",
+      "source": "C:\\Users\\darkf\\IdeaProjects\\Labyrinth\\libs\\amnetic-1.0.0-asterion.4+26.3.jar",
+      "sha256": "9f938491649647e64986e1c458b406d83d156390fdf611b22d4de97f4761bfbe",
+      "prepared_sha256": "50ecc56254f5d14aac34f03590810f38322c081f26cb6ca67ff901b62fc09c44"
+    },
+    {
+      "file": "amnetic-forge-1.0.0-asterion.4+26.3.jar",
+      "source": "C:\\Users\\darkf\\IdeaProjects\\Amnetic\\versions\\26.3-forge\\build\\libs\\amnetic-forge-1.0-SNAPSHOT+26.3-forge.jar",
+      "sha256": "a6ec4e12b67c5e6f7668ddd15daad6130bfd5bd10e2b3cf050dd890b91145198",
+      "prepared_sha256": "465b571e6ed244a2d08816e21ad6d72797946ff36e6a9bb78f021515ae43c6ab"
+    },
+    {
+      "file": "amnetic-neoforge-1.0.0-asterion.4+26.3.jar",
+      "source": "C:\\Users\\darkf\\IdeaProjects\\Amnetic\\versions\\26.3-neoforge\\build\\libs\\amnetic-neoforge-1.0-SNAPSHOT+26.3-neoforge.jar",
+      "sha256": "d98efbb26469f978726b4e72b87e432cc70474f57fc7694168f1b6ab5af3e648",
+      "prepared_sha256": "1d41ea0e11cd71b4c0315ce6ef4e249f166db79268eae173c344085865df8f3b"
+    },
+    {
+      "file": "amnetic-1.0.0-asterion.4+1.21.11.jar",
+      "source": "C:\\Users\\darkf\\IdeaProjects\\Amnetic\\versions\\1.21.11-fabric\\build\\libs\\amnetic-1.0-SNAPSHOT+1.21.11.jar",
+      "sha256": "e6885201f12c38552279bcfdc83fc64b0355442e460c3571b349133f927ff62d",
+      "prepared_sha256": "0a0cb97ca79b5428b225e936c597e466db64d1c2c17c0eedb58242e52e519896"
+    },
+    {
+      "file": "amnetic-forge-1.0.0-asterion.4+1.21.11.jar",
+      "source": "C:\\Users\\darkf\\IdeaProjects\\Amnetic\\versions\\1.21.11-forge\\build\\libs\\amnetic-forge-1.0-SNAPSHOT+1.21.11-forge.jar",
+      "sha256": "777dea6eabf9e62252e38d17c1eae207ffe190aaff131a53393833fb4127ea72",
+      "prepared_sha256": "4610a3cef73e00279e8da289cb52dbfe91c9e059cc47d980a21dc4fd1a1dee40"
+    }
+  ],
+  "preparation": [
+    "matching Minecraft pack format",
+    "release version metadata",
+    "preset path safety"
+  ]
+}

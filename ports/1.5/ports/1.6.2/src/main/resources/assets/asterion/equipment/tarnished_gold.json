@@ -1,0 +1,14 @@
+{
+  "layers": {
+    "humanoid": [
+      {
+        "texture": "asterion:tarnished_gold"
+      }
+    ],
+    "humanoid_leggings": [
+      {
+        "texture": "asterion:tarnished_gold"
+      }
+    ]
+  }
+}

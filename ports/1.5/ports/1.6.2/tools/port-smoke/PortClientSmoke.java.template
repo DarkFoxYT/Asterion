@@ -1,0 +1,63 @@
+package net.krodark.asterion.test;
+
+import net.krodark.asterion.Asterion;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.TitleScreen;
+
+/** Test-only entry into a disposable world, then the release's floor/corpse regressions. */
+public final class PortClientSmoke {
+    private static final long DEADLINE = System.nanoTime() + 480_000_000_000L;
+    private static int titleTicks, worldTicks;
+    private static boolean started, prepared;
+    private PortClientSmoke() { }
+    public static void tick(Minecraft client) {
+        try {
+            if (System.nanoTime() > DEADLINE) throw new AssertionError("Port smoke timed out");
+            if (client.screen instanceof net.minecraft.client.gui.screens.AccessibilityOnboardingScreen) {
+                client.options.onboardingAccessibilityFinished();
+                client.setScreen(new TitleScreen());
+            }
+            if (!started && client.screen instanceof TitleScreen && client.getOverlay() == null && ++titleTicks > 20) {
+                started = true;
+                client.options.pauseOnLostFocus = false;
+                client.options.renderDistance().set(4);
+                client.options.enableVsync().set(false);
+                client.options.framerateLimit().set(260);
+                client.options.inactivityFpsLimit().set(net.minecraft.client.InactivityFpsLimit.MINIMIZED);
+                client.getWindow().updateVsync(false);
+                net.krodark.asterion.AsterionConfig.INSTANCE.cinematicsEnabled = false;
+                var settings = __WORLD_SETTINGS__;
+                client.createWorldOpenFlows().createFreshLevel("port-smoke-" + System.currentTimeMillis(), settings,
+                        new net.minecraft.world.level.levelgen.WorldOptions(321L, false, false),
+                        net.minecraft.world.level.levelgen.presets.WorldPresets::createNormalWorldDimensions, new TitleScreen());
+            }
+            if (client.level == null || client.player == null || client.getSingleplayerServer() == null) return;
+            if (++worldTicks == 20 && !prepared) {
+                prepared = true;
+                client.getSingleplayerServer().execute(() -> {
+                    try {
+                        var player = client.getSingleplayerServer().getPlayerList().getPlayers().getFirst();
+                        __FEATURE_CHECK__
+                        player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,
+                                new net.minecraft.world.item.ItemStack(Asterion.AFTERBLOW));
+                        FloorHotfixRegression.prepare(player);
+                        client.getSingleplayerServer().saveEverything(false, true, true);
+                    } catch (Throwable failure) { FloorHotfixRegression.failure = failure; }
+                });
+            }
+            if (FloorHotfixRegression.serverPassed && client.level.dimension().equals(Asterion.ASTERION_LEVEL)) {
+                client.player.setXRot(35);
+                client.player.xRotO = 35;
+                if (client.player.getMainHandItem().is(Asterion.AFTERBLOW) && !client.player.isUsingItem())
+                    client.player.startUsingItem(net.minecraft.world.InteractionHand.MAIN_HAND);
+                if (worldTicks == 80) net.minecraft.client.Screenshot.grab(client.gameDirectory, "port-smoke.png",
+                        client.getMainRenderTarget(), 1, message -> Asterion.LOGGER.info("ASTERION_PORT_SCREENSHOT {}", message.getString()));
+            }
+            FloorHotfixRegression.client(client);
+        } catch (Throwable failure) {
+            Asterion.LOGGER.error("ASTERION_PORT_SMOKE FAIL", failure);
+            client.stop();
+            throw new AssertionError("Port smoke failed", failure);
+        }
+    }
+}

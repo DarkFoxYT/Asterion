@@ -1,0 +1,6 @@
+{
+  "textures": {
+    "cross": "asterion:block/shale_spike_4"
+  },
+  "parent": "minecraft:block/pointed_dripstone_down_base"
+}

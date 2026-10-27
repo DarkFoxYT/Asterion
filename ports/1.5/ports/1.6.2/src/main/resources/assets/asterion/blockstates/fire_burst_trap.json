@@ -1,0 +1,34 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "asterion:block/fire_burst_trap",
+      "x": 0,
+      "y": 0
+    },
+    "facing=east": {
+      "model": "asterion:block/fire_burst_trap",
+      "x": 0,
+      "y": 90
+    },
+    "facing=south": {
+      "model": "asterion:block/fire_burst_trap",
+      "x": 0,
+      "y": 180
+    },
+    "facing=west": {
+      "model": "asterion:block/fire_burst_trap",
+      "x": 0,
+      "y": 270
+    },
+    "facing=up": {
+      "model": "asterion:block/fire_burst_trap",
+      "x": 270,
+      "y": 0
+    },
+    "facing=down": {
+      "model": "asterion:block/fire_burst_trap",
+      "x": 90,
+      "y": 0
+    }
+  }
+}

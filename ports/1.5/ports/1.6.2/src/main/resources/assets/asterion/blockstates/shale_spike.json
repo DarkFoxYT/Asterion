@@ -1,0 +1,39 @@
+{
+  "variants": {
+    "vertical_direction=down,thickness=tip": {
+      "model": "asterion:block/shale_spike_down_tip",
+      "x": 180
+    },
+    "vertical_direction=up,thickness=base": {
+      "model": "asterion:block/shale_spike_up_base"
+    },
+    "vertical_direction=up,thickness=tip_merge": {
+      "model": "asterion:block/shale_spike_up_tip_merge"
+    },
+    "vertical_direction=down,thickness=frustum": {
+      "model": "asterion:block/shale_spike_down_frustum",
+      "x": 180
+    },
+    "vertical_direction=up,thickness=tip": {
+      "model": "asterion:block/shale_spike_up_tip"
+    },
+    "vertical_direction=up,thickness=middle": {
+      "model": "asterion:block/shale_spike_up_middle"
+    },
+    "vertical_direction=down,thickness=tip_merge": {
+      "model": "asterion:block/shale_spike_down_tip_merge",
+      "x": 180
+    },
+    "vertical_direction=up,thickness=frustum": {
+      "model": "asterion:block/shale_spike_up_frustum"
+    },
+    "vertical_direction=down,thickness=middle": {
+      "model": "asterion:block/shale_spike_down_middle",
+      "x": 180
+    },
+    "vertical_direction=down,thickness=base": {
+      "model": "asterion:block/shale_spike_down_base",
+      "x": 180
+    }
+  }
+}

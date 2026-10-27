@@ -1,0 +1,64 @@
+def bindingCompiler = tasks.register('compilePortMixinSmoke', JavaCompile) {
+    dependsOn tasks.named('classes')
+    source rootProject.file('tools/PortMixinSmoke.java')
+    classpath = sourceSets.main.runtimeClasspath
+    destinationDirectory = layout.buildDirectory.dir('port-mixin-smoke')
+    javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(project.java_version as int) }
+}
+tasks.register('portMixinSmoke', JavaExec) {
+    dependsOn bindingCompiler
+    classpath = files(bindingCompiler.flatMap { it.destinationDirectory }) + sourceSets.main.runtimeClasspath
+    mainClass = 'PortMixinSmoke'
+    args new File(sourceSets.main.output.resourcesDir, 'asterion.mixins.json').absolutePath
+    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(project.java_version as int) }
+}
+
+def rendererConfig = layout.buildDirectory.file('port-renderer-metadata/amnetic.mixins.json')
+def rendererMetadata = tasks.register('extractPortRendererMixinConfig') {
+    dependsOn tasks.named('classes')
+    inputs.files(sourceSets.main.runtimeClasspath)
+    outputs.file(rendererConfig)
+    doLast {
+        def renderer = sourceSets.main.runtimeClasspath.files.find { it.name.startsWith('amnetic-') && it.name.endsWith('.jar') }
+        if (renderer == null) throw new GradleException('Matching runtime renderer is missing')
+        new java.util.zip.ZipFile(renderer).withCloseable { archive ->
+            def target = rendererConfig.get().asFile
+            target.parentFile.mkdirs()
+            target.bytes = archive.getInputStream(archive.getEntry('amnetic.mixins.json')).readAllBytes()
+        }
+    }
+}
+tasks.register('portRendererMixinSmoke', JavaExec) {
+    dependsOn bindingCompiler, rendererMetadata
+    classpath = files(bindingCompiler.flatMap { it.destinationDirectory }) + sourceSets.main.runtimeClasspath
+    mainClass = 'PortMixinSmoke'
+    args rendererConfig.get().asFile.absolutePath
+    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(project.java_version as int) }
+}
+if (project.name.endsWith('-forge') || project.name.endsWith('-neoforge')) {
+    apply from: rootProject.file('../../gradle/camera-clearance-tests.gradle')
+    tasks.register('portLoaderMixinSmoke', JavaExec) {
+        dependsOn bindingCompiler
+        classpath = files(bindingCompiler.flatMap { it.destinationDirectory }) + sourceSets.main.runtimeClasspath
+        mainClass = 'PortMixinSmoke'
+        args new File(sourceSets.main.output.resourcesDir, "asterion.${project.name.tokenize('-').last()}.mixins.json").absolutePath
+        javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(project.java_version as int) }
+    }
+}
+
+if (project.name == '26.3-fabric') {
+    def codecCompiler = tasks.register('compilePortAdvancementSmoke', JavaCompile) {
+        dependsOn tasks.named('classes')
+        source rootProject.file('tools/PortAdvancementSmoke263.java')
+        classpath = sourceSets.main.runtimeClasspath
+        destinationDirectory = layout.buildDirectory.dir('port-advancement-smoke')
+        javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(25) }
+    }
+    tasks.register('portAdvancementSmoke', JavaExec) {
+        dependsOn codecCompiler
+        classpath = files(codecCompiler.flatMap { it.destinationDirectory }) + sourceSets.main.runtimeClasspath
+        mainClass = 'PortAdvancementSmoke263'
+        args new File(sourceSets.main.output.resourcesDir, 'data/asterion/advancement').absolutePath
+        javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+    }
+}

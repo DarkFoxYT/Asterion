@@ -1,0 +1,39 @@
+{
+  "parent": "asterion:celestial_bronze",
+  "criteria": {
+    "milestone": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "asterion:flamethrower"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "asterion:flamethrower"
+    },
+    "title": {
+      "translate": "advancement.asterion.flamethrower.title"
+    },
+    "description": {
+      "translate": "advancement.asterion.flamethrower.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "milestone"
+    ]
+  ],
+  "rewards": {
+    "experience": 25
+  },
+  "sends_telemetry_event": false
+}

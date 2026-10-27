@@ -1,0 +1,31 @@
+{
+  "variants": {
+    "column=0,row=0": {
+      "model": "asterion:block/greek_brazier_part"
+    },
+    "column=0,row=1": {
+      "model": "asterion:block/greek_brazier_part"
+    },
+    "column=0,row=2": {
+      "model": "asterion:block/greek_brazier_part"
+    },
+    "column=1,row=0": {
+      "model": "asterion:block/greek_brazier_part"
+    },
+    "column=1,row=1": {
+      "model": "asterion:block/greek_brazier"
+    },
+    "column=1,row=2": {
+      "model": "asterion:block/greek_brazier_part"
+    },
+    "column=2,row=0": {
+      "model": "asterion:block/greek_brazier_part"
+    },
+    "column=2,row=1": {
+      "model": "asterion:block/greek_brazier_part"
+    },
+    "column=2,row=2": {
+      "model": "asterion:block/greek_brazier_part"
+    }
+  }
+}

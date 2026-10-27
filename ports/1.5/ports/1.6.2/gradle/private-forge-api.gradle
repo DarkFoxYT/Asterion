@@ -1,0 +1,10 @@
+// Keep the local event adapters private so optional Fabric bridges cannot collide with them.
+def isolateExec = services.get(org.gradle.process.ExecOperations)
+def isolatePython = providers.environmentVariable('ASTERION_PYTHON').getOrElse('python')
+def isolation = rootProject.file('../../gradle/isolate-native-api.py')
+tasks.matching { it.name in ['jar', 'jarJar', 'compatibleAmneticJar'] }.configureEach {
+    inputs.file(isolation)
+    doLast {
+        isolateExec.exec { commandLine isolatePython, isolation, archiveFile.get().asFile }
+    }
+}

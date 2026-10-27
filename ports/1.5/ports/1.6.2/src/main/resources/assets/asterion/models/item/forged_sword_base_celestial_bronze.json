@@ -1,0 +1,7 @@
+{
+  "parent": "asterion:item/forged_sword_layer",
+  "textures": {
+    "layer0": "asterion:forging/celestial_bronze/celestial_bronze_blade",
+    "layer1": "asterion:forging/deadwood_stick/deadwood_stick"
+  }
+}

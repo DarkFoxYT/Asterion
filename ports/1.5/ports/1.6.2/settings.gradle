@@ -1,0 +1,35 @@
+pluginManagement {
+    repositories {
+        maven { name = 'Fabric'; url = 'https://maven.fabricmc.net/' }
+        maven { name = 'Forge'; url = 'https://maven.minecraftforge.net/' }
+        maven { name = 'Sinytra'; url = 'https://maven.sinytra.org/' }
+        maven { name = 'KikuGie'; url = 'https://maven.kikugie.dev/releases' }
+        gradlePluginPortal()
+    }
+}
+
+plugins {
+    // Provision the Java versions required by Minecraft and NeoForge's tools.
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+plugins {
+    id 'dev.kikugie.stonecutter' version '0.9.8'
+}
+
+rootProject.name = 'Asterion'
+apply from: file('../../../../gradle/collect-mod-builds.settings.gradle')
+stonecutter {
+    create(rootProject) {
+        // Source identity only: this node has no build or publication tasks.
+        version('26.1.2-source', '26.1.2').buildscript = 'source-baseline.gradle'
+        def loaders = providers.gradleProperty('asterionPortLoaders').getOrElse('fabric,quilt,forge,neoforge').split(',') as Set
+        for (minecraft in ['1.21.11', '26.3']) {
+            version("${minecraft}-fabric", minecraft).buildscript = minecraft == '1.21.11' ? 'fabric-remap.gradle' : 'build.gradle'
+            if ('quilt' in loaders) version("${minecraft}-quilt", minecraft).buildscript = minecraft == '1.21.11' ? 'fabric-remap.gradle' : 'build.gradle'
+            if ('forge' in loaders) version("${minecraft}-forge", minecraft).buildscript = 'forge/build.gradle'
+            if ('neoforge' in loaders) version("${minecraft}-neoforge", minecraft).buildscript = 'neoforge/build.gradle'
+        }
+        vcsVersion = '26.1.2-source'
+    }
+}

@@ -1,0 +1,39 @@
+{
+  "parent": "asterion:bonesteel",
+  "criteria": {
+    "milestone": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "asterion:celestial_steel_ingot"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "asterion:celestial_steel_ingot"
+    },
+    "title": {
+      "translate": "advancement.asterion.celestial_steel.title"
+    },
+    "description": {
+      "translate": "advancement.asterion.celestial_steel.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "milestone"
+    ]
+  ],
+  "rewards": {
+    "experience": 25
+  },
+  "sends_telemetry_event": false
+}

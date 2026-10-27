@@ -1,0 +1,32 @@
+{
+  "parent": "asterion:tainted_bouquet",
+  "criteria": {
+    "milestone": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "asterion:tainted_petals"
+    },
+    "title": {
+      "translate": "advancement.asterion.queens_favor.title"
+    },
+    "description": {
+      "translate": "advancement.asterion.queens_favor.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "requirements": [
+    [
+      "milestone"
+    ]
+  ],
+  "rewards": {
+    "experience": 25
+  },
+  "sends_telemetry_event": false
+}

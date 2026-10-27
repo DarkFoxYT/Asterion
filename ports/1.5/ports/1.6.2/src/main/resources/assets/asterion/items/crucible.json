@@ -1,0 +1,7 @@
+{
+  "model": {
+    "type": "minecraft:special",
+    "base": "asterion:item/crucible",
+    "model": { "type": "geckolib:geckolib" }
+  }
+}

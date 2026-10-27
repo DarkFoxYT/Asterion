@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:stonecutting",
+  "ingredient": "asterion:shale",
+  "result": {
+    "id": "asterion:shale_formation",
+    "count": 1
+  }
+}

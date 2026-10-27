@@ -1,0 +1,7 @@
+{
+  "model": {
+    "type": "minecraft:special",
+    "base": "asterion:item/rune_14",
+    "model": { "type": "geckolib:geckolib" }
+  }
+}

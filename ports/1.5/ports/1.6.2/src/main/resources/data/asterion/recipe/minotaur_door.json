@@ -1,0 +1,1 @@
+{"type":"minecraft:crafting_shaped","category":"building","pattern":["III","SDS","III"],"key":{"I":"minecraft:iron_ingot","S":"asterion:ancient_stone","D":"minecraft:dark_oak_door"},"result":{"id":"asterion:minotaur_door","count":1}}

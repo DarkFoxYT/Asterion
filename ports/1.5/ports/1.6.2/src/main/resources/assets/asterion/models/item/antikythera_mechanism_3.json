@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "asterion:item/am/antikythera_mechinisim_3"
+  }
+}

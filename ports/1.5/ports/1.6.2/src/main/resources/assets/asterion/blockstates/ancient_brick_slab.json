@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "type=bottom": {
+      "model": "asterion:block/ancient_brick_slab"
+    },
+    "type=double": {
+      "model": "asterion:block/ancient_bricks"
+    },
+    "type=top": {
+      "model": "asterion:block/ancient_brick_slab_top"
+    }
+  }
+}

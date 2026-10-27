@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "net.krodark.asterion.forge.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": ["ForgeHeavyWaterFluidMixin", "ForgeTidalWaterFluidMixin"],
+  "client": ["ForgeRenderStateMixin", "ForgeLevelRendererMixin"],
+  "injectors": {"defaultRequire": 1}
+}

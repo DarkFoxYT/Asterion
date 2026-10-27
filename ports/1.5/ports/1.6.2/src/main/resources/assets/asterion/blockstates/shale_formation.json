@@ -1,0 +1,28 @@
+{
+  "variants": {
+    "thickness=1,hanging=false": {
+      "model": "asterion:block/shale_formation_1"
+    },
+    "thickness=2,hanging=false": {
+      "model": "asterion:block/shale_formation_2"
+    },
+    "thickness=3,hanging=false": {
+      "model": "asterion:block/shale_formation_3"
+    },
+    "thickness=4,hanging=false": {
+      "model": "asterion:block/shale_formation_4"
+    },
+    "thickness=1,hanging=true": {
+      "model": "asterion:block/shale_formation_1_hanging"
+    },
+    "thickness=2,hanging=true": {
+      "model": "asterion:block/shale_formation_2_hanging"
+    },
+    "thickness=3,hanging=true": {
+      "model": "asterion:block/shale_formation_3_hanging"
+    },
+    "thickness=4,hanging=true": {
+      "model": "asterion:block/shale_formation_4_hanging"
+    }
+  }
+}

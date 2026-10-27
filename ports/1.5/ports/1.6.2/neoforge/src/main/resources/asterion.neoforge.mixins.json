@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "net.krodark.asterion.neoforge.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": ["WaterFluidTypeMixin"],
+  "client": ["NativeRenderStateMixin"],
+  "injectors": {"defaultRequire": 1}
+}

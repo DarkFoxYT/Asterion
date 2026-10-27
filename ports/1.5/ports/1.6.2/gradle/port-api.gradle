@@ -1,0 +1,129 @@
+def portExec = services.get(org.gradle.process.ExecOperations)
+def portPython = providers.environmentVariable('ASTERION_PYTHON').getOrElse('python')
+tasks.matching { it.name == 'stonecutterGenerate' }.configureEach {
+    inputs.file(rootProject.file('gradle/port-api.py'))
+    inputs.file(rootProject.file('gradle/port-api263.py'))
+    inputs.property('portPlatform', project.name.tokenize('-').last())
+    doLast {
+        portExec.exec {
+            commandLine portPython, rootProject.file('gradle/port-api.py'),
+                    layout.buildDirectory.dir('generated/stonecutter/main/java').get().asFile, minecraft_version, project.name.tokenize('-').last()
+        }
+    }
+}
+
+tasks.named('processResources').configure {
+    inputs.properties(portMinecraft: minecraft_version, portLoader: project.name.tokenize('-').last(),
+            packMajor: resource_pack_major, packMinor: resource_pack_minor)
+    doLast {
+        def pack = [description: 'Asterion resources', min_format: [resource_pack_major as int, resource_pack_minor as int],
+                max_format: [resource_pack_major as int, resource_pack_minor as int]]
+        if (minecraft_version == '1.21.11' && !project.name.endsWith('-forge')) {
+            pack.pack_format = resource_pack_major as int
+            pack.supported_formats = [resource_pack_major as int, resource_pack_major as int]
+        }
+        new File(destinationDir, 'pack.mcmeta').text = groovy.json.JsonOutput.toJson([pack: pack])
+        if (minecraft_version == '1.21.11' && new File(destinationDir, 'fabric.mod.json').isFile()) {
+            def metadataFile = new File(destinationDir, 'fabric.mod.json')
+            def metadata = new groovy.json.JsonSlurper().parse(metadataFile)
+            metadata.accessWidener = 'asterion.classtweaker'
+            metadataFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata))
+        }
+        def mixinsFile = new File(destinationDir, 'asterion.mixins.json')
+        def mixins = new groovy.json.JsonSlurper().parse(mixinsFile)
+        if (minecraft_version == '1.21.11' && !mixins.client.contains('GameRendererFovInvoker'))
+            mixins.client.add('GameRendererFovInvoker')
+        if (minecraft_version == '1.21.11') {
+            ['LegacyBodyPickingMixin', 'LegacyCameraFovMixin', 'LegacyAmbientLightMixin'].each { if (!mixins.client.contains(it)) mixins.client.add(it) }
+            if (project.name.endsWith('-forge') || project.name.endsWith('-neoforge')) {
+                if (!mixins.client.contains('NativeHeavyWaterTintMixin')) mixins.client.add('NativeHeavyWaterTintMixin')
+            }
+        }
+        if (minecraft_version == '26.3') {
+            fileTree(new File(destinationDir, 'data/asterion/worldgen/biome')).matching { include '*.json' }.files.each { resource ->
+                def biome = new groovy.json.JsonSlurper().parse(resource)
+                if (biome.containsKey('spawners')) {
+                    if (biome.spawners.values().any { !it.empty })
+                        throw new GradleException("Biome spawn entries need explicit 26.3 conversion: ${resource.name}")
+                    biome.attributes['minecraft:gameplay/natural_mob_spawns'] = [modifier: 'override',
+                            argument: [spawn_costs: biome.remove('spawn_costs') ?: [:], spawns_by_category: [:]]]
+                    biome.remove('spawners')
+                    resource.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(biome))
+                }
+            }
+            // Loot predicates/functions were renamed too; leaving the old optional
+            // fields would silently remove drop chances and item-count modifiers.
+            Closure migrateLoot
+            migrateLoot = { value ->
+                if (value instanceof List) return value.collect { migrateLoot(it) }
+                if (!(value instanceof Map)) return value
+                def migrated = value.collectEntries { key, child -> [(key): migrateLoot(child)] }
+                if (migrated['condition'] instanceof String && !migrated.containsKey('type'))
+                    migrated.type = migrated.remove('condition')
+                if (migrated['function'] instanceof String)
+                    migrated.type = migrated.remove('function')
+                if (migrated.type == 'minecraft:block_state_property') {
+                    migrated.type = 'minecraft:match_block'
+                    migrated.blocks = migrated.remove('block')
+                    if (migrated.containsKey('properties')) migrated.state = migrated.remove('properties')
+                }
+                if (migrated.containsKey('functions')) migrated.modifier = migrated.remove('functions')
+                if (migrated.containsKey('conditions')) {
+                    def terms = migrated.remove('conditions')
+                    if (!terms.empty) migrated.condition = terms.size() == 1 ? terms[0] : [type: 'minecraft:all_of', terms: terms]
+                }
+                return migrated
+            }
+            ['loot_table', 'predicate', 'item_modifier'].each { registry ->
+                fileTree(new File(destinationDir, "data/asterion/${registry}")).matching { include '**/*.json' }.files.each { resource ->
+                    def data = migrateLoot(new groovy.json.JsonSlurper().parse(resource))
+                    resource.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))
+                }
+            }
+            fileTree(new File(destinationDir, 'data/asterion/advancement')).matching { include '**/*.json' }.files.each { resource ->
+                def advancement = new groovy.json.JsonSlurper().parse(resource)
+                advancement.criteria?.values()?.each { criterion ->
+                    def conditions = criterion.conditions
+                    if (criterion.trigger == 'minecraft:recipe_unlocked' && conditions?.containsKey('recipe'))
+                        conditions.recipes = conditions.remove('recipe')
+                    if (criterion.trigger == 'minecraft:player_killed_entity' && conditions?.containsKey('entity')) {
+                        def previous = conditions.entity
+                        def predicate = previous instanceof List ? previous[0].predicate :
+                                (previous.containsKey('predicate') ? null : previous)
+                        if (predicate?.type) {
+                            conditions.entity = [type: 'minecraft:entity_properties', entity: 'this',
+                                    predicate: ['minecraft:entity_type': predicate.type]]
+                        }
+                    }
+                }
+                resource.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(advancement))
+            }
+            // Configured feature instances became a data registry in 26.3.
+            def previousFeatures = new File(destinationDir, 'data/asterion/worldgen/configured_feature')
+            fileTree(previousFeatures).matching { include '*.json' }.files.each { previous ->
+                def feature = new groovy.json.JsonSlurper().parse(previous)
+                def migrated = [type: feature.type] + (feature.config ?: [:])
+                def target = new File(destinationDir, "data/asterion/worldgen/feature/${previous.name}")
+                target.parentFile.mkdirs()
+                target.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(migrated))
+                java.nio.file.Files.delete(previous.toPath())
+            }
+            mixins.client.remove('GlCommandEncoderStateMixin')
+            mixins.client.remove('AfterblowFirstPersonMixin')
+            if (!mixins.client.contains('NativeAfterblowFirstPersonMixin')) mixins.client.add('NativeAfterblowFirstPersonMixin')
+            if (project.name.endsWith('-forge') || project.name.endsWith('-neoforge')) {
+                if (!mixins.client.contains('NativeLevelSubmissionMixin')) mixins.client.add('NativeLevelSubmissionMixin')
+            }
+        }
+        mixinsFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(mixins))
+        fileTree(destinationDir).matching { include '**/*mixins.json' }.files.each { config ->
+            def data = new groovy.json.JsonSlurper().parse(config)
+            if (data['package']?.startsWith('net.krodark.asterion.') && data.compatibilityLevel) {
+                data.compatibilityLevel = "JAVA_${project.java_version}"
+                if (minecraft_version == '26.3' && data['package'] == 'net.krodark.asterion.forge.mixin')
+                    data.client.remove('ForgeLevelRendererMixin')
+                config.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))
+            }
+        }
+    }
+}

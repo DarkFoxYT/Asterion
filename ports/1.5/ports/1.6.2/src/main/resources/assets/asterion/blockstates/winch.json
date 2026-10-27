@@ -1,0 +1,14 @@
+{"variants":{
+  "facing=north,powered=false":{"model":"asterion:block/winch"},
+  "facing=north,powered=true":{"model":"asterion:block/winch_powered"},
+  "facing=east,powered=false":{"model":"asterion:block/winch","y":90},
+  "facing=east,powered=true":{"model":"asterion:block/winch_powered","y":90},
+  "facing=south,powered=false":{"model":"asterion:block/winch","y":180},
+  "facing=south,powered=true":{"model":"asterion:block/winch_powered","y":180},
+  "facing=west,powered=false":{"model":"asterion:block/winch","y":270},
+  "facing=west,powered=true":{"model":"asterion:block/winch_powered","y":270},
+  "facing=up,powered=false":{"model":"asterion:block/winch","x":90},
+  "facing=up,powered=true":{"model":"asterion:block/winch_powered","x":90},
+  "facing=down,powered=false":{"model":"asterion:block/winch","x":270},
+  "facing=down,powered=true":{"model":"asterion:block/winch_powered","x":270}
+}}

@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "III",
+    "I I",
+    "I I"
+  ],
+  "key": {
+    "I": "asterion:celestial_steel_ingot"
+  },
+  "result": {
+    "id": "asterion:celestial_steel_leggings",
+    "count": 1
+  }
+}

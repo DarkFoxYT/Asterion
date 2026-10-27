@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " C ",
+    "ISI",
+    "III"
+  ],
+  "key": {
+    "C": "asterion:mazesteel_chain",
+    "I": "asterion:celestial_steel_ingot",
+    "S": "asterion:polished_mazesteel"
+  },
+  "result": {
+    "id": "asterion:chain_lift",
+    "count": 1
+  }
+}

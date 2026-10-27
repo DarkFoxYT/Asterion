@@ -1,0 +1,6 @@
+{
+  "parent":"minecraft:block/cross",
+  "render_type":"minecraft:cutout",
+  "ambientocclusion":false,
+  "textures":{"cross":"asterion:block/short_grass","particle":"asterion:block/short_grass"}
+}

@@ -1,0 +1,7 @@
+{
+  "type":"minecraft:crafting_shaped",
+  "category":"building",
+  "key":{"B":"minecraft:bone","V":"minecraft:vine"},
+  "pattern":[" B "," V "," B "],
+  "result":{"count":4,"id":"asterion:labyrinth_vine"}
+}

@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": {"model": "asterion:block/lamenter"},
+    "facing=east": {"model": "asterion:block/lamenter", "y": 90},
+    "facing=south": {"model": "asterion:block/lamenter", "y": 180},
+    "facing=west": {"model": "asterion:block/lamenter", "y": 270}
+  }
+}

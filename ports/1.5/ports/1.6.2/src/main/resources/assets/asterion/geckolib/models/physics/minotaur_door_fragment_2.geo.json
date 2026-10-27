@@ -1,0 +1,105 @@
+{
+  "format_version": "1.12.0",
+  "minecraft:geometry": [
+    {
+      "description": {
+        "identifier": "geometry.minotaur_door_fragment_2",
+        "texture_width": 256,
+        "texture_height": 256,
+        "visible_bounds_width": 3,
+        "visible_bounds_height": 3,
+        "visible_bounds_offset": [
+          0,
+          0,
+          0
+        ]
+      },
+      "bones": [
+        {
+          "name": "full",
+          "pivot": [
+            0,
+            0,
+            0
+          ],
+          "cubes": [
+            {
+              "origin": [
+                -14,
+                -13.333333333333334,
+                -4
+              ],
+              "size": [
+                28,
+                26.666666666666668,
+                8
+              ],
+              "uv": {
+                "north": {
+                  "uv": [
+                    0,
+                    26.666666666666668
+                  ],
+                  "uv_size": [
+                    28,
+                    26.666666666666668
+                  ]
+                },
+                "south": {
+                  "uv": [
+                    85,
+                    26.666666666666668
+                  ],
+                  "uv_size": [
+                    28,
+                    26.666666666666668
+                  ]
+                },
+                "east": {
+                  "uv": [
+                    0,
+                    107.66666666666667
+                  ],
+                  "uv_size": [
+                    8,
+                    26.666666666666668
+                  ]
+                },
+                "west": {
+                  "uv": [
+                    9,
+                    107.66666666666667
+                  ],
+                  "uv_size": [
+                    8,
+                    26.666666666666668
+                  ]
+                },
+                "up": {
+                  "uv": [
+                    18,
+                    81
+                  ],
+                  "uv_size": [
+                    28,
+                    8
+                  ]
+                },
+                "down": {
+                  "uv": [
+                    75,
+                    89
+                  ],
+                  "uv_size": [
+                    28,
+                    -8
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

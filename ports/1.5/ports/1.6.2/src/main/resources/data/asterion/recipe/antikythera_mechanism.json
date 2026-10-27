@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "B": "asterion:antikythera_blueprint",
+    "C": "minecraft:compass",
+    "E": "minecraft:echo_shard",
+    "H": "minecraft:heart_of_the_sea",
+    "N": "minecraft:nautilus_shell"
+  },
+  "pattern": [
+    "EBE",
+    "NHN",
+    "ECE"
+  ],
+  "result": {
+    "id": "asterion:antikythera_mechanism"
+  }
+}

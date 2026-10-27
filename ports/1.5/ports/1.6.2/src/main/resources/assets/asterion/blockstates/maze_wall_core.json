@@ -1,0 +1,5 @@
+{
+  "variants": {
+    "": { "model": "asterion:block/maze_wall_core" }
+  }
+}

@@ -1,0 +1,37 @@
+// Stage the matching renderer; only the 1.21.11 loader bootstrap needs adaptation.
+def rendererExec = services.get(org.gradle.process.ExecOperations)
+def rendererPython = providers.environmentVariable('ASTERION_PYTHON').getOrElse('python')
+def suppliedRenderer = rootProject.file("libs/amnetic-${minecraft_version == '1.21.11' ? 'forge' : 'neoforge'}-${project.amnetic_version}.jar")
+if (minecraft_version == '1.21.11') {
+    sourceSets {
+        amneticBootstrap {
+            java.srcDir rootProject.file('src/amnetic12111/java')
+            compileClasspath += sourceSets.main.compileClasspath
+        }
+    }
+    neoForge.addModdingDependenciesTo(sourceSets.amneticBootstrap)
+}
+def nativeAmnetic = tasks.register('prepareNativeAmnetic') {
+    inputs.file(suppliedRenderer)
+    inputs.file(rootProject.file('gradle/prepare-amnetic-native.py'))
+    inputs.properties(minecraft: minecraft_version, version: project.amnetic_version,
+            loader: project.neoforge_version, packMajor: resource_pack_major, packMinor: resource_pack_minor)
+    def target = layout.buildDirectory.file("renderer/amnetic-neoforge-${project.amnetic_version}.jar")
+    outputs.file(target)
+    if (minecraft_version == '1.21.11') {
+        dependsOn tasks.named('amneticBootstrapClasses')
+        inputs.files(sourceSets.amneticBootstrap.output)
+    }
+    doLast {
+        rendererExec.exec {
+            commandLine rendererPython, rootProject.file('gradle/prepare-amnetic-native.py'), suppliedRenderer,
+                    target.get().asFile, minecraft_version, project.amnetic_version, project.neoforge_version,
+                    resource_pack_major, resource_pack_minor,
+                    minecraft_version == '1.21.11' ? sourceSets.amneticBootstrap.java.destinationDirectory.get().asFile : '-'
+        }
+    }
+}
+dependencies {
+    runtimeOnly files(nativeAmnetic)
+    jarJar files(nativeAmnetic)
+}

@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "asterion:block/reward_spawner"
+    }
+  }
+}

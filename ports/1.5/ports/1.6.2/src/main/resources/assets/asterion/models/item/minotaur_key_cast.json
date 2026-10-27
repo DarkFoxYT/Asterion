@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "asterion:gui/forge/bottom_center/minotaur_key_mold"
+  }
+}

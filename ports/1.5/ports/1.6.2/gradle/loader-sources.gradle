@@ -1,0 +1,32 @@
+def loaderExec = services.get(org.gradle.process.ExecOperations)
+def loaderPython = providers.environmentVariable('ASTERION_PYTHON').getOrElse('python')
+def platform = project.name.tokenize('-').last()
+def original = rootProject.file("${platform}/src/main/java")
+def generated = layout.buildDirectory.dir('generated/port-loader')
+def adaptLoader = tasks.register('generatePortLoaderSources', Sync) {
+    from original
+    into generated
+    inputs.files(rootProject.file('gradle/port-api.py'), rootProject.file('gradle/port-api263.py'))
+    inputs.properties(minecraft: minecraft_version, platform: platform)
+    doLast {
+        loaderExec.exec {
+            commandLine loaderPython, rootProject.file('gradle/port-api.py'), generated.get().asFile, minecraft_version, platform
+        }
+    }
+}
+sourceSets.main.java.setSrcDirs(sourceSets.main.java.srcDirs.findAll { it.canonicalFile != original.canonicalFile })
+sourceSets.main.java.srcDir(adaptLoader)
+// Replacing the physical source directories must retain generated-source task dependencies.
+tasks.named('compileJava').configure {
+    dependsOn adaptLoader
+    dependsOn tasks.named('stonecutterGenerate')
+    if (tasks.findByName('generateNativeAdapters') != null) dependsOn tasks.named('generateNativeAdapters')
+}
+tasks.matching { it.name == 'generateNativeAdapters' }.configureEach {
+    inputs.files(rootProject.file('gradle/port-api.py'), rootProject.file('gradle/port-api263.py'))
+    doLast {
+        loaderExec.exec {
+            commandLine loaderPython, rootProject.file('gradle/port-api.py'), layout.buildDirectory.dir('generated/native-adapters').get().asFile, minecraft_version, platform
+        }
+    }
+}

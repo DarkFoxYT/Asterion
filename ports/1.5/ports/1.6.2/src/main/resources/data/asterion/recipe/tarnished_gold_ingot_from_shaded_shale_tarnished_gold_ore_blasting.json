@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:blasting",
+  "category": "misc",
+  "ingredient": "asterion:shaded_shale_tarnished_gold_ore",
+  "result": {
+    "id": "asterion:tarnished_gold_ingot"
+  },
+  "experience": 1.0,
+  "cookingtime": 100
+}

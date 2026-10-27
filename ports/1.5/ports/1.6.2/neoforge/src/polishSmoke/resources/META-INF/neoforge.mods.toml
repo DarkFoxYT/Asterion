@@ -1,0 +1,6 @@
+modLoader="javafml"
+loaderVersion="[1,)"
+license="All-Rights-Reserved"
+[[mods]]
+modId="asterion_polish_tests"
+version="1.0.0"
