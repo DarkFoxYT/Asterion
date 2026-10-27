@@ -24,6 +24,7 @@ legacyForge {
             sourceSet=sourceSets.legacySmoke
             gameDirectory=layout.buildDirectory.dir('run/native-client-smoke').get().asFile
             systemProperty 'asterion.clientSmoke','true'
+            if (project.hasProperty('textureSmoke')) systemProperty 'asterion.textureSmoke', 'true'
         }
         serverSmoke {
             server()

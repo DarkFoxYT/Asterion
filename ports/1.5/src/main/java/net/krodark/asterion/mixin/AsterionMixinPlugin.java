@@ -11,6 +11,14 @@ import org.spongepowered.asm.service.MixinService;
 public final class AsterionMixinPlugin implements IMixinConfigPlugin {
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
+        if (targetClassName.startsWith("net.irisshaders.") || targetClassName.startsWith("net.coderbot.iris.")
+                || targetClassName.startsWith("net.optifine.") || targetClassName.startsWith("net.caffeinemc.")
+                || targetClassName.startsWith("me.jellysquid.mods.sodium.")) {
+            // Optional integrations must not ask Mixin to resolve absent mods.
+            try (var resource = MixinService.getService().getResourceAsStream(targetClassName.replace('.', '/') + ".class")) {
+                if (resource == null) return false;
+            } catch (IOException absent) { return false; }
+        }
         if (!mixinClassName.equals("net.krodark.asterion.mixin.PortSpriteInterpolationMixin")) return true;
         try {
             // Inspect bytecode without loading Sodium or a Minecraft target during

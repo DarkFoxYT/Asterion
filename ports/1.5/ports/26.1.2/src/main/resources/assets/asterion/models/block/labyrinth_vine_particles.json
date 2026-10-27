@@ -1,1 +1,2 @@
-{"textures":{"particle":"asterion:block/labyrinth_vine"},"elements":[]}
+{
+  "render_type": "minecraft:cutout","textures":{"particle":"asterion:block/labyrinth_vine"},"elements":[]}

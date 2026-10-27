@@ -7,11 +7,28 @@ import net.minecraft.client.gui.screens.TitleScreen;
 /** Test-only entry into a disposable world, then the release's floor/corpse regressions. */
 public final class PortClientSmoke {
     private static final long DEADLINE = System.nanoTime() + 480_000_000_000L;
-    private static int titleTicks, worldTicks;
+    private static int titleTicks, worldTicks, renderTicks, ticks;
     private static boolean started, prepared;
+    private static long nextFrameTick;
     private PortClientSmoke() { }
+    // Forge pauses client ticks on some menu screens; render events remain live.
+    public static void frame(Minecraft client) {
+        long now = System.nanoTime();
+        if (now < nextFrameTick) return;
+        nextFrameTick = now + 50_000_000L;
+        tick(client);
+    }
     public static void tick(Minecraft client) {
         try {
+            if (++ticks == 1) {
+                client.options.pauseOnLostFocus = false;
+                client.options.enableVsync().set(false);
+                client.options.framerateLimit().set(260);
+            }
+            if (ticks == 1 || ticks % 20 == 0 && !started)
+                Asterion.LOGGER.info("ASTERION_PORT_TICK screen={} overlay={}",
+                        client.screen == null ? "none" : client.screen.getClass().getName(),
+                        client.getOverlay() == null ? "none" : client.getOverlay().getClass().getName());
             if (System.nanoTime() > DEADLINE) throw new AssertionError("Port smoke timed out");
             if (client.screen instanceof net.minecraft.client.gui.screens.AccessibilityOnboardingScreen) {
                 client.options.onboardingAccessibilityFinished();
@@ -32,6 +49,14 @@ public final class PortClientSmoke {
                         net.minecraft.world.level.levelgen.presets.WorldPresets::createNormalWorldDimensions, new TitleScreen());
             }
             if (client.level == null || client.player == null || client.getSingleplayerServer() == null) return;
+            if (Boolean.getBoolean("asterion.textureSmoke")) {
+                if (TextureLoadingRegression.tick(client, false)) {
+                    net.minecraft.client.Screenshot.grab(client.gameDirectory, "textures-after-reload.png",
+                            client.getMainRenderTarget(), 1, message -> Asterion.LOGGER.info("ASTERION_TEXTURE_SCREENSHOT {}", message.getString()));
+                    client.stop();
+                }
+                return;
+            }
             if (++worldTicks == 20 && !prepared) {
                 prepared = true;
                 client.getSingleplayerServer().execute(() -> {
@@ -50,14 +75,53 @@ public final class PortClientSmoke {
                 client.player.xRotO = 35;
                 if (client.player.getMainHandItem().is(Asterion.AFTERBLOW) && !client.player.isUsingItem())
                     client.player.startUsingItem(net.minecraft.world.InteractionHand.MAIN_HAND);
-                if (worldTicks == 80) net.minecraft.client.Screenshot.grab(client.gameDirectory, "port-smoke.png",
-                        client.getMainRenderTarget(), 1, message -> Asterion.LOGGER.info("ASTERION_PORT_SCREENSHOT {}", message.getString()));
+                if (++renderTicks == 160) {
+                    verifySceneResolution(client);
+                    net.minecraft.client.Screenshot.grab(client.gameDirectory, "port-smoke.png",
+                            client.getMainRenderTarget(), 1, message -> Asterion.LOGGER.info("ASTERION_PORT_SCREENSHOT {}", message.getString()));
+                }
             }
-            FloorHotfixRegression.client(client);
+            if (!FloorHotfixRegression.serverPassed || renderTicks >= 100)
+                FloorHotfixRegression.client(client);
         } catch (Throwable failure) {
             Asterion.LOGGER.error("ASTERION_PORT_SMOKE FAIL", failure);
             client.stop();
             throw new AssertionError("Port smoke failed", failure);
         }
+    }
+
+    private static void verifySceneResolution(Minecraft client) throws ReflectiveOperationException {
+        var buffersField = net.krodark.asterion.client.render.post.AmneticPostBuffers.class.getDeclaredField("BUFFERS");
+        buffersField.setAccessible(true);
+        var buffers = (java.util.Map<?, ?>) buffersField.get(null);
+        var scene = buffers.get("atmosphere_scene");
+        if (scene == null) {
+            var registry = com.meekdev.amnetic.client.post.internal.PostEffectRegistry.INSTANCE;
+            var entriesField = registry.getClass().getDeclaredField("entries");
+            entriesField.setAccessible(true);
+            for (var value : (java.util.List<?>) entriesField.get(registry)) {
+                var entry = (com.meekdev.amnetic.client.post.internal.PostEffectEntry) value;
+                Asterion.LOGGER.info("ASTERION_SHADER_ENTRY {} enabled={} active={} phase={}", entry.getId(), entry.isEnabled(), entry.isActive(), entry.getPhase());
+                for (String name : new String[]{"pipeline", "externalTargetSuppliers"}) {
+                    var field = entry.getClass().getDeclaredField(name); field.setAccessible(true);
+                    var detail = field.get(entry);
+                    if (name.equals("pipeline") && detail != null) {
+                        for (String part : new String[]{"passes", "targetSpecs"}) {
+                            var nested = detail.getClass().getDeclaredField(part); nested.setAccessible(true);
+                            Asterion.LOGGER.info("ASTERION_SHADER_DETAIL {} {}={}", entry.getId(), part, nested.get(detail));
+                        }
+                    } else Asterion.LOGGER.info("ASTERION_SHADER_DETAIL {} {}={}", entry.getId(), name, detail);
+                }
+            }
+            throw new AssertionError("Atmosphere shaders did not render; camera=" + com.meekdev.amnetic.client.camera.AmneticCamera.isReady()
+                    + ", coversWorld=" + net.krodark.asterion.client.cinematic.BossFinaleOverlay.coversWorld() + ", buffers=" + buffers.keySet());
+        }
+        var targetField = scene.getClass().getDeclaredField("target");
+        targetField.setAccessible(true);
+        var target = (com.mojang.blaze3d.pipeline.RenderTarget) targetField.get(scene);
+        var main = client.getMainRenderTarget();
+        if (target.width != main.width || target.height != main.height)
+            throw new AssertionError("Atmosphere downscaled the world image");
+        Asterion.LOGGER.info("ASTERION_SHADER_SHARPNESS PASS scene={}x{}", target.width, target.height);
     }
 }

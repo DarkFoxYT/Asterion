@@ -110,5 +110,6 @@
   },
   "overwrites": {
     "requireAnnotations": true
-  }
+  },
+  "plugin": "net.krodark.asterion.mixin.AsterionMixinPlugin"
 }

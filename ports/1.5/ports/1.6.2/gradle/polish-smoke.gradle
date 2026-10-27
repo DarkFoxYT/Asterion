@@ -62,5 +62,9 @@ if (project.name.endsWith('-quilt')) {
         archiveClassifier = 'polish-tests'
         destinationDirectory = layout.buildDirectory.dir('test-harness')
     }
-    tasks.named('prepareQuiltRunMods', Sync).configure { from harness }
+    // Keep the older polish scenario opt-in; regular Quilt runs and the port
+    // harness must not compile or load unrelated test entrypoints.
+    if (project.hasProperty('polishSmoke') || gradle.startParameter.taskNames.any { it.endsWith('runPolishSmokeClient') }) {
+        tasks.named('prepareQuiltRunMods', Sync).configure { from harness }
+    }
 }

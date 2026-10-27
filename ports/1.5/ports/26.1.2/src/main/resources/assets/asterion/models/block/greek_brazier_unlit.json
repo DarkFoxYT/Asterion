@@ -1,3 +1,4 @@
 {
+  "render_type": "minecraft:cutout",
   "parent": "asterion:block/greek_brazier"
 }

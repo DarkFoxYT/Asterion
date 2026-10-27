@@ -77,6 +77,15 @@ public final class ClientSmokeTest implements ClientModInitializer {
         }
         if (client.level == null || client.player == null || client.getSingleplayerServer() == null) return;
         worldTicks++;
+        if (Boolean.getBoolean("asterion.textureSmoke")) {
+            try {
+                if (TextureLoadingRegression.tick(client, true)) {
+                    screenshot(client, "textures-after-reload");
+                    client.stop();
+                }
+            } catch (Exception failure) { throw new AssertionError("Texture loading regression", failure); }
+            return;
+        }
         if (Boolean.getBoolean("asterion.floorHotfixSmoke")) {
             if (worldTicks == 20) GameplaySmoke.server(client, FloorHotfixRegression::prepare);
             FloorHotfixRegression.client(client);

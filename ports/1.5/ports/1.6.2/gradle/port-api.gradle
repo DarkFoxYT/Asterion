@@ -18,11 +18,23 @@ tasks.named('processResources').configure {
     doLast {
         def pack = [description: 'Asterion resources', min_format: [resource_pack_major as int, resource_pack_minor as int],
                 max_format: [resource_pack_major as int, resource_pack_minor as int]]
-        if (minecraft_version == '1.21.11' && !project.name.endsWith('-forge')) {
-            pack.pack_format = resource_pack_major as int
-            pack.supported_formats = [resource_pack_major as int, resource_pack_major as int]
+        def packFile = new File(destinationDir, 'pack.mcmeta')
+        if (project.name.endsWith('-fabric') || project.name.endsWith('-quilt')) {
+            // Fabric generates metadata separately for assets and server data.
+            // Their format numbers differ; one shared range cannot describe both.
+            packFile.delete()
+        } else {
+            if (project.name.endsWith('-neoforge')) {
+                // NeoForge supplies type-specific versions when formats are omitted.
+                pack = [description: 'Asterion resources']
+            } else {
+                // Forge wraps hidden client packs with the current asset version.
+                // Start above both legacy-codec thresholds and cover server data.
+                pack.min_format = minecraft_version == '1.21.11' ? [82, 0] : [97, 1]
+                pack.max_format = minecraft_version == '1.21.11' ? [94, 1] : [121, 0]
+            }
+            packFile.text = groovy.json.JsonOutput.toJson([pack: pack])
         }
-        new File(destinationDir, 'pack.mcmeta').text = groovy.json.JsonOutput.toJson([pack: pack])
         if (minecraft_version == '1.21.11' && new File(destinationDir, 'fabric.mod.json').isFile()) {
             def metadataFile = new File(destinationDir, 'fabric.mod.json')
             def metadata = new groovy.json.JsonSlurper().parse(metadataFile)
@@ -40,6 +52,23 @@ tasks.named('processResources').configure {
             }
         }
         if (minecraft_version == '26.3') {
+            fileTree(destinationDir).matching { include 'data/asterion/**/biome_modifier/*.json' }.files.each { resource ->
+                def modifier = new groovy.json.JsonSlurper().parse(resource)
+                if (modifier.type?.endsWith(':add_spawns')) {
+                    def spawns = modifier.spawners instanceof List ? modifier.spawners : [modifier.spawners]
+                    spawns.each { spawn ->
+                        if (spawn.containsKey('minCount') || spawn.containsKey('maxCount')) {
+                            def minimum = spawn.remove('minCount')
+                            def maximum = spawn.remove('maxCount')
+                            if (minimum == null || maximum == null || minimum < 0 || maximum < minimum)
+                                throw new GradleException("Invalid authored spawn count: ${resource}")
+                            spawn.count = minimum == maximum ? minimum :
+                                    [type: 'minecraft:uniform', min_inclusive: minimum, max_inclusive: maximum]
+                        }
+                    }
+                    resource.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(modifier))
+                }
+            }
             fileTree(new File(destinationDir, 'data/asterion/worldgen/biome')).matching { include '*.json' }.files.each { resource ->
                 def biome = new groovy.json.JsonSlurper().parse(resource)
                 if (biome.containsKey('spawners')) {
@@ -119,7 +148,10 @@ tasks.named('processResources').configure {
         fileTree(destinationDir).matching { include '**/*mixins.json' }.files.each { config ->
             def data = new groovy.json.JsonSlurper().parse(config)
             if (data['package']?.startsWith('net.krodark.asterion.') && data.compatibilityLevel) {
-                data.compatibilityLevel = "JAVA_${project.java_version}"
+                // Forge 66 ships Mixin 0.8.7, whose enum stops before Java 25.
+                // Our mixins use Java 21 language features on the Java 25 VM.
+                data.compatibilityLevel = minecraft_version == '26.3' && project.name.endsWith('-forge')
+                        ? 'JAVA_21' : "JAVA_${project.java_version}"
                 if (minecraft_version == '26.3' && data['package'] == 'net.krodark.asterion.forge.mixin')
                     data.client.remove('ForgeLevelRendererMixin')
                 config.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))

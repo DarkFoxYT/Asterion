@@ -95,7 +95,7 @@ for mc, java_major in [("1.20.1", 61), ("1.21.1", 65), ("26.1.2", 69)]:
         with zipfile.ZipFile(path) as jar:
             require(jar.testzip() is None, f"Bad ZIP checksums: {path.name}")
             names = set(jar.namelist())
-            if VERSION == '1.6.1':
+            if VERSION in ('1.6.1', '1.6.2', '1.6.3'):
                 ragdoll = 'net/krodark/asterion/' + ('client/ragdoll/' if mc == '26.1.2' else 'port/client/ragdoll/')
                 engine = jar.read(ragdoll + 'DismembermentEngine.class')
                 require(b'lifetimeTicks' in engine and b'AncientSkeletonEntity' in engine

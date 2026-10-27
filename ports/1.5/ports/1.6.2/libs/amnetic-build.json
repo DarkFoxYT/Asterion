@@ -23,13 +23,13 @@
       "file": "amnetic-1.0.0-asterion.4+1.21.11.jar",
       "source": "C:\\Users\\darkf\\IdeaProjects\\Amnetic\\versions\\1.21.11-fabric\\build\\libs\\amnetic-1.0-SNAPSHOT+1.21.11.jar",
       "sha256": "e6885201f12c38552279bcfdc83fc64b0355442e460c3571b349133f927ff62d",
-      "prepared_sha256": "0a0cb97ca79b5428b225e936c597e466db64d1c2c17c0eedb58242e52e519896"
+      "prepared_sha256": "53f85776512a619c3453dcccad485b5e06e044d9ec4036044e11da6da1399803"
     },
     {
       "file": "amnetic-forge-1.0.0-asterion.4+1.21.11.jar",
       "source": "C:\\Users\\darkf\\IdeaProjects\\Amnetic\\versions\\1.21.11-forge\\build\\libs\\amnetic-forge-1.0-SNAPSHOT+1.21.11-forge.jar",
       "sha256": "777dea6eabf9e62252e38d17c1eae207ffe190aaff131a53393833fb4127ea72",
-      "prepared_sha256": "4610a3cef73e00279e8da289cb52dbfe91c9e059cc47d980a21dc4fd1a1dee40"
+      "prepared_sha256": "d8b91a655ad874d55e0dad50498bc01b1c1b8e53d7ae2f8961a401baf595c219"
     }
   ],
   "preparation": [

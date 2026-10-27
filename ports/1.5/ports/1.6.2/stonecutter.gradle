@@ -51,7 +51,6 @@ stonecutter.parameters {
                 replace("getBoundingBoxForCulling(${entry})", "getBoundingBoxForCulling(${entry}, float partialTick)")
             }
             replace('super.getBoundingBoxForCulling(spider)', 'super.getBoundingBoxForCulling(spider, partialTick)')
-            replace('double x, double y, double z) {\n        if (boss.doorEntryTicks()', 'double x, double y, double z, float partialTick) {\n        if (boss.doorEntryTicks()')
             replace('super.shouldRender(boss, frustum, x, y, z)', 'super.shouldRender(boss, frustum, x, y, z, partialTick)')
             replace('import org.lwjgl.glfw.GLFW;', 'import net.krodark.asterion.client.render.NativeInput;')
             replace('GLFW.', 'NativeInput.')
@@ -113,7 +112,7 @@ tasks.register('verifyExtraPortsWithoutLaunching') {
     description = 'Builds and audits all eight ports without starting a game client or server.'
     ['1.21.11', '26.3'].each { mc ->
         ['fabric', 'quilt', 'forge', 'neoforge'].each { loader ->
-            ['collectModJar', 'portMixinSmoke', 'portRendererMixinSmoke', 'checkCameraClearance'].each { check ->
+            ['collectModJar', 'portMixinSmoke', 'portRendererMixinSmoke', 'checkCameraClearance', 'portSmokeClasses'].each { check ->
                 dependsOn ":${mc}-${loader}:${check}"
             }
             if (loader in ['forge', 'neoforge']) dependsOn ":${mc}-${loader}:portLoaderMixinSmoke"

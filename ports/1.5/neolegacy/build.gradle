@@ -233,6 +233,17 @@ tasks.register('patchForgeGeneratedSources') {
 }
 
 processResources {
+    // Worn armor and corpse armor on 1.20.1/1.21.1 use these legacy paths.
+    from(rootProject.file('src/main/resources/assets/asterion/textures/armor')) {
+        include '*_top.png'
+        into 'assets/asterion/textures/models/armor'
+        rename { it.replace('_top.png', '_layer_1.png') }
+    }
+    from(rootProject.file('src/main/resources/assets/asterion/textures/armor')) {
+        include '*_bottom.png'
+        into 'assets/asterion/textures/models/armor'
+        rename { it.replace('_bottom.png', '_layer_2.png') }
+    }
     from(rootProject.file('src/main/resources/assets/asterion/geckolib/models')) {
         into 'assets/asterion/geo'
     }

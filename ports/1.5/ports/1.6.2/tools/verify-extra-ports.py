@@ -2,6 +2,7 @@
 
 Usage: python tools/verify-extra-ports.py [repository modbuilds directory]
 """
+import argparse
 import hashlib
 from collections import Counter
 import io
@@ -14,9 +15,22 @@ import tomllib
 import zipfile
 
 PROJECT = Path(__file__).resolve().parents[1]
-SHELF = Path(sys.argv[1]) if len(sys.argv) > 1 else PROJECT.parents[3] / 'modbuilds'
+parser = argparse.ArgumentParser()
+parser.add_argument('shelf', nargs='?', type=Path, default=PROJECT.parents[3] / 'modbuilds')
+parser.add_argument('--version', default=re.search(r'^mod_version=(.+)$', (PROJECT / 'gradle.properties').read_text(), re.M).group(1))
+args = parser.parse_args()
+SHELF, VERSION = args.shelf, args.version
 TARGETS = {'1.21.11': (65, [75, 0]), '26.3': (69, [97, 1])}
 LOADERS = ('fabric', 'quilt', 'forge', 'neoforge')
+
+
+def verify_native_pack(pack, mc, loader):
+    assert 'supported_formats' not in pack, 'Deprecated native pack metadata'
+    if loader == 'neoforge':
+        assert set(pack) == {'description'}, 'NeoForge must supply type-specific formats'
+    else:
+        minimum, maximum = ([82, 0], [94, 1]) if mc == '1.21.11' else ([97, 1], [121, 0])
+        assert pack['min_format'] == minimum and pack['max_format'] == maximum, 'Wrong Forge asset/data pack range'
 
 
 def read_json(jar, name):
@@ -66,11 +80,14 @@ def verify(path, mc, loader):
         assert jar.testzip() is None, 'Corrupt archive'
         names = set(jar.namelist())
         assert len(names) == len(jar.namelist()), 'Duplicate ZIP entries'
-        pack = read_json(jar, 'pack.mcmeta')['pack']
-        assert pack['min_format'] == pack_format and pack['max_format'] == pack_format, 'Wrong Asterion pack format'
+        if loader in ('fabric', 'quilt'):
+            assert 'pack.mcmeta' not in names, 'Fabric must generate separate asset/data pack metadata'
+        else:
+            pack = read_json(jar, 'pack.mcmeta')['pack']
+            verify_native_pack(pack, mc, loader)
         if loader in ('fabric', 'quilt'):
             metadata = read_json(jar, 'fabric.mod.json')
-            assert metadata['id'] == 'asterion' and metadata['version'] == '1.6.2'
+            assert metadata['id'] == 'asterion' and metadata['version'] == VERSION
             assert metadata['depends']['minecraft'] == mc
             for entries in metadata['entrypoints'].values():
                 for entry in entries:
@@ -81,13 +98,24 @@ def verify(path, mc, loader):
         else:
             meta_path = 'META-INF/mods.toml' if loader == 'forge' else 'META-INF/neoforge.mods.toml'
             metadata = tomllib.loads(jar.read(meta_path).decode())
-            assert next(m for m in metadata['mods'] if m['modId'] == 'asterion')['version'] == '1.6.2'
+            assert next(m for m in metadata['mods'] if m['modId'] == 'asterion')['version'] == VERSION
             assert next(d for d in metadata['dependencies']['asterion'] if d['modId'] == 'minecraft')['versionRange'] == f'[{mc}]'
             assert not any(n.startswith('net/fabricmc/') for n in names), 'Public Fabric adapter packages remain'
             assert any(n.startswith('net/krodark/asterion/nativeapi/') for n in names), 'Native adapters missing'
         for name in names:
             if name.endswith('.json'):
-                read_json(jar, name)
+                value = read_json(jar, name)
+                if name.startswith('assets/asterion/post_effect/'):
+                    for render_pass in value.get('passes', []):
+                        for sample in render_pass.get('inputs', []):
+                            scene_input = sample.get('sampler_name') == 'Scene'
+                            final_copy = render_pass.get('fragment_shader') == 'minecraft:post/blit'
+                            if scene_input or final_copy:
+                                assert not sample.get('bilinear', False), f'Filtered world image: {name}'
+                if mc == '26.3' and '/biome_modifier/' in name and value.get('type', '').endswith(':add_spawns'):
+                    spawns = value['spawners'] if isinstance(value['spawners'], list) else [value['spawners']]
+                    for spawn in spawns:
+                        assert 'count' in spawn and not {'minCount', 'maxCount'} & spawn.keys(), f'Old spawn count schema: {name}'
             if name.endswith('.class'):
                 code = jar.read(name)
                 assert struct.unpack('>H', code[6:8])[0] <= major, f'Wrong Java target: {name}'
@@ -96,6 +124,13 @@ def verify(path, mc, loader):
                 if loader in ('forge', 'neoforge'):
                     assert b'net/fabricmc/' not in code, f'Unisolated Fabric API link: {name}'
         mixins(jar)
+        if mc == '1.21.11' and loader in ('fabric', 'quilt'):
+            client = jar.read('net/krodark/asterion/client/AsterionClient.class')
+            # Vanilla enum fields are remapped in production Fabric archives.
+            assert b'BlockRenderLayerMap' in client and b'putBlocks' in client and b'MAZESTEEL_CHAIN' in client, 'Transparent terrain layer registration missing'
+        if mc == '26.3' and loader in ('forge', 'neoforge'):
+            bloom = jar.read('net/krodark/asterion/mixin/AmneticBloomPerformanceMixin.class')
+            assert b'asterion$nativeBloomPolicy' in bloom and b'hasEmissive' in bloom and b'renderNative' in bloom, 'Native bloom fallback policy missing'
         nested = nested_paths(jar, loader)
         assert len(nested) == len(set(nested)), 'Duplicate bundled dependency declarations'
         renderer = [n for n in nested if '/amnetic' in n]
@@ -108,11 +143,21 @@ def verify(path, mc, loader):
                 if entry not in renderer:
                     continue
                 pack = read_json(dependency, 'pack.mcmeta')['pack']
-                assert pack['min_format'] == pack_format and pack['max_format'] == pack_format, pack
-                if loader == 'forge' or mc == '26.3':
-                    assert 'supported_formats' not in pack, 'Deprecated renderer pack metadata'
+                if loader in ('forge', 'neoforge'):
+                    verify_native_pack(pack, mc, loader)
+                    if loader == 'neoforge' and mc == '1.21.11':
+                        assert 'NeoForgeTextureMixin' in read_json(dependency, 'amnetic.mixins.json')['client'], 'Validated GPU texture bridge missing'
+                        bridge = dependency.read('com/meekdev/amnetic/mixin/NeoForgeTextureMixin.class')
+                        assert b'getRealTexture' in bridge and b'glId' in bridge, 'Validated GPU textures cannot reach OpenGL'
+                    if loader == 'forge' and mc == '26.3':
+                        assert not any('lwjgl-tinyfd-' in n and n.endswith('.jar') for n in dependency.namelist()), 'Forge renderer duplicates vanilla TinyFD'
+                        assert read_json(dependency, 'amnetic.mixins.json')['compatibilityLevel'] == 'JAVA_21', 'Forge Mixin compatibility level is unsupported'
+                    assert not any(n.endswith('.class') and (n.startswith('org/lwjgl/') or
+                        (n.startswith('META-INF/versions/') and '/org/lwjgl/' in n))
+                        for n in dependency.namelist()), 'Renderer shadows Minecraft LWJGL core'
                 else:
-                    assert pack['supported_formats'] == [75, 75], 'Missing legacy pack range'
+                    assert pack['min_format'] == pack_format and pack['max_format'] == pack_format, pack
+                assert 'supported_formats' not in pack, 'Deprecated renderer pack metadata'
                 if loader in ('fabric', 'quilt'):
                     renderer_meta = read_json(dependency, 'fabric.mod.json')
                     assert renderer_meta['version'].endswith('+' + mc), 'Wrong renderer version'
@@ -148,7 +193,7 @@ def verify(path, mc, loader):
                     assert 'spawners' not in biome, f'Old spawn data: {name}'
                     spawn = biome['attributes']['minecraft:gameplay/natural_mob_spawns']
                     assert spawn['modifier'] == 'override' and spawn['argument']['spawns_by_category'] == {}, name
-            assert not any('/worldgen/configured_feature/' in n for n in names), 'Old feature registry remains'
+                assert not any('/worldgen/configured_feature/' in n and not n.endswith('/') for n in names), 'Old feature registry resources remain'
             assert len([n for n in names if n.startswith('data/asterion/worldgen/feature/') and n.endswith('.json')]) == 12
             for name in names:
                 if name.startswith('data/asterion/loot_table/') and name.endswith('.json'):
@@ -176,7 +221,7 @@ if __name__ == '__main__':
     results = []
     for mc in TARGETS:
         for loader in LOADERS:
-            path = SHELF / f'Asterion-1.6.2-{loader}-mc{mc}.jar'
+            path = SHELF / f'Asterion-{VERSION}-{loader}-mc{mc}.jar'
             results.append(verify(path, mc, loader))
             print('PASS:', path.name)
     output = PROJECT / 'build/extra-ports-artifact-audit.json'

@@ -14,7 +14,7 @@
       "vertex_shader": "minecraft:core/screenquad",
       "fragment_shader": "asterion:post/dimension/dead_sun_composite",
       "inputs": [
-        { "sampler_name": "Scene", "target": "minecraft:main", "bilinear": true },
+        { "sampler_name": "Scene", "target": "minecraft:main", "bilinear": false },
         { "sampler_name": "Depth", "target": "minecraft:main", "use_depth_buffer": true },
         { "sampler_name": "Sun", "target": "dead_sun_fast_raw", "bilinear": true },
         { "sampler_name": "Bloom", "target": "dead_sun_fast_raw", "bilinear": true }
@@ -24,7 +24,7 @@
     {
       "vertex_shader": "minecraft:core/screenquad",
       "fragment_shader": "minecraft:post/blit",
-      "inputs": [{ "sampler_name": "In", "target": "dead_sun_fast_scene", "bilinear": true }],
+      "inputs": [{ "sampler_name": "In", "target": "dead_sun_fast_scene", "bilinear": false }],
       "output": "minecraft:main",
       "uniforms": { "BlitConfig": [{ "name": "ColorModulate", "type": "vec4", "value": [1.0, 1.0, 1.0, 1.0] }] }
     }

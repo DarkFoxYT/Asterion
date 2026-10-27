@@ -32,7 +32,7 @@
         {
           "sampler_name": "Scene",
           "target": "minecraft:main",
-          "bilinear": true
+          "bilinear": false
         },
         {
           "sampler_name": "Depth",
@@ -59,7 +59,7 @@
         {
           "sampler_name": "In",
           "target": "asterion:atmosphere_scene",
-          "bilinear": true
+          "bilinear": false
         }
       ],
       "output": "minecraft:main",

@@ -1,1 +1,2 @@
-{"parent":"minecraft:block/cube_all","textures":{"all":"asterion:block/greek_fire_lantern"}}
+{
+  "render_type": "minecraft:cutout","parent":"minecraft:block/cube_all","textures":{"all":"asterion:block/greek_fire_lantern"}}

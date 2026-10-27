@@ -5,7 +5,7 @@
       "vertex_shader": "asterion:post/dimension/volumetric",
       "fragment_shader": "asterion:post/dimension/atmosphere_fast",
       "inputs": [
-        { "sampler_name": "Scene", "target": "minecraft:main", "bilinear": true },
+        { "sampler_name": "Scene", "target": "minecraft:main", "bilinear": false },
         { "sampler_name": "Depth", "target": "minecraft:main", "use_depth_buffer": true }
       ],
       "output": "dusty_fast_scene"
@@ -13,7 +13,7 @@
     {
       "vertex_shader": "minecraft:core/screenquad",
       "fragment_shader": "minecraft:post/blit",
-      "inputs": [{ "sampler_name": "In", "target": "dusty_fast_scene", "bilinear": true }],
+      "inputs": [{ "sampler_name": "In", "target": "dusty_fast_scene", "bilinear": false }],
       "output": "minecraft:main",
       "uniforms": { "BlitConfig": [{ "name": "ColorModulate", "type": "vec4", "value": [1.0, 1.0, 1.0, 1.0] }] }
     }

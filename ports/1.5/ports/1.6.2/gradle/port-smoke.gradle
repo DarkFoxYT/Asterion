@@ -1,12 +1,36 @@
 def testExec = services.get(org.gradle.process.ExecOperations)
 def testPython = providers.environmentVariable('ASTERION_PYTHON').getOrElse('python')
 def testPlatform = project.name.tokenize('-').last()
+if (project.hasProperty('textureSmoke')) {
+    if (testPlatform in ['fabric', 'quilt']) {
+        tasks.withType(JavaExec).configureEach { jvmArgs '-Dasterion.textureSmoke=true' }
+    } else if (testPlatform == 'neoforge') {
+        neoForge.runs.configureEach { systemProperty 'asterion.textureSmoke', 'true' }
+    } else {
+        minecraft.runs.configureEach { jvmArgs '-Dasterion.textureSmoke=true' }
+    }
+}
+
+// Keep development/test launches aligned with Mojang's 26.3 JVM arguments.
+if (minecraft_version == '26.3') {
+    def nativeJvmArgs = ['-XX:StackShadowPages=32', '--enable-native-access=ALL-UNNAMED',
+                         '--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED']
+    if (testPlatform in ['fabric', 'quilt']) {
+        loom.runs.configureEach { vmArgs nativeJvmArgs }
+    } else if (testPlatform == 'neoforge') {
+        neoForge.runs.configureEach { nativeJvmArgs.each { jvmArgument it } }
+    } else {
+        minecraft.runs.configureEach { jvmArgs nativeJvmArgs }
+    }
+}
 def testOutput = layout.buildDirectory.dir('generated/port-smoke')
 def testGenerate = tasks.register('generatePortSmoke', Sync) {
     from(rootProject.file('tools/port-smoke')) { include '*.template'; rename { it.replace('.template', '') } }
     from(rootProject.file('src/polishSmoke/java/net/krodark/asterion/test/FloorHotfixRegression.java'))
+    from(rootProject.file('../../src/gametest/java/net/krodark/asterion/test/TextureLoadingRegression.java'))
     into testOutput
-    inputs.properties(minecraft: minecraft_version, platform: testPlatform)
+    inputs.properties(minecraft: minecraft_version, platform: testPlatform,
+            version: project.version.toString(), textureSmoke: project.hasProperty('textureSmoke'))
     inputs.files(rootProject.file('gradle/port-api.py'), rootProject.file('gradle/port-api263.py'))
     doLast {
         def source = new File(testOutput.get().asFile, 'PortClientSmoke.java')
@@ -32,15 +56,27 @@ def testGenerate = tasks.register('generatePortSmoke', Sync) {
         }
         if (testPlatform in ['fabric', 'quilt']) {
             bootstrap += 'public final class PortSmokeEntrypoint implements net.fabricmc.api.ClientModInitializer { public void onInitializeClient() { net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(PortClientSmoke::tick); } }'
-            new File(metadataDir, 'fabric.mod.json').text = groovy.json.JsonOutput.toJson([schemaVersion: 1, id: 'asterion_port_tests', version: '1.6.2', environment: 'client', entrypoints: [client: ['net.krodark.asterion.test.PortSmokeEntrypoint']]])
+            new File(metadataDir, 'fabric.mod.json').text = groovy.json.JsonOutput.toJson([schemaVersion: 1, id: 'asterion_port_tests', version: project.version.toString(), environment: 'client', entrypoints: [client: ['net.krodark.asterion.test.PortSmokeEntrypoint']]])
         } else {
             def neo = testPlatform == 'neoforge'
             bootstrap += neo
                     ? '@net.neoforged.fml.common.Mod(value="asterion_port_tests", dist=net.neoforged.api.distmarker.Dist.CLIENT) public final class PortSmokeEntrypoint { public PortSmokeEntrypoint() { net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.ClientTickEvent.Post event) -> PortClientSmoke.tick(net.minecraft.client.Minecraft.getInstance())); } }'
-                    : '@net.minecraftforge.fml.common.Mod("asterion_port_tests") public final class PortSmokeEntrypoint { public PortSmokeEntrypoint() { net.minecraftforge.event.TickEvent.ClientTickEvent.Post.BUS.addListener(event -> PortClientSmoke.tick(net.minecraft.client.Minecraft.getInstance())); } }'
+                    : '@net.minecraftforge.fml.common.Mod("asterion_port_tests") public final class PortSmokeEntrypoint { public PortSmokeEntrypoint() { net.minecraftforge.event.TickEvent.RenderTickEvent.Post.BUS.addListener(event -> PortClientSmoke.frame(net.minecraft.client.Minecraft.getInstance())); } }'
             def meta = new File(metadataDir, neo ? 'META-INF/neoforge.mods.toml' : 'META-INF/mods.toml')
             meta.parentFile.mkdirs()
-            meta.text = 'modLoader="javafml"\nloaderVersion="[1,)"\nlicense="All-Rights-Reserved"\n[[mods]]\nmodId="asterion_port_tests"\nversion="1.6.2"\ndisplayName="Asterion port tests"\n'
+            meta.text = 'modLoader="javafml"\nloaderVersion="[1,)"\nlicense="All-Rights-Reserved"\n[[mods]]\nmodId="asterion_port_tests"\nversion="__VERSION__"\ndisplayName="Asterion port tests"\n'.replace('__VERSION__', project.version.toString())
+            def pack = [description: 'Temporary Asterion release validation resources']
+            if (!neo) {
+                pack.min_format = minecraft_version == '1.21.11' ? [82, 0] : [97, 1]
+                pack.max_format = minecraft_version == '1.21.11' ? [94, 1] : [121, 0]
+            }
+            new File(metadataDir, 'pack.mcmeta').text = groovy.json.JsonOutput.toJson([pack: pack])
+        }
+        if (testPlatform == 'forge' && project.hasProperty('textureSmoke')) {
+            // ForgeGradle 7's run model does not forward this custom JVM flag.
+            // Select the fixture in its separate test entrypoint instead.
+            bootstrap = bootstrap.replace('public PortSmokeEntrypoint() {',
+                    'public PortSmokeEntrypoint() { System.setProperty("asterion.textureSmoke", "true");')
         }
         new File(testOutput.get().asFile, 'PortSmokeEntrypoint.java').text = bootstrap
         testExec.exec { commandLine testPython, rootProject.file('gradle/port-api.py'), testOutput.get().asFile, minecraft_version, testPlatform }
@@ -90,5 +126,110 @@ if (testPlatform in ['fabric', 'quilt']) {
         mods { asterion_port_tests { source sourceSets.portSmoke } }
         workingDir = layout.projectDirectory.dir('run/automated-port-smoke')
         jvmArgs '-Xmx8G', '-Damnetic.opengl.debug=true'
+    }
+}
+
+// Run the same assertions against the actual nested release archive, with the
+// harness kept in a separate test-only mod.
+def portHarness = tasks.register('portSmokeHarnessJar', Jar) {
+    from sourceSets.portSmoke.output
+    archiveClassifier = 'port-tests-dev'
+    archiveFileName = 'Asterion-port-tests-dev.jar'
+    destinationDirectory = layout.buildDirectory.dir('test-harness')
+}
+if (testPlatform == 'forge' && project.hasProperty('portSmoke')) {
+    // ForgeGradle 7's launcher classpath omits additional development mod
+    // outputs. A separate test-only archive is discovered through mods/.
+    def stageHarness = tasks.register('stageForgePortSmokeHarness', Copy) {
+        from portHarness
+        into layout.projectDirectory.dir('run/automated-port-smoke/mods')
+    }
+    tasks.matching { it.name == 'runClient' }.configureEach { dependsOn stageHarness }
+}
+if (testPlatform in ['fabric', 'quilt']) {
+    def loomLoader = tasks.named('runClient').get().getClass().getClassLoader()
+    def productionType = Class.forName('net.fabricmc.loom.task.prod.ClientProductionRunTask', true, loomLoader)
+    def productionHarness = portHarness
+    if (minecraft_version == '1.21.11') {
+        def remapType = Class.forName('net.fabricmc.loom.task.RemapJarTask', true, loomLoader)
+        productionHarness = tasks.register('remapPortSmokeHarnessJar', remapType) {
+            inputFile = portHarness.flatMap { it.archiveFile }
+            archiveClassifier = 'port-tests'
+            destinationDirectory = layout.buildDirectory.dir('test-harness')
+            addNestedDependencies = false
+            classpath.from(sourceSets.portSmoke.compileClasspath)
+        }
+    }
+    tasks.register('runProductionPortSmokeClient', productionType) {
+        ['1.21.11', '26.3'].each { mc ->
+            ['fabric', 'quilt'].each { loader ->
+                def assetProject = rootProject.findProject(":${mc}-${loader}")
+                if (assetProject != null) dependsOn "${assetProject.path}:downloadAssets"
+            }
+        }
+        mods.setFrom(tasks.named(minecraft_version == '1.21.11' ? 'remapJar' : 'jar'), productionHarness)
+        runDir = layout.buildDirectory.dir('run/production-port-smoke')
+        javaLauncher = javaToolchains.launcherFor {
+            def clientJava = providers.gradleProperty('asterionClientJavaVersion').getOrElse(project.java_version.toString()) as int
+            languageVersion = JavaLanguageVersion.of(clientJava)
+            if (clientJava == 25) vendor = JvmVendorSpec.JETBRAINS
+        }
+        jvmArgs.addAll('-Xmx8G', '-Damnetic.opengl.debug=true', '-Dfabric.noGui=true')
+        if (project.hasProperty('textureSmoke')) jvmArgs.add('-Dasterion.textureSmoke=true')
+        if (minecraft_version == '26.3') {
+            // Required by Mojang's 26.3 launcher metadata for native shader callbacks.
+            jvmArgs.addAll('-XX:StackShadowPages=32', '--enable-native-access=ALL-UNNAMED',
+                    '--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED')
+        }
+        if (providers.gradleProperty('asterionSafeJvm').getOrElse('false').toBoolean()) {
+            jvmArgs.addAll('-XX:TieredStopAtLevel=1',
+                    '-XX:CompileCommand=exclude,jdk.internal.foreign.AbstractMemorySegmentImpl::reinterpret')
+        }
+        programArgs.addAll('--username', 'AsterionTest', '--accessToken', '0', '--version', minecraft_version)
+        if (project.hasProperty('vanillaPortSmoke')) {
+            mods.setFrom()
+            runDir = layout.buildDirectory.dir('run/vanilla-port-smoke')
+            jvmArgs.add('-Dasterion.vanillaPortSmoke=true')
+        }
+        if (project.hasProperty('nativePortDebug')) {
+            jvmArgs.addAll('-Xcheck:jni', '-Dorg.lwjgl.util.Debug=true',
+                    '-XX:ErrorFile=' + layout.buildDirectory.file('port-native-error-%p.log').get().asFile.absolutePath)
+        }
+        if (project.hasProperty('legacyLwjglCallbacks')) jvmArgs.add('-Djdk.util.jar.version=24')
+        if (testPlatform == 'quilt') {
+            runDir = layout.buildDirectory.dir('run/quilt-production-port-smoke')
+            // Quilt intentionally excludes Fabric Loader, so Loom cannot derive
+            // its default production classpath here. Reuse the matching game's
+            // vanilla libraries, then supply Quilt's loader and dependencies.
+            def libraries = rootProject.project(":${minecraft_version}-fabric")
+                    .tasks.named('runProductionPortSmokeClient').get().classpath.files.findAll {
+                !it.name.startsWith('fabric-loader-') && !it.name.toLowerCase().startsWith('mixinextras-')
+            }
+            classpath.setFrom(libraries, configurations.quiltProductionLoader)
+            mainClass.set('org.quiltmc.loader.impl.launch.knot.KnotClient')
+            jvmArgs.add(providers.provider { '-Dloader.addMods=' + mods.files.collect { it.absolutePath }.join(File.pathSeparator) })
+            jvmArgs.add('-Dloader.noGui=true')
+        }
+    }
+    if (testPlatform == 'quilt') {
+        configurations { quiltProductionLoader }
+        dependencies {
+            quiltProductionLoader "org.quiltmc:quilt-loader:${project.quilt_loader_version}"
+            quiltProductionLoader "org.quiltmc:quilt-loader-dependencies:${project.quilt_loader_version}"
+        }
+    }
+} else if (testPlatform == 'neoforge') {
+    sourceSets { packagedPortSmoke }
+    neoForge.addModdingDependenciesTo(sourceSets.packagedPortSmoke)
+    dependencies { packagedPortSmokeRuntimeOnly files(tasks.named('jar'), portHarness) }
+    neoForge.runs {
+        packagedPortSmokeClient {
+            client()
+            sourceSet = sourceSets.packagedPortSmoke
+            loadedMods = []
+            gameDirectory = layout.buildDirectory.dir('run/packaged-port-smoke').get().asFile
+            jvmArgument '-Xmx8G'
+            systemProperty 'amnetic.opengl.debug', 'true'
+        }
     }
 }

@@ -74,18 +74,46 @@ sourceSets.main.output.resourcesDir = sourceSets.main.java.destinationDirectory.
 def amneticPackMetadata = tasks.register('amneticPackMetadata') {
     def output = layout.buildDirectory.file('amnetic-pack/pack.mcmeta')
     inputs.properties(minecraft_version: minecraft_version, major: resource_pack_major, minor: resource_pack_minor)
-    outputs.file(output)
+    def rendererInput = rootProject.file("libs/amnetic-forge-${project.amnetic_version}.jar")
+    inputs.file(rendererInput)
+    outputs.dir(layout.buildDirectory.dir('amnetic-pack'))
     doLast {
         def target = output.get().asFile
         target.parentFile.mkdirs()
-        def pack = [description: 'Amnetic resources', min_format: [resource_pack_major as int, resource_pack_minor as int], max_format: [resource_pack_major as int, resource_pack_minor as int]]
-        // Forge 61 rejects the deprecated supported_formats key for format 75.
+        def pack = [description: 'Amnetic resources',
+                    min_format: minecraft_version == '1.21.11' ? [82, 0] : [97, 1],
+                    max_format: minecraft_version == '1.21.11' ? [94, 1] : [121, 0]]
+        // Forge wraps client resources; this range also parses for server data.
         target.text = groovy.json.JsonOutput.toJson([pack: pack])
+        if (minecraft_version == '26.3') {
+            // Vanilla supplies TinyFD. Forge's module resolver cannot load a
+            // second copy from the renderer's nested dependencies.
+            def inputZip = new java.util.zip.ZipFile(rendererInput)
+            try {
+                def metadata = new groovy.json.JsonSlurper().parse(inputZip.getInputStream(inputZip.getEntry('META-INF/jarjar/metadata.json')))
+                metadata.jars.removeAll { it.identifier.group == 'org.lwjgl' && it.identifier.artifact == 'lwjgl-tinyfd' }
+                def nestedMetadata = new File(target.parentFile, 'META-INF/jarjar/metadata.json')
+                nestedMetadata.parentFile.mkdirs()
+                nestedMetadata.text = groovy.json.JsonOutput.toJson(metadata)
+                inputZip.entries().each { entry ->
+                    if (entry.name.endsWith('mixins.json')) {
+                        def config = new groovy.json.JsonSlurper().parse(inputZip.getInputStream(entry))
+                        config.compatibilityLevel = 'JAVA_21'
+                        def configFile = new File(target.parentFile, entry.name)
+                        configFile.parentFile.mkdirs()
+                        configFile.text = groovy.json.JsonOutput.toJson(config)
+                    }
+                }
+            } finally { inputZip.close() }
+        }
     }
 }
 def compatibleAmneticJar = tasks.register('compatibleAmneticJar', Zip) {
     dependsOn amneticPackMetadata
-    from(zipTree(rootProject.file("libs/amnetic-forge-${project.amnetic_version}.jar"))) { exclude 'pack.mcmeta' }
+    from(zipTree(rootProject.file("libs/amnetic-forge-${project.amnetic_version}.jar"))) {
+        exclude 'pack.mcmeta'
+        if (minecraft_version == '26.3') exclude 'META-INF/jarjar/metadata.json', 'META-INF/jarjar/lwjgl-tinyfd-*.jar', '**mixins.json'
+    }
     from(layout.buildDirectory.dir('amnetic-pack'))
     archiveFileName = "amnetic-forge-${project.amnetic_version}.jar"
     destinationDirectory = layout.buildDirectory.dir('compatible-amnetic')
@@ -144,3 +172,12 @@ apply from: rootProject.file('gradle/loader-sources.gradle')
 apply from: rootProject.file('gradle/port-smoke.gradle')
 apply from: rootProject.file('gradle/port-mixin-smoke.gradle')
 apply from: rootProject.file('gradle/private-forge-api.gradle')
+
+tasks.withType(JavaExec).configureEach {
+    if (project.java_version.toString() == '25' && name.toLowerCase().contains('client') && providers.gradleProperty('asterionUseJetBrainsRuntime').getOrElse('false').toBoolean()) {
+        javaLauncher = javaToolchains.launcherFor {
+            languageVersion = JavaLanguageVersion.of(25)
+            vendor = JvmVendorSpec.JETBRAINS
+        }
+    }
+}

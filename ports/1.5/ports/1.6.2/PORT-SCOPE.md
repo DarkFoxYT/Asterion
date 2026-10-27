@@ -1,7 +1,9 @@
-# Asterion 1.6.2 extra ports
+# Asterion maintained extra ports
 
-Only Minecraft 1.21.11 and 26.3 use version 1.6.2 in this project.
-The existing Minecraft versions retain their 1.6.1 hotfix version.
+This project adds Minecraft 1.21.11 and 26.3 to the 1.6 release line.
+The current hotfix is 1.6.3. Existing Minecraft versions ship under the same
+version, retaining all 1.6.1 and 1.6.2 fixes. The user explicitly authorized
+publishing 1.6.3 for chain/armor texture faults and related rendering fixes.
 
 The source baseline is the 1.6.1 release, commit 17f4df94. Preserve its gameplay,
 content and visuals. Do not import 2.0 gameplay, content, features or fixes.
@@ -14,10 +16,9 @@ and `ancient_grass`. These entries have no 1.6 assets and are absent from the
 maintained older 1.6 source. Do not copy their 2.0 assets into these ports.
 
 These ports are unfinished until all target builds and runtime checks pass.
-Publication is on hold at the user's request. Do not upload these builds until
-the user authorizes publishing again; development and testing may continue.
-The user also requested no further game launches. Use the non-launch verification
-task and record live rendering/world tests as pending until launches are authorized.
+On 27 October 2026 the user authorized continuing compatibility work, game
+validation and CurseForge publication once the release works. Run final archive
+and runtime checks before uploading; record their actual results.
 Committing and pushing the source changes to GitHub is authorized.
 The internal `26.1.2-source` node only identifies the source API version; it
 cannot build or publish another 26.1.2 release.

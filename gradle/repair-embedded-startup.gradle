@@ -45,6 +45,33 @@ def composeLayers = { byte[] original ->
 }
 ext.composeRendererLayers = composeLayers
 
+// This is Asterion's maintained, embedded renderer distribution. Replace the
+// upstream standalone-distribution notice with an accurate integration notice.
+def embeddedNotice = { byte[] original ->
+    def node = new ClassNode(Opcodes.ASM9)
+    new ClassReader(original).accept(node, 0)
+    def method = node.methods.find { it.name == 'warnIfNested' && it.desc == '()V' }
+    if (method == null || !node.methods.any { candidate -> candidate.instructions.toArray().any {
+            it instanceof LdcInsnNode && it.cst instanceof String && it.cst.contains('bundled dependency') } }) return original
+    node.methods.removeAll { it.name.startsWith('lambda$warnIfNested$') }
+    method.instructions.clear()
+    method.tryCatchBlocks.clear()
+    method.localVariables?.clear()
+    method.instructions.add(new LdcInsnNode('Amnetic'))
+    method.instructions.add(new MethodInsnNode(Opcodes.INVOKESTATIC, 'org/slf4j/LoggerFactory',
+            'getLogger', '(Ljava/lang/String;)Lorg/slf4j/Logger;', false))
+    method.instructions.add(new LdcInsnNode('Using Asterion\'s embedded custom Amnetic renderer'))
+    method.instructions.add(new MethodInsnNode(Opcodes.INVOKEINTERFACE, 'org/slf4j/Logger',
+            'info', '(Ljava/lang/String;)V', true))
+    method.instructions.add(new InsnNode(Opcodes.RETURN))
+    method.maxStack = 2
+    method.maxLocals = 0
+    def writer = new ClassWriter(0)
+    node.accept(writer)
+    writer.toByteArray()
+}
+ext.prepareEmbeddedRendererNotice = embeddedNotice
+
 // Repair only embedded rendering libraries. Keep their dependency coordinates
 // intact so Forge/NeoForge can still deduplicate them with other mods.
 ext.repairEmbeddedStartup = { byte[] original, String name, byte[] windowPatch ->
@@ -59,6 +86,10 @@ ext.repairEmbeddedStartup = { byte[] original, String name, byte[] windowPatch -
                 ZipEntry entry
                 while ((entry = input.nextEntry) != null) {
                     byte[] content = input.readAllBytes()
+                    if (entry.name == 'com/meekdev/amnetic/Amnetic.class') {
+                        byte[] prepared = embeddedNotice(content)
+                        if (!prepared.is(content)) { content = prepared; changed = true }
+                    }
                     if (entry.name == 'com/meekdev/amnetic/mixin/LivingEntityRendererMixin.class') {
                         byte[] composed = composeLayers(content)
                         if (!composed.is(content)) { content = composed; changed = true }

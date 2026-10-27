@@ -1,4 +1,5 @@
 {
+  "render_type": "minecraft:cutout",
   "textures": {
     "metal": "asterion:block/mazesteel_block",
     "particle": "asterion:block/mazesteel_block"

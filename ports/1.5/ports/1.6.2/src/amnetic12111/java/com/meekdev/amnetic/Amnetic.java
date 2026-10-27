@@ -35,6 +35,10 @@ public final class Amnetic {
             if (camera == null) return;
             AmneticClient.beforeTranslucent(camera);
             AmneticClient.endMain(camera);
+            // NeoForge's AfterLevel fires after the renderer-tail mixin has
+            // already run. Flush this frame's post effects here, outside the
+            // level render pass, instead of leaving them pending until later.
+            AmneticClient.renderPost();
         });
     }
 }

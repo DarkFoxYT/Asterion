@@ -91,6 +91,22 @@ for path in root.rglob('*.java'):
         path.unlink()
         continue
     text = path.read_text(encoding='utf-8')
+    if not native and path.name == 'AsterionClient.java':
+        # 1.21.11 Fabric still selects terrain layers by block registration.
+        # Forge/NeoForge instead read the render_type from the block model.
+        text = text.replace('public void onInitializeClient() {', '''public void onInitializeClient() {
+        net.fabricmc.fabric.api.client.rendering.v1.BlockRenderLayerMap.putBlocks(
+                net.minecraft.client.renderer.chunk.ChunkSectionLayer.CUTOUT,
+                Asterion.MAZESTEEL_CHAIN, Asterion.MAZESTEEL_GATE, Asterion.MAZESTEEL_BARS,
+                Asterion.ANCIENT_LEAVES, Asterion.TAINTED_LEAVES,
+                Asterion.TAINTED_PETALS, Asterion.SHORT_GRASS,
+                Asterion.ANCIENT_MOSS_CARPET, Asterion.GREEK_BRAZIER,
+                Asterion.GREEK_FIRE_LANTERN, Asterion.RED_FIRE_LANTERN,
+                Asterion.GREEK_FIRE_FLOOR_TORCH, Asterion.GREEK_FIRE_WALL_TORCH,
+                Asterion.RED_FIRE_FLOOR_TORCH, Asterion.RED_FIRE_WALL_TORCH,
+                Asterion.ORANGE_FIRE_FLOOR_TORCH, Asterion.ORANGE_FIRE_WALL_TORCH,
+                Asterion.LABYRINTH_VINE);
+''')
     for before, after in names:
         text = text.replace(before, after)
     # These receivers are ChunkPos values in the world-generation and flood code.
