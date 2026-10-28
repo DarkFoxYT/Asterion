@@ -110,8 +110,8 @@ dependencies {
     implementation "asterion.bundled:bb4j:0.0.0-c2242d5"
     include "asterion.bundled:bb4j:0.0.0-c2242d5"
 
-    runtimeOnly "org.lwjgl:lwjgl-assimp:${minecraft_version == '1.21.11' ? '3.3.3' : '3.4.1'}:natives-linux-arm64"
-    include "org.lwjgl:lwjgl-assimp:${minecraft_version == '1.21.11' ? '3.3.3' : '3.4.1'}:natives-linux-arm64"
+    runtimeOnly "org.lwjgl:lwjgl-assimp:${minecraft_version == '1.21.11' ? '3.3.3' : minecraft_version == '26.3' ? '3.4.3' : '3.4.1'}:natives-linux-arm64"
+    include "org.lwjgl:lwjgl-assimp:${minecraft_version == '1.21.11' ? '3.3.3' : minecraft_version == '26.3' ? '3.4.3' : '3.4.1'}:natives-linux-arm64"
 
 }
 

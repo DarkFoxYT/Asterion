@@ -54,6 +54,7 @@ public final class PortCinematics {
         PortCursedBrazierCinematic.register();
         PortDimensionTransitionOverlay.register();
         PortMazeObjectiveOverlay.register();
+        PortQueenBeetleQuestOverlay.register();
         HudRenderCallback.EVENT.register((graphics, delta) -> render(graphics));
     }
 
@@ -73,6 +74,7 @@ public final class PortCinematics {
     public static void tick(Minecraft client) {
         PortDimensionTransitionOverlay.tick(client);
         PortMazeObjectiveOverlay.tick(client);
+        PortQueenBeetleQuestOverlay.tick(client);
         PortDeadSunEntryCinematic.tick(client);
         PortCursedBrazierCinematic.tick(client);
         PortRoofCollapseCinematic.tick(client);

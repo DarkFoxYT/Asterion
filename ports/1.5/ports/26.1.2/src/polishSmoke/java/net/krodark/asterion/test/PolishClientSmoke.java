@@ -74,6 +74,13 @@ public final class PolishClientSmoke {
         }
         if(c.level==null || c.player==null || c.getSingleplayerServer()==null)return;
         ticks++;
+        if (Boolean.getBoolean("asterion.enchantmentSmoke")) {
+            if (ticks == 1) c.getSingleplayerServer().execute(() ->
+                    EnchantmentRegression.run(c.getSingleplayerServer().getPlayerList().getPlayers().getFirst()));
+            if (EnchantmentRegression.failure != null) throw new AssertionError("Gameplay regression", EnchantmentRegression.failure);
+            if (EnchantmentRegression.passed) c.stop();
+            return;
+        }
         if (Boolean.getBoolean("asterion.floorHotfixSmoke")) {
             if (ticks == 20) c.getSingleplayerServer().execute(() ->
                     FloorHotfixRegression.prepare(c.getSingleplayerServer().getPlayerList().getPlayers().getFirst()));

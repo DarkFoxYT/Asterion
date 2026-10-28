@@ -74,7 +74,7 @@ void main() {
     }
     vec4 image = texture(PortalSampler, clamp(uv, 0.001, 0.999));
 
-     
+     // uhhhh sure this works lol.
     vec2 texel = 1.0 / vec2(textureSize(PortalSampler, 0));
     float hL = dot(texture(PortalSampler, clamp(uv-vec2(texel.x,0.0),0.001,0.999)).rgb,
                    vec3(0.2126,0.7152,0.0722));

@@ -20,7 +20,7 @@ public final class TextureLoadingRegression {
     private static CompletableFuture<Void> reload;
 
     public static boolean tick(Minecraft client, boolean legacyArmor) throws Exception {
-        client.options.hideGui = true;
+        client.options.hideGui = !Boolean.getBoolean("asterion.sculkSmoke");
         if (failure != null) throw new AssertionError("Texture fixture failed", failure);
         if (++ticks == 20) client.getSingleplayerServer().execute(() -> {
             try {
@@ -44,8 +44,27 @@ public final class TextureLoadingRegression {
                 for (int z = 1; z <= 3; z++)
                     level.setBlock(new BlockPos(5, 302, z), Asterion.MAZESTEEL_CHAIN.defaultBlockState()
                             .setValue(BlockStateProperties.AXIS, Direction.Axis.Z), 3);
+                if (Boolean.getBoolean("asterion.sculkSmoke")) {
+                    String[] mobs = {"sculk_zombie", "sculk_creeper", "sculk_vindicator", "sculk_spitter"};
+                    for (int index = 0; index < mobs.length; index++) {
+                        server.getCommands().performPrefixedCommand(server.createCommandSourceStack(),
+                                "summon sculkhorde:" + mobs[index] + " " + (-3 + index * 2)
+                                        + " 300 3 {NoAI:1b,Silent:1b,Invulnerable:1b,PersistenceRequired:1b,Rotation:[180f,0f]}");
+                    }
+                    Asterion.LOGGER.info("ASTERION_COMPAT Sculk Horde: four model fixtures spawned");
+                }
                 server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "time set day");
                 server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "tp @a 0.5 300 7.5 180 10");
+                if (Boolean.getBoolean("asterion.sculkSmoke")) {
+                    var player = server.getPlayerList().getPlayers().get(0);
+                    player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+                    var queen = new net.krodark.asterion.entity.QueenBeetleEntity(Asterion.QUEEN_BEETLE, level);
+                    queen.setPos(player.getX(), player.getY(), player.getZ() + 2);
+                    level.addFreshEntity(queen);
+                    queen.interact(player, net.minecraft.world.InteractionHand.MAIN_HAND);
+                    if (!player.getTags().contains("asterion.queen_beetle_quest.active"))
+                        throw new AssertionError("Queen interaction did not accept her first quest");
+                }
                 prepared = true;
             } catch (Throwable thrown) { failure = thrown; }
         });

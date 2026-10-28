@@ -12,6 +12,7 @@ public abstract class PortGeckoInterpolationMixin {
     @Unique private long asterion$key() { return (long)currentFrame << 32 | Integer.toUnsignedLong(currentSubframe); }
     @Inject(method="generateInterpolatedFrame",at=@At("HEAD"),cancellable=true)
     private void asterion$cached(int texture,NativeImage source,NativeImage target,CallbackInfo ci) {
+        if (!PortTextureFrameCache.isAsterionUpload()) return;
         var cached = PortTextureFrameCache.get(this, source, asterion$key());
         asterion$cached = cached != null;
         if (cached != null) {
@@ -22,7 +23,8 @@ public abstract class PortGeckoInterpolationMixin {
     }
     @Inject(method="generateInterpolatedFrame",at=@At(value="INVOKE",target="Lcom/mojang/blaze3d/platform/TextureUtil;prepareImage(IIII)V",remap=true))
     private void asterion$save(int texture,NativeImage source,NativeImage target,CallbackInfo ci) {
-        if (!asterion$cached) PortTextureFrameCache.put(this,source,asterion$key(),new NativeImage[]{target});
+        if (PortTextureFrameCache.isAsterionUpload() && !asterion$cached)
+            PortTextureFrameCache.put(this,source,asterion$key(),new NativeImage[]{target});
     }
     @Inject(method="close",at=@At("HEAD"))
     private void asterion$close(CallbackInfo ci) { PortTextureFrameCache.clear(this); }

@@ -23,6 +23,7 @@ public final class WeaponCombatSystem {
 
     private static void afterDamage(LivingEntity victim, DamageSource source, float baseDamage,
                                     float damageTaken, boolean blocked) {
+        EnchantmentGameplay.afterDamage(victim, source, damageTaken, blocked);
         if (damageTaken <= 0 || !(source.getEntity() instanceof ServerPlayer attacker)
                 || source.getDirectEntity() != attacker) return;
         var weapon = attacker.getMainHandItem();

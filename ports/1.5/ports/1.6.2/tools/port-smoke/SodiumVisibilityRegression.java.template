@@ -1,0 +1,39 @@
+package net.krodark.asterion.test;
+
+import net.krodark.asterion.Asterion;
+import net.krodark.asterion.client.render.ExactVisibilityCache;
+import net.krodark.asterion.client.render.SodiumVisibility;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.phys.Vec3;
+
+final class SodiumVisibilityRegression {
+    static void run(Minecraft client) throws ReflectiveOperationException {
+        var ready = SodiumVisibility.class.getDeclaredField("readyLevel");
+        ready.setAccessible(true);
+        if (ready.get(null) != client.level) throw new AssertionError("Real Sodium terrain hook did not run");
+        Class<?> type = Class.forName("net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer");
+        Object renderer = type.getMethod("instanceNullable").invoke(null);
+        if (renderer == null) throw new AssertionError("No active Sodium renderer");
+        var query = type.getMethod("isBoxVisible", double.class, double.class, double.class,
+                double.class, double.class, double.class);
+        var field = SodiumVisibility.class.getDeclaredField("FRAME");
+        field.setAccessible(true);
+        var cache = (ExactVisibilityCache)field.get(null);
+        int visible = 0, hidden = 0;
+        var random = new java.util.Random(263164);
+        for (int i = 0; i < 1024; i++) {
+            Vec3 center = client.player.position().add(random.nextDouble() * 160 - 80,
+                    random.nextDouble() * 64 - 32, random.nextDouble() * 160 - 80);
+            double radius = 4.25, r = radius + 2;
+            boolean expected = (Boolean)query.invoke(renderer, center.x-r, center.y-r, center.z-r,
+                    center.x+r, center.y+r, center.z+r);
+            if (SodiumVisibility.lightVisible(center, radius) != expected
+                    || SodiumVisibility.lightVisible(center, radius) != expected
+                    || cache.lookup(center.x, center.y, center.z, r) != (expected ? 1 : 0))
+                throw new AssertionError("Cached light visibility differs from Sodium");
+            if (expected) visible++; else hidden++;
+        }
+        SodiumVisibility.terrainReady();
+        Asterion.LOGGER.info("ASTERION_SODIUM PASS 1024 real renderer comparisons, visible={} hidden={}, exact repeats and invalidation", visible, hidden);
+    }
+}

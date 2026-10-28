@@ -57,3 +57,4 @@ void main() {
         fog_cylindrical_distance(cascadePosition),FogEnvironmentalStart,FogEnvironmentalEnd,
         FogRenderDistanceStart,FogRenderDistanceEnd,vec4(sea.fog,1));
 }
+// tbh i didn't make this - dark

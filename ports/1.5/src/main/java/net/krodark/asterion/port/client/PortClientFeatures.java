@@ -150,6 +150,8 @@ public final class PortClientFeatures {
                 context.client().execute(() -> PortPhysicsDebris.spawnDoors(payload)));
         ClientPlayNetworking.registerGlobalReceiver(net.krodark.asterion.network.ObjectiveProgressPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> PortMazeObjectiveOverlay.receiveSharedProgress(payload.stage())));
+        ClientPlayNetworking.registerGlobalReceiver(net.krodark.asterion.network.QueenBeetleQuestPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> PortQueenBeetleQuestOverlay.receive(payload)));
         PortCinematics.initializeNetworking();
         PortRagdolls.initializeNetworking();
     }

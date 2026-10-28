@@ -121,6 +121,13 @@ public final class QueenBeetleEntity extends PathfinderMob implements GeoEntity 
         } else if (progress < target) {
             sendQuest(serverPlayer, QueenBeetleQuestPayload.PROGRESS, index, progress, target, anger);
         } else {
+            if (index == 0 && player.level().dimension().equals(Asterion.ASTERION_LEVEL)
+                    && !net.krodark.asterion.game.SharedObjectiveProgress.get((ServerLevel) player.level()).queenRouteComplete()) {
+                net.krodark.asterion.game.PlayerNotices.show(serverPlayer,
+                        net.minecraft.network.chat.Component.translatable("quest.asterion.queen_beetle.explore_first"));
+                sendQuest(serverPlayer, QueenBeetleQuestPayload.PROGRESS, index, progress, target, anger);
+                return InteractionResult.SUCCESS;
+            }
             consumeItems(player, quest.item().asItem(), target);
             player.removeTag(ACTIVE_TAG);
             setQuestIndex(player, index + 1);

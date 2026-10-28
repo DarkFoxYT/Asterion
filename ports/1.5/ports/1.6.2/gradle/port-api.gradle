@@ -30,7 +30,7 @@ tasks.named('processResources').configure {
             } else {
                 // Forge wraps hidden client packs with the current asset version.
                 // Start above both legacy-codec thresholds and cover server data.
-                pack.min_format = minecraft_version == '1.21.11' ? [82, 0] : [97, 1]
+                pack.min_format = minecraft_version == '1.21.11' ? [82, 0] : (minecraft_version == '26.2' ? [88, 0] : [97, 1])
                 pack.max_format = minecraft_version == '1.21.11' ? [94, 1] : [121, 0]
             }
             packFile.text = groovy.json.JsonOutput.toJson([pack: pack])
@@ -43,6 +43,21 @@ tasks.named('processResources').configure {
         }
         def mixinsFile = new File(destinationDir, 'asterion.mixins.json')
         def mixins = new groovy.json.JsonSlurper().parse(mixinsFile)
+        if (minecraft_version == '26.2') {
+            fileTree(new File(destinationDir, 'data/asterion/advancement')).matching { include '**/*.json' }.files.each { resource ->
+                def advancement = new groovy.json.JsonSlurper().parse(resource)
+                advancement.criteria?.values()?.each { criterion ->
+                    if (criterion.trigger == 'minecraft:player_killed_entity') {
+                        def entity = criterion.conditions?.entity
+                        def predicates = entity instanceof List ? entity.collect { it.predicate } : [entity]
+                        predicates.findAll { it instanceof Map && it.containsKey('type') }.each { predicate ->
+                            predicate['minecraft:entity_type'] = predicate.remove('type')
+                        }
+                    }
+                }
+                resource.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(advancement))
+            }
+        }
         if (minecraft_version == '1.21.11' && !mixins.client.contains('GameRendererFovInvoker'))
             mixins.client.add('GameRendererFovInvoker')
         if (minecraft_version == '1.21.11') {
@@ -144,15 +159,17 @@ tasks.named('processResources').configure {
                 if (!mixins.client.contains('NativeLevelSubmissionMixin')) mixins.client.add('NativeLevelSubmissionMixin')
             }
         }
+        if (minecraft_version == '26.2' && (project.name.endsWith('-forge') || project.name.endsWith('-neoforge')))
+            if (!mixins.client.contains('NativeLevelSubmissionMixin')) mixins.client.add('NativeLevelSubmissionMixin')
         mixinsFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(mixins))
         fileTree(destinationDir).matching { include '**/*mixins.json' }.files.each { config ->
             def data = new groovy.json.JsonSlurper().parse(config)
             if (data['package']?.startsWith('net.krodark.asterion.') && data.compatibilityLevel) {
                 // Forge 66 ships Mixin 0.8.7, whose enum stops before Java 25.
                 // Our mixins use Java 21 language features on the Java 25 VM.
-                data.compatibilityLevel = minecraft_version == '26.3' && project.name.endsWith('-forge')
+                data.compatibilityLevel = minecraft_version in ['26.2', '26.3'] && project.name.endsWith('-forge')
                         ? 'JAVA_21' : "JAVA_${project.java_version}"
-                if (minecraft_version == '26.3' && data['package'] == 'net.krodark.asterion.forge.mixin')
+                if (minecraft_version in ['26.2', '26.3'] && data['package'] == 'net.krodark.asterion.forge.mixin')
                     data.client.remove('ForgeLevelRendererMixin')
                 config.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))
             }

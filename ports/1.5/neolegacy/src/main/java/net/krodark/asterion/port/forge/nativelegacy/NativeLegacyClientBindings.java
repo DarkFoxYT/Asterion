@@ -37,8 +37,11 @@ final class NativeLegacyClientBindings {
                 (net.minecraftforge.client.event.RegisterGuiOverlaysEvent event) ->
                         event.registerAboveAll(
                                 "asterion_hud",
-                                (gui, graphics, delta, width, height) ->
-                                        net.fabricmc.fabric.api.client.rendering.v1
-                                                .HudRenderCallback.fire(graphics, delta)));
+                                (gui, graphics, delta, width, height) -> {
+                                    gui.setupOverlayRenderState(true, false);
+                                    net.fabricmc.fabric.api.client.rendering.v1
+                                            .HudRenderCallback.fire(graphics, delta);
+                                    graphics.flush();
+                                }));
     }
 }

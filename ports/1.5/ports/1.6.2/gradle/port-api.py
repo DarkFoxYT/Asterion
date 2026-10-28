@@ -6,9 +6,116 @@ root = Path(sys.argv[1])
 mc = sys.argv[2]
 platform = sys.argv[3] if len(sys.argv) > 3 else 'fabric'
 native = platform in {'forge', 'neoforge'}
+def write_native_submission(root, platform):
+    dispatch = ('LevelRenderEvents.BEFORE_TRANSLUCENT_TERRAIN.fire(context);\n'
+                '        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.fire(context);') if platform == 'forge' else (
+                'LevelRenderEvents.before(context);\n        LevelRenderEvents.after(context);\n        LevelRenderEvents.end(context);')
+    (root / 'net/krodark/asterion/mixin/NativeLevelSubmissionMixin.java').write_text('''package net.krodark.asterion.mixin;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
+import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.state.level.LevelRenderState;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+/** Queue native overlay geometry before Minecraft consumes the feature submissions. */
+@Mixin(LevelRenderer.class)
+abstract class NativeLevelSubmissionMixin {
+    @Inject(method = "submitEntities", at = @At("TAIL"))
+    private void asterion$overlays(PoseStack poses, LevelRenderState state,
+            SubmitNodeCollector collector, CallbackInfo ci) {
+        LevelRenderContext context = new LevelRenderContext() {
+            public LevelRenderState levelState() { return state; }
+            public PoseStack poseStack() { return poses; }
+            public SubmitNodeCollector submitNodeCollector() { return collector; }
+        };
+        ''' + dispatch + '''
+    }
+}
+''', encoding='utf-8')
+
+
+if mc == '26.2':
+    for path in root.rglob('*.java'):
+        if native and path.name in {'ForgeLevelRendererMixin.java', 'NativeRenderEvents.java'}:
+            path.unlink()
+            continue
+        if path.name == 'PositionCenters.java': continue
+        text = path.read_text(encoding='utf-8')
+        text = re.sub(r'([\w.]+(?:\([^()]*\))?)\.getCenter\(\)',
+                lambda m: m.group() if m[1] == 'region' else 'net.krodark.asterion.compat.PositionCenters.center(' + m[1] + ')', text)
+        text = re.sub(r'([\w.()]+)\.options\.hideGui\s*=\s*([^;]+);', r'net.krodark.asterion.client.render.HudVisibility.hidden(\1, \2);', text)
+        text = re.sub(r'([\w.()]+)\.options\.hideGui\b', r'net.krodark.asterion.client.render.HudVisibility.hidden(\1)', text)
+        text = text.replace('client.gui.setOverlayMessage(', 'client.gui.hud.setOverlayMessage(')
+        text = text.replace('EntityType.MARKER', 'net.minecraft.world.entity.EntityTypes.MARKER')
+        if native and path.name == 'LevelRenderContext.java':
+            text = text.replace('import net.minecraft.client.renderer.MultiBufferSource;', '')
+            text = text.replace('MultiBufferSource.BufferSource bufferSource();', 'net.minecraft.client.renderer.SubmitNodeCollector submitNodeCollector();')
+        if path.name == 'MinotaurEntity.java':
+            text = text.replace('HeavyMoveControl extends MoveControl {', 'HeavyMoveControl extends MoveControl<MinotaurEntity> {')
+        if path.name == 'EnchantmentRegression.java':
+            text = text.replace('queen.interact(player, InteractionHand.MAIN_HAND)',
+                    'queen.interact(player, InteractionHand.MAIN_HAND, Vec3.ZERO)')
+        if path.name == 'TextureLoadingRegression.java':
+            text = text.replace('player.getTags()', 'player.entityTags()')
+            text = text.replace('queen.interact(player, net.minecraft.world.InteractionHand.MAIN_HAND)',
+                    'queen.interact(player, net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.phys.Vec3.ZERO)')
+        if path.name == 'ShaleSpikeBlock.java':
+            text = text.replace('super(properties)', 'super(net.minecraft.world.level.block.Blocks.POINTED_DRIPSTONE.defaultBlockState(), properties)')
+        if path.name == 'AsterionEmissiveBuffer.java':
+            text = text.replace('.withVertexFormat(source.getVertexFormat(),source.getVertexFormatMode())',
+                    '.withVertexBinding(0, source.getVertexFormatBinding(0)).withPrimitiveTopology(source.getPrimitiveTopology())')
+            text = text.replace('for(var sampler:source.getSamplers())builder.withSampler(sampler);',
+                    'for(var layout:source.getBindGroupLayouts())builder.withBindGroupLayout(layout);')
+            text = text.replace('for(var uniform:source.getUniforms())builder.withUniform(uniform.name(),uniform.type());', '')
+        if path.name == 'GeckoAnimationCacheMixin.java':
+            text = re.sub(r'writeToTexture\(texture, cached,\s*0, 0, 0, 0, cached.getWidth\(\), cached.getHeight\(\), 0, 0\)',
+                    'writeToTexture(texture, cached)', text)
+        if path.name == 'AmneticBloomPerformanceMixin.java':
+            text = text.replace('@WrapOperation(method = "render",', '@WrapOperation(method = {"render", "renderNative"},')
+        if path.name == 'RagdollItemInHandRendererMixin.java':
+            text = text.replace('"renderHandsWithItems"', '"submitHandsWithItems"')
+            text = re.sub(r'private void asterion\$hideHands\([^{}]+\) \{',
+                    'private void asterion$hideHands(CallbackInfo ci) {\n'
+                    '        LocalPlayer player = net.minecraft.client.Minecraft.getInstance().player;\n'
+                    '        if (player == null) return;', text)
+        if path.name == 'LimboWaterRenderer.java':
+            text = text.replace('LevelRenderEvents.END_EXTRACTION', 'LevelRenderEvents.END_EXTRACTION' if native else 'net.fabricmc.fabric.api.client.rendering.v1.level.LevelExtractionEvents.END_EXTRACTION')
+            text = text.replace('RenderPipelines.DEBUG_FILLED_SNIPPET, RenderPipelines.FOG_SNIPPET', 'RenderPipelines.DEBUG_FILLED_SNIPPET')
+            text = text.replace('.withVertexFormat(DefaultVertexFormat.ENTITY, VertexFormat.Mode.QUADS)',
+                    '.withVertexBinding(0, DefaultVertexFormat.ENTITY).withPrimitiveTopology(com.mojang.blaze3d.PrimitiveTopology.QUADS)')
+            text = text.replace('.withSampler("Sampler0")\n                    .withSampler("Sampler1")',
+                    '.withBindGroupLayout(com.mojang.blaze3d.pipeline.BindGroupLayout.builder()\n'
+                    '                        .withUniform("Fog", com.mojang.blaze3d.shaders.UniformType.UNIFORM_BUFFER)\n'
+                    '                        .withSampler("Sampler0").withSampler("Sampler1").build())')
+        if path.name == 'PortClientSmoke.java':
+            text = text.replace('private static boolean enchantmentStarted;',
+                    'private static boolean enchantmentStarted;\n    private static boolean advancementChecked;')
+            text = text.replace('            if (client.level == null || client.player == null || client.getSingleplayerServer() == null) return;', '''
+            if (client.level == null || client.player == null || client.getSingleplayerServer() == null) return;
+            if (!advancementChecked) {
+                for (String name : java.util.List.of("bombadier_hunter", "defeat_brazier", "rune_beetle_hunter",
+                        "defeat_minotaur", "find_exit_portal", "queens_favor")) {
+                    if (client.getSingleplayerServer().getAdvancements().get(Asterion.id(name)) == null)
+                        throw new AssertionError("Missing 26.2 advancement: " + name);
+                }
+                advancementChecked = true;
+                Asterion.LOGGER.info("ASTERION_ADVANCEMENTS PASS: boss milestones and Queen reward loaded");
+            }''')
+            text = text.replace('client.screen', 'client.gui.screen()').replace('client.setScreen(', 'client.gui.setScreen(')
+            text = text.replace('client.getOverlay()', 'client.gui.overlay()')
+            text = text.replace('client.getMainRenderTarget()', 'client.gameRenderer.mainRenderTarget()')
+            text = text.replace('client.getWindow().updateVsync(false);', '')
+        path.write_text(text, encoding='utf-8')
+    if native and (root / 'net/krodark/asterion/Asterion.java').is_file():
+        write_native_submission(root, platform)
+    raise SystemExit(0)
 if mc == '26.3':
     import runpy
-    runpy.run_path(str(Path(__file__).with_name('port-api263.py')), init_globals={'root': root, 'platform': platform})
+    runpy.run_path(str(Path(__file__).with_name('port-api263.py')), init_globals={'root': root, 'platform': platform, 'write_native_submission': write_native_submission})
     raise SystemExit(0)
 if mc != '1.21.11':
     raise SystemExit(0)

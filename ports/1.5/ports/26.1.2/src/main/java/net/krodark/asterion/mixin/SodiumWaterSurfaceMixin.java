@@ -16,9 +16,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Pseudo
 @Mixin(targets = "net.caffeinemc.mods.sodium.client.render.chunk.compile.pipeline.DefaultFluidRenderer", remap = false)
 public abstract class SodiumWaterSurfaceMixin {
-    @Inject(method = "isFullBlockFluidVisible", at = @At("HEAD"), cancellable = true, remap = false)
+    @Inject(method = "isFullBlockFluidVisible", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private void asterion$replaceOceanTop(BlockAndTintGetter level, BlockPos pos, Direction direction,
                                          BlockState block, FluidState fluid, CallbackInfoReturnable<Boolean> result) {
+        if (direction == Direction.UP && LimboWaterRenderer.replacesSurface(level, pos)) result.setReturnValue(false);
+    }
+
+    @Inject(method = "isFluidSideExposed(Lnet/minecraft/client/renderer/block/BlockAndTintGetter;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/core/BlockPos;Lnet/minecraft/core/Direction;F)Z",
+            at = @At("HEAD"), cancellable = true, remap = false, require = 0)
+    private void asterion$replaceOceanTopNew(BlockAndTintGetter level, BlockState block, BlockPos pos,
+                                            Direction direction, float height, CallbackInfoReturnable<Boolean> result) {
         if (direction == Direction.UP && LimboWaterRenderer.replacesSurface(level, pos)) result.setReturnValue(false);
     }
 }

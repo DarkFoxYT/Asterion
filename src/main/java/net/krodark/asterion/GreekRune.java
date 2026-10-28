@@ -3,6 +3,7 @@ package net.krodark.asterion;
 import net.minecraft.util.Mth;
 
 public enum GreekRune {
+    // I FOUND THE TEXT ICONS!
     ALPHA("Alpha", "Α"),
     BETA("Beta", "Β"),
     GAMMA("Gamma", "Γ"),

@@ -24,7 +24,7 @@ stonecutter {
         // Source identity only: this node has no build or publication tasks.
         version('26.1.2-source', '26.1.2').buildscript = 'source-baseline.gradle'
         def loaders = providers.gradleProperty('asterionPortLoaders').getOrElse('fabric,quilt,forge,neoforge').split(',') as Set
-        for (minecraft in ['1.21.11', '26.3']) {
+        for (minecraft in ['1.21.11', '26.2', '26.3']) {
             version("${minecraft}-fabric", minecraft).buildscript = minecraft == '1.21.11' ? 'fabric-remap.gradle' : 'build.gradle'
             if ('quilt' in loaders) version("${minecraft}-quilt", minecraft).buildscript = minecraft == '1.21.11' ? 'fabric-remap.gradle' : 'build.gradle'
             if ('forge' in loaders) version("${minecraft}-forge", minecraft).buildscript = 'forge/build.gradle'

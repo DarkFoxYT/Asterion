@@ -22,7 +22,7 @@ public final class MazeObjectiveOverlay {
     private static int waitTicks;
     private static int visibleTicks;
     private static int completionTicks;
-    private static Stage stage = Stage.ENTER_CATACOMBS;
+    private static Stage stage = Stage.MEET_QUEEN;
     private static int sharedStage = -1;
     private static boolean wasInMaze;
     private static Stage layoutStage;
@@ -30,12 +30,12 @@ public final class MazeObjectiveOverlay {
     private static net.minecraft.locale.Language layoutLanguage;
     private static java.util.List<net.minecraft.util.FormattedCharSequence> hintLines = java.util.List.of();
     private static String objectiveLine = "";
-    private static Component progressLabel = Component.empty();
-    private static int progressWidth;
     private static Vec3 waypoint;
 
 
     private enum Stage {
+        MEET_QUEEN("meet_queen"),
+        HELP_QUEEN("help_queen"),
         ENTER_CATACOMBS("enter_catacombs"),
         GET_BRAZIER_KEY("get_brazier_key"),
         DEFEAT_BRAZIER("defeat_brazier"),
@@ -45,7 +45,10 @@ public final class MazeObjectiveOverlay {
         FORGE_MINOTAUR_KEY("forge_minotaur_key"),
         REACH_ARENA_DOORS("reach_arena_doors"),
         DEFEAT_DEAD_SUN("defeat_dead_sun"),
-        OPEN_OMEGA_LOCK("open_omega_lock");
+        OPEN_OMEGA_LOCK("open_omega_lock"),
+        RETURN_CATACOMBS("return_catacombs"),
+        EXPLORE_OVERGROWTH("explore_overgrowth"),
+        EXPLORE_MARSHLANDS("explore_marshlands");
 
         private final Component objective;
         private final Component hint;
@@ -160,8 +163,6 @@ public final class MazeObjectiveOverlay {
             var lines = client.font.split(stage.hint, panelWidth - 18);
             hintLines = java.util.List.copyOf(lines.subList(0, Math.min(2, lines.size())));
             objectiveLine = client.font.plainSubstrByWidth(stage.objective.getString(), panelWidth - 17);
-            progressLabel = Component.translatable("objective.asterion.progress", stage.ordinal() + 1, Stage.values().length);
-            progressWidth = client.font.width(progressLabel);
         }
         int waypointY = 31 + hintLines.size() * 9;
         int panelHeight = waypointY + (waypoint == null ? 3 : 14);
@@ -170,23 +171,21 @@ public final class MazeObjectiveOverlay {
         graphics.fill(left + 2, panelTop + 2, left + panelWidth + 2, panelTop + panelHeight + 2,
                 Math.round(appear * completionFade * 95F) << 24);
         graphics.fill(left, panelTop, left + panelWidth, panelTop + panelHeight,
-                Math.round(appear * completionFade * 210.0F) << 24 | 0x090707);
-        graphics.fill(left, panelTop, left + 3, panelTop + panelHeight,
-                alpha << 24 | (stage.ordinal() >= Stage.DEFEAT_BRAZIER.ordinal() ? 0xC34635 : 0xA36745));
+                Math.round(appear * completionFade * 170.0F) << 24 | 0x141414);
+        graphics.fill(left, panelTop, left + 1, panelTop + panelHeight,
+                alpha << 24 | 0xA69B80);
         graphics.fill(left + 3, panelTop, left + panelWidth, panelTop + 1,
-                Math.round(alpha * 0.35F) << 24 | 0x8B4A3C);
+                Math.round(alpha * 0.35F) << 24 | 0x6A665E);
         int textLeft = left + 9;
         graphics.fill(textLeft, panelTop + 14, left + panelWidth - 8, panelTop + 15,
-                Math.round(alpha * .22F) << 24 | 0xC18468);
+                Math.round(alpha * .22F) << 24 | 0xA8A399);
         graphics.text(client.font, INTRO, textLeft, panelTop + 5,
-                Math.round(alpha * 0.74F) << 24 | 0xC18468, false);
-        graphics.text(client.font, progressLabel, left + panelWidth - 8 - progressWidth, panelTop + 5,
-                Math.round(alpha * 0.58F) << 24 | 0xA89185, false);
+                Math.round(alpha * 0.74F) << 24 | 0xA8A399, false);
         graphics.text(client.font, objectiveLine, textLeft, panelTop + 17,
-                alpha << 24 | 0xF2DED0, false);
+                alpha << 24 | 0xECE9E1, false);
         for (int line = 0; line < hintLines.size(); line++)
             graphics.text(client.font, hintLines.get(line), textLeft, panelTop + 29 + line * 9,
-                    Math.round(alpha * 0.68F) << 24 | 0xB8A49A, false);
+                    Math.round(alpha * 0.68F) << 24 | 0xB4B1AA, false);
         if (waypoint != null) {
             double dx = waypoint.x - client.player.getX();
             double dz = waypoint.z - client.player.getZ();
@@ -194,9 +193,9 @@ public final class MazeObjectiveOverlay {
             float relative = Mth.wrapDegrees(targetYaw - client.player.getYRot());
             String arrow = Math.abs(relative) < 18.0F ? "◆" : relative < 0.0F ? "◀" : "▶";
             graphics.text(client.font, Component.literal(arrow), textLeft, panelTop + waypointY,
-                    alpha << 24 | 0xE8B94A, false);
+                    alpha << 24 | 0xCDBB86, false);
             graphics.text(client.font, waypointText, textLeft + 13, panelTop + waypointY,
-                    Math.round(alpha * 0.84F) << 24 | 0xD8C7A2, false);
+                    Math.round(alpha * 0.84F) << 24 | 0xCBC7BB, false);
         }
     }
 
@@ -210,13 +209,13 @@ public final class MazeObjectiveOverlay {
 
     private static void resetProgress() {
         stage = sharedStage >= 0 && sharedStage < Stage.values().length
-                ? Stage.values()[sharedStage] : Stage.ENTER_CATACOMBS;
+                ? Stage.values()[sharedStage] : Stage.MEET_QUEEN;
     }
 
     private static Vec3 keyWaypoint(Minecraft client) {
-        if (stage == Stage.REACH_ARENA_DOORS)
+        if (stage == Stage.REACH_ARENA_DOORS || stage == Stage.DEFEAT_DEAD_SUN)
             return MinotaurArenaEntrances.door(MinotaurArenaEntrances.PLAYER_ENTRANCE).getCenter();
-        if (stage == Stage.REACH_FORGE)
+        if (stage == Stage.REACH_FORGE || stage == Stage.RETURN_CATACOMBS || stage == Stage.GET_BRAZIER_KEY || stage == Stage.ENTER_CATACOMBS)
             return Vec3.atCenterOf(new BlockPos(CatacombLayout.ROOT_CENTER,
                     net.krodark.asterion.worldgen.AuthoredCatacombs.CONNECTOR_Y,
                     CatacombLayout.ROOT_CENTER));

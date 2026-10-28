@@ -12,7 +12,7 @@ if (project.hasProperty('textureSmoke')) {
 }
 
 // Keep development/test launches aligned with Mojang's 26.3 JVM arguments.
-if (minecraft_version == '26.3') {
+if (minecraft_version in ['26.2', '26.3']) {
     def nativeJvmArgs = ['-XX:StackShadowPages=32', '--enable-native-access=ALL-UNNAMED',
                          '--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED']
     if (testPlatform in ['fabric', 'quilt']) {
@@ -28,9 +28,12 @@ def testGenerate = tasks.register('generatePortSmoke', Sync) {
     from(rootProject.file('tools/port-smoke')) { include '*.template'; rename { it.replace('.template', '') } }
     from(rootProject.file('src/polishSmoke/java/net/krodark/asterion/test/FloorHotfixRegression.java'))
     from(rootProject.file('../../src/gametest/java/net/krodark/asterion/test/TextureLoadingRegression.java'))
+    from(rootProject.file('../../src/gametest/java/net/krodark/asterion/test/EnchantmentRegression.java'))
     into testOutput
     inputs.properties(minecraft: minecraft_version, platform: testPlatform,
-            version: project.version.toString(), textureSmoke: project.hasProperty('textureSmoke'))
+            version: project.version.toString(), textureSmoke: project.hasProperty('textureSmoke'),
+            vulkanSmoke: project.hasProperty('vulkanSmoke'), sodiumSmoke: project.hasProperty('sodiumSmokeJar'),
+            enchantmentSmoke: project.hasProperty('enchantmentSmoke'))
     inputs.files(rootProject.file('gradle/port-api.py'), rootProject.file('gradle/port-api263.py'))
     doLast {
         def source = new File(testOutput.get().asFile, 'PortClientSmoke.java')
@@ -44,6 +47,22 @@ def testGenerate = tasks.register('generatePortSmoke', Sync) {
                         if (first == second) throw new AssertionError("Configured features shared a registry instance");
                         ''' : ''
         source.text = source.getText('UTF-8').replace('__WORLD_SETTINGS__', settings).replace('__FEATURE_CHECK__', featureCheck)
+        source.text = source.getText('UTF-8').replace('__BACKEND_CHECK__',
+                minecraft_version == '26.3' && project.hasProperty('vulkanSmoke') ? '''
+                String backend = com.mojang.blaze3d.systems.RenderSystem.getDevice().getDeviceInfo().backendName();
+                if (!backend.toLowerCase(java.util.Locale.ROOT).contains("vulkan"))
+                    throw new AssertionError("Vulkan test fell back to " + backend);
+                Asterion.LOGGER.info("ASTERION_VULKAN active backend verified: {}", backend);
+                ''' : '')
+        source.text = source.getText('UTF-8').replace('__SODIUM_CHECK__', project.hasProperty('sodiumSmokeJar') ? '''
+                Class.forName("net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer");
+                Asterion.LOGGER.info("ASTERION_SODIUM real Sodium renderer loaded");
+                ''' : '')
+        source.text = source.getText('UTF-8').replace('__SODIUM_VISIBILITY_CHECK__',
+                project.hasProperty('sodiumSmokeJar') ? 'SodiumVisibilityRegression.run(client);' : '')
+        source.text = source.getText('UTF-8').replace('__NATIVE_LIGHT_TICK__',
+                minecraft_version == '26.3' ? 'NativeLightRegression.tick(client);' : '')
+        source.text = source.getText('UTF-8').replace('__ENCHANTMENT_MODE__', project.hasProperty('enchantmentSmoke').toString())
         def bootstrap = 'package net.krodark.asterion.test;\n'
         def metadataDir = new File(testOutput.get().asFile, 'resources')
         metadataDir.mkdirs()
@@ -67,7 +86,7 @@ def testGenerate = tasks.register('generatePortSmoke', Sync) {
             meta.text = 'modLoader="javafml"\nloaderVersion="[1,)"\nlicense="All-Rights-Reserved"\n[[mods]]\nmodId="asterion_port_tests"\nversion="__VERSION__"\ndisplayName="Asterion port tests"\n'.replace('__VERSION__', project.version.toString())
             def pack = [description: 'Temporary Asterion release validation resources']
             if (!neo) {
-                pack.min_format = minecraft_version == '1.21.11' ? [82, 0] : [97, 1]
+                pack.min_format = minecraft_version == '1.21.11' ? [82, 0] : (minecraft_version == '26.2' ? [88, 0] : [97, 1])
                 pack.max_format = minecraft_version == '1.21.11' ? [94, 1] : [121, 0]
             }
             new File(metadataDir, 'pack.mcmeta').text = groovy.json.JsonOutput.toJson([pack: pack])
@@ -137,6 +156,38 @@ def portHarness = tasks.register('portSmokeHarnessJar', Jar) {
     archiveFileName = 'Asterion-port-tests-dev.jar'
     destinationDirectory = layout.buildDirectory.dir('test-harness')
 }
+if (project.hasProperty('packagedPortValidation') && testPlatform == 'forge') {
+    def packagedDirectory = layout.buildDirectory.dir('run/packaged-port-smoke')
+    def releaseArchive = tasks.named(testPlatform == 'forge' ? 'jarJar' : 'jar')
+    def stagePackaged = tasks.register('stagePackagedPortSmoke', Sync) {
+        from releaseArchive
+        from portHarness
+        into packagedDirectory.map { new File(it.asFile, 'mods') }
+    }
+    minecraft.runs {
+        register('packagedPortSmokeClient') {
+            mods.clear()
+            mainClass = 'net.minecraftforge.bootstrap.ForgeBootstrap'
+            args '--gameDir', '.', '--launchTarget', 'forge_userdev_client', '--version', 'MOD_DEV',
+                    '--assetIndex', '{asset_index}', '--assetsDir', '{assets_root}'
+            workingDir = packagedDirectory
+            jvmArgs '-Xmx8G', '-Damnetic.opengl.debug=true'
+        }
+    }
+    tasks.matching { it.name == 'runPackagedPortSmokeClient' }.configureEach {
+        dependsOn stagePackaged
+        def outputs = sourceSets.main.output.files.collect { it.canonicalFile } as Set
+        def releaseOnly = { File entry -> !outputs.contains(entry.canonicalFile) &&
+                !entry.name.startsWith('geckolib-') && !entry.name.startsWith('amnetic-') }
+        runtimeClasspath.setFrom(configurations.runtimeClasspath.filter(releaseOnly))
+        doFirst {
+            classpath = files(classpath.files.findAll(releaseOnly))
+            def directory = packagedDirectory.get().asFile
+            def options = new File(directory, 'options.txt')
+            if (!options.exists()) options.text = 'onboardAccessibility:false\npauseOnLostFocus:false\n'
+        }
+    }
+}
 if (testPlatform == 'forge' && project.hasProperty('portSmoke')) {
     // ForgeGradle 7's launcher classpath omits additional development mod
     // outputs. A separate test-only archive is discovered through mods/.
@@ -161,13 +212,14 @@ if (testPlatform in ['fabric', 'quilt']) {
         }
     }
     tasks.register('runProductionPortSmokeClient', productionType) {
-        ['1.21.11', '26.3'].each { mc ->
+        ['1.21.11', '26.2', '26.3'].each { mc ->
             ['fabric', 'quilt'].each { loader ->
                 def assetProject = rootProject.findProject(":${mc}-${loader}")
                 if (assetProject != null) dependsOn "${assetProject.path}:downloadAssets"
             }
         }
         mods.setFrom(tasks.named(minecraft_version == '1.21.11' ? 'remapJar' : 'jar'), productionHarness)
+        if (project.hasProperty('sodiumSmokeJar')) mods.from(project.file(project.property('sodiumSmokeJar')))
         runDir = layout.buildDirectory.dir('run/production-port-smoke')
         javaLauncher = javaToolchains.launcherFor {
             def clientJava = providers.gradleProperty('asterionClientJavaVersion').getOrElse(project.java_version.toString()) as int
@@ -176,7 +228,7 @@ if (testPlatform in ['fabric', 'quilt']) {
         }
         jvmArgs.addAll('-Xmx8G', '-Damnetic.opengl.debug=true', '-Dfabric.noGui=true')
         if (project.hasProperty('textureSmoke')) jvmArgs.add('-Dasterion.textureSmoke=true')
-        if (minecraft_version == '26.3') {
+        if (minecraft_version in ['26.2', '26.3']) {
             // Required by Mojang's 26.3 launcher metadata for native shader callbacks.
             jvmArgs.addAll('-XX:StackShadowPages=32', '--enable-native-access=ALL-UNNAMED',
                     '--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED')
@@ -222,6 +274,9 @@ if (testPlatform in ['fabric', 'quilt']) {
     sourceSets { packagedPortSmoke }
     neoForge.addModdingDependenciesTo(sourceSets.packagedPortSmoke)
     dependencies { packagedPortSmokeRuntimeOnly files(tasks.named('jar'), portHarness) }
+    if (project.hasProperty('sodiumSmokeJar')) dependencies {
+        packagedPortSmokeRuntimeOnly files(project.file(project.property('sodiumSmokeJar')))
+    }
     neoForge.runs {
         packagedPortSmokeClient {
             client()

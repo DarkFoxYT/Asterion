@@ -26,7 +26,10 @@
     ]
   ],
   "rewards": {
-    "experience": 25
+    "experience": 25,
+    "recipes": [
+      "asterion:flamethrower"
+    ]
   },
   "sends_telemetry_event": false
 }

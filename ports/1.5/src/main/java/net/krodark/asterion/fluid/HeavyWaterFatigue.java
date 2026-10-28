@@ -7,7 +7,6 @@ import java.util.WeakHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 
@@ -39,12 +38,24 @@ public final class HeavyWaterFatigue {
             }
         }
     }
-    @SuppressWarnings("deprecation") // NeoForge's FluidType overload is loader-specific.
+    public static boolean touchingHeavyWater(net.minecraft.world.entity.player.Player player) {
+        return inHeavyWater(player, false);
+    }
     public static boolean swimmingInHeavyWater(net.minecraft.world.entity.player.Player player) {
-        if (!player.isInWater() || player.isPassenger()
-                || player.onGround() && player.getFluidHeight(FluidTags.WATER) < .8 && !player.isSwimming()) return false;
+        return inHeavyWater(player, true);
+    }
+    private static boolean inHeavyWater(net.minecraft.world.entity.player.Player player, boolean swimming) {
+        if (player.isPassenger()) return false;
         var level = player.level();
-        for (double height : new double[]{.1, Math.min(.9, player.getBbHeight() * .5), player.getEyeHeight()}) {
+        // Forge's custom FluidType is separate from vanilla water even when tagged as water.
+        if (!player.isInWater()) {
+            var feet = level.getFluidState(player.blockPosition()).getType();
+            if (feet != HeavyWater.STILL && feet != HeavyWater.FLOWING && feet != HeavyWater.FLUID) return false;
+        }
+        double deepEnough = Math.min(.8, player.getBbHeight() * .5);
+        for (int sample = 0; sample < 3; sample++) {
+            double height = sample == 0 ? .1 : sample == 1 ? Math.min(.9, player.getBbHeight() * .5) : player.getEyeHeight();
+            if (swimming && player.onGround() && !player.isSwimming() && height < deepEnough) continue;
             BlockPos pos = BlockPos.containing(player.getX(), player.getY() + height, player.getZ());
             var fluid = level.getFluidState(pos);
             if ((fluid.getType() == HeavyWater.STILL || fluid.getType() == HeavyWater.FLOWING || fluid.getType() == HeavyWater.FLUID)

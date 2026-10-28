@@ -10,6 +10,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import net.krodark.asterion.game.AsterionEnchantments;
+import net.krodark.asterion.game.EnchantmentBalance;
 
  
 @Mixin(LivingEntity.class)
@@ -21,7 +23,10 @@ public abstract class HeavyWaterMovementMixin {
         asterion$heavySwimming = (Object)this instanceof Player player
                 && !player.isSpectator() && !player.getAbilities().flying
                 && HeavyWaterFatigue.swimmingInHeavyWater(player);
-        return asterion$heavySwimming ? input.multiply(.65, .75, .65) : input;
+        if (!asterion$heavySwimming) return input;
+        int swifty = AsterionEnchantments.swifty((LivingEntity)(Object)this);
+        double horizontal = EnchantmentBalance.heavyPenalty(.65, swifty);
+        return input.multiply(horizontal, EnchantmentBalance.heavyPenalty(.75, swifty), horizontal);
     }
 
     @Inject(method = "travel", at = @At("RETURN"))
@@ -30,6 +35,10 @@ public abstract class HeavyWaterMovementMixin {
         var entity = (LivingEntity)(Object)this;
         Vec3 motion = entity.getDeltaMovement();
          
-        entity.setDeltaMovement(motion.multiply(.88, motion.y > 0 ? .78 : .94, .88));
+        int swifty = AsterionEnchantments.swifty(entity);
+        double horizontal = EnchantmentBalance.heavyPenalty(.88, swifty);
+        entity.setDeltaMovement(motion.multiply(horizontal,
+                EnchantmentBalance.heavyPenalty(motion.y > 0 ? .78 : .94, swifty), horizontal));
     }
+
 }

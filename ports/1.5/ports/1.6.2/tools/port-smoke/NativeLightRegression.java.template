@@ -1,0 +1,23 @@
+package net.krodark.asterion.test;
+
+import net.krodark.asterion.Asterion;
+import net.krodark.asterion.client.light.LedAmneticLight;
+import net.minecraft.client.Minecraft;
+
+final class NativeLightRegression {
+    private static boolean reported;
+    static void tick(Minecraft client) throws ReflectiveOperationException {
+        String key = "asterion-native-light-regression";
+        LedAmneticLight.updateItemGlowLight(key, client.player.position().add(0, 1, -1),
+                .18F, 1F, .30F, 2.15F, 9F, false);
+        var owner = Class.forName("net.krodark.asterion.client.light.LedAmneticPointLights");
+        var field = owner.getDeclaredField("LIGHTS");
+        field.setAccessible(true);
+        var lights = (java.util.Map<?, ?>)field.get(null);
+        if (!lights.containsKey(key)) throw new AssertionError("Native graphics backend lost dynamic lights");
+        if (!reported) {
+            reported = true;
+            Asterion.LOGGER.info("ASTERION_NATIVE_LIGHT PASS native point light retained without OpenGL compute interop");
+        }
+    }
+}

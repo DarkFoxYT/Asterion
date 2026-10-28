@@ -9,7 +9,7 @@ in vec2 texCoord0;
 out vec4 fragColor;
 void main() {
     vec4 color = texture(Sampler0, texCoord0) * vertexColor * ColorModulator;
-    // Black mask pixels carry no emission and must not cover the underlying material.
+    // Black mask pixels carry no emission and must not cover the underlying material, this is verry helpful to make it work and performant lol.
     if (color.a < 0.1 || max(color.r,max(color.g,color.b)) < 0.003) discard;
     float fog = total_fog_value(sphericalVertexDistance, cylindricalVertexDistance,
         FogEnvironmentalStart, FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd);

@@ -1154,6 +1154,8 @@ RENDERER.render(poses, piece.visual, context.consumers(), null, null, light, par
         }
     }
 
+    // GeckoLib 4 requires these overrides on the older supported releases.
+    @SuppressWarnings("deprecation")
     private static final class DebrisModel extends GeoModel<DebrisObject> {
         @Override public ResourceLocation getModelResource(DebrisObject object) {
             return Asterion.id("geo/physics/" + (object.variant>=10 ? net.krodark.asterion.physics.DoorFracture.model(object.variant) : object.variant == 7

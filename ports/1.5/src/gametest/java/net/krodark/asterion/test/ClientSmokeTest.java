@@ -10,6 +10,7 @@ import net.minecraft.client.gui.screens.TitleScreen;
 public final class ClientSmokeTest implements ClientModInitializer {
     private int titleTicks, worldTicks, encounterWaitTicks;
     private static int graphicsErrors;
+    private int hudFrames;
     private long previousFrame;
     private final java.util.List<Double> frameTimes = new java.util.ArrayList<>();
     private static org.lwjgl.opengl.GLDebugMessageCallback debugCallback;
@@ -34,6 +35,10 @@ public final class ClientSmokeTest implements ClientModInitializer {
             Asterion.LOGGER.info("ASTERION_SMOKE integrated renderer: no separate mod or preset editor");
         }
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+        if (Boolean.getBoolean("asterion.sculkSmoke"))
+            net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback.EVENT.register((graphics, delta) -> {
+                hudFrames++;
+            });
         ZoomRenderingRegression.register();
         if (Boolean.getBoolean("asterion.shaderPackSmoke")) ShaderDimensionRegression.register();
         BloomSmoke.register(() -> worldTicks);
@@ -77,9 +82,37 @@ public final class ClientSmokeTest implements ClientModInitializer {
         }
         if (client.level == null || client.player == null || client.getSingleplayerServer() == null) return;
         worldTicks++;
+        if (Boolean.getBoolean("asterion.enchantmentSmoke")) {
+            if (worldTicks == 20) client.getSingleplayerServer().execute(() ->
+                    EnchantmentRegression.run(client.getSingleplayerServer().getPlayerList().getPlayers().get(0)));
+            if (EnchantmentRegression.failure != null) throw new AssertionError("Enchantment regression", EnchantmentRegression.failure);
+            if (EnchantmentRegression.passed) client.stop();
+            return;
+        }
         if (Boolean.getBoolean("asterion.textureSmoke")) {
             try {
+                if (Boolean.getBoolean("asterion.sculkSmoke")) {
+                    client.getTutorial().setStep(net.minecraft.client.tutorial.TutorialSteps.NONE);
+                    client.gui.getChat().clearMessages(true);
+                    net.krodark.asterion.AsterionConfig.INSTANCE.objectiveHudSeconds = 0;
+                    net.krodark.asterion.AsterionConfig.INSTANCE.objectiveHudEnabled = true;
+                }
+                if (worldTicks == 40) ForeignTextureRegression.run(client);
                 if (TextureLoadingRegression.tick(client, true)) {
+                    if (Boolean.getBoolean("asterion.sculkSmoke")) {
+                        var state = net.krodark.asterion.port.client.PortQueenBeetleQuestOverlay.class.getDeclaredField("stage");
+                        state.setAccessible(true);
+                        if (state.getInt(null) < 0) throw new AssertionError("Queen quest did not reach the HUD");
+                        var age = net.krodark.asterion.port.client.PortQueenBeetleQuestOverlay.class.getDeclaredField("objectiveTicks");
+                        age.setAccessible(true);
+                        Asterion.LOGGER.info("ASTERION_QUEEN_HUD state={} age={} hidden={} boss={}", state.getInt(null), age.getInt(null),
+                                net.krodark.asterion.port.client.PortCinematicHud.isHidden(),
+                                net.krodark.asterion.port.client.PortMazeObjectiveOverlay.bossFightActive(client));
+                        Asterion.LOGGER.info("ASTERION_QUEEN_HUD enabled={} seconds={}",
+                                net.krodark.asterion.AsterionConfig.INSTANCE.objectiveHudEnabled,
+                                net.krodark.asterion.AsterionConfig.INSTANCE.objectiveHudSeconds);
+                        if (hudFrames == 0) throw new AssertionError("Native HUD callbacks were never rendered");
+                    }
                     screenshot(client, "textures-after-reload");
                     client.stop();
                 }

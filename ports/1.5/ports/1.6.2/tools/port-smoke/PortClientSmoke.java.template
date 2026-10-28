@@ -9,6 +9,7 @@ public final class PortClientSmoke {
     private static final long DEADLINE = System.nanoTime() + 480_000_000_000L;
     private static int titleTicks, worldTicks, renderTicks, ticks;
     private static boolean started, prepared;
+    private static boolean enchantmentStarted;
     private static long nextFrameTick;
     private PortClientSmoke() { }
     // Forge pauses client ticks on some menu screens; render events remain live.
@@ -21,6 +22,8 @@ public final class PortClientSmoke {
     public static void tick(Minecraft client) {
         try {
             if (++ticks == 1) {
+                __BACKEND_CHECK__
+                __SODIUM_CHECK__
                 client.options.pauseOnLostFocus = false;
                 client.options.enableVsync().set(false);
                 client.options.framerateLimit().set(260);
@@ -49,6 +52,16 @@ public final class PortClientSmoke {
                         net.minecraft.world.level.levelgen.presets.WorldPresets::createNormalWorldDimensions, new TitleScreen());
             }
             if (client.level == null || client.player == null || client.getSingleplayerServer() == null) return;
+            if (__ENCHANTMENT_MODE__) {
+                if (!enchantmentStarted) {
+                    enchantmentStarted = true;
+                    client.getSingleplayerServer().execute(() -> EnchantmentRegression.run(
+                            client.getSingleplayerServer().getPlayerList().getPlayers().get(0)));
+                }
+                if (EnchantmentRegression.failure != null) throw new AssertionError("Enchantment regression", EnchantmentRegression.failure);
+                if (EnchantmentRegression.passed) client.stop();
+                return;
+            }
             if (Boolean.getBoolean("asterion.textureSmoke")) {
                 if (TextureLoadingRegression.tick(client, false)) {
                     net.minecraft.client.Screenshot.grab(client.gameDirectory, "textures-after-reload.png",
@@ -75,7 +88,10 @@ public final class PortClientSmoke {
                 client.player.xRotO = 35;
                 if (client.player.getMainHandItem().is(Asterion.AFTERBLOW) && !client.player.isUsingItem())
                     client.player.startUsingItem(net.minecraft.world.InteractionHand.MAIN_HAND);
-                if (++renderTicks == 160) {
+                renderTicks++;
+                if (renderTicks % 20 == 0) { __NATIVE_LIGHT_TICK__ }
+                if (renderTicks == 160) {
+                    __SODIUM_VISIBILITY_CHECK__
                     verifySceneResolution(client);
                     net.minecraft.client.Screenshot.grab(client.gameDirectory, "port-smoke.png",
                             client.getMainRenderTarget(), 1, message -> Asterion.LOGGER.info("ASTERION_PORT_SCREENSHOT {}", message.getString()));

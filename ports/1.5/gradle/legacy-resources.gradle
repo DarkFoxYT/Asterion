@@ -56,6 +56,7 @@ if (sc.current.parsed < '1.20.5') {
             mixins.compatibilityLevel = 'JAVA_17'
             mixins.client.add('legacy.GeoBufferRefreshMixin')
             mixins.mixins.addAll(['legacy.ItemDefaultsMixin','legacy.ItemStackDataMixin','legacy.LootTableAccessor','legacy.AfterDamageMixin','legacy.ClipContextMixin'])
+            mixins.mixins.add('legacy.SwiftyWaterDepthMixin')
             writeJson(config, mixins)
         }
     }

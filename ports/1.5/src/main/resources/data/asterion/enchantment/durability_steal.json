@@ -1,0 +1,21 @@
+{
+  "description": {
+    "translate": "enchantment.asterion.durability_steal"
+  },
+  "supported_items": "#minecraft:enchantable/armor",
+  "weight": 2,
+  "max_level": 5,
+  "min_cost": {
+    "base": 8,
+    "per_level_above_first": 6
+  },
+  "max_cost": {
+    "base": 33,
+    "per_level_above_first": 6
+  },
+  "anvil_cost": 4,
+  "slots": [
+    "armor"
+  ],
+  "effects": {}
+}

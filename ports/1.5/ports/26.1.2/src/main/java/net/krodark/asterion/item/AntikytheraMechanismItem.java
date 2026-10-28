@@ -51,14 +51,13 @@ public final class AntikytheraMechanismItem extends CompassItem {
         }
         ItemStack stack = player.getItemInHand(hand);
         if (level.dimension().equals(Asterion.ASTERION_LEVEL)) {
-            Vec3 look = player.getLookAngle();
-            Vec3 direction = new Vec3(look.x, 0.0D, look.z);
-            if (direction.lengthSqr() < 1.0E-6D) direction = new Vec3(0.0D, 0.0D, 1.0D);
-            direction = direction.normalize();
-            BlockPos bearing = BlockPos.containing(player.position().add(direction.scale(1_000_000.0D)));
-            stack.set(DataComponents.LODESTONE_TRACKER, new LodestoneTracker(
-                    Optional.of(GlobalPos.of(Asterion.ASTERION_LEVEL, bearing)), false));
-            net.krodark.asterion.game.PlayerNotices.show(serverPlayer, Component.translatable("message.asterion.mechanism_bearing_locked"));
+            if (bindObjective(stack, serverLevel, player.position())) {
+                net.krodark.asterion.game.PlayerNotices.show(serverPlayer,
+                        Component.translatable("message.asterion.mechanism_objective"));
+            } else {
+                net.krodark.asterion.game.PlayerNotices.show(serverPlayer,
+                        Component.translatable("message.asterion.mechanism_no_destination"));
+            }
             return InteractionResult.SUCCESS;
         }
         boolean wasDormant = stack.get(DataComponents.LODESTONE_TRACKER) == null;
@@ -73,7 +72,25 @@ public final class AntikytheraMechanismItem extends CompassItem {
 
     @Override
     public void inventoryTick(ItemStack stack, ServerLevel level, Entity entity, EquipmentSlot slot) {
-        if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) bindToGateway(stack, level);
+        if (entity.tickCount % 20 != 0) return;
+        if (level.dimension().equals(Asterion.ASTERION_LEVEL)) bindObjective(stack, level, entity.position());
+        else bindToGateway(stack, level);
+    }
+
+    private static boolean bindObjective(ItemStack stack, ServerLevel level, net.minecraft.world.phys.Vec3 position) {
+        var progress = net.krodark.asterion.game.SharedObjectiveProgress.get(level);
+        BlockPos target = progress.navigationTarget(position);
+        if (target == null && (progress.stage() == 0 || progress.stage() == 1))
+            target = WorldGenerator.nearestQueenTree(level, position);
+        if (target == null) {
+            stack.remove(DataComponents.LODESTONE_TRACKER);
+            return false;
+        }
+        GlobalPos expected = GlobalPos.of(Asterion.ASTERION_LEVEL, target);
+        LodestoneTracker current = stack.get(DataComponents.LODESTONE_TRACKER);
+        if (current == null || current.tracked() || !current.target().equals(Optional.of(expected)))
+            stack.set(DataComponents.LODESTONE_TRACKER, new LodestoneTracker(Optional.of(expected), false));
+        return true;
     }
 
     private static void bindToGateway(ItemStack stack, ServerLevel level) {

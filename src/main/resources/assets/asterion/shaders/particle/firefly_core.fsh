@@ -12,6 +12,7 @@ void main() {
     vec3 color = vColor.rgb + vec3(1.4, 0.62, 0.06) * core;
     float alpha = vColor.a * halo;
     if (alpha < 0.004) discard;
-    // The additive material applies source alpha when blending.
+    //The additive material applies source alpha when blending.
+    //yes
     FragColor = vec4(color, alpha);
 }

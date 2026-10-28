@@ -44,7 +44,7 @@ public final class QueenBeetleQuestOverlay {
         questTitle = Component.translatable(request.key("title"));
         questItem = new ItemStack(request.item()).getHoverName();
         questHint = Component.translatable(request.key("hint"));
-        questReward = Component.translatable("quest.asterion.queen_beetle.reward_item",
+        questReward = questIndex == 0 ? Component.translatable("quest.asterion.queen_beetle.first_reward") : Component.translatable("quest.asterion.queen_beetle.reward_item",
                 request.rewardCount(), new ItemStack(request.reward()).getHoverName());
         stage = restoring ? QueenBeetleQuestPayload.PROGRESS : payload.stage();
         target = Math.max(1, payload.target());
@@ -131,22 +131,22 @@ public final class QueenBeetleQuestOverlay {
         int top = MazeObjectiveOverlay.questStackTop(graphics.guiWidth());
         graphics.fill(left + 2, top + 2, left + width + 2, top + height + 2, alpha(0, Math.round(95 * appear)));
 
-        graphics.fill(left, top, left + width, top + height, alpha(0x090C08, Math.round(218 * appear)));
-        graphics.fill(left, top, left + 3, top + height, alpha(0xD5A53E, Math.round(255 * appear)));
-        graphics.fill(left + 3, top, left + width, top + 1, alpha(0x836B38, Math.round(150 * appear)));
+        graphics.fill(left, top, left + width, top + height, alpha(0x141414, Math.round(170 * appear)));
+        graphics.fill(left, top, left + 1, top + height, alpha(0xA69B80, Math.round(255 * appear)));
+        graphics.fill(left + 3, top, left + width, top + 1, alpha(0x6A665E, Math.round(150 * appear)));
 
         Component title = questTitle;
-        graphics.fill(left + 9, top + 14, left + width - 8, top + 15, alpha(0xDDBB6D, Math.round(54 * appear)));
+        graphics.fill(left + 9, top + 14, left + width - 8, top + 15, alpha(0xECE9E1, Math.round(54 * appear)));
         Component temper = Component.translatable("quest.asterion.queen_beetle.temper." + anger);
-        graphics.text(client.font, client.font.plainSubstrByWidth(title.getString(), width - 30 - client.font.width(temper)), left + 9, top + 5, alpha(0xDDBB6D, Math.round(255 * appear)), false);
+        graphics.text(client.font, client.font.plainSubstrByWidth(title.getString(), width - 30 - client.font.width(temper)), left + 9, top + 5, alpha(0xECE9E1, Math.round(255 * appear)), false);
         graphics.text(client.font, temper, left + width - 8 - client.font.width(temper), top + 5,
                 alpha(anger == 0 ? 0x8EBB7C : 0xD7745E, Math.round(220 * appear)), false);
 
         Component objective = questItem;
         Component count = Component.literal(actualProgress + " / " + target);
-        graphics.text(client.font, client.font.plainSubstrByWidth(objective.getString(), width - 28 - client.font.width(count)), left + 9, top + 18, alpha(0xF2E9D5, Math.round(255 * appear)), false);
+        graphics.text(client.font, client.font.plainSubstrByWidth(objective.getString(), width - 28 - client.font.width(count)), left + 9, top + 18, alpha(0xECE9E1, Math.round(255 * appear)), false);
         graphics.text(client.font, count, left + width - 8 - client.font.width(count), top + 18,
-                alpha(0xF2E9D5, Math.round(255 * appear)), false);
+                alpha(0xECE9E1, Math.round(255 * appear)), false);
 
         int barLeft = left + 9;
         int barRight = left + width - 8;
@@ -154,11 +154,11 @@ public final class QueenBeetleQuestOverlay {
         graphics.fill(barLeft, barTop, barRight, barTop + 3, alpha(0x2A251A, Math.round(255 * appear)));
         int filled = Math.round((barRight - barLeft) * Mth.clamp(displayedProgress / target, 0.0F, 1.0F));
         graphics.fill(barLeft, barTop, barLeft + filled, barTop + 3,
-                alpha(actualProgress >= target ? 0x82B76B : 0xC99432, Math.round(255 * appear)));
+                alpha(actualProgress >= target ? 0x82B76B : 0xA69B80, Math.round(255 * appear)));
 
         for (int line = 0; line < hintLines.size(); line++)
             graphics.text(client.font, hintLines.get(line), left + 9, top + 37 + line * 11,
-                    alpha(0xB8AD91, Math.round(230 * appear)), false);
+                    alpha(0xB4B1AA, Math.round(230 * appear)), false);
         Component reward = questReward;
         graphics.text(client.font, client.font.plainSubstrByWidth(reward.getString(), width - 17), left + 9, top + rewardY, alpha(0xB5A88B, Math.round(230 * appear)), false);
     }
@@ -185,13 +185,13 @@ public final class QueenBeetleQuestOverlay {
         int left = (graphics.guiWidth() - width) / 2;
         int top = graphics.guiHeight() - height - 48;
 
-        graphics.fill(left, top, left + width, top + height, alpha(0x090C08, Math.round(224 * opacity)));
-        graphics.fill(left, top, left + 3, top + height,
-                alpha(anger == 0 ? 0xD5A53E : 0xC65743, Math.round(255 * opacity)));
-        graphics.text(client.font, speaker, left + 13, top + 7, alpha(0xDDBB6D, Math.round(255 * opacity)), false);
+        graphics.fill(left, top, left + width, top + height, alpha(0x141414, Math.round(224 * opacity)));
+        graphics.fill(left, top, left + 1, top + height,
+                alpha(anger == 0 ? 0xA69B80 : 0xC65743, Math.round(255 * opacity)));
+        graphics.text(client.font, speaker, left + 13, top + 7, alpha(0xECE9E1, Math.round(255 * opacity)), false);
         for (int index = 0; index < lines.size(); index++) {
             graphics.text(client.font, lines.get(index), left + 13, top + 20 + index * 11,
-                    alpha(0xF2E9D5, Math.round(255 * opacity)), false);
+                    alpha(0xECE9E1, Math.round(255 * opacity)), false);
         }
         if (showTemperLine) {
             Component warning = Component.translatable("quest.asterion.queen_beetle.anger." + anger);

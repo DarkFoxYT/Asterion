@@ -1,4 +1,4 @@
-"""Audit the eight production archives without starting Minecraft.
+"""Audit the maintained production archives without starting Minecraft.
 
 Usage: python tools/verify-extra-ports.py [repository modbuilds directory]
 """
@@ -20,7 +20,7 @@ parser.add_argument('shelf', nargs='?', type=Path, default=PROJECT.parents[3] / 
 parser.add_argument('--version', default=re.search(r'^mod_version=(.+)$', (PROJECT / 'gradle.properties').read_text(), re.M).group(1))
 args = parser.parse_args()
 SHELF, VERSION = args.shelf, args.version
-TARGETS = {'1.21.11': (65, [75, 0]), '26.3': (69, [97, 1])}
+TARGETS = {'1.21.11': (65, [75, 0]), '26.2': (69, [88, 0]), '26.3': (69, [97, 1])}
 LOADERS = ('fabric', 'quilt', 'forge', 'neoforge')
 
 
@@ -29,7 +29,8 @@ def verify_native_pack(pack, mc, loader):
     if loader == 'neoforge':
         assert set(pack) == {'description'}, 'NeoForge must supply type-specific formats'
     else:
-        minimum, maximum = ([82, 0], [94, 1]) if mc == '1.21.11' else ([97, 1], [121, 0])
+        minimum, maximum = ([82, 0], [94, 1]) if mc == '1.21.11' else (
+                ([88, 0], [121, 0]) if mc == '26.2' else ([97, 1], [121, 0]))
         assert pack['min_format'] == minimum and pack['max_format'] == maximum, 'Wrong Forge asset/data pack range'
 
 
@@ -145,11 +146,14 @@ def verify(path, mc, loader):
                 pack = read_json(dependency, 'pack.mcmeta')['pack']
                 if loader in ('forge', 'neoforge'):
                     verify_native_pack(pack, mc, loader)
+                    if loader == 'forge':
+                        manifest = dependency.read('META-INF/MANIFEST.MF').decode()
+                        assert 'MixinConfigs: amnetic.mixins.json' in manifest, 'Forge renderer mixins are not registered'
                     if loader == 'neoforge' and mc == '1.21.11':
                         assert 'NeoForgeTextureMixin' in read_json(dependency, 'amnetic.mixins.json')['client'], 'Validated GPU texture bridge missing'
                         bridge = dependency.read('com/meekdev/amnetic/mixin/NeoForgeTextureMixin.class')
                         assert b'getRealTexture' in bridge and b'glId' in bridge, 'Validated GPU textures cannot reach OpenGL'
-                    if loader == 'forge' and mc == '26.3':
+                    if loader == 'forge' and mc in ('26.2', '26.3'):
                         assert not any('lwjgl-tinyfd-' in n and n.endswith('.jar') for n in dependency.namelist()), 'Forge renderer duplicates vanilla TinyFD'
                         assert read_json(dependency, 'amnetic.mixins.json')['compatibilityLevel'] == 'JAVA_21', 'Forge Mixin compatibility level is unsupported'
                     assert not any(n.endswith('.class') and (n.startswith('org/lwjgl/') or
@@ -227,4 +231,4 @@ if __name__ == '__main__':
     output = PROJECT / 'build/extra-ports-artifact-audit.json'
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(results, indent=2) + '\n', encoding='utf-8')
-    print('PASS: all eight production archives; metadata, nesting, Java targets, data migration and authored textures')
+    print('PASS: all production archives; metadata, nesting, Java targets, data migration and authored textures')

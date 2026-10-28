@@ -9,9 +9,14 @@ import net.minecraft.world.phys.Vec3;
 /** Optional Sodium 0.9 visibility bridge. Unknown renderers always retain effects. */
 public final class SodiumVisibility {
     private static MethodHandle instance, visible;
+    private static final ExactVisibilityCache FRAME = new ExactVisibilityCache();
+    private static Object readyRenderer;
     private static net.minecraft.client.multiplayer.ClientLevel readyLevel;
-    public static void terrainReady() { readyLevel = net.minecraft.client.Minecraft.getInstance().level; }
-    public static void reset() { readyLevel = null; }
+    public static void terrainReady() {
+        FRAME.clear();
+        readyLevel = net.minecraft.client.Minecraft.getInstance().level;
+    }
+    public static void reset() { FRAME.clear(); readyRenderer = null; readyLevel = null; }
     static {
         try {
             Class<?> type = Class.forName("net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer", false,
@@ -37,11 +42,17 @@ public final class SodiumVisibility {
         try {
             Object renderer = (Object)instance.invokeExact();
             if (renderer == null) return true;
+            if (renderer != readyRenderer) { FRAME.clear(); readyRenderer = renderer; }
             // Test the complete illumination volume, not just an offscreen lamp's position.
             double r = Math.max(.1, radius) + 2;
-            return (boolean)visible.invokeExact(renderer, center.x-r, center.y-r, center.z-r,
+            int cached = FRAME.lookup(center.x, center.y, center.z, r);
+            if (cached >= 0) return cached == 1;
+            boolean result = (boolean)visible.invokeExact(renderer, center.x-r, center.y-r, center.z-r,
                     center.x+r, center.y+r, center.z+r);
+            FRAME.store(center.x, center.y, center.z, r, result);
+            return result;
         } catch (Throwable unsupported) {
+            reset();
             instance = visible = null;
             Asterion.LOGGER.warn("Sodium visibility bridge disabled; retaining Amnetic lighting", unsupported);
             return true;

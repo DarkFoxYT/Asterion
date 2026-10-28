@@ -33,6 +33,8 @@ neoForge.runs {
         systemProperty 'amnetic.opengl.debug', 'true'
         if (project.hasProperty('startupSmoke')) systemProperty 'asterion.startupSmoke', 'true'
         if (project.hasProperty('sodiumSmoke')) systemProperty 'asterion.sodiumSmoke', 'true'
+        if (project.hasProperty('embeddiumSmoke')) systemProperty 'asterion.embeddiumSmoke', 'true'
+        if (project.hasProperty('textureSmoke')) systemProperty 'asterion.textureSmoke', 'true'
         if (project.hasProperty('polishSmoke')) systemProperty 'asterion.polishSmoke', 'true'
         if (project.hasProperty('bloomSmoke')) systemProperty 'asterion.bloomSmoke', 'true'
         if (project.hasProperty('atmosphereSmoke')) systemProperty 'asterion.atmosphereSmoke', 'true'

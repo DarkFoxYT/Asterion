@@ -20,22 +20,37 @@ public final class AsterionMixinPlugin implements IMixinConfigPlugin {
             } catch (IOException absent) { return false; }
         }
         if (!mixinClassName.equals("net.krodark.asterion.mixin.PortSpriteInterpolationMixin")) return true;
-        try {
-            // Inspect bytecode without loading Sodium or a Minecraft target during
-            // mixin preparation. Sodium replaces the vanilla interpolation/upload
-            // method, so its implementation must own this optimization entirely.
-            MixinService.getService().getBytecodeProvider().getClassNode(
-                    "net.caffeinemc.mods.sodium.mixin.features.textures.animations.upload.SpriteContentsInterpolationMixin");
-            return false;
-        } catch (ClassNotFoundException | IOException absent) {
-            return true;
+        // These renderers replace vanilla's interpolation/upload method. Let the
+        // installed renderer own it; never inject into another mixin's overwrite.
+        // Inspect bytecode without initializing renderer or Minecraft classes.
+        for (String rendererMixin : List.of(
+                "net.caffeinemc.mods.sodium.mixin.features.textures.animations.upload.SpriteContentsInterpolationMixin",
+                "org.embeddedt.embeddium.impl.mixin.features.textures.animations.upload.SpriteContentsInterpolationMixin")) {
+            try {
+                MixinService.getService().getBytecodeProvider().getClassNode(rendererMixin);
+                return false;
+            } catch (ClassNotFoundException | IOException absent) {
+                // Try the next optional renderer.
+            }
         }
+        return true;
     }
 
     @Override public void onLoad(String mixinPackage) { }
     @Override public String getRefMapperConfig() { return null; }
     @Override public void acceptTargets(Set<String> myTargets, Set<String> otherTargets) { }
-    @Override public List<String> getMixins() { return null; }
+    private static boolean present(String name) {
+        try (var resource = MixinService.getService().getResourceAsStream(name.replace('.', '/') + ".class")) {
+            return resource != null;
+        } catch (IOException absent) { return false; }
+    }
+    @Override public List<String> getMixins() {
+        var result = new java.util.ArrayList<String>();
+        if (present("net.irisshaders.iris.pipeline.PipelineManager") || present("net.coderbot.iris.pipeline.PipelineManager")) result.add(present("net.krodark.asterion.mixin.LegacyIrisLabyrinthPipelineMixin")
+                ? "LegacyIrisLabyrinthPipelineMixin" : "IrisLabyrinthPipelineMixin");
+        if (present("net.optifine.Config")) result.add("OptifineLabyrinthShadersMixin");
+        return result;
+    }
     @Override public void preApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) { }
     @Override public void postApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) { }
 }

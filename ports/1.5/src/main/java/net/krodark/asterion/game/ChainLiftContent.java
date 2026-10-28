@@ -70,7 +70,7 @@ public final class ChainLiftContent {
 
     public static final EntityType<net.krodark.asterion.entity.PhysicsChainEntity> PHYSICS_CHAIN = AsterionRegistry.register(BuiltInRegistries.ENTITY_TYPE, PHYSICS_KEY,
 
-            EntityType.Builder.of(net.krodark.asterion.entity.PhysicsChainEntity::new, MobCategory.MISC).sized(1, 1)
+            net.minecraft.world.entity.EntityType.Builder.of(net.krodark.asterion.entity.PhysicsChainEntity::new, MobCategory.MISC).sized(1, 1)
 
                     .clientTrackingRange(12).updateInterval(2).fireImmune().build("asterion:physics_chain"));
 

@@ -16,7 +16,7 @@ args = parser.parse_args()
 decoded = set()
 rows = []
 
-for mc in ('1.20.1', '1.21.1', '26.1.2', '1.21.11', '26.3'):
+for mc in ('1.20.1', '1.21.1', '26.1.2', '1.21.11', '26.2', '26.3'):
     if args.minecraft and args.minecraft != mc:
         continue
     with zipfile.ZipFile(Path.home() / '.gradle/caches/fabric-loom' / mc / 'minecraft-client.jar') as vanilla:
@@ -27,6 +27,25 @@ for mc in ('1.20.1', '1.21.1', '26.1.2', '1.21.11', '26.3'):
         path = ROOT / 'modbuilds' / f'Asterion-{args.version}-{loader}-mc{mc}.jar'
         with zipfile.ZipFile(path) as jar:
             names = set(jar.namelist())
+            if tuple(map(int, args.version.split('.'))) >= (1, 6, 4):
+                overrides = [n for n in names if n.startswith('assets/minecraft/shaders/') and not n.endswith('/')]
+                assert not overrides, f'{path.name}: replaces shared shaders: {overrides}'
+                atlas = json.loads(jar.read('assets/minecraft/atlases/blocks.json'))
+                ids = []
+                for source in atlas['sources']:
+                    assert source['type'] == 'minecraft:single', f'{path.name}: atlas scans other namespaces'
+                    resource = source['resource']
+                    assert resource.startswith('asterion:'), f'{path.name}: foreign sprite {resource}'
+                    texture = 'assets/asterion/textures/' + resource.split(':', 1)[1] + '.png'
+                    assert texture in names, f'{path.name}: atlas references missing texture {texture}'
+                    ids.append(resource)
+                assert len(ids) == len(set(ids)), f'{path.name}: duplicate atlas entries'
+                if mc in ('1.20.1', '1.21.1'):
+                    prefix = 'net/krodark/asterion/'
+                    config = json.loads(jar.read('asterion.mixins.json'))
+                    assert 'PortGeckoTextureScopeMixin' in config['client'], f'{path.name}: unscoped legacy GeckoLib cache'
+                    assert b'isAsterionUpload' in jar.read(prefix + 'mixin/PortGeckoInterpolationMixin.class')
+                    assert b'withTexture' in jar.read(prefix + 'mixin/PortGeckoTextureScopeMixin.class')
             prefix = 'assets/asterion/'
             def require(resource, owner):
                 assert resource in names, f'{path.name}: {owner} references missing {resource}'

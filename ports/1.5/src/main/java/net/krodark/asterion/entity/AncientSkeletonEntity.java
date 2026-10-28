@@ -30,7 +30,14 @@ public final class AncientSkeletonEntity extends Skeleton {
         EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
         if (random.nextFloat() < .35F) {
             int piece = random.nextInt(slots.length);
-            setItemSlot(slots[piece], new ItemStack(armor.get(piece)));
+            ItemStack foundArmor = new ItemStack(armor.get(piece));
+            if (level().dimension().equals(Asterion.ASTERION_LEVEL)
+                    && getY() >= net.krodark.asterion.worldgen.LabyrinthLevels.CATACOMB_BASE_Y
+                    && getY() < net.krodark.asterion.worldgen.LabyrinthLevels.MAZE_FLOOR_Y
+                    && random.nextFloat() < .25F)
+                net.krodark.asterion.game.AsterionEnchantments.enchant(foundArmor,
+                        net.krodark.asterion.game.AsterionEnchantments.Kind.CELESTIAL_CURSE, 1 + random.nextInt(2), this);
+            setItemSlot(slots[piece], foundArmor);
         }
         for (EquipmentSlot slot : EquipmentSlot.values()) setDropChance(slot, 0);
         setCanPickUpLoot(false);

@@ -28,9 +28,10 @@ import net.minecraft.core.HolderLookup;
 
 public final class SharedObjectiveProgress extends SavedData {
     private static final int CATACOMBS=1, BRAZIER_KEY=2, MOLD=4, FORGE=8, ORE=16,
-            INGOTS=32, MINOTAUR_KEY=64, ARENA=128, OMEGA_KEY=256, FINISHED=512;
+            INGOTS=32, MINOTAUR_KEY=64, ARENA=128, OMEGA_KEY=256, FINISHED=512, QUEEN_MET=1024, QUEEN_HELPED=2048,
+            OVERGROWTH=4096, MARSHLANDS=8192;
     public static final Codec<SharedObjectiveProgress> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            Codec.intRange(0, 1023).optionalFieldOf("milestones", 0).forGetter(state -> state.milestones)
+            Codec.intRange(0, 16383).optionalFieldOf("milestones", 0).forGetter(state -> state.milestones)
     ).apply(instance, SharedObjectiveProgress::new));
     private static final net.krodark.asterion.port.compat.SavedDataCompat.Factory<SharedObjectiveProgress> FACTORY =
             net.krodark.asterion.port.compat.SavedDataCompat.factory(
@@ -47,13 +48,36 @@ public final class SharedObjectiveProgress extends SavedData {
     }
     private boolean has(int flag) { return (milestones & flag) != 0; }
     public int stage() {
-        if (has(FINISHED)) return 10;
-        if (has(OMEGA_KEY)) return 9;
-        if (has(ARENA)) return 8;
-        if (has(MINOTAUR_KEY)) return 7;
-        if (has(MOLD)) return !has(FORGE) ? 3 : has(INGOTS) ? 6 : has(ORE) ? 5 : 4;
-        if (has(BRAZIER_KEY)) return 2;
-        return has(CATACOMBS) ? 1 : 0;
+        if (has(FINISHED)) return 15;
+        if (has(OMEGA_KEY)) return 11;
+        if (has(ARENA)) return 10;
+        if (has(MINOTAUR_KEY)) return 9;
+        if (has(MOLD)) return !has(FORGE) ? 5 : has(INGOTS) ? 8 : has(ORE) ? 7 : 6;
+        if (has(BRAZIER_KEY)) return 4;
+        // A lower floor never substitutes for a missing key or boss reward.
+        if (has(FORGE)) return 12;
+        if (!has(QUEEN_HELPED)) {
+            if (!has(QUEEN_MET)) return 0;
+            if (!has(OVERGROWTH)) return 13;
+            if (!has(MARSHLANDS)) return 14;
+            return 1;
+        }
+        return has(CATACOMBS) ? 3 : 2;
+    }
+    public boolean queenRouteComplete() { return has(OVERGROWTH) && has(MARSHLANDS); }
+
+    public net.minecraft.core.BlockPos navigationTarget(net.minecraft.world.phys.Vec3 position) {
+        int stage = stage();
+        if (stage == 0 || stage == 1) return null;
+        if (stage == 4) return AuthoredCatacombs.BRAZIER_ROOM_ORIGINS.stream()
+                .map(origin -> new net.minecraft.core.BlockPos(origin.getX(), AuthoredCatacombs.CONNECTOR_Y, origin.getZ() + 25))
+                .min(java.util.Comparator.comparingDouble(pos -> position.distanceToSqr(
+                        net.minecraft.world.phys.Vec3.atCenterOf(pos)))).orElse(null);
+        if (stage == 9 || stage == 10)
+            return MinotaurArenaEntrances.door(MinotaurArenaEntrances.PLAYER_ENTRANCE);
+        if (stage == 2 || stage == 3 || stage == 5 || stage == 12)
+            return new net.minecraft.core.BlockPos(CatacombLayout.ROOT_CENTER, AuthoredCatacombs.CONNECTOR_Y, CatacombLayout.ROOT_CENTER);
+        return null;
     }
     public static void initialize() {
         ServerTickEvents.END_SERVER_TICK.register(SharedObjectiveProgress::tick);
@@ -85,8 +109,14 @@ public final class SharedObjectiveProgress extends SavedData {
         for (ServerPlayer player : level.players()) {
             if (!player.isAlive() || player.isSpectator()) continue;
             var pos = player.blockPosition();
+            if (net.krodark.asterion.entity.QueenBeetleEntity.questIndex(player) > 0) milestones |= QUEEN_MET | QUEEN_HELPED;
+            if (player.getTags().contains("asterion.queen_beetle_quest.active")) milestones |= QUEEN_MET;
+            if (player.getY() >= LabyrinthLevels.MAZE_FLOOR_Y && player.getY() <= LabyrinthLevels.MAZE_FLOOR_Y + 96) {
+                if (net.krodark.asterion.worldgen.WorldGenerator.isOvergrowthBiomeAt(player.getX(), player.getZ())) milestones |= OVERGROWTH;
+                if (net.krodark.asterion.worldgen.WorldGenerator.isCrimsonMarshlandsAt(player.getX(), player.getZ())) milestones |= MARSHLANDS;
+            }
             if (CatacombLayout.contains(pos)) milestones |= CATACOMBS;
-            if (AuthoredCatacombs.insideCursedBrazierRoom(pos) || carries(player, GameplayContent.CURSED_BRAZIER_KEY)) milestones |= BRAZIER_KEY;
+            if (carries(player, GameplayContent.CURSED_BRAZIER_KEY)) milestones |= BRAZIER_KEY;
             if (carries(player, Asterion.MINOTAUR_KEY_CAST)) milestones |= MOLD;
             if (pos.getY() <= LabyrinthLevels.FORGE_ROOF_Y) milestones |= FORGE;
             if (carries(player, Asterion.SHALE_TARNISHED_GOLD_ORE.asItem(), Asterion.SHADED_SHALE_TARNISHED_GOLD_ORE.asItem(),

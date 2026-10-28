@@ -905,6 +905,7 @@ public class Asterion implements ModInitializer {
                 builder.add(DEADWOOD_STICK, context.baseSmeltTime() / 2));
         registerDeadWoodProperties();
         net.krodark.asterion.game.WeaponCombatSystem.initialize();
+        net.krodark.asterion.game.AsterionEnchantments.initialize();
         net.krodark.asterion.game.GameplayContent.initialize();
         net.krodark.asterion.game.AncientContent.initialize();
         net.krodark.asterion.game.ArmorContent.initialize();

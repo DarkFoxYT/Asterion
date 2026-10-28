@@ -20,6 +20,6 @@ public abstract class AfterblowDamageMixin {
         if (source.getEntity() instanceof net.krodark.asterion.entity.MinotaurEntity boss)
             chargedDamage *= boss.brazierDamageMultiplier();
         if (chargedDamage > damage) ((LivingEntity)(Object)this).invulnerableTime = 0;
-        return chargedDamage;
+        return chargedDamage + net.krodark.asterion.game.EnchantmentGameplay.minosBonus(self, source, damage);
     }
 }

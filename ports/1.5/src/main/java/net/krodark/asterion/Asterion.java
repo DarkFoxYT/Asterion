@@ -906,6 +906,7 @@ public static final com.mojang.serialization.MapCodec<MazeChunkGenerator>
         net.fabricmc.fabric.api.registry.FuelRegistry.INSTANCE.add(DEADWOOD_STICK, 100);
         registerDeadWoodProperties();
         net.krodark.asterion.game.WeaponCombatSystem.initialize();
+        net.krodark.asterion.game.AsterionEnchantments.initialize();
         net.krodark.asterion.game.GameplayContent.initialize();
         net.krodark.asterion.game.AncientContent.initialize();
         net.krodark.asterion.game.ArmorContent.initialize();

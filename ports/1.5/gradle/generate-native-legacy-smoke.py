@@ -42,4 +42,10 @@ for path in (base/'neoforge/src/main/java/net/fabricmc/loader').rglob('*.java'):
  relative=path.relative_to(base/'neoforge/src/main/java')
  output=Path(sys.argv[1])/relative
  output.parent.mkdir(parents=True,exist_ok=True)
- output.write_text(path.read_text('utf8').replace('net.neoforged.fml.','net.minecraftforge.fml.'),'utf8')
+ text=path.read_text('utf8').replace('net.neoforged.fml.','net.minecraftforge.fml.')
+ if path.name == 'FabricLoader.java':
+  # Only this development harness exposes the loader adapter publicly. Native
+  # release jars isolate it, so Embeddium cannot mistake it for Fabric Loader.
+  text=text.replace('    boolean isModLoaded(String id);',
+      '    default <T> java.util.List<T> getEntrypoints(String key, Class<T> type) { return java.util.List.of(); }\n\n    boolean isModLoaded(String id);')
+ output.write_text(text,'utf8')

@@ -109,8 +109,8 @@ if (!(runLoader in ['fabric', 'quilt'])) {
 def verificationExec = services.get(org.gradle.process.ExecOperations)
 tasks.register('verifyExtraPortsWithoutLaunching') {
     group = 'verification'
-    description = 'Builds and audits all eight ports without starting a game client or server.'
-    ['1.21.11', '26.3'].each { mc ->
+    description = 'Builds and audits all maintained ports without starting a game client or server.'
+    ['1.21.11', '26.2', '26.3'].each { mc ->
         ['fabric', 'quilt', 'forge', 'neoforge'].each { loader ->
             ['collectModJar', 'portMixinSmoke', 'portRendererMixinSmoke', 'checkCameraClearance', 'portSmokeClasses'].each { check ->
                 dependsOn ":${mc}-${loader}:${check}"

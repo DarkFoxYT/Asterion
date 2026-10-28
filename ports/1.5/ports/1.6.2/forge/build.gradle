@@ -71,20 +71,36 @@ sourceSets.main {
 sourceSets.main.output.resourcesDir = sourceSets.main.java.destinationDirectory.get().asFile
 
 // Apply current pack metadata to both development and embedded Amnetic.
+if (minecraft_version == '26.2') {
+    sourceSets {
+        amneticBootstrap {
+            java.srcDir rootProject.file('src/amnetic262Forge/java')
+            compileClasspath += sourceSets.main.compileClasspath
+        }
+    }
+}
 def amneticPackMetadata = tasks.register('amneticPackMetadata') {
     def output = layout.buildDirectory.file('amnetic-pack/pack.mcmeta')
     inputs.properties(minecraft_version: minecraft_version, major: resource_pack_major, minor: resource_pack_minor)
     def rendererInput = rootProject.file("libs/amnetic-forge-${project.amnetic_version}.jar")
     inputs.file(rendererInput)
+    if (minecraft_version == '26.2') {
+        dependsOn tasks.named('amneticBootstrapClasses')
+        inputs.files(sourceSets.amneticBootstrap.output)
+    }
+    if (minecraft_version == '26.3') inputs.file(rootProject.file("libs/amnetic-${project.amnetic_version}.jar"))
     outputs.dir(layout.buildDirectory.dir('amnetic-pack'))
     doLast {
         def target = output.get().asFile
         target.parentFile.mkdirs()
         def pack = [description: 'Amnetic resources',
-                    min_format: minecraft_version == '1.21.11' ? [82, 0] : [97, 1],
+                    min_format: minecraft_version == '1.21.11' ? [82, 0] : (minecraft_version == '26.2' ? [88, 0] : [97, 1]),
                     max_format: minecraft_version == '1.21.11' ? [94, 1] : [121, 0]]
         // Forge wraps client resources; this range also parses for server data.
         target.text = groovy.json.JsonOutput.toJson([pack: pack])
+        if (minecraft_version == '26.2') {
+            copy { from sourceSets.amneticBootstrap.output; into target.parentFile }
+        }
         if (minecraft_version == '26.3') {
             // Vanilla supplies TinyFD. Forge's module resolver cannot load a
             // second copy from the renderer's nested dependencies.
@@ -105,6 +121,21 @@ def amneticPackMetadata = tasks.register('amneticPackMetadata') {
                     }
                 }
             } finally { inputZip.close() }
+            new java.util.zip.ZipFile(rootProject.file("libs/amnetic-${project.amnetic_version}.jar")).withCloseable { nativeZip ->
+                nativeZip.entries().each { entry ->
+                    if (entry.name.endsWith('.class') && [
+                            'com/meekdev/amnetic/client/post/internal/PostPipeline',
+                            'com/meekdev/amnetic/client/post/internal/NativePostPipeline',
+                            'com/meekdev/amnetic/client/render/NativeScreenProgram'].any { entry.name.startsWith(it) }) {
+                        byte[] bytes = nativeZip.getInputStream(entry).readAllBytes()
+                        if (new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1).contains('net/fabricmc/'))
+                            throw new GradleException('Loader-specific native post pipeline: ' + entry.name)
+                        def patch = new File(target.parentFile, entry.name)
+                        patch.parentFile.mkdirs()
+                        patch.bytes = bytes
+                    }
+                }
+            }
         }
     }
 }
@@ -112,7 +143,10 @@ def compatibleAmneticJar = tasks.register('compatibleAmneticJar', Zip) {
     dependsOn amneticPackMetadata
     from(zipTree(rootProject.file("libs/amnetic-forge-${project.amnetic_version}.jar"))) {
         exclude 'pack.mcmeta'
-        if (minecraft_version == '26.3') exclude 'META-INF/jarjar/metadata.json', 'META-INF/jarjar/lwjgl-tinyfd-*.jar', '**mixins.json'
+        if (minecraft_version == '26.2') exclude 'com/meekdev/amnetic/Amnetic.class', 'com/meekdev/amnetic/ForgeClientEvents*.class'
+        if (minecraft_version == '26.3') exclude 'META-INF/jarjar/metadata.json', 'META-INF/jarjar/lwjgl-tinyfd-*.jar', '**mixins.json',
+                'com/meekdev/amnetic/client/post/internal/PostPipeline*.class',
+                'com/meekdev/amnetic/client/render/NativeScreenProgram*.class'
     }
     from(layout.buildDirectory.dir('amnetic-pack'))
     archiveFileName = "amnetic-forge-${project.amnetic_version}.jar"
@@ -129,6 +163,19 @@ dependencies {
     runtimeOnly files(compatibleAmneticJar)
 }
 def amneticEmbed = dependencies.create(files(compatibleAmneticJar))
+if (minecraft_version == '26.2') {
+    configurations { amneticNativeBinaries { transitive = false } }
+    dependencies {
+        ['natives-windows', 'natives-linux', 'natives-linux-arm64', 'natives-macos', 'natives-macos-arm64'].each {
+            amneticNativeBinaries "org.lwjgl:lwjgl-assimp:3.4.1:${it}"
+        }
+    }
+    tasks.named('jarJar', Jar) {
+        from({ configurations.amneticNativeBinaries.collect { zipTree(it) } }) {
+            include '**/*.dll', '**/*.so', '**/*.dylib'
+        }
+    }
+}
 jarJar.configure(amneticEmbed) {
     module { group = 'com.meekdev'; name = 'amnetic-forge' }
     version = '1.0.0'

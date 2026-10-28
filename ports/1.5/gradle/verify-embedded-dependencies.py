@@ -16,7 +16,7 @@ parser.add_argument('--minecraft')
 parser.add_argument('--loader', choices=('fabric', 'quilt', 'forge', 'neoforge'))
 args = parser.parse_args()
 
-for minecraft in ('1.20.1', '1.21.1', '26.1.2', '1.21.11', '26.3'):
+for minecraft in ('1.20.1', '1.21.1', '26.1.2', '1.21.11', '26.2', '26.3'):
     for loader in ('fabric', 'quilt', 'forge', 'neoforge'):
         if args.minecraft and args.minecraft != minecraft or args.loader and args.loader != loader:
             continue

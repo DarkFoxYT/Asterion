@@ -1,0 +1,22 @@
+{
+  "description": {
+    "translate": "enchantment.asterion.minos_killer"
+  },
+  "supported_items": "#minecraft:enchantable/sharp_weapon",
+  "weight": 3,
+  "max_level": 3,
+  "min_cost": {
+    "base": 10,
+    "per_level_above_first": 10
+  },
+  "max_cost": {
+    "base": 35,
+    "per_level_above_first": 10
+  },
+  "anvil_cost": 4,
+  "slots": [
+    "mainhand"
+  ],
+  "effects": {},
+  "exclusive_set": "#minecraft:exclusive_set/damage"
+}

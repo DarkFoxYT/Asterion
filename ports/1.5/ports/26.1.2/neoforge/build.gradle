@@ -163,6 +163,13 @@ sourceSets { polishSmoke {
     compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
     runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
 } }
+def enchantmentSmokeSource = tasks.register('prepareEnchantmentSmoke', Copy) {
+    from rootProject.file('../../src/gametest/java/net/krodark/asterion/test/EnchantmentRegression.java')
+    into layout.buildDirectory.dir('generated/enchantment-smoke')
+    filter { line -> line.replace('queen.interact(player, InteractionHand.MAIN_HAND)',
+            'queen.interact(player, InteractionHand.MAIN_HAND, Vec3.ZERO)') }
+}
+tasks.named('compilePolishSmokeJava', JavaCompile).configure { source enchantmentSmokeSource }
 neoForge.addModdingDependenciesTo(sourceSets.polishSmoke)
 neoForge {
     mods { asterion_polish_tests { sourceSet sourceSets.polishSmoke } }

@@ -125,6 +125,40 @@ public abstract class AmneticBloomPerformanceMixin {
 '''
         else:
             text = text.replace('@WrapOperation(method = "render",', '@WrapOperation(method = {"render", "renderNative"},')
+    if path.name == 'EnchantmentRegression.java':
+        text = text.replace('queen.interact(player, InteractionHand.MAIN_HAND)', 'queen.interact(player, InteractionHand.MAIN_HAND, Vec3.ZERO)')
+    if path.name == 'TextureLoadingRegression.java':
+        text = text.replace('player.getTags()', 'player.entityTags()')
+        text = text.replace('queen.interact(player, net.minecraft.world.InteractionHand.MAIN_HAND)',
+                'queen.interact(player, net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.phys.Vec3.ZERO)')
+    if path.name == 'FloorHotfixRegression.java':
+        text = text.replace('                org.lwjgl.opengl.GL11.glEnable(',
+                '                if (com.mojang.blaze3d.systems.RenderSystem.getDevice().getDeviceInfo().backendName()\n'
+                '                        .toLowerCase(java.util.Locale.ROOT).contains("opengl")) {\n'
+                '                org.lwjgl.opengl.GL11.glEnable(')
+        text = text.replace('org.lwjgl.opengl.GL43.glDebugMessageCallback(graphicsCallback, 0L);',
+                'org.lwjgl.opengl.GL43.glDebugMessageCallback(graphicsCallback, 0L);\n                }')
+    if path.name == 'EnchantmentGameplay.java':
+        text = text.replace('entity.onEquippedItemBroken(stack.getItem(), slot);', 'entity.onEquippedItemBroken(stack, slot);')
+    if path.name in {'AmneticMainFramebufferMixin.java', 'AmneticGBufferFramebufferMixin.java'}:
+        text = text.replace('        var state = AmneticFramebufferState.capture();',
+                '        if (!com.mojang.blaze3d.systems.RenderSystem.getDevice().getDeviceInfo().backendName()\n'
+                '                .toLowerCase(java.util.Locale.ROOT).contains("opengl")) return original.call();\n'
+                '        var state = AmneticFramebufferState.capture();')
+    if path.name == 'AsterionEnchantments.java':
+        text = text.replace('EnchantmentHelper.getItemEnchantmentLevel(holder.get(), stack)',
+                'stack.getOrDefault(net.minecraft.core.component.DataComponents.ENCHANTMENTS, net.minecraft.world.item.enchantment.ItemEnchantments.EMPTY).getLevel(holder.get())')
+    if path.name == 'MinotaurEntity.java':
+        text = text.replace('HeavyMoveControl extends MoveControl {', 'HeavyMoveControl extends MoveControl<MinotaurEntity> {')
+    if path.name in {'DoorBreakPayload.java', 'BossEntrancePayload.java'}:
+        text = text.replace('out.writeEnum(p.facing)', 'Direction.STREAM_CODEC.encode(out, p.facing)')
+        text = text.replace('out.writeEnum(p.bossDoor)', 'Direction.STREAM_CODEC.encode(out, p.bossDoor)')
+        text = text.replace('in.readEnum(Direction.class)', 'Direction.STREAM_CODEC.decode(in)')
+    if path.name == 'LedAmneticPointLights.java':
+        # 26.3's native deferred-light renderer uses RenderPearl on both APIs.
+        # OpenGL compute interoperability is only needed by the old GL renderer.
+        text = text.replace('ComputeCapabilities.probeOnce();\n            return ComputeCapabilities.isComputeAvailable();',
+                'return com.mojang.blaze3d.systems.RenderSystem.tryGetDevice() != null;')
     if path.name == 'RagdollItemInHandRendererMixin.java':
         text = text.replace('"renderHandsWithItems"', '"submitHandsWithItems"')
         text = re.sub(r'private void asterion\$hideHands\([^{}]+\) \{',
@@ -180,32 +214,4 @@ public abstract class AmneticBloomPerformanceMixin {
     path.write_text(text, encoding='utf-8')
 
 if platform in {'forge', 'neoforge'} and (root / 'net/krodark/asterion/Asterion.java').is_file():
-    dispatch = ('LevelRenderEvents.BEFORE_TRANSLUCENT_TERRAIN.fire(context);\n'
-                '        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.fire(context);') if platform == 'forge' else (
-                'LevelRenderEvents.before(context);\n        LevelRenderEvents.after(context);\n        LevelRenderEvents.end(context);')
-    (root / 'net/krodark/asterion/mixin/NativeLevelSubmissionMixin.java').write_text('''package net.krodark.asterion.mixin;
-import com.mojang.blaze3d.vertex.PoseStack;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
-import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.state.level.LevelRenderState;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-/** Queue native overlay geometry before Minecraft consumes the feature submissions. */
-@Mixin(LevelRenderer.class)
-abstract class NativeLevelSubmissionMixin {
-    @Inject(method = "submitEntities", at = @At("TAIL"))
-    private void asterion$overlays(PoseStack poses, LevelRenderState state,
-            SubmitNodeCollector collector, CallbackInfo ci) {
-        LevelRenderContext context = new LevelRenderContext() {
-            public LevelRenderState levelState() { return state; }
-            public PoseStack poseStack() { return poses; }
-            public SubmitNodeCollector submitNodeCollector() { return collector; }
-        };
-        ''' + dispatch + '''
-    }
-}
-''', encoding='utf-8')
+    write_native_submission(root, platform)

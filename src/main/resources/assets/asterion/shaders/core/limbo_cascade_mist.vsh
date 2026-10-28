@@ -24,3 +24,4 @@ void main() {
     mistStrength=Color.b;
     mistAcross=float(UV1.x)/255.0;
 }
+// tbh i didn't make this - dark

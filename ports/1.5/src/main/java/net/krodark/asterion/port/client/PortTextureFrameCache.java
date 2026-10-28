@@ -20,7 +20,18 @@ public final class PortTextureFrameCache {
     private static long bytes;
     private static Object level;
     private static int sweepTicks;
+    private static final ThreadLocal<Boolean> ASTERION_UPLOAD = ThreadLocal.withInitial(() -> false);
     private PortTextureFrameCache() { }
+
+    /** Foreign GeckoLib animations must retain their own upload and interpolation behavior. */
+    public static boolean isAsterionUpload() { return ASTERION_UPLOAD.get(); }
+
+    public static void withTexture(boolean asterion, Runnable upload) {
+        boolean previous = ASTERION_UPLOAD.get();
+        ASTERION_UPLOAD.set(asterion);
+        try { upload.run(); }
+        finally { ASTERION_UPLOAD.set(previous); }
+    }
 
     public static NativeImage[] get(Object owner, Object source, long frame) {
         OwnerFrames entry = OWNERS.get(owner);

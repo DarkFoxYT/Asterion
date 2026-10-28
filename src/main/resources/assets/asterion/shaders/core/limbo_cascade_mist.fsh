@@ -39,3 +39,4 @@ void main() {
         fog_cylindrical_distance(mistPosition),FogEnvironmentalStart,FogEnvironmentalEnd,
         FogRenderDistanceStart,FogRenderDistanceEnd,vec4(sea.fog,1));
 }
+// tbh i didn't make this - dark i ain't smart enough

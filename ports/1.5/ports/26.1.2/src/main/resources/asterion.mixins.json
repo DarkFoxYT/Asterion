@@ -13,6 +13,8 @@
     "PhysicsChainClimbingMixin",
     "ChainLiftServerMovementMixin",
     "AfterblowDamageMixin",
+    "EnchantmentArmorTickMixin",
+    "SwiftyWaterSpeedMixin",
     "MazesteelMiningMixin",
     "HeavyWaterMovementMixin",
     "HeavyWaterRedstoneMixin",
@@ -78,8 +80,6 @@
     "AmneticParticleContextCleanupMixin",
     "AmneticMainFramebufferMixin",
     "AmneticGBufferFramebufferMixin",
-    "IrisLabyrinthPipelineMixin",
-    "OptifineLabyrinthShadersMixin",
     "AmneticShaderPipelineMixin",
     "AmneticShaderPostMixin",
     "AmneticModelRegistryAccessor",
@@ -98,12 +98,9 @@
     "RagdollGeoEntityRendererMixin",
     "InventoryEntityPreviewMixin",
     "RagdollLevelRendererMixin",
-    "SodiumRenderRegionMixin",
-    "SodiumWaterSurfaceMixin",
     "RagdollLocalPlayerMixin",
     "RagdollItemInHandRendererMixin",
-    "ForgedTooltipOutlineMixin",
-    "SodiumVisibilityMixin"
+    "ForgedTooltipOutlineMixin"
   ],
   "injectors": {
     "defaultRequire": 1

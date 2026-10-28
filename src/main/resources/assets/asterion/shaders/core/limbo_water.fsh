@@ -251,3 +251,4 @@ void main() {
         fog_cylindrical_distance(surfacePosition), FogEnvironmentalStart, FogEnvironmentalEnd,
         FogRenderDistanceStart, FogRenderDistanceEnd, regionalFog);
 }
+// this was fairly easy to make but tbh it is hard making it work and look niceley with all them shader issues lol
