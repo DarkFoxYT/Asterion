@@ -109,6 +109,7 @@ tasks.withType(ProcessResources).configureEach {
     inputs.property "neoforge_version", rootProject.neoforge_version
     from(project(":26.1.2-fabric").layout.buildDirectory.dir("resources/main")) {
         exclude "fabric.mod.json"
+        exclude "asterion-update.properties"
     }
     filesMatching("META-INF/neoforge.mods.toml") {
         expand "version": project.version,

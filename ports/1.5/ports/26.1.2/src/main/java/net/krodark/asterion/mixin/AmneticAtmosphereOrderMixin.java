@@ -5,7 +5,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.meekdev.amnetic.client.post.RenderPhase;
 import com.meekdev.amnetic.client.post.internal.PostEffectEntry;
 import com.meekdev.amnetic.client.post.internal.PostEffectRegistry;
-import net.krodark.asterion.Asterion;
+import net.minecraft.resources.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
@@ -16,7 +16,7 @@ public abstract class AmneticAtmosphereOrderMixin {
             "Lcom/meekdev/amnetic/client/post/internal/PostEffectEntry;apply(Lcom/meekdev/amnetic/client/post/RenderPhase;F)V"))
     private void asterion$earlyAtmosphere(PostEffectEntry entry, RenderPhase phase,
                                          float delta, Operation<Void> original) {
-        if (!entry.getId().equals(Asterion.id("underworld/river_atmosphere")))
+        if (!entry.getId().equals(Identifier.fromNamespaceAndPath("asterion", "underworld/river_atmosphere")))
             original.call(entry, phase, delta);
     }
 }

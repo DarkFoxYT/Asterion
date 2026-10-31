@@ -42,7 +42,7 @@ public final class CharonEntity extends Entity implements GeoEntity {
 
     @Override protected void defineSynchedData(SynchedEntityData.Builder data) { }
     //? if >=26.3 {
-    /*@Override protected InterpolationHandler createInterpolationHandler() { return net.minecraft.world.entity.LinearInterpolationHandler.create(this, 2); }
+    /*@Override protected InterpolationHandler createInterpolationHandler() { return new InterpolationHandler(this, 2); }
     *///?} else {
     @Override public InterpolationHandler getInterpolation() { return interpolation; }
     //?}

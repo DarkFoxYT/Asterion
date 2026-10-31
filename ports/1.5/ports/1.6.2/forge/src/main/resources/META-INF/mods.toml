@@ -6,6 +6,7 @@ license="LicenseRef-AMALGAM-Proprietary"
 modId="asterion"
 version="${version}"
 displayName="Asterion"
+updateJSONURL="https://raw.githubusercontent.com/DarkFoxYT/Asterion/master/updates/forge.json"
 authors="Kronoz, DarkFox"
 description='''Descend into the living labyrinth and survive the Minotaur.'''
 

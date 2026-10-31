@@ -1,0 +1,6 @@
+Asterion 1.6.8
+
+- Added update notifications across all supported Minecraft versions and mod loaders.
+- Added a main-menu update panel with a CurseForge link and an option to skip a version.
+- Update checks follow new CurseForge releases for your Minecraft version and loader.
+- Minecraft 1.21.1 now supports NeoForge 21.1.248 and newer builds.

@@ -79,7 +79,7 @@ public final class ChainLiftEntity extends Entity implements GeoEntity {
     public double topY() { return ceiling() - 3; }
     public boolean moving() { return entityData.get(FROM).floatValue() != entityData.get(TO).floatValue(); }
     //? if >=26.3 {
-    /*@Override protected InterpolationHandler createInterpolationHandler() { return net.minecraft.world.entity.LinearInterpolationHandler.create(this, 1); }
+    /*@Override protected InterpolationHandler createInterpolationHandler() { return new InterpolationHandler(this, 1); }
     *///?} else {
     @Override public InterpolationHandler getInterpolation() { return interpolation; }
     //?}

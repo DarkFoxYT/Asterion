@@ -83,6 +83,22 @@ gradle.projectsEvaluated {
         if (taskName == null || modProject == gradle.rootProject) return
 
         if (releasePort) {
+            modProject.sourceSets.main.java.srcDir(new File(outputShelf.parentFile, 'ports/1.5/updateNotifier/java'))
+            def updateLoader = modProject.name == 'neoforge' || modProject.name.endsWith('-neoforge') ? 'neoforge' :
+                    modProject.name.endsWith('-forge') ? 'forge' : modProject.name.endsWith('-quilt') ? 'quilt' : 'fabric'
+            def updateMinecraft = modProject.name == 'neoforge' ? modProject.rootProject.minecraft_version :
+                    (modProject.name =~ /^([0-9.]+)/)[0][1]
+            def updateMetadata = modProject.tasks.register('generateUpdateMetadata') {
+                def output = modProject.layout.buildDirectory.file('generated/update/asterion-update.properties')
+                inputs.properties(version: modProject.version.toString(), minecraft: updateMinecraft, loader: updateLoader)
+                outputs.file(output)
+                doLast {
+                    def file = output.get().asFile
+                    file.parentFile.mkdirs()
+                    file.text = "version=${modProject.version}\nminecraft=${updateMinecraft}\nloader=${updateLoader}\n"
+                }
+            }
+            modProject.tasks.named('processResources').configure { from(updateMetadata) }
             modProject.tasks.withType(org.gradle.language.jvm.tasks.ProcessResources).configureEach {
                 exclude 'data/asterion/dimension/limbo.json', 'data/asterion/dimension/underworld.json'
                 exclude 'data/asterion/dimension_type/limbo.json', 'data/asterion/dimension_type/underworld.json'

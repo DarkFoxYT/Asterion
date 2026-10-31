@@ -20,6 +20,9 @@ for path in root.rglob('*.java'):
     if path.name == 'PositionCenters.java':
         continue
     text = path.read_text(encoding='utf-8')
+    if path.name == 'UpdateScreen.java':
+        text = text.replace('net.minecraft.util.Util.getPlatform().openUri(URI.create(notice.url()))',
+                'net.minecraft.client.gui.screens.ConfirmLinkScreen.confirmLinkNow(this, URI.create(notice.url()))')
     if path.name == 'MinotaurGeoRenderer.java':
         text = re.sub(r'(shouldRender\(MinotaurEntity boss,\s*net\.minecraft\.client\.renderer\.culling\.Frustum frustum,\s*double x, double y, double z)\)',
                       r'\1, float partialTick)', text)

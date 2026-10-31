@@ -179,7 +179,7 @@ public final class MinotaurAxeEntity extends Entity {
     public int throwerId() { return entityData.get(THROWER); }
     public void setThrower(MinotaurEntity boss) { entityData.set(THROWER, boss.getId()); }
     //? if >=26.3 {
-    /*@Override protected InterpolationHandler createInterpolationHandler() { return net.minecraft.world.entity.LinearInterpolationHandler.create(this, 2); }
+    /*@Override protected InterpolationHandler createInterpolationHandler() { return new InterpolationHandler(this, 2); }
     *///?} else {
     @Override public InterpolationHandler getInterpolation() { return interpolation; }
     //?}

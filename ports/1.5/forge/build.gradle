@@ -341,7 +341,7 @@ dependencies.add('jarJar', amneticEmbed)
 def geckolibEmbed = dependencies.create("software.bernie.geckolib:geckolib-forge-${minecraftVersion}:${geckolibVersion}") { transitive = false }
 jarJar.configure(geckolibEmbed) {
     version = geckolibVersion
-    range = "[${geckolibVersion}]"
+    range = "[${geckolibVersion},5)"
 }
 dependencies.add('jarJar', geckolibEmbed)
 

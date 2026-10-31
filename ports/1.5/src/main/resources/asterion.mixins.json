@@ -85,7 +85,8 @@
     "RagdollClientUseGuardMixin",
     "PortAfterblowRenderMixin",
     "PortHandRenderStateMixin",
-    "FlamethrowerInputMixin"
+    "FlamethrowerInputMixin",
+    "UpdateMenuMixin"
   ],
   "injectors": {
     "defaultRequire": 1

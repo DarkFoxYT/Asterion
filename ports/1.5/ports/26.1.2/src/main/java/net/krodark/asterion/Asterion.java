@@ -450,13 +450,13 @@ public class Asterion implements ModInitializer {
     public static final net.minecraft.world.item.crafting.RecipeSerializer<net.krodark.asterion.recipe.ForgedSwordRecipe>
             FORGED_SWORD_RECIPE = Registry.register(BuiltInRegistries.RECIPE_SERIALIZER, id("forged_sword"),
             new net.minecraft.world.item.crafting.RecipeSerializer<>(
-                    com.mojang.serialization.MapCodec.unit(new net.krodark.asterion.recipe.ForgedSwordRecipe()),
-                    net.minecraft.network.codec.StreamCodec.unit(new net.krodark.asterion.recipe.ForgedSwordRecipe())));
+                    com.mojang.serialization.MapCodec.unit(net.krodark.asterion.recipe.ForgedSwordRecipe::new),
+                    net.minecraft.network.codec.StreamCodec.of((buffer, value) -> {}, buffer -> new net.krodark.asterion.recipe.ForgedSwordRecipe())));
     public static final net.minecraft.world.item.crafting.RecipeSerializer<net.krodark.asterion.recipe.RemovedRecipe>
             REMOVED_RECIPE = Registry.register(BuiltInRegistries.RECIPE_SERIALIZER, id("removed"),
             new net.minecraft.world.item.crafting.RecipeSerializer<>(
-                    com.mojang.serialization.MapCodec.unit(new net.krodark.asterion.recipe.RemovedRecipe()),
-                    net.minecraft.network.codec.StreamCodec.unit(new net.krodark.asterion.recipe.RemovedRecipe())));
+                    com.mojang.serialization.MapCodec.unit(net.krodark.asterion.recipe.RemovedRecipe::new),
+                    net.minecraft.network.codec.StreamCodec.of((buffer, value) -> {}, buffer -> new net.krodark.asterion.recipe.RemovedRecipe())));
     public static final SkeletonBlock SKELETON = (SkeletonBlock)registerBlock(
             "skeleton", MapColor.COLOR_LIGHT_GRAY,
             properties -> new SkeletonBlock(properties.noOcclusion().strength(0.45F)

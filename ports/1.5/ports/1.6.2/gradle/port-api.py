@@ -126,6 +126,7 @@ names = [
     ('net.minecraft.client.renderer.state.level.', 'net.minecraft.client.renderer.state.'),
     ('net/minecraft/client/renderer/state/level/', 'net/minecraft/client/renderer/state/'),
     ('GuiGraphicsExtractor', 'GuiGraphics'),
+    ('extractContents', 'renderContents'),
     ('fabric.api.creativetab.v1', 'fabric.api.itemgroup.v1'),
     ('FabricCreativeModeTab', 'FabricItemGroup'), ('CreativeModeTabEvents', 'ItemGroupEvents'),
     ('.modifyOutputEvent(', '.modifyEntriesEvent('), ('ParticleProviderRegistry', 'ParticleFactoryRegistry'),
@@ -335,6 +336,7 @@ abstract class NativeHeavyWaterTintMixin {
         text, _ = extract_handler(text, '@Redirect(method = "tesselate"')
     text = re.sub(r'extractRenderState\(\s*((?:net\.minecraft\.client\.gui\.)?GuiGraphics)\b', r'render(\1', text)
     text = re.sub(r'super\.extractRenderState\((graphics|g)\s*,', r'super.render(\1,', text)
+    text = text.replace('parent.extractRenderState(', 'parent.render(')
     text = re.sub(r'\b([A-Za-z_][\w.]*)\.sendOverlayMessage\(', r'net.krodark.asterion.compat.PlayerMessages.overlay(\1, ', text)
     text = re.sub(r'new ServerBossEvent\(\s*(?:java\.util\.)?UUID\.randomUUID\(\),\s*', 'new ServerBossEvent(', text)
     for before, after in gui_methods.items():

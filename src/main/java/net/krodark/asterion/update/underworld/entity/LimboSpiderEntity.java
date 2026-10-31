@@ -49,7 +49,7 @@ public final class LimboSpiderEntity extends PathfinderMob implements GeoEntity 
     private final InterpolationHandler networkInterpolation = new InterpolationHandler(this, 1);
     //?}
     //? if >=26.3 {
-    /*@Override protected InterpolationHandler createInterpolationHandler() { return net.minecraft.world.entity.LinearInterpolationHandler.create(this, 1); }
+    /*@Override protected InterpolationHandler createInterpolationHandler() { return new InterpolationHandler(this, 1); }
     *///?} else {
     @Override public InterpolationHandler getInterpolation() { return networkInterpolation; }
     //?}

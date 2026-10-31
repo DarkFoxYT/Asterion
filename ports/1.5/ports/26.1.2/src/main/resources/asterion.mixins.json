@@ -100,7 +100,8 @@
     "RagdollLevelRendererMixin",
     "RagdollLocalPlayerMixin",
     "RagdollItemInHandRendererMixin",
-    "ForgedTooltipOutlineMixin"
+    "ForgedTooltipOutlineMixin",
+    "UpdateMenuMixin"
   ],
   "injectors": {
     "defaultRequire": 1

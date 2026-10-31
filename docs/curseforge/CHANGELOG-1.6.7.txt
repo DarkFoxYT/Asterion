@@ -1,0 +1,4 @@
+Asterion 1.6.7
+
+- Fixed a NeoForge 26.1.2 startup crash when integrations load before Asterion's content is ready.
+- Added update notifications in NeoForge's Mods menu.

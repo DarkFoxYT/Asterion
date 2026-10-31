@@ -1,6 +1,5 @@
 package net.krodark.asterion.compat.jade;
 
-import net.krodark.asterion.Asterion;
 import net.krodark.asterion.block.CrucibleBlock;
 import net.krodark.asterion.block.CrucibleBlockEntity;
 import net.minecraft.ChatFormatting;
@@ -24,7 +23,7 @@ import snownee.jade.api.ui.JadeUI;
 
 @WailaPlugin
 public final class AsterionJadePlugin implements IWailaPlugin {
-    private static final Identifier CRUCIBLE_STATE = Asterion.id("crucible_state");
+    private static final Identifier CRUCIBLE_STATE = Identifier.fromNamespaceAndPath("asterion", "crucible_state");
 
     @Override public void register(IWailaCommonRegistration registration) {
          

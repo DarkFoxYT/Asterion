@@ -46,7 +46,8 @@ public abstract class GeckoAnimationCacheMixin {
         NativeImage cached = asterion$frames.get(key);
         if (cached != null) {
             //? if >=26.2 {
-            /*RenderSystem.getDevice().createCommandEncoder().writeToTexture(texture, cached);
+            /*RenderSystem.getDevice().createCommandEncoder().writeToTexture(texture, cached,
+                    0, 0, 0, 0, cached.getWidth(), cached.getHeight(), 0, 0);
             *///?} else {
             RenderSystem.getDevice().createCommandEncoder().writeToTexture(texture, cached,
                     0, 0, 0, 0, cached.getWidth(), cached.getHeight(), 0, 0);

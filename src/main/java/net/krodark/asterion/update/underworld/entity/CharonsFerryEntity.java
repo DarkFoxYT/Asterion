@@ -184,7 +184,7 @@ public final class CharonsFerryEntity extends Entity implements GeoEntity {
         data.define(SPEED, 0F);
     }
     //? if >=26.3 {
-    /*@Override protected InterpolationHandler createInterpolationHandler() { return net.minecraft.world.entity.LinearInterpolationHandler.create(this, 3); }
+    /*@Override protected InterpolationHandler createInterpolationHandler() { return new InterpolationHandler(this, 3); }
     *///?} else {
     @Override public InterpolationHandler getInterpolation() { return interpolation; }
     //?}

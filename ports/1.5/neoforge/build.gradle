@@ -106,6 +106,7 @@ def resourceProperties = [
         version: rootProject.mod_version,
         minecraft_version: rootProject.minecraft_version,
         neoforge_version: rootProject.neoforge_version,
+        neoforge_min_version: rootProject.neoforge_min_version,
         geckolib_version: rootProject.geckolib_version
 ]
 

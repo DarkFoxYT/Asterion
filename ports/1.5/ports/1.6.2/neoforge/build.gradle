@@ -119,6 +119,7 @@ tasks.named('processResources', ProcessResources).configure {
     dependsOn project(":${minecraft_version}-fabric").tasks.named("processResources")
     from(project(":${minecraft_version}-fabric").layout.buildDirectory.dir("resources/main")) {
         exclude "fabric.mod.json"
+        exclude "asterion-update.properties"
     }
 }
 tasks.withType(ProcessResources).configureEach {

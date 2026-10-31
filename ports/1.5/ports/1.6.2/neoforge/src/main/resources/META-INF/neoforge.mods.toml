@@ -12,6 +12,7 @@ config="asterion.neoforge.mixins.json"
 modId="asterion"
 version="${version}"
 displayName="Asterion"
+updateJSONURL="https://raw.githubusercontent.com/DarkFoxYT/Asterion/master/updates/neoforge.json"
 description='''Labyrinth beta: descend into the living maze, uncover its depths, and survive the Minotaur. The Underworld chapter is in development.'''
 authors="Kronoz, DarkFox"
 

@@ -3,6 +3,15 @@ package net.krodark.asterion.test;
 public final class NeoSmoke {
  public NeoSmoke(net.neoforged.bus.api.IEventBus bus) {
   bus.addListener((net.neoforged.fml.event.lifecycle.FMLClientSetupEvent event) -> event.enqueueWork(() -> {
+   if(System.getProperty("asterion.expectedReleaseJar") != null) {
+    try {
+     var actual=net.neoforged.fml.ModList.get().getModContainerById("asterion").orElseThrow()
+      .getModInfo().getOwningFile().getFile().getFilePath();
+     if(!java.nio.file.Files.isSameFile(actual,java.nio.file.Path.of(System.getProperty("asterion.expectedReleaseJar"))))
+      throw new AssertionError("Compatibility run loaded a different release JAR: "+actual);
+     net.krodark.asterion.Asterion.LOGGER.info("ASTERION_RELEASE_BINARY PASS: {}",actual);
+    } catch(java.io.IOException error) { throw new AssertionError(error); }
+   }
    if(Boolean.getBoolean("asterion.embeddiumSmoke")) {
     if(!net.neoforged.fml.ModList.get().isLoaded("embeddium"))
      throw new AssertionError("Embeddium must be installed for this compatibility test");

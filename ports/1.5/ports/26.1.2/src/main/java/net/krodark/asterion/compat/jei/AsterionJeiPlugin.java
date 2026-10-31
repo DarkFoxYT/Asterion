@@ -32,7 +32,7 @@ public final class AsterionJeiPlugin implements IModPlugin {
             Asterion.MOD_ID, "forged_sword_assembly", ForgedSwordViewerRecipe.class);
 
     @Override public Identifier getPluginUid() {
-        return Asterion.id("jei_plugin");
+        return Identifier.fromNamespaceAndPath("asterion", "jei_plugin");
     }
 
     @Override public void registerItemSubtypes(ISubtypeRegistration registration) {

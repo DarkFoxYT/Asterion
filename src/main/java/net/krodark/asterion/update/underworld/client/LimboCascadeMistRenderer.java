@@ -14,7 +14,7 @@ import java.util.List;
 public final class LimboCascadeMistRenderer {
     public static final int FACE_BUDGET = 192;
     private static final RenderType MIST = RenderTypeFactory.create("asterion/limbo_cascade_mist",
-            RenderSetup.builder(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET,RenderPipelines.FOG_SNIPPET)
+            RenderSetup.builder(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET, RenderPipelines.FOG_SNIPPET,RenderPipelines.FOG_SNIPPET)
                     .withLocation(Asterion.id("pipeline/limbo_cascade_mist"))
                     .withVertexShader(Asterion.id("core/limbo_cascade_mist"))
                     .withFragmentShader(Asterion.id("core/limbo_cascade_mist"))

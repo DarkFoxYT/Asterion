@@ -6,6 +6,7 @@ license="LicenseRef-AMALGAM-Proprietary"
 modId="asterion"
 version="${version}"
 displayName="Asterion"
+updateJSONURL="https://raw.githubusercontent.com/DarkFoxYT/Asterion/master/updates/neoforge.json"
 authors="Kronoz, DarkFox"
 description='''Descend into an infinite living labyrinth, explore its flooded catacombs, and survive the Minotaur at its heart.'''
 logoFile="assets/asterion/icon.png"
@@ -19,7 +20,7 @@ config="asterion.neoforge.mixins.json"
 [[dependencies.asterion]]
 modId="neoforge"
 type="required"
-versionRange="[${neoforge_version},)"
+versionRange="[${neoforge_min_version},)"
 ordering="NONE"
 side="BOTH"
 

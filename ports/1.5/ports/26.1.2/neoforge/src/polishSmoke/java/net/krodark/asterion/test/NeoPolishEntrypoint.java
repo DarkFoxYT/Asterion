@@ -3,7 +3,27 @@ package net.krodark.asterion.test;
 public final class NeoPolishEntrypoint {
     private boolean checked;
     public NeoPolishEntrypoint() {
+        if (Boolean.getBoolean("asterion.earlyPluginSmoke")) {
+            try {
+                Class.forName("net.krodark.asterion.compat.jade.AsterionJadePlugin");
+            } catch (ClassNotFoundException error) {
+                throw new AssertionError("Jade integration must be present", error);
+            }
+        }
+        if (Boolean.getBoolean("asterion.updateSmoke")) {
+            UpdateMenuRegression.register();
+            return;
+        }
         new PolishClientSmoke().onInitializeClient();
+        if (Boolean.getBoolean("asterion.recipeJoinSmoke")) {
+            int[] joinedTicks = {0};
+            net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
+                if (client.player != null && client.level != null && ++joinedTicks[0] >= 40) {
+                    net.krodark.asterion.Asterion.LOGGER.info("ASTERION_RECIPE_JOIN PASS: joined world and remained connected after recipe synchronization");
+                    client.stop();
+                }
+            });
+        }
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (checked || client.level == null) return;
             int fluids=0,states=0;

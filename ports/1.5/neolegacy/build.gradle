@@ -148,7 +148,10 @@ dependencies {
     jarJar files(amneticNeoEmbedJar)
     jarJar(geckolibCoordinate) {
         transitive = false
-        version { strictly "[${geckolibVersion}]" }
+        version {
+            strictly "[${geckolibVersion},5)"
+            prefer geckolibVersion
+        }
     }
     compileOnly 'org.jspecify:jspecify:1.0.0'
     compileOnly 'io.github.llamalad7:mixinextras-common:0.4.1'
@@ -253,6 +256,7 @@ processResources {
     inputs.properties(version: project.version, minecraft_version: minecraftVersion,
             forge_version: forgeVersion, geckolib_version: geckolibVersion)
     filesMatching('META-INF/mods.toml') {
+        filter { line -> line.replace('/updates/forge.json', '/updates/neoforge.json') }
         expand version: project.version, minecraft_version: minecraftVersion,
                 forge_version: forgeVersion, geckolib_version: geckolibVersion
     }

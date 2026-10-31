@@ -26,7 +26,7 @@ import java.util.Map;
  
 public final class BossGroundTelegraphRenderer {
     private static final RenderType SURFACE = RenderTypeFactory.create("asterion/boss_ground_warning",
-            RenderSetup.builder(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+            RenderSetup.builder(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET, RenderPipelines.FOG_SNIPPET)
                     .withLocation(Asterion.id("pipeline/boss_ground_warning")).withCull(false).build())
                     .createRenderSetup());
     private static final Map<Integer, Warning> WARNINGS = new LinkedHashMap<>();

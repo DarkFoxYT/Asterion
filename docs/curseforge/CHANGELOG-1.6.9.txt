@@ -1,0 +1,5 @@
+Asterion 1.6.9
+
+- Fixed [#4](https://github.com/DarkFoxYT/Asterion/issues/4): forged-sword recipe sync disconnecting players when joining a world or server on NeoForge 26.1.2.
+- Fixed the same recipe sync issue in retired recipe placeholders.
+- Brought all supported Minecraft versions and loaders onto the same 1.6.9 release.
