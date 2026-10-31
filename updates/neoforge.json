@@ -1,35 +1,41 @@
 {
   "homepage": "https://www.curseforge.com/minecraft/mc-mods/asterion/files",
   "promos": {
-    "1.20.1-latest": "1.6.6",
-    "1.20.1-recommended": "1.6.6",
-    "1.21.1-latest": "1.6.6",
-    "1.21.1-recommended": "1.6.6",
-    "1.21.11-latest": "1.6.6",
-    "1.21.11-recommended": "1.6.6",
-    "26.1.2-latest": "1.6.7",
-    "26.1.2-recommended": "1.6.7",
-    "26.2-latest": "1.6.6",
-    "26.2-recommended": "1.6.6",
-    "26.3-latest": "1.6.6",
-    "26.3-recommended": "1.6.6"
+    "1.20.1-latest": "1.6.9",
+    "1.20.1-recommended": "1.6.9",
+    "1.21.1-latest": "1.6.9",
+    "1.21.1-recommended": "1.6.9",
+    "1.21.11-latest": "1.6.9",
+    "1.21.11-recommended": "1.6.9",
+    "26.1.2-latest": "1.6.9",
+    "26.1.2-recommended": "1.6.9",
+    "26.2-latest": "1.6.9",
+    "26.2-recommended": "1.6.9",
+    "26.3-latest": "1.6.9",
+    "26.3-recommended": "1.6.9"
   },
   "1.20.1": {
-    "1.6.6": "Compatibility update."
+    "1.6.6": "Compatibility update.",
+    "1.6.9": "Unified 1.6.9 release with main-menu update notifications."
   },
   "1.21.1": {
-    "1.6.6": "Compatibility update."
+    "1.6.6": "Compatibility update.",
+    "1.6.9": "Unified 1.6.9 release with main-menu update notifications. Supports NeoForge 21.1.248 and newer."
   },
   "1.21.11": {
-    "1.6.6": "Compatibility update."
+    "1.6.6": "Compatibility update.",
+    "1.6.9": "Unified 1.6.9 release with main-menu update notifications."
   },
   "26.1.2": {
-    "1.6.7": "Startup compatibility hotfix."
+    "1.6.7": "Startup compatibility hotfix.",
+    "1.6.9": "Fixed recipe synchronization disconnects (#4: https://github.com/DarkFoxYT/Asterion/issues/4)."
   },
   "26.2": {
-    "1.6.6": "Compatibility update."
+    "1.6.6": "Compatibility update.",
+    "1.6.9": "Unified 1.6.9 release with main-menu update notifications."
   },
   "26.3": {
-    "1.6.6": "Compatibility update."
+    "1.6.6": "Compatibility update.",
+    "1.6.9": "Unified 1.6.9 release with main-menu update notifications."
   }
 }
