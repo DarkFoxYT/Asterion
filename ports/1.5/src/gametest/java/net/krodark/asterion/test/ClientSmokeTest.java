@@ -256,6 +256,15 @@ public final class ClientSmokeTest implements ClientModInitializer {
             if(net.krodark.asterion.port.client.PortRagdolls.localMovementLocked()) throw new AssertionError("Ragdoll recovery did not release movement");
             if(graphicsErrors!=0) throw new AssertionError("OpenGL errors: "+graphicsErrors);
             Asterion.LOGGER.info("ASTERION_SMOKE rendering and physics passed; starting gameplay checks");
+            if (Boolean.getBoolean("asterion.chunkLoadCompatibilitySmoke")) {
+                if (!client.level.dimension().equals(Asterion.ASTERION_LEVEL))
+                    throw new AssertionError("Compatibility scenario never entered the labyrinth");
+                if (!net.krodark.asterion.physics.PhysicsCompatibility.externalPlayerPhysics())
+                    throw new AssertionError("Sable compatibility scenario must load Sable");
+                Asterion.LOGGER.info("ASTERION_CHUNK_COMPAT PASS: labyrinth entry, chunk repairs, rendering, external player physics and movement recovery");
+                client.stop();
+                return;
+            }
             GameplaySmoke.server(client,GameplaySmoke::forge);
         }
         if(worldTicks==480) {

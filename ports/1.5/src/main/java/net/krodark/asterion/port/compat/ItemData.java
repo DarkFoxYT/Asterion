@@ -11,6 +11,10 @@ public final class ItemData {
  /*if(type == net.krodark.asterion.port.legacy.item.DataComponents.CUSTOM_DATA) stack.removeTagKey("asterion:data");
  else if(type == net.krodark.asterion.port.legacy.item.DataComponents.LORE) {
   var display = stack.getTagElement("display"); if(display != null) display.remove("Lore");
+ } else if(type == net.krodark.asterion.port.legacy.item.DataComponents.LODESTONE_TRACKER) {
+  stack.removeTagKey("LodestonePos");
+  stack.removeTagKey("LodestoneDimension");
+  stack.removeTagKey("LodestoneTracked");
  } else throw new IllegalArgumentException("Unsupported legacy component removal");*/
  //?}
  }

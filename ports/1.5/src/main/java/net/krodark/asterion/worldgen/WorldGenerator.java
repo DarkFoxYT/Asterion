@@ -268,7 +268,13 @@ public final class WorldGenerator {
 
 
 
+    /** Never mutate blocks while another mod is inside a chunk-load callback. */
     public static void onChunkLoad(ServerLevel level, LevelChunk chunk, boolean newlyGenerated) {
+        if (level.dimension().equals(Asterion.ASTERION_LEVEL))
+            ChunkLoadRepairs.enqueue(level, chunk.getPos(), newlyGenerated);
+    }
+
+    private static void prepareLoadedChunk(ServerLevel level, LevelChunk chunk, boolean newlyGenerated) {
 
         if (!level.dimension().equals(Asterion.ASTERION_LEVEL)) {
 
@@ -429,6 +435,7 @@ public final class WorldGenerator {
 
 
     private static void tickMaze(ServerLevel maze) {
+        ChunkLoadRepairs.tick(maze, WorldGenerator::prepareLoadedChunk);
 
         net.krodark.asterion.worldgen.AuthoredForge.tickRepairs(maze);
 
@@ -4001,6 +4008,7 @@ public final class WorldGenerator {
 
 
     public static void clearRuntimeState(MinecraftServer server) {
+        ChunkLoadRepairs.clear();
 
         RESET_DEATHS.clear();
 

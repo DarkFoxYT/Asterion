@@ -151,12 +151,21 @@ public final class AuthoredForge {
                 districtCenter(chunk.getMiddleBlockZ()));
     }
 
-    public static BlockPos westSocket(ServerLevel level, ChunkPos chunk) {
+    public record Entrance(BlockPos position, Direction facing) {}
+
+    /** Resolve the reserved entrance from the placed template, including its rotation. */
+    public static Entrance entrance(ServerLevel level, ChunkPos chunk) {
         var root = layoutFor(level, chunk).placements().get(0);
-        return net.krodark.asterion.port.compat.JigsawCompat.getJigsaws(
+        Direction reserved = root.rotation().rotate(Direction.WEST);
+        var port = net.krodark.asterion.port.compat.JigsawCompat.getJigsaws(
                         root.template(), root.origin(), root.rotation()).stream()
-                .filter(port -> JigsawBlock.getFrontFacing(port.info().state()) == Direction.WEST
-                        && port.name().equals(DOOR)).findFirst().orElseThrow().info().pos();
+                .filter(p -> JigsawBlock.getFrontFacing(p.info().state()) == reserved && p.name().equals(DOOR))
+                .findFirst().orElseThrow();
+        return new Entrance(port.info().pos(), JigsawBlock.getFrontFacing(port.info().state()));
+    }
+
+    public static BlockPos westSocket(ServerLevel level, ChunkPos chunk) {
+        return entrance(level, chunk).position();
     }
 
     private static Layout layoutFor(ServerLevel level, ChunkPos chunk) {

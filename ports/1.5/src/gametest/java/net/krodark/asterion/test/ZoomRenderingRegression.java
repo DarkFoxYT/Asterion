@@ -24,6 +24,12 @@ public final class ZoomRenderingRegression {
 
     public static void register() {
         if (!Boolean.getBoolean("asterion.zoomSmoke")) return;
+        var frameView = com.meekdev.amnetic.client.camera.internal.FrameView.INSTANCE;
+        frameView.setProjection(new org.joml.Matrix4f().scaling(20));
+        frameView.invalidate();
+        var fallback = new org.joml.Matrix4f().scaling(2);
+        if (!frameView.getProjection(new org.joml.Matrix4f(), fallback).equals(fallback, 0.00001f))
+            throw new AssertionError("Invalidating a frame retained its previous zoom projection");
         try {
             zoomHandler = Class.forName("de.keksuccino.justzoom.ZoomHandler");
             zoomKey = (net.minecraft.client.KeyMapping) Class.forName("de.keksuccino.justzoom.KeyMappings")
@@ -45,6 +51,9 @@ public final class ZoomRenderingRegression {
             }
         });
         WorldRenderEvents.END.register(context -> {
+            var actualProjection = frameView.getProjection(new org.joml.Matrix4f(), context.projectionMatrix());
+            if (!actualProjection.equals(context.projectionMatrix(), 0.00001f))
+                throw new AssertionError("Amnetic's world projection differs from the final zoomed projection");
             var client = Minecraft.getInstance();
             if (!cacheChecked) {
                 var shader = net.minecraft.client.renderer.GameRenderer.getPositionShader();

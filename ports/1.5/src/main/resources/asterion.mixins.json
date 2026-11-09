@@ -38,6 +38,7 @@
     "RagdollUseGuardMixin"
   ],
   "client": [
+    "LabyrinthSkyMixin",
     "LabyrinthCloudMixin",
     "PortAfterblowFirstPersonMixin",
     "RenderRemnantClientTickMixin",
@@ -63,6 +64,7 @@
     "PortLevelLoadingScreenMixin",
     "AmneticBloomPerformanceMixin",
     "AmneticZoomFrameMixin",
+    "AmneticFrameProjectionMixin",
     "AmneticLayerCleanupMixin",
     "AmneticParticleContextAccessor",
     "AmneticParticleContextCleanupMixin",

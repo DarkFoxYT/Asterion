@@ -42,6 +42,7 @@
     "SpawnPlacementsAccessor"
   ],
   "client": [
+    "LabyrinthSkyMixin",
     "GlCommandEncoderStateMixin",
     "LabyrinthCloudMixin",
     "AfterblowFirstPersonMixin",
@@ -75,6 +76,7 @@
     "AmneticDepthBlitMixin",
     "AmneticBloomPerformanceMixin",
     "AmneticZoomFrameMixin",
+    "AmneticFrameProjectionMixin",
     "AmneticLayerCleanupMixin",
     "AmneticParticleContextAccessor",
     "AmneticParticleContextCleanupMixin",

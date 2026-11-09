@@ -31,6 +31,7 @@ neoForge.runs {
         systemProperty 'asterion.clientSmoke', 'true'
         systemProperty 'asterion.nativeAmneticSmoke', 'true'
         systemProperty 'amnetic.opengl.debug', 'true'
+        if (project.hasProperty('chunkLoadCompatibilitySmoke')) systemProperty 'asterion.chunkLoadCompatibilitySmoke', 'true'
         if (project.hasProperty('startupSmoke')) systemProperty 'asterion.startupSmoke', 'true'
         if (project.hasProperty('sodiumSmoke')) systemProperty 'asterion.sodiumSmoke', 'true'
         if (project.hasProperty('embeddiumSmoke')) systemProperty 'asterion.embeddiumSmoke', 'true'

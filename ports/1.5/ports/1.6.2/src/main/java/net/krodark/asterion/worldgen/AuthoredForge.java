@@ -151,11 +151,20 @@ public final class AuthoredForge {
                 districtCenter(chunk.getMiddleBlockZ()));
     }
 
+    public record Entrance(BlockPos position, Direction facing) {}
+
+    /** Resolve the reserved entrance from the placed template, including its rotation. */
+    public static Entrance entrance(ServerLevel level, ChunkPos chunk) {
+        var root = layoutFor(level, chunk).placements().get(0);
+        Direction reserved = root.rotation().rotate(Direction.WEST);
+        var port = root.template().getJigsaws(root.origin(), root.rotation()).stream()
+                .filter(p -> JigsawBlock.getFrontFacing(p.info().state()) == reserved && p.name().equals(DOOR))
+                .findFirst().orElseThrow();
+        return new Entrance(port.info().pos(), JigsawBlock.getFrontFacing(port.info().state()));
+    }
+
     public static BlockPos westSocket(ServerLevel level, ChunkPos chunk) {
-        var root = layoutFor(level, chunk).placements().getFirst();
-        return root.template().getJigsaws(root.origin(), root.rotation()).stream()
-                .filter(port -> JigsawBlock.getFrontFacing(port.info().state()) == Direction.WEST
-                        && port.name().equals(DOOR)).findFirst().orElseThrow().info().pos();
+        return entrance(level, chunk).position();
     }
 
     private static Layout layoutFor(ServerLevel level, ChunkPos chunk) {

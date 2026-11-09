@@ -9,6 +9,40 @@ import net.krodark.asterion.Asterion;
 import net.krodark.asterion.port.compat.GeometryCompat;
 public class CompatibilityGameTests implements FabricGameTest {
  @GameTest(template=FabricGameTest.EMPTY_STRUCTURE)
+ public void mechanismCompassTargetClearsSafely(GameTestHelper test) {
+  ComponentRemovalChecks.run(test.getLevel());
+  test.succeed();
+ }
+ @GameTest(template=FabricGameTest.EMPTY_STRUCTURE)
+ public void forgeStairsWalkableInEveryDirection(GameTestHelper test) {
+  try {
+   var method = net.krodark.asterion.worldgen.ForgeDepths.class.getDeclaredMethod("buildInteriorStairs",
+     net.minecraft.world.level.ServerLevelAccessor.class, BoundingBox.class,
+     net.krodark.asterion.worldgen.AuthoredForge.Entrance.class);
+   method.setAccessible(true);
+   var level = test.getLevel();
+   var socket = test.absolutePos(new net.minecraft.core.BlockPos(0, 20, 0));
+   int floor = net.krodark.asterion.worldgen.ForgeDepths.FLOOR_Y + 1;
+   socket = new net.minecraft.core.BlockPos(socket.getX(), floor + 12, socket.getZ());
+   for (var face : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+    var inward = face.getOpposite();
+    var clip = new BoundingBox(socket.getX()-18, floor-4, socket.getZ()-18,
+      socket.getX()+18, socket.getY()+6, socket.getZ()+18);
+    for (var p : net.minecraft.core.BlockPos.betweenClosed(clip.minX(),clip.minY(),clip.minZ(),clip.maxX(),clip.maxY(),clip.maxZ()))
+     level.setBlock(p,net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(),2);
+    method.invoke(null,level,clip,new net.krodark.asterion.worldgen.AuthoredForge.Entrance(socket,face));
+    for(int step=0;step<=14;step++) for(int width=-1;width<=1;width++) {
+     var feet=socket.relative(inward,step).below(Math.min(step,12)).relative(inward.getClockWise(),width);
+     test.assertTrue(level.getBlockState(feet).isAir() && level.getBlockState(feet.above()).isAir(),"Forge stairs lack walking clearance: "+face+" step "+step);
+     test.assertTrue(!level.getBlockState(feet.below()).isAir(),"Forge stairs lack a tread");
+     if(step<12) test.assertTrue(level.getBlockState(feet.below()).is(Asterion.POLISHED_MAZESTEEL_STAIRS),
+       "The top landing must also use stairs so the return route has no full-block jump");
+    }
+   }
+   test.succeed();
+  } catch (ReflectiveOperationException e) { throw new AssertionError(e); }
+ }
+ @GameTest(template=FabricGameTest.EMPTY_STRUCTURE)
  public void retiredContentIsInert(GameTestHelper test) {
   RetiredContentChecks.run(test.getLevel());
   test.succeed();

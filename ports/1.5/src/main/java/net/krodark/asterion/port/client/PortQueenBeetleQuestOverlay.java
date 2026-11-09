@@ -70,6 +70,12 @@ public final class PortQueenBeetleQuestOverlay {
             objectiveTicks = 0;
             return;
         }
+        // Pause the quest display outside the labyrinth; retain progress for returning players.
+        if (!client.level.dimension().equals(Asterion.ASTERION_LEVEL)) {
+            dialogueTicks = 0;
+            objectiveTicks = 0;
+            return;
+        }
         if (isActive() && !PortMazeObjectiveOverlay.bossFightActive(client)) {
             objectiveTicks++;
             displayedProgress += (countItems(client) - displayedProgress) * 0.18F;
@@ -79,7 +85,7 @@ public final class PortQueenBeetleQuestOverlay {
     private static void render(GuiGraphics graphics) {
         if (PortCinematicHud.isHidden()) return;
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || PortMazeObjectiveOverlay.bossFightActive(client)) return;
+        if (client.level == null || !client.level.dimension().equals(Asterion.ASTERION_LEVEL) || client.player == null || PortMazeObjectiveOverlay.bossFightActive(client)) return;
 
         if (dialogueTicks == 0 && client.hitResult instanceof EntityHitResult hit
                 && hit.getEntity() instanceof QueenBeetleEntity
@@ -88,6 +94,12 @@ public final class PortQueenBeetleQuestOverlay {
         }
 
         int displaySeconds = AsterionConfig.INSTANCE.objectiveHudSeconds;
+        // Pause the quest display outside the labyrinth; retain progress for returning players.
+        if (!client.level.dimension().equals(Asterion.ASTERION_LEVEL)) {
+            dialogueTicks = 0;
+            objectiveTicks = 0;
+            return;
+        }
         if (isActive() && AsterionConfig.INSTANCE.objectiveHudEnabled
                 && (displaySeconds == 0 || objectiveTicks <= displaySeconds * 20))
             renderObjective(graphics, client);

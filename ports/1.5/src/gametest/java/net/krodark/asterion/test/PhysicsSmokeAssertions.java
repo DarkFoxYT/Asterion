@@ -18,7 +18,11 @@ public final class PhysicsSmokeAssertions {
                     throw new AssertionError("Non-finite physics state");
                 if(velocity.lengthSqr()>256) throw new AssertionError("Unstable ragdoll velocity");
             }
-            if(count<6) throw new AssertionError("Missing body segments: "+count);
+            if (net.krodark.asterion.physics.PhysicsCompatibility.externalPlayerPhysics()) {
+                if (count != 0) throw new AssertionError("Asterion created a competing Sable player body: " + count);
+                if (net.krodark.asterion.port.client.PortRagdolls.localMovementLocked())
+                    throw new AssertionError("Asterion locked Sable player movement");
+            } else if(count<6) throw new AssertionError("Missing body segments: "+count);
         } catch(ReflectiveOperationException error) { throw new AssertionError(error); }
     }
     private static Object value(Object instance,String name) throws ReflectiveOperationException {

@@ -216,6 +216,7 @@ public final class RagdollServerNetworking {
     }
 
     public static void markRagdolled(ServerPlayer player, int ticks) {
+        if (net.krodark.asterion.physics.PhysicsCompatibility.externalPlayerPhysics()) return;
         if (respawnProtected(player)) return;
         if (player.isSpectator()) return;
         long expires = player.level().getServer().getTickCount() + Math.max(1, ticks);

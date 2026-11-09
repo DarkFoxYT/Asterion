@@ -73,6 +73,9 @@ public final class PortClientFeatures {
         net.krodark.asterion.port.client.particle.AnimatedEmissiveParticle.initialize();
         net.krodark.asterion.port.client.particle.AsterionEmissiveParticles.initialize();
         net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents.START.register(context -> {
+            // Use the final world projection, including zoom mods' FOV changes.
+            if (!com.meekdev.amnetic.client.scene.internal.CaptureManager.INSTANCE.isCapturing())
+                com.meekdev.amnetic.client.camera.internal.FrameView.INSTANCE.setProjection(context.projectionMatrix());
             Minecraft client = Minecraft.getInstance();
             PortPerformanceGovernor.frame(client);
             PortHeldItemLights.renderFrame(client, client.getTimer().getGameTimeDeltaPartialTick(true));

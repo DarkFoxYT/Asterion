@@ -1,0 +1,9 @@
+# Asterion 1.7.1
+
+- Move labyrinth chunk repairs out of chunk-load callbacks to prevent loading deadlocks with physics mods ([#6](https://github.com/DarkFoxYT/Asterion/issues/6)).
+- Keep Minotaur knockback without starting a second player ragdoll when Sable is installed.
+- Refresh Amnetic's projection each frame so zoom changes reach the world view.
+- Hide the Queen Beetle quest HUD outside the labyrinth and resume it on return.
+- Fix clearing the Antikythera Mechanism's compass target on Minecraft 1.20.1.
+- Hide the vanilla sun, moon and stars in the labyrinth's authored sky.
+- Align forge staircases with their jigsaw doorway and add a clear, three-wide stairway down into the forge. Existing entrances receive the repair when loaded.

@@ -3,6 +3,11 @@ package net.krodark.asterion.test;
 public final class NeoSmoke {
  public NeoSmoke(net.neoforged.bus.api.IEventBus bus) {
   bus.addListener((net.neoforged.fml.event.lifecycle.FMLClientSetupEvent event) -> event.enqueueWork(() -> {
+   if(net.neoforged.fml.ModList.get().isLoaded("sable")) {
+    if(!net.krodark.asterion.physics.PhysicsCompatibility.externalPlayerPhysics())
+     throw new AssertionError("Sable compatibility was not detected by the production classloader");
+    net.krodark.asterion.Asterion.LOGGER.info("ASTERION_SABLE PASS: production classloader detected external player physics");
+   }
    if(System.getProperty("asterion.expectedReleaseJar") != null) {
     try {
      var actual=net.neoforged.fml.ModList.get().getModContainerById("asterion").orElseThrow()

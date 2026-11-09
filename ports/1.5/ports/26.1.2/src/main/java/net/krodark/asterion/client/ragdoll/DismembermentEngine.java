@@ -1384,6 +1384,8 @@ public final class DismembermentEngine {
     }
 
     public static boolean isRagdollExcluded(Entity entity) {
+        if (entity instanceof net.minecraft.world.entity.player.Player
+                && net.krodark.asterion.physics.PhysicsCompatibility.externalPlayerPhysics()) return true;
         if (entity == null) return true;
         if (entity instanceof net.krodark.asterion.entity.ScarletCentipedeEntity
                 || entity instanceof net.krodark.asterion.entity.CentipedeSegmentEntity) return true;
@@ -1442,6 +1444,7 @@ public final class DismembermentEngine {
     }
 
     public void forcePlayerTumble(Minecraft client, Vec3 sourcePosition, Vec3 impulse, float force) {
+        if (net.krodark.asterion.physics.PhysicsCompatibility.externalPlayerPhysics()) return;
         if (net.krodark.asterion.client.AsterionClient.isPlayback(client)) return;
         if (client.player == null || !client.player.isAlive() || client.player.isSpectator()
                 || client.level == null || !inAsterion(client.player)) return;

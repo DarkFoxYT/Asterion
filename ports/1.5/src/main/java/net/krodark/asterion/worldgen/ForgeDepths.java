@@ -48,15 +48,22 @@ public final class ForgeDepths {
                 : ((net.minecraft.world.level.WorldGenLevel)world).getLevel();
         BlockPos center = AuthoredForge.entranceCenter(level, chunk);
         int cx = center.getX(), cz = center.getZ(), feet = center.getY();
-        if (chunk.getMaxBlockX() < cx - 50 || chunk.getMinBlockX() > cx - 9
-                || chunk.getMaxBlockZ() < cz - 11 || chunk.getMinBlockZ() > cz + 11) return;
+        if (chunk.getMaxBlockX() < cx - 64 || chunk.getMinBlockX() > cx + 64
+                || chunk.getMaxBlockZ() < cz - 64 || chunk.getMinBlockZ() > cz + 64) return;
         var template = level.getStructureManager().get(Asterion.id("forge/staircase")).orElseThrow();
-        var bottomPort = net.krodark.asterion.port.compat.JigsawCompat.getJigsaws(
+        var entrance = AuthoredForge.entrance(level, chunk);
+        BlockPos socket = entrance.position();
+        var unrotatedPort = net.krodark.asterion.port.compat.JigsawCompat.getJigsaws(
                         template, BlockPos.ZERO, net.minecraft.world.level.block.Rotation.NONE).stream()
-                .filter(port -> port.info().pos().getY() == 1).findFirst().orElseThrow();
-        BlockPos socket = AuthoredForge.westSocket(level, chunk);
-        BlockPos origin = socket.west().subtract(bottomPort.info().pos());
-        var bounds = template.getBoundingBox(new net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings(), origin);
+                .min(java.util.Comparator.comparingInt(p -> p.info().pos().getY())).orElseThrow();
+        Direction localFace = net.minecraft.world.level.block.JigsawBlock.getFrontFacing(unrotatedPort.info().state());
+        var rotation = net.minecraft.world.level.block.Rotation.NONE;
+        for (var candidate : net.minecraft.world.level.block.Rotation.values())
+            if (candidate.rotate(localFace) == entrance.facing().getOpposite()) { rotation = candidate; break; }
+        BlockPos rotatedPort = net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.transform(
+                unrotatedPort.info().pos(), net.minecraft.world.level.block.Mirror.NONE, rotation, BlockPos.ZERO);
+        BlockPos origin = socket.relative(entrance.facing()).subtract(rotatedPort);
+        var bounds = template.getBoundingBox(new net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings().setRotation(rotation), origin);
          
          
         var clip = new net.minecraft.world.level.levelgen.structure.BoundingBox(chunk.getMinBlockX(), level.getMinBuildHeight(),
@@ -67,14 +74,14 @@ public final class ForgeDepths {
                     Math.max(clip.minX(), bounds.minX()), Math.max(clip.minY(), bounds.minY()), Math.max(clip.minZ(), bounds.minZ()),
                     Math.min(clip.maxX(), bounds.maxX()), Math.min(clip.maxY(), bounds.maxY()),
                     Math.min(clip.maxZ(), bounds.maxZ()));
-            template.placeInWorld(world, origin, origin, AuthoredCatacombs.settings(stairClip),
+            template.placeInWorld(world, origin, origin, AuthoredCatacombs.settings(stairClip).setRotation(rotation),
                     net.minecraft.util.RandomSource.create(origin.asLong()), 18);
         }
         long seed = MazeChunkGenerator.terrainSeed(level.getChunkSource().randomState());
-        int tx = Math.floorDiv(origin.getX(), 19), tz = Math.floorDiv(origin.getZ(), 19);
+        int tx = Math.floorDiv(bounds.minX(), 19), tz = Math.floorDiv(bounds.minZ(), 19);
         int exits = AuthoredCatacombs.exits(seed, tx, tz);
         for (var port : net.krodark.asterion.port.compat.JigsawCompat.getJigsaws(
-                template, origin, net.minecraft.world.level.block.Rotation.NONE)) {
+                template, origin, rotation)) {
             if (port.info().pos().getY() != AuthoredCatacombs.CONNECTOR_Y) continue;
             Direction face = net.minecraft.world.level.block.JigsawBlock.getFrontFacing(port.info().state());
             int bit = switch (face) { case NORTH -> 1; case EAST -> 2; case SOUTH -> 4; case WEST -> 8; default -> 0; };
@@ -93,18 +100,42 @@ public final class ForgeDepths {
             }
         }
          
-        if (chunk.getMaxBlockX() >= origin.getX() && chunk.getMinBlockX() <= socket.getX() + 2
-                && chunk.getMaxBlockZ() >= origin.getZ() && chunk.getMinBlockZ() <= origin.getZ() + 18)
-        for (BlockPos pos : BlockPos.betweenClosed(Math.max(chunk.getMinBlockX(), origin.getX()), origin.getY(),
-                Math.max(chunk.getMinBlockZ(), origin.getZ()), Math.min(chunk.getMaxBlockX(), socket.getX() + 2),
-                Math.min(bounds.maxY(), level.getMaxBuildHeight() - 1), Math.min(chunk.getMaxBlockZ(), bounds.maxZ()))) {
-            var state = world.getBlockState(pos);
-            if (state.getBlock() instanceof net.krodark.asterion.block.DirectionalGateBlock
-                    && !state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.OPEN))
-                world.setBlock(pos, state.setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.OPEN, true), 18);
-        }
+        if (bounds.intersects(clip))
+            for (BlockPos pos : BlockPos.betweenClosed(Math.max(clip.minX(), bounds.minX()), Math.max(clip.minY(), bounds.minY()),
+                    Math.max(clip.minZ(), bounds.minZ()), Math.min(clip.maxX(), bounds.maxX()),
+                    Math.min(clip.maxY(), bounds.maxY()), Math.min(clip.maxZ(), bounds.maxZ()))) {
+                var state = world.getBlockState(pos);
+                if (state.getBlock() instanceof net.krodark.asterion.block.DirectionalGateBlock
+                        && !state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.OPEN))
+                    world.setBlock(pos, state.setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.OPEN, true), 18);
+            }
+        buildInteriorStairs(world, clip, entrance);
         ForgeCaveEntrance.place(world, chunk, seed, cx, cz, feet);
         world.setBlock(accessMarker(chunk), accessRevision(), 18);
+    }
+
+    /** Three-wide walking access from the actual doorway down to the forge floor. */
+    private static void buildInteriorStairs(ServerLevelAccessor world,
+            net.minecraft.world.level.levelgen.structure.BoundingBox clip, AuthoredForge.Entrance entrance) {
+        Direction inward = entrance.facing().getOpposite();
+        Direction side = inward.getClockWise();
+        int drop = Math.max(0, entrance.position().getY() - (FLOOR_Y + 1));
+        for (int step = 0; step <= drop + 2; step++) {
+            BlockPos feet = entrance.position().relative(inward, step).below(Math.min(step, drop));
+            for (int width = -1; width <= 1; width++) {
+                BlockPos cell = feet.relative(side, width);
+                if (!clip.isInside(cell)) continue;
+                BlockState tread = step < drop
+                        ? Asterion.POLISHED_MAZESTEEL_STAIRS.defaultBlockState()
+                                .setValue(net.minecraft.world.level.block.StairBlock.FACING, entrance.facing())
+                        : Asterion.POLISHED_MAZESTEEL.defaultBlockState();
+                for (int depth = 1; depth <= 3; depth++)
+                    if (clip.isInside(cell.below(depth))) world.setBlock(cell.below(depth),
+                            depth == 1 ? tread : Asterion.POLISHED_MAZESTEEL.defaultBlockState(), 18);
+                for (int head = 0; head < 4; head++)
+                    if (clip.isInside(cell.above(head))) world.setBlock(cell.above(head), Blocks.AIR.defaultBlockState(), 18);
+            }
+        }
     }
 
     public static void repairAccess(net.minecraft.server.level.ServerLevel level,
@@ -114,5 +145,5 @@ public final class ForgeDepths {
     }
 
     private static BlockPos accessMarker(ChunkPos chunk) { return new BlockPos(chunk.getMinBlockX(), 15, chunk.getMinBlockZ()); }
-    private static BlockState accessRevision() { return Blocks.LIGHT.defaultBlockState().setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 6); }
+    private static BlockState accessRevision() { return Blocks.LIGHT.defaultBlockState().setValue(net.minecraft.world.level.block.LightBlock.LEVEL, 7); }
 }

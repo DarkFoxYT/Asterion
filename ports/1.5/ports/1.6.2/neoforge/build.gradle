@@ -5,6 +5,10 @@ plugins {
 }
 
 version = project.mod_version
+// Include generated sources only after their producers have completed.
+tasks.withType(Jar).matching { it.name == 'sourcesJar' }.configureEach {
+    dependsOn 'stonecutterGenerate', 'generateNativeAdapters'
+}
 // Stonecutter owns project groups to distinguish version nodes.
 
 base {
