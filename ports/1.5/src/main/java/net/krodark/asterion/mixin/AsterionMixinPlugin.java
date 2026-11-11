@@ -22,16 +22,13 @@ public final class AsterionMixinPlugin implements IMixinConfigPlugin {
         if (!mixinClassName.equals("net.krodark.asterion.mixin.PortSpriteInterpolationMixin")) return true;
         // These renderers replace vanilla's interpolation/upload method. Let the
         // installed renderer own it; never inject into another mixin's overwrite.
-        // Inspect bytecode without initializing renderer or Minecraft classes.
+        // Check resources only: asking the bytecode provider to transform an
+        // optional renderer's mixin here can re-enter mixin preparation.
         for (String rendererMixin : List.of(
                 "net.caffeinemc.mods.sodium.mixin.features.textures.animations.upload.SpriteContentsInterpolationMixin",
+                "me.jellysquid.mods.sodium.mixin.features.textures.animations.upload.SpriteContentsInterpolationMixin",
                 "org.embeddedt.embeddium.impl.mixin.features.textures.animations.upload.SpriteContentsInterpolationMixin")) {
-            try {
-                MixinService.getService().getBytecodeProvider().getClassNode(rendererMixin);
-                return false;
-            } catch (ClassNotFoundException | IOException absent) {
-                // Try the next optional renderer.
-            }
+            if (present(rendererMixin)) return false;
         }
         return true;
     }

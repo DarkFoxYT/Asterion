@@ -1,25 +1,17 @@
 package net.krodark.asterion.mixin;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
-import org.spongepowered.asm.service.MixinService;
 
 /** Sodium 0.5 still uses the original Sodium package name. */
 public final class LegacySodiumMixinPlugin implements IMixinConfigPlugin {
     private final AsterionMixinPlugin shared = new AsterionMixinPlugin();
 
     @Override public boolean shouldApplyMixin(String target, String mixin) {
-        if (!shared.shouldApplyMixin(target, mixin)) return false;
-        if (!mixin.endsWith(".PortSpriteInterpolationMixin")) return true;
-        try {
-            MixinService.getService().getBytecodeProvider().getClassNode(
-                    "me.jellysquid.mods.sodium.mixin.features.textures.animations.upload.SpriteContentsInterpolationMixin");
-            return false;
-        } catch (ClassNotFoundException | IOException absent) { return true; }
+        return shared.shouldApplyMixin(target, mixin);
     }
 
     @Override public void onLoad(String mixinPackage) { }

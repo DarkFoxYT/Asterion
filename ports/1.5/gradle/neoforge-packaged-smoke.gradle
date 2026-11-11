@@ -12,6 +12,9 @@ neoForge.addModdingDependenciesTo(sourceSets.packagedSmoke)
 neoForge.addModdingDependenciesTo(sourceSets.packagedServerSmoke)
 dependencies {
     packagedSmokeRuntimeOnly files(tasks.named('jar'), packagedHarness)
+    if (project.hasProperty('embeddiumJar')) {
+        packagedSmokeRuntimeOnly files(project.property('embeddiumJar'))
+    }
     packagedServerSmokeRuntimeOnly files(tasks.named('jar'))
     if (project.hasProperty('serverGameplaySmoke')) packagedServerSmokeRuntimeOnly files(packagedHarness)
 }
@@ -27,7 +30,8 @@ neoForge.runs {
         client()
         sourceSet = sourceSets.packagedSmoke
         loadedMods = []
-        gameDirectory = layout.buildDirectory.dir('run/packaged-smoke-client').get().asFile
+        gameDirectory = layout.buildDirectory.dir(project.hasProperty('embeddiumSmoke')
+                ? 'run/embeddium-smoke-client' : 'run/packaged-smoke-client').get().asFile
         systemProperty 'asterion.clientSmoke', 'true'
         systemProperty 'asterion.nativeAmneticSmoke', 'true'
         systemProperty 'amnetic.opengl.debug', 'true'
