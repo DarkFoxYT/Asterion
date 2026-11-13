@@ -139,6 +139,21 @@ public final class ClientSmokeTest implements ClientModInitializer {
             PerformanceSmoke.tick(client, worldTicks);
             return;
         }
+        if (Boolean.getBoolean("asterion.dimensionEntrySmoke")) {
+            if (worldTicks == 20) client.getSingleplayerServer().execute(() -> {
+                var server = client.getSingleplayerServer();
+                server.getCommands().performPrefixedCommand(server.createCommandSourceStack(),
+                        "execute in asterion:labyrinth run tp @a 0 180 0");
+            });
+            if (worldTicks >= 160) {
+                if (!client.level.dimension().equals(Asterion.ASTERION_LEVEL))
+                    throw new AssertionError("Labyrinth transfer failed");
+                verifyGraphicsAndTaa();
+                Asterion.LOGGER.info("ASTERION_DIMENSION_ENTRY PASS: labyrinth loaded and rendered");
+                client.stop();
+            }
+            return;
+        }
         if (worldTicks == 20) LayerVisibilityRegression.run(client);
         if (worldTicks == 22) ObeliskInventoryPreview.show(client);
         if (worldTicks == 28) ObeliskInventoryPreview.capture(client);

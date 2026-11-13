@@ -5,6 +5,12 @@ stonecutter.active '1.21.1'
 apply from: file('gradle/curseforge-release.gradle')
 stonecutter.parameters {
     replacements {
+        string(current.parsed < '1.20.5') {
+            // NeoBackports adds the modern serialization names to vanilla 1.20.1.
+            // Keep our bridge distinct so its super calls cannot dispatch back to it.
+            replace('loadAdditional(', 'asterionLoadAdditional(')
+            replace('saveAdditional(', 'asterionSaveAdditional(')
+        }
         string(current.project.endsWith('-forge') && current.parsed < '1.20.5') {
             replace('net.krodark.asterion.port.legacy.gecko.GeoRenderProvider', 'net.krodark.asterion.port.forge.gecko.GeoRenderProvider')
             replace('net.krodark.asterion.port.legacy.gecko.GeoItem', 'net.krodark.asterion.port.forge.gecko.GeoItem')
