@@ -3,7 +3,7 @@ loaderVersion="[4,)"
 license="All-Rights-Reserved"
 [[mods]]
 modId="amnetic"
-version="1.0.0-asterion.9+1.21.1"
+version="1.0.0-asterion.10+1.21.1"
 displayName="Amnetic"
 description="Amnetic renderer with the Asterion native NeoForge lifecycle adapter."
 [[mixins]]

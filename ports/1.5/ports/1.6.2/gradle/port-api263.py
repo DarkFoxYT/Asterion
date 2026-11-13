@@ -101,33 +101,6 @@ for path in root.rglob('*.java'):
     if path.name == 'RenderRemnantCaptureFrameMixin.java':
         text = text.replace('Lcom/mojang/blaze3d/systems/CommandEncoder;', 'Lcom/mojang/renderpearl/api/commands/CommandEncoder;')
         text = text.replace('@Inject(method = "renderLevel", at = @At(value = "INVOKE",', '@Inject(method = "render", at = @At(value = "INVOKE",')
-    if path.name == 'AmneticBloomPerformanceMixin.java':
-        if platform in {'forge', 'neoforge'}:
-            # The native path always runs its prefilter: threshold zero means
-            # bloom every terrain pixel, unlike the GL path's skip sentinel.
-            # Preserve the real threshold for emissive sources and guard the
-            # unwanted whole-scene fallback before allocating/rendering it.
-            text = '''package net.krodark.asterion.mixin;
-import com.meekdev.amnetic.client.bloom.BloomSettings;
-import com.meekdev.amnetic.client.bloom.internal.BloomRenderer;
-import com.meekdev.amnetic.client.gbuffer.internal.GBufferTargets;
-import net.krodark.asterion.client.light.AsterionEmissiveConfig;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-@Mixin(value = BloomRenderer.class, remap = false)
-public abstract class AmneticBloomPerformanceMixin {
-    @Inject(method = "renderNative", at = @At("HEAD"), cancellable = true, require = 1)
-    private void asterion$nativeBloomPolicy(BloomSettings settings, CallbackInfo callback) {
-        boolean emissive = GBufferTargets.INSTANCE.isPopulated() && GBufferTargets.INSTANCE.hasEmissive();
-        if (net.krodark.asterion.port.client.ShaderCompatibility.externalShadersActive()
-                || (!emissive && !AsterionEmissiveConfig.sceneBloomEnabled())) callback.cancel();
-    }
-}
-'''
-        else:
-            text = text.replace('@WrapOperation(method = "render",', '@WrapOperation(method = {"render", "renderNative"},')
     if path.name == 'EnchantmentRegression.java':
         text = text.replace('queen.interact(player, InteractionHand.MAIN_HAND)', 'queen.interact(player, InteractionHand.MAIN_HAND, Vec3.ZERO)')
     if path.name == 'TextureLoadingRegression.java':

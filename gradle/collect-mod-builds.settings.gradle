@@ -152,10 +152,16 @@ gradle.projectsEvaluated {
                                 boolean helper = false, guarded = false
                                 for (def entry = nested.nextEntry; entry != null; entry = nested.nextEntry) {
                                     def prefix = 'com/meekdev/amnetic/client/particle/editor/'
-                                    if (entry.name == prefix + 'EffectPresetFiles.class') helper = true
+                                    if (entry.name == prefix + 'EffectPresetFiles.class') {
+                                        def code = new String(nested.readAllBytes(), java.nio.charset.StandardCharsets.ISO_8859_1)
+                                        helper = ['NOFOLLOW_LINKS', 'toRealPath', 'validName', 'MAX_BYTES'].every { code.contains(it) }
+                                    }
                                     if (entry.name == prefix + 'EffectIO.class') {
                                         def code = new String(nested.readAllBytes(), java.nio.charset.StandardCharsets.ISO_8859_1)
-                                        guarded = code.contains('SafePresetIO') && code.contains('validateName') && !code.contains('java/nio/file/Files')
+                                        // Current upstream incorporates the checked file helper
+                                        // directly; older release inputs use our SafePresetIO bridge.
+                                        guarded = ((code.contains('SafePresetIO') && code.contains('validateName')) ||
+                                                code.contains(prefix + 'EffectPresetFiles')) && !code.contains('java/nio/file/Files')
                                     }
                                 }
                                 if (!helper || !guarded) throw new GradleException('Bundled Amnetic lacks safe preset storage; repair renderer inputs before release')

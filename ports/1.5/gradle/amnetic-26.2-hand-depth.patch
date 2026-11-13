@@ -1,0 +1,35 @@
+diff --git a/src/main/java/com/meekdev/amnetic/mixin/MinecraftMainTargetMixin.java b/src/main/java/com/meekdev/amnetic/mixin/MinecraftMainTargetMixin.java
+index 836229c..aef3213 100644
+--- a/src/main/java/com/meekdev/amnetic/mixin/MinecraftMainTargetMixin.java
++++ b/src/main/java/com/meekdev/amnetic/mixin/MinecraftMainTargetMixin.java
+@@ -38,11 +38,5 @@ public abstract class MinecraftMainTargetMixin {
+         }
+     }
+ 
+-    //? if >=26.2 {
+-    /*@Redirect(method = "renderLevel", at = @At(value = "FIELD", opcode = Opcodes.GETFIELD,
+-            target = "Lnet/minecraft/client/renderer/GameRenderer;mainRenderTarget:Lcom/mojang/blaze3d/pipeline/RenderTarget;"))
+-    private RenderTarget amnetic$levelMainTarget(GameRenderer renderer) {
+-        return renderer.mainRenderTarget();
+-    }
+-    *///?}
++    // RenderPearlGameRendererMixin redirects world/hand field reads on 26.2+.
+ }
+diff --git a/src/main/java/com/meekdev/amnetic/mixin/RenderPearlGameRendererMixin.java b/src/main/java/com/meekdev/amnetic/mixin/RenderPearlGameRendererMixin.java
+index 7579cd1..f53245b 100644
+--- a/src/main/java/com/meekdev/amnetic/mixin/RenderPearlGameRendererMixin.java
++++ b/src/main/java/com/meekdev/amnetic/mixin/RenderPearlGameRendererMixin.java
+@@ -136,11 +136,13 @@ public abstract class RenderPearlGameRendererMixin {
+         Pipeline.runStage(RenderStage.AFTER_HAND);
+     }
+ 
++    //? if >=26.3 {
+     @org.spongepowered.asm.mixin.injection.ModifyArg(method="renderItemInHand",at=@At(value="INVOKE",target="Lcom/mojang/renderpearl/api/commands/CommandEncoder;createRenderPass(Ljava/util/function/Supplier;Lcom/mojang/renderpearl/api/textures/GpuTextureView;Ljava/util/Optional;Lcom/mojang/renderpearl/api/textures/GpuTextureView;Ljava/util/OptionalDouble;)Lcom/mojang/renderpearl/api/commands/RenderPass;"),index=3)
+     private GpuTextureView amnetic$handDepth(GpuTextureView depth) {
+         var target=LayerRedirect.active();
+         return target==null?depth:target.getDepthTextureView();
+     }
++    //? }
+ 
+     @Inject(method = "render", at = @At(value = "INVOKE",
+             target = "Lcom/mojang/renderpearl/api/commands/CommandEncoder;clearDepthTexture(Lcom/mojang/renderpearl/api/textures/GpuTexture;D)V"))

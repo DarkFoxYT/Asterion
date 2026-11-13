@@ -21,7 +21,7 @@ def minecraftVersion = sc.current.version
 def legacy = sc.current.parsed < '1.20.5'
 def forgeVersion = legacy ? '47.4.28' : '52.1.20'
 def geckolibVersion = legacy ? '4.8.2' : rootProject.geckolib_version
-def amneticJar = rootProject.file("libs/amnetic-forge-1.0-SNAPSHOT+${minecraftVersion}-forge.jar")
+def amneticJar = rootProject.file("libs/amnetic-forge-1.0.0-asterion.10+${minecraftVersion}-forge.jar")
 def forgifiedJar = rootProject.file(legacy ? 'libs/forgified-fabric-api-1.20.1.jar' :
         'libs/forgified-fabric-api-1.21.1-neoforge.jar')
 def extractedForgified = layout.buildDirectory.dir('forgified-api-compile')

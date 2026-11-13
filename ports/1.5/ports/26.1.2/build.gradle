@@ -91,8 +91,7 @@ dependencies {
     // runtimeOnly deliberately keeps ImGuiMC out of Asterion's distributable jar.
     runtimeOnly "foundry.imguimc:imguimc-fabric-26.1:${project.imguimc_version}"
 
-    implementation "asterion.bundled:bb4j:0.0.0-c2242d5"
-    include "asterion.bundled:bb4j:0.0.0-c2242d5"
+    // Amnetic includes its matching BB4J classes; avoid an older duplicate.
 
     runtimeOnly "org.lwjgl:lwjgl-assimp:3.4.1:natives-linux-arm64"
     include "org.lwjgl:lwjgl-assimp:3.4.1:natives-linux-arm64"

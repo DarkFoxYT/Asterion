@@ -12,7 +12,7 @@ import java.util.zip.*;
 public final class PrepareIntegratedAmnetic {
     private static final String UI = "com/meekdev/amnetic/client/ui/";
     private static final String PRESETS = "com/meekdev/amnetic/client/particle/editor/";
-    private static int editorRegistration, editorProfiling;
+    private static int editorRegistration, editorProfiling, editorTick;
 
     private static byte[] runtimeClass(byte[] original) {
         ClassWriter output = new ClassWriter(0);
@@ -32,6 +32,11 @@ public final class PrepareIntegratedAmnetic {
                                 && desc.equals("()Z") && opcode == Opcodes.INVOKESTATIC) {
                             editorProfiling++;
                             super.visitInsn(Opcodes.ICONST_0);
+                            return;
+                        }
+                        if (owner.equals(UI + "AmneticEditorBridge") && method.equals("tick")
+                                && desc.equals("()V") && opcode == Opcodes.INVOKESTATIC) {
+                            editorTick++;
                             return;
                         }
                         super.visitMethodInsn(opcode, owner, method, desc, itf);
@@ -86,9 +91,9 @@ public final class PrepareIntegratedAmnetic {
                 write(root, name, bytes);
             }
         }
-        if (editorRegistration != 1 || editorProfiling != 1)
+        if (editorRegistration != 1 || editorProfiling + editorTick != 1)
             throw new IllegalStateException("Unexpected renderer editor entrypoints: "
-                    + editorRegistration + "/" + editorProfiling);
+                    + editorRegistration + "/" + editorProfiling + "/" + editorTick);
         if (!removed.contains(PRESETS + "EffectIO.class"))
             throw new IllegalStateException("Expected particle preset file API was not removed");
 

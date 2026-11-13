@@ -10,9 +10,19 @@ final class PolishSmoke {
     private static float diamond;
     private static String pendingSnapshot;
     private static Vec3 hand;
+    private static volatile boolean watchIgnition, ignitionObserved;
     private static net.minecraft.client.gui.components.LerpingBossEvent bar;
     static void register(java.util.function.IntSupplier ticks) {
         if (!Boolean.getBoolean("asterion.polishSmoke")) return;
+        // Observe the ten-server-tick cooldown on the server, rather than
+        // sampling it after a variable number of rendered client frames.
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
+            if (watchIgnition) for (var player : server.getPlayerList().getPlayers()) {
+                if (player.getMainHandItem().is(net.krodark.asterion.game.GameplayContent.FLAMETHROWER)
+                        && player.getCooldowns().isOnCooldown(net.krodark.asterion.game.GameplayContent.FLAMETHROWER))
+                    ignitionObserved = true;
+            }
+        });
         com.meekdev.amnetic.client.pipeline.Pipeline.add(com.meekdev.amnetic.client.pipeline.RenderStage.AFTER_GUI,99999,"Polish frame capture",context -> {
             if (pendingSnapshot != null) {
                 var client=Minecraft.getInstance();
@@ -97,6 +107,8 @@ final class PolishSmoke {
         if (tick == 275) GameplaySmoke.server(client,p -> p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,
                 new ItemStack(net.krodark.asterion.game.GameplayContent.FLAMETHROWER)));
         if (tick == 280) GameplaySmoke.server(client,p -> {
+            ignitionObserved = false;
+            watchIgnition = true;
             net.krodark.asterion.game.GameplayContent.FLAMETHROWER.onUseTick(p.serverLevel(),p,p.getMainHandItem(),71980);
         });
         if (tick == 285) {
@@ -117,7 +129,8 @@ final class PolishSmoke {
             } catch(ReflectiveOperationException error) {throw new AssertionError(error);}
         }
         if (tick == 290) GameplaySmoke.server(client,p -> {
-            if (!p.getCooldowns().isOnCooldown(net.krodark.asterion.game.GameplayContent.FLAMETHROWER))
+            watchIgnition = false;
+            if (!ignitionObserved)
                 throw new AssertionError("Flamethrower ignition packet did not activate the weapon");
             if (net.krodark.asterion.game.GasClouds.ignite(p.serverLevel(),p.getEyePosition(),p.getUUID()))
                 throw new AssertionError("Flamethrower gas was not ignited by its weapon packet");

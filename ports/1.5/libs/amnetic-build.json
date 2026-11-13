@@ -1,49 +1,63 @@
 {
-  "upstreamCommit": "0b727183ec2d18514cdeb0d4bdc7a2c2692890c5",
-  "version": "1.0.0-asterion.9",
-  "renderer": "Amnetic; Veil removed",
-  "patches": [
-    "Private relocated glTF/Jackson readers for Quilt and Connector",
-    "Legacy OpenGL vertex-array state repair",
-    "Postprocessing clear color and blit shader compatibility",
-    "TAA disabled whenever Asterion is loaded",
-    "Iris checks active shader packs rather than installation alone",
-    "Optional window-context wrapper for NeoForge",
-    "Full-resolution emission depth testing with independently scaled bloom blur",
-    "Composable Sodium window creation, compatible debug hints, working OpenGL fallback"
-  ],
-  "rebuild": "gradlew.bat :1.20.1:build :1.21.1:build -Pmod_version=1.0.0-asterion.9",
+  "upstream": "https://github.com/Meekiavelique/Amnetic",
+  "upstreamCommit": "50883bac26bd49a464105afa46ac6d1e09bda333",
+  "version": "1.0.0-asterion.10",
   "artifacts": [
     {
-      "file": "amnetic-1.0.0-asterion.9+1.20.1.jar",
+      "file": "amnetic-1.0.0-asterion.10+1.20.1.jar",
       "minecraft": "1.20.1",
-      "sha256": "0a78718215e871989122276ee443a717cf49811d9706eb1e4f8b45d5930a4679"
+      "loader": "fabric",
+      "developmentMappings": false,
+      "sourceArtifact": "versions/1.20.1-fabric/build/libs/amnetic-1.0.0-asterion.10+1.20.1.jar",
+      "sourcePatch": null,
+      "upstreamSha256": "90d506b89c5b3d2a00bc45b1af7600e114081e393495f7b5e9607ba2a3abdf48",
+      "sha256": "90d506b89c5b3d2a00bc45b1af7600e114081e393495f7b5e9607ba2a3abdf48"
     },
     {
-      "file": "amnetic-1.0.0-asterion.9+1.21.1.jar",
+      "file": "amnetic-forge-1.0.0-asterion.10+1.20.1-forge.jar",
+      "minecraft": "1.20.1",
+      "loader": "forge",
+      "developmentMappings": false,
+      "sourceArtifact": "versions/1.20.1-forge/build/libs/amnetic-forge-1.0.0-asterion.10+1.20.1-forge.jar",
+      "sourcePatch": null,
+      "upstreamSha256": "a8c667e9bf510149ea1be6c052dde716d2c1ea4cb8b1b9f3bd67cc93250115c5",
+      "sha256": "a8c667e9bf510149ea1be6c052dde716d2c1ea4cb8b1b9f3bd67cc93250115c5"
+    },
+    {
+      "file": "amnetic-1.0.0-asterion.10+1.21.1.jar",
       "minecraft": "1.21.1",
-      "sha256": "ebe38210f5542b1efeb3fe5e6ab7ed7f6596a3d7f36a3065f6c2e4b4242f20d6"
+      "loader": "fabric",
+      "developmentMappings": false,
+      "sourceArtifact": "versions/1.21.1-fabric/build/libs/amnetic-1.0.0-asterion.10+1.21.1.jar",
+      "sourcePatch": null,
+      "upstreamSha256": "19f5ea89f05a581d272321222f041e4b9bb403c807916ca1d0fa230238419763",
+      "sha256": "19f5ea89f05a581d272321222f041e4b9bb403c807916ca1d0fa230238419763"
+    },
+    {
+      "file": "amnetic-forge-1.0.0-asterion.10+1.21.1-forge.jar",
+      "minecraft": "1.21.1",
+      "loader": "forge",
+      "developmentMappings": false,
+      "sourceArtifact": "versions/1.21.1-forge/build/libs/amnetic-forge-1.0.0-asterion.10+1.21.1-forge.jar",
+      "sourcePatch": null,
+      "upstreamSha256": "eea7de63a12de69f5a0b83a806ed8b67f369b3a8a69244aa6486503885b5ac0c",
+      "sha256": "eea7de63a12de69f5a0b83a806ed8b67f369b3a8a69244aa6486503885b5ac0c"
+    },
+    {
+      "file": "amnetic-1.0.0-asterion.10+1.21.1-dev.jar",
+      "minecraft": "1.21.1",
+      "loader": "fabric",
+      "developmentMappings": true,
+      "sourceArtifact": "versions/1.21.1-fabric/build/libs/amnetic-1.0.0-asterion.10+1.21.1-dev-shadow.jar",
+      "sourcePatch": null,
+      "upstreamSha256": "810de2b38bce903d618c1724fbdd034440ae4c417fc09a99da13354db88133a6",
+      "sha256": "810de2b38bce903d618c1724fbdd034440ae4c417fc09a99da13354db88133a6"
     }
   ],
-  "portCommit": "cd28f76f57d5be75c048dfc0588a6277673bf8f0",
-  "nativeNeoForge": {
-    "source": "neoforge/src/amneticNative",
-    "build": "gradle/amnetic-neoforge.gradle",
-    "sharedArtifact": "libs/amnetic-1.0.0-asterion.9+1.21.1-dev.jar",
-    "connectorRequired": false,
-    "packaging": "Embedded in Asterion alongside Forgified Fabric API and Assimp"
-  },
-  "presetSafety": {
-    "patch": "tools/patch-amnetic-preset-safety.py",
-    "sourceFix": "docs/curseforge/amnetic-preset-safety.patch",
-    "artifacts": {
-      "amnetic-1.0-SNAPSHOT+1.20.1.jar": "b64d4a5e48c3f00df491f12fa141d646684ac5eb20c0f049bc5aff49bcd63fba",
-      "amnetic-1.0-SNAPSHOT+1.21.1.jar": "4b0af704ed1cd0c49850c5942de3e432ae9a19c8db94a5aa0d89537e71a136fb",
-      "amnetic-1.0.0-asterion.9+1.20.1.jar": "0a78718215e871989122276ee443a717cf49811d9706eb1e4f8b45d5930a4679",
-      "amnetic-1.0.0-asterion.9+1.21.1-dev.jar": "637ac860eae9feb2928e614443bcfbc73cd6539d5075db7d6c428e99cc6ce035",
-      "amnetic-1.0.0-asterion.9+1.21.1.jar": "ebe38210f5542b1efeb3fe5e6ab7ed7f6596a3d7f36a3065f6c2e4b4242f20d6",
-      "amnetic-forge-1.0-SNAPSHOT+1.20.1-forge.jar": "3dfefd8e84bf72b2789f2e5d3d0516bc94000eeb3cd656a1036088130795babf",
-      "amnetic-forge-1.0-SNAPSHOT+1.21.1-forge.jar": "b0f369db22838091d93a4850b78601f477c81d2f32a98e5a418bb5cc5fb6ab95"
-    }
-  }
+  "preparation": [
+    "Minecraft-specific resource-pack metadata for the extra Fabric/Quilt ports",
+    "Forge 26.2/26.3 uses Minecraft TinyFD and supported Mixin metadata",
+    "Native adapters and API isolation are applied by the Asterion build"
+  ],
+  "rebuild": "Apply ports/1.5/gradle/amnetic-26.2-hand-depth.patch, build source targets with -Pmod_version=1.0.0-asterion.10, then run ports/1.5/gradle/stage-amnetic-renderers.py CHECKOUT"
 }

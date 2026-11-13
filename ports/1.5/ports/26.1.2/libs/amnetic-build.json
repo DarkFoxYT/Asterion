@@ -1,24 +1,43 @@
 {
-  "installation": "Built from supplied Amnetic checkout; NeoForge retains the existing loader bootstrap, Iris adapter and nested dependencies.",
-  "neoForgeSha256": "8e3b398310ef116fb97751a42d62b0bda5263d46dd90d599a9fbf5309eb8d020",
-  "upstreamVersion": "1.0-SNAPSHOT+26.1.2",
-  "version": "1.0-SNAPSHOT-0b72718",
-  "sourceCommit": "0b727183ec2d18514cdeb0d4bdc7a2c2692890c5",
-  "minecraft": "26.1.2",
-  "fabricQuiltSha256": "e8e0899e80dd3547a569a89f1d424366845cc8b168471c6f71e5afd4811e30da",
-  "presetSafety": {
-    "patch": "tools/patch-amnetic-preset-safety.py",
-    "sourceFix": "docs/curseforge/amnetic-preset-safety.patch",
-    "artifacts": {
-      "amnetic-1.0-SNAPSHOT+26.1.2.jar": "a918b5d77cb21b5317a28a3286b3b4d96cb5750e8a08fb58f3064e2c60c5c6a4",
-      "amnetic-1.0-SNAPSHOT-0b72718.jar": "b99e368fb4a779541cac1f2202f622359455ae7fed369c4c8b7d5ca228621178",
-      "amnetic-1.0-SNAPSHOT-asterion.1.jar": "4a529f44f38260a0a17b78abfff11a9c078532a5d8638bdeaf7472fdb34e158b",
-      "amnetic-1.0-SNAPSHOT-asterion.2.jar": "388e8f6531bc64e9783c35c18850b15621da09cf742fbcfc2e9783341c5e3904",
-      "amnetic-1.0-SNAPSHOT.jar": "8b8d64650c0e31cce7361edc5fbf31555d9f0dc04aa4d4f4c6961b308a7441e2",
-      "amnetic-forge-1.0-SNAPSHOT+26.1.2-forge.jar": "727257004b3ed28ebad2ffdb97d0519f1e93428008730a009e5c4f2c55df0cb2",
-      "amnetic-forge-26.1.2.jar": "4ddd0e82784e36aecea9d28209b6921f26d2760c9a12671517be65d574d0d97f",
-      "amnetic-neoforge-1.0-SNAPSHOT-0b72718.jar": "83b1521db7fb726cdd7ec33c94f40d43fec4a3e57bf3af4d9e0bcc872bd25806",
-      "amnetic-neoforge-1.0-SNAPSHOT.jar": "4e414560ec3481d38bc9e27321c3ca1a2b05138ace37eb8ad6118e813dc4e0a7"
+  "upstream": "https://github.com/Meekiavelique/Amnetic",
+  "upstreamCommit": "50883bac26bd49a464105afa46ac6d1e09bda333",
+  "version": "1.0.0-asterion.10",
+  "artifacts": [
+    {
+      "file": "amnetic-1.0.0-asterion.10+26.1.2.jar",
+      "minecraft": "26.1.2",
+      "loader": "fabric",
+      "developmentMappings": false,
+      "sourceArtifact": "versions/26.1.2-fabric/build/libs/amnetic-1.0.0-asterion.10+26.1.2.jar",
+      "sourcePatch": null,
+      "upstreamSha256": "2f3d2d9b785954f9fbac2d5ce8588db277e2695fe17d2a7dbf6034fb092458fe",
+      "sha256": "2f3d2d9b785954f9fbac2d5ce8588db277e2695fe17d2a7dbf6034fb092458fe"
+    },
+    {
+      "file": "amnetic-forge-1.0.0-asterion.10+26.1.2.jar",
+      "minecraft": "26.1.2",
+      "loader": "forge",
+      "developmentMappings": false,
+      "sourceArtifact": "versions/26.1.2-forge/build/libs/amnetic-forge-1.0.0-asterion.10+26.1.2-forge.jar",
+      "sourcePatch": null,
+      "upstreamSha256": "ed053a113212c001e845f81d3615187c47f537937dd64e999c45df41ceb37074",
+      "sha256": "ed053a113212c001e845f81d3615187c47f537937dd64e999c45df41ceb37074"
+    },
+    {
+      "file": "amnetic-neoforge-1.0.0-asterion.10+26.1.2.jar",
+      "minecraft": "26.1.2",
+      "loader": "neoforge",
+      "developmentMappings": false,
+      "sourceArtifact": "neoforge/build/libs/amnetic-neoforge-1.0.0-asterion.10+26.1.2-neoforge.jar",
+      "sourcePatch": null,
+      "upstreamSha256": "486e5a0db37301bb4ef8b3bbe1c4f0a4ab40066ace445ad250e326abcae6da31",
+      "sha256": "486e5a0db37301bb4ef8b3bbe1c4f0a4ab40066ace445ad250e326abcae6da31"
     }
-  }
+  ],
+  "preparation": [
+    "Minecraft-specific resource-pack metadata for the extra Fabric/Quilt ports",
+    "Forge 26.2/26.3 uses Minecraft TinyFD and supported Mixin metadata",
+    "Native adapters and API isolation are applied by the Asterion build"
+  ],
+  "rebuild": "Apply ports/1.5/gradle/amnetic-26.2-hand-depth.patch, build source targets with -Pmod_version=1.0.0-asterion.10, then run ports/1.5/gradle/stage-amnetic-renderers.py CHECKOUT"
 }

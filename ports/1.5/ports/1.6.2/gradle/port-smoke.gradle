@@ -255,7 +255,8 @@ if (testPlatform in ['fabric', 'quilt']) {
             // vanilla libraries, then supply Quilt's loader and dependencies.
             def libraries = rootProject.project(":${minecraft_version}-fabric")
                     .tasks.named('runProductionPortSmokeClient').get().classpath.files.findAll {
-                !it.name.startsWith('fabric-loader-') && !it.name.toLowerCase().startsWith('mixinextras-')
+                !it.name.startsWith('fabric-loader-') && !it.name.startsWith('sponge-mixin-') &&
+                        !it.name.toLowerCase().startsWith('mixinextras-')
             }
             classpath.setFrom(libraries, configurations.quiltProductionLoader)
             mainClass.set('org.quiltmc.loader.impl.launch.knot.KnotClient')

@@ -1,0 +1,309 @@
+{
+  "checked": "2026-11-13",
+  "source": "https://api.modrinth.com/v2/project/{slug}/version",
+  "projects": {
+    "sodium": {
+      "modrinth": "AANobbMI",
+      "name": "Sodium",
+      "supportedPairs": [
+        "1.20.1/fabric",
+        "1.20.1/quilt",
+        "1.21.1/fabric",
+        "1.21.1/neoforge",
+        "1.21.11/fabric",
+        "1.21.11/neoforge",
+        "26.1.2/fabric",
+        "26.1.2/neoforge",
+        "26.2/fabric",
+        "26.2/neoforge",
+        "26.3/fabric",
+        "26.3/neoforge"
+      ],
+      "curseforge": 394468,
+      "curseforgeUrl": "https://www.curseforge.com/minecraft/mc-mods/sodium"
+    },
+    "embeddium": {
+      "modrinth": "sk9rgfiA",
+      "name": "Embeddium",
+      "supportedPairs": [
+        "1.20.1/fabric",
+        "1.20.1/forge",
+        "1.20.1/neoforge",
+        "1.21.1/neoforge"
+      ],
+      "curseforge": 908741,
+      "curseforgeUrl": "https://www.curseforge.com/minecraft/mc-mods/embeddium"
+    },
+    "iris": {
+      "modrinth": "YL57xq9U",
+      "name": "Iris Shaders",
+      "supportedPairs": [
+        "1.20.1/fabric",
+        "1.20.1/quilt",
+        "1.21.1/fabric",
+        "1.21.1/neoforge",
+        "1.21.1/quilt",
+        "1.21.11/fabric",
+        "1.21.11/neoforge",
+        "1.21.11/quilt",
+        "26.1.2/fabric",
+        "26.1.2/neoforge",
+        "26.2/fabric",
+        "26.2/neoforge",
+        "26.3/fabric",
+        "26.3/neoforge"
+      ],
+      "curseforge": 455508,
+      "curseforgeUrl": "https://www.curseforge.com/minecraft/mc-mods/irisshaders"
+    },
+    "oculus": {
+      "modrinth": "GchcoXML",
+      "name": "Oculus",
+      "supportedPairs": [
+        "1.20.1/forge",
+        "1.20.1/neoforge"
+      ],
+      "curseforge": 581495,
+      "curseforgeUrl": "https://www.curseforge.com/minecraft/mc-mods/oculus"
+    },
+    "modmenu": {
+      "modrinth": "mOgUt4GM",
+      "name": "Mod Menu",
+      "supportedPairs": [
+        "1.20.1/fabric",
+        "1.20.1/quilt",
+        "1.21.1/fabric",
+        "1.21.1/quilt",
+        "1.21.11/fabric",
+        "1.21.11/quilt",
+        "26.1.2/fabric",
+        "26.1.2/quilt",
+        "26.2/fabric",
+        "26.2/quilt",
+        "26.3/fabric",
+        "26.3/quilt"
+      ],
+      "curseforge": 308702,
+      "curseforgeUrl": "https://www.curseforge.com/minecraft/mc-mods/modmenu"
+    },
+    "jade": {
+      "modrinth": "nvQzSEkH",
+      "name": "Jade \ud83d\udd0d",
+      "supportedPairs": [
+        "1.20.1/fabric",
+        "1.20.1/forge",
+        "1.20.1/neoforge",
+        "1.20.1/quilt",
+        "1.21.1/fabric",
+        "1.21.1/neoforge",
+        "1.21.1/quilt",
+        "1.21.11/fabric",
+        "1.21.11/neoforge",
+        "1.21.11/quilt",
+        "26.1.2/fabric",
+        "26.1.2/neoforge",
+        "26.1.2/quilt",
+        "26.2/fabric",
+        "26.2/neoforge",
+        "26.2/quilt",
+        "26.3/fabric",
+        "26.3/neoforge",
+        "26.3/quilt"
+      ],
+      "curseforge": 324717,
+      "curseforgeUrl": "https://www.curseforge.com/minecraft/mc-mods/jade"
+    },
+    "jei": {
+      "modrinth": "u6dRKJwZ",
+      "name": "Just Enough Items (JEI)",
+      "supportedPairs": [
+        "1.20.1/fabric",
+        "1.20.1/forge",
+        "1.21.1/fabric",
+        "1.21.1/forge",
+        "1.21.1/neoforge",
+        "1.21.11/fabric",
+        "1.21.11/neoforge",
+        "26.1.2/fabric",
+        "26.1.2/neoforge",
+        "26.2/fabric",
+        "26.2/neoforge",
+        "26.3/fabric",
+        "26.3/neoforge"
+      ],
+      "curseforge": 238222,
+      "curseforgeUrl": "https://www.curseforge.com/minecraft/mc-mods/jei"
+    },
+    "rei": {
+      "modrinth": "nfn13YXA",
+      "name": "Roughly Enough Items (REI)",
+      "supportedPairs": [
+        "1.20.1/fabric",
+        "1.20.1/forge",
+        "1.21.1/fabric",
+        "1.21.1/neoforge",
+        "1.21.11/fabric",
+        "1.21.11/neoforge",
+        "26.1.2/fabric",
+        "26.1.2/neoforge",
+        "26.2/fabric",
+        "26.2/neoforge",
+        "26.3/fabric",
+        "26.3/neoforge"
+      ],
+      "curseforge": 310111,
+      "curseforgeUrl": "https://www.curseforge.com/minecraft/mc-mods/roughly-enough-items"
+    },
+    "xaeros-minimap": {
+      "modrinth": "1bokaNcj",
+      "name": "Xaero's Minimap",
+      "supportedPairs": [
+        "1.20.1/fabric",
+        "1.20.1/forge",
+        "1.20.1/quilt",
+        "1.21.1/fabric",
+        "1.21.1/forge",
+        "1.21.1/neoforge",
+        "1.21.1/quilt",
+        "1.21.11/fabric",
+        "1.21.11/forge",
+        "1.21.11/neoforge",
+        "1.21.11/quilt",
+        "26.1.2/fabric",
+        "26.1.2/forge",
+        "26.1.2/neoforge",
+        "26.1.2/quilt",
+        "26.2/fabric",
+        "26.2/forge",
+        "26.2/neoforge",
+        "26.2/quilt",
+        "26.3/fabric",
+        "26.3/forge",
+        "26.3/neoforge",
+        "26.3/quilt"
+      ],
+      "curseforge": 263420,
+      "curseforgeUrl": "https://www.curseforge.com/minecraft/mc-mods/xaeros-minimap"
+    },
+    "flashback": {
+      "modrinth": "4das1Fjq",
+      "name": "Flashback",
+      "supportedPairs": [
+        "1.21.1/fabric",
+        "1.21.11/fabric",
+        "26.1.2/fabric",
+        "26.2/fabric",
+        "26.3/fabric"
+      ]
+    },
+    "replaymod": {
+      "modrinth": "Nv2fQJo5",
+      "name": "ReplayMod",
+      "supportedPairs": [
+        "1.20.1/fabric",
+        "1.21.1/fabric",
+        "1.21.11/fabric",
+        "26.1.2/fabric",
+        "26.2/fabric",
+        "26.3/fabric"
+      ]
+    },
+    "sable": {
+      "modrinth": "T9PomCSv",
+      "name": "Sable",
+      "supportedPairs": [
+        "1.21.1/fabric",
+        "1.21.1/neoforge"
+      ],
+      "curseforge": 1312371,
+      "curseforgeUrl": "https://www.curseforge.com/minecraft/mc-mods/sable"
+    },
+    "sable-ragdolls": {
+      "modrinth": "I3mWDgfy",
+      "name": "Sable: Ragdolls",
+      "supportedPairs": [
+        "1.21.1/neoforge"
+      ],
+      "curseforge": 1572492,
+      "curseforgeUrl": "https://www.curseforge.com/minecraft/mc-mods/sable-ragdolls"
+    },
+    "c2me-fabric": {
+      "modrinth": "VSNURh3q",
+      "name": "Concurrent Chunk Management Engine (Fabric)",
+      "supportedPairs": [
+        "1.20.1/fabric",
+        "1.21.1/fabric",
+        "1.21.11/fabric",
+        "26.1.2/fabric",
+        "26.2/fabric",
+        "26.3/fabric"
+      ]
+    },
+    "starcatcher": {
+      "modrinth": "h2jXvxNR",
+      "name": "Starcatcher",
+      "supportedPairs": [
+        "1.20.1/forge",
+        "1.21.1/neoforge",
+        "26.1.2/neoforge",
+        "26.2/neoforge",
+        "26.3/neoforge"
+      ],
+      "curseforge": 1357603,
+      "curseforgeUrl": "https://www.curseforge.com/minecraft/mc-mods/starcatcher"
+    },
+    "geckolib": {
+      "modrinth": "8BmcQJ2H",
+      "name": "Geckolib",
+      "supportedPairs": [
+        "1.20.1/fabric",
+        "1.20.1/forge",
+        "1.20.1/neoforge",
+        "1.20.1/quilt",
+        "1.21.1/fabric",
+        "1.21.1/forge",
+        "1.21.1/neoforge",
+        "1.21.11/fabric",
+        "1.21.11/forge",
+        "1.21.11/neoforge",
+        "26.1.2/fabric",
+        "26.1.2/forge",
+        "26.1.2/neoforge",
+        "26.2/fabric",
+        "26.2/forge",
+        "26.2/neoforge",
+        "26.3/fabric",
+        "26.3/forge",
+        "26.3/neoforge"
+      ],
+      "curseforge": 388172,
+      "curseforgeUrl": "https://www.curseforge.com/minecraft/mc-mods/geckolib"
+    },
+    "fabric-api": {
+      "modrinth": "P7dR8mSH",
+      "name": "Fabric API",
+      "supportedPairs": [
+        "1.20.1/fabric",
+        "1.21.1/fabric",
+        "1.21.11/fabric",
+        "26.1.2/fabric",
+        "26.2/fabric",
+        "26.3/fabric"
+      ],
+      "curseforge": 306612,
+      "curseforgeUrl": "https://www.curseforge.com/minecraft/mc-mods/fabric-api"
+    },
+    "forgified-fabric-api": {
+      "modrinth": "Aqlf1Shp",
+      "name": "Forgified Fabric API",
+      "supportedPairs": [
+        "1.20.1/forge",
+        "1.21.1/neoforge",
+        "26.1.2/neoforge",
+        "26.2/neoforge"
+      ],
+      "curseforge": 889079,
+      "curseforgeUrl": "https://www.curseforge.com/minecraft/mc-mods/forgified-fabric-api"
+    }
+  }
+}

@@ -24,8 +24,7 @@ def nativeAmnetic = tasks.register('prepareNativeAmnetic') {
     def source = rootProject.file("libs/amnetic-neoforge-${rootProject.amnetic_version}.jar")
     def target = layout.buildDirectory.file("renderer/amnetic-neoforge-${rootProject.amnetic_version}.jar")
     inputs.file(source)
-    inputs.property("adapterRevision", 4)
-    inputs.file(rootProject.file("libs/amnetic-neoforge-1.0-SNAPSHOT.jar"))
+    inputs.property("adapterRevision", 5)
     outputs.file(target)
     doLast {
         target.get().asFile.parentFile.mkdirs()
@@ -53,13 +52,7 @@ def nativeAmnetic = tasks.register('prepareNativeAmnetic') {
                         out.closeEntry()
                     }
                 }
-                // The bundled sampler mixin still references this guarded API helper.
-                new java.util.zip.ZipFile(rootProject.file('libs/amnetic-neoforge-1.0-SNAPSHOT.jar')).withCloseable { previous ->
-                    def name='com/meekdev/amnetic/client/compat/IrisCompat.class'
-                    def restored=new java.util.zip.ZipEntry(name); restored.time=0; out.putNextEntry(restored)
-                    previous.getInputStream(previous.getEntry(name)).withCloseable { out.write(it.readAllBytes()) }
-                    out.closeEntry()
-                }
+                // Current upstream supplies IrisCompat alongside its sampler mixin.
                 def at = new java.util.zip.ZipEntry('META-INF/accesstransformer.cfg'); at.time=0; out.putNextEntry(at)
                 out.write('public net.minecraft.client.renderer.rendertype.RenderType create(Ljava/lang/String;Lnet/minecraft/client/renderer/rendertype/RenderSetup;)Lnet/minecraft/client/renderer/rendertype/RenderType;\n'.getBytes('UTF-8'))
                 out.closeEntry()

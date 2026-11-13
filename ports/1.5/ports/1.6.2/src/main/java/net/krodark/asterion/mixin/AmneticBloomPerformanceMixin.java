@@ -24,10 +24,16 @@ public abstract class AmneticBloomPerformanceMixin {
         if (!GBufferTargets.INSTANCE.isPopulated()) original.call(target);
     }
 
-    @WrapOperation(method = "render", at = @At(value = "INVOKE",
+    //? if >=26.2 {
+    @WrapOperation(method = "prefilterNative", at = @At(value = "INVOKE",
+            target = "Lcom/meekdev/amnetic/client/bloom/BloomSettings;threshold()F", ordinal = 1))
+    //? } else {
+    /*@WrapOperation(method = "render", at = @At(value = "INVOKE",
             target = "Lcom/meekdev/amnetic/client/bloom/BloomSettings;threshold()F"))
+    *///? }
     private float asterion$skipUnrequestedSceneCapture(BloomSettings settings, Operation<Float> original) {
-        // Avoid a scene color/depth copy and prefilter for ordinary bright terrain.
+        // Skip the scene prefilter for ordinary bright terrain. The native path
+        // keeps its threshold uniform unchanged and gates only the draw decision.
         // Explicit emitters and a populated emissive G-buffer retain their own paths.
         return AsterionEmissiveConfig.sceneBloomEnabled() ? original.call(settings) : 0.0F;
     }

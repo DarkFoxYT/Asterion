@@ -8,7 +8,7 @@ dependencies {
     include 'io.github.llamalad7:mixinextras-fabric:0.5.5'
 }
 
-def renderer = rootProject.file("libs/amnetic-1.0.0-asterion.9+${minecraft_version}.jar")
+def renderer = rootProject.file("libs/amnetic-1.0.0-asterion.10+${minecraft_version}.jar")
 def prepared = layout.buildDirectory.dir('integrated-amnetic/runtime')
 def compileTool = tasks.register('compileAmneticIntegrationTool', JavaCompile) {
     source = rootProject.file('build-tools/PrepareIntegratedAmnetic.java')

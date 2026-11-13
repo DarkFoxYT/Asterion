@@ -14,14 +14,19 @@ import java.util.Map;
 /** Layer captures are TextureTargets, outside Amnetic's framebuffer registry. */
 @Mixin(value = LayerSystem.class, remap = false)
 public abstract class AmneticLayerCleanupMixin {
-    @Shadow @Final private Map<RenderLayer, CaptureTarget> targets;
+    //? if <26.3 {
+    /*@Shadow @Final private Map<RenderLayer, CaptureTarget> targets;
+    *///? }
 
     @Inject(method = "dispose", at = @At("HEAD"))
     private void asterion$releaseLayerTargets(CallbackInfo callback) {
-        for (CaptureTarget capture : targets.values()) {
+        // The 26.3 native layer backend owns and closes its capture targets.
+        //? if <26.3 {
+        /*for (CaptureTarget capture : targets.values()) {
             if (capture.target() != null) capture.target().destroyBuffers();
         }
         targets.clear();
+        *///? }
         com.meekdev.amnetic.client.pipeline.internal.LayerRedirect.set(null);
     }
 }

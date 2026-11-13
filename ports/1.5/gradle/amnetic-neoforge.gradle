@@ -39,7 +39,7 @@ dependencies {
 }
 def nativeRenderer = tasks.register('amneticNativeJar', Jar) {
     from sourceSets.amneticNative.output
-    from(zipTree(rootProject.file('libs/amnetic-1.0.0-asterion.9+1.21.1-dev.jar'))) {
+    from(zipTree(rootProject.file('libs/amnetic-1.0.0-asterion.10+1.21.1-dev.jar'))) {
         exclude 'fabric.mod.json', 'META-INF/MANIFEST.MF'
     }
     // Keep platform-specific native paths intact. The Assimp Java API is a
@@ -47,7 +47,7 @@ def nativeRenderer = tasks.register('amneticNativeJar', Jar) {
     from({ configurations.amneticNativeBinaries.collect { zipTree(it) } }) {
         include '**/*.dll', '**/*.so', '**/*.dylib'
     }
-    archiveFileName = 'amnetic-1.0.0-asterion.9-neoforge+1.21.1.jar'
+    archiveFileName = 'amnetic-1.0.0-asterion.10-neoforge+1.21.1.jar'
     destinationDirectory = layout.buildDirectory.dir('renderer')
     preserveFileTimestamps = false
     reproducibleFileOrder = true

@@ -7,7 +7,8 @@ base {
 
 // A module identity is required by Loom's nested-JAR task. Include the content
 // digest so changing a supplied local renderer cannot reuse stale cached bytes.
-def rendererInput = rootProject.file("libs/amnetic-${project.amnetic_version}.jar")
+def rendererArtifact = project.name == '26.3-quilt' ? 'amnetic-quilt' : 'amnetic'
+def rendererInput = rootProject.file("libs/${rendererArtifact}-${project.amnetic_version}.jar")
 def rendererRevision = project.amnetic_version + '.' + java.util.HexFormat.of().formatHex(
         java.security.MessageDigest.getInstance('SHA-256').digest(rendererInput.bytes)).substring(0, 16)
 
@@ -99,16 +100,16 @@ dependencies {
     add(minecraft_version == "1.21.11" ? "modCompileOnly" : "compileOnly", "maven.modrinth:jade:${project.jade_version}")
 
     add(minecraft_version == "1.21.11" ? "modImplementation" : "implementation",
-            files(rootProject.file("libs/amnetic-${project.amnetic_version}.jar")))
-    include "asterion.renderer:amnetic:${rendererRevision}"
+            files(rendererInput))
+    include "asterion.renderer:${rendererArtifact}:${rendererRevision}"
 
     // Amnetic keeps its editor optional for production, but an IDE client should
     // have the ImGui host available so the Right Shift editor shortcut works.
     // runtimeOnly deliberately keeps ImGuiMC out of Asterion's distributable jar.
 
 
-    implementation "asterion.bundled:bb4j:0.0.0-c2242d5"
-    include "asterion.bundled:bb4j:0.0.0-c2242d5"
+    // The current renderer includes its matching BB4J classes. A second,
+    // older copy could override the upstream model UV fixes at runtime.
 
     runtimeOnly "org.lwjgl:lwjgl-assimp:${minecraft_version == '1.21.11' ? '3.3.3' : minecraft_version == '26.3' ? '3.4.3' : '3.4.1'}:natives-linux-arm64"
     include "org.lwjgl:lwjgl-assimp:${minecraft_version == '1.21.11' ? '3.3.3' : minecraft_version == '26.3' ? '3.4.3' : '3.4.1'}:natives-linux-arm64"

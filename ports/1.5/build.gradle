@@ -90,8 +90,8 @@ repositories {
 }
 
 dependencies {
-    modImplementation files(rootProject.file("libs/amnetic-1.0.0-asterion.9+${minecraft_version}.jar"))
-    if (!asterionIntegratedAmnetic) include "asterion.local:amnetic:1.0.0-asterion.9+${minecraft_version}"
+    modImplementation files(rootProject.file("libs/amnetic-1.0.0-asterion.10+${minecraft_version}.jar"))
+    if (!asterionIntegratedAmnetic) include "asterion.local:amnetic:1.0.0-asterion.10+${minecraft_version}"
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings loom.officialMojangMappings()
     modImplementation("net.fabricmc:fabric-loader:${project.loader_version}") {

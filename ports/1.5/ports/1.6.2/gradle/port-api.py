@@ -74,8 +74,6 @@ if mc == '26.2':
         if path.name == 'GeckoAnimationCacheMixin.java':
             text = re.sub(r'writeToTexture\(texture, cached,\s*0, 0, 0, 0, cached.getWidth\(\), cached.getHeight\(\), 0, 0\)',
                     'writeToTexture(texture, cached)', text)
-        if path.name == 'AmneticBloomPerformanceMixin.java':
-            text = text.replace('@WrapOperation(method = "render",', '@WrapOperation(method = {"render", "renderNative"},')
         if path.name == 'RagdollItemInHandRendererMixin.java':
             text = text.replace('"renderHandsWithItems"', '"submitHandsWithItems"')
             text = re.sub(r'private void asterion\$hideHands\([^{}]+\) \{',

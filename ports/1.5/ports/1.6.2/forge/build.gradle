@@ -146,6 +146,7 @@ def compatibleAmneticJar = tasks.register('compatibleAmneticJar', Zip) {
         if (minecraft_version == '26.2') exclude 'com/meekdev/amnetic/Amnetic.class', 'com/meekdev/amnetic/ForgeClientEvents*.class'
         if (minecraft_version == '26.3') exclude 'META-INF/jarjar/metadata.json', 'META-INF/jarjar/lwjgl-tinyfd-*.jar', '**mixins.json',
                 'com/meekdev/amnetic/client/post/internal/PostPipeline*.class',
+                'com/meekdev/amnetic/client/post/internal/NativePostPipeline*.class',
                 'com/meekdev/amnetic/client/render/NativeScreenProgram*.class'
     }
     from(layout.buildDirectory.dir('amnetic-pack'))

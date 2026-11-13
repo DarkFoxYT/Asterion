@@ -129,9 +129,13 @@ def verify(path, mc, loader):
             client = jar.read('net/krodark/asterion/client/AsterionClient.class')
             # Vanilla enum fields are remapped in production Fabric archives.
             assert b'BlockRenderLayerMap' in client and b'putBlocks' in client and b'MAZESTEEL_CHAIN' in client, 'Transparent terrain layer registration missing'
-        if mc == '26.3' and loader in ('forge', 'neoforge'):
+        if mc in ('26.2', '26.3'):
             bloom = jar.read('net/krodark/asterion/mixin/AmneticBloomPerformanceMixin.class')
-            assert b'asterion$nativeBloomPolicy' in bloom and b'hasEmissive' in bloom and b'renderNative' in bloom, 'Native bloom fallback policy missing'
+            # Current Amnetic shares the native prefilter across all loaders.
+            # Binding smoke checks validate the threshold call and ordinal.
+            assert all(symbol in bloom for symbol in (b'prefilterNative', b'sceneBloomEnabled',
+                    b'asterion$skipUnrequestedSceneCapture', b'asterion$skipUnusedSceneColor',
+                    b'isPopulated', b'externalShadersActive')), 'Native bloom policy missing'
         nested = nested_paths(jar, loader)
         assert len(nested) == len(set(nested)), 'Duplicate bundled dependency declarations'
         renderer = [n for n in nested if '/amnetic' in n]
@@ -167,9 +171,13 @@ def verify(path, mc, loader):
                     assert renderer_meta['version'].endswith('+' + mc), 'Wrong renderer version'
                 else:
                     renderer_meta = tomllib.loads(dependency.read('META-INF/mods.toml' if loader == 'forge' else 'META-INF/neoforge.mods.toml').decode())
-                    assert next(m for m in renderer_meta['mods'] if m['modId'] == 'amnetic')['version'].endswith('+' + mc)
+                    renderer_version = next(m for m in renderer_meta['mods'] if m['modId'] == 'amnetic')['version']
+                    assert renderer_version.endswith(('+' + mc, '+' + mc + '-' + loader))
                 effect_io = dependency.read('com/meekdev/amnetic/client/particle/editor/EffectIO.class')
-                assert b'SafePresetIO' in effect_io and b'validateName' in effect_io, 'Preset safety fix missing'
+                helper = dependency.read('com/meekdev/amnetic/client/particle/editor/EffectPresetFiles.class')
+                assert all(marker in helper for marker in (b'NOFOLLOW_LINKS', b'toRealPath', b'validName', b'MAX_BYTES')), 'Preset path protections missing'
+                assert ((b'SafePresetIO' in effect_io and b'validateName' in effect_io)
+                        or b'com/meekdev/amnetic/client/particle/editor/EffectPresetFiles' in effect_io), 'Preset safety fix missing'
                 mixins(dependency)
                 for name in dependency.namelist():
                     if name.endswith('.class'):
