@@ -22,10 +22,15 @@ public abstract class HeavyWaterStateDefinitionMixin {
     @Inject(method = "create", at = @At("HEAD"))
     private void asterion$waterLevels(Function<?, ?> defaultState, StateDefinition.Factory<?, ?> factory,
                                      CallbackInfoReturnable<?> result) {
+        // Third-party blocks can precompute shapes keyed by their original states.
+        String blockPackage = owner.getClass().getPackageName();
+        if (!blockPackage.startsWith("net.minecraft.") && !blockPackage.startsWith("net.krodark.asterion.")) return;
+
         if (owner instanceof net.krodark.asterion.block.WaterloggedDecoration
                 || owner instanceof net.krodark.asterion.block.HeavyWaterRedstone)
             properties.put(BlockStateProperties.WATERLOGGED.getName(), BlockStateProperties.WATERLOGGED);
-        if (owner instanceof SimpleWaterloggedBlock && properties.containsValue(BlockStateProperties.WATERLOGGED))
+        if (owner instanceof SimpleWaterloggedBlock
+                && properties.containsValue(BlockStateProperties.WATERLOGGED))
             properties.put(HeavyWaterlogging.LEVEL.getName(), HeavyWaterlogging.LEVEL);
     }
 }

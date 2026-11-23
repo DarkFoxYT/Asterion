@@ -1,0 +1,5 @@
+Asterion 1.7.3
+
+- Fixed a server startup crash with Blockus caused by extra heavy-water block states.
+- Paused Asterion's held-item lighting while external shaders are active so the shader pack can handle torch lighting.
+- Added Better Combat profiles for the forged sword and celestial bronze sword.

@@ -2,6 +2,7 @@ package net.krodark.asterion.client.light;
 
 import net.krodark.asterion.Asterion;
 import net.krodark.asterion.AsterionConfig;
+import net.krodark.asterion.port.client.ShaderCompatibility;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HashMap;
@@ -47,7 +48,8 @@ public final class HeldItemDynamicLights {
 
     public static void tick(Minecraft client) {
         AsterionConfig config = AsterionConfig.INSTANCE;
-        if (!config.dynamicLightsEnabled || client.level == null || client.player == null) {
+        if (!config.dynamicLightsEnabled || ShaderCompatibility.externalShadersActive()
+                || client.level == null || client.player == null) {
             clear();
             return;
         }
@@ -124,7 +126,11 @@ public final class HeldItemDynamicLights {
 
     public static void renderFrame(Minecraft client, float partialTick) {
         AsterionConfig config = AsterionConfig.INSTANCE;
-        if (!config.dynamicLightsEnabled || client.level == null || client.player == null) return;
+        if (!config.dynamicLightsEnabled || ShaderCompatibility.externalShadersActive()
+                || client.level == null || client.player == null) {
+            if (!ACTIVE_LIGHTS.isEmpty()) clear();
+            return;
+        }
         long now = System.nanoTime();
         int quality = Math.min(config.dynamicLightQuality,
                 net.krodark.asterion.client.PerformanceGovernor.quality());
