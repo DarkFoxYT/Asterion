@@ -27,7 +27,7 @@ public abstract class HeavyWaterBlockStateMixin {
         asterion$heavyWater = HeavyWaterlogging.amount((BlockState)(Object)this);
         var state = (BlockState)(Object)this;
         asterion$decorationWater = state.getBlock() instanceof net.krodark.asterion.block.WaterloggedDecoration
-                && state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED);
+                && HeavyWaterlogging.isWaterlogged(state);
     }
     @ModifyReturnValue(method = "getFluidState", at = @At("RETURN"))
     private FluidState asterion$loggedFluid(FluidState original) {

@@ -1,0 +1,5 @@
+Asterion 1.7.4
+
+- Fixed startup crashes when modded saplings, flowers, or torches lack a waterlogged block state ([GitHub #10](https://github.com/DarkFoxYT/Asterion/issues/10)).
+- Fixed the same startup crash with The Aether II's blueberry bush stems.
+- Guarded bucket interactions with blocks that don't support waterlogging.

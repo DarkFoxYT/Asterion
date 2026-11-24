@@ -24,7 +24,11 @@ public final class HeavyWaterlogging {
     public static boolean isHeavy(Fluid fluid) {
         return fluid instanceof HeavyWaterFluid || fluid instanceof TidalWaterFluid;
     }
-    public static boolean supports(BlockState state) { return state.hasProperty(LEVEL); }
+    public static boolean supports(BlockState state) { return state.hasProperty(LEVEL) && state.hasProperty(BlockStateProperties.WATERLOGGED); }
+    public static boolean isWaterlogged(BlockState state) {
+        return state.hasProperty(BlockStateProperties.WATERLOGGED)
+                && state.getValue(BlockStateProperties.WATERLOGGED);
+    }
     public static int amount(BlockState state) {
         return supports(state) && state.getValue(BlockStateProperties.WATERLOGGED) ? state.getValue(LEVEL) : 0;
     }

@@ -17,7 +17,8 @@ public abstract class BlockItemMixin {
         BlockState state = result.getReturnValue();
         if (state == null || !net.krodark.asterion.fluid.HeavyWaterlogging.supports(state)) return;
         var fluid = context.getLevel().getFluidState(context.getClickedPos());
-        if (state.getBlock() instanceof net.krodark.asterion.block.WaterloggedDecoration) {
+        if (state.getBlock() instanceof net.krodark.asterion.block.WaterloggedDecoration
+                && net.krodark.asterion.fluid.HeavyWaterlogging.supports(state)) {
             result.setReturnValue(net.krodark.asterion.block.WaterloggedDecoration.retain(state, fluid));
             return;
         }
