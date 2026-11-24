@@ -1,8 +1,9 @@
 def serverSmokeSources = tasks.register('generateServerSmokeSources', Sync) {
     from(rootProject.file('../../neoforge/src/smoke/java')) {
         include '**/NeoServerSmoke.java'
-        filter { line -> line.replace('.getTags()', '.entityTags()') }
+        if (minecraft_version != '1.21.11') filter { line -> line.replace('.getTags()', '.entityTags()') }
     }
+    inputs.property('minecraftVersion', minecraft_version)
     into layout.buildDirectory.dir('generated/server-smoke')
 }
 sourceSets {
