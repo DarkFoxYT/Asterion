@@ -11,6 +11,7 @@ import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.BucketPickup;
 import net.minecraft.world.level.block.SimpleWaterloggedBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
@@ -21,6 +22,8 @@ public abstract class HeavyWaterPickupMixin {
             "Lnet/minecraft/world/level/block/BucketPickup;pickupBlock(Lnet/minecraft/world/level/LevelAccessor;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;)Lnet/minecraft/world/item/ItemStack;"))
     private ItemStack asterion$pickUpHeavyWater(BucketPickup pickup, LevelAccessor level, BlockPos pos,
                                                BlockState state, Operation<ItemStack> original) {
+        if (pickup instanceof net.krodark.asterion.block.WaterloggedDecoration
+                && !state.hasProperty(BlockStateProperties.WATERLOGGED)) return ItemStack.EMPTY;
         int amount = HeavyWaterlogging.amount(state);
         if (!(pickup instanceof SimpleWaterloggedBlock) || amount == 0)
             return original.call(pickup, level, pos, state);
