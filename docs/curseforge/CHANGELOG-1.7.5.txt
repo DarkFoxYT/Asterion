@@ -1,0 +1,3 @@
+Asterion 1.7.5
+
+- Updated the bundled GeckoLib on Minecraft 1.20.1 and 1.21.1 so Unbound 0.17.0 can load alongside Asterion.
